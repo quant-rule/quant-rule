@@ -7,7 +7,7 @@
 
 ## Intent
 
-An agent that finishes a task and leaves the human guessing what to do next has not finished. The intended outcome is a documented rule requiring every agent response to close with a single bold line naming the action required from the human, or stating that no action is needed.
+An agent that finishes a task and leaves the human guessing what to do next has not finished. The intended outcome is a documented rule requiring every final response to the human to close with a single bold line naming the action required from the human, or stating that no action is needed.
 
 Affected users: the human developer reading agent output, and the agents producing it.
 
@@ -36,15 +36,15 @@ Included:
 
 Explicit non-goals:
 
-- No change to the fourteen numbered sections, their numbering, or their content beyond the three changes listed above.
+- No change to the fourteen numbered sections, their numbering, or their content beyond the three `AGENTS.md` edits named above.
 - No change to the issue, commit, or pull request formats in section 8.
-- No change to the orchestration protocol, the role model, or the approval gates.
+- No change to the orchestration protocol beyond the single cross-reference in Stage 5, and none to the role model or the approval gates.
 - No Rust source, no `Cargo.toml`, no test suite, no CI configuration.
 - No change to any other repository.
 
 ## Assumptions and uncertainty
 
-- **The line is required at the end of the final response to the human, in every response to the human.** It is not required of intermediate messages inside a longer session, of a tool's own output, or of an artifact written into the repository. A response that asks the human a blocking question is still a response to the human, so the rule applies to it: the question is the action, and the closing line states what the human needs to decide.
+- **The line is required at the end of every final response to the human.** It is not required of intermediate messages inside a longer session, of a tool's own output, or of an artifact written into the repository. A response that asks the human a blocking question is still a final response to the human, so the rule applies to it: the question is the action, and the closing line states what the human needs to decide.
 - **"One phrase" means one short imperative or noun phrase, not one sentence.** A sentence carries a subject and a predicate and can hide a second instruction. The distinction is what keeps the line scannable and makes it safe to parse.
 - **Bold is required.** The rule states the intent — that the line is visually distinct from the body of the response — so an agent does not get the form wrong, but the form itself is bold text and not a heading.
 - **The "no action" case is mandatory.** A rule that only fires when something is pending forces an agent to invent a pending action. An agent that has genuinely finished must be able to say so, and must not manufacture a task for the human to look busy.
@@ -85,7 +85,7 @@ Observable conditions for completion:
 | 6 | Verification pass: read the full diff, check numbering and cross-references, confirm the rule is unambiguous | Test Engineer, Code Reviewer | all changed files | 4, 5 |
 | 7 | Mark this plan `Verified` with observed evidence | Orchestrator | this plan | 6 |
 | 8 | Commit, push, open pull request | Orchestrator | git state, PR | 7 |
-| 9 | Review the pull request and merge it | Code Reviewer, Orchestrator | PR | 8 |
+| 9 | Review the pull request, then merge it with the human's authorization | Code Reviewer, Orchestrator | PR | 8 |
 | 10 | Move issue #3 to `Done` on the board | Orchestrator | GitHub project board | 9 |
 
 ## Verification
@@ -94,10 +94,10 @@ Observable conditions for completion:
 
 Commands actually executed on 2026-10-20, with observed results:
 
-- `git log --oneline -1 main` and `git log --oneline -1 origin/main` — the local `main` was stale at `5d24888` while `origin/main` was at `6867f8d` after the merge of pull request #2. The task branch was created from the local `main`, and `git merge-base --is-ancestor origin/main HEAD` confirmed it did not contain `origin/main`, so it was reset onto `origin/main`. The end state is verifiable: `git rev-parse HEAD` equals `6867f8d`, `git diff --stat origin/main HEAD` is empty, and `git merge-base --is-ancestor origin/main HEAD` exits zero. The branch therefore starts from the merged state.
+- `git log --oneline -1 main` and `git log --oneline -1 origin/main` — the local `main` was stale at `5d24888` while `origin/main` was at `6867f8d` after the merge of pull request #2. The task branch was created from the local `main`, and `git merge-base --is-ancestor origin/main HEAD` confirmed it did not contain `origin/main`, so it was reset onto `origin/main`. Before the change, `git rev-parse HEAD` was `6867f8d` and `git diff --stat origin/main HEAD` was empty. On the branch, `git merge-base --is-ancestor origin/main HEAD` exits zero and `git diff --stat origin/main..HEAD` lists only the three files of this change.
 - `grep -n "^## " AGENTS.md` — the fourteen top-level headings are unchanged from the merged state, and the new rule is added as a `###` subsection, so no renumbering occurs.
 - `grep -n "section [0-9]*" AGENTS.md` — every cross-reference still resolves to an existing section.
-- `git diff --cached --stat` over the change — the change touches `AGENTS.md` and adds the two new documentation files, three files in total.
+- `git diff --cached --stat` over the change — the change modifies `AGENTS.md` and the AI transparency log and adds the execution plan, three files in total.
 - `grep -c "^## " AGENTS.md` — 14 top-level headings, unchanged from the merged state, so no renumbering occurred.
 - Every `section N` cross-reference in `AGENTS.md` was checked against the headings: sections 2, 3, 4, 6, 8, 9, 11, 12, and 14 each resolve to exactly one heading.
 - The plan was checked against the ten required contents in `AGENTS.md` section 11: all ten are present by name, plus the Verification evidence subsection.

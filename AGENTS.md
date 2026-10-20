@@ -174,7 +174,7 @@ Every final response to the human ends with a single closing line stating what i
 
 - The closing line is the last thing in the response. Nothing follows it.
 - The line is **bold**, so it is visually distinct from the body of the response.
-- The line is **at most one phrase long**. A phrase, not a sentence: a sentence can carry a second instruction inside it. Write `**Review PR #4**`, not `**The next step is for you to review PR #4 before I continue.**`
+- The line is **at most one phrase long**. A phrase, not a sentence: a sentence carries its own clause and can hide a second instruction inside it. Write `**Review PR #4**`, not `**Please review PR #4 and then confirm the board status before I move on.**`
 - The line states either the action required from the human, or that none is required.
 - When the work is complete and nothing is needed, the line says so: `**No action**`. Do not invent a pending action to fill the line.
 - When several actions are needed, name the single next one. The rest belong in the body of the response.
