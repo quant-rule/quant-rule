@@ -2,7 +2,7 @@
 
 - Issue: [#1](https://github.com/quant-rule/quant-rule/issues/1) — docs: establish AI agent guidelines
 - Branch: `docs/1-establish-ai-agent-guidelines`
-- Status: Approved — verification evidence recorded; the commit, push, pull request, and final board transition remain pending.
+- Status: Verified
 - Date: 2026-10-20
 
 ## Intent
@@ -82,7 +82,7 @@ Observable conditions for completion:
 - The grammar and spelling defects listed under current state are corrected.
 - Rust is named as the implementation language, and every `cargo` command named in the document exists in the installed toolchain.
 - Every path referenced by `AGENTS.md` either exists in the repository or is explicitly marked as a future location.
-- The issue status lifecycle is documented in `AGENTS.md` section 9, and issue #1 is in `In Progress` on the board while the work is in flight.
+- The issue status lifecycle is documented in `AGENTS.md` section 9, and issue #1 moved from `Todo` to `In Progress` on the board before the first working-tree change.
 - `docs/2026-10-20/ai-transparency-log.md` exists and records actual usage for this change.
 - `docs/2026-10-20/exec-plans/1-establish-ai-agent-guidelines.md` exists and is marked `Verified` once evidence is recorded.
 - Issue #1 body follows the `Goal` / `Scope` / `Done when` format and carries the `documentation` label.
@@ -110,7 +110,7 @@ Observable conditions for completion:
 
 Commands actually executed on 2026-10-20, with observed results:
 
-- `git log --all --oneline` — one commit, `5d24888 chore: initialize QuantRule`. The draft `AGENTS.md` was never committed, so the removed text was never part of the local history.
+- `git log --all --oneline` — before this change the history held one commit, `5d24888 chore: initialize QuantRule`. The draft `AGENTS.md` was never committed, so the removed text was never part of the local history.
 - `git log --all -p | grep -i -E "<eliminated-term-list>"` — no matches. The placeholder stands for the actual term list, substituted at execution time.
 - `git cat-file --batch-all-objects` followed by a per-blob content scan — no blob in the object store contains the eliminated text. Edits made during this change leave superseded blobs behind as unreachable objects, so a garbage collection was run to remove them; `git fsck --unreachable --dangling` afterwards reports nothing, and a repeat of the per-blob scan returns no matches.
 - `git reflog expire --expire=now --all` followed by `git gc --prune=now` — removed the superseded pre-rewrite blobs of the plan and the log, which had been staged but never committed and were therefore unreachable.
@@ -118,8 +118,12 @@ Commands actually executed on 2026-10-20, with observed results:
 - `grep -n "^## " AGENTS.md` — exactly fourteen top-level headings, numbered 1 through 14 in order, no gaps and no duplicates.
 - `cargo --version`, `cargo fmt --version`, `cargo clippy --version`, `rustdoc --version` — returned `cargo 1.99.0`, `rustfmt 1.10.0-stable`, `clippy 0.1.99`, `rustdoc 1.99.0`. `cargo test --help` and `cargo doc --help` were also run and both subcommands are present. This confirms only that the commands named in `AGENTS.md` exist in the installed toolchain. It is **not** evidence that a build, test, lint, or doc run passes: the repository contains no Rust workspace, so no such command was or could be run against it.
 - `gh project item-list` against the organization project — the `Status` field options are `Todo`, `In Progress`, and `Done`; issue #1 was observed in `Todo` and then moved to `In Progress`.
-- `gh api repos/quant-rule/quant-rule/issues/1` — body is 16 lines in the prescribed format, labels are `["documentation"]`.
+- `gh api repos/quant-rule/quant-rule/issues/1` — body follows the prescribed `Goal` / `Scope` / `Done when` format, labels are `["documentation"]`.
+- `git push -u origin docs/1-establish-ai-agent-guidelines` — the branch was created on the remote.
+- `gh pr create` — pull request #2 opened against `main`: <https://github.com/quant-rule/quant-rule/pull/2>.
 - The complete diff was reviewed line by line before committing.
+
+Acceptance criteria were evaluated against the evidence above. All are met. Two are recorded as limits rather than passes: the file length against the "concise" criterion (accepted, with the reversal path recorded under Risks and recovery), and the absence of any build, test, lint, or doc result, which is a property of the repository rather than an unmet criterion.
 
 Limitations, stated explicitly:
 
