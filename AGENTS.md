@@ -146,9 +146,9 @@ A pull request must include:
 
 Run the relevant checks before proposing a pull request. Review the complete diff for unrelated changes, generated files, secrets, and accidental modifications.
 
-## 8. Issue, Commit and Pull Request Text
+## 8. Issue, Commit, Pull Request and Response Text
 
-Keep every issue, commit message, and pull request brief, human-readable and in the same format every time.
+Keep every issue, commit message, pull request, and response to the human brief, human-readable and in the same format every time.
 
 ### Issue format
 
@@ -167,6 +167,21 @@ Conventional Commit subject; body of at most five short lines saying what change
 ### Pull request format
 
 Summary (two or three sentences), `Closes #issue`, Changes (short bullets), Verification (short table or bullets with observed results), Risks (or "None"). Do not restate the issue, do not pad with prose. State the claim type in one line.
+
+### Response format
+
+Every final response to the human ends with a single closing line stating what is required from the human. This applies whether the response reports completed work, a blocker, or a question for the human to decide. It does not apply to intermediate messages inside a longer session.
+
+- The closing line is the last thing in the response. Nothing follows it.
+- The line is **bold**, so it is visually distinct from the body of the response.
+- The line is **at most one phrase long**. A phrase, not a sentence: a sentence can carry a second instruction inside it. Write `**Review PR #4**`, not `**The next step is for you to review PR #4 before I continue.**`
+- The line states either the action required from the human, or that none is required.
+- When the work is complete and nothing is needed, the line says so: `**No action**`. Do not invent a pending action to fill the line.
+- When several actions are needed, name the single next one. The rest belong in the body of the response.
+- When the response is a blocking question, the question itself is the action, and the line states what the human needs to decide.
+- This rule governs the agent's own response to the human. The formats above govern artifacts written into the repository. Both apply to the same piece of work.
+
+Apply this rule to the final response of every task, including a task that ends with nothing to do.
 
 ## 9. Git Approval Gates
 
@@ -508,6 +523,8 @@ Before reporting completion:
 - Update `docs/<YYYY-MM-DD>/ai-transparency-log.md` for material AI contributions.
 - Move the issue to `Done` on the project board once the pull request is open (section 9).
 - Report changed files, tests, results, limitations, and any decisions still required.
+
+The report itself follows the response format in section 8.
 
 Stop without beginning an unrequested subsequent task.
 
