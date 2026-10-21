@@ -2,7 +2,7 @@
 
 - Issue: [#15](https://github.com/quant-rule/quant-rule/issues/15) — docs: make issues and pull requests visible on the board
 - Branch: `docs/15-board-issue-and-pr-visibility`
-- Status: Approved
+- Status: Verified
 - Date: 2026-10-21 (UTC)
 
 ## Intent
@@ -132,7 +132,10 @@ Commands actually executed on 2026-10-21 UTC, with observed results:
 - The plan is checked against the ten required contents in `AGENTS.md` section 11, and the transparency log entry against the four required items in section 6.
 - The complete diff was reviewed line by line before staging.
 
-Acceptance criteria are evaluated against the evidence above. All are met except the one that depends on the pull request existing, which is satisfied when the pull request is opened. This plan is marked `Approved` rather than `Verified` at that point, because that criterion is not yet met; the status changes to `Verified` in the follow-up commit that records the pull request, following the precedent set by the earlier entries in this repository.
+Acceptance criteria are evaluated against the evidence above. All are met, including the criterion that depends on the pull request existing, which is satisfied by pull request #16. The status of this plan was `Approved` in the commit that carried the change, because that criterion was not yet met at that point; it is changed to `Verified` in the follow-up commit that records the commit, the push, and the pull request, following the precedent set by the earlier entries in this repository. The merge itself is not part of the criteria and remains with the human.
+
+- The change was committed as `adb66c4` ("docs: make issues and pull requests visible on the board"), pushed to `origin/docs/15-board-issue-and-pr-visibility`, and opened as pull request #16 against `main`, closing issue #15. `git ls-remote --heads origin docs/15-board-issue-and-pr-visibility` returns `adb66c483a7fb609f8e8a72203f560a9f9a39462`, and `gh pr view 16` reports the pull request as OPEN against `main`.
+- GitHub's automation added pull request #16 to the board as `PVTI_lADOFJhfMs4Bn-OgzhCRygI`, and it arrived with no `Item type` and no `State`, which is the defect `AGENTS.md` section 9 now names. Two `gh project item-edit` calls set `Item type` = `Pull request` and `State` = `Open`, the pull request being open and not yet merged. A read-back over all sixteen items reports zero mismatches between an item's kind, its GitHub state, and its two field values.
 
 Limitations, stated explicitly:
 
