@@ -3,7 +3,7 @@
 - Issue: [#1](https://github.com/quant-rule/quant-rule/issues/1) — docs: establish AI agent guidelines
 - Branch: `docs/1-establish-ai-agent-guidelines`
 - Status: Verified
-- Date: 2026-10-20
+- Date: 2026-10-20 (UTC)
 
 ## Intent
 
@@ -18,7 +18,7 @@ Evidence gathered on 2026-10-20, branch `main` at commit `5d24888`:
 - Repository `quant-rule/quant-rule`, public, default branch `main`.
 - History contains one commit, `chore: initialize QuantRule`, which added `README.md` (3 lines).
 - `AGENTS.md` exists on disk as an untracked file, 383 lines, and has never been committed or pushed.
-- `docs/` exists and is empty. No `docs/<date>/` directory has ever been created.
+- `docs/` exists and is empty. No `docs/<kind>/<date>/` directory has ever been created.
 - No Rust source, no `Cargo.toml`, no `tests/`, no `.github/` workflows, no `.gitignore`.
 - Installed toolchain: `cargo 1.99.0`, `rustc 1.99.0`, `rustfmt 1.10.0`, `clippy 0.1.99`, `rustdoc 1.99.0` (stable `x86_64-unknown-linux-gnu`).
 - `gh` authenticated as `zantgo` with `repo` and `admin:org` scopes. No repository rulesets, milestones, or PR templates exist.
@@ -83,8 +83,8 @@ Observable conditions for completion:
 - Rust is named as the implementation language, and every `cargo` command named in the document exists in the installed toolchain.
 - Every path referenced by `AGENTS.md` either exists in the repository or is explicitly marked as a future location.
 - The issue status lifecycle is documented in `AGENTS.md` section 9, and issue #1 moved from `Todo` to `In Progress` on the board before the first working-tree change.
-- `docs/2026-10-20/ai-transparency-log.md` exists and records actual usage for this change.
-- `docs/2026-10-20/exec-plans/1-establish-ai-agent-guidelines.md` exists and is marked `Verified` once evidence is recorded.
+- `docs/ai-transparency-log/2026-10-20/1-establish-ai-agent-guidelines.md` exists and records actual usage for this change.
+- `docs/execution-plans/2026-10-20/1-establish-ai-agent-guidelines.md` exists and is marked `Verified` once evidence is recorded.
 - Issue #1 body follows the `Goal` / `Scope` / `Done when` format and carries the `documentation` label.
 - A pull request exists against `main` that closes #1, lists the changes, states the verification actually performed, and states the risks.
 - No commit, branch, tag, or file in the local or remote repository contains the eliminated text, in the working tree or in history.
@@ -95,9 +95,9 @@ Observable conditions for completion:
 |---|---|---|---|---|
 | 1 | Create task branch from `main` | Implementation | git state | — |
 | 2 | Move issue #1 to `In Progress` on the board | Orchestrator | GitHub project board | 1 |
-| 3 | Write this execution plan, mark `Approved` | Orchestrator | `docs/2026-10-20/exec-plans/1-establish-ai-agent-guidelines.md` | 1 |
+| 3 | Write this execution plan, mark `Approved` | Orchestrator | `docs/execution-plans/2026-10-20/1-establish-ai-agent-guidelines.md` | 1 |
 | 4 | Rewrite `AGENTS.md`: restore sections 1 through 12, renumber, remove irrelevant text, correct grammar, add the issue status lifecycle | Implementation | `AGENTS.md` | 3 |
-| 5 | Write the AI transparency log | Orchestrator | `docs/2026-10-20/ai-transparency-log.md` | 3 |
+| 5 | Write the AI transparency log | Orchestrator | `docs/ai-transparency-log/2026-10-20/1-establish-ai-agent-guidelines.md` | 3 |
 | 6 | Reformat issue #1 and apply the label | Orchestrator | GitHub issue #1 | 4 |
 | 7 | Verification pass: read the full diff, cross-check every referenced path and command, scan the repository and history for eliminated text | Test Engineer, Code Reviewer | all changed files | 4, 5, 6 |
 | 8 | Mark this plan `Verified` with observed evidence | Orchestrator | this plan | 7 |

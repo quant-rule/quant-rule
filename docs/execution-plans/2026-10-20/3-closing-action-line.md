@@ -3,7 +3,7 @@
 - Issue: [#3](https://github.com/quant-rule/quant-rule/issues/3) — docs: require a closing action line in agent responses
 - Branch: `docs/3-closing-action-line`
 - Status: Verified
-- Date: 2026-10-20
+- Date: 2026-10-20 (UTC)
 
 ## Intent
 
@@ -69,8 +69,8 @@ Observable conditions for completion:
 - The rule explicitly covers the case where the work is complete and nothing is required of the human.
 - The rule states that the agent applies it to its own final response.
 - The existing fourteen sections and their numbering are unchanged, and every cross-reference still resolves.
-- `docs/2026-10-20/ai-transparency-log.md` records this change.
-- `docs/2026-10-20/exec-plans/3-closing-action-line.md` exists and is marked `Verified` once evidence is recorded.
+- `docs/ai-transparency-log/2026-10-20/3-closing-action-line.md` records this change.
+- `docs/execution-plans/2026-10-20/3-closing-action-line.md` exists and is marked `Verified` once evidence is recorded.
 - A pull request exists against `main` that closes #3, states the verification performed, and states the risks.
 
 ## Work breakdown
@@ -79,9 +79,9 @@ Observable conditions for completion:
 |---|---|---|---|---|
 | 1 | Move issue #3 to `In Progress` on the board | Orchestrator | GitHub project board | — |
 | 2 | Create the task branch from the latest `main` | Implementation | git state | 1 |
-| 3 | Write this execution plan, mark `Approved` | Orchestrator | `docs/2026-10-20/exec-plans/3-closing-action-line.md` | 2 |
+| 3 | Write this execution plan, mark `Approved` | Orchestrator | `docs/execution-plans/2026-10-20/3-closing-action-line.md` | 2 |
 | 4 | Add the response format rule to `AGENTS.md` | Implementation | `AGENTS.md` | 3 |
-| 5 | Append an entry to the AI transparency log | Orchestrator | `docs/2026-10-20/ai-transparency-log.md` | 3 |
+| 5 | Append an entry to the AI transparency log | Orchestrator | `docs/ai-transparency-log/2026-10-20/3-closing-action-line.md` | 3 |
 | 6 | Verification pass: read the full diff, check numbering and cross-references, confirm the rule is unambiguous | Test Engineer, Code Reviewer | all changed files | 4, 5 |
 | 7 | Mark this plan `Verified` with observed evidence | Orchestrator | this plan | 6 |
 | 8 | Commit, push, open pull request | Orchestrator | git state, PR | 7 |

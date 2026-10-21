@@ -3,7 +3,7 @@
 - Issue: [#5](https://github.com/quant-rule/quant-rule/issues/5) — docs: define the shell application surface
 - Branch: `docs/5-shell-application-surface`
 - Status: Verified
-- Date: 2026-10-20
+- Date: 2026-10-21 (UTC; 2026-10-20 local time)
 
 ## Intent
 
@@ -84,8 +84,8 @@ Observable conditions for completion:
 - Command names that appear in `AGENTS.md` are marked illustrative and are not stated as a contract.
 - `README.md` names the shell as the interface.
 - The fourteen numbered sections, their numbering, and their cross-references are unchanged, and every cross-reference still resolves.
-- `docs/2026-10-20/ai-transparency-log.md` records this change.
-- `docs/2026-10-20/exec-plans/5-shell-application-surface.md` exists and is marked `Verified` once evidence is recorded.
+- `docs/ai-transparency-log/2026-10-21/5-shell-application-surface.md` records this change.
+- `docs/execution-plans/2026-10-21/5-shell-application-surface.md` exists and is marked `Verified` once evidence is recorded.
 - A pull request exists against `main` that closes #5, states the verification performed, and states the risks.
 
 ## Work breakdown
@@ -94,10 +94,10 @@ Observable conditions for completion:
 |---|---|---|---|---|
 | 1 | File issue #5, add it to the board, move it to `In Progress` | Orchestrator | GitHub issue and board | — |
 | 2 | Create the task branch from the latest `origin/main` | Implementation | git state | 1 |
-| 3 | Write this execution plan, mark `Approved` | Orchestrator | `docs/2026-10-20/exec-plans/5-shell-application-surface.md` | 2 |
+| 3 | Write this execution plan, mark `Approved` | Orchestrator | `docs/execution-plans/2026-10-21/5-shell-application-surface.md` | 2 |
 | 4 | Edit `AGENTS.md`: sections 1, 2, 3, 4, 5, and 12 | Implementation | `AGENTS.md` | 3 |
 | 5 | Edit `README.md` to name the shell as the interface | Implementation | `README.md` | 3 |
-| 6 | Append an entry to the AI transparency log | Orchestrator | `docs/2026-10-20/ai-transparency-log.md` | 3 |
+| 6 | Append an entry to the AI transparency log | Orchestrator | `docs/ai-transparency-log/2026-10-21/5-shell-application-surface.md` | 3 |
 | 7 | Verification pass: read the full diff, check numbering and cross-references, check the required plan and log contents, review the document against the acceptance criteria | Test Engineer, Code Reviewer | all changed files | 4, 5, 6 |
 | 8 | Mark this plan `Approved` with observed evidence; the pull request criterion is still open | Orchestrator | this plan | 7 |
 | 9 | Commit, push, open pull request | Orchestrator | git state, PR | 8 |
@@ -109,7 +109,7 @@ Observable conditions for completion:
 
 ### Verification evidence
 
-Commands actually executed on 2026-10-20, with observed results:
+Commands actually executed on 2026-10-20 local time (2026-10-21 UTC), with observed results:
 
 - `git fetch origin --prune`, `git log --oneline -1 main`, `git log --oneline -1 origin/main`, `git rev-list --left-right --count main...origin/main` — the local `main` and `origin/main` were both at `13ddfd6`, with a count of `0 0`, so the local branch was not stale this time.
 - `git checkout -b docs/5-shell-application-surface origin/main` followed by `git merge-base --is-ancestor origin/main HEAD` — exits zero, so the branch contains the current `origin/main`. `git diff --stat origin/main..HEAD` is empty, so the branch started from an identical tree.

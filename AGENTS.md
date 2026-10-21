@@ -75,10 +75,10 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Module docs** with `//!` at the top of a module that explain the module's role and its boundary against neighboring modules.
 - **README** is updated in the same change as any user-facing behavior change.
 - **Command reference.** The command set is documented — the name of each command, its arguments, its output, and a worked example — in the README or under `docs/`. A change to a command's contract updates that reference in the same pull request.
-- **Repository layout** under `docs/`:
-  - `docs/<YYYY-MM-DD>/exec-plans/<issue>-<slug>.md` — approved execution plans, per section 11.
-  - `docs/<YYYY-MM-DD>/ai-transparency-log.md` — the AI transparency log required by section 6.
-  - `docs/<YYYY-MM-DD>/` also holds architecture decision records, describing the decision, the alternatives considered, and the consequences. This path is a future location; it is created when the first decision is recorded.
+- **Repository layout** under `docs/`. The layout is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes first, then the UTC date of the work item, then the file. A kind directory is created when it is first used, not before. `docs/README.md` is the index of the tree and sits outside this layout.
+  - `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` — approved execution plans, per section 11.
+  - `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` — the AI transparency log required by section 6. One file per work item, named to match its execution plan.
+  - `docs/adr/<YYYY-MM-DD>/<file>.md` — architecture decision records, describing the decision, the alternatives considered, and the consequences. This path is a future location; it is created when the first decision is recorded.
 - **Documentation follows the code.** A change that invalidates a documented behavior updates that document in the same pull request, not in a follow-up.
 - **No stale documentation.** If a document describes behavior that no longer exists, the change that removed the behavior removes the description.
 
@@ -86,11 +86,11 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 
 ### AI transparency log
 
-Record material AI contributions in `docs/<YYYY-MM-DD>/ai-transparency-log.md`, including assistance with documentation, implementation, testing, and architectural analysis.
+Record material AI contributions in `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md`, one file per work item, named to match its execution plan where the work item has one, including assistance with documentation, implementation, testing, and architectural analysis.
 
 Each entry must record:
 
-- Date and tool.
+- Date and tool. The date is UTC (section 12).
 - Intent and boundary.
 - Verification and evidence.
 - Learning, including relevant suggestions that were rejected or corrected.
@@ -155,7 +155,7 @@ A pull request must include:
 - **Issue:** A link to the relevant issue, when one exists.
 - **Verification:** Commands actually executed and their observed results.
 - **Risks:** Relevant security, data, migration, compatibility, or operational risks.
-- **AI transparency:** A reference to material AI contributions recorded in `docs/<YYYY-MM-DD>/ai-transparency-log.md`, when applicable.
+- **AI transparency:** A reference to material AI contributions recorded in `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md`, when applicable.
 
 Run the relevant checks before proposing a pull request. Review the complete diff for unrelated changes, generated files, secrets, and accidental modifications.
 
@@ -430,7 +430,9 @@ For a small, low-risk change, a concise scope and verification checklist may be 
 
 Use the following path for approved project plans:
 
-`docs/<YYYY-MM-DD>/exec-plans/<issue>-<slug>.md`
+`docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md`
+
+The date segment is the UTC date on which the work item was recorded (section 12).
 
 Do not invent issue numbers. If the task has no issue, agree on an appropriate filename with the human.
 
@@ -534,7 +536,7 @@ Before reporting completion:
 - Run relevant validations and record their actual results.
 - Confirm acceptance criteria and identify gaps.
 - Update the execution plan with evidence and outstanding risks.
-- Update `docs/<YYYY-MM-DD>/ai-transparency-log.md` for material AI contributions.
+- Update `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` for material AI contributions.
 - Move the issue to `Done` on the project board once the pull request is open (section 9).
 - Report changed files, tests, results, limitations, and any decisions still required.
 
