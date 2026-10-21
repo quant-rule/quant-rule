@@ -2,7 +2,7 @@
 
 - Issue: [#7](https://github.com/quant-rule/quant-rule/issues/7) — docs: reorganize the docs directory layout
 - Branch: `docs/7-docs-directory-layout`
-- Status: Approved
+- Status: Verified
 - Date: 2026-10-21 (UTC)
 
 ## Intent
@@ -111,7 +111,7 @@ Commands actually executed on 2026-10-21 UTC, with observed results:
 - `git fetch origin --prune`, `git log --oneline -1 main`, `git log --oneline -1 origin/main`, `git rev-list --left-right --count main...origin/main` — the local `main` and `origin/main` were both at `7519c7c`, with a count of `0 0`, so the local branch was not stale.
 - `git checkout -b docs/7-docs-directory-layout origin/main` followed by `git merge-base --is-ancestor origin/main HEAD` — exits zero. `git diff --stat origin/main..HEAD` is empty, so the branch started from an identical tree.
 - `git log --all --format='%h | %aI | %s'` and `gh pr view 2,4,6` and `gh api repos/quant-rule/quant-rule/issues/1,3,5` — the UTC instants that place each work item: item 1 at `2026-10-20T23:12:32Z` through `23:19:00Z`, item 2 at `2026-10-20T23:26:56Z` through `23:32:16Z`, item 3 at `2026-10-21T00:31:44Z` through `00:35:04Z`. The date segments follow from these.
-- `find docs -type f | sort` — after the change, the tree holds `docs/README.md`, four execution plans under `docs/execution-plans/2026-10-20/` and `2026-10-21/`, and four log entries under `docs/ai-transparency-log/2026-10-20/` and `2026-10-21/`. The old `docs/2026-10-20/` directory is gone.
+- `find docs -type f | sort` — after the change, the tree holds `docs/README.md`, four execution plans under `docs/execution-plans/2026-10-20/` and `2026-10-21/`, and four log entries under `docs/ai-transparency-log/2026-10-20/` and `2026-10-21/`. The old `docs/2026-10-20/` directory is gone. Confirmed again after the commit: `find docs -type f | sort` returns the same nine files.
 - `git diff --cached -M --stat` — the three plan moves are recorded as renames, and the transparency log is one deletion plus four additions: the three split entries and this change's own entry. Git cannot record a file that becomes several files as a rename, so the history of the original log does not follow the first entry. This is a known cost of the split, recorded rather than worked around.
 - A script reads the original log from `git show HEAD:docs/2026-10-20/ai-transparency-log.md`, extracts each `## Entry N` block, drops the entry heading, and asserts that the remaining body appears verbatim in the corresponding new file. All three pass. The only difference inside the bodies is the `Date and tool` field, which was changed on purpose, and the check isolates that field rather than ignoring it.
 - `grep -rn "exec-plans\|docs/<YYYY-MM-DD>/\|docs/2026-10-20/ai-transparency-log.md\|docs/<date>/" --include="*.md" .` — the only matches are in this plan and in this change's own transparency log entry, which quote the old layout because documenting the old layout is what they do. No other file references it.
@@ -121,7 +121,9 @@ Commands actually executed on 2026-10-21 UTC, with observed results:
 - The plan is checked against the ten required contents in `AGENTS.md` section 11, and the transparency log entry against the four required items in section 6.
 - The complete diff was reviewed line by line before staging.
 
-Acceptance criteria are evaluated against the evidence above. All are met except the one that depends on the pull request existing, which is satisfied when the pull request is opened. This plan is marked `Approved` rather than `Verified` at that point, because that criterion is not yet met; the status changes to `Verified` in the follow-up commit that records the pull request, following the precedent set by the earlier entries in this repository.
+Acceptance criteria are evaluated against the evidence above. All are met, including the criterion that depends on the pull request existing, which is satisfied by pull request #8. The status of this plan was `Approved` in the commit that carried the change, because that criterion was not yet met at that point; it is changed to `Verified` in the follow-up commit that records the commit, the push, and the pull request, following the precedent set by the earlier entries in this repository. The merge itself is not part of the criteria and remains with the human.
+
+- The change was committed as `6ffd0b8` ("docs: reorganize the docs directory layout"), pushed to `origin/docs/7-docs-directory-layout`, and opened as pull request #8 against `main`, closing issue #7. `git ls-remote --heads origin docs/7-docs-directory-layout` returns `6ffd0b8b9afdc701ba9058af0f04a9d22d5650fe`, and `gh pr view 8` reports the pull request as OPEN and MERGEABLE from `docs/7-docs-directory-layout` to `main`. Issue #7 was moved to `Done` on the project board, and the transition was confirmed by the mutation's response. Moving the item to `Done` also closed the GitHub issue one second later, at `2026-10-21T00:55:57Z`, with `state_reason` `completed`, because this project has the automatic close-on-Done setting enabled. The issue is therefore closed on GitHub while pull request #8 is still open, which diverges from the separation between board status and issue state that section 9 describes. If the pull request is not merged, the issue must be reopened.
 
 Limitations, stated explicitly:
 
