@@ -18,8 +18,8 @@ INPUT > DATA ENGINE > MODEL ENGINE > OUTPUT
 
 - **INPUT — data sources.** Candles originate from one or more historic sources. Sources are interchangeable; nothing upstream of the data engine may assume a particular vendor, format, or transport.
 - **DATA ENGINE — ingestion and processing.** Ingests candles from the shell, which performs the source access, then processes them and emits a time series of OHLCV candles per timeframe. The data engine owns candle normalization, timeframe construction, ordering, and gap handling. It knows nothing about indicators or strategies, and it never reaches for a source itself.
-- **MODEL ENGINE — indicators.** Takes the candle series as input and computes indicators, which are categorized on four axes: **direction**, **momentum**, **progression**, and **structure**. Every indicator declares the axis it belongs to.
-- **OUTPUT — the combined time series.** A time series containing all candles alongside all categorized indicator metrics. This data is what strategies are built from and what drives improvement of the system. The shell renders it; it does not recompute it.
+- **MODEL ENGINE — the analytical model.** Takes the candle series as input and produces a market state. It has three internal stages. **Indicator readings** compute the calculation families the model needs: exponential moving averages, relative strength index, average true range, relative volume, and confirmed swing pivots. **Four axes and event detection** turn those readings into published numbers: **direction**, **momentum**, **structure**, and **progression**, plus three shared event types — **level**, **divergence**, and **signal**. **Cross-timeframe aggregation** combines the per-timeframe results across the configured timeframe ladder, using a method that suits each axis. A reading is not owned by an axis: the same reading may serve a different operational role on each axis, and every role states its own definition. The model layer publishes numbers — continuous values, ordinal codes, and discrete codes — and never words; labels are a presentation mapping in the shell.
+- **OUTPUT — the market state.** The per-timeframe metrics, the cross-timeframe aggregates, and the event records. This data is what strategies are built from and what drives improvement of the system. The shell renders it; it does not recompute it. The four axes are not combined into a single score: they describe different things, and the model publishes their agreement as counts.
 
 The shell is not a fifth stage. It wraps the pipeline: it feeds commands into it and renders what comes back out. The stages above describe data flow, and the shell is the only surface through which that flow is reached.
 
@@ -30,8 +30,11 @@ Invariants that the pipeline depends on:
 - Multi-timeframe: each timeframe is a first-class series with the same shape and semantics as every other timeframe.
 - Candles-only: the system consumes OHLCV. Tick data, order books, and other externally derived series are out of scope.
 - Layer isolation: the data engine never calls into the model engine, and the model engine never reaches back upstream. Dependencies point one way.
+- Axis independence: the four axes are measured separately and are never averaged into one number. A cross-axis agreement output is a count.
+- Availability, not occurrence: a measurement that becomes knowable only later — a confirmed swing pivot, a divergence — records both when it occurred and when it became knowable, and it never reaches an earlier bar.
+- No double counting: a reading may feed more than one axis, and a correlated reading is not a second vote. Inside one axis, a feature is counted once.
 
-Concrete module paths are not listed here because the Rust workspace does not exist yet. When it is created, record the crate layout in this section in the same change that introduces it, and do not assume a crate name before that happens.
+Concrete module paths are not listed here because the Rust workspace does not exist yet. The workspace is expected to hold one crate per pipeline stage — a data crate, a model crate, and the shell binary — with dependencies pointing from the shell to the model to the data. The concrete crate names and paths are recorded in this section in the same change that creates the workspace, and no crate name is assumed before that happens. The analytical model's contract — the four axes, the numeric output fields, the event model, and the aggregation rules — is written down in `docs/model/`, and the implementation follows it.
 
 ## 3. Coding Conventions
 
@@ -48,6 +51,10 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Discoverability.** Every command is reachable from a help listing that names its arguments and the shape of its output. A capability the user cannot discover from the shell does not exist.
 - **Time at the boundary.** The shell may read the clock, and passes what it reads to the engine as an explicit parameter (section 12). No engine reads the clock, and a clock value is never printed as part of a command's output, so what the user sees stays reproducible.
 - **Causality.** An indicator or rule may not read a value from beyond the current bar. No future value may influence a past output, even to decide that no signal is present. A backtest that leaks the future is a defect, not a simplification.
+- **Axis roles.** A reading is not owned by an axis. The same reading may be used by more than one axis, but each use states its own definition, and the same feature is never counted twice inside one axis. A correlated reading is not a second vote.
+- **Numeric model output.** The model layer publishes numbers, nulls, lists of numbers, and records of numeric values. It publishes no labels, no confidence values, and no state strings; the shell maps numbers to words. A missing measurement is null with an unavailable-reason code, and is never replaced by zero. A valid zero is a value.
+- **Ordinal codes are counted, not averaged.** An ordinal or discrete code is published, counted, and compared. It is never averaged into a continuous number, and codes from different scales are never combined. A score defined inside one axis from distinct discrete measurements of that axis is not an averaging of codes, and each measurement is counted once.
+- **Event records.** An event record carries its type, its subtype, its source, its timeframe, the bar on which it occurred, the first bar on which it became knowable, its direction, and its measured values. It is appended once, when it becomes knowable, and it is not upgraded in place. An event is evidence, and it does not alter an axis value.
 - **Modularity.** Keep modules cohesive and dependencies pointing one way (section 2). Introduce an abstraction only when it removes real duplication or encodes a real invariant, and never speculatively.
 - **Public API.** Public items carry rustdoc. Doc examples must compile. Public behavior changes require a doc comment update in the same change. The Rust public API is internal to the workspace; the product's public interface is the command set (section 2).
 - **Comments.** Explain why, not what. The code says what it does; the comment says why that way, and what would break if it changed.
@@ -63,6 +70,10 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Property tests** cover invariants that should hold across the whole input space, such as output length matching input length, monotonicity, and the absence of values that were never supplied.
 - **Backtest reproducibility.** A backtest over a fixed input and configuration is expected to produce byte-identical results across runs. This is covered by a test, not just asserted in prose.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
+- **Model-layer tests.** Every axis and every reading has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
+- **Event tests.** An event appears only at or after the bar on which it became knowable, one underlying occurrence is never emitted twice, the level-event precedence is respected, and a divergence is never emitted before the pivot that confirms it has become knowable.
+- **Progression tests.** A leg's stage is null while its origin is unconfirmed or its target is unstable, every lifecycle code is reachable, and a target revision changes the target version without a price movement.
+- **Aggregation tests.** A cross-timeframe aggregate uses a method that suits its axis: ordinal codes are counted rather than averaged, and every aggregate names the timeframes it came from.
 - **Isolation.** Tests do not reach the network, the filesystem outside the repository, or a live market. They do not depend on the wall clock, the execution order of tests, or the machine they run on.
 - **Shell tests.** A command is tested by running it and asserting on what it printed, against fixture data and a fixed configuration. A command's output is observable behavior, not a side effect.
 - **Rendering.** The rendered output is deterministic (section 12): the same command over the same data and configuration prints the same text, byte for byte, whether it was typed at the prompt or passed to a non-interactive invocation.
@@ -78,7 +89,8 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Repository layout** under `docs/`. The layout is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes first, then the UTC date of the work item, then the file. A kind directory is created when it is first used, not before. `docs/README.md` is the index of the tree and sits outside this layout.
   - `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` — approved execution plans, per section 11.
   - `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` — the AI transparency log required by section 6. One file per work item, named to match its execution plan.
-  - `docs/adr/<YYYY-MM-DD>/<file>.md` — architecture decision records, describing the decision, the alternatives considered, and the consequences. This path is a future location; it is created when the first decision is recorded.
+  - `docs/model/<YYYY-MM-DD>/<file>.md` — the analytical model's contract: the four axes, the numeric output fields, the event model, and the aggregation rules. The implementation follows it.
+  - `docs/adr/<YYYY-MM-DD>/<file>.md` — architecture decision records, describing the decision, the alternatives considered, and the consequences.
 - **Documentation follows the code.** A change that invalidates a documented behavior updates that document in the same pull request, not in a follow-up.
 - **No stale documentation.** If a document describes behavior that no longer exists, the change that removed the behavior removes the description.
 
@@ -227,6 +239,7 @@ Rules for the lifecycle:
 - Moving an issue to `In Progress` requires no separate approval. It is an ordinary part of starting work.
 - Moving an issue to `Done` requires the pull request to exist and be open.
 - The board status and the issue's own state are independent. A `Done` board item may still be open on GitHub, and an open GitHub issue may still be in `Todo`.
+- An issue with sub-issues is a container. Its acceptance criteria cover its own deliverable, and the work it delegates is stated in the criteria of its sub-issues, which carry the rest. A container is `Done` when its own deliverable is delivered, and it is not `In Progress` while one of its sub-issues is, because one issue is `In Progress` at a time. The title of a container says what it delivers, so the board does not read as though the delegated work were done.
 - If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
 
 ### Board Contents
@@ -486,6 +499,8 @@ QuantRule is a deterministic, rule-based system. A backtest that cannot be repro
 - **No dependence on thread scheduling.** Concurrent work must not make results depend on the order in which threads happen to finish.
 - **UTC.** All timestamps are UTC, stored and compared in a single explicit format. A timezone is a configuration value, never an ambient environment default.
 - **Numeric stability.** The same computation must not produce a different result merely because it was split differently. Where floating-point accumulation order could matter, the order is fixed and documented.
+- **A fixed numeric contract.** The percentile definition, the smoothing seeds, the clamp bounds, and the accumulation order are fixed in the model's contract document and are not re-derived at each call site. Only addition, subtraction, multiplication, division, comparison, and the absolute value appear in the signal path, together with the rounding and sign operations the contract defines, so the same input yields the same values on every conforming platform.
+- **Bounded retention.** A per-timeframe event history is kept in a bounded buffer whose size is recorded in the model contract. The window counts the model publishes are computed from the retained records, and the bound is large enough to cover every published window.
 - **Recorded provenance.** A result that is meant to be reproducible records the data version and the configuration that produced it, so a later run can be shown to have used the same inputs. The data version is the identity of the input series — its source, timeframe, and coverage — and is set by the caller, not inferred from the filesystem.
 - **Deterministic output.** What the shell prints is part of the reproducible result. The same command, the same data version, and the same configuration produce the same output in the same order, every time, and a non-interactive invocation prints what the interactive one prints.
 - **Determinism is tested.** These are properties of the code, so they are covered by tests as described in section 4, not merely asserted here.
