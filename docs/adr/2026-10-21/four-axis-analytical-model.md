@@ -1,7 +1,7 @@
 # ADR: The Four-Axis Analytical Model
 
 - Date: 2026-10-21 (UTC)
-- Status: Proposed — accepted for implementation once the human confirms it
+- Status: Accepted — confirmed by the human on 2026-10-21 (issue [#44](https://github.com/quant-rule/quant-rule/issues/44))
 - Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: model engine, contract and implementation breakdown
 - Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
 - Plan: [`docs/execution-plans/2026-10-21/14-model-engine.md`](../../execution-plans/2026-10-21/14-model-engine.md)
@@ -51,4 +51,6 @@ Inside the model crate, the modules follow the contract's own sections: a kernel
 
 ## Open decisions
 
-None of the eleven refinements blocks the work. They are recorded in the execution plan, flagged in the pull request that introduces the contract, and may be overridden individually before the affected sub-issue starts. The human's confirmation of this record is what moves the status from Proposed to Accepted.
+None of the eleven refinements blocks the work. They are recorded in the execution plan, flagged in the pull request that introduces the contract, and may be overridden individually before the affected sub-issue starts.
+
+The human confirmed this record on 2026-10-21, and it is `Accepted` from that date. The confirmation was given as part of the instruction to close the loose ends found in the state review, which named this record's stale `Proposed` status among them. The eleven refinements remain agent decisions under review, and each is still one numbered row that the human can override.
