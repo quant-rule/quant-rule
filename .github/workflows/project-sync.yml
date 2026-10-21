@@ -1,0 +1,55 @@
+# Keeps the QuantRule project board in step with the issues.
+#
+# The board's own built-in workflows write the `Status` field. This workflow
+# writes the custom `State` and `Item type` fields, and recomputes a
+# container's `Status` from its sub-issues, so that a parent never reads as
+# done while its children are open — including when the change was made in the
+# browser rather than by an agent.
+#
+# The script it runs is idempotent: it computes the state the board should be
+# in and writes only what differs.
+#
+# It authenticates as the QuantRule Project Sync GitHub App, whose installation
+# token can write to the organization's projects. The app's id is the
+# repository variable PROJECT_APP_ID and its private key is the secret
+# PROJECT_APP_PRIVATE_KEY; both are set at the organization level.
+#
+# The permissions block below covers the checkout only. Everything else is
+# done with the app's token, and the app's own permissions are what limit it.
+
+name: Project sync
+
+on:
+  issues:
+    types: [opened, closed, reopened]
+  pull_request:
+    types: [opened, closed, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: project-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Mint an installation token
+        id: token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ vars.PROJECT_APP_ID }}
+          private-key: ${{ secrets.PROJECT_APP_PRIVATE_KEY }}
+
+      - name: Sync the board
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          ORGANIZATION: quant-rule
+          PROJECT_NUMBER: 1
+          CONTENT_ID: ${{ github.event.issue.node_id || github.event.pull_request.node_id }}
+        run: .github/scripts/project-sync.sh
