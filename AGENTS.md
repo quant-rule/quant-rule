@@ -239,6 +239,7 @@ Rules for the lifecycle:
 - Moving an issue to `In Progress` requires no separate approval. It is an ordinary part of starting work.
 - Moving an issue to `Done` requires the pull request to exist and be open.
 - The board status and the issue's own state are independent. A `Done` board item may still be open on GitHub, and an open GitHub issue may still be in `Todo`.
+- An issue with sub-issues is a container. Its acceptance criteria cover its own deliverable, and the work it delegates is stated in the criteria of its sub-issues, which carry the rest. A container is `Done` when its own deliverable is delivered, and it is not `In Progress` while one of its sub-issues is, because one issue is `In Progress` at a time. The title of a container says what it delivers, so the board does not read as though the delegated work were done.
 - If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
 
 ### Board Contents
