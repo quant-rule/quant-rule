@@ -1,6 +1,6 @@
 # Execution Plan: The Model Engine and Its Metrics Layer
 
-- Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: build the model engine
+- Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: model engine, contract and implementation breakdown
 - Branch: `docs/14-model-engine-contract` (this change) and one branch per sub-issue
 - Status: Verified
 - Date: 2026-10-21 (UTC; 2026-10-20 local time)
@@ -201,7 +201,11 @@ Commands actually executed on 2026-10-20 local time (2026-10-21 UTC), with obser
 
 - The change was committed as `3678c7f` ("docs: define the four-axis analytical model contract"), pushed to `origin/docs/14-model-engine-contract`, and opened as pull request #31 against `main`, closing issue #14. `git ls-remote --heads origin docs/14-model-engine-contract` returns `3678c7f837860d18cbbb059a1daa697706d87bf8`, and `gh pr view 31` reports the pull request as OPEN from `docs/14-model-engine-contract` to `main`. Issue #14 was moved to `Done` on the project board, and the transition was confirmed by the mutation's response and by a read-back showing `Status` = Done, `Item type` = Issue, and `State` = Closed. Moving the item to `Done` also closed the GitHub issue two seconds later, at `2026-10-21T03:57:41Z`, because this project has the automatic close-on-Done setting enabled. The issue is therefore closed on GitHub while pull request #31 is still open, which diverges from the separation between board status and issue state that section 9 describes. If the pull request is not merged, the issue must be reopened. The fourteen sub-issues are in `Todo` with `State` = Open, and issue #9 is unchanged in `Todo`.
 
-Acceptance criteria are evaluated against the evidence above. All are met, including the criterion that depends on the pull request existing, which is satisfied by pull request #31. The status of this plan was `Approved` in the commit that carried the change, because that criterion was not yet met at that point; it is changed to `Verified` in the follow-up commit that records the commit, the push, and the pull request, following the precedent set by the earlier entries in this repository. The merge itself is not part of the criteria and remains with the human.
+Acceptance criteria are evaluated against the evidence above. All are met, including the criterion that depends on the pull request existing, which is satisfied by pull request #31.
+
+**The umbrella's own scope.** Issue #14 carries two scopes, and only one of them is this issue's. The build criteria — the contract implemented, `cargo test` passing, the market state reachable from the shell — belong to the fourteen sub-issues, which state them in full. Issue #14's own criteria are the contract, the decision, the plan, the sub-issue structure, and the consistency of `AGENTS.md` with the contract; those are met by pull request #31. The first version of the rewritten body kept the original build criteria under "Done when" while the scope section had already delegated the build to the sub-issues, so the issue's criteria and its board status contradicted each other. The body now states the umbrella's own scope, and the title was changed to "feat: model engine — contract and implementation breakdown" so the board reads honestly at a glance.
+
+A parent issue with open sub-issues is not `In Progress` while one of its children is, because `AGENTS.md` section 9 allows one issue to be `In Progress` at a time and names the board status as the source of truth for what is being worked on. Two items in flight would break both rules. A parent is therefore `Done` when its own deliverable is delivered, and its children carry the remaining work in `Todo` until they are started. The status of this plan was `Approved` in the commit that carried the change, because that criterion was not yet met at that point; it is changed to `Verified` in the follow-up commit that records the commit, the push, and the pull request, following the precedent set by the earlier entries in this repository. The merge itself is not part of the criteria and remains with the human.
 
 Limitations, stated explicitly:
 

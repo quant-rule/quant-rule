@@ -2,7 +2,7 @@
 
 - Date: 2026-10-21 (UTC)
 - Status: Proposed — accepted for implementation once the human confirms it
-- Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: build the model engine
+- Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: model engine, contract and implementation breakdown
 - Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
 - Plan: [`docs/execution-plans/2026-10-21/14-model-engine.md`](../../execution-plans/2026-10-21/14-model-engine.md)
 - Transparency log: [`docs/ai-transparency-log/2026-10-21/14-model-engine.md`](../../ai-transparency-log/2026-10-21/14-model-engine.md)

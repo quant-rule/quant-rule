@@ -1,7 +1,7 @@
 # The Four-Axis Analytical Model
 
 - Date: 2026-10-21 (UTC)
-- Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: build the model engine
+- Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: model engine, contract and implementation breakdown
 - Status: Contract. The implementation follows this document.
 - Related: [`docs/adr/2026-10-21/four-axis-analytical-model.md`](../../adr/2026-10-21/four-axis-analytical-model.md), [`docs/execution-plans/2026-10-21/14-model-engine.md`](../../execution-plans/2026-10-21/14-model-engine.md)
 
