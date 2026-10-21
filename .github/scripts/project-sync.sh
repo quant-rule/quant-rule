@@ -34,15 +34,20 @@ done
 
 gql() {
   # gql <query> [name value]...
-  # A whole number is sent as a number, so that an Int variable is accepted.
+  #
+  # A value is sent as a string unless it is prefixed with `#`, which sends it
+  # as a number. The marker is needed because several of the board's option
+  # ids are made of digits alone, and the number a client sends decides
+  # whether the API accepts it: an id sent as a number is rejected by a
+  # variable declared as a string.
   local query="$1"
   shift
   local args=()
   while [ "$#" -gt 0 ]; do
     local name="$1" value="$2"
     shift 2
-    if [[ "$value" =~ ^-?[0-9]+$ ]]; then
-      args+=(-F "${name}=${value}")
+    if [[ "$value" == \#* ]]; then
+      args+=(-F "${name}=${value#\#}")
     else
       args+=(-f "${name}=${value}")
     fi
@@ -66,7 +71,7 @@ query($org: String!, $number: Int!) {
       }
     }
   }
-}' org "$ORGANIZATION" number "$PROJECT_NUMBER")"
+}' org "$ORGANIZATION" number "#$PROJECT_NUMBER")"
 
 PROJECT_ID="$(echo "$PROJECT_FIELDS" | jq -r '.data.organization.projectV2.id')"
 
