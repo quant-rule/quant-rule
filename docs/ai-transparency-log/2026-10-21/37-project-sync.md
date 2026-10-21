@@ -1,0 +1,27 @@
+# AI Transparency Log — Keeping the board's status in step with the issues
+
+- **Issue:** [#37](https://github.com/quant-rule/quant-rule/issues/37)
+- **Date:** 2026-10-21 (UTC)
+- **Execution plan:** [`docs/execution-plans/2026-10-21/37-project-sync.md`](../../execution-plans/2026-10-21/37-project-sync.md)
+
+## Entry
+
+- **Date and tool:** 2026-10-21 (UTC; 2026-10-20 local time). opencode (MiniMax M3.1 Flash), running in a local shell with `git`, `gh`, and filesystem tools.
+- **Intent and boundary:** Give the board the automation it was missing: the custom `State` and `Item type` fields, and a container's `Status` recomputed from its sub-issues. The boundary was `.github/workflows/project-sync.yml`, `.github/scripts/project-sync.sh`, one clause in `AGENTS.md` section 9, and this plan and log. The credential is the human's: the GitHub App was registered, installed, and its id and private key stored at the organization level.
+- **Verification and evidence:**
+  - The credentials were read back through the API: the organization secret `PROJECT_APP_PRIVATE_KEY` exists with visibility "all", and the organization variable `PROJECT_APP_ID` holds `5406299`. The repository's own secret and variable lists are empty and are not used.
+  - `bash -n .github/scripts/project-sync.sh` — no syntax errors.
+  - The script's read paths were run against the live board with the author's own token. Issue #17 reads as an issue in state `OPEN`, with the parent `#14`, no sub-issues, and a board item of `PVTI_lADOFJhfMs4Bn-OgzhCS5tQ`. Issue #14 reads with fourteen `OPEN` sub-issues and a board item of `PVTI_lADOFJhfMs4Bn-OgzhCRlKk`.
+  - The container decision was exercised over five cases: all sub-issues closed gives `Done`; one open gives `In Progress` in either position; none closed gives `In Progress`; no sub-issues gives `Todo`. Issue #14, with fourteen open sub-issues, computes `In Progress`, which is the status its board item already carries.
+  - The workflow file was parsed, and its triggers, permissions, and steps read back. Both actions are pinned to a commit SHA, `actions/checkout` to `11d5960` and `actions/create-github-app-token` to `fee1f7d`, each with its version in a comment.
+  - The script's first draft was written and then rewritten. The first draft kept five GraphQL queries in separate files next to the script, read a `SCRIPT_DIR` that was never set, and parsed the project's fields through a `read` of a command substitution's output. The rewrite keeps one self-contained file with the queries inline, reads the fields through plain variables, and identifies a pull request by the `__typename` of the node rather than by a guess.
+  - `git diff --check` — no whitespace errors; the script ends with a newline and carries the executable bit.
+- **Learning:**
+  - **The first draft's failure was a shape failure, not a syntax failure.** `bash -n` passed on a script that could not have run, because the error was in how the pieces were wired together rather than in the shell. The script was rewritten and then exercised against the live board, and it was the exercise, not the syntax check, that found the real defects.
+  - **`-f` sends strings and `-F` sends numbers.** The first run of the read path failed with "Variable $number of type Int! was provided invalid value", because the helper passed the project's number as a string. The helper now sends a whole number as a number, and the two forms are used deliberately rather than by habit.
+  - **A pull request and an issue are the same query.** The first attempt distinguished them by guessing from the presence of a number, and the guess was wrong twice. Reading `__typename` off the node and asking for both shapes in one query settles it, and the same shape then serves the parent and the children.
+  - **The private key was pasted into a conversation before it was rotated.** The human deleted that key, generated a replacement, and stored the replacement directly in the organization secret without sending it here. The exposure was closed by a rotation rather than by trust in the handling, which is the only thing that actually closes it.
+  - **The built-in workflows and the script overlap on one value and agree.** Both write `Done` when an issue closes. The script writes `Todo` on a reopen, which the built-ins do not, and the agent owns `In Progress`, which no workflow can know. One writer per decision, rather than one writer per field, is what keeps them from fighting.
+  - **Rejected:** a JavaScript script, because the repository is a Rust project and the runner's Rust toolchain is not guaranteed, so a second runtime would have been introduced for one file. Bash with `gh` and `jq` is the pattern GitHub's own documentation uses, and both tools are on the runner.
+  - **Rejected:** version tags for the actions. The workflow holds a credential, so the code that runs with it should not be able to move under it.
+  - `shellcheck` is not installed on this machine, so the script was checked with `bash -n` and by running its paths. That is a weaker check than a linter, and it is recorded as such.
