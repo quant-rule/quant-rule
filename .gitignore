@@ -1,0 +1,22 @@
+# Build artifacts
+#
+# Cargo writes the compiled output and the incremental caches here. The path is
+# anchored to the repository root so that a directory of the same name inside a
+# crate is not ignored by accident.
+/target
+**/*.rs.bk
+
+# The lock file is deliberately not ignored. QuantRule ships a shell
+# application, so Cargo.lock pins the exact dependencies of the build that is
+# published, and it is committed like any other source file.
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating systems
+.DS_Store
+Thumbs.db
