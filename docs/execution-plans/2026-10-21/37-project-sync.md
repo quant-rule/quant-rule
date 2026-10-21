@@ -97,10 +97,11 @@ Commands actually executed on 2026-10-21 UTC, with observed results:
 - The container decision was exercised over five cases: all sub-issues closed gives `Done`, one open gives `In Progress` whichever position it holds, none closed gives `In Progress`, and no sub-issues gives `Todo`. Issue #14 with its fourteen open sub-issues computes `In Progress`, which is the status its board item carries.
 - The workflow file was parsed and its triggers, permissions, and steps read back, and both actions were confirmed to be pinned to a commit SHA.
 - `git diff --check` — no whitespace errors, and the script ends with a newline and carries the executable bit.
+- The first end-to-end run failed, and the failure was in the script rather than in the board. `gh` sends a field value whose text is made of digits as a number, and several of the board's option ids are digits alone — `98236657` is the `Done` status — so the `String!` variable was given a number and the API refused it with "Variable $option of type String! was provided invalid value". The helper now sends a value as a number only when it is prefixed with `#`, which it needs for the project's number and for nothing else. The script was run again after the change and completed without an error, and the board showed issue #17 closed with `Status` = Done, `State` = Closed, and `Item type` = Issue, and its parent #14 in `In Progress` with its issue open, which is the state the rule in issue #36 requires.
 
 Limitations, stated explicitly:
 
-- The end-to-end run is observed after the merge, because a workflow file only runs from the default branch.
+- The end-to-end run is observed after the merge, because a workflow file only runs from the default branch. The first one failed, for the reason recorded above, and the second is the one that counts.
 - The script is exercised with the author's token rather than the app's installation token, because the app's token is only available inside the workflow. The first workflow run is the test of the app's own permissions.
 - `shellcheck` is not installed on the machine, so the script was checked with `bash -n` and by running its paths, not by a linter.
 
