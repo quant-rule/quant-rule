@@ -76,9 +76,10 @@ query($org: String!, $number: Int!) {
 PROJECT_ID="$(echo "$PROJECT_FIELDS" | jq -r '.data.organization.projectV2.id')"
 
 field_id() {
+  # The id of a field by name, of whatever type it is.
   echo "$PROJECT_FIELDS" | jq -r --arg name "$1" '
     .data.organization.projectV2.fields.nodes
-    | map(select(.__typename == "ProjectV2SingleSelectField" and .name == $name))
+    | map(select(.name == $name))
     | .[0].id'
 }
 
@@ -92,6 +93,7 @@ option_id() {
 STATUS_FIELD="$(field_id "Status")"
 ITEM_TYPE_FIELD="$(field_id "Item type")"
 STATE_FIELD="$(field_id "State")"
+CLOSED_DATE_FIELD="$(field_id "Closed date")"
 
 STATUS_TODO="$(option_id "Status" "Todo")"
 STATUS_IN_PROGRESS="$(option_id "Status" "In Progress")"
@@ -101,7 +103,7 @@ ITEM_TYPE_PULL_REQUEST="$(option_id "Item type" "Pull request")"
 STATE_OPEN="$(option_id "State" "Open")"
 STATE_CLOSED="$(option_id "State" "Closed")"
 
-for id in "$STATUS_FIELD" "$ITEM_TYPE_FIELD" "$STATE_FIELD" \
+for id in "$STATUS_FIELD" "$ITEM_TYPE_FIELD" "$STATE_FIELD" "$CLOSED_DATE_FIELD" \
           "$STATUS_TODO" "$STATUS_IN_PROGRESS" "$STATUS_DONE" \
           "$ITEM_TYPE_ISSUE" "$ITEM_TYPE_PULL_REQUEST" "$STATE_OPEN" "$STATE_CLOSED"; do
   if [ -z "$id" ] || [ "$id" = "null" ]; then
@@ -184,6 +186,27 @@ mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
 }' project "$PROJECT_ID" item "$1" field "$2" option "$3" >/dev/null
 }
 
+set_date() {
+  # set_date <item-id> <field-id> <YYYY-MM-DD>
+  gql '
+mutation($project: ID!, $item: ID!, $field: ID!, $date: Date!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $project, itemId: $item, fieldId: $field,
+    value: { date: $date }
+  }) { projectV2Item { id } }
+}' project "$PROJECT_ID" item "$1" field "$2" date "$3" >/dev/null
+}
+
+clear_field() {
+  # clear_field <item-id> <field-id>
+  gql '
+mutation($project: ID!, $item: ID!, $field: ID!) {
+  clearProjectV2ItemFieldValue(input: {
+    projectId: $project, itemId: $item, fieldId: $field
+  }) { projectV2Item { id } }
+}' project "$PROJECT_ID" item "$1" field "$2" >/dev/null
+}
+
 # --- the issues ---------------------------------------------------------------
 
 read_content() {
@@ -195,10 +218,11 @@ query($id: ID!) {
     ... on Issue {
       number
       state
+      closedAt
       parent { id number state }
       subIssues(first: 100) { totalCount nodes { number state } }
     }
-    ... on PullRequest { number state }
+    ... on PullRequest { number state closedAt }
   }
 }' id "$1" | jq -c '
     .data.node
@@ -206,6 +230,7 @@ query($id: ID!) {
         type: .__typename,
         number: .number,
         state: .state,
+        closedAt: .closedAt,
         parent: (if .parent then {id: .parent.id, number: .parent.number, state: .parent.state} else null end),
         children: [(.subIssues.nodes // [])[].state]
       }'
@@ -262,10 +287,11 @@ mutation($id: ID!) {
 # --- the work -----------------------------------------------------------------
 
 main() {
-  local content content_type content_state children parent_id
+  local content content_type content_state content_closed_at children parent_id
   content="$(read_content "$CONTENT_ID")"
   content_type="$(echo "$content" | jq -r '.type')"
   content_state="$(echo "$content" | jq -r '.state')"
+  content_closed_at="$(echo "$content" | jq -r '.closedAt // empty')"
   children="$(echo "$content" | jq -c '.children')"
   parent_id="$(echo "$content" | jq -r '.parent.id // empty')"
 
@@ -282,6 +308,16 @@ main() {
     set_field "$item_id" "$STATE_FIELD" "$STATE_CLOSED"
   else
     set_field "$item_id" "$STATE_FIELD" "$STATE_OPEN"
+  fi
+
+  # The day the item closed, taken from the issue's own record rather than
+  # from a clock, so that the board's dates are the dates of the events.
+  # A merged pull request reports its state as MERGED rather than CLOSED, so
+  # the test is for anything that is not open.
+  if [ "$content_state" != "OPEN" ] && [ -n "$content_closed_at" ]; then
+    set_date "$item_id" "$CLOSED_DATE_FIELD" "${content_closed_at:0:10}"
+  elif [ "$content_state" = "OPEN" ]; then
+    clear_field "$item_id" "$CLOSED_DATE_FIELD"
   fi
 
   # The status. A container follows its sub-issues; a leaf follows its own state.
