@@ -56,6 +56,7 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Ordinal codes are counted, not averaged.** An ordinal or discrete code is published, counted, and compared. It is never averaged into a continuous number, and codes from different scales are never combined. A score defined inside one axis from distinct discrete measurements of that axis is not an averaging of codes, and each measurement is counted once.
 - **Event records.** An event record carries its type, its subtype, its source, its timeframe, the bar on which it occurred, the first bar on which it became knowable, its direction, and its measured values. It is appended once, when it becomes knowable, and it is not upgraded in place. An event is evidence, and it does not alter an axis value.
 - **Modularity.** Keep modules cohesive and dependencies pointing one way (section 2). Introduce an abstraction only when it removes real duplication or encodes a real invariant, and never speculatively.
+- **File size.** A source file stays under 1,000 lines where that is practical. A file that grows past it is split along its own seams, so that a cohesive module becomes several, unless a written justification says why it cannot be split. The line count is a prompt to look, not a target to hit: a cohesive module is not broken up for the sake of the count.
 - **Public API.** Public items carry rustdoc. Doc examples must compile. Public behavior changes require a doc comment update in the same change. The Rust public API is internal to the workspace; the product's public interface is the command set (section 2).
 - **Comments.** Explain why, not what. The code says what it does; the comment says why that way, and what would break if it changed.
 
@@ -86,6 +87,7 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Module docs** with `//!` at the top of a module that explain the module's role and its boundary against neighboring modules.
 - **README** is updated in the same change as any user-facing behavior change.
 - **Command reference.** The command set is documented — the name of each command, its arguments, its output, and a worked example — in the README or under `docs/`. A change to a command's contract updates that reference in the same pull request.
+- **Concise documentation.** A table or a short statement carries the same information more clearly than a paragraph of prose, and prose that repeats a table is noise. Keep the context a reader needs in order to act, and drop the rest.
 - **Repository layout** under `docs/`. The layout is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes first, then the UTC date of the work item, then the file. A kind directory is created when it is first used, not before. `docs/README.md` is the index of the tree and sits outside this layout.
   - `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` — approved execution plans, per section 11.
   - `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` — the AI transparency log required by section 6. One file per work item, named to match its execution plan.
@@ -136,14 +138,31 @@ When no issue number exists, use a concise descriptive slug without inventing an
 
 ### Branch Preparation
 
+Every issue is worked in a dedicated Git worktree and on a dedicated branch. The worktree is the default, not an exception: a session that starts in the project root, in another worktree, or anywhere else still works in its own worktree for the task it was given.
+
 Before changing Git state:
 
-- Inspect `git status --short --branch` and the current branch.
-- Inspect the relevant history and existing remote configuration.
+- Inspect the current working directory, the current branch, and the uncommitted changes, with `git status --short --branch` and `git worktree list`.
+- Inspect the relevant history and the existing remote configuration.
 - Check for uncommitted changes and preserve all unrelated work.
-- Confirm that the requested branch and base branch are appropriate.
+- Inspect the existing worktrees and branches, and confirm that the requested branch and base branch are appropriate.
 - Follow the approved execution plan for branch creation.
-- Use the latest available `main` as the starting point when appropriate. Never discard, overwrite, reset, or stash existing work without explicit approval.
+- Use the latest available `main` as the starting point when appropriate, unless the approved plan names a different base. Never discard, overwrite, reset, or stash existing work without explicit approval.
+
+Creating the worktree:
+
+- Leave the project directory on `main`. A task does not switch the project directory to its own branch.
+- Create the task's worktree in a sibling directory named `<repository>--<task-slug>`, for example `quant-rule--32-agent-guidelines`, so that the path itself says which task owns it.
+- Name the branch with the conventions above, `<type>/<issue>-<slug>`.
+- Reuse an existing worktree for the same task when one is already present, and keep the task's ownership, its issue status, its execution plan, and its write boundaries consistent with the plan.
+
+Working in the worktree:
+
+- The session starts in its worktree and continues in it. A file edited in the project directory is not the task's file.
+- Never switch the branch of a working directory that another session is using. A branch switch in a shared directory changes that session's files underneath it.
+- Never assume that a new terminal tab isolates the working files. The directory is what isolates them.
+- If a session cannot be started in the correct worktree automatically, ask the human to open one there rather than continuing in the original directory.
+- The implementation, verification, commit, push, pull request, and merge workflow is unchanged, and every approval gate still applies.
 
 ### Commit Convention
 
@@ -210,7 +229,7 @@ Apply this rule to the final response of every task, including a task that ends 
 
 ## 9. Git Approval Gates
 
-Creating a task branch may be included in an approved execution plan. The following require separate explicit human authorization unless the human's current instruction explicitly requests the operation:
+Creating a task branch and its worktree may be included in an approved execution plan. The following require separate explicit human authorization unless the human's current instruction explicitly requests the operation:
 
 - Creating commits.
 - Pushing to a remote.
@@ -219,6 +238,8 @@ Creating a task branch may be included in an approved execution plan. The follow
 - Creating releases or tags.
 - Deploying to any environment.
 - Deleting branches or performing destructive Git operations.
+
+One exception, and it is a routine one: after a task's pull request has been accepted and merged and its acceptance criteria have been verified, removing the task's worktree and deleting its task branch, locally and on the remote, is the default cleanup and needs no separate authorization, provided the issue is marked `Done` on the board. Before the cleanup, verify that no uncommitted or unmerged work will be lost; when that cannot be established, preserve the work and report a blocker instead of deleting anything. Every other destructive Git operation keeps its gate.
 
 The human remains responsible for final review and merge authorization. An AI reviewer cannot approve or merge its own implementation.
 
@@ -241,6 +262,17 @@ Rules for the lifecycle:
 - The board status and the issue's own state are independent. A `Done` board item may still be open on GitHub, and an open GitHub issue may still be in `Todo`.
 - An issue with sub-issues is a container. Its acceptance criteria cover its own deliverable, and the work it delegates is stated in the criteria of its sub-issues, which carry the rest. A container is `Done` when its own deliverable is delivered, and it is not `In Progress` while one of its sub-issues is, because one issue is `In Progress` at a time. The title of a container says what it delivers, so the board does not read as though the delegated work were done.
 - If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
+
+### Decomposing an issue into sub-issues
+
+An issue that grows too large, or that comes to hold more than one deliverable, is split into sub-issues. The rules for the split:
+
+- Each sub-issue is one coherent deliverable that can be verified on its own. A part that cannot be reviewed, tested, or merged by itself is not a sub-issue.
+- Each sub-issue states its scope, its acceptance criteria, and the sub-issues it depends on.
+- Split along the deliverables, not along convenience. A part that shares no output with its neighbours belongs to its own sub-issue.
+- The parent keeps the overall objective and the criteria for the whole, and the progress is tracked through its sub-issues.
+- Do not fragment for its own sake. One deliverable is one sub-issue, and a sub-issue smaller than the work of specifying it is not a sub-issue.
+- A sub-issue follows the same lifecycle, the same board status rules, and the same approval gates as any other issue.
 
 ### Board Contents
 
@@ -432,7 +464,7 @@ Security- or privacy-sensitive work must include security review.
 Database migrations, concurrency-sensitive changes, and destructive operations require explicit risk assessment and appropriate independent verification.
 When the available tools cannot start separate agents, the orchestrator may conduct sequential role-specific review passes. It must disclose that these were not independent agents or independent model judgments.
 
-Only one implementation agent should write to a given file or workstream at a time. Parallel investigation is permitted when scopes are non-overlapping, clearly assigned, and consistent with the approved plan.
+Only one implementation agent should write to a given file or workstream at a time. Parallel investigation is permitted when scopes are non-overlapping, clearly assigned, and consistent with the approved plan. Separate sessions work in separate worktrees (section 7), so two of them do not contend for the same files.
 
 ## 11. Execution Plans
 
@@ -511,7 +543,7 @@ Follow these stages in order for planned work.
 
 ### Stage 1 — Read-only Preflight
 
-The orchestrator inspects the current branch, working tree, repository structure, applicable instructions, requirements, relevant implementation, and existing tests.
+The orchestrator inspects the current working directory, branch, working tree, worktrees, repository structure, applicable instructions, requirements, relevant implementation, and existing tests.
 
 It reports:
 
