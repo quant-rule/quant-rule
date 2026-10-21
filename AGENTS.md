@@ -4,6 +4,8 @@
 
 QuantRule is a quantitative trading system that is multi-timeframe, rule-based, and OHLCV-candles-only. It focuses on performance and modularity, and it supports backtesting.
 
+QuantRule ships as a shell application, and that is the whole of it. The result is an interactive command shell: the program is started, and the user writes commands at a prompt to work with candle series, indicators, and backtests. The commands are illustrative — printing a candle series, computing an indicator, running a backtest — and this document does not fix their names. There is no library offered to a third party to embed, no server or service to deploy, no graphical interface, and no second surface of any kind. Every capability the system has is reachable by typing a command, and every rule, indicator, and backtest it can perform is something the shell can run.
+
 The system is deterministic. Given the same input data and the same configuration, it must produce the same output every time. Any behavior that depends on wall-clock time, unseeded randomness, or iteration order of unordered collections is a defect, not a limitation. See section 12.
 
 ## 2. Architecture and Data Flow
@@ -15,9 +17,13 @@ INPUT > DATA ENGINE > MODEL ENGINE > OUTPUT
 ```
 
 - **INPUT — data sources.** Candles originate from one or more historic sources. Sources are interchangeable; nothing upstream of the data engine may assume a particular vendor, format, or transport.
-- **DATA ENGINE — ingestion and processing.** Ingests candles from a source, then processes them and emits a time series of OHLCV candles per timeframe. The data engine owns candle normalization, timeframe construction, ordering, and gap handling. It knows nothing about indicators or strategies.
+- **DATA ENGINE — ingestion and processing.** Ingests candles from the shell, which performs the source access, then processes them and emits a time series of OHLCV candles per timeframe. The data engine owns candle normalization, timeframe construction, ordering, and gap handling. It knows nothing about indicators or strategies, and it never reaches for a source itself.
 - **MODEL ENGINE — indicators.** Takes the candle series as input and computes indicators, which are categorized on four axes: **direction**, **momentum**, **progression**, and **structure**. Every indicator declares the axis it belongs to.
-- **OUTPUT — the combined time series.** A time series containing all candles alongside all categorized indicator metrics. This data is what strategies are built from and what drives improvement of the system.
+- **OUTPUT — the combined time series.** A time series containing all candles alongside all categorized indicator metrics. This data is what strategies are built from and what drives improvement of the system. The shell renders it; it does not recompute it.
+
+The shell is not a fifth stage. It wraps the pipeline: it feeds commands into it and renders what comes back out. The stages above describe data flow, and the shell is the only surface through which that flow is reached.
+
+- **SHELL — the interface.** The interactive command shell is the product's only user-facing surface. It owns the boundary between the human and the system: it parses a command, calls into the pipeline, and renders the result. It holds no domain logic. Its commands are illustrative — printing a candle series, computing an indicator, running a backtest — and this document does not fix their names. A capability the user cannot reach by typing a command does not exist for them: if it cannot be typed, it is not a feature.
 
 Invariants that the pipeline depends on:
 
@@ -36,10 +42,14 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Errors.** Library code returns `Result` and uses explicit error types. `unwrap` and `expect` are not allowed in library code; they are acceptable in tests and in binary entry points where a failure is unrecoverable and the message states what to do next. Library code must not panic on invalid input.
 - **`unsafe`.** Not allowed without a written justification that explains the invariant being upheld and the consequences of violating it, plus explicit human approval.
 - **Dependencies.** Adding a dependency is a decision, not an implementation detail. It requires approval (section 14) and must be justified in the pull request. Do not add a crate to work around a problem the standard library or an existing dependency already solves.
-- **Purity.** Indicator and rule computation is a pure function of its inputs. No I/O, no clock, no randomness, no global mutable state. Read data from a passed-in parameter rather than fetching it.
+- **Purity.** Indicator and rule computation is a pure function of its inputs. No I/O, no clock, no randomness, no global mutable state. Read data from a passed-in parameter rather than fetching it. This rule binds the engine; the shell is where the impure work is allowed to happen.
+- **Shell boundary.** The shell is the only layer permitted to perform I/O, to read the clock, or to write to a terminal. It parses the command, calls into the pipeline, and renders the result; it does not compute an indicator, apply a rule, or reshape data. Logic that appears to belong in the shell belongs in the engine. Source access belongs to the shell: it reads or fetches the raw candles and hands them to the data engine, and the engine never reaches for a source itself. The shell may hold session state between commands and may use randomness with an explicit seed (section 12); that state is passed into the engines as a parameter and is never read behind their backs.
+- **Command contract.** Every command has a stable contract: a name, its arguments, its output, and its error behavior. The command set is the product's public interface, and changing what an existing command means is a decision reserved to the human (section 14). A new capability arrives as a new command, not as a change to an old one.
+- **Discoverability.** Every command is reachable from a help listing that names its arguments and the shape of its output. A capability the user cannot discover from the shell does not exist.
+- **Time at the boundary.** The shell may read the clock, and passes what it reads to the engine as an explicit parameter (section 12). No engine reads the clock, and a clock value is never printed as part of a command's output, so what the user sees stays reproducible.
 - **Causality.** An indicator or rule may not read a value from beyond the current bar. No future value may influence a past output, even to decide that no signal is present. A backtest that leaks the future is a defect, not a simplification.
 - **Modularity.** Keep modules cohesive and dependencies pointing one way (section 2). Introduce an abstraction only when it removes real duplication or encodes a real invariant, and never speculatively.
-- **Public API.** Public items carry rustdoc. Doc examples must compile. Public behavior changes require a doc comment update in the same change.
+- **Public API.** Public items carry rustdoc. Doc examples must compile. Public behavior changes require a doc comment update in the same change. The Rust public API is internal to the workspace; the product's public interface is the command set (section 2).
 - **Comments.** Explain why, not what. The code says what it does; the comment says why that way, and what would break if it changed.
 
 ## 4. Testing
@@ -54,6 +64,8 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Backtest reproducibility.** A backtest over a fixed input and configuration is expected to produce byte-identical results across runs. This is covered by a test, not just asserted in prose.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Isolation.** Tests do not reach the network, the filesystem outside the repository, or a live market. They do not depend on the wall clock, the execution order of tests, or the machine they run on.
+- **Shell tests.** A command is tested by running it and asserting on what it printed, against fixture data and a fixed configuration. A command's output is observable behavior, not a side effect.
+- **Rendering.** The rendered output is deterministic (section 12): the same command over the same data and configuration prints the same text, byte for byte, whether it was typed at the prompt or passed to a non-interactive invocation.
 - **Performance-sensitive paths** are covered by a benchmark when a change is expected to affect them, and the benchmark result is reported in the pull request rather than left unmentioned.
 - **Coverage claims** must reflect what a test actually exercises. A passing test that does not reach the behavior in question does not prove that behavior.
 
@@ -62,6 +74,7 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 - **Rustdoc** on public items, with examples that compile. `cargo doc` must build without warnings. Until the Rust workspace exists, this command does not apply and no doc-build claim may be made.
 - **Module docs** with `//!` at the top of a module that explain the module's role and its boundary against neighboring modules.
 - **README** is updated in the same change as any user-facing behavior change.
+- **Command reference.** The command set is documented — the name of each command, its arguments, its output, and a worked example — in the README or under `docs/`. A change to a command's contract updates that reference in the same pull request.
 - **Repository layout** under `docs/`:
   - `docs/<YYYY-MM-DD>/exec-plans/<issue>-<slug>.md` — approved execution plans, per section 11.
   - `docs/<YYYY-MM-DD>/ai-transparency-log.md` — the AI transparency log required by section 6.
@@ -460,6 +473,7 @@ QuantRule is a deterministic, rule-based system. A backtest that cannot be repro
 - **UTC.** All timestamps are UTC, stored and compared in a single explicit format. A timezone is a configuration value, never an ambient environment default.
 - **Numeric stability.** The same computation must not produce a different result merely because it was split differently. Where floating-point accumulation order could matter, the order is fixed and documented.
 - **Recorded provenance.** A result that is meant to be reproducible records the data version and the configuration that produced it, so a later run can be shown to have used the same inputs. The data version is the identity of the input series — its source, timeframe, and coverage — and is set by the caller, not inferred from the filesystem.
+- **Deterministic output.** What the shell prints is part of the reproducible result. The same command, the same data version, and the same configuration produce the same output in the same order, every time, and a non-interactive invocation prints what the interactive one prints.
 - **Determinism is tested.** These are properties of the code, so they are covered by tests as described in section 4, not merely asserted here.
 
 ## 13. Orchestration and Execution Protocol
