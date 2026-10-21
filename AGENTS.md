@@ -63,8 +63,8 @@ Concrete module paths are not listed here because the Rust workspace does not ex
 ## 4. Testing
 
 - **Command.** `cargo test` must pass before a pull request is proposed. Do not weaken, remove, or skip a test to obtain a passing result.
-- **Unit tests** live next to the code they cover, in the same module. Integration tests live in `tests/` at the workspace root.
-- **Future paths.** `tests/` and the `cargo` commands above describe the layout the Rust workspace will use. Until the workspace exists, no test command applies, and no claim of a passing test run may be made.
+- **Unit tests** live next to the code they cover, in the same module. Integration tests live in the `tests/` directory of the crate that owns the code they cover, because a virtual workspace root holds no package and a root `tests/` directory is never compiled.
+- **Future paths.** The `cargo` commands above describe the layout the Rust workspace will use. Until the workspace exists, no test command applies, and no claim of a passing test run may be made.
 - **Causality tests.** An indicator or rule that consumes a series must have a test proving that its output for a given bar does not change when later bars are appended, changed, or removed. This is the direct test for the causality rule in section 3.
 - **Determinism tests.** Any computation that participates in signal generation must have a test asserting that the same input yields the same output across repeated runs, across a reordered collection, across a change in the iteration order of any unordered map or set it traverses, and across a different split or scheduling of the work. This is the direct test for section 12.
 - **Golden tests.** Indicator and rule output is compared against a checked-in fixture of expected values, so a numerical or structural regression fails loudly rather than silently. Fixtures are data, not code, and are regenerated deliberately — never casually — when an intentional change alters expected output.

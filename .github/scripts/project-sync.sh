@@ -2,16 +2,21 @@
 #
 # Keeps the QuantRule project board in step with the issues.
 #
-# The board's built-in workflows write the `Status` field: an item added takes
-# `Todo`, an issue closed takes `Done`, a pull request merged takes `Done`, and
-# an item marked `Done` has its issue closed. None of them writes the custom
-# `State` and `Item type` fields, and none of them recomputes a container's
-# status from its sub-issues. This script does those three things, so that a
-# parent never reads as done while its children are open, whoever made the
-# change.
+# The board's built-in workflows mark an item `Done` when its issue is closed,
+# and close the issue when its item is marked `Done`. They do not write the
+# custom `State`, `Item type`, and `Closed date` fields, and they do not
+# recompute a container's status from its sub-issues. This script writes those
+# fields and sets a leaf's status, so that the board says what actually
+# happened to every item on it, whoever made the change.
 #
-# The script computes the state the board should be in and writes only what
-# differs, so it is safe to run twice.
+# A merged pull request reports its state as MERGED rather than CLOSED, and a
+# merged pull request is closed: the rule the board states, and the rule in
+# AGENTS.md section 9. Both names are closed cases here, so a merged pull
+# request is `Done` and `Closed` rather than left looking like work in flight.
+#
+# The script computes the state the board should be in and writes it, so it is
+# safe to run twice: a second run leaves the board exactly as the first one
+# did.
 #
 # It is called by .github/workflows/project-sync.yml, which supplies:
 #
@@ -263,6 +268,17 @@ status_option() {
   esac
 }
 
+is_closed() {
+  # is_closed <content-state> -> 0 when the content is closed
+  #
+  # An issue is OPEN or CLOSED. A pull request is OPEN, CLOSED, or MERGED,
+  # and a merged pull request is closed.
+  case "$1" in
+    CLOSED|MERGED) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # Keep an issue's own open or closed state in step with the status its board
 # item carries, so that the two never disagree. The board closes an issue when
 # its item reaches `Done`, and nothing reopens it when a sub-issue comes back.
@@ -304,7 +320,7 @@ main() {
   else
     set_field "$item_id" "$ITEM_TYPE_FIELD" "$ITEM_TYPE_ISSUE"
   fi
-  if [ "$content_state" = "CLOSED" ]; then
+  if is_closed "$content_state"; then
     set_field "$item_id" "$STATE_FIELD" "$STATE_CLOSED"
   else
     set_field "$item_id" "$STATE_FIELD" "$STATE_OPEN"
@@ -312,9 +328,7 @@ main() {
 
   # The day the item closed, taken from the issue's own record rather than
   # from a clock, so that the board's dates are the dates of the events.
-  # A merged pull request reports its state as MERGED rather than CLOSED, so
-  # the test is for anything that is not open.
-  if [ "$content_state" != "OPEN" ] && [ -n "$content_closed_at" ]; then
+  if is_closed "$content_state" && [ -n "$content_closed_at" ]; then
     set_date "$item_id" "$CLOSED_DATE_FIELD" "${content_closed_at:0:10}"
   elif [ "$content_state" = "OPEN" ]; then
     clear_field "$item_id" "$CLOSED_DATE_FIELD"
@@ -324,7 +338,7 @@ main() {
   local desired
   if [ "$(echo "$children" | jq 'length')" -gt 0 ]; then
     desired="$(container_status "$children")"
-  elif [ "$content_state" = "CLOSED" ]; then
+  elif is_closed "$content_state"; then
     desired="DONE"
   else
     desired="TODO"
