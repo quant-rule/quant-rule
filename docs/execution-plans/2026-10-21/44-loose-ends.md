@@ -3,7 +3,7 @@
 - Issue: [#44](https://github.com/quant-rule/quant-rule/issues/44) — fix: close the three loose ends found in the state review
 - Branch: `fix/44-loose-ends`
 - Worktree: `/home/zantgo/Projects/quant-rule--44-loose-ends`
-- Status: Approved
+- Status: Verified
 - Date: 2026-10-21 (UTC)
 - Transparency log: [`docs/ai-transparency-log/2026-10-21/44-loose-ends.md`](../../ai-transparency-log/2026-10-21/44-loose-ends.md)
 
@@ -101,18 +101,31 @@ Observable conditions for completion:
 
 ## Verification
 
-The commands that produce the evidence, and what they are expected to show:
+### Verification evidence
 
-- `bash -n .github/scripts/project-sync.sh` — no syntax error.
-- The script run against a merged pull request, an open pull request, a closed issue, and an open issue, with the board read back after each — a merged pull request reads `State` = `Closed` and `Status` = `Done`; an open pull request reads `Open` and `Todo`; a closed issue reads `Closed` and `Done`; an open issue reads `Open` and `Todo`.
-- The same script run a second time over the same items — no field changes, exit zero.
-- The board audit — zero disagreements, against the 11 recorded before the change.
-- A script that parses every `## N.` heading and every `section N` reference in `AGENTS.md` — the headings are contiguous 1 through 14, and every reference resolves to exactly one heading.
-- A link check over the changed documents — no broken relative link.
-- `git diff --check` — no whitespace error, and every changed and added file ends with a newline.
-- A read of the complete diff.
+Commands actually executed on 2026-10-21 UTC, with observed results:
 
-No `cargo` command applies: the repository holds no Rust source, and this change adds none.
+- `bash -n .github/scripts/project-sync.sh` — no syntax error. `shellcheck` is not installed on this machine, so no shellcheck result is claimed.
+- The script was run against the live board with the maintainer's token, once for each of the eleven merged pull requests that disagreed: #2, #4, #6, #8, #16, #31, #33, #35, #38, #39, and #41. Each run printed nothing and exited zero.
+- A read-only board audit that compares every item's `State` and `Status` against the state of the content the item holds reports 44 items and 11 disagreements before the change, every one of the 11 a merged pull request reading `Todo` and `Open`, and 44 items and 0 disagreements after it. Every issue agreed with its own state in both audits.
+- The script was run a second time over pull requests #2, #31, and #41, and over the open issue #9, the closed issue #42, and the container #14, with the board audited before and after. The two audits are identical — `diff` reports no difference — and the second reports 0 disagreements. Every run exited zero.
+- A script parsed every `## N.` heading and every `section N` reference in `AGENTS.md`: the headings are contiguous 1 through 14, the referenced set is {2, 3, 4, 6, 7, 8, 9, 11, 12, 14}, and each reference resolves to exactly one heading. A `diff` of the section headings against `origin/main` reports no change, so the numbering and the titles are untouched. `wc -l AGENTS.md` reports 625 lines before and after the change.
+- A link check over the changed and added documents reports no broken relative link.
+- `git diff --check` — no whitespace error. Every changed and added file ends with a newline.
+- A review pass was run over the complete diff and the four changed and added documents, reading for correctness defects in the script, for any remaining place in the repository that still asserts the old behaviour, and for claims in this plan and the transparency log that the repository does not support. It was a review pass by the same agent that wrote the change, not an independent agent and not an independent model judgment. It found one stale statement — the data engine plan's risk note, which said section 4's rule was corrected in that change — and that note is corrected here.
+- The change was committed as `f11a4bb` ("fix: close the three loose ends from the state review"), pushed to `origin/fix/44-loose-ends`, and opened as pull request #45 against `main`, closing issue #44. `git ls-remote --heads origin fix/44-loose-ends` returns `f11a4bbd3cc0de2c8ef0e9358ded64c30092512d`, and `gh pr view 45` reports the pull request as OPEN from `fix/44-loose-ends` to `main`.
+- The board read back after the pull request was opened reports 45 items and 0 disagreements, and the pull request's own item reads `Item type` = Pull request, `State` = Open, and `Status` = Todo.
+
+Acceptance criteria are evaluated against the evidence above. All are met, including the criterion that depends on the pull request existing, which is satisfied by pull request #45. The status of this plan was `Approved` in the commit that carried the change, because that criterion was not yet met at that point; it is changed to `Verified` in the follow-up commit that records the commit, the push, and the pull request, following the precedent set by the earlier entries in this repository. The merge itself is not part of the criteria and remains with the human.
+
+Limitations, stated explicitly:
+
+- The repository contains no Rust source, no `Cargo.toml`, and no `tests/` directory, so `cargo build`, `cargo test`, `cargo clippy`, and `cargo doc` do not apply to this change. `cargo --version` and `rustc --version` were run and establish toolchain availability only. No build, test, lint, or doc result is claimed.
+- No automated markdown linter or link checker exists in the repository. Verification of a prose change is a script over the changed files, not a CI result.
+- The review pass was not independent. It was a second pass by the same agent over its own change, and it is recorded as such rather than presented as a separate judgment.
+- The board corrections were made with the maintainer's token rather than by the workflow's app token. The end state is the one the workflow produces, because the same script produces it, but the writer was not the app.
+
+No `cargo` command applies to this change: the repository holds no Rust source, and this change adds none.
 
 ## Risks and recovery
 
