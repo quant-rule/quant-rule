@@ -2,7 +2,7 @@
 
 - Issue: [#5](https://github.com/quant-rule/quant-rule/issues/5) — docs: define the shell application surface
 - Branch: `docs/5-shell-application-surface`
-- Status: Approved
+- Status: Verified
 - Date: 2026-10-20
 
 ## Intent
@@ -99,10 +99,11 @@ Observable conditions for completion:
 | 5 | Edit `README.md` to name the shell as the interface | Implementation | `README.md` | 3 |
 | 6 | Append an entry to the AI transparency log | Orchestrator | `docs/2026-10-20/ai-transparency-log.md` | 3 |
 | 7 | Verification pass: read the full diff, check numbering and cross-references, check the required plan and log contents, review the document against the acceptance criteria | Test Engineer, Code Reviewer | all changed files | 4, 5, 6 |
-| 8 | Mark this plan `Verified` with observed evidence | Orchestrator | this plan | 7 |
+| 8 | Mark this plan `Approved` with observed evidence; the pull request criterion is still open | Orchestrator | this plan | 7 |
 | 9 | Commit, push, open pull request | Orchestrator | git state, PR | 8 |
 | 10 | Move issue #5 to `Done` on the board | Orchestrator | GitHub project board | 9 |
-| 11 | Stop for the human's merge authorization | Orchestrator | — | 10 |
+| 11 | Record the commit, the push, and the pull request in this plan and in the transparency log; mark this plan `Verified` | Orchestrator | this plan, the transparency log | 10 |
+| 12 | Stop for the human's merge authorization | Orchestrator | — | 11 |
 
 ## Verification
 
@@ -122,8 +123,9 @@ Commands actually executed on 2026-10-20, with observed results:
 - The plan is checked against the ten required contents in `AGENTS.md` section 11: Intent, Current state, Scope, Assumptions and uncertainty, Decisions, Acceptance criteria, Work breakdown, Verification, Risks and recovery, and Stop conditions are all present by name, plus the Verification evidence subsection.
 - The transparency log entry is checked against the four required items in `AGENTS.md` section 6: Date and tool, Intent and boundary, Verification and evidence, and Learning with the rejected and corrected suggestions nested under it.
 - The complete diff was reviewed line by line before staging.
+- The change was committed as `a328318` ("docs: define the shell application surface"), pushed to `origin/docs/5-shell-application-surface`, and opened as pull request #6 against `main`, closing issue #5. `git ls-remote --heads origin docs/5-shell-application-surface` returns `a3283188c921cc46546d35777cee6d1ce46bc8ec`, and `gh pr view 6` reports the pull request as OPEN from `docs/5-shell-application-surface` to `main`. Issue #5 was moved to `Done` on the project board, and its board status was confirmed by the mutation's response. The GitHub issue itself stays open until the pull request is merged, because the board status and the issue's own state are independent (section 9).
 
-Acceptance criteria are evaluated against the evidence above. All are met except the one that depends on the pull request existing, which is satisfied when the pull request is opened. This plan is marked `Approved` rather than `Verified` at this point, because that criterion is not yet met; the status is changed to `Verified` in the follow-up commit that records the pull request, following the precedent set by the earlier entries in this repository.
+Acceptance criteria are evaluated against the evidence above. All are met, including the criterion that depends on the pull request existing, which is satisfied by pull request #6. The status of this plan was `Approved` in the commit that carried the change, because that criterion was not yet met at that point; it is changed to `Verified` in the follow-up commit that records the commit, the push, and the pull request, following the precedent set by the earlier entries in this repository. The merge itself is not part of the criteria and remains with the human.
 
 Limitations, stated explicitly:
 
