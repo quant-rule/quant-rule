@@ -229,6 +229,18 @@ Rules for the lifecycle:
 - The board status and the issue's own state are independent. A `Done` board item may still be open on GitHub, and an open GitHub issue may still be in `Todo`.
 - If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
 
+### Board Contents
+
+The board holds both the issue and the pull request that closes it. The human reads the board to see what is in flight and what is done, and neither kind of item is optional to them.
+
+- A pull request that closes a tracked issue is added to the board by GitHub's own automation, within a second of being opened and without anyone asking for it. A board item is therefore not evidence that something was added on purpose, and the `Item type` field is what tells an issue from a pull request.
+- The `Item type` field carries `Issue` or `Pull request` on every item. An item without a value is a defect, not a new kind of item. A pull request that the automation adds arrives without a value, so it is labelled when it appears.
+- The `State` field carries `Open` or `Closed` on every item, and a merged pull request is closed. The built-in date fields are not populated on this board, so `State` is the only field that says whether an item is still open.
+- An issue and its pull request share a title, so the board is read with `Item type` in view. `Labels` is a second signal in this repository, where issues carry labels and pull requests do not; that is a property of how issues are labelled rather than a rule, and nothing depends on it.
+- The `Status` field is the source of truth for the lifecycle, and it is the field that says which work is in flight.
+- The `All items` view lists every item in one table: open issues, closed issues, and pull requests. The `Board` view separates the same items across the columns of the lifecycle, so the table is the view to read when the question is what exists.
+- A view that cannot be configured through the API is configured by the human in the browser. The `Timeline` view is one: the API sets its name and layout but not the date field its timeline is drawn from, so the human picks that axis.
+
 ## 10. Agentic Engineering and Role Definitions
 
 AI agents operate under explicit responsibilities and permissions. Role separation exists to improve traceability, verification, and the detection of mistakes—not to transfer decision authority away from the human.
