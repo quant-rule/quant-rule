@@ -2,7 +2,7 @@
 
 - Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: build the model engine
 - Branch: `docs/14-model-engine-contract` (this change) and one branch per sub-issue
-- Status: Approved
+- Status: Verified
 - Date: 2026-10-21 (UTC; 2026-10-20 local time)
 - Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
 - Decision: [`docs/adr/2026-10-21/four-axis-analytical-model.md`](../../adr/2026-10-21/four-axis-analytical-model.md)
@@ -198,6 +198,10 @@ Commands actually executed on 2026-10-20 local time (2026-10-21 UTC), with obser
 - The fourteen issue bodies were rebuilt after that pass, each in the section 8 shape with the dependency line directly after the goal, each within the roughly fifteen-line budget, and each carrying the contract changes: the pivot candidate in M2, the published-leg rule in M6, the named aggregates in M11, the per-axis diagnostics in M12, and the candidate command names in M13.
 - The board was read back after every change: issue #14 shows `Status` = In Progress, `Item type` = Issue, and `State` = Open; the fourteen sub-issues show `Status` = Todo, `Item type` = Issue, and `State` = Open; issue #9 is unchanged in `Todo`.
 - A script resolved every relative markdown link in the six changed and added files against the working tree. The first run found six broken links, because a document in `docs/<kind>/<date>/` needs two levels of parent to reach a sibling kind. The links were corrected and the second run reports zero broken links.
+
+- The change was committed as `3678c7f` ("docs: define the four-axis analytical model contract"), pushed to `origin/docs/14-model-engine-contract`, and opened as pull request #31 against `main`, closing issue #14. `git ls-remote --heads origin docs/14-model-engine-contract` returns `3678c7f837860d18cbbb059a1daa697706d87bf8`, and `gh pr view 31` reports the pull request as OPEN from `docs/14-model-engine-contract` to `main`. Issue #14 was moved to `Done` on the project board, and the transition was confirmed by the mutation's response and by a read-back showing `Status` = Done, `Item type` = Issue, and `State` = Closed. Moving the item to `Done` also closed the GitHub issue two seconds later, at `2026-10-21T03:57:41Z`, because this project has the automatic close-on-Done setting enabled. The issue is therefore closed on GitHub while pull request #31 is still open, which diverges from the separation between board status and issue state that section 9 describes. If the pull request is not merged, the issue must be reopened. The fourteen sub-issues are in `Todo` with `State` = Open, and issue #9 is unchanged in `Todo`.
+
+Acceptance criteria are evaluated against the evidence above. All are met, including the criterion that depends on the pull request existing, which is satisfied by pull request #31. The status of this plan was `Approved` in the commit that carried the change, because that criterion was not yet met at that point; it is changed to `Verified` in the follow-up commit that records the commit, the push, and the pull request, following the precedent set by the earlier entries in this repository. The merge itself is not part of the criteria and remains with the human.
 
 Limitations, stated explicitly:
 
