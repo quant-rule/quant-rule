@@ -60,7 +60,7 @@ Explicit non-goals:
 | # | Open point | Options | Choice | Rationale |
 |---|---|---|---|---|
 | G1 | Where the sub-issue rules go | A new numbered section; a subsection of section 9; a bullet in the lifecycle rules | A subsection of section 9, named "Decomposing an issue into sub-issues" | The subject is the issue lifecycle, which section 9 already owns, and the container rule added with the model-engine contract sits directly above it. A new numbered section would renumber sections 4 through 14 and every cross-reference to them |
-| G2 | How the sub-issue rules relate to the container rule | Replace it; extend it; state both | Extend: the container rule stays as the lifecycle statement, and the new subsection states how a split is decided | The container rule says what a parent is; the new subsection says how to get there. They answer different questions, and one does not contain the other |
+| G2 | How the sub-issue rules relate to the container rule | Replace it; extend it; state both | Extend: the container rule stays as the lifecycle statement, and the new subsection states how a split is decided | The container rule says what a parent is; the new subsection says how to get there. They answer different questions, and one does not contain the other. The container rule's own wording was later replaced by issue #36, at the human's direction, so that a parent's status follows its children |
 | G3 | Where the file-size rule goes | Section 3; section 5; a new section | Section 3, beside "Modularity" | A file-size rule is a code convention, and the rule it qualifies is the modularity rule it sits next to |
 | G4 | Where the conciseness rule goes | Section 3; section 5 | Section 5 | It is about documents rather than code, and section 5 owns the documentation rules |
 | G5 | Whether the file-size rule is a hard limit | A hard limit with exceptions; a preference with a documented justification | A preference with a written justification | The human's wording says "preferably ... unless there is a documented justification", and a hard limit would force splits that make the code worse |
@@ -75,7 +75,7 @@ Explicit non-goals:
 
 Observable conditions for completion:
 
-- `AGENTS.md` section 9 states how an issue is split into sub-issues, and states the conditions under which a task's worktree and branch are removed after the merge.
+- `AGENTS.md` section 9 states how an issue is split into sub-issues, and states the conditions under which a task's worktree and branch are removed after the merge. The container rule it also states was later replaced by issue #36, so that a parent's status follows its children.
 - `AGENTS.md` section 3 states the file-size guideline, and section 5 states the conciseness guideline.
 - `AGENTS.md` section 7 states the worktree rules, including the sibling directory, the project directory on `main`, the checks before acting, the rule about another session's directory, and the request to the human when a session cannot be started in the right worktree.
 - No rule is stated in two places, and no new numbered section is created.
