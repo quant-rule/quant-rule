@@ -261,7 +261,7 @@ Rules for the lifecycle:
 - Moving an issue to `Done` requires the pull request to exist and be open. A container is the exception: its own deliverable was merged when it was delivered, and it is moved to `Done` when its last sub-issue is done.
 - The board status and the issue's own state are independent. A `Done` board item may still be open on GitHub, and an open GitHub issue may still be in `Todo`.
 - An issue with sub-issues is a container. Its acceptance criteria cover its own deliverable, and the work it delegates is stated in the criteria of its sub-issues, which carry the rest. A container's board status follows its children: it is `In Progress` while any sub-issue is open, and `Done` only when every sub-issue is done. The title of a container says what it delivers, so the board does not read as though the delegated work were done.
-- The board is kept in step by workflows rather than by hand. The project's built-in workflows mark an item `Done` when its issue is closed, and close the issue when the item is marked `Done`. A repository workflow owns the `State` and `Item type` fields and recomputes a container's `Status` from its sub-issues. The agent sets a leaf's `Todo` and `In Progress`, and does not set what a workflow owns.
+- The board is kept in step by workflows rather than by hand. The project's built-in workflows mark an item `Done` when its issue is closed, and close the issue when the item is marked `Done`. A repository workflow owns the `State`, `Item type`, and `Closed date` fields, and recomputes a container's `Status` from its sub-issues. The agent sets a leaf's `Todo`, `In Progress`, and `Start date`, and does not set what a workflow owns.
 - If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
 
 ### Decomposing an issue into sub-issues
@@ -285,7 +285,7 @@ The board holds both the issue and the pull request that closes it. The human re
 - An issue and its pull request share a title, so the board is read with `Item type` in view. `Labels` is a second signal in this repository, where issues carry labels and pull requests do not; that is a property of how issues are labelled rather than a rule, and nothing depends on it.
 - The `Status` field is the source of truth for the lifecycle, and it is the field that says which work is in flight.
 - The `All items` view lists every item in one table: open issues, closed issues, and pull requests. The `Board` view separates the same items across the columns of the lifecycle, so the table is the view to read when the question is what exists.
-- A view that cannot be configured through the API is configured by the human in the browser. The `Timeline` view is one: the API sets its name and layout but not the date field its timeline is drawn from, so the human picks that axis.
+- A view that cannot be configured through the API is configured by the human in the browser. The `Timeline` view is one: the API sets its name and layout but not the date field its timeline is drawn from, so the human picks that axis, and the board's `Start date` and `Closed date` fields are what it draws.
 
 ## 10. Agentic Engineering and Role Definitions
 
