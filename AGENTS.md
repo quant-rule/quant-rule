@@ -256,11 +256,12 @@ Every issue is tracked on the project board and moves through a fixed sequence. 
 Rules for the lifecycle:
 
 - Update the board status as part of the work, not as a separate task. A status change is part of the same change that advances the issue.
-- One issue is `In Progress` at a time unless the human explicitly authorizes parallel work.
+- One work item is `In Progress` at a time unless the human explicitly authorizes parallel work. A container that mirrors its sub-issues is not a work item in flight and does not occupy the slot.
 - Moving an issue to `In Progress` requires no separate approval. It is an ordinary part of starting work.
-- Moving an issue to `Done` requires the pull request to exist and be open.
+- Moving an issue to `Done` requires the pull request to exist and be open. A container is the exception: its own deliverable was merged when it was delivered, and it is moved to `Done` when its last sub-issue is done.
 - The board status and the issue's own state are independent. A `Done` board item may still be open on GitHub, and an open GitHub issue may still be in `Todo`.
-- An issue with sub-issues is a container. Its acceptance criteria cover its own deliverable, and the work it delegates is stated in the criteria of its sub-issues, which carry the rest. A container is `Done` when its own deliverable is delivered, and it is not `In Progress` while one of its sub-issues is, because one issue is `In Progress` at a time. The title of a container says what it delivers, so the board does not read as though the delegated work were done.
+- An issue with sub-issues is a container. Its acceptance criteria cover its own deliverable, and the work it delegates is stated in the criteria of its sub-issues, which carry the rest. A container's board status follows its children: it is `In Progress` while any sub-issue is open, and `Done` only when every sub-issue is done. The title of a container says what it delivers, so the board does not read as though the delegated work were done.
+- The board is kept in step by workflows rather than by hand. The project's built-in workflows mark an item `Done` when its issue is closed, and close the issue when the item is marked `Done`. A repository workflow owns the `State` and `Item type` fields and recomputes a container's `Status` from its sub-issues; until it is in place, the agent does that work. The agent sets a leaf's `Todo` and `In Progress`, and does not set what a workflow owns.
 - If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
 
 ### Decomposing an issue into sub-issues
