@@ -2,6 +2,7 @@
 
 - **Issue:** [#49](https://github.com/quant-rule/quant-rule/issues/49)
 - **Date:** 2026-10-23 (UTC)
+- **Pull request:** [#54](https://github.com/quant-rule/quant-rule/pull/54)
 - **Execution plan:** [`docs/execution-plans/2026-10-23/49-tolerant-ingestion.md`](../../execution-plans/2026-10-23/49-tolerant-ingestion.md)
 
 ## Entry: planning and preflight
@@ -48,4 +49,4 @@
   - **Rejected:** swallowing header or read errors in tolerant mode. Those are file-level failures, not attributable rows, and remain fatal.
   - **Rejected:** capping the skipped-row details. The issue requires every skipped row to be attributable; the plan records the resulting memory trade-off for a pathological file.
   - **Corrected:** the first help and README report samples showed a summary with more rejects than the sample skipped lines. Both samples were made internally consistent before the final gates.
-  - No commit, push, or pull request was created before this entry. The human must authorize the Git handoff.
+  - The human authorized the Git handoff on 2026-10-23. The change was committed as `4208c99`, pushed, and opened as PR #54. Merge remains subject to human authorization.
