@@ -20,3 +20,5 @@
 # Operating systems
 .DS_Store
 Thumbs.db
+
+/data/

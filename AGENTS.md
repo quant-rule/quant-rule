@@ -34,7 +34,13 @@ Invariants that the pipeline depends on:
 - Availability, not occurrence: a measurement that becomes knowable only later — a confirmed swing pivot, a divergence — records both when it occurred and when it became knowable, and it never reaches an earlier bar.
 - No double counting: a reading may feed more than one axis, and a correlated reading is not a second vote. Inside one axis, a feature is counted once.
 
-Concrete module paths are not listed here because the Rust workspace does not exist yet. The workspace is expected to hold one crate per pipeline stage — a data crate, a model crate, and the shell binary — with dependencies pointing from the shell to the model to the data. The concrete crate names and paths are recorded in this section in the same change that creates the workspace, and no crate name is assumed before that happens. The analytical model's contract — the four axes, the numeric output fields, the event model, and the aggregation rules — is written down in `docs/model/`, and the implementation follows it.
+The Rust workspace holds one crate per pipeline stage, with dependencies pointing one way:
+
+- `crates/quantrule-data` — the data engine.
+- `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
+- `crates/quantrule-shell` — the shell binary, which depends on `quantrule-model` and `quantrule-data`.
+
+The analytical model's contract — the four axes, the numeric output fields, the event model, and the aggregation rules — is written down in `docs/model/`, and the implementation follows it.
 
 ## 3. Coding Conventions
 
