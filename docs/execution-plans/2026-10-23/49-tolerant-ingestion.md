@@ -3,7 +3,7 @@
 - Issue: [#49](https://github.com/quant-rule/quant-rule/issues/49) — feat: add candle quality reporting and tolerant ingestion
 - Branch: `feat/49-tolerant-ingestion`
 - Worktree: `/home/zantgo/Proyectos/quant-rule--49-tolerant-ingestion`
-- Status: Verified — acceptance criteria met; PR #54 open, merge pending human authorization
+- Status: Verified — acceptance criteria met; PR #54 approved for merge on 2026-10-23
 - Date: 2026-10-23 (UTC)
 - Pull request: [#54](https://github.com/quant-rule/quant-rule/pull/54)
 - Transparency log: [`docs/ai-transparency-log/2026-10-23/49-tolerant-ingestion.md`](../../ai-transparency-log/2026-10-23/49-tolerant-ingestion.md)
@@ -163,7 +163,7 @@ Observed evidence on 2026-10-23:
 - The shell integration tests use only `crates/quantrule-shell/tests/fixtures/`; no test reads `data/`. The manual real-file check is not a test.
 - `Cargo.lock` is unchanged and lists only the three workspace packages.
 
-The acceptance criteria are met. The change was committed as `4208c99`, pushed, and opened as PR #54. Merge remains subject to human authorization.
+The acceptance criteria are met. The change was committed as `4208c99`, pushed, and opened as PR #54. The human approved the PR for merge on 2026-10-23.
 
 ## Risks and recovery
 

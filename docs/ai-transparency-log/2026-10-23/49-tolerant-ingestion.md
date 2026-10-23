@@ -49,4 +49,4 @@
   - **Rejected:** swallowing header or read errors in tolerant mode. Those are file-level failures, not attributable rows, and remain fatal.
   - **Rejected:** capping the skipped-row details. The issue requires every skipped row to be attributable; the plan records the resulting memory trade-off for a pathological file.
   - **Corrected:** the first help and README report samples showed a summary with more rejects than the sample skipped lines. Both samples were made internally consistent before the final gates.
-  - The human authorized the Git handoff on 2026-10-23. The change was committed as `4208c99`, pushed, and opened as PR #54. Merge remains subject to human authorization.
+  - The human authorized the Git handoff on 2026-10-23. The change was committed as `4208c99`, pushed, and opened as PR #54. The human approved the PR for merge on 2026-10-23.
