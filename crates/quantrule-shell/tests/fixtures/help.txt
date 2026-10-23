@@ -1,0 +1,11 @@
+QuantRule shell commands:
+  candles <csv-path>  Read a CSV and print the retained candle window as NDJSON.
+  help                Show this help.
+  quit                Exit the shell.
+
+CSV header: Date,Open,High,Low,Close,Volume
+Timestamp: YYYY-MM-DD HH:MM:SS+00:00
+The window retains the last 1000 candles.
+NDJSON: one candle per line, oldest first:
+{"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
+Non-interactive: quantrule candles <csv-path>
