@@ -1,0 +1,3 @@
+quality rows_read=2 accepted=0 rejected=2 duplicate=0 out_of_order=0 invalid=2 evicted=0 retained=0
+skipped line=2 reason=invalid: high is below low
+skipped line=3 reason=field_count: expected 6 fields, found 5

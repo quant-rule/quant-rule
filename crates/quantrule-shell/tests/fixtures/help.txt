@@ -1,11 +1,16 @@
 QuantRule shell commands:
-  candles <csv-path>  Read a CSV and print the retained candle window as NDJSON.
-  help                Show this help.
-  quit                Exit the shell.
+  candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
+  candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
+  help                          Show this help.
+  quit                          Exit the shell.
 
 CSV header: Date,Open,High,Low,Close,Volume
 Timestamp: YYYY-MM-DD HH:MM:SS+00:00
 The window retains the last 1000 candles.
 NDJSON: one candle per line, oldest first:
 {"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
+Quality report (stderr, candles-tolerant):
+quality rows_read=2 accepted=1 rejected=1 duplicate=0 out_of_order=0 invalid=1 evicted=0 retained=1
+skipped line=3 reason=invalid: high is below low
 Non-interactive: quantrule candles <csv-path>
+Non-interactive: quantrule candles-tolerant <csv-path>

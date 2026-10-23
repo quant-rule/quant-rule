@@ -13,23 +13,30 @@ use crate::render;
 
 /// The help text shown by the `help` command.
 pub(crate) const HELP: &str = r#"QuantRule shell commands:
-  candles <csv-path>  Read a CSV and print the retained candle window as NDJSON.
-  help                Show this help.
-  quit                Exit the shell.
+  candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
+  candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
+  help                          Show this help.
+  quit                          Exit the shell.
 
 CSV header: Date,Open,High,Low,Close,Volume
 Timestamp: YYYY-MM-DD HH:MM:SS+00:00
 The window retains the last 1000 candles.
 NDJSON: one candle per line, oldest first:
 {"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
+Quality report (stderr, candles-tolerant):
+quality rows_read=2 accepted=1 rejected=1 duplicate=0 out_of_order=0 invalid=1 evicted=0 retained=1
+skipped line=3 reason=invalid: high is below low
 Non-interactive: quantrule candles <csv-path>
+Non-interactive: quantrule candles-tolerant <csv-path>
 "#;
 
 /// A parsed shell command.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Command {
-    /// Read a CSV source and print the retained window.
+    /// Read a CSV source strictly and print the retained window.
     Candles(PathBuf),
+    /// Read a CSV source tolerantly and print the window plus a quality report.
+    CandlesTolerant(PathBuf),
     /// Print the command reference.
     Help,
     /// Exit the shell.
@@ -39,8 +46,8 @@ pub(crate) enum Command {
 /// A command line could not be parsed.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ParseError {
-    /// `candles` was entered without a path.
-    MissingPath,
+    /// A command that takes a path was entered without one.
+    MissingPath(&'static str),
     /// A command that takes no arguments received some.
     UnexpectedArguments(&'static str),
     /// The command name is not recognized.
@@ -50,7 +57,9 @@ pub(crate) enum ParseError {
 impl fmt::Display for ParseError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingPath => formatter.write_str("missing CSV path; usage: candles <csv-path>"),
+            Self::MissingPath(command) => {
+                write!(formatter, "missing CSV path; usage: {command} <csv-path>")
+            }
             Self::UnexpectedArguments(command) => {
                 write!(formatter, "{command} takes no arguments")
             }
@@ -92,8 +101,8 @@ impl std::error::Error for RunError {
 
 /// Parses one command line.
 ///
-/// A blank line returns `Ok(None)`. A `candles` path is the trimmed remainder
-/// of the line, so a path may contain spaces.
+/// A blank line returns `Ok(None)`. A `candles` or `candles-tolerant` path is
+/// the trimmed remainder of the line, so a path may contain spaces.
 ///
 /// # Errors
 ///
@@ -111,13 +120,8 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
     };
 
     match name {
-        "candles" => {
-            if rest.is_empty() {
-                Err(ParseError::MissingPath)
-            } else {
-                Ok(Some(Command::Candles(PathBuf::from(rest))))
-            }
-        }
+        "candles" => path_command(rest, "candles", Command::Candles),
+        "candles-tolerant" => path_command(rest, "candles-tolerant", Command::CandlesTolerant),
         "help" => {
             if rest.is_empty() {
                 Ok(Some(Command::Help))
@@ -136,7 +140,19 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
     }
 }
 
-/// Loads a CSV source and writes its retained window as NDJSON.
+fn path_command(
+    rest: &str,
+    name: &'static str,
+    build: fn(PathBuf) -> Command,
+) -> Result<Option<Command>, ParseError> {
+    if rest.is_empty() {
+        Err(ParseError::MissingPath(name))
+    } else {
+        Ok(Some(build(PathBuf::from(rest))))
+    }
+}
+
+/// Loads a CSV source strictly and writes its retained window as NDJSON.
 ///
 /// # Errors
 ///
@@ -145,6 +161,27 @@ pub(crate) fn run_candles(path: &Path, writer: &mut impl Write) -> Result<(), Ru
     let window = csv::load_window(path).map_err(RunError::Source)?;
     render::write_ndjson(&window, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
+}
+
+/// Loads a CSV source tolerantly, writes the retained window as NDJSON, and
+/// writes the quality report to a second writer.
+///
+/// The NDJSON is flushed before the report is written. A source-level failure
+/// leaves stdout untouched because the window is built before rendering.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source fails or either writer fails.
+pub(crate) fn run_candles_tolerant(
+    path: &Path,
+    output: &mut impl Write,
+    report: &mut impl Write,
+) -> Result<(), RunError> {
+    let loaded = csv::load_window_tolerant(path).map_err(RunError::Source)?;
+    render::write_ndjson(&loaded.window, output).map_err(RunError::Output)?;
+    output.flush().map_err(RunError::Output)?;
+    loaded.report.write(report).map_err(RunError::Output)?;
+    report.flush().map_err(RunError::Output)
 }
 
 /// Writes the command reference.
@@ -179,6 +216,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_tolerant_candles_with_a_path() {
+        assert_eq!(
+            parse("candles-tolerant data/example.csv"),
+            Ok(Some(Command::CandlesTolerant(PathBuf::from(
+                "data/example.csv"
+            ))))
+        );
+    }
+
+    #[test]
     fn preserves_spaces_in_a_candles_path() {
         assert_eq!(
             parse("candles my file.csv"),
@@ -187,9 +234,29 @@ mod tests {
     }
 
     #[test]
+    fn preserves_spaces_in_a_tolerant_candles_path() {
+        assert_eq!(
+            parse("candles-tolerant my file.csv"),
+            Ok(Some(Command::CandlesTolerant(PathBuf::from("my file.csv"))))
+        );
+    }
+
+    #[test]
     fn rejects_candles_without_a_path() {
-        assert_eq!(parse("candles"), Err(ParseError::MissingPath));
-        assert_eq!(parse("candles   "), Err(ParseError::MissingPath));
+        assert_eq!(parse("candles"), Err(ParseError::MissingPath("candles")));
+        assert_eq!(parse("candles   "), Err(ParseError::MissingPath("candles")));
+    }
+
+    #[test]
+    fn rejects_tolerant_candles_without_a_path() {
+        assert_eq!(
+            parse("candles-tolerant"),
+            Err(ParseError::MissingPath("candles-tolerant"))
+        );
+        assert_eq!(
+            parse("candles-tolerant   "),
+            Err(ParseError::MissingPath("candles-tolerant"))
+        );
     }
 
     #[test]

@@ -63,6 +63,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::CandlesTolerant(path) => {
+                if let Err(error) = command::run_candles_tolerant(&path, &mut stdout, &mut stderr) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Help => {
                 if let Err(error) = command::run_help(&mut stdout) {
                     eprintln!("error: {error}");
@@ -89,6 +94,23 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             let path = PathBuf::from(&args[1]);
             let mut stdout = io::stdout();
             match command::run_candles(&path, &mut stdout) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "candles-tolerant" => {
+            if args.len() != 2 {
+                eprintln!("error: usage: candles-tolerant <csv-path>");
+                return 1;
+            }
+
+            let path = PathBuf::from(&args[1]);
+            let mut stdout = io::stdout();
+            let mut stderr = io::stderr();
+            match command::run_candles_tolerant(&path, &mut stdout, &mut stderr) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");

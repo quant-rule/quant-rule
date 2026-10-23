@@ -4,13 +4,17 @@
 //! header, and streams one row at a time into the data engine. The engine never
 //! reads a file. This module only hands raw fields to `CandleWindow::push`; it
 //! does not validate candles or assign series indices.
+//!
+//! Two modes share the same source shape. [`load_window`] is strict and stops at
+//! the first bad row. [`load_window_tolerant`] skips row-level failures and
+//! returns a deterministic quality report alongside the retained window.
 
 use std::fmt;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
-use quantrule_data::{CandleWindow, RawCandle, WindowError, format_utc_timestamp};
+use quantrule_data::{CandleError, CandleWindow, RawCandle, WindowError, format_utc_timestamp};
 
 /// The exact header required by the CSV source.
 const HEADER: &str = "Date,Open,High,Low,Close,Volume";
@@ -124,6 +128,145 @@ impl std::error::Error for SourceError {
     }
 }
 
+/// A tolerant load: the retained window plus its quality report.
+#[derive(Debug)]
+pub(crate) struct TolerantWindow {
+    /// The accepted candles retained by the bounded window.
+    pub(crate) window: CandleWindow,
+    /// Counts and skipped-row details from the load.
+    pub(crate) report: IngestionReport,
+}
+
+/// Counts and skipped-row details from a tolerant load.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct IngestionReport {
+    rows_read: usize,
+    accepted: usize,
+    rejected: usize,
+    duplicate: usize,
+    out_of_order: usize,
+    invalid: usize,
+    evicted: usize,
+    retained: usize,
+    skipped: Vec<SkippedRow>,
+}
+
+impl IngestionReport {
+    /// Writes the fixed summary line followed by one line per skipped row.
+    ///
+    /// # Errors
+    ///
+    /// Returns the writer's error when a line cannot be written.
+    pub(crate) fn write(&self, writer: &mut impl Write) -> io::Result<()> {
+        writeln!(
+            writer,
+            "quality rows_read={} accepted={} rejected={} duplicate={} out_of_order={} invalid={} evicted={} retained={}",
+            self.rows_read,
+            self.accepted,
+            self.rejected,
+            self.duplicate,
+            self.out_of_order,
+            self.invalid,
+            self.evicted,
+            self.retained
+        )?;
+
+        for skipped in &self.skipped {
+            writeln!(
+                writer,
+                "skipped line={} reason={}",
+                skipped.line, skipped.reason
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn record_accepted(&mut self) {
+        self.accepted += 1;
+    }
+
+    fn record_skipped(&mut self, line: usize, reason: SkipReason) {
+        self.rejected += 1;
+        match &reason {
+            SkipReason::FieldCount { .. } | SkipReason::Invalid(_) => self.invalid += 1,
+            SkipReason::Duplicate { .. } => self.duplicate += 1,
+            SkipReason::OutOfOrder { .. } => self.out_of_order += 1,
+        }
+        self.skipped.push(SkippedRow { line, reason });
+    }
+
+    fn finish(&mut self, retained: usize) {
+        self.retained = retained;
+        self.evicted = self.accepted.saturating_sub(retained);
+    }
+}
+
+/// One source row that tolerant mode did not accept.
+#[derive(Debug, PartialEq, Eq)]
+struct SkippedRow {
+    line: usize,
+    reason: SkipReason,
+}
+
+/// Why tolerant mode skipped a source row.
+#[derive(Debug, PartialEq, Eq)]
+enum SkipReason {
+    /// The row did not have exactly six fields.
+    FieldCount {
+        /// The required field count.
+        expected: usize,
+        /// The observed field count.
+        actual: usize,
+    },
+    /// The data engine rejected the candle.
+    Invalid(CandleError),
+    /// The timestamp equals the last accepted timestamp.
+    Duplicate {
+        /// The duplicated timestamp as UTC Unix seconds.
+        timestamp: i64,
+    },
+    /// The timestamp is earlier than the last accepted timestamp.
+    OutOfOrder {
+        /// The last accepted timestamp as UTC Unix seconds.
+        previous: i64,
+        /// The rejected timestamp as UTC Unix seconds.
+        current: i64,
+    },
+}
+
+impl fmt::Display for SkipReason {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::FieldCount { expected, actual } => {
+                write!(
+                    formatter,
+                    "field_count: expected {expected} fields, found {actual}"
+                )
+            }
+            Self::Invalid(source) => write!(formatter, "invalid: {source}"),
+            Self::Duplicate { timestamp } => write!(
+                formatter,
+                "duplicate: duplicate timestamp at {}",
+                format_utc_timestamp(*timestamp)
+            ),
+            Self::OutOfOrder { previous, current } => write!(
+                formatter,
+                "out_of_order: timestamp {} is earlier than {}",
+                format_utc_timestamp(*current),
+                format_utc_timestamp(*previous)
+            ),
+        }
+    }
+}
+
+/// A row did not have exactly six fields.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FieldCountError {
+    expected: usize,
+    actual: usize,
+}
+
 /// Opens a CSV source and streams every row into a fresh candle window.
 ///
 /// The header is checked before any row is accepted. Rows are read one at a
@@ -135,20 +278,104 @@ impl std::error::Error for SourceError {
 /// is missing or invalid, a row does not have six fields, or the data engine
 /// rejects a row.
 pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
+    let mut reader = open_reader(path)?;
+    read_header(&mut reader, path)?;
+
+    let mut window = CandleWindow::new();
+    let mut line = String::new();
+    let mut line_number = 1_usize;
+
+    loop {
+        line.clear();
+        let bytes = read_line(&mut reader, &mut line, path, line_number + 1)?;
+        if bytes == 0 {
+            break;
+        }
+        line_number += 1;
+
+        let row = trim_line_ending(&line);
+        let raw = raw_candle(row).map_err(|error| SourceError::FieldCount {
+            path: path.to_path_buf(),
+            line: line_number,
+            expected: error.expected,
+            actual: error.actual,
+        })?;
+        window.push(raw).map_err(|source| SourceError::Candle {
+            path: path.to_path_buf(),
+            line: line_number,
+            source,
+        })?;
+    }
+
+    Ok(window)
+}
+
+/// Opens a CSV source, skips row-level failures, and reports what was skipped.
+///
+/// The header and source reads are still strict: a missing or invalid header or
+/// an I/O failure aborts the load. A wrong field count, invalid candle,
+/// duplicate timestamp, or out-of-order timestamp is counted, recorded with its
+/// source line, and skipped.
+///
+/// # Errors
+///
+/// Returns a [`SourceError`] when the file cannot be opened or read, or the
+/// header is missing or invalid.
+pub(crate) fn load_window_tolerant(path: &Path) -> Result<TolerantWindow, SourceError> {
+    let mut reader = open_reader(path)?;
+    read_header(&mut reader, path)?;
+
+    let mut window = CandleWindow::new();
+    let mut report = IngestionReport::default();
+    let mut line = String::new();
+    let mut line_number = 1_usize;
+
+    loop {
+        line.clear();
+        let bytes = read_line(&mut reader, &mut line, path, line_number + 1)?;
+        if bytes == 0 {
+            break;
+        }
+        line_number += 1;
+        report.rows_read += 1;
+
+        let row = trim_line_ending(&line);
+        let raw = match raw_candle(row) {
+            Ok(raw) => raw,
+            Err(error) => {
+                report.record_skipped(
+                    line_number,
+                    SkipReason::FieldCount {
+                        expected: error.expected,
+                        actual: error.actual,
+                    },
+                );
+                continue;
+            }
+        };
+
+        match window.push(raw) {
+            Ok(_) => report.record_accepted(),
+            Err(error) => report.record_skipped(line_number, skip_reason(error)),
+        }
+    }
+
+    report.finish(window.len());
+    Ok(TolerantWindow { window, report })
+}
+
+fn open_reader(path: &Path) -> Result<BufReader<File>, SourceError> {
     let file = File::open(path).map_err(|source| SourceError::Open {
         path: path.to_path_buf(),
         source,
     })?;
-    let mut reader = BufReader::new(file);
+    Ok(BufReader::new(file))
+}
+
+fn read_header(reader: &mut impl BufRead, path: &Path) -> Result<(), SourceError> {
     let mut header = String::new();
-    let header_bytes = reader
-        .read_line(&mut header)
-        .map_err(|source| SourceError::Read {
-            path: path.to_path_buf(),
-            line: 1,
-            source,
-        })?;
-    if header_bytes == 0 {
+    let bytes = read_line(reader, &mut header, path, 1)?;
+    if bytes == 0 {
         return Err(SourceError::MissingHeader {
             path: path.to_path_buf(),
         });
@@ -158,52 +385,49 @@ pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
             path: path.to_path_buf(),
         });
     }
+    Ok(())
+}
 
-    let mut window = CandleWindow::new();
-    let mut line = String::new();
-    let mut line_number = 1_usize;
+fn read_line(
+    reader: &mut impl BufRead,
+    line: &mut String,
+    path: &Path,
+    line_number: usize,
+) -> Result<usize, SourceError> {
+    reader.read_line(line).map_err(|source| SourceError::Read {
+        path: path.to_path_buf(),
+        line: line_number,
+        source,
+    })
+}
 
-    loop {
-        line.clear();
-        let bytes = reader
-            .read_line(&mut line)
-            .map_err(|source| SourceError::Read {
-                path: path.to_path_buf(),
-                line: line_number + 1,
-                source,
-            })?;
-        if bytes == 0 {
-            break;
-        }
-        line_number += 1;
-
-        let row = trim_line_ending(&line);
-        let fields: Vec<&str> = row.split(',').collect();
-        if fields.len() != FIELD_COUNT {
-            return Err(SourceError::FieldCount {
-                path: path.to_path_buf(),
-                line: line_number,
-                expected: FIELD_COUNT,
-                actual: fields.len(),
-            });
-        }
-
-        let raw = RawCandle {
-            date: fields[0],
-            open: fields[1],
-            high: fields[2],
-            low: fields[3],
-            close: fields[4],
-            volume: Some(fields[5]),
-        };
-        window.push(raw).map_err(|source| SourceError::Candle {
-            path: path.to_path_buf(),
-            line: line_number,
-            source,
-        })?;
+fn raw_candle(row: &str) -> Result<RawCandle<'_>, FieldCountError> {
+    let fields: Vec<&str> = row.split(',').collect();
+    if fields.len() != FIELD_COUNT {
+        return Err(FieldCountError {
+            expected: FIELD_COUNT,
+            actual: fields.len(),
+        });
     }
 
-    Ok(window)
+    Ok(RawCandle {
+        date: fields[0],
+        open: fields[1],
+        high: fields[2],
+        low: fields[3],
+        close: fields[4],
+        volume: Some(fields[5]),
+    })
+}
+
+fn skip_reason(error: WindowError) -> SkipReason {
+    match error {
+        WindowError::Candle(source) => SkipReason::Invalid(source),
+        WindowError::DuplicateTimestamp { timestamp } => SkipReason::Duplicate { timestamp },
+        WindowError::OutOfOrderTimestamp { previous, current } => {
+            SkipReason::OutOfOrder { previous, current }
+        }
+    }
 }
 
 fn trim_line_ending(line: &str) -> &str {

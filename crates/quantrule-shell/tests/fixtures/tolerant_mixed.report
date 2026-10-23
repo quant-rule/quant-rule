@@ -1,0 +1,7 @@
+quality rows_read=8 accepted=2 rejected=6 duplicate=1 out_of_order=1 invalid=4 evicted=0 retained=2
+skipped line=3 reason=invalid: high is below low
+skipped line=4 reason=invalid: open is not finite
+skipped line=5 reason=invalid: invalid timestamp: timestamp has an invalid date
+skipped line=6 reason=duplicate: duplicate timestamp at 2025-01-01T00:00:00Z
+skipped line=7 reason=out_of_order: timestamp 2024-12-31T23:59:00Z is earlier than 2025-01-01T00:00:00Z
+skipped line=8 reason=field_count: expected 6 fields, found 5
