@@ -13,6 +13,27 @@ use crate::candle::{Candle, CandleError, RawCandle};
 /// The maximum number of candles retained by a [`CandleWindow`].
 pub const DEFAULT_WINDOW: usize = 1_000;
 
+/// Already parsed values for one candle supplied by a non-text source.
+///
+/// A source that receives numbers rather than text builds these values and
+/// hands them to [`CandleWindow::push_values`]. The window assigns the stable
+/// series index, so the source never chooses one.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CandleValues {
+    /// UTC Unix seconds.
+    pub timestamp: i64,
+    /// Open price.
+    pub open: f64,
+    /// High price.
+    pub high: f64,
+    /// Low price.
+    pub low: f64,
+    /// Close price.
+    pub close: f64,
+    /// Volume, or `None` when the source did not supply one.
+    pub volume: Option<f64>,
+}
+
 /// A candle could not be accepted into the window.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WindowError {
@@ -100,7 +121,34 @@ impl CandleWindow {
     /// than the last accepted timestamp.
     pub fn push(&mut self, raw: RawCandle<'_>) -> Result<u64, WindowError> {
         let candle = Candle::parse(self.next_series_index, raw)?;
+        self.accept(candle)
+    }
 
+    /// Accepts one candle whose values are already parsed.
+    ///
+    /// On success, returns the stable series index assigned to the candle. The
+    /// ordering and duplicate rules are identical to [`CandleWindow::push`],
+    /// and a rejected candle does not consume an index.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`WindowError`] when the values violate the candle invariants,
+    /// when the timestamp equals the last accepted timestamp, or when it is
+    /// earlier.
+    pub fn push_values(&mut self, values: CandleValues) -> Result<u64, WindowError> {
+        let candle = Candle::new(
+            self.next_series_index,
+            values.timestamp,
+            values.open,
+            values.high,
+            values.low,
+            values.close,
+            values.volume,
+        )?;
+        self.accept(candle)
+    }
+
+    fn accept(&mut self, candle: Candle) -> Result<u64, WindowError> {
         if let Some(previous) = self.last_timestamp {
             if candle.timestamp() == previous {
                 return Err(WindowError::DuplicateTimestamp {
@@ -171,7 +219,7 @@ impl Default for CandleWindow {
 
 #[cfg(test)]
 mod tests {
-    use super::{CandleWindow, DEFAULT_WINDOW, WindowError};
+    use super::{CandleValues, CandleWindow, DEFAULT_WINDOW, WindowError};
     use crate::candle::{CandleError, RawCandle};
     use crate::time::format_utc_timestamp;
 
@@ -434,5 +482,153 @@ mod tests {
     #[test]
     fn repeated_runs_are_deterministic() {
         assert_eq!(build_window(2_500), build_window(2_500));
+    }
+
+    fn values_at(seconds: i64) -> CandleValues {
+        CandleValues {
+            timestamp: seconds,
+            open: 1.25,
+            high: 2.5,
+            low: 1.0,
+            close: 2.0,
+            volume: Some(10.0),
+        }
+    }
+
+    #[test]
+    fn accepts_numeric_values_and_exposes_every_field() {
+        let mut window = CandleWindow::new();
+
+        let series_index = window
+            .push_values(values_at(BASE))
+            .expect("the values are valid");
+        let candle = window.last().expect("the candle is retained");
+
+        assert_eq!(series_index, 0);
+        assert_eq!(window.len(), 1);
+        assert_eq!(candle.series_index(), 0);
+        assert_eq!(candle.timestamp(), BASE);
+        assert_eq!(candle.open(), 1.25);
+        assert_eq!(candle.high(), 2.5);
+        assert_eq!(candle.low(), 1.0);
+        assert_eq!(candle.close(), 2.0);
+        assert_eq!(candle.volume(), Some(10.0));
+    }
+
+    #[test]
+    fn numeric_values_preserve_absent_and_zero_volume() {
+        let mut window = CandleWindow::new();
+
+        window
+            .push_values(CandleValues {
+                volume: None,
+                ..values_at(BASE)
+            })
+            .expect("absent volume is valid");
+        window
+            .push_values(CandleValues {
+                volume: Some(0.0),
+                ..values_at(BASE + 60)
+            })
+            .expect("zero volume is valid");
+
+        assert_eq!(window.get(0).expect("retained").volume(), None);
+        assert_eq!(window.get(1).expect("retained").volume(), Some(0.0));
+    }
+
+    #[test]
+    fn numeric_values_reject_an_inconsistent_candle() {
+        let mut window = CandleWindow::new();
+
+        let result = window.push_values(CandleValues {
+            high: 0.5,
+            low: 1.0,
+            ..values_at(BASE)
+        });
+
+        assert_eq!(result, Err(WindowError::Candle(CandleError::HighBelowLow)));
+        assert!(window.is_empty());
+        assert_eq!(
+            window
+                .push_values(values_at(BASE))
+                .expect("the next candle is valid"),
+            0
+        );
+    }
+
+    #[test]
+    fn numeric_values_reject_a_duplicate_without_consuming_an_index() {
+        let mut window = CandleWindow::new();
+        window
+            .push_values(values_at(BASE))
+            .expect("the first candle is valid");
+
+        assert_eq!(
+            window.push_values(values_at(BASE)),
+            Err(WindowError::DuplicateTimestamp { timestamp: BASE })
+        );
+        assert_eq!(window.len(), 1);
+        assert_eq!(
+            window
+                .push_values(values_at(BASE + 60))
+                .expect("the next candle is valid"),
+            1
+        );
+    }
+
+    #[test]
+    fn numeric_values_reject_an_out_of_order_timestamp() {
+        let mut window = CandleWindow::new();
+        window
+            .push_values(values_at(BASE + 60))
+            .expect("the first candle is valid");
+
+        assert_eq!(
+            window.push_values(values_at(BASE)),
+            Err(WindowError::OutOfOrderTimestamp {
+                previous: BASE + 60,
+                current: BASE,
+            })
+        );
+        assert_eq!(window.len(), 1);
+    }
+
+    #[test]
+    fn numeric_values_evict_and_keep_stable_indices() {
+        let mut window = CandleWindow::new();
+
+        for offset in 0..1_001_i64 {
+            window
+                .push_values(values_at(BASE + offset * 60))
+                .expect("fixture values are valid");
+        }
+
+        assert_eq!(window.len(), DEFAULT_WINDOW);
+        assert_eq!(window.first().expect("not empty").series_index(), 1);
+        assert_eq!(window.last().expect("not empty").series_index(), 1_000);
+    }
+
+    #[test]
+    fn raw_and_numeric_candles_share_one_ordering() {
+        let mut window = CandleWindow::new();
+        let date = source_timestamp(BASE);
+
+        assert_eq!(
+            window.push(raw_candle(&date)).expect("raw candle is valid"),
+            0
+        );
+        assert_eq!(
+            window
+                .push_values(values_at(BASE + 60))
+                .expect("numeric candle is valid"),
+            1
+        );
+        assert_eq!(
+            window.push_values(values_at(BASE)),
+            Err(WindowError::OutOfOrderTimestamp {
+                previous: BASE + 60,
+                current: BASE,
+            })
+        );
     }
 }
