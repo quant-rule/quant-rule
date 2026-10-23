@@ -302,3 +302,168 @@ fn candles_with_extra_arguments_fails_with_usage() {
     assert_failure(&output);
     assert_eq!(stderr_text(&output), "error: usage: candles <csv-path>\n");
 }
+
+#[test]
+fn tolerant_mixed_prints_valid_candles_and_exact_report() {
+    let path = fixture("tolerant_mixed.csv");
+    let output = run(&["candles-tolerant", &path]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/tolerant_mixed.ndjson")
+    );
+    assert_eq!(
+        stderr_text(&output),
+        include_str!("fixtures/tolerant_mixed.report")
+    );
+}
+
+#[test]
+fn tolerant_all_invalid_succeeds_without_stdout() {
+    let path = fixture("tolerant_all_invalid.csv");
+    let output = run(&["candles-tolerant", &path]);
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), "");
+    assert_eq!(
+        stderr_text(&output),
+        include_str!("fixtures/tolerant_all_invalid.report")
+    );
+}
+
+#[test]
+fn tolerant_header_only_reports_zero_counts() {
+    let path = fixture("empty.csv");
+    let output = run(&["candles-tolerant", &path]);
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), "");
+    assert_eq!(
+        stderr_text(&output),
+        include_str!("fixtures/tolerant_empty.report")
+    );
+}
+
+#[test]
+fn tolerant_over_window_reports_eviction() {
+    let path = fixture("over_window.csv");
+    let output = run(&["candles-tolerant", &path]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/over_window.ndjson")
+    );
+    assert_eq!(
+        stderr_text(&output),
+        include_str!("fixtures/tolerant_evicted.report")
+    );
+}
+
+#[test]
+fn tolerant_repeated_runs_are_byte_identical() {
+    let path = fixture("tolerant_mixed.csv");
+    let first = run(&["candles-tolerant", &path]);
+    let second = run(&["candles-tolerant", &path]);
+
+    assert_success(&first);
+    assert_success(&second);
+    assert_eq!(first.stdout, second.stdout);
+    assert_eq!(first.stderr, second.stderr);
+    assert_eq!(first.status.code(), second.status.code());
+}
+
+#[test]
+fn tolerant_interactive_and_non_interactive_stdout_are_byte_identical() {
+    let path = fixture("tolerant_mixed.csv");
+    let expected = include_str!("fixtures/tolerant_mixed.ndjson");
+
+    let non_interactive = run(&["candles-tolerant", &path]);
+    assert_success(&non_interactive);
+    assert_eq!(stdout_text(&non_interactive), expected);
+    assert_eq!(
+        stderr_text(&non_interactive),
+        include_str!("fixtures/tolerant_mixed.report")
+    );
+
+    let interactive = run_interactive(&format!("candles-tolerant {path}\nquit\n"));
+    assert_success(&interactive);
+    assert_eq!(stdout_text(&interactive), expected);
+    let stderr = stderr_text(&interactive);
+    assert!(stderr.contains("quality rows_read=8"), "stderr: {stderr}");
+    assert!(stderr.contains("skipped line=3"), "stderr: {stderr}");
+    assert!(stderr.contains("quantrule> "), "stderr: {stderr}");
+}
+
+#[test]
+fn strict_candles_still_fails_on_tolerant_mixed_file() {
+    let path = fixture("tolerant_mixed.csv");
+    let output = run(&["candles", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!("error: {path}: line 3: high is below low\n")
+    );
+}
+
+#[test]
+fn tolerant_bad_header_fails_without_stdout() {
+    let path = fixture("bad_header.csv");
+    let output = run(&["candles-tolerant", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!("error: {path}: invalid CSV header; expected Date,Open,High,Low,Close,Volume\n")
+    );
+}
+
+#[test]
+fn tolerant_missing_header_fails_without_stdout() {
+    let path = fixture("no_header.csv");
+    let output = run(&["candles-tolerant", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!("error: {path}: missing CSV header\n")
+    );
+}
+
+#[test]
+fn tolerant_missing_file_fails_without_stdout() {
+    let path = fixture("missing.csv");
+    let output = run(&["candles-tolerant", &path]);
+
+    assert_failure(&output);
+    assert!(
+        stderr_text(&output).starts_with(&format!("error: cannot open {path}: ")),
+        "unexpected stderr: {}",
+        stderr_text(&output)
+    );
+}
+
+#[test]
+fn tolerant_candles_without_a_path_fails_with_usage() {
+    let output = run(&["candles-tolerant"]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "error: usage: candles-tolerant <csv-path>\n"
+    );
+}
+
+#[test]
+fn tolerant_candles_with_extra_arguments_fails_with_usage() {
+    let path = fixture("single.csv");
+    let output = run(&["candles-tolerant", &path, "extra"]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "error: usage: candles-tolerant <csv-path>\n"
+    );
+}
