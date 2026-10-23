@@ -1,13 +1,25 @@
 # Execution Plan: The Data Engine
 
 - Issue: [#9](https://github.com/quant-rule/quant-rule/issues/9) — feat: build the data engine
-- Branch: `feat/9-data-engine`
-- Worktree: created when the work starts, per `AGENTS.md` section 7
-- Status: Proposed — prepared in the environment-setup work item, not yet approved, and no implementation has started
+- Branch: none — superseded as a working plan
+- Worktree: none
+- Status: Superseded on 2026-10-23 — the data engine is tracked as container #9 with sub-issues #46–#50. The first-wave plans are dated 2026-10-23; #46 is the active one.
 - Date: 2026-10-21 (UTC; 2026-10-20 local time)
 - Transparency log: [`docs/ai-transparency-log/2026-10-21/9-data-engine.md`](../../ai-transparency-log/2026-10-21/9-data-engine.md)
 
-This plan was written on 2026-10-21 during the environment-setup work item, so that the data engine can be started without re-deriving its design. No Rust code was written: the human stopped the implementation at that point and asked for the environment to be set up instead. The plan therefore states a design and a decision list, and it awaits the human's approval before any of it is built.
+This plan was written on 2026-10-21 during the environment-setup work item, so that the data engine can be started without re-deriving its design. No Rust code was written: the human stopped the implementation at that point and asked for the environment to be set up instead.
+
+## Supersession note — 2026-10-23
+
+The human approved a smaller first slice with a hard 1000-candle window. That changes three decisions in this document:
+
+- **B7 — command set.** The first command is `candles`; `timeframes` waits for #50.
+- **B8/B9 — duplicates and invalid candles.** The first slice is strict: duplicate, out-of-order, malformed, and invalid input abort with an error. Tolerant ingestion and quality counts are #49.
+- **B10 — partial buckets.** Higher-timeframe construction and partial-bucket handling are #50.
+
+The 1000-candle bound also means the engine cannot globally sort an arbitrary input series. Chronological source order is a validated input contract in the first slice. `series_index` is stored and stable; `window_index` is derived at render time.
+
+The active work is [#46](https://github.com/quant-rule/quant-rule/issues/46), [#47](https://github.com/quant-rule/quant-rule/issues/47), and [#48](https://github.com/quant-rule/quant-rule/issues/48). This document remains as the historical design input; its acceptance criteria and work breakdown no longer describe an active branch.
 
 ## Intent
 

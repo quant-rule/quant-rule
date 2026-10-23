@@ -1,0 +1,16 @@
+[package]
+name = "quantrule-shell"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "quantrule"
+path = "src/main.rs"
+
+[dependencies]
+quantrule-data = { path = "../quantrule-data" }
+quantrule-model = { path = "../quantrule-model" }
+
+[lints]
+workspace = true
