@@ -1,6 +1,7 @@
 # Execution Plan: Fetch Dukascopy Candles into Validated CSV and PNG
 
 - Issue: [#55](https://github.com/quant-rule/quant-rule/issues/55) — feat: fetch Dukascopy candles into validated CSV and PNG
+- Pull request: [#56](https://github.com/quant-rule/quant-rule/pull/56)
 - Branch: `feat/55-dukascopy-source`
 - Worktree: `/home/zantgo/Proyectos/quant-rule--55-dukascopy-source`
 - Status: Verified; amended on 2026-10-23 at the human's request to add native 5m, 15m, and 1h fetching while preserving the 1m parity result. The human accepted the review PNGs on 2026-10-23 and authorized the Git handoff.
@@ -64,7 +65,8 @@ Explicit non-goals:
 - Caching, resumable downloads, tick data, and ask-side prices.
 - Moving averages or any other indicator in the shell.
 - Live exchange data; Dukascopy remains the only adapter in this slice.
-- Commits, pushes, and a pull request. Those need separate authorization.
+- Commits, pushes, and a pull request were outside the original implementation
+  scope; the human authorized them separately on 2026-10-23.
 
 ## Assumptions and uncertainty
 
@@ -89,8 +91,8 @@ Explicit non-goals:
   provider. Timeframes derived from M1 stay in #50.
 - CSV is always written; PNG is opt-in.
 - The chart has no moving averages.
-- The issue is worked in this worktree and branch. Commit, push, and pull
-  request remain gated.
+- The issue is worked in this worktree and branch. The human authorized the
+  commit, push, and pull request separately on 2026-10-23.
 
 ## Amendment: native 5m, 15m, and 1h
 
@@ -115,7 +117,8 @@ Explicit non-goals:
 - Aggregating 1m candles into higher timeframes. That remains issue #50.
 - Provider intervals other than the four above.
 - Indicators, moving averages, or a combined multi-timeframe view.
-- Commits, pushes, or a pull request before the human inspects the PNGs.
+- Commits, pushes, or a pull request before the human inspected the PNGs. The
+  human accepted the images and authorized the handoff on 2026-10-23.
 
 Decisions:
 

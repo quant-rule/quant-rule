@@ -2,7 +2,7 @@
 
 - **Issue:** [#55](https://github.com/quant-rule/quant-rule/issues/55)
 - **Date:** 2026-10-23 (UTC)
-- **Pull request:** To be opened from `feat/55-dukascopy-source` after human acceptance; this record is updated when it exists.
+- **Pull request:** [#56](https://github.com/quant-rule/quant-rule/pull/56), opened after human acceptance
 - **Execution plan:** [`docs/execution-plans/2026-10-23/55-dukascopy-source.md`](../../execution-plans/2026-10-23/55-dukascopy-source.md)
 
 ## Entry: planning and preflight
@@ -100,3 +100,22 @@
   - The full-year parity check is the strongest evidence for the provider mapping and CSV formatting; the fixture tests alone would not prove the live values.
   - The provider repeats the cursor row at page boundaries, so the duplicate row must be filtered before it reaches the data engine.
   - A deterministic PNG requires a fixed font, no clock metadata, no unordered iteration, and a pinned encoder.
+
+## Entry: accepted Git handoff
+
+- **Date and tool:** 2026-10-23 (UTC). opencode (DeepSeek V4.1 Flash Free), running in the #55 worktree.
+- **Intent and boundary:** Record the human's acceptance of the four review PNGs and the authorized commit, push, and pull request. Merging and deployment are outside this entry.
+- **Actions:**
+  - The human accepted all four PNGs on 2026-10-23 and authorized the Git handoff.
+  - Committed the implementation as `f81b873` (`feat: fetch native Dukascopy candles into validated CSV and PNG (#55)`) after reviewing the complete staged diff and running `git diff --check`.
+  - Pushed `feat/55-dukascopy-source` to `origin` with upstream tracking.
+  - Opened pull request [#56](https://github.com/quant-rule/quant-rule/pull/56) with the issue title, a `Closes #55` reference, observed verification, risks, and the claim type "implementation and live verification, not independent review".
+  - Moved issue #55 to `Done` on the QuantRule project board because the pull request exists and the acceptance criteria are met. The issue remains open on GitHub pending merge.
+  - Kept the generated EURUSD CSVs and PNGs under the ignored `data/` directory; they are not committed.
+- **Verification and evidence:**
+  - The local quality gates recorded in the extension entry were run against the committed tree: formatting and clippy clean, all 190 tests and doctests passed, and the documentation build was clean.
+  - The live XAUUSD parity and EURUSD cross-timeframe checks described above were completed before the commit.
+  - The repository's `sync` check for PR #56 passed after it opened.
+- **Learning:**
+  - The board lifecycle permits the issue to be `Done` while GitHub keeps the issue open until the pull request merges.
+  - No merge was performed, and no release or deployment followed from this handoff.
