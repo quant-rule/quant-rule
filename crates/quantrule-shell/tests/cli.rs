@@ -168,6 +168,71 @@ fn interactive_help_matches_non_interactive_help() {
 }
 
 #[test]
+fn fetch_without_arguments_fails_with_usage() {
+    let output = run(&["fetch"]);
+
+    assert_failure(&output);
+    assert!(
+        stderr_text(&output).contains("usage: fetch <symbol> <start> <end>"),
+        "unexpected stderr: {}",
+        stderr_text(&output)
+    );
+}
+
+#[test]
+fn fetch_with_an_invalid_date_fails_before_any_network_access() {
+    let output = run(&["fetch", "gold", "2025-02-30", "2025-12-31"]);
+
+    assert_failure(&output);
+    assert!(
+        stderr_text(&output).contains("invalid date range"),
+        "unexpected stderr: {}",
+        stderr_text(&output)
+    );
+}
+
+#[test]
+fn fetch_with_an_unknown_option_fails_without_stdout() {
+    let output = run(&["fetch", "gold", "2025-01-01", "2025-12-31", "--bogus", "x"]);
+
+    assert_failure(&output);
+    assert_eq!(stderr_text(&output), "error: unknown option '--bogus'\n");
+}
+
+#[test]
+fn fetch_with_an_unknown_timeframe_fails_before_any_network_access() {
+    let output = run(&[
+        "fetch",
+        "gold",
+        "2025-01-01",
+        "2025-12-31",
+        "--timeframe",
+        "30m",
+    ]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "error: --timeframe expects 1m, 5m, 15m, or 1h, found '30m'\n"
+    );
+    assert_eq!(stdout_text(&output), "");
+}
+
+#[test]
+fn interactive_fetch_argument_error_keeps_the_session_alive() {
+    let output = run_interactive("fetch\nhelp\nquit\n");
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), include_str!("fixtures/help.txt"));
+    assert!(
+        stderr_text(&output).contains("usage: fetch <symbol> <start> <end>"),
+        "unexpected stderr: {}",
+        stderr_text(&output)
+    );
+    assert!(stderr_text(&output).contains("quantrule> "));
+}
+
+#[test]
 fn quit_exits_without_output() {
     let output = run_interactive("quit\n");
 

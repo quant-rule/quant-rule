@@ -15,4 +15,4 @@ mod window;
 pub use candle::{Candle, CandleError, RawCandle};
 pub use time::{TimestampError, format_utc_timestamp, parse_utc_timestamp};
 pub use timeframe::Timeframe;
-pub use window::{CandleWindow, DEFAULT_WINDOW, WindowError};
+pub use window::{CandleValues, CandleWindow, DEFAULT_WINDOW, WindowError};

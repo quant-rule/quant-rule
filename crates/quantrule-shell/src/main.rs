@@ -6,9 +6,13 @@
 
 #![forbid(unsafe_code)]
 
+mod chart;
 mod command;
 mod csv;
+mod export;
+mod fetch;
 mod render;
+mod source;
 
 use std::ffi::OsString;
 use std::io::{self, Write};
@@ -68,6 +72,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::Fetch(args) => {
+                if let Err(error) = command::run_fetch(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Help => {
                 if let Err(error) = command::run_help(&mut stdout) {
                     eprintln!("error: {error}");
@@ -111,6 +120,33 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             let mut stdout = io::stdout();
             let mut stderr = io::stderr();
             match command::run_candles_tolerant(&path, &mut stdout, &mut stderr) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "fetch" => {
+            let mut arguments = Vec::with_capacity(args.len().saturating_sub(1));
+            for argument in &args[1..] {
+                let Some(argument) = argument.to_str() else {
+                    eprintln!("error: fetch argument is not valid UTF-8");
+                    return 1;
+                };
+                arguments.push(argument.to_owned());
+            }
+
+            let fetch_args = match command::parse_fetch_arguments(&arguments) {
+                Ok(fetch_args) => fetch_args,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 1;
+                }
+            };
+
+            let mut stdout = io::stdout();
+            match command::run_fetch(&fetch_args, &mut stdout) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");

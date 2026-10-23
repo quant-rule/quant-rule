@@ -1,6 +1,11 @@
 QuantRule shell commands:
   candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
   candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
+  fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
+      [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
+      [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
+      [--png <path>]            Also write a PNG chart.
+      [--candles <n>]           Chart candle count (default 1000, max 1000).
   help                          Show this help.
   quit                          Exit the shell.
 
@@ -12,5 +17,7 @@ NDJSON: one candle per line, oldest first:
 Quality report (stderr, candles-tolerant):
 quality rows_read=2 accepted=1 rejected=1 duplicate=0 out_of_order=0 invalid=1 evicted=0 retained=1
 skipped line=3 reason=invalid: high is below low
+Fetch dates: inclusive UTC dates in YYYY-MM-DD form; no clock is read.
 Non-interactive: quantrule candles <csv-path>
 Non-interactive: quantrule candles-tolerant <csv-path>
+Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
