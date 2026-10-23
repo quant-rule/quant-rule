@@ -72,6 +72,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::Timeframes(path) => {
+                if let Err(error) = command::run_timeframes(&path, &mut stdout, &mut stderr) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Fetch(args) => {
                 if let Err(error) = command::run_fetch(&args, &mut stdout) {
                     eprintln!("error: {error}");
@@ -120,6 +125,23 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             let mut stdout = io::stdout();
             let mut stderr = io::stderr();
             match command::run_candles_tolerant(&path, &mut stdout, &mut stderr) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "timeframes" => {
+            if args.len() != 2 {
+                eprintln!("error: usage: timeframes <csv-path>");
+                return 1;
+            }
+
+            let path = PathBuf::from(&args[1]);
+            let mut stdout = io::stdout();
+            let mut stderr = io::stderr();
+            match command::run_timeframes(&path, &mut stdout, &mut stderr) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");

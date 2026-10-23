@@ -14,7 +14,10 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
-use quantrule_data::{CandleError, CandleWindow, RawCandle, WindowError, format_utc_timestamp};
+use quantrule_data::{
+    CandleError, CandleWindow, RawCandle, TimeframeError, TimeframeSet, WindowError,
+    format_utc_timestamp,
+};
 
 /// The exact header required by the CSV source.
 const HEADER: &str = "Date,Open,High,Low,Close,Volume";
@@ -71,6 +74,22 @@ pub(crate) enum SourceError {
         /// The engine error.
         source: WindowError,
     },
+    /// The data engine rejected a row while building timeframes.
+    Timeframe {
+        /// The source path.
+        path: PathBuf,
+        /// The one-based line number.
+        line: usize,
+        /// The engine error.
+        source: TimeframeError,
+    },
+    /// The data engine could not finish the timeframe set.
+    Finish {
+        /// The source path.
+        path: PathBuf,
+        /// The engine error.
+        source: TimeframeError,
+    },
 }
 
 impl fmt::Display for SourceError {
@@ -112,6 +131,18 @@ impl fmt::Display for SourceError {
                 path.display(),
                 describe_window_error(source)
             ),
+            Self::Timeframe { path, line, source } => write!(
+                formatter,
+                "{}: line {line}: {}",
+                path.display(),
+                describe_timeframe_error(source)
+            ),
+            Self::Finish { path, source } => write!(
+                formatter,
+                "{}: cannot finish timeframes: {}",
+                path.display(),
+                describe_timeframe_error(source)
+            ),
         }
     }
 }
@@ -121,6 +152,7 @@ impl std::error::Error for SourceError {
         match self {
             Self::Open { source, .. } | Self::Read { source, .. } => Some(source),
             Self::Candle { source, .. } => Some(source),
+            Self::Timeframe { source, .. } | Self::Finish { source, .. } => Some(source),
             Self::MissingHeader { .. } | Self::InvalidHeader { .. } | Self::FieldCount { .. } => {
                 None
             }
@@ -310,6 +342,56 @@ pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
     Ok(window)
 }
 
+/// Opens a CSV source and streams every row into a fresh timeframe set.
+///
+/// The input is an M1 series. The data engine derives M5, M15, and H1 while
+/// the file is read, so the shell never builds a timeframe itself. The header
+/// is checked before any row is accepted, and the full file is never
+/// collected.
+///
+/// # Errors
+///
+/// Returns a [`SourceError`] when the file cannot be opened or read, the header
+/// is missing or invalid, a row does not have six fields, the data engine
+/// rejects a row, or the final bucket cannot be finished.
+pub(crate) fn load_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
+    let mut reader = open_reader(path)?;
+    read_header(&mut reader, path)?;
+
+    let mut set = TimeframeSet::new();
+    let mut line = String::new();
+    let mut line_number = 1_usize;
+
+    loop {
+        line.clear();
+        let bytes = read_line(&mut reader, &mut line, path, line_number + 1)?;
+        if bytes == 0 {
+            break;
+        }
+        line_number += 1;
+
+        let row = trim_line_ending(&line);
+        let raw = raw_candle(row).map_err(|error| SourceError::FieldCount {
+            path: path.to_path_buf(),
+            line: line_number,
+            expected: error.expected,
+            actual: error.actual,
+        })?;
+        set.push(raw).map_err(|source| SourceError::Timeframe {
+            path: path.to_path_buf(),
+            line: line_number,
+            source,
+        })?;
+    }
+
+    set.finish().map_err(|source| SourceError::Finish {
+        path: path.to_path_buf(),
+        source,
+    })?;
+
+    Ok(set)
+}
+
 /// Opens a CSV source, skips row-level failures, and reports what was skipped.
 ///
 /// The header and source reads are still strict: a missing or invalid header or
@@ -448,5 +530,14 @@ fn describe_window_error(error: &WindowError) -> String {
             format_utc_timestamp(*current),
             format_utc_timestamp(*previous)
         ),
+    }
+}
+
+fn describe_timeframe_error(error: &TimeframeError) -> String {
+    match error {
+        TimeframeError::Window(source) => describe_window_error(source),
+        TimeframeError::MisalignedM1Timestamp { .. } | TimeframeError::Finished => {
+            error.to_string()
+        }
     }
 }

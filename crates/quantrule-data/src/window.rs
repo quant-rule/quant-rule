@@ -120,8 +120,8 @@ impl CandleWindow {
     /// equals the last accepted timestamp, or when its timestamp is earlier
     /// than the last accepted timestamp.
     pub fn push(&mut self, raw: RawCandle<'_>) -> Result<u64, WindowError> {
-        let candle = Candle::parse(self.next_series_index, raw)?;
-        self.accept(candle)
+        self.push_and_return(raw)
+            .map(|candle| candle.series_index())
     }
 
     /// Accepts one candle whose values are already parsed.
@@ -136,6 +136,27 @@ impl CandleWindow {
     /// when the timestamp equals the last accepted timestamp, or when it is
     /// earlier.
     pub fn push_values(&mut self, values: CandleValues) -> Result<u64, WindowError> {
+        self.push_values_and_return(values)
+            .map(|candle| candle.series_index())
+    }
+
+    /// Parses and accepts one source candle and returns the accepted candle.
+    ///
+    /// This is the crate-internal counterpart of [`CandleWindow::push`], used
+    /// when the caller also needs the validated values for a later stage.
+    pub(crate) fn push_and_return(&mut self, raw: RawCandle<'_>) -> Result<Candle, WindowError> {
+        let candle = Candle::parse(self.next_series_index, raw)?;
+        self.accept(candle)?;
+        Ok(candle)
+    }
+
+    /// Accepts parsed values and returns the accepted candle.
+    ///
+    /// This is the crate-internal counterpart of [`CandleWindow::push_values`].
+    pub(crate) fn push_values_and_return(
+        &mut self,
+        values: CandleValues,
+    ) -> Result<Candle, WindowError> {
         let candle = Candle::new(
             self.next_series_index,
             values.timestamp,
@@ -145,7 +166,8 @@ impl CandleWindow {
             values.close,
             values.volume,
         )?;
-        self.accept(candle)
+        self.accept(candle)?;
+        Ok(candle)
     }
 
     fn accept(&mut self, candle: Candle) -> Result<u64, WindowError> {

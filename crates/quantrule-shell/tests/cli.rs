@@ -341,6 +341,152 @@ fn interactive_error_keeps_the_session_alive() {
 }
 
 #[test]
+fn timeframes_complete_m1_prints_all_four_series_and_exact_report() {
+    let path = fixture("timeframes.csv");
+    let output = run(&["timeframes", &path]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/timeframes.ndjson")
+    );
+    assert_eq!(
+        stderr_text(&output),
+        include_str!("fixtures/timeframes.report.txt")
+    );
+}
+
+#[test]
+fn timeframes_reports_partial_buckets_and_gaps() {
+    let path = fixture("timeframes-gaps.csv");
+    let output = run(&["timeframes", &path]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/timeframes-gaps.ndjson")
+    );
+    assert_eq!(
+        stderr_text(&output),
+        include_str!("fixtures/timeframes-gaps.report.txt")
+    );
+}
+
+#[test]
+fn timeframes_empty_input_reports_four_empty_series() {
+    let path = fixture("empty.csv");
+    let output = run(&["timeframes", &path]);
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), "");
+    assert_eq!(
+        stderr_text(&output),
+        "aggregation timeframe=1m retained=0 partial=0 gaps=0\n\
+         aggregation timeframe=5m retained=0 partial=0 gaps=0\n\
+         aggregation timeframe=15m retained=0 partial=0 gaps=0\n\
+         aggregation timeframe=1h retained=0 partial=0 gaps=0\n"
+    );
+}
+
+#[test]
+fn timeframes_repeated_runs_are_byte_identical() {
+    let path = fixture("timeframes-gaps.csv");
+    let first = run(&["timeframes", &path]);
+    let second = run(&["timeframes", &path]);
+
+    assert_success(&first);
+    assert_success(&second);
+    assert_eq!(first.stdout, second.stdout);
+    assert_eq!(first.stderr, second.stderr);
+    assert_eq!(first.status.code(), second.status.code());
+}
+
+#[test]
+fn timeframes_interactive_and_non_interactive_stdout_are_byte_identical() {
+    let path = fixture("timeframes-gaps.csv");
+    let expected = include_str!("fixtures/timeframes-gaps.ndjson");
+
+    let non_interactive = run(&["timeframes", &path]);
+    assert_success(&non_interactive);
+    assert_eq!(stdout_text(&non_interactive), expected);
+    assert_eq!(
+        stderr_text(&non_interactive),
+        include_str!("fixtures/timeframes-gaps.report.txt")
+    );
+
+    let interactive = run_interactive(&format!("timeframes {path}\nquit\n"));
+    assert_success(&interactive);
+    assert_eq!(stdout_text(&interactive), expected);
+    let stderr = stderr_text(&interactive);
+    assert!(
+        stderr.contains("aggregation timeframe=5m retained=3 partial=1 gaps=1"),
+        "stderr: {stderr}"
+    );
+    assert!(stderr.contains("quantrule> "), "stderr: {stderr}");
+}
+
+#[test]
+fn timeframes_misaligned_m1_fails_without_stdout() {
+    let path = fixture("timeframes-misaligned.csv");
+    let output = run(&["timeframes", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!(
+            "error: {path}: line 2: M1 timestamp 2025-01-01T00:00:30Z is not aligned to a 60-second boundary\n"
+        )
+    );
+}
+
+#[test]
+fn timeframes_invalid_candle_fails_without_stdout() {
+    let path = fixture("invalid_candle.csv");
+    let output = run(&["timeframes", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!("error: {path}: line 2: high is below low\n")
+    );
+}
+
+#[test]
+fn timeframes_duplicate_timestamp_fails_without_stdout() {
+    let path = fixture("duplicate.csv");
+    let output = run(&["timeframes", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!("error: {path}: line 3: duplicate timestamp at 2025-01-01T00:00:00Z\n")
+    );
+}
+
+#[test]
+fn timeframes_without_a_path_fails_with_usage() {
+    let output = run(&["timeframes"]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "error: usage: timeframes <csv-path>\n"
+    );
+}
+
+#[test]
+fn timeframes_with_extra_arguments_fails_with_usage() {
+    let path = fixture("timeframes.csv");
+    let output = run(&["timeframes", &path, "extra"]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "error: usage: timeframes <csv-path>\n"
+    );
+}
+
+#[test]
 fn unknown_command_fails_without_stdout() {
     let output = run(&["bogus"]);
 
