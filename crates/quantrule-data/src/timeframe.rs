@@ -1,9 +1,14 @@
 //! Timeframes supported by the data engine.
+//!
+//! The source slice can fetch these intervals natively from Dukascopy, and the
+//! data engine derives M5, M15, and H1 from M1. A derived series uses the same
+//! candle shape and bounded window as the source M1 series.
 
 /// A candle timeframe.
 ///
-/// The source slice fetches these intervals natively from Dukascopy. Building
-/// higher timeframes from an M1 series remains issue #50.
+/// The source slice fetches these intervals natively from Dukascopy. The data
+/// engine also derives [`Timeframe::M5`], [`Timeframe::M15`], and
+/// [`Timeframe::H1`] from an M1 series. H4 and D1 are not supported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Timeframe {
     seconds: u32,
@@ -12,6 +17,12 @@ pub struct Timeframe {
 }
 
 impl Timeframe {
+    /// Every supported timeframe in ascending duration order.
+    pub const ALL: [Self; 4] = [Self::M1, Self::M5, Self::M15, Self::H1];
+
+    /// The timeframes derived from M1 by the data engine.
+    pub const DERIVED: [Self; 3] = [Self::M5, Self::M15, Self::H1];
+
     /// One minute.
     pub const M1: Self = Self {
         seconds: 60,
@@ -44,6 +55,16 @@ impl Timeframe {
     #[must_use]
     pub const fn seconds(self) -> u32 {
         self.seconds
+    }
+
+    /// The UTC start of the bucket containing `timestamp`.
+    ///
+    /// Timestamps are Unix seconds. Floor division keeps every bucket aligned
+    /// to the Unix epoch, which is a UTC boundary for M5, M15, and H1.
+    #[must_use]
+    pub const fn bucket_start(self, timestamp: i64) -> i64 {
+        let seconds = self.seconds as i64;
+        timestamp.div_euclid(seconds) * seconds
     }
 
     /// The short user-facing code, such as `5m`.
@@ -113,6 +134,37 @@ mod tests {
     }
 
     #[test]
+    fn the_timeframe_order_is_fixed() {
+        assert_eq!(
+            Timeframe::ALL,
+            [Timeframe::M1, Timeframe::M5, Timeframe::M15, Timeframe::H1]
+        );
+        assert_eq!(
+            Timeframe::DERIVED,
+            [Timeframe::M5, Timeframe::M15, Timeframe::H1]
+        );
+    }
+
+    #[test]
+    fn buckets_start_on_utc_boundaries() {
+        let base = 1_735_689_600;
+
+        assert_eq!(Timeframe::M1.bucket_start(base + 59), base);
+        assert_eq!(Timeframe::M5.bucket_start(base + 299), base);
+        assert_eq!(Timeframe::M5.bucket_start(base + 300), base + 300);
+        assert_eq!(Timeframe::M15.bucket_start(base + 899), base);
+        assert_eq!(Timeframe::M15.bucket_start(base + 900), base + 900);
+        assert_eq!(Timeframe::H1.bucket_start(base + 3_599), base);
+        assert_eq!(Timeframe::H1.bucket_start(base + 3_600), base + 3_600);
+    }
+
+    #[test]
+    fn bucket_start_handles_timestamps_before_the_epoch() {
+        assert_eq!(Timeframe::M5.bucket_start(-1), -300);
+        assert_eq!(Timeframe::M5.bucket_start(-300), -300);
+    }
+
+    #[test]
     fn codes_parse_case_insensitively() {
         for code in ["1m", "M1", "5m", "m5", "15M", "h1"] {
             assert!(Timeframe::from_code(code).is_some(), "{code} is known");
@@ -124,6 +176,7 @@ mod tests {
     #[test]
     fn unknown_codes_are_rejected() {
         assert_eq!(Timeframe::from_code("30m"), None);
+        assert_eq!(Timeframe::from_code("4h"), None);
         assert_eq!(Timeframe::from_code("1d"), None);
         assert_eq!(Timeframe::from_code(""), None);
     }

@@ -1,6 +1,7 @@
 QuantRule shell commands:
   candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
   candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
+  timeframes <csv-path>         Build M5/M15/H1 from an M1 CSV; print NDJSON and a report.
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -14,10 +15,17 @@ Timestamp: YYYY-MM-DD HH:MM:SS+00:00
 The window retains the last 1000 candles.
 NDJSON: one candle per line, oldest first:
 {"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
+Timeframes: M1 is the source; M5, M15, and H1 are derived by the data engine.
+Timeframe NDJSON adds a timeframe field and groups the series M1, M5, M15, H1.
 Quality report (stderr, candles-tolerant):
 quality rows_read=2 accepted=1 rejected=1 duplicate=0 out_of_order=0 invalid=1 evicted=0 retained=1
 skipped line=3 reason=invalid: high is below low
+Timeframe report (stderr, timeframes):
+aggregation timeframe=5m retained=2 partial=1 gaps=1
+partial timeframe=5m bucket=2025-01-01T00:00:00Z present=4 expected=5
+gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=1
 Fetch dates: inclusive UTC dates in YYYY-MM-DD form; no clock is read.
 Non-interactive: quantrule candles <csv-path>
 Non-interactive: quantrule candles-tolerant <csv-path>
+Non-interactive: quantrule timeframes <csv-path>
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv

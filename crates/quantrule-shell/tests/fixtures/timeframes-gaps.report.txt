@@ -1,0 +1,11 @@
+aggregation timeframe=1m retained=19 partial=0 gaps=2
+gap timeframe=1m after=2025-01-01T00:03:00Z before=2025-01-01T00:05:00Z missing=1
+gap timeframe=1m after=2025-01-01T00:14:00Z before=2025-01-01T00:20:00Z missing=5
+aggregation timeframe=5m retained=3 partial=1 gaps=1
+partial timeframe=5m bucket=2025-01-01T00:00:00Z present=4 expected=5
+gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=1
+aggregation timeframe=15m retained=0 partial=2 gaps=0
+partial timeframe=15m bucket=2025-01-01T00:00:00Z present=14 expected=15
+partial timeframe=15m bucket=2025-01-01T00:15:00Z present=5 expected=15
+aggregation timeframe=1h retained=0 partial=1 gaps=0
+partial timeframe=1h bucket=2025-01-01T00:00:00Z present=19 expected=60

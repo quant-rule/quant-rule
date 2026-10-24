@@ -1,0 +1,4 @@
+aggregation timeframe=1m retained=60 partial=0 gaps=0
+aggregation timeframe=5m retained=12 partial=0 gaps=0
+aggregation timeframe=15m retained=4 partial=0 gaps=0
+aggregation timeframe=1h retained=1 partial=0 gaps=0

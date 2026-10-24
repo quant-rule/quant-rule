@@ -19,6 +19,7 @@ use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
 pub(crate) const HELP: &str = r#"QuantRule shell commands:
   candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
   candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
+  timeframes <csv-path>         Build M5/M15/H1 from an M1 CSV; print NDJSON and a report.
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -32,12 +33,19 @@ Timestamp: YYYY-MM-DD HH:MM:SS+00:00
 The window retains the last 1000 candles.
 NDJSON: one candle per line, oldest first:
 {"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
+Timeframes: M1 is the source; M5, M15, and H1 are derived by the data engine.
+Timeframe NDJSON adds a timeframe field and groups the series M1, M5, M15, H1.
 Quality report (stderr, candles-tolerant):
 quality rows_read=2 accepted=1 rejected=1 duplicate=0 out_of_order=0 invalid=1 evicted=0 retained=1
 skipped line=3 reason=invalid: high is below low
+Timeframe report (stderr, timeframes):
+aggregation timeframe=5m retained=2 partial=1 gaps=1
+partial timeframe=5m bucket=2025-01-01T00:00:00Z present=4 expected=5
+gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=1
 Fetch dates: inclusive UTC dates in YYYY-MM-DD form; no clock is read.
 Non-interactive: quantrule candles <csv-path>
 Non-interactive: quantrule candles-tolerant <csv-path>
+Non-interactive: quantrule timeframes <csv-path>
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
 "#;
 
@@ -48,6 +56,8 @@ pub(crate) enum Command {
     Candles(PathBuf),
     /// Read a CSV source tolerantly and print the window plus a quality report.
     CandlesTolerant(PathBuf),
+    /// Build M5, M15, and H1 from an M1 CSV, then print the series and report.
+    Timeframes(PathBuf),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
     Fetch(FetchArgs),
     /// Print the command reference.
@@ -159,6 +169,7 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
     match name {
         "candles" => path_command(rest, "candles", Command::Candles),
         "candles-tolerant" => path_command(rest, "candles-tolerant", Command::CandlesTolerant),
+        "timeframes" => path_command(rest, "timeframes", Command::Timeframes),
         "fetch" => {
             let arguments = tokenize(rest)?;
             parse_fetch_arguments(&arguments).map(|args| Some(Command::Fetch(args)))
@@ -388,6 +399,26 @@ pub(crate) fn run_candles_tolerant(
     report.flush().map_err(RunError::Output)
 }
 
+/// Builds M5, M15, and H1 from an M1 CSV and writes the series and report.
+///
+/// The NDJSON is flushed before the report is written. A source-level failure
+/// leaves stdout untouched because the timeframe set is built before rendering.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source fails or either writer fails.
+pub(crate) fn run_timeframes(
+    path: &Path,
+    output: &mut impl Write,
+    report: &mut impl Write,
+) -> Result<(), RunError> {
+    let set = csv::load_timeframes(path).map_err(RunError::Source)?;
+    render::write_timeframes(&set, output).map_err(RunError::Output)?;
+    output.flush().map_err(RunError::Output)?;
+    render::write_timeframe_report(&set, report).map_err(RunError::Output)?;
+    report.flush().map_err(RunError::Output)
+}
+
 /// Fetches a Dukascopy range and writes the CSV and optional chart.
 ///
 /// The CSV path defaults to
@@ -495,6 +526,22 @@ mod tests {
     }
 
     #[test]
+    fn parses_timeframes_with_a_path() {
+        assert_eq!(
+            parse("timeframes data/example.csv"),
+            Ok(Some(Command::Timeframes(PathBuf::from("data/example.csv"))))
+        );
+    }
+
+    #[test]
+    fn preserves_spaces_in_a_timeframes_path() {
+        assert_eq!(
+            parse("timeframes my file.csv"),
+            Ok(Some(Command::Timeframes(PathBuf::from("my file.csv"))))
+        );
+    }
+
+    #[test]
     fn rejects_candles_without_a_path() {
         assert_eq!(parse("candles"), Err(ParseError::MissingPath("candles")));
         assert_eq!(parse("candles   "), Err(ParseError::MissingPath("candles")));
@@ -509,6 +556,18 @@ mod tests {
         assert_eq!(
             parse("candles-tolerant   "),
             Err(ParseError::MissingPath("candles-tolerant"))
+        );
+    }
+
+    #[test]
+    fn rejects_timeframes_without_a_path() {
+        assert_eq!(
+            parse("timeframes"),
+            Err(ParseError::MissingPath("timeframes"))
+        );
+        assert_eq!(
+            parse("timeframes   "),
+            Err(ParseError::MissingPath("timeframes"))
         );
     }
 
