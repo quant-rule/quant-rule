@@ -783,6 +783,8 @@ fn every_published_stage_and_ready_are_reachable_on_a_crafted_path() {
 
 fn bare_leg() -> Leg {
     let registry = ConfirmedLevelRegistry::from_pivots(&PivotSeries::compute(&[]));
+    let mut index = super::target::LevelIndex::new(&registry);
+    index.advance(0);
     let candidate = PivotCandidate {
         scale: PivotScale::Minor,
         kind: PivotKind::Low,
@@ -790,7 +792,7 @@ fn bare_leg() -> Leg {
         occurred_at: 0,
         available_at: 0,
     };
-    Leg::new(1, candidate, &registry, None)
+    Leg::new(1, candidate, &index, None)
 }
 
 #[test]

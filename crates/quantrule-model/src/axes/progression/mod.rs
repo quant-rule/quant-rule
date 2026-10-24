@@ -216,6 +216,7 @@ impl ProgressionSeries {
         config: ProgressionConfig,
     ) -> Self {
         let registry = ConfirmedLevelRegistry::from_pivots(&readings.pivots);
+        let mut level_index = target::LevelIndex::new(&registry);
         let mut scales = ScaleLegs::default();
         let mut bars = Vec::with_capacity(readings.len());
         let mut counters = StateCounters::new();
@@ -226,6 +227,7 @@ impl ProgressionSeries {
         let mut next_leg_id = 1_u64;
 
         for bar in 0..readings.len() {
+            level_index.advance(bar);
             let close = candles.get(bar).map(Candle::close);
 
             // A confirmation promotes its own leg, transitions the most recent
@@ -253,9 +255,8 @@ impl ProgressionSeries {
                     if leg.lifecycle.is_terminal() || leg.direction != target_direction {
                         continue;
                     }
-                    if let Some(target) = target::select(
-                        &registry,
-                        bar,
+                    if let Some(target) = target::select_index(
+                        &level_index,
                         scale,
                         leg.direction,
                         leg.origin_price,
@@ -273,9 +274,17 @@ impl ProgressionSeries {
                     continue;
                 };
                 let atr_at_origin = usable_atr(readings, candidate.occurred_at);
-                let leg = Leg::new(next_leg_id, candidate, &registry, atr_at_origin);
+                let leg = Leg::new(next_leg_id, candidate, &level_index, atr_at_origin);
                 next_leg_id = next_leg_id.saturating_add(1);
-                scales.get_mut(scale).push(leg);
+                let legs = scales.get_mut(scale);
+                legs.push(leg);
+                while legs.len() > MAX_RETAINED_LEGS {
+                    let Some(index) = legs.iter().position(|leg| leg.lifecycle.is_terminal())
+                    else {
+                        break;
+                    };
+                    legs.remove(index);
+                }
             }
 
             // Record a forming leg's breach, then resolve the candidates whose
@@ -457,6 +466,13 @@ impl ProgressionSeries {
         &self.legs
     }
 }
+
+/// The maximum number of legs retained per scale for inspection.
+///
+/// The per-scale published record is always the most recent leg. The bound
+/// keeps the per-bar state machine linear on a long series; a terminal leg that
+/// falls outside the recent window is no longer inspectable through `legs()`.
+const MAX_RETAINED_LEGS: usize = 1_024;
 
 /// The two per-scale leg lists.
 #[derive(Debug, Clone, Default)]

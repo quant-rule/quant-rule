@@ -10,7 +10,9 @@
 //! structural level that qualifies, even when that level is farther away,
 //! because §8.4 gives a structural level precedence over the fallback.
 
-use crate::axes::structure::registry::ConfirmedLevelRegistry;
+use std::cmp::Ordering;
+
+use crate::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
 use crate::readings::{PivotKind, PivotScale};
 
 /// Contract §14 code for a confirmed structural level.
@@ -28,14 +30,79 @@ pub(crate) struct Target {
     pub(crate) basis_code: u8,
 }
 
-/// Selects the target for a leg at `bar`.
+/// A price-sorted index of the confirmed levels available so far.
 ///
-/// `direction` is +1 for an upward leg and -1 for a downward leg. The
-/// structural candidates are the confirmed levels of `scale` knowable at
-/// `bar`: highs strictly above the origin for an upward leg, lows strictly
-/// below it for a downward leg. An exact price tie goes to the earliest
-/// confirmed level. The fallback requires a usable `atr_at_origin`; without
-/// one, and without a structural level, the leg has no target.
+/// The registry is append-only and ordered by confirmation bar. `advance` moves
+/// the confirmation pointer and inserts each new level into a price-sorted
+/// vector for its scale and kind. Target selection is then a binary search
+/// rather than a scan of the whole registry, which keeps the progression axis
+/// linear over a long series.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct LevelIndex {
+    levels: Vec<ConfirmedLevel>,
+    minor_high: Vec<ConfirmedLevel>,
+    minor_low: Vec<ConfirmedLevel>,
+    major_high: Vec<ConfirmedLevel>,
+    major_low: Vec<ConfirmedLevel>,
+    next: usize,
+}
+
+impl LevelIndex {
+    /// Builds an empty index over the registry's confirmation order.
+    pub(crate) fn new(registry: &ConfirmedLevelRegistry) -> Self {
+        Self {
+            levels: registry.levels().to_vec(),
+            ..Self::default()
+        }
+    }
+
+    /// Inserts every level whose availability bar is at or before `bar`.
+    pub(crate) fn advance(&mut self, bar: usize) {
+        while let Some(level) = self.levels.get(self.next).copied() {
+            if level.available_at > bar {
+                break;
+            }
+            let target = match (level.scale, level.kind) {
+                (PivotScale::Minor, PivotKind::High) => &mut self.minor_high,
+                (PivotScale::Minor, PivotKind::Low) => &mut self.minor_low,
+                (PivotScale::Major, PivotKind::High) => &mut self.major_high,
+                (PivotScale::Major, PivotKind::Low) => &mut self.major_low,
+            };
+            insert_sorted(target, level);
+            self.next += 1;
+        }
+    }
+
+    /// The nearest available level beyond `origin_price` in `direction`.
+    fn nearest(
+        &self,
+        scale: PivotScale,
+        kind: PivotKind,
+        direction: i8,
+        origin_price: f64,
+    ) -> Option<f64> {
+        let levels = match (scale, kind) {
+            (PivotScale::Minor, PivotKind::High) => &self.minor_high,
+            (PivotScale::Minor, PivotKind::Low) => &self.minor_low,
+            (PivotScale::Major, PivotKind::High) => &self.major_high,
+            (PivotScale::Major, PivotKind::Low) => &self.major_low,
+        };
+
+        if direction > 0 {
+            let position = levels.partition_point(|level| level.price <= origin_price);
+            levels.get(position).map(|level| level.price)
+        } else {
+            let position = levels.partition_point(|level| level.price < origin_price);
+            if position == 0 {
+                None
+            } else {
+                levels.get(position - 1).map(|level| level.price)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
 pub(crate) fn select(
     registry: &ConfirmedLevelRegistry,
     bar: usize,
@@ -44,7 +111,57 @@ pub(crate) fn select(
     origin_price: f64,
     atr_at_origin: Option<f64>,
 ) -> Option<Target> {
-    if let Some(price) = nearest_level(registry, bar, scale, direction, origin_price) {
+    let mut index = LevelIndex::new(registry);
+    index.advance(bar);
+    select_index(&index, scale, direction, origin_price, atr_at_origin)
+}
+
+#[cfg(test)]
+pub(crate) fn nearest_level(
+    registry: &ConfirmedLevelRegistry,
+    bar: usize,
+    scale: PivotScale,
+    direction: i8,
+    origin_price: f64,
+) -> Option<f64> {
+    let mut index = LevelIndex::new(registry);
+    index.advance(bar);
+    let kind = if direction > 0 {
+        PivotKind::High
+    } else {
+        PivotKind::Low
+    };
+    index.nearest(scale, kind, direction, origin_price)
+}
+
+fn insert_sorted(levels: &mut Vec<ConfirmedLevel>, level: ConfirmedLevel) {
+    let position =
+        levels.partition_point(|existing| existing.price.total_cmp(&level.price) == Ordering::Less);
+    levels.insert(position, level);
+}
+
+/// Selects the target for a leg at the current bar.
+///
+/// `direction` is +1 for an upward leg and -1 for a downward leg. The
+/// structural candidates are the confirmed levels of `scale` available in the
+/// index: highs strictly above the origin for an upward leg, lows strictly
+/// below it for a downward leg. An exact price tie is represented by the same
+/// price, so the returned target is unambiguous. The fallback requires a usable
+/// `atr_at_origin`; without one, and without a structural level, the leg has no
+/// target.
+pub(crate) fn select_index(
+    index: &LevelIndex,
+    scale: PivotScale,
+    direction: i8,
+    origin_price: f64,
+    atr_at_origin: Option<f64>,
+) -> Option<Target> {
+    let kind = if direction > 0 {
+        PivotKind::High
+    } else {
+        PivotKind::Low
+    };
+    if let Some(price) = index.nearest(scale, kind, direction, origin_price) {
         return Some(Target {
             price,
             basis_code: STRUCTURAL_BASIS,
@@ -60,53 +177,6 @@ pub(crate) fn select(
         price,
         basis_code: ATR_FALLBACK_BASIS,
     })
-}
-
-/// The nearest confirmed level beyond `origin_price` in `direction`.
-///
-/// Upward legs target highs above the origin, so the nearest is the lowest
-/// qualifying price. Downward legs target lows below it, so the nearest is the
-/// highest qualifying price. The strict comparison keeps the earliest
-/// confirmed level when two levels share a price.
-fn nearest_level(
-    registry: &ConfirmedLevelRegistry,
-    bar: usize,
-    scale: PivotScale,
-    direction: i8,
-    origin_price: f64,
-) -> Option<f64> {
-    let kind = if direction > 0 {
-        PivotKind::High
-    } else {
-        PivotKind::Low
-    };
-    let mut best: Option<f64> = None;
-
-    for level in registry.as_of(bar) {
-        if level.scale != scale || level.kind != kind || !level.price.is_finite() {
-            continue;
-        }
-
-        let qualifies = if direction > 0 {
-            level.price > origin_price
-        } else {
-            level.price < origin_price
-        };
-        if !qualifies {
-            continue;
-        }
-
-        let nearer = match best {
-            None => true,
-            Some(price) if direction > 0 => level.price < price,
-            Some(price) => level.price > price,
-        };
-        if nearer {
-            best = Some(level.price);
-        }
-    }
-
-    best
 }
 
 #[cfg(test)]
