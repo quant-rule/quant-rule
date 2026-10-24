@@ -178,7 +178,7 @@ The counts satisfy `rows_read = accepted + rejected` and `accepted = evicted + r
 
 ## Scope
 
-This slice covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, and a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h` with an optional chart. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. Indicators, the four-axis model, and backtests are not implemented yet.
+This slice covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, and a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h` with an optional chart. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. The shell does not expose indicators, the four-axis model, or backtests yet.
 
 ## Verification
 
