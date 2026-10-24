@@ -32,4 +32,4 @@
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
 - 100k release benchmark: 128,332 Layer 1 rows / 100,000 Layer 3 rows in 4.396 s.
-- Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+- Status: `Verified`. Commit `9b6efc6` is pushed on `feat/79-layers`, pull request [#94](https://github.com/quant-rule/quant-rule/pull/94) is open, and #79 is `Done` on the board.

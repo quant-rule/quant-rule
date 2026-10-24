@@ -2,7 +2,7 @@
 
 - Issue: [#79](https://github.com/quant-rule/quant-rule/issues/79) — feat: build layers 1, 2, and 3
 - Branch: `feat/79-layers`
-- Pull request: pending
+- Pull request: [#94](https://github.com/quant-rule/quant-rule/pull/94)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §5–§7
@@ -113,9 +113,9 @@ Excluded:
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `9b6efc6` — `feat: build the three research layers` |
 | Branch | `feat/79-layers` |
-| Pull request | pending |
+| Pull request | [#94](https://github.com/quant-rule/quant-rule/pull/94) |
 | Board | #79 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.
