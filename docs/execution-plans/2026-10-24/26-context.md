@@ -2,7 +2,7 @@
 
 - Issue: [#26](https://github.com/quant-rule/quant-rule/issues/26) — feat: build the volatility and participation context
 - Branch: `feat/26-context`
-- Pull request: pending
+- Pull request: [#86](https://github.com/quant-rule/quant-rule/pull/86)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -98,3 +98,14 @@ The golden fixture has 260 bars: 33 null codes before the ATR baseline exists, t
 - A new dependency.
 - An ATR/RVOL formula change outside #26.
 - A failing check that cannot be corrected within scope.
+
+## 11. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `a224d09` — `feat: build the volatility and participation context` |
+| Branch | `feat/26-context` |
+| Pull request | [#86](https://github.com/quant-rule/quant-rule/pull/86), open against `main` |
+| Board | Issue #26 moved to `Done`; the workflow closes the issue |
+
+Merge, release, tag, and deployment remain with the human.
