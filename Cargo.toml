@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/quantrule-analytics",
     "crates/quantrule-data",
     "crates/quantrule-model",
     "crates/quantrule-shell",

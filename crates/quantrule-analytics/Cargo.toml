@@ -1,0 +1,11 @@
+[package]
+name = "quantrule-analytics"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+quantrule-model = { path = "../quantrule-model" }
+
+[lints]
+workspace = true
