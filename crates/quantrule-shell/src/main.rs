@@ -104,6 +104,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::ResearchSummary(path) => {
+                if let Err(error) = command::run_research_summary(&path, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Fetch(args) => {
                 if let Err(error) = command::run_fetch(&args, &mut stdout) {
                     eprintln!("error: {error}");
@@ -267,6 +272,16 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                 Ok(Some(Command::ResearchExport(export))) => {
                     let mut stdout = io::stdout();
                     match command::run_research_export(&export, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
+                Ok(Some(Command::ResearchSummary(path))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_research_summary(&path, &mut stdout) {
                         Ok(()) => 0,
                         Err(error) => {
                             eprintln!("error: {error}");

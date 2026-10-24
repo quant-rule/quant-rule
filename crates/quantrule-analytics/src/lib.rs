@@ -15,3 +15,4 @@ pub mod alignment;
 pub mod layers;
 pub mod research;
 pub mod resolution;
+pub mod summary;
