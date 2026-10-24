@@ -41,4 +41,4 @@
 - `cargo test --workspace`: 575 passed, 0 failed (data 90, model unit 241, direction 14, level 5, momentum 14, progression 18, readings 11, structure 15, shell unit 93, shell CLI 47, data doc 2, model doc 25).
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
 
-Status: `Verified`. Commit, push, pull request, and board transition remain gated by §9 of `AGENTS.md`.
+Status: `Verified`. The commit `af82827` was pushed on `feat/23-level-events`, pull request [#83](https://github.com/quant-rule/quant-rule/pull/83) is open against `main`, and #23 is `Done` on the board. Merge and cleanup remain with the human.

@@ -2,7 +2,7 @@
 
 - Issue: [#23](https://github.com/quant-rule/quant-rule/issues/23) — feat: build level events
 - Branch: `feat/23-level-events`
-- Pull request: pending
+- Pull request: [#83](https://github.com/quant-rule/quant-rule/pull/83)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -110,3 +110,14 @@ The golden fixture contains 438 events over 260 bars: 334 tests, 43 crosses, and
 - A new dependency.
 - A reading/axis change outside #23.
 - A failing check that cannot be corrected within scope.
+
+## 11. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `af82827` — `feat: build level events` |
+| Branch | `feat/23-level-events` |
+| Pull request | [#83](https://github.com/quant-rule/quant-rule/pull/83), open against `main` |
+| Board | Issue #23 moved to `Done`; the workflow closed the issue |
+
+Merge, release, tag, and deployment remain with the human.
