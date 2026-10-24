@@ -63,9 +63,21 @@
   - The generator being outside the repository is a real reproducibility gap: the fixtures are checked in, but regenerating them depends on a file that is not. The plan records this instead of implying a checked-in generator exists.
   - The deliverable is verified but not delivered. The board stays `In Progress` until a pull request exists, per AGENTS.md section 9.
 
+## Entry: delivery
+
+- **Date and tool:** 2026-10-24 (UTC). opencode (DeepSeek V4.1 Flash Free).
+- **Intent and boundary:** Commit, push, and open the pull request after explicit human authorization. Merge, release, and deployment were not authorized and were not performed.
+- **Verification and evidence:**
+  - Committed `0b9edb5 feat: add the structure axis` with 10 files and 3,087 insertions; the staged diff contained only the nine M5 implementation, fixture, and test paths plus the two documentation files.
+  - Pushed `feat/21-structure-axis` to `origin`.
+  - Opened [#62](https://github.com/quant-rule/quant-rule/pull/62) against `main`; GitHub reports it mergeable with the `sync` check passing.
+  - Moved #21 to `Done` on the board and labelled both items with their `Item type`; the project workflow closed issue #21 and linked PR #62 to it.
+- **Learning:**
+  - Marking a `Done` board item closes its issue through the project workflow, so the issue is closed while the pull request is still open. That is the lifecycle the repository defines, not a premature close by the agent.
+  - The PR item arrived from GitHub's automation with an empty `Item type` and a `Todo` status; it was labelled `Pull request` and moved to `In Progress` to reflect an open, unmerged change.
+
 ## Current state
 
-- M5 is implemented, reviewed, and verified; plan §11 records the evidence and the plan is `Verified`.
-- All four checks pass on the current tree.
-- No commit, push, or pull request exists for M5. Issue #21 remains `In Progress` with `Start date` 2026-10-24.
-- The commit, push, and pull request await explicit human authorization.
+- M5 is implemented, reviewed, verified, committed, pushed, and open as PR #62.
+- Issue #21 is `Done` on the board and closed; the PR is open and awaits human review and merge authorization.
+- No merge, tag, release, or deployment was performed.

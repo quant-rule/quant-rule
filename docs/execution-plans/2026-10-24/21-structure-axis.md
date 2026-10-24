@@ -2,7 +2,7 @@
 
 - Issue: [#21](https://github.com/quant-rule/quant-rule/issues/21) — feat: build the structure axis
 - Branch: `feat/21-structure-axis`
-- Pull request: pending
+- Pull request: [#62](https://github.com/quant-rule/quant-rule/pull/62)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -249,4 +249,13 @@ Status: `Verified`.
 
 ## 12. Delivery
 
-The commit, push, and pull request await explicit human authorization. Once authorized, the change is committed on `feat/21-structure-axis`, a pull request is opened against `main`, and #21 moves to `Done` on the board.
+Delivered on 2026-10-24 (UTC) after explicit human authorization:
+
+| Step | Observed result |
+|---|---|
+| Commit | `0b9edb5 feat: add the structure axis`, 10 files, 3,087 insertions |
+| Push | `feat/21-structure-axis` pushed to `origin` |
+| Pull request | [#62](https://github.com/quant-rule/quant-rule/pull/62), open against `main`, mergeable |
+| Board | #21 moved to `Done`; the workflow closed the issue; PR #62 labelled `Pull request` |
+
+The PR carries the implementation claim, the observed check results, the recorded risks, and the transparency-log reference. Merge remains the human's decision.
