@@ -2,7 +2,7 @@
 
 - Issue: [#80](https://github.com/quant-rule/quant-rule/issues/80) — feat: export CSV with manifest and data dictionary
 - Branch: `feat/80-export`
-- Pull request: pending
+- Pull request: [#96](https://github.com/quant-rule/quant-rule/pull/96)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §2–§12
@@ -116,9 +116,9 @@ Excluded:
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `b7a54e9` — `feat: export the research dataset` |
 | Branch | `feat/80-export` |
-| Pull request | pending |
+| Pull request | [#96](https://github.com/quant-rule/quant-rule/pull/96) |
 | Board | #80 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.
