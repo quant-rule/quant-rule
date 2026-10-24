@@ -2,7 +2,7 @@
 
 - Issue: [#30](https://github.com/quant-rule/quant-rule/issues/30) — test: harden the model layer against the contract
 - Branch: `test/30-hardening`
-- Pull request: pending
+- Pull request: [#90](https://github.com/quant-rule/quant-rule/pull/90)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -125,3 +125,14 @@ Excluded:
 - A golden test regression that cannot be explained.
 - A new dependency.
 - A failing check that cannot be corrected within scope.
+
+## 13. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `5320954` — `test: harden the model layer against the contract` |
+| Branch | `test/30-hardening` |
+| Pull request | [#90](https://github.com/quant-rule/quant-rule/pull/90), open against `main` |
+| Board | Issue #30 moved to `Done`; the workflow closes the issue |
+
+Merge, release, tag, and deployment remain with the human.

@@ -32,4 +32,4 @@
 - 100k release benchmark: 2.381 s.
 - No `HashMap`/`HashSet` in the model or data signal path.
 
-Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+Status: `Verified`. Commit `5320954` is pushed on `test/30-hardening`, pull request [#90](https://github.com/quant-rule/quant-rule/pull/90) is open, and #30 is `Done` on the board. Merge and cleanup remain with the human.
