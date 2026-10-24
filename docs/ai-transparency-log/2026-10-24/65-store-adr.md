@@ -33,4 +33,4 @@
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `cargo test --workspace`: 753 passed, 0 failed, 3 ignored.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
-- Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+- Status: `Verified`. Commit `eb91ed2` is pushed on `arch/65-store-adr`, pull request [#99](https://github.com/quant-rule/quant-rule/pull/99) is open, and #65 is `Done` on the board.

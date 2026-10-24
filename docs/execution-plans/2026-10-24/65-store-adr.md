@@ -2,7 +2,7 @@
 
 - Issue: [#65](https://github.com/quant-rule/quant-rule/issues/65) — arch: define the SQLite per-bar store and research schema
 - Branch: `arch/65-store-adr`
-- Pull request: pending
+- Pull request: [#99](https://github.com/quant-rule/quant-rule/pull/99)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)
@@ -108,9 +108,9 @@ The ADR is a design document. The implementation checks are listed in its §12 a
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `eb91ed2` — `arch: define the SQLite per-bar store and research schema` |
 | Branch | `arch/65-store-adr` |
-| Pull request | pending |
+| Pull request | [#99](https://github.com/quant-rule/quant-rule/pull/99) |
 | Board | #65 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.
