@@ -7,6 +7,7 @@
 - Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
 - Decision: [`docs/adr/2026-10-21/four-axis-analytical-model.md`](../../adr/2026-10-21/four-axis-analytical-model.md)
 - Transparency log: [`docs/ai-transparency-log/2026-10-21/14-model-engine.md`](../../ai-transparency-log/2026-10-21/14-model-engine.md)
+- Follow-up: [Completion plan (M2–M14)](../2026-10-24/14-model-engine-completion.md) — approved 2026-10-24
 
 ## Intent
 
