@@ -925,3 +925,26 @@ fn research_summary_is_deterministic_and_counts_every_axis() {
     let output = run(&["research", "summary"]);
     assert_failure(&output);
 }
+
+#[test]
+fn store_init_creates_and_reopens_the_store() {
+    let root = artifact_dir("store-init");
+    let db = format!("{root}/store.db");
+    let expected = format!("store {db} schema=1\n");
+
+    let output = run(&["store", "init", "--db", &db]);
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), expected);
+    assert!(Path::new(&db).exists());
+
+    let output = run(&["store", "init", "--db", &db]);
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), expected);
+}
+
+#[test]
+fn store_init_rejects_a_missing_db_value() {
+    let output = run(&["store", "init", "--db"]);
+    assert_failure(&output);
+    assert!(stderr_text(&output).contains("--db needs a value"));
+}

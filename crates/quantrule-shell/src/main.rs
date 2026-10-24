@@ -15,6 +15,7 @@ mod labels;
 mod render;
 mod render_state;
 mod source;
+mod store;
 
 use std::ffi::OsString;
 use std::io::{self, Write};
@@ -106,6 +107,11 @@ fn run_interactive() -> i32 {
             }
             Command::ResearchSummary(path) => {
                 if let Err(error) = command::run_research_summary(&path, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::StoreInit(path) => {
+                if let Err(error) = command::run_store_init(&path, &mut stdout) {
                     eprintln!("error: {error}");
                 }
             }
@@ -293,6 +299,38 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                     eprintln!(
                         "error: usage: research export <csv-path> <dataset> --data-version <id> [--root <dir>]"
                     );
+                    1
+                }
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "store" => {
+            let mut arguments = Vec::with_capacity(args.len().saturating_sub(1));
+            for argument in &args[1..] {
+                match argument.to_str() {
+                    Some(value) => arguments.push(value.to_string()),
+                    None => {
+                        eprintln!("error: argument is not valid UTF-8");
+                        return 1;
+                    }
+                }
+            }
+            match command::parse_store_arguments(&arguments) {
+                Ok(Some(Command::StoreInit(path))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_store_init(&path, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
+                Ok(_) => {
+                    eprintln!("error: usage: store init [--db <path>]");
                     1
                 }
                 Err(error) => {
