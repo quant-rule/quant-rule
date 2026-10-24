@@ -2,7 +2,7 @@
 
 - Issue: [#22](https://github.com/quant-rule/quant-rule/issues/22) — feat: build the progression axis
 - Branch: `feat/22-progression-axis`
-- Pull request: pending
+- Pull request: [#63](https://github.com/quant-rule/quant-rule/pull/63)
 - Status: Verified (implementation, independent review, and checks complete; delivery awaits §9 authorization)
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -178,7 +178,7 @@ Stop and request human direction if:
 
 ## 11. Evidence
 
-Implementation, independent review, and local verification are complete. The commit, push, pull request, and board transition remain gated by §9 of `AGENTS.md`.
+Implementation, independent review, and local verification are complete. The commit, push, pull request, and board transition were authorized and performed; §12 records them.
 
 ### Implementation
 
@@ -279,10 +279,13 @@ Status: `Verified`. The commit, push, pull request, and board transition remain 
 
 ## 12. Delivery
 
-The working tree is ready for delivery. The following operations are proposed, not performed, and each requires the human's explicit authorization under §9 of `AGENTS.md`:
+The human authorized the commit, push, pull request, and board transition. The delivered state is:
 
-- Commit the Progression axis, the golden fixtures, the contract clarification, this plan, and the transparency log on `feat/22-progression-axis`.
-- Push the branch and open the pull request against `main`.
-- Move issue #22 to `Done` on the project board once the pull request is open.
+| Item | Value |
+|---|---|
+| Commit | `0de472e` — `feat: build the progression axis` |
+| Branch | `feat/22-progression-axis`, pushed to `origin` |
+| Pull request | [#63](https://github.com/quant-rule/quant-rule/pull/63), open against `main` |
+| Board | Issue #22 moved to `Done`; the board workflow owns the resulting issue state |
 
-No merge, release, or tag is requested by this plan. The branch and worktree cleanup follows the merged-PR cleanup rule in §9 after acceptance.
+This entry is committed separately so the commit identifier and PR number are recorded in the branch. No merge, release, tag, or deployment was performed; the human retains merge authorization. Cleanup of the worktree and branch follows the merged-PR cleanup rule in §9 of `AGENTS.md` after acceptance.

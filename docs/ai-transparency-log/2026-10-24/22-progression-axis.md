@@ -78,8 +78,22 @@
 - Progression filter: 67 unit tests and 18 golden tests passed.
 - The two fixtures reproduce byte-identically from the external generator.
 
+## Entry: delivery
+
+- **Date and tool:** 2026-10-24 (UTC). opencode (DeepSeek V4.1 Flash 1017).
+- **Intent and boundary:** The human approved the commit, push, pull request, and board transition. The implementation, fixtures, contract clarification, plan, and log were committed and pushed; the pull request was opened; issue #22 was moved to `Done`. No merge, release, tag, or deployment was performed.
+- **Verification and evidence:**
+  - Commit `0de472e` — `feat: build the progression axis` — on `feat/22-progression-axis`, pushed to `origin`.
+  - Pull request [#63](https://github.com/quant-rule/quant-rule/pull/63), open against `main`, with the summary, scope, verification, risks, and AI-transparency reference.
+  - Issue #22 moved to `Done` on the project board after the pull request existed; the board's workflow owns the resulting issue state.
+  - The delivery evidence itself is committed in a follow-up commit on the same branch so the plan and log carry the commit identifier and PR number.
+- **Learning:**
+  - The board rule requires the pull request to exist before the item moves to `Done`; the order was commit, push, PR, then board.
+  - The commit and PR evidence belongs in the branch, not in the merge commit, so the plan and log are updated in a second commit rather than amended into the first.
+
 ## Current state
 
-- M6 is implemented, reviewed, and locally verified; the plan is `Verified`.
-- Issue #22 is `In Progress` on the board. The board moves to `Done` only after the pull request is open.
-- No commit, push, pull request, merge, tag, release, or deployment was performed. Those operations await the human's explicit authorization.
+- M6 is implemented, independently reviewed, locally verified, committed, pushed, and open as PR #63.
+- The plan is `Verified` and records the delivery evidence.
+- Issue #22 is `Done` on the board.
+- No merge, release, tag, or deployment was performed. Merge authorization remains with the human.
