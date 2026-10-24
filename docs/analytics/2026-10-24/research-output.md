@@ -330,9 +330,9 @@ Lists are `;`-separated with no spaces. A list field is never null; an empty lis
 
 | Column | Type | Range | Null | Meaning |
 |---|---|---|---|---|
-| `agg_ladder` | list<int> | non-empty | no | Configured timeframes in seconds, fastest first |
+| `agg_ladder` | list<int> | non-empty | no | Timeframes aggregated in this row in seconds, fastest first; a higher timeframe with no closed bar yet is absent |
 | `agg_direction_timeframes` | list<int> | may be empty | no | Timeframes with a valid Direction value |
-| `agg_direction_timeframe_count` | int | >= 0 | no | Number of configured timeframes |
+| `agg_direction_timeframe_count` | int | >= 0 | no | Number of timeframes aggregated in this row |
 | `agg_direction_mean` | float | -1..+1 | yes | Mean of the valid Direction values |
 | `agg_direction_bullish_share` | float | 0..1 | yes | Share of valid values above +0.1 |
 | `agg_direction_bearish_share` | float | 0..1 | yes | Share of valid values below -0.1 |
@@ -340,7 +340,7 @@ Lists are `;`-separated with no spaces. A list field is never null; an empty lis
 | `agg_direction_gradient` | float | -2..+2 | yes | Slowest value minus fastest value |
 | `agg_direction_ready_count` | int | >= 0 | no | Timeframes whose Direction readiness is 2 |
 | `agg_momentum_timeframes` | list<int> | may be empty | no | Timeframes with a valid force |
-| `agg_momentum_timeframe_count` | int | >= 0 | no | Number of configured timeframes |
+| `agg_momentum_timeframe_count` | int | >= 0 | no | Number of timeframes aggregated in this row |
 | `agg_momentum_force_mean` | float | -1..+1 | yes | Mean of the valid forces |
 | `agg_momentum_acceleration_mean` | float | -1..+1 | yes | Mean of the valid accelerations |
 | `agg_momentum_positive_share` | float | 0..1 | yes | Share of valid forces above +0.1 |
@@ -350,7 +350,7 @@ Lists are `;`-separated with no spaces. A list field is never null; an empty lis
 | `agg_momentum_gradient` | float | -2..+2 | yes | Slowest force minus fastest force |
 | `agg_momentum_ready_count` | int | >= 0 | no | Timeframes whose Momentum readiness is 2 |
 | `agg_structure_timeframes` | list<int> | may be empty | no | Timeframes with a valid structure score |
-| `agg_structure_timeframe_count` | int | >= 0 | no | Number of configured timeframes |
+| `agg_structure_timeframe_count` | int | >= 0 | no | Number of timeframes aggregated in this row |
 | `agg_structure_code_minus2_count` | int | >= 0 | no | Timeframes with `structure_code = -2` |
 | `agg_structure_code_minus1_count` | int | >= 0 | no | Timeframes with `structure_code = -1` |
 | `agg_structure_code_zero_count` | int | >= 0 | no | Timeframes with `structure_code = 0` |
@@ -361,13 +361,13 @@ Lists are `;`-separated with no spaces. A list field is never null; an empty lis
 | `agg_structure_neutral_share` | float | 0..1 | yes | Share of valid scores in the inclusive ±0.1 band |
 | `agg_structure_state_span` | int | 0..4 | yes | Maximum minus minimum valid `structure_code` |
 | `agg_structure_gradient` | float | -2..+2 | yes | Slowest score minus fastest score |
-| `agg_structure_ready_share` | float | 0..1 | yes | Share of all configured timeframes whose Structure readiness is 2 |
+| `agg_structure_ready_share` | float | 0..1 | yes | Share of the aggregated timeframes whose Structure readiness is 2 |
 | `agg_structure_conflict_timeframe_count` | int | >= 0 | no | Timeframes whose high and low relations have opposite signs |
 | `agg_level_cluster_count` | int | >= 0 | no | Single-linkage level clusters, including singletons |
 | `agg_largest_level_cluster_timeframe_count` | int | >= 0 | no | Distinct timeframes in the largest cluster |
 | `agg_largest_level_cluster_span_atr` | float | >= 0 | yes | Price span of the largest cluster divided by its maximum ATR |
 | `agg_progression_timeframes` | list<int> | may be empty | no | Timeframes with a retained leg |
-| `agg_progression_timeframe_count` | int | >= 0 | no | Number of configured timeframes |
+| `agg_progression_timeframe_count` | int | >= 0 | no | Number of timeframes aggregated in this row |
 | `agg_progression_minor_stage0_count` | int | >= 0 | no | Timeframes whose minor leg stage is 0 |
 | `agg_progression_minor_stage1_count` | int | >= 0 | no | Timeframes whose minor leg stage is 1 |
 | `agg_progression_minor_stage2_count` | int | >= 0 | no | Timeframes whose minor leg stage is 2 |
@@ -392,7 +392,7 @@ Lists are `;`-separated with no spaces. A list field is never null; an empty lis
 | `agg_progression_major_modal_stage_share` | float | 0..1 | yes | Share of valid major legs at the modal stage |
 | `agg_progression_active_minor_leg_count` | int | >= 0 | no | Active minor legs across the ladder |
 | `agg_progression_active_major_leg_count` | int | >= 0 | no | Active major legs across the ladder |
-| `agg_progression_ready_share` | float | 0..1 | yes | Share of configured timeframes whose Progression readiness is 2 |
+| `agg_progression_ready_share` | float | 0..1 | yes | Share of the aggregated timeframes whose Progression readiness is 2 |
 | `agg_progression_leg_direction_agreement_share` | float | 0..1 | yes | Share of active legs pointing in the most common direction |
 | `agg_progression_cross_timeframe_leg_match_count` | int | >= 0 | no | Active leg pairs that match across timeframes |
 | `agg_event_count_level` | int | >= 0 | no | Level events in the five-bar windows, summed over timeframes |
