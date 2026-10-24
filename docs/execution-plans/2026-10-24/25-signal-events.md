@@ -2,7 +2,7 @@
 
 - Issue: [#25](https://github.com/quant-rule/quant-rule/issues/25) — feat: build signal events
 - Branch: `feat/25-signal-events`
-- Pull request: pending
+- Pull request: [#85](https://github.com/quant-rule/quant-rule/pull/85)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -102,3 +102,14 @@ The golden fixture contains 109 events: 38 threshold crossings (source 4), 2 EMA
 - A new dependency.
 - An axis/reading change outside #25.
 - A failing check that cannot be corrected within scope.
+
+## 11. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `8193fb4` — `feat: build signal events` |
+| Branch | `feat/25-signal-events` |
+| Pull request | [#85](https://github.com/quant-rule/quant-rule/pull/85), open against `main` |
+| Board | Issue #25 moved to `Done`; the workflow closes the issue |
+
+Merge, release, tag, and deployment remain with the human.
