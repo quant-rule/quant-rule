@@ -11,6 +11,7 @@
 //! candles, readings, and a configuration, and perform no I/O, read no clock, and
 //! use no randomness.
 
+pub mod divergence;
 pub mod level;
 
 /// The contract's event-type codes.
