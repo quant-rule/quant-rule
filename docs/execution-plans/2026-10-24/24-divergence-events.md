@@ -2,7 +2,7 @@
 
 - Issue: [#24](https://github.com/quant-rule/quant-rule/issues/24) — feat: build divergence events
 - Branch: `feat/24-divergence-events`
-- Pull request: pending
+- Pull request: [#84](https://github.com/quant-rule/quant-rule/pull/84)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -102,3 +102,14 @@ The golden fixture contains 11 events: 5 minor, 6 major. Subtypes covered: regul
 - A new dependency.
 - An RSI or pivot change outside #24.
 - A failing check that cannot be corrected within scope.
+
+## 11. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `a6ca63a` — `feat: build divergence events` |
+| Branch | `feat/24-divergence-events` |
+| Pull request | [#84](https://github.com/quant-rule/quant-rule/pull/84), open against `main` |
+| Board | Issue #24 moved to `Done`; the workflow closes the issue |
+
+Merge, release, tag, and deployment remain with the human.

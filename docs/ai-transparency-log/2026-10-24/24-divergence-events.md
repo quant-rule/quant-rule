@@ -41,4 +41,4 @@
 - `cargo test --workspace`: 595 passed, 0 failed (data 90, model unit 256, direction 14, divergence 4, level 5, momentum 14, progression 18, readings 11, structure 15, shell unit 93, shell CLI 47, data doc 2, model doc 26).
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
 
-Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+Status: `Verified`. Commit `a6ca63a` is pushed on `feat/24-divergence-events`, pull request [#84](https://github.com/quant-rule/quant-rule/pull/84) is open, and #24 is `Done` on the board. Merge and cleanup remain with the human.
