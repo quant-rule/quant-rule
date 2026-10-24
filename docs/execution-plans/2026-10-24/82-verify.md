@@ -2,7 +2,7 @@
 
 - Issue: [#82](https://github.com/quant-rule/quant-rule/issues/82) — test: verify the research dataset
 - Branch: `test/82-verify`
-- Pull request: pending
+- Pull request: [#98](https://github.com/quant-rule/quant-rule/pull/98)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md)
@@ -106,9 +106,9 @@ The byte figures are the rendered output size, not a process peak. The benchmark
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `d80b9e2` — `test: verify the research dataset` |
 | Branch | `test/82-verify` |
-| Pull request | pending |
+| Pull request | [#98](https://github.com/quant-rule/quant-rule/pull/98) |
 | Board | #82 moved to `Done` when the PR is open; #13 closed after the merge |
 
 Merge, release, tag, and deployment remain with the human.

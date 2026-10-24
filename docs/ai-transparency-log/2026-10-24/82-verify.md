@@ -33,4 +33,4 @@
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
 - 100k release: 4.122 s build, 4.105 s render, 368,567,856 bytes of output.
-- Status: `Verified`. Commit, push, pull request, board transition, and closing #13 follow the delivery step.
+- Status: `Verified`. Commit `d80b9e2` is pushed on `test/82-verify`, pull request [#98](https://github.com/quant-rule/quant-rule/pull/98) is open, and #82 is `Done` on the board.
