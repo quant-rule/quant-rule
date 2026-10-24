@@ -2,7 +2,7 @@
 
 - Issue: [#76](https://github.com/quant-rule/quant-rule/issues/76) — docs: define the research output contract
 - Branch: `docs/76-research-output`
-- Pull request: pending
+- Pull request: [#91](https://github.com/quant-rule/quant-rule/pull/91)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md)
@@ -114,9 +114,9 @@ The contract is not executable, so the column counts and the resolution examples
 
 | Item | Value |
 |---|---|
-| Commit | `pending` |
+| Commit | `df3a42a` — `docs: define the research output contract` |
 | Branch | `docs/76-research-output` |
-| Pull request | pending |
+| Pull request | [#91](https://github.com/quant-rule/quant-rule/pull/91) |
 | Board | #76 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.

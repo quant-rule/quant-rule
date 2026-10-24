@@ -31,4 +31,4 @@
 - `cargo test --workspace`: 677 passed, 0 failed, 1 ignored.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
 - Contract column counts: 61 / 73 / 356, 82 aggregates.
-- Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+- Status: `Verified`. Commit `df3a42a` is pushed on `docs/76-research-output`, pull request [#91](https://github.com/quant-rule/quant-rule/pull/91) is open, and #76 is `Done` on the board.
