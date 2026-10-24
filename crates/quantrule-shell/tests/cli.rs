@@ -887,3 +887,41 @@ fn research_export_rejects_an_unsafe_dataset_name() {
     assert_failure(&output);
     assert!(stderr_text(&output).contains("dataset name"));
 }
+
+#[test]
+fn research_summary_is_deterministic_and_counts_every_axis() {
+    let path = fixture("state_m1.csv");
+    let first = run(&["research", "summary", &path]);
+    let second = run(&["research", "summary", &path]);
+    assert_success(&first);
+    assert_success(&second);
+    let text = stdout_text(&first);
+    assert_eq!(text, stdout_text(&second));
+    assert!(text.starts_with("summary layer1=333 layer2=333 layer3=260\n"));
+    assert_eq!(text.lines().count(), 41);
+    assert!(!text.contains("composite"));
+
+    let direction = text
+        .lines()
+        .find(|line| line.starts_with("axis timeframe=60 axis=direction "))
+        .expect("the M1 direction line");
+    let value = |name: &str| {
+        direction
+            .split_whitespace()
+            .find_map(|field| field.strip_prefix(name))
+            .and_then(|value| value.parse::<usize>().ok())
+            .expect("the field")
+    };
+    assert_eq!(value("n=") + value("null="), 260);
+
+    assert!(text.contains("ordinals="));
+    assert!(text.contains("relation timeframe=60 left=direction right=momentum "));
+    let relation = text
+        .lines()
+        .find(|line| line.starts_with("relation timeframe=60 left=direction right=momentum "))
+        .expect("the pair line");
+    assert!(relation.contains("r="));
+
+    let output = run(&["research", "summary"]);
+    assert_failure(&output);
+}

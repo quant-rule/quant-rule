@@ -8,10 +8,11 @@ use std::fmt;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use quantrule_analytics::layers::{LayerConfig, LayerError, build_layers};
+use quantrule_analytics::layers::{LayerConfig, LayerError, LayerSet, build_layers};
 use quantrule_analytics::research::{
     DatasetMeta, ExportError as ResearchExportError, render_dataset,
 };
+use quantrule_analytics::summary::{DatasetSummary, summarize};
 use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe};
 use quantrule_model::readings::PivotScale;
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
@@ -36,6 +37,7 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
                                 Write the research dataset; requires --data-version.
       --data-version <id>       Caller-supplied identity of the input series.
       --root <dir>              Export root (default: data).
+  research summary <csv-path>   Print counts, ranges, ordinal histograms, and axis correlations.
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -67,6 +69,7 @@ Non-interactive: quantrule axis <csv-path> direction
 Non-interactive: quantrule events <csv-path>
 Non-interactive: quantrule legs <csv-path>
 Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
+Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
 "#;
 
@@ -89,6 +92,8 @@ pub(crate) enum Command {
     Legs(PathBuf),
     /// Write the research dataset.
     ResearchExport(ResearchExportArgs),
+    /// Print the research summary.
+    ResearchSummary(PathBuf),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
     Fetch(FetchArgs),
     /// Print the command reference.
@@ -491,8 +496,15 @@ fn parse_axis(rest: &str) -> Result<Option<Command>, ParseError> {
 pub(crate) fn parse_research_arguments(
     arguments: &[String],
 ) -> Result<Option<Command>, ParseError> {
-    const USAGE: &str =
-        "usage: research export <csv-path> <dataset> --data-version <id> [--root <dir>]";
+    const USAGE: &str = "usage: research export <csv-path> <dataset> --data-version <id> [--root <dir>] | research summary <csv-path>";
+    if arguments.first().map(String::as_str) == Some("summary") {
+        if arguments.len() != 2 {
+            return Err(ParseError::Research(
+                "usage: research summary <csv-path>".to_string(),
+            ));
+        }
+        return Ok(Some(Command::ResearchSummary(PathBuf::from(&arguments[1]))));
+    }
     if arguments.first().map(String::as_str) != Some("export") {
         return Err(ParseError::Research(USAGE.to_string()));
     }
@@ -716,20 +728,15 @@ pub(crate) fn run_fetch(args: &FetchArgs, writer: &mut impl Write) -> Result<(),
     writer.flush().map_err(RunError::Output)
 }
 
-/// Writes the research dataset for an M1 CSV.
-///
-/// The dataset is rendered before any file is written, so a render or
-/// validation failure writes nothing. Each file is then written atomically.
-///
-/// # Errors
-///
-/// Returns a [`RunError`] when the source, the layer build, the render, or a
-/// file write fails.
-pub(crate) fn run_research_export(
-    args: &ResearchExportArgs,
-    writer: &mut impl Write,
-) -> Result<(), RunError> {
-    let set = csv::load_full_timeframes(&args.path).map_err(RunError::Source)?;
+/// One layer build and its accepted M1 candles.
+struct LayerBuild {
+    layers: LayerSet,
+    m1: Vec<Candle>,
+}
+
+/// Loads an M1 CSV and builds the three layers.
+fn load_layers(path: &Path) -> Result<LayerBuild, RunError> {
+    let set = csv::load_full_timeframes(path).map_err(RunError::Source)?;
     let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
     let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
     let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
@@ -757,6 +764,82 @@ pub(crate) fn run_research_export(
         &LayerConfig::default(),
     )
     .map_err(RunError::Layers)?;
+
+    Ok(LayerBuild { layers, m1 })
+}
+
+/// Prints the deterministic summary of the research layers.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source, the layer build, or the writer fails.
+pub(crate) fn run_research_summary(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
+    let LayerBuild { layers, .. } = load_layers(path)?;
+    let summary = summarize(&layers);
+    write_summary(&summary, writer).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
+fn write_summary(summary: &DatasetSummary, writer: &mut impl Write) -> io::Result<()> {
+    writeln!(
+        writer,
+        "summary layer1={} layer2={} layer3={}",
+        summary.layer1_rows, summary.layer2_rows, summary.layer3_rows
+    )?;
+    for axis in &summary.axes {
+        write!(
+            writer,
+            "axis timeframe={} axis={} n={} null={} min={} max={} mean={} ordinals=",
+            axis.timeframe_secs,
+            axis.axis,
+            axis.count,
+            axis.nulls,
+            number(axis.min),
+            number(axis.max),
+            number(axis.mean)
+        )?;
+        for (index, count) in axis.ordinal_counts.iter().enumerate() {
+            if index > 0 {
+                write!(writer, ",")?;
+            }
+            write!(writer, "{count}")?;
+        }
+        writeln!(writer, " ordinal_null={}", axis.ordinal_nulls)?;
+    }
+    for relation in &summary.relations {
+        writeln!(
+            writer,
+            "relation timeframe={} left={} right={} n={} r={}",
+            relation.timeframe_secs,
+            relation.left,
+            relation.right,
+            relation.count,
+            number(relation.correlation)
+        )?;
+    }
+    Ok(())
+}
+
+fn number(value: Option<f64>) -> String {
+    value
+        .map(export::format_number)
+        .unwrap_or_else(|| "null".to_string())
+}
+
+/// Writes the research dataset for an M1 CSV.
+///
+/// The dataset is rendered before any file is written, so a render or
+/// validation failure writes nothing. Each file is then written atomically.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source, the layer build, the render, or a
+/// file write fails.
+pub(crate) fn run_research_export(
+    args: &ResearchExportArgs,
+    writer: &mut impl Write,
+) -> Result<(), RunError> {
+    let LayerBuild { layers, m1 } = load_layers(&args.path)?;
 
     let meta = DatasetMeta {
         root: args.root.display().to_string(),
