@@ -6,9 +6,11 @@
 //! reading cannot become a second vote. The modules are pure: they perform no
 //! I/O, read no clock, and use no randomness.
 //!
-//! Direction, Momentum, and Structure are implemented here. Progression
-//! follows in a later work item and publishes its own code family.
+//! Direction, Momentum, Structure, and Progression are implemented here. The
+//! remaining work items add the events, the cross-timeframe aggregates, and the
+//! assembled market state.
 
 pub mod direction;
 pub mod momentum;
+pub mod progression;
 pub mod structure;
