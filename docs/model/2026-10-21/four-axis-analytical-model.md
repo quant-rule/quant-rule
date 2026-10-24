@@ -148,6 +148,8 @@ Signals record discrete changes in a reading, not every fluctuation in a continu
 
 Each signal records its source and direction code. The numeric reading remains authoritative; a signal adds no vote. A single underlying occurrence qualifies for more than one category only when the definitions describe genuinely different relationships; otherwise the most specific event is emitted and duplicates are avoided.
 
+The Signal detector uses three fixed condition families. RSI threshold crossings use 30, 50, and 70; a crossing is strict, so a close exactly on a threshold is not a crossing. Series crossovers use the configured EMA pairs 20/50, 50/200, and 20/200; the source is the faster EMA and the reference code is the slower EMA, and equality on the previous bar counts as a side for the next cross while equality on the current bar is not a cross. Compact state changes use the published Direction, Momentum, and Structure codes and fire only between two code-bearing bars: the first code-bearing bar, a transition from null, and a transition to null are not changes. A price/EMA crossing is a Level event and is never emitted as a Signal. Distinct signal conditions can coincide on one bar; each is stored once and they are not duplicates because each names a different defined relationship. No signal alters an axis value.
+
 ## 8. Axis calculations
 
 `clamp(x, -1, +1)` limits a value to the indicated range.
