@@ -2,7 +2,7 @@
 
 - Issue: [#77](https://github.com/quant-rule/quant-rule/issues/77) — feat: add the analytics crate and axis resolution
 - Branch: `feat/77-analytics-crate`
-- Pull request: pending
+- Pull request: [#92](https://github.com/quant-rule/quant-rule/pull/92)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §6
@@ -101,9 +101,9 @@ Excluded:
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `fde0210` — `feat: add the analytics crate and axis resolution` |
 | Branch | `feat/77-analytics-crate` |
-| Pull request | pending |
+| Pull request | [#92](https://github.com/quant-rule/quant-rule/pull/92) |
 | Board | #77 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.

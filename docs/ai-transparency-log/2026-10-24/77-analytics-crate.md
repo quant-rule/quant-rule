@@ -30,4 +30,4 @@
 - `cargo fmt --all -- --check`: clean.
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
-- Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+- Status: `Verified`. Commit `fde0210` is pushed on `feat/77-analytics-crate`, pull request [#92](https://github.com/quant-rule/quant-rule/pull/92) is open, and #77 is `Done` on the board.
