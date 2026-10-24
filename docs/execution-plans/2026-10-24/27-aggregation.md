@@ -2,7 +2,7 @@
 
 - Issue: [#27](https://github.com/quant-rule/quant-rule/issues/27) — feat: build cross-timeframe aggregation
 - Branch: `feat/27-aggregation`
-- Pull request: pending
+- Pull request: [#87](https://github.com/quant-rule/quant-rule/pull/87)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -105,3 +105,14 @@ Limitation: the multi-timeframe CSV fixture is part of #28's assembled market-st
 - A new dependency.
 - An axis/event formula change outside #27.
 - A failing check that cannot be corrected within scope.
+
+## 11. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `18ffc5e` — `feat: build cross-timeframe aggregation` |
+| Branch | `feat/27-aggregation` |
+| Pull request | [#87](https://github.com/quant-rule/quant-rule/pull/87), open against `main` |
+| Board | Issue #27 moved to `Done`; the workflow closes the issue |
+
+Merge, release, tag, and deployment remain with the human.
