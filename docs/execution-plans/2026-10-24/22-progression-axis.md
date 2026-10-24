@@ -3,7 +3,7 @@
 - Issue: [#22](https://github.com/quant-rule/quant-rule/issues/22) — feat: build the progression axis
 - Branch: `feat/22-progression-axis`
 - Pull request: [#63](https://github.com/quant-rule/quant-rule/pull/63)
-- Status: Verified (implementation, independent review, and checks complete; delivery awaits §9 authorization)
+- Status: Verified (implementation, independent review, checks, and delivery complete; merge authorization pending)
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
 - Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
