@@ -186,6 +186,7 @@ dependencies = [
 name = "quantrule-analytics"
 version = "0.1.0"
 dependencies = [
+ "quantrule-data",
  "quantrule-model",
 ]
 
