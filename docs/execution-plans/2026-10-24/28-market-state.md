@@ -2,7 +2,7 @@
 
 - Issue: [#28](https://github.com/quant-rule/quant-rule/issues/28) — feat: build the consensus diagnostic and the market-state output contract
 - Branch: `feat/28-market-state`
-- Pull request: pending
+- Pull request: [#88](https://github.com/quant-rule/quant-rule/pull/88)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -103,3 +103,14 @@ The consensus fixture has three rows covering all three counts, missing axes, th
 - A new dependency.
 - An axis/event formula change outside #28.
 - A failing check that cannot be corrected within scope.
+
+## 11. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `e8866b6` — `feat: build the market state and consensus` |
+| Branch | `feat/28-market-state` |
+| Pull request | [#88](https://github.com/quant-rule/quant-rule/pull/88), open against `main` |
+| Board | Issue #28 moved to `Done`; the workflow closes the issue |
+
+Merge, release, tag, and deployment remain with the human.
