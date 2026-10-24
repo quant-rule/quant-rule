@@ -68,7 +68,7 @@
 - **Date and tool:** 2026-10-24 (UTC). opencode (DeepSeek V4.1 Flash Free).
 - **Intent and boundary:** Commit the verified work, push the task branch, open the M3 pull request, and move #19 to `Done` on the board. No merge was performed.
 - **Verification and evidence:**
-  - Commit `b863d5c` (`feat: build the direction axis`) contains the implementation, tests, fixture, plan, and this log.
+  - Commit `b863d5c` (`feat: build the direction axis`) contains the implementation, tests, fixture, plan, and the pre-delivery transparency log. The delivery entry was added in follow-up docs commits.
   - Pull request [#60](https://github.com/quant-rule/quant-rule/pull/60) targets `main` from `feat/19-direction-axis`.
   - GitHub reported the pull request as mergeable and clean. The `Project sync` workflow completed successfully for the implementation commit `b863d5c`; the delivery-only follow-up commits have no separate check run.
   - The board item for #19 is `Done`; the repository workflow closed issue #19. The pull request remains open and unmerged.
