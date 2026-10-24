@@ -23,6 +23,7 @@ use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
 use crate::render;
 use crate::render_state;
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
+use crate::store::{Store, StoreError};
 
 /// The help text shown by the `help` command.
 pub(crate) const HELP: &str = r#"QuantRule shell commands:
@@ -38,6 +39,7 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
       --data-version <id>       Caller-supplied identity of the input series.
       --root <dir>              Export root (default: data).
   research summary <csv-path>   Print counts, ranges, ordinal histograms, and axis correlations.
+  store init [--db <path>]      Create or open the SQLite store (default data/quantrule.db).
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -70,6 +72,7 @@ Non-interactive: quantrule events <csv-path>
 Non-interactive: quantrule legs <csv-path>
 Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule research summary path/to/m1.csv
+Non-interactive: quantrule store init --db data/quantrule.db
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
 "#;
 
@@ -94,6 +97,8 @@ pub(crate) enum Command {
     ResearchExport(ResearchExportArgs),
     /// Print the research summary.
     ResearchSummary(PathBuf),
+    /// Create or open the SQLite store.
+    StoreInit(PathBuf),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
     Fetch(FetchArgs),
     /// Print the command reference.
@@ -172,6 +177,8 @@ pub(crate) enum ParseError {
     UnknownAxis(String),
     /// A `research export` argument list is invalid.
     Research(String),
+    /// A `store` argument list is invalid.
+    Store(String),
     /// The command name is not recognized.
     Unknown(String),
 }
@@ -195,6 +202,7 @@ impl fmt::Display for ParseError {
                 "unknown axis '{axis}'; use direction, momentum, structure, or progression"
             ),
             Self::Research(message) => formatter.write_str(message),
+            Self::Store(message) => formatter.write_str(message),
             Self::Unknown(command) => {
                 write!(formatter, "unknown command '{command}'; type 'help'")
             }
@@ -217,6 +225,8 @@ pub(crate) enum RunError {
     ResearchExport(ResearchExportError),
     /// A research file could not be written.
     Write(FileExportError),
+    /// The store could not be opened or queried.
+    Store(StoreError),
     /// The output could not be written.
     Output(io::Error),
 }
@@ -231,6 +241,7 @@ impl fmt::Display for RunError {
                 write!(formatter, "cannot render the research dataset: {source}")
             }
             Self::Write(source) => write!(formatter, "cannot write the research dataset: {source}"),
+            Self::Store(source) => source.fmt(formatter),
             Self::Output(source) => write!(formatter, "cannot write output: {source}"),
         }
     }
@@ -244,6 +255,7 @@ impl std::error::Error for RunError {
             Self::Layers(source) => Some(source),
             Self::ResearchExport(source) => Some(source),
             Self::Write(source) => Some(source),
+            Self::Store(source) => Some(source),
             Self::Output(source) => Some(source),
         }
     }
@@ -280,6 +292,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "research" => {
             let arguments = tokenize(rest)?;
             parse_research_arguments(&arguments)
+        }
+        "store" => {
+            let arguments = tokenize(rest)?;
+            parse_store_arguments(&arguments)
         }
         "fetch" => {
             let arguments = tokenize(rest)?;
@@ -563,6 +579,56 @@ pub(crate) fn parse_research_arguments(
         data_version,
         root,
     })))
+}
+
+/// Parses the arguments after `store`.
+///
+/// The only subcommand in this issue is `init` with an optional `--db`. Later
+/// issues add `ingest`, `list`, `show`, and `verify`.
+///
+/// # Errors
+///
+/// Returns [`ParseError::Store`] for a missing or unknown subcommand or a
+/// missing option value.
+pub(crate) fn parse_store_arguments(arguments: &[String]) -> Result<Option<Command>, ParseError> {
+    const USAGE: &str = "usage: store init [--db <path>]";
+    if arguments.first().map(String::as_str) != Some("init") {
+        return Err(ParseError::Store(USAGE.to_string()));
+    }
+
+    let mut path = PathBuf::from("data/quantrule.db");
+    let mut index = 1;
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--db" => {
+                index += 1;
+                let value = arguments
+                    .get(index)
+                    .ok_or_else(|| ParseError::Store(format!("--db needs a value\n{USAGE}")))?;
+                path = PathBuf::from(value);
+            }
+            option => {
+                return Err(ParseError::Store(format!(
+                    "unknown argument '{option}'\n{USAGE}"
+                )));
+            }
+        }
+        index += 1;
+    }
+
+    Ok(Some(Command::StoreInit(path)))
+}
+
+/// Creates or opens the store and prints its schema version.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the store cannot be opened or the writer fails.
+pub(crate) fn run_store_init(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
+    let store = Store::open(path).map_err(RunError::Store)?;
+    let version = store.schema_version().map_err(RunError::Store)?;
+    writeln!(writer, "store {} schema={version}", path.display()).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
 }
 
 fn path_command(
