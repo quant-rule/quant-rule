@@ -1,9 +1,11 @@
 //! The model engine.
 //!
-//! This crate is created empty by issue #46 so that the workspace layout
-//! declared in `AGENTS.md` section 2 is real from the first change. The
-//! analytical model's contract is in `docs/model/`; its implementation is
-//! issue #14.
+//! The analytical model's contract is in `docs/model/`. Its implementation is
+//! tracked as the sub-issues of issue #14. This crate currently provides the
+//! shared numeric kernel in [`kernel`]; the readings, axes, events, aggregates,
+//! and market state follow in later work items.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+
+pub mod kernel;
