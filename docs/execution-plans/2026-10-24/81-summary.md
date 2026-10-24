@@ -2,7 +2,7 @@
 
 - Issue: [#81](https://github.com/quant-rule/quant-rule/issues/81) — feat: add summary and relation analysis
 - Branch: `feat/81-summary`
-- Pull request: pending
+- Pull request: [#97](https://github.com/quant-rule/quant-rule/pull/97)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §5–§7
@@ -106,9 +106,9 @@ Excluded:
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `b8f6e44` — `feat: add summary and relation analysis` |
 | Branch | `feat/81-summary` |
-| Pull request | pending |
+| Pull request | [#97](https://github.com/quant-rule/quant-rule/pull/97) |
 | Board | #81 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.
