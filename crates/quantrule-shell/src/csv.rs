@@ -355,10 +355,27 @@ pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
 /// is missing or invalid, a row does not have six fields, the data engine
 /// rejects a row, or the final bucket cannot be finished.
 pub(crate) fn load_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
+    load_timeframe_set(path, TimeframeSet::new())
+}
+
+/// Loads every accepted M1 candle into a full-series set.
+///
+/// The set keeps up to [`quantrule_data::MAX_SERIES`] M1 candles and rejects
+/// the next one instead of evicting the first. The rows and errors are the same
+/// as [`load_timeframes`].
+///
+/// # Errors
+///
+/// Returns a [`SourceError`] for the same reasons as [`load_timeframes`], and
+/// when the input exceeds the full-series cap.
+pub(crate) fn load_full_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
+    load_timeframe_set(path, TimeframeSet::full())
+}
+
+fn load_timeframe_set(path: &Path, mut set: TimeframeSet) -> Result<TimeframeSet, SourceError> {
     let mut reader = open_reader(path)?;
     read_header(&mut reader, path)?;
 
-    let mut set = TimeframeSet::new();
     let mut line = String::new();
     let mut line_number = 1_usize;
 

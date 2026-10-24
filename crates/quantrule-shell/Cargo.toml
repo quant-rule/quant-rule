@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 png = "0.18"
+quantrule-analytics = { path = "../quantrule-analytics" }
 quantrule-data = { path = "../quantrule-data" }
 quantrule-model = { path = "../quantrule-model" }
 serde_json = "1"

@@ -206,6 +206,7 @@ name = "quantrule-shell"
 version = "0.1.0"
 dependencies = [
  "png",
+ "quantrule-analytics",
  "quantrule-data",
  "quantrule-model",
  "serde_json",

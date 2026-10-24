@@ -99,6 +99,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::ResearchExport(args) => {
+                if let Err(error) = command::run_research_export(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Fetch(args) => {
                 if let Err(error) = command::run_fetch(&args, &mut stdout) {
                     eprintln!("error: {error}");
@@ -241,6 +246,40 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             let mut stdout = io::stdout();
             match command::run_legs(&path, &mut stdout) {
                 Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "research" => {
+            let mut arguments = Vec::with_capacity(args.len().saturating_sub(1));
+            for argument in &args[1..] {
+                match argument.to_str() {
+                    Some(value) => arguments.push(value.to_string()),
+                    None => {
+                        eprintln!("error: argument is not valid UTF-8");
+                        return 1;
+                    }
+                }
+            }
+            match command::parse_research_arguments(&arguments) {
+                Ok(Some(Command::ResearchExport(export))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_research_export(&export, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
+                Ok(_) => {
+                    eprintln!(
+                        "error: usage: research export <csv-path> <dataset> --data-version <id> [--root <dir>]"
+                    );
+                    1
+                }
                 Err(error) => {
                     eprintln!("error: {error}");
                     1

@@ -8,10 +8,16 @@ use std::fmt;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+use quantrule_analytics::layers::{LayerConfig, LayerError, build_layers};
+use quantrule_analytics::research::{
+    DatasetMeta, ExportError as ResearchExportError, render_dataset,
+};
 use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe};
+use quantrule_model::readings::PivotScale;
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
 use crate::csv::{self, SourceError};
+use crate::export::{self, ExportError as FileExportError};
 use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
 use crate::render;
 use crate::render_state;
@@ -26,6 +32,10 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
   events <csv-path>             Print every event record as NDJSON, in availability order.
   legs <csv-path>               Print the minor and major leg per timeframe.
+  research export <csv> <dataset>
+                                Write the research dataset; requires --data-version.
+      --data-version <id>       Caller-supplied identity of the input series.
+      --root <dir>              Export root (default: data).
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -56,6 +66,7 @@ Non-interactive: quantrule market-state <csv-path>
 Non-interactive: quantrule axis <csv-path> direction
 Non-interactive: quantrule events <csv-path>
 Non-interactive: quantrule legs <csv-path>
+Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
 "#;
 
@@ -76,6 +87,8 @@ pub(crate) enum Command {
     Events(PathBuf),
     /// Print the legs.
     Legs(PathBuf),
+    /// Write the research dataset.
+    ResearchExport(ResearchExportArgs),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
     Fetch(FetchArgs),
     /// Print the command reference.
@@ -126,6 +139,19 @@ pub(crate) struct FetchArgs {
     pub(crate) candles: usize,
 }
 
+/// A parsed `research export` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResearchExportArgs {
+    /// The M1 source CSV.
+    pub(crate) path: PathBuf,
+    /// The dataset directory name.
+    pub(crate) dataset: String,
+    /// The caller-supplied data version.
+    pub(crate) data_version: String,
+    /// The export root.
+    pub(crate) root: PathBuf,
+}
+
 /// A command line could not be parsed.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ParseError {
@@ -139,6 +165,8 @@ pub(crate) enum ParseError {
     AxisUsage,
     /// The axis name is not known.
     UnknownAxis(String),
+    /// A `research export` argument list is invalid.
+    Research(String),
     /// The command name is not recognized.
     Unknown(String),
 }
@@ -161,6 +189,7 @@ impl fmt::Display for ParseError {
                 formatter,
                 "unknown axis '{axis}'; use direction, momentum, structure, or progression"
             ),
+            Self::Research(message) => formatter.write_str(message),
             Self::Unknown(command) => {
                 write!(formatter, "unknown command '{command}'; type 'help'")
             }
@@ -177,6 +206,12 @@ pub(crate) enum RunError {
     Source(SourceError),
     /// A fetch could not be completed.
     Fetch(fetch::FetchRunError),
+    /// The research layers could not be built.
+    Layers(LayerError),
+    /// The research dataset could not be rendered.
+    ResearchExport(ResearchExportError),
+    /// A research file could not be written.
+    Write(FileExportError),
     /// The output could not be written.
     Output(io::Error),
 }
@@ -186,6 +221,11 @@ impl fmt::Display for RunError {
         match self {
             Self::Source(source) => source.fmt(formatter),
             Self::Fetch(source) => source.fmt(formatter),
+            Self::Layers(source) => write!(formatter, "cannot build the research layers: {source}"),
+            Self::ResearchExport(source) => {
+                write!(formatter, "cannot render the research dataset: {source}")
+            }
+            Self::Write(source) => write!(formatter, "cannot write the research dataset: {source}"),
             Self::Output(source) => write!(formatter, "cannot write output: {source}"),
         }
     }
@@ -196,6 +236,9 @@ impl std::error::Error for RunError {
         match self {
             Self::Source(source) => Some(source),
             Self::Fetch(source) => Some(source),
+            Self::Layers(source) => Some(source),
+            Self::ResearchExport(source) => Some(source),
+            Self::Write(source) => Some(source),
             Self::Output(source) => Some(source),
         }
     }
@@ -229,6 +272,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "events" => path_command(rest, "events", Command::Events),
         "legs" => path_command(rest, "legs", Command::Legs),
         "axis" => parse_axis(rest),
+        "research" => {
+            let arguments = tokenize(rest)?;
+            parse_research_arguments(&arguments)
+        }
         "fetch" => {
             let arguments = tokenize(rest)?;
             parse_fetch_arguments(&arguments).map(|args| Some(Command::Fetch(args)))
@@ -430,6 +477,82 @@ fn parse_axis(rest: &str) -> Result<Option<Command>, ParseError> {
     }))
 }
 
+/// Parses the arguments after `research`.
+///
+/// The shape is `research export` with a CSV path, a dataset name, a required
+/// `--data-version`, and an optional `--root`. This entry point is also used by
+/// the non-interactive binary, where the operating system has already split the
+/// arguments.
+///
+/// # Errors
+///
+/// Returns [`ParseError::Research`] for a missing subcommand, a missing
+/// argument, an unknown option, or a repeated positional argument.
+pub(crate) fn parse_research_arguments(
+    arguments: &[String],
+) -> Result<Option<Command>, ParseError> {
+    const USAGE: &str =
+        "usage: research export <csv-path> <dataset> --data-version <id> [--root <dir>]";
+    if arguments.first().map(String::as_str) != Some("export") {
+        return Err(ParseError::Research(USAGE.to_string()));
+    }
+
+    let mut path = None;
+    let mut dataset = None;
+    let mut data_version = None;
+    let mut root = PathBuf::from("data");
+    let mut index = 1;
+
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--data-version" => {
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Research(format!("--data-version needs a value\n{USAGE}"))
+                })?;
+                data_version = Some(value.clone());
+            }
+            "--root" => {
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Research(format!("--root needs a value\n{USAGE}"))
+                })?;
+                root = PathBuf::from(value);
+            }
+            option if option.starts_with("--") => {
+                return Err(ParseError::Research(format!(
+                    "unknown option '{option}'\n{USAGE}"
+                )));
+            }
+            value => {
+                if path.is_none() {
+                    path = Some(PathBuf::from(value));
+                } else if dataset.is_none() {
+                    dataset = Some(value.to_string());
+                } else {
+                    return Err(ParseError::Research(format!(
+                        "unexpected argument '{value}'\n{USAGE}"
+                    )));
+                }
+            }
+        }
+        index += 1;
+    }
+
+    let path = path.ok_or_else(|| ParseError::Research(format!("missing CSV path\n{USAGE}")))?;
+    let dataset =
+        dataset.ok_or_else(|| ParseError::Research(format!("missing dataset name\n{USAGE}")))?;
+    let data_version = data_version
+        .ok_or_else(|| ParseError::Research(format!("missing --data-version\n{USAGE}")))?;
+
+    Ok(Some(Command::ResearchExport(ResearchExportArgs {
+        path,
+        dataset,
+        data_version,
+        root,
+    })))
+}
+
 fn path_command(
     rest: &str,
     name: &'static str,
@@ -593,6 +716,72 @@ pub(crate) fn run_fetch(args: &FetchArgs, writer: &mut impl Write) -> Result<(),
     writer.flush().map_err(RunError::Output)
 }
 
+/// Writes the research dataset for an M1 CSV.
+///
+/// The dataset is rendered before any file is written, so a render or
+/// validation failure writes nothing. Each file is then written atomically.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source, the layer build, the render, or a
+/// file write fails.
+pub(crate) fn run_research_export(
+    args: &ResearchExportArgs,
+    writer: &mut impl Write,
+) -> Result<(), RunError> {
+    let set = csv::load_full_timeframes(&args.path).map_err(RunError::Source)?;
+    let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
+    let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
+    let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
+    let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
+
+    let layers = build_layers(
+        &[
+            TimeframeInput {
+                timeframe_secs: u64::from(Timeframe::M1.seconds()),
+                candles: &m1,
+            },
+            TimeframeInput {
+                timeframe_secs: u64::from(Timeframe::M5.seconds()),
+                candles: &m5,
+            },
+            TimeframeInput {
+                timeframe_secs: u64::from(Timeframe::M15.seconds()),
+                candles: &m15,
+            },
+            TimeframeInput {
+                timeframe_secs: u64::from(Timeframe::H1.seconds()),
+                candles: &h1,
+            },
+        ],
+        &LayerConfig::default(),
+    )
+    .map_err(RunError::Layers)?;
+
+    let meta = DatasetMeta {
+        root: args.root.display().to_string(),
+        dataset: args.dataset.clone(),
+        data_version: args.data_version.clone(),
+        model_version: env!("CARGO_PKG_VERSION").to_string(),
+        structure_scale_code: PivotScale::Major as u8,
+    };
+    let bundle = render_dataset(&layers, &m1, &meta).map_err(RunError::ResearchExport)?;
+
+    for file in &bundle.files {
+        export::write_atomic(Path::new(&file.path), file.contents.as_bytes())
+            .map_err(RunError::Write)?;
+    }
+
+    writeln!(writer, "exported {}", args.dataset).map_err(RunError::Output)?;
+    writeln!(writer, "  data version: {}", args.data_version).map_err(RunError::Output)?;
+    writeln!(writer, "  raw rows: {}", bundle.raw_rows).map_err(RunError::Output)?;
+    writeln!(writer, "  layer1 rows: {}", bundle.layer1_rows).map_err(RunError::Output)?;
+    writeln!(writer, "  layer2 rows: {}", bundle.layer2_rows).map_err(RunError::Output)?;
+    writeln!(writer, "  layer3 rows: {}", bundle.layer3_rows).map_err(RunError::Output)?;
+    writeln!(writer, "  files: {}", bundle.files.len()).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
 /// Writes the command reference.
 ///
 /// # Errors
@@ -607,7 +796,7 @@ pub(crate) fn run_help(writer: &mut impl Write) -> Result<(), RunError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, FetchArgs, ParseError, parse, parse_fetch_arguments};
+    use super::{Command, FetchArgs, ParseError, ResearchExportArgs, parse, parse_fetch_arguments};
     use std::path::PathBuf;
 
     use crate::source::{DateRange, Symbol};
@@ -956,6 +1145,35 @@ mod tests {
         assert!(matches!(
             parse("fetch gold 2025-01-01 2025-12-31 --csv \"out.csv"),
             Err(ParseError::Fetch(_))
+        ));
+    }
+
+    #[test]
+    fn parses_a_research_export() {
+        assert_eq!(
+            parse("research export data/m1.csv demo --data-version source:1 --root out"),
+            Ok(Some(Command::ResearchExport(ResearchExportArgs {
+                path: PathBuf::from("data/m1.csv"),
+                dataset: "demo".to_string(),
+                data_version: "source:1".to_string(),
+                root: PathBuf::from("out"),
+            })))
+        );
+    }
+
+    #[test]
+    fn a_research_export_requires_a_data_version() {
+        assert!(matches!(
+            parse("research export data/m1.csv demo"),
+            Err(ParseError::Research(_))
+        ));
+    }
+
+    #[test]
+    fn a_research_export_rejects_an_unknown_option() {
+        assert!(matches!(
+            parse("research export data/m1.csv demo --data-version x --nope y"),
+            Err(ParseError::Research(_))
         ));
     }
 }

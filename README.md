@@ -24,6 +24,7 @@ cargo run -p quantrule-shell -- market-state path/to/m1.csv
 cargo run -p quantrule-shell -- axis path/to/m1.csv direction
 cargo run -p quantrule-shell -- events path/to/m1.csv
 cargo run -p quantrule-shell -- legs path/to/m1.csv
+cargo run -p quantrule-shell -- research export path/to/m1.csv demo --data-version binance:BTCUSDT:60:1704067200-1710115200
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --csv data/XAUUSD_M1_2025-01-01_2025-12-31.csv
 cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1h --csv data/EURUSD_H1_2026-01-01_2026-06-30.csv
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauusd_2025.png
@@ -40,6 +41,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `axis` | `<csv-path> <axis>` | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` | Every event record as NDJSON, in availability order |
 | `legs` | `<csv-path>` | The minor and major leg per timeframe as NDJSON |
+| `research export` | `<csv-path> <dataset> --data-version <id>` [options] | The raw M1 file and the three research layers, with the manifest, dictionary, and code table |
 | `fetch` | `<symbol> <start> <end>` [options] | A CSV of native BID candles and an optional PNG chart |
 | `help` | none | The command reference |
 | `quit` | none | Exits with status 0 |
@@ -52,6 +54,15 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `--csv <path>` | CSV target (default `data/<SYMBOL>_<M1\|M5\|M15\|H1>_<start>_<end>.csv`) |
 | `--png <path>` | Also write a chart; the PNG is opt-in |
 | `--candles <n>` | Candles in the chart, from the tail of the fetched range (default 1000, max 1000) |
+
+`research export` options:
+
+| Option | Meaning |
+|---|---|
+| `--data-version <id>` | Required identity of the input series: source, timeframe, and coverage |
+| `--root <dir>` | Export root (default `data`) |
+
+`research export` reads an M1 CSV, builds M1/M5/M15/H1, and writes `<root>/raw/<dataset>/m1.csv` and `<root>/processed/<dataset>/` with `layer1.csv`, `layer2.csv`, `layer3.csv`, `manifest.json`, `data_dictionary.csv`, `data_dictionary.md`, `codes.csv`, and `README.md`. The manifest records the data version, the model and contract versions, the configuration, the row counts, and the data file list. The export is deterministic: the same input and configuration produce byte-identical files. The input is capped at 100,000 M1 candles; an over-cap input fails rather than being truncated.
 
 `candles` reads the file one row at a time. A missing file, bad header, malformed row, invalid OHLC, duplicate timestamp, or out-of-order timestamp aborts the command. The shell builds the window before writing, so a late error produces no partial NDJSON.
 

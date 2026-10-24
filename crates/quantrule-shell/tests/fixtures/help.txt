@@ -6,6 +6,10 @@ QuantRule shell commands:
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
   events <csv-path>             Print every event record as NDJSON, in availability order.
   legs <csv-path>               Print the minor and major leg per timeframe.
+  research export <csv> <dataset>
+                                Write the research dataset; requires --data-version.
+      --data-version <id>       Caller-supplied identity of the input series.
+      --root <dir>              Export root (default: data).
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -36,4 +40,5 @@ Non-interactive: quantrule market-state <csv-path>
 Non-interactive: quantrule axis <csv-path> direction
 Non-interactive: quantrule events <csv-path>
 Non-interactive: quantrule legs <csv-path>
+Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
