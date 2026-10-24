@@ -2,7 +2,7 @@
 
 - Issue: [#67](https://github.com/quant-rule/quant-rule/issues/67) — feat: add the SQLite store foundation and migrations
 - Branch: `feat/67-store-foundation`
-- Pull request: pending
+- Pull request: [#100](https://github.com/quant-rule/quant-rule/pull/100)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)
@@ -108,9 +108,9 @@ Excluded:
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `ef1c68f` — `feat: add the SQLite store foundation` |
 | Branch | `feat/67-store-foundation` |
-| Pull request | pending |
+| Pull request | [#100](https://github.com/quant-rule/quant-rule/pull/100) |
 | Board | #67 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.
