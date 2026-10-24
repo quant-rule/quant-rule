@@ -223,7 +223,7 @@ This is why a leg can exist before its origin is confirmed. A leg created from a
 
 **Leg transitions.** A confirmed pivot of the opposite kind at the same scale completes the active leg — lifecycle 2 — and starts a new leg. A confirmed pivot of the same kind supersedes the active leg — lifecycle 4 — and starts a new leg. A close beyond the origin against the leg by more than `0.2 * ATR_at_origin` invalidates the leg — lifecycle 3.
 
-**The published leg.** A timeframe publishes one leg: the most recently created leg across both scales, whether it is forming or active. Its scale is published as `progression_leg_scale_code` and its direction as `progression_leg_direction`, which is the leg record's own `leg_direction_code` carried into the per-timeframe output. The full record of the leg at each scale is published as well (§9), so the other scale's leg stays inspectable and the two are never blended.
+**The published leg.** A timeframe publishes one leg: the most recently created retained leg across both scales. A retained leg is forming, active, or terminal; a terminal leg is published with its measurements frozen at the bar it ended, until a newer leg is created. Its scale is published as `progression_leg_scale_code` and its direction as `progression_leg_direction`, which is the leg record's own `leg_direction_code` carried into the per-timeframe output. The full record of the leg at each scale is published as well (§9), so the other scale's leg stays inspectable and the two are never blended.
 
 Each leg stores numeric fields for:
 
