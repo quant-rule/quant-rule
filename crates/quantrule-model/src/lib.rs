@@ -6,7 +6,7 @@
 //! the Direction, Momentum, Structure, and Progression axes in [`axes`], and
 //! the shared event record and event detectors in [`events`], the volatility and
 //! participation context in [`context`], and the cross-timeframe aggregates in
-//! [`aggregate`]; the assembled market state follows in a later work item.
+//! [`aggregate`]; [`state`] assembles the published market state and consensus.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -17,3 +17,4 @@ pub mod context;
 pub mod events;
 pub mod kernel;
 pub mod readings;
+pub mod state;

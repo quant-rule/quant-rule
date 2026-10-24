@@ -1,0 +1,4 @@
+timeframe_secs,direction,momentum_force,structure_score,direction_percentile,momentum_percentile,structure_percentile,bullish_axis_count,bearish_axis_count,neutral_axis_count,weakest_axis_code
+60,0.5,-0.5,0.0,10,20,30,1,1,1,1
+300,,0.5,,,40,,1,0,0,2
+900,0.1,-0.1,,50,60,,0,0,2,1
