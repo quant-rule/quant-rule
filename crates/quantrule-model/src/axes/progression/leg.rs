@@ -96,16 +96,15 @@ impl Leg {
     pub(crate) fn new(
         id: u64,
         candidate: PivotCandidate,
-        registry: &crate::axes::structure::registry::ConfirmedLevelRegistry,
+        index: &target::LevelIndex,
         atr_at_origin: Option<f64>,
     ) -> Self {
         let direction = match candidate.kind {
             PivotKind::Low => 1,
             PivotKind::High => -1,
         };
-        let target = target::select(
-            registry,
-            candidate.occurred_at,
+        let target = target::select_index(
+            index,
             candidate.scale,
             direction,
             candidate.price,
@@ -401,7 +400,10 @@ mod tests {
         } else {
             PivotKind::High
         };
-        Leg::new(1, candidate(kind, 100.0, 4), &empty_registry(), None)
+        let registry = empty_registry();
+        let mut index = super::target::LevelIndex::new(&registry);
+        index.advance(4);
+        Leg::new(1, candidate(kind, 100.0, 4), &index, None)
     }
 
     fn active_leg(origin: f64, target: f64, direction: i8, atr: Option<f64>) -> Leg {
