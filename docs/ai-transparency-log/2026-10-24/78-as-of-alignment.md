@@ -29,4 +29,4 @@
 - `cargo fmt --all -- --check`: clean.
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
-- Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+- Status: `Verified`. Commit `9803f60` is pushed on `feat/78-as-of-alignment`, pull request [#93](https://github.com/quant-rule/quant-rule/pull/93) is open, and #78 is `Done` on the board.

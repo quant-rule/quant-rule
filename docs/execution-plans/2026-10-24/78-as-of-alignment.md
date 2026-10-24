@@ -2,7 +2,7 @@
 
 - Issue: [#78](https://github.com/quant-rule/quant-rule/issues/78) — feat: add as-of timeframe alignment
 - Branch: `feat/78-as-of-alignment`
-- Pull request: pending
+- Pull request: [#93](https://github.com/quant-rule/quant-rule/pull/93)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §7.2
@@ -96,9 +96,9 @@ Excluded:
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `9803f60` — `feat: add as-of timeframe alignment` |
 | Branch | `feat/78-as-of-alignment` |
-| Pull request | pending |
+| Pull request | [#93](https://github.com/quant-rule/quant-rule/pull/93) |
 | Board | #78 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.
