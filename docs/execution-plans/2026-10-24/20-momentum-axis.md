@@ -2,7 +2,7 @@
 
 - Issue: [#20](https://github.com/quant-rule/quant-rule/issues/20) — feat: build the momentum axis
 - Branch: `feat/20-momentum-axis`
-- Pull request: pending
+- Pull request: [#61](https://github.com/quant-rule/quant-rule/pull/61)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -159,7 +159,9 @@ Stop and request human direction if:
 
 ## 11. Evidence
 
-Observed on 2026-10-24 in the task worktree, after the implementation and the review corrections, before the pull request.
+Observed on 2026-10-24 in the task worktree, after the implementation and the review corrections, and after the pull request was opened.
+
+The delivery is PR [#61](https://github.com/quant-rule/quant-rule/pull/61) at commit `306e604`. The PR reads `MERGEABLE` with merge state `CLEAN`, and the project-sync check passed. Issue #20 was moved to `Done` on the board once the PR existed, and the PR's own board item carries `Item type = Pull request`.
 
 | Check | Result |
 |---|---|

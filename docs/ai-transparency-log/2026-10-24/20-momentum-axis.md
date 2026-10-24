@@ -53,9 +53,19 @@
 - **Verification and evidence:** After the corrections, `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` (418 passed), and `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` are clean. The reviewer independently recomputed all 260 rows and reported a maximum absolute difference of `0.0` with zero mismatches for the continuous values and the codes and counters.
 - **Learning:** The strongest review finding was a readiness interpretation, not a numeric defect. The contract's formula and prose also conflict for a negative force: the `sign(force_t)` factor makes a strengthening negative force negative, while the prose's "above 0" sentence reads as though any strengthening is positive. The implementation follows the formula and issue #20; the plan records the reading so the human can rule on it.
 
-## Current state after the review entry
+## Entry: delivery
+
+- **Date and tool:** 2026-10-24 (UTC). opencode (DeepSeek V4.1 Flash Free).
+- **Intent and boundary:** Commit the reviewed work, push the task branch, open the pull request, move issue #20 to `Done` on the board, and record the delivery in the plan and this log. No merge, release, or cleanup was performed.
+- **Verification and evidence:**
+  - Commit `306e604` (`feat: build the momentum axis`) holds the implementation, fixture, tests, plan, and log. The task branch was pushed to `origin/feat/20-momentum-axis`.
+  - PR [#61](https://github.com/quant-rule/quant-rule/pull/61) was opened against `main`. GitHub reports `MERGEABLE` and merge state `CLEAN`, and the project-sync check passed.
+  - Issue #20 moved to `Done` on the project board, and the PR item is present with `Item type = Pull request`.
+  - The plan's pull-request field and evidence section now name PR #61 and commit `306e604`.
+- **Learning:** The board's own automation adds the PR item, so the only manual step is confirming its `Item type`; the workflow leaves an open PR's `Status` at `Todo`, which is the pre-existing division of ownership and not a defect in this item.
+
+## Current state after delivery
 
 - The Momentum module, golden fixture, tests, and documentation are complete and pass all local checks.
-- The execution plan is marked `Verified` and records the review outcome and evidence.
-- No commit, push, or pull request exists yet; those operations are the next step.
-- Merge remains gated on explicit human authorization.
+- The execution plan is marked `Verified` and records the review outcome, evidence, and PR #61.
+- PR #61 is open for human review; merge remains gated on explicit human authorization.
