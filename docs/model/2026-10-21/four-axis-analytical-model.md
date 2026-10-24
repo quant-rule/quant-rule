@@ -378,6 +378,8 @@ A consensus diagnostic is a count, never a combined score. It is computed across
 
 Progression is excluded from the directional consensus, because it describes the state of a named leg rather than an independent market bias. `progression_leg_direction` is published separately, as a field of §9, so consumers can compare it with the consensus without treating the ordinal stage as a score.
 
+The consensus is published per timeframe, so each published state carries the counts for its own three directional axes. A missing axis is excluded from all three counts. `weakest_directional_axis_code` breaks a percentile tie toward the lower axis code. Progression is excluded from the counts; `progression_leg_direction` remains published on the Progression axis.
+
 Stability is reported through `state_age_bars` and `state_changes_50` per axis. Higher change counts mean the compact state has switched more often; they are not confidence values. A missing axis does not count as neutral.
 
 ## 12. Context outside the four axes
