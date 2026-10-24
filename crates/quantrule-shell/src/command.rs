@@ -8,11 +8,13 @@ use std::fmt;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use quantrule_data::{DEFAULT_WINDOW, Timeframe};
+use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe};
+use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
 use crate::csv::{self, SourceError};
 use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
 use crate::render;
+use crate::render_state;
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
 
 /// The help text shown by the `help` command.
@@ -20,6 +22,10 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
   candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
   candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
   timeframes <csv-path>         Build M5/M15/H1 from an M1 CSV; print NDJSON and a report.
+  market-state <csv-path>       Print the four-timeframe market state as JSON.
+  axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
+  events <csv-path>             Print every event record as NDJSON, in availability order.
+  legs <csv-path>               Print the minor and major leg per timeframe.
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -46,6 +52,10 @@ Fetch dates: inclusive UTC dates in YYYY-MM-DD form; no clock is read.
 Non-interactive: quantrule candles <csv-path>
 Non-interactive: quantrule candles-tolerant <csv-path>
 Non-interactive: quantrule timeframes <csv-path>
+Non-interactive: quantrule market-state <csv-path>
+Non-interactive: quantrule axis <csv-path> direction
+Non-interactive: quantrule events <csv-path>
+Non-interactive: quantrule legs <csv-path>
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
 "#;
 
@@ -58,12 +68,45 @@ pub(crate) enum Command {
     CandlesTolerant(PathBuf),
     /// Build M5, M15, and H1 from an M1 CSV, then print the series and report.
     Timeframes(PathBuf),
+    /// Print the assembled market state.
+    MarketState(PathBuf),
+    /// Print one axis per timeframe.
+    Axis { path: PathBuf, axis: Axis },
+    /// Print the event records.
+    Events(PathBuf),
+    /// Print the legs.
+    Legs(PathBuf),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
     Fetch(FetchArgs),
     /// Print the command reference.
     Help,
     /// Exit the shell.
     Quit,
+}
+
+/// A model axis selected by the `axis` command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Axis {
+    /// Direction.
+    Direction,
+    /// Momentum.
+    Momentum,
+    /// Structure.
+    Structure,
+    /// Progression.
+    Progression,
+}
+
+impl Axis {
+    pub(crate) fn from_code(code: &str) -> Option<Self> {
+        match code {
+            "direction" => Some(Self::Direction),
+            "momentum" => Some(Self::Momentum),
+            "structure" => Some(Self::Structure),
+            "progression" => Some(Self::Progression),
+            _ => None,
+        }
+    }
 }
 
 /// A parsed `fetch` command.
@@ -92,6 +135,10 @@ pub(crate) enum ParseError {
     UnexpectedArguments(&'static str),
     /// A `fetch` argument list is invalid.
     Fetch(String),
+    /// `axis` needs a CSV path and an axis name.
+    AxisUsage,
+    /// The axis name is not known.
+    UnknownAxis(String),
     /// The command name is not recognized.
     Unknown(String),
 }
@@ -106,6 +153,14 @@ impl fmt::Display for ParseError {
                 write!(formatter, "{command} takes no arguments")
             }
             Self::Fetch(message) => formatter.write_str(message),
+            Self::AxisUsage => write!(
+                formatter,
+                "usage: axis <csv-path> <direction|momentum|structure|progression>"
+            ),
+            Self::UnknownAxis(axis) => write!(
+                formatter,
+                "unknown axis '{axis}'; use direction, momentum, structure, or progression"
+            ),
             Self::Unknown(command) => {
                 write!(formatter, "unknown command '{command}'; type 'help'")
             }
@@ -170,6 +225,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "candles" => path_command(rest, "candles", Command::Candles),
         "candles-tolerant" => path_command(rest, "candles-tolerant", Command::CandlesTolerant),
         "timeframes" => path_command(rest, "timeframes", Command::Timeframes),
+        "market-state" => path_command(rest, "market-state", Command::MarketState),
+        "events" => path_command(rest, "events", Command::Events),
+        "legs" => path_command(rest, "legs", Command::Legs),
+        "axis" => parse_axis(rest),
         "fetch" => {
             let arguments = tokenize(rest)?;
             parse_fetch_arguments(&arguments).map(|args| Some(Command::Fetch(args)))
@@ -355,6 +414,22 @@ fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     Ok(tokens)
 }
 
+fn parse_axis(rest: &str) -> Result<Option<Command>, ParseError> {
+    let (path, axis) = rest
+        .rsplit_once(char::is_whitespace)
+        .ok_or(ParseError::AxisUsage)?;
+    let path = path.trim();
+    let axis = axis.trim();
+    if path.is_empty() || axis.is_empty() {
+        return Err(ParseError::AxisUsage);
+    }
+    let axis = Axis::from_code(axis).ok_or_else(|| ParseError::UnknownAxis(axis.to_owned()))?;
+    Ok(Some(Command::Axis {
+        path: PathBuf::from(path),
+        axis,
+    }))
+}
+
 fn path_command(
     rest: &str,
     name: &'static str,
@@ -417,6 +492,79 @@ pub(crate) fn run_timeframes(
     output.flush().map_err(RunError::Output)?;
     render::write_timeframe_report(&set, report).map_err(RunError::Output)?;
     report.flush().map_err(RunError::Output)
+}
+
+/// Prints the assembled market state for the M1/M5/M15/H1 ladder.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source or writer fails.
+pub(crate) fn run_market_state(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
+    let state = load_market_state(path)?;
+    render_state::write_market_state(&state, writer).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
+/// Prints one axis per timeframe for the ladder.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source or writer fails.
+pub(crate) fn run_axis(path: &Path, axis: Axis, writer: &mut impl Write) -> Result<(), RunError> {
+    let state = load_market_state(path)?;
+    render_state::write_axis(&state, axis, writer).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
+/// Prints every event record in availability order.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source or writer fails.
+pub(crate) fn run_events(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
+    let state = load_market_state(path)?;
+    render_state::write_events(&state, writer).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
+/// Prints the minor and major leg per timeframe.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source or writer fails.
+pub(crate) fn run_legs(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
+    let state = load_market_state(path)?;
+    render_state::write_legs(&state, writer).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
+fn load_market_state(path: &Path) -> Result<MarketState, RunError> {
+    let set = csv::load_timeframes(path).map_err(RunError::Source)?;
+    let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
+    let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
+    let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
+    let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
+    Ok(MarketState::compute(
+        &[
+            TimeframeInput {
+                timeframe_secs: Timeframe::M1.seconds() as u64,
+                candles: &m1,
+            },
+            TimeframeInput {
+                timeframe_secs: Timeframe::M5.seconds() as u64,
+                candles: &m5,
+            },
+            TimeframeInput {
+                timeframe_secs: Timeframe::M15.seconds() as u64,
+                candles: &m15,
+            },
+            TimeframeInput {
+                timeframe_secs: Timeframe::H1.seconds() as u64,
+                candles: &h1,
+            },
+        ],
+        &MarketStateConfig::default(),
+    ))
 }
 
 /// Fetches a Dukascopy range and writes the CSV and optional chart.
@@ -586,6 +734,52 @@ mod tests {
         assert_eq!(
             parse("quit now"),
             Err(ParseError::UnexpectedArguments("quit"))
+        );
+    }
+
+    #[test]
+    fn parses_the_market_state_commands() {
+        assert_eq!(
+            parse("market-state data/example.csv"),
+            Ok(Some(Command::MarketState(PathBuf::from(
+                "data/example.csv"
+            ))))
+        );
+        assert_eq!(
+            parse("events data/example.csv"),
+            Ok(Some(Command::Events(PathBuf::from("data/example.csv"))))
+        );
+        assert_eq!(
+            parse("legs data/example.csv"),
+            Ok(Some(Command::Legs(PathBuf::from("data/example.csv"))))
+        );
+    }
+
+    #[test]
+    fn parses_an_axis_with_a_path_and_a_name() {
+        assert_eq!(
+            parse("axis data/example.csv direction"),
+            Ok(Some(Command::Axis {
+                path: PathBuf::from("data/example.csv"),
+                axis: super::Axis::Direction,
+            }))
+        );
+        assert_eq!(
+            parse("axis my data.csv progression"),
+            Ok(Some(Command::Axis {
+                path: PathBuf::from("my data.csv"),
+                axis: super::Axis::Progression,
+            }))
+        );
+    }
+
+    #[test]
+    fn rejects_a_bad_axis_command() {
+        assert_eq!(parse("axis"), Err(ParseError::AxisUsage));
+        assert_eq!(parse("axis data/example.csv"), Err(ParseError::AxisUsage));
+        assert_eq!(
+            parse("axis data/example.csv bogus"),
+            Err(ParseError::UnknownAxis(String::from("bogus")))
         );
     }
 

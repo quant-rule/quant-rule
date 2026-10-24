@@ -2,6 +2,10 @@ QuantRule shell commands:
   candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
   candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
   timeframes <csv-path>         Build M5/M15/H1 from an M1 CSV; print NDJSON and a report.
+  market-state <csv-path>       Print the four-timeframe market state as JSON.
+  axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
+  events <csv-path>             Print every event record as NDJSON, in availability order.
+  legs <csv-path>               Print the minor and major leg per timeframe.
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -28,4 +32,8 @@ Fetch dates: inclusive UTC dates in YYYY-MM-DD form; no clock is read.
 Non-interactive: quantrule candles <csv-path>
 Non-interactive: quantrule candles-tolerant <csv-path>
 Non-interactive: quantrule timeframes <csv-path>
+Non-interactive: quantrule market-state <csv-path>
+Non-interactive: quantrule axis <csv-path> direction
+Non-interactive: quantrule events <csv-path>
+Non-interactive: quantrule legs <csv-path>
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv

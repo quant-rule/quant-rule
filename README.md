@@ -20,6 +20,10 @@ Non-interactive invocation:
 cargo run -p quantrule-shell -- candles path/to/candles.csv
 cargo run -p quantrule-shell -- candles-tolerant path/to/candles.csv
 cargo run -p quantrule-shell -- timeframes path/to/m1.csv
+cargo run -p quantrule-shell -- market-state path/to/m1.csv
+cargo run -p quantrule-shell -- axis path/to/m1.csv direction
+cargo run -p quantrule-shell -- events path/to/m1.csv
+cargo run -p quantrule-shell -- legs path/to/m1.csv
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --csv data/XAUUSD_M1_2025-01-01_2025-12-31.csv
 cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1h --csv data/EURUSD_H1_2026-01-01_2026-06-30.csv
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauusd_2025.png
@@ -32,6 +36,10 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `candles` | `<csv-path>` | Up to the last 1000 candles as NDJSON, oldest first |
 | `candles-tolerant` | `<csv-path>` | Up to the last 1000 valid candles as NDJSON, plus a quality report on stderr |
 | `timeframes` | `<csv-path>` | M1, M5, M15, and H1 as NDJSON, plus an aggregation report on stderr |
+| `market-state` | `<csv-path>` | The four-timeframe market state as one JSON object |
+| `axis` | `<csv-path> <axis>` | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
+| `events` | `<csv-path>` | Every event record as NDJSON, in availability order |
+| `legs` | `<csv-path>` | The minor and major leg per timeframe as NDJSON |
 | `fetch` | `<symbol> <start> <end>` [options] | A CSV of native BID candles and an optional PNG chart |
 | `help` | none | The command reference |
 | `quit` | none | Exits with status 0 |
@@ -91,6 +99,27 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 ```
 
 `retained` is the number of candles in the bounded window, `partial` is the number of dropped incomplete buckets, and `gaps` is the number of gap records. The four summaries always appear in M1, M5, M15, H1 order. The partial and gap records cover the entire input, not only the retained window.
+
+### Market-state contract
+
+`market-state`, `axis`, `events`, and `legs` read an M1 CSV, build the M1/M5/M15/H1 ladder through the data engine, and call the model. The model publishes numbers; the shell maps the stable numeric codes to labels and never recomputes an axis, aggregate, or event.
+
+`market-state` prints one JSON object with four keys:
+
+| Key | Content |
+|---|---|
+| `ladder` | The timeframe codes, fastest first |
+| `timeframes` | One object per timeframe with its axis values, state codes, diagnostics, context, consensus counts, and event summary |
+| `aggregates` | The Direction, Momentum, Structure, Progression, and Event aggregates |
+| `consensus` | One cross-axis consensus per timeframe |
+
+`axis` prints one NDJSON line per timeframe for the selected axis. It carries the numeric fields, the compact code, the readiness and reason codes, the label fields, and the state counters.
+
+`events` prints one NDJSON line per event, grouped by timeframe and ordered by availability. Each line carries the type, subtype, source, occurrence and availability bars, direction, reference, measured values, and the labels for the type, subtype, and source.
+
+`legs` prints two NDJSON lines per timeframe, one for each pivot scale. Each line carries the published leg or `null`, its origin and availability bars, target basis and version, progress, displacement, lifecycle, stage, and target-reached code, with the lifecycle, stage, direction, scale, and target-basis labels.
+
+The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
 
 ### Fetch contract
 
@@ -178,7 +207,7 @@ The counts satisfy `rows_read = accepted + rejected` and `accepted = evicted + r
 
 ## Scope
 
-This slice covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, and a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h` with an optional chart. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. The shell does not expose indicators, the four-axis model, or backtests yet.
+This slice covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, the four-axis market state and its event and leg records, and a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h` with an optional chart. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. Backtests, strategies, and portfolio execution are not implemented yet.
 
 ## Verification
 

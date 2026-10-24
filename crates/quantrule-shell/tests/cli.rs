@@ -678,3 +678,107 @@ fn tolerant_candles_with_extra_arguments_fails_with_usage() {
         "error: usage: candles-tolerant <csv-path>\n"
     );
 }
+
+#[test]
+fn market_state_prints_the_four_timeframe_ladder() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["market-state", &path]);
+    assert_success(&output);
+    let value: serde_json::Value =
+        serde_json::from_str(stdout_text(&output).trim()).expect("the market state is JSON");
+
+    assert_eq!(value["ladder"].as_array().expect("ladder").len(), 4);
+    assert_eq!(value["timeframes"].as_array().expect("timeframes").len(), 4);
+    assert_eq!(value["consensus"].as_array().expect("consensus").len(), 4);
+    assert_eq!(value["timeframes"][0]["timeframe"], "1m");
+    assert!(value["aggregates"]["direction"].is_object());
+    assert!(value["aggregates"]["events"]["per_timeframe"].is_array());
+    assert!(value["timeframes"][0]["consensus"]["bullish"].is_number());
+}
+
+#[test]
+fn market_state_output_is_deterministic() {
+    let path = fixture("state_m1.csv");
+    let first = run(&["market-state", &path]);
+    let second = run(&["market-state", &path]);
+    assert_success(&first);
+    assert_success(&second);
+    assert_eq!(stdout_text(&first), stdout_text(&second));
+}
+
+#[test]
+fn interactive_market_state_matches_non_interactive() {
+    let path = fixture("state_m1.csv");
+    let non_interactive = run(&["market-state", &path]);
+    let interactive = run_interactive(&format!("market-state {path}\nquit\n"));
+    assert_success(&non_interactive);
+    assert_success(&interactive);
+    assert_eq!(stdout_text(&non_interactive), stdout_text(&interactive));
+}
+
+#[test]
+fn axis_prints_one_labeled_line_per_timeframe() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["axis", &path, "structure"]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 4);
+    for line in lines {
+        let value: serde_json::Value = serde_json::from_str(line).expect("axis JSON");
+        assert_eq!(value["axis"], "structure");
+        assert!(value["timeframe"].is_string());
+        assert!(value["readiness_label"].is_string());
+    }
+}
+
+#[test]
+fn axis_rejects_an_unknown_axis() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["axis", &path, "bogus"]);
+    assert_failure(&output);
+    assert!(stderr_text(&output).contains("unknown axis"));
+}
+
+#[test]
+fn events_print_labeled_records() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["events", &path]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(!lines.is_empty());
+    for line in lines {
+        let value: serde_json::Value = serde_json::from_str(line).expect("event JSON");
+        assert!(value["type_label"].is_string());
+        assert!(value["subtype_label"].is_string());
+        assert!(value["source_label"].is_string());
+        assert!(value["timeframe"].is_string());
+    }
+}
+
+#[test]
+fn legs_print_both_scales_per_timeframe() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["legs", &path]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 8);
+    for line in lines {
+        let value: serde_json::Value = serde_json::from_str(line).expect("leg JSON");
+        assert!(value["timeframe"].is_string());
+        assert!(value["scale"].is_string());
+        assert!(value.get("leg").is_some());
+    }
+}
+
+#[test]
+fn help_lists_the_market_state_commands() {
+    let output = run(&["help"]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    for command in ["market-state", "axis", "events", "legs"] {
+        assert!(text.contains(command), "help omits {command}");
+    }
+}
