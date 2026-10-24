@@ -438,7 +438,16 @@ pub(crate) fn load_window_tolerant(path: &Path) -> Result<TolerantWindow, Source
 
         match window.push(raw) {
             Ok(_) => report.record_accepted(),
-            Err(error) => report.record_skipped(line_number, skip_reason(error)),
+            Err(error) => match skip_reason(error) {
+                Ok(reason) => report.record_skipped(line_number, reason),
+                Err(source) => {
+                    return Err(SourceError::Candle {
+                        path: path.to_path_buf(),
+                        line: line_number,
+                        source,
+                    });
+                }
+            },
         }
     }
 
@@ -502,13 +511,17 @@ fn raw_candle(row: &str) -> Result<RawCandle<'_>, FieldCountError> {
     })
 }
 
-fn skip_reason(error: WindowError) -> SkipReason {
+fn skip_reason(error: WindowError) -> Result<SkipReason, WindowError> {
     match error {
-        WindowError::Candle(source) => SkipReason::Invalid(source),
-        WindowError::DuplicateTimestamp { timestamp } => SkipReason::Duplicate { timestamp },
+        WindowError::Candle(source) => Ok(SkipReason::Invalid(source)),
+        WindowError::DuplicateTimestamp { timestamp } => Ok(SkipReason::Duplicate { timestamp }),
         WindowError::OutOfOrderTimestamp { previous, current } => {
-            SkipReason::OutOfOrder { previous, current }
+            Ok(SkipReason::OutOfOrder { previous, current })
         }
+        // A bounded window never rejects a row for capacity. If a caller ever
+        // uses the tolerant loader with a fixed window, the dataset is full and
+        // the command must stop rather than skip every remaining row.
+        other @ WindowError::CapacityExceeded { .. } => Err(other),
     }
 }
 
@@ -530,6 +543,9 @@ fn describe_window_error(error: &WindowError) -> String {
             format_utc_timestamp(*current),
             format_utc_timestamp(*previous)
         ),
+        WindowError::CapacityExceeded { limit } => {
+            format!("the series is full at {limit} candles")
+        }
     }
 }
 

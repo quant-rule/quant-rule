@@ -19,4 +19,4 @@ pub use candle::{Candle, CandleError, RawCandle};
 pub use time::{TimestampError, format_utc_timestamp, parse_utc_timestamp};
 pub use timeframe::Timeframe;
 pub use timeframe_set::{Gap, PartialBucket, TimeframeError, TimeframeSeries, TimeframeSet};
-pub use window::{CandleValues, CandleWindow, DEFAULT_WINDOW, WindowError};
+pub use window::{CandleValues, CandleWindow, DEFAULT_WINDOW, MAX_SERIES, WindowError};

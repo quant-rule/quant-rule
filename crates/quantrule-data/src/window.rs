@@ -10,6 +10,13 @@ use std::fmt;
 
 use crate::candle::{Candle, CandleError, RawCandle};
 
+/// The maximum number of candles in a full series.
+///
+/// A dataset is capped at 100,000 M1 candles. A fixed-retention window built
+/// with [`CandleWindow::full`] rejects the candle over this limit instead of
+/// evicting the oldest one, so a truncated series can never look complete.
+pub const MAX_SERIES: usize = 100_000;
+
 /// The maximum number of candles retained by a [`CandleWindow`].
 pub const DEFAULT_WINDOW: usize = 1_000;
 
@@ -51,6 +58,11 @@ pub enum WindowError {
         /// The rejected timestamp as UTC Unix seconds.
         current: i64,
     },
+    /// A fixed-retention window is full and rejects the candle.
+    CapacityExceeded {
+        /// The window's candle limit.
+        limit: usize,
+    },
 }
 
 impl From<CandleError> for WindowError {
@@ -72,6 +84,12 @@ impl fmt::Display for WindowError {
                     "candle timestamp {current} is earlier than {previous}"
                 )
             }
+            Self::CapacityExceeded { limit } => {
+                write!(
+                    formatter,
+                    "the series already holds its limit of {limit} candles"
+                )
+            }
         }
     }
 }
@@ -80,32 +98,72 @@ impl std::error::Error for WindowError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Candle(source) => Some(source),
-            Self::DuplicateTimestamp { .. } | Self::OutOfOrderTimestamp { .. } => None,
+            Self::DuplicateTimestamp { .. }
+            | Self::OutOfOrderTimestamp { .. }
+            | Self::CapacityExceeded { .. } => None,
         }
     }
 }
 
-/// A trailing window of at most [`DEFAULT_WINDOW`] accepted candles.
+/// A retained series of accepted candles.
+///
+/// [`CandleWindow::new`] keeps the most recent [`DEFAULT_WINDOW`] candles and
+/// evicts the oldest when it is full; it is the inspection window the shell's
+/// existing commands use. [`CandleWindow::full`] keeps every candle up to
+/// [`MAX_SERIES`] and rejects the next one, so a long series can never be
+/// silently truncated.
 ///
 /// The window assigns `series_index` on acceptance. The index is stable even
-/// after the candle is evicted, and `get` uses the position in the retained
-/// window rather than the stable index.
+/// after a candle is evicted, and `get` uses the position in the retained
+/// series rather than the stable index.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CandleWindow {
     candles: VecDeque<Candle>,
     next_series_index: u64,
     last_timestamp: Option<i64>,
+    limit: usize,
+    evict: bool,
 }
 
 impl CandleWindow {
-    /// Creates an empty window.
+    /// Creates an empty trailing window of [`DEFAULT_WINDOW`] candles.
     #[must_use]
     pub fn new() -> Self {
         Self {
             candles: VecDeque::with_capacity(DEFAULT_WINDOW),
             next_series_index: 0,
             last_timestamp: None,
+            limit: DEFAULT_WINDOW,
+            evict: true,
         }
+    }
+
+    /// Creates an empty fixed-retention window of at most `limit` candles.
+    ///
+    /// The window never evicts. A push beyond the limit returns
+    /// [`WindowError::CapacityExceeded`], so the caller must reject the input
+    /// rather than publish a truncated series.
+    #[must_use]
+    pub fn with_limit(limit: usize) -> Self {
+        Self {
+            candles: VecDeque::with_capacity(limit),
+            next_series_index: 0,
+            last_timestamp: None,
+            limit,
+            evict: false,
+        }
+    }
+
+    /// Creates an empty full-series window with the [`MAX_SERIES`] limit.
+    #[must_use]
+    pub fn full() -> Self {
+        Self::with_limit(MAX_SERIES)
+    }
+
+    /// The window's candle limit.
+    #[must_use]
+    pub const fn capacity(&self) -> usize {
+        self.limit
     }
 
     /// Parses and accepts one source candle.
@@ -185,8 +243,12 @@ impl CandleWindow {
             }
         }
 
-        if self.candles.len() == DEFAULT_WINDOW {
-            self.candles.pop_front();
+        if self.candles.len() == self.limit {
+            if self.evict {
+                self.candles.pop_front();
+            } else {
+                return Err(WindowError::CapacityExceeded { limit: self.limit });
+            }
         }
 
         let series_index = candle.series_index();
@@ -241,7 +303,7 @@ impl Default for CandleWindow {
 
 #[cfg(test)]
 mod tests {
-    use super::{CandleValues, CandleWindow, DEFAULT_WINDOW, WindowError};
+    use super::{CandleValues, CandleWindow, DEFAULT_WINDOW, MAX_SERIES, WindowError};
     use crate::candle::{CandleError, RawCandle};
     use crate::time::format_utc_timestamp;
 
@@ -652,5 +714,40 @@ mod tests {
                 current: BASE,
             })
         );
+    }
+
+    #[test]
+    fn a_fixed_window_keeps_every_candle_up_to_its_limit() {
+        let mut window = CandleWindow::with_limit(4);
+        for offset in 0..4_i64 {
+            let seconds = BASE + offset * 60;
+            assert_eq!(push_at(&mut window, seconds), Ok(offset as u64));
+        }
+
+        assert_eq!(window.len(), 4);
+        assert_eq!(window.capacity(), 4);
+        assert_eq!(window.first().expect("not empty").series_index(), 0);
+        assert_eq!(window.last().expect("not empty").series_index(), 3);
+    }
+
+    #[test]
+    fn a_fixed_window_rejects_the_candle_over_its_limit() {
+        let mut window = CandleWindow::with_limit(2);
+        push_at(&mut window, BASE).expect("first candle is valid");
+        push_at(&mut window, BASE + 60).expect("second candle is valid");
+
+        assert_eq!(
+            push_at(&mut window, BASE + 120),
+            Err(WindowError::CapacityExceeded { limit: 2 })
+        );
+        assert_eq!(window.len(), 2);
+        assert_eq!(window.last().expect("not empty").timestamp(), BASE + 60);
+    }
+
+    #[test]
+    fn the_full_window_uses_the_dataset_cap() {
+        let window = CandleWindow::full();
+        assert_eq!(window.capacity(), MAX_SERIES);
+        assert!(window.is_empty());
     }
 }
