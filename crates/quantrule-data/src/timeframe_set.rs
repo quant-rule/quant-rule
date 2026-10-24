@@ -41,9 +41,9 @@ pub struct PartialBucket {
 
 /// One first-class timeframe series.
 ///
-/// The series owns a bounded [`CandleWindow`] and the gap and partial-bucket
-/// records produced while it was built. Candles use the same [`Candle`] shape
-/// as every other timeframe.
+/// The series owns a [`CandleWindow`] and the gap and partial-bucket records
+/// produced while it was built. Candles use the same [`Candle`] shape as every
+/// other timeframe.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeframeSeries {
     timeframe: Timeframe,
@@ -54,9 +54,13 @@ pub struct TimeframeSeries {
 
 impl TimeframeSeries {
     fn new(timeframe: Timeframe) -> Self {
+        Self::with_window(timeframe, CandleWindow::new())
+    }
+
+    fn with_window(timeframe: Timeframe, window: CandleWindow) -> Self {
         Self {
             timeframe,
-            window: CandleWindow::new(),
+            window,
             gaps: Vec::new(),
             partial_buckets: Vec::new(),
         }
@@ -164,10 +168,15 @@ impl TimeframeSeries {
 /// A set of first-class M1, M5, M15, and H1 series.
 ///
 /// Feed closed M1 candles in strictly increasing timestamp order. The set
-/// validates and retains M1, derives M5/M15/H1, and bounds every series at
-/// [`crate::DEFAULT_WINDOW`] candles. Call [`TimeframeSet::finish`] at the end
-/// of the input so a complete trailing bucket is published and an incomplete
-/// one is recorded as partial.
+/// validates and retains M1, derives M5/M15/H1, and bounds every series. Call
+/// [`TimeframeSet::finish`] at the end of the input so a complete trailing
+/// bucket is published and an incomplete one is recorded as partial.
+///
+/// [`TimeframeSet::new`] keeps the most recent [`crate::DEFAULT_WINDOW`]
+/// candles per series and evicts the oldest; it is the inspection set the
+/// shell's existing commands use. [`TimeframeSet::full`] keeps every candle up
+/// to [`crate::MAX_SERIES`] and rejects the next one, so a long dataset is
+/// never silently truncated.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeframeSet {
     series: [TimeframeSeries; 4],
@@ -176,11 +185,36 @@ pub struct TimeframeSet {
 }
 
 impl TimeframeSet {
-    /// Creates an empty set with one series per supported timeframe.
+    /// Creates an empty trailing set with one series per supported timeframe.
     #[must_use]
     pub fn new() -> Self {
         Self {
             series: Timeframe::ALL.map(TimeframeSeries::new),
+            buckets: [None; 3],
+            finished: false,
+        }
+    }
+
+    /// Creates an empty full-series set with the [`crate::MAX_SERIES`] cap.
+    ///
+    /// The 100,001st M1 candle is rejected with
+    /// [`TimeframeError::Window`] carrying [`WindowError::CapacityExceeded`],
+    /// rather than evicting the first candle.
+    #[must_use]
+    pub fn full() -> Self {
+        Self::with_limit(crate::MAX_SERIES)
+    }
+
+    /// Creates an empty set with a fixed-retention window per series.
+    ///
+    /// This is the shared constructor behind [`TimeframeSet::full`] and the
+    /// tests; the dataset cap is [`crate::MAX_SERIES`].
+    #[must_use]
+    pub fn with_limit(limit: usize) -> Self {
+        Self {
+            series: Timeframe::ALL.map(|timeframe| {
+                TimeframeSeries::with_window(timeframe, CandleWindow::with_limit(limit))
+            }),
             buckets: [None; 3],
             finished: false,
         }
@@ -385,7 +419,7 @@ fn series_position(timeframe: Timeframe) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{PartialBucket, TimeframeError, TimeframeSet};
-    use crate::{CandleValues, DEFAULT_WINDOW, RawCandle, Timeframe};
+    use crate::{Candle, CandleValues, DEFAULT_WINDOW, RawCandle, Timeframe, WindowError};
 
     const BASE: i64 = 1_735_689_600;
 
@@ -926,5 +960,142 @@ mod tests {
     fn a_different_split_of_the_input_produces_the_same_set() {
         assert_eq!(build_in_chunks(1), build_in_chunks(7));
         assert_eq!(build_in_chunks(7), build_in_chunks(125));
+    }
+
+    #[test]
+    fn a_full_set_keeps_one_hundred_thousand_m1_candles() {
+        let started = std::time::Instant::now();
+        let mut set = TimeframeSet::full();
+        for offset in 0..100_000_i64 {
+            set.push_values(values_at(minute(offset)))
+                .expect("the fixture candle is valid");
+        }
+        set.finish().expect("the fixture buckets are valid");
+        let elapsed = started.elapsed();
+
+        let m1 = set.series(Timeframe::M1);
+        assert_eq!(m1.len(), 100_000);
+        assert_eq!(m1.first().expect("not empty").series_index(), 0);
+        assert_eq!(m1.last().expect("not empty").series_index(), 99_999);
+        for (position, candle) in m1.iter().enumerate() {
+            assert_eq!(candle.series_index(), position as u64);
+        }
+        assert_eq!(set.series(Timeframe::M5).len(), 20_000);
+        assert_eq!(set.series(Timeframe::M15).len(), 6_666);
+        assert_eq!(set.series(Timeframe::H1).len(), 1_666);
+
+        let candles: usize = Timeframe::ALL
+            .iter()
+            .map(|timeframe| set.series(*timeframe).len())
+            .sum();
+        eprintln!(
+            "full set: {candles} candles, {} bytes of candle storage, {:.3} s",
+            candles * std::mem::size_of::<Candle>(),
+            elapsed.as_secs_f64()
+        );
+    }
+
+    #[test]
+    fn a_full_set_rejects_the_candle_over_its_cap() {
+        let mut set = TimeframeSet::with_limit(2);
+        set.push_values(values_at(minute(0)))
+            .expect("the first candle is valid");
+        set.push_values(values_at(minute(1)))
+            .expect("the second candle is valid");
+
+        assert_eq!(
+            set.push_values(values_at(minute(2))),
+            Err(TimeframeError::Window(WindowError::CapacityExceeded {
+                limit: 2
+            }))
+        );
+        assert_eq!(set.series(Timeframe::M1).len(), 2);
+    }
+
+    #[test]
+    fn a_full_set_rejects_a_duplicate_and_an_out_of_order_candle() {
+        let mut set = TimeframeSet::full();
+        set.push_values(values_at(minute(0)))
+            .expect("the first candle is valid");
+
+        assert_eq!(
+            set.push_values(values_at(minute(0))),
+            Err(TimeframeError::Window(WindowError::DuplicateTimestamp {
+                timestamp: minute(0)
+            }))
+        );
+        assert_eq!(
+            set.push_values(values_at(minute(-1))),
+            Err(TimeframeError::Window(WindowError::OutOfOrderTimestamp {
+                previous: minute(0),
+                current: minute(-1)
+            }))
+        );
+    }
+
+    #[test]
+    fn a_full_set_rejects_an_invalid_candle() {
+        let mut set = TimeframeSet::full();
+        let mut invalid = values_at(minute(0));
+        invalid.high = 0.1;
+
+        assert!(matches!(
+            set.push_values(invalid),
+            Err(TimeframeError::Window(WindowError::Candle(_)))
+        ));
+        assert!(set.series(Timeframe::M1).is_empty());
+    }
+
+    #[test]
+    fn a_full_set_records_a_gap_and_preserves_zero_volume() {
+        let mut set = TimeframeSet::full();
+        set.push_values(values_at(minute(0)))
+            .expect("the first candle is valid");
+        let mut zero_volume = values_at(minute(1));
+        zero_volume.volume = Some(0.0);
+        set.push_values(zero_volume)
+            .expect("the second candle is valid");
+        set.push_values(values_at(minute(3)))
+            .expect("the candle after the gap is valid");
+        set.finish().expect("the fixture buckets are valid");
+
+        let m1 = set.series(Timeframe::M1);
+        assert_eq!(m1.len(), 3);
+        assert_eq!(m1.get(1).expect("the second candle").volume(), Some(0.0));
+        assert_eq!(m1.gaps().len(), 1);
+        assert_eq!(m1.gaps()[0].missing, 1);
+    }
+
+    #[test]
+    fn a_full_set_derives_the_same_buckets_as_a_bounded_set() {
+        let mut bounded = TimeframeSet::new();
+        let mut full = TimeframeSet::full();
+        for offset in 0..125_i64 {
+            let values = values_at(minute(offset));
+            bounded.push_values(values).expect("the candle is valid");
+            full.push_values(values).expect("the candle is valid");
+        }
+        bounded.finish().expect("the buckets are valid");
+        full.finish().expect("the buckets are valid");
+
+        for timeframe in Timeframe::ALL {
+            let full_series = full.series(timeframe);
+            let bounded_series = bounded.series(timeframe);
+            assert_eq!(
+                full_series.len(),
+                bounded_series.len(),
+                "{timeframe:?} length"
+            );
+            assert_eq!(
+                full_series.iter().collect::<Vec<_>>(),
+                bounded_series.iter().collect::<Vec<_>>(),
+                "{timeframe:?} candles"
+            );
+            assert_eq!(
+                full_series.gaps(),
+                bounded_series.gaps(),
+                "{timeframe:?} gaps"
+            );
+        }
     }
 }
