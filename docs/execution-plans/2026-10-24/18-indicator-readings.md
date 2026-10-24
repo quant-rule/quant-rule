@@ -2,6 +2,7 @@
 
 - Issue: [#18](https://github.com/quant-rule/quant-rule/issues/18) — feat: build the indicator readings layer
 - Branch: `feat/18-indicator-readings`
+- Pull request: [#59](https://github.com/quant-rule/quant-rule/pull/59)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)

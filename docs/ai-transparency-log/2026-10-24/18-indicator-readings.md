@@ -62,8 +62,25 @@
 - **Verification and evidence:** after the corrections, `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, and `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` are clean. `cargo test` reports 360 passed, 0 failed: data 90, model unit 100, model golden 11, shell unit 93, shell CLI 47, doc 19.
 - **Learning:** The contract's §14 source codes cover confirmed pivots but not candidates, even though §8.4 calls the candidate a reading in its own right. An exact registry fixture is the only test that catches a missing use; a per-reading "at least one" check cannot. The changed-later-bar test is stronger than appending bars, because it can expose a hidden forward reference rather than only a length-dependent one.
 
-## Current state
+## Current state after the review entry
 
 - The numeric core, role registry, golden fixture, and tests are complete and pass all local checks.
 - The execution plan is marked `Verified` and records the review outcome and evidence.
 - The remaining step is to commit, push, and open the PR for human review. Merge remains gated.
+
+## Entry: delivery
+
+- **Date and tool:** 2026-10-24 (UTC). opencode (DeepSeek V4.1 Flash Free).
+- **Intent and boundary:** Commit the verified work, push the task branch, open the M2 pull request, and move #18 to `Done` on the board. No merge was performed.
+- **Verification and evidence:**
+  - Commit `d843fea` (`feat: build the indicator readings layer`) contains the implementation, tests, fixture, plans, and this log.
+  - Pull request [#59](https://github.com/quant-rule/quant-rule/pull/59) targets `main` from `feat/18-indicator-readings`.
+  - GitHub reported the `sync` check as passing and the pull request as mergeable.
+  - The board item for #18 is `Done`; the repository workflow closed issue #18. The pull request remains open and unmerged.
+- **Learning:** The board workflow closes an issue when its item is marked `Done`, so the issue state and the merge state are independent. The pull request is the review surface; closing the issue does not accept the work.
+
+## Current state
+
+- M2 is delivered for human review in PR [#59](https://github.com/quant-rule/quant-rule/pull/59).
+- All local checks pass: 360 tests, clean `fmt`, clean `clippy -D warnings`, clean `doc -D warnings`.
+- Merge remains gated on explicit human authorization.
