@@ -394,7 +394,7 @@ rvol_ratio = RVOL20
 | 3 | settling — `atr_ratio < 1` and `rvol_ratio >= 1` |
 | 4 | high-range/low-participation — `atr_ratio >= 1` and `rvol_ratio < 1` |
 
-These are descriptive threshold buckets, not predictions. The code is null if either ratio is unavailable. The code is a compact encoding of the two inputs; consumers retain the underlying values.
+These are descriptive threshold buckets, not predictions. The code is null if either ratio is unavailable. `atr_ratio` is null when fewer than 20 ATR values are available or when SMA20(ATR14) is zero; `rvol_ratio` is null when volume or the volume baseline is unavailable. The raw ratios are retained even when `context_code` is null. The code is a compact encoding of the two inputs; consumers retain the underlying values.
 
 ## 13. Explicit exclusions
 
