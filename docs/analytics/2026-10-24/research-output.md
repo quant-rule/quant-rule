@@ -11,7 +11,7 @@ This document defines the research dataset: a deterministic, file-based export o
 
 The dataset is the input to research, not a trading interface. It contains no entries, exits, stops, position sizes, or recommendations, and no field combines the four axes into one score. Every field is a number, a null, a list of numbers, or a record of numbers.
 
-The analytics engine that builds the layers is pure: no I/O, no clock, no randomness. The shell owns every read and write, and the export is performed by a shell command whose name and arguments are fixed in the command reference when the export is implemented ([#80](https://github.com/quant-rule/quant-rule/issues/80)).
+The analytics engine that builds the layers is pure: no I/O, no clock, no randomness. The shell owns every read and write, and the export is performed by `research export <csv-path> <dataset> --data-version <id> [--root <dir>]` ([#80](https://github.com/quant-rule/quant-rule/issues/80)).
 
 ## 2. Dataset layout
 
@@ -43,6 +43,8 @@ data/
 
 The raw file of a timeframe is `<lowercase timeframe>.csv`, using the same timeframe names as the model ladder. The processed file set is fixed; a file is always written, even when it has zero data rows, so that the file list in the manifest never depends on the data.
 
+The layer export implemented by #80 writes `m1.csv`, `layer1.csv`, `layer2.csv`, `layer3.csv`, and the metadata. The event, leg, level, and consensus files in this layout are the dataset's record contract; their persistence belongs to the store epic (#64) and they are not written by the layer export.
+
 ## 3. Common representation
 
 | Rule | Representation |
@@ -56,7 +58,7 @@ The raw file of a timeframe is `<lowercase timeframe>.csv`, using the same timef
 | Integer | decimal, no leading zeros, no `+` sign |
 | List | `;`-separated elements with no spaces, each formatted by its own rule; an empty list is an empty field |
 | Boolean-like code | `0` or `1`; never `true`, `false`, or a word |
-| Timestamp | integer Unix seconds in UTC |
+| Timestamp | integer Unix seconds in UTC in the processed layers; the raw file keeps the source `YYYY-MM-DD HH:MM:SS+00:00` form |
 | Non-finite value | never written; `NaN` and `±inf` are a contract violation and fail the export |
 
 A null is not a list: a list field is never null, and an empty list is written as an empty field. The two list-bearing aggregate fields are the only list fields in the dataset, and both are documented in §7.3.
@@ -496,7 +498,7 @@ Progression is excluded from the consensus. A missing axis is excluded from all 
 
 ### 8.5 Raw files
 
-One row per accepted source candle, ordered by `open_time` ascending. Six columns: `open_time`, `open`, `high`, `low`, `close`, `volume`. Timestamps are integer UTC seconds; `volume` is empty when the source supplied no volume. Raw files are the input, not a derived product: they are written by the export from the accepted source series, and their row count is the source count.
+One row per accepted source candle, ordered by `Date` ascending. The columns are the source format the shell reads: `Date,Open,High,Low,Close,Volume`. `Date` is `YYYY-MM-DD HH:MM:SS+00:00` in UTC; `Volume` is empty when the source supplied no volume. Raw files are the input, not a derived product: they are written by the export from the accepted source series, and their row count is the source count.
 
 ## 9. Manifest
 
@@ -515,13 +517,13 @@ One row per accepted source candle, ordered by `open_time` ascending. Six column
 | `rows` | object | Row count per layer and record file, keyed by file stem |
 | `files` | list<object> | One entry per file, in the order of §2 |
 
-Each `files` entry has `path` (relative to the repository root, `/` separators), `rows`, and `bytes`. The list covers both raw and processed files. `bytes` is the exact file size; no hash is recorded, and byte identity is verified by comparing two exports directly.
+Each `files` entry has `path` (relative to the working directory, `/` separators), `rows`, and `bytes`. The list covers the raw and layer data files; the manifest, dictionary, code table, and README are metadata and are not listed. `bytes` is the exact file size; no hash is recorded, and byte identity is verified by comparing two exports directly.
 
-The manifest is deterministic: the same input and configuration produce the same bytes. The `rows` object lists `layer1`, `layer2`, `layer3`, `events`, `legs`, `levels`, `consensus`, and `raw`, where `raw` is an object keyed by timeframe seconds.
+The manifest is deterministic: the same input and configuration produce the same bytes. The `rows` object lists `layer1`, `layer2`, `layer3`, and `raw`, where `raw` is an object keyed by timeframe seconds.
 
 ## 10. Data dictionary
 
-`data_dictionary.csv` has one row per column of every raw and processed file, in file order and then column position. It documents the dataset rather than the model: a column that appears in three layer files has three rows, because its position and file differ.
+`data_dictionary.csv` has one row per column of every file the layer export writes, in file order and then column position. It documents the dataset rather than the model: a column that appears in three layer files has three rows, because its position and file differ.
 
 | Column | Meaning |
 |---|---|
@@ -530,7 +532,7 @@ The manifest is deterministic: the same input and configuration produce the same
 | `column` | Column name |
 | `layer` | `raw`, `layer1`, `layer2`, `layer3`, or `record` |
 | `axis` | `meta`, `candle`, `reading`, `direction`, `momentum`, `structure`, `progression`, `context`, `resolution`, `aggregate`, `consensus`, `event`, `leg`, or `level` |
-| `type` | `int`, `float`, or `list<int>` |
+| `type` | `int`, `float`, `string`, or `list<int>` |
 | `range` | The documented range, or `finite` / `uncalibrated` for an unbounded number |
 | `nullable` | `yes` or `no` |
 | `reason_column` | The column carrying the reason when this column is null, or empty |
@@ -601,7 +603,7 @@ The export validates the dataset before publishing it:
 | Code completeness | Every code value in a data file has a row in `codes.csv` |
 | 100k cap | The M1 row count is at most 100,000; a larger dataset is rejected before any file is written |
 
-A failed validation writes no processed file. The export writes into a temporary directory and renames it into place only after every check passes, so a failed run never leaves a partial dataset.
+A failed render or validation writes no file. Each file is written through a temporary sibling and an atomic rename, so an interrupted write never leaves a partial file under the requested name. A file write that fails after earlier files were renamed leaves those earlier files in place; the export does not claim an all-or-nothing directory rename.
 
 ## 13. Non-goals
 

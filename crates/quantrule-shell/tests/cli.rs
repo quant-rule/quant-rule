@@ -3,6 +3,7 @@
 //! Every test runs the real `quantrule` binary against a checked-in fixture and
 //! asserts on stdout, stderr, and exit status. No test reads `data/`.
 
+use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
@@ -781,4 +782,108 @@ fn help_lists_the_market_state_commands() {
     for command in ["market-state", "axis", "events", "legs"] {
         assert!(text.contains(command), "help omits {command}");
     }
+}
+
+fn artifact_dir(name: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/research-tests")
+        .join(name);
+    let _ = fs::remove_dir_all(&path);
+    fs::create_dir_all(&path).expect("the artifact directory is created");
+    path.to_str()
+        .expect("the artifact path is UTF-8")
+        .to_string()
+}
+
+#[test]
+fn research_export_writes_the_dataset_and_repeats_byte_for_byte() {
+    let path = fixture("state_m1.csv");
+    let first = artifact_dir("export-a");
+    let second = artifact_dir("export-b");
+
+    let output = run(&[
+        "research",
+        "export",
+        &path,
+        "demo",
+        "--data-version",
+        "test:demo:60:0-260",
+        "--root",
+        &first,
+    ]);
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        "exported demo\n  data version: test:demo:60:0-260\n  raw rows: 260\n  layer1 rows: 333\n  layer2 rows: 333\n  layer3 rows: 260\n  files: 9\n"
+    );
+
+    let output = run(&[
+        "research",
+        "export",
+        &path,
+        "demo",
+        "--data-version",
+        "test:demo:60:0-260",
+        "--root",
+        &second,
+    ]);
+    assert_success(&output);
+
+    let read = |root: &str, name: &str| {
+        fs::read(Path::new(root).join("processed/demo").join(name)).expect("the file is written")
+    };
+    for name in [
+        "layer1.csv",
+        "layer2.csv",
+        "layer3.csv",
+        "data_dictionary.csv",
+        "data_dictionary.md",
+        "codes.csv",
+        "README.md",
+    ] {
+        assert_eq!(read(&first, name), read(&second, name), "{name} differs");
+    }
+    assert_eq!(
+        fs::read(Path::new(&first).join("raw/demo/m1.csv")).expect("the raw file is written"),
+        fs::read(Path::new(&second).join("raw/demo/m1.csv")).expect("the raw file is written"),
+    );
+
+    let layer3 = fs::read_to_string(Path::new(&first).join("processed/demo/layer3.csv"))
+        .expect("the layer 3 file");
+    let mut lines = layer3.lines();
+    let header = lines.next().expect("a header");
+    assert_eq!(header.split(',').count(), 356);
+    assert_eq!(lines.count(), 260);
+
+    let manifest = fs::read_to_string(Path::new(&first).join("processed/demo/manifest.json"))
+        .expect("the manifest");
+    assert!(manifest.contains("\"data_version\": \"test:demo:60:0-260\""));
+    assert!(manifest.contains("\"model_version\": \"0.1.0\""));
+    assert!(manifest.contains("\"layer3\": 260"));
+}
+
+#[test]
+fn research_export_requires_a_data_version() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["research", "export", &path, "demo"]);
+    assert_failure(&output);
+    assert!(stderr_text(&output).contains("missing --data-version"));
+}
+
+#[test]
+fn research_export_rejects_an_unsafe_dataset_name() {
+    let path = fixture("state_m1.csv");
+    let root = artifact_dir("export-invalid");
+    let output = run(&[
+        "research",
+        "export",
+        &path,
+        "..",
+        "--data-version",
+        "test:demo:60:0-260",
+        "--root",
+        &root,
+    ]);
+    assert_failure(&output);
+    assert!(stderr_text(&output).contains("dataset name"));
 }
