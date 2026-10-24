@@ -11,14 +11,16 @@ mod command;
 mod csv;
 mod export;
 mod fetch;
+mod labels;
 mod render;
+mod render_state;
 mod source;
 
 use std::ffi::OsString;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
-use command::Command;
+use command::{Axis, Command};
 
 fn main() {
     let args: Vec<OsString> = std::env::args_os().skip(1).collect();
@@ -74,6 +76,26 @@ fn run_interactive() -> i32 {
             }
             Command::Timeframes(path) => {
                 if let Err(error) = command::run_timeframes(&path, &mut stdout, &mut stderr) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::MarketState(path) => {
+                if let Err(error) = command::run_market_state(&path, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::Axis { path, axis } => {
+                if let Err(error) = command::run_axis(&path, axis, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::Events(path) => {
+                if let Err(error) = command::run_events(&path, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::Legs(path) => {
+                if let Err(error) = command::run_legs(&path, &mut stdout) {
                     eprintln!("error: {error}");
                 }
             }
@@ -142,6 +164,82 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             let mut stdout = io::stdout();
             let mut stderr = io::stderr();
             match command::run_timeframes(&path, &mut stdout, &mut stderr) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "market-state" => {
+            if args.len() != 2 {
+                eprintln!("error: usage: market-state <csv-path>");
+                return 1;
+            }
+
+            let path = PathBuf::from(&args[1]);
+            let mut stdout = io::stdout();
+            match command::run_market_state(&path, &mut stdout) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "axis" => {
+            if args.len() != 3 {
+                eprintln!(
+                    "error: usage: axis <csv-path> <direction|momentum|structure|progression>"
+                );
+                return 1;
+            }
+
+            let path = PathBuf::from(&args[1]);
+            let Some(axis_name) = args[2].to_str() else {
+                eprintln!("error: axis is not valid UTF-8");
+                return 1;
+            };
+            let Some(axis) = Axis::from_code(axis_name) else {
+                eprintln!(
+                    "error: unknown axis '{axis_name}'; use direction, momentum, structure, or progression"
+                );
+                return 1;
+            };
+            let mut stdout = io::stdout();
+            match command::run_axis(&path, axis, &mut stdout) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "events" => {
+            if args.len() != 2 {
+                eprintln!("error: usage: events <csv-path>");
+                return 1;
+            }
+
+            let path = PathBuf::from(&args[1]);
+            let mut stdout = io::stdout();
+            match command::run_events(&path, &mut stdout) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "legs" => {
+            if args.len() != 2 {
+                eprintln!("error: usage: legs <csv-path>");
+                return 1;
+            }
+
+            let path = PathBuf::from(&args[1]);
+            let mut stdout = io::stdout();
+            match command::run_legs(&path, &mut stdout) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");
