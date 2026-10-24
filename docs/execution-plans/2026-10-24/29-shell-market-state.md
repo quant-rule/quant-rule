@@ -2,7 +2,7 @@
 
 - Issue: [#29](https://github.com/quant-rule/quant-rule/issues/29) — feat: expose the market state through the shell
 - Branch: `feat/29-shell-market-state`
-- Pull request: pending
+- Pull request: [#89](https://github.com/quant-rule/quant-rule/pull/89)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
@@ -98,3 +98,14 @@ Excluded:
 - A model change outside #29.
 - A new dependency.
 - A failing check that cannot be corrected within scope.
+
+## 11. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `842d41a` — `feat: expose the market state through the shell` |
+| Branch | `feat/29-shell-market-state` |
+| Pull request | [#89](https://github.com/quant-rule/quant-rule/pull/89), open against `main` |
+| Board | Issue #29 moved to `Done`; the workflow closes the issue |
+
+Merge, release, tag, and deployment remain with the human.

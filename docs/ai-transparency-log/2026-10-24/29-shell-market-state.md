@@ -29,4 +29,4 @@
 - `cargo test --workspace`: 669 passed, 0 failed (data 90, model unit 307, context 5, direction 14, divergence 4, level 5, momentum 14, progression 18, readings 11, signal 5, structure 15, shell unit 96, shell CLI 55, data doc 2, model doc 28).
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
 
-Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+Status: `Verified`. Commit `842d41a` is pushed on `feat/29-shell-market-state`, pull request [#89](https://github.com/quant-rule/quant-rule/pull/89) is open, and #29 is `Done` on the board. Merge and cleanup remain with the human.
