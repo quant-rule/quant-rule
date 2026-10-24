@@ -59,7 +59,22 @@
   - The contract's percentile definition is precise about the 252 sample window and the 50-sample floor but does not state the scan direction. Under the documented bar-order precondition, scanning backward selects the same 252 values as scanning forward and avoids a per-bar full-history walk; the caller still owns the "strictly before the current bar" precondition, and that is stated in the rustdoc.
   - **Not claimed:** no axis, reading, event, aggregate, market state, or shell behavior was demonstrated. Those remain M2–M13, and the plan records that limitation.
 
+## Entry: commit and pull request
+
+- **Date and tool:** 2026-10-24 (UTC). opencode (DeepSeek V4.1 Flash Free).
+- **Intent and boundary:** Deliver the verified #17 work after explicit human authorization for the commit, push, and pull request. No code or contract change was made in this entry.
+- **Verification and evidence:**
+  - Commit `a751ac0` (`feat: add the model numeric kernel`) contains the kernel, the crate module exposure, the contract clarification, the plan, and this log.
+  - The branch `feat/17-model-numeric-kernel` was pushed to `origin`.
+  - Pull request [#58](https://github.com/quant-rule/quant-rule/pull/58) is open against `main`, closes #17, and is mergeable.
+  - The `sync` check on the pull request passed.
+  - Issue #17 was moved to `Done` on the `QuantRule` board; the board shows `Done`, `Issue`, `Closed`, and `Closed date` 2026-10-24. The issue was closed by the project automation at `2026-10-24T02:53:59Z`.
+- **Learning:**
+  - The board's GitHub automation filled the pull request's `Item type` after it appeared, as the project setup intends. The pull request's board `Status` remains `Todo` while it is open; prior pull requests show `Done` once merged and closed.
+  - The human still owns review and merge authorization. The pull request is not merged.
+
 ## Current state
 
-- The worktree has uncommitted changes: `kernel.rs` and the plan are untracked, and `lib.rs` plus the contract carry modifications.
-- No commit, push, or pull request was created. Those operations await explicit human authorization.
+- The worktree is clean on `feat/17-model-numeric-kernel` at the delivery commit.
+- The work is committed, pushed, and open for review as PR #58. Issue #17 is `Done` on the board and closed on GitHub.
+- Merge is not performed; it awaits human approval.
