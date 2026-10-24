@@ -2,7 +2,7 @@
 
 - Issue: [#66](https://github.com/quant-rule/quant-rule/issues/66) — feat: add a full-series 100k candle path to the data engine
 - Branch: `feat/66-full-series`
-- Pull request: pending
+- Pull request: [#95](https://github.com/quant-rule/quant-rule/pull/95)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Transparency log: [`docs/ai-transparency-log/2026-10-24/66-full-series.md`](../../ai-transparency-log/2026-10-24/66-full-series.md)
@@ -106,9 +106,9 @@ The memory figure is the candle storage (`len * size_of::<Candle>()`), not the a
 
 | Item | Value |
 |---|---|
-| Commit | pending |
+| Commit | `12c05da` — `feat: add a full-series 100k candle path` |
 | Branch | `feat/66-full-series` |
-| Pull request | pending |
+| Pull request | [#95](https://github.com/quant-rule/quant-rule/pull/95) |
 | Board | #66 moved to `Done` when the PR is open |
 
 Merge, release, tag, and deployment remain with the human.

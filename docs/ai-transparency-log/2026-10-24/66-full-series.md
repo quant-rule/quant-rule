@@ -30,4 +30,4 @@
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
 - 100k release: 8,213,248 bytes of candle storage in 0.008 s.
-- Status: `Verified`. Commit, push, pull request, and board transition follow the delivery step.
+- Status: `Verified`. Commit `12c05da` is pushed on `feat/66-full-series`, pull request [#95](https://github.com/quant-rule/quant-rule/pull/95) is open, and #66 is `Done` on the board.
