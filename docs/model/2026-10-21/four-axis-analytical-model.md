@@ -134,6 +134,8 @@ Divergence is a derived relationship between price structure and indicator value
 
 The event is emitted only after the newer price pivot is confirmed. `occurred_bar_index` is the newer pivot's bar; `available_bar_index` is the bar on which that pivot becomes knowable. The record retains `price_delta_atr = (P2-P1)/ATR14` and `rsi_delta = R2-R1` as numeric evidence, where the ATR is the ATR14 of the newer pivot's occurrence bar. No additional support/resistance break confirmation stage is required in v1. Divergence is not inferred when the two comparable pivots or either RSI value is unavailable.
 
+The detector runs at one confirmed-pivot scale per run; the default is the major scale, because it is the structural sequence. A run may select the minor scale instead, and the two scales are never compared with each other. The event's `source_code` is 4 (RSI 14); `reference_code` identifies the newer confirmed swing level, whose scale is recorded in the confirmed-level registry. If any bar in either two-bar RSI window lacks a value, the window is unavailable and no event is inferred. `price_delta_atr` is null when ATR 14 at the newer pivot's occurrence is unavailable or zero; the divergence itself does not depend on ATR, so the event is still emitted.
+
 Divergence belongs to the relationship between Structure and Momentum. It is reported as a structural relationship with RSI as its source. It is never a second RSI vote, and it never changes `direction`, `momentum_force`, or `structure_score`.
 
 ### 7.4 Signal events
