@@ -6,8 +6,9 @@
 //! reading cannot become a second vote. The modules are pure: they perform no
 //! I/O, read no clock, and use no randomness.
 //!
-//! Direction and Momentum are implemented here. Structure and Progression
-//! follow in later work items and publish their own code families.
+//! Direction, Momentum, and Structure are implemented here. Progression
+//! follows in a later work item and publishes its own code family.
 
 pub mod direction;
 pub mod momentum;
+pub mod structure;
