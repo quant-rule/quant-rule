@@ -117,6 +117,8 @@ ATR scales proximity, and one predicate serves all three subtypes. A close **cro
 
 When more than one subtype qualifies for the same level and bar, only the highest-priority subtype is emitted: break, then cross, then test/retest. `direction_code` records the side of the level on which price finishes: +1 above, -1 below, and 0 when the close finishes exactly on the level. A level event describes price/level interaction; it is not a buy or sell instruction.
 
+A Level event is evaluated only when ATR 14 is available at that bar. Without it the break and test predicates are undefined and the subtype precedence cannot be resolved, so no Level event is emitted; a measured ATR of zero remains a value. The proximity zone is closed: a range that touches its boundary intersects it. When more than one reference qualifies on the same bar, the events are recorded in the fixed order EMA 20, EMA 50, EMA 200, latest minor high, latest minor low, latest major high, latest major low.
+
 The same interaction is published twice by design: the EMA cross and retest features of the Structure axis (§8.3) and the Level event record describe the same price/level contact from two directions. Neither is a vote, neither alters an axis value, and the Structure features are not added to `structure_score`.
 
 ### 7.3 Divergence events
