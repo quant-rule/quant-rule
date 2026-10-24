@@ -62,3 +62,20 @@
 - The numeric implementation, fixture, tests, and documentation are complete and pass all local checks.
 - The execution plan is marked `Verified` and records the review outcome and evidence.
 - The remaining step is to commit, push, and open the PR for human review. Merge remains gated.
+
+## Entry: delivery
+
+- **Date and tool:** 2026-10-24 (UTC). opencode (DeepSeek V4.1 Flash Free).
+- **Intent and boundary:** Commit the verified work, push the task branch, open the M3 pull request, and move #19 to `Done` on the board. No merge was performed.
+- **Verification and evidence:**
+  - Commit `b863d5c` (`feat: build the direction axis`) contains the implementation, tests, fixture, plan, and this log.
+  - Pull request [#60](https://github.com/quant-rule/quant-rule/pull/60) targets `main` from `feat/19-direction-axis`.
+  - GitHub reported the pull request as mergeable. The `sync` check result is recorded on the pull request.
+  - The board item for #19 is `Done`; the repository workflow closed issue #19. The pull request remains open and unmerged.
+- **Learning:** The board workflow closes an issue when its item is marked `Done`, so the issue state and the merge state are independent. The pull request is the review surface; closing the issue does not accept the work.
+
+## Current state
+
+- M3 is delivered for human review in PR [#60](https://github.com/quant-rule/quant-rule/pull/60).
+- All local checks pass: 385 tests, clean `fmt`, clean `clippy -D warnings`, clean `doc -D warnings`.
+- Merge remains gated on explicit human authorization.

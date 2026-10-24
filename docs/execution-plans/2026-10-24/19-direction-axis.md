@@ -2,6 +2,7 @@
 
 - Issue: [#19](https://github.com/quant-rule/quant-rule/issues/19) — feat: build the direction axis
 - Branch: `feat/19-direction-axis`
+- Pull request: [#60](https://github.com/quant-rule/quant-rule/pull/60)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
