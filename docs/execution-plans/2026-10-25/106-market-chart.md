@@ -2,7 +2,7 @@
 
 - Issue: [#106](https://github.com/quant-rule/quant-rule/issues/106) — feat: chart the last 1000 candles with the four axes
 - Branch: `feat/106-market-chart`
-- Pull request: pending
+- Pull request: [#108](https://github.com/quant-rule/quant-rule/pull/108)
 - Status: Verified
 - Date: 2026-10-25 (UTC)
 - Transparency log: [`docs/ai-transparency-log/2026-10-25/106-market-chart.md`](../../ai-transparency-log/2026-10-25/106-market-chart.md)
