@@ -2,6 +2,7 @@
 
 - Work item: `116-architecture-principles`
 - Issue: [#116](https://github.com/quant-rule/quant-rule/issues/116)
+- Pull request: [#117](https://github.com/quant-rule/quant-rule/pull/117)
 - Date: 2026-10-25 (UTC)
 
 ## Entry: review and packaging of the architecture principles
