@@ -12,6 +12,10 @@ QuantRule shell commands:
       --root <dir>              Export root (default: data).
   research summary <csv-path>   Print counts, ranges, ordinal histograms, and axis correlations.
   store init [--db <path>]      Create or open the SQLite store (default data/quantrule.db).
+  store ingest <csv-path>       Ingest one M1 dataset into the store.
+      --dataset <name>          Dataset name; required.
+      --data-version <id>       Caller-supplied identity; required.
+      --db <path>               Database path (default data/quantrule.db).
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -45,4 +49,5 @@ Non-interactive: quantrule legs <csv-path>
 Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule store init --db data/quantrule.db
+Non-interactive: quantrule store ingest path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv

@@ -115,6 +115,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::StoreIngest(args) => {
+                if let Err(error) = command::run_store_ingest(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Fetch(args) => {
                 if let Err(error) = command::run_fetch(&args, &mut stdout) {
                     eprintln!("error: {error}");
@@ -329,8 +334,20 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                         }
                     }
                 }
+                Ok(Some(Command::StoreIngest(args))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_store_ingest(&args, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
                 Ok(_) => {
-                    eprintln!("error: usage: store init [--db <path>]");
+                    eprintln!(
+                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>]"
+                    );
                     1
                 }
                 Err(error) => {

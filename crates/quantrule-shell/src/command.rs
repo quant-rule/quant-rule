@@ -23,7 +23,7 @@ use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
 use crate::render;
 use crate::render_state;
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
-use crate::store::{Store, StoreError};
+use crate::store::{DatasetRecord, Store, StoreError};
 
 /// The help text shown by the `help` command.
 pub(crate) const HELP: &str = r#"QuantRule shell commands:
@@ -40,6 +40,10 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
       --root <dir>              Export root (default: data).
   research summary <csv-path>   Print counts, ranges, ordinal histograms, and axis correlations.
   store init [--db <path>]      Create or open the SQLite store (default data/quantrule.db).
+  store ingest <csv-path>       Ingest one M1 dataset into the store.
+      --dataset <name>          Dataset name; required.
+      --data-version <id>       Caller-supplied identity; required.
+      --db <path>               Database path (default data/quantrule.db).
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
       [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
@@ -73,6 +77,7 @@ Non-interactive: quantrule legs <csv-path>
 Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule store init --db data/quantrule.db
+Non-interactive: quantrule store ingest path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
 "#;
 
@@ -99,6 +104,8 @@ pub(crate) enum Command {
     ResearchSummary(PathBuf),
     /// Create or open the SQLite store.
     StoreInit(PathBuf),
+    /// Ingest one dataset into the SQLite store.
+    StoreIngest(StoreIngestArgs),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
     Fetch(FetchArgs),
     /// Print the command reference.
@@ -160,6 +167,19 @@ pub(crate) struct ResearchExportArgs {
     pub(crate) data_version: String,
     /// The export root.
     pub(crate) root: PathBuf,
+}
+
+/// A parsed `store ingest` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StoreIngestArgs {
+    /// The M1 source CSV.
+    pub(crate) path: PathBuf,
+    /// The unique dataset name.
+    pub(crate) dataset: String,
+    /// The caller-supplied data version.
+    pub(crate) data_version: String,
+    /// The database path.
+    pub(crate) database: PathBuf,
 }
 
 /// A command line could not be parsed.
@@ -583,19 +603,23 @@ pub(crate) fn parse_research_arguments(
 
 /// Parses the arguments after `store`.
 ///
-/// The only subcommand in this issue is `init` with an optional `--db`. Later
-/// issues add `ingest`, `list`, `show`, and `verify`.
+/// The subcommands in this issue are `init` and `ingest`. Later issues add
+/// `list`, `show`, and `verify`.
 ///
 /// # Errors
 ///
-/// Returns [`ParseError::Store`] for a missing or unknown subcommand or a
-/// missing option value.
+/// Returns [`ParseError::Store`] for a missing or unknown subcommand, a missing
+/// option value, or a repeated option.
 pub(crate) fn parse_store_arguments(arguments: &[String]) -> Result<Option<Command>, ParseError> {
-    const USAGE: &str = "usage: store init [--db <path>]";
-    if arguments.first().map(String::as_str) != Some("init") {
-        return Err(ParseError::Store(USAGE.to_string()));
+    const USAGE: &str = "usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>]";
+    match arguments.first().map(String::as_str) {
+        Some("init") => parse_store_init(arguments, USAGE),
+        Some("ingest") => parse_store_ingest(arguments, USAGE),
+        _ => Err(ParseError::Store(USAGE.to_string())),
     }
+}
 
+fn parse_store_init(arguments: &[String], usage: &str) -> Result<Option<Command>, ParseError> {
     let mut path = PathBuf::from("data/quantrule.db");
     let mut index = 1;
     while index < arguments.len() {
@@ -604,12 +628,17 @@ pub(crate) fn parse_store_arguments(arguments: &[String]) -> Result<Option<Comma
                 index += 1;
                 let value = arguments
                     .get(index)
-                    .ok_or_else(|| ParseError::Store(format!("--db needs a value\n{USAGE}")))?;
+                    .ok_or_else(|| ParseError::Store(format!("--db needs a value\n{usage}")))?;
+                if value.is_empty() {
+                    return Err(ParseError::Store(format!(
+                        "--db needs a non-empty value\n{usage}"
+                    )));
+                }
                 path = PathBuf::from(value);
             }
             option => {
                 return Err(ParseError::Store(format!(
-                    "unknown argument '{option}'\n{USAGE}"
+                    "unknown argument '{option}'\n{usage}"
                 )));
             }
         }
@@ -617,6 +646,93 @@ pub(crate) fn parse_store_arguments(arguments: &[String]) -> Result<Option<Comma
     }
 
     Ok(Some(Command::StoreInit(path)))
+}
+
+fn parse_store_ingest(arguments: &[String], usage: &str) -> Result<Option<Command>, ParseError> {
+    let mut path = None;
+    let mut dataset = None;
+    let mut data_version = None;
+    let mut database = PathBuf::from("data/quantrule.db");
+    let mut index = 1;
+
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--dataset" => {
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Store(format!("--dataset needs a value\n{usage}"))
+                })?;
+                if value.is_empty() {
+                    return Err(ParseError::Store(format!(
+                        "--dataset needs a non-empty value\n{usage}"
+                    )));
+                }
+                if dataset.is_some() {
+                    return Err(ParseError::Store(format!(
+                        "--dataset was supplied twice\n{usage}"
+                    )));
+                }
+                dataset = Some(value.clone());
+            }
+            "--data-version" => {
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Store(format!("--data-version needs a value\n{usage}"))
+                })?;
+                if value.is_empty() {
+                    return Err(ParseError::Store(format!(
+                        "--data-version needs a non-empty value\n{usage}"
+                    )));
+                }
+                if data_version.is_some() {
+                    return Err(ParseError::Store(format!(
+                        "--data-version was supplied twice\n{usage}"
+                    )));
+                }
+                data_version = Some(value.clone());
+            }
+            "--db" => {
+                index += 1;
+                let value = arguments
+                    .get(index)
+                    .ok_or_else(|| ParseError::Store(format!("--db needs a value\n{usage}")))?;
+                if value.is_empty() {
+                    return Err(ParseError::Store(format!(
+                        "--db needs a non-empty value\n{usage}"
+                    )));
+                }
+                database = PathBuf::from(value);
+            }
+            option if option.starts_with("--") => {
+                return Err(ParseError::Store(format!(
+                    "unknown option '{option}'\n{usage}"
+                )));
+            }
+            value => {
+                if path.is_none() {
+                    path = Some(PathBuf::from(value));
+                } else {
+                    return Err(ParseError::Store(format!(
+                        "unexpected argument '{value}'\n{usage}"
+                    )));
+                }
+            }
+        }
+        index += 1;
+    }
+
+    let path = path.ok_or_else(|| ParseError::Store(format!("missing CSV path\n{usage}")))?;
+    let dataset =
+        dataset.ok_or_else(|| ParseError::Store(format!("missing --dataset\n{usage}")))?;
+    let data_version = data_version
+        .ok_or_else(|| ParseError::Store(format!("missing --data-version\n{usage}")))?;
+
+    Ok(Some(Command::StoreIngest(StoreIngestArgs {
+        path,
+        dataset,
+        data_version,
+        database,
+    })))
 }
 
 /// Creates or opens the store and prints its schema version.
@@ -628,6 +744,48 @@ pub(crate) fn run_store_init(path: &Path, writer: &mut impl Write) -> Result<(),
     let store = Store::open(path).map_err(RunError::Store)?;
     let version = store.schema_version().map_err(RunError::Store)?;
     writeln!(writer, "store {} schema={version}", path.display()).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
+/// Builds the layers and writes one dataset to the store.
+///
+/// The layers are built before the database is opened, so a source, model, or
+/// cap failure leaves no database file and no partial dataset. The writer then
+/// commits the dataset row and every bar row in one transaction.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source, the layer build, the store, or the
+/// writer fails.
+pub(crate) fn run_store_ingest(
+    args: &StoreIngestArgs,
+    writer: &mut impl Write,
+) -> Result<(), RunError> {
+    let LayerBuild { layers, m1 } = load_layers(&args.path)?;
+    let dataset = DatasetRecord {
+        name: args.dataset.clone(),
+        data_version: args.data_version.clone(),
+        model_version: env!("CARGO_PKG_VERSION").to_string(),
+        structure_scale_code: PivotScale::Major.code(),
+        m1_bars: m1.len(),
+    };
+
+    let mut store = Store::open(&args.database).map_err(RunError::Store)?;
+    let report = store
+        .ingest(&dataset, &layers.layer1)
+        .map_err(RunError::Store)?;
+
+    let verb = if report.unchanged {
+        "unchanged"
+    } else {
+        "ingested"
+    };
+    writeln!(
+        writer,
+        "{verb} {} bars={} timeframes={}",
+        args.dataset, report.bars, report.timeframes
+    )
+    .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
 
@@ -945,7 +1103,10 @@ pub(crate) fn run_help(writer: &mut impl Write) -> Result<(), RunError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, FetchArgs, ParseError, ResearchExportArgs, parse, parse_fetch_arguments};
+    use super::{
+        Command, FetchArgs, ParseError, ResearchExportArgs, StoreIngestArgs, parse,
+        parse_fetch_arguments,
+    };
     use std::path::PathBuf;
 
     use crate::source::{DateRange, Symbol};
@@ -1324,5 +1485,76 @@ mod tests {
             parse("research export data/m1.csv demo --data-version x --nope y"),
             Err(ParseError::Research(_))
         ));
+    }
+
+    #[test]
+    fn parses_a_store_ingest_with_defaults() {
+        assert_eq!(
+            parse("store ingest data/m1.csv --dataset demo --data-version source:1"),
+            Ok(Some(Command::StoreIngest(StoreIngestArgs {
+                path: PathBuf::from("data/m1.csv"),
+                dataset: "demo".to_string(),
+                data_version: "source:1".to_string(),
+                database: PathBuf::from("data/quantrule.db"),
+            })))
+        );
+    }
+
+    #[test]
+    fn parses_a_store_ingest_in_any_option_order() {
+        assert_eq!(
+            parse("store ingest --db other.db --data-version source:1 data/m1.csv --dataset demo"),
+            Ok(Some(Command::StoreIngest(StoreIngestArgs {
+                path: PathBuf::from("data/m1.csv"),
+                dataset: "demo".to_string(),
+                data_version: "source:1".to_string(),
+                database: PathBuf::from("other.db"),
+            })))
+        );
+    }
+
+    #[test]
+    fn a_store_ingest_requires_a_dataset_and_a_data_version() {
+        assert!(matches!(
+            parse("store ingest data/m1.csv --data-version source:1"),
+            Err(ParseError::Store(_))
+        ));
+        assert!(matches!(
+            parse("store ingest data/m1.csv --dataset demo"),
+            Err(ParseError::Store(_))
+        ));
+        assert!(matches!(
+            parse("store ingest --dataset demo --data-version source:1"),
+            Err(ParseError::Store(_))
+        ));
+    }
+
+    #[test]
+    fn a_store_ingest_rejects_repeated_options() {
+        for line in [
+            "store ingest data/m1.csv --dataset a --dataset b --data-version v",
+            "store ingest data/m1.csv --dataset a --data-version v --data-version w",
+        ] {
+            assert!(
+                matches!(parse(line), Err(ParseError::Store(_))),
+                "{line} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn a_store_ingest_rejects_an_unknown_option() {
+        assert!(matches!(
+            parse("store ingest data/m1.csv --dataset demo --data-version v --nope x"),
+            Err(ParseError::Store(_))
+        ));
+    }
+
+    #[test]
+    fn parses_a_store_init_with_defaults() {
+        assert_eq!(
+            parse("store init"),
+            Ok(Some(Command::StoreInit(PathBuf::from("data/quantrule.db"))))
+        );
     }
 }
