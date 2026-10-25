@@ -372,6 +372,7 @@ mod tests {
             timeframes: Vec::new(),
             layer1: Vec::new(),
             layer2: Vec::new(),
+            consensus: Vec::new(),
             layer3: Vec::new(),
             pivots: Vec::new(),
             levels: Vec::new(),

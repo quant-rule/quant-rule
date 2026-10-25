@@ -367,6 +367,26 @@ fn consensus_counts_only_present_axes_and_uses_the_lowest_percentile() {
 }
 
 #[test]
+fn the_snapshot_consensus_delegates_to_from_bars() {
+    let snapshot = snapshot(
+        60,
+        Some(0.5),
+        Some(-0.5),
+        Some(0.0),
+        Some(10.0),
+        Some(20.0),
+        Some(30.0),
+    );
+    let direct = TimeframeConsensus::from_bars(
+        60,
+        &snapshot.direction,
+        &snapshot.momentum,
+        &snapshot.structure,
+    );
+    assert_eq!(direct, TimeframeConsensus::compute(&snapshot));
+}
+
+#[test]
 fn the_consensus_matches_the_golden_fixture() {
     let mut lines = CONSENSUS_FIXTURE.lines();
     assert_eq!(lines.next(), Some(CONSENSUS_HEADER));

@@ -16,12 +16,14 @@
 //! [`LAYER2_COLUMNS`], [`HIGHER_BLOCK_COLUMNS`], and [`AGGREGATE_COLUMNS`]. The
 //! export asserts them against the CSV header.
 
+mod consensus;
 mod metrics;
 mod records;
 mod series;
 #[cfg(test)]
 mod tests;
 
+pub use consensus::ConsensusRow;
 pub use metrics::{
     ContextMetrics, DirectionMetrics, Metrics, MomentumMetrics, ProgressionMetrics,
     ReadingsSnapshot, StructureMetrics,
@@ -160,6 +162,9 @@ pub struct LayerSet {
     pub layer1: Vec<Layer1Row>,
     /// Layer 2 rows, in the same order as [`Self::layer1`].
     pub layer2: Vec<Layer2Row>,
+    /// Per-bar consensus, ordered by timeframe and then bar, in the same order
+    /// as [`Self::layer1`].
+    pub consensus: Vec<ConsensusRow>,
     /// Layer 3 rows, one per M1 bar.
     pub layer3: Vec<Layer3Row>,
     /// Pivot occurrences, ordered by timeframe, occurrence bar, scale, and kind.
@@ -237,9 +242,11 @@ pub fn build_layers(
 
     let mut layer1 = Vec::new();
     let mut layer2 = Vec::new();
+    let mut consensus = Vec::new();
     let mut pivots = Vec::new();
     let mut levels = Vec::new();
     for timeframe in &series {
+        consensus.extend(ConsensusRow::rows(timeframe));
         for bar in 0..timeframe.len() {
             let Some(candle) = timeframe.candle(bar) else {
                 continue;
@@ -345,6 +352,7 @@ pub fn build_layers(
         timeframes,
         layer1,
         layer2,
+        consensus,
         layer3,
         pivots,
         levels,

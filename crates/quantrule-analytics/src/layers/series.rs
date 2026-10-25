@@ -23,7 +23,7 @@ use quantrule_model::events::divergence::{DivergenceConfig, DivergenceEventSerie
 use quantrule_model::events::level::{LevelEventConfig, LevelEventSeries};
 use quantrule_model::events::signal::{SignalConfig, SignalEventSeries};
 use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries, Readings};
-use quantrule_model::state::TimeframeInput;
+use quantrule_model::state::{TimeframeConsensus, TimeframeInput};
 
 use super::metrics::{Metrics, ReadingsSnapshot};
 use super::{LayerConfig, LayerError};
@@ -172,6 +172,16 @@ impl<'a> TimeframeSeries<'a> {
             &self.structure.get(bar)?,
             &self.progression.get(bar)?,
             &self.context.get(bar)?,
+        ))
+    }
+
+    /// The model's cross-axis consensus at `bar`.
+    pub(crate) fn consensus_at(&self, bar: usize) -> Option<TimeframeConsensus> {
+        Some(TimeframeConsensus::from_bars(
+            self.timeframe_secs,
+            &self.direction.get(bar)?,
+            &self.momentum.get(bar)?,
+            &self.structure.get(bar)?,
         ))
     }
 
