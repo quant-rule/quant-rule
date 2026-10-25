@@ -85,6 +85,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::MarketChart(args) => {
+                if let Err(error) = command::run_market_chart(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Axis { path, axis } => {
                 if let Err(error) = command::run_axis(&path, axis, &mut stdout) {
                     eprintln!("error: {error}");
@@ -201,6 +206,33 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             let path = PathBuf::from(&args[1]);
             let mut stdout = io::stdout();
             match command::run_market_state(&path, &mut stdout) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "market-chart" => {
+            let mut arguments = Vec::with_capacity(args.len().saturating_sub(1));
+            for argument in &args[1..] {
+                let Some(argument) = argument.to_str() else {
+                    eprintln!("error: market-chart argument is not valid UTF-8");
+                    return 1;
+                };
+                arguments.push(argument.to_owned());
+            }
+
+            let chart_args = match command::parse_market_chart_arguments(&arguments) {
+                Ok(chart_args) => chart_args,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 1;
+                }
+            };
+
+            let mut stdout = io::stdout();
+            match command::run_market_chart(&chart_args, &mut stdout) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");

@@ -8,6 +8,7 @@ use std::fmt;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+use quantrule_analytics::chart::ChartSeries;
 use quantrule_analytics::layers::{LayerConfig, LayerError, LayerSet, build_layers};
 use quantrule_analytics::research::{
     DatasetMeta, ExportError as ResearchExportError, render_dataset,
@@ -17,6 +18,7 @@ use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe};
 use quantrule_model::readings::PivotScale;
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
+use crate::chart;
 use crate::csv::{self, SourceError};
 use crate::export::{self, ExportError as FileExportError};
 use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
@@ -31,6 +33,10 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
   candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
   timeframes <csv-path>         Build M5/M15/H1 from an M1 CSV; print NDJSON and a report.
   market-state <csv-path>       Print the four-timeframe market state as JSON.
+  market-chart <csv-path>       Render the last candles and four axis panels as PNG.
+      --png <path>              Required PNG target.
+      --timeframe <tf>          Chart timeframe: 1m, 5m, 15m, or 1h (default 1m).
+      --candles <n>             Last n bars, 1..1000 (default 1000).
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
   events <csv-path>             Print every event record as NDJSON, in availability order.
   legs <csv-path>               Print the minor and major leg per timeframe.
@@ -71,6 +77,7 @@ Non-interactive: quantrule candles <csv-path>
 Non-interactive: quantrule candles-tolerant <csv-path>
 Non-interactive: quantrule timeframes <csv-path>
 Non-interactive: quantrule market-state <csv-path>
+Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
 Non-interactive: quantrule axis <csv-path> direction
 Non-interactive: quantrule events <csv-path>
 Non-interactive: quantrule legs <csv-path>
@@ -92,6 +99,8 @@ pub(crate) enum Command {
     Timeframes(PathBuf),
     /// Print the assembled market state.
     MarketState(PathBuf),
+    /// Render the last candles with the four axis panels.
+    MarketChart(MarketChartArgs),
     /// Print one axis per timeframe.
     Axis { path: PathBuf, axis: Axis },
     /// Print the event records.
@@ -182,6 +191,19 @@ pub(crate) struct StoreIngestArgs {
     pub(crate) database: PathBuf,
 }
 
+/// A parsed `market-chart` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MarketChartArgs {
+    /// The M1 source CSV.
+    pub(crate) path: PathBuf,
+    /// The PNG target.
+    pub(crate) png: PathBuf,
+    /// The charted timeframe.
+    pub(crate) timeframe: Timeframe,
+    /// The number of bars to draw.
+    pub(crate) candles: usize,
+}
+
 /// A command line could not be parsed.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ParseError {
@@ -191,6 +213,8 @@ pub(crate) enum ParseError {
     UnexpectedArguments(&'static str),
     /// A `fetch` argument list is invalid.
     Fetch(String),
+    /// A `market-chart` argument list is invalid.
+    MarketChart(String),
     /// `axis` needs a CSV path and an axis name.
     AxisUsage,
     /// The axis name is not known.
@@ -213,6 +237,7 @@ impl fmt::Display for ParseError {
                 write!(formatter, "{command} takes no arguments")
             }
             Self::Fetch(message) => formatter.write_str(message),
+            Self::MarketChart(message) => formatter.write_str(message),
             Self::AxisUsage => write!(
                 formatter,
                 "usage: axis <csv-path> <direction|momentum|structure|progression>"
@@ -239,6 +264,10 @@ pub(crate) enum RunError {
     Source(SourceError),
     /// A fetch could not be completed.
     Fetch(fetch::FetchRunError),
+    /// The market chart could not be rendered.
+    Chart(chart::ChartError),
+    /// The market chart could not be written.
+    ChartWrite(FileExportError),
     /// The research layers could not be built.
     Layers(LayerError),
     /// The research dataset could not be rendered.
@@ -256,6 +285,8 @@ impl fmt::Display for RunError {
         match self {
             Self::Source(source) => source.fmt(formatter),
             Self::Fetch(source) => source.fmt(formatter),
+            Self::Chart(source) => write!(formatter, "cannot render the market chart: {source}"),
+            Self::ChartWrite(source) => write!(formatter, "cannot write the chart PNG: {source}"),
             Self::Layers(source) => write!(formatter, "cannot build the research layers: {source}"),
             Self::ResearchExport(source) => {
                 write!(formatter, "cannot render the research dataset: {source}")
@@ -272,6 +303,8 @@ impl std::error::Error for RunError {
         match self {
             Self::Source(source) => Some(source),
             Self::Fetch(source) => Some(source),
+            Self::Chart(source) => Some(source),
+            Self::ChartWrite(source) => Some(source),
             Self::Layers(source) => Some(source),
             Self::ResearchExport(source) => Some(source),
             Self::Write(source) => Some(source),
@@ -309,6 +342,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "events" => path_command(rest, "events", Command::Events),
         "legs" => path_command(rest, "legs", Command::Legs),
         "axis" => parse_axis(rest),
+        "market-chart" => {
+            let arguments = tokenize(rest)?;
+            parse_market_chart_arguments(&arguments).map(|args| Some(Command::MarketChart(args)))
+        }
         "research" => {
             let arguments = tokenize(rest)?;
             parse_research_arguments(&arguments)
@@ -452,6 +489,113 @@ fn option_value<'a>(
     if value.is_empty() {
         return Err(ParseError::Fetch(format!(
             "{option} requires a non-empty value"
+        )));
+    }
+    Ok(value)
+}
+
+/// Parses the arguments of a `market-chart` command.
+///
+/// # Errors
+///
+/// Returns [`ParseError::MarketChart`] when the path, PNG target, timeframe, or
+/// candle count is missing or invalid.
+pub(crate) fn parse_market_chart_arguments(
+    arguments: &[String],
+) -> Result<MarketChartArgs, ParseError> {
+    const USAGE: &str =
+        "usage: market-chart <csv-path> --png <path> [--timeframe <1m|5m|15m|1h>] [--candles <n>]";
+    let mut path = None;
+    let mut png = None;
+    let mut timeframe = None;
+    let mut candles = DEFAULT_CHART_CANDLES;
+    let mut index = 0;
+
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--png" => {
+                let value = market_chart_value(arguments, &mut index, "--png", USAGE)?;
+                if png.is_some() {
+                    return Err(ParseError::MarketChart(format!(
+                        "--png was supplied twice\n{USAGE}"
+                    )));
+                }
+                png = Some(PathBuf::from(value));
+            }
+            "--timeframe" => {
+                let value = market_chart_value(arguments, &mut index, "--timeframe", USAGE)?;
+                if timeframe.is_some() {
+                    return Err(ParseError::MarketChart(format!(
+                        "--timeframe was supplied twice\n{USAGE}"
+                    )));
+                }
+                timeframe = Some(Timeframe::from_code(value).ok_or_else(|| {
+                    ParseError::MarketChart(format!(
+                        "--timeframe expects 1m, 5m, 15m, or 1h, found '{value}'\n{USAGE}"
+                    ))
+                })?);
+            }
+            "--candles" => {
+                let value = market_chart_value(arguments, &mut index, "--candles", USAGE)?;
+                let count = value.parse::<usize>().map_err(|_| {
+                    ParseError::MarketChart(format!(
+                        "--candles expects a positive integer, found '{value}'\n{USAGE}"
+                    ))
+                })?;
+                if count == 0 || count > DEFAULT_CHART_CANDLES {
+                    return Err(ParseError::MarketChart(format!(
+                        "--candles must be between 1 and {DEFAULT_CHART_CANDLES}\n{USAGE}"
+                    )));
+                }
+                candles = count;
+            }
+            option if option.starts_with("--") => {
+                return Err(ParseError::MarketChart(format!(
+                    "unknown option '{option}'\n{USAGE}"
+                )));
+            }
+            value => {
+                if path.is_none() {
+                    path = Some(PathBuf::from(value));
+                } else {
+                    return Err(ParseError::MarketChart(format!(
+                        "unexpected argument '{value}'\n{USAGE}"
+                    )));
+                }
+            }
+        }
+        index += 1;
+    }
+
+    let path = path.ok_or_else(|| ParseError::MarketChart(format!("missing CSV path\n{USAGE}")))?;
+    let png = png.ok_or_else(|| ParseError::MarketChart(format!("missing --png\n{USAGE}")))?;
+    if png == path {
+        return Err(ParseError::MarketChart(format!(
+            "--png must be different from the CSV path\n{USAGE}"
+        )));
+    }
+
+    Ok(MarketChartArgs {
+        path,
+        png,
+        timeframe: timeframe.unwrap_or(Timeframe::M1),
+        candles,
+    })
+}
+
+fn market_chart_value<'a>(
+    arguments: &'a [String],
+    index: &mut usize,
+    option: &str,
+    usage: &str,
+) -> Result<&'a str, ParseError> {
+    *index += 1;
+    let value = arguments
+        .get(*index)
+        .ok_or_else(|| ParseError::MarketChart(format!("{option} needs a value\n{usage}")))?;
+    if value.is_empty() {
+        return Err(ParseError::MarketChart(format!(
+            "{option} needs a non-empty value\n{usage}"
         )));
     }
     Ok(value)
@@ -872,6 +1016,36 @@ pub(crate) fn run_market_state(path: &Path, writer: &mut impl Write) -> Result<(
     writer.flush().map_err(RunError::Output)
 }
 
+/// Renders the last candles and the four axis panels as a PNG.
+///
+/// The layers are built before the chart is rendered, so a source or model
+/// failure leaves no PNG. The chart is written atomically after encoding.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source, the layer build, the chart, the PNG
+/// write, or the summary writer fails.
+pub(crate) fn run_market_chart(
+    args: &MarketChartArgs,
+    writer: &mut impl Write,
+) -> Result<(), RunError> {
+    let LayerBuild { layers, .. } = load_layers(&args.path)?;
+    let series =
+        ChartSeries::from_layers(&layers, u64::from(args.timeframe.seconds()), args.candles);
+    let bytes = chart::render_market_png(&series, args.timeframe).map_err(RunError::Chart)?;
+    export::write_atomic(&args.png, &bytes).map_err(RunError::ChartWrite)?;
+    writeln!(
+        writer,
+        "png={} timeframe={} candles={} bytes={}",
+        args.png.display(),
+        args.timeframe.code(),
+        series.len(),
+        bytes.len()
+    )
+    .map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
 /// Prints one axis per timeframe for the ladder.
 ///
 /// # Errors
@@ -1112,8 +1286,8 @@ pub(crate) fn run_help(writer: &mut impl Write) -> Result<(), RunError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Command, FetchArgs, ParseError, ResearchExportArgs, StoreIngestArgs, parse,
-        parse_fetch_arguments,
+        Command, FetchArgs, MarketChartArgs, ParseError, ResearchExportArgs, StoreIngestArgs,
+        parse, parse_fetch_arguments, parse_market_chart_arguments,
     };
     use std::path::PathBuf;
 
@@ -1136,6 +1310,15 @@ mod tests {
             timeframe,
             csv,
             png,
+            candles,
+        }
+    }
+
+    fn market_chart_args(timeframe: Timeframe, candles: usize) -> MarketChartArgs {
+        MarketChartArgs {
+            path: PathBuf::from("data/m1.csv"),
+            png: PathBuf::from("data/market.png"),
+            timeframe,
             candles,
         }
     }
@@ -1464,6 +1647,77 @@ mod tests {
             parse("fetch gold 2025-01-01 2025-12-31 --csv \"out.csv"),
             Err(ParseError::Fetch(_))
         ));
+    }
+
+    #[test]
+    fn parses_market_chart_with_defaults() {
+        assert_eq!(
+            parse("market-chart data/m1.csv --png data/market.png"),
+            Ok(Some(Command::MarketChart(market_chart_args(
+                Timeframe::M1,
+                1_000
+            ))))
+        );
+    }
+
+    #[test]
+    fn parses_market_chart_options_in_any_order() {
+        assert_eq!(
+            parse("market-chart --candles 250 --png data/market.png data/m1.csv --timeframe 5m"),
+            Ok(Some(Command::MarketChart(market_chart_args(
+                Timeframe::M5,
+                250
+            ))))
+        );
+    }
+
+    #[test]
+    fn parses_market_chart_arguments_from_an_already_split_argv() {
+        let arguments = [
+            String::from("data/m1.csv"),
+            String::from("--png"),
+            String::from("data/market.png"),
+            String::from("--timeframe"),
+            String::from("15m"),
+            String::from("--candles"),
+            String::from("100"),
+        ];
+
+        assert_eq!(
+            parse_market_chart_arguments(&arguments),
+            Ok(market_chart_args(Timeframe::M15, 100))
+        );
+    }
+
+    #[test]
+    fn rejects_bad_market_chart_arguments() {
+        for line in [
+            "market-chart",
+            "market-chart data/m1.csv",
+            "market-chart data/m1.csv --png",
+            "market-chart data/m1.csv --png data/market.png --png other.png",
+            "market-chart data/m1.csv --png data/market.png --timeframe 30m",
+            "market-chart data/m1.csv --png data/market.png --timeframe 5m --timeframe 15m",
+            "market-chart data/m1.csv --png data/market.png --bogus x",
+            "market-chart data/m1.csv data/other.csv --png data/market.png",
+            "market-chart data/m1.csv --png data/m1.csv",
+        ] {
+            assert!(
+                matches!(parse(line), Err(ParseError::MarketChart(_))),
+                "line should be rejected: {line}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_an_out_of_range_market_chart_count() {
+        for count in ["0", "1001", "many", "-1"] {
+            let line = format!("market-chart data/m1.csv --png data/market.png --candles {count}");
+            assert!(
+                matches!(parse(&line), Err(ParseError::MarketChart(_))),
+                "count {count} should be rejected"
+            );
+        }
     }
 
     #[test]

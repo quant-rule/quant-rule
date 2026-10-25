@@ -21,6 +21,7 @@ cargo run -p quantrule-shell -- candles path/to/candles.csv
 cargo run -p quantrule-shell -- candles-tolerant path/to/candles.csv
 cargo run -p quantrule-shell -- timeframes path/to/m1.csv
 cargo run -p quantrule-shell -- market-state path/to/m1.csv
+cargo run -p quantrule-shell -- market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
 cargo run -p quantrule-shell -- axis path/to/m1.csv direction
 cargo run -p quantrule-shell -- events path/to/m1.csv
 cargo run -p quantrule-shell -- legs path/to/m1.csv
@@ -41,6 +42,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `candles-tolerant` | `<csv-path>` | Up to the last 1000 valid candles as NDJSON, plus a quality report on stderr |
 | `timeframes` | `<csv-path>` | M1, M5, M15, and H1 as NDJSON, plus an aggregation report on stderr |
 | `market-state` | `<csv-path>` | The four-timeframe market state as one JSON object |
+| `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars with a candle/volume panel and four axis panels |
 | `axis` | `<csv-path> <axis>` | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` | Every event record as NDJSON, in availability order |
 | `legs` | `<csv-path>` | The minor and major leg per timeframe as NDJSON |
@@ -156,7 +158,11 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 `legs` prints two NDJSON lines per timeframe, one for each pivot scale. Each line carries the published leg or `null`, its origin and availability bars, target basis and version, progress, displacement, lifecycle, stage, and target-reached code, with the lifecycle, stage, direction, scale, and target-basis labels.
 
-The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
+### Market chart
+
+`market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
+
+The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `market-chart`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
 
 ### Fetch contract
 

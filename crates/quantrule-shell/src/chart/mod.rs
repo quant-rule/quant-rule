@@ -6,11 +6,15 @@
 //! unordered collection participates, so the same candles produce the same PNG
 //! bytes on every run.
 //!
-//! The chart shows the last candles of the requested window, not the full
+//! The fetch chart shows the last candles of the requested window, not the full
 //! series when the series is longer than the `--candles` selection. Price and
-//! volume panels share the same x-axis.
+//! volume panels share the same x-axis. The market chart adds four aligned axis
+//! panels over the Layer 2 bars; see [`market`].
 
 mod font;
+mod market;
+
+pub(crate) use market::render_market_png;
 
 use std::fmt;
 
