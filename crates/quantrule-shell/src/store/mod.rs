@@ -15,7 +15,7 @@ mod schema;
 mod tests;
 
 pub(crate) use error::StoreError;
-pub(crate) use ingest::DatasetRecord;
+pub(crate) use ingest::{DatasetRecord, IngestRows};
 
 use rusqlite::Connection;
 use std::fs;

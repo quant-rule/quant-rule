@@ -957,6 +957,75 @@ fn scalar(connection: &Connection, sql: &str) -> i64 {
         .expect("the scalar query succeeds")
 }
 
+fn assert_record_integrity(connection: &Connection) {
+    let pivots = scalar(connection, "SELECT count(*) FROM pivot");
+    let confirmed = scalar(
+        connection,
+        "SELECT count(*) FROM pivot WHERE confirmed_code = 1",
+    );
+    let candidates = scalar(
+        connection,
+        "SELECT count(*) FROM pivot WHERE confirmed_code = 0",
+    );
+    let levels = scalar(connection, "SELECT count(*) FROM level");
+    assert!(pivots > 0, "the fixture stores no pivots");
+    assert!(confirmed > 0, "the fixture stores no confirmed pivots");
+    assert!(candidates > 0, "the fixture stores no candidates");
+    assert!(levels > 0, "the fixture stores no levels");
+    assert_eq!(confirmed, levels, "one level per confirmed pivot");
+
+    assert_eq!(
+        scalar(
+            connection,
+            "SELECT count(*) FROM pivot \
+             WHERE available_bar_index < occurred_bar_index \
+             OR (confirmed_code = 0 AND available_bar_index != occurred_bar_index) \
+             OR (confirmed_code = 1 AND available_bar_index <= occurred_bar_index)"
+        ),
+        0,
+        "a pivot availability violation"
+    );
+    assert_eq!(
+        scalar(
+            connection,
+            "SELECT count(*) FROM level WHERE available_bar_index < occurred_bar_index"
+        ),
+        0,
+        "a level availability violation"
+    );
+    assert_eq!(
+        scalar(
+            connection,
+            "SELECT count(*) FROM pivot \
+             WHERE scale_code NOT IN (1, 2) OR kind_code NOT IN (1, 2) \
+             OR confirmed_code NOT IN (0, 1)"
+        ),
+        0,
+        "an invalid pivot code"
+    );
+    assert_eq!(
+        scalar(
+            connection,
+            "SELECT count(*) FROM level \
+             WHERE reference_code < 1001 OR scale_code NOT IN (1, 2) OR kind_code NOT IN (1, 2)"
+        ),
+        0,
+        "an invalid level code"
+    );
+    assert_eq!(
+        scalar(
+            connection,
+            "SELECT count(*) FROM (\
+                 SELECT timeframe_secs, min(reference_code) AS first, \
+                        max(reference_code) AS last, count(*) AS n \
+                 FROM level GROUP BY timeframe_secs\
+             ) WHERE first != 1001 OR last != 1000 + n"
+        ),
+        0,
+        "a level reference gap"
+    );
+}
+
 #[test]
 fn store_ingest_writes_every_ladder_bar_and_repeats_as_a_no_op() {
     let root = artifact_dir("store-ingest");
@@ -983,6 +1052,14 @@ fn store_ingest_writes_every_ladder_bar_and_repeats_as_a_no_op() {
     let connection = Connection::open(&db).expect("the store opens");
     assert_eq!(scalar(&connection, "SELECT count(*) FROM dataset"), 1);
     assert_eq!(scalar(&connection, "SELECT count(*) FROM bar"), 333);
+    assert_record_integrity(&connection);
+    let record_counts = || {
+        (
+            scalar(&connection, "SELECT count(*) FROM pivot"),
+            scalar(&connection, "SELECT count(*) FROM level"),
+        )
+    };
+    let before = record_counts();
     assert_eq!(
         scalar(
             &connection,
@@ -1037,6 +1114,8 @@ fn store_ingest_writes_every_ladder_bar_and_repeats_as_a_no_op() {
     );
     assert_eq!(scalar(&connection, "SELECT count(*) FROM dataset"), 1);
     assert_eq!(scalar(&connection, "SELECT count(*) FROM bar"), 333);
+    assert_eq!(record_counts(), before, "the no-op changed the records");
+    assert_record_integrity(&connection);
 }
 
 #[test]
@@ -1061,13 +1140,24 @@ fn store_ingest_rejects_a_conflicting_identity_and_changes_nothing() {
     let output = ingest("test:demo:60:0-260");
     assert_success(&output);
 
+    let connection = Connection::open(&db).expect("the store opens");
+    assert_record_integrity(&connection);
+    let record_counts = || {
+        (
+            scalar(&connection, "SELECT count(*) FROM pivot"),
+            scalar(&connection, "SELECT count(*) FROM level"),
+        )
+    };
+    let before = record_counts();
+
     let output = ingest("test:demo:60:1-260");
     assert_failure(&output);
     assert!(stderr_text(&output).contains("different identity"));
 
-    let connection = Connection::open(&db).expect("the store opens");
     assert_eq!(scalar(&connection, "SELECT count(*) FROM dataset"), 1);
     assert_eq!(scalar(&connection, "SELECT count(*) FROM bar"), 333);
+    assert_eq!(record_counts(), before, "the conflict changed the records");
+    assert_record_integrity(&connection);
     let stored: String = connection
         .query_row(
             "SELECT data_version FROM dataset WHERE name = 'demo'",

@@ -1,4 +1,6 @@
 use quantrule_data::Candle;
+use quantrule_model::axes::structure::registry::ConfirmedLevelRegistry;
+use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries};
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
 use super::{
@@ -34,6 +36,43 @@ fn candles(count: usize, start: i64, step: i64, offset: f64) -> Vec<Candle> {
             .expect("the test candle is valid")
         })
         .collect()
+}
+
+/// A series with confirmed pivots at both scales, one unconfirmed candidate,
+/// and a confirmed-level registry that includes a same-bar scale tie.
+fn pivot_candles() -> Vec<Candle> {
+    let highs = [
+        10.0, 11.0, 12.0, 11.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 13.0, 12.0, 11.0, 10.0,
+        9.0, 8.0, 7.0, 8.0, 9.0, 10.0, 10.0, 10.0, 10.0,
+    ];
+    let lows = [
+        9.0, 9.5, 10.0, 9.5, 9.0, 9.0, 9.0, 8.0, 7.0, 8.0, 9.0, 9.0, 9.0, 9.0, 9.0, 8.0, 7.0, 6.0,
+        7.0, 8.0, 9.0, 9.0, 9.0, 9.0,
+    ];
+    highs
+        .iter()
+        .zip(lows)
+        .enumerate()
+        .map(|(index, (high, low))| {
+            Candle::new(
+                index as u64,
+                index as i64 * 60,
+                (high + low) / 2.0,
+                *high,
+                low,
+                (high + low) / 2.0,
+                Some(1.0),
+            )
+            .expect("the test candle is valid")
+        })
+        .collect()
+}
+
+fn kind_code(kind: PivotKind) -> u8 {
+    match kind {
+        PivotKind::High => 1,
+        PivotKind::Low => 2,
+    }
 }
 
 /// M1 bars from 08:49 to 09:18, M5 bars from 08:50 to 09:15, H1 bars at 08:00
@@ -281,6 +320,150 @@ fn reordered_inputs_and_repeated_runs_are_identical() {
 }
 
 #[test]
+fn pivot_and_level_records_match_the_model() {
+    let m1 = pivot_candles();
+    let set = build_layers(&[input(M1, &m1)], &LayerConfig::default()).expect("the fixture builds");
+    let pivots = PivotSeries::compute(&m1);
+    let registry = ConfirmedLevelRegistry::from_pivots(&pivots);
+
+    let candidate_count: usize = PivotScale::ALL
+        .iter()
+        .map(|scale| pivots.candidate_count(*scale))
+        .sum();
+    let confirmed_count: usize = PivotScale::ALL
+        .iter()
+        .map(|scale| pivots.confirmed_count(*scale))
+        .sum();
+    assert_eq!(set.pivots.len(), candidate_count);
+    assert_eq!(
+        set.pivots
+            .iter()
+            .filter(|row| row.confirmed_code == 1)
+            .count(),
+        confirmed_count
+    );
+    assert!(confirmed_count > 0, "the fixture must confirm pivots");
+
+    for row in &set.pivots {
+        assert_eq!(row.timeframe_secs, M1);
+        let scale = match row.scale_code {
+            1 => PivotScale::Minor,
+            2 => PivotScale::Major,
+            other => panic!("unexpected scale code {other}"),
+        };
+        let candidate = pivots
+            .candidate(scale, row.occurred_bar_index)
+            .expect("every row came from a candidate");
+        assert_eq!(row.kind_code, kind_code(candidate.kind));
+        assert_eq!(row.price, candidate.price);
+        assert_eq!(row.occurred_bar_index, candidate.occurred_at);
+        if row.confirmed_code == 1 {
+            let pivot = pivots
+                .confirmed_at(scale, row.available_bar_index)
+                .expect("the confirmed pivot is at its availability bar");
+            assert_eq!(pivot.kind, candidate.kind);
+            assert_eq!(pivot.price, candidate.price);
+            assert_eq!(pivot.occurred_at, candidate.occurred_at);
+            assert!(pivot.available_at > pivot.occurred_at);
+        } else {
+            assert_eq!(row.confirmed_code, 0);
+            assert_eq!(row.available_bar_index, candidate.available_at);
+            assert_eq!(row.available_bar_index, row.occurred_bar_index);
+        }
+    }
+
+    for scale in PivotScale::ALL {
+        for pivot in pivots.all_confirmed(scale) {
+            assert!(
+                set.pivots.iter().any(|row| {
+                    row.scale_code == scale.code()
+                        && row.kind_code == kind_code(pivot.kind)
+                        && row.occurred_bar_index == pivot.occurred_at
+                        && row.available_bar_index == pivot.available_at
+                        && row.confirmed_code == 1
+                }),
+                "a confirmed pivot is missing from the rows"
+            );
+        }
+    }
+
+    assert_eq!(set.levels.len(), registry.len());
+    for (index, (row, level)) in set.levels.iter().zip(registry.levels()).enumerate() {
+        assert_eq!(row.timeframe_secs, M1);
+        assert_eq!(row.reference_code, 1001 + index as u32);
+        assert_eq!(row.reference_code, level.reference_code);
+        assert_eq!(row.scale_code, level.scale.code());
+        assert_eq!(row.kind_code, kind_code(level.kind));
+        assert_eq!(row.price, level.price);
+        assert_eq!(row.occurred_bar_index, level.occurred_at);
+        assert_eq!(row.available_bar_index, level.available_at);
+        assert!(row.available_bar_index >= row.occurred_bar_index);
+    }
+
+    for pair in set.pivots.windows(2) {
+        let left = (
+            pair[0].timeframe_secs,
+            pair[0].occurred_bar_index,
+            pair[0].scale_code,
+            pair[0].kind_code,
+        );
+        let right = (
+            pair[1].timeframe_secs,
+            pair[1].occurred_bar_index,
+            pair[1].scale_code,
+            pair[1].kind_code,
+        );
+        assert!(left <= right, "pivot rows are not ordered");
+    }
+    for pair in set.levels.windows(2) {
+        let left = (pair[0].timeframe_secs, pair[0].reference_code);
+        let right = (pair[1].timeframe_secs, pair[1].reference_code);
+        assert!(left <= right, "level rows are not ordered");
+    }
+
+    let candidate = set
+        .pivots
+        .iter()
+        .find(|row| row.confirmed_code == 0)
+        .expect("the fixture has an unconfirmed candidate");
+    assert_eq!(candidate.available_bar_index, candidate.occurred_bar_index);
+}
+
+#[test]
+fn pivot_and_level_records_are_built_for_every_timeframe() {
+    let (m1, m5, h1) = alignment_fixture();
+    let set = build_layers(
+        &[input(H1, &h1), input(M1, &m1), input(M5, &m5)],
+        &LayerConfig::default(),
+    )
+    .expect("the fixture builds");
+
+    for timeframe in [M1, M5, H1] {
+        let pivots = PivotSeries::compute(match timeframe {
+            M1 => &m1,
+            M5 => &m5,
+            _ => &h1,
+        });
+        let expected = PivotScale::ALL
+            .iter()
+            .map(|scale| pivots.candidate_count(*scale))
+            .sum::<usize>();
+        assert_eq!(
+            set.pivots
+                .iter()
+                .filter(|row| row.timeframe_secs == timeframe)
+                .count(),
+            expected
+        );
+        assert!(
+            set.levels
+                .iter()
+                .all(|row| row.timeframe_secs != timeframe || row.reference_code >= 1001)
+        );
+    }
+}
+
+#[test]
 fn layer_one_matches_the_model_snapshot_at_the_latest_bar() {
     let m1 = candles(300, 0, 60, 0.0);
     let set = build_layers(&[input(M1, &m1)], &LayerConfig::default()).expect("the fixture builds");
@@ -312,6 +495,8 @@ fn a_single_candle_has_one_row_and_no_block() {
 
     assert_eq!(set.layer1.len(), 1);
     assert_eq!(set.layer3.len(), 1);
+    assert!(set.pivots.is_empty());
+    assert!(set.levels.is_empty());
     assert!(set.layer3[0].higher.is_empty());
     assert_eq!(set.layer3[0].aggregates.ladder, vec![M1]);
     assert_eq!(set.layer1[0].metrics.direction.direction, None);

@@ -23,7 +23,7 @@ use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
 use crate::render;
 use crate::render_state;
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
-use crate::store::{DatasetRecord, Store, StoreError};
+use crate::store::{DatasetRecord, IngestRows, Store, StoreError};
 
 /// The help text shown by the `help` command.
 pub(crate) const HELP: &str = r#"QuantRule shell commands:
@@ -751,7 +751,8 @@ pub(crate) fn run_store_init(path: &Path, writer: &mut impl Write) -> Result<(),
 ///
 /// The layers are built before the database is opened, so a source, model, or
 /// cap failure leaves no database file and no partial dataset. The writer then
-/// commits the dataset row and every bar row in one transaction.
+/// commits the dataset row, every bar row, every pivot occurrence, and every
+/// confirmed level in one transaction.
 ///
 /// # Errors
 ///
@@ -771,9 +772,8 @@ pub(crate) fn run_store_ingest(
     };
 
     let mut store = Store::open(&args.database).map_err(RunError::Store)?;
-    let report = store
-        .ingest(&dataset, &layers.layer1)
-        .map_err(RunError::Store)?;
+    let rows = IngestRows::new(&layers.layer1, &layers.pivots, &layers.levels);
+    let report = store.ingest(&dataset, &rows).map_err(RunError::Store)?;
 
     let verb = if report.unchanged {
         "unchanged"
