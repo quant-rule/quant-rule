@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use quantrule_model::aggregate::{CrossTimeframeAggregates, TimeframeEventSummary};
 use quantrule_model::axes::progression::ProgressionLeg;
 use quantrule_model::events::EventRecord;
-use quantrule_model::run::ModelRun;
+use quantrule_model::run::{ModelRun, TimeframeModel};
 use quantrule_model::state::{MarketState, TimeframeConsensus, TimeframeMarketState};
 
 use crate::command::Axis;
@@ -47,7 +47,7 @@ pub(crate) fn write_axis(
 pub(crate) fn write_event_batch(run: &ModelRun, writer: &mut impl Write) -> io::Result<()> {
     for timeframe in run.timeframes() {
         for event in timeframe.events() {
-            write_line(&event_value(timeframe.timeframe_secs(), event), writer)?;
+            write_line(&event_value(timeframe, event), writer)?;
         }
     }
     Ok(())
@@ -91,6 +91,8 @@ fn timeframe_value(
         "bar": snapshot.latest_bar_index,
         "series_index": timeframe.latest_series_index,
         "datetime": format_utc_timestamp(timeframe.latest_open_time),
+        "window_start": timeframe.window_start,
+        "window_len": timeframe.window_len,
         "direction": {
             "value": snapshot.direction.direction,
             "state": snapshot.direction.state_code,
@@ -352,9 +354,15 @@ fn axis_value(timeframe: &TimeframeMarketState, axis: Axis) -> Value {
     }
 }
 
-fn event_value(timeframe_secs: u64, event: &EventRecord) -> Value {
+fn event_value(timeframe: &TimeframeModel, event: &EventRecord) -> Value {
+    let occurred_time = timeframe
+        .candle(event.occurred_bar_index)
+        .map(|candle| format_utc_timestamp(candle.timestamp()));
+    let available_time = timeframe
+        .candle(event.available_bar_index)
+        .map(|candle| format_utc_timestamp(candle.timestamp()));
     json!({
-        "timeframe": labels::timeframe_label(timeframe_secs),
+        "timeframe": labels::timeframe_label(timeframe.timeframe_secs()),
         "type": event.event_type.code(),
         "type_label": labels::event_type_label(event.event_type.code()),
         "subtype": event.event_subtype_code,
@@ -362,7 +370,9 @@ fn event_value(timeframe_secs: u64, event: &EventRecord) -> Value {
         "source": event.source_code,
         "source_label": labels::source_label(event.source_code),
         "occurred_bar": event.occurred_bar_index,
+        "occurred_time": occurred_time,
         "available_bar": event.available_bar_index,
+        "available_time": available_time,
         "direction": event.direction_code,
         "reference_code": event.reference_code,
         "primary_value": event.primary_value,

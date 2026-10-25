@@ -13,14 +13,19 @@ use serde_json::{Value, json};
 use crate::labels;
 
 /// Writes one `ModelBar` as a single NDJSON line.
-pub(crate) fn write_bar(bar: &ModelBar, writer: &mut impl Write) -> io::Result<()> {
-    let value = bar_value(bar);
+pub(crate) fn write_bar(
+    bar: &ModelBar,
+    window_start: usize,
+    window_len: usize,
+    writer: &mut impl Write,
+) -> io::Result<()> {
+    let value = bar_value(bar, window_start, window_len);
     let text = serde_json::to_string(&value).map_err(io::Error::other)?;
     writer.write_all(text.as_bytes())?;
     writer.write_all(b"\n")
 }
 
-fn bar_value(bar: &ModelBar) -> Value {
+fn bar_value(bar: &ModelBar, window_start: usize, window_len: usize) -> Value {
     let candle = &bar.candle;
     let direction = &bar.direction;
     let momentum = &bar.momentum;
@@ -34,6 +39,8 @@ fn bar_value(bar: &ModelBar) -> Value {
         "bar": bar.bar_index,
         "series_index": candle.series_index(),
         "datetime": format_utc_timestamp(candle.timestamp()),
+        "window_start": window_start,
+        "window_len": window_len,
         "open": candle.open(),
         "high": candle.high(),
         "low": candle.low(),

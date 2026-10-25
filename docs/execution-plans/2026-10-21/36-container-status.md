@@ -3,7 +3,7 @@
 - Issue: [#36](https://github.com/quant-rule/quant-rule/issues/36) — docs: make a container's board status follow its sub-issues
 - Branch: `docs/36-container-status`
 - Worktree: `/home/zantgo/Projects/quant-rule--36-container-status`
-- Status: Approved
+- Status: Verified — issue closed; historical record
 - Date: 2026-10-21 (UTC; 2026-10-20 local time)
 - Transparency log: [`docs/ai-transparency-log/2026-10-21/36-container-status.md`](../../ai-transparency-log/2026-10-21/36-container-status.md)
 

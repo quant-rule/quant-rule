@@ -275,7 +275,7 @@ All criteria in §6 are met by the implementation and the observed checks, with 
 - The forming-leg reason precedence (6 before 3 and 4) is an interpretation of §8.4/A2 recorded in §4; the contract does not state the precedence explicitly.
 - A zero ATR at a pivot origin is unreachable from candles, so the zero-ATR path is tested at the `usable_atr` gate rather than end to end.
 
-Status: `Verified`. The commit, push, pull request, and board transition remain gated by §9 of `AGENTS.md`.
+Status: `Verified`. The commit, push, pull request, and board transition were completed; PR #63 is merged.
 
 ## 12. Delivery
 

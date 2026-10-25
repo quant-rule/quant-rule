@@ -68,6 +68,31 @@ fn the_schema_widths_match_the_contract() {
 }
 
 #[test]
+fn the_bar_ddl_matches_the_research_column_order() {
+    use quantrule_analytics::research::{layer1_names, layer2_names};
+
+    let store = Store::open_in_memory().expect("the in-memory store opens");
+    let connection = store.connection();
+    let mut statement = connection
+        .prepare("SELECT name FROM pragma_table_info('bar') ORDER BY cid")
+        .expect("the bar column query");
+    let ddl: Vec<String> = statement
+        .query_map([], |row| row.get(0))
+        .expect("the bar columns")
+        .collect::<Result<_, _>>()
+        .expect("the bar column names");
+
+    let mut expected = vec![String::from("dataset_id")];
+    expected.extend(layer1_names().into_iter().map(str::to_owned));
+    expected.extend(
+        layer2_names()[layer1_names().len()..]
+            .iter()
+            .map(|name| (*name).to_owned()),
+    );
+    assert_eq!(ddl, expected);
+}
+
+#[test]
 fn a_file_database_reopens_idempotently() {
     let path = database("reopen");
     {

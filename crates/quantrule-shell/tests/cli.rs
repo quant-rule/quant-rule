@@ -696,6 +696,8 @@ fn market_state_prints_the_four_timeframe_ladder() {
     assert_eq!(value["timeframes"][0]["timeframe"], "1m");
     assert!(value["timeframes"][0]["series_index"].is_number());
     assert!(value["timeframes"][0]["datetime"].is_string());
+    assert!(value["timeframes"][0]["window_start"].is_number());
+    assert!(value["timeframes"][0]["window_len"].is_number());
     assert!(value["aggregates"]["direction"].is_object());
     assert!(value["aggregates"]["events"]["per_timeframe"].is_array());
     assert!(value["timeframes"][0]["consensus"]["bullish"].is_number());
@@ -780,6 +782,8 @@ fn events_print_labeled_records() {
         assert!(value["subtype_label"].is_string());
         assert!(value["source_label"].is_string());
         assert!(value["timeframe"].is_string());
+        assert!(value["occurred_time"].is_string());
+        assert!(value["available_time"].is_string());
     }
 }
 
@@ -798,6 +802,8 @@ fn model_series_prints_the_requested_tail() {
     assert_eq!(first["bar"], 257);
     assert_eq!(last["bar"], 259);
     assert_eq!(last["series_index"], 259);
+    assert_eq!(first["window_start"], 257);
+    assert_eq!(first["window_len"], 260);
     assert!(last["readings"]["ema20"].is_number());
     assert!(last["direction"]["value"].is_number());
     assert!(last["consensus"]["bullish"].is_number());

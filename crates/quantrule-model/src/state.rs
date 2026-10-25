@@ -61,6 +61,10 @@ pub struct TimeframeMarketState {
     pub latest_series_index: u64,
     /// The UTC Unix-second open time of the latest candle.
     pub latest_open_time: i64,
+    /// The first bar position in the loaded model window.
+    pub window_start: usize,
+    /// The number of bars in the loaded model window.
+    pub window_len: usize,
 }
 
 /// The cross-axis consensus for one timeframe.
@@ -186,6 +190,8 @@ impl MarketState {
                     levels: timeframe.levels().to_vec(),
                     latest_series_index: candle.map_or(0, |candle| candle.series_index()),
                     latest_open_time: candle.map_or(0, |candle| candle.timestamp()),
+                    window_start: 0,
+                    window_len: timeframe.len(),
                 }
             })
             .collect();

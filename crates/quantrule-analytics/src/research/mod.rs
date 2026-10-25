@@ -20,6 +20,8 @@ use std::fmt;
 
 use quantrule_data::Candle;
 
+pub use columns::{aggregate_names, layer1_names, layer2_names};
+
 use crate::layers::{LayerSet, M1_SECONDS};
 
 /// The caller-supplied identity of a dataset.
