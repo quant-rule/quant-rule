@@ -2,6 +2,7 @@
 
 - Work item: `118-explicit-merge-authorization`
 - Issue: [#118](https://github.com/quant-rule/quant-rule/issues/118)
+- Pull request: [#119](https://github.com/quant-rule/quant-rule/pull/119)
 - Date: 2026-10-25 (UTC)
 
 ## Entry: explicit-instruction exception
