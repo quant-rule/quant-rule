@@ -35,6 +35,6 @@ Close the evidence, dispatch, provenance, column-agreement, and test gaps left b
 
 ## 4. Remaining
 
-- **D2:** implemented in the [command-module split](d2-command-modules.md) (PR #113); `command.rs` is 40 lines and every module is below 1,000.
-- The 1,500-bar, 100,001-row fetch, 1,200-bar `model-series`, H1-readiness, and >1,024-event end-to-end tests are still not added; the current tests cover the implemented code paths but not those exact fixtures.
+- **D2:** implemented in the [command-module split](d2-command-modules.md) (PR #113, merged); `command.rs` is 40 lines and every module is below 1,000.
+- The 1,500-bar, 100,001-row cap, 1,200-bar `model-series`, H1-readiness, and >1,024-event end-to-end tests are closed by the [analytical evidence gaps](analytical-evidence-gaps.md).
 - PR #112 is merged; the branch and worktree were removed after verification.

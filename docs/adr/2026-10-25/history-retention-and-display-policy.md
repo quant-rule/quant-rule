@@ -78,6 +78,8 @@ The values are separate by lifetime. They are not one shared snapshot size.
 
 ## 5. Verification
 
+The checks below are implemented and recorded in the [analytical evidence gaps](../../execution-plans/2026-10-25/analytical-evidence-gaps.md) plan.
+
 - A 1,500-bar fixture: default model analysis reports the true latest bar; `--window latest` reports the tail.
 - A run with more than 1,024 events: snapshot size is 1,024; full batch is larger; store and `events` use the full batch.
 - H1 retains 1,000 H1 bars and reaches EMA 200 readiness; a shared 1,000 M1 window does not.
