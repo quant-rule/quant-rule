@@ -28,12 +28,14 @@ use crate::render_state;
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
 use crate::store::{DatasetRecord, IngestRows, RemoveReport, Store, StoreError};
 
+mod dispatch;
 mod store_query;
 mod store_verify;
 
+pub(crate) use self::dispatch::{execute, parse_argv};
+
 pub(crate) use self::store_query::{
-    DbArgs, StoreListArgs, StoreShowArgs, parse_db_arguments, run_db, run_store_list,
-    run_store_show,
+    DbArgs, StoreListArgs, StoreShowArgs, run_db, run_store_list, run_store_show,
 };
 pub(crate) use self::store_verify::{StoreVerifyArgs, run_store_verify};
 
@@ -340,6 +342,8 @@ pub(crate) enum ParseError {
     UnknownAxis(String),
     /// A model command window option is invalid.
     Window(String),
+    /// A simple command received the wrong number of arguments.
+    Usage(String),
     /// A `research export` argument list is invalid.
     Research(String),
     /// A `store` argument list is invalid.
@@ -368,6 +372,7 @@ impl fmt::Display for ParseError {
                 "unknown axis '{axis}'; use direction, momentum, structure, or progression"
             ),
             Self::Window(message) => formatter.write_str(message),
+            Self::Usage(message) => formatter.write_str(message),
             Self::Research(message) => formatter.write_str(message),
             Self::Store(message) => formatter.write_str(message),
             Self::Unknown(command) => {
@@ -1588,8 +1593,11 @@ pub(crate) fn run_model_series(
         {
             continue;
         }
+        let window_len = timeframe.len();
+        let window_start = window_len.saturating_sub(args.bars);
         for bar in timeframe.tail(args.bars) {
-            crate::render_series::write_bar(&bar, writer).map_err(RunError::Output)?;
+            crate::render_series::write_bar(&bar, window_start, window_len, writer)
+                .map_err(RunError::Output)?;
         }
     }
     writer.flush().map_err(RunError::Output)

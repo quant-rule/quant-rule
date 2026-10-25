@@ -774,6 +774,26 @@ pub(crate) const RESOLUTIONS: [Column; 12] = [
     ),
 ];
 
+/// Layer 1's column names, in file order.
+#[must_use]
+pub fn layer1_names() -> Vec<&'static str> {
+    LAYER1.iter().map(|column| column.name).collect()
+}
+
+/// Layer 2's column names, in file order.
+#[must_use]
+pub fn layer2_names() -> Vec<&'static str> {
+    let mut names = layer1_names();
+    names.extend(RESOLUTIONS.iter().map(|column| column.name));
+    names
+}
+
+/// The aggregate column names, in file order.
+#[must_use]
+pub fn aggregate_names() -> Vec<&'static str> {
+    AGGREGATES.iter().map(|column| column.name).collect()
+}
+
 /// The block's trailing staleness column.
 pub(crate) const STALENESS: Column = c(
     "staleness_secs",
