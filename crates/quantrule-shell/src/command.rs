@@ -16,6 +16,7 @@ use quantrule_analytics::research::{
 use quantrule_analytics::summary::{DatasetSummary, summarize};
 use quantrule_data::{Candle, DEFAULT_WINDOW, MAX_SERIES, Timeframe};
 use quantrule_model::readings::PivotScale;
+use quantrule_model::run::ModelRun;
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
 use crate::chart;
@@ -53,6 +54,10 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
   events <csv-path>             Print every event record in the analyzed window as NDJSON.
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   legs <csv-path>               Print the minor and major leg per timeframe.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  model-series <csv-path>       Print the last complete model bars as NDJSON.
+      --timeframe <tf>          Restrict to 1m, 5m, 15m, or 1h (default: whole ladder).
+      --bars <n>                Bars per timeframe, 1..1000 (default 1000).
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   research export <csv> <dataset>
                                 Write the research dataset; requires --data-version.
@@ -114,6 +119,7 @@ Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --t
 Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
 Non-interactive: quantrule events <csv-path> [--window full|latest]
 Non-interactive: quantrule legs <csv-path> [--window full|latest]
+Non-interactive: quantrule model-series <csv-path> [--timeframe 1m] [--bars 1000] [--window full|latest]
 Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule store init --db data/quantrule.db
@@ -147,6 +153,8 @@ pub(crate) enum Command {
     Events(ModelArgs),
     /// Print the legs.
     Legs(ModelArgs),
+    /// Print the last N complete model bars.
+    ModelSeries(ModelSeriesArgs),
     /// Write the research dataset.
     ResearchExport(ResearchExportArgs),
     /// Print the research summary.
@@ -229,6 +237,19 @@ impl ModelArgs {
     fn new(path: PathBuf, window: WindowMode) -> Self {
         Self { path, window }
     }
+}
+
+/// A parsed `model-series` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ModelSeriesArgs {
+    /// The M1 source CSV.
+    pub(crate) path: PathBuf,
+    /// The input window.
+    pub(crate) window: WindowMode,
+    /// One timeframe, or `None` for the whole ladder.
+    pub(crate) timeframe: Option<Timeframe>,
+    /// The number of bars per timeframe.
+    pub(crate) bars: usize,
 }
 
 /// A parsed `fetch` command.
@@ -429,6 +450,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "market-state" => parse_model_command(rest, "market-state", Command::MarketState),
         "events" => parse_model_command(rest, "events", Command::Events),
         "legs" => parse_model_command(rest, "legs", Command::Legs),
+        "model-series" => {
+            let arguments = tokenize(rest)?;
+            parse_model_series_arguments(&arguments).map(|args| Some(Command::ModelSeries(args)))
+        }
         "axis" => parse_axis(rest),
         "market-chart" => {
             let arguments = tokenize(rest)?;
@@ -525,6 +550,101 @@ pub(crate) fn parse_model_arguments(
 
     let path = path.ok_or(ParseError::MissingPath(name))?;
     Ok(ModelArgs::new(path, window))
+}
+
+/// Parses the already-split arguments of `model-series`.
+///
+/// # Errors
+///
+/// Returns a parse error for a missing path, a repeated or unknown option, an
+/// invalid timeframe, or a bar count outside `1..=1000`.
+pub(crate) fn parse_model_series_arguments(
+    arguments: &[String],
+) -> Result<ModelSeriesArgs, ParseError> {
+    const USAGE: &str = "usage: model-series <csv-path> [--timeframe <1m|5m|15m|1h>] [--bars <1..1000>] [--window full|latest]";
+    let mut path = None;
+    let mut window = WindowMode::Full;
+    let mut window_seen = false;
+    let mut timeframe = None;
+    let mut bars = DEFAULT_WINDOW;
+    let mut index = 0;
+
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--window" => {
+                if window_seen {
+                    return Err(ParseError::Window(format!(
+                        "--window was supplied twice\n{USAGE}"
+                    )));
+                }
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Window(format!("--window requires full or latest\n{USAGE}"))
+                })?;
+                window = WindowMode::from_code(value).ok_or_else(|| {
+                    ParseError::Window(format!(
+                        "--window expects full or latest, found '{value}'\n{USAGE}"
+                    ))
+                })?;
+                window_seen = true;
+            }
+            "--timeframe" => {
+                if timeframe.is_some() {
+                    return Err(ParseError::Window(format!(
+                        "--timeframe was supplied twice\n{USAGE}"
+                    )));
+                }
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Window(format!("--timeframe requires a value\n{USAGE}"))
+                })?;
+                timeframe = Some(Timeframe::from_code(value).ok_or_else(|| {
+                    ParseError::Window(format!(
+                        "--timeframe expects 1m, 5m, 15m, or 1h, found '{value}'\n{USAGE}"
+                    ))
+                })?);
+            }
+            "--bars" => {
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Window(format!("--bars requires a value\n{USAGE}"))
+                })?;
+                let count = value.parse::<usize>().map_err(|_| {
+                    ParseError::Window(format!(
+                        "--bars expects a positive integer, found '{value}'\n{USAGE}"
+                    ))
+                })?;
+                if count == 0 || count > DEFAULT_WINDOW {
+                    return Err(ParseError::Window(format!(
+                        "--bars must be between 1 and {DEFAULT_WINDOW}\n{USAGE}"
+                    )));
+                }
+                bars = count;
+            }
+            option if option.starts_with("--") => {
+                return Err(ParseError::Window(format!(
+                    "unknown option '{option}'\n{USAGE}"
+                )));
+            }
+            value => {
+                if path.is_some() {
+                    return Err(ParseError::Window(format!(
+                        "unexpected argument '{value}'\n{USAGE}"
+                    )));
+                }
+                path = Some(PathBuf::from(value));
+            }
+        }
+        index += 1;
+    }
+
+    let path = path.ok_or(ParseError::MissingPath("model-series"))?;
+    Ok(ModelSeriesArgs {
+        path,
+        window,
+        timeframe,
+        bars,
+    })
 }
 
 /// Parses the already-split arguments of the `axis` command.
@@ -1362,8 +1482,8 @@ pub(crate) fn run_axis(
 ///
 /// Returns a [`RunError`] when the source or writer fails.
 pub(crate) fn run_events(args: &ModelArgs, writer: &mut impl Write) -> Result<(), RunError> {
-    let state = load_market_state(&args.path, args.window)?;
-    render_state::write_events(&state, writer).map_err(RunError::Output)?;
+    let run = load_model_run(&args.path, args.window)?;
+    render_state::write_event_batch(&run, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
 
@@ -1378,7 +1498,30 @@ pub(crate) fn run_legs(args: &ModelArgs, writer: &mut impl Write) -> Result<(), 
     writer.flush().map_err(RunError::Output)
 }
 
-fn load_market_state(path: &Path, window: WindowMode) -> Result<MarketState, RunError> {
+/// Prints the last `bars` complete model bars per timeframe as NDJSON.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the source, the model, or the writer fails.
+pub(crate) fn run_model_series(
+    args: &ModelSeriesArgs,
+    writer: &mut impl Write,
+) -> Result<(), RunError> {
+    let run = load_model_run(&args.path, args.window)?;
+    for timeframe in run.timeframes() {
+        if let Some(selected) = args.timeframe
+            && timeframe.timeframe_secs() != u64::from(selected.seconds())
+        {
+            continue;
+        }
+        for bar in timeframe.tail(args.bars) {
+            crate::render_series::write_bar(&bar, writer).map_err(RunError::Output)?;
+        }
+    }
+    writer.flush().map_err(RunError::Output)
+}
+
+fn load_model_run(path: &Path, window: WindowMode) -> Result<ModelRun, RunError> {
     let set = match window {
         WindowMode::Full => csv::load_full_timeframes(path),
         WindowMode::Latest => csv::load_timeframes(path),
@@ -1388,27 +1531,33 @@ fn load_market_state(path: &Path, window: WindowMode) -> Result<MarketState, Run
     let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
     let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
     let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
-    Ok(MarketState::compute(
+
+    Ok(ModelRun::compute(
         &[
             TimeframeInput {
-                timeframe_secs: Timeframe::M1.seconds() as u64,
+                timeframe_secs: u64::from(Timeframe::M1.seconds()),
                 candles: &m1,
             },
             TimeframeInput {
-                timeframe_secs: Timeframe::M5.seconds() as u64,
+                timeframe_secs: u64::from(Timeframe::M5.seconds()),
                 candles: &m5,
             },
             TimeframeInput {
-                timeframe_secs: Timeframe::M15.seconds() as u64,
+                timeframe_secs: u64::from(Timeframe::M15.seconds()),
                 candles: &m15,
             },
             TimeframeInput {
-                timeframe_secs: Timeframe::H1.seconds() as u64,
+                timeframe_secs: u64::from(Timeframe::H1.seconds()),
                 candles: &h1,
             },
         ],
         &MarketStateConfig::default(),
     ))
+}
+
+fn load_market_state(path: &Path, window: WindowMode) -> Result<MarketState, RunError> {
+    let run = load_model_run(path, window)?;
+    Ok(MarketState::from_run(&run))
 }
 
 /// Fetches a Dukascopy range and writes the CSV and optional chart.
@@ -1801,6 +1950,19 @@ mod tests {
                 args: ModelArgs::new(PathBuf::from("my data.csv"), WindowMode::Latest),
                 axis: super::Axis::Progression,
             }))
+        );
+    }
+
+    #[test]
+    fn parses_a_model_series_with_a_tail_and_timeframe() {
+        assert_eq!(
+            parse("model-series data/example.csv --timeframe 1m --bars 3 --window latest"),
+            Ok(Some(Command::ModelSeries(super::ModelSeriesArgs {
+                path: PathBuf::from("data/example.csv"),
+                window: WindowMode::Latest,
+                timeframe: Some(quantrule_data::Timeframe::M1),
+                bars: 3,
+            })))
         );
     }
 

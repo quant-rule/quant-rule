@@ -694,6 +694,8 @@ fn market_state_prints_the_four_timeframe_ladder() {
     assert_eq!(value["timeframes"].as_array().expect("timeframes").len(), 4);
     assert_eq!(value["consensus"].as_array().expect("consensus").len(), 4);
     assert_eq!(value["timeframes"][0]["timeframe"], "1m");
+    assert!(value["timeframes"][0]["series_index"].is_number());
+    assert!(value["timeframes"][0]["datetime"].is_string());
     assert!(value["aggregates"]["direction"].is_object());
     assert!(value["aggregates"]["events"]["per_timeframe"].is_array());
     assert!(value["timeframes"][0]["consensus"]["bullish"].is_number());
@@ -779,6 +781,39 @@ fn events_print_labeled_records() {
         assert!(value["source_label"].is_string());
         assert!(value["timeframe"].is_string());
     }
+}
+
+#[test]
+fn model_series_prints_the_requested_tail() {
+    let path = fixture("state_m1.csv");
+    let output = run(&[
+        "model-series",
+        &path,
+        "--timeframe",
+        "1m",
+        "--bars",
+        "3",
+    ]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 3);
+
+    let first: serde_json::Value = serde_json::from_str(lines[0]).expect("model-series JSON");
+    let last: serde_json::Value = serde_json::from_str(lines[2]).expect("model-series JSON");
+    assert_eq!(first["timeframe"], "1m");
+    assert_eq!(first["bar"], 257);
+    assert_eq!(last["bar"], 259);
+    assert_eq!(last["series_index"], 259);
+    assert!(last["readings"]["ema20"].is_number());
+    assert!(last["direction"]["value"].is_number());
+    assert!(last["consensus"]["bullish"].is_number());
+
+    let interactive = run_interactive(&format!(
+        "model-series {path} --timeframe 1m --bars 3\nquit\n"
+    ));
+    assert_success(&interactive);
+    assert_eq!(stdout_text(&interactive), stdout_text(&output));
 }
 
 #[test]

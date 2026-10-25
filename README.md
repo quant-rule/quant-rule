@@ -26,6 +26,7 @@ cargo run -p quantrule-shell -- market-chart path/to/m1.csv --png data/market.pn
 cargo run -p quantrule-shell -- axis path/to/m1.csv direction
 cargo run -p quantrule-shell -- events path/to/m1.csv
 cargo run -p quantrule-shell -- legs path/to/m1.csv
+cargo run -p quantrule-shell -- model-series path/to/m1.csv --timeframe 1m --bars 1000
 cargo run -p quantrule-shell -- research export path/to/m1.csv demo --data-version binance:BTCUSDT:60:1704067200-1710115200
 cargo run -p quantrule-shell -- research summary path/to/m1.csv
 cargo run -p quantrule-shell -- store init --db data/quantrule.db
@@ -54,6 +55,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
 | `legs` | `<csv-path>` [`--window full\|latest`] | The minor and major leg per timeframe as NDJSON |
+| `model-series` | `<csv-path>` [options] | The last complete model bars as NDJSON: candle, readings, four axes, context, and consensus |
 | `research export` | `<csv-path> <dataset> --data-version <id>` [options] | The raw M1 file and the three research layers, with the manifest, dictionary, and code table |
 | `research summary` | `<csv-path>` | Per-axis counts, ranges, ordinal histograms, and pairwise continuous correlations |
 | `store init` | [options] | Creates or opens the SQLite store and prints its schema version |
@@ -187,6 +189,8 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 `events` prints one NDJSON line per event, grouped by timeframe and ordered by availability. Each line carries the type, subtype, source, occurrence and availability bars, direction, reference, measured values, and the labels for the type, subtype, and source.
 
 `legs` prints two NDJSON lines per timeframe, one for each pivot scale. Each line carries the published leg or `null`, its origin and availability bars, target basis and version, progress, displacement, lifecycle, stage, and target-reached code, with the lifecycle, stage, direction, scale, and target-basis labels.
+
+`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=1000` and defaults to 1000; `--timeframe` defaults to the whole ladder. Events remain a separate command because a bar can have several events. The default input window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe.
 
 ### Market chart
 

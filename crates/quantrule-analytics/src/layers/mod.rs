@@ -241,7 +241,7 @@ pub fn build_layers(
 
     let timeframes: Vec<u64> = ordered.iter().map(|input| input.timeframe_secs).collect();
 
-    let mut series: Vec<TimeframeSeries<'_>> = Vec::with_capacity(ordered.len());
+    let mut series: Vec<TimeframeSeries> = Vec::with_capacity(ordered.len());
     for input in &ordered {
         series.push(TimeframeSeries::build(input, config)?);
     }

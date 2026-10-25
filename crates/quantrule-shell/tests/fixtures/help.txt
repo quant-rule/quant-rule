@@ -15,6 +15,10 @@ QuantRule shell commands:
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   legs <csv-path>               Print the minor and major leg per timeframe.
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  model-series <csv-path>       Print the last complete model bars as NDJSON.
+      --timeframe <tf>          Restrict to 1m, 5m, 15m, or 1h (default: whole ladder).
+      --bars <n>                Bars per timeframe, 1..1000 (default 1000).
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   research export <csv> <dataset>
                                 Write the research dataset; requires --data-version.
       --data-version <id>       Caller-supplied identity of the input series.
@@ -75,6 +79,7 @@ Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --t
 Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
 Non-interactive: quantrule events <csv-path> [--window full|latest]
 Non-interactive: quantrule legs <csv-path> [--window full|latest]
+Non-interactive: quantrule model-series <csv-path> [--timeframe 1m] [--bars 1000] [--window full|latest]
 Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule store init --db data/quantrule.db

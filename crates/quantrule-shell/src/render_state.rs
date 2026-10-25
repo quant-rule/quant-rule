@@ -7,11 +7,13 @@
 
 use std::io::{self, Write};
 
+use quantrule_data::format_utc_timestamp;
 use serde_json::{Value, json};
 
 use quantrule_model::aggregate::{CrossTimeframeAggregates, TimeframeEventSummary};
 use quantrule_model::axes::progression::ProgressionLeg;
 use quantrule_model::events::EventRecord;
+use quantrule_model::run::ModelRun;
 use quantrule_model::state::{MarketState, TimeframeConsensus, TimeframeMarketState};
 
 use crate::command::Axis;
@@ -41,11 +43,11 @@ pub(crate) fn write_axis(
     Ok(())
 }
 
-/// Writes one JSON line per event, grouped by timeframe and availability order.
-pub(crate) fn write_events(state: &MarketState, writer: &mut impl Write) -> io::Result<()> {
-    for timeframe in &state.timeframes {
-        for event in &timeframe.snapshot.events {
-            write_line(&event_value(timeframe, event), writer)?;
+/// Writes the full event batch, grouped by timeframe and availability order.
+pub(crate) fn write_event_batch(run: &ModelRun, writer: &mut impl Write) -> io::Result<()> {
+    for timeframe in run.timeframes() {
+        for event in timeframe.events() {
+            write_line(&event_value(timeframe.timeframe_secs(), event), writer)?;
         }
     }
     Ok(())
@@ -87,6 +89,8 @@ fn timeframe_value(
     json!({
         "timeframe": labels::timeframe_label(snapshot.timeframe_secs),
         "bar": snapshot.latest_bar_index,
+        "series_index": timeframe.latest_series_index,
+        "datetime": format_utc_timestamp(timeframe.latest_open_time),
         "direction": {
             "value": snapshot.direction.direction,
             "state": snapshot.direction.state_code,
@@ -348,9 +352,9 @@ fn axis_value(timeframe: &TimeframeMarketState, axis: Axis) -> Value {
     }
 }
 
-fn event_value(timeframe: &TimeframeMarketState, event: &EventRecord) -> Value {
+fn event_value(timeframe_secs: u64, event: &EventRecord) -> Value {
     json!({
-        "timeframe": labels::timeframe_label(timeframe.snapshot.timeframe_secs),
+        "timeframe": labels::timeframe_label(timeframe_secs),
         "type": event.event_type.code(),
         "type_label": labels::event_type_label(event.event_type.code()),
         "subtype": event.event_subtype_code,

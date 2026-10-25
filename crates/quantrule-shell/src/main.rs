@@ -13,6 +13,7 @@ mod export;
 mod fetch;
 mod labels;
 mod render;
+mod render_series;
 mod render_state;
 mod source;
 mod store;
@@ -102,6 +103,11 @@ fn run_interactive() -> i32 {
             }
             Command::Legs(args) => {
                 if let Err(error) = command::run_legs(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::ModelSeries(args) => {
+                if let Err(error) = command::run_model_series(&args, &mut stdout) {
                     eprintln!("error: {error}");
                 }
             }
@@ -327,6 +333,27 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             };
             let mut stdout = io::stdout();
             match command::run_legs(&model_args, &mut stdout) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "model-series" => {
+            let Some(arguments) = string_arguments(&args[1..]) else {
+                eprintln!("error: model-series argument is not valid UTF-8");
+                return 1;
+            };
+            let series_args = match command::parse_model_series_arguments(&arguments) {
+                Ok(series_args) => series_args,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 1;
+                }
+            };
+            let mut stdout = io::stdout();
+            match command::run_model_series(&series_args, &mut stdout) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");
