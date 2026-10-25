@@ -3,6 +3,7 @@
 - Issue: none; branch slug used
 - Branch: `refactor/harden-analytics`
 - Worktree: `../quant-rule--harden-analytics`
+- Pull request: [#111](https://github.com/quant-rule/quant-rule/pull/111)
 - Status: Implemented and locally verified; D1/D2 shell-dispatch split and the full column-agreement test remain
 - Date: 2026-10-25 (UTC)
 - Related: [history policy ADR](../../adr/2026-10-25/history-retention-and-display-policy.md), [dataset verification](../../analytics/2026-10-25/dataset-verification.md)

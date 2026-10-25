@@ -37,4 +37,5 @@
   - `main.rs`/`command.rs` dispatch duplication remains; it was not hidden
     behind a claim of completion.
 - **Remaining:** D1/D2 command dispatch/module split and the full cross-surface
-  column agreement test. No push, PR, or merge was performed.
+  column agreement test. Pull request [#111](https://github.com/quant-rule/quant-rule/pull/111)
+  is open; no merge was performed.
