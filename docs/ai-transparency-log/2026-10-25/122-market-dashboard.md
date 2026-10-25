@@ -5,7 +5,7 @@
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
 - Branch/worktree: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract`
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25. No implementation, commit, push, PR, or merge.
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25. PR #132 is open and its checks pass. No implementation; no merge.
 
 ## Intent and boundary
 
@@ -34,6 +34,7 @@ Boundary of this entry:
 5. Moved the session to the worktree and wrote the approved execution plan and this log.
 6. Wrote `docs/model/2026-10-25/dashboard-state.md` and indexed it in `docs/README.md`. The contract covers the view types, all four axis roles, Direction tenure and the interrupted-continuity rule, Progression recent pace and terminal freeze, Structure activity, readings, agreement, churn, absence, causality, edge cases, and deviations.
 7. Did not write any Rust code. The human approved the contract on 2026-10-25; the contract status was changed from `Proposed` to `Approved`, and the plan's Phase 1 review row was checked.
+8. Committed the documentation as `db3dc3e`, pushed `docs/123-dashboard-view-contract`, and opened [PR #132](https://github.com/quant-rule/quant-rule/pull/132). The `verify` and `sync` checks pass.
 
 ## Decisions and corrections
 
@@ -68,13 +69,15 @@ Observed Phase 0 and Phase 1 evidence:
 - `docs/model/2026-10-25/dashboard-state.md` exists; its header status is `Approved — reviewed 2026-10-25`.
 - `docs/README.md` carries the new contract in `Current model contracts` as `Approved (#123)`.
 - `docs/execution-plans/2026-10-25/122-market-dashboard.md` verification rows 2 and 3 are checked: the contract exists, is linked, and was approved by the human.
+- Commit `db3dc3e`; branch `docs/123-dashboard-view-contract`; PR #132 open.
+- `gh pr checks 132 --repo quant-rule/quant-rule --watch` — `verify` passed in 53s; `sync` passed in 11s.
 - The contract's section headings were inspected for the required coverage: purpose, boundary, conventions, envelope, per-timeframe state, axis state, readings, cross-timeframe state, absence/readiness, text, JSON, invariants, edge cases, deviations, verification, and open items.
 
 Not verified / not run:
 
-- No `cargo fmt`, `cargo clippy`, `cargo test`, or `cargo doc`.
+- No `cargo fmt`, `cargo clippy`, `cargo test`, or `cargo doc` was run locally; the CI `verify` job ran the repository checks on the docs-only PR and passed.
 - No dashboard implementation or output.
-- No commit, push, pull request, or merge.
+- No merge.
 - No independent agent review. The planning roles were sequential in one session; that is disclosed here.
 
 ## Learning
