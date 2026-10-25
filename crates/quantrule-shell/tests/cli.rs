@@ -700,6 +700,27 @@ fn market_state_prints_the_four_timeframe_ladder() {
 }
 
 #[test]
+fn market_state_uses_the_full_series_by_default_and_the_tail_on_request() {
+    let path = fixture("over_window.csv");
+
+    let full = run(&["market-state", &path]);
+    assert_success(&full);
+    let full_value: serde_json::Value =
+        serde_json::from_str(stdout_text(&full).trim()).expect("the market state is JSON");
+    assert_eq!(full_value["timeframes"][0]["bar"], 1000);
+
+    let latest = run(&["market-state", &path, "--window", "latest"]);
+    assert_success(&latest);
+    let latest_value: serde_json::Value =
+        serde_json::from_str(stdout_text(&latest).trim()).expect("the market state is JSON");
+    assert_eq!(latest_value["timeframes"][0]["bar"], 999);
+
+    let interactive = run_interactive(&format!("market-state {path} --window latest\nquit\n"));
+    assert_success(&interactive);
+    assert_eq!(stdout_text(&interactive), stdout_text(&latest));
+}
+
+#[test]
 fn market_state_output_is_deterministic() {
     let path = fixture("state_m1.csv");
     let first = run(&["market-state", &path]);

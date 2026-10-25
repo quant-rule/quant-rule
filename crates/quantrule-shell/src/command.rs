@@ -14,7 +14,7 @@ use quantrule_analytics::research::{
     DatasetMeta, ExportError as ResearchExportError, render_dataset,
 };
 use quantrule_analytics::summary::{DatasetSummary, summarize};
-use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe};
+use quantrule_data::{Candle, DEFAULT_WINDOW, MAX_SERIES, Timeframe};
 use quantrule_model::readings::PivotScale;
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
@@ -42,13 +42,18 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
   candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
   timeframes <csv-path>         Build M5/M15/H1 from an M1 CSV; print NDJSON and a report.
   market-state <csv-path>       Print the four-timeframe market state as JSON.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   market-chart <csv-path>       Render the last candles and four axis panels as PNG.
       --png <path>              Required PNG target.
       --timeframe <tf>          Chart timeframe: 1m, 5m, 15m, or 1h (default 1m).
       --candles <n>             Last n bars, 1..1000 (default 1000).
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
-  events <csv-path>             Print every event record as NDJSON, in availability order.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  events <csv-path>             Print every event record in the analyzed window as NDJSON.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   legs <csv-path>               Print the minor and major leg per timeframe.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   research export <csv> <dataset>
                                 Write the research dataset; requires --data-version.
       --data-version <id>       Caller-supplied identity of the input series.
@@ -87,7 +92,8 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
 
 CSV header: Date,Open,High,Low,Close,Volume
 Timestamp: YYYY-MM-DD HH:MM:SS+00:00
-The window retains the last 1000 candles.
+The candle and timeframe display commands retain the last 1000 candles.
+Model analysis uses the full series up to 100000 by default; --window latest uses the last 1000 per timeframe.
 NDJSON: one candle per line, oldest first:
 {"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
 Timeframes: M1 is the source; M5, M15, and H1 are derived by the data engine.
@@ -103,11 +109,11 @@ Fetch dates: inclusive UTC dates in YYYY-MM-DD form; no clock is read.
 Non-interactive: quantrule candles <csv-path>
 Non-interactive: quantrule candles-tolerant <csv-path>
 Non-interactive: quantrule timeframes <csv-path>
-Non-interactive: quantrule market-state <csv-path>
+Non-interactive: quantrule market-state <csv-path> [--window full|latest]
 Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
-Non-interactive: quantrule axis <csv-path> direction
-Non-interactive: quantrule events <csv-path>
-Non-interactive: quantrule legs <csv-path>
+Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
+Non-interactive: quantrule events <csv-path> [--window full|latest]
+Non-interactive: quantrule legs <csv-path> [--window full|latest]
 Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
 Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule store init --db data/quantrule.db
@@ -132,15 +138,15 @@ pub(crate) enum Command {
     /// Build M5, M15, and H1 from an M1 CSV, then print the series and report.
     Timeframes(PathBuf),
     /// Print the assembled market state.
-    MarketState(PathBuf),
+    MarketState(ModelArgs),
     /// Render the last candles with the four axis panels.
     MarketChart(MarketChartArgs),
     /// Print one axis per timeframe.
-    Axis { path: PathBuf, axis: Axis },
+    Axis { args: ModelArgs, axis: Axis },
     /// Print the event records.
-    Events(PathBuf),
+    Events(ModelArgs),
     /// Print the legs.
-    Legs(PathBuf),
+    Legs(ModelArgs),
     /// Write the research dataset.
     ResearchExport(ResearchExportArgs),
     /// Print the research summary.
@@ -187,6 +193,41 @@ impl Axis {
             "progression" => Some(Self::Progression),
             _ => None,
         }
+    }
+}
+
+/// The input window used by a model analysis command.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum WindowMode {
+    /// Use the full supported series, up to the dataset cap.
+    #[default]
+    Full,
+    /// Use the last [`quantrule_data::DEFAULT_WINDOW`] candles per timeframe.
+    Latest,
+}
+
+impl WindowMode {
+    fn from_code(code: &str) -> Option<Self> {
+        match code {
+            "full" => Some(Self::Full),
+            "latest" => Some(Self::Latest),
+            _ => None,
+        }
+    }
+}
+
+/// The path and input window shared by the model analysis commands.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ModelArgs {
+    /// The M1 source CSV.
+    pub(crate) path: PathBuf,
+    /// The input window.
+    pub(crate) window: WindowMode,
+}
+
+impl ModelArgs {
+    fn new(path: PathBuf, window: WindowMode) -> Self {
+        Self { path, window }
     }
 }
 
@@ -244,6 +285,8 @@ pub(crate) struct MarketChartArgs {
     pub(crate) timeframe: Timeframe,
     /// The number of bars to draw.
     pub(crate) candles: usize,
+    /// The input window used to build the chart.
+    pub(crate) window: WindowMode,
 }
 
 /// A command line could not be parsed.
@@ -261,6 +304,8 @@ pub(crate) enum ParseError {
     AxisUsage,
     /// The axis name is not known.
     UnknownAxis(String),
+    /// A model command window option is invalid.
+    Window(String),
     /// A `research export` argument list is invalid.
     Research(String),
     /// A `store` argument list is invalid.
@@ -288,6 +333,7 @@ impl fmt::Display for ParseError {
                 formatter,
                 "unknown axis '{axis}'; use direction, momentum, structure, or progression"
             ),
+            Self::Window(message) => formatter.write_str(message),
             Self::Research(message) => formatter.write_str(message),
             Self::Store(message) => formatter.write_str(message),
             Self::Unknown(command) => {
@@ -380,9 +426,9 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "candles" => path_command(rest, "candles", Command::Candles),
         "candles-tolerant" => path_command(rest, "candles-tolerant", Command::CandlesTolerant),
         "timeframes" => path_command(rest, "timeframes", Command::Timeframes),
-        "market-state" => path_command(rest, "market-state", Command::MarketState),
-        "events" => path_command(rest, "events", Command::Events),
-        "legs" => path_command(rest, "legs", Command::Legs),
+        "market-state" => parse_model_command(rest, "market-state", Command::MarketState),
+        "events" => parse_model_command(rest, "events", Command::Events),
+        "legs" => parse_model_command(rest, "legs", Command::Legs),
         "axis" => parse_axis(rest),
         "market-chart" => {
             let arguments = tokenize(rest)?;
@@ -420,6 +466,127 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         }
         _ => Err(ParseError::Unknown(name.to_owned())),
     }
+}
+
+/// Parses the already-split arguments of a model analysis command.
+///
+/// Used by the non-interactive entry point, where the operating system has
+/// already separated the arguments.
+///
+/// # Errors
+///
+/// Returns a parse error for a missing path, a repeated window, an unknown
+/// option, or an invalid window value.
+pub(crate) fn parse_model_arguments(
+    arguments: &[String],
+    name: &'static str,
+) -> Result<ModelArgs, ParseError> {
+    let usage = format!("usage: {name} <csv-path> [--window full|latest]");
+    let mut path = None;
+    let mut window = WindowMode::Full;
+    let mut window_seen = false;
+    let mut index = 0;
+
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--window" => {
+                if window_seen {
+                    return Err(ParseError::Window(format!(
+                        "--window was supplied twice\n{usage}"
+                    )));
+                }
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Window(format!("--window requires full or latest\n{usage}"))
+                })?;
+                window = WindowMode::from_code(value).ok_or_else(|| {
+                    ParseError::Window(format!(
+                        "--window expects full or latest, found '{value}'\n{usage}"
+                    ))
+                })?;
+                window_seen = true;
+            }
+            option if option.starts_with("--") => {
+                return Err(ParseError::Window(format!(
+                    "unknown option '{option}'\n{usage}"
+                )));
+            }
+            value => {
+                if path.is_some() {
+                    return Err(ParseError::Window(format!(
+                        "unexpected argument '{value}'\n{usage}"
+                    )));
+                }
+                path = Some(PathBuf::from(value));
+            }
+        }
+        index += 1;
+    }
+
+    let path = path.ok_or(ParseError::MissingPath(name))?;
+    Ok(ModelArgs::new(path, window))
+}
+
+/// Parses the already-split arguments of the `axis` command.
+///
+/// # Errors
+///
+/// Returns a parse error for a missing path or axis, an unknown axis, a
+/// repeated window, an unknown option, or an invalid window value.
+pub(crate) fn parse_axis_arguments(arguments: &[String]) -> Result<(ModelArgs, Axis), ParseError> {
+    const USAGE: &str =
+        "usage: axis <csv-path> <direction|momentum|structure|progression> [--window full|latest]";
+    let mut path = None;
+    let mut axis = None;
+    let mut window = WindowMode::Full;
+    let mut window_seen = false;
+    let mut index = 0;
+
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--window" => {
+                if window_seen {
+                    return Err(ParseError::Window(format!(
+                        "--window was supplied twice\n{USAGE}"
+                    )));
+                }
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Window(format!("--window requires full or latest\n{USAGE}"))
+                })?;
+                window = WindowMode::from_code(value).ok_or_else(|| {
+                    ParseError::Window(format!(
+                        "--window expects full or latest, found '{value}'\n{USAGE}"
+                    ))
+                })?;
+                window_seen = true;
+            }
+            option if option.starts_with("--") => {
+                return Err(ParseError::Window(format!(
+                    "unknown option '{option}'\n{USAGE}"
+                )));
+            }
+            value => {
+                if path.is_none() {
+                    path = Some(PathBuf::from(value));
+                } else if axis.is_none() {
+                    axis = Some(
+                        Axis::from_code(value)
+                            .ok_or_else(|| ParseError::UnknownAxis(value.to_owned()))?,
+                    );
+                } else {
+                    return Err(ParseError::Window(format!(
+                        "unexpected argument '{value}'\n{USAGE}"
+                    )));
+                }
+            }
+        }
+        index += 1;
+    }
+
+    let path = path.ok_or_else(|| ParseError::Window(USAGE.to_string()))?;
+    let axis = axis.ok_or_else(|| ParseError::Window(USAGE.to_string()))?;
+    Ok((ModelArgs::new(path, window), axis))
 }
 
 /// Parses the arguments of a `fetch` command.
@@ -549,12 +716,13 @@ fn option_value<'a>(
 pub(crate) fn parse_market_chart_arguments(
     arguments: &[String],
 ) -> Result<MarketChartArgs, ParseError> {
-    const USAGE: &str =
-        "usage: market-chart <csv-path> --png <path> [--timeframe <1m|5m|15m|1h>] [--candles <n>]";
+    const USAGE: &str = "usage: market-chart <csv-path> --png <path> [--timeframe <1m|5m|15m|1h>] [--candles <n>] [--window full|latest]";
     let mut path = None;
     let mut png = None;
     let mut timeframe = None;
     let mut candles = DEFAULT_CHART_CANDLES;
+    let mut window = WindowMode::Full;
+    let mut window_seen = false;
     let mut index = 0;
 
     while index < arguments.len() {
@@ -595,6 +763,20 @@ pub(crate) fn parse_market_chart_arguments(
                 }
                 candles = count;
             }
+            "--window" => {
+                if window_seen {
+                    return Err(ParseError::MarketChart(format!(
+                        "--window was supplied twice\n{USAGE}"
+                    )));
+                }
+                let value = market_chart_value(arguments, &mut index, "--window", USAGE)?;
+                window = WindowMode::from_code(value).ok_or_else(|| {
+                    ParseError::MarketChart(format!(
+                        "--window expects full or latest, found '{value}'\n{USAGE}"
+                    ))
+                })?;
+                window_seen = true;
+            }
             option if option.starts_with("--") => {
                 return Err(ParseError::MarketChart(format!(
                     "unknown option '{option}'\n{USAGE}"
@@ -626,6 +808,7 @@ pub(crate) fn parse_market_chart_arguments(
         png,
         timeframe: timeframe.unwrap_or(Timeframe::M1),
         candles,
+        window,
     })
 }
 
@@ -692,8 +875,22 @@ fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     Ok(tokens)
 }
 
+fn parse_model_command(
+    rest: &str,
+    name: &'static str,
+    build: fn(ModelArgs) -> Command,
+) -> Result<Option<Command>, ParseError> {
+    let (body, window) = split_window_option(rest, name)?;
+    let path = body.trim();
+    if path.is_empty() {
+        return Err(ParseError::MissingPath(name));
+    }
+    Ok(Some(build(ModelArgs::new(PathBuf::from(path), window))))
+}
+
 fn parse_axis(rest: &str) -> Result<Option<Command>, ParseError> {
-    let (path, axis) = rest
+    let (body, window) = split_window_option(rest, "axis")?;
+    let (path, axis) = body
         .rsplit_once(char::is_whitespace)
         .ok_or(ParseError::AxisUsage)?;
     let path = path.trim();
@@ -703,9 +900,58 @@ fn parse_axis(rest: &str) -> Result<Option<Command>, ParseError> {
     }
     let axis = Axis::from_code(axis).ok_or_else(|| ParseError::UnknownAxis(axis.to_owned()))?;
     Ok(Some(Command::Axis {
-        path: PathBuf::from(path),
+        args: ModelArgs::new(PathBuf::from(path), window),
         axis,
     }))
+}
+
+/// Splits an optional trailing `--window <full|latest>` from a model command.
+///
+/// The path is kept as the trimmed remainder, so an interactive path may still
+/// contain spaces. The option is only recognized at the end of the command.
+fn split_window_option<'a>(
+    rest: &'a str,
+    command: &'static str,
+) -> Result<(&'a str, WindowMode), ParseError> {
+    let usage = format!("usage: {command} <csv-path> [--window full|latest]");
+    let rest = rest.trim();
+    let (body, value) = if let Some(position) = rest.rfind(" --window=") {
+        (
+            rest[..position].trim_end(),
+            rest[position + " --window=".len()..].trim(),
+        )
+    } else if let Some(position) = rest.rfind(" --window") {
+        let value = rest[position + " --window".len()..].trim();
+        (rest[..position].trim_end(), value)
+    } else if let Some(value) = rest.strip_prefix("--window=") {
+        ("", value.trim())
+    } else if let Some(value) = rest.strip_prefix("--window") {
+        ("", value.trim())
+    } else {
+        (rest, "full")
+    };
+
+    if body.contains("--window") {
+        return Err(ParseError::Window(format!(
+            "the window option must appear once at the end\n{usage}"
+        )));
+    }
+    if value.is_empty() {
+        return Err(ParseError::Window(format!(
+            "--window requires full or latest\n{usage}"
+        )));
+    }
+    if value.split_whitespace().count() != 1 {
+        return Err(ParseError::Window(format!(
+            "--window requires exactly one value, full or latest\n{usage}"
+        )));
+    }
+    let window = WindowMode::from_code(value).ok_or_else(|| {
+        ParseError::Window(format!(
+            "--window expects full or latest, found '{value}'\n{usage}"
+        ))
+    })?;
+    Ok((body, window))
 }
 
 /// Parses the arguments after `research`.
@@ -1059,8 +1305,8 @@ pub(crate) fn run_timeframes(
 /// # Errors
 ///
 /// Returns a [`RunError`] when the source or writer fails.
-pub(crate) fn run_market_state(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
-    let state = load_market_state(path)?;
+pub(crate) fn run_market_state(args: &ModelArgs, writer: &mut impl Write) -> Result<(), RunError> {
+    let state = load_market_state(&args.path, args.window)?;
     render_state::write_market_state(&state, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
@@ -1078,7 +1324,7 @@ pub(crate) fn run_market_chart(
     args: &MarketChartArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let LayerBuild { layers, .. } = load_layers(&args.path)?;
+    let LayerBuild { layers, .. } = load_layers_with_window(&args.path, args.window)?;
     let series =
         ChartSeries::from_layers(&layers, u64::from(args.timeframe.seconds()), args.candles);
     let bytes = chart::render_market_png(&series, args.timeframe).map_err(RunError::Chart)?;
@@ -1100,8 +1346,12 @@ pub(crate) fn run_market_chart(
 /// # Errors
 ///
 /// Returns a [`RunError`] when the source or writer fails.
-pub(crate) fn run_axis(path: &Path, axis: Axis, writer: &mut impl Write) -> Result<(), RunError> {
-    let state = load_market_state(path)?;
+pub(crate) fn run_axis(
+    args: &ModelArgs,
+    axis: Axis,
+    writer: &mut impl Write,
+) -> Result<(), RunError> {
+    let state = load_market_state(&args.path, args.window)?;
     render_state::write_axis(&state, axis, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
@@ -1111,8 +1361,8 @@ pub(crate) fn run_axis(path: &Path, axis: Axis, writer: &mut impl Write) -> Resu
 /// # Errors
 ///
 /// Returns a [`RunError`] when the source or writer fails.
-pub(crate) fn run_events(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
-    let state = load_market_state(path)?;
+pub(crate) fn run_events(args: &ModelArgs, writer: &mut impl Write) -> Result<(), RunError> {
+    let state = load_market_state(&args.path, args.window)?;
     render_state::write_events(&state, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
@@ -1122,14 +1372,18 @@ pub(crate) fn run_events(path: &Path, writer: &mut impl Write) -> Result<(), Run
 /// # Errors
 ///
 /// Returns a [`RunError`] when the source or writer fails.
-pub(crate) fn run_legs(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
-    let state = load_market_state(path)?;
+pub(crate) fn run_legs(args: &ModelArgs, writer: &mut impl Write) -> Result<(), RunError> {
+    let state = load_market_state(&args.path, args.window)?;
     render_state::write_legs(&state, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
 
-fn load_market_state(path: &Path) -> Result<MarketState, RunError> {
-    let set = csv::load_timeframes(path).map_err(RunError::Source)?;
+fn load_market_state(path: &Path, window: WindowMode) -> Result<MarketState, RunError> {
+    let set = match window {
+        WindowMode::Full => csv::load_full_timeframes(path),
+        WindowMode::Latest => csv::load_timeframes(path),
+    }
+    .map_err(RunError::Source)?;
     let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
     let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
     let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
@@ -1168,7 +1422,11 @@ fn load_market_state(path: &Path) -> Result<MarketState, RunError> {
 ///
 /// Returns a [`RunError`] when the source, CSV, chart, PNG, or summary writer
 /// fails.
-pub(crate) fn run_fetch(args: &FetchArgs, writer: &mut impl Write) -> Result<(), RunError> {
+pub(crate) fn run_fetch(
+    args: &FetchArgs,
+    writer: &mut impl Write,
+    warnings: &mut impl Write,
+) -> Result<(), RunError> {
     let csv_path = args
         .csv
         .clone()
@@ -1180,7 +1438,24 @@ pub(crate) fn run_fetch(args: &FetchArgs, writer: &mut impl Write) -> Result<(),
 
     let outcome = fetch::run_fetch(&transport, &request, &options).map_err(RunError::Fetch)?;
     fetch::write_summary(&outcome, &request, writer).map_err(RunError::Output)?;
-    writer.flush().map_err(RunError::Output)
+    write_fetch_cap_warning(outcome.accepted, warnings).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)?;
+    warnings.flush().map_err(RunError::Output)
+}
+
+/// Warns when a fetch produced more rows than the batch dataset cap.
+///
+/// The fetch itself streams the whole range and writes every accepted row, so
+/// the warning is the shell's way of making the downstream limit visible before
+/// the user tries to ingest or export the file.
+fn write_fetch_cap_warning(accepted: usize, warnings: &mut impl Write) -> io::Result<()> {
+    if accepted > MAX_SERIES {
+        writeln!(
+            warnings,
+            "warning: accepted={accepted} exceeds the {MAX_SERIES}-row batch cap; store and research reject this file, and market-chart requires --window latest"
+        )?;
+    }
+    Ok(())
 }
 
 /// One layer build and its accepted M1 candles.
@@ -1191,7 +1466,15 @@ struct LayerBuild {
 
 /// Loads an M1 CSV and builds the three layers.
 fn load_layers(path: &Path) -> Result<LayerBuild, RunError> {
-    let set = csv::load_full_timeframes(path).map_err(RunError::Source)?;
+    load_layers_with_window(path, WindowMode::Full)
+}
+
+fn load_layers_with_window(path: &Path, window: WindowMode) -> Result<LayerBuild, RunError> {
+    let set = match window {
+        WindowMode::Full => csv::load_full_timeframes(path),
+        WindowMode::Latest => csv::load_timeframes(path),
+    }
+    .map_err(RunError::Source)?;
     let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
     let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
     let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
@@ -1335,8 +1618,9 @@ pub(crate) fn run_help(writer: &mut impl Write) -> Result<(), RunError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Command, FetchArgs, MarketChartArgs, ParseError, ResearchExportArgs, StoreIngestArgs,
-        parse, parse_fetch_arguments, parse_market_chart_arguments,
+        Command, FetchArgs, MarketChartArgs, ModelArgs, ParseError, ResearchExportArgs,
+        StoreIngestArgs, WindowMode, parse, parse_fetch_arguments, parse_market_chart_arguments,
+        write_fetch_cap_warning,
     };
     use std::path::PathBuf;
 
@@ -1369,6 +1653,7 @@ mod tests {
             png: PathBuf::from("data/market.png"),
             timeframe,
             candles,
+            window: WindowMode::Full,
         }
     }
 
@@ -1480,17 +1765,24 @@ mod tests {
     fn parses_the_market_state_commands() {
         assert_eq!(
             parse("market-state data/example.csv"),
-            Ok(Some(Command::MarketState(PathBuf::from(
-                "data/example.csv"
+            Ok(Some(Command::MarketState(ModelArgs::new(
+                PathBuf::from("data/example.csv"),
+                WindowMode::Full,
             ))))
         );
         assert_eq!(
-            parse("events data/example.csv"),
-            Ok(Some(Command::Events(PathBuf::from("data/example.csv"))))
+            parse("events data/example.csv --window latest"),
+            Ok(Some(Command::Events(ModelArgs::new(
+                PathBuf::from("data/example.csv"),
+                WindowMode::Latest,
+            ))))
         );
         assert_eq!(
-            parse("legs data/example.csv"),
-            Ok(Some(Command::Legs(PathBuf::from("data/example.csv"))))
+            parse("legs data/example.csv --window full"),
+            Ok(Some(Command::Legs(ModelArgs::new(
+                PathBuf::from("data/example.csv"),
+                WindowMode::Full,
+            ))))
         );
     }
 
@@ -1499,17 +1791,43 @@ mod tests {
         assert_eq!(
             parse("axis data/example.csv direction"),
             Ok(Some(Command::Axis {
-                path: PathBuf::from("data/example.csv"),
+                args: ModelArgs::new(PathBuf::from("data/example.csv"), WindowMode::Full),
                 axis: super::Axis::Direction,
             }))
         );
         assert_eq!(
-            parse("axis my data.csv progression"),
+            parse("axis my data.csv progression --window latest"),
             Ok(Some(Command::Axis {
-                path: PathBuf::from("my data.csv"),
+                args: ModelArgs::new(PathBuf::from("my data.csv"), WindowMode::Latest),
                 axis: super::Axis::Progression,
             }))
         );
+    }
+
+    #[test]
+    fn rejects_an_invalid_model_window() {
+        assert!(matches!(
+            parse("market-state data/example.csv --window 300"),
+            Err(super::ParseError::Window(_))
+        ));
+        assert!(matches!(
+            parse("axis data/example.csv direction --window"),
+            Err(super::ParseError::Window(_))
+        ));
+    }
+
+    #[test]
+    fn the_fetch_cap_warning_is_only_written_over_the_cap() {
+        let mut under = Vec::new();
+        write_fetch_cap_warning(100_000, &mut under).expect("the warning writes");
+        assert!(under.is_empty());
+
+        let mut over = Vec::new();
+        write_fetch_cap_warning(100_001, &mut over).expect("the warning writes");
+        let text = String::from_utf8(over).expect("the warning is UTF-8");
+        assert!(text.contains("accepted=100001"));
+        assert!(text.contains("100000-row batch cap"));
+        assert!(text.contains("--window latest"));
     }
 
     #[test]
