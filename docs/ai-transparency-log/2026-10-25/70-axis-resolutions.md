@@ -37,4 +37,6 @@
 - `cargo fmt --all -- --check`: clean.
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
-- Status: implementation complete; commit, push, pull request, and board update follow this log entry.
+- Implementation commit: `4b51caf` (`feat: persist axis resolutions and layer 2`).
+- Pull request: [#103](https://github.com/quant-rule/quant-rule/pull/103).
+- Status: implementation complete and locally verified; pull request open for human review.

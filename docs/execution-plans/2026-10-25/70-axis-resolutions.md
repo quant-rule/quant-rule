@@ -2,8 +2,8 @@
 
 - Issue: [#70](https://github.com/quant-rule/quant-rule/issues/70) — feat: persist axis resolutions and layer 2
 - Branch: `feat/70-axis-resolutions`
-- Pull request: — (not opened yet)
-- Status: Approved
+- Pull request: [#103](https://github.com/quant-rule/quant-rule/pull/103)
+- Status: Verified
 - Date: 2026-10-25 (UTC)
 - ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)
 - Transparency log: [`docs/ai-transparency-log/2026-10-25/70-axis-resolutions.md`](../../ai-transparency-log/2026-10-25/70-axis-resolutions.md)
