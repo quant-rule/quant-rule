@@ -13,11 +13,11 @@ use std::num::NonZeroU64;
 use quantrule_data::Candle;
 
 use crate::aggregate::{CrossTimeframeAggregates, ReferenceSet, TimeframeSnapshot};
-use crate::axes::direction::DirectionSeries;
-use crate::axes::momentum::MomentumSeries;
+use crate::axes::direction::{DirectionBar, DirectionSeries};
+use crate::axes::momentum::{MomentumBar, MomentumSeries};
 use crate::axes::progression::{ProgressionConfig, ProgressionSeries};
 use crate::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
-use crate::axes::structure::{StructureConfig, StructureSeries};
+use crate::axes::structure::{StructureBar, StructureConfig, StructureSeries};
 use crate::context::ContextSeries;
 use crate::events::EventRecord;
 use crate::events::divergence::{DivergenceConfig, DivergenceEventSeries};
@@ -90,11 +90,28 @@ impl TimeframeConsensus {
     /// Builds the consensus for one timeframe snapshot.
     #[must_use]
     pub fn compute(snapshot: &TimeframeSnapshot) -> Self {
-        let values = [
-            snapshot.direction.direction,
-            snapshot.momentum.force,
-            snapshot.structure.score,
-        ];
+        Self::from_bars(
+            snapshot.timeframe_secs,
+            &snapshot.direction,
+            &snapshot.momentum,
+            &snapshot.structure,
+        )
+    }
+
+    /// Builds the consensus for one closed bar from its three voting bars.
+    ///
+    /// Direction, Momentum, and Structure vote; Progression is excluded. A
+    /// missing value is not counted as neutral. The weakest directional axis is
+    /// the lowest valid size percentile, with the lower axis code breaking a
+    /// tie.
+    #[must_use]
+    pub fn from_bars(
+        timeframe_secs: u64,
+        direction: &DirectionBar,
+        momentum: &MomentumBar,
+        structure: &StructureBar,
+    ) -> Self {
+        let values = [direction.direction, momentum.force, structure.score];
         let mut bullish = 0_u8;
         let mut bearish = 0_u8;
         let mut neutral = 0_u8;
@@ -109,9 +126,9 @@ impl TimeframeConsensus {
         }
 
         let candidates = [
-            (1_u8, snapshot.direction.size_percentile),
-            (2, snapshot.momentum.size_percentile),
-            (3, snapshot.structure.size_percentile),
+            (1_u8, direction.size_percentile),
+            (2, momentum.size_percentile),
+            (3, structure.size_percentile),
         ];
         let mut weakest: Option<(u8, f64)> = None;
         for (code, percentile) in candidates {
@@ -127,7 +144,7 @@ impl TimeframeConsensus {
         }
 
         Self {
-            timeframe_secs: snapshot.timeframe_secs,
+            timeframe_secs,
             bullish_axis_count: bullish,
             bearish_axis_count: bearish,
             neutral_axis_count: neutral,

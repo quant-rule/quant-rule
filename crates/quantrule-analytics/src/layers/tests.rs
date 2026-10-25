@@ -522,6 +522,30 @@ fn layer_one_matches_the_model_snapshot_at_the_latest_bar() {
 }
 
 #[test]
+fn consensus_rows_cover_every_closed_bar_and_match_the_latest_snapshot() {
+    let (m1, m5, h1) = alignment_fixture();
+    let inputs = [input(M1, &m1), input(M5, &m5), input(H1, &h1)];
+    let set = build_layers(&inputs, &LayerConfig::default()).expect("the fixture builds");
+    let state = MarketState::compute(&inputs, &MarketStateConfig::default());
+
+    assert_eq!(set.consensus.len(), set.layer1.len());
+    for (row, layer1) in set.consensus.iter().zip(&set.layer1) {
+        assert_eq!(row.bar_index, layer1.bar_index);
+        assert_eq!(row.consensus.timeframe_secs, layer1.timeframe_secs);
+    }
+
+    for (timeframe, expected) in set.timeframes.iter().zip(&state.consensus) {
+        let actual = set
+            .consensus
+            .iter()
+            .rev()
+            .find(|row| row.consensus.timeframe_secs == *timeframe)
+            .expect("a consensus row");
+        assert_eq!(actual.consensus, *expected);
+    }
+}
+
+#[test]
 fn a_single_candle_has_one_row_and_no_block() {
     let m1 = candles(1, 0, 60, 0.0);
     let set = build_layers(&[input(M1, &m1)], &LayerConfig::default()).expect("the fixture builds");

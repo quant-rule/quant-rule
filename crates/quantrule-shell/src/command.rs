@@ -772,7 +772,13 @@ pub(crate) fn run_store_ingest(
     };
 
     let mut store = Store::open(&args.database).map_err(RunError::Store)?;
-    let rows = IngestRows::new(&layers.layer2, &layers.pivots, &layers.levels);
+    let rows = IngestRows::new(
+        &layers.layer2,
+        &layers.consensus,
+        &layers.layer3,
+        &layers.pivots,
+        &layers.levels,
+    );
     let report = store.ingest(&dataset, &rows).map_err(RunError::Store)?;
 
     let verb = if report.unchanged {
