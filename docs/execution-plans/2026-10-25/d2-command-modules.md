@@ -4,7 +4,7 @@
 - Branch: `refactor/command-modules`
 - Worktree: `d2-command-modules` (opencode worktree)
 - Pull request: [#113](https://github.com/quant-rule/quant-rule/pull/113)
-- Status: Verified; PR #113 is open
+- Status: Verified; PR #113 is merged
 - Date: 2026-10-25 (UTC)
 - Predecessor: [remaining hardening](harden-analytics-remaining.md)
 
@@ -52,9 +52,9 @@ Close D2 from the hardening plan by splitting the 2,444-line `command.rs` along 
 
 ## 4. Remaining
 
-- The exact 1,500-bar, 100,001-row fetch, 1,200-bar `model-series`, H1-readiness, and >1,024-event fixtures remain open.
+- The exact 1,500-bar, 100,001-row cap, 1,200-bar `model-series`, H1-readiness, and >1,024-event fixtures are closed by the [analytical evidence gaps](analytical-evidence-gaps.md).
 
 ## 5. Review
 
 - AI transparency: [`docs/ai-transparency-log/2026-10-25/d2-command-modules.md`](../../ai-transparency-log/2026-10-25/d2-command-modules.md).
-- The human owns review and merge authorization for PR #113.
+- PR #113 is merged; the branch and worktree were removed after verification.
