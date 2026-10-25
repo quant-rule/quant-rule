@@ -4,8 +4,9 @@
 //! axis resolutions; Layer 3 is the M1 base with the latest closed
 //! higher-timeframe blocks and the cross-timeframe aggregates. The layers are
 //! derived only from the model's public per-bar output and the research
-//! contract in `docs/analytics/`. The set also carries the model's pivot and
-//! confirmed-level records, which the store writes but the CSV export does not.
+//! contract in `docs/analytics/`. The set also carries the model's pivot,
+//! confirmed-level, event, and retained-leg records, which the store writes but
+//! the CSV export does not.
 //!
 //! The module is pure: it performs no I/O, reads no clock, and uses no
 //! randomness. Rows are ordered by timeframe and then by bar, so reordering the
@@ -28,7 +29,7 @@ pub use metrics::{
     ContextMetrics, DirectionMetrics, Metrics, MomentumMetrics, ProgressionMetrics,
     ReadingsSnapshot, StructureMetrics,
 };
-pub use records::{LevelRow, PivotRow};
+pub use records::{EventRow, LegRow, LevelRow, PivotRow};
 
 use std::fmt;
 
@@ -171,6 +172,11 @@ pub struct LayerSet {
     pub pivots: Vec<PivotRow>,
     /// Confirmed levels, ordered by timeframe and reference code.
     pub levels: Vec<LevelRow>,
+    /// Event records, ordered by timeframe, availability bar, type, subtype,
+    /// source, occurrence bar, reference, and reference value.
+    pub events: Vec<EventRow>,
+    /// Retained progression legs, ordered by timeframe and `leg_id`.
+    pub legs: Vec<LegRow>,
 }
 
 /// A layer build could not be performed.
@@ -245,6 +251,8 @@ pub fn build_layers(
     let mut consensus = Vec::new();
     let mut pivots = Vec::new();
     let mut levels = Vec::new();
+    let mut events = Vec::new();
+    let mut legs = Vec::new();
     for timeframe in &series {
         consensus.extend(ConsensusRow::rows(timeframe));
         for bar in 0..timeframe.len() {
@@ -274,6 +282,14 @@ pub fn build_layers(
         levels.extend(records::level_rows(
             timeframe.timeframe_secs(),
             timeframe.levels(),
+        ));
+        events.extend(records::event_rows(
+            timeframe.timeframe_secs(),
+            timeframe.events(),
+        ));
+        legs.extend(records::leg_rows(
+            timeframe.timeframe_secs(),
+            timeframe.legs(),
         ));
     }
 
@@ -356,6 +372,8 @@ pub fn build_layers(
         layer3,
         pivots,
         levels,
+        events,
+        legs,
     })
 }
 

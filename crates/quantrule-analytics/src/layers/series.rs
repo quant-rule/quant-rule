@@ -14,7 +14,7 @@ use quantrule_model::aggregate::events::EVENT_WINDOW_BARS;
 use quantrule_model::aggregate::{ReferenceSet, TimeframeSnapshot};
 use quantrule_model::axes::direction::DirectionSeries;
 use quantrule_model::axes::momentum::MomentumSeries;
-use quantrule_model::axes::progression::{ProgressionConfig, ProgressionSeries};
+use quantrule_model::axes::progression::{ProgressionConfig, ProgressionLeg, ProgressionSeries};
 use quantrule_model::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
 use quantrule_model::axes::structure::{StructureConfig, StructureSeries};
 use quantrule_model::context::ContextSeries;
@@ -152,6 +152,16 @@ impl<'a> TimeframeSeries<'a> {
     /// The confirmed-level registry for this timeframe.
     pub(crate) fn levels(&self) -> &[ConfirmedLevel] {
         &self.levels
+    }
+
+    /// The event records computed for this timeframe.
+    pub(crate) fn events(&self) -> &[EventRecord] {
+        &self.events
+    }
+
+    /// The retained progression legs for this timeframe.
+    pub(crate) fn legs(&self) -> &[ProgressionLeg] {
+        self.progression.legs()
     }
 
     /// The candle at `bar`.

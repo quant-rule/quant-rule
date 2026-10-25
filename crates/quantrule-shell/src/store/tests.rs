@@ -72,10 +72,10 @@ fn a_file_database_reopens_idempotently() {
     let path = database("reopen");
     {
         let store = Store::open(&path).expect("the first open");
-        assert_eq!(store.schema_version().expect("the version"), 1);
+        assert_eq!(store.schema_version().expect("the version"), SCHEMA_VERSION);
     }
     let store = Store::open(&path).expect("the second open");
-    assert_eq!(store.schema_version().expect("the version"), 1);
+    assert_eq!(store.schema_version().expect("the version"), SCHEMA_VERSION);
     store.integrity_check().expect("the integrity check");
 }
 
@@ -85,15 +85,15 @@ fn a_newer_schema_is_rejected() {
     {
         let connection = Connection::open(&path).expect("the raw connection");
         connection
-            .pragma_update(None, "user_version", 2)
+            .pragma_update(None, "user_version", 3)
             .expect("the version write");
     }
     let error = Store::open(&path).expect_err("the newer schema is rejected");
     assert!(matches!(
         error,
         StoreError::UnsupportedVersion {
-            found: 2,
-            supported: 1
+            found: 3,
+            supported: SCHEMA_VERSION
         }
     ));
 }
@@ -105,6 +105,7 @@ fn a_failed_migration_rolls_back() {
         &mut connection,
         None,
         "CREATE TABLE ok (id INTEGER); CREATE TABLE bad (;",
+        1,
     )
     .expect_err("the bad migration fails");
     assert!(matches!(error, StoreError::Migrate { .. }));
@@ -122,11 +123,50 @@ fn a_failed_migration_rolls_back() {
         .expect("the table count");
     assert_eq!(tables, 0);
 
-    migrate(&mut connection, None, SCHEMA_V1).expect("the real migration succeeds");
+    migrate(&mut connection, None, SCHEMA_V1, 1).expect("the real migration succeeds");
     let version: i64 = connection
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .expect("the version");
     assert_eq!(version, 1);
+}
+
+#[test]
+fn a_version_one_database_is_migrated_to_version_two() {
+    let path = database("migrate-v2");
+    {
+        let mut connection = Connection::open(&path).expect("the raw connection");
+        migrate(&mut connection, None, SCHEMA_V1, 1).expect("the version 1 schema");
+    }
+
+    let store = Store::open(&path).expect("the version 1 database opens");
+    assert_eq!(store.schema_version().expect("the version"), SCHEMA_VERSION);
+
+    let event_key: String = store
+        .connection()
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'event_key'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("the event key index");
+    assert!(event_key.contains("WHERE NOT"));
+    let threshold_key: String = store
+        .connection()
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'event_threshold_key'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("the threshold key index");
+    assert!(threshold_key.contains("reference_value"));
+    assert!(threshold_key.contains("WHERE event_type_code = 3"));
+
+    drop(store);
+    let reopened = Store::open(&path).expect("the migrated database reopens");
+    assert_eq!(
+        reopened.schema_version().expect("the version"),
+        SCHEMA_VERSION
+    );
 }
 
 #[test]

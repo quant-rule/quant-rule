@@ -932,7 +932,7 @@ fn research_summary_is_deterministic_and_counts_every_axis() {
 fn store_init_creates_and_reopens_the_store() {
     let root = artifact_dir("store-init");
     let db = format!("{root}/store.db");
-    let expected = format!("store {db} schema=1\n");
+    let expected = format!("store {db} schema=2\n");
 
     let output = run(&["store", "init", "--db", &db]);
     assert_success(&output);

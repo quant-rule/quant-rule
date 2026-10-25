@@ -4,7 +4,9 @@
 //! failure rather than a silent default. Values are copied from the analytics
 //! rows; this module never computes one.
 
-use quantrule_analytics::layers::{ConsensusRow, Layer2Row, Layer3Row, LevelRow, PivotRow};
+use quantrule_analytics::layers::{
+    ConsensusRow, EventRow, Layer2Row, Layer3Row, LegRow, LevelRow, PivotRow,
+};
 use rusqlite::types::Value;
 
 pub(super) fn bar_params(dataset_id: i64, row: &Layer2Row) -> [Value; 74] {
@@ -337,3 +339,59 @@ INSERT INTO level (\
     dataset_id, timeframe_secs, reference_code, scale_code, kind_code, price, \
     occurred_bar_index, available_bar_index\
 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
+
+pub(super) fn event_params(dataset_id: i64, row: &EventRow) -> [Value; 11] {
+    [
+        Value::from(dataset_id),
+        Value::from(row.timeframe_secs as i64),
+        Value::from(i64::from(row.event_type_code)),
+        Value::from(i64::from(row.event_subtype_code)),
+        Value::from(i64::from(row.source_code)),
+        Value::from(row.occurred_bar_index as i64),
+        Value::from(row.available_bar_index as i64),
+        Value::from(i64::from(row.direction_code)),
+        Value::from(i64::from(row.reference_code.unwrap_or(0))),
+        Value::from(row.primary_value),
+        Value::from(row.reference_value),
+    ]
+}
+
+pub(super) const EVENT_INSERT: &str = "\
+INSERT INTO event (\
+    dataset_id, timeframe_secs, event_type_code, event_subtype_code, source_code, \
+    occurred_bar_index, available_bar_index, direction_code, reference_code, \
+    primary_value, reference_value\
+) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)";
+
+pub(super) fn leg_params(dataset_id: i64, row: &LegRow) -> [Value; 19] {
+    [
+        Value::from(dataset_id),
+        Value::from(row.timeframe_secs as i64),
+        Value::from(row.leg_id as i64),
+        Value::from(i64::from(row.scale_code)),
+        Value::from(row.origin_price),
+        Value::from(row.origin_occurred_bar_index as i64),
+        Value::from(row.origin_available_bar_index.map(|bar| bar as i64)),
+        Value::from(i64::from(row.origin_confirmed_code)),
+        Value::from(i64::from(row.leg_direction_code)),
+        Value::from(row.target_price),
+        Value::from(row.target_basis_code.map(i64::from)),
+        Value::from(i64::from(row.target_version)),
+        Value::from(i64::from(row.target_stable_code)),
+        Value::from(row.progress),
+        Value::from(row.displacement_price),
+        Value::from(row.displacement_atr),
+        Value::from(i64::from(row.lifecycle_code)),
+        Value::from(row.stage_code.map(i64::from)),
+        Value::from(row.target_reached_code.map(i64::from)),
+    ]
+}
+
+pub(super) const LEG_INSERT: &str = "\
+INSERT INTO leg (\
+    dataset_id, timeframe_secs, leg_id, scale_code, origin_price, \
+    origin_occurred_bar_index, origin_available_bar_index, origin_confirmed_code, \
+    leg_direction_code, target_price, target_basis_code, target_version, \
+    target_stable_code, progress, displacement_price, displacement_atr, \
+    lifecycle_code, stage_code, target_reached_code\
+) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)";

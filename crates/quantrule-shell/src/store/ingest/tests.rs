@@ -2,8 +2,8 @@
 
 use super::MAX_M1_BARS;
 use super::fixtures::{
-    COLUMNS, count, ingest_bars, layer2, level_row, pivot_row, record, sparse_row, stored_row,
-    stored_rows, unique_row,
+    COLUMNS, count, event_row, ingest_bars, layer2, leg_row, level_row, pivot_row, record,
+    sparse_row, stored_row, stored_rows, unique_row,
 };
 use super::sql::{BAR_INSERT, LEVEL_INSERT, PIVOT_INSERT};
 use crate::store::{Store, StoreError};
@@ -565,8 +565,10 @@ fn the_same_identity_is_a_no_op() {
     let rows = layer2([unique_row(60, 0)]);
     let pivots = [pivot_row(60, 1, 1, 10.0, 0, 0, 0)];
     let levels = [level_row(60, 1001, 1, 1, 10.0, 0, 0)];
+    let events = [event_row(60, 1, 1, 1, 0, 0, 1)];
+    let legs = [leg_row(60, 1, 1, 10.0, 0, Some(0), 1)];
     let fixture = ingest_bars(&rows);
-    let records = fixture.rows(&rows, &pivots, &levels);
+    let records = fixture.rows_with_records(&rows, &pivots, &levels, &events, &legs);
     let first = store.ingest(&dataset, &records).expect("the first ingest");
     assert!(!first.unchanged);
 
@@ -579,6 +581,8 @@ fn the_same_identity_is_a_no_op() {
     assert_eq!(count(&store, "bar"), 1);
     assert_eq!(count(&store, "pivot"), 1);
     assert_eq!(count(&store, "level"), 1);
+    assert_eq!(count(&store, "event"), 1);
+    assert_eq!(count(&store, "leg"), 1);
 }
 
 #[test]

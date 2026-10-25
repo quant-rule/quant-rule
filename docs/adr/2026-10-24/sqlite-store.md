@@ -15,7 +15,7 @@ The store is evidence. A dataset row exists only after every part of the run is 
 
 - **SQLite through `rusqlite` with the `bundled` feature.** SQLite is a single-file, transactional, SQL database with no server. `bundled` embeds the library, so the build does not depend on a system SQLite. This is a new shell-only dependency; it is approved for the store epic (#64).
 - **The store is a shell module, not a crate.** It lives in `crates/quantrule-shell/src/store/`. The analytics, data, and model crates stay pure; only the shell performs I/O. The crate list and the dependency direction in `AGENTS.md` do not change.
-- **Schema version 1** is the complete target schema. The implementation sub-issues add writers and queries, not tables. `PRAGMA user_version` carries the version.
+- **Schema version 1** is the complete target table schema; **version 2** revises one unique index. The implementation sub-issues add writers and queries, not tables. `PRAGMA user_version` carries the version.
 - **A wide per-bar table.** `bar` has one row per `(dataset, timeframe, bar_index)` with the candle, the six readings, the 47 metrics, and the 12 resolution columns: the research contract's Layer 2 record. Layer 1 and Layer 2 are projections of that table, not copies.
 - **Records are separate tables.** `pivot`, `level`, `event`, `leg`, and `consensus` keep the full records. Events and levels carry both occurrence and availability bars.
 - **Layer 3 is materialized without duplicating the base.** `layer3` holds the three higher-timeframe blocks and the 82 aggregates, keyed by `(dataset, bar_index)`. The M1 base is the `bar` row; `layer3_full` is a view that joins it.
@@ -154,7 +154,7 @@ The primary keys cover the per-dataset reads. Additional indexes:
 
 ## 5. Migrations and PRAGMAs
 
-- `PRAGMA user_version` is the schema version. A fresh database has 0; migration 1 creates the schema and sets 1.
+- `PRAGMA user_version` is the schema version. A fresh database has 0; migration 1 creates the schema and sets 1. Migration 2 replaces the `event` unique index and sets 2.
 - Each migration runs in one transaction. A failed statement rolls the migration back and leaves the previous version.
 - A database whose `user_version` is newer than the binary's fails with a clear error; it is never opened read-write.
 - A corrupt database fails on open or on `PRAGMA integrity_check`; the error names the path.
@@ -232,3 +232,17 @@ Negative:
 - #68–#73: every table round-trips the in-memory values, including nulls and valid zeros.
 - #74: a 100k M1 dataset round-trips; `store verify` reports zero mismatches; Layer 3 is causal; the time and size are reported.
 - #75: every table is reachable from a command, and the output is deterministic.
+
+## 13. Addendum: version 2 event identity
+
+Version 1 identified an event by `(dataset_id, timeframe_secs, event_type_code, event_subtype_code, source_code, occurred_bar_index, reference_code)`. A Signal threshold crossing additionally needs its threshold (`reference_value`). When RSI crosses 30, 50, and 70 on the same bar, the three events share every version 1 key column, so the unique index rejected the second one.
+
+Decision: keep the version 1 key for every event, but make it partial (`WHERE NOT (event_type_code = 3 AND event_subtype_code = 1)`) and add a second partial unique index over the same columns plus `reference_value` for Signal threshold crossings. The DB-migration path replaces `event_key` and creates `event_threshold_key` in one transaction.
+
+| Alternative | Consequence |
+|---|---|
+| Add `reference_value` to the single key for every event | Non-threshold events with `NULL` values would still collide, and a spurious measured value would silently create a second identity. |
+| Drop the unique index | Duplicate occurrences would become undetectable. |
+| Emit one threshold event per bar | Violates the contract: each crossed threshold is a distinct event. |
+
+Consequences: schema version 2; a version 1 database is migrated in place; the writer requires a finite `reference_value` for a Signal threshold crossing; the writer's duplicate check and the row builder's order use the same threshold identity. #75 presents the version 2 key.

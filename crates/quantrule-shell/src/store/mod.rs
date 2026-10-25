@@ -5,8 +5,9 @@
 //! module owns the connection, the PRAGMAs, and the schema migration; the
 //! command layer owns the file path and the rendering.
 //!
-//! The schema is the ADR's version 1. A migration runs in one transaction, and
-//! a failed migration rolls back to the previous version.
+//! The schema is the ADR's version 1, plus the version 2 event-index migration.
+//! A migration runs in one transaction, and a failed migration rolls back to
+//! the previous version.
 
 mod error;
 mod ingest;
@@ -21,7 +22,7 @@ use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use schema::{SCHEMA_V1, SCHEMA_VERSION};
+use schema::{SCHEMA_V1, SCHEMA_V2, SCHEMA_VERSION};
 
 /// An open store.
 #[derive(Debug)]
@@ -150,7 +151,10 @@ fn init(connection: &mut Connection, path: Option<&Path>) -> Result<(), StoreErr
         });
     }
     if version == 0 {
-        migrate(connection, path, SCHEMA_V1)?;
+        migrate(connection, path, SCHEMA_V1, 1)?;
+    }
+    if version <= 1 {
+        migrate(connection, path, SCHEMA_V2, 2)?;
     }
     Ok(())
 }
@@ -175,7 +179,12 @@ fn is_corrupt(error: &rusqlite::Error) -> bool {
     )
 }
 
-fn migrate(connection: &mut Connection, _path: Option<&Path>, ddl: &str) -> Result<(), StoreError> {
+fn migrate(
+    connection: &mut Connection,
+    _path: Option<&Path>,
+    ddl: &str,
+    version: i64,
+) -> Result<(), StoreError> {
     let transaction = connection
         .transaction()
         .map_err(|source| StoreError::Migrate { source })?;
@@ -183,7 +192,7 @@ fn migrate(connection: &mut Connection, _path: Option<&Path>, ddl: &str) -> Resu
         .execute_batch(ddl)
         .map_err(|source| StoreError::Migrate { source })?;
     transaction
-        .pragma_update(None, "user_version", SCHEMA_VERSION)
+        .pragma_update(None, "user_version", version)
         .map_err(|source| StoreError::Migrate { source })?;
     transaction
         .commit()

@@ -5,6 +5,7 @@
 //! entry point, and they assert on the stored rows rather than on the values the
 //! layers happen to carry.
 
+use super::fixtures::{assert_params_match, count, insert_columns, stored_rows_with_columns};
 use super::sql::{CONSENSUS_INSERT, LAYER3_AGGREGATE_INSERT, consensus_params, layer3_params};
 use super::{DatasetRecord, IngestReport, IngestRows};
 use crate::store::{Store, StoreError};
@@ -18,7 +19,6 @@ use quantrule_model::aggregate::{
     MomentumAggregates, ProgressionAggregates, ScaleStageAggregates, StructureAggregates,
 };
 use quantrule_model::state::TimeframeConsensus;
-use rusqlite::types::Value;
 
 const M1: u64 = 60;
 const M5: u64 = 300;
@@ -243,63 +243,8 @@ fn ingest(
 ) -> Result<IngestReport, StoreError> {
     store.ingest(
         &record(m1_bars),
-        &IngestRows::new(bars, consensus, layer3, &[], &[]),
+        &IngestRows::new(bars, consensus, layer3, &[], &[], &[], &[]),
     )
-}
-
-fn stored_rows(store: &Store, sql: &str) -> (Vec<String>, Vec<Vec<Value>>) {
-    let mut statement = store.connection().prepare(sql).expect("the query prepares");
-    let columns = statement
-        .column_names()
-        .iter()
-        .map(|name| (*name).to_string())
-        .collect();
-    let width = statement.column_count();
-    let rows = statement
-        .query_map([], |row| {
-            (0..width)
-                .map(|index| row.get(index))
-                .collect::<Result<Vec<Value>, _>>()
-        })
-        .expect("the rows are read")
-        .collect::<Result<_, _>>()
-        .expect("the rows are valid");
-    (columns, rows)
-}
-
-fn count(store: &Store, table: &str) -> i64 {
-    store
-        .connection()
-        .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
-            row.get(0)
-        })
-        .expect("the count is read")
-}
-
-fn assert_params_match(
-    table_columns: &[String],
-    insert_columns: &[String],
-    row: &[Value],
-    params: &[Value],
-) {
-    assert_eq!(insert_columns.len(), params.len());
-    for (column, expected) in insert_columns.iter().zip(params) {
-        let index = table_columns
-            .iter()
-            .position(|name| name == column)
-            .expect("the column exists");
-        assert_eq!(&row[index], expected, "column {column}");
-    }
-}
-
-fn insert_columns(sql: &str) -> Vec<String> {
-    let start = sql.find('(').expect("an open parenthesis") + 1;
-    let end = sql.find(") VALUES").expect("a values clause");
-    sql[start..end]
-        .split(',')
-        .map(|column| column.trim().to_string())
-        .filter(|column| !column.is_empty())
-        .collect()
 }
 
 fn table_aggregate_columns() -> Vec<String> {
@@ -360,7 +305,8 @@ fn consensus_and_aggregates_round_trip() {
         .expect("the dataset is ingested");
     assert_eq!(report.bars, 2);
 
-    let (columns, rows) = stored_rows(&store, "SELECT * FROM consensus ORDER BY bar_index");
+    let (columns, rows) =
+        stored_rows_with_columns(&store, "SELECT * FROM consensus ORDER BY bar_index");
     assert_eq!(rows.len(), 2);
     let consensus_columns = insert_columns(CONSENSUS_INSERT);
     for (index, expected) in consensus_rows.iter().enumerate() {
@@ -372,7 +318,8 @@ fn consensus_and_aggregates_round_trip() {
         );
     }
 
-    let (columns, rows) = stored_rows(&store, "SELECT * FROM layer3 ORDER BY bar_index");
+    let (columns, rows) =
+        stored_rows_with_columns(&store, "SELECT * FROM layer3 ORDER BY bar_index");
     assert_eq!(rows.len(), 2);
     let aggregate_columns = insert_columns(LAYER3_AGGREGATE_INSERT);
     for (index, expected) in layer3_rows.iter().enumerate() {
