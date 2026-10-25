@@ -2,7 +2,7 @@
 
 - Issue: [#72](https://github.com/quant-rule/quant-rule/issues/72) — feat: persist events, legs, and level records
 - Branch: `feat/72-events-legs-levels`
-- Pull request: pending
+- Pull request: [#105](https://github.com/quant-rule/quant-rule/pull/105)
 - Status: Verified
 - Date: 2026-10-25 (UTC)
 - ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)
