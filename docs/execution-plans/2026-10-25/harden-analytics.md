@@ -52,6 +52,6 @@ Remove the input-window, retention, and orchestration ambiguity in the existing 
 ## 5. Remaining
 
 - **D1:** closed by PR #112; one `parse_argv` and one `execute` serve both entry points.
-- **D2:** closed by the [command-module split](d2-command-modules.md); `command.rs` is 40 lines and every module is below 1,000.
+- **D2:** implemented in the [command-module split](d2-command-modules.md) (PR #113); `command.rs` is 40 lines and every module is below 1,000.
 - **E:** closed by PR #112; the `bar` DDL is compared with the research column order.
 - The exact 1,500-bar, 100,001-row fetch, 1,200-bar `model-series`, H1-readiness, and >1,024-event fixtures remain open and are recorded in the follow-up plans.

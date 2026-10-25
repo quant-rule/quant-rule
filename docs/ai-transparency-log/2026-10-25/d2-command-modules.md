@@ -2,6 +2,7 @@
 
 - Work item: `d2-command-modules`
 - Plan: [`docs/execution-plans/2026-10-25/d2-command-modules.md`](../../execution-plans/2026-10-25/d2-command-modules.md)
+- Pull request: [#113](https://github.com/quant-rule/quant-rule/pull/113)
 - Date: 2026-10-25 (UTC)
 
 ## Entry: command-family module split

@@ -3,7 +3,8 @@
 - Issue: none; branch slug used
 - Branch: `refactor/command-modules`
 - Worktree: `d2-command-modules` (opencode worktree)
-- Status: Implemented and locally verified
+- Pull request: [#113](https://github.com/quant-rule/quant-rule/pull/113)
+- Status: Verified; PR #113 is open
 - Date: 2026-10-25 (UTC)
 - Predecessor: [remaining hardening](harden-analytics-remaining.md)
 
@@ -56,4 +57,4 @@ Close D2 from the hardening plan by splitting the 2,444-line `command.rs` along 
 ## 5. Review
 
 - AI transparency: [`docs/ai-transparency-log/2026-10-25/d2-command-modules.md`](../../ai-transparency-log/2026-10-25/d2-command-modules.md).
-- The human owns review and merge authorization.
+- The human owns review and merge authorization for PR #113.
