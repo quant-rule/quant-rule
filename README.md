@@ -29,6 +29,12 @@ cargo run -p quantrule-shell -- research export path/to/m1.csv demo --data-versi
 cargo run -p quantrule-shell -- research summary path/to/m1.csv
 cargo run -p quantrule-shell -- store init --db data/quantrule.db
 cargo run -p quantrule-shell -- store ingest path/to/m1.csv --dataset demo --data-version binance:BTCUSDT:60:1704067200-1710115200
+cargo run -p quantrule-shell -- store list --db data/quantrule.db
+cargo run -p quantrule-shell -- store show demo bar --timeframe 1m --limit 10 --db data/quantrule.db
+cargo run -p quantrule-shell -- db series demo --timeframe 1m --limit 10 --db data/quantrule.db
+cargo run -p quantrule-shell -- db bars demo --limit 10 --db data/quantrule.db
+cargo run -p quantrule-shell -- db metrics demo --limit 10 --db data/quantrule.db
+cargo run -p quantrule-shell -- db layer3 demo --limit 10 --db data/quantrule.db
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --csv data/XAUUSD_M1_2025-01-01_2025-12-31.csv
 cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1h --csv data/EURUSD_H1_2026-01-01_2026-06-30.csv
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauusd_2025.png
@@ -50,6 +56,12 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `research summary` | `<csv-path>` | Per-axis counts, ranges, ordinal histograms, and pairwise continuous correlations |
 | `store init` | [options] | Creates or opens the SQLite store and prints its schema version |
 | `store ingest` | `<csv-path> --dataset <name> --data-version <id>` [options] | Writes one dataset, every ladder bar, every consensus row, every M1 aggregate row, every pivot, every confirmed level, every event, and every retained leg, and prints the stored counts |
+| `store list` | [options] | One CSV row per stored dataset with identity, counts, and Layer 3 state |
+| `store show` | `<dataset> <table>` [options] | CSV rows from one stored table |
+| `db series` | `<dataset>` [options] | Stored candles as NDJSON |
+| `db bars` | `<dataset>` [options] | Full stored bar rows as CSV |
+| `db metrics` | `<dataset>` [options] | Metrics and resolutions as CSV |
+| `db layer3` | `<dataset>` [options] | Materialized Layer 3 rows as CSV |
 | `fetch` | `<symbol> <start> <end>` [options] | A CSV of native BID candles and an optional PNG chart |
 | `help` | none | The command reference |
 | `quit` | none | Exits with status 0 |
@@ -91,6 +103,19 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `--db <path>` | Database path (default `data/quantrule.db`) |
 
 `store ingest` reads one M1 CSV, builds M1/M5/M15/H1 in memory, and writes one `dataset` row, one wide `bar` row per Layer 2 row, one `consensus` row per closed bar per timeframe, one `layer3` row per M1 bar, one `pivot` row per pivot occurrence, one `level` row per confirmed level, one `event` row per event record, and one `leg` row per retained progression leg in a single `BEGIN IMMEDIATE` transaction. It writes the candle, the six readings, the four-axis metrics, and the 12 axis-resolution columns for every ladder bar; a missing value is `NULL` with its unavailable-reason code, and a valid zero stays `0`. The resolution columns carry each axis's continuous value, ordinal bucket, and unavailable reason. The consensus row carries the three axis counts and the weakest directional axis code; a missing axis is excluded, and Progression does not vote. The Layer 3 row carries the as-of M5/M15/H1 block columns and the 82 cross-timeframe aggregate columns over the configured ladder; a missing measurement is `NULL`, a count of zero stays `0`, and a list is `;`-separated text with no spaces, with an empty list stored as an empty string rather than `NULL`. A block that has no closed higher bar yet is `NULL` in all its columns; a new dataset is marked `layer3_materialized = 1`. A #68–#72 dataset is not backfilled and stays `0`. A pivot candidate is available on its occurrence bar; a confirmed pivot carries the confirmation bar as its availability bar and is stored once, with `confirmed_code = 1`, rather than duplicated. Every level carries its `1000 + n` reference code and both its occurrence and availability bars. Every event is stored once, on or after its availability bar, and never before it. Coincident Signal threshold crossings are distinct rows because the threshold value is part of their identity; every other event keeps the original occurrence key. Every retained leg carries its origin, target, progress, displacement, and lifecycle codes; a value that is not yet knowable is `NULL`. The M1 `bar` count equals the accepted source rows; the full count covers the whole ladder. The input is capped at 100,000 M1 candles and a count mismatch or over-cap input is rejected before anything is written. Re-running the same name with the same identity is a no-op that prints `unchanged`; a different identity for an existing name is a conflict and changes nothing. Output is one deterministic line: `ingested <name> bars=<n> timeframes=<k>` or `unchanged <name> bars=<n> timeframes=<k>`.
+
+### Store query contract
+
+The query commands open an existing database read-only. A missing file is an error and is never created; a newer schema is rejected; no migration runs. CSV uses an empty field for `NULL`, the shortest round-trip decimal for a float, and quotes a field that contains a comma, quote, or newline. `--limit` is `1..=1000` and defaults to `100`. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h`; `--bar` filters `bar_index` where the table has one.
+
+| Command | Output |
+|---|---|
+| `store list` | One CSV row per dataset, sorted by name: identity, `m1_bars`, `layer3_materialized`, and `bar`/`consensus`/`layer3`/`pivot`/`level`/`event`/`leg` counts |
+| `store show <dataset> <table>` | Every column of `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, or `leg`, in DDL order and primary-key order. `event.reference_code = 0` is rendered as `NULL`. |
+| `db series <dataset>` | NDJSON with `dataset`, `timeframe_secs`, `bar_index`, ISO `open_time`, OHLC, and nullable volume; oldest first |
+| `db bars <dataset>` | The full `bar` table as CSV (74 columns) |
+| `db metrics <dataset>` | `timeframe_secs`, `bar_index`, the 47 metric columns, and the 12 resolution columns as CSV (61 columns) |
+| `db layer3 <dataset>` | The materialized `layer3` table as CSV (285 columns) |
 
 `candles` reads the file one row at a time. A missing file, bad header, malformed row, invalid OHLC, duplicate timestamp, or out-of-order timestamp aborts the command. The shell builds the window before writing, so a late error produces no partial NDJSON.
 

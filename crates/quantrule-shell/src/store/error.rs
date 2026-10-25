@@ -17,6 +17,11 @@ pub(crate) enum StoreError {
         /// The underlying SQLite error.
         source: rusqlite::Error,
     },
+    /// The database file does not exist for a read-only command.
+    Missing {
+        /// The database path.
+        path: PathBuf,
+    },
     /// The database directory could not be created.
     Directory {
         /// The database path.
@@ -48,6 +53,16 @@ pub(crate) enum StoreError {
         /// The underlying SQLite error.
         source: rusqlite::Error,
     },
+    /// The dataset name does not exist.
+    DatasetNotFound {
+        /// The dataset name.
+        name: String,
+    },
+    /// A query argument is valid syntactically but not for this table.
+    InvalidQuery {
+        /// What is wrong with the query.
+        detail: String,
+    },
     /// The dataset name exists with a different identity.
     Conflict {
         /// The dataset name.
@@ -71,6 +86,9 @@ impl fmt::Display for StoreError {
             Self::Open { path, source } => {
                 write!(formatter, "cannot open {}: {source}", path.display())
             }
+            Self::Missing { path } => {
+                write!(formatter, "store not found: {}", path.display())
+            }
             Self::Directory { path, source } => write!(
                 formatter,
                 "cannot create the directory for {}: {source}",
@@ -89,6 +107,8 @@ impl fmt::Display for StoreError {
                 )
             }
             Self::Query { source } => write!(formatter, "store query failed: {source}"),
+            Self::DatasetNotFound { name } => write!(formatter, "dataset '{name}' was not found"),
+            Self::InvalidQuery { detail } => write!(formatter, "invalid store query: {detail}"),
             Self::Conflict { name } => write!(
                 formatter,
                 "dataset '{name}' already exists with a different identity"
@@ -109,8 +129,11 @@ impl std::error::Error for StoreError {
             }
             Self::Write { source } => Some(source),
             Self::Directory { source, .. } => Some(source),
-            Self::UnsupportedVersion { .. } | Self::Corrupt { .. } => None,
-            Self::Conflict { .. } | Self::InvalidDataset { .. } => None,
+            Self::UnsupportedVersion { .. } | Self::Corrupt { .. } | Self::Missing { .. } => None,
+            Self::Conflict { .. }
+            | Self::InvalidDataset { .. }
+            | Self::DatasetNotFound { .. }
+            | Self::InvalidQuery { .. } => None,
         }
     }
 }
