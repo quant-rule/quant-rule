@@ -555,7 +555,7 @@ fn the_dataset_row_records_the_identity_and_contracts() {
     assert_eq!(research_contract, "2026-10-24");
     assert_eq!(scale, 2);
     assert_eq!(m1_bars, 1);
-    assert_eq!(materialized, 0);
+    assert_eq!(materialized, 1);
 }
 
 #[test]

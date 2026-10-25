@@ -6,12 +6,12 @@
 //! layers happen to carry.
 
 use super::fixtures::{assert_params_match, count, insert_columns, stored_rows_with_columns};
-use super::sql::{CONSENSUS_INSERT, LAYER3_AGGREGATE_INSERT, consensus_params, layer3_params};
+use super::sql::{CONSENSUS_INSERT, LAYER3_INSERT, consensus_params, layer3_params};
 use super::{DatasetRecord, IngestReport, IngestRows};
 use crate::store::{Store, StoreError};
 use quantrule_analytics::layers::{
-    ConsensusRow, ContextMetrics, DirectionMetrics, Layer1Row, Layer2Row, Layer3Row, Metrics,
-    MomentumMetrics, ProgressionMetrics, ReadingsSnapshot, StructureMetrics,
+    ConsensusRow, ContextMetrics, DirectionMetrics, HigherBlock, Layer1Row, Layer2Row, Layer3Row,
+    Metrics, MomentumMetrics, ProgressionMetrics, ReadingsSnapshot, StructureMetrics,
 };
 use quantrule_data::Candle;
 use quantrule_model::aggregate::{
@@ -35,9 +35,18 @@ fn record(m1_bars: usize) -> DatasetRecord {
 
 /// A Layer 2 row whose optional metrics are all null.
 fn row(timeframe_secs: u64, bar_index: usize) -> Layer2Row {
+    layer2_at(
+        timeframe_secs,
+        bar_index,
+        1_700_000_000 + bar_index as i64 * 60,
+    )
+}
+
+/// A Layer 2 row at an explicit open time.
+fn layer2_at(timeframe_secs: u64, bar_index: usize, timestamp: i64) -> Layer2Row {
     let candle = Candle::new(
         bar_index as u64,
-        1_700_000_000 + bar_index as i64 * 60,
+        timestamp,
         10.0,
         11.0,
         9.0,
@@ -145,6 +154,18 @@ fn layer3(base: Layer2Row, aggregates: CrossTimeframeAggregates) -> Layer3Row {
     }
 }
 
+/// The as-of block a Layer 2 row would contribute.
+fn block(row: &Layer2Row, staleness_secs: u64) -> HigherBlock {
+    HigherBlock {
+        timeframe_secs: row.layer1.timeframe_secs,
+        bar_index: row.layer1.bar_index,
+        candle: row.layer1.candle,
+        metrics: row.layer1.metrics,
+        resolution: row.resolution,
+        staleness_secs,
+    }
+}
+
 fn sample_stage(offset: u8) -> ScaleStageAggregates {
     ScaleStageAggregates {
         stage_histogram: [
@@ -247,7 +268,7 @@ fn ingest(
     )
 }
 
-fn table_aggregate_columns() -> Vec<String> {
+fn table_layer3_columns() -> Vec<String> {
     let schema = include_str!("../schema.rs");
     let header = "CREATE TABLE layer3 (";
     let start = schema.find(header).expect("the layer3 DDL") + header.len();
@@ -256,20 +277,17 @@ fn table_aggregate_columns() -> Vec<String> {
         .lines()
         .filter_map(|line| {
             let name = line.split_whitespace().next()?;
-            name.starts_with("agg_")
-                .then(|| name.trim_end_matches(',').to_string())
+            (!name.starts_with("PRIMARY")).then(|| name.trim_end_matches(',').to_string())
         })
         .collect()
 }
 
 #[test]
-fn the_aggregate_insert_columns_match_the_ddl_order() {
-    let columns = insert_columns(LAYER3_AGGREGATE_INSERT);
-    assert_eq!(columns.len(), 84);
-    assert_eq!(columns.first().map(String::as_str), Some("dataset_id"));
-    assert_eq!(columns.get(1).map(String::as_str), Some("bar_index"));
-    let ddl = table_aggregate_columns();
-    assert_eq!(&columns[2..], ddl.as_slice());
+fn the_layer3_insert_columns_match_the_ddl_order() {
+    let columns = insert_columns(LAYER3_INSERT);
+    assert_eq!(columns.len(), 285);
+    assert_eq!(columns, table_layer3_columns());
+    assert_eq!(LAYER3_INSERT.matches('?').count(), 285);
 
     let consensus = insert_columns(CONSENSUS_INSERT);
     assert_eq!(
@@ -284,6 +302,51 @@ fn the_aggregate_insert_columns_match_the_ddl_order() {
             "weakest_directional_axis_code".to_string(),
         ]
     );
+}
+
+#[test]
+fn layer3_blocks_round_trip() {
+    let mut store = Store::open_in_memory().expect("the store opens");
+    let base = layer2_at(M1, 0, 1_700_000_300);
+    let m5 = layer2_at(M5, 0, 1_700_000_000);
+    let m15 = layer2_at(900, 0, 1_699_999_200);
+    let h1 = layer2_at(3_600, 0, 1_699_996_400);
+    let bars = [base, m5, m15, h1];
+    let consensus_rows = [
+        consensus(M1, 0, (1, 1, 1), Some(1)),
+        consensus(M5, 0, (1, 1, 1), Some(1)),
+        consensus(900, 0, (1, 1, 1), Some(1)),
+        consensus(3_600, 0, (1, 1, 1), Some(1)),
+    ];
+    let aggregates = sample_aggregates(&[M1, M5, 900, 3_600]);
+    let rows = [Layer3Row {
+        base,
+        higher: vec![block(&m5, 60), block(&m15, 260), block(&h1, 360)],
+        aggregates: aggregates.clone(),
+    }];
+
+    let report =
+        ingest(&mut store, &bars, &consensus_rows, &rows, 1).expect("the dataset is ingested");
+
+    let (columns, stored) =
+        stored_rows_with_columns(&store, "SELECT * FROM layer3 ORDER BY bar_index");
+    assert_eq!(stored.len(), 1);
+    assert_params_match(
+        &columns,
+        &insert_columns(LAYER3_INSERT),
+        &stored[0],
+        &layer3_params(report.dataset_id, &rows[0]),
+    );
+
+    let materialized: i64 = store
+        .connection()
+        .query_row(
+            "SELECT layer3_materialized FROM dataset WHERE id = ?1",
+            [report.dataset_id],
+            |row| row.get(0),
+        )
+        .expect("the flag is read");
+    assert_eq!(materialized, 1);
 }
 
 #[test]
@@ -321,7 +384,7 @@ fn consensus_and_aggregates_round_trip() {
     let (columns, rows) =
         stored_rows_with_columns(&store, "SELECT * FROM layer3 ORDER BY bar_index");
     assert_eq!(rows.len(), 2);
-    let aggregate_columns = insert_columns(LAYER3_AGGREGATE_INSERT);
+    let aggregate_columns = insert_columns(LAYER3_INSERT);
     for (index, expected) in layer3_rows.iter().enumerate() {
         assert_params_match(
             &columns,
@@ -331,7 +394,7 @@ fn consensus_and_aggregates_round_trip() {
         );
     }
 
-    let null_blocks: i64 = store
+    let populated_blocks: i64 = store
         .connection()
         .query_row(
             "SELECT COUNT(*) FROM layer3 WHERE m5_bar_index IS NOT NULL \
@@ -340,7 +403,7 @@ fn consensus_and_aggregates_round_trip() {
             |row| row.get(0),
         )
         .expect("the block count is read");
-    assert_eq!(null_blocks, 0);
+    assert_eq!(populated_blocks, 0, "an absent block column is populated");
 
     let materialized: i64 = store
         .connection()
@@ -350,7 +413,7 @@ fn consensus_and_aggregates_round_trip() {
             |row| row.get(0),
         )
         .expect("the flag is read");
-    assert_eq!(materialized, 0);
+    assert_eq!(materialized, 1);
 }
 
 #[test]
@@ -517,4 +580,80 @@ fn invalid_layer3_is_rejected() {
     non_finite.direction.direction_mean = Some(f64::NAN);
     let non_finite_rows = [layer3(bars[0], non_finite)];
     assert_rejected(&bars, &consensus_rows, &non_finite_rows, 2);
+
+    let block_base = layer2_at(M1, 0, 1_700_000_300);
+    let block_m5 = layer2_at(M5, 0, 1_700_000_000);
+    let block_bars = [block_base, block_m5];
+    let block_consensus = [
+        consensus(M1, 0, (1, 1, 1), Some(1)),
+        consensus(M5, 0, (1, 1, 1), Some(1)),
+    ];
+    let block_aggregates = sample_aggregates(&[M1, M5]);
+    let valid_block = block(&block_m5, 60);
+    let valid_block_row = Layer3Row {
+        base: block_base,
+        higher: vec![valid_block],
+        aggregates: block_aggregates.clone(),
+    };
+
+    let duplicate_block = Layer3Row {
+        higher: vec![valid_block, valid_block],
+        ..valid_block_row.clone()
+    };
+    assert_rejected(&block_bars, &block_consensus, &[duplicate_block], 1);
+
+    let mut unsupported = valid_block;
+    unsupported.timeframe_secs = 600;
+    let unsupported_row = Layer3Row {
+        higher: vec![unsupported],
+        ..valid_block_row.clone()
+    };
+    assert_rejected(&block_bars, &block_consensus, &[unsupported_row], 1);
+
+    let mut missing = valid_block;
+    missing.bar_index = 9;
+    let missing_row = Layer3Row {
+        higher: vec![missing],
+        ..valid_block_row.clone()
+    };
+    assert_rejected(&block_bars, &block_consensus, &[missing_row], 1);
+
+    let mut stale = valid_block;
+    stale.staleness_secs = 61;
+    let stale_row = Layer3Row {
+        higher: vec![stale],
+        ..valid_block_row.clone()
+    };
+    assert_rejected(&block_bars, &block_consensus, &[stale_row], 1);
+
+    let mut mismatched = valid_block;
+    mismatched.candle = Candle::new(0, 1_700_000_000, 10.0, 12.0, 9.0, 10.5, Some(1.0))
+        .expect("the mismatched candle is valid");
+    let mismatched_row = Layer3Row {
+        higher: vec![mismatched],
+        ..valid_block_row.clone()
+    };
+    assert_rejected(&block_bars, &block_consensus, &[mismatched_row], 1);
+
+    let mut wrong_base = block_base;
+    wrong_base.layer1.metrics.direction.direction = Some(0.5);
+    let wrong_base_row = Layer3Row {
+        base: wrong_base,
+        ..valid_block_row.clone()
+    };
+    assert_rejected(&block_bars, &block_consensus, &[wrong_base_row], 1);
+
+    let future_base = layer2_at(M1, 0, 1_700_000_300);
+    let future_m5 = layer2_at(M5, 0, 1_700_000_300);
+    let future_bars = [future_base, future_m5];
+    let future_consensus = [
+        consensus(M1, 0, (1, 1, 1), Some(1)),
+        consensus(M5, 0, (1, 1, 1), Some(1)),
+    ];
+    let future_row = Layer3Row {
+        base: future_base,
+        higher: vec![block(&future_m5, 0)],
+        aggregates: block_aggregates,
+    };
+    assert_rejected(&future_bars, &future_consensus, &[future_row], 1);
 }

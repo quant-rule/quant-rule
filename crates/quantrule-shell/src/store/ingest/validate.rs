@@ -14,7 +14,7 @@ use quantrule_analytics::resolution::{AxisResolution, ordinal_bucket};
 use quantrule_model::aggregate::CrossTimeframeAggregates;
 use quantrule_model::axes::structure::registry::FIRST_REFERENCE_CODE;
 
-use super::{DatasetRecord, IngestRows, MAX_M1_BARS};
+use super::{DatasetRecord, IngestRows, LAYER3_HIGHER_TIMEFRAMES, MAX_M1_BARS};
 use crate::store::StoreError;
 
 /// The event type code for a signal event.
@@ -505,6 +505,10 @@ fn validate_layer3(
         .map(|row| row.layer1.bar_index)
         .collect();
     let configured: BTreeSet<u64> = bars.iter().map(|row| row.layer1.timeframe_secs).collect();
+    let layer2_by_key: BTreeMap<(u64, usize), &Layer2Row> = bars
+        .iter()
+        .map(|row| ((row.layer1.timeframe_secs, row.layer1.bar_index), row))
+        .collect();
     let mut seen = BTreeSet::new();
     for row in rows {
         if row.base.layer1.timeframe_secs != M1_SECONDS {
@@ -524,6 +528,17 @@ fn validate_layer3(
                 "the Layer 3 bar {bar_index} is duplicated"
             )));
         }
+        let Some(stored_base) = layer2_by_key.get(&(M1_SECONDS, bar_index)) else {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} has no stored M1 base"
+            )));
+        };
+        if &row.base != *stored_base {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} base does not match the stored M1 row"
+            )));
+        }
+        validate_layer3_blocks(row, &layer2_by_key)?;
         validate_aggregates(&row.aggregates, &configured, bar_index)?;
     }
     if seen != expected {
@@ -531,6 +546,82 @@ fn validate_layer3(
             "the Layer 3 keys do not match the {} M1 bars",
             expected.len()
         )));
+    }
+    Ok(())
+}
+
+/// Validates that each block is a copy of its stored higher-timeframe row.
+///
+/// The as-of selection belongs to the analytics engine. The writer checks only
+/// the copy invariants and the close/staleness relationship, so a valid model
+/// block is never rejected by a second alignment implementation.
+fn validate_layer3_blocks(
+    row: &Layer3Row,
+    layer2_by_key: &BTreeMap<(u64, usize), &Layer2Row>,
+) -> Result<(), StoreError> {
+    let bar_index = row.base.layer1.bar_index;
+    if row.higher.len() > LAYER3_HIGHER_TIMEFRAMES.len() {
+        return Err(invalid(format!(
+            "the Layer 3 bar {bar_index} has {} higher blocks",
+            row.higher.len()
+        )));
+    }
+    if row
+        .higher
+        .windows(2)
+        .any(|pair| pair[0].timeframe_secs >= pair[1].timeframe_secs)
+    {
+        return Err(invalid(format!(
+            "the Layer 3 bar {bar_index} has unsorted or duplicate blocks"
+        )));
+    }
+
+    let base_close = row.base.layer1.candle.timestamp() + M1_SECONDS as i64;
+    for block in &row.higher {
+        if !LAYER3_HIGHER_TIMEFRAMES.contains(&block.timeframe_secs) {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} has block timeframe {}",
+                block.timeframe_secs
+            )));
+        }
+        let Some(stored) = layer2_by_key.get(&(block.timeframe_secs, block.bar_index)) else {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} block {} bar {} has no stored higher bar",
+                block.timeframe_secs, block.bar_index
+            )));
+        };
+        if block.candle != stored.layer1.candle {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} block {} candle does not match the stored bar",
+                block.timeframe_secs
+            )));
+        }
+        if block.metrics != stored.layer1.metrics {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} block {} metrics do not match the stored bar",
+                block.timeframe_secs
+            )));
+        }
+        if block.resolution != stored.resolution {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} block {} resolution does not match the stored bar",
+                block.timeframe_secs
+            )));
+        }
+        let block_close = block.candle.timestamp() + block.timeframe_secs as i64;
+        if block_close > base_close {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} block {} closes after the base bar",
+                block.timeframe_secs
+            )));
+        }
+        let staleness = (base_close - block_close) as u64;
+        if block.staleness_secs != staleness {
+            return Err(invalid(format!(
+                "the Layer 3 bar {bar_index} block {} has staleness {} instead of {staleness}",
+                block.timeframe_secs, block.staleness_secs
+            )));
+        }
     }
     Ok(())
 }

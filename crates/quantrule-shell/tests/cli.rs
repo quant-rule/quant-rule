@@ -1127,7 +1127,14 @@ fn store_ingest_writes_every_ladder_bar_and_repeats_as_a_no_op() {
             &connection,
             "SELECT layer3_materialized FROM dataset WHERE name = 'demo'"
         ),
-        0
+        1
+    );
+    assert!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM layer3 WHERE m5_bar_index IS NOT NULL"
+        ) > 0,
+        "the M5 block is not materialized"
     );
     assert_resolution_integrity(&connection);
 
