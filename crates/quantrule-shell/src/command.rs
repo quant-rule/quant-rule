@@ -28,11 +28,13 @@ use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
 use crate::store::{DatasetRecord, IngestRows, Store, StoreError};
 
 mod store_query;
+mod store_verify;
 
 pub(crate) use self::store_query::{
     DbArgs, StoreListArgs, StoreShowArgs, parse_db_arguments, run_db, run_store_list,
     run_store_show,
 };
+pub(crate) use self::store_verify::{StoreVerifyArgs, run_store_verify};
 
 /// The help text shown by the `help` command.
 pub(crate) const HELP: &str = r#"QuantRule shell commands:
@@ -54,6 +56,10 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
   research summary <csv-path>   Print counts, ranges, ordinal histograms, and axis correlations.
   store init [--db <path>]      Create or open the SQLite store (default data/quantrule.db).
   store ingest <csv-path>       Ingest one M1 dataset into the store.
+      --dataset <name>          Dataset name; required.
+      --data-version <id>       Caller-supplied identity; required.
+      --db <path>               Database path (default data/quantrule.db).
+  store verify <csv-path>       Verify a stored dataset against a fresh build.
       --dataset <name>          Dataset name; required.
       --data-version <id>       Caller-supplied identity; required.
       --db <path>               Database path (default data/quantrule.db).
@@ -106,6 +112,7 @@ Non-interactive: quantrule research export path/to/m1.csv demo --data-version so
 Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule store init --db data/quantrule.db
 Non-interactive: quantrule store ingest path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000
+Non-interactive: quantrule store verify path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000 --db data/quantrule.db
 Non-interactive: quantrule store list --db data/quantrule.db
 Non-interactive: quantrule store show demo bar --timeframe 1m --limit 10 --db data/quantrule.db
 Non-interactive: quantrule db series demo --timeframe 1m --limit 10 --db data/quantrule.db
@@ -142,6 +149,8 @@ pub(crate) enum Command {
     StoreInit(PathBuf),
     /// Ingest one dataset into the SQLite store.
     StoreIngest(StoreIngestArgs),
+    /// Verify one stored dataset against a fresh build.
+    StoreVerify(StoreVerifyArgs),
     /// List the stored datasets.
     StoreList(StoreListArgs),
     /// Show one stored table.
@@ -792,10 +801,11 @@ pub(crate) fn parse_research_arguments(
 /// Returns [`ParseError::Store`] for a missing or unknown subcommand, a missing
 /// option value, or a repeated option.
 pub(crate) fn parse_store_arguments(arguments: &[String]) -> Result<Option<Command>, ParseError> {
-    const USAGE: &str = "usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]";
+    const USAGE: &str = "usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store verify <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]";
     match arguments.first().map(String::as_str) {
         Some("init") => parse_store_init(arguments, USAGE),
         Some("ingest") => parse_store_ingest(arguments, USAGE),
+        Some("verify") => store_verify::parse_store_verify(arguments, USAGE).map(Some),
         Some("list") => store_query::parse_store_list(arguments, USAGE).map(Some),
         Some("show") => store_query::parse_store_show(arguments, USAGE).map(Some),
         _ => Err(ParseError::Store(USAGE.to_string())),

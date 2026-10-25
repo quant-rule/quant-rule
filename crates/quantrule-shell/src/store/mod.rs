@@ -15,6 +15,7 @@ mod query;
 mod schema;
 #[cfg(test)]
 mod tests;
+mod verify;
 
 pub(crate) use error::StoreError;
 pub(crate) use ingest::{DatasetRecord, IngestRows};

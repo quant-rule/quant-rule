@@ -125,6 +125,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::StoreVerify(args) => {
+                if let Err(error) = command::run_store_verify(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::StoreList(args) => {
                 if let Err(error) = command::run_store_list(&args, &mut stdout) {
                     eprintln!("error: {error}");
@@ -391,6 +396,16 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                         }
                     }
                 }
+                Ok(Some(Command::StoreVerify(args))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_store_verify(&args, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
                 Ok(Some(Command::StoreList(args))) => {
                     let mut stdout = io::stdout();
                     match command::run_store_list(&args, &mut stdout) {
@@ -413,7 +428,7 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                 }
                 Ok(_) => {
                     eprintln!(
-                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]"
+                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store verify <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]"
                     );
                     1
                 }

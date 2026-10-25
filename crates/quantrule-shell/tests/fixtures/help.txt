@@ -20,6 +20,10 @@ QuantRule shell commands:
       --dataset <name>          Dataset name; required.
       --data-version <id>       Caller-supplied identity; required.
       --db <path>               Database path (default data/quantrule.db).
+  store verify <csv-path>       Verify a stored dataset against a fresh build.
+      --dataset <name>          Dataset name; required.
+      --data-version <id>       Caller-supplied identity; required.
+      --db <path>               Database path (default data/quantrule.db).
   store list [--db <path>]      List stored datasets as CSV.
   store show <dataset> <table>  Show one table: bar, consensus, layer3, pivot, level, event, leg.
       --timeframe <tf>          Timeframe filter: 1m, 5m, 15m, or 1h.
@@ -69,6 +73,7 @@ Non-interactive: quantrule research export path/to/m1.csv demo --data-version so
 Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule store init --db data/quantrule.db
 Non-interactive: quantrule store ingest path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000
+Non-interactive: quantrule store verify path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000 --db data/quantrule.db
 Non-interactive: quantrule store list --db data/quantrule.db
 Non-interactive: quantrule store show demo bar --timeframe 1m --limit 10 --db data/quantrule.db
 Non-interactive: quantrule db series demo --timeframe 1m --limit 10 --db data/quantrule.db
