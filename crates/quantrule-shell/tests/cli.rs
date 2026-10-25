@@ -1026,6 +1026,54 @@ fn assert_record_integrity(connection: &Connection) {
     );
 }
 
+fn assert_resolution_integrity(connection: &Connection) {
+    for axis in ["direction", "momentum", "structure", "progression"] {
+        let continuous = format!("{axis}_continuous");
+        let ordinal = format!("{axis}_ordinal");
+        let reason = format!("{axis}_resolution_reason_code");
+        assert_eq!(
+            scalar(
+                connection,
+                &format!(
+                    "SELECT count(*) FROM bar WHERE \
+                     ({continuous} IS NULL AND ({ordinal} IS NOT NULL OR {reason} IS NULL \
+                       OR {reason} NOT BETWEEN 1 AND 6)) \
+                     OR ({continuous} IS NOT NULL AND ({continuous} < -1.0 \
+                       OR {continuous} > 1.0 OR {ordinal} IS NULL \
+                       OR {ordinal} NOT BETWEEN 0 AND 9 OR {reason} IS NOT NULL \
+                       OR {ordinal} != (({continuous} >= -0.8) + ({continuous} >= -0.6) \
+                           + ({continuous} >= -0.4) + ({continuous} >= -0.2) \
+                           + ({continuous} >= 0.0) + ({continuous} >= 0.2) \
+                           + ({continuous} >= 0.4) + ({continuous} >= 0.6) \
+                           + ({continuous} >= 0.8))))"
+                ),
+            ),
+            0,
+            "a {axis} resolution violation"
+        );
+        assert!(
+            scalar(
+                connection,
+                &format!("SELECT count(*) FROM bar WHERE {continuous} IS NOT NULL")
+            ) > 0,
+            "the fixture stores no {axis} resolution"
+        );
+    }
+
+    assert_eq!(
+        scalar(
+            connection,
+            "SELECT count(*) FROM bar WHERE \
+             (progress IS NULL AND progression_continuous IS NOT NULL) \
+             OR (progress IS NOT NULL AND progression_continuous IS NULL) \
+             OR (progress IS NOT NULL AND progression_continuous \
+                 != max(-1.0, min(1.0, progress)))"
+        ),
+        0,
+        "a progression clamp violation"
+    );
+}
+
 #[test]
 fn store_ingest_writes_every_ladder_bar_and_repeats_as_a_no_op() {
     let root = artifact_dir("store-ingest");
@@ -1081,20 +1129,7 @@ fn store_ingest_writes_every_ladder_bar_and_repeats_as_a_no_op() {
         ),
         0
     );
-    assert_eq!(
-        scalar(
-            &connection,
-            "SELECT count(*) FROM bar WHERE direction_continuous IS NOT NULL \
-             OR direction_ordinal IS NOT NULL OR direction_resolution_reason_code IS NOT NULL \
-             OR momentum_continuous IS NOT NULL OR momentum_ordinal IS NOT NULL \
-             OR momentum_resolution_reason_code IS NOT NULL \
-             OR structure_continuous IS NOT NULL OR structure_ordinal IS NOT NULL \
-             OR structure_resolution_reason_code IS NOT NULL \
-             OR progression_continuous IS NOT NULL OR progression_ordinal IS NOT NULL \
-             OR progression_resolution_reason_code IS NOT NULL"
-        ),
-        0
-    );
+    assert_resolution_integrity(&connection);
 
     let output = run(&[
         "store",

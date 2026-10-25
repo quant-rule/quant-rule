@@ -751,8 +751,8 @@ pub(crate) fn run_store_init(path: &Path, writer: &mut impl Write) -> Result<(),
 ///
 /// The layers are built before the database is opened, so a source, model, or
 /// cap failure leaves no database file and no partial dataset. The writer then
-/// commits the dataset row, every bar row, every pivot occurrence, and every
-/// confirmed level in one transaction.
+/// commits the dataset row, every Layer 2 bar row, every pivot occurrence, and
+/// every confirmed level in one transaction.
 ///
 /// # Errors
 ///
@@ -772,7 +772,7 @@ pub(crate) fn run_store_ingest(
     };
 
     let mut store = Store::open(&args.database).map_err(RunError::Store)?;
-    let rows = IngestRows::new(&layers.layer1, &layers.pivots, &layers.levels);
+    let rows = IngestRows::new(&layers.layer2, &layers.pivots, &layers.levels);
     let report = store.ingest(&dataset, &rows).map_err(RunError::Store)?;
 
     let verb = if report.unchanged {

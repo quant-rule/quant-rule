@@ -1,14 +1,15 @@
 use super::{BAR_INSERT, DatasetRecord, IngestRows, LEVEL_INSERT, MAX_M1_BARS, PIVOT_INSERT};
 use crate::store::{Store, StoreError};
 use quantrule_analytics::layers::{
-    ContextMetrics, DirectionMetrics, Layer1Row, LevelRow, Metrics, MomentumMetrics, PivotRow,
-    ProgressionMetrics, ReadingsSnapshot,
+    ContextMetrics, DirectionMetrics, Layer1Row, Layer2Row, LevelRow, Metrics, MomentumMetrics,
+    PivotRow, ProgressionMetrics, ReadingsSnapshot,
 };
+use quantrule_analytics::resolution::AxisResolution;
 use quantrule_data::Candle;
 use rusqlite::types::Value;
 
-/// The 62 columns the writer binds, in `BAR_INSERT` order.
-const COLUMNS: [&str; 62] = [
+/// The 74 columns the writer binds, in `BAR_INSERT` order.
+const COLUMNS: [&str; 74] = [
     "dataset_id",
     "timeframe_secs",
     "bar_index",
@@ -71,6 +72,18 @@ const COLUMNS: [&str; 62] = [
     "atr_ratio",
     "rvol_ratio",
     "context_code",
+    "direction_continuous",
+    "direction_ordinal",
+    "direction_resolution_reason_code",
+    "momentum_continuous",
+    "momentum_ordinal",
+    "momentum_resolution_reason_code",
+    "structure_continuous",
+    "structure_ordinal",
+    "structure_resolution_reason_code",
+    "progression_continuous",
+    "progression_ordinal",
+    "progression_resolution_reason_code",
 ];
 
 fn candle(timestamp: i64, volume: Option<f64>) -> Candle {
@@ -87,8 +100,13 @@ fn record(name: &str, data_version: &str, m1_bars: usize) -> DatasetRecord {
     }
 }
 
-/// Bundles bars with no record rows.
-fn ingest_bars(bars: &[Layer1Row]) -> IngestRows<'_> {
+/// Derives Layer 2 rows from Layer 1 rows.
+fn layer2(bars: impl IntoIterator<Item = Layer1Row>) -> Vec<Layer2Row> {
+    bars.into_iter().map(Layer2Row::from_layer1).collect()
+}
+
+/// Bundles Layer 2 bars with no record rows.
+fn ingest_bars(bars: &[Layer2Row]) -> IngestRows<'_> {
     IngestRows::new(bars, &[], &[])
 }
 
@@ -168,7 +186,7 @@ fn sparse_row() -> Layer1Row {
                 state_code: None,
                 size_percentile: None,
                 readiness_code: 0,
-                unavailable_reason_code: None,
+                unavailable_reason_code: Some(1),
                 state_age_bars: 0,
                 state_changes_50: 0,
             },
@@ -179,7 +197,7 @@ fn sparse_row() -> Layer1Row {
                 state_code: None,
                 size_percentile: None,
                 readiness_code: 0,
-                unavailable_reason_code: None,
+                unavailable_reason_code: Some(1),
                 state_age_bars: 0,
                 state_changes_50: 0,
             },
@@ -251,7 +269,7 @@ impl StructureFields {
             ema_retest_code_200: None,
             size_percentile: None,
             readiness_code: 0,
-            unavailable_reason_code: None,
+            unavailable_reason_code: Some(1),
             state_age_bars: 0,
             state_changes_50: 0,
         }
@@ -339,9 +357,9 @@ fn stored_rows(store: &Store, sql: &str) -> Vec<Vec<Value>> {
 #[test]
 fn every_written_column_round_trips() {
     let mut store = Store::open_in_memory().expect("the store opens");
-    let row = unique_row(60, 7);
+    let bars = layer2([unique_row(60, 7)]);
     let report = store
-        .ingest(&record("demo", "source:1", 1), &ingest_bars(&[row]))
+        .ingest(&record("demo", "source:1", 1), &ingest_bars(&bars))
         .expect("the dataset is ingested");
     assert_eq!(report.bars, 1);
     assert_eq!(report.timeframes, 1);
@@ -409,6 +427,18 @@ fn every_written_column_round_trips() {
         Value::from(Some(0.51)),
         Value::from(Some(0.52)),
         Value::from(Some(4_i64)),
+        Value::from(Some(0.11)),
+        Value::from(Some(5_i64)),
+        Value::from(None::<i64>),
+        Value::from(Some(-0.21)),
+        Value::from(Some(3_i64)),
+        Value::from(None::<i64>),
+        Value::from(Some(0.31)),
+        Value::from(Some(6_i64)),
+        Value::from(None::<i64>),
+        Value::from(Some(0.41)),
+        Value::from(Some(7_i64)),
+        Value::from(None::<i64>),
     ];
     assert_eq!(expected.len(), COLUMNS.len());
 
@@ -425,7 +455,7 @@ fn nulls_stay_null_and_zeros_stay_zero() {
     let report = store
         .ingest(
             &record("demo", "source:1", 1),
-            &ingest_bars(&[sparse_row()]),
+            &ingest_bars(&layer2([sparse_row()])),
         )
         .expect("the dataset is ingested");
 
@@ -442,42 +472,227 @@ fn nulls_stay_null_and_zeros_stay_zero() {
     assert_eq!(by_name("ema20"), Value::Null);
     assert_eq!(by_name("direction"), Value::Null);
     assert_eq!(by_name("direction_readiness_code"), Value::Integer(0));
-    assert_eq!(by_name("direction_unavailable_reason_code"), Value::Null);
+    assert_eq!(
+        by_name("direction_unavailable_reason_code"),
+        Value::Integer(1)
+    );
     assert_eq!(by_name("progress"), Value::Real(0.0));
     assert_eq!(by_name("structure_code"), Value::Null);
     assert_eq!(by_name("context_code"), Value::Null);
     assert_eq!(by_name("structure_scale_code"), Value::Integer(2));
 
-    for column in [
-        "direction_continuous",
-        "direction_ordinal",
-        "direction_resolution_reason_code",
-        "momentum_continuous",
-        "momentum_ordinal",
-        "momentum_resolution_reason_code",
-        "structure_continuous",
-        "structure_ordinal",
-        "structure_resolution_reason_code",
-        "progression_continuous",
-        "progression_ordinal",
-        "progression_resolution_reason_code",
-    ] {
-        let value: Value = store
-            .connection()
-            .query_row(
-                &format!("SELECT {column} FROM bar WHERE dataset_id = ?1"),
-                [report.dataset_id],
-                |row| row.get(0),
-            )
-            .expect("the resolution column is read");
-        assert_eq!(value, Value::Null, "column {column}");
+    assert_eq!(by_name("direction_continuous"), Value::Null);
+    assert_eq!(by_name("direction_ordinal"), Value::Null);
+    assert_eq!(
+        by_name("direction_resolution_reason_code"),
+        Value::Integer(1)
+    );
+    assert_eq!(by_name("momentum_continuous"), Value::Null);
+    assert_eq!(by_name("momentum_ordinal"), Value::Null);
+    assert_eq!(
+        by_name("momentum_resolution_reason_code"),
+        Value::Integer(1)
+    );
+    assert_eq!(by_name("structure_continuous"), Value::Null);
+    assert_eq!(by_name("structure_ordinal"), Value::Null);
+    assert_eq!(
+        by_name("structure_resolution_reason_code"),
+        Value::Integer(1)
+    );
+    assert_eq!(by_name("progression_continuous"), Value::Real(0.0));
+    assert_eq!(by_name("progression_ordinal"), Value::Integer(5));
+    assert_eq!(by_name("progression_resolution_reason_code"), Value::Null);
+}
+
+#[test]
+fn resolution_boundaries_are_stored_exactly() {
+    let mut store = Store::open_in_memory().expect("the store opens");
+    let values = [-1.0, -0.8, 0.0, 0.8, 1.0];
+    let bars: Vec<Layer2Row> = values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let mut row = unique_row(60, index);
+            row.metrics.direction.direction = Some(*value);
+            row.metrics.direction.unavailable_reason_code = None;
+            Layer2Row::from_layer1(row)
+        })
+        .collect();
+    store
+        .ingest(
+            &record("demo", "source:1", values.len()),
+            &ingest_bars(&bars),
+        )
+        .expect("the dataset is ingested");
+
+    let stored = stored_rows(
+        &store,
+        "SELECT direction_continuous, direction_ordinal, direction_resolution_reason_code \
+         FROM bar ORDER BY bar_index",
+    );
+    assert_eq!(
+        stored,
+        vec![
+            vec![
+                Value::from(Some(-1.0)),
+                Value::from(Some(0_i64)),
+                Value::Null,
+            ],
+            vec![
+                Value::from(Some(-0.8)),
+                Value::from(Some(1_i64)),
+                Value::Null,
+            ],
+            vec![
+                Value::from(Some(0.0)),
+                Value::from(Some(5_i64)),
+                Value::Null,
+            ],
+            vec![
+                Value::from(Some(0.8)),
+                Value::from(Some(9_i64)),
+                Value::Null,
+            ],
+            vec![
+                Value::from(Some(1.0)),
+                Value::from(Some(9_i64)),
+                Value::Null,
+            ],
+        ]
+    );
+}
+
+#[test]
+fn progression_keeps_raw_progress_and_stores_the_clamped_resolution() {
+    let mut store = Store::open_in_memory().expect("the store opens");
+    let bars: Vec<Layer2Row> = [(1.5, 1.0, 9), (-0.25, -0.25, 3)]
+        .into_iter()
+        .enumerate()
+        .map(|(index, (raw, _, _))| {
+            let mut row = unique_row(60, index);
+            row.metrics.progression.progress = Some(raw);
+            row.metrics.progression.unavailable_reason_code = None;
+            Layer2Row::from_layer1(row)
+        })
+        .collect();
+    store
+        .ingest(&record("demo", "source:1", bars.len()), &ingest_bars(&bars))
+        .expect("the dataset is ingested");
+
+    let stored = stored_rows(
+        &store,
+        "SELECT progress, progression_continuous, progression_ordinal, \
+             progression_resolution_reason_code FROM bar ORDER BY bar_index",
+    );
+    assert_eq!(
+        stored,
+        vec![
+            vec![
+                Value::from(Some(1.5)),
+                Value::from(Some(1.0)),
+                Value::from(Some(9_i64)),
+                Value::Null,
+            ],
+            vec![
+                Value::from(Some(-0.25)),
+                Value::from(Some(-0.25)),
+                Value::from(Some(3_i64)),
+                Value::Null,
+            ],
+        ]
+    );
+}
+
+#[test]
+fn invalid_resolutions_are_rejected_before_writing() {
+    let mut store = Store::open_in_memory().expect("the store opens");
+    let cases = [
+        AxisResolution {
+            continuous: Some(f64::NAN),
+            ordinal: Some(0),
+            reason: None,
+        },
+        AxisResolution {
+            continuous: Some(f64::INFINITY),
+            ordinal: Some(9),
+            reason: None,
+        },
+        AxisResolution {
+            continuous: Some(1.5),
+            ordinal: Some(9),
+            reason: None,
+        },
+        AxisResolution {
+            continuous: Some(0.0),
+            ordinal: None,
+            reason: None,
+        },
+        AxisResolution {
+            continuous: Some(0.0),
+            ordinal: Some(10),
+            reason: None,
+        },
+        AxisResolution {
+            continuous: Some(0.0),
+            ordinal: Some(4),
+            reason: None,
+        },
+        AxisResolution {
+            continuous: Some(0.0),
+            ordinal: Some(5),
+            reason: Some(1),
+        },
+        AxisResolution {
+            continuous: None,
+            ordinal: Some(5),
+            reason: Some(1),
+        },
+        AxisResolution {
+            continuous: None,
+            ordinal: None,
+            reason: None,
+        },
+        AxisResolution {
+            continuous: None,
+            ordinal: None,
+            reason: Some(7),
+        },
+    ];
+
+    for (index, resolution) in cases.into_iter().enumerate() {
+        let mut row = Layer2Row::from_layer1(unique_row(60, 0));
+        row.resolution.direction = resolution;
+        let bars = [row];
+        let error = store
+            .ingest(&record("demo", "source:1", 1), &ingest_bars(&bars))
+            .expect_err("the invalid resolution is rejected");
+        assert!(
+            matches!(error, StoreError::InvalidDataset { .. }),
+            "case {index}"
+        );
+        assert_eq!(count(&store, "dataset"), 0, "case {index}");
+        assert_eq!(count(&store, "bar"), 0, "case {index}");
     }
+
+    let mut row = Layer2Row::from_layer1(unique_row(60, 0));
+    row.resolution.progression = AxisResolution {
+        continuous: None,
+        ordinal: None,
+        reason: None,
+    };
+    let bars = [row];
+    let error = store
+        .ingest(&record("demo", "source:1", 1), &ingest_bars(&bars))
+        .expect_err("the invalid progression resolution is rejected");
+    assert!(matches!(error, StoreError::InvalidDataset { .. }));
+    assert_eq!(count(&store, "dataset"), 0);
+    assert_eq!(count(&store, "bar"), 0);
 }
 
 #[test]
 fn every_written_pivot_and_level_round_trips() {
     let mut store = Store::open_in_memory().expect("the store opens");
-    let bars: Vec<Layer1Row> = (0..8).map(|bar| unique_row(60, bar)).collect();
+    let bars = layer2((0..8).map(|bar| unique_row(60, bar)));
     let pivots = [
         pivot_row(60, 1, 1, 11.25, 2, 2, 0),
         pivot_row(60, 2, 2, 9.75, 2, 7, 1),
@@ -584,7 +799,7 @@ fn every_written_pivot_and_level_round_trips() {
 #[test]
 fn invalid_pivot_and_level_records_are_rejected_before_writing() {
     let mut store = Store::open_in_memory().expect("the store opens");
-    let bars = [unique_row(60, 0), unique_row(60, 1), unique_row(60, 2)];
+    let bars = layer2([unique_row(60, 0), unique_row(60, 1), unique_row(60, 2)]);
     let cases: Vec<(Vec<PivotRow>, Vec<LevelRow>)> = vec![
         (vec![pivot_row(60, 1, 1, 10.0, 2, 1, 1)], Vec::new()),
         (vec![pivot_row(60, 1, 1, 10.0, 1, 2, 0)], Vec::new()),
@@ -642,7 +857,7 @@ fn the_dataset_row_records_the_identity_and_contracts() {
     store
         .ingest(
             &record("demo", "source:1", 1),
-            &ingest_bars(&[unique_row(60, 0)]),
+            &ingest_bars(&layer2([unique_row(60, 0)])),
         )
         .expect("the dataset is ingested");
 
@@ -676,7 +891,7 @@ fn the_dataset_row_records_the_identity_and_contracts() {
 fn the_same_identity_is_a_no_op() {
     let mut store = Store::open_in_memory().expect("the store opens");
     let dataset = record("demo", "source:1", 1);
-    let rows = [unique_row(60, 0)];
+    let rows = layer2([unique_row(60, 0)]);
     let pivots = [pivot_row(60, 1, 1, 10.0, 0, 0, 0)];
     let levels = [level_row(60, 1001, 1, 1, 10.0, 0, 0)];
     let records = IngestRows::new(&rows, &pivots, &levels);
@@ -697,18 +912,13 @@ fn the_same_identity_is_a_no_op() {
 #[test]
 fn a_different_identity_is_a_conflict_and_changes_nothing() {
     let mut store = Store::open_in_memory().expect("the store opens");
+    let bars = layer2([unique_row(60, 0)]);
     store
-        .ingest(
-            &record("demo", "source:1", 1),
-            &ingest_bars(&[unique_row(60, 0)]),
-        )
+        .ingest(&record("demo", "source:1", 1), &ingest_bars(&bars))
         .expect("the first ingest");
 
     let error = store
-        .ingest(
-            &record("demo", "source:2", 1),
-            &ingest_bars(&[unique_row(60, 0)]),
-        )
+        .ingest(&record("demo", "source:2", 1), &ingest_bars(&bars))
         .expect_err("a different identity is rejected");
     assert!(matches!(error, StoreError::Conflict { name } if name == "demo"));
     assert_eq!(count(&store, "dataset"), 1);
@@ -731,13 +941,14 @@ fn a_failed_insert_rolls_back_the_dataset_and_every_record() {
     let first = unique_row(60, 0);
     let mut duplicate = unique_row(60, 0);
     duplicate.candle = candle(1_700_000_060, Some(1.0));
+    let bars = layer2([first, duplicate]);
     let pivots = [pivot_row(60, 1, 1, 11.0, 0, 0, 0)];
     let levels = [level_row(60, 1001, 1, 1, 11.0, 0, 0)];
 
     let error = store
         .ingest(
             &record("demo", "source:1", 2),
-            &IngestRows::new(&[first, duplicate], &pivots, &levels),
+            &IngestRows::new(&bars, &pivots, &levels),
         )
         .expect_err("the duplicate primary key fails the transaction");
     assert!(matches!(error, StoreError::Write { .. }));
@@ -771,7 +982,7 @@ fn the_m1_count_must_match_the_rows() {
     let error = store
         .ingest(
             &record("demo", "source:1", 0),
-            &ingest_bars(&[unique_row(60, 0)]),
+            &ingest_bars(&layer2([unique_row(60, 0)])),
         )
         .expect_err("an undeclared M1 row is rejected");
     assert!(matches!(error, StoreError::InvalidDataset { .. }));
@@ -795,7 +1006,7 @@ fn an_empty_dataset_is_accepted() {
 fn the_row_order_does_not_change_the_stored_set() {
     let mut first = Store::open_in_memory().expect("the first store opens");
     let mut second = Store::open_in_memory().expect("the second store opens");
-    let rows = [unique_row(60, 0), unique_row(300, 0), unique_row(60, 1)];
+    let rows = layer2([unique_row(60, 0), unique_row(300, 0), unique_row(60, 1)]);
     first
         .ingest(&record("demo", "source:1", 2), &ingest_bars(&rows))
         .expect("the first ingest");
@@ -823,7 +1034,7 @@ fn the_row_order_does_not_change_the_stored_set() {
 #[test]
 fn the_report_counts_distinct_timeframes() {
     let mut store = Store::open_in_memory().expect("the store opens");
-    let rows = [unique_row(60, 0), unique_row(60, 1), unique_row(300, 0)];
+    let rows = layer2([unique_row(60, 0), unique_row(60, 1), unique_row(300, 0)]);
     let report = store
         .ingest(&record("demo", "source:1", 2), &ingest_bars(&rows))
         .expect("the dataset is ingested");
@@ -832,8 +1043,8 @@ fn the_report_counts_distinct_timeframes() {
 }
 
 #[test]
-fn the_insert_binds_62_parameters() {
-    assert_eq!(BAR_INSERT.matches('?').count(), 62);
+fn the_insert_binds_74_parameters() {
+    assert_eq!(BAR_INSERT.matches('?').count(), 74);
 }
 
 #[test]

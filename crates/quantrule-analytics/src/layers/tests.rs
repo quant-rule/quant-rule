@@ -4,8 +4,8 @@ use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries};
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
 use super::{
-    AGGREGATE_COLUMNS, HIGHER_BLOCK_COLUMNS, LAYER1_COLUMNS, LAYER2_COLUMNS, LayerConfig,
-    LayerError, Metrics, build_layers, layer3_columns,
+    AGGREGATE_COLUMNS, HIGHER_BLOCK_COLUMNS, LAYER1_COLUMNS, LAYER2_COLUMNS, Layer2Row,
+    LayerConfig, LayerError, Metrics, build_layers, layer3_columns,
 };
 use crate::resolution::clamp_unit;
 
@@ -137,6 +137,7 @@ fn layer_two_derives_from_layer_one() {
 
     for (layer1, layer2) in set.layer1.iter().zip(&set.layer2) {
         assert_eq!(&layer2.layer1, layer1);
+        assert_eq!(Layer2Row::from_layer1(*layer1), *layer2);
         let metrics = &layer1.metrics;
         assert_eq!(
             layer2.resolution.direction.continuous,
@@ -182,6 +183,38 @@ fn layer_two_derives_from_layer_one() {
                 if value.is_none() { reason } else { None }
             );
         }
+    }
+}
+
+#[test]
+fn layer_two_constructor_keeps_the_contract_boundaries_and_clamp() {
+    let (m1, m5, h1) = alignment_fixture();
+    let set = build_layers(
+        &[input(M1, &m1), input(M5, &m5), input(H1, &h1)],
+        &LayerConfig::default(),
+    )
+    .expect("the fixture builds");
+    let base = *set.layer1.first().expect("the fixture has a row");
+
+    for (value, ordinal) in [(-1.0, 0), (-0.8, 1), (0.0, 5), (0.8, 9), (1.0, 9)] {
+        let mut layer1 = base;
+        layer1.metrics.direction.direction = Some(value);
+        layer1.metrics.direction.unavailable_reason_code = None;
+        let layer2 = Layer2Row::from_layer1(layer1);
+        assert_eq!(layer2.resolution.direction.continuous, Some(value));
+        assert_eq!(layer2.resolution.direction.ordinal, Some(ordinal));
+        assert_eq!(layer2.resolution.direction.reason, None);
+    }
+
+    for (raw, clamped, ordinal) in [(1.5, 1.0, 9), (-0.25, -0.25, 3)] {
+        let mut layer1 = base;
+        layer1.metrics.progression.progress = Some(raw);
+        layer1.metrics.progression.unavailable_reason_code = None;
+        let layer2 = Layer2Row::from_layer1(layer1);
+        assert_eq!(layer2.layer1.metrics.progression.progress, Some(raw));
+        assert_eq!(layer2.resolution.progression.continuous, Some(clamped));
+        assert_eq!(layer2.resolution.progression.ordinal, Some(ordinal));
+        assert_eq!(layer2.resolution.progression.reason, None);
     }
 }
 

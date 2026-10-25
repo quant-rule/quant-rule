@@ -1,19 +1,20 @@
 //! The dataset writer.
 //!
 //! `store ingest` builds the layers in memory and hands them here. This module
-//! writes one `dataset` row, one wide `bar` row per Layer 1 row, one `pivot` row
+//! writes one `dataset` row, one wide `bar` row per Layer 2 row, one `pivot` row
 //! per pivot occurrence, and one `level` row per confirmed level in a single
 //! transaction. It copies the engine's values; it never computes an indicator,
 //! a metric, a resolution, a pivot, or a level.
 //!
-//! The writer is deliberately narrower than the schema: the 12 resolution
-//! columns stay null until #70, and Layer 3, events, legs, and consensus are not
-//! materialized until #71–#73. The dataset row is therefore visible before the
-//! store is complete, which is why `layer3_materialized` stays zero.
+//! The writer is deliberately narrower than the schema: Layer 3, events, legs,
+//! and consensus are not materialized until #71–#73. The dataset row is
+//! therefore visible before the store is complete, which is why
+//! `layer3_materialized` stays zero.
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use quantrule_analytics::layers::{Layer1Row, LevelRow, M1_SECONDS, PivotRow};
+use quantrule_analytics::layers::{Layer2Row, LevelRow, M1_SECONDS, PivotRow};
+use quantrule_analytics::resolution::{AxisResolution, ordinal_bucket};
 use quantrule_model::axes::structure::registry::FIRST_REFERENCE_CODE;
 use rusqlite::types::Value;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params, params_from_iter};
@@ -47,8 +48,8 @@ pub(crate) struct DatasetRecord {
 /// The records written with one dataset.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct IngestRows<'a> {
-    /// One row per Layer 1 bar.
-    pub(crate) bars: &'a [Layer1Row],
+    /// One row per Layer 2 bar.
+    pub(crate) bars: &'a [Layer2Row],
     /// One row per pivot occurrence.
     pub(crate) pivots: &'a [PivotRow],
     /// One row per confirmed level.
@@ -58,7 +59,7 @@ pub(crate) struct IngestRows<'a> {
 impl<'a> IngestRows<'a> {
     /// Bundles the three record sets for one transaction.
     pub(crate) const fn new(
-        bars: &'a [Layer1Row],
+        bars: &'a [Layer2Row],
         pivots: &'a [PivotRow],
         levels: &'a [LevelRow],
     ) -> Self {
@@ -84,7 +85,7 @@ pub(crate) struct IngestReport {
 }
 
 impl Store {
-    /// Inserts one dataset, its Layer 1 bars, and its pivot and level records in
+    /// Inserts one dataset, its Layer 2 bars, and its pivot and level records in
     /// one transaction.
     ///
     /// A dataset with the same name and identity is a no-op. A dataset with the
@@ -94,8 +95,8 @@ impl Store {
     ///
     /// Returns [`StoreError::InvalidDataset`] when the declared M1 count does
     /// not match the rows, exceeds the cap, or a record has an invalid code,
-    /// price, bar range, availability bar, or duplicate key; returns
-    /// [`StoreError::Conflict`] for a different identity; and returns
+    /// price, bar range, availability bar, resolution, or duplicate key;
+    /// returns [`StoreError::Conflict`] for a different identity; and returns
     /// [`StoreError::Write`] when SQLite rejects a statement and the
     /// transaction rolls back.
     pub(crate) fn ingest(
@@ -214,7 +215,10 @@ fn validate(dataset: &DatasetRecord, rows: &IngestRows<'_>) -> Result<(), StoreE
 
     let mut bar_counts = BTreeMap::new();
     for row in rows.bars {
-        *bar_counts.entry(row.timeframe_secs).or_insert(0_usize) += 1;
+        *bar_counts
+            .entry(row.layer1.timeframe_secs)
+            .or_insert(0_usize) += 1;
+        validate_resolutions(row)?;
     }
     let m1_rows = bar_counts.get(&M1_SECONDS).copied().unwrap_or(0);
     if m1_rows != dataset.m1_bars {
@@ -381,9 +385,77 @@ fn invalid(detail: impl Into<String>) -> StoreError {
     }
 }
 
-fn distinct_timeframes(rows: &[Layer1Row]) -> usize {
+fn validate_resolutions(row: &Layer2Row) -> Result<(), StoreError> {
+    let layer1 = &row.layer1;
+    for (axis, resolution) in [
+        ("direction", row.resolution.direction),
+        ("momentum", row.resolution.momentum),
+        ("structure", row.resolution.structure),
+        ("progression", row.resolution.progression),
+    ] {
+        validate_resolution(axis, layer1.timeframe_secs, layer1.bar_index, resolution)?;
+    }
+    Ok(())
+}
+
+fn validate_resolution(
+    axis: &str,
+    timeframe_secs: u64,
+    bar_index: usize,
+    resolution: AxisResolution,
+) -> Result<(), StoreError> {
+    let location = format!("the {axis} resolution at timeframe {timeframe_secs} bar {bar_index}");
+    match resolution.continuous {
+        Some(value) => {
+            if !value.is_finite() || !(-1.0..=1.0).contains(&value) {
+                return Err(invalid(format!("{location} has continuous value {value}")));
+            }
+            if let Some(reason) = resolution.reason {
+                return Err(invalid(format!(
+                    "{location} carries reason {reason} with a value"
+                )));
+            }
+            let Some(ordinal) = resolution.ordinal else {
+                return Err(invalid(format!(
+                    "{location} has a continuous value but no ordinal"
+                )));
+            };
+            if ordinal > 9 {
+                return Err(invalid(format!(
+                    "{location} has ordinal {ordinal}, outside 0..=9"
+                )));
+            }
+            let expected = ordinal_bucket(value);
+            if ordinal != expected {
+                return Err(invalid(format!(
+                    "{location} has ordinal {ordinal} but bucket {expected}"
+                )));
+            }
+        }
+        None => {
+            if resolution.ordinal.is_some() {
+                return Err(invalid(format!(
+                    "{location} has an ordinal without a continuous value"
+                )));
+            }
+            let Some(reason) = resolution.reason else {
+                return Err(invalid(format!(
+                    "{location} has no continuous value and no reason"
+                )));
+            };
+            if !(1..=6).contains(&reason) {
+                return Err(invalid(format!(
+                    "{location} has reason {reason}, outside 1..=6"
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn distinct_timeframes(rows: &[Layer2Row]) -> usize {
     rows.iter()
-        .map(|row| row.timeframe_secs)
+        .map(|row| row.layer1.timeframe_secs)
         .collect::<BTreeSet<_>>()
         .len()
 }
@@ -450,7 +522,9 @@ fn count_timeframes(connection: &Connection, dataset_id: i64) -> Result<usize, S
     Ok(count as usize)
 }
 
-fn bar_params(dataset_id: i64, row: &Layer1Row) -> [Value; 62] {
+fn bar_params(dataset_id: i64, row: &Layer2Row) -> [Value; 74] {
+    let resolution = &row.resolution;
+    let row = &row.layer1;
     let metrics = &row.metrics;
     let readings = &row.readings;
     [
@@ -516,6 +590,18 @@ fn bar_params(dataset_id: i64, row: &Layer1Row) -> [Value; 62] {
         Value::from(metrics.context.atr_ratio),
         Value::from(metrics.context.rvol_ratio),
         Value::from(metrics.context.context_code.map(i64::from)),
+        Value::from(resolution.direction.continuous),
+        Value::from(resolution.direction.ordinal.map(i64::from)),
+        Value::from(resolution.direction.reason.map(i64::from)),
+        Value::from(resolution.momentum.continuous),
+        Value::from(resolution.momentum.ordinal.map(i64::from)),
+        Value::from(resolution.momentum.reason.map(i64::from)),
+        Value::from(resolution.structure.continuous),
+        Value::from(resolution.structure.ordinal.map(i64::from)),
+        Value::from(resolution.structure.reason.map(i64::from)),
+        Value::from(resolution.progression.continuous),
+        Value::from(resolution.progression.ordinal.map(i64::from)),
+        Value::from(resolution.progression.reason.map(i64::from)),
     ]
 }
 
@@ -537,12 +623,17 @@ INSERT INTO bar (\
     progress, progression_stage_code, progression_leg_direction, progression_leg_scale_code, \
     progression_size_percentile, progression_readiness_code, progression_unavailable_reason_code, \
     progression_state_age_bars, progression_state_changes_50, \
-    atr_ratio, rvol_ratio, context_code\
+    atr_ratio, rvol_ratio, context_code, \
+    direction_continuous, direction_ordinal, direction_resolution_reason_code, \
+    momentum_continuous, momentum_ordinal, momentum_resolution_reason_code, \
+    structure_continuous, structure_ordinal, structure_resolution_reason_code, \
+    progression_continuous, progression_ordinal, progression_resolution_reason_code\
 ) VALUES (\
     ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, \
     ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, \
     ?37, ?38, ?39, ?40, ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48, ?49, ?50, ?51, ?52, ?53, \
-    ?54, ?55, ?56, ?57, ?58, ?59, ?60, ?61, ?62\
+    ?54, ?55, ?56, ?57, ?58, ?59, ?60, ?61, ?62, ?63, ?64, ?65, ?66, ?67, ?68, ?69, ?70, \
+    ?71, ?72, ?73, ?74\
 )";
 
 fn pivot_params(dataset_id: i64, row: &PivotRow) -> [Value; 8] {
