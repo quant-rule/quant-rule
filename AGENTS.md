@@ -258,7 +258,6 @@ Creating a task branch and its worktree may be included in an approved execution
 - Creating commits.
 - Pushing to a remote.
 - Creating or updating a pull request.
-- Approving a pull request.
 - Merging or enabling automatic merging.
 - Creating releases or tags.
 - Deploying to any environment.
@@ -266,9 +265,9 @@ Creating a task branch and its worktree may be included in an approved execution
 
 One exception, and it is a routine one: after a task's pull request has been accepted and merged and its acceptance criteria have been verified, removing the task's worktree and deleting its task branch, locally and on the remote, is the default cleanup and needs no separate authorization, provided the issue is marked `Done` on the board. Before the cleanup, verify that no uncommitted or unmerged work will be lost; when that cannot be established, preserve the work and report a blocker instead of deleting anything. Every other destructive Git operation keeps its gate.
 
-The human remains responsible for final review and merge authorization. An AI may approve or merge its own implementation only when the human explicitly instructs it to do so for that pull request; approval of the work in general, or a standing instruction, is not enough. The instruction is recorded in the pull request.
+The human remains responsible for final acceptance. A pull request may be merged by its author once the required checks pass; a separate approval review is not required. An AI may merge a pull request it authored when the human's current instruction explicitly requests the merge.
 
-Branch protection, required checks, and merge restrictions should be configured in GitHub where available. Instructions in this file describe expected behavior but do not independently enforce repository permissions.
+Branch protection, required checks, and merge restrictions may be configured in GitHub; this project is worked by one person, so the workflow assumes the author merges their own pull request after the checks pass. Instructions in this file describe expected behavior but do not independently enforce repository permissions.
 
 ### Issue Status Lifecycle
 
@@ -325,7 +324,7 @@ Responsibilities:
 - Approve requirements, priorities, scope, and non-goals.
 - Decide business, architectural, methodological, technical, security, and operational questions that are not already explicitly settled.
 - Approve execution plans and material changes to them.
-- Authorize commits, pushes, pull requests, approvals, merges, deployments, and other gated operations.
+- Authorize commits, pushes, pull requests, merges, deployments, and other gated operations.
 - Make the final acceptance decision.
 
 No AI role may impersonate the human, manufacture approval, or treat its own recommendation as an approved decision.
@@ -440,8 +439,8 @@ Boundaries:
 
 - Read-only by default.
 - Does not silently modify the implementation it reviews.
-- Does not approve, merge, or authorize its own changes unless the human explicitly instructs it to do so for that pull request.
-- A clean review does not replace tests, security checks, or human approval.
+- Does not approve, merge, or authorize its own changes without the human's explicit instruction.
+- A clean review does not replace tests, security checks, or human acceptance.
 
 ### Security and Privacy Reviewer Agent
 
