@@ -496,12 +496,33 @@ fn latest_swings_at(
     let mut minor_low = None;
     let mut major_high = None;
     let mut major_low = None;
-    for level in levels.iter().filter(|level| level.available_at <= bar) {
+    let end = levels.partition_point(|level| level.available_at <= bar);
+
+    // Levels are in confirmation order. Walking back from the latest one
+    // finds the four latest swings without scanning the whole registry for
+    // every M1 bar.
+    for level in levels[..end].iter().rev() {
         match (level.scale, level.kind) {
-            (PivotScale::Minor, PivotKind::High) => minor_high = Some(*level),
-            (PivotScale::Minor, PivotKind::Low) => minor_low = Some(*level),
-            (PivotScale::Major, PivotKind::High) => major_high = Some(*level),
-            (PivotScale::Major, PivotKind::Low) => major_low = Some(*level),
+            (PivotScale::Minor, PivotKind::High) if minor_high.is_none() => {
+                minor_high = Some(*level);
+            }
+            (PivotScale::Minor, PivotKind::Low) if minor_low.is_none() => {
+                minor_low = Some(*level);
+            }
+            (PivotScale::Major, PivotKind::High) if major_high.is_none() => {
+                major_high = Some(*level);
+            }
+            (PivotScale::Major, PivotKind::Low) if major_low.is_none() => {
+                major_low = Some(*level);
+            }
+            _ => {}
+        }
+        if minor_high.is_some()
+            && minor_low.is_some()
+            && major_high.is_some()
+            && major_low.is_some()
+        {
+            break;
         }
     }
     (minor_high, minor_low, major_high, major_low)
