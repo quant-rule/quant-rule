@@ -160,9 +160,9 @@ The CLI fixture `state_m1.csv` stores 333 bars across 4 timeframes, 260 of them 
 
 | Item | Value |
 |---|---|
-| Commit | `feat: persist candles, readings, and metrics per bar` |
+| Commit | `7e4b173` — `feat: persist candles, readings, and metrics per bar` |
 | Branch | `feat/68-bar-ingest` |
-| Pull request | pending |
-| Board | #68 is `In Progress`; it moves to `Done` when the PR is open |
+| Pull request | [#101](https://github.com/quant-rule/quant-rule/pull/101) |
+| Board | #68 moved to `Done` when the PR opened |
 
 Merge, release, tag, and deployment remain with the human.

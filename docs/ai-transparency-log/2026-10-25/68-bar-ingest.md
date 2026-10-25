@@ -27,3 +27,14 @@
   - `IngestReport` was briefly re-exported from the store module; nothing outside the writer used it, so the re-export was removed and the type stays private to `store::ingest`.
   - The CLI invalid-source test asserts that the database file does not exist, proving the layer build happens before `Store::open`, not merely that the process exits 1.
   - The help fixture is generated from the binary rather than hand-edited, so it cannot drift from `HELP`.
+
+## Final verification
+
+- Writer unit tests: 13 passed.
+- Parser tests: 6 added; 36 `command::tests` pass.
+- CLI store tests: 6 passed.
+- `cargo test --workspace`: 786 passed, 0 failed, 3 ignored.
+- `cargo fmt --all -- --check`: clean.
+- `cargo clippy --all-targets -- -D warnings`: clean.
+- `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
+- Status: `Verified`. Commit `7e4b173` is pushed on `feat/68-bar-ingest`, pull request [#101](https://github.com/quant-rule/quant-rule/pull/101) is open, and #68 is `Done` on the board.
