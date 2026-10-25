@@ -4,7 +4,7 @@
 - Branch: `refactor/harden-analytics`
 - Worktree: `../quant-rule--harden-analytics`
 - Pull request: [#111](https://github.com/quant-rule/quant-rule/pull/111)
-- Status: Implemented and locally verified; follow-up branch closes D1 and E, D2 command-module split remains
+- Status: Verified; follow-up branches closed D1, D2, and E. PR #111 is merged.
 - Date: 2026-10-25 (UTC)
 - Related: [history policy ADR](../../adr/2026-10-25/history-retention-and-display-policy.md), [dataset verification](../../analytics/2026-10-25/dataset-verification.md)
 
@@ -51,7 +51,7 @@ Remove the input-window, retention, and orchestration ambiguity in the existing 
 
 ## 5. Remaining
 
-- **D1:** closed by the follow-up branch; one `parse_argv` and one `execute` now serve both entry points.
-- **D2:** the command-family module split remains; `command.rs` is still over 1,000 lines.
-- **E:** closed by the follow-up branch; the `bar` DDL is compared with the research column order.
-- No push, PR, or merge was performed. The human owns review and merge authorization.
+- **D1:** closed by PR #112; one `parse_argv` and one `execute` serve both entry points.
+- **D2:** closed by the [command-module split](d2-command-modules.md); `command.rs` is 40 lines and every module is below 1,000.
+- **E:** closed by PR #112; the `bar` DDL is compared with the research column order.
+- The exact 1,500-bar, 100,001-row fetch, 1,200-bar `model-series`, H1-readiness, and >1,024-event fixtures remain open and are recorded in the follow-up plans.

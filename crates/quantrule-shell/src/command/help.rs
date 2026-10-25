@@ -1,0 +1,116 @@
+//! The shell command reference.
+
+use std::io::Write;
+
+use super::types::RunError;
+
+/// The help text shown by the `help` command.
+pub(crate) const HELP: &str = r#"QuantRule shell commands:
+  candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
+  candles-tolerant <csv-path>   Read a CSV, skip bad rows, and report quality on stderr.
+  timeframes <csv-path>         Build M5/M15/H1 from an M1 CSV; print NDJSON and a report.
+  market-state <csv-path>       Print the four-timeframe market state as JSON.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  market-chart <csv-path>       Render the last candles and four axis panels as PNG.
+      --png <path>              Required PNG target.
+      --timeframe <tf>          Chart timeframe: 1m, 5m, 15m, or 1h (default 1m).
+      --candles <n>             Last n bars, 1..1000 (default 1000).
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  events <csv-path>             Print every event record in the analyzed window as NDJSON.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  legs <csv-path>               Print the minor and major leg per timeframe.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  model-series <csv-path>       Print the last complete model bars as NDJSON.
+      --timeframe <tf>          Restrict to 1m, 5m, 15m, or 1h (default: whole ladder).
+      --bars <n>                Bars per timeframe, 1..1000 (default 1000).
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  research export <csv> <dataset>
+                                Write the research dataset; requires --data-version.
+      --data-version <id>       Caller-supplied identity of the input series.
+      --root <dir>              Export root (default: data).
+  research summary <csv-path>   Print counts, ranges, ordinal histograms, and axis correlations.
+  store init [--db <path>]      Create or open the SQLite store (default data/quantrule.db).
+  store ingest <csv-path>       Ingest one M1 dataset into the store.
+      --dataset <name>          Dataset name; required.
+      --data-version <id>       Caller-supplied identity; required.
+      --db <path>               Database path (default data/quantrule.db).
+  store verify <csv-path>       Verify a stored dataset against a fresh build.
+      --dataset <name>          Dataset name; required.
+      --data-version <id>       Caller-supplied identity; required.
+      --db <path>               Database path (default data/quantrule.db).
+  store list [--db <path>]      List stored datasets as CSV.
+  store show <dataset> <table>  Show one table: bar, consensus, layer3, pivot, level, event, leg.
+      --timeframe <tf>          Timeframe filter: 1m, 5m, 15m, or 1h.
+      --bar <n>                 Bar-index filter where the table has one.
+      --limit <n>               Maximum rows, 1..1000 (default 100).
+      --db <path>               Database path (default data/quantrule.db).
+  store remove <dataset>        Remove one dataset and its cascading records.
+      --db <path>               Database path (default data/quantrule.db).
+  db series <dataset>           Stored candle series as NDJSON.
+  db bars <dataset>             Full stored bar rows as CSV.
+  db metrics <dataset>          Metrics and resolutions as CSV.
+  db layer3 <dataset>           Materialized Layer 3 rows as CSV.
+      --timeframe <tf>          Timeframe filter for series, bars, metrics.
+      --bar <n>                 Bar-index filter for bars, metrics, layer3.
+      --limit <n>               Maximum rows, 1..1000 (default 100).
+      --db <path>               Database path (default data/quantrule.db).
+  fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
+      [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
+      [--csv <path>]            CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
+      [--png <path>]            Also write a PNG chart.
+      [--candles <n>]           Chart candle count (default 1000, max 1000).
+  help                          Show this help.
+  quit                          Exit the shell.
+
+CSV header: Date,Open,High,Low,Close,Volume
+Timestamp: YYYY-MM-DD HH:MM:SS+00:00
+The candle and timeframe display commands retain the last 1000 candles.
+Model analysis uses the full series up to 100000 by default; --window latest uses the last 1000 per timeframe.
+NDJSON: one candle per line, oldest first:
+{"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
+Timeframes: M1 is the source; M5, M15, and H1 are derived by the data engine.
+Timeframe NDJSON adds a timeframe field and groups the series M1, M5, M15, H1.
+Quality report (stderr, candles-tolerant):
+quality rows_read=2 accepted=1 rejected=1 duplicate=0 out_of_order=0 invalid=1 evicted=0 retained=1
+skipped line=3 reason=invalid: high is below low
+Timeframe report (stderr, timeframes):
+aggregation timeframe=5m retained=2 partial=1 gaps=1
+partial timeframe=5m bucket=2025-01-01T00:00:00Z present=4 expected=5
+gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=1
+Fetch dates: inclusive UTC dates in YYYY-MM-DD form; no clock is read.
+Non-interactive: quantrule candles <csv-path>
+Non-interactive: quantrule candles-tolerant <csv-path>
+Non-interactive: quantrule timeframes <csv-path>
+Non-interactive: quantrule market-state <csv-path> [--window full|latest]
+Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
+Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
+Non-interactive: quantrule events <csv-path> [--window full|latest]
+Non-interactive: quantrule legs <csv-path> [--window full|latest]
+Non-interactive: quantrule model-series <csv-path> [--timeframe 1m] [--bars 1000] [--window full|latest]
+Non-interactive: quantrule research export path/to/m1.csv demo --data-version source:demo:60:0-1000
+Non-interactive: quantrule research summary path/to/m1.csv
+Non-interactive: quantrule store init --db data/quantrule.db
+Non-interactive: quantrule store ingest path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000
+Non-interactive: quantrule store verify path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000 --db data/quantrule.db
+Non-interactive: quantrule store list --db data/quantrule.db
+Non-interactive: quantrule store show demo bar --timeframe 1m --limit 10 --db data/quantrule.db
+Non-interactive: quantrule db series demo --timeframe 1m --limit 10 --db data/quantrule.db
+Non-interactive: quantrule db bars demo --limit 10 --db data/quantrule.db
+Non-interactive: quantrule db metrics demo --limit 10 --db data/quantrule.db
+Non-interactive: quantrule db layer3 demo --limit 10 --db data/quantrule.db
+Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
+"#;
+
+/// Writes the command reference.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the writer fails.
+pub(crate) fn run_help(writer: &mut impl Write) -> Result<(), RunError> {
+    writer
+        .write_all(HELP.as_bytes())
+        .map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}

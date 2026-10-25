@@ -8,21 +8,9 @@ use std::path::PathBuf;
 
 use quantrule_model::readings::PivotScale;
 
-use super::{Command, LayerBuild, ParseError, RunError, load_layers};
+use super::layers::{LayerBuild, load_layers};
+use super::types::{Command, ParseError, RunError, StoreVerifyArgs};
 use crate::store::{DatasetRecord, IngestRows, Store};
-
-/// Arguments for `store verify`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct StoreVerifyArgs {
-    /// The M1 source CSV.
-    pub(crate) path: PathBuf,
-    /// The dataset name.
-    pub(crate) dataset: String,
-    /// The caller-supplied data version.
-    pub(crate) data_version: String,
-    /// The database path.
-    pub(crate) database: PathBuf,
-}
 
 /// Parses `store verify`.
 ///
@@ -153,7 +141,8 @@ pub(crate) fn run_store_verify(
 mod tests {
     use std::path::PathBuf;
 
-    use super::{StoreVerifyArgs, parse_store_verify};
+    use super::parse_store_verify;
+    use crate::command::types::StoreVerifyArgs;
     use crate::command::{Command, ParseError};
 
     fn args(values: &[&str]) -> Vec<String> {

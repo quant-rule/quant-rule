@@ -10,66 +10,12 @@ use std::path::PathBuf;
 
 use quantrule_data::{Timeframe, format_utc_timestamp};
 
-use super::{Command, ParseError, RunError};
+use super::types::{Command, DbArgs, DbKind, ParseError, RunError, StoreListArgs, StoreShowArgs};
 use crate::store::{Cell, DatasetSummary, SeriesRow, Store, Table, TableRows};
 
 const DEFAULT_LIMIT: usize = 100;
 const MAX_LIMIT: usize = 1_000;
 const DEFAULT_DATABASE: &str = "data/quantrule.db";
-
-/// Arguments for `store list`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct StoreListArgs {
-    /// The database path.
-    pub(crate) database: PathBuf,
-}
-
-/// Arguments for `store show`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct StoreShowArgs {
-    /// The dataset name.
-    pub(crate) dataset: String,
-    /// The table to show.
-    pub(crate) table: Table,
-    /// The optional timeframe filter in seconds.
-    pub(crate) timeframe: Option<u64>,
-    /// The optional bar-index filter.
-    pub(crate) bar: Option<usize>,
-    /// The maximum rows to print.
-    pub(crate) limit: usize,
-    /// The database path.
-    pub(crate) database: PathBuf,
-}
-
-/// The per-bar view selected by `db`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DbKind {
-    /// Candle-only series.
-    Series,
-    /// Full `bar` rows.
-    Bars,
-    /// Metrics and resolutions.
-    Metrics,
-    /// Materialized Layer 3 rows.
-    Layer3,
-}
-
-/// Arguments for one `db` view.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct DbArgs {
-    /// Which view to render.
-    pub(crate) kind: DbKind,
-    /// The dataset name.
-    pub(crate) dataset: String,
-    /// The optional timeframe filter in seconds.
-    pub(crate) timeframe: Option<u64>,
-    /// The optional bar-index filter.
-    pub(crate) bar: Option<usize>,
-    /// The maximum rows to print.
-    pub(crate) limit: usize,
-    /// The database path.
-    pub(crate) database: PathBuf,
-}
 
 /// Parses `store list`.
 ///
@@ -509,10 +455,9 @@ fn format_float(value: f64) -> String {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{
-        DbArgs, DbKind, StoreShowArgs, parse_db_arguments, parse_store_list, parse_store_show,
-    };
+    use super::{parse_db_arguments, parse_store_list, parse_store_show};
     use crate::command::Command;
+    use crate::command::types::{DbArgs, DbKind, StoreListArgs, StoreShowArgs};
     use crate::store::Table;
 
     fn args(values: &[&str]) -> Vec<String> {
@@ -523,13 +468,13 @@ mod tests {
     fn parses_store_list_with_defaults_and_a_database() {
         assert_eq!(
             parse_store_list(&args(&["list"]), "usage"),
-            Ok(Command::StoreList(super::StoreListArgs {
+            Ok(Command::StoreList(StoreListArgs {
                 database: PathBuf::from("data/quantrule.db"),
             }))
         );
         assert_eq!(
             parse_store_list(&args(&["list", "--db", "other.db"]), "usage"),
-            Ok(Command::StoreList(super::StoreListArgs {
+            Ok(Command::StoreList(StoreListArgs {
                 database: PathBuf::from("other.db"),
             }))
         );

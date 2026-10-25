@@ -3,7 +3,7 @@
 - Issue: none; branch slug used
 - Branch: `refactor/harden-analytics-remaining`
 - Worktree: `../quant-rule--harden-analytics-remaining`
-- Status: Implemented and locally verified; D2 command-module split remains
+- Status: Verified; PR #112 merged. D2 is closed by the [command-module split](d2-command-modules.md).
 - Date: 2026-10-25 (UTC)
 - Predecessor: [hardening plan](harden-analytics.md)
 
@@ -35,7 +35,6 @@ Close the evidence, dispatch, provenance, column-agreement, and test gaps left b
 
 ## 4. Remaining
 
-- **D2:** split `command.rs` into smaller command-family modules and move the large test module; the file is still over 1,000 lines.
+- **D2:** closed by the [command-module split](d2-command-modules.md); `command.rs` is 40 lines and every module is below 1,000.
 - The 1,500-bar, 100,001-row fetch, 1,200-bar `model-series`, H1-readiness, and >1,024-event end-to-end tests are still not added; the current tests cover the implemented code paths but not those exact fixtures.
-- Store 100k benchmark not rerun after this branch.
-- No push, PR, or merge was performed.
+- PR #112 is merged; the branch and worktree were removed after verification.
