@@ -125,6 +125,21 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::StoreList(args) => {
+                if let Err(error) = command::run_store_list(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::StoreShow(args) => {
+                if let Err(error) = command::run_store_show(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::Db(args) => {
+                if let Err(error) = command::run_db(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Fetch(args) => {
                 if let Err(error) = command::run_fetch(&args, &mut stdout) {
                     eprintln!("error: {error}");
@@ -376,9 +391,61 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                         }
                     }
                 }
+                Ok(Some(Command::StoreList(args))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_store_list(&args, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
+                Ok(Some(Command::StoreShow(args))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_store_show(&args, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
                 Ok(_) => {
                     eprintln!(
-                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>]"
+                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]"
+                    );
+                    1
+                }
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "db" => {
+            let mut arguments = Vec::with_capacity(args.len().saturating_sub(1));
+            for argument in &args[1..] {
+                let Some(argument) = argument.to_str() else {
+                    eprintln!("error: db argument is not valid UTF-8");
+                    return 1;
+                };
+                arguments.push(argument.to_owned());
+            }
+            match command::parse_db_arguments(&arguments) {
+                Ok(Some(Command::Db(args))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_db(&args, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
+                Ok(_) => {
+                    eprintln!(
+                        "error: usage: db series <dataset> [--timeframe <tf>] [--limit <n>] [--db <path>] | db bars <dataset> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>] | db metrics <dataset> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>] | db layer3 <dataset> [--bar <n>] [--limit <n>] [--db <path>]"
                     );
                     1
                 }
@@ -397,7 +464,6 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                 };
                 arguments.push(argument.to_owned());
             }
-
             let fetch_args = match command::parse_fetch_arguments(&arguments) {
                 Ok(fetch_args) => fetch_args,
                 Err(error) => {

@@ -11,14 +11,16 @@
 
 mod error;
 mod ingest;
+mod query;
 mod schema;
 #[cfg(test)]
 mod tests;
 
 pub(crate) use error::StoreError;
 pub(crate) use ingest::{DatasetRecord, IngestRows};
+pub(crate) use query::{Cell, DatasetSummary, SeriesRow, Table, TableRows};
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OpenFlags};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -56,6 +58,41 @@ impl Store {
         configure(&connection).map_err(|source| map_error(source, path))?;
         enable_wal(&connection).map_err(|source| map_error(source, path))?;
         init(&mut connection, Some(path))?;
+
+        Ok(Self {
+            connection,
+            path: Some(path.to_path_buf()),
+        })
+    }
+
+    /// Opens an existing database read-only for inspection.
+    ///
+    /// The file is never created and no migration runs. A database whose schema
+    /// is newer than this binary is rejected; a version 1 or 2 database is read
+    /// as stored.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Missing`] when the file does not exist,
+    /// [`StoreError::Open`] when it cannot be opened, and
+    /// [`StoreError::UnsupportedVersion`] when its schema is newer.
+    pub(crate) fn open_read_only(path: &Path) -> Result<Self, StoreError> {
+        if !path.is_file() {
+            return Err(StoreError::Missing {
+                path: path.to_path_buf(),
+            });
+        }
+
+        let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|source| map_error(source, path))?;
+        configure_read_only(&connection).map_err(|source| map_error(source, path))?;
+        let version = read_version(&connection, Some(path))?;
+        if version > SCHEMA_VERSION {
+            return Err(StoreError::UnsupportedVersion {
+                found: version,
+                supported: SCHEMA_VERSION,
+            });
+        }
 
         Ok(Self {
             connection,
@@ -125,6 +162,10 @@ fn configure(connection: &Connection) -> Result<(), rusqlite::Error> {
     connection.execute_batch(
         "PRAGMA foreign_keys=ON;\nPRAGMA synchronous=NORMAL;\nPRAGMA busy_timeout=5000;",
     )
+}
+
+fn configure_read_only(connection: &Connection) -> Result<(), rusqlite::Error> {
+    connection.execute_batch("PRAGMA foreign_keys=ON;\nPRAGMA busy_timeout=5000;")
 }
 
 fn enable_wal(connection: &Connection) -> Result<(), rusqlite::Error> {

@@ -27,6 +27,13 @@ use crate::render_state;
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
 use crate::store::{DatasetRecord, IngestRows, Store, StoreError};
 
+mod store_query;
+
+pub(crate) use self::store_query::{
+    DbArgs, StoreListArgs, StoreShowArgs, parse_db_arguments, run_db, run_store_list,
+    run_store_show,
+};
+
 /// The help text shown by the `help` command.
 pub(crate) const HELP: &str = r#"QuantRule shell commands:
   candles <csv-path>            Read a CSV and print the retained candle window as NDJSON.
@@ -49,6 +56,20 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
   store ingest <csv-path>       Ingest one M1 dataset into the store.
       --dataset <name>          Dataset name; required.
       --data-version <id>       Caller-supplied identity; required.
+      --db <path>               Database path (default data/quantrule.db).
+  store list [--db <path>]      List stored datasets as CSV.
+  store show <dataset> <table>  Show one table: bar, consensus, layer3, pivot, level, event, leg.
+      --timeframe <tf>          Timeframe filter: 1m, 5m, 15m, or 1h.
+      --bar <n>                 Bar-index filter where the table has one.
+      --limit <n>               Maximum rows, 1..1000 (default 100).
+      --db <path>               Database path (default data/quantrule.db).
+  db series <dataset>           Stored candle series as NDJSON.
+  db bars <dataset>             Full stored bar rows as CSV.
+  db metrics <dataset>          Metrics and resolutions as CSV.
+  db layer3 <dataset>           Materialized Layer 3 rows as CSV.
+      --timeframe <tf>          Timeframe filter for series, bars, metrics.
+      --bar <n>                 Bar-index filter for bars, metrics, layer3.
+      --limit <n>               Maximum rows, 1..1000 (default 100).
       --db <path>               Database path (default data/quantrule.db).
   fetch <symbol> <start> <end>  Fetch native BID candles; write CSV, print summary.
       [--timeframe <tf>]        Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
@@ -85,6 +106,12 @@ Non-interactive: quantrule research export path/to/m1.csv demo --data-version so
 Non-interactive: quantrule research summary path/to/m1.csv
 Non-interactive: quantrule store init --db data/quantrule.db
 Non-interactive: quantrule store ingest path/to/m1.csv --dataset demo --data-version source:demo:60:0-1000
+Non-interactive: quantrule store list --db data/quantrule.db
+Non-interactive: quantrule store show demo bar --timeframe 1m --limit 10 --db data/quantrule.db
+Non-interactive: quantrule db series demo --timeframe 1m --limit 10 --db data/quantrule.db
+Non-interactive: quantrule db bars demo --limit 10 --db data/quantrule.db
+Non-interactive: quantrule db metrics demo --limit 10 --db data/quantrule.db
+Non-interactive: quantrule db layer3 demo --limit 10 --db data/quantrule.db
 Non-interactive: quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 5m --csv out.csv
 "#;
 
@@ -115,6 +142,12 @@ pub(crate) enum Command {
     StoreInit(PathBuf),
     /// Ingest one dataset into the SQLite store.
     StoreIngest(StoreIngestArgs),
+    /// List the stored datasets.
+    StoreList(StoreListArgs),
+    /// Show one stored table.
+    StoreShow(StoreShowArgs),
+    /// Read one stored per-bar view.
+    Db(DbArgs),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
     Fetch(FetchArgs),
     /// Print the command reference.
@@ -353,6 +386,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "store" => {
             let arguments = tokenize(rest)?;
             parse_store_arguments(&arguments)
+        }
+        "db" => {
+            let arguments = tokenize(rest)?;
+            store_query::parse_db_arguments(&arguments)
         }
         "fetch" => {
             let arguments = tokenize(rest)?;
@@ -755,10 +792,12 @@ pub(crate) fn parse_research_arguments(
 /// Returns [`ParseError::Store`] for a missing or unknown subcommand, a missing
 /// option value, or a repeated option.
 pub(crate) fn parse_store_arguments(arguments: &[String]) -> Result<Option<Command>, ParseError> {
-    const USAGE: &str = "usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>]";
+    const USAGE: &str = "usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]";
     match arguments.first().map(String::as_str) {
         Some("init") => parse_store_init(arguments, USAGE),
         Some("ingest") => parse_store_ingest(arguments, USAGE),
+        Some("list") => store_query::parse_store_list(arguments, USAGE).map(Some),
+        Some("show") => store_query::parse_store_show(arguments, USAGE).map(Some),
         _ => Err(ParseError::Store(USAGE.to_string())),
     }
 }
