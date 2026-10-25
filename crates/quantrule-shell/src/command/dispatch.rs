@@ -16,7 +16,7 @@ use super::{
 
 /// Parses the already-split arguments after the binary name.
 ///
-/// This is the non-interactive counterpart of [`super::parse`]. It accepts the
+/// This is the non-interactive counterpart of [`super::parse()`]. It accepts the
 /// same commands and options; only the token source differs.
 ///
 /// # Errors
