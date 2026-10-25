@@ -2,6 +2,7 @@
 
 - Work item: `120-solo-pr-workflow`
 - Issue: [#120](https://github.com/quant-rule/quant-rule/issues/120)
+- Pull request: [#121](https://github.com/quant-rule/quant-rule/pull/121)
 - Date: 2026-10-25 (UTC)
 
 ## Entry: remove the approval review requirement
