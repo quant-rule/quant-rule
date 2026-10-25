@@ -107,6 +107,21 @@ pub struct Layer2Row {
     pub resolution: AxisResolutions,
 }
 
+impl Layer2Row {
+    /// Adds the four axis resolutions to a Layer 1 row.
+    ///
+    /// The resolutions are derived from the row's own published metrics by the
+    /// same mapping the layer build uses. Progression's raw `progress` is
+    /// clamped for the resolution; the Layer 1 field keeps the raw value.
+    #[must_use]
+    pub fn from_layer1(layer1: Layer1Row) -> Self {
+        Self {
+            resolution: resolutions(&layer1.metrics),
+            layer1,
+        }
+    }
+}
+
 /// One as-of higher-timeframe block of a Layer 3 row.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HigherBlock {
@@ -242,12 +257,8 @@ pub fn build_layers(
                 readings,
                 metrics,
             };
-            let resolution = resolutions(&metrics);
             layer1.push(row);
-            layer2.push(Layer2Row {
-                layer1: row,
-                resolution,
-            });
+            layer2.push(Layer2Row::from_layer1(row));
         }
         pivots.extend(records::pivot_rows(
             timeframe.timeframe_secs(),

@@ -262,7 +262,7 @@ Boundary examples:
 1. If the continuous value is null, the ordinal is null and the reason column carries the axis's `unavailable_reason_code`.
 2. The reason column is null exactly when the continuous value is a value. A null continuous value with a null reason is a contract violation and fails the export; every axis publishes a reason when it publishes no value.
 3. A valid zero is a value. It resolves to bucket 5 and has a null reason.
-4. Progression is resolved from the clamped value, but the raw `progress` remains in Layer 1. A raw progress of `1.5` resolves to `1.0` and bucket 9; a raw progress of `-0.25` resolves to `-0.25` and bucket 4.
+4. Progression is resolved from the clamped value, but the raw `progress` remains in Layer 1. A raw progress of `1.5` resolves to `1.0` and bucket 9; a raw progress of `-0.25` resolves to `-0.25` and bucket 3.
 5. An axis's null never fills another axis. There is no cross-axis imputation and no composite resolution.
 6. Ordinals are counted, compared, and never averaged. No field in the dataset is a mean of ordinal codes.
 
