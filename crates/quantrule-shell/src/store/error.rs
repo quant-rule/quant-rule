@@ -48,6 +48,21 @@ pub(crate) enum StoreError {
         /// The underlying SQLite error.
         source: rusqlite::Error,
     },
+    /// The dataset name exists with a different identity.
+    Conflict {
+        /// The dataset name.
+        name: String,
+    },
+    /// The dataset cannot be written because its identity or bar count is invalid.
+    InvalidDataset {
+        /// What is wrong with the dataset.
+        detail: String,
+    },
+    /// A write failed and was rolled back.
+    Write {
+        /// The underlying SQLite error.
+        source: rusqlite::Error,
+    },
 }
 
 impl fmt::Display for StoreError {
@@ -74,6 +89,14 @@ impl fmt::Display for StoreError {
                 )
             }
             Self::Query { source } => write!(formatter, "store query failed: {source}"),
+            Self::Conflict { name } => write!(
+                formatter,
+                "dataset '{name}' already exists with a different identity"
+            ),
+            Self::InvalidDataset { detail } => {
+                write!(formatter, "cannot ingest the dataset: {detail}")
+            }
+            Self::Write { source } => write!(formatter, "cannot write the store: {source}"),
         }
     }
 }
@@ -84,8 +107,10 @@ impl std::error::Error for StoreError {
             Self::Open { source, .. } | Self::Migrate { source } | Self::Query { source } => {
                 Some(source)
             }
+            Self::Write { source } => Some(source),
             Self::Directory { source, .. } => Some(source),
             Self::UnsupportedVersion { .. } | Self::Corrupt { .. } => None,
+            Self::Conflict { .. } | Self::InvalidDataset { .. } => None,
         }
     }
 }

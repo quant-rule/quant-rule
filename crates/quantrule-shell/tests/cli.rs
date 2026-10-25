@@ -8,6 +8,8 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
+use rusqlite::Connection;
+
 const BIN: &str = env!("CARGO_BIN_EXE_quantrule");
 
 fn fixture(name: &str) -> String {
@@ -947,4 +949,170 @@ fn store_init_rejects_a_missing_db_value() {
     let output = run(&["store", "init", "--db"]);
     assert_failure(&output);
     assert!(stderr_text(&output).contains("--db needs a value"));
+}
+
+fn scalar(connection: &Connection, sql: &str) -> i64 {
+    connection
+        .query_row(sql, [], |row| row.get(0))
+        .expect("the scalar query succeeds")
+}
+
+#[test]
+fn store_ingest_writes_every_ladder_bar_and_repeats_as_a_no_op() {
+    let root = artifact_dir("store-ingest");
+    let db = format!("{root}/store.db");
+    let path = fixture("state_m1.csv");
+
+    let output = run(&[
+        "store",
+        "ingest",
+        &path,
+        "--dataset",
+        "demo",
+        "--data-version",
+        "test:demo:60:0-260",
+        "--db",
+        &db,
+    ]);
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        "ingested demo bars=333 timeframes=4\n"
+    );
+
+    let connection = Connection::open(&db).expect("the store opens");
+    assert_eq!(scalar(&connection, "SELECT count(*) FROM dataset"), 1);
+    assert_eq!(scalar(&connection, "SELECT count(*) FROM bar"), 333);
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM bar WHERE timeframe_secs = 60"
+        ),
+        260
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(DISTINCT timeframe_secs) FROM bar"
+        ),
+        4
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT layer3_materialized FROM dataset WHERE name = 'demo'"
+        ),
+        0
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM bar WHERE direction_continuous IS NOT NULL \
+             OR direction_ordinal IS NOT NULL OR direction_resolution_reason_code IS NOT NULL \
+             OR momentum_continuous IS NOT NULL OR momentum_ordinal IS NOT NULL \
+             OR momentum_resolution_reason_code IS NOT NULL \
+             OR structure_continuous IS NOT NULL OR structure_ordinal IS NOT NULL \
+             OR structure_resolution_reason_code IS NOT NULL \
+             OR progression_continuous IS NOT NULL OR progression_ordinal IS NOT NULL \
+             OR progression_resolution_reason_code IS NOT NULL"
+        ),
+        0
+    );
+
+    let output = run(&[
+        "store",
+        "ingest",
+        &path,
+        "--dataset",
+        "demo",
+        "--data-version",
+        "test:demo:60:0-260",
+        "--db",
+        &db,
+    ]);
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        "unchanged demo bars=333 timeframes=4\n"
+    );
+    assert_eq!(scalar(&connection, "SELECT count(*) FROM dataset"), 1);
+    assert_eq!(scalar(&connection, "SELECT count(*) FROM bar"), 333);
+}
+
+#[test]
+fn store_ingest_rejects_a_conflicting_identity_and_changes_nothing() {
+    let root = artifact_dir("store-ingest-conflict");
+    let db = format!("{root}/store.db");
+    let path = fixture("state_m1.csv");
+    let ingest = |version: &str| {
+        run(&[
+            "store",
+            "ingest",
+            &path,
+            "--dataset",
+            "demo",
+            "--data-version",
+            version,
+            "--db",
+            &db,
+        ])
+    };
+
+    let output = ingest("test:demo:60:0-260");
+    assert_success(&output);
+
+    let output = ingest("test:demo:60:1-260");
+    assert_failure(&output);
+    assert!(stderr_text(&output).contains("different identity"));
+
+    let connection = Connection::open(&db).expect("the store opens");
+    assert_eq!(scalar(&connection, "SELECT count(*) FROM dataset"), 1);
+    assert_eq!(scalar(&connection, "SELECT count(*) FROM bar"), 333);
+    let stored: String = connection
+        .query_row(
+            "SELECT data_version FROM dataset WHERE name = 'demo'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("the identity is read");
+    assert_eq!(stored, "test:demo:60:0-260");
+}
+
+#[test]
+fn store_ingest_rejects_an_invalid_source_without_creating_the_database() {
+    let root = artifact_dir("store-ingest-invalid");
+    let db = format!("{root}/store.db");
+    let path = fixture("invalid_candle.csv");
+
+    let output = run(&[
+        "store",
+        "ingest",
+        &path,
+        "--dataset",
+        "demo",
+        "--data-version",
+        "test:demo:60:0-1",
+        "--db",
+        &db,
+    ]);
+    assert_failure(&output);
+    assert!(!Path::new(&db).exists(), "a failed source wrote a database");
+}
+
+#[test]
+fn interactive_store_ingest_matches_non_interactive_output() {
+    let root = artifact_dir("store-ingest-interactive");
+    let db = format!("{root}/store.db");
+    let path = fixture("state_m1.csv");
+    let input = format!(
+        "store ingest {path} --dataset demo --data-version test:demo:60:0-260 --db {db}\nquit\n"
+    );
+
+    let output = run_interactive(&input);
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        "ingested demo bars=333 timeframes=4\n"
+    );
+    assert!(stderr_text(&output).contains("quantrule> "));
 }

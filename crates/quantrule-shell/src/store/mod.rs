@@ -9,11 +9,13 @@
 //! a failed migration rolls back to the previous version.
 
 mod error;
+mod ingest;
 mod schema;
 #[cfg(test)]
 mod tests;
 
 pub(crate) use error::StoreError;
+pub(crate) use ingest::DatasetRecord;
 
 use rusqlite::Connection;
 use std::fs;

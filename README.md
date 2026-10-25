@@ -27,6 +27,7 @@ cargo run -p quantrule-shell -- legs path/to/m1.csv
 cargo run -p quantrule-shell -- research export path/to/m1.csv demo --data-version binance:BTCUSDT:60:1704067200-1710115200
 cargo run -p quantrule-shell -- research summary path/to/m1.csv
 cargo run -p quantrule-shell -- store init --db data/quantrule.db
+cargo run -p quantrule-shell -- store ingest path/to/m1.csv --dataset demo --data-version binance:BTCUSDT:60:1704067200-1710115200
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --csv data/XAUUSD_M1_2025-01-01_2025-12-31.csv
 cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1h --csv data/EURUSD_H1_2026-01-01_2026-06-30.csv
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauusd_2025.png
@@ -46,6 +47,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `research export` | `<csv-path> <dataset> --data-version <id>` [options] | The raw M1 file and the three research layers, with the manifest, dictionary, and code table |
 | `research summary` | `<csv-path>` | Per-axis counts, ranges, ordinal histograms, and pairwise continuous correlations |
 | `store init` | [options] | Creates or opens the SQLite store and prints its schema version |
+| `store ingest` | `<csv-path> --dataset <name> --data-version <id>` [options] | Writes one dataset and every ladder bar, and prints the stored counts |
 | `fetch` | `<symbol> <start> <end>` [options] | A CSV of native BID candles and an optional PNG chart |
 | `help` | none | The command reference |
 | `quit` | none | Exits with status 0 |
@@ -77,6 +79,16 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `--db <path>` | Database path (default `data/quantrule.db`) |
 
 `store init` opens the SQLite store, applies the version 1 schema in one transaction, and prints the path and the schema version. Reopening an existing store is idempotent. A store whose schema is newer than the binary is rejected, and a file that is not a database fails with a clear error. The store is a shell-owned module; the data, model, and analytics crates remain pure.
+
+`store ingest` options:
+
+| Option | Meaning |
+|---|---|
+| `--dataset <name>` | Required unique dataset name |
+| `--data-version <id>` | Required identity of the input series: source, timeframe, and coverage |
+| `--db <path>` | Database path (default `data/quantrule.db`) |
+
+`store ingest` reads one M1 CSV, builds M1/M5/M15/H1 in memory, and writes one `dataset` row plus one wide `bar` row per Layer 1 row in a single `BEGIN IMMEDIATE` transaction. It writes the candle, the six readings, and the four-axis metrics for every ladder bar; a missing value is `NULL` with its unavailable-reason code, and a valid zero stays `0`. The 12 axis-resolution columns stay `NULL` until the resolution writer lands, and `layer3_materialized` stays `0` until Layer 3 is materialized. The M1 `bar` count equals the accepted source rows; the full count covers the whole ladder. The input is capped at 100,000 M1 candles and a count mismatch or over-cap input is rejected before anything is written. Re-running the same name with the same identity is a no-op that prints `unchanged`; a different identity for an existing name is a conflict and changes nothing. Output is one deterministic line: `ingested <name> bars=<n> timeframes=<k>` or `unchanged <name> bars=<n> timeframes=<k>`.
 
 `candles` reads the file one row at a time. A missing file, bad header, malformed row, invalid OHLC, duplicate timestamp, or out-of-order timestamp aborts the command. The shell builds the window before writing, so a late error produces no partial NDJSON.
 
