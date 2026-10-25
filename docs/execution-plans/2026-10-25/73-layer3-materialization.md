@@ -2,7 +2,7 @@
 
 - Issue: [#73](https://github.com/quant-rule/quant-rule/issues/73) — feat: materialize layer 3 for M1
 - Branch: `feat/73-layer3-materialization`
-- Pull request: pending
+- Pull request: [#107](https://github.com/quant-rule/quant-rule/pull/107)
 - Status: Verified
 - Date: 2026-10-25 (UTC)
 - ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)
