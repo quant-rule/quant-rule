@@ -2,16 +2,17 @@
 //!
 //! `store ingest` builds the layers in memory and hands them here. This module
 //! writes one `dataset` row, one wide `bar` row per Layer 2 row, one `consensus`
-//! row per closed bar per timeframe, one `layer3` row per M1 bar with the 82
-//! cross-timeframe aggregates, one `pivot` row per pivot occurrence, one `level`
-//! row per confirmed level, one `event` row per event record, and one `leg` row
-//! per retained leg in a single transaction. It copies the engine's values; it
-//! never computes an indicator, a metric, a resolution, a pivot, a level, an
-//! event, a leg, a consensus count, or an aggregate.
+//! row per closed bar per timeframe, one `layer3` row per M1 bar with the as-of
+//! higher-timeframe blocks and the 82 cross-timeframe aggregates, one `pivot`
+//! row per pivot occurrence, one `level` row per confirmed level, one `event`
+//! row per event record, and one `leg` row per retained leg in a single
+//! transaction. It copies the engine's values; it never computes an indicator,
+//! a metric, a resolution, a pivot, a level, an event, a leg, a consensus
+//! count, an as-of block, or an aggregate.
 //!
-//! The writer is deliberately narrower than the schema: the higher-timeframe
-//! blocks in `layer3` are not materialized until #73. `layer3_materialized`
-//! therefore stays zero.
+//! A new dataset is marked `layer3_materialized = 1`. A #68–#72 dataset is not
+//! backfilled; a same-identity re-ingest remains a no-op and #74 reports the
+//! incomplete dataset.
 
 mod sql;
 mod validate;
@@ -24,7 +25,7 @@ use quantrule_analytics::layers::{
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params, params_from_iter};
 
 use self::sql::{
-    BAR_INSERT, CONSENSUS_INSERT, EVENT_INSERT, LAYER3_AGGREGATE_INSERT, LEG_INSERT, LEVEL_INSERT,
+    BAR_INSERT, CONSENSUS_INSERT, EVENT_INSERT, LAYER3_INSERT, LEG_INSERT, LEVEL_INSERT,
     PIVOT_INSERT, bar_params, consensus_params, event_params, layer3_params, leg_params,
     level_params, pivot_params,
 };
@@ -39,6 +40,12 @@ pub(crate) const RESEARCH_CONTRACT: &str = "2026-10-24";
 
 /// The hard cap on M1 candles in one dataset.
 pub(crate) const MAX_M1_BARS: usize = 100_000;
+
+/// The fixed higher timeframes the store's Layer 3 blocks support.
+///
+/// The schema names the three blocks `m5_`, `m15_`, and `h1_`; a block with any
+/// other timeframe cannot be stored without a schema change.
+pub(super) const LAYER3_HIGHER_TIMEFRAMES: [u64; 3] = [300, 900, 3_600];
 
 /// The identity and source facts needed to insert a dataset row.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,8 +119,8 @@ pub(crate) struct IngestReport {
 
 impl Store {
     /// Inserts one dataset, its Layer 2 bars, its consensus rows, its Layer 3
-    /// aggregate rows, and its pivot, level, event, and leg records in one
-    /// transaction.
+    /// block and aggregate rows, and its pivot, level, event, and leg records in
+    /// one transaction.
     ///
     /// A dataset with the same name and identity is a no-op. A dataset with the
     /// same name but a different identity is a conflict; nothing is overwritten.
@@ -124,12 +131,12 @@ impl Store {
     /// not match the rows, exceeds the cap, or a record has an invalid code,
     /// price, bar range, availability bar, resolution, consensus count or
     /// weakest code, missing or duplicate key, invalid aggregate ladder or
-    /// list, non-finite aggregate value, invalid event type or subtype, invalid
-    /// event reference, missing threshold value on a Signal threshold crossing,
-    /// invalid leg scale or lifecycle, or inconsistent leg
-    /// availability; returns [`StoreError::Conflict`] for a different identity;
-    /// and returns [`StoreError::Write`] when SQLite rejects a statement and the
-    /// transaction rolls back.
+    /// list, non-finite aggregate value, invalid Layer 3 base or block, invalid
+    /// event type or subtype, invalid event reference, missing threshold value
+    /// on a Signal threshold crossing, invalid leg scale or lifecycle, or
+    /// inconsistent leg availability; returns [`StoreError::Conflict`] for a
+    /// different identity; and returns [`StoreError::Write`] when SQLite rejects
+    /// a statement and the transaction rolls back.
     pub(crate) fn ingest(
         &mut self,
         dataset: &DatasetRecord,
@@ -166,7 +173,7 @@ impl Store {
                 "INSERT INTO dataset \
                  (name, data_version, model_version, model_contract, research_contract, \
                   structure_scale_code, m1_bars, layer3_materialized) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0)",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)",
                 params![
                     dataset.name,
                     dataset.data_version,
@@ -202,7 +209,7 @@ impl Store {
         }
         {
             let mut statement = transaction
-                .prepare(LAYER3_AGGREGATE_INSERT)
+                .prepare(LAYER3_INSERT)
                 .map_err(|source| StoreError::Write { source })?;
             for row in rows.layer3 {
                 statement

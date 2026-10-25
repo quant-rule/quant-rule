@@ -1,4 +1,4 @@
-//! Binary-level audit of the consensus and aggregate rows.
+//! Binary-level audit of the consensus, Layer 3, and record rows.
 //!
 //! The writer unit tests cover binding and validation. This test runs the real
 //! binary over `state_m1.csv`, then reads the SQLite file and checks the stored
@@ -65,7 +65,7 @@ fn parse_list(text: &str) -> Vec<u64> {
 }
 
 #[test]
-fn store_ingest_writes_consensus_and_aggregate_rows() {
+fn store_ingest_writes_consensus_and_layer3_rows() {
     let root = artifact_dir("consensus-aggregates");
     let db = format!("{root}/store.db");
     let path = fixture();
@@ -170,18 +170,9 @@ fn store_ingest_writes_consensus_and_aggregate_rows() {
     assert_eq!(
         scalar(
             &connection,
-            "SELECT count(*) FROM layer3 WHERE m5_bar_index IS NOT NULL \
-             OR m15_bar_index IS NOT NULL OR h1_bar_index IS NOT NULL"
-        ),
-        0,
-        "a block column is populated"
-    );
-    assert_eq!(
-        scalar(
-            &connection,
             "SELECT layer3_materialized FROM dataset WHERE name = 'demo'"
         ),
-        0
+        1
     );
     assert_eq!(
         scalar(
@@ -193,6 +184,43 @@ fn store_ingest_writes_consensus_and_aggregate_rows() {
         260,
         "a Layer 3 row has no M1 base"
     );
+
+    for (prefix, timeframe) in [("m5", 300_i64), ("m15", 900_i64), ("h1", 3_600_i64)] {
+        let populated = scalar(
+            &connection,
+            &format!("SELECT count(*) FROM layer3 WHERE {prefix}_bar_index IS NOT NULL"),
+        );
+        assert!(populated > 0, "the {prefix} block is never populated");
+
+        let joined = scalar(
+            &connection,
+            &format!(
+                "SELECT count(*) FROM layer3 l JOIN bar b \
+                 ON b.dataset_id = l.dataset_id AND b.timeframe_secs = {timeframe} \
+                 AND b.bar_index = l.{prefix}_bar_index \
+                 WHERE l.{prefix}_bar_index IS NOT NULL"
+            ),
+        );
+        assert_eq!(joined, populated, "a {prefix} block names no stored bar");
+
+        let bad_close = scalar(
+            &connection,
+            &format!(
+                "SELECT count(*) FROM layer3 l \
+                 JOIN bar base ON base.dataset_id = l.dataset_id \
+                 AND base.timeframe_secs = 60 AND base.bar_index = l.bar_index \
+                 JOIN bar b ON b.dataset_id = l.dataset_id AND b.timeframe_secs = {timeframe} \
+                 AND b.bar_index = l.{prefix}_bar_index \
+                 WHERE l.{prefix}_bar_index IS NOT NULL \
+                 AND (b.open_time + {timeframe} > base.open_time + 60 \
+                 OR l.{prefix}_staleness_secs != base.open_time + 60 - (b.open_time + {timeframe}))"
+            ),
+        );
+        assert_eq!(
+            bad_close, 0,
+            "a {prefix} block has a bad close or staleness"
+        );
+    }
 
     let mut statement = connection
         .prepare(
