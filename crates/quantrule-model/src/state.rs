@@ -8,22 +8,15 @@
 //! The module is pure: it reads the candles and configuration it is given. It
 //! performs no I/O, reads no clock, and uses no randomness.
 
-use std::num::NonZeroU64;
-
 use quantrule_data::Candle;
 
-use crate::aggregate::{CrossTimeframeAggregates, ReferenceSet, TimeframeSnapshot};
-use crate::axes::direction::{DirectionBar, DirectionSeries};
-use crate::axes::momentum::{MomentumBar, MomentumSeries};
-use crate::axes::progression::{ProgressionConfig, ProgressionSeries};
-use crate::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
-use crate::axes::structure::{StructureBar, StructureConfig, StructureSeries};
-use crate::context::ContextSeries;
-use crate::events::EventRecord;
-use crate::events::divergence::{DivergenceConfig, DivergenceEventSeries};
-use crate::events::level::{LevelEventConfig, LevelEventSeries};
-use crate::events::signal::{SignalConfig, SignalEventSeries};
-use crate::readings::{PivotKind, PivotScale, Readings};
+use crate::aggregate::{CrossTimeframeAggregates, TimeframeSnapshot};
+use crate::axes::direction::DirectionBar;
+use crate::axes::momentum::MomentumBar;
+use crate::axes::structure::StructureBar;
+use crate::axes::structure::registry::ConfirmedLevel;
+use crate::readings::PivotScale;
+use crate::run::ModelRun;
 
 /// The configuration of a market-state run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +57,10 @@ pub struct TimeframeMarketState {
     pub snapshot: TimeframeSnapshot,
     /// The confirmed-level registry knowable at the latest bar.
     pub levels: Vec<ConfirmedLevel>,
+    /// The stable series index of the latest candle.
+    pub latest_series_index: u64,
+    /// The UTC Unix-second open time of the latest candle.
+    pub latest_open_time: i64,
 }
 
 /// The cross-axis consensus for one timeframe.
@@ -171,29 +168,32 @@ impl MarketState {
     /// order does not affect the result.
     #[must_use]
     pub fn compute(inputs: &[TimeframeInput<'_>], config: &MarketStateConfig) -> Self {
-        let mut states = Vec::new();
-        for input in inputs {
-            if input.candles.is_empty() {
-                continue;
-            }
-            if let Some(state) = build_timeframe(input, config) {
-                states.push(state);
-            }
-        }
-        states.sort_by_key(|state| state.snapshot.timeframe_secs);
+        let run = ModelRun::compute(inputs, config);
+        Self::from_run(&run)
+    }
 
-        let snapshots: Vec<TimeframeSnapshot> =
-            states.iter().map(|state| state.snapshot.clone()).collect();
-        let aggregates = CrossTimeframeAggregates::compute(&snapshots);
-        let consensus = states
+    /// Builds the latest market state from a completed model run.
+    #[must_use]
+    pub fn from_run(run: &ModelRun) -> Self {
+        let timeframes = run
+            .timeframes()
             .iter()
-            .map(|state| TimeframeConsensus::compute(&state.snapshot))
+            .map(|timeframe| {
+                let latest = timeframe.snapshot().latest_bar_index;
+                let candle = timeframe.candle(latest);
+                TimeframeMarketState {
+                    snapshot: timeframe.snapshot().clone(),
+                    levels: timeframe.levels().to_vec(),
+                    latest_series_index: candle.map_or(0, |candle| candle.series_index()),
+                    latest_open_time: candle.map_or(0, |candle| candle.timestamp()),
+                }
+            })
             .collect();
 
         Self {
-            timeframes: states,
-            aggregates,
-            consensus,
+            timeframes,
+            aggregates: run.aggregates().clone(),
+            consensus: run.consensus().to_vec(),
         }
     }
 
@@ -204,141 +204,6 @@ impl MarketState {
             .iter()
             .find(|state| state.snapshot.timeframe_secs == timeframe_secs)
     }
-}
-
-fn build_timeframe(
-    input: &TimeframeInput<'_>,
-    config: &MarketStateConfig,
-) -> Option<TimeframeMarketState> {
-    let timeframe_secs = NonZeroU64::new(input.timeframe_secs)?;
-    let readings = Readings::compute(input.candles);
-    let direction = DirectionSeries::compute(&readings);
-    let momentum = MomentumSeries::compute(&readings);
-    let structure = StructureSeries::compute_with_config(
-        input.candles,
-        &readings,
-        StructureConfig::new(config.structure_scale),
-    );
-    let progression = ProgressionSeries::compute_with_config(
-        input.candles,
-        &readings,
-        ProgressionConfig::new(input.timeframe_secs),
-    );
-    let context = ContextSeries::compute(&readings);
-
-    let level_events = LevelEventSeries::compute(
-        input.candles,
-        &readings,
-        &LevelEventConfig::new(timeframe_secs),
-    );
-    let divergence_events = DivergenceEventSeries::compute(
-        &readings,
-        &DivergenceConfig::new(timeframe_secs, config.structure_scale),
-    );
-    let signal_events = SignalEventSeries::compute(
-        &readings,
-        &direction,
-        &momentum,
-        &structure,
-        &SignalConfig::new(timeframe_secs),
-    );
-
-    let latest = input.candles.len().checked_sub(1)?;
-    let direction_bar = direction.latest()?;
-    let momentum_bar = momentum.latest()?;
-    let structure_bar = structure.latest()?;
-    let progression_bar = progression.latest()?;
-    let context_bar = context.latest()?;
-
-    let registry = ConfirmedLevelRegistry::from_pivots(&readings.pivots);
-    let levels: Vec<ConfirmedLevel> = registry
-        .levels()
-        .iter()
-        .copied()
-        .filter(|level| level.available_at <= latest)
-        .collect();
-    let (minor_high, minor_low, major_high, major_low) = latest_swings(&levels);
-    let references = ReferenceSet::from_parts(
-        readings.ema20.get(latest),
-        readings.ema50.get(latest),
-        readings.ema200.get(latest),
-        minor_high.map(|level| level.price),
-        minor_low.map(|level| level.price),
-        major_high.map(|level| level.price),
-        major_low.map(|level| level.price),
-    );
-
-    let mut events: Vec<EventRecord> = level_events
-        .events()
-        .iter()
-        .chain(divergence_events.events())
-        .chain(signal_events.events())
-        .copied()
-        .collect();
-    events.sort_by_key(|event| {
-        (
-            event.available_bar_index,
-            event.occurred_bar_index,
-            event.event_type.code(),
-            event.event_subtype_code,
-            event.source_code,
-            event.reference_code.unwrap_or(0),
-        )
-    });
-
-    let minor_origin_time_secs = progression_bar.minor_leg.and_then(|leg| {
-        input
-            .candles
-            .get(leg.origin_occurred_at)
-            .map(Candle::timestamp)
-    });
-    let major_origin_time_secs = progression_bar.major_leg.and_then(|leg| {
-        input
-            .candles
-            .get(leg.origin_occurred_at)
-            .map(Candle::timestamp)
-    });
-
-    Some(TimeframeMarketState {
-        snapshot: TimeframeSnapshot {
-            timeframe_secs: input.timeframe_secs,
-            latest_bar_index: latest,
-            direction: direction_bar,
-            momentum: momentum_bar,
-            structure: structure_bar,
-            progression: progression_bar,
-            context: context_bar,
-            atr: readings.atr14.get(latest),
-            references,
-            events,
-            minor_origin_time_secs,
-            major_origin_time_secs,
-        },
-        levels,
-    })
-}
-
-fn latest_swings(
-    levels: &[ConfirmedLevel],
-) -> (
-    Option<ConfirmedLevel>,
-    Option<ConfirmedLevel>,
-    Option<ConfirmedLevel>,
-    Option<ConfirmedLevel>,
-) {
-    let mut minor_high = None;
-    let mut minor_low = None;
-    let mut major_high = None;
-    let mut major_low = None;
-    for level in levels {
-        match (level.scale, level.kind) {
-            (PivotScale::Minor, PivotKind::High) => minor_high = Some(*level),
-            (PivotScale::Minor, PivotKind::Low) => minor_low = Some(*level),
-            (PivotScale::Major, PivotKind::High) => major_high = Some(*level),
-            (PivotScale::Major, PivotKind::Low) => major_low = Some(*level),
-        }
-    }
-    (minor_high, minor_low, major_high, major_low)
 }
 
 #[cfg(test)]

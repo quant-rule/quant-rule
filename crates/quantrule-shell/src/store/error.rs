@@ -34,6 +34,11 @@ pub(crate) enum StoreError {
         /// The underlying SQLite error.
         source: rusqlite::Error,
     },
+    /// The file is an uninitialized SQLite database, not a QuantRule store.
+    Uninitialized {
+        /// The database path.
+        path: PathBuf,
+    },
     /// The database's schema is newer than this binary supports.
     UnsupportedVersion {
         /// The version found in the file.
@@ -105,6 +110,11 @@ impl fmt::Display for StoreError {
                 path.display()
             ),
             Self::Migrate { source } => write!(formatter, "cannot migrate the store: {source}"),
+            Self::Uninitialized { path } => write!(
+                formatter,
+                "{} is not a QuantRule store; run store init first",
+                path.display()
+            ),
             Self::UnsupportedVersion { found, supported } => write!(
                 formatter,
                 "the store schema version {found} is newer than the supported version {supported}"
@@ -146,7 +156,10 @@ impl std::error::Error for StoreError {
             }
             Self::Write { source } => Some(source),
             Self::Directory { source, .. } => Some(source),
-            Self::UnsupportedVersion { .. } | Self::Corrupt { .. } | Self::Missing { .. } => None,
+            Self::UnsupportedVersion { .. }
+            | Self::Uninitialized { .. }
+            | Self::Corrupt { .. }
+            | Self::Missing { .. } => None,
             Self::Conflict { .. }
             | Self::InvalidDataset { .. }
             | Self::DatasetNotFound { .. }

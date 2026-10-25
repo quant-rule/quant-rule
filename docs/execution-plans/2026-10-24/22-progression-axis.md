@@ -3,7 +3,7 @@
 - Issue: [#22](https://github.com/quant-rule/quant-rule/issues/22) — feat: build the progression axis
 - Branch: `feat/22-progression-axis`
 - Pull request: [#63](https://github.com/quant-rule/quant-rule/pull/63)
-- Status: Verified (implementation, independent review, checks, and delivery complete; merge authorization pending)
+- Status: Verified (implementation, independent review, checks, and delivery complete; PR merged)
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
 - Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
@@ -285,7 +285,7 @@ The human authorized the commit, push, pull request, and board transition. The d
 |---|---|
 | Commit | `0de472e` — `feat: build the progression axis` |
 | Branch | `feat/22-progression-axis`, pushed to `origin` |
-| Pull request | [#63](https://github.com/quant-rule/quant-rule/pull/63), open against `main` |
+| Pull request | [#63](https://github.com/quant-rule/quant-rule/pull/63), merged |
 | Board | Issue #22 moved to `Done`; the board workflow owns the resulting issue state |
 
-This entry is committed separately so the commit identifier and PR number are recorded in the branch. No merge, release, tag, or deployment was performed; the human retains merge authorization. Cleanup of the worktree and branch follows the merged-PR cleanup rule in §9 of `AGENTS.md` after acceptance.
+This entry is committed separately so the commit identifier and PR number are recorded in the branch. The pull request was accepted and merged; no release, tag, or deployment was performed. Cleanup of the worktree and branch follows the merged-PR cleanup rule in §9 of `AGENTS.md` after acceptance.

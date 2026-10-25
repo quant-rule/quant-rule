@@ -1,6 +1,6 @@
 # Completion Plan: The Model Engine (M2–M14)
 
-- **Status:** Approved
+- **Status:** Verified — #14 and #18–#30 are closed; later store and analytics programs are separate.
 - **Date:** 2026-10-24 (UTC)
 - **Approved:** 2026-10-24 by the human, with D1 model-only and D3 milestone cadence
 - **Container issue:** [#14](https://github.com/quant-rule/quant-rule/issues/14)
@@ -9,6 +9,7 @@
 - **Baseline:** `main` at `2a845b9`; M1 ([#17](https://github.com/quant-rule/quant-rule/issues/17)) merged; data engine ([#9](https://github.com/quant-rule/quant-rule/issues/9)) complete
 - **Scope:** #14 and the 13 open model sub-issues #18–#30
 - **Out of scope:** #10–#13 (execution, strategy, portfolio, analytics)
+- **Historical note:** The current-state table below is the 2026-10-24 approval baseline. #13 and the later store epic completed after this program; the remaining open work is #10–#12.
 
 ## 1. Intent
 
@@ -71,7 +72,7 @@ Excluded:
 | D1 | Program scope | Model issues only; model plus downstream #10–#13 | Model only. #10–#13 are a second program after #14. | Approved |
 | D2 | Execution order | Numeric M2→M14; a different topological order | Numeric order, which is topological and keeps one item in flight. | Approved |
 | D3 | Merge authorization cadence | Human merges every PR; standing authorization to merge after checks with milestone checkpoints; one batch at the end | Review M2 per PR, then a standing authorization per milestone if the human is satisfied. The agent never merges without explicit authorization. | Approved |
-| D4 | M13 command names | `market-state`, `axis`, `events`, `legs`; other names | Human decides before M13 starts; the plan does not harden a name. | Open |
+| D4 | M13 command names | `market-state`, `axis`, `events`, `legs`; other names | The four names were implemented and documented; the command reference is the contract. | Approved |
 | D5 | Repository artifact for this program | New dated completion plan; addendum to the existing #14 plan | New `docs/execution-plans/2026-10-24/14-model-engine-completion.md`, linked from the #14 umbrella plan. | Approved |
 | D6 | Kernel changes after M1 | Freeze; defect fixes only; allow API evolution | Defect fixes only, with a test and a note in the item's PR. | Approved |
 | D7 | Data ladder | M1/M5/M15/H1; add H4/D1 | Use the existing four-timeframe ladder. H4/D1 require a new data-engine issue. | Approved |

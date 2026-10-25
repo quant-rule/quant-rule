@@ -11,6 +11,7 @@
 
 mod error;
 mod ingest;
+mod lifecycle;
 mod query;
 mod schema;
 #[cfg(test)]
@@ -19,6 +20,7 @@ mod verify;
 
 pub(crate) use error::StoreError;
 pub(crate) use ingest::{DatasetRecord, IngestRows};
+pub(crate) use lifecycle::RemoveReport;
 pub(crate) use query::{Cell, DatasetSummary, SeriesRow, Table, TableRows};
 
 use rusqlite::{Connection, OpenFlags};
@@ -88,6 +90,11 @@ impl Store {
             .map_err(|source| map_error(source, path))?;
         configure_read_only(&connection).map_err(|source| map_error(source, path))?;
         let version = read_version(&connection, Some(path))?;
+        if version == 0 {
+            return Err(StoreError::Uninitialized {
+                path: path.to_path_buf(),
+            });
+        }
         if version > SCHEMA_VERSION {
             return Err(StoreError::UnsupportedVersion {
                 found: version,

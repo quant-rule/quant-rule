@@ -11,7 +11,7 @@ use quantrule_model::axes::progression::ProgressionBar;
 use quantrule_model::axes::structure::StructureBar;
 use quantrule_model::context::ContextBar;
 use quantrule_model::kernel::UnavailableReason;
-use quantrule_model::readings::Readings;
+use quantrule_model::run::ModelReadings;
 
 /// The six scalar indicator readings for one bar.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -31,16 +31,16 @@ pub struct ReadingsSnapshot {
 }
 
 impl ReadingsSnapshot {
-    /// Reads one bar of the model's readings.
+    /// Copies the model's scalar readings for one bar.
     #[must_use]
-    pub fn at(readings: &Readings, bar: usize) -> Self {
+    pub const fn from_model(readings: ModelReadings) -> Self {
         Self {
-            ema20: readings.ema20.get(bar),
-            ema50: readings.ema50.get(bar),
-            ema200: readings.ema200.get(bar),
-            rsi14: readings.rsi14.get(bar),
-            atr14: readings.atr14.get(bar),
-            rvol20: readings.rvol20.get(bar),
+            ema20: readings.ema20,
+            ema50: readings.ema50,
+            ema200: readings.ema200,
+            rsi14: readings.rsi14,
+            atr14: readings.atr14,
+            rvol20: readings.rvol20,
         }
     }
 }

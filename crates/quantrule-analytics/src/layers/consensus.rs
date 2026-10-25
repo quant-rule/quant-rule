@@ -22,7 +22,7 @@ pub struct ConsensusRow {
 
 impl ConsensusRow {
     /// Builds one row per closed bar of `series`, in bar order.
-    pub(crate) fn rows(series: &TimeframeSeries<'_>) -> Vec<Self> {
+    pub(crate) fn rows(series: &TimeframeSeries) -> Vec<Self> {
         (0..series.len())
             .filter_map(|bar| {
                 series.consensus_at(bar).map(|consensus| Self {

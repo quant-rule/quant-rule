@@ -694,9 +694,32 @@ fn market_state_prints_the_four_timeframe_ladder() {
     assert_eq!(value["timeframes"].as_array().expect("timeframes").len(), 4);
     assert_eq!(value["consensus"].as_array().expect("consensus").len(), 4);
     assert_eq!(value["timeframes"][0]["timeframe"], "1m");
+    assert!(value["timeframes"][0]["series_index"].is_number());
+    assert!(value["timeframes"][0]["datetime"].is_string());
     assert!(value["aggregates"]["direction"].is_object());
     assert!(value["aggregates"]["events"]["per_timeframe"].is_array());
     assert!(value["timeframes"][0]["consensus"]["bullish"].is_number());
+}
+
+#[test]
+fn market_state_uses_the_full_series_by_default_and_the_tail_on_request() {
+    let path = fixture("over_window.csv");
+
+    let full = run(&["market-state", &path]);
+    assert_success(&full);
+    let full_value: serde_json::Value =
+        serde_json::from_str(stdout_text(&full).trim()).expect("the market state is JSON");
+    assert_eq!(full_value["timeframes"][0]["bar"], 1000);
+
+    let latest = run(&["market-state", &path, "--window", "latest"]);
+    assert_success(&latest);
+    let latest_value: serde_json::Value =
+        serde_json::from_str(stdout_text(&latest).trim()).expect("the market state is JSON");
+    assert_eq!(latest_value["timeframes"][0]["bar"], 999);
+
+    let interactive = run_interactive(&format!("market-state {path} --window latest\nquit\n"));
+    assert_success(&interactive);
+    assert_eq!(stdout_text(&interactive), stdout_text(&latest));
 }
 
 #[test]
@@ -758,6 +781,32 @@ fn events_print_labeled_records() {
         assert!(value["source_label"].is_string());
         assert!(value["timeframe"].is_string());
     }
+}
+
+#[test]
+fn model_series_prints_the_requested_tail() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["model-series", &path, "--timeframe", "1m", "--bars", "3"]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 3);
+
+    let first: serde_json::Value = serde_json::from_str(lines[0]).expect("model-series JSON");
+    let last: serde_json::Value = serde_json::from_str(lines[2]).expect("model-series JSON");
+    assert_eq!(first["timeframe"], "1m");
+    assert_eq!(first["bar"], 257);
+    assert_eq!(last["bar"], 259);
+    assert_eq!(last["series_index"], 259);
+    assert!(last["readings"]["ema20"].is_number());
+    assert!(last["direction"]["value"].is_number());
+    assert!(last["consensus"]["bullish"].is_number());
+
+    let interactive = run_interactive(&format!(
+        "model-series {path} --timeframe 1m --bars 3\nquit\n"
+    ));
+    assert_success(&interactive);
+    assert_eq!(stdout_text(&interactive), stdout_text(&output));
 }
 
 #[test]

@@ -13,6 +13,7 @@ mod export;
 mod fetch;
 mod labels;
 mod render;
+mod render_series;
 mod render_state;
 mod source;
 mod store;
@@ -21,7 +22,7 @@ use std::ffi::OsString;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
-use command::{Axis, Command};
+use command::Command;
 
 fn main() {
     let args: Vec<OsString> = std::env::args_os().skip(1).collect();
@@ -80,8 +81,8 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
-            Command::MarketState(path) => {
-                if let Err(error) = command::run_market_state(&path, &mut stdout) {
+            Command::MarketState(args) => {
+                if let Err(error) = command::run_market_state(&args, &mut stdout) {
                     eprintln!("error: {error}");
                 }
             }
@@ -90,18 +91,23 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
-            Command::Axis { path, axis } => {
-                if let Err(error) = command::run_axis(&path, axis, &mut stdout) {
+            Command::Axis { args, axis } => {
+                if let Err(error) = command::run_axis(&args, axis, &mut stdout) {
                     eprintln!("error: {error}");
                 }
             }
-            Command::Events(path) => {
-                if let Err(error) = command::run_events(&path, &mut stdout) {
+            Command::Events(args) => {
+                if let Err(error) = command::run_events(&args, &mut stdout) {
                     eprintln!("error: {error}");
                 }
             }
-            Command::Legs(path) => {
-                if let Err(error) = command::run_legs(&path, &mut stdout) {
+            Command::Legs(args) => {
+                if let Err(error) = command::run_legs(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
+            Command::ModelSeries(args) => {
+                if let Err(error) = command::run_model_series(&args, &mut stdout) {
                     eprintln!("error: {error}");
                 }
             }
@@ -140,13 +146,18 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::StoreRemove(args) => {
+                if let Err(error) = command::run_store_remove(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Db(args) => {
                 if let Err(error) = command::run_db(&args, &mut stdout) {
                     eprintln!("error: {error}");
                 }
             }
             Command::Fetch(args) => {
-                if let Err(error) = command::run_fetch(&args, &mut stdout) {
+                if let Err(error) = command::run_fetch(&args, &mut stdout, &mut stderr) {
                     eprintln!("error: {error}");
                 }
             }
@@ -158,6 +169,12 @@ fn run_interactive() -> i32 {
             Command::Quit => return 0,
         }
     }
+}
+
+fn string_arguments(args: &[OsString]) -> Option<Vec<String>> {
+    args.iter()
+        .map(|argument| argument.to_str().map(str::to_owned))
+        .collect()
 }
 
 fn run_non_interactive(args: &[OsString]) -> i32 {
@@ -218,14 +235,19 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             }
         }
         "market-state" => {
-            if args.len() != 2 {
-                eprintln!("error: usage: market-state <csv-path>");
+            let Some(arguments) = string_arguments(&args[1..]) else {
+                eprintln!("error: market-state argument is not valid UTF-8");
                 return 1;
-            }
-
-            let path = PathBuf::from(&args[1]);
+            };
+            let model_args = match command::parse_model_arguments(&arguments, "market-state") {
+                Ok(model_args) => model_args,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 1;
+                }
+            };
             let mut stdout = io::stdout();
-            match command::run_market_state(&path, &mut stdout) {
+            match command::run_market_state(&model_args, &mut stdout) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");
@@ -261,26 +283,19 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             }
         }
         "axis" => {
-            if args.len() != 3 {
-                eprintln!(
-                    "error: usage: axis <csv-path> <direction|momentum|structure|progression>"
-                );
-                return 1;
-            }
-
-            let path = PathBuf::from(&args[1]);
-            let Some(axis_name) = args[2].to_str() else {
-                eprintln!("error: axis is not valid UTF-8");
+            let Some(arguments) = string_arguments(&args[1..]) else {
+                eprintln!("error: axis argument is not valid UTF-8");
                 return 1;
             };
-            let Some(axis) = Axis::from_code(axis_name) else {
-                eprintln!(
-                    "error: unknown axis '{axis_name}'; use direction, momentum, structure, or progression"
-                );
-                return 1;
+            let (model_args, axis) = match command::parse_axis_arguments(&arguments) {
+                Ok(parsed) => parsed,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 1;
+                }
             };
             let mut stdout = io::stdout();
-            match command::run_axis(&path, axis, &mut stdout) {
+            match command::run_axis(&model_args, axis, &mut stdout) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");
@@ -289,14 +304,19 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             }
         }
         "events" => {
-            if args.len() != 2 {
-                eprintln!("error: usage: events <csv-path>");
+            let Some(arguments) = string_arguments(&args[1..]) else {
+                eprintln!("error: events argument is not valid UTF-8");
                 return 1;
-            }
-
-            let path = PathBuf::from(&args[1]);
+            };
+            let model_args = match command::parse_model_arguments(&arguments, "events") {
+                Ok(model_args) => model_args,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 1;
+                }
+            };
             let mut stdout = io::stdout();
-            match command::run_events(&path, &mut stdout) {
+            match command::run_events(&model_args, &mut stdout) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");
@@ -305,14 +325,40 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             }
         }
         "legs" => {
-            if args.len() != 2 {
-                eprintln!("error: usage: legs <csv-path>");
+            let Some(arguments) = string_arguments(&args[1..]) else {
+                eprintln!("error: legs argument is not valid UTF-8");
                 return 1;
-            }
-
-            let path = PathBuf::from(&args[1]);
+            };
+            let model_args = match command::parse_model_arguments(&arguments, "legs") {
+                Ok(model_args) => model_args,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 1;
+                }
+            };
             let mut stdout = io::stdout();
-            match command::run_legs(&path, &mut stdout) {
+            match command::run_legs(&model_args, &mut stdout) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    1
+                }
+            }
+        }
+        "model-series" => {
+            let Some(arguments) = string_arguments(&args[1..]) else {
+                eprintln!("error: model-series argument is not valid UTF-8");
+                return 1;
+            };
+            let series_args = match command::parse_model_series_arguments(&arguments) {
+                Ok(series_args) => series_args,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 1;
+                }
+            };
+            let mut stdout = io::stdout();
+            match command::run_model_series(&series_args, &mut stdout) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");
@@ -426,9 +472,19 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                         }
                     }
                 }
+                Ok(Some(Command::StoreRemove(args))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_store_remove(&args, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
                 Ok(_) => {
                     eprintln!(
-                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store verify <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]"
+                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store verify <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>] | store remove <dataset> [--db <path>]"
                     );
                     1
                 }
@@ -488,7 +544,8 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
             };
 
             let mut stdout = io::stdout();
-            match command::run_fetch(&fetch_args, &mut stdout) {
+            let mut stderr = io::stderr();
+            match command::run_fetch(&fetch_args, &mut stdout, &mut stderr) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: {error}");

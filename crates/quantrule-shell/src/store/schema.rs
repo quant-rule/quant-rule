@@ -1,8 +1,10 @@
 //! The version 1 and version 2 schemas.
 //!
-//! The DDL is generated from the research contract's column registry; the
-//! column names and the layer widths match the contract. A migration is a
-//! single transaction that creates these objects and sets `user_version`.
+//! The DDL was generated once from the research contract's column registry and
+//! is checked in here; it is maintained as source, not generated at build time.
+//! The column names and layer widths match the contract, and the insert/DDL
+//! tests fail when the checked-in order drifts. A migration is a single
+//! transaction that creates these objects and sets `user_version`.
 //!
 //! Version 2 changes only the `event` unique indexes. Version 1's single index
 //! could not represent coincident Signal threshold crossings, which share every

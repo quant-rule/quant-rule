@@ -21,10 +21,12 @@ cargo run -p quantrule-shell -- candles path/to/candles.csv
 cargo run -p quantrule-shell -- candles-tolerant path/to/candles.csv
 cargo run -p quantrule-shell -- timeframes path/to/m1.csv
 cargo run -p quantrule-shell -- market-state path/to/m1.csv
+cargo run -p quantrule-shell -- market-state path/to/m1.csv --window latest
 cargo run -p quantrule-shell -- market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
 cargo run -p quantrule-shell -- axis path/to/m1.csv direction
 cargo run -p quantrule-shell -- events path/to/m1.csv
 cargo run -p quantrule-shell -- legs path/to/m1.csv
+cargo run -p quantrule-shell -- model-series path/to/m1.csv --timeframe 1m --bars 1000
 cargo run -p quantrule-shell -- research export path/to/m1.csv demo --data-version binance:BTCUSDT:60:1704067200-1710115200
 cargo run -p quantrule-shell -- research summary path/to/m1.csv
 cargo run -p quantrule-shell -- store init --db data/quantrule.db
@@ -48,11 +50,12 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `candles` | `<csv-path>` | Up to the last 1000 candles as NDJSON, oldest first |
 | `candles-tolerant` | `<csv-path>` | Up to the last 1000 valid candles as NDJSON, plus a quality report on stderr |
 | `timeframes` | `<csv-path>` | M1, M5, M15, and H1 as NDJSON, plus an aggregation report on stderr |
-| `market-state` | `<csv-path>` | The four-timeframe market state as one JSON object |
-| `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars with a candle/volume panel and four axis panels |
-| `axis` | `<csv-path> <axis>` | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
-| `events` | `<csv-path>` | Every event record as NDJSON, in availability order |
-| `legs` | `<csv-path>` | The minor and major leg per timeframe as NDJSON |
+| `market-state` | `<csv-path>` [`--window full\|latest`] | The four-timeframe market state as one JSON object |
+| `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars; `--window latest` supports inputs above the 100k cap |
+| `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
+| `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
+| `legs` | `<csv-path>` [`--window full\|latest`] | The minor and major leg per timeframe as NDJSON |
+| `model-series` | `<csv-path>` [options] | The last complete model bars as NDJSON: candle, readings, four axes, context, and consensus |
 | `research export` | `<csv-path> <dataset> --data-version <id>` [options] | The raw M1 file and the three research layers, with the manifest, dictionary, and code table |
 | `research summary` | `<csv-path>` | Per-axis counts, ranges, ordinal histograms, and pairwise continuous correlations |
 | `store init` | [options] | Creates or opens the SQLite store and prints its schema version |
@@ -60,6 +63,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `store verify` | `<csv-path> --dataset <name> --data-version <id>` [options] | Rebuilds the source and compares every stored table; prints `verified ...` or the first mismatch |
 | `store list` | [options] | One CSV row per stored dataset with identity, counts, and Layer 3 state |
 | `store show` | `<dataset> <table>` [options] | CSV rows from one stored table |
+| `store remove` | `<dataset>` [options] | Removes one dataset and its cascading rows; the database file remains |
 | `db series` | `<dataset>` [options] | Stored candles as NDJSON |
 | `db bars` | `<dataset>` [options] | Full stored bar rows as CSV |
 | `db metrics` | `<dataset>` [options] | Metrics and resolutions as CSV |
@@ -96,6 +100,8 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 
 `store init` opens the SQLite store, applies the schema migrations in order, each in one transaction (version 1, then the version 2 event-index migration), and prints the path and the schema version. Reopening an existing store is idempotent, and a version 1 database is migrated in place. A store whose schema is newer than the binary is rejected, and a file that is not a database fails with a clear error. The store is a shell-owned module; the data, model, and analytics crates remain pure.
 
+`store remove <dataset> [--db <path>]` removes one dataset and every row that references it through the foreign-key cascade. It never deletes the database file; other datasets remain. Removing a missing dataset is an error. A same-name dataset with a different identity is a conflict until it is removed explicitly.
+
 `store ingest` options:
 
 | Option | Meaning |
@@ -114,6 +120,7 @@ The query commands open an existing database read-only. A missing file is an err
 
 | Command | Output |
 |---|---|
+| `store remove <dataset>` | Removes the dataset and every row that references it; prints `removed <name> bars=<n>`; the database file is kept |
 | `store list` | One CSV row per dataset, sorted by name: identity, `m1_bars`, `layer3_materialized`, and `bar`/`consensus`/`layer3`/`pivot`/`level`/`event`/`leg` counts |
 | `store show <dataset> <table>` | Every column of `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, or `leg`, in DDL order and primary-key order. `event.reference_code = 0` is rendered as `NULL`. |
 | `db series <dataset>` | NDJSON with `dataset`, `timeframe_secs`, `bar_index`, ISO `open_time`, OHLC, and nullable volume; oldest first |
@@ -170,7 +177,7 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 ### Market-state contract
 
-`market-state`, `axis`, `events`, and `legs` read an M1 CSV, build the M1/M5/M15/H1 ladder through the data engine, and call the model. The model publishes numbers; the shell maps the stable numeric codes to labels and never recomputes an axis, aggregate, or event.
+`market-state`, `axis`, `events`, and `legs` read an M1 CSV, build the M1/M5/M15/H1 ladder through the data engine, and call the model. They analyze the full series up to the 100,000 M1 cap by default; `--window latest` retains the last 1,000 candles per timeframe. The model publishes numbers; the shell maps the stable numeric codes to labels and never recomputes an axis, aggregate, or event. `events` covers every event in the analyzed window, not only the retained candle tail.
 
 `market-state` prints one JSON object with four keys:
 
@@ -187,9 +194,11 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 `legs` prints two NDJSON lines per timeframe, one for each pivot scale. Each line carries the published leg or `null`, its origin and availability bars, target basis and version, progress, displacement, lifecycle, stage, and target-reached code, with the lifecycle, stage, direction, scale, and target-basis labels.
 
+`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=1000` and defaults to 1000; `--timeframe` defaults to the whole ladder. Events remain a separate command because a bar can have several events. The default input window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe.
+
 ### Market chart
 
-`market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
+`market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>] [--window full|latest]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The default window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe and lets a larger fetch be charted. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
 
 The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `market-chart`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
 
@@ -225,7 +234,7 @@ csv=data/XAUUSD_M1_2025-01-01_2025-12-31.csv
 png=none
 ```
 
-The CSV is written through a temporary sibling and renamed only after the fetch completes, so an interrupted or failed fetch does not leave a partial file under the requested name. The source requires network access; the test suite does not, because pagination, retries, JSONP parsing, CSV shape, and chart determinism are exercised with fixtures.
+The CSV is written through a temporary sibling and renamed only after the fetch completes, so an interrupted or failed fetch does not leave a partial file under the requested name. A fetch whose accepted row count exceeds 100,000 writes a warning to stderr: `store` and `research` reject that file, and `market-chart` needs `--window latest` to chart it. The source requires network access; the test suite does not, because pagination, retries, JSONP parsing, CSV shape, and chart determinism are exercised with fixtures.
 
 ### NDJSON contract
 
