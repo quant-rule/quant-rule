@@ -22,7 +22,7 @@ use quantrule_model::events::EventRecord;
 use quantrule_model::events::divergence::{DivergenceConfig, DivergenceEventSeries};
 use quantrule_model::events::level::{LevelEventConfig, LevelEventSeries};
 use quantrule_model::events::signal::{SignalConfig, SignalEventSeries};
-use quantrule_model::readings::{PivotKind, PivotScale, Readings};
+use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries, Readings};
 use quantrule_model::state::TimeframeInput;
 
 use super::metrics::{Metrics, ReadingsSnapshot};
@@ -142,6 +142,16 @@ impl<'a> TimeframeSeries<'a> {
     /// The number of bars.
     pub(crate) fn len(&self) -> usize {
         self.candles.len()
+    }
+
+    /// The pivot series computed for this timeframe.
+    pub(crate) fn pivots(&self) -> &PivotSeries {
+        &self.readings.pivots
+    }
+
+    /// The confirmed-level registry for this timeframe.
+    pub(crate) fn levels(&self) -> &[ConfirmedLevel] {
+        &self.levels
     }
 
     /// The candle at `bar`.

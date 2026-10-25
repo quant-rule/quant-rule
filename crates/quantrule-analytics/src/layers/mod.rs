@@ -4,7 +4,8 @@
 //! axis resolutions; Layer 3 is the M1 base with the latest closed
 //! higher-timeframe blocks and the cross-timeframe aggregates. The layers are
 //! derived only from the model's public per-bar output and the research
-//! contract in `docs/analytics/`.
+//! contract in `docs/analytics/`. The set also carries the model's pivot and
+//! confirmed-level records, which the store writes but the CSV export does not.
 //!
 //! The module is pure: it performs no I/O, reads no clock, and uses no
 //! randomness. Rows are ordered by timeframe and then by bar, so reordering the
@@ -16,6 +17,7 @@
 //! export asserts them against the CSV header.
 
 mod metrics;
+mod records;
 mod series;
 #[cfg(test)]
 mod tests;
@@ -24,6 +26,7 @@ pub use metrics::{
     ContextMetrics, DirectionMetrics, Metrics, MomentumMetrics, ProgressionMetrics,
     ReadingsSnapshot, StructureMetrics,
 };
+pub use records::{LevelRow, PivotRow};
 
 use std::fmt;
 
@@ -133,7 +136,7 @@ pub struct Layer3Row {
     pub aggregates: CrossTimeframeAggregates,
 }
 
-/// The three layers for one dataset.
+/// The three layers and the model records for one dataset.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayerSet {
     /// The configured non-empty timeframes in seconds, fastest first.
@@ -144,6 +147,10 @@ pub struct LayerSet {
     pub layer2: Vec<Layer2Row>,
     /// Layer 3 rows, one per M1 bar.
     pub layer3: Vec<Layer3Row>,
+    /// Pivot occurrences, ordered by timeframe, occurrence bar, scale, and kind.
+    pub pivots: Vec<PivotRow>,
+    /// Confirmed levels, ordered by timeframe and reference code.
+    pub levels: Vec<LevelRow>,
 }
 
 /// A layer build could not be performed.
@@ -215,6 +222,8 @@ pub fn build_layers(
 
     let mut layer1 = Vec::new();
     let mut layer2 = Vec::new();
+    let mut pivots = Vec::new();
+    let mut levels = Vec::new();
     for timeframe in &series {
         for bar in 0..timeframe.len() {
             let Some(candle) = timeframe.candle(bar) else {
@@ -240,6 +249,14 @@ pub fn build_layers(
                 resolution,
             });
         }
+        pivots.extend(records::pivot_rows(
+            timeframe.timeframe_secs(),
+            timeframe.pivots(),
+        ));
+        levels.extend(records::level_rows(
+            timeframe.timeframe_secs(),
+            timeframe.levels(),
+        ));
     }
 
     let mut layer3 = Vec::new();
@@ -318,6 +335,8 @@ pub fn build_layers(
         layer1,
         layer2,
         layer3,
+        pivots,
+        levels,
     })
 }
 

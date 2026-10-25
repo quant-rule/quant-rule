@@ -1,18 +1,20 @@
-//! The per-bar writer.
+//! The dataset writer.
 //!
 //! `store ingest` builds the layers in memory and hands them here. This module
-//! writes one `dataset` row and one wide `bar` row per Layer 1 row in a single
+//! writes one `dataset` row, one wide `bar` row per Layer 1 row, one `pivot` row
+//! per pivot occurrence, and one `level` row per confirmed level in a single
 //! transaction. It copies the engine's values; it never computes an indicator,
-//! a metric, or a resolution.
+//! a metric, a resolution, a pivot, or a level.
 //!
 //! The writer is deliberately narrower than the schema: the 12 resolution
-//! columns stay null until #70, and Layer 3 is not materialized until #73. The
-//! dataset row is therefore visible before the store is complete, which is why
-//! `layer3_materialized` stays zero.
+//! columns stay null until #70, and Layer 3, events, legs, and consensus are not
+//! materialized until #71–#73. The dataset row is therefore visible before the
+//! store is complete, which is why `layer3_materialized` stays zero.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use quantrule_analytics::layers::{Layer1Row, M1_SECONDS};
+use quantrule_analytics::layers::{Layer1Row, LevelRow, M1_SECONDS, PivotRow};
+use quantrule_model::axes::structure::registry::FIRST_REFERENCE_CODE;
 use rusqlite::types::Value;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params, params_from_iter};
 
@@ -42,6 +44,32 @@ pub(crate) struct DatasetRecord {
     pub(crate) m1_bars: usize,
 }
 
+/// The records written with one dataset.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct IngestRows<'a> {
+    /// One row per Layer 1 bar.
+    pub(crate) bars: &'a [Layer1Row],
+    /// One row per pivot occurrence.
+    pub(crate) pivots: &'a [PivotRow],
+    /// One row per confirmed level.
+    pub(crate) levels: &'a [LevelRow],
+}
+
+impl<'a> IngestRows<'a> {
+    /// Bundles the three record sets for one transaction.
+    pub(crate) const fn new(
+        bars: &'a [Layer1Row],
+        pivots: &'a [PivotRow],
+        levels: &'a [LevelRow],
+    ) -> Self {
+        Self {
+            bars,
+            pivots,
+            levels,
+        }
+    }
+}
+
 /// The result of an ingest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct IngestReport {
@@ -56,7 +84,8 @@ pub(crate) struct IngestReport {
 }
 
 impl Store {
-    /// Inserts one dataset and its Layer 1 bars in one transaction.
+    /// Inserts one dataset, its Layer 1 bars, and its pivot and level records in
+    /// one transaction.
     ///
     /// A dataset with the same name and identity is a no-op. A dataset with the
     /// same name but a different identity is a conflict; nothing is overwritten.
@@ -64,13 +93,15 @@ impl Store {
     /// # Errors
     ///
     /// Returns [`StoreError::InvalidDataset`] when the declared M1 count does
-    /// not match the rows or exceeds the cap, [`StoreError::Conflict`] for a
-    /// different identity, and [`StoreError::Write`] when SQLite rejects a
-    /// statement and the transaction rolls back.
+    /// not match the rows, exceeds the cap, or a record has an invalid code,
+    /// price, bar range, availability bar, or duplicate key; returns
+    /// [`StoreError::Conflict`] for a different identity; and returns
+    /// [`StoreError::Write`] when SQLite rejects a statement and the
+    /// transaction rolls back.
     pub(crate) fn ingest(
         &mut self,
         dataset: &DatasetRecord,
-        rows: &[Layer1Row],
+        rows: &IngestRows<'_>,
     ) -> Result<IngestReport, StoreError> {
         validate(dataset, rows)?;
 
@@ -121,9 +152,29 @@ impl Store {
             let mut statement = transaction
                 .prepare(BAR_INSERT)
                 .map_err(|source| StoreError::Write { source })?;
-            for row in rows {
+            for row in rows.bars {
                 statement
                     .execute(params_from_iter(bar_params(dataset_id, row)))
+                    .map_err(|source| StoreError::Write { source })?;
+            }
+        }
+        {
+            let mut statement = transaction
+                .prepare(PIVOT_INSERT)
+                .map_err(|source| StoreError::Write { source })?;
+            for row in rows.pivots {
+                statement
+                    .execute(params_from_iter(pivot_params(dataset_id, row)))
+                    .map_err(|source| StoreError::Write { source })?;
+            }
+        }
+        {
+            let mut statement = transaction
+                .prepare(LEVEL_INSERT)
+                .map_err(|source| StoreError::Write { source })?;
+            for row in rows.levels {
+                statement
+                    .execute(params_from_iter(level_params(dataset_id, row)))
                     .map_err(|source| StoreError::Write { source })?;
             }
         }
@@ -134,14 +185,14 @@ impl Store {
 
         Ok(IngestReport {
             dataset_id,
-            bars: rows.len(),
-            timeframes: distinct_timeframes(rows),
+            bars: rows.bars.len(),
+            timeframes: distinct_timeframes(rows.bars),
             unchanged: false,
         })
     }
 }
 
-fn validate(dataset: &DatasetRecord, rows: &[Layer1Row]) -> Result<(), StoreError> {
+fn validate(dataset: &DatasetRecord, rows: &IngestRows<'_>) -> Result<(), StoreError> {
     if dataset.name.is_empty() {
         return Err(StoreError::InvalidDataset {
             detail: "the dataset name is empty".to_string(),
@@ -161,10 +212,11 @@ fn validate(dataset: &DatasetRecord, rows: &[Layer1Row]) -> Result<(), StoreErro
         });
     }
 
-    let m1_rows = rows
-        .iter()
-        .filter(|row| row.timeframe_secs == M1_SECONDS)
-        .count();
+    let mut bar_counts = BTreeMap::new();
+    for row in rows.bars {
+        *bar_counts.entry(row.timeframe_secs).or_insert(0_usize) += 1;
+    }
+    let m1_rows = bar_counts.get(&M1_SECONDS).copied().unwrap_or(0);
     if m1_rows != dataset.m1_bars {
         return Err(StoreError::InvalidDataset {
             detail: format!(
@@ -174,7 +226,159 @@ fn validate(dataset: &DatasetRecord, rows: &[Layer1Row]) -> Result<(), StoreErro
         });
     }
 
+    validate_pivots(rows.pivots, &bar_counts)?;
+    validate_levels(rows.levels, &bar_counts)?;
     Ok(())
+}
+
+fn validate_pivots(rows: &[PivotRow], bar_counts: &BTreeMap<u64, usize>) -> Result<(), StoreError> {
+    let mut seen = BTreeSet::new();
+    for row in rows {
+        let bar_count = timeframe_bar_count(bar_counts, row.timeframe_secs, "pivot")?;
+        if !(1..=2).contains(&row.scale_code) {
+            return Err(invalid(format!(
+                "the pivot scale code {} is not 1 or 2",
+                row.scale_code
+            )));
+        }
+        if !(1..=2).contains(&row.kind_code) {
+            return Err(invalid(format!(
+                "the pivot kind code {} is not 1 or 2",
+                row.kind_code
+            )));
+        }
+        if !row.price.is_finite() {
+            return Err(invalid(format!(
+                "the pivot at bar {} has a non-finite price",
+                row.occurred_bar_index
+            )));
+        }
+        check_bar_range(
+            bar_count,
+            row.occurred_bar_index,
+            row.available_bar_index,
+            "pivot",
+        )?;
+        if row.available_bar_index < row.occurred_bar_index {
+            return Err(invalid(format!(
+                "the pivot at bar {} is available at bar {}, before it occurred",
+                row.occurred_bar_index, row.available_bar_index
+            )));
+        }
+        if row.confirmed_code > 1 {
+            return Err(invalid(format!(
+                "the pivot at bar {} has confirmed code {}",
+                row.occurred_bar_index, row.confirmed_code
+            )));
+        }
+        if row.confirmed_code == 0 && row.available_bar_index != row.occurred_bar_index {
+            return Err(invalid(format!(
+                "the candidate at bar {} is available at bar {}",
+                row.occurred_bar_index, row.available_bar_index
+            )));
+        }
+        let key = (
+            row.timeframe_secs,
+            row.scale_code,
+            row.kind_code,
+            row.occurred_bar_index,
+        );
+        if !seen.insert(key) {
+            return Err(invalid(format!(
+                "the pivot at timeframe {} bar {} is duplicated",
+                row.timeframe_secs, row.occurred_bar_index
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_levels(rows: &[LevelRow], bar_counts: &BTreeMap<u64, usize>) -> Result<(), StoreError> {
+    let mut seen = BTreeSet::new();
+    for row in rows {
+        let bar_count = timeframe_bar_count(bar_counts, row.timeframe_secs, "level")?;
+        if row.reference_code < FIRST_REFERENCE_CODE {
+            return Err(invalid(format!(
+                "the level reference code {} is below {FIRST_REFERENCE_CODE}",
+                row.reference_code
+            )));
+        }
+        if !(1..=2).contains(&row.scale_code) {
+            return Err(invalid(format!(
+                "the level scale code {} is not 1 or 2",
+                row.scale_code
+            )));
+        }
+        if !(1..=2).contains(&row.kind_code) {
+            return Err(invalid(format!(
+                "the level kind code {} is not 1 or 2",
+                row.kind_code
+            )));
+        }
+        if !row.price.is_finite() {
+            return Err(invalid(format!(
+                "the level at bar {} has a non-finite price",
+                row.occurred_bar_index
+            )));
+        }
+        check_bar_range(
+            bar_count,
+            row.occurred_bar_index,
+            row.available_bar_index,
+            "level",
+        )?;
+        if row.available_bar_index < row.occurred_bar_index {
+            return Err(invalid(format!(
+                "the level at bar {} is available at bar {}, before it occurred",
+                row.occurred_bar_index, row.available_bar_index
+            )));
+        }
+        let key = (row.timeframe_secs, row.reference_code);
+        if !seen.insert(key) {
+            return Err(invalid(format!(
+                "the level reference code {} is duplicated for timeframe {}",
+                row.reference_code, row.timeframe_secs
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn timeframe_bar_count(
+    bar_counts: &BTreeMap<u64, usize>,
+    timeframe_secs: u64,
+    record: &str,
+) -> Result<usize, StoreError> {
+    bar_counts.get(&timeframe_secs).copied().ok_or_else(|| {
+        invalid(format!(
+            "the {record} timeframe {timeframe_secs} has no bars"
+        ))
+    })
+}
+
+fn check_bar_range(
+    bar_count: usize,
+    occurred_bar_index: usize,
+    available_bar_index: usize,
+    record: &str,
+) -> Result<(), StoreError> {
+    if occurred_bar_index >= bar_count {
+        return Err(invalid(format!(
+            "the {record} occurrence bar {occurred_bar_index} is outside the {bar_count} bars"
+        )));
+    }
+    if available_bar_index >= bar_count {
+        return Err(invalid(format!(
+            "the {record} availability bar {available_bar_index} is outside the {bar_count} bars"
+        )));
+    }
+    Ok(())
+}
+
+fn invalid(detail: impl Into<String>) -> StoreError {
+    StoreError::InvalidDataset {
+        detail: detail.into(),
+    }
 }
 
 fn distinct_timeframes(rows: &[Layer1Row]) -> usize {
@@ -341,603 +545,43 @@ INSERT INTO bar (\
     ?54, ?55, ?56, ?57, ?58, ?59, ?60, ?61, ?62\
 )";
 
-#[cfg(test)]
-mod tests {
-    use super::{BAR_INSERT, DatasetRecord, MAX_M1_BARS};
-    use crate::store::{Store, StoreError};
-    use quantrule_analytics::layers::{
-        ContextMetrics, DirectionMetrics, Layer1Row, Metrics, MomentumMetrics, ProgressionMetrics,
-        ReadingsSnapshot,
-    };
-    use quantrule_data::Candle;
-    use rusqlite::types::Value;
-
-    /// The 62 columns the writer binds, in `BAR_INSERT` order.
-    const COLUMNS: [&str; 62] = [
-        "dataset_id",
-        "timeframe_secs",
-        "bar_index",
-        "open_time",
-        "open",
-        "high",
-        "low",
-        "close",
-        "volume",
-        "ema20",
-        "ema50",
-        "ema200",
-        "rsi14",
-        "atr14",
-        "rvol20",
-        "direction",
-        "direction_state_code",
-        "direction_size_percentile",
-        "direction_readiness_code",
-        "direction_unavailable_reason_code",
-        "direction_state_age_bars",
-        "direction_state_changes_50",
-        "momentum_force",
-        "momentum_acceleration",
-        "momentum_intensification",
-        "momentum_state_code",
-        "momentum_size_percentile",
-        "momentum_readiness_code",
-        "momentum_unavailable_reason_code",
-        "momentum_state_age_bars",
-        "momentum_state_changes_50",
-        "structure_score",
-        "structure_code",
-        "structure_scale_code",
-        "high_relation_code",
-        "low_relation_code",
-        "ema_distance_atr_20",
-        "ema_distance_atr_50",
-        "ema_distance_atr_200",
-        "ema_cross_code_20",
-        "ema_cross_code_50",
-        "ema_cross_code_200",
-        "ema_retest_code_20",
-        "ema_retest_code_50",
-        "ema_retest_code_200",
-        "structure_size_percentile",
-        "structure_readiness_code",
-        "structure_unavailable_reason_code",
-        "structure_state_age_bars",
-        "structure_state_changes_50",
-        "progress",
-        "progression_stage_code",
-        "progression_leg_direction",
-        "progression_leg_scale_code",
-        "progression_size_percentile",
-        "progression_readiness_code",
-        "progression_unavailable_reason_code",
-        "progression_state_age_bars",
-        "progression_state_changes_50",
-        "atr_ratio",
-        "rvol_ratio",
-        "context_code",
-    ];
-
-    fn candle(timestamp: i64, volume: Option<f64>) -> Candle {
-        Candle::new(0, timestamp, 10.0, 11.0, 9.0, 10.5, volume).expect("the test candle is valid")
-    }
-
-    fn record(name: &str, data_version: &str, m1_bars: usize) -> DatasetRecord {
-        DatasetRecord {
-            name: name.to_string(),
-            data_version: data_version.to_string(),
-            model_version: "0.1.0".to_string(),
-            structure_scale_code: 2,
-            m1_bars,
-        }
-    }
-
-    /// Every field carries a distinct value, so a swapped column is visible.
-    fn unique_row(timeframe_secs: u64, bar_index: usize) -> Layer1Row {
-        Layer1Row {
-            timeframe_secs,
-            bar_index,
-            candle: candle(1_700_000_000, Some(123.0)),
-            readings: ReadingsSnapshot {
-                ema20: Some(20.1),
-                ema50: Some(50.2),
-                ema200: Some(200.3),
-                rsi14: Some(55.4),
-                atr14: Some(1.5),
-                rvol20: Some(0.6),
-            },
-            metrics: Metrics {
-                direction: DirectionMetrics {
-                    direction: Some(0.11),
-                    state_code: Some(1),
-                    size_percentile: Some(12.0),
-                    readiness_code: 2,
-                    unavailable_reason_code: None,
-                    state_age_bars: 3,
-                    state_changes_50: 4,
-                },
-                momentum: MomentumMetrics {
-                    force: Some(-0.21),
-                    acceleration: Some(0.22),
-                    intensification: Some(-0.23),
-                    state_code: Some(-1),
-                    size_percentile: Some(24.0),
-                    readiness_code: 1,
-                    unavailable_reason_code: Some(7),
-                    state_age_bars: 5,
-                    state_changes_50: 6,
-                },
-                structure: StructureFields::values(),
-                progression: ProgressionMetrics {
-                    progress: Some(0.41),
-                    stage_code: Some(3),
-                    leg_direction: Some(-1),
-                    leg_scale_code: Some(1),
-                    size_percentile: Some(42.0),
-                    readiness_code: 0,
-                    unavailable_reason_code: Some(9),
-                    state_age_bars: 9,
-                    state_changes_50: 10,
-                },
-                context: ContextMetrics {
-                    atr_ratio: Some(0.51),
-                    rvol_ratio: Some(0.52),
-                    context_code: Some(4),
-                },
-            },
-        }
-    }
-
-    /// A row whose optional values are all null and whose zeros are valid.
-    fn sparse_row() -> Layer1Row {
-        Layer1Row {
-            timeframe_secs: 60,
-            bar_index: 0,
-            candle: candle(1_700_000_000, Some(0.0)),
-            readings: ReadingsSnapshot {
-                ema20: None,
-                ema50: None,
-                ema200: None,
-                rsi14: None,
-                atr14: None,
-                rvol20: None,
-            },
-            metrics: Metrics {
-                direction: DirectionMetrics {
-                    direction: None,
-                    state_code: None,
-                    size_percentile: None,
-                    readiness_code: 0,
-                    unavailable_reason_code: None,
-                    state_age_bars: 0,
-                    state_changes_50: 0,
-                },
-                momentum: MomentumMetrics {
-                    force: None,
-                    acceleration: None,
-                    intensification: None,
-                    state_code: None,
-                    size_percentile: None,
-                    readiness_code: 0,
-                    unavailable_reason_code: None,
-                    state_age_bars: 0,
-                    state_changes_50: 0,
-                },
-                structure: StructureFields::sparse(),
-                progression: ProgressionMetrics {
-                    progress: Some(0.0),
-                    stage_code: None,
-                    leg_direction: None,
-                    leg_scale_code: None,
-                    size_percentile: None,
-                    readiness_code: 0,
-                    unavailable_reason_code: None,
-                    state_age_bars: 0,
-                    state_changes_50: 0,
-                },
-                context: ContextMetrics {
-                    atr_ratio: None,
-                    rvol_ratio: None,
-                    context_code: None,
-                },
-            },
-        }
-    }
-
-    struct StructureFields;
-
-    impl StructureFields {
-        fn values() -> quantrule_analytics::layers::StructureMetrics {
-            use quantrule_analytics::layers::StructureMetrics;
-            StructureMetrics {
-                score: Some(0.31),
-                state_code: Some(2),
-                scale_code: 2,
-                high_relation_code: Some(1),
-                low_relation_code: Some(-1),
-                ema_distance_atr_20: Some(0.32),
-                ema_distance_atr_50: Some(0.33),
-                ema_distance_atr_200: Some(0.34),
-                ema_cross_code_20: Some(1),
-                ema_cross_code_50: Some(2),
-                ema_cross_code_200: Some(3),
-                ema_retest_code_20: Some(4),
-                ema_retest_code_50: Some(5),
-                ema_retest_code_200: Some(6),
-                size_percentile: Some(36.0),
-                readiness_code: 2,
-                unavailable_reason_code: None,
-                state_age_bars: 7,
-                state_changes_50: 8,
-            }
-        }
-
-        fn sparse() -> quantrule_analytics::layers::StructureMetrics {
-            use quantrule_analytics::layers::StructureMetrics;
-            StructureMetrics {
-                score: None,
-                state_code: None,
-                scale_code: 2,
-                high_relation_code: None,
-                low_relation_code: None,
-                ema_distance_atr_20: None,
-                ema_distance_atr_50: None,
-                ema_distance_atr_200: None,
-                ema_cross_code_20: None,
-                ema_cross_code_50: None,
-                ema_cross_code_200: None,
-                ema_retest_code_20: None,
-                ema_retest_code_50: None,
-                ema_retest_code_200: None,
-                size_percentile: None,
-                readiness_code: 0,
-                unavailable_reason_code: None,
-                state_age_bars: 0,
-                state_changes_50: 0,
-            }
-        }
-    }
-
-    fn stored_row(store: &Store, dataset_id: i64) -> Vec<Value> {
-        let columns = COLUMNS.join(", ");
-        let sql = format!(
-            "SELECT {columns} FROM bar WHERE dataset_id = ?1 ORDER BY timeframe_secs, bar_index"
-        );
-        store
-            .connection()
-            .query_row(&sql, [dataset_id], |row| {
-                (0..COLUMNS.len())
-                    .map(|index| row.get(index))
-                    .collect::<Result<Vec<Value>, _>>()
-            })
-            .expect("the stored row is read")
-    }
-
-    fn count(store: &Store, table: &str) -> i64 {
-        store
-            .connection()
-            .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
-                row.get(0)
-            })
-            .expect("the count is read")
-    }
-
-    #[test]
-    fn every_written_column_round_trips() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        let row = unique_row(60, 7);
-        let report = store
-            .ingest(&record("demo", "source:1", 1), &[row])
-            .expect("the dataset is ingested");
-        assert_eq!(report.bars, 1);
-        assert_eq!(report.timeframes, 1);
-
-        let expected = vec![
-            Value::from(report.dataset_id),
-            Value::from(60_i64),
-            Value::from(7_i64),
-            Value::from(1_700_000_000_i64),
-            Value::from(10.0),
-            Value::from(11.0),
-            Value::from(9.0),
-            Value::from(10.5),
-            Value::from(Some(123.0)),
-            Value::from(Some(20.1)),
-            Value::from(Some(50.2)),
-            Value::from(Some(200.3)),
-            Value::from(Some(55.4)),
-            Value::from(Some(1.5)),
-            Value::from(Some(0.6)),
-            Value::from(Some(0.11)),
-            Value::from(Some(1_i64)),
-            Value::from(Some(12.0)),
-            Value::from(2_i64),
-            Value::from(None::<i64>),
-            Value::from(3_i64),
-            Value::from(4_i64),
-            Value::from(Some(-0.21)),
-            Value::from(Some(0.22)),
-            Value::from(Some(-0.23)),
-            Value::from(Some(-1_i64)),
-            Value::from(Some(24.0)),
-            Value::from(1_i64),
-            Value::from(Some(7_i64)),
-            Value::from(5_i64),
-            Value::from(6_i64),
-            Value::from(Some(0.31)),
-            Value::from(Some(2_i64)),
-            Value::from(2_i64),
-            Value::from(Some(1_i64)),
-            Value::from(Some(-1_i64)),
-            Value::from(Some(0.32)),
-            Value::from(Some(0.33)),
-            Value::from(Some(0.34)),
-            Value::from(Some(1_i64)),
-            Value::from(Some(2_i64)),
-            Value::from(Some(3_i64)),
-            Value::from(Some(4_i64)),
-            Value::from(Some(5_i64)),
-            Value::from(Some(6_i64)),
-            Value::from(Some(36.0)),
-            Value::from(2_i64),
-            Value::from(None::<i64>),
-            Value::from(7_i64),
-            Value::from(8_i64),
-            Value::from(Some(0.41)),
-            Value::from(Some(3_i64)),
-            Value::from(Some(-1_i64)),
-            Value::from(Some(1_i64)),
-            Value::from(Some(42.0)),
-            Value::from(0_i64),
-            Value::from(Some(9_i64)),
-            Value::from(9_i64),
-            Value::from(10_i64),
-            Value::from(Some(0.51)),
-            Value::from(Some(0.52)),
-            Value::from(Some(4_i64)),
-        ];
-        assert_eq!(expected.len(), COLUMNS.len());
-
-        let stored = stored_row(&store, report.dataset_id);
-        assert_eq!(stored.len(), COLUMNS.len());
-        for ((name, stored), expected) in COLUMNS.iter().zip(&stored).zip(&expected) {
-            assert_eq!(stored, expected, "column {name}");
-        }
-    }
-
-    #[test]
-    fn nulls_stay_null_and_zeros_stay_zero() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        let report = store
-            .ingest(&record("demo", "source:1", 1), &[sparse_row()])
-            .expect("the dataset is ingested");
-
-        let stored = stored_row(&store, report.dataset_id);
-        let by_name = |name: &str| {
-            let index = COLUMNS
-                .iter()
-                .position(|column| *column == name)
-                .expect("the column exists");
-            stored[index].clone()
-        };
-
-        assert_eq!(by_name("volume"), Value::Real(0.0));
-        assert_eq!(by_name("ema20"), Value::Null);
-        assert_eq!(by_name("direction"), Value::Null);
-        assert_eq!(by_name("direction_readiness_code"), Value::Integer(0));
-        assert_eq!(by_name("direction_unavailable_reason_code"), Value::Null);
-        assert_eq!(by_name("progress"), Value::Real(0.0));
-        assert_eq!(by_name("structure_code"), Value::Null);
-        assert_eq!(by_name("context_code"), Value::Null);
-        assert_eq!(by_name("structure_scale_code"), Value::Integer(2));
-
-        for column in [
-            "direction_continuous",
-            "direction_ordinal",
-            "direction_resolution_reason_code",
-            "momentum_continuous",
-            "momentum_ordinal",
-            "momentum_resolution_reason_code",
-            "structure_continuous",
-            "structure_ordinal",
-            "structure_resolution_reason_code",
-            "progression_continuous",
-            "progression_ordinal",
-            "progression_resolution_reason_code",
-        ] {
-            let value: Value = store
-                .connection()
-                .query_row(
-                    &format!("SELECT {column} FROM bar WHERE dataset_id = ?1"),
-                    [report.dataset_id],
-                    |row| row.get(0),
-                )
-                .expect("the resolution column is read");
-            assert_eq!(value, Value::Null, "column {column}");
-        }
-    }
-
-    #[test]
-    fn the_dataset_row_records_the_identity_and_contracts() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        store
-            .ingest(&record("demo", "source:1", 1), &[unique_row(60, 0)])
-            .expect("the dataset is ingested");
-
-        let (data_version, model_contract, research_contract, scale, m1_bars, materialized) = store
-            .connection()
-            .query_row(
-                "SELECT data_version, model_contract, research_contract, structure_scale_code, \
-                 m1_bars, layer3_materialized FROM dataset WHERE name = 'demo'",
-                [],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, i64>(3)?,
-                        row.get::<_, i64>(4)?,
-                        row.get::<_, i64>(5)?,
-                    ))
-                },
-            )
-            .expect("the dataset row is read");
-        assert_eq!(data_version, "source:1");
-        assert_eq!(model_contract, "2026-10-21");
-        assert_eq!(research_contract, "2026-10-24");
-        assert_eq!(scale, 2);
-        assert_eq!(m1_bars, 1);
-        assert_eq!(materialized, 0);
-    }
-
-    #[test]
-    fn the_same_identity_is_a_no_op() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        let dataset = record("demo", "source:1", 1);
-        let rows = [unique_row(60, 0)];
-        let first = store.ingest(&dataset, &rows).expect("the first ingest");
-        assert!(!first.unchanged);
-
-        let second = store.ingest(&dataset, &rows).expect("the second ingest");
-        assert!(second.unchanged);
-        assert_eq!(second.dataset_id, first.dataset_id);
-        assert_eq!(second.bars, first.bars);
-        assert_eq!(second.timeframes, first.timeframes);
-        assert_eq!(count(&store, "dataset"), 1);
-        assert_eq!(count(&store, "bar"), 1);
-    }
-
-    #[test]
-    fn a_different_identity_is_a_conflict_and_changes_nothing() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        store
-            .ingest(&record("demo", "source:1", 1), &[unique_row(60, 0)])
-            .expect("the first ingest");
-
-        let error = store
-            .ingest(&record("demo", "source:2", 1), &[unique_row(60, 0)])
-            .expect_err("a different identity is rejected");
-        assert!(matches!(error, StoreError::Conflict { name } if name == "demo"));
-        assert_eq!(count(&store, "dataset"), 1);
-        assert_eq!(count(&store, "bar"), 1);
-
-        let data_version: String = store
-            .connection()
-            .query_row(
-                "SELECT data_version FROM dataset WHERE name = 'demo'",
-                [],
-                |row| row.get(0),
-            )
-            .expect("the identity is read");
-        assert_eq!(data_version, "source:1");
-    }
-
-    #[test]
-    fn a_failed_insert_rolls_back_the_dataset_and_every_bar() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        let first = unique_row(60, 0);
-        let mut duplicate = unique_row(60, 0);
-        duplicate.candle = candle(1_700_000_060, Some(1.0));
-
-        let error = store
-            .ingest(&record("demo", "source:1", 2), &[first, duplicate])
-            .expect_err("the duplicate primary key fails the transaction");
-        assert!(matches!(error, StoreError::Write { .. }));
-        assert_eq!(count(&store, "dataset"), 0);
-        assert_eq!(count(&store, "bar"), 0);
-    }
-
-    #[test]
-    fn the_m1_cap_is_enforced_before_writing() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        let error = store
-            .ingest(&record("demo", "source:1", MAX_M1_BARS + 1), &[])
-            .expect_err("the cap is enforced");
-        assert!(matches!(error, StoreError::InvalidDataset { .. }));
-        assert_eq!(count(&store, "dataset"), 0);
-    }
-
-    #[test]
-    fn the_m1_count_must_match_the_rows() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        let error = store
-            .ingest(&record("demo", "source:1", 1), &[])
-            .expect_err("a missing M1 row is rejected");
-        assert!(matches!(error, StoreError::InvalidDataset { .. }));
-
-        let error = store
-            .ingest(&record("demo", "source:1", 0), &[unique_row(60, 0)])
-            .expect_err("an undeclared M1 row is rejected");
-        assert!(matches!(error, StoreError::InvalidDataset { .. }));
-        assert_eq!(count(&store, "dataset"), 0);
-    }
-
-    #[test]
-    fn an_empty_dataset_is_accepted() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        let report = store
-            .ingest(&record("empty", "source:0", 0), &[])
-            .expect("an empty dataset is accepted");
-        assert!(!report.unchanged);
-        assert_eq!(report.bars, 0);
-        assert_eq!(report.timeframes, 0);
-        assert_eq!(count(&store, "dataset"), 1);
-        assert_eq!(count(&store, "bar"), 0);
-    }
-
-    #[test]
-    fn the_row_order_does_not_change_the_stored_set() {
-        let mut first = Store::open_in_memory().expect("the first store opens");
-        let mut second = Store::open_in_memory().expect("the second store opens");
-        let rows = [unique_row(60, 0), unique_row(300, 0), unique_row(60, 1)];
-        first
-            .ingest(&record("demo", "source:1", 2), &rows)
-            .expect("the first ingest");
-        second
-            .ingest(&record("demo", "source:1", 2), &[rows[2], rows[0], rows[1]])
-            .expect("the reordered ingest");
-
-        let read = |store: &Store| -> Vec<(i64, i64)> {
-            let mut statement = store
-                .connection()
-                .prepare(
-                    "SELECT timeframe_secs, bar_index FROM bar ORDER BY timeframe_secs, bar_index",
-                )
-                .expect("the query prepares");
-            statement
-                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
-                .expect("the rows are read")
-                .collect::<Result<_, _>>()
-                .expect("the rows are valid")
-        };
-        assert_eq!(read(&first), read(&second));
-    }
-
-    #[test]
-    fn the_report_counts_distinct_timeframes() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        let rows = [unique_row(60, 0), unique_row(60, 1), unique_row(300, 0)];
-        let report = store
-            .ingest(&record("demo", "source:1", 2), &rows)
-            .expect("the dataset is ingested");
-        assert_eq!(report.bars, 3);
-        assert_eq!(report.timeframes, 2);
-    }
-
-    #[test]
-    fn the_insert_binds_62_parameters() {
-        assert_eq!(BAR_INSERT.matches('?').count(), 62);
-    }
-
-    #[test]
-    fn an_empty_name_or_data_version_is_rejected() {
-        let mut store = Store::open_in_memory().expect("the store opens");
-        for dataset in [record("", "source:1", 0), record("demo", "", 0)] {
-            let error = store
-                .ingest(&dataset, &[])
-                .expect_err("an empty identity is rejected");
-            assert!(matches!(error, StoreError::InvalidDataset { .. }));
-        }
-        assert_eq!(count(&store, "dataset"), 0);
-    }
+fn pivot_params(dataset_id: i64, row: &PivotRow) -> [Value; 8] {
+    [
+        Value::from(dataset_id),
+        Value::from(row.timeframe_secs as i64),
+        Value::from(i64::from(row.scale_code)),
+        Value::from(i64::from(row.kind_code)),
+        Value::from(row.price),
+        Value::from(row.occurred_bar_index as i64),
+        Value::from(row.available_bar_index as i64),
+        Value::from(i64::from(row.confirmed_code)),
+    ]
 }
+
+const PIVOT_INSERT: &str = "\
+INSERT INTO pivot (\
+    dataset_id, timeframe_secs, scale_code, kind_code, price, occurred_bar_index, \
+    available_bar_index, confirmed_code\
+) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
+
+fn level_params(dataset_id: i64, row: &LevelRow) -> [Value; 8] {
+    [
+        Value::from(dataset_id),
+        Value::from(row.timeframe_secs as i64),
+        Value::from(i64::from(row.reference_code)),
+        Value::from(i64::from(row.scale_code)),
+        Value::from(i64::from(row.kind_code)),
+        Value::from(row.price),
+        Value::from(row.occurred_bar_index as i64),
+        Value::from(row.available_bar_index as i64),
+    ]
+}
+
+const LEVEL_INSERT: &str = "\
+INSERT INTO level (\
+    dataset_id, timeframe_secs, reference_code, scale_code, kind_code, price, \
+    occurred_bar_index, available_bar_index\
+) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
+
+#[cfg(test)]
+mod tests;

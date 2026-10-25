@@ -373,6 +373,8 @@ mod tests {
             layer1: Vec::new(),
             layer2: Vec::new(),
             layer3: Vec::new(),
+            pivots: Vec::new(),
+            levels: Vec::new(),
         };
         let summary = summarize(&set);
         assert_eq!(summary.layer1_rows, 0);
