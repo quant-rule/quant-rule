@@ -2,7 +2,7 @@
 
 - Issue: [#71](https://github.com/quant-rule/quant-rule/issues/71) — feat: persist context, consensus, and cross-timeframe aggregates
 - Branch: `feat/71-context-consensus-aggregates`
-- Pull request: — (not opened yet)
+- Pull request: [#104](https://github.com/quant-rule/quant-rule/pull/104)
 - Status: Verified
 - Date: 2026-10-25 (UTC)
 - ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)
