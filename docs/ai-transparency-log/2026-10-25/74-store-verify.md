@@ -68,6 +68,6 @@
 - `cargo fmt --all -- --check`: clean.
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
-- Pull request: pending human authorization.
-- Status: implementation complete and locally verified; commit, push, and pull
-  request await human authorization.
+- Pull request: [#110](https://github.com/quant-rule/quant-rule/pull/110).
+- Status: implementation complete and locally verified; pull request open for
+  human review.

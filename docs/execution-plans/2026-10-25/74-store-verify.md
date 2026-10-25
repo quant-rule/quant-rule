@@ -2,7 +2,7 @@
 
 - Issue: [#74](https://github.com/quant-rule/quant-rule/issues/74) — test: verify the stored dataset and the 100k cap
 - Branch: `test/74-store-verify`
-- Pull request: pending
+- Pull request: [#110](https://github.com/quant-rule/quant-rule/pull/110)
 - Status: Verified
 - Date: 2026-10-25 (UTC)
 - Store ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)
