@@ -8,6 +8,7 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
+use quantrule_data::format_utc_timestamp;
 use rusqlite::Connection;
 
 const BIN: &str = env!("CARGO_BIN_EXE_quantrule");
@@ -19,6 +20,71 @@ fn fixture(name: &str) -> String {
         .to_str()
         .expect("fixture path is valid UTF-8")
         .to_owned()
+}
+
+/// The UTC open time of `2025-01-01 00:00:00`, shared by the generated series.
+const GENERATED_EPOCH: i64 = 1_735_689_600;
+
+/// Writes a generated M1 series under `target/` and returns its path.
+///
+/// The generator is deterministic and keeps the fixture out of Git. It is used
+/// only for boundaries larger than the checked-in shell fixtures.
+fn generated_csv(name: &str, header: &str, rows: impl IntoIterator<Item = String>) -> String {
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/evidence-tests");
+    fs::create_dir_all(&directory).expect("the evidence fixture directory is created");
+    let path = directory.join(format!("{name}.csv"));
+    let mut text = String::from(header);
+    text.push('\n');
+    for row in rows {
+        text.push_str(&row);
+        text.push('\n');
+    }
+    fs::write(&path, text).expect("the evidence fixture is written");
+    path.to_str()
+        .expect("the evidence fixture path is valid UTF-8")
+        .to_owned()
+}
+
+/// One deterministic M1 row with enough movement for the model to publish events.
+fn generated_row(index: usize) -> String {
+    let timestamp = GENERATED_EPOCH + index as i64 * 60;
+    let stamp = format_utc_timestamp(timestamp);
+    let phase = index as f64;
+    let open = 100.0 + 4.0 * (phase / 5.0).sin() + 0.8 * (phase / 2.0).sin();
+    let close = 100.0 + 4.0 * ((phase + 1.0) / 5.0).sin() + 0.8 * ((phase + 1.0) / 2.0).sin();
+    let high = open.max(close) + 0.4 + 0.2 * (phase / 3.0).sin().abs();
+    let low = open.min(close) - 0.4 - 0.2 * (phase / 3.0).cos().abs();
+    let volume = 1_000 + (index * 37) % 900;
+    format!(
+        "{} {}+00:00,{open:.5},{high:.5},{low:.5},{close:.5},{volume}",
+        &stamp[..10],
+        &stamp[11..19]
+    )
+}
+
+/// Extends the checked-in 260-bar state fixture to `total` M1 bars.
+fn extended_state_csv(name: &str, total: usize) -> String {
+    let source =
+        fs::read_to_string(fixture("state_m1.csv")).expect("the state fixture is readable");
+    let mut lines = source.lines();
+    let header = lines.next().expect("the state fixture has a header");
+    let mut rows: Vec<String> = lines.map(str::to_owned).collect();
+    assert_eq!(rows.len(), 260, "the state fixture is the expected width");
+    assert!(
+        total >= rows.len(),
+        "the extension cannot shorten the fixture"
+    );
+    rows.extend((rows.len()..total).map(generated_row));
+    generated_csv(name, header, rows)
+}
+
+/// Writes a fully synthetic M1 series with `total` bars.
+fn synthetic_csv(name: &str, total: usize) -> String {
+    generated_csv(
+        name,
+        "Date,Open,High,Low,Close,Volume",
+        (0..total).map(generated_row),
+    )
 }
 
 fn run(args: &[&str]) -> Output {
@@ -788,6 +854,81 @@ fn events_print_labeled_records() {
 }
 
 #[test]
+fn a_long_series_keeps_an_early_event_and_reports_the_true_tail() {
+    let path = extended_state_csv("state-1500", 1_500);
+
+    let full = run(&["market-state", &path]);
+    assert_success(&full);
+    let full_value: serde_json::Value =
+        serde_json::from_str(stdout_text(&full).trim()).expect("the full market state is JSON");
+    assert_eq!(full_value["timeframes"][0]["bar"], 1499);
+
+    let latest = run(&["market-state", &path, "--window", "latest"]);
+    assert_success(&latest);
+    let latest_value: serde_json::Value =
+        serde_json::from_str(stdout_text(&latest).trim()).expect("the latest market state is JSON");
+    assert_eq!(latest_value["timeframes"][0]["bar"], 999);
+
+    let events = run(&["events", &path]);
+    assert_success(&events);
+    let early = "2025-01-01T00:14:00Z";
+    let has_early_event = |text: &str| {
+        text.lines().any(|line| {
+            let value: serde_json::Value = serde_json::from_str(line).expect("event JSON");
+            value["timeframe"] == "1m" && value["occurred_time"] == early
+        })
+    };
+    assert!(
+        has_early_event(&stdout_text(&events)),
+        "the full run lost an event from before the last 1,000 bars"
+    );
+
+    let tail_events = run(&["events", &path, "--window", "latest"]);
+    assert_success(&tail_events);
+    assert!(
+        !has_early_event(&stdout_text(&tail_events)),
+        "--window latest unexpectedly saw an event outside its input"
+    );
+}
+
+#[test]
+fn model_series_returns_the_last_1000_bars_of_a_1200_bar_run() {
+    let path = extended_state_csv("state-1200", 1_200);
+    let output = run(&["model-series", &path, "--timeframe", "1m", "--bars", "1000"]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 1_000);
+
+    let first: serde_json::Value = serde_json::from_str(lines[0]).expect("first model bar");
+    let last: serde_json::Value = serde_json::from_str(lines[999]).expect("last model bar");
+    assert_eq!(first["bar"], 200);
+    assert_eq!(first["window_start"], 200);
+    assert_eq!(first["window_len"], 1_200);
+    assert_eq!(last["bar"], 1_199);
+    assert_eq!(last["series_index"], 1_199);
+}
+
+#[test]
+fn h1_reaches_ema200_with_enough_history() {
+    let path = synthetic_csv("h1-12000", 12_000);
+    let output = run(&["model-series", &path, "--timeframe", "1h", "--bars", "1"]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 1);
+    let value: serde_json::Value = serde_json::from_str(lines[0]).expect("the H1 model bar");
+    assert_eq!(value["timeframe"], "1h");
+    assert_eq!(value["bar"], 199);
+    assert_eq!(value["window_start"], 199);
+    assert_eq!(value["window_len"], 200);
+    assert!(
+        value["readings"]["ema200"].is_number(),
+        "H1 did not reach EMA 200 with 12,000 M1 bars"
+    );
+}
+
+#[test]
 fn model_series_prints_the_requested_tail() {
     let path = fixture("state_m1.csv");
     let output = run(&["model-series", &path, "--timeframe", "1m", "--bars", "3"]);
@@ -1213,6 +1354,50 @@ fn store_ingest_writes_every_ladder_bar_and_repeats_as_a_no_op() {
     assert_eq!(scalar(&connection, "SELECT count(*) FROM bar"), 333);
     assert_eq!(record_counts(), before, "the no-op changed the records");
     assert_record_integrity(&connection);
+}
+
+#[test]
+fn event_batch_and_store_keep_more_than_the_bounded_history() {
+    let root = artifact_dir("event-retention");
+    let db = format!("{root}/store.db");
+    let path = synthetic_csv("event-retention-3000", 3_000);
+
+    let events = run(&["events", &path]);
+    assert_success(&events);
+    let m1_events = stdout_text(&events)
+        .lines()
+        .filter(|line| {
+            let value: serde_json::Value = serde_json::from_str(line).expect("event JSON");
+            value["timeframe"] == "1m"
+        })
+        .count();
+    assert!(
+        m1_events > 1_024,
+        "the fixture produced only {m1_events} M1 events"
+    );
+
+    let output = run(&[
+        "store",
+        "ingest",
+        &path,
+        "--dataset",
+        "events",
+        "--data-version",
+        "test:events:60:0-3000",
+        "--db",
+        &db,
+    ]);
+    assert_success(&output);
+
+    let connection = Connection::open(&db).expect("the store opens");
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM event WHERE timeframe_secs = 60"
+        ),
+        m1_events as i64,
+        "the store did not retain the full M1 event batch"
+    );
 }
 
 #[test]

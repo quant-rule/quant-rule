@@ -2,8 +2,8 @@
 
 use super::MAX_M1_BARS;
 use super::fixtures::{
-    COLUMNS, count, event_row, ingest_bars, layer2, leg_row, level_row, pivot_row, record,
-    sparse_row, stored_row, stored_rows, unique_row,
+    COLUMNS, count, event_row, ingest_bars, insert_columns, layer2, leg_row, level_row, pivot_row,
+    record, sparse_row, stored_row, stored_rows, unique_row,
 };
 use super::sql::{BAR_INSERT, LEVEL_INSERT, PIVOT_INSERT};
 use crate::store::{Store, StoreError};
@@ -107,6 +107,50 @@ fn every_written_column_round_trips() {
     for ((name, stored), expected) in COLUMNS.iter().zip(&stored).zip(&expected) {
         assert_eq!(stored, expected, "column {name}");
     }
+}
+
+#[test]
+fn the_bar_insert_select_and_research_columns_share_one_order() {
+    use quantrule_analytics::research::{layer1_names, layer2_names};
+
+    let store = Store::open_in_memory().expect("the store opens");
+    let connection = store.connection();
+    let mut statement = connection
+        .prepare("SELECT name FROM pragma_table_info('bar') ORDER BY cid")
+        .expect("the bar column query");
+    let ddl: Vec<String> = statement
+        .query_map([], |row| row.get(0))
+        .expect("the bar columns")
+        .collect::<Result<_, _>>()
+        .expect("the bar column names");
+
+    let mut expected = vec![String::from("dataset_id")];
+    expected.extend(layer1_names().into_iter().map(str::to_owned));
+    expected.extend(
+        layer2_names()[layer1_names().len()..]
+            .iter()
+            .map(|name| (*name).to_owned()),
+    );
+    assert_eq!(ddl, expected);
+
+    let select: Vec<String> = connection
+        .prepare("SELECT * FROM bar LIMIT 0")
+        .expect("the select query")
+        .column_names()
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(select, ddl);
+
+    let insert = insert_columns(BAR_INSERT);
+    assert_eq!(insert, ddl);
+    assert_eq!(
+        COLUMNS
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect::<Vec<_>>(),
+        ddl
+    );
 }
 
 #[test]

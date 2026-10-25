@@ -224,6 +224,12 @@ fn the_fetch_cap_warning_is_only_written_over_the_cap() {
     assert!(text.contains("accepted=100001"));
     assert!(text.contains("100000-row batch cap"));
     assert!(text.contains("--window latest"));
+
+    let mut real_world = Vec::new();
+    write_fetch_cap_warning(354_442, &mut real_world).expect("the warning writes");
+    let text = String::from_utf8(real_world).expect("the warning is UTF-8");
+    assert!(text.contains("accepted=354442"));
+    assert!(text.contains("100000-row batch cap"));
 }
 
 #[test]
