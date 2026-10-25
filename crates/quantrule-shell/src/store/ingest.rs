@@ -3,26 +3,30 @@
 //! `store ingest` builds the layers in memory and hands them here. This module
 //! writes one `dataset` row, one wide `bar` row per Layer 2 row, one `consensus`
 //! row per closed bar per timeframe, one `layer3` row per M1 bar with the 82
-//! cross-timeframe aggregates, one `pivot` row per pivot occurrence, and one
-//! `level` row per confirmed level in a single transaction. It copies the
-//! engine's values; it never computes an indicator, a metric, a resolution, a
-//! pivot, a level, a consensus count, or an aggregate.
+//! cross-timeframe aggregates, one `pivot` row per pivot occurrence, one `level`
+//! row per confirmed level, one `event` row per event record, and one `leg` row
+//! per retained leg in a single transaction. It copies the engine's values; it
+//! never computes an indicator, a metric, a resolution, a pivot, a level, an
+//! event, a leg, a consensus count, or an aggregate.
 //!
 //! The writer is deliberately narrower than the schema: the higher-timeframe
-//! blocks in `layer3`, events, and legs are not materialized until #72–#73.
-//! `layer3_materialized` therefore stays zero.
+//! blocks in `layer3` are not materialized until #73. `layer3_materialized`
+//! therefore stays zero.
 
 mod sql;
 mod validate;
 
 use std::collections::BTreeSet;
 
-use quantrule_analytics::layers::{ConsensusRow, Layer2Row, Layer3Row, LevelRow, PivotRow};
+use quantrule_analytics::layers::{
+    ConsensusRow, EventRow, Layer2Row, Layer3Row, LegRow, LevelRow, PivotRow,
+};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params, params_from_iter};
 
 use self::sql::{
-    BAR_INSERT, CONSENSUS_INSERT, LAYER3_AGGREGATE_INSERT, LEVEL_INSERT, PIVOT_INSERT, bar_params,
-    consensus_params, layer3_params, level_params, pivot_params,
+    BAR_INSERT, CONSENSUS_INSERT, EVENT_INSERT, LAYER3_AGGREGATE_INSERT, LEG_INSERT, LEVEL_INSERT,
+    PIVOT_INSERT, bar_params, consensus_params, event_params, layer3_params, leg_params,
+    level_params, pivot_params,
 };
 use self::validate::validate;
 use super::{Store, StoreError};
@@ -64,6 +68,10 @@ pub(crate) struct IngestRows<'a> {
     pub(crate) pivots: &'a [PivotRow],
     /// One row per confirmed level.
     pub(crate) levels: &'a [LevelRow],
+    /// One row per event record.
+    pub(crate) events: &'a [EventRow],
+    /// One row per retained progression leg.
+    pub(crate) legs: &'a [LegRow],
 }
 
 impl<'a> IngestRows<'a> {
@@ -74,6 +82,8 @@ impl<'a> IngestRows<'a> {
         layer3: &'a [Layer3Row],
         pivots: &'a [PivotRow],
         levels: &'a [LevelRow],
+        events: &'a [EventRow],
+        legs: &'a [LegRow],
     ) -> Self {
         Self {
             bars,
@@ -81,6 +91,8 @@ impl<'a> IngestRows<'a> {
             layer3,
             pivots,
             levels,
+            events,
+            legs,
         }
     }
 }
@@ -100,7 +112,8 @@ pub(crate) struct IngestReport {
 
 impl Store {
     /// Inserts one dataset, its Layer 2 bars, its consensus rows, its Layer 3
-    /// aggregate rows, and its pivot and level records in one transaction.
+    /// aggregate rows, and its pivot, level, event, and leg records in one
+    /// transaction.
     ///
     /// A dataset with the same name and identity is a no-op. A dataset with the
     /// same name but a different identity is a conflict; nothing is overwritten.
@@ -111,9 +124,11 @@ impl Store {
     /// not match the rows, exceeds the cap, or a record has an invalid code,
     /// price, bar range, availability bar, resolution, consensus count or
     /// weakest code, missing or duplicate key, invalid aggregate ladder or
-    /// list, or non-finite aggregate value; returns
-    /// [`StoreError::Conflict`] for a different identity; and returns
-    /// [`StoreError::Write`] when SQLite rejects a statement and the
+    /// list, non-finite aggregate value, invalid event type or subtype, invalid
+    /// event reference, missing threshold value on a Signal threshold crossing,
+    /// invalid leg scale or lifecycle, or inconsistent leg
+    /// availability; returns [`StoreError::Conflict`] for a different identity;
+    /// and returns [`StoreError::Write`] when SQLite rejects a statement and the
     /// transaction rolls back.
     pub(crate) fn ingest(
         &mut self,
@@ -215,6 +230,26 @@ impl Store {
                     .map_err(|source| StoreError::Write { source })?;
             }
         }
+        {
+            let mut statement = transaction
+                .prepare(EVENT_INSERT)
+                .map_err(|source| StoreError::Write { source })?;
+            for row in rows.events {
+                statement
+                    .execute(params_from_iter(event_params(dataset_id, row)))
+                    .map_err(|source| StoreError::Write { source })?;
+            }
+        }
+        {
+            let mut statement = transaction
+                .prepare(LEG_INSERT)
+                .map_err(|source| StoreError::Write { source })?;
+            for row in rows.legs {
+                statement
+                    .execute(params_from_iter(leg_params(dataset_id, row)))
+                    .map_err(|source| StoreError::Write { source })?;
+            }
+        }
 
         transaction
             .commit()
@@ -302,5 +337,7 @@ fn count_timeframes(connection: &Connection, dataset_id: i64) -> Result<usize, S
 mod aggregate_tests;
 #[cfg(test)]
 mod fixtures;
+#[cfg(test)]
+mod record_tests;
 #[cfg(test)]
 mod tests;

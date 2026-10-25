@@ -7,8 +7,9 @@
 use super::{DatasetRecord, IngestRows};
 use crate::store::Store;
 use quantrule_analytics::layers::{
-    ConsensusRow, ContextMetrics, DirectionMetrics, Layer1Row, Layer2Row, Layer3Row, LevelRow,
-    M1_SECONDS, Metrics, MomentumMetrics, PivotRow, ProgressionMetrics, ReadingsSnapshot,
+    ConsensusRow, ContextMetrics, DirectionMetrics, EventRow, Layer1Row, Layer2Row, Layer3Row,
+    LegRow, LevelRow, M1_SECONDS, Metrics, MomentumMetrics, PivotRow, ProgressionMetrics,
+    ReadingsSnapshot,
 };
 use quantrule_data::Candle;
 use quantrule_model::aggregate::{
@@ -161,7 +162,26 @@ impl FixtureRows {
         pivots: &'a [PivotRow],
         levels: &'a [LevelRow],
     ) -> IngestRows<'a> {
-        IngestRows::new(bars, &self.consensus, &self.layer3, pivots, levels)
+        self.rows_with_records(bars, pivots, levels, &[], &[])
+    }
+
+    pub(super) fn rows_with_records<'a>(
+        &'a self,
+        bars: &'a [Layer2Row],
+        pivots: &'a [PivotRow],
+        levels: &'a [LevelRow],
+        events: &'a [EventRow],
+        legs: &'a [LegRow],
+    ) -> IngestRows<'a> {
+        IngestRows::new(
+            bars,
+            &self.consensus,
+            &self.layer3,
+            pivots,
+            levels,
+            events,
+            legs,
+        )
     }
 }
 
@@ -475,6 +495,60 @@ pub(super) fn level_row(
     }
 }
 
+pub(super) fn event_row(
+    timeframe_secs: u64,
+    event_type_code: u8,
+    event_subtype_code: u8,
+    source_code: u16,
+    occurred_bar_index: usize,
+    available_bar_index: usize,
+    direction_code: i8,
+) -> EventRow {
+    EventRow {
+        timeframe_secs,
+        event_type_code,
+        event_subtype_code,
+        source_code,
+        occurred_bar_index,
+        available_bar_index,
+        direction_code,
+        reference_code: None,
+        primary_value: None,
+        reference_value: None,
+    }
+}
+
+pub(super) fn leg_row(
+    timeframe_secs: u64,
+    leg_id: u64,
+    scale_code: u8,
+    origin_price: f64,
+    origin_occurred_bar_index: usize,
+    origin_available_bar_index: Option<usize>,
+    origin_confirmed_code: u8,
+) -> LegRow {
+    LegRow {
+        timeframe_secs,
+        leg_id,
+        scale_code,
+        origin_price,
+        origin_occurred_bar_index,
+        origin_available_bar_index,
+        origin_confirmed_code,
+        leg_direction_code: 1,
+        target_price: None,
+        target_basis_code: None,
+        target_version: 0,
+        target_stable_code: 0,
+        progress: None,
+        displacement_price: None,
+        displacement_atr: None,
+        lifecycle_code: 0,
+        stage_code: None,
+        target_reached_code: None,
+    }
+}
+
 pub(super) fn stored_rows(store: &Store, sql: &str) -> Vec<Vec<Value>> {
     let mut statement = store.connection().prepare(sql).expect("the query prepares");
     let width = statement.column_count();
@@ -487,4 +561,53 @@ pub(super) fn stored_rows(store: &Store, sql: &str) -> Vec<Vec<Value>> {
         .expect("the rows are read")
         .collect::<Result<_, _>>()
         .expect("the rows are valid")
+}
+
+/// Reads a query's column names and rows, preserving the SQL column order.
+pub(super) fn stored_rows_with_columns(store: &Store, sql: &str) -> (Vec<String>, Vec<Vec<Value>>) {
+    let mut statement = store.connection().prepare(sql).expect("the query prepares");
+    let columns = statement
+        .column_names()
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect();
+    let width = statement.column_count();
+    let rows = statement
+        .query_map([], |row| {
+            (0..width)
+                .map(|index| row.get(index))
+                .collect::<Result<Vec<Value>, _>>()
+        })
+        .expect("the rows are read")
+        .collect::<Result<_, _>>()
+        .expect("the rows are valid");
+    (columns, rows)
+}
+
+/// Asserts that each bound parameter matches the named column in a stored row.
+pub(super) fn assert_params_match(
+    table_columns: &[String],
+    insert_columns: &[String],
+    row: &[Value],
+    params: &[Value],
+) {
+    assert_eq!(insert_columns.len(), params.len());
+    for (column, expected) in insert_columns.iter().zip(params) {
+        let index = table_columns
+            .iter()
+            .position(|name| name == column)
+            .expect("the column exists");
+        assert_eq!(&row[index], expected, "column {column}");
+    }
+}
+
+/// Parses the column list of an `INSERT INTO ... (...) VALUES` statement.
+pub(super) fn insert_columns(sql: &str) -> Vec<String> {
+    let start = sql.find('(').expect("an open parenthesis") + 1;
+    let end = sql.find(") VALUES").expect("a values clause");
+    sql[start..end]
+        .split(',')
+        .map(|column| column.trim().to_string())
+        .filter(|column| !column.is_empty())
+        .collect()
 }

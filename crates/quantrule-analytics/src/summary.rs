@@ -376,6 +376,8 @@ mod tests {
             layer3: Vec::new(),
             pivots: Vec::new(),
             levels: Vec::new(),
+            events: Vec::new(),
+            legs: Vec::new(),
         };
         let summary = summarize(&set);
         assert_eq!(summary.layer1_rows, 0);

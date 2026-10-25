@@ -1,11 +1,15 @@
-//! The version 1 schema.
+//! The version 1 and version 2 schemas.
 //!
 //! The DDL is generated from the research contract's column registry; the
 //! column names and the layer widths match the contract. A migration is a
 //! single transaction that creates these objects and sets `user_version`.
+//!
+//! Version 2 changes only the `event` unique indexes. Version 1's single index
+//! could not represent coincident Signal threshold crossings, which share every
+//! key column except `reference_value`.
 
 /// The supported schema version.
-pub(crate) const SCHEMA_VERSION: i64 = 1;
+pub(crate) const SCHEMA_VERSION: i64 = 2;
 
 /// The version 1 DDL.
 pub(crate) const SCHEMA_V1: &str = r#"-- The target schema for version 1. The column names match the research contract.
@@ -832,4 +836,26 @@ CREATE INDEX pivot_available ON pivot(dataset_id, timeframe_secs, available_bar_
 CREATE INDEX level_available ON level(dataset_id, timeframe_secs, available_bar_index);
 CREATE INDEX event_available ON event(dataset_id, timeframe_secs, available_bar_index, event_type_code);
 CREATE INDEX leg_origin ON leg(dataset_id, timeframe_secs, origin_occurred_bar_index);
+"#;
+
+/// The version 2 event-index migration.
+///
+/// Version 1's unique `event_key` could not represent coincident Signal
+/// threshold crossings: they share every key column but `reference_value`. The
+/// threshold family therefore gets its own partial unique index including that
+/// value; the original index keeps every other event unique.
+pub(crate) const SCHEMA_V2: &str = r#"-- Version 2: distinguish coincident Signal threshold crossings by threshold.
+DROP INDEX event_key;
+
+CREATE UNIQUE INDEX event_key ON event(
+    dataset_id, timeframe_secs, event_type_code, event_subtype_code, source_code,
+    occurred_bar_index, reference_code
+)
+WHERE NOT (event_type_code = 3 AND event_subtype_code = 1);
+
+CREATE UNIQUE INDEX event_threshold_key ON event(
+    dataset_id, timeframe_secs, event_type_code, event_subtype_code, source_code,
+    occurred_bar_index, reference_code, reference_value
+)
+WHERE event_type_code = 3 AND event_subtype_code = 1;
 "#;

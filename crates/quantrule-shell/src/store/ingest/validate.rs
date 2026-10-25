@@ -8,7 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use quantrule_analytics::layers::{
-    ConsensusRow, Layer2Row, Layer3Row, LevelRow, M1_SECONDS, PivotRow,
+    ConsensusRow, EventRow, Layer2Row, Layer3Row, LegRow, LevelRow, M1_SECONDS, PivotRow,
 };
 use quantrule_analytics::resolution::{AxisResolution, ordinal_bucket};
 use quantrule_model::aggregate::CrossTimeframeAggregates;
@@ -16,6 +16,15 @@ use quantrule_model::axes::structure::registry::FIRST_REFERENCE_CODE;
 
 use super::{DatasetRecord, IngestRows, MAX_M1_BARS};
 use crate::store::StoreError;
+
+/// The event type code for a signal event.
+const SIGNAL_EVENT_TYPE: u8 = 3;
+
+/// The event subtype code for a signal threshold crossing.
+///
+/// Coincident crossings of different thresholds share every key column except
+/// `reference_value`, so they are identified by the threshold as well.
+const THRESHOLD_CROSSING_SUBTYPE: u8 = 1;
 
 pub(super) fn validate(dataset: &DatasetRecord, rows: &IngestRows<'_>) -> Result<(), StoreError> {
     if dataset.name.is_empty() {
@@ -56,6 +65,8 @@ pub(super) fn validate(dataset: &DatasetRecord, rows: &IngestRows<'_>) -> Result
 
     validate_pivots(rows.pivots, &bar_counts)?;
     validate_levels(rows.levels, &bar_counts)?;
+    validate_events(rows.events, &bar_counts)?;
+    validate_legs(rows.legs, &bar_counts)?;
     validate_consensus(rows.consensus, rows.bars, &bar_counts)?;
     validate_layer3(rows.layer3, rows.bars, dataset.m1_bars)?;
     Ok(())
@@ -168,6 +179,254 @@ fn validate_levels(rows: &[LevelRow], bar_counts: &BTreeMap<u64, usize>) -> Resu
             return Err(invalid(format!(
                 "the level reference code {} is duplicated for timeframe {}",
                 row.reference_code, row.timeframe_secs
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_events(rows: &[EventRow], bar_counts: &BTreeMap<u64, usize>) -> Result<(), StoreError> {
+    let mut seen = BTreeSet::new();
+    for row in rows {
+        let bar_count = timeframe_bar_count(bar_counts, row.timeframe_secs, "event")?;
+        let max_subtype = match row.event_type_code {
+            1 => 3,
+            2 => 4,
+            3 => 3,
+            code => {
+                return Err(invalid(format!(
+                    "the event at bar {} has type code {code}",
+                    row.occurred_bar_index
+                )));
+            }
+        };
+        if !(1..=max_subtype).contains(&row.event_subtype_code) {
+            return Err(invalid(format!(
+                "the event at bar {} has subtype {} for type {}",
+                row.occurred_bar_index, row.event_subtype_code, row.event_type_code
+            )));
+        }
+        if !(1..=12).contains(&row.source_code) {
+            return Err(invalid(format!(
+                "the event at bar {} has source code {}",
+                row.occurred_bar_index, row.source_code
+            )));
+        }
+        check_bar_range(
+            bar_count,
+            row.occurred_bar_index,
+            row.available_bar_index,
+            "event",
+        )?;
+        if row.available_bar_index < row.occurred_bar_index {
+            return Err(invalid(format!(
+                "the event at bar {} is available at bar {}, before it occurred",
+                row.occurred_bar_index, row.available_bar_index
+            )));
+        }
+        if !(-1..=1).contains(&row.direction_code) {
+            return Err(invalid(format!(
+                "the event at bar {} has direction code {}",
+                row.occurred_bar_index, row.direction_code
+            )));
+        }
+        if let Some(reference) = row.reference_code
+            && !((1..=3).contains(&reference) || reference >= FIRST_REFERENCE_CODE)
+        {
+            return Err(invalid(format!(
+                "the event at bar {} has reference code {reference}",
+                row.occurred_bar_index
+            )));
+        }
+        for (name, value) in [
+            ("primary value", row.primary_value),
+            ("reference value", row.reference_value),
+        ] {
+            if let Some(value) = value
+                && !value.is_finite()
+            {
+                return Err(invalid(format!(
+                    "the event at bar {} has a non-finite {name}",
+                    row.occurred_bar_index
+                )));
+            }
+        }
+        let threshold = if row.event_type_code == SIGNAL_EVENT_TYPE
+            && row.event_subtype_code == THRESHOLD_CROSSING_SUBTYPE
+        {
+            let Some(value) = row.reference_value else {
+                return Err(invalid(format!(
+                    "the threshold event at bar {} has no reference value",
+                    row.occurred_bar_index
+                )));
+            };
+            Some(value_key(value))
+        } else {
+            None
+        };
+        let key = (
+            row.timeframe_secs,
+            row.event_type_code,
+            row.event_subtype_code,
+            row.source_code,
+            row.occurred_bar_index,
+            row.reference_code.unwrap_or(0),
+            threshold,
+        );
+        if !seen.insert(key) {
+            return Err(invalid(format!(
+                "the event at timeframe {} bar {} is duplicated",
+                row.timeframe_secs, row.occurred_bar_index
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// A total key for a finite reference value.
+///
+/// Zero is normalized so `-0.0` and `0.0` share the database's equality. The
+/// value is finite because the caller rejects a non-finite value first.
+fn value_key(value: f64) -> u64 {
+    if value == 0.0 {
+        0.0_f64.to_bits()
+    } else {
+        value.to_bits()
+    }
+}
+
+fn validate_legs(rows: &[LegRow], bar_counts: &BTreeMap<u64, usize>) -> Result<(), StoreError> {
+    let mut seen = BTreeSet::new();
+    for row in rows {
+        let bar_count = timeframe_bar_count(bar_counts, row.timeframe_secs, "leg")?;
+        if row.leg_id == 0 {
+            return Err(invalid("a leg has leg_id 0"));
+        }
+        if !(1..=2).contains(&row.scale_code) {
+            return Err(invalid(format!(
+                "the leg {} has scale code {}",
+                row.leg_id, row.scale_code
+            )));
+        }
+        if !row.origin_price.is_finite() {
+            return Err(invalid(format!(
+                "the leg {} has a non-finite origin price",
+                row.leg_id
+            )));
+        }
+        if row.origin_occurred_bar_index >= bar_count {
+            return Err(invalid(format!(
+                "the leg {} origin bar {} is outside the {bar_count} bars",
+                row.leg_id, row.origin_occurred_bar_index
+            )));
+        }
+        if row.origin_confirmed_code > 1 {
+            return Err(invalid(format!(
+                "the leg {} has confirmed code {}",
+                row.leg_id, row.origin_confirmed_code
+            )));
+        }
+        if (row.origin_confirmed_code == 1) != row.origin_available_bar_index.is_some() {
+            return Err(invalid(format!(
+                "the leg {} has confirmed code {} but availability {:?}",
+                row.leg_id, row.origin_confirmed_code, row.origin_available_bar_index
+            )));
+        }
+        if let Some(available) = row.origin_available_bar_index {
+            if available >= bar_count {
+                return Err(invalid(format!(
+                    "the leg {} availability bar {available} is outside the {bar_count} bars",
+                    row.leg_id
+                )));
+            }
+            if available < row.origin_occurred_bar_index {
+                return Err(invalid(format!(
+                    "the leg {} is available at bar {available}, before its origin at bar {}",
+                    row.leg_id, row.origin_occurred_bar_index
+                )));
+            }
+        }
+        if !matches!(row.leg_direction_code, -1 | 1) {
+            return Err(invalid(format!(
+                "the leg {} has direction code {}",
+                row.leg_id, row.leg_direction_code
+            )));
+        }
+        if let Some(target) = row.target_price
+            && !target.is_finite()
+        {
+            return Err(invalid(format!(
+                "the leg {} has a non-finite target price",
+                row.leg_id
+            )));
+        }
+        if let Some(basis) = row.target_basis_code
+            && !(1..=2).contains(&basis)
+        {
+            return Err(invalid(format!(
+                "the leg {} has target basis code {basis}",
+                row.leg_id
+            )));
+        }
+        if row.target_price.is_some() != row.target_basis_code.is_some() {
+            return Err(invalid(format!(
+                "the leg {} has a target price and basis that disagree",
+                row.leg_id
+            )));
+        }
+        if row.target_stable_code > 1 {
+            return Err(invalid(format!(
+                "the leg {} has target stable code {}",
+                row.leg_id, row.target_stable_code
+            )));
+        }
+        if row.target_stable_code == 1 && row.target_price.is_none() {
+            return Err(invalid(format!(
+                "the leg {} is stable without a target",
+                row.leg_id
+            )));
+        }
+        for (name, value) in [
+            ("progress", row.progress),
+            ("price displacement", row.displacement_price),
+            ("ATR displacement", row.displacement_atr),
+        ] {
+            if let Some(value) = value
+                && !value.is_finite()
+            {
+                return Err(invalid(format!(
+                    "the leg {} has a non-finite {name}",
+                    row.leg_id
+                )));
+            }
+        }
+        if !(0..=4).contains(&row.lifecycle_code) {
+            return Err(invalid(format!(
+                "the leg {} has lifecycle code {}",
+                row.leg_id, row.lifecycle_code
+            )));
+        }
+        if let Some(stage) = row.stage_code
+            && !(0..=5).contains(&stage)
+        {
+            return Err(invalid(format!(
+                "the leg {} has stage code {stage}",
+                row.leg_id
+            )));
+        }
+        if let Some(reached) = row.target_reached_code
+            && !(0..=1).contains(&reached)
+        {
+            return Err(invalid(format!(
+                "the leg {} has target reached code {reached}",
+                row.leg_id
+            )));
+        }
+        let key = (row.timeframe_secs, row.leg_id);
+        if !seen.insert(key) {
+            return Err(invalid(format!(
+                "the leg {} at timeframe {} is duplicated",
+                row.leg_id, row.timeframe_secs
             )));
         }
     }

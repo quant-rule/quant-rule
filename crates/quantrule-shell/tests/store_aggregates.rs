@@ -268,6 +268,10 @@ fn store_ingest_writes_consensus_and_aggregate_rows() {
         "the M1-only mean check is not exercised"
     );
 
+    let events_before = scalar(&connection, "SELECT count(*) FROM event");
+    let legs_before = scalar(&connection, "SELECT count(*) FROM leg");
+    let levels_before = scalar(&connection, "SELECT count(*) FROM level");
+
     let output = ingest();
     assert_success(&output);
     assert_eq!(
@@ -276,4 +280,136 @@ fn store_ingest_writes_consensus_and_aggregate_rows() {
     );
     assert_eq!(scalar(&connection, "SELECT count(*) FROM consensus"), 333);
     assert_eq!(scalar(&connection, "SELECT count(*) FROM layer3"), 260);
+
+    let events = scalar(&connection, "SELECT count(*) FROM event");
+    let legs = scalar(&connection, "SELECT count(*) FROM leg");
+    let levels = scalar(&connection, "SELECT count(*) FROM level");
+    assert_eq!(events, events_before, "a re-ingest changed the event count");
+    assert_eq!(legs, legs_before, "a re-ingest changed the leg count");
+    assert_eq!(levels, levels_before, "a re-ingest changed the level count");
+    assert!(events > 0, "the fixture must store events");
+    assert!(legs > 0, "the fixture must store legs");
+    assert!(levels > 0, "the fixture must store levels");
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM event WHERE available_bar_index < occurred_bar_index"
+        ),
+        0,
+        "an event is available before it occurred"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM level WHERE available_bar_index < occurred_bar_index"
+        ),
+        0,
+        "a level is available before it occurred"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM leg WHERE origin_available_bar_index < origin_occurred_bar_index"
+        ),
+        0,
+        "a leg is available before its origin occurred"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM event e LEFT JOIN bar b \
+             ON b.dataset_id = e.dataset_id AND b.timeframe_secs = e.timeframe_secs \
+             AND b.bar_index = e.occurred_bar_index WHERE b.dataset_id IS NULL"
+        ),
+        0,
+        "an event names an occurrence bar that is not stored"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM event e LEFT JOIN bar b \
+             ON b.dataset_id = e.dataset_id AND b.timeframe_secs = e.timeframe_secs \
+             AND b.bar_index = e.available_bar_index WHERE b.dataset_id IS NULL"
+        ),
+        0,
+        "an event names an availability bar that is not stored"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM level l LEFT JOIN bar b \
+             ON b.dataset_id = l.dataset_id AND b.timeframe_secs = l.timeframe_secs \
+             AND b.bar_index = l.available_bar_index WHERE b.dataset_id IS NULL"
+        ),
+        0,
+        "a level names an availability bar that is not stored"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM leg g LEFT JOIN bar b \
+             ON b.dataset_id = g.dataset_id AND b.timeframe_secs = g.timeframe_secs \
+             AND b.bar_index = g.origin_occurred_bar_index WHERE b.dataset_id IS NULL"
+        ),
+        0,
+        "a leg names an origin bar that is not stored"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM leg g LEFT JOIN bar b \
+             ON b.dataset_id = g.dataset_id AND b.timeframe_secs = g.timeframe_secs \
+             AND b.bar_index = g.origin_available_bar_index \
+             WHERE g.origin_available_bar_index IS NOT NULL AND b.dataset_id IS NULL"
+        ),
+        0,
+        "a leg names an availability bar that is not stored"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM event WHERE event_type_code = 3 AND event_subtype_code = 1 \
+             AND reference_value IS NULL"
+        ),
+        0,
+        "a Signal threshold crossing has no threshold"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM ( \
+               SELECT dataset_id, timeframe_secs, leg_id FROM leg \
+               GROUP BY dataset_id, timeframe_secs, leg_id HAVING count(*) > 1)"
+        ),
+        0,
+        "a leg identifier is duplicated"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM ( \
+               SELECT dataset_id, timeframe_secs, event_type_code, event_subtype_code, \
+                      source_code, occurred_bar_index, reference_code \
+               FROM event WHERE NOT (event_type_code = 3 AND event_subtype_code = 1) \
+               GROUP BY dataset_id, timeframe_secs, event_type_code, event_subtype_code, \
+                        source_code, occurred_bar_index, reference_code \
+               HAVING count(*) > 1)"
+        ),
+        0,
+        "a non-threshold event occurrence is duplicated"
+    );
+    assert_eq!(
+        scalar(
+            &connection,
+            "SELECT count(*) FROM ( \
+               SELECT dataset_id, timeframe_secs, event_type_code, event_subtype_code, \
+                      source_code, occurred_bar_index, reference_code, reference_value \
+               FROM event WHERE event_type_code = 3 AND event_subtype_code = 1 \
+               GROUP BY dataset_id, timeframe_secs, event_type_code, event_subtype_code, \
+                        source_code, occurred_bar_index, reference_code, reference_value \
+               HAVING count(*) > 1)"
+        ),
+        0,
+        "a threshold crossing is duplicated"
+    );
 }

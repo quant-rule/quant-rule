@@ -1,6 +1,18 @@
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
+use std::num::NonZeroU64;
+
 use quantrule_data::Candle;
+use quantrule_model::axes::direction::DirectionSeries;
+use quantrule_model::axes::momentum::MomentumSeries;
+use quantrule_model::axes::progression::{ProgressionConfig, ProgressionSeries};
 use quantrule_model::axes::structure::registry::ConfirmedLevelRegistry;
-use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries};
+use quantrule_model::axes::structure::{StructureConfig, StructureSeries};
+use quantrule_model::events::EventRecord;
+use quantrule_model::events::divergence::{DivergenceConfig, DivergenceEventSeries};
+use quantrule_model::events::level::{LevelEventConfig, LevelEventSeries};
+use quantrule_model::events::signal::{SignalConfig, SignalEventSeries};
+use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries, Readings};
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
 use super::{
@@ -350,6 +362,11 @@ fn reordered_inputs_and_repeated_runs_are_identical() {
 
     assert_eq!(forward, reordered);
     assert_eq!(forward, repeated);
+    assert!(
+        !forward.events.is_empty(),
+        "the fixture must produce events"
+    );
+    assert!(!forward.legs.is_empty(), "the fixture must produce legs");
 }
 
 #[test]
@@ -492,6 +509,303 @@ fn pivot_and_level_records_are_built_for_every_timeframe() {
             set.levels
                 .iter()
                 .all(|row| row.timeframe_secs != timeframe || row.reference_code >= 1001)
+        );
+    }
+}
+
+/// The model's event records for one timeframe, in the contract order.
+fn model_events(candles: &[Candle], timeframe_secs: u64, config: &LayerConfig) -> Vec<EventRecord> {
+    let readings = Readings::compute(candles);
+    let timeframe = NonZeroU64::new(timeframe_secs).expect("a non-zero timeframe");
+    let level = LevelEventSeries::compute(candles, &readings, &LevelEventConfig::new(timeframe));
+    let divergence = DivergenceEventSeries::compute(
+        &readings,
+        &DivergenceConfig::new(timeframe, config.structure_scale),
+    );
+    let direction = DirectionSeries::compute(&readings);
+    let momentum = MomentumSeries::compute(&readings);
+    let structure = StructureSeries::compute_with_config(
+        candles,
+        &readings,
+        StructureConfig::new(config.structure_scale),
+    );
+    let signal = SignalEventSeries::compute(
+        &readings,
+        &direction,
+        &momentum,
+        &structure,
+        &SignalConfig::new(timeframe),
+    );
+    let mut events: Vec<EventRecord> = level
+        .events()
+        .iter()
+        .chain(divergence.events())
+        .chain(signal.events())
+        .copied()
+        .collect();
+    events.sort_by(|left, right| {
+        (
+            left.available_bar_index,
+            left.event_type.code(),
+            left.event_subtype_code,
+            left.source_code,
+            left.occurred_bar_index,
+            left.reference_code.unwrap_or(0),
+        )
+            .cmp(&(
+                right.available_bar_index,
+                right.event_type.code(),
+                right.event_subtype_code,
+                right.source_code,
+                right.occurred_bar_index,
+                right.reference_code.unwrap_or(0),
+            ))
+            .then_with(|| compare_optional(left.reference_value, right.reference_value))
+    });
+    events
+}
+
+/// Orders two optional measured values with a missing value first.
+fn compare_optional(left: Option<f64>, right: Option<f64>) -> Ordering {
+    match (left, right) {
+        (Some(left), Some(right)) => left.total_cmp(&right),
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
+}
+
+/// The event row's order key: availability first, then the contract fields.
+fn event_order_key(row: &super::EventRow) -> (usize, u8, u8, u16, usize, u32, Option<u64>) {
+    (
+        row.available_bar_index,
+        row.event_type_code,
+        row.event_subtype_code,
+        row.source_code,
+        row.occurred_bar_index,
+        row.reference_code.unwrap_or(0),
+        threshold_value(row),
+    )
+}
+
+/// The store's occurrence identity, without the availability bar.
+fn event_identity_key(row: &super::EventRow) -> (u64, u8, u8, u16, usize, u32, Option<u64>) {
+    (
+        row.timeframe_secs,
+        row.event_type_code,
+        row.event_subtype_code,
+        row.source_code,
+        row.occurred_bar_index,
+        row.reference_code.unwrap_or(0),
+        threshold_value(row),
+    )
+}
+
+/// The normalized threshold of a Signal threshold crossing, if the row is one.
+fn threshold_value(row: &super::EventRow) -> Option<u64> {
+    if row.event_type_code != 3 || row.event_subtype_code != 1 {
+        return None;
+    }
+    let value = row
+        .reference_value
+        .expect("a threshold crossing has a reference value");
+    assert!(value.is_finite(), "a threshold crossing is finite");
+    Some(order_bits(value))
+}
+
+/// A bit pattern that orders finite values the way `f64::total_cmp` does.
+///
+/// Zero is normalized first, so `-0.0` and `0.0` share one identity, as they do
+/// in the database.
+fn order_bits(value: f64) -> u64 {
+    let bits = if value == 0.0 {
+        0.0_f64.to_bits()
+    } else {
+        value.to_bits()
+    };
+    if bits & (1 << 63) == 0 {
+        bits | (1 << 63)
+    } else {
+        !bits
+    }
+}
+
+#[test]
+fn event_and_leg_records_match_the_model() {
+    let m1 = pivot_candles();
+    let config = LayerConfig::default();
+    let set = build_layers(&[input(M1, &m1)], &config).expect("the fixture builds");
+    let expected = model_events(&m1, M1, &config);
+    assert!(!expected.is_empty(), "the fixture must produce events");
+    assert_eq!(set.events.len(), expected.len());
+
+    for (row, event) in set.events.iter().zip(&expected) {
+        assert_eq!(row.timeframe_secs, event.timeframe_secs);
+        assert_eq!(row.timeframe_secs, M1);
+        assert_eq!(row.event_type_code, event.event_type.code());
+        assert_eq!(row.event_subtype_code, event.event_subtype_code);
+        assert_eq!(row.source_code, event.source_code);
+        assert_eq!(row.occurred_bar_index, event.occurred_bar_index);
+        assert_eq!(row.available_bar_index, event.available_bar_index);
+        assert_eq!(row.direction_code, event.direction_code);
+        assert_eq!(row.reference_code, event.reference_code);
+        assert_eq!(row.primary_value, event.primary_value);
+        assert_eq!(row.reference_value, event.reference_value);
+    }
+
+    let readings = Readings::compute(&m1);
+    let progression =
+        ProgressionSeries::compute_with_config(&m1, &readings, ProgressionConfig::new(M1));
+    assert!(
+        !progression.legs().is_empty(),
+        "the fixture must produce legs"
+    );
+    assert_eq!(set.legs.len(), progression.legs().len());
+    for (row, leg) in set.legs.iter().zip(progression.legs()) {
+        assert_eq!(leg.timeframe_secs, Some(M1));
+        assert_eq!(row.timeframe_secs, M1);
+        assert_eq!(row.leg_id, leg.leg_id);
+        assert_eq!(row.scale_code, leg.scale_code);
+        assert_eq!(row.origin_price, leg.origin_price);
+        assert_eq!(row.origin_occurred_bar_index, leg.origin_occurred_at);
+        assert_eq!(row.origin_available_bar_index, leg.origin_available_at);
+        assert_eq!(row.origin_confirmed_code, leg.origin_confirmed_code);
+        assert_eq!(row.leg_direction_code, leg.direction_code);
+        assert_eq!(row.target_price, leg.target_price);
+        assert_eq!(row.target_basis_code, leg.target_basis_code);
+        assert_eq!(row.target_version, leg.target_version);
+        assert_eq!(row.target_stable_code, leg.target_stable_code);
+        assert_eq!(row.progress, leg.progress);
+        assert_eq!(row.displacement_price, leg.displacement_price);
+        assert_eq!(row.displacement_atr, leg.displacement_atr);
+        assert_eq!(row.lifecycle_code, leg.lifecycle_code);
+        assert_eq!(row.stage_code, leg.stage_code);
+        assert_eq!(row.target_reached_code, leg.target_reached_code);
+    }
+}
+
+#[test]
+fn event_and_leg_records_are_ordered_and_valid() {
+    let m1 = candles(300, 0, 60, 0.0);
+    let set = build_layers(&[input(M1, &m1)], &LayerConfig::default()).expect("the fixture builds");
+    assert!(!set.events.is_empty());
+    assert!(!set.legs.is_empty());
+
+    for pair in set.events.windows(2) {
+        assert!(
+            event_order_key(&pair[0]) <= event_order_key(&pair[1]),
+            "event rows are not in contract order"
+        );
+    }
+    let mut event_keys = BTreeSet::new();
+    for row in &set.events {
+        assert!(row.available_bar_index >= row.occurred_bar_index);
+        assert!(matches!(row.event_type_code, 1..=3));
+        let max_subtype = match row.event_type_code {
+            1 => 3,
+            2 => 4,
+            _ => 3,
+        };
+        assert!((1..=max_subtype).contains(&row.event_subtype_code));
+        assert!((1..=12).contains(&row.source_code));
+        assert!((-1..=1).contains(&row.direction_code));
+        if let Some(reference) = row.reference_code {
+            assert!(
+                (1..=3).contains(&reference) || reference >= 1001,
+                "reference code {reference} is outside the contract domain"
+            );
+        }
+        assert!(
+            event_keys.insert(event_identity_key(row)),
+            "an event occurrence key is duplicated"
+        );
+    }
+
+    for pair in set.legs.windows(2) {
+        let left = (pair[0].timeframe_secs, pair[0].leg_id);
+        let right = (pair[1].timeframe_secs, pair[1].leg_id);
+        assert!(left <= right, "leg rows are not in contract order");
+    }
+    let mut leg_keys = BTreeSet::new();
+    for row in &set.legs {
+        assert!((1..=2).contains(&row.scale_code));
+        assert!(matches!(row.leg_direction_code, -1 | 1));
+        assert!((0..=4).contains(&row.lifecycle_code));
+        assert!(row.stage_code.is_none_or(|stage| (0..=5).contains(&stage)));
+        assert!(
+            row.target_reached_code
+                .is_none_or(|reached| (0..=1).contains(&reached))
+        );
+        assert_eq!(
+            row.origin_confirmed_code == 1,
+            row.origin_available_bar_index.is_some()
+        );
+        if let Some(available) = row.origin_available_bar_index {
+            assert!(available >= row.origin_occurred_bar_index);
+        }
+        assert!(
+            leg_keys.insert((row.timeframe_secs, row.leg_id)),
+            "a leg identifier is duplicated"
+        );
+    }
+}
+
+#[test]
+fn event_and_leg_records_are_built_for_every_timeframe() {
+    let (m1, m5, h1) = alignment_fixture();
+    let config = LayerConfig::default();
+    let set = build_layers(&[input(H1, &h1), input(M1, &m1), input(M5, &m5)], &config)
+        .expect("the fixture builds");
+
+    for (timeframe, candles) in [
+        (M1, m1.as_slice()),
+        (M5, m5.as_slice()),
+        (H1, h1.as_slice()),
+    ] {
+        let expected = model_events(candles, timeframe, &config);
+        let events = set
+            .events
+            .iter()
+            .filter(|row| row.timeframe_secs == timeframe)
+            .count();
+        assert_eq!(events, expected.len(), "event count for {timeframe}");
+
+        let readings = Readings::compute(candles);
+        let progression = ProgressionSeries::compute_with_config(
+            candles,
+            &readings,
+            ProgressionConfig::new(timeframe),
+        );
+        let legs = set
+            .legs
+            .iter()
+            .filter(|row| row.timeframe_secs == timeframe)
+            .count();
+        assert_eq!(legs, progression.legs().len(), "leg count for {timeframe}");
+    }
+
+    assert!(set.events.iter().any(|row| row.timeframe_secs == M1));
+    assert!(set.legs.iter().any(|row| row.timeframe_secs == M5));
+}
+
+#[test]
+fn event_prefix_is_stable_when_later_bars_are_appended() {
+    let m1 = candles(300, 0, 60, 0.0);
+    let config = LayerConfig::default();
+    let full = build_layers(&[input(M1, &m1)], &config).expect("the full fixture builds");
+    let prefix = build_layers(&[input(M1, &m1[..200])], &config).expect("the prefix builds");
+    assert!(!prefix.events.is_empty(), "the prefix must produce events");
+
+    for row in &prefix.events {
+        let matches = full
+            .events
+            .iter()
+            .filter(|candidate| *candidate == row)
+            .count();
+        assert_eq!(
+            matches, 1,
+            "appending later bars changed the event at bar {}",
+            row.occurred_bar_index
         );
     }
 }

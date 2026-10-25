@@ -778,6 +778,8 @@ pub(crate) fn run_store_ingest(
         &layers.layer3,
         &layers.pivots,
         &layers.levels,
+        &layers.events,
+        &layers.legs,
     );
     let report = store.ingest(&dataset, &rows).map_err(RunError::Store)?;
 
