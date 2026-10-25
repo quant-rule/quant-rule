@@ -22,6 +22,7 @@ use std::collections::BTreeSet;
 use quantrule_analytics::layers::{
     ConsensusRow, EventRow, Layer2Row, Layer3Row, LegRow, LevelRow, PivotRow,
 };
+use rusqlite::types::Value;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params, params_from_iter};
 
 use self::sql::{
@@ -30,7 +31,7 @@ use self::sql::{
     level_params, pivot_params,
 };
 use self::validate::validate;
-use super::{Store, StoreError};
+use super::{Store, StoreError, Table};
 
 /// The model contract the stored values follow.
 pub(crate) const MODEL_CONTRACT: &str = "2026-10-21";
@@ -102,6 +103,68 @@ impl<'a> IngestRows<'a> {
             legs,
         }
     }
+}
+
+/// Builds the expected stored values for every record table.
+///
+/// The values use the writer's parameter order, which the insert/DDL tests
+/// keep aligned with the schema. The event parameters omit the autoincrement
+/// `id`; verification removes that column from the stored rows.
+pub(super) fn expected_rows(
+    dataset_id: i64,
+    rows: &IngestRows<'_>,
+) -> Vec<(Table, Vec<Vec<Value>>)> {
+    vec![
+        (
+            Table::Bar,
+            rows.bars
+                .iter()
+                .map(|row| bar_params(dataset_id, row))
+                .collect(),
+        ),
+        (
+            Table::Consensus,
+            rows.consensus
+                .iter()
+                .map(|row| consensus_params(dataset_id, row).to_vec())
+                .collect(),
+        ),
+        (
+            Table::Layer3,
+            rows.layer3
+                .iter()
+                .map(|row| layer3_params(dataset_id, row))
+                .collect(),
+        ),
+        (
+            Table::Pivot,
+            rows.pivots
+                .iter()
+                .map(|row| pivot_params(dataset_id, row).to_vec())
+                .collect(),
+        ),
+        (
+            Table::Level,
+            rows.levels
+                .iter()
+                .map(|row| level_params(dataset_id, row).to_vec())
+                .collect(),
+        ),
+        (
+            Table::Event,
+            rows.events
+                .iter()
+                .map(|row| event_params(dataset_id, row).to_vec())
+                .collect(),
+        ),
+        (
+            Table::Leg,
+            rows.legs
+                .iter()
+                .map(|row| leg_params(dataset_id, row).to_vec())
+                .collect(),
+        ),
+    ]
 }
 
 /// The result of an ingest.

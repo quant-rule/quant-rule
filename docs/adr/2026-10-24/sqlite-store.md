@@ -180,9 +180,9 @@ The dataset identity is `(name, data_version, model_version, structure_scale_cod
 | `store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>]` | Build the layers and insert the full dataset in one transaction |
 | `store list [--db <path>]` | One line per dataset: identity, counts, Layer 3 state |
 | `store show <dataset> <table> [filters] [--db <path>]` | Rows from one stored table, bounded by a limit |
-| `store verify <dataset> [--db <path>]` | Rebuild the dataset in memory and compare every stored value; report zero mismatches or the first mismatch |
+| `store verify <csv-path> --dataset <name> --data-version <id> [--db <path>]` | Rebuild the dataset from source and compare every stored value; report zero mismatches or the first mismatch |
 
-`store show` accepts `bar`, `pivot`, `level`, `event`, `leg`, `consensus`, and `layer3`, with `--timeframe`, `--bar`, and `--limit` filters as applicable. The exact query flags are fixed in [#75](https://github.com/quant-rule/quant-rule/issues/75); every table is reachable.
+`store show` accepts `bar`, `pivot`, `level`, `event`, `leg`, `consensus`, and `layer3`, with `--timeframe`, `--bar`, and `--limit` filters as applicable. The exact query flags are fixed in [#75](https://github.com/quant-rule/quant-rule/issues/75); every table is reachable. `db series`, `db bars`, `db metrics`, and `db layer3` are per-bar projections over the same read-only query layer.
 
 The default database path is `data/quantrule.db`. `--db` overrides it. Tests use a file under `target/` or an in-memory database; no test writes outside the repository.
 

@@ -63,6 +63,16 @@ pub(crate) enum StoreError {
         /// What is wrong with the query.
         detail: String,
     },
+    /// A stored dataset predates Layer 3 materialization.
+    IncompleteDataset {
+        /// The dataset name.
+        name: String,
+    },
+    /// A stored dataset differs from a fresh build.
+    VerificationMismatch {
+        /// The first mismatch or structural problem.
+        detail: String,
+    },
     /// The dataset name exists with a different identity.
     Conflict {
         /// The dataset name.
@@ -109,6 +119,13 @@ impl fmt::Display for StoreError {
             Self::Query { source } => write!(formatter, "store query failed: {source}"),
             Self::DatasetNotFound { name } => write!(formatter, "dataset '{name}' was not found"),
             Self::InvalidQuery { detail } => write!(formatter, "invalid store query: {detail}"),
+            Self::IncompleteDataset { name } => write!(
+                formatter,
+                "dataset '{name}' has no materialized Layer 3; re-ingest it into a fresh database"
+            ),
+            Self::VerificationMismatch { detail } => {
+                write!(formatter, "verification failed: {detail}")
+            }
             Self::Conflict { name } => write!(
                 formatter,
                 "dataset '{name}' already exists with a different identity"
@@ -133,7 +150,9 @@ impl std::error::Error for StoreError {
             Self::Conflict { .. }
             | Self::InvalidDataset { .. }
             | Self::DatasetNotFound { .. }
-            | Self::InvalidQuery { .. } => None,
+            | Self::InvalidQuery { .. }
+            | Self::IncompleteDataset { .. }
+            | Self::VerificationMismatch { .. } => None,
         }
     }
 }

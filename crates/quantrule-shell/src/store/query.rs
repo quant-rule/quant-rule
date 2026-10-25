@@ -46,7 +46,7 @@ impl Table {
         }
     }
 
-    const fn sql_name(self) -> &'static str {
+    pub(crate) const fn sql_name(self) -> &'static str {
         match self {
             Self::Bar => "bar",
             Self::Consensus => "consensus",
@@ -96,7 +96,7 @@ pub(crate) enum Cell {
 }
 
 impl Cell {
-    fn from_value(value: Value) -> Self {
+    pub(crate) fn from_value(value: Value) -> Self {
         match value {
             Value::Null => Self::Null,
             Value::Integer(value) => Self::Integer(value),
@@ -314,6 +314,27 @@ impl Store {
             .map_err(|source| StoreError::Query { source })
     }
 
+    /// Reads every row of a stored table for verification.
+    ///
+    /// The rows keep the same column order and primary-key order as `show_table`
+    /// but have no filters, limit, or display conversion.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Query`] when the statement fails.
+    pub(crate) fn raw_table_rows(
+        &self,
+        dataset_id: i64,
+        table: Table,
+    ) -> Result<TableRows, StoreError> {
+        let sql = format!(
+            "SELECT * FROM {} WHERE dataset_id = ? ORDER BY {}",
+            table.sql_name(),
+            table.order_by()
+        );
+        self.query_rows(&sql, vec![Value::from(dataset_id)])
+    }
+
     /// Shows a stored table for one dataset.
     ///
     /// # Errors
@@ -453,7 +474,7 @@ impl Store {
         self.query_rows(&sql, values)
     }
 
-    fn dataset_id(&self, name: &str) -> Result<i64, StoreError> {
+    pub(crate) fn dataset_id(&self, name: &str) -> Result<i64, StoreError> {
         let id: Option<i64> = self
             .connection
             .query_row("SELECT id FROM dataset WHERE name = ?1", [name], |row| {
