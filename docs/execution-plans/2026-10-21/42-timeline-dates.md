@@ -3,7 +3,7 @@
 - Issue: [#42](https://github.com/quant-rule/quant-rule/issues/42) — feat: date the board so the timeline can show each item's life
 - Branch: `feat/38-timeline-dates`
 - Worktree: `/home/zantgo/Projects/quant-rule--38-timeline-dates`
-- Status: Approved
+- Status: Verified — issue closed; historical record
 - Date: 2026-10-21 (UTC; 2026-10-20 local time)
 - Transparency log: [`docs/ai-transparency-log/2026-10-21/42-timeline-dates.md`](../../ai-transparency-log/2026-10-21/42-timeline-dates.md)
 

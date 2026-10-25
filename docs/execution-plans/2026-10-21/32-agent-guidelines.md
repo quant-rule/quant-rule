@@ -3,7 +3,7 @@
 - Issue: [#32](https://github.com/quant-rule/quant-rule/issues/32) — docs: add the worktree, sub-issue, and conciseness guidelines
 - Branch: `docs/32-agent-guidelines`
 - Worktree: `/home/zantgo/Projects/quant-rule--32-agent-guidelines`
-- Status: Approved
+- Status: Verified — issue closed; historical record
 - Date: 2026-10-21 (UTC; 2026-10-20 local time)
 - Transparency log: [`docs/ai-transparency-log/2026-10-21/32-agent-guidelines.md`](../../ai-transparency-log/2026-10-21/32-agent-guidelines.md)
 

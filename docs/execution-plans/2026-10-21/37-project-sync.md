@@ -3,7 +3,7 @@
 - Issue: [#37](https://github.com/quant-rule/quant-rule/issues/37) — ci: keep the board's status in step with the issues
 - Branch: `feat/37-project-sync`
 - Worktree: `/home/zantgo/Projects/quant-rule--37-project-sync`
-- Status: Approved
+- Status: Verified — issue closed; historical record
 - Date: 2026-10-21 (UTC; 2026-10-20 local time)
 - Transparency log: [`docs/ai-transparency-log/2026-10-21/37-project-sync.md`](../../ai-transparency-log/2026-10-21/37-project-sync.md)
 
