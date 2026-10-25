@@ -21,7 +21,10 @@
   - `cargo test`: 883 passed, 4 ignored.
   - `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`,
     and `cargo doc --no-deps` with `-D warnings`: clean.
-  - Dataset files present under `data/processed/harden-analytics`.
+  - Dataset files present under `data/processed/harden-analytics`
+    (layer1=333, layer2=333, layer3=260, raw=260).
+  - 100k release store round-trip: ingest 8.852 s, verify 25.397 s,
+    export 8.405 s, DB 229,732,352 bytes.
 - **Learning:**
   - The first argv-dispatch migration passed the command but dropped the
     command name before `parse_argv`; the CLI suite caught it. The entry point

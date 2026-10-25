@@ -31,6 +31,7 @@ Close the evidence, dispatch, provenance, column-agreement, and test gaps left b
 | `cargo doc` with `-D warnings` | clean |
 | 100k model benchmark, release | 2.349 s |
 | 100k layer/export benchmark, release | build 4.182 s, render 3.983 s |
+| 100k store round-trip, release | ingest 8.852 s, model 2.445 s, verify 25.397 s, export 8.405 s, DB 229,732,352 bytes |
 
 ## 4. Remaining
 
