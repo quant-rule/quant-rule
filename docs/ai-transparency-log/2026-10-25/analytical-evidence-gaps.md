@@ -2,6 +2,7 @@
 
 - Work item: `analytical-evidence-gaps`
 - Plan: [`docs/execution-plans/2026-10-25/analytical-evidence-gaps.md`](../../execution-plans/2026-10-25/analytical-evidence-gaps.md)
+- Pull request: [#114](https://github.com/quant-rule/quant-rule/pull/114)
 - Date: 2026-10-25 (UTC)
 
 ## Entry: exact-boundary evidence and status corrections
