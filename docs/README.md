@@ -12,6 +12,13 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Analytics and research | The research output contract and the dataset definition: layers, columns, null rules, alignment, and export metadata. | `docs/analytics/<YYYY-MM-DD>/<file>.md` |
 | Architecture decision records | A decision, the alternatives considered, and the consequences. | `docs/adr/<YYYY-MM-DD>/<file>.md` |
 
+## Current model contracts
+
+| Contract | Status | Path |
+|---|---|---|
+| Four-axis analytical model | Contract | `docs/model/2026-10-21/four-axis-analytical-model.md` |
+| DashboardState four-axis CLI view | Approved (#123) | `docs/model/2026-10-25/dashboard-state.md` |
+
 ## Reading a work item
 
 A work item's plan and its transparency log have the same base name and sit in two sibling folders:
