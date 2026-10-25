@@ -67,6 +67,23 @@ The analytical model's contract — the four axes, the numeric output fields, th
 - **Public API.** Public items carry rustdoc. Doc examples must compile. Public behavior changes require a doc comment update in the same change. The Rust public API is internal to the workspace; the product's public interface is the command set (section 2).
 - **Comments.** Explain why, not what. The code says what it does; the comment says why that way, and what would break if it changed.
 
+### Architecture Principles
+
+Apply these principles when designing, implementing, reviewing, or refactoring modules. They guide architectural decisions but do not override the explicit architecture, invariants, and constraints defined in this document.
+
+1. **Low Coupling, High Cohesion.** Keep related responsibilities together and minimize dependencies between modules.
+2. **Separation of Concerns.** Keep data ingestion, analytical computation, and shell I/O separate.
+3. **Single Responsibility.** Give each module one cohesive responsibility and one primary reason to change.
+4. **Explicit Module Boundaries.** Define each module's responsibilities, data ownership, inputs, outputs, and allowed dependencies.
+5. **Unidirectional Dependencies.** Dependencies must follow the approved architecture. Lower-level or upstream modules must not depend on higher-level or downstream modules in ways that violate the pipeline.
+6. **No Circular Dependencies.** Keep the dependency graph acyclic. A module must not depend on another module that indirectly depends on it.
+7. **Encapsulation and Information Hiding.** Expose only what callers need. Keep implementation details private so internal changes do not unnecessarily affect other modules.
+8. **Abstractions Only When Justified.** Introduce abstractions when they remove real coupling or duplication, or encode a genuine invariant. Avoid speculative abstractions and unnecessary indirection.
+9. **Keep Domain Logic Independent of I/O.** Keep analytical computation pure and deterministic. Pass required inputs explicitly; do not access the filesystem, network, clock, or hidden global state from the model engine.
+10. **Design for Independent Testing.** Modules should be testable using explicit inputs and predictable outputs.
+
+When principles appear to conflict, follow the project's explicit architectural invariants and approved decisions. Prefer the simplest design that preserves clear boundaries, deterministic behavior, and maintainability.
+
 ## 4. Testing
 
 - **Command.** `cargo test` must pass before a pull request is proposed. Do not weaken, remove, or skip a test to obtain a passing result.
