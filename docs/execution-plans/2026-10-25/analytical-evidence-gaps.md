@@ -4,7 +4,7 @@
 - Branch: `test/analytical-evidence-gaps`
 - Worktree: `analytical-evidence-gaps` (opencode worktree)
 - Pull request: [#114](https://github.com/quant-rule/quant-rule/pull/114)
-- Status: Verified; PR #114 is open
+- Status: Verified; PR #114 is merged
 - Date: 2026-10-25 (UTC)
 - Related: [history policy ADR](../../adr/2026-10-25/history-retention-and-display-policy.md), [remaining hardening](harden-analytics-remaining.md)
 
@@ -94,4 +94,4 @@ Excluded:
 ## 9. Review
 
 - AI transparency: [`docs/ai-transparency-log/2026-10-25/analytical-evidence-gaps.md`](../../ai-transparency-log/2026-10-25/analytical-evidence-gaps.md).
-- The human owns review and merge authorization for PR #114.
+- PR #114 is merged; the branch and worktree were removed after verification.
