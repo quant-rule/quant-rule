@@ -146,6 +146,11 @@ fn run_interactive() -> i32 {
                     eprintln!("error: {error}");
                 }
             }
+            Command::StoreRemove(args) => {
+                if let Err(error) = command::run_store_remove(&args, &mut stdout) {
+                    eprintln!("error: {error}");
+                }
+            }
             Command::Db(args) => {
                 if let Err(error) = command::run_db(&args, &mut stdout) {
                     eprintln!("error: {error}");
@@ -467,9 +472,19 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
                         }
                     }
                 }
+                Ok(Some(Command::StoreRemove(args))) => {
+                    let mut stdout = io::stdout();
+                    match command::run_store_remove(&args, &mut stdout) {
+                        Ok(()) => 0,
+                        Err(error) => {
+                            eprintln!("error: {error}");
+                            1
+                        }
+                    }
+                }
                 Ok(_) => {
                     eprintln!(
-                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store verify <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]"
+                        "error: usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store verify <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>] | store remove <dataset> [--db <path>]"
                     );
                     1
                 }

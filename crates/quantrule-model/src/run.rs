@@ -172,7 +172,7 @@ impl TimeframeModel {
         let latest = input.candles.len().checked_sub(1)?;
         let snapshot = snapshot_at(
             input.timeframe_secs,
-            &input.candles,
+            input.candles,
             &readings,
             &direction,
             &momentum,
@@ -340,7 +340,9 @@ impl TimeframeModel {
     #[must_use]
     pub fn tail(&self, count: usize) -> Vec<ModelBar> {
         let start = self.len().saturating_sub(count);
-        (start..self.len()).filter_map(|bar| self.bar(bar)).collect()
+        (start..self.len())
+            .filter_map(|bar| self.bar(bar))
+            .collect()
     }
 }
 
@@ -367,10 +369,7 @@ impl ModelRun {
             .map(|timeframe| timeframe.snapshot().clone())
             .collect();
         let aggregates = CrossTimeframeAggregates::compute(&snapshots);
-        let consensus = snapshots
-            .iter()
-            .map(TimeframeConsensus::compute)
-            .collect();
+        let consensus = snapshots.iter().map(TimeframeConsensus::compute).collect();
 
         Self {
             timeframes,

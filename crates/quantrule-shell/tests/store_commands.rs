@@ -251,6 +251,25 @@ fn a_missing_dataset_is_an_error() {
 }
 
 #[test]
+fn store_remove_drops_one_dataset_and_keeps_the_database() {
+    let root = artifact_dir("remove");
+    let db = ingest(&root);
+
+    let removed = run(&["store", "remove", "demo", "--db", &db]);
+    assert_success(&removed);
+    assert_eq!(stdout_text(&removed), "removed demo bars=333\n");
+    assert!(Path::new(&db).exists(), "remove deleted the database file");
+
+    let list = run(&["store", "list", "--db", &db]);
+    assert_success(&list);
+    assert_eq!(stdout_text(&list).lines().count(), 1);
+
+    let missing = run(&["store", "remove", "demo", "--db", &db]);
+    assert_failure(&missing);
+    assert!(stderr_text(&missing).contains("dataset 'demo' was not found"));
+}
+
+#[test]
 fn interactive_store_list_matches_non_interactive() {
     let root = artifact_dir("interactive-list");
     let db = ingest(&root);

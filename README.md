@@ -63,6 +63,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `store verify` | `<csv-path> --dataset <name> --data-version <id>` [options] | Rebuilds the source and compares every stored table; prints `verified ...` or the first mismatch |
 | `store list` | [options] | One CSV row per stored dataset with identity, counts, and Layer 3 state |
 | `store show` | `<dataset> <table>` [options] | CSV rows from one stored table |
+| `store remove` | `<dataset>` [options] | Removes one dataset and its cascading rows; the database file remains |
 | `db series` | `<dataset>` [options] | Stored candles as NDJSON |
 | `db bars` | `<dataset>` [options] | Full stored bar rows as CSV |
 | `db metrics` | `<dataset>` [options] | Metrics and resolutions as CSV |
@@ -99,6 +100,8 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 
 `store init` opens the SQLite store, applies the schema migrations in order, each in one transaction (version 1, then the version 2 event-index migration), and prints the path and the schema version. Reopening an existing store is idempotent, and a version 1 database is migrated in place. A store whose schema is newer than the binary is rejected, and a file that is not a database fails with a clear error. The store is a shell-owned module; the data, model, and analytics crates remain pure.
 
+`store remove <dataset> [--db <path>]` removes one dataset and every row that references it through the foreign-key cascade. It never deletes the database file; other datasets remain. Removing a missing dataset is an error. A same-name dataset with a different identity is a conflict until it is removed explicitly.
+
 `store ingest` options:
 
 | Option | Meaning |
@@ -117,6 +120,7 @@ The query commands open an existing database read-only. A missing file is an err
 
 | Command | Output |
 |---|---|
+| `store remove <dataset>` | Removes the dataset and every row that references it; prints `removed <name> bars=<n>`; the database file is kept |
 | `store list` | One CSV row per dataset, sorted by name: identity, `m1_bars`, `layer3_materialized`, and `bar`/`consensus`/`layer3`/`pivot`/`level`/`event`/`leg` counts |
 | `store show <dataset> <table>` | Every column of `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, or `leg`, in DDL order and primary-key order. `event.reference_code = 0` is rendered as `NULL`. |
 | `db series <dataset>` | NDJSON with `dataset`, `timeframe_secs`, `bar_index`, ISO `open_time`, OHLC, and nullable volume; oldest first |

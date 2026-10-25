@@ -36,7 +36,8 @@ impl TimeframeSeries {
             return Err(LayerError::ZeroTimeframe);
         }
         let model_config = MarketStateConfig::new(config.structure_scale);
-        let model = TimeframeModel::compute(input, &model_config).ok_or(LayerError::ZeroTimeframe)?;
+        let model =
+            TimeframeModel::compute(input, &model_config).ok_or(LayerError::ZeroTimeframe)?;
         Ok(Self { model })
     }
 

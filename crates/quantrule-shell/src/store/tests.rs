@@ -188,6 +188,37 @@ fn foreign_keys_are_enabled() {
 }
 
 #[test]
+fn removing_a_dataset_cascades_and_leaves_the_database() {
+    let mut store = Store::open_in_memory().expect("the in-memory store opens");
+    store
+        .connection()
+        .execute(
+            "INSERT INTO dataset \
+             (name, data_version, model_version, model_contract, research_contract, structure_scale_code, m1_bars, layer3_materialized) \
+             VALUES ('demo', 'version', '0.1.0', '2026-10-21', '2026-10-24', 2, 0, 1)",
+            [],
+        )
+        .expect("the dataset row");
+
+    let report = store.remove("demo").expect("the dataset is removed");
+    assert_eq!(report.name, "demo");
+    assert_eq!(report.bars, 0);
+    assert!(matches!(
+        store.dataset_id("demo"),
+        Err(StoreError::DatasetNotFound { .. })
+    ));
+    assert!(store.remove("demo").is_err());
+}
+
+#[test]
+fn an_uninitialized_database_is_not_a_store() {
+    let path = database("uninitialized");
+    Connection::open(&path).expect("the empty SQLite file");
+    let error = Store::open_read_only(&path).expect_err("version zero is rejected");
+    assert!(matches!(error, StoreError::Uninitialized { .. }));
+}
+
+#[test]
 fn the_100k_cap_is_enforced_by_the_schema() {
     let store = Store::open_in_memory().expect("the in-memory store opens");
     let insert = |bars: i64| {

@@ -133,11 +133,17 @@ mod tests {
         let history = EventHistory::from_batch(&batch);
         assert_eq!(history.len(), EVENT_SNAPSHOT_LIMIT);
         assert_eq!(
-            history.as_slice().first().map(|event| event.occurred_bar_index),
+            history
+                .as_slice()
+                .first()
+                .map(|event| event.occurred_bar_index),
             Some(10)
         );
         assert_eq!(
-            history.as_slice().last().map(|event| event.occurred_bar_index),
+            history
+                .as_slice()
+                .last()
+                .map(|event| event.occurred_bar_index),
             Some(EVENT_SNAPSHOT_LIMIT + 9)
         );
         assert_eq!(history.as_slice(), &batch.as_slice()[10..]);

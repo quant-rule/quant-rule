@@ -13,8 +13,8 @@ use quantrule_data::Candle;
 use crate::aggregate::{CrossTimeframeAggregates, TimeframeSnapshot};
 use crate::axes::direction::DirectionBar;
 use crate::axes::momentum::MomentumBar;
-use crate::axes::structure::registry::ConfirmedLevel;
 use crate::axes::structure::StructureBar;
+use crate::axes::structure::registry::ConfirmedLevel;
 use crate::readings::PivotScale;
 use crate::run::ModelRun;
 

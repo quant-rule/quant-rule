@@ -786,14 +786,7 @@ fn events_print_labeled_records() {
 #[test]
 fn model_series_prints_the_requested_tail() {
     let path = fixture("state_m1.csv");
-    let output = run(&[
-        "model-series",
-        &path,
-        "--timeframe",
-        "1m",
-        "--bars",
-        "3",
-    ]);
+    let output = run(&["model-series", &path, "--timeframe", "1m", "--bars", "3"]);
     assert_success(&output);
     let text = stdout_text(&output);
     let lines: Vec<&str> = text.lines().collect();

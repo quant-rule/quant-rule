@@ -39,6 +39,8 @@ QuantRule shell commands:
       --bar <n>                 Bar-index filter where the table has one.
       --limit <n>               Maximum rows, 1..1000 (default 100).
       --db <path>               Database path (default data/quantrule.db).
+  store remove <dataset>        Remove one dataset and its cascading records.
+      --db <path>               Database path (default data/quantrule.db).
   db series <dataset>           Stored candle series as NDJSON.
   db bars <dataset>             Full stored bar rows as CSV.
   db metrics <dataset>          Metrics and resolutions as CSV.

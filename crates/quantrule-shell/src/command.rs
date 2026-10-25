@@ -26,7 +26,7 @@ use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
 use crate::render;
 use crate::render_state;
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
-use crate::store::{DatasetRecord, IngestRows, Store, StoreError};
+use crate::store::{DatasetRecord, IngestRows, RemoveReport, Store, StoreError};
 
 mod store_query;
 mod store_verify;
@@ -78,6 +78,8 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
       --timeframe <tf>          Timeframe filter: 1m, 5m, 15m, or 1h.
       --bar <n>                 Bar-index filter where the table has one.
       --limit <n>               Maximum rows, 1..1000 (default 100).
+      --db <path>               Database path (default data/quantrule.db).
+  store remove <dataset>        Remove one dataset and its cascading records.
       --db <path>               Database path (default data/quantrule.db).
   db series <dataset>           Stored candle series as NDJSON.
   db bars <dataset>             Full stored bar rows as CSV.
@@ -169,6 +171,8 @@ pub(crate) enum Command {
     StoreList(StoreListArgs),
     /// Show one stored table.
     StoreShow(StoreShowArgs),
+    /// Remove one stored dataset.
+    StoreRemove(StoreRemoveArgs),
     /// Read one stored per-bar view.
     Db(DbArgs),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
@@ -291,6 +295,15 @@ pub(crate) struct StoreIngestArgs {
     pub(crate) dataset: String,
     /// The caller-supplied data version.
     pub(crate) data_version: String,
+    /// The database path.
+    pub(crate) database: PathBuf,
+}
+
+/// A parsed `store remove` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StoreRemoveArgs {
+    /// The dataset name to remove.
+    pub(crate) dataset: String,
     /// The database path.
     pub(crate) database: PathBuf,
 }
@@ -1167,13 +1180,14 @@ pub(crate) fn parse_research_arguments(
 /// Returns [`ParseError::Store`] for a missing or unknown subcommand, a missing
 /// option value, or a repeated option.
 pub(crate) fn parse_store_arguments(arguments: &[String]) -> Result<Option<Command>, ParseError> {
-    const USAGE: &str = "usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store verify <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]";
+    const USAGE: &str = "usage: store init [--db <path>] | store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>] | store verify <csv-path> --dataset <name> --data-version <id> [--db <path>] | store list [--db <path>] | store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>] | store remove <dataset> [--db <path>]";
     match arguments.first().map(String::as_str) {
         Some("init") => parse_store_init(arguments, USAGE),
         Some("ingest") => parse_store_ingest(arguments, USAGE),
         Some("verify") => store_verify::parse_store_verify(arguments, USAGE).map(Some),
         Some("list") => store_query::parse_store_list(arguments, USAGE).map(Some),
         Some("show") => store_query::parse_store_show(arguments, USAGE).map(Some),
+        Some("remove") => parse_store_remove(arguments, USAGE),
         _ => Err(ParseError::Store(USAGE.to_string())),
     }
 }
@@ -1205,6 +1219,50 @@ fn parse_store_init(arguments: &[String], usage: &str) -> Result<Option<Command>
     }
 
     Ok(Some(Command::StoreInit(path)))
+}
+
+fn parse_store_remove(arguments: &[String], usage: &str) -> Result<Option<Command>, ParseError> {
+    let mut dataset = None;
+    let mut database = PathBuf::from("data/quantrule.db");
+    let mut index = 1;
+
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--db" => {
+                index += 1;
+                let value = arguments
+                    .get(index)
+                    .ok_or_else(|| ParseError::Store(format!("--db needs a value\n{usage}")))?;
+                if value.is_empty() {
+                    return Err(ParseError::Store(format!(
+                        "--db needs a non-empty value\n{usage}"
+                    )));
+                }
+                database = PathBuf::from(value);
+            }
+            option if option.starts_with("--") => {
+                return Err(ParseError::Store(format!(
+                    "unknown option '{option}'\n{usage}"
+                )));
+            }
+            value => {
+                if dataset.is_some() {
+                    return Err(ParseError::Store(format!(
+                        "unexpected argument '{value}'\n{usage}"
+                    )));
+                }
+                dataset = Some(value.to_owned());
+            }
+        }
+        index += 1;
+    }
+
+    let dataset = dataset
+        .ok_or_else(|| ParseError::Store(format!("store remove needs a dataset name\n{usage}")))?;
+    Ok(Some(Command::StoreRemove(StoreRemoveArgs {
+        dataset,
+        database,
+    })))
 }
 
 fn parse_store_ingest(arguments: &[String], usage: &str) -> Result<Option<Command>, ParseError> {
@@ -1303,6 +1361,22 @@ pub(crate) fn run_store_init(path: &Path, writer: &mut impl Write) -> Result<(),
     let store = Store::open(path).map_err(RunError::Store)?;
     let version = store.schema_version().map_err(RunError::Store)?;
     writeln!(writer, "store {} schema={version}", path.display()).map_err(RunError::Output)?;
+    writer.flush().map_err(RunError::Output)
+}
+
+/// Removes one dataset and its cascading records.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the store cannot be opened, the dataset is
+/// missing, the delete fails, or the output writer fails.
+pub(crate) fn run_store_remove(
+    args: &StoreRemoveArgs,
+    writer: &mut impl Write,
+) -> Result<(), RunError> {
+    let mut store = Store::open(&args.database).map_err(RunError::Store)?;
+    let RemoveReport { name, bars } = store.remove(&args.dataset).map_err(RunError::Store)?;
+    writeln!(writer, "removed {name} bars={bars}").map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
 
@@ -1768,8 +1842,8 @@ pub(crate) fn run_help(writer: &mut impl Write) -> Result<(), RunError> {
 mod tests {
     use super::{
         Command, FetchArgs, MarketChartArgs, ModelArgs, ParseError, ResearchExportArgs,
-        StoreIngestArgs, WindowMode, parse, parse_fetch_arguments, parse_market_chart_arguments,
-        write_fetch_cap_warning,
+        StoreIngestArgs, StoreRemoveArgs, WindowMode, parse, parse_fetch_arguments,
+        parse_market_chart_arguments, write_fetch_cap_warning,
     };
     use std::path::PathBuf;
 
@@ -2346,6 +2420,17 @@ mod tests {
         assert_eq!(
             parse("store init"),
             Ok(Some(Command::StoreInit(PathBuf::from("data/quantrule.db"))))
+        );
+    }
+
+    #[test]
+    fn parses_store_removal() {
+        assert_eq!(
+            parse("store remove demo --db other.db"),
+            Ok(Some(Command::StoreRemove(StoreRemoveArgs {
+                dataset: "demo".to_string(),
+                database: PathBuf::from("other.db"),
+            })))
         );
     }
 }
