@@ -2,7 +2,7 @@
 
 - Issue: [#69](https://github.com/quant-rule/quant-rule/issues/69) — feat: persist pivots and confirmed levels
 - Branch: `feat/69-pivot-levels`
-- Pull request: pending
+- Pull request: [#102](https://github.com/quant-rule/quant-rule/pull/102)
 - Status: Verified
 - Date: 2026-10-25 (UTC)
 - ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)

@@ -39,4 +39,4 @@
 - `cargo fmt --all -- --check`: clean.
 - `cargo clippy --all-targets -- -D warnings`: clean.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`: clean.
-- Status: `Verified`. Commit, push, pull request, and board update follow this log.
+- Status: `Verified`. Commit `d60bfe4` is pushed on `feat/69-pivot-levels`, pull request [#102](https://github.com/quant-rule/quant-rule/pull/102) is open, and #69 is `Done` on the board.
