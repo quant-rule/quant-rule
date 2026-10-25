@@ -2,7 +2,7 @@
 
 - Issue: [#75](https://github.com/quant-rule/quant-rule/issues/75) — feat: add store query and inspection commands
 - Branch: `feat/75-store-query`
-- Pull request: pending
+- Pull request: [#109](https://github.com/quant-rule/quant-rule/pull/109)
 - Status: Verified
 - Date: 2026-10-25 (UTC)
 - ADR: [`docs/adr/2026-10-24/sqlite-store.md`](../../adr/2026-10-24/sqlite-store.md)
