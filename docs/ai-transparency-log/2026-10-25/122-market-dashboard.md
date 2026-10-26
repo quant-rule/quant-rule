@@ -4,8 +4,8 @@
 - Tool: OpenCode, DeepSeek V4.1 Flash 1017
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
-- Branch/worktree: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract`
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25. PR #132 is open and its checks pass. No implementation; no merge.
+- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (Phase 2)
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132. Phase 2 value types are implemented in PR #133; local checks and CI pass; no Phase 2 merge.
 
 ## Intent and boundary
 
@@ -14,9 +14,9 @@ The planning session defined an additive, single-instrument CLI dashboard over Q
 Boundary of this entry:
 
 - Phase 0 setup: parent and sub-issues, project board statuses, first worktree, approved plan, and this log.
-- Phase 1: the `DashboardState` contract document and its `docs/README.md` index entry. The human approved the contract on 2026-10-25; it is marked `Approved`.
-- No Rust source, test run, commit, push, pull request, or merge.
-- No repository change on `main`. The project directory remains on `main`; all work-item files are uncommitted in the worktree.
+- Phase 1: the `DashboardState` contract document and its `docs/README.md` index entry. The human approved the contract on 2026-10-25; it is marked `Approved`; PR #132 is merged.
+- Phase 2: the `quantrule-model::dashboard` value types and their unit tests. No assembler, shell command, or rendered output.
+- No repository change on `main`. The project directory remains on `main`; each phase is worked in its own worktree.
 
 ## Work performed
 
@@ -34,7 +34,15 @@ Boundary of this entry:
 5. Moved the session to the worktree and wrote the approved execution plan and this log.
 6. Wrote `docs/model/2026-10-25/dashboard-state.md` and indexed it in `docs/README.md`. The contract covers the view types, all four axis roles, Direction tenure and the interrupted-continuity rule, Progression recent pace and terminal freeze, Structure activity, readings, agreement, churn, absence, causality, edge cases, and deviations.
 7. Did not write any Rust code. The human approved the contract on 2026-10-25; the contract status was changed from `Proposed` to `Approved`, and the plan's Phase 1 review row was checked.
-8. Committed the documentation as `db3dc3e`, pushed `docs/123-dashboard-view-contract`, and opened [PR #132](https://github.com/quant-rule/quant-rule/pull/132). The `verify` and `sync` checks pass.
+8. Committed the documentation as `db3dc3e`, pushed `docs/123-dashboard-view-contract`, and opened [PR #132](https://github.com/quant-rule/quant-rule/pull/132). The `verify` and `sync` checks pass; PR #132 is merged.
+9. Created `feat/124-dashboard-view-types` from the updated `main` (`fb4918c`) in `quant-rule--dashboard-view-types`, with #124 set `In Progress` and its start date set to `2026-10-26`.
+10. Added `crates/quantrule-model/src/dashboard/mod.rs` and `tests.rs`, and registered the module in `lib.rs`:
+    - `DashboardState`, `TimeframeState`, `DiagnosticsView`, `TimeframeDerived`, `TimeframeConsensusView`, `AxisState`, `AxisValue`, `Domain`, `Stage`, `AxisReadiness`, `DashboardConfig`.
+    - `DirectionDetail`, `MomentumDetail`, `StructureDetail`, `ProgressionDetail`, `LevelReading`, `DatedReading`, `EventReading`, `TransitionReading`.
+    - `CrossTfState`, `LegDirectionReading`, `CrossTfAgreement`, `AxisAgreement`, `Coverage`, `CrossTfChurn`, `ChurnSource`, `ChurnClass`, `MajorityClass`.
+    - Constants for the fixed 3-bar recent-pace window and the default churn/coverage thresholds.
+    - The module is types only: no I/O, candle computation, axis formula, assembler, or rendering.
+11. Committed the types and tests as `fe97ddb`, pushed `feat/124-dashboard-view-types`, and opened [PR #133](https://github.com/quant-rule/quant-rule/pull/133). The `verify` and `sync` checks pass.
 
 ## Decisions and corrections
 
@@ -69,16 +77,25 @@ Observed Phase 0 and Phase 1 evidence:
 - `docs/model/2026-10-25/dashboard-state.md` exists; its header status is `Approved — reviewed 2026-10-25`.
 - `docs/README.md` carries the new contract in `Current model contracts` as `Approved (#123)`.
 - `docs/execution-plans/2026-10-25/122-market-dashboard.md` verification rows 2 and 3 are checked: the contract exists, is linked, and was approved by the human.
-- Commit `db3dc3e`; branch `docs/123-dashboard-view-contract`; PR #132 open.
+- Commit `db3dc3e`; branch `docs/123-dashboard-view-contract`; PR #132 merged as `fb4918c`.
 - `gh pr checks 132 --repo quant-rule/quant-rule --watch` — `verify` passed in 53s; `sync` passed in 11s.
 - The contract's section headings were inspected for the required coverage: purpose, boundary, conventions, envelope, per-timeframe state, axis state, readings, cross-timeframe state, absence/readiness, text, JSON, invariants, edge cases, deviations, verification, and open items.
+- Phase 2 local checks, all observed on `feat/124-dashboard-view-types`:
+  - `cargo fmt --all -- --check` — passed.
+  - `cargo clippy --all-targets -- -D warnings` — passed.
+  - `cargo test` — 322 model unit tests passed, including 12 `dashboard` type tests; 31 model doctests passed, including 3 `dashboard` doctests; 182 shell unit tests and all integration tests passed; 0 failures; 2 ignored benchmarks.
+  - `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — passed with no warnings.
+  - `git diff --check` — passed.
+- Plan verification rows 4–7 are checked for Phase 2.
+- Commit `fe97ddb`; branch `feat/124-dashboard-view-types`; PR #133 open.
+- `gh pr checks 133 --repo quant-rule/quant-rule --watch` — `verify` passed in 48s; `sync` passed in 10s.
 
 Not verified / not run:
 
-- No `cargo fmt`, `cargo clippy`, `cargo test`, or `cargo doc` was run locally; the CI `verify` job ran the repository checks on the docs-only PR and passed.
-- No dashboard implementation or output.
-- No merge.
-- No independent agent review. The planning roles were sequential in one session; that is disclosed here.
+- No assembler, shell command, text rendering, JSON output, or dashboard CLI run.
+- No Phase 2 merge yet.
+- No bias tenure, recent pace, readings, agreement, churn, or shell golden tests; those are later sub-issues.
+- No independent agent review. The planning and implementation roles were sequential in one session; that is disclosed here.
 
 ## Learning
 
@@ -89,3 +106,4 @@ Not verified / not run:
 - Structure alignment and event activity answer different questions. Event density must not inflate the Structure radius.
 - Cross-timeframe majority needs coverage and a minimum valid-reading rule; otherwise one timeframe can masquerade as agreement.
 - A maximum state-change count across different durations is churn evidence, not a universal market-stability verdict.
+- A types-only slice is useful when it fixes names and numeric code domains before the assembler. Its tests check variant and code mappings, not values that the assembler has not produced yet.
