@@ -361,6 +361,7 @@ AxisAgreement
 - A strict majority requires one class to have more than half of the valid timeframes.
 - At least `min_cross_tf_members` valid timeframes are required. Fewer → `insufficient_coverage = true`, `majority = null`, `agrees = false`.
 - Missing timeframes are absent and lower coverage; they are never neutral.
+- A missing or non-finite axis position is excluded from the valid count; it is never neutral.
 - A tie is not a strict majority.
 - `agreeing_axes` counts axes with `agrees = true`.
 - The existing per-timeframe `TimeframeConsensus` is not this field and is not re-used as if it were.
@@ -384,10 +385,11 @@ ChurnSource
   axis: AxisCode
 ```
 
-- `max_changes_50` is the maximum `state_changes_50` across all present axes/timeframes.
-- `sources` lists every `(timeframe, axis)` tied at the maximum. If there is no code-bearing history, it is empty.
-- `history_complete` requires every required timeframe to have at least 50 code-bearing bars for the compared axes.
-- `Building` when history is incomplete; `Unstable` at or above the threshold; otherwise `Holding`.
+- `max_changes_50` is the maximum `state_changes_50` across the four axes and the present timeframes.
+- An axis with no code-bearing bar is excluded from the maximum and the sources; a missing history is not a measured zero.
+- `sources` lists every `(timeframe, axis)` tied at the maximum, sorted by timeframe then axis. If no present axis has code-bearing history, it is empty.
+- `history_complete` requires every configured ladder timeframe to have at least 50 code-bearing bars for all four compared axes. A missing timeframe or a short axis history leaves it false.
+- `Building` when history is incomplete; `Unstable` at or above the threshold; otherwise `Holding`. Incomplete history takes precedence over the threshold.
 - The field is churn, not a universal market-stability verdict. The text must label it `churn`.
 
 ## 9. Absence, readiness, and labels

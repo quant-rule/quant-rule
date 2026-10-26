@@ -6,12 +6,14 @@
 //! Direction tenure, Structure activity, Structure reference prices,
 //! Progression recent pace, and the per-axis dated readings are view-only
 //! measurements derived here from published values; they never feed back into
-//! an axis. Agreement and churn are filled by their own work item.
+//! an axis. Agreement and churn are derived in `cross_tf` from the assembled
+//! positions and the published state-change counters.
 //!
 //! The module is pure: it reads the run, the explicit ladder, and the
 //! configuration it is given. It performs no I/O, reads no clock, and uses no
 //! randomness.
 
+mod cross_tf;
 mod direction;
 mod progression;
 mod readings;
@@ -28,15 +30,11 @@ use self::readings::axis_readings;
 use self::structure::{level_references, structure_activity};
 
 use super::{
-    AxisDetail, AxisReadiness, AxisState, AxisValue, BiasContinuity, BiasState, ChurnClass,
-    Coverage, CrossTfAgreement, CrossTfChurn, CrossTfState, DashboardConfig, DashboardState,
-    DiagnosticsView, DirectionDetail, Domain, LegDirectionReading, MomentumDetail,
-    ProgressionDetail, RECENT_PACE_WINDOW_BARS, StructureDetail, TenureOriginKind,
-    TimeframeConsensusView, TimeframeDerived, TimeframeState,
+    AxisDetail, AxisReadiness, AxisState, AxisValue, BiasContinuity, BiasState, Coverage,
+    CrossTfState, DashboardConfig, DashboardState, DiagnosticsView, DirectionDetail, Domain,
+    LegDirectionReading, MomentumDetail, ProgressionDetail, RECENT_PACE_WINDOW_BARS,
+    StructureDetail, TenureOriginKind, TimeframeConsensusView, TimeframeDerived, TimeframeState,
 };
-
-/// The contract's fixed churn window in closed bars.
-const CHURN_WINDOW_BARS: u32 = 50;
 
 impl DashboardState {
     /// Builds the dashboard view from a completed model run.
@@ -49,11 +47,13 @@ impl DashboardState {
     /// The projection reads only `run`, `ladder`, and `config`. It does not
     /// append, fill, or synthesize a measurement for a missing bar.
     ///
-    /// The cross-timeframe agreement and churn summaries are not yet derived
-    /// from the final per-axis view. Their envelope carries the configured
-    /// thresholds and the real coverage, publishes no per-axis majority, and
-    /// reports the incomplete-history churn class. A later work item fills
-    /// both summaries; no consumer should read the placeholder as a verdict.
+    /// Agreement counts a strict majority of the finite signed Direction,
+    /// Momentum, and Structure positions across the present timeframes.
+    /// Missing timeframes are absent and missing axis values are excluded; they
+    /// are never counted as neutral. Churn reads the published
+    /// `state_changes_50` counters and the code-bearing history of the four
+    /// axes. Its history is complete only when every configured timeframe has a
+    /// full code-bearing window for every compared axis.
     ///
     /// # Examples
     ///
@@ -67,6 +67,8 @@ impl DashboardState {
     ///
     /// assert_eq!(view.ladder, vec![60, 300]);
     /// assert!(view.timeframes.iter().all(|timeframe| !timeframe.present));
+    /// assert_eq!(view.cross_tf_state.agreement.axes.len(), 3);
+    /// assert!(!view.cross_tf_state.churn.history_complete);
     /// ```
     #[must_use]
     pub fn from_run(run: &ModelRun, ladder: &[u64], config: &DashboardConfig) -> Self {
@@ -98,13 +100,15 @@ impl DashboardState {
             configured: ladder.len() as u32,
         };
         let progression_leg_direction = timeframes.iter().map(leg_direction_reading).collect();
+        let agreement = cross_tf::agreement(&timeframes, config, coverage);
+        let churn = cross_tf::churn(run, &ladder, config, coverage);
 
         let cross_tf_state = CrossTfState {
             configured_timeframes: ladder.clone(),
             present_timeframes,
             aggregates: run.aggregates().clone(),
-            agreement: pending_agreement(config, coverage),
-            churn: pending_churn(config, coverage),
+            agreement,
+            churn,
             progression_leg_direction,
         };
 
@@ -495,37 +499,6 @@ fn leg_direction_reading(state: &TimeframeState) -> LegDirectionReading {
     LegDirectionReading {
         timeframe_secs: state.timeframe_secs,
         direction,
-    }
-}
-
-/// The not-yet-derived agreement envelope.
-///
-/// Agreement is computed from the final per-axis view in a later work item.
-/// Until then the envelope publishes the configured thresholds and the real
-/// coverage, with no per-axis entries and no claimed majority.
-fn pending_agreement(config: &DashboardConfig, coverage: Coverage) -> CrossTfAgreement {
-    CrossTfAgreement {
-        of: 3,
-        agreeing_axes: 0,
-        axes: Vec::new(),
-        coverage,
-        min_valid_timeframes: config.min_cross_tf_members,
-    }
-}
-
-/// The not-yet-derived churn envelope.
-///
-/// Churn is computed from the final per-axis view in a later work item. The
-/// incomplete-history class is the only class this envelope can claim.
-fn pending_churn(config: &DashboardConfig, coverage: Coverage) -> CrossTfChurn {
-    CrossTfChurn {
-        max_changes_50: 0,
-        sources: Vec::new(),
-        threshold: config.churn_threshold,
-        window: CHURN_WINDOW_BARS,
-        history_complete: false,
-        churn_class: ChurnClass::Building,
-        coverage,
     }
 }
 
