@@ -6,7 +6,8 @@
 //! the Direction, Momentum, Structure, and Progression axes in [`axes`], and
 //! the shared event record and event detectors in [`events`], the volatility and
 //! participation context in [`context`], and the cross-timeframe aggregates in
-//! [`aggregate`]; [`state`] assembles the published market state and consensus.
+//! [`aggregate`]; [`state`] assembles the published market state and consensus,
+//! and [`dashboard`] defines the typed four-axis dashboard view.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -14,6 +15,7 @@
 pub mod aggregate;
 pub mod axes;
 pub mod context;
+pub mod dashboard;
 pub mod events;
 pub mod kernel;
 pub mod readings;
