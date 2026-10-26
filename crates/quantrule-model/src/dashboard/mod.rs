@@ -1,9 +1,9 @@
 //! The typed four-axis dashboard view.
 //!
-//! This module owns the value types for the terminal dashboard. The assembler
-//! that fills them from a [`crate::run::ModelRun`] lives beside this module in
-//! a later work item; this file deliberately contains no I/O, candle
-//! computation, axis formula, or shell rendering.
+//! This module owns the value types for the terminal dashboard. The pure
+//! assembler in `assemble` fills them from a [`crate::run::ModelRun`]; this
+//! file deliberately contains no I/O, candle computation, axis formula, or
+//! shell rendering.
 //!
 //! The view is one instrument over one timeframe ladder. It is not a second
 //! market model and does not replace [`crate::state::MarketState`]. The
@@ -736,6 +736,8 @@ pub enum ChurnClass {
     /// History is complete and churn is at or above the threshold.
     Unstable,
 }
+
+mod assemble;
 
 #[cfg(test)]
 mod tests;
