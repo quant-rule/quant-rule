@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing. Progression pace, readings, agreement/churn, and the command are not started. Not Verified.
+- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing; typed readings, agreement/churn, and the command are not started. Not Verified.
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -317,15 +317,15 @@ Limitations:
 | 18 | 4 | Direction radius = tenure; magnitude detail | `tests/dashboard_direction_golden.rs` against `dashboard_direction_tenure_golden.csv`; `dashboard::assemble::tests::direction_size_is_the_tenure_percentile_and_magnitude_is_detail` | Correct | [x] |
 | 19 | 4 | Structure activity never changes score/size | `dashboard::assemble::structure::tests::activity_counts_by_availability_and_uses_the_recent_window`; `dashboard::assemble::tests::structure_activity_is_isolated_from_position_and_size`; `...a_zero_activity_count_is_a_measured_zero` | Unchanged | [x] |
 | 20 | 4 | Structure evidence includes relations, scale, EMA, levels | `tests/dashboard_structure_golden.rs` against `structure_golden.csv`, `structure_levels_golden.csv`, and the readings EMA columns; `...structure_evidence_is_copied_from_the_published_model` | Present | [x] |
-| 21 | 5 | All six progression anchors | Test | Correct | [ ] |
-| 22 | 5 | Recent pace signed with/against/flat | Test | Correct | [ ] |
-| 23 | 5 | Same-leg requirement; leg change resets | Test | Typed absence | [ ] |
-| 24 | 5 | Recent pace speed percentile is the radius | Golden | Absolute | [ ] |
-| 25 | 5 | Average net displacement is detail | Golden | Present | [ ] |
-| 26 | 5 | Displacement percentile remains separate | Golden | Present | [ ] |
-| 27 | 5 | Terminal pace freezes for completed/invalidated/superseded | Tests | Frozen | [ ] |
-| 28 | 5 | Lifecycle visible and distinct from stage | Golden | Correct | [ ] |
-| 29 | 5 | No coiling/ignition/exhausted labels | Grep/test | Zero hits | [ ] |
+| 21 | 5 | All six progression anchors | `dashboard::assemble::progression::tests::the_six_anchors_map_one_to_one`; the golden rows cover codes 0–5 | Correct | [x] |
+| 22 | 5 | Recent pace signed with/against/flat | `...pace_is_signed_in_the_leg_direction`, `...a_flat_pace_is_a_measured_zero`; golden rows 30–32 (against), 40–42 (flat), and the with-leg rows | Correct | [x] |
+| 23 | 5 | Same-leg requirement; leg change resets | `...the_same_confirmed_leg_is_required_at_both_endpoints`; `...terminal_freeze_covers_completed_invalidated_and_superseded` (leg change discards the freeze) | Typed absence | [x] |
+| 24 | 5 | Recent pace speed percentile is the radius | `...golden_fixture_matches_the_contract` against `dashboard_progression_pace_golden.csv`; `...the_percentile_requires_fifty_prior_samples_and_never_samples_the_view`, `...the_percentile_is_capped_at_252_samples`, `...a_carried_terminal_pace_is_not_re_sampled` | Absolute, 252/50/ties | [x] |
+| 25 | 5 | Average net displacement is detail | Golden `expected_average` column; `...average_net_displacement_uses_elapsed_bars_and_preserves_zero`, `...a_terminal_freeze_keeps_the_average_when_the_pace_is_absent` | Present, frozen at terminal | [x] |
+| 26 | 5 | Displacement percentile remains separate | Golden asserts `detail.displacement_pct == row.bar.size_percentile` on every row; `dashboard::assemble::tests::all_four_axes_map_their_positions_sizes_and_readiness` | Separate detail | [x] |
+| 27 | 5 | Terminal pace freezes for completed/invalidated/superseded | `...terminal_freeze_covers_completed_invalidated_and_superseded`, `...a_terminal_freeze_can_hold_an_absent_pace_and_average`; golden terminal rows 71–74, 86–89, 101–104 | Frozen | [x] |
+| 28 | 5 | Lifecycle visible and distinct from stage | Golden asserts the copied `lifecycle_code` and `stage_code` on every row; `...the_detail_keeps_lifecycle_distinct_from_stage` | Correct | [x] |
+| 29 | 5 | No coiling/ignition/exhausted labels | `rg -n -e coiling -e ignition -e exhaust crates/quantrule-model/src/dashboard/assemble/progression.rs crates/quantrule-model/src/dashboard/assemble/progression/tests.rs` — no hits. The only source hits are the pre-existing context-code registry and shell label mapping, which the approved contract keeps as diagnostics, not Progression labels | Zero hits in the Progression work | [x] |
 | 30 | 6 | Every event maps exactly once | Test | Total | [ ] |
 | 31 | 6 | Event/Transition history; Level references in detail | Test | Correct split | [ ] |
 | 32 | 6 | 50 cap trims oldest | Test | 50 max | [ ] |

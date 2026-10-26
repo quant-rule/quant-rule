@@ -243,6 +243,15 @@ impl TimeframeModel {
         &self.direction
     }
 
+    /// The Progression series for this timeframe.
+    ///
+    /// The dashboard reads the published bars to derive recent pace; the axis
+    /// itself is not recomputed.
+    #[must_use]
+    pub const fn progression(&self) -> &ProgressionSeries {
+        &self.progression
+    }
+
     /// The retained progression legs for this timeframe.
     #[must_use]
     pub fn legs(&self) -> &[ProgressionLeg] {

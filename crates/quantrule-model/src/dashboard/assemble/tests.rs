@@ -2,9 +2,10 @@ use super::direction::direction_tenure;
 use super::structure::structure_activity;
 use super::{
     AxisDetail, AxisReadiness, AxisState, AxisValue, ChurnClass, Coverage, DashboardConfig,
-    DashboardState, Domain, Readiness, Stage, TimeframeState, UnavailableReason,
+    DashboardState, Domain, Readiness, TimeframeState, UnavailableReason,
     absent_structure_scale_code, rank_size, signed_position,
 };
+use crate::dashboard::Stage;
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
 use crate::run::{ModelRun, TimeframeModel};
@@ -242,12 +243,18 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
     let progression = axis(&state, AxisCode::Progression);
     match bar.progression.stage_code.and_then(Stage::from_code) {
         Some(stage) => assert_eq!(progression.position, AxisValue::ordinal(stage)),
-        None => assert!(progression.position.is_undefined()),
+        None => assert_eq!(
+            progression.position,
+            AxisValue::undefined(UnavailableReason::OriginUnconfirmed)
+        ),
     }
-    match bar.progression.size_percentile {
-        Some(pct) => assert_eq!(progression.size, AxisValue::rank(pct)),
-        None => assert!(progression.size.is_undefined()),
-    }
+    // The radius is the recent-pace percentile, not the model's displacement
+    // percentile. The latest bar's published leg is still forming, so pace is
+    // absent and the displacement percentile stays a detail.
+    assert_eq!(
+        progression.size,
+        AxisValue::undefined(UnavailableReason::OriginUnconfirmed)
+    );
     assert_eq!(progression.readiness_code, bar.progression.readiness.code());
     assert_eq!(
         progression.readiness,
@@ -263,13 +270,65 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
         bar.progression.leg_direction
     );
     assert_eq!(
-        progression_detail.displacement_pct,
-        bar.progression.size_percentile
+        progression_detail.displacement_pct, bar.progression.size_percentile,
+        "the displacement percentile remains a separate detail"
     );
+    assert_eq!(progression_detail.recent_pace_signed_atr_per_bar, None);
+    assert_eq!(progression_detail.recent_pace_direction, None);
+    assert_eq!(progression_detail.lifecycle_code, Some(0));
+    assert_eq!(progression_detail.origin_bar, Some(latest));
+    assert_eq!(progression_detail.origin_available_bar, None);
+    assert_eq!(
+        progression_detail.average_net_displacement_atr_per_bar,
+        Some(0.336_548_496_290_132_84)
+    );
+    assert!(!progression_detail.recent_pace_frozen_terminal);
     assert_eq!(
         progression_detail.recent_pace_window_bars,
         super::RECENT_PACE_WINDOW_BARS
     );
+}
+
+#[test]
+fn a_confirmed_published_leg_gets_pace_absence_not_the_origin_reason() {
+    let candles = fixture_candles();
+    let timeframe = model(&candles, 60);
+    let bar_index = 57;
+    let state = TimeframeState::at(&timeframe, bar_index).expect("a state");
+    let bar = timeframe.bar(bar_index).expect("a bar");
+    let leg = bar
+        .progression
+        .published_leg()
+        .expect("bar 57 publishes a leg");
+    assert_eq!(leg.origin_confirmed_code, 1);
+
+    let progression = axis(&state, AxisCode::Progression);
+    assert_eq!(
+        progression.position,
+        AxisValue::ordinal(Stage::Late),
+        "the confirmed leg publishes stage 4"
+    );
+    assert_eq!(
+        progression.size,
+        AxisValue::undefined(UnavailableReason::InsufficientBars),
+        "a confirmed leg without 50 measured paces has insufficient history"
+    );
+    assert_eq!(progression.readiness_code, bar.progression.readiness.code());
+
+    let AxisDetail::Progression(detail) = &progression.detail else {
+        panic!("the Progression axis carries Progression detail");
+    };
+    assert_eq!(detail.lifecycle_code, Some(1));
+    assert_eq!(detail.origin_bar, Some(55));
+    assert_eq!(detail.origin_available_bar, Some(57));
+    assert_eq!(detail.displacement_pct, bar.progression.size_percentile);
+    assert_eq!(detail.recent_pace_signed_atr_per_bar, None);
+    assert_eq!(detail.recent_pace_direction, None);
+    assert_eq!(
+        detail.average_net_displacement_atr_per_bar,
+        Some(0.766_693_161_214_573_9 / 2.0)
+    );
+    assert!(!detail.recent_pace_frozen_terminal);
 }
 
 #[test]
