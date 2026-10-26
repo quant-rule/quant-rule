@@ -4,8 +4,8 @@
 - Tool: OpenCode, DeepSeek V4.1 Flash 1017
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
-- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (Phase 3)
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler implemented and locally verified; committed as `15da01d` in [PR #134](https://github.com/quant-rule/quant-rule/pull/134), with `verify` and `sync` passing. No Phase 3 merge yet.
+- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (merged, PR #134); `feat/126-bias-tenure-activity` in `quant-rule--bias-tenure-activity` (Phase 4)
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices are implemented and locally verified. No Phase 4 commit, push, or pull request yet.
 
 ## Intent and boundary
 
@@ -17,6 +17,7 @@ Boundary of this entry:
 - Phase 1: the `DashboardState` contract document and its `docs/README.md` index entry. The human approved the contract on 2026-10-25; it is marked `Approved`; PR #132 is merged.
 - Phase 2: the `quantrule-model::dashboard` value types and their unit tests. No assembler, shell command, or rendered output.
 - Phase 3: the core `DashboardState` assembler and its unit tests. No bias tenure, recent pace, Structure activity, typed readings, derived agreement/churn, shell command, or rendered output.
+- Phase 4: the Direction bias-tenure state machine and percentile, the Structure event-to-axis mapping, activity window, and reference prices, plus their unit, integration, and golden tests. No recent pace, typed readings, derived agreement/churn, shell command, or rendered output.
 - No repository change on `main`. The project directory remains on `main`; each phase is worked in its own worktree.
 
 ## Work performed
@@ -55,7 +56,19 @@ Boundary of this entry:
     - The cross-timeframe envelope: configured/present timeframes, existing aggregates, published leg directions, configured thresholds, and coverage. Agreement and churn remain explicit envelopes until their work item.
 15. Added `crates/quantrule-model/src/dashboard/assemble/tests.rs` with 16 tests: envelope mapping, all four axis positions/sizes/readiness, stage anchors, missing rows, empty run, single candle, readiness variants, future-bar causality (appended and altered), reordered inputs/ladders, zero preservation, momentum force without acceleration, progression origin reason, level-count availability, configured thresholds, and the absent-row structure scale.
 16. Added the `mod assemble;` boundary and updated the dashboard module documentation. No existing axis formula, command, or store schema was changed.
-17. Committed the assembler and tests as `15da01d`, pushed `feat/125-dashboard-assembler`, and opened [PR #134](https://github.com/quant-rule/quant-rule/pull/134). `verify` passed in 1m5s; `sync` passed in 13s.
+17. Committed the assembler and tests as `15da01d`, pushed `feat/125-dashboard-assembler`, and opened [PR #134](https://github.com/quant-rule/quant-rule/pull/134). `verify` passed in 1m5s; `sync` passed in 13s. The human authorized the merge; PR #134 merged as `f118118`. Removed the Phase 3 worktree and local/remote branch.
+18. Created `feat/126-bias-tenure-activity` from `f118118` in `quant-rule--bias-tenure-activity`, set #126 to `In Progress` with start date `2026-10-26`, and moved the session to that worktree.
+19. Read-only investigation for Phase 4: inspected contract §§6.1, 6.3, 7.1–7.3, 13, and 15; the execution-plan rows 13–20; `DirectionSeries` and its bar record; `EventRecord`, event types, and Signal source/subtype codes; `ConfirmedLevel`; `TimeframeModel`; and the existing assembler.
+20. Added `crates/quantrule-model/src/dashboard/assemble/direction.rs`:
+    - A pure replay of the published Direction bars: first establishment, genuine reversal, neutral pause that increments tenure, unavailable freeze, same-sign and neutral resume after a gap, and opposite-sign new origin at the first observed bar.
+    - A percentile of the current tenure against prior observed tenure samples, using the existing kernel's 252 cap, 50-sample minimum, inclusive ties, and stable sort.
+    - Measured zeros and nulls are preserved; the current bar is never its own sample.
+21. Added `crates/quantrule-model/src/dashboard/assemble/structure.rs`:
+    - The contracted event-to-axis mapping: Level and Divergence to Structure, threshold crossing to Momentum, EMA crossover to Structure, compact-state change by source code, unknown codes unassigned.
+    - Activity over Structure-mapped Event records whose `available_bar_index` is in the last `min(5, bar + 1)` bars, with `activity_per_bar = count / window`; zero is a measured zero.
+    - Reference prices in fixed order: EMA20/50/200 at the view bar, then the latest confirmed minor high/low and major high/low knowable by the view bar, each with its own `available_at`; missing references are omitted.
+22. Wired both modules into `assemble.rs`: Direction size is the tenure percentile and `magnitude_pct` remains the existing percentile detail; Structure detail carries the references and activity. Added `TimeframeModel::direction()` so the view reads the published series instead of recomputing the axis.
+23. Added 12 Direction unit tests and 6 Structure unit tests, 5 new assembler integration tests, and 2 integration golden tests. Added `dashboard_direction_tenure_golden.csv`, generated by an independent Python replay of the tenure state machine over the independently generated `direction_golden.csv`; the Structure golden cross-checks against the existing independently generated `structure_golden.csv`, `structure_levels_golden.csv`, and readings EMA columns. No existing axis fixture changed.
 
 ## Decisions and corrections
 
@@ -85,6 +98,16 @@ Phase 3 implementation choices, made inside the approved contract:
 - **Typed absence keeps the run's meaning.** A ladder member without a closed bar gets an explicit absent row: `present = false`, nulls rather than zeros, `Readiness::Unavailable`, and the four axis detail variants. Its Structure detail carries the scale the run actually used; the model default major scale is used only when the entire run is empty, where no measurement exists to describe.
 - **Progression absence names the stage's own blocker.** When the model reports progress but withholds the stage, the view reuses the leg's state: origin unconfirmed, no target, or target unstable. It does not collapse every absent stage into insufficient bars.
 - **Agreement and churn stay explicit envelopes.** The core assembler publishes real coverage, the configured thresholds, the existing aggregate, and the published leg directions, but no per-axis majority and no churn verdict. A missing timeframe is not neutral and is not counted. The envelopes exist so consumers have stable types, but nothing in Phase 3 claims agreement or churn that has not been derived.
+
+Phase 4 implementation choices, made inside the approved contract:
+
+- **A tenure sample is one prior observed bar's published tenure.** The percentile compares the current running tenure with the tenures that prior bars actually published. A bar with no tenure contributes no sample, and the current bar is appended only after its percentile is computed. This measures how unusual the current age is against the observed age distribution; it does not sample only completed bias runs. The alternative would compare against completed runs only and would answer a different question (typical completed duration), which the approved contract does not define.
+- **A neutral first bar after a gap resumes the stored tenure.** The contract's neutral pause preserves the origin and tenure; a gap freezes the counter. Reading the neutral return as a pause keeps the origin and marks the tenure `interrupted`. A later opposite sign on an observed bar is then a genuine `Reversal`, because the neutral bar was observed.
+- **An opposite sign hidden by a gap starts a fresh continuous tenure.** The new origin is the first observed bar, the origin kind is `NewOriginAfterUnavailable`, and continuity is `Continuous` for the new origin. The gap remains visible in the origin kind; the reversal is never backdated into the gap.
+- **A missing tenure percentile keeps the Direction reason when Direction is unavailable.** If the axis is present but has fewer than 50 prior tenure samples, the size is `Undefined { InsufficientBars }`; if the axis itself is unavailable, the size carries the Direction's own reason. The raw tenure detail remains visible whenever it exists.
+- **Structure activity counts Event records, by availability.** It does not synthesize transitions and it does not read an axis counter. An event with `available_bar_index` in the last `min(5, window_len)` bars counts once; a zero count publishes `Some(0.0)` per bar and never becomes `None`.
+- **Reference prices separate current EMAs from confirmed swings.** An EMA reference is knowable at the view bar, so `available_bar` is the view bar. A swing reference is knowable only at its `available_at`, so `available_bar` is that confirmation bar, even when a later view reads it. Missing prices are omitted, never replaced by zero.
+- **The golden fixture is independent of the Rust implementation.** The tenure fixture was generated by a Python replay from the independent Direction fixture. The Structure golden test reads only the public dashboard view and compares it to the existing independently generated Structure, level, and readings fixtures.
 
 ## Verification and evidence
 
@@ -123,13 +146,29 @@ Observed Phase 3 evidence, run on `feat/125-dashboard-assembler`:
 - Plan verification rows 8–12 are checked for Phase 3.
 - Commit `15da01d`; branch `feat/125-dashboard-assembler`; PR #134 open.
 - `gh pr checks 134 --repo quant-rule/quant-rule --watch` — `verify` passed in 1m5s; `sync` passed in 13s.
+- PR #134 merged as `f118118`; the Phase 3 worktree and local/remote branch were removed.
+
+Observed Phase 4 evidence, run on `feat/126-bias-tenure-activity`:
+
+- `cargo fmt --all -- --check` — passed.
+- `cargo clippy --all-targets -- -D warnings` — passed with no warnings.
+- `cargo test -p quantrule-model --lib dashboard::assemble` — 39 passed, including 12 Direction tests and 6 Structure tests.
+- `cargo test -p quantrule-model --test dashboard_direction_golden --test dashboard_structure_golden` — 2 passed.
+- `cargo test` — 361 model unit tests, 2 new dashboard golden integration tests, 33 model doctests, 182 shell unit tests, all other integration tests, 0 failures; 3 ignored benchmarks.
+- `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — passed with no warnings.
+- `git diff --check` — passed.
+- Plan verification rows 13–20 are checked for Phase 4.
+- The new fixture `crates/quantrule-model/tests/fixtures/dashboard_direction_tenure_golden.csv` has 260 rows: 61 established tenures, 199 null tenures, and 11 rows with a percentile. It was generated by the independent Python replay described above.
+- The Structure golden test walks every fixture bar and checks the dashboard detail against the existing relation, scale, EMA distance/cross/retest, score, size, readiness, EMA price, confirmed-swing price, and availability fixtures.
+- No Phase 4 commit, push, or pull request yet.
 
 Not verified / not run:
 
-- No Direction bias tenure or continuity, Progression recent pace, Structure activity, or per-axis typed readings; those are #126, #127, and #128.
-- No derived cross-timeframe agreement majority or churn verdict; those are #129. Phase 3 publishes only the envelope, coverage, and configured thresholds.
+- No Progression recent pace or terminal freeze; that is #127.
+- No per-axis typed Event/Transition history with the 50-item cap; that is #128.
+- No derived cross-timeframe agreement majority or churn verdict; that is #129. The assembler still publishes only the envelope, coverage, and configured thresholds.
 - No shell `market-dashboard` command, text rendering, JSON output, or dashboard CLI run; those are #130 and #131.
-- No Phase 3 merge yet.
+- No Phase 4 commit, push, pull request, or merge yet.
 - No independent agent review. The investigation, implementation, and verification were sequential in one session; that is disclosed here.
 
 ## Learning
@@ -146,3 +185,9 @@ Not verified / not run:
 - A view of bar `t` must report the window up to `t`, not the run's total length. If it reports the latter, a full run and a prefix run produce different views of the same bar, and the causality test cannot prove what it claims.
 - An envelope that carries real coverage and configured thresholds but no verdict is honest at a phase boundary. It keeps the type stable for downstream work without publishing a majority the data has not earned; the doc comment states that no consumer should read it as a verdict.
 - Typed absence is more than nulls. An absent row still has to say which reason code applies, which readiness it has, and which scale the run used, or the renderer will invent an answer.
+- A running-age percentile and a completed-duration percentile answer different questions. The contract asks for the current tenure's rank against prior observed tenure samples; sampling only completed runs would measure typical completed duration instead, and the two must not be conflated.
+- Neutral is a pause, not a reset, and it stays a pause after a gap. If the first observed bar after a gap is neutral, preserving the stored tenure is the only reading consistent with the neutral-pause rule; the later opposite sign is then an observed reversal, not a hidden one.
+- Origin kind carries information that continuity alone cannot. A fresh origin after a gap is continuous as a new tenure but must say `new_origin_after_unavailable`, or the view would imply the reversal was observed.
+- Activity is evidence, not a vote. Counting Event records by availability in a fixed window, and asserting that the score and size are unchanged, makes the no-double-count and isolation rules testable rather than merely stated.
+- Current references and confirmed references have different availability. An EMA is knowable at the view bar; a swing is knowable only when its confirmation lookback closes. Collapsing both to the view bar would leak a future confirmation into an earlier row.
+- A golden fixture is most useful when its oracle is independent of the code under test. A Python replay from the independent Direction fixture catches a Rust state-machine regression that a second Rust helper would reproduce instead of expose.

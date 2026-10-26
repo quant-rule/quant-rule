@@ -1,7 +1,9 @@
+use super::direction::direction_tenure;
+use super::structure::structure_activity;
 use super::{
-    AxisDetail, AxisReadiness, AxisState, AxisValue, BiasState, ChurnClass, Coverage,
-    DashboardConfig, DashboardState, Domain, Readiness, Stage, TimeframeState, UnavailableReason,
-    absent_structure_scale_code, bias_state, rank_size, signed_position,
+    AxisDetail, AxisReadiness, AxisState, AxisValue, ChurnClass, Coverage, DashboardConfig,
+    DashboardState, Domain, Readiness, Stage, TimeframeState, UnavailableReason,
+    absent_structure_scale_code, rank_size, signed_position,
 };
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
@@ -137,6 +139,7 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
     let state = TimeframeState::at(&timeframe, latest).expect("the latest state");
 
     let direction = axis(&state, AxisCode::Direction);
+    let tenure = direction_tenure(timeframe.direction().bars(), latest);
     match bar.direction.direction {
         Some(value) => assert_eq!(
             direction.position,
@@ -144,7 +147,7 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
         ),
         None => assert!(direction.position.is_undefined()),
     }
-    match bar.direction.size_percentile {
+    match tenure.tenure_percentile {
         Some(pct) => assert_eq!(direction.size, AxisValue::rank(pct)),
         None => assert!(direction.size.is_undefined()),
     }
@@ -156,10 +159,11 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
     let AxisDetail::Direction(direction_detail) = &direction.detail else {
         panic!("the Direction axis carries Direction detail");
     };
-    assert_eq!(
-        direction_detail.bias_state,
-        bias_state(bar.direction.direction)
-    );
+    assert_eq!(direction_detail.bias_state, tenure.bias_state);
+    assert_eq!(direction_detail.bias_continuity, tenure.bias_continuity);
+    assert_eq!(direction_detail.bias_tenure_bars, tenure.tenure_bars);
+    assert_eq!(direction_detail.tenure_origin_kind, tenure.origin_kind);
+    assert_eq!(direction_detail.tenure_origin_bar, tenure.origin_bar);
     assert_eq!(
         direction_detail.magnitude_pct,
         bar.direction.size_percentile
@@ -225,6 +229,14 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
     assert_eq!(
         structure_detail.ema_distance_atr_20,
         bar.structure.ema_distance_atr_20
+    );
+    let activity = structure_activity(&timeframe, latest);
+    assert_eq!(structure_detail.activity_count, activity.count);
+    assert_eq!(structure_detail.activity_window, activity.window);
+    assert_eq!(structure_detail.activity_per_bar, activity.per_bar);
+    assert!(
+        !structure_detail.level_references.is_empty(),
+        "the latest fixture bar has current reference prices"
     );
 
     let progression = axis(&state, AxisCode::Progression);
@@ -485,13 +497,194 @@ fn reordered_inputs_and_ladders_are_deterministic() {
 }
 
 #[test]
-fn bias_state_uses_the_inclusive_neutral_corridor() {
-    assert_eq!(bias_state(None), BiasState::Undefined);
-    assert_eq!(bias_state(Some(0.1)), BiasState::Neutral);
-    assert_eq!(bias_state(Some(-0.1)), BiasState::Neutral);
-    assert_eq!(bias_state(Some(0.0)), BiasState::Neutral);
-    assert_eq!(bias_state(Some(0.100_001)), BiasState::Bullish);
-    assert_eq!(bias_state(Some(-0.100_001)), BiasState::Bearish);
+fn direction_size_is_the_tenure_percentile_and_magnitude_is_detail() {
+    let candles = fixture_candles();
+    let timeframe = model(&candles, 60);
+
+    let bar = (0..timeframe.len())
+        .find(|&bar| {
+            let model_bar = timeframe.bar(bar).expect("a bar");
+            let tenure = direction_tenure(timeframe.direction().bars(), bar);
+            tenure.tenure_percentile.is_some()
+                && model_bar.direction.size_percentile.is_some()
+                && tenure.tenure_percentile != model_bar.direction.size_percentile
+        })
+        .expect("the fixture has a bar where tenure and magnitude percentiles differ");
+
+    let state = TimeframeState::at(&timeframe, bar).expect("a state");
+    let model_bar = timeframe.bar(bar).expect("a bar");
+    let tenure = direction_tenure(timeframe.direction().bars(), bar);
+    let direction = axis(&state, AxisCode::Direction);
+
+    assert_eq!(
+        direction.size,
+        AxisValue::rank(tenure.tenure_percentile.expect("a tenure percentile"))
+    );
+    let AxisDetail::Direction(detail) = &direction.detail else {
+        panic!("the Direction axis carries Direction detail");
+    };
+    assert_eq!(
+        detail.magnitude_pct, model_bar.direction.size_percentile,
+        "the old magnitude percentile remains visible as detail"
+    );
+    assert_ne!(
+        direction.size.as_rank(),
+        detail.magnitude_pct,
+        "the radius is not the magnitude"
+    );
+}
+
+#[test]
+fn missing_unavailable_direction_carries_the_direction_reason() {
+    let candles = fixture_candles();
+    let timeframe = model(&candles, 60);
+
+    let bar = (0..timeframe.len())
+        .find(|&bar| {
+            timeframe
+                .bar(bar)
+                .expect("a bar")
+                .direction
+                .direction
+                .is_none()
+        })
+        .expect("the fixture has an unavailable Direction bar");
+    let state = TimeframeState::at(&timeframe, bar).expect("a state");
+    let model_bar = timeframe.bar(bar).expect("a bar");
+    let direction = axis(&state, AxisCode::Direction);
+    let AxisValue::Undefined { reason } = direction.size else {
+        panic!("an unavailable Direction has no tenure size");
+    };
+    assert_eq!(
+        Some(reason),
+        model_bar.direction.unavailable_reason,
+        "the view-only size keeps the Direction reason"
+    );
+}
+
+#[test]
+fn structure_activity_is_isolated_from_position_and_size() {
+    let candles = fixture_candles();
+    let timeframe = model(&candles, 60);
+
+    let bar = (0..timeframe.len())
+        .find(|&bar| structure_activity(&timeframe, bar).count > 0)
+        .expect("the fixture has a Structure-active bar");
+    let model_bar = timeframe.bar(bar).expect("a bar");
+    let state = TimeframeState::at(&timeframe, bar).expect("a state");
+    let structure = axis(&state, AxisCode::Structure);
+
+    match model_bar.structure.score {
+        Some(value) => assert_eq!(
+            structure.position,
+            AxisValue::signed(value, Domain::StructureRelation)
+        ),
+        None => assert!(structure.position.is_undefined()),
+    }
+    match model_bar.structure.size_percentile {
+        Some(pct) => assert_eq!(structure.size, AxisValue::rank(pct)),
+        None => assert!(structure.size.is_undefined()),
+    }
+    let AxisDetail::Structure(detail) = &structure.detail else {
+        panic!("the Structure axis carries Structure detail");
+    };
+    assert!(detail.activity_count > 0);
+    assert_eq!(
+        detail.activity_count,
+        structure_activity(&timeframe, bar).count
+    );
+}
+
+#[test]
+fn a_zero_activity_count_is_a_measured_zero() {
+    let candles = fixture_candles();
+    let timeframe = model(&candles, 60);
+    let state = TimeframeState::at(&timeframe, 0).expect("the first bar");
+    let structure = axis(&state, AxisCode::Structure);
+    let AxisDetail::Structure(detail) = &structure.detail else {
+        panic!("the Structure axis carries Structure detail");
+    };
+
+    assert_eq!(detail.activity_count, 0);
+    assert_eq!(detail.activity_window, 1);
+    assert_eq!(detail.activity_per_bar, Some(0.0));
+}
+
+#[test]
+fn structure_evidence_is_copied_from_the_published_model() {
+    let candles = fixture_candles();
+    let timeframe = model(&candles, 60);
+    let latest = timeframe.len() - 1;
+    let model_bar = timeframe.bar(latest).expect("the latest bar");
+    let state = TimeframeState::at(&timeframe, latest).expect("a state");
+    let structure = axis(&state, AxisCode::Structure);
+    let AxisDetail::Structure(detail) = &structure.detail else {
+        panic!("the Structure axis carries Structure detail");
+    };
+
+    assert_eq!(detail.score, model_bar.structure.score);
+    assert_eq!(
+        detail.high_relation_code,
+        model_bar.structure.high_relation_code
+    );
+    assert_eq!(
+        detail.low_relation_code,
+        model_bar.structure.low_relation_code
+    );
+    assert_eq!(detail.scale_code, model_bar.structure.scale_code);
+    assert_eq!(
+        detail.ema_distance_atr_20,
+        model_bar.structure.ema_distance_atr_20
+    );
+    assert_eq!(
+        detail.ema_distance_atr_50,
+        model_bar.structure.ema_distance_atr_50
+    );
+    assert_eq!(
+        detail.ema_distance_atr_200,
+        model_bar.structure.ema_distance_atr_200
+    );
+    assert_eq!(
+        detail.ema_cross_code_20,
+        model_bar.structure.ema_cross_code_20
+    );
+    assert_eq!(
+        detail.ema_cross_code_50,
+        model_bar.structure.ema_cross_code_50
+    );
+    assert_eq!(
+        detail.ema_cross_code_200,
+        model_bar.structure.ema_cross_code_200
+    );
+    assert_eq!(
+        detail.ema_retest_code_20,
+        model_bar.structure.ema_retest_code_20
+    );
+    assert_eq!(
+        detail.ema_retest_code_50,
+        model_bar.structure.ema_retest_code_50
+    );
+    assert_eq!(
+        detail.ema_retest_code_200,
+        model_bar.structure.ema_retest_code_200
+    );
+
+    let expected = timeframe
+        .levels()
+        .iter()
+        .filter(|level| level.available_at <= latest)
+        .count();
+    assert_eq!(detail.confirmed_level_count, expected);
+    assert_eq!(
+        detail.level_references.len(),
+        detail
+            .level_references
+            .iter()
+            .map(|reference| reference.reference_kind_code)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        "each reference kind appears at most once"
+    );
 }
 
 #[test]
