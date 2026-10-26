@@ -428,7 +428,7 @@ churn  max 2 state changes (1h direction) · threshold 6 · history 4/4
   1m        ─────●──── 71%  ●       ───◌───── 34%  ◌       ──●────── 62%  ●       ──●────── 88%  ◌
   5m        ───●────── 40%  ●       ──●────── 88%  ●       ──────●── 10%  ●       ─────●─── 12%  ●
   1h        — no closed bar
-  diag      1m coiling (atr 0.92, rvol 0.81)
+  diag      1m context=2 (atr 0.92, rvol 0.81)
   evidence  1m DIR bearish · tenure 46 (92%) · magnitude 71% | STRUCT +0.5 · HH +1 HL 0 · major · events 3/5 | PROG late · pace +0.12 with leg · speed 88% · avg net 0.08 · disp 72% · v2 stable
   readings  1m DIR transition neutral→bearish age=2 | MOM event threshold age=4 | STRUCT event level test ema20 age=0 | PROG transition mid→late age=1
 ```

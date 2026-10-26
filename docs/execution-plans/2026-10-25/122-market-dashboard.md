@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing. Phase 6 typed readings are implemented in [PR #137](https://github.com/quant-rule/quant-rule/pull/137), with `verify` (1m7s) and `sync` (14s) passing. Phase 7 agreement and churn are implemented in [PR #138](https://github.com/quant-rule/quant-rule/pull/138), with local verification and `verify` (48s) passing. The command is not started. Not Verified.
+- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing. Phase 6 typed readings are implemented in [PR #137](https://github.com/quant-rule/quant-rule/pull/137), with `verify` (1m7s) and `sync` (14s) passing. Phase 7 agreement and churn are implemented in [PR #138](https://github.com/quant-rule/quant-rule/pull/138) and merged as `af1fdce`, with local verification and `verify` (48s) passing. Phase 8 `market-dashboard` text/JSON command is implemented on `feat/130-market-dashboard` and passes local formatting, clippy, tests, and rustdoc; its pull request is not opened. Not Verified.
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -28,7 +28,7 @@ This is a descriptive view. It is not a strategy, a forecast, an entry/exit, a s
 - `ModelRun` already computes one candle series per timeframe and the model is single-instrument. There is no pair map.
 - `MarketState` publishes latest per-timeframe numeric snapshots, readiness codes, reasons, size percentiles, events, and cross-timeframe aggregates.
 - Direction, Momentum, Structure, and Progression publish the raw values listed in section 1. Phase 2 adds the `DashboardState` value types. Phase 3 adds the pure assembler and `TimeframeState::at`. Phase 4 adds the Direction bias tenure and percentile, the Structure event activity and reference prices, and the causal per-bar reading of both; there is still no recent pace, per-axis typed readings, or derived cross-timeframe agreement/churn.
-- The shell has `market-state`, `market-chart`, `axis`, `events`, `legs`, and `model-series`. There is no dashboard command.
+- The shell has `market-state`, `market-chart`, `axis`, `events`, `legs`, and `model-series`. Phase 8 adds `market-dashboard` on `feat/130-market-dashboard`; it is implemented but not merged.
 - The store persists the existing numeric model fields. This plan adds no column and no migration.
 - The multi-pair surface does not exist and is not introduced.
 
@@ -291,7 +291,7 @@ Limitations:
 
 - The 100k timing is a smoke measurement, not a formal benchmark; no benchmark harness exists.
 - The board's `State`/`Item type` fields are workflow-owned; the agent does not set them.
-- The Phase 2 value types, the Phase 3 core assembler, the Phase 4 Direction/Structure evidence, the Phase 5 Progression pace, the Phase 6 readings, and the Phase 7 agreement/churn pass their local tests. Phase 7 reports 21 focused agreement/churn tests, 416 model unit tests, 33 model doctests, 182 shell unit tests, 71 shell CLI tests, all other integration tests, and 0 failures. The shell command and end-to-end rendering remain pending; no end-to-end result is claimed.
+- The Phase 2 value types, the Phase 3 core assembler, the Phase 4 Direction/Structure evidence, the Phase 5 Progression pace, the Phase 6 readings, the Phase 7 agreement/churn, and the Phase 8 shell command pass their local tests. Phase 8 reports 416 model unit tests, 33 model doctests, 196 shell unit tests, 78 shell CLI tests, all other integration tests, and 0 failures. The 100,000-bar timing is a smoke measurement: the full JSON run took 6.98–7.03s, the full text run 6.80–6.86s, and the latest-window JSON run 0.22s. The Phase 9 closeout, final plan verification, and board closeout remain pending.
 
 ## 11. Verification checklist
 
@@ -338,14 +338,14 @@ Limitations:
 | 39 | 7 | Churn max, sources, threshold, window | `...churn_ties_publish_every_source_sorted_by_timeframe_then_axis`, `...an_axis_without_code_bearing_history_is_not_a_source`, `...the_view_summaries_follow_the_published_values`; causality `...agreement_at_an_earlier_bar_ignores_later_bars`, `...churn_evidence_at_an_earlier_bar_ignores_later_bars`; determinism `dashboard::assemble::tests::reordered_inputs_and_ladders_are_deterministic` | Complete | [x] |
 | 40 | 7 | Churn history completeness; Building when incomplete | `...history_requires_every_configured_timeframe_and_axis`, `...a_short_present_series_is_building`, `...an_empty_run_has_no_agreement_or_complete_churn` | Correct | [x] |
 | 41 | 7 | Churn threshold default 6 and boundary | `...the_threshold_is_at_or_above_and_the_default_is_six` | Correct | [x] |
-| 42 | 8 | `market-dashboard` parses/refuses | CLI tests | Correct | [ ] |
-| 43 | 8 | Text golden matches | CLI golden | Exact bytes | [ ] |
-| 44 | 8 | Four tracks, one row per timeframe, no reversal | Golden/manual | Correct | [ ] |
-| 45 | 8 | Typed absence prints `—`, never origin/zero | Golden | Correct | [ ] |
-| 46 | 8 | `--json` numeric, parseable, deterministic | JSON test | Stable | [ ] |
-| 47 | 8 | Interactive/non-interactive byte-identical | CLI test | Identical | [ ] |
-| 48 | 8 | No strategy vocabulary | Grep/test | Zero hits | [ ] |
-| 49 | 8 | Help/README updated | Help test | Complete | [ ] |
+| 42 | 8 | `market-dashboard` parses/refuses | `command/dashboard.rs` parser tests; `command/tests.rs`; CLI `market_dashboard_refuses_bad_arguments` — missing path, bad/repeated window, repeated `--json`, unknown option, second path | Correct | [x] |
+| 43 | 8 | Text golden matches | `market_dashboard_prints_the_exact_text_golden`; `tests/fixtures/dashboard.txt` (5,271 bytes) | Exact bytes | [x] |
+| 44 | 8 | Four tracks, one row per timeframe, no reversal | Text golden; `signed_positions_use_all_eleven_slots`, `stage_positions_are_evenly_spaced` | Correct | [x] |
+| 45 | 8 | Typed absence prints `—`, never origin/zero | `market_dashboard_prints_absent_timeframes_without_a_zero` (text and JSON); `undefined_position_has_no_dot_and_prints_the_reason_code` | Correct | [x] |
+| 46 | 8 | `--json` numeric, parseable, deterministic | `market_dashboard_json_is_the_exact_numeric_golden`; `tests/fixtures/dashboard.json` (46,774 bytes); repeated-run byte identity | Stable | [x] |
+| 47 | 8 | Interactive/non-interactive byte-identical | `market_dashboard_is_deterministic_and_interactive_matches`; 100k text and JSON also compared | Identical | [x] |
+| 48 | 8 | No strategy vocabulary | `market_dashboard_has_no_strategy_vocabulary` checks text and JSON for `coiling`, `ignition`, `exhaust`, `confidence`, `probability`, `recommend`, and `strategy` | Zero hits | [x] |
+| 49 | 8 | Help/README updated | `help.txt` golden; README command table and Market-dashboard contract | Complete | [x] |
 | 50 | 9 | `cargo fmt --all -- --check` | Command | Pass | [ ] |
 | 51 | 9 | `cargo clippy --all-targets -- -D warnings` | Command | Pass | [ ] |
 | 52 | 9 | `cargo test` | Command | Pass | [ ] |

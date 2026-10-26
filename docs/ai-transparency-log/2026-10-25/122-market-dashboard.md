@@ -4,8 +4,8 @@
 - Tool: OpenCode, DeepSeek V4.1 Flash 1017
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
-- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (merged, PR #134); `feat/126-bias-tenure-activity` in `quant-rule--bias-tenure-activity` (merged, PR #135); `feat/127-progression-pace` in `quant-rule--progression-pace` (merged, PR #136); `feat/128-dashboard-readings` in `quant-rule--dashboard-readings` (merged, PR #137); `feat/129-dashboard-aggregates` in `quant-rule--dashboard-aggregates` (PR #138)
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices merged in [PR #135](https://github.com/quant-rule/quant-rule/pull/135) as `7aa9502`; Phase 5 Progression recent pace, average net displacement, and terminal freeze merged as `5da8ec8` in [PR #136](https://github.com/quant-rule/quant-rule/pull/136) after `verify` (1m5s) and `sync` (12s) passed. Phase 6 typed readings merged as `8bc02e5` in [PR #137](https://github.com/quant-rule/quant-rule/pull/137) after `verify` (1m7s) and `sync` (14s) passed. Phase 7 agreement and churn are implemented in [PR #138](https://github.com/quant-rule/quant-rule/pull/138), with local verification passing and `verify` (48s) passing.
+- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (merged, PR #134); `feat/126-bias-tenure-activity` in `quant-rule--bias-tenure-activity` (merged, PR #135); `feat/127-progression-pace` in `quant-rule--progression-pace` (merged, PR #136); `feat/128-dashboard-readings` in `quant-rule--dashboard-readings` (merged, PR #137); `feat/129-dashboard-aggregates` in `quant-rule--dashboard-aggregates` (merged, PR #138); `feat/130-market-dashboard` in `quant-rule--dashboard-command` (uncommitted)
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices merged in [PR #135](https://github.com/quant-rule/quant-rule/pull/135) as `7aa9502`; Phase 5 Progression recent pace, average net displacement, and terminal freeze merged as `5da8ec8` in [PR #136](https://github.com/quant-rule/quant-rule/pull/136) after `verify` (1m5s) and `sync` (12s) passed. Phase 6 typed readings merged as `8bc02e5` in [PR #137](https://github.com/quant-rule/quant-rule/pull/137) after `verify` (1m7s) and `sync` (14s) passed. Phase 7 agreement and churn merged as `af1fdce` in [PR #138](https://github.com/quant-rule/quant-rule/pull/138) after local verification and `verify` (48s) passed. Phase 8 `market-dashboard` is implemented on `feat/130-market-dashboard` with local verification passing; it is not committed, pushed, or opened as a pull request.
 
 ## Intent and boundary
 
@@ -21,6 +21,7 @@ Boundary of this entry:
 - Phase 5: the Progression recent-pace state machine, its absolute percentile, the average net displacement detail, and the terminal freeze, plus their unit, edge-case, causality, determinism, and golden tests. No typed readings, derived agreement/churn, shell command, or rendered output.
 - Phase 6: the per-axis dated Event/Transition readings, the compact-state conversion, synthesized Progression stage transitions, availability filtering, ordering, and the 50-item cap, plus their unit, assembler, causality, determinism, and golden tests. No derived agreement/churn, shell command, or rendered output.
 - Phase 7: the cross-timeframe agreement and churn summaries derived from the assembled positions and the published state-change counters, plus their unit, assembler, causality, determinism, and edge-case tests. No shell command or rendered output.
+- Phase 8: the `market-dashboard` argument parser and runner, the deterministic text renderer, the numeric JSON serializer, the help/README command reference, and binary-level golden, absence, determinism, and refusal tests. No model formula, existing command contract, dependency, or store schema change.
 - No repository change on `main`. The project directory remains on `main`; each phase is worked in its own worktree.
 
 ## Work performed
@@ -104,7 +105,16 @@ Boundary of this entry:
     - A code-bearing bar count per axis, capped once every axis reaches the 50-bar window, so an axis with no code-bearing history is not read as a measured zero.
 43. Wired `agreement` and `churn` into `DashboardState::from_run`, removed the `pending_agreement` and `pending_churn` placeholders, and updated the module and method documentation. No axis formula, per-timeframe value, command contract, or store schema changed.
 44. Added 21 agreement/churn tests in `cross_tf/tests.rs`: strict majority, exact half, three-way split, inclusive neutral corridor, missing position, non-finite position, absent timeframe, minimum coverage, three-axis assembly, threshold, sources/tie ordering, no code-bearing history, short series, empty run, code-bearing counts, view-level consistency, and causality for both summaries. The view-level test also cross-checks the derivation against the published per-timeframe bars.
-45. Committed Phase 7 as `202b5cc`, pushed `feat/129-dashboard-aggregates`, and opened [PR #138](https://github.com/quant-rule/quant-rule/pull/138). `verify` passed in 48s; merge authorization has not been requested.
+45. Committed Phase 7 as `202b5cc`, pushed `feat/129-dashboard-aggregates`, and opened [PR #138](https://github.com/quant-rule/quant-rule/pull/138). `verify` passed in 48s. The human authorized the merge; PR #138 merged as `af1fdce`, and the Phase 7 worktree and local/remote branch were removed.
+46. Created `feat/130-market-dashboard` from `af1fdce` in `quant-rule--dashboard-command`, set #130 to `In Progress` with start date `2026-10-26`, and moved the session to that worktree.
+47. Read-only investigation for Phase 8: inspected contract §§10–11, the existing `market-state`/`model-series` command path, `command/dispatch.rs`, `command/parse.rs`, `command/help.rs`, `labels.rs`, the shell CLI harness, and the `DashboardState` value fields. No existing command contract or model formula was changed.
+48. Added `crates/quantrule-shell/src/command/dashboard.rs`: one shared `parse_dashboard_arguments` for interactive and argv input, `DashboardArgs`, and `run_market_dashboard`. The parser accepts the path, `--window full|latest`, and `--json` in any order and refuses a missing or repeated path, a repeated option, an unknown option, and an invalid window.
+49. Added the deterministic renderer under `crates/quantrule-shell/src/render_dashboard/`: `mod.rs` owns the text geometry (11-slot tracks, 27-character cells, position/radius/readiness glyphs, as-of, agreement, churn, diagnostics, evidence, readings) and `json.rs` owns the numeric envelope. The split keeps both source files below 1,000 lines.
+50. Wired `Command::MarketDashboard` through `types.rs`, `command.rs`, `parse.rs`, `dispatch.rs`, and `main.rs`; exposed `load_model_run` at `pub(crate)` for the new command; added the dashboard label mappings to `labels.rs`. No new dependency, no store schema change, and no change to the four axis formulas.
+51. Added parser and renderer unit tests, interactive parser coverage, and seven binary-level CLI tests: exact text golden, exact JSON golden, repeat and interactive/non-interactive byte identity, absent timeframes in both formats, window selection, argument refusal, and forbidden-vocabulary checks. Added `tests/fixtures/dashboard.txt` and `dashboard.json`, generated from `state_m1.csv`; the help golden was updated.
+52. Updated `README.md` with the command table, invocation examples, and the Market-dashboard contract; updated the help listing. Changed the contract's reference-layout diagnostic example from the word `coiling` to the numeric `context=2` so the example matches the shell and the no-strategy-vocabulary rule.
+53. Ran the Phase 8 verification: `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, and `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` all passed. Ran the release binary on `state_m1.csv`, `single.csv`, `empty.csv`, and a generated 100,000-bar M1 CSV; repeated runs and interactive/non-interactive text were byte-identical. Recorded 100k timings in the verification section below.
+54. Did not commit, push, or open a pull request. Those operations remain behind the human approval gate.
 
 ## Decisions and corrections
 
@@ -172,6 +182,16 @@ Phase 7 implementation choices, made inside the approved contract:
 - **An axis with no code-bearing bar contributes no churn evidence.** It is excluded from the maximum and from the sources; otherwise a missing history would appear as a measured zero and could become a source. Sources are sorted by `(timeframe_secs, axis)` so a caller's ladder order or an unordered iteration cannot change the output.
 - **History completeness is per configured timeframe and per axis.** Every configured ladder member must have at least 50 code-bearing bars for all four axes. A missing timeframe, a short axis history, or an empty ladder leaves `history_complete` false. The count stops once every axis reaches 50 because further bars cannot change completeness.
 - **Building wins over the threshold.** Incomplete history always publishes `Building`, even when the partial maximum is at or above the threshold; `Unstable` needs a complete window, and `Holding` would overstate a partial one. At a complete window, the comparison is at-or-above the configured threshold.
+
+Phase 8 implementation choices, made inside the approved contract:
+
+- **One parser serves both entry points.** Interactive input and OS argv both call `parse_dashboard_arguments`, so the command cannot mean two different things. The path and both options may appear in any order, but each may appear only once; the error text carries the usage line.
+- **The text geometry is fixed and golden-locked.** The renderer uses four identical 27-character cells, an eleven-slot position track, a three-step radius glyph, and a solid/hollow readiness outline. An undefined position prints `— r<code>` with no dot. The fixtures lock the exact bytes, so a geometry change is a visible command-contract decision rather than a quiet rendering drift.
+- **Absence is never a zero.** A missing timeframe prints `— no closed bar`; a missing size prints `—`; a valid zero still prints `0%`. The empty and single-candle tests cover both text and JSON so the renderer cannot turn a typed absence into a numeric origin.
+- **The JSON envelope is numeric.** `model_version`, `view_contract`, and the full `dashboard_state` are emitted; stable enum codes are strings, numbers keep full precision, and missing values stay `null` or `{"kind":"undefined","reason_code":n}`. No axis label, confidence, probability, or strategy word is added.
+- **Empty sections are omitted.** When no timeframe is present, the header, as-of, agreement, churn, track legend, and absent rows still print, but the empty `diagnostics`, `evidence`, and `readings` headings are omitted. The output stays informative without implying a measurement exists.
+- **The diagnostic word stays numeric.** The shell prints `context=<code>` rather than the context label, and the contract example was updated to match. The code's numeric meaning remains documented in the model contract; the shell output stays clear of the forbidden strategy vocabulary.
+- **The renderer is split at its natural seam.** Text geometry and JSON serialization share only the published `DashboardState` and the view-contract constant. Splitting them keeps each source file below 1,000 lines without introducing a second abstraction over the same values.
 
 ## Verification and evidence
 
@@ -254,7 +274,7 @@ Observed Phase 7 evidence, run on `feat/129-dashboard-aggregates` (2026-10-26):
 - The churn tests cover `churn_ties_publish_every_source_sorted_by_timeframe_then_axis`, `an_axis_without_code_bearing_history_is_not_a_source`, `history_requires_every_configured_timeframe_and_axis`, `a_short_present_series_is_building`, and `the_threshold_is_at_or_above_and_the_default_is_six`.
 - The causality tests `agreement_at_an_earlier_bar_ignores_later_bars` and `churn_evidence_at_an_earlier_bar_ignores_later_bars` compare a full run with a prefix run at the same view bar; the existing `reordered_inputs_and_ladders_are_deterministic` test covers the ladder and input ordering.
 - Contract §8.2 now states that a missing or non-finite axis position is excluded, not neutral; §8.3 now states the four compared axes, the zero-code exclusion, the source sort, and that every configured ladder member needs a full history.
-- Commit `202b5cc`; branch `feat/129-dashboard-aggregates`; [PR #138](https://github.com/quant-rule/quant-rule/pull/138) open. `verify` passed in 48s.
+- Commit `202b5cc`; branch `feat/129-dashboard-aggregates`; [PR #138](https://github.com/quant-rule/quant-rule/pull/138) merged as `af1fdce`. `verify` passed in 48s.
 
 Observed Phase 6 evidence, run on `feat/128-dashboard-readings` (2026-10-26):
 
@@ -270,10 +290,26 @@ Observed Phase 6 evidence, run on `feat/128-dashboard-readings` (2026-10-26):
 - Commit `8406f42`; branch `feat/128-dashboard-readings`; [PR #137](https://github.com/quant-rule/quant-rule/pull/137) open.
 - `gh pr checks 137 --repo quant-rule/quant-rule --watch` — `verify` passed in 1m7s; `sync` passed in 14s.
 
+Observed Phase 8 evidence, run on `feat/130-market-dashboard` (2026-10-26):
+
+- `cargo fmt --all -- --check` — passed.
+- `cargo clippy --all-targets -- -D warnings` — passed with no warnings.
+- `cargo test` — 416 model unit tests, 33 model doctests, 196 shell unit tests, 78 shell CLI tests, all other integration tests, 0 failures; 4 pre-existing ignored tests.
+- `cargo test -p quantrule-shell --test cli market_dashboard` — 7 passed: text golden, JSON golden, repeat/interactive parity, absent timeframes in text and JSON, window selection, argument refusal, and forbidden-vocabulary checks.
+- `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — passed with no warnings.
+- `tests/fixtures/dashboard.txt` — 5,271 bytes; `tests/fixtures/dashboard.json` — 46,774 bytes. Both are generated from `state_m1.csv` and asserted byte-for-byte.
+- Release smoke runs: `state_m1.csv` 0.01s; `single.csv` and `empty.csv` 0.00s. The generated 100,000-bar M1 series: full JSON 6.98–7.20s and 171,436–171,824 KiB peak RSS over five runs; full text 6.80–8.75s and about 171,000 KiB; `--window latest --json` 0.22s and 13,596–13,660 KiB. The final rebuild after the neutral-tenure label change measured 7.03s JSON, 6.86s text, and 0.22s latest JSON.
+- The 100k JSON SHA-256 was `2a18966d3d2c00741ed7d532df1433f2362311994b9ba708fcf963a8f3d628e1` across every run, including after the renderer split and the final rebuild. The 100k latest-window JSON SHA-256 was `d8c6ad9a6813b8ef615c8131c859ff5fa3eabce1bd1eeadc67c03e59049e9182` on both runs. Before the final neutral-tenure label change, the 100k text SHA-256 was `5f64e779265f8da6daceb6f6cf75342a37b97c3d0566df71a29ebb91a3fb8c1b`; after the change and rebuild it was `eb302e4d340b47d196246063488a12e54ee3e8fd6db49f599eac539890463a80`, identical for the non-interactive and interactive runs.
+- `git diff -- Cargo.toml crates/*/Cargo.toml` — empty; no dependency and no lockfile change. No store schema or migration file changed.
+- Plan verification rows 42–49 are checked for Phase 8.
+- No commit, push, or pull request has been made; those operations await explicit human authorization.
+
 Not verified / not run:
 
-- No Phase 7 merge yet; merge authorization is pending.
-- No shell `market-dashboard` command, text rendering, JSON output, or dashboard CLI run; those are #130 and #131.
+- Phase 8 is uncommitted and has no pull request; its PR checks have not run.
+- Phase 9 closeout (#131) is not started: the plan is not marked Verified, the release checklist is not complete, and the board has not been advanced to Done.
+- The 100k timing is a smoke measurement, not a formal benchmark; no benchmark harness exists.
+- The CLI integration harness `tests/cli.rs` is 1,663 lines (1,490 on `main`); the new dashboard tests follow its existing helper pattern. It was not split in this change because that is a separate test-suite refactor. No production source file exceeds 1,000 lines.
 - No independent agent review. The investigation, implementation, and verification were sequential in one session; that is disclosed here.
 
 ## Learning
@@ -308,4 +344,10 @@ Not verified / not run:
 - The validity floor belongs before the majority. If one reading is allowed to form a majority, coverage is decorative; a missing timeframe has to lower the count, not become a neutral vote.
 - Missing is not neutral in either channel. A missing timeframe and a missing axis position both leave the valid count; a measured zero inside the corridor is the only neutral reading.
 - A zero change count is evidence only when the axis has code-bearing history. Treating "no published code" as zero changes makes an unmeasured axis look stable and can put it in the source list.
+- A command with two entry points needs one parser, not two grammars that happen to agree today. Sharing the parser is what makes the interactive and non-interactive contracts the same command rather than two implementations.
+- A track is only as fixed as its golden. Width, spacing, dot slot, radius glyph, and readiness outline are byte-level behavior, so the fixture must lock the whole rendered text rather than a few substrings.
+- Typed absence has to survive rendering. A JSON view that omits an absent timeframe hides the difference between "not configured" and "configured but not yet closed"; including the row with `undefined` preserves it.
+- The first screen must not smuggle strategy language back in through an example. The contract's reference layout and the shell output both use the numeric context code, so the forbidden-vocabulary test can check the product rather than a doc comment.
+- The renderer splits cleanly at text versus JSON because the two share only the published value and the view-contract constant. Keeping the split at that seam avoids an abstraction that would merely wrap two unrelated formatting paths.
+- The full-window cost is dominated by the model run, not by the text layer: 100k takes about seven seconds full, while the latest 1,000-bar window takes about a fifth of a second. The command exposes both, so the slow path is an explicit choice rather than the only path.
 - Churn history completeness is a claim about the whole configured ladder and all compared axes. Requiring only the axes that happen to be present lets a partial view publish `Holding` or `Unstable` as though the window were complete.

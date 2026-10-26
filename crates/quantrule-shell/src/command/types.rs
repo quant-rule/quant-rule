@@ -30,6 +30,8 @@ pub(crate) enum Command {
     Timeframes(PathBuf),
     /// Print the assembled market state.
     MarketState(ModelArgs),
+    /// Print the four-axis dashboard.
+    MarketDashboard(DashboardArgs),
     /// Render the last candles with the four axis panels.
     MarketChart(MarketChartArgs),
     /// Print one axis per timeframe.
@@ -109,6 +111,14 @@ impl WindowMode {
             _ => None,
         }
     }
+
+    /// The stable code used in the dashboard header.
+    pub(crate) const fn code(self) -> &'static str {
+        match self {
+            Self::Full => "full",
+            Self::Latest => "latest",
+        }
+    }
 }
 
 /// The path and input window shared by the model analysis commands.
@@ -124,6 +134,17 @@ impl ModelArgs {
     pub(crate) fn new(path: PathBuf, window: WindowMode) -> Self {
         Self { path, window }
     }
+}
+
+/// A parsed `market-dashboard` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DashboardArgs {
+    /// The M1 source CSV.
+    pub(crate) path: PathBuf,
+    /// The input window.
+    pub(crate) window: WindowMode,
+    /// Whether to print the numeric JSON view instead of the text dashboard.
+    pub(crate) json: bool,
 }
 
 /// A parsed `model-series` command.
