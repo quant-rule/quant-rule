@@ -8,6 +8,7 @@
 use std::path::PathBuf;
 
 use super::chart::parse_market_chart_arguments;
+use super::dashboard::parse_dashboard_arguments;
 use super::fetch::parse_fetch_arguments;
 use super::model::parse_model_series_arguments;
 use super::research::parse_research_arguments;
@@ -40,6 +41,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "candles-tolerant" => path_command(rest, "candles-tolerant", Command::CandlesTolerant),
         "timeframes" => path_command(rest, "timeframes", Command::Timeframes),
         "market-state" => parse_model_command(rest, "market-state", Command::MarketState),
+        "market-dashboard" => {
+            let arguments = tokenize(rest)?;
+            parse_dashboard_arguments(&arguments).map(|args| Some(Command::MarketDashboard(args)))
+        }
         "events" => parse_model_command(rest, "events", Command::Events),
         "legs" => parse_model_command(rest, "legs", Command::Legs),
         "model-series" => {

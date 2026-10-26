@@ -13,6 +13,7 @@ mod export;
 mod fetch;
 mod labels;
 mod render;
+mod render_dashboard;
 mod render_series;
 mod render_state;
 mod source;

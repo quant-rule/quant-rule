@@ -2,8 +2,8 @@ use super::chart::parse_market_chart_arguments;
 use super::fetch::{parse_fetch_arguments, write_fetch_cap_warning};
 use super::parse::parse;
 use super::types::{
-    Axis, Command, FetchArgs, MarketChartArgs, ModelArgs, ModelSeriesArgs, ParseError,
-    ResearchExportArgs, StoreIngestArgs, StoreRemoveArgs, WindowMode,
+    Axis, Command, DashboardArgs, FetchArgs, MarketChartArgs, ModelArgs, ModelSeriesArgs,
+    ParseError, ResearchExportArgs, StoreIngestArgs, StoreRemoveArgs, WindowMode,
 };
 use std::path::PathBuf;
 
@@ -166,6 +166,30 @@ fn parses_the_market_state_commands() {
             PathBuf::from("data/example.csv"),
             WindowMode::Full,
         ))))
+    );
+}
+
+#[test]
+fn parses_the_market_dashboard_with_window_and_json() {
+    assert_eq!(
+        parse("market-dashboard data/example.csv --json --window latest"),
+        Ok(Some(Command::MarketDashboard(DashboardArgs {
+            path: PathBuf::from("data/example.csv"),
+            window: WindowMode::Latest,
+            json: true,
+        })))
+    );
+    assert_eq!(
+        parse("market-dashboard \"my data.csv\""),
+        Ok(Some(Command::MarketDashboard(DashboardArgs {
+            path: PathBuf::from("my data.csv"),
+            window: WindowMode::Full,
+            json: false,
+        })))
+    );
+    assert_eq!(
+        parse("market-dashboard"),
+        Err(ParseError::MissingPath("market-dashboard"))
     );
 }
 

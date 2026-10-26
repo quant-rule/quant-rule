@@ -305,7 +305,7 @@ pub(crate) fn run_model_series(
     writer.flush().map_err(RunError::Output)
 }
 
-fn load_model_run(path: &Path, window: WindowMode) -> Result<ModelRun, RunError> {
+pub(crate) fn load_model_run(path: &Path, window: WindowMode) -> Result<ModelRun, RunError> {
     let set = match window {
         WindowMode::Full => csv::load_full_timeframes(path),
         WindowMode::Latest => csv::load_timeframes(path),

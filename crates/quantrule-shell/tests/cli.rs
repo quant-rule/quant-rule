@@ -811,6 +811,179 @@ fn interactive_market_state_matches_non_interactive() {
 }
 
 #[test]
+fn market_dashboard_prints_the_exact_text_golden() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["market-dashboard", &path]);
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), include_str!("fixtures/dashboard.txt"));
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn market_dashboard_json_is_the_exact_numeric_golden() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["market-dashboard", &path, "--json"]);
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/dashboard.json")
+    );
+
+    let value: serde_json::Value =
+        serde_json::from_str(stdout_text(&output).trim()).expect("the dashboard is JSON");
+    assert_eq!(value["view_contract"], "2026-10-25");
+    assert_eq!(
+        value["dashboard_state"]["ladder"],
+        serde_json::json!([60, 300, 900, 3600])
+    );
+    let timeframes = value["dashboard_state"]["timeframes"]
+        .as_array()
+        .expect("timeframes is a list");
+    assert_eq!(timeframes.len(), 4);
+    let axes = timeframes[0]["axes"].as_array().expect("axes is a list");
+    assert_eq!(axes.len(), 4);
+    assert_eq!(axes[0]["axis"], "direction");
+    assert_eq!(axes[0]["position"]["kind"], "signed");
+    assert_eq!(axes[0]["size"]["kind"], "rank");
+    assert!(axes[0]["detail"]["bias_state"].is_string());
+    assert!(value["dashboard_state"]["cross_tf_state"]["aggregates"]["direction"].is_object());
+    assert!(value["dashboard_state"]["cross_tf_state"]["agreement"]["axes"].is_array());
+    assert!(value["dashboard_state"]["cross_tf_state"]["churn"]["churn_class"].is_string());
+}
+
+#[test]
+fn market_dashboard_is_deterministic_and_interactive_matches() {
+    let path = fixture("state_m1.csv");
+
+    let text = run(&["market-dashboard", &path]);
+    let text_again = run(&["market-dashboard", &path]);
+    let json = run(&["market-dashboard", &path, "--json"]);
+    let json_again = run(&["market-dashboard", &path, "--json"]);
+    assert_success(&text);
+    assert_success(&text_again);
+    assert_success(&json);
+    assert_success(&json_again);
+    assert_eq!(stdout_text(&text), stdout_text(&text_again));
+    assert_eq!(stdout_text(&json), stdout_text(&json_again));
+
+    let interactive_text = run_interactive(&format!("market-dashboard {path}\nquit\n"));
+    let interactive_json = run_interactive(&format!("market-dashboard {path} --json\nquit\n"));
+    assert_success(&interactive_text);
+    assert_success(&interactive_json);
+    assert_eq!(stdout_text(&text), stdout_text(&interactive_text));
+    assert_eq!(stdout_text(&json), stdout_text(&interactive_json));
+}
+
+#[test]
+fn market_dashboard_prints_absent_timeframes_without_a_zero() {
+    let path = fixture("single.csv");
+    let output = run(&["market-dashboard", &path]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    assert_eq!(text.matches("— no closed bar").count(), 6);
+    assert!(!text.contains(" 0%"));
+    assert!(text.contains("legend"));
+
+    let empty = run(&["market-dashboard", &fixture("empty.csv")]);
+    assert_success(&empty);
+    let empty_text = stdout_text(&empty);
+    assert_eq!(empty_text.matches("— no closed bar").count(), 8);
+    assert!(!empty_text.contains('─'), "an empty input drew a track");
+
+    let empty_json = run(&["market-dashboard", &fixture("empty.csv"), "--json"]);
+    assert_success(&empty_json);
+    let value: serde_json::Value =
+        serde_json::from_str(stdout_text(&empty_json).trim()).expect("the empty dashboard is JSON");
+    let timeframes = value["dashboard_state"]["timeframes"]
+        .as_array()
+        .expect("timeframes is a list");
+    assert_eq!(timeframes.len(), 4);
+    for timeframe in timeframes {
+        assert_eq!(timeframe["present"], false);
+        let axes = timeframe["axes"].as_array().expect("axes is a list");
+        assert_eq!(axes.len(), 4);
+        for axis in axes {
+            assert_eq!(axis["position"]["kind"], "undefined");
+            assert!(axis["position"]["reason_code"].is_u64());
+            assert_eq!(axis["size"]["kind"], "undefined");
+        }
+    }
+}
+
+#[test]
+fn market_dashboard_window_option_selects_the_input() {
+    let path = extended_state_csv("dashboard-window", 1_100);
+
+    let full = run(&["market-dashboard", &path, "--json"]);
+    let latest = run(&["market-dashboard", &path, "--json", "--window", "latest"]);
+    assert_success(&full);
+    assert_success(&latest);
+    let full_value: serde_json::Value =
+        serde_json::from_str(stdout_text(&full).trim()).expect("the full dashboard is JSON");
+    let latest_value: serde_json::Value =
+        serde_json::from_str(stdout_text(&latest).trim()).expect("the latest dashboard is JSON");
+    assert_eq!(
+        full_value["dashboard_state"]["timeframes"][0]["window_len"],
+        1_100
+    );
+    assert_eq!(
+        latest_value["dashboard_state"]["timeframes"][0]["window_len"],
+        1_000
+    );
+
+    let full_text = run(&["market-dashboard", &path]);
+    let latest_text = run(&["market-dashboard", &path, "--window", "latest"]);
+    assert_success(&full_text);
+    assert_success(&latest_text);
+    assert!(stdout_text(&full_text).contains("window=full"));
+    assert!(stdout_text(&latest_text).contains("window=latest"));
+}
+
+#[test]
+fn market_dashboard_refuses_bad_arguments() {
+    let path = fixture("state_m1.csv");
+
+    let missing = run(&["market-dashboard"]);
+    assert_failure(&missing);
+    assert!(stderr_text(&missing).contains("missing CSV path"));
+
+    let bad_window = run(&["market-dashboard", &path, "--window", "bogus"]);
+    assert_failure(&bad_window);
+    assert!(stderr_text(&bad_window).contains("--window expects full or latest"));
+
+    let repeated_json = run(&["market-dashboard", &path, "--json", "--json"]);
+    assert_failure(&repeated_json);
+    assert!(stderr_text(&repeated_json).contains("--json was supplied twice"));
+
+    let unknown = run(&["market-dashboard", &path, "--bogus"]);
+    assert_failure(&unknown);
+    assert!(stderr_text(&unknown).contains("unknown option '--bogus'"));
+
+    let second_path = run(&["market-dashboard", &path, &path]);
+    assert_failure(&second_path);
+    assert!(stderr_text(&second_path).contains("unexpected argument"));
+}
+
+#[test]
+fn market_dashboard_has_no_strategy_vocabulary() {
+    let path = fixture("state_m1.csv");
+    let text = stdout_text(&run(&["market-dashboard", &path])).to_lowercase();
+    let json = stdout_text(&run(&["market-dashboard", &path, "--json"])).to_lowercase();
+    for forbidden in [
+        "coiling",
+        "ignition",
+        "exhaust",
+        "confidence",
+        "probability",
+        "recommend",
+        "strategy",
+    ] {
+        assert!(!text.contains(forbidden), "text contains {forbidden}");
+        assert!(!json.contains(forbidden), "JSON contains {forbidden}");
+    }
+}
+
+#[test]
 fn axis_prints_one_labeled_line_per_timeframe() {
     let path = fixture("state_m1.csv");
     let output = run(&["axis", &path, "structure"]);

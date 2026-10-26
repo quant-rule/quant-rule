@@ -3,6 +3,11 @@
 //! The model publishes numbers; the shell maps them to words. Every mapping is
 //! fixed, so the same numeric output renders as the same text on every run.
 
+use quantrule_model::dashboard::{
+    AxisReadiness, BiasContinuity, BiasState, ChurnClass, Domain, MajorityClass, PaceDirection,
+    Stage, TenureOriginKind, TransitionKind,
+};
+
 pub(crate) fn timeframe_label(seconds: u64) -> &'static str {
     match seconds {
         60 => "1m",
@@ -165,5 +170,118 @@ pub(crate) fn target_basis_label(code: u8) -> &'static str {
         1 => "confirmed_level",
         2 => "atr_fallback",
         _ => "unknown",
+    }
+}
+
+/// The dashboard's six progression anchors, in text form.
+pub(crate) fn dashboard_stage_label(stage: Stage) -> &'static str {
+    match stage {
+        Stage::Against => "against",
+        Stage::Early => "early",
+        Stage::EarlyMid => "early_mid",
+        Stage::Mid => "mid",
+        Stage::Late => "late",
+        Stage::Terminal => "terminal",
+    }
+}
+
+/// The dashboard's stable JSON code for a progression anchor.
+pub(crate) fn dashboard_stage_code(stage: Stage) -> &'static str {
+    match stage {
+        Stage::Against => "Against",
+        Stage::Early => "Early",
+        Stage::EarlyMid => "EarlyMid",
+        Stage::Mid => "Mid",
+        Stage::Late => "Late",
+        Stage::Terminal => "Terminal",
+    }
+}
+
+/// The stable JSON code for a signed-value domain.
+pub(crate) fn domain_code(domain: Domain) -> &'static str {
+    match domain {
+        Domain::DirectionalBias => "directional_bias",
+        Domain::Acceleration => "acceleration",
+        Domain::StructureRelation => "structure_relation",
+    }
+}
+
+/// The stable JSON code for a visual readiness flag.
+pub(crate) fn axis_readiness_code(readiness: AxisReadiness) -> &'static str {
+    match readiness {
+        AxisReadiness::Solid => "solid",
+        AxisReadiness::Dashed => "dashed",
+    }
+}
+
+pub(crate) fn bias_state_label(state: BiasState) -> &'static str {
+    match state {
+        BiasState::Bullish => "bullish",
+        BiasState::Bearish => "bearish",
+        BiasState::Neutral => "neutral",
+        BiasState::Undefined => "undefined",
+    }
+}
+
+pub(crate) fn bias_continuity_label(continuity: BiasContinuity) -> &'static str {
+    match continuity {
+        BiasContinuity::Continuous => "continuous",
+        BiasContinuity::Interrupted => "interrupted",
+        BiasContinuity::Undefined => "undefined",
+    }
+}
+
+pub(crate) fn tenure_origin_label(kind: TenureOriginKind) -> &'static str {
+    match kind {
+        TenureOriginKind::None => "none",
+        TenureOriginKind::FirstEstablishment => "first_establishment",
+        TenureOriginKind::Reversal => "reversal",
+        TenureOriginKind::NewOriginAfterUnavailable => "new_origin_after_unavailable",
+    }
+}
+
+pub(crate) fn pace_direction_label(direction: PaceDirection) -> &'static str {
+    match direction {
+        PaceDirection::WithLeg => "with_leg",
+        PaceDirection::AgainstLeg => "against_leg",
+        PaceDirection::Flat => "flat",
+    }
+}
+
+pub(crate) fn majority_label(class: MajorityClass) -> &'static str {
+    match class {
+        MajorityClass::Bullish => "bullish",
+        MajorityClass::Bearish => "bearish",
+        MajorityClass::Neutral => "neutral",
+    }
+}
+
+pub(crate) fn churn_class_label(class: ChurnClass) -> &'static str {
+    match class {
+        ChurnClass::Building => "Building",
+        ChurnClass::Holding => "Holding",
+        ChurnClass::Unstable => "Unstable",
+    }
+}
+
+/// The stable name of a current Structure reference kind.
+pub(crate) fn reference_kind_label(code: u8) -> &'static str {
+    match code {
+        1 => "ema20",
+        2 => "ema50",
+        3 => "ema200",
+        4 => "minor_high",
+        5 => "minor_low",
+        6 => "major_high",
+        7 => "major_low",
+        _ => "unknown",
+    }
+}
+
+/// The stable JSON code for a transition kind.
+pub(crate) fn transition_kind_code(kind: TransitionKind) -> &'static str {
+    match kind {
+        TransitionKind::CompactState => "compact_state",
+        TransitionKind::ProgressionStage => "progression_stage",
     }
 }

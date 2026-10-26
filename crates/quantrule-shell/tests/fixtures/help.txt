@@ -4,6 +4,9 @@ QuantRule shell commands:
   timeframes <csv-path>         Build M5/M15/H1 from an M1 CSV; print NDJSON and a report.
   market-state <csv-path>       Print the four-timeframe market state as JSON.
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  market-dashboard <csv-path>   Print the four-axis dashboard, one row per timeframe.
+      --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+      --json                    Print the numeric dashboard state as one JSON object.
   market-chart <csv-path>       Render the last candles and four axis panels as PNG.
       --png <path>              Required PNG target.
       --timeframe <tf>          Chart timeframe: 1m, 5m, 15m, or 1h (default 1m).
@@ -77,6 +80,7 @@ Non-interactive: quantrule candles <csv-path>
 Non-interactive: quantrule candles-tolerant <csv-path>
 Non-interactive: quantrule timeframes <csv-path>
 Non-interactive: quantrule market-state <csv-path> [--window full|latest]
+Non-interactive: quantrule market-dashboard <csv-path> [--window full|latest] [--json]
 Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
 Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
 Non-interactive: quantrule events <csv-path> [--window full|latest]

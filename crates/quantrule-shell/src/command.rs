@@ -6,6 +6,7 @@
 //! execution path behind this vocabulary.
 
 mod chart;
+mod dashboard;
 mod data;
 mod dispatch;
 mod fetch;
@@ -22,6 +23,7 @@ mod types;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use self::dashboard::{parse_dashboard_arguments, run_market_dashboard};
 pub(crate) use self::dispatch::{execute, parse_argv};
 pub(crate) use self::parse::parse;
 pub(crate) use self::types::{Axis, Command, ParseError};

@@ -22,6 +22,8 @@ cargo run -p quantrule-shell -- candles-tolerant path/to/candles.csv
 cargo run -p quantrule-shell -- timeframes path/to/m1.csv
 cargo run -p quantrule-shell -- market-state path/to/m1.csv
 cargo run -p quantrule-shell -- market-state path/to/m1.csv --window latest
+cargo run -p quantrule-shell -- market-dashboard path/to/m1.csv
+cargo run -p quantrule-shell -- market-dashboard path/to/m1.csv --window latest --json
 cargo run -p quantrule-shell -- market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
 cargo run -p quantrule-shell -- axis path/to/m1.csv direction
 cargo run -p quantrule-shell -- events path/to/m1.csv
@@ -51,6 +53,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `candles-tolerant` | `<csv-path>` | Up to the last 1000 valid candles as NDJSON, plus a quality report on stderr |
 | `timeframes` | `<csv-path>` | M1, M5, M15, and H1 as NDJSON, plus an aggregation report on stderr |
 | `market-state` | `<csv-path>` [`--window full\|latest`] | The four-timeframe market state as one JSON object |
+| `market-dashboard` | `<csv-path>` [`--window full\|latest`] [`--json`] | The four-axis text dashboard, or the numeric dashboard state as one JSON object |
 | `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars; `--window latest` supports inputs above the 100k cap |
 | `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
@@ -196,11 +199,35 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 `model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, window start and length, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=1000` and defaults to 1000; `--timeframe` defaults to the whole ladder. Events remain a separate command because a bar can have several events. The default input window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe.
 
+### Market-dashboard contract
+
+`market-dashboard <csv-path> [--window full|latest] [--json]` prints one instrument's four-axis dashboard over the fixed M1/M5/M15/H1 ladder. It calls the model's `DashboardState`; the shell only formats the published numbers. The default input is the full series up to 100,000 M1 candles; `--window latest` retains the last 1,000 candles per timeframe.
+
+The text output has:
+
+| Part | Content |
+|---|---|
+| Header | Window, ladder, model and view-contract versions |
+| `as-of` | The open time of each timeframe's latest closed bar, or `— no closed bar` |
+| `cross-TF agreement` | The strict-majority count over Direction, Momentum, and Structure, with coverage |
+| `churn` | The maximum 50-bar state-change count, its sources, threshold, history completeness, and class |
+| Track header and legend | The four tracks and the glyph key |
+| One row per timeframe | Four cells; a missing timeframe prints `— no closed bar` |
+| `diagnostics` | Volatility and participation ratios, the numeric context code, and the per-timeframe consensus |
+| `evidence` | The axis-specific details, with current Structure reference prices on a `levels` line |
+| `readings` | The latest dated Event or Transition per axis, or `—` |
+
+The four tracks are identical and never reversed. The position is the dot's slot in an eleven-slot track; the three-step radius is `·` small, `•` medium, or `●` large; readiness is `■` solid or `□` dashed. An undefined position has no dot and prints `— r<code>` with the model's unavailable reason. A missing size prints `—`. A valid zero prints `0%`; it is never shown as absence.
+
+`--json` prints one object with `model_version`, `view_contract`, and the numeric `dashboard_state`. Enum codes are stable strings; numbers keep full precision; a missing value is `null` or `{"kind":"undefined","reason_code":n}`. The JSON carries the full per-timeframe state, readings, cross-timeframe aggregates, agreement, and churn. It contains no labels beyond the stable enum codes and no strategy vocabulary.
+
+The text and JSON outputs are deterministic: the same input, window, and configuration print the same bytes, interactively or non-interactively. The view is descriptive; it is not a strategy, forecast, entry, exit, stop, target, confidence, probability, or recommendation.
+
 ### Market chart
 
 `market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>] [--window full|latest]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The default window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe and lets a larger fetch be charted. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
 
-The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `market-chart`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
+The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `market-dashboard`, `market-chart`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
 
 ### Fetch contract
 
