@@ -5,7 +5,7 @@
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
 - Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (merged, PR #134); `feat/126-bias-tenure-activity` in `quant-rule--bias-tenure-activity` (merged, PR #135); `feat/127-progression-pace` in `quant-rule--progression-pace` (merged, PR #136); `feat/128-dashboard-readings` in `quant-rule--dashboard-readings` (merged, PR #137); `feat/129-dashboard-aggregates` in `quant-rule--dashboard-aggregates` (PR #138)
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices merged in [PR #135](https://github.com/quant-rule/quant-rule/pull/135) as `7aa9502`; Phase 5 Progression recent pace, average net displacement, and terminal freeze merged as `5da8ec8` in [PR #136](https://github.com/quant-rule/quant-rule/pull/136) after `verify` (1m5s) and `sync` (12s) passed. Phase 6 typed readings merged as `8bc02e5` in [PR #137](https://github.com/quant-rule/quant-rule/pull/137) after `verify` (1m7s) and `sync` (14s) passed. Phase 7 agreement and churn are implemented in [PR #138](https://github.com/quant-rule/quant-rule/pull/138); local verification passes and CI is pending.
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices merged in [PR #135](https://github.com/quant-rule/quant-rule/pull/135) as `7aa9502`; Phase 5 Progression recent pace, average net displacement, and terminal freeze merged as `5da8ec8` in [PR #136](https://github.com/quant-rule/quant-rule/pull/136) after `verify` (1m5s) and `sync` (12s) passed. Phase 6 typed readings merged as `8bc02e5` in [PR #137](https://github.com/quant-rule/quant-rule/pull/137) after `verify` (1m7s) and `sync` (14s) passed. Phase 7 agreement and churn are implemented in [PR #138](https://github.com/quant-rule/quant-rule/pull/138), with local verification passing and `verify` (48s) passing.
 
 ## Intent and boundary
 
@@ -104,7 +104,7 @@ Boundary of this entry:
     - A code-bearing bar count per axis, capped once every axis reaches the 50-bar window, so an axis with no code-bearing history is not read as a measured zero.
 43. Wired `agreement` and `churn` into `DashboardState::from_run`, removed the `pending_agreement` and `pending_churn` placeholders, and updated the module and method documentation. No axis formula, per-timeframe value, command contract, or store schema changed.
 44. Added 21 agreement/churn tests in `cross_tf/tests.rs`: strict majority, exact half, three-way split, inclusive neutral corridor, missing position, non-finite position, absent timeframe, minimum coverage, three-axis assembly, threshold, sources/tie ordering, no code-bearing history, short series, empty run, code-bearing counts, view-level consistency, and causality for both summaries. The view-level test also cross-checks the derivation against the published per-timeframe bars.
-45. Committed Phase 7 as `202b5cc`, pushed `feat/129-dashboard-aggregates`, and opened [PR #138](https://github.com/quant-rule/quant-rule/pull/138). CI is pending; merge authorization has not been requested.
+45. Committed Phase 7 as `202b5cc`, pushed `feat/129-dashboard-aggregates`, and opened [PR #138](https://github.com/quant-rule/quant-rule/pull/138). `verify` passed in 48s; merge authorization has not been requested.
 
 ## Decisions and corrections
 
@@ -254,7 +254,7 @@ Observed Phase 7 evidence, run on `feat/129-dashboard-aggregates` (2026-10-26):
 - The churn tests cover `churn_ties_publish_every_source_sorted_by_timeframe_then_axis`, `an_axis_without_code_bearing_history_is_not_a_source`, `history_requires_every_configured_timeframe_and_axis`, `a_short_present_series_is_building`, and `the_threshold_is_at_or_above_and_the_default_is_six`.
 - The causality tests `agreement_at_an_earlier_bar_ignores_later_bars` and `churn_evidence_at_an_earlier_bar_ignores_later_bars` compare a full run with a prefix run at the same view bar; the existing `reordered_inputs_and_ladders_are_deterministic` test covers the ladder and input ordering.
 - Contract §8.2 now states that a missing or non-finite axis position is excluded, not neutral; §8.3 now states the four compared axes, the zero-code exclusion, the source sort, and that every configured ladder member needs a full history.
-- Commit `202b5cc`; branch `feat/129-dashboard-aggregates`; [PR #138](https://github.com/quant-rule/quant-rule/pull/138) open. CI checks are pending.
+- Commit `202b5cc`; branch `feat/129-dashboard-aggregates`; [PR #138](https://github.com/quant-rule/quant-rule/pull/138) open. `verify` passed in 48s.
 
 Observed Phase 6 evidence, run on `feat/128-dashboard-readings` (2026-10-26):
 
@@ -272,7 +272,7 @@ Observed Phase 6 evidence, run on `feat/128-dashboard-readings` (2026-10-26):
 
 Not verified / not run:
 
-- No Phase 7 merge yet; merge authorization is pending. CI checks were pending when this entry was updated.
+- No Phase 7 merge yet; merge authorization is pending.
 - No shell `market-dashboard` command, text rendering, JSON output, or dashboard CLI run; those are #130 and #131.
 - No independent agent review. The investigation, implementation, and verification were sequential in one session; that is disclosed here.
 
