@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133); the assembler and command are not started. Not Verified.
+- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134); Direction tenure/activity, Progression pace, readings, agreement/churn, and the command are not started. Not Verified.
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -24,10 +24,10 @@ This is a descriptive view. It is not a strategy, a forecast, an entry/exit, a s
 
 ## 2. Current state
 
-- Repository base: `main` at `8228e86` when the plan was drafted (it was originally drafted against `231ac03`; the later commits are documentation-only changes to `AGENTS.md` and docs, plus tests already merged; no source path used by this plan changed). Phase 2 starts from `fb4918c` after PR #132.
+- Repository base: `main` at `8228e86` when the plan was drafted (it was originally drafted against `231ac03`; the later commits are documentation-only changes to `AGENTS.md` and docs, plus tests already merged; no source path used by this plan changed). Phase 2 starts from `fb4918c` after PR #132; Phase 3 starts from `001b0d7` after PR #133.
 - `ModelRun` already computes one candle series per timeframe and the model is single-instrument. There is no pair map.
 - `MarketState` publishes latest per-timeframe numeric snapshots, readiness codes, reasons, size percentiles, events, and cross-timeframe aggregates.
-- Direction, Momentum, Structure, and Progression publish the raw values listed in section 1. Phase 2 adds the `DashboardState` value types; there is still no assembler, bias tenure, recent pace, per-axis typed readings, or cross-timeframe agreement/churn view.
+- Direction, Momentum, Structure, and Progression publish the raw values listed in section 1. Phase 2 adds the `DashboardState` value types. Phase 3 adds the pure assembler and `TimeframeState::at`; there is still no bias tenure, recent pace, per-axis typed readings, or derived cross-timeframe agreement/churn.
 - The shell has `market-state`, `market-chart`, `axis`, `events`, `legs`, and `model-series`. There is no dashboard command.
 - The store persists the existing numeric model fields. This plan adds no column and no migration.
 - The multi-pair surface does not exist and is not introduced.
@@ -239,7 +239,7 @@ The text renderer uses the same `DashboardState`. It adds labels, track glyphs, 
 | Parent | #122 | Container | — | none |
 | 1 | #123 | Contract | — | `docs/123-dashboard-view-contract` / [PR #132](https://github.com/quant-rule/quant-rule/pull/132) |
 | 2 | #124 | View types | #123 | `feat/124-dashboard-view-types` / [PR #133](https://github.com/quant-rule/quant-rule/pull/133) |
-| 3 | #125 | Core assembler | #124 | `feat/125-dashboard-assembler` / PR 3 |
+| 3 | #125 | Core assembler | #124 | `feat/125-dashboard-assembler` / [PR #134](https://github.com/quant-rule/quant-rule/pull/134) |
 | 4 | #126 | Direction tenure + Structure activity | #125 | `feat/126-bias-tenure-activity` / PR 4 |
 | 5 | #127 | Progression recent pace | #125 | `feat/127-progression-pace` / PR 5 |
 | 6 | #128 | Readings | #125 | `feat/128-dashboard-readings` / PR 6 |
@@ -290,7 +290,7 @@ Limitations:
 
 - The 100k timing is a smoke measurement, not a formal benchmark; no benchmark harness exists.
 - The board's `State`/`Item type` fields are workflow-owned; the agent does not set them.
-- The Phase 2 value types and their unit tests pass. The assembler, shell command, and end-to-end tests are pending; no end-to-end result is claimed.
+- The Phase 2 value types and the Phase 3 core assembler pass their unit tests: `cargo test` reports 338 model unit tests and 33 model doctests, 0 failures. The view-only refinements, shell command, and end-to-end tests are pending; no end-to-end result is claimed.
 
 ## 11. Verification checklist
 
@@ -303,11 +303,11 @@ Limitations:
 | 5 | 2 | `AxisValue` four variants; domains exact | `dashboard::tests::axis_values_keep_their_variant_and_domain`, `domains_stay_distinct` | Signed/Rank/Ordinal/Undefined | [x] |
 | 6 | 2 | Six stage anchors; no arithmetic | `dashboard::tests::stages_are_the_six_contract_codes` | Against…Terminal | [x] |
 | 7 | 2 | Public items documented | `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — no warnings | No warnings | [x] |
-| 8 | 3 | Four positions map correctly | Unit tests | As specified | [ ] |
-| 9 | 3 | Readiness maps to solid/dashed with reason | Unit tests | Correct | [ ] |
-| 10 | 3 | Missing timeframe typed absence | Unit tests | No zero | [ ] |
-| 11 | 3 | Repeated/reordered determinism | Tests | Identical | [ ] |
-| 12 | 3 | Causality at bar `t` | Test | Unchanged by future bars | [ ] |
+| 8 | 3 | Four positions map correctly | `dashboard::assemble::tests::all_four_axes_map_their_positions_sizes_and_readiness`; Direction signed, Momentum acceleration, Structure score, Progression ordinal | As specified | [x] |
+| 9 | 3 | Readiness maps to solid/dashed with reason | `dashboard::assemble::tests::readiness_maps_the_exact_model_code`, `a_single_candle_builds_an_unavailable_state` | Correct | [x] |
+| 10 | 3 | Missing timeframe typed absence | `dashboard::assemble::tests::missing_timeframe_is_typed_absence`, `an_empty_run_builds_one_absent_row_per_ladder_member` | No zero | [x] |
+| 11 | 3 | Repeated/reordered determinism | `dashboard::assemble::tests::reordered_inputs_and_ladders_are_deterministic` | Identical | [x] |
+| 12 | 3 | Causality at bar `t` | `dashboard::assemble::tests::a_future_bar_does_not_change_a_past_state` — appended and altered future bars leave the earlier state unchanged | Unchanged by future bars | [x] |
 | 13 | 4 | Direction neutral pause: `neutral`, tenure 46 | Test | Correct | [ ] |
 | 14 | 4 | Direction reversal resets tenure | Test | Tenure 1 | [ ] |
 | 15 | 4 | Direction unavailable freezes tenure and marks continuity interrupted | Test | Correct | [ ] |

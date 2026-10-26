@@ -4,8 +4,8 @@
 - Tool: OpenCode, DeepSeek V4.1 Flash 1017
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
-- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (Phase 2)
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132. Phase 2 value types are implemented in PR #133; local checks and CI pass; no Phase 2 merge.
+- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (Phase 3)
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler implemented and locally verified; committed as `15da01d` in [PR #134](https://github.com/quant-rule/quant-rule/pull/134), with `verify` and `sync` passing. No Phase 3 merge yet.
 
 ## Intent and boundary
 
@@ -16,6 +16,7 @@ Boundary of this entry:
 - Phase 0 setup: parent and sub-issues, project board statuses, first worktree, approved plan, and this log.
 - Phase 1: the `DashboardState` contract document and its `docs/README.md` index entry. The human approved the contract on 2026-10-25; it is marked `Approved`; PR #132 is merged.
 - Phase 2: the `quantrule-model::dashboard` value types and their unit tests. No assembler, shell command, or rendered output.
+- Phase 3: the core `DashboardState` assembler and its unit tests. No bias tenure, recent pace, Structure activity, typed readings, derived agreement/churn, shell command, or rendered output.
 - No repository change on `main`. The project directory remains on `main`; each phase is worked in its own worktree.
 
 ## Work performed
@@ -42,7 +43,19 @@ Boundary of this entry:
     - `CrossTfState`, `LegDirectionReading`, `CrossTfAgreement`, `AxisAgreement`, `Coverage`, `CrossTfChurn`, `ChurnSource`, `ChurnClass`, `MajorityClass`.
     - Constants for the fixed 3-bar recent-pace window and the default churn/coverage thresholds.
     - The module is types only: no I/O, candle computation, axis formula, assembler, or rendering.
-11. Committed the types and tests as `fe97ddb`, pushed `feat/124-dashboard-view-types`, and opened [PR #133](https://github.com/quant-rule/quant-rule/pull/133). The `verify` and `sync` checks pass.
+11. Committed the types and tests as `fe97ddb`, pushed `feat/124-dashboard-view-types`, and opened [PR #133](https://github.com/quant-rule/quant-rule/pull/133). The `verify` and `sync` checks pass. PR #133 was merged as `001b0d7`.
+12. Removed the Phase 2 worktree, deleted the merged local and remote branch, updated `main`, and created `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` from `001b0d7`; moved the session to that worktree. Set #125 to `In Progress` with start date `2026-10-26`.
+13. Read-only investigation for Phase 3: inspected `ModelRun`, `TimeframeModel`, `ModelBar`, `MarketState`, the four axis bars, `ContextBar`, `CrossTimeframeAggregates`, `ReferenceSet`, `EventRecord`, and `ProgressionLeg`.
+14. Added `crates/quantrule-model/src/dashboard/assemble.rs`:
+    - `DashboardState::from_run(&ModelRun, &[u64], &DashboardConfig)`.
+    - `TimeframeState::at(&TimeframeModel, bar)` for a causal per-bar view; the loaded window is `0..=bar`.
+    - The four axis positions, the initial sizes, the exact readiness mapping, the diagnostics, the timeframe consensus, and typed absence.
+    - An absent row for every ladder member without a closed bar, including the run's structure scale when one is available.
+    - Ladder normalization by ascending sort and deduplication.
+    - The cross-timeframe envelope: configured/present timeframes, existing aggregates, published leg directions, configured thresholds, and coverage. Agreement and churn remain explicit envelopes until their work item.
+15. Added `crates/quantrule-model/src/dashboard/assemble/tests.rs` with 16 tests: envelope mapping, all four axis positions/sizes/readiness, stage anchors, missing rows, empty run, single candle, readiness variants, future-bar causality (appended and altered), reordered inputs/ladders, zero preservation, momentum force without acceleration, progression origin reason, level-count availability, configured thresholds, and the absent-row structure scale.
+16. Added the `mod assemble;` boundary and updated the dashboard module documentation. No existing axis formula, command, or store schema was changed.
+17. Committed the assembler and tests as `15da01d`, pushed `feat/125-dashboard-assembler`, and opened [PR #134](https://github.com/quant-rule/quant-rule/pull/134). `verify` passed in 1m5s; `sync` passed in 13s.
 
 ## Decisions and corrections
 
@@ -63,6 +76,15 @@ Suggestions rejected or corrected during planning:
 - **Level interaction events as persistent Level readings** — corrected. The dated history holds Event/Transition readings; Level references are current EMA/confirmed-swing evidence in Structure detail.
 - **Five progression anchors** — rejected. QuantRule publishes six ordinal codes, including `against`; the visual retains six.
 - **Changing existing command contracts** — rejected. The dashboard is a new command; `market-state`, `axis`, `events`, `legs`, `model-series`, and `market-chart` remain unchanged.
+
+Phase 3 implementation choices, made inside the approved contract:
+
+- **Ladder normalized at the assembly boundary.** `DashboardState::from_run` sorts the ladder ascending and removes duplicates before building rows. Two callers that pass the same set in a different order, or repeat a member, get the same view, the same row order, and the same coverage denominator. Normalizing at the boundary makes determinism a property of the view rather than a convention the caller must remember.
+- **`window_len` is `bar + 1`, not the loaded series length.** `TimeframeState::at` reports the window actually observed up to that bar, so the state at bar `t` is identical whether the run contained later bars or ended at `t`. This is what lets the causality test compare a full run against a prefix run at the same bar.
+- **A past bar view is the test surface.** `TimeframeState::at` is the per-bar entry point; `from_run` uses it for the latest bar. There is no second code path that could drift.
+- **Typed absence keeps the run's meaning.** A ladder member without a closed bar gets an explicit absent row: `present = false`, nulls rather than zeros, `Readiness::Unavailable`, and the four axis detail variants. Its Structure detail carries the scale the run actually used; the model default major scale is used only when the entire run is empty, where no measurement exists to describe.
+- **Progression absence names the stage's own blocker.** When the model reports progress but withholds the stage, the view reuses the leg's state: origin unconfirmed, no target, or target unstable. It does not collapse every absent stage into insufficient bars.
+- **Agreement and churn stay explicit envelopes.** The core assembler publishes real coverage, the configured thresholds, the existing aggregate, and the published leg directions, but no per-axis majority and no churn verdict. A missing timeframe is not neutral and is not counted. The envelopes exist so consumers have stable types, but nothing in Phase 3 claims agreement or churn that has not been derived.
 
 ## Verification and evidence
 
@@ -90,12 +112,25 @@ Observed Phase 0 and Phase 1 evidence:
 - Commit `fe97ddb`; branch `feat/124-dashboard-view-types`; PR #133 open.
 - `gh pr checks 133 --repo quant-rule/quant-rule --watch` — `verify` passed in 48s; `sync` passed in 10s.
 
+Observed Phase 3 evidence, run on `feat/125-dashboard-assembler`:
+
+- `cargo fmt --all -- --check` — passed.
+- `cargo clippy --all-targets -- -D warnings` — passed with no warnings.
+- `cargo test` — 338 model unit tests passed, including the 16 `dashboard::assemble` tests; 33 model doctests passed; 182 shell unit tests and all integration tests passed; 0 failures; 3 ignored benchmarks. The suite includes the pre-existing goldens for Direction, Momentum, Structure, Progression, readings, context, and events, so the additive view did not move an existing axis value.
+- `cargo test -p quantrule-model dashboard::assemble --lib` — 16 passed: envelope mapping, all four axis mapping, stage anchors, missing rows, empty run, single candle, readiness variants, neutral-corridor bounds, future-bar causality (appended and altered), reordered inputs and ladders, zero preservation, momentum force without acceleration, progression origin reason, level-count availability, configured thresholds, and absent-row structure scale.
+- `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — passed with no warnings; the two new doc examples compile and run in the doctest suite.
+- `git diff --check` — passed.
+- Plan verification rows 8–12 are checked for Phase 3.
+- Commit `15da01d`; branch `feat/125-dashboard-assembler`; PR #134 open.
+- `gh pr checks 134 --repo quant-rule/quant-rule --watch` — `verify` passed in 1m5s; `sync` passed in 13s.
+
 Not verified / not run:
 
-- No assembler, shell command, text rendering, JSON output, or dashboard CLI run.
-- No Phase 2 merge yet.
-- No bias tenure, recent pace, readings, agreement, churn, or shell golden tests; those are later sub-issues.
-- No independent agent review. The planning and implementation roles were sequential in one session; that is disclosed here.
+- No Direction bias tenure or continuity, Progression recent pace, Structure activity, or per-axis typed readings; those are #126, #127, and #128.
+- No derived cross-timeframe agreement majority or churn verdict; those are #129. Phase 3 publishes only the envelope, coverage, and configured thresholds.
+- No shell `market-dashboard` command, text rendering, JSON output, or dashboard CLI run; those are #130 and #131.
+- No Phase 3 merge yet.
+- No independent agent review. The investigation, implementation, and verification were sequential in one session; that is disclosed here.
 
 ## Learning
 
@@ -107,3 +142,7 @@ Not verified / not run:
 - Cross-timeframe majority needs coverage and a minimum valid-reading rule; otherwise one timeframe can masquerade as agreement.
 - A maximum state-change count across different durations is churn evidence, not a universal market-stability verdict.
 - A types-only slice is useful when it fixes names and numeric code domains before the assembler. Its tests check variant and code mappings, not values that the assembler has not produced yet.
+- Normalizing the timeframe ladder at the assembly boundary turns an accidental dependency on caller order into a tested invariant. If the view is meant to be deterministic, the view should own the normalization rather than trusting every caller to sort.
+- A view of bar `t` must report the window up to `t`, not the run's total length. If it reports the latter, a full run and a prefix run produce different views of the same bar, and the causality test cannot prove what it claims.
+- An envelope that carries real coverage and configured thresholds but no verdict is honest at a phase boundary. It keeps the type stable for downstream work without publishing a majority the data has not earned; the doc comment states that no consumer should read it as a verdict.
+- Typed absence is more than nulls. An absent row still has to say which reason code applies, which readiness it has, and which scale the run used, or the renderer will invent an answer.
