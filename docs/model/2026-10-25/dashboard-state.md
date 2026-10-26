@@ -303,7 +303,7 @@ Each event appears in exactly one axis list. This is a display assignment, not a
 ### 7.3 Ordering and retention
 
 - Only events with `available_bar_index <= current bar` are included.
-- Sort by `available_bar_index`, then `occurred_bar_index`, then a fixed key `(event_type_code, event_subtype_code, source_code, reference_code, primary_value)`.
+- On the same availability and occurrence bar an Event reading precedes a Transition reading. Events sort by a fixed key `(event_type_code, event_subtype_code, source_code, reference_code, primary_value)`, with `direction_code` and `reference_value` as final tie-breakers so batch order cannot change the result.
 - Keep the last 50 per axis, oldest first; trim the oldest.
 - Progression stage transitions are synthesized from the per-bar stage series and are dated at the bar the stage changes; they are available at that closed bar.
 - No event is upgraded in place or emitted twice.

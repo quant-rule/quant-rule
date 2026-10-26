@@ -3,10 +3,10 @@
 //! This module maps the per-bar model values in a [`ModelRun`] into
 //! [`DashboardState`]. It owns the axis positions, sizes, readiness, typed
 //! absence, the per-timeframe envelope, and the cross-timeframe envelope. The
-//! Direction tenure, Structure activity, Structure reference prices, and
-//! Progression recent pace are view-only measurements derived here from
-//! published values; they never feed back into an axis. Typed readings,
-//! agreement, and churn are filled by their own work items.
+//! Direction tenure, Structure activity, Structure reference prices,
+//! Progression recent pace, and the per-axis dated readings are view-only
+//! measurements derived here from published values; they never feed back into
+//! an axis. Agreement and churn are filled by their own work item.
 //!
 //! The module is pure: it reads the run, the explicit ladder, and the
 //! configuration it is given. It performs no I/O, reads no clock, and uses no
@@ -14,6 +14,7 @@
 
 mod direction;
 mod progression;
+mod readings;
 mod structure;
 
 use crate::kernel::{Readiness, UnavailableReason};
@@ -23,6 +24,7 @@ use crate::run::{ModelBar, ModelRun, TimeframeModel};
 
 use self::direction::direction_tenure;
 use self::progression::progression_axis;
+use self::readings::axis_readings;
 use self::structure::{level_references, structure_activity};
 
 use super::{
@@ -119,7 +121,9 @@ impl TimeframeState {
     ///
     /// `bar` is a zero-based position in `timeframe`. The loaded window is
     /// reported as `0..=bar`, so the value at a bar does not depend on a later
-    /// bar of the same model. This is the per-timeframe entry point used by the
+    /// bar of the same model. The per-axis dated readings are filtered to the
+    /// events knowable at `bar`, so appending a later event cannot change an
+    /// earlier view. This is the per-timeframe entry point used by the
     /// assembler and by causality tests.
     ///
     /// Returns `None` when `bar` is not a closed bar of `timeframe`.
@@ -151,12 +155,16 @@ impl TimeframeState {
     #[must_use]
     pub fn at(timeframe: &TimeframeModel, bar: usize) -> Option<Self> {
         let model_bar = timeframe.bar(bar)?;
-        let axes = vec![
+        let mut axes = vec![
             direction_axis(timeframe, &model_bar),
             momentum_axis(&model_bar),
             structure_axis(timeframe, &model_bar),
             progression_axis(timeframe, &model_bar),
         ];
+        let readings = axis_readings(timeframe.events(), timeframe.progression().bars(), bar);
+        for (axis, dated) in axes.iter_mut().zip(readings) {
+            axis.readings = dated;
+        }
 
         Some(Self {
             timeframe_secs: model_bar.timeframe_secs,

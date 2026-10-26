@@ -5,7 +5,7 @@ use super::{
     DashboardState, Domain, Readiness, TimeframeState, UnavailableReason,
     absent_structure_scale_code, rank_size, signed_position,
 };
-use crate::dashboard::Stage;
+use crate::dashboard::{DatedReading, Stage};
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
 use crate::run::{ModelRun, TimeframeModel};
@@ -865,4 +865,75 @@ fn a_missing_row_carries_the_configured_structure_scale() {
         "the absent row carries the scale the present run used"
     );
     assert_eq!(absent_structure_scale_code(&run), PivotScale::Minor.code());
+}
+
+#[test]
+fn the_dated_readings_land_on_their_axes() {
+    let candles = fixture_candles();
+    let timeframe = model(&candles, 300);
+    let latest = timeframe.len() - 1;
+    let state = TimeframeState::at(&timeframe, latest).expect("the latest state");
+
+    let direction = axis(&state, AxisCode::Direction);
+    let momentum = axis(&state, AxisCode::Momentum);
+    let structure = axis(&state, AxisCode::Structure);
+    let progression = axis(&state, AxisCode::Progression);
+
+    assert!(
+        direction.readings.is_empty(),
+        "the fixture publishes no Direction compact event"
+    );
+    assert_eq!(
+        momentum.readings.len(),
+        50,
+        "Momentum readings are capped at 50"
+    );
+    assert_eq!(
+        structure.readings.len(),
+        50,
+        "Structure readings are capped at 50"
+    );
+    assert_eq!(
+        progression.readings.len(),
+        2,
+        "the fixture publishes two stage changes"
+    );
+
+    assert!(
+        momentum
+            .readings
+            .iter()
+            .any(|reading| matches!(reading, DatedReading::Event(_))),
+        "Momentum carries its threshold events"
+    );
+    assert!(
+        momentum.readings.iter().any(|reading| matches!(
+            reading,
+            DatedReading::Transition(transition)
+                if transition.axis == AxisCode::Momentum
+                    && transition.kind == crate::dashboard::TransitionKind::CompactState
+        )),
+        "Momentum carries its compact-state transitions"
+    );
+    assert!(
+        structure
+            .readings
+            .iter()
+            .any(|reading| matches!(reading, DatedReading::Event(_))),
+        "Structure carries its level and divergence events"
+    );
+    assert!(progression.readings.iter().all(|reading| matches!(
+        reading,
+        DatedReading::Transition(transition)
+            if transition.axis == AxisCode::Progression
+                && transition.kind == crate::dashboard::TransitionKind::ProgressionStage
+    )));
+
+    let AxisDetail::Structure(detail) = &structure.detail else {
+        panic!("the Structure axis carries Structure detail");
+    };
+    assert!(
+        !detail.level_references.is_empty(),
+        "current Level references stay in Structure detail"
+    );
 }
