@@ -3,32 +3,33 @@
 //! This module maps the per-bar model values in a [`ModelRun`] into
 //! [`DashboardState`]. It owns the axis positions, sizes, readiness, typed
 //! absence, the per-timeframe envelope, and the cross-timeframe envelope. The
-//! Direction tenure, Structure activity, and Structure reference prices are
-//! view-only measurements derived here from published values; they never feed
-//! back into an axis. Progression pace, typed readings, agreement, and churn are
-//! filled by their own work items.
+//! Direction tenure, Structure activity, Structure reference prices, and
+//! Progression recent pace are view-only measurements derived here from
+//! published values; they never feed back into an axis. Typed readings,
+//! agreement, and churn are filled by their own work items.
 //!
 //! The module is pure: it reads the run, the explicit ladder, and the
 //! configuration it is given. It performs no I/O, reads no clock, and uses no
 //! randomness.
 
 mod direction;
+mod progression;
 mod structure;
 
-use crate::axes::progression::ProgressionBar;
 use crate::kernel::{Readiness, UnavailableReason};
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
 use crate::run::{ModelBar, ModelRun, TimeframeModel};
 
 use self::direction::direction_tenure;
+use self::progression::progression_axis;
 use self::structure::{level_references, structure_activity};
 
 use super::{
     AxisDetail, AxisReadiness, AxisState, AxisValue, BiasContinuity, BiasState, ChurnClass,
     Coverage, CrossTfAgreement, CrossTfChurn, CrossTfState, DashboardConfig, DashboardState,
     DiagnosticsView, DirectionDetail, Domain, LegDirectionReading, MomentumDetail,
-    ProgressionDetail, RECENT_PACE_WINDOW_BARS, Stage, StructureDetail, TenureOriginKind,
+    ProgressionDetail, RECENT_PACE_WINDOW_BARS, StructureDetail, TenureOriginKind,
     TimeframeConsensusView, TimeframeDerived, TimeframeState,
 };
 
@@ -154,7 +155,7 @@ impl TimeframeState {
             direction_axis(timeframe, &model_bar),
             momentum_axis(&model_bar),
             structure_axis(timeframe, &model_bar),
-            progression_axis(&model_bar),
+            progression_axis(timeframe, &model_bar),
         ];
 
         Some(Self {
@@ -345,66 +346,6 @@ fn structure_axis(timeframe: &TimeframeModel, model_bar: &ModelBar) -> AxisState
             compact_state_changes_50: structure.state_changes_50,
         }),
     )
-}
-
-/// Builds the Progression axis from the model bar.
-fn progression_axis(model_bar: &ModelBar) -> AxisState {
-    let progression = model_bar.progression;
-    let leg = progression.published_leg();
-    let position = match progression.stage_code.and_then(Stage::from_code) {
-        Some(stage) => AxisValue::ordinal(stage),
-        None => AxisValue::undefined(progression_stage_reason(&progression)),
-    };
-
-    axis_state(
-        AxisCode::Progression,
-        position,
-        rank_size(progression.size_percentile),
-        progression.readiness,
-        AxisDetail::Progression(ProgressionDetail {
-            progress: progression.progress,
-            stage_code: progression.stage_code,
-            leg_direction: progression.leg_direction,
-            leg_scale_code: progression.leg_scale_code,
-            lifecycle_code: leg.map(|leg| leg.lifecycle_code),
-            target_version: leg.map(|leg| leg.target_version),
-            target_stable: leg.map(|leg| leg.target_stable_code == 1),
-            origin_bar: leg.map(|leg| leg.origin_occurred_at),
-            origin_available_bar: leg.and_then(|leg| leg.origin_available_at),
-            displacement_pct: progression.size_percentile,
-            // Signed recent pace, its absolute percentile, the average net
-            // pace, and the terminal freeze are added by their own work item.
-            recent_pace_signed_atr_per_bar: None,
-            recent_pace_direction: None,
-            recent_pace_window_bars: RECENT_PACE_WINDOW_BARS,
-            average_net_displacement_atr_per_bar: None,
-            recent_pace_frozen_terminal: false,
-        }),
-    )
-}
-
-/// The reason a published stage is absent.
-///
-/// The model reports a reason when progress is absent. A forming leg or an
-/// unstable target can instead leave progress present while the stage is still
-/// withheld; those cases name the stage's own blocker.
-fn progression_stage_reason(progression: &ProgressionBar) -> UnavailableReason {
-    if let Some(reason) = progression.unavailable_reason {
-        return reason;
-    }
-    let Some(leg) = progression.published_leg() else {
-        return UnavailableReason::OriginUnconfirmed;
-    };
-    if leg.origin_confirmed_code == 0 {
-        return UnavailableReason::OriginUnconfirmed;
-    }
-    if leg.target_price.is_none() {
-        return UnavailableReason::NoTarget;
-    }
-    if leg.target_stable_code == 0 {
-        return UnavailableReason::TargetUnstable;
-    }
-    UnavailableReason::InsufficientBars
 }
 
 /// Builds a signed position, preserving a measured zero.
