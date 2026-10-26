@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing. Phase 6 typed readings are implemented in [PR #137](https://github.com/quant-rule/quant-rule/pull/137), with `verify` (1m7s) and `sync` (14s) passing. Phase 7 agreement and churn are implemented in [PR #138](https://github.com/quant-rule/quant-rule/pull/138) and merged as `af1fdce`, with local verification and `verify` (48s) passing. Phase 8 `market-dashboard` text/JSON command is implemented on `feat/130-market-dashboard` as `4fead6c` and passes local formatting, clippy, tests, and rustdoc; [PR #139](https://github.com/quant-rule/quant-rule/pull/139) is open. Not Verified.
+- Status: Verified. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing. Phase 6 typed readings are implemented in [PR #137](https://github.com/quant-rule/quant-rule/pull/137), with `verify` (1m7s) and `sync` (14s) passing. Phase 7 agreement and churn are implemented in [PR #138](https://github.com/quant-rule/quant-rule/pull/138) and merged as `af1fdce`, with local verification and `verify` (48s) passing. Phase 8 `market-dashboard` text/JSON command is implemented on `feat/130-market-dashboard` as `4fead6c`, merged as `a0d5180` in [PR #139](https://github.com/quant-rule/quant-rule/pull/139) after `verify` (1m10s) passed. Phase 9 closeout is verified on merged `a0d5180` and delivered in [PR #140](https://github.com/quant-rule/quant-rule/pull/140).
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -291,7 +291,7 @@ Limitations:
 
 - The 100k timing is a smoke measurement, not a formal benchmark; no benchmark harness exists.
 - The board's `State`/`Item type` fields are workflow-owned; the agent does not set them.
-- The Phase 2 value types, the Phase 3 core assembler, the Phase 4 Direction/Structure evidence, the Phase 5 Progression pace, the Phase 6 readings, the Phase 7 agreement/churn, and the Phase 8 shell command pass their local tests. Phase 8 reports 416 model unit tests, 33 model doctests, 196 shell unit tests, 78 shell CLI tests, all other integration tests, and 0 failures. The 100,000-bar timing is a smoke measurement: the full JSON run took 6.98–7.03s, the full text run 6.80–6.86s, and the latest-window JSON run 0.22s. The Phase 9 closeout, final plan verification, and board closeout remain pending.
+- Phase 9 was verified on merged `main` `a0d5180` (2026-10-26). `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps`, and the full suite pass: 1,026 tests, 0 failures, 4 pre-existing ignored, including 416 model unit tests, 33 model doctests, 196 shell unit tests, and 78 shell CLI tests. The 100,000-bar smoke run measured full text 6.82–6.89s and full JSON 6.85–6.93s at about 171 MiB peak RSS; `--window latest` measured 0.21–0.22s at 12.5–13.6 MiB. Repeated runs are byte-identical, both checked-in goldens match the release binary, and interactive output equals non-interactive output. No dependency, store schema, or existing command contract changed. The timing remains a smoke measurement; no benchmark harness exists.
 
 ## 11. Verification checklist
 
@@ -346,16 +346,16 @@ Limitations:
 | 47 | 8 | Interactive/non-interactive byte-identical | `market_dashboard_is_deterministic_and_interactive_matches`; 100k text and JSON also compared | Identical | [x] |
 | 48 | 8 | No strategy vocabulary | `market_dashboard_has_no_strategy_vocabulary` checks text and JSON for `coiling`, `ignition`, `exhaust`, `confidence`, `probability`, `recommend`, and `strategy` | Zero hits | [x] |
 | 49 | 8 | Help/README updated | `help.txt` golden; README command table and Market-dashboard contract | Complete | [x] |
-| 50 | 9 | `cargo fmt --all -- --check` | Command | Pass | [ ] |
-| 51 | 9 | `cargo clippy --all-targets -- -D warnings` | Command | Pass | [ ] |
-| 52 | 9 | `cargo test` | Command | Pass | [ ] |
-| 53 | 9 | `cargo doc --no-deps` | Command | Pass | [ ] |
-| 54 | 9 | Release run: small, short, 100k | Manual/CLI | Correct, time recorded | [ ] |
-| 55 | 9 | Existing commands unchanged | Existing tests | Pass | [ ] |
-| 56 | 9 | No new dependency | `Cargo.toml`/lock review | Unchanged | [ ] |
-| 57 | 9 | No store schema change | Store tests | Pass | [ ] |
-| 58 | 9 | Plan Verified; AI log updated | Docs | Complete | [ ] |
-| 59 | 9 | Parent Done; sub-issues closed; worktrees cleaned | Board/Git | Complete | [ ] |
+| 50 | 9 | `cargo fmt --all -- --check` | Run on merged `a0d5180`; no diff | Pass | [x] |
+| 51 | 9 | `cargo clippy --all-targets -- -D warnings` | Run on merged `a0d5180`; finished with no warnings | Pass | [x] |
+| 52 | 9 | `cargo test` | 29 suites: 1,026 passed, 0 failed, 4 pre-existing ignored; 416 model unit, 33 model doctests, 196 shell unit, 78 shell CLI | Pass | [x] |
+| 53 | 9 | `cargo doc --no-deps` | `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` finished with no warnings | Pass | [x] |
+| 54 | 9 | Release run: small, short, 100k | `state_m1.csv`, `single.csv`, `three.csv` each 0.00s in text and JSON. 100k: full text 6.82/6.89s at 170,504/171,344 KiB; full JSON 6.85/6.93s at 171,660/171,664 KiB; latest text 0.21/0.22s at 12,536/12,496 KiB; latest JSON 0.21/0.22s at 13,636/13,444 KiB. Repeated text/JSON byte-identical; full text SHA-256 `eb302e4d…`, full JSON `2a18966d…`, latest text `588944ae…`, latest JSON `d8c6ad9a…` | Correct, time recorded | [x] |
+| 55 | 9 | Existing commands unchanged | Full suite green, including 78 shell CLI tests; help/parse/dispatch changes are additive; `market-state`, `market-chart`, `axis`, `events`, `legs`, and `model-series` contracts untouched | Pass | [x] |
+| 56 | 9 | No new dependency | `git diff 8228e86..a0d5180 -- Cargo.toml Cargo.lock crates/*/Cargo.toml` is empty | Unchanged | [x] |
+| 57 | 9 | No store schema change | No store, migration, or schema file changed in `8228e86..a0d5180`; `store_commands`, `store_verify`, and `store_aggregates` tests pass | Pass | [x] |
+| 58 | 9 | Plan Verified; AI log updated | Plan status and the Phase 9 closeout entry are updated; [PR #140](https://github.com/quant-rule/quant-rule/pull/140) is open | Complete | [x] |
+| 59 | 9 | Parent Done; sub-issues closed; worktrees cleaned | Board: #131 and #122 are `Done`; #130 worktree and branch are removed; the #131 worktree and branch are removed after this PR merges | Complete | [x] |
 
 ## 12. Risks and recovery
 
@@ -389,4 +389,14 @@ Stop and request human direction if:
 Material AI contributions for this work item are recorded in
 [`docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`](../../ai-transparency-log/2026-10-25/122-market-dashboard.md).
 
-The log records the planning discussion, the rejected alternatives, the Phase 0 setup, and the fact that no code or test result exists yet.
+The log records the planning discussion, the rejected alternatives, the Phase 0 setup, and the verification evidence for each phase.
+
+## 15. Delivery
+
+| Item | Value |
+|---|---|
+| Commit | `82edaab` — `docs: verify the market-dashboard closeout` |
+| Branch | `docs/131-dashboard-closeout` |
+| Pull request | [#140](https://github.com/quant-rule/quant-rule/pull/140) |
+| Closeout | #131 is `Done` and #122 is recomputed `Done`; the #130 worktree and branch are removed; the #131 worktree and branch are removed after the merge |
+| Merge | Remains with the human |
