@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing. Phase 6 typed readings are implemented on `feat/128-dashboard-readings` with local verification; agreement/churn and the command are not started. Not Verified.
+- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing. Phase 6 typed readings are implemented in [PR #137](https://github.com/quant-rule/quant-rule/pull/137), with `verify` (1m7s) and `sync` (14s) passing; agreement/churn and the command are not started. Not Verified.
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -243,7 +243,7 @@ The text renderer uses the same `DashboardState`. It adds labels, track glyphs, 
 | 3 | #125 | Core assembler | #124 | `feat/125-dashboard-assembler` / [PR #134](https://github.com/quant-rule/quant-rule/pull/134) |
 | 4 | #126 | Direction tenure + Structure activity | #125 | `feat/126-bias-tenure-activity` / PR #135 |
 | 5 | #127 | Progression recent pace | #125 | `feat/127-progression-pace` / PR 5 |
-| 6 | #128 | Readings | #125 | `feat/128-dashboard-readings` / PR 6 |
+| 6 | #128 | Readings | #125 | `feat/128-dashboard-readings` / [PR #137](https://github.com/quant-rule/quant-rule/pull/137) |
 | 7 | #129 | Agreement + churn | #126–#128 | `feat/129-dashboard-aggregates` / PR 7 |
 | 8 | #130 | Shell command | #129 | `feat/130-market-dashboard` / PR 8 |
 | 9 | #131 | Verification closeout | #130 | `docs/131-dashboard-closeout` / PR 9 |
