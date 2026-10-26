@@ -4,8 +4,8 @@
 - Tool: OpenCode, DeepSeek V4.1 Flash 1017
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
-- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (merged, PR #134); `feat/126-bias-tenure-activity` in `quant-rule--bias-tenure-activity` (merged, PR #135); `feat/127-progression-pace` in `quant-rule--progression-pace` (local work, not yet committed)
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices merged in [PR #135](https://github.com/quant-rule/quant-rule/pull/135) as `7aa9502`; Phase 5 Progression recent pace, average net displacement, and terminal freeze are implemented and verified locally on `feat/127-progression-pace`, not yet committed or opened as a pull request.
+- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (merged, PR #134); `feat/126-bias-tenure-activity` in `quant-rule--bias-tenure-activity` (merged, PR #135); `feat/127-progression-pace` in `quant-rule--progression-pace` (PR #136)
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices merged in [PR #135](https://github.com/quant-rule/quant-rule/pull/135) as `7aa9502`; Phase 5 Progression recent pace, average net displacement, and terminal freeze are committed as `728e146` in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing, not yet merged.
 
 ## Intent and boundary
 
@@ -81,7 +81,8 @@ Boundary of this entry:
 29. Wired `assemble.rs` to `progression_axis(timeframe, &model_bar)` and removed the placeholder pace values. The model's displacement percentile, progress, stage, lifecycle, scale, target state, and readiness are copied unchanged.
 30. Added 16 Progression unit, edge-case, causality, determinism, and golden tests; updated the existing assembler test for the pace radius; added a confirmed-real-fixture test at bar 57. The assembler test now checks the forming latest leg's average, the absent pace, the `OriginUnconfirmed` radius reason, and the separate displacement percentile.
 31. Generated `crates/quantrule-model/tests/fixtures/dashboard_progression_pace_golden.csv` with an independent Python replay of the contract. The fixture has 105 rows and 19 columns: 4 no-leg bars, 7 forming bars, 82 active bars, and 12 terminal bars (4 completed, 4 invalidated, 4 superseded); 83 rows have a signed pace, 33 have a percentile, 3 are flat, 3 are against the leg, 77 are with the leg, and the first percentile is at bar 60.
-32. Ran the Phase 5 local verification: formatting, clippy, the targeted assembler tests, the full workspace test suite, rustdoc with warnings denied, and `git diff --check`. No commit, push, pull request, or merge yet.
+32. Ran the Phase 5 local verification: formatting, clippy, the targeted assembler tests, the full workspace test suite, rustdoc with warnings denied, and `git diff --check`.
+33. Committed the Phase 5 work as `728e146`, pushed `feat/127-progression-pace`, and opened [PR #136](https://github.com/quant-rule/quant-rule/pull/136). `verify` passed in 1m5s; `sync` passed in 12s. The human authorized the commit, push, and pull request. Merge authorization was not requested in that instruction and was not performed.
 
 ## Decisions and corrections
 
@@ -196,10 +197,12 @@ Observed Phase 5 evidence, run on `feat/127-progression-pace` (2026-10-26):
 - Plan verification rows 21–29 are checked for Phase 5.
 - The new fixture `crates/quantrule-model/tests/fixtures/dashboard_progression_pace_golden.csv` has 105 rows and 19 columns: 4 no-leg bars, 7 forming bars, 82 active bars, and 12 terminal bars (4 completed, 4 invalidated, 4 superseded); 83 rows have a signed pace, 33 have a percentile, 3 are flat, 3 are against the leg, 77 are with the leg, and the first percentile is at bar 60.
 - `rg -n "coiling|ignition|exhaust" crates/quantrule-model/src/dashboard/assemble/progression.rs crates/quantrule-model/src/dashboard/assemble/progression/tests.rs` — no hits. The only model/shell hits are the pre-existing context-code registry (`context.rs`, `dashboard/mod.rs`) and its shell label mapping, which the approved contract keeps as diagnostics, not Progression labels.
+- Commit `728e146`; branch `feat/127-progression-pace`; PR #136 open.
+- `gh pr checks 136 --repo quant-rule/quant-rule --watch` — `verify` passed in 1m5s; `sync` passed in 12s.
 
 Not verified / not run:
 
-- No Phase 5 commit, push, pull request, or merge yet.
+- No Phase 5 merge yet.
 - No per-axis typed Event/Transition history with the 50-item cap; that is #128.
 - No derived cross-timeframe agreement majority or churn verdict; that is #129. The assembler still publishes only the envelope, coverage, and configured thresholds.
 - No shell `market-dashboard` command, text rendering, JSON output, or dashboard CLI run; those are #130 and #131.
