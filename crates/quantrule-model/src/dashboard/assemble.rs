@@ -1,22 +1,28 @@
 //! The pure projection from a model run to the dashboard view.
 //!
 //! This module maps the per-bar model values in a [`ModelRun`] into
-//! [`DashboardState`]. It owns the axis positions, the initial sizes, readiness,
-//! typed absence, the per-timeframe envelope, and the cross-timeframe envelope.
-//! The view-only Direction tenure, Progression pace, Structure activity, typed
-//! readings, agreement, and churn are filled by their own work items; the core
-//! mapping here uses the model's existing values and never substitutes a zero
-//! for a missing measurement.
+//! [`DashboardState`]. It owns the axis positions, sizes, readiness, typed
+//! absence, the per-timeframe envelope, and the cross-timeframe envelope. The
+//! Direction tenure, Structure activity, and Structure reference prices are
+//! view-only measurements derived here from published values; they never feed
+//! back into an axis. Progression pace, typed readings, agreement, and churn are
+//! filled by their own work items.
 //!
 //! The module is pure: it reads the run, the explicit ladder, and the
 //! configuration it is given. It performs no I/O, reads no clock, and uses no
 //! randomness.
 
+mod direction;
+mod structure;
+
 use crate::axes::progression::ProgressionBar;
-use crate::kernel::{COMPACT_STATE_THRESHOLD, Readiness, UnavailableReason};
+use crate::kernel::{Readiness, UnavailableReason};
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
 use crate::run::{ModelBar, ModelRun, TimeframeModel};
+
+use self::direction::direction_tenure;
+use self::structure::{level_references, structure_activity};
 
 use super::{
     AxisDetail, AxisReadiness, AxisState, AxisValue, BiasContinuity, BiasState, ChurnClass,
@@ -145,7 +151,7 @@ impl TimeframeState {
     pub fn at(timeframe: &TimeframeModel, bar: usize) -> Option<Self> {
         let model_bar = timeframe.bar(bar)?;
         let axes = vec![
-            direction_axis(&model_bar),
+            direction_axis(timeframe, &model_bar),
             momentum_axis(&model_bar),
             structure_axis(timeframe, &model_bar),
             progression_axis(&model_bar),
@@ -238,9 +244,15 @@ fn absent_structure_scale_code(run: &ModelRun) -> u8 {
         .unwrap_or(PivotScale::Major.code())
 }
 
-/// Builds the Direction axis from the model bar.
-fn direction_axis(model_bar: &ModelBar) -> AxisState {
+/// Builds the Direction axis from the model bar and its tenure evidence.
+///
+/// The radius is the bias-tenure percentile; the model's magnitude percentile
+/// moves to `magnitude_pct` and stays visible as detail. A tenure that is too
+/// short to rank keeps the detail but has no size, and carries the Direction
+/// reason when the Direction itself is unavailable.
+fn direction_axis(timeframe: &TimeframeModel, model_bar: &ModelBar) -> AxisState {
     let direction = model_bar.direction;
+    let tenure = direction_tenure(timeframe.direction().bars(), model_bar.bar_index);
     axis_state(
         AxisCode::Direction,
         signed_position(
@@ -248,17 +260,14 @@ fn direction_axis(model_bar: &ModelBar) -> AxisState {
             Domain::DirectionalBias,
             direction.unavailable_reason,
         ),
-        rank_size(direction.size_percentile),
+        rank_size_or_reason(tenure.tenure_percentile, direction.unavailable_reason),
         direction.readiness,
         AxisDetail::Direction(DirectionDetail {
-            bias_state: bias_state(direction.direction),
-            // Tenure and continuity are view-only measurements added by the
-            // next work item. The current bias is still published, and the
-            // existing percentile remains visible as magnitude evidence.
-            bias_continuity: BiasContinuity::Undefined,
-            bias_tenure_bars: None,
-            tenure_origin_kind: TenureOriginKind::None,
-            tenure_origin_bar: None,
+            bias_state: tenure.bias_state,
+            bias_continuity: tenure.bias_continuity,
+            bias_tenure_bars: tenure.tenure_bars,
+            tenure_origin_kind: tenure.origin_kind,
+            tenure_origin_bar: tenure.origin_bar,
             magnitude_pct: direction.size_percentile,
             compact_state_age_bars: direction.state_age_bars,
             compact_state_changes_50: direction.state_changes_50,
@@ -291,12 +300,18 @@ fn momentum_axis(model_bar: &ModelBar) -> AxisState {
     )
 }
 
-/// Builds the Structure axis from the model bar.
+/// Builds the Structure axis from the model bar and its view-only evidence.
+///
+/// Activity is counted from Structure-mapped events in the recent window and
+/// reference prices come from the published readings and confirmed levels.
+/// Neither changes the score, the size percentile, or the readiness: the radius
+/// remains the swing-alignment magnitude percentile.
 fn structure_axis(timeframe: &TimeframeModel, model_bar: &ModelBar) -> AxisState {
     let structure = model_bar.structure;
     let confirmed_level_count = timeframe
         .levels()
         .partition_point(|level| level.available_at <= model_bar.bar_index);
+    let activity = structure_activity(timeframe, model_bar.bar_index);
 
     axis_state(
         AxisCode::Structure,
@@ -321,13 +336,11 @@ fn structure_axis(timeframe: &TimeframeModel, model_bar: &ModelBar) -> AxisState
             ema_retest_code_20: structure.ema_retest_code_20,
             ema_retest_code_50: structure.ema_retest_code_50,
             ema_retest_code_200: structure.ema_retest_code_200,
-            // Current reference prices and Structure-mapped activity are
-            // view-only readings added by their own work items.
-            level_references: Vec::new(),
+            level_references: level_references(timeframe, model_bar),
             confirmed_level_count,
-            activity_count: 0,
-            activity_window: 0,
-            activity_per_bar: None,
+            activity_count: activity.count,
+            activity_window: activity.window,
+            activity_per_bar: activity.per_bar,
             compact_state_age_bars: structure.state_age_bars,
             compact_state_changes_50: structure.state_changes_50,
         }),
@@ -394,16 +407,6 @@ fn progression_stage_reason(progression: &ProgressionBar) -> UnavailableReason {
     UnavailableReason::InsufficientBars
 }
 
-/// Maps the Direction score to its signed position.
-fn bias_state(direction: Option<f64>) -> BiasState {
-    match direction {
-        None => BiasState::Undefined,
-        Some(value) if value > COMPACT_STATE_THRESHOLD => BiasState::Bullish,
-        Some(value) if value < -COMPACT_STATE_THRESHOLD => BiasState::Bearish,
-        Some(_) => BiasState::Neutral,
-    }
-}
-
 /// Builds a signed position, preserving a measured zero.
 fn signed_position(
     value: Option<f64>,
@@ -421,6 +424,19 @@ fn rank_size(percentile: Option<f64>) -> AxisValue {
     match percentile {
         Some(pct) => AxisValue::rank(pct),
         None => AxisValue::undefined(UnavailableReason::InsufficientBars),
+    }
+}
+
+/// Builds a percentile size, using the axis reason when the axis itself is
+/// unavailable.
+///
+/// A view-only percentile can be missing for two different reasons: too few
+/// prior samples while the axis is present, or no axis value at all. The
+/// dashboard contract keeps those distinct.
+fn rank_size_or_reason(percentile: Option<f64>, reason: Option<UnavailableReason>) -> AxisValue {
+    match percentile {
+        Some(pct) => AxisValue::rank(pct),
+        None => AxisValue::undefined(reason.unwrap_or(UnavailableReason::InsufficientBars)),
     }
 }
 

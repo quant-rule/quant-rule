@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134); Direction tenure/activity, Progression pace, readings, agreement/churn, and the command are not started. Not Verified.
+- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing. Progression pace, readings, agreement/churn, and the command are not started. Not Verified.
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -24,10 +24,10 @@ This is a descriptive view. It is not a strategy, a forecast, an entry/exit, a s
 
 ## 2. Current state
 
-- Repository base: `main` at `8228e86` when the plan was drafted (it was originally drafted against `231ac03`; the later commits are documentation-only changes to `AGENTS.md` and docs, plus tests already merged; no source path used by this plan changed). Phase 2 starts from `fb4918c` after PR #132; Phase 3 starts from `001b0d7` after PR #133.
+- Repository base: `main` at `8228e86` when the plan was drafted (it was originally drafted against `231ac03`; the later commits are documentation-only changes to `AGENTS.md` and docs, plus tests already merged; no source path used by this plan changed). Phase 2 starts from `fb4918c` after PR #132; Phase 3 starts from `001b0d7` after PR #133; Phase 4 starts from `f118118` after PR #134.
 - `ModelRun` already computes one candle series per timeframe and the model is single-instrument. There is no pair map.
 - `MarketState` publishes latest per-timeframe numeric snapshots, readiness codes, reasons, size percentiles, events, and cross-timeframe aggregates.
-- Direction, Momentum, Structure, and Progression publish the raw values listed in section 1. Phase 2 adds the `DashboardState` value types. Phase 3 adds the pure assembler and `TimeframeState::at`; there is still no bias tenure, recent pace, per-axis typed readings, or derived cross-timeframe agreement/churn.
+- Direction, Momentum, Structure, and Progression publish the raw values listed in section 1. Phase 2 adds the `DashboardState` value types. Phase 3 adds the pure assembler and `TimeframeState::at`. Phase 4 adds the Direction bias tenure and percentile, the Structure event activity and reference prices, and the causal per-bar reading of both; there is still no recent pace, per-axis typed readings, or derived cross-timeframe agreement/churn.
 - The shell has `market-state`, `market-chart`, `axis`, `events`, `legs`, and `model-series`. There is no dashboard command.
 - The store persists the existing numeric model fields. This plan adds no column and no migration.
 - The multi-pair surface does not exist and is not introduced.
@@ -93,9 +93,10 @@ Excluded:
 - `tenure_origin_kind`: `first_establishment`, `reversal`, `new_origin_after_unavailable`, or `none`.
 - `tenure_origin_bar`: the bar the current origin was set.
 - `bias_continuity`: `continuous`, `interrupted`, or `undefined`.
-- `bias_tenure_pct`: percentile of `bias_tenure_bars` against prior valid tenure samples, 252 cap, minimum 50, inclusive ties, never the current sample.
+- `bias_tenure_pct`: percentile of `bias_tenure_bars` against prior valid tenure samples, 252 cap, minimum 50, inclusive ties, never the current sample. A sample is the tenure published on one prior observed bar; a bar with no tenure contributes no sample.
 - On an unavailable interval, preserve the stored tenure and origin, set continuity to `interrupted`, and publish `—` for the current tenure. On the first available bar:
   - same sign as the stored origin side: resume the stored tenure, increment by one, and keep the original origin;
+  - neutral: treat it as a neutral pause, increment the stored tenure, keep the origin, and keep continuity `interrupted`;
   - opposite sign: set a new origin on the observed bar, tenure 1, origin kind `new_origin_after_unavailable`; the actual reversal time is unknown and is not published.
 - `magnitude_pct` remains the existing size percentile for detail.
 - `compact_state_age_bars` and `compact_state_changes_50` are details and are not the same as bias tenure.
@@ -240,7 +241,7 @@ The text renderer uses the same `DashboardState`. It adds labels, track glyphs, 
 | 1 | #123 | Contract | — | `docs/123-dashboard-view-contract` / [PR #132](https://github.com/quant-rule/quant-rule/pull/132) |
 | 2 | #124 | View types | #123 | `feat/124-dashboard-view-types` / [PR #133](https://github.com/quant-rule/quant-rule/pull/133) |
 | 3 | #125 | Core assembler | #124 | `feat/125-dashboard-assembler` / [PR #134](https://github.com/quant-rule/quant-rule/pull/134) |
-| 4 | #126 | Direction tenure + Structure activity | #125 | `feat/126-bias-tenure-activity` / PR 4 |
+| 4 | #126 | Direction tenure + Structure activity | #125 | `feat/126-bias-tenure-activity` / PR #135 |
 | 5 | #127 | Progression recent pace | #125 | `feat/127-progression-pace` / PR 5 |
 | 6 | #128 | Readings | #125 | `feat/128-dashboard-readings` / PR 6 |
 | 7 | #129 | Agreement + churn | #126–#128 | `feat/129-dashboard-aggregates` / PR 7 |
@@ -290,7 +291,7 @@ Limitations:
 
 - The 100k timing is a smoke measurement, not a formal benchmark; no benchmark harness exists.
 - The board's `State`/`Item type` fields are workflow-owned; the agent does not set them.
-- The Phase 2 value types and the Phase 3 core assembler pass their unit tests: `cargo test` reports 338 model unit tests and 33 model doctests, 0 failures. The view-only refinements, shell command, and end-to-end tests are pending; no end-to-end result is claimed.
+- The Phase 2 value types, the Phase 3 core assembler, and the Phase 4 Direction/Structure evidence pass their local tests: `cargo test` reports 361 model unit tests, 2 new dashboard golden integration tests, 33 model doctests, 182 shell unit tests, all other integration tests, and 0 failures. PR #135 also reports `verify` (1m16s) and `sync` (11s) passing. The Progression pace, typed readings, derived agreement/churn, shell command, and end-to-end rendering remain pending; no end-to-end result is claimed.
 
 ## 11. Verification checklist
 
@@ -308,14 +309,14 @@ Limitations:
 | 10 | 3 | Missing timeframe typed absence | `dashboard::assemble::tests::missing_timeframe_is_typed_absence`, `an_empty_run_builds_one_absent_row_per_ladder_member` | No zero | [x] |
 | 11 | 3 | Repeated/reordered determinism | `dashboard::assemble::tests::reordered_inputs_and_ladders_are_deterministic` | Identical | [x] |
 | 12 | 3 | Causality at bar `t` | `dashboard::assemble::tests::a_future_bar_does_not_change_a_past_state` — appended and altered future bars leave the earlier state unchanged | Unchanged by future bars | [x] |
-| 13 | 4 | Direction neutral pause: `neutral`, tenure 46 | Test | Correct | [ ] |
-| 14 | 4 | Direction reversal resets tenure | Test | Tenure 1 | [ ] |
-| 15 | 4 | Direction unavailable freezes tenure and marks continuity interrupted | Test | Correct | [ ] |
-| 16 | 4 | Opposite sign after gap creates new origin at first observed bar | Test | Correct | [ ] |
-| 17 | 4 | Tenure percentile 252/50/ties/no current sample | Test | Exact | [ ] |
-| 18 | 4 | Direction radius = tenure; magnitude detail | Golden | Correct | [ ] |
-| 19 | 4 | Structure activity never changes score/size | Test | Unchanged | [ ] |
-| 20 | 4 | Structure evidence includes relations, scale, EMA, levels | Golden | Present | [ ] |
+| 13 | 4 | Direction neutral pause: `neutral`, tenure 46 | `dashboard::assemble::direction::tests::a_neutral_pause_keeps_the_bias_tenure` — 40 bullish + 6 neutral → tenure 46, state neutral, origin preserved | Correct | [x] |
+| 14 | 4 | Direction reversal resets tenure | `dashboard::assemble::direction::tests::a_genuine_reversal_resets_the_tenure_and_origin` | Tenure 1 | [x] |
+| 15 | 4 | Direction unavailable freezes tenure and marks continuity interrupted | `dashboard::assemble::direction::tests::an_unavailable_bar_freezes_the_tenure_and_marks_interruption` — repeated gaps freeze at the stored tenure and resume by one | Correct | [x] |
+| 16 | 4 | Opposite sign after gap creates new origin at first observed bar | `dashboard::assemble::direction::tests::an_opposite_return_after_a_gap_starts_a_new_origin` — origin is the observed bar, never backdated | Correct | [x] |
+| 17 | 4 | Tenure percentile 252/50/ties/no current sample | `...the_percentile_needs_fifty_prior_samples`, `...the_percentile_is_capped_at_252_and_never_samples_the_current_bar`, `...inclusive_ties_rank_at_the_top` | Exact | [x] |
+| 18 | 4 | Direction radius = tenure; magnitude detail | `tests/dashboard_direction_golden.rs` against `dashboard_direction_tenure_golden.csv`; `dashboard::assemble::tests::direction_size_is_the_tenure_percentile_and_magnitude_is_detail` | Correct | [x] |
+| 19 | 4 | Structure activity never changes score/size | `dashboard::assemble::structure::tests::activity_counts_by_availability_and_uses_the_recent_window`; `dashboard::assemble::tests::structure_activity_is_isolated_from_position_and_size`; `...a_zero_activity_count_is_a_measured_zero` | Unchanged | [x] |
+| 20 | 4 | Structure evidence includes relations, scale, EMA, levels | `tests/dashboard_structure_golden.rs` against `structure_golden.csv`, `structure_levels_golden.csv`, and the readings EMA columns; `...structure_evidence_is_copied_from_the_published_model` | Present | [x] |
 | 21 | 5 | All six progression anchors | Test | Correct | [ ] |
 | 22 | 5 | Recent pace signed with/against/flat | Test | Correct | [ ] |
 | 23 | 5 | Same-leg requirement; leg change resets | Test | Typed absence | [ ] |

@@ -234,6 +234,15 @@ impl TimeframeModel {
         &self.readings.pivots
     }
 
+    /// The Direction series for this timeframe.
+    ///
+    /// The dashboard reads the published bars to derive bias tenure; the axis
+    /// itself is not recomputed.
+    #[must_use]
+    pub const fn direction(&self) -> &DirectionSeries {
+        &self.direction
+    }
+
     /// The retained progression legs for this timeframe.
     #[must_use]
     pub fn legs(&self) -> &[ProgressionLeg] {
