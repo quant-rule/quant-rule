@@ -5,7 +5,7 @@
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
 - Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (Phase 2)
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132. Phase 2 value types are implemented; local checks pass; no Phase 2 merge.
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132. Phase 2 value types are implemented in PR #133; local checks and CI pass; no Phase 2 merge.
 
 ## Intent and boundary
 
@@ -42,6 +42,7 @@ Boundary of this entry:
     - `CrossTfState`, `LegDirectionReading`, `CrossTfAgreement`, `AxisAgreement`, `Coverage`, `CrossTfChurn`, `ChurnSource`, `ChurnClass`, `MajorityClass`.
     - Constants for the fixed 3-bar recent-pace window and the default churn/coverage thresholds.
     - The module is types only: no I/O, candle computation, axis formula, assembler, or rendering.
+11. Committed the types and tests as `fe97ddb`, pushed `feat/124-dashboard-view-types`, and opened [PR #133](https://github.com/quant-rule/quant-rule/pull/133). The `verify` and `sync` checks pass.
 
 ## Decisions and corrections
 
@@ -86,11 +87,13 @@ Observed Phase 0 and Phase 1 evidence:
   - `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — passed with no warnings.
   - `git diff --check` — passed.
 - Plan verification rows 4–7 are checked for Phase 2.
+- Commit `fe97ddb`; branch `feat/124-dashboard-view-types`; PR #133 open.
+- `gh pr checks 133 --repo quant-rule/quant-rule --watch` — `verify` passed in 48s; `sync` passed in 10s.
 
 Not verified / not run:
 
 - No assembler, shell command, text rendering, JSON output, or dashboard CLI run.
-- No Phase 2 commit, push, pull request, CI result, or merge yet.
+- No Phase 2 merge yet.
 - No bias tenure, recent pace, readings, agreement, churn, or shell golden tests; those are later sub-issues.
 - No independent agent review. The planning and implementation roles were sequential in one session; that is disclosed here.
 

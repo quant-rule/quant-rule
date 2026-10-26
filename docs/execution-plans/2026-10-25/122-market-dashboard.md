@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented; the assembler and command are not started. Not Verified.
+- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133); the assembler and command are not started. Not Verified.
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -238,7 +238,7 @@ The text renderer uses the same `DashboardState`. It adds labels, track glyphs, 
 |---|---|---|---|---|
 | Parent | #122 | Container | — | none |
 | 1 | #123 | Contract | — | `docs/123-dashboard-view-contract` / [PR #132](https://github.com/quant-rule/quant-rule/pull/132) |
-| 2 | #124 | View types | #123 | `feat/124-dashboard-view-types` / PR 2 |
+| 2 | #124 | View types | #123 | `feat/124-dashboard-view-types` / [PR #133](https://github.com/quant-rule/quant-rule/pull/133) |
 | 3 | #125 | Core assembler | #124 | `feat/125-dashboard-assembler` / PR 3 |
 | 4 | #126 | Direction tenure + Structure activity | #125 | `feat/126-bias-tenure-activity` / PR 4 |
 | 5 | #127 | Progression recent pace | #125 | `feat/127-progression-pace` / PR 5 |
@@ -299,7 +299,7 @@ Limitations:
 | 1 | 0 | Plan approved; issues opened; board set; first worktree created | Issues #122–#131; board: #122 and #123 `In Progress`, #124–#131 `Todo`, all with `State` and `Item type`; worktree `quant-rule--dashboard-view-contract` | Complete | [x] |
 | 2 | 1 | Contract exists and is linked | `docs/model/2026-10-25/dashboard-state.md`; linked from `docs/README.md` and this plan; PR #132 | Complete | [x] |
 | 3 | 1 | Contract covers types, metrics, readings, agreement, churn, absence, deviations | Human review approved 2026-10-25; contract covers §§1–16; PR #132 CI passes | No contradictions | [x] |
-| 4 | 2 | `DashboardState` types exist; no `ModelState` | `cargo test` — 322 model unit tests passed, including 12 `dashboard` type tests; `cargo doc` | Compiles | [x] |
+| 4 | 2 | `DashboardState` types exist; no `ModelState` | `cargo test` — 322 model unit tests passed, including 12 `dashboard` type tests; `cargo doc`; PR #133 CI passes | Compiles | [x] |
 | 5 | 2 | `AxisValue` four variants; domains exact | `dashboard::tests::axis_values_keep_their_variant_and_domain`, `domains_stay_distinct` | Signed/Rank/Ordinal/Undefined | [x] |
 | 6 | 2 | Six stage anchors; no arithmetic | `dashboard::tests::stages_are_the_six_contract_codes` | Against…Terminal | [x] |
 | 7 | 2 | Public items documented | `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — no warnings | No warnings | [x] |
