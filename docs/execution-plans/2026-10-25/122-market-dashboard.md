@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented; Direction tenure/activity, Progression pace, readings, agreement/churn, and the command are not started. Not Verified.
+- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134); Direction tenure/activity, Progression pace, readings, agreement/churn, and the command are not started. Not Verified.
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -239,7 +239,7 @@ The text renderer uses the same `DashboardState`. It adds labels, track glyphs, 
 | Parent | #122 | Container | — | none |
 | 1 | #123 | Contract | — | `docs/123-dashboard-view-contract` / [PR #132](https://github.com/quant-rule/quant-rule/pull/132) |
 | 2 | #124 | View types | #123 | `feat/124-dashboard-view-types` / [PR #133](https://github.com/quant-rule/quant-rule/pull/133) |
-| 3 | #125 | Core assembler | #124 | `feat/125-dashboard-assembler` / PR 3 |
+| 3 | #125 | Core assembler | #124 | `feat/125-dashboard-assembler` / [PR #134](https://github.com/quant-rule/quant-rule/pull/134) |
 | 4 | #126 | Direction tenure + Structure activity | #125 | `feat/126-bias-tenure-activity` / PR 4 |
 | 5 | #127 | Progression recent pace | #125 | `feat/127-progression-pace` / PR 5 |
 | 6 | #128 | Readings | #125 | `feat/128-dashboard-readings` / PR 6 |

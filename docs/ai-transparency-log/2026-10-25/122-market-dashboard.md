@@ -5,7 +5,7 @@
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
 - Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (Phase 3)
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler implemented and locally verified. No Phase 3 commit, push, or pull request yet.
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler implemented and locally verified; committed as `15da01d` in [PR #134](https://github.com/quant-rule/quant-rule/pull/134), with `verify` and `sync` passing. No Phase 3 merge yet.
 
 ## Intent and boundary
 
@@ -55,6 +55,7 @@ Boundary of this entry:
     - The cross-timeframe envelope: configured/present timeframes, existing aggregates, published leg directions, configured thresholds, and coverage. Agreement and churn remain explicit envelopes until their work item.
 15. Added `crates/quantrule-model/src/dashboard/assemble/tests.rs` with 16 tests: envelope mapping, all four axis positions/sizes/readiness, stage anchors, missing rows, empty run, single candle, readiness variants, future-bar causality (appended and altered), reordered inputs/ladders, zero preservation, momentum force without acceleration, progression origin reason, level-count availability, configured thresholds, and the absent-row structure scale.
 16. Added the `mod assemble;` boundary and updated the dashboard module documentation. No existing axis formula, command, or store schema was changed.
+17. Committed the assembler and tests as `15da01d`, pushed `feat/125-dashboard-assembler`, and opened [PR #134](https://github.com/quant-rule/quant-rule/pull/134). `verify` passed in 1m5s; `sync` passed in 13s.
 
 ## Decisions and corrections
 
@@ -120,13 +121,15 @@ Observed Phase 3 evidence, run on `feat/125-dashboard-assembler`:
 - `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — passed with no warnings; the two new doc examples compile and run in the doctest suite.
 - `git diff --check` — passed.
 - Plan verification rows 8–12 are checked for Phase 3.
+- Commit `15da01d`; branch `feat/125-dashboard-assembler`; PR #134 open.
+- `gh pr checks 134 --repo quant-rule/quant-rule --watch` — `verify` passed in 1m5s; `sync` passed in 13s.
 
 Not verified / not run:
 
 - No Direction bias tenure or continuity, Progression recent pace, Structure activity, or per-axis typed readings; those are #126, #127, and #128.
 - No derived cross-timeframe agreement majority or churn verdict; those are #129. Phase 3 publishes only the envelope, coverage, and configured thresholds.
 - No shell `market-dashboard` command, text rendering, JSON output, or dashboard CLI run; those are #130 and #131.
-- No Phase 3 commit, push, or pull request yet.
+- No Phase 3 merge yet.
 - No independent agent review. The investigation, implementation, and verification were sequential in one session; that is disclosed here.
 
 ## Learning
