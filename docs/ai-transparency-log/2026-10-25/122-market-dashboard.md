@@ -4,8 +4,8 @@
 - Tool: OpenCode, DeepSeek V4.1 Flash 1017
 - Work item: [#122](https://github.com/quant-rule/quant-rule/issues/122) — container
 - Plan: [`docs/execution-plans/2026-10-25/122-market-dashboard.md`](../../execution-plans/2026-10-25/122-market-dashboard.md)
-- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (merged, PR #134); `feat/126-bias-tenure-activity` in `quant-rule--bias-tenure-activity` (merged, PR #135); `feat/127-progression-pace` in `quant-rule--progression-pace` (PR #136)
-- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices merged in [PR #135](https://github.com/quant-rule/quant-rule/pull/135) as `7aa9502`; Phase 5 Progression recent pace, average net displacement, and terminal freeze are committed as `728e146` in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing, not yet merged.
+- Branches/worktrees: `docs/123-dashboard-view-contract` in `quant-rule--dashboard-view-contract` (merged, PR #132); `feat/124-dashboard-view-types` in `quant-rule--dashboard-view-types` (merged, PR #133); `feat/125-dashboard-assembler` in `quant-rule--dashboard-assembler` (merged, PR #134); `feat/126-bias-tenure-activity` in `quant-rule--bias-tenure-activity` (merged, PR #135); `feat/127-progression-pace` in `quant-rule--progression-pace` (merged, PR #136); `feat/128-dashboard-readings` in `quant-rule--dashboard-readings` (PR #137)
+- Status: Phase 0 complete; Phase 1 contract approved 2026-10-25 and merged in PR #132; Phase 2 value types merged in PR #133; Phase 3 core assembler merged in PR #134 as `f118118`; Phase 4 Direction tenure, Structure activity, and reference prices merged in [PR #135](https://github.com/quant-rule/quant-rule/pull/135) as `7aa9502`; Phase 5 Progression recent pace, average net displacement, and terminal freeze merged as `5da8ec8` in [PR #136](https://github.com/quant-rule/quant-rule/pull/136) after `verify` (1m5s) and `sync` (12s) passed. Phase 6 typed readings are implemented in [PR #137](https://github.com/quant-rule/quant-rule/pull/137), with `verify` (1m7s) and `sync` (14s) passing; merge authorization is pending.
 
 ## Intent and boundary
 
@@ -19,6 +19,7 @@ Boundary of this entry:
 - Phase 3: the core `DashboardState` assembler and its unit tests. No bias tenure, recent pace, Structure activity, typed readings, derived agreement/churn, shell command, or rendered output.
 - Phase 4: the Direction bias-tenure state machine and percentile, the Structure event-to-axis mapping, activity window, and reference prices, plus their unit, integration, and golden tests. No recent pace, typed readings, derived agreement/churn, shell command, or rendered output.
 - Phase 5: the Progression recent-pace state machine, its absolute percentile, the average net displacement detail, and the terminal freeze, plus their unit, edge-case, causality, determinism, and golden tests. No typed readings, derived agreement/churn, shell command, or rendered output.
+- Phase 6: the per-axis dated Event/Transition readings, the compact-state conversion, synthesized Progression stage transitions, availability filtering, ordering, and the 50-item cap, plus their unit, assembler, causality, determinism, and golden tests. No derived agreement/churn, shell command, or rendered output.
 - No repository change on `main`. The project directory remains on `main`; each phase is worked in its own worktree.
 
 ## Work performed
@@ -82,7 +83,18 @@ Boundary of this entry:
 30. Added 16 Progression unit, edge-case, causality, determinism, and golden tests; updated the existing assembler test for the pace radius; added a confirmed-real-fixture test at bar 57. The assembler test now checks the forming latest leg's average, the absent pace, the `OriginUnconfirmed` radius reason, and the separate displacement percentile.
 31. Generated `crates/quantrule-model/tests/fixtures/dashboard_progression_pace_golden.csv` with an independent Python replay of the contract. The fixture has 105 rows and 19 columns: 4 no-leg bars, 7 forming bars, 82 active bars, and 12 terminal bars (4 completed, 4 invalidated, 4 superseded); 83 rows have a signed pace, 33 have a percentile, 3 are flat, 3 are against the leg, 77 are with the leg, and the first percentile is at bar 60.
 32. Ran the Phase 5 local verification: formatting, clippy, the targeted assembler tests, the full workspace test suite, rustdoc with warnings denied, and `git diff --check`.
-33. Committed the Phase 5 work as `728e146`, pushed `feat/127-progression-pace`, and opened [PR #136](https://github.com/quant-rule/quant-rule/pull/136). `verify` passed in 1m5s; `sync` passed in 12s. The human authorized the commit, push, and pull request. Merge authorization was not requested in that instruction and was not performed.
+33. Committed the Phase 5 work as `728e146`, pushed `feat/127-progression-pace`, and opened [PR #136](https://github.com/quant-rule/quant-rule/pull/136). `verify` passed in 1m5s; `sync` passed in 12s. The human authorized the commit, push, and pull request; merge authorization was not requested in that instruction and was not performed at that time. The human later authorized the merge; PR #136 merged as `5da8ec8`, and the Phase 5 worktree and local/remote branch were removed.
+34. Created `feat/128-dashboard-readings` from `5da8ec8` in `quant-rule--dashboard-readings`, set #128 to `In Progress` with start date `2026-10-26`, and moved the session to that worktree.
+35. Read-only investigation for Phase 6: inspected contract §7, the event type/subtype/source codes, the compact-state Signal values, the per-bar Progression stage series, `TimeframeState::at`, the existing assembler tests, and the independent Level/Divergence/Signal/Progression fixtures.
+36. Added `crates/quantrule-model/src/dashboard/assemble/readings.rs`:
+    - A total display mapping: Level and Divergence to Structure, threshold crossing to Momentum, EMA crossover to Structure, compact-state change by source code, and Progression stage changes to Progression.
+    - Compact-state Signal events become `DatedReading::Transition` with `from_code` taken from `reference_value` and `to_code` from `primary_value`, so one change is one reading.
+    - Progression stage transitions are synthesized from the published stage series, including a null endpoint when a stage appears or disappears; the first bar is never a transition.
+    - Events are filtered by `available_bar_index <= view bar`, then ordered by availability, occurrence, Event-before-Transition, and the fixed event key with deterministic final tie-breakers.
+    - The last 50 readings per axis are retained after ordering.
+37. Wired `axis_readings` into `TimeframeState::at`, updated the module and method documentation, and clarified contract §7.3 with the Event-before-Transition rule and the final tie-breakers.
+38. Added 15 readings unit tests, an assembler test that places the readings on their axes at the latest real-fixture bar and keeps the Level references in Structure detail, and a two-test integration golden with `dashboard_readings_golden.csv` generated by an independent Python replay of contract §7. The fixture has 531 data rows across nine view bars and uses the major-scale divergence events that the default run actually computes; the coverage test pins the divergence availability boundary at views 34 and 37.
+39. Committed the Phase 6 work as `8406f42`, pushed `feat/128-dashboard-readings`, and opened [PR #137](https://github.com/quant-rule/quant-rule/pull/137). `verify` passed in 1m7s; `sync` passed in 14s.
 
 ## Decisions and corrections
 
@@ -131,6 +143,15 @@ Phase 5 implementation choices, made inside the approved contract:
 - **A missing radius names its blocker.** An absent or forming published leg is `OriginUnconfirmed`; a confirmed leg whose pace percentile has fewer than 50 prior samples is `InsufficientBars`. Readiness remains the model's readiness; the view does not invent a second readiness.
 - **A terminal leg freezes both pace and average, and a leg change discards the freeze.** The freeze is set on the bar the published record becomes completed, invalidated, or superseded, and it stays while that terminal leg is published. A new published leg resets the tracker; the later values are not inherited from the prior leg.
 - **The golden fixture is synthetic, and the real fixture supplies wiring evidence.** `progression_golden.csv` cannot produce a single valid same-leg pace, so the golden test drives the pure projection with 105 synthetic `ProgressionBar` rows. The real fixture still exercises `progression_axis` at the forming latest bar and at the one confirmed published bar, so the golden is not the only integration evidence.
+
+Phase 6 implementation choices, made inside the approved contract:
+
+- **One published event has one display axis.** The mapping is a match on the event type and, for Signals, the subtype and source code. An unmapped code is treated as a model defect and left out rather than assigned to a guessed axis. The unit test proves the valid codes are partitioned without duplication.
+- **A compact-state Signal is one Transition, not an Event plus a Transition.** The event already carries the prior and current compact codes as `reference_value` and `primary_value`. Converting it directly avoids publishing the same change twice on the same axis, and a non-integral or out-of-range measured value becomes a typed absent code rather than a truncated one.
+- **A Progression stage change is synthesized from the published series.** The stage series has no event record, so the view compares consecutive published stage codes. A null endpoint is kept because a stage appearing or disappearing is a published change; the first bar is the baseline and never a transition.
+- **Ordering is total and independent of the event batch order.** Availability, occurrence, and Event-before-Transition come first; events then use the contract key with `direction_code` and `reference_value` as final tie-breakers. Without the final tie-breakers two otherwise identical events could swap when the batch is reordered. The cap is applied after ordering, so it always trims the oldest reading.
+- **The integration fixture uses only the configured divergence scale.** The default model run computes divergence at `PivotScale::Major`. The event fixture contains both minor and major scale events, so the readings fixture takes scale 2 only; including the minor events would add readings the model never publishes.
+- **The golden mixes early, cap, and availability views.** The nine view bars are 5, 20, 34, 37, 57, 58, 100, 200, and 259. The latest views exercise the 50 cap; view 37 includes the major divergence that occurred at bar 32, while view 34 excludes it; views 57 and 58 carry the two Progression stage changes.
 
 ## Verification and evidence
 
@@ -197,13 +218,26 @@ Observed Phase 5 evidence, run on `feat/127-progression-pace` (2026-10-26):
 - Plan verification rows 21–29 are checked for Phase 5.
 - The new fixture `crates/quantrule-model/tests/fixtures/dashboard_progression_pace_golden.csv` has 105 rows and 19 columns: 4 no-leg bars, 7 forming bars, 82 active bars, and 12 terminal bars (4 completed, 4 invalidated, 4 superseded); 83 rows have a signed pace, 33 have a percentile, 3 are flat, 3 are against the leg, 77 are with the leg, and the first percentile is at bar 60.
 - `rg -n "coiling|ignition|exhaust" crates/quantrule-model/src/dashboard/assemble/progression.rs crates/quantrule-model/src/dashboard/assemble/progression/tests.rs` — no hits. The only model/shell hits are the pre-existing context-code registry (`context.rs`, `dashboard/mod.rs`) and its shell label mapping, which the approved contract keeps as diagnostics, not Progression labels.
-- Commit `728e146`; branch `feat/127-progression-pace`; PR #136 open.
+- Commit `728e146`; branch `feat/127-progression-pace`; [PR #136](https://github.com/quant-rule/quant-rule/pull/136) merged as `5da8ec8`.
 - `gh pr checks 136 --repo quant-rule/quant-rule --watch` — `verify` passed in 1m5s; `sync` passed in 12s.
+
+Observed Phase 6 evidence, run on `feat/128-dashboard-readings` (2026-10-26):
+
+- `cargo fmt --all -- --check` — passed.
+- `cargo clippy --all-targets -- -D warnings` — passed with no warnings.
+- `cargo test -p quantrule-model --lib dashboard::assemble` — 73 passed, including the 15 new readings tests and the new assembler axis-placement test.
+- `cargo test -p quantrule-model --test dashboard_readings_golden` — 2 passed: the independent golden comparison and the fixture-coverage test.
+- `cargo test` — 395 model unit tests, 33 model doctests, 182 shell unit tests, 71 shell CLI tests, all other integration tests, 0 failures; 4 pre-existing ignored benchmark or slow tests.
+- `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps` — passed with no warnings.
+- `git diff --check` — passed.
+- Plan verification rows 30–34 are checked for Phase 6.
+- The new fixture `crates/quantrule-model/tests/fixtures/dashboard_readings_golden.csv` has 531 data rows across nine view bars. Direction has no dated readings; Momentum retains 50 at views 200 and 259; Structure retains 50 at views 57, 58, 100, 200, and 259; Progression has one reading at view 57 and two at views 58, 100, 200, and 259. The major divergence at view 37 occurred at bar 32 and is absent from view 34.
+- Commit `8406f42`; branch `feat/128-dashboard-readings`; [PR #137](https://github.com/quant-rule/quant-rule/pull/137) open.
+- `gh pr checks 137 --repo quant-rule/quant-rule --watch` — `verify` passed in 1m7s; `sync` passed in 14s.
 
 Not verified / not run:
 
-- No Phase 5 merge yet.
-- No per-axis typed Event/Transition history with the 50-item cap; that is #128.
+- No Phase 6 merge yet; merge authorization is pending.
 - No derived cross-timeframe agreement majority or churn verdict; that is #129. The assembler still publishes only the envelope, coverage, and configured thresholds.
 - No shell `market-dashboard` command, text rendering, JSON output, or dashboard CLI run; those are #130 and #131.
 - No independent agent review. The investigation, implementation, and verification were sequential in one session; that is disclosed here.
@@ -217,6 +251,9 @@ Not verified / not run:
 - Structure alignment and event activity answer different questions. Event density must not inflate the Structure radius.
 - Cross-timeframe majority needs coverage and a minimum valid-reading rule; otherwise one timeframe can masquerade as agreement.
 - A maximum state-change count across different durations is churn evidence, not a universal market-stability verdict.
+- An event's occurrence bar and availability bar answer different questions. Filtering a dated history by availability is what keeps a later confirmation from reaching an earlier view, even when the underlying occurrence is older.
+- A state change is one reading, not an event plus a transition. Publishing both would double-count the same change in the axis history and make the 50-item window hold less history than it appears to.
+- A deterministic history needs a total order. The contract key alone can tie; the final tie-breakers are what make the retained order independent of the event batch order.
 - A types-only slice is useful when it fixes names and numeric code domains before the assembler. Its tests check variant and code mappings, not values that the assembler has not produced yet.
 - Normalizing the timeframe ladder at the assembly boundary turns an accidental dependency on caller order into a tested invariant. If the view is meant to be deterministic, the view should own the normalization rather than trusting every caller to sort.
 - A view of bar `t` must report the window up to `t`, not the run's total length. If it reports the latter, a full run and a prefix run produce different views of the same bar, and the causality test cannot prove what it claims.
