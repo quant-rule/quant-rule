@@ -1,11 +1,11 @@
 use super::direction::direction_tenure;
 use super::structure::structure_activity;
 use super::{
-    AxisDetail, AxisReadiness, AxisState, AxisValue, ChurnClass, Coverage, DashboardConfig,
-    DashboardState, Domain, Readiness, TimeframeState, UnavailableReason,
-    absent_structure_scale_code, rank_size, signed_position,
+    AxisDetail, AxisReadiness, AxisState, AxisValue, Coverage, DashboardConfig, DashboardState,
+    Domain, Readiness, TimeframeState, UnavailableReason, absent_structure_scale_code, rank_size,
+    signed_position,
 };
-use crate::dashboard::{DatedReading, Stage};
+use crate::dashboard::{ChurnClass, DatedReading, Stage};
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
 use crate::run::{ModelRun, TimeframeModel};

@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Issue: [#122](https://github.com/quant-rule/quant-rule/issues/122) — the container; the work is tracked as [#123](https://github.com/quant-rule/quant-rule/issues/123) through [#131](https://github.com/quant-rule/quant-rule/issues/131).
-- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing. Phase 6 typed readings are implemented in [PR #137](https://github.com/quant-rule/quant-rule/pull/137), with `verify` (1m7s) and `sync` (14s) passing; agreement/churn and the command are not started. Not Verified.
+- Status: Approved. Contract approved 2026-10-25 and delivered in [PR #132](https://github.com/quant-rule/quant-rule/pull/132). Phase 2 value types are implemented in [PR #133](https://github.com/quant-rule/quant-rule/pull/133). Phase 3 core assembly is implemented in [PR #134](https://github.com/quant-rule/quant-rule/pull/134). Phase 4 Direction tenure, Structure activity, and reference prices are implemented in [PR #135](https://github.com/quant-rule/quant-rule/pull/135), with `verify` (1m16s) and `sync` (11s) passing, and merged as `7aa9502`. Phase 5 Progression recent pace, the average net displacement, and the terminal freeze are implemented in [PR #136](https://github.com/quant-rule/quant-rule/pull/136), with `verify` (1m5s) and `sync` (12s) passing. Phase 6 typed readings are implemented in [PR #137](https://github.com/quant-rule/quant-rule/pull/137), with `verify` (1m7s) and `sync` (14s) passing. Phase 7 agreement and churn are implemented on `feat/129-dashboard-aggregates`; local verification passes and the pull request is pending. The command is not started. Not Verified.
 - Contract to be written in #123: `docs/model/2026-10-25/dashboard-state.md`.
 - AI transparency log: `docs/ai-transparency-log/2026-10-25/122-market-dashboard.md`.
 - No ADR: this is an additive view over the existing model pipeline; it does not change the pipeline stages, dependencies, or storage schema.
@@ -244,7 +244,7 @@ The text renderer uses the same `DashboardState`. It adds labels, track glyphs, 
 | 4 | #126 | Direction tenure + Structure activity | #125 | `feat/126-bias-tenure-activity` / PR #135 |
 | 5 | #127 | Progression recent pace | #125 | `feat/127-progression-pace` / PR 5 |
 | 6 | #128 | Readings | #125 | `feat/128-dashboard-readings` / [PR #137](https://github.com/quant-rule/quant-rule/pull/137) |
-| 7 | #129 | Agreement + churn | #126–#128 | `feat/129-dashboard-aggregates` / PR 7 |
+| 7 | #129 | Agreement + churn | #126–#128 | `feat/129-dashboard-aggregates` / PR pending |
 | 8 | #130 | Shell command | #129 | `feat/130-market-dashboard` / PR 8 |
 | 9 | #131 | Verification closeout | #130 | `docs/131-dashboard-closeout` / PR 9 |
 
@@ -291,7 +291,7 @@ Limitations:
 
 - The 100k timing is a smoke measurement, not a formal benchmark; no benchmark harness exists.
 - The board's `State`/`Item type` fields are workflow-owned; the agent does not set them.
-- The Phase 2 value types, the Phase 3 core assembler, and the Phase 4 Direction/Structure evidence pass their local tests: `cargo test` reports 361 model unit tests, 2 new dashboard golden integration tests, 33 model doctests, 182 shell unit tests, all other integration tests, and 0 failures. PR #135 also reports `verify` (1m16s) and `sync` (11s) passing. The Progression pace, typed readings, derived agreement/churn, shell command, and end-to-end rendering remain pending; no end-to-end result is claimed.
+- The Phase 2 value types, the Phase 3 core assembler, the Phase 4 Direction/Structure evidence, the Phase 5 Progression pace, the Phase 6 readings, and the Phase 7 agreement/churn pass their local tests. Phase 7 reports 21 focused agreement/churn tests, 416 model unit tests, 33 model doctests, 182 shell unit tests, 71 shell CLI tests, all other integration tests, and 0 failures. The shell command and end-to-end rendering remain pending; no end-to-end result is claimed.
 
 ## 11. Verification checklist
 
@@ -331,13 +331,13 @@ Limitations:
 | 32 | 6 | 50 cap trims oldest | `...the_history_keeps_the_last_fifty_readings`, `...the_cap_is_per_axis`; the golden views at 100, 200, and 259 retain a 50-reading Structure history, and the 200/259 views retain a 50-reading Momentum history | 50 max | [x] |
 | 33 | 6 | Availability filter | `...the_view_bar_limits_events_and_stages`, `...the_replay_is_causal`; the golden fixture and coverage test place the major divergence in view 37 (occurred 32, available 37) and exclude it from view 34 | No future event | [x] |
 | 34 | 6 | Progression stage transition | `...progression_stage_changes_are_transitions`, `...the_first_bar_never_changes_stage`; the golden views at 57, 58, and 259 carry the stage changes | Present | [x] |
-| 35 | 7 | Agreement strict majority, of=3, Progression excluded | Test | Correct | [ ] |
-| 36 | 7 | Minimum 2 valid timeframes; one reading cannot form a majority | Test | Insufficient coverage | [ ] |
-| 37 | 7 | Missing timeframe not neutral; coverage lowered | Test | Correct | [ ] |
-| 38 | 7 | Neutral is a measured class; tie is not a majority | Test | Correct | [ ] |
-| 39 | 7 | Churn max, sources, threshold, window | Test | Complete | [ ] |
-| 40 | 7 | Churn history completeness; Building when incomplete | Test | Correct | [ ] |
-| 41 | 7 | Churn threshold default 6 and boundary | Test | Correct | [ ] |
+| 35 | 7 | Agreement strict majority, of=3, Progression excluded | `dashboard::assemble::cross_tf::tests::a_strict_majority_needs_more_than_half`, `...a_three_way_split_is_not_a_majority`, `...agreement_publishes_three_axes_and_counts_agrees` | Correct | [x] |
+| 36 | 7 | Minimum 2 valid timeframes; one reading cannot form a majority | `...insufficient_coverage_has_no_majority_even_when_one_class_is_unanimous`, `...a_minimum_above_the_valid_count_removes_every_majority` | Insufficient coverage | [x] |
+| 37 | 7 | Missing timeframe not neutral; coverage lowered | `...an_absent_timeframe_never_votes`, `...agreement_publishes_three_axes_and_counts_agrees` (coverage 2/3) | Correct | [x] |
+| 38 | 7 | Neutral is a measured class; tie is not a majority | `...neutral_is_a_measured_class_and_the_corridor_is_inclusive`, `...an_exact_half_is_not_a_majority`, `...a_three_way_split_is_not_a_majority` | Correct | [x] |
+| 39 | 7 | Churn max, sources, threshold, window | `...churn_ties_publish_every_source_sorted_by_timeframe_then_axis`, `...an_axis_without_code_bearing_history_is_not_a_source`, `...the_view_summaries_follow_the_published_values`; causality `...agreement_at_an_earlier_bar_ignores_later_bars`, `...churn_evidence_at_an_earlier_bar_ignores_later_bars`; determinism `dashboard::assemble::tests::reordered_inputs_and_ladders_are_deterministic` | Complete | [x] |
+| 40 | 7 | Churn history completeness; Building when incomplete | `...history_requires_every_configured_timeframe_and_axis`, `...a_short_present_series_is_building`, `...an_empty_run_has_no_agreement_or_complete_churn` | Correct | [x] |
+| 41 | 7 | Churn threshold default 6 and boundary | `...the_threshold_is_at_or_above_and_the_default_is_six` | Correct | [x] |
 | 42 | 8 | `market-dashboard` parses/refuses | CLI tests | Correct | [ ] |
 | 43 | 8 | Text golden matches | CLI golden | Exact bytes | [ ] |
 | 44 | 8 | Four tracks, one row per timeframe, no reversal | Golden/manual | Correct | [ ] |
