@@ -31,6 +31,7 @@ No command is added or changed. The shell loader is deferred to the first consum
 6. Added the cap test and documented the extended constructor.
 7. Wrote the ADR with the benchmark, the alternatives, the 100k/600k consumer table, and the wiring decision.
 8. Indexed the ADR and updated the program plan's D1/D2 status and first-action line.
+9. Reopened #141 after the board closed it when its first three children completed, and linked #10, #11, and #12 so the container follows the remaining program. The container is `In Progress` again.
 
 ## Verification and evidence
 

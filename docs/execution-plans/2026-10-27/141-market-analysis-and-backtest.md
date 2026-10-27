@@ -137,6 +137,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 
 - Goal: Track the program that delivers the two paths and the verified SOLUSD 2025 runs.
 - Scope: Link D0, D1, D2, A0, #11, #10, #12, B0, V1, and V2. Keep the scope and non-goals of this plan.
+- Linked sub-issues: #142, #144, #145, #10, #11, #12. A0, B0, V1, and V2 are created and linked when their phase starts.
 - Done when: `market-report` and `backtest` exist; the SOLUSD 2025 artifacts are verified; docs, ADRs, plans, and logs are updated; all child issues are Done.
 - Depends on: none.
 - Branch/PR: none; this is a tracking container.
