@@ -204,7 +204,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - PR: `feat(model): assemble the market-report view`.
 - Paths: `crates/quantrule-model/src/`, `crates/quantrule-model/tests/`.
 - Log: `docs/ai-transparency-log/2026-10-27/150-market-report-view.md`.
-- Status: In Progress. The pure view, unit tests, golden fixture, and 520k extended test are written and locally verified; the pull request is pending.
+- Status: In Progress. The pure view, unit tests, golden fixture, and 520k extended test are written and locally verified; [PR #154](https://github.com/quant-rule/quant-rule/pull/154) is open.
 
 #### A3 — `feat(shell): add the market-report command` ([#151](https://github.com/quant-rule/quant-rule/issues/151))
 
