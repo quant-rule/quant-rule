@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Current work item: [#149](https://github.com/quant-rule/quant-rule/issues/149) — market-report view contract (A1). D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143); D1 (#145) merged in [PR #146](https://github.com/quant-rule/quant-rule/pull/146); D2 (#144) merged in [PR #147](https://github.com/quant-rule/quant-rule/pull/147) as `c9be8b3`.
+- Current work item: [#150](https://github.com/quant-rule/quant-rule/issues/150) — market-report view assembly (A2). D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143); D1 (#145) merged in [PR #146](https://github.com/quant-rule/quant-rule/pull/146); D2 (#144) merged in [PR #147](https://github.com/quant-rule/quant-rule/pull/147) as `c9be8b3`; A1 (#149) merged in [PR #153](https://github.com/quant-rule/quant-rule/pull/153) as `d887a18`.
 - Related open issues: [#10](https://github.com/quant-rule/quant-rule/issues/10) execution, [#11](https://github.com/quant-rule/quant-rule/issues/11) strategy, [#12](https://github.com/quant-rule/quant-rule/issues/12) portfolio
 - Related merged work: [#14](https://github.com/quant-rule/quant-rule/issues/14) model, [#106](https://github.com/quant-rule/quant-rule/issues/106) market chart, [#122](https://github.com/quant-rule/quant-rule/issues/122) dashboard
 - Program plan: `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`
@@ -191,7 +191,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - PR: `docs(model): define the market-report view` — [#153](https://github.com/quant-rule/quant-rule/pull/153).
 - Paths: `docs/model/2026-10-27/market-report.md`, `docs/README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/149-market-report-contract.md`.
-- Status: PR [#153](https://github.com/quant-rule/quant-rule/pull/153) open; contract follows D11 with H1 and at most 240 buckets.
+- Status: Done. Merged in [PR #153](https://github.com/quant-rule/quant-rule/pull/153) as `d887a18`; the contract follows D11 with H1 and at most 240 buckets.
 
 #### A2 — `feat(model): assemble the market-report view` ([#150](https://github.com/quant-rule/quant-rule/issues/150))
 
@@ -202,7 +202,9 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Branch: `feat/150-market-report-view`.
 - Commits: `feat(model): assemble the market-report view`.
 - PR: `feat(model): assemble the market-report view`.
-- Paths: `crates/quantrule-model/src/`, `crates/quantrule-model/src/lib.rs`.
+- Paths: `crates/quantrule-model/src/`, `crates/quantrule-model/tests/`.
+- Log: `docs/ai-transparency-log/2026-10-27/150-market-report-view.md`.
+- Status: In Progress. The pure view, unit tests, golden fixture, and 520k extended test are written and locally verified; [PR #154](https://github.com/quant-rule/quant-rule/pull/154) is open.
 
 #### A3 — `feat(shell): add the market-report command` ([#151](https://github.com/quant-rule/quant-rule/issues/151))
 
@@ -484,4 +486,4 @@ Stop and ask the human when:
 
 ## 12. First action
 
-D0 (#142) merged in PR #143, D1 (#145) in PR #146, and D2 (#144) in PR #147 as `c9be8b3`. A0 (#148) and its four sub-issues are open. A1 (#149) is in flight: it writes the market-report view contract at `docs/model/2026-10-27/market-report.md`, including the D11 H1 240-bucket chart rule. After A1 merges, A2 (#150) assembles the pure view; A3 (#151) adds `market-report` and the extended loader; A4 (#152) verifies the SOLUSD 2025 run. Keep #11, #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
+D0 (#142) merged in PR #143, D1 (#145) in PR #146, and D2 (#144) in PR #147 as `c9be8b3`. A1 (#149) merged in PR #153 as `d887a18`; its contract is at `docs/model/2026-10-27/market-report.md`, including the D11 H1 240-bucket chart rule. A2 (#150) is in flight: it assembles the pure view and proves it over a 520k model run. After A2 merges, A3 (#151) adds `market-report` and the extended loader; A4 (#152) verifies the SOLUSD 2025 run. Keep #11, #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.

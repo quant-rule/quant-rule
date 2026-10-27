@@ -252,6 +252,33 @@ impl TimeframeModel {
         &self.progression
     }
 
+    /// The Momentum series for this timeframe.
+    ///
+    /// The market report reads the published bars for its statistics; the axis
+    /// itself is not recomputed.
+    #[must_use]
+    pub const fn momentum(&self) -> &MomentumSeries {
+        &self.momentum
+    }
+
+    /// The Structure series for this timeframe.
+    ///
+    /// The market report reads the published bars for its statistics; the axis
+    /// itself is not recomputed.
+    #[must_use]
+    pub const fn structure(&self) -> &StructureSeries {
+        &self.structure
+    }
+
+    /// The context series for this timeframe.
+    ///
+    /// The market report reads the latest published context; it is not
+    /// recomputed.
+    #[must_use]
+    pub const fn context(&self) -> &ContextSeries {
+        &self.context
+    }
+
     /// The retained progression legs for this timeframe.
     #[must_use]
     pub fn legs(&self) -> &[ProgressionLeg] {

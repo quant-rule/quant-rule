@@ -22,6 +22,41 @@ pub struct EventSubtypeCounts {
     pub signal: [u32; 3],
 }
 
+impl EventSubtypeCounts {
+    /// Adds one event to its subtype bin.
+    ///
+    /// An unknown event type or a subtype outside its array is ignored. The
+    /// event is then visible as a type/subtype total mismatch rather than being
+    /// folded into a neighbouring bin.
+    pub fn add_event(&mut self, event: &EventRecord) {
+        let bins = match event.event_type.code() {
+            1 => &mut self.level[..],
+            2 => &mut self.divergence[..],
+            3 => &mut self.signal[..],
+            _ => return,
+        };
+        let Some(index) = event.event_subtype_code.checked_sub(1).map(usize::from) else {
+            return;
+        };
+        if let Some(slot) = bins.get_mut(index) {
+            *slot = slot.saturating_add(1);
+        }
+    }
+
+    /// Adds every bin of `other` into this record.
+    pub fn add_counts(&mut self, other: &Self) {
+        for (target, value) in self.level.iter_mut().zip(other.level.iter()) {
+            *target = target.saturating_add(*value);
+        }
+        for (target, value) in self.divergence.iter_mut().zip(other.divergence.iter()) {
+            *target = target.saturating_add(*value);
+        }
+        for (target, value) in self.signal.iter_mut().zip(other.signal.iter()) {
+            *target = target.saturating_add(*value);
+        }
+    }
+}
+
 /// One timeframe's event summary.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeframeEventSummary {
@@ -81,7 +116,7 @@ pub(crate) fn aggregate(ordered: &[&TimeframeSnapshot]) -> EventAggregates {
         for (index, count) in summary.counts_by_type.iter().enumerate() {
             totals_by_type[index] += count;
         }
-        add_counts(&mut totals_by_subtype, &summary.counts_by_subtype);
+        totals_by_subtype.add_counts(&summary.counts_by_subtype);
 
         if summary
             .counts_by_subtype
@@ -168,47 +203,8 @@ fn count_event(
     if type_index >= counts_by_type.len() {
         return;
     }
-    counts_by_type[type_index] += 1;
-
-    match event.event_type.code() {
-        1 => {
-            if let Some(slot) = counts_by_subtype
-                .level
-                .get_mut(event.event_subtype_code.saturating_sub(1) as usize)
-            {
-                *slot += 1;
-            }
-        }
-        2 => {
-            if let Some(slot) = counts_by_subtype
-                .divergence
-                .get_mut(event.event_subtype_code.saturating_sub(1) as usize)
-            {
-                *slot += 1;
-            }
-        }
-        3 => {
-            if let Some(slot) = counts_by_subtype
-                .signal
-                .get_mut(event.event_subtype_code.saturating_sub(1) as usize)
-            {
-                *slot += 1;
-            }
-        }
-        _ => {}
-    }
-}
-
-fn add_counts(total: &mut EventSubtypeCounts, counts: &EventSubtypeCounts) {
-    for (target, value) in total.level.iter_mut().zip(counts.level.iter()) {
-        *target += value;
-    }
-    for (target, value) in total.divergence.iter_mut().zip(counts.divergence.iter()) {
-        *target += value;
-    }
-    for (target, value) in total.signal.iter_mut().zip(counts.signal.iter()) {
-        *target += value;
-    }
+    counts_by_type[type_index] = counts_by_type[type_index].saturating_add(1);
+    counts_by_subtype.add_event(event);
 }
 
 fn latest_divergence_direction(snapshot: &TimeframeSnapshot) -> Option<i8> {
