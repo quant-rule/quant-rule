@@ -6,7 +6,8 @@
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Branch/worktree: `docs/142-plans-in-docs` in `quant-rule--142-plans-in-docs`
-- Status: Implementation complete; pull request open.
+- PR: [#143](https://github.com/quant-rule/quant-rule/pull/143)
+- Status: Implementation complete; PR #143 open; `verify` and `sync` pass.
 
 ## Intent and boundary
 
