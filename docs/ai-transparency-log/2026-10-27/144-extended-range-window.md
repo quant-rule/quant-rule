@@ -7,7 +7,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - ADR: [`docs/adr/2026-10-27/extended-range-window.md`](../../adr/2026-10-27/extended-range-window.md)
 - Branch/worktree: `feat/144-extended-range-window` in `quant-rule--144-extended-range-window`
-- Status: Implementation complete; pull request open.
+- PR: [#147](https://github.com/quant-rule/quant-rule/pull/147)
+- Status: Implementation complete; PR #147 open.
 
 ## Intent and boundary
 
@@ -37,9 +38,12 @@ No command is added or changed. The shell loader is deferred to the first consum
 - Observed: load 520,000 M1 candles in 0.042 s; model 667,332 bars in 16.047 s; total 16.089 s.
 - Peak RSS: 841,580 KiB (822 MiB), measured with `/usr/bin/time -v` on the test binary.
 - Machine: AMD Ryzen 3 7320U, 4 cores / 8 threads, 5.6 GiB RAM, Linux x86_64; rustc 1.99.1.
-- `cargo test -p quantrule-data` — 100 unit tests and 2 doc tests passed.
+- `cargo test -p quantrule-data` — 101 unit tests and 2 doc tests passed.
 - `cargo fmt --all -- --check` — passed.
-- Full workspace checks are run before the pull request; their results are recorded in the PR and in the final version of this log.
+- `cargo clippy --all-targets -- -D warnings` — passed.
+- `cargo test` — passed; 0 failed. The 520k benchmark and the existing 100k benchmarks remain ignored by design.
+- `cargo doc --no-deps` — passed.
+- Relative documentation links were checked and resolve.
 
 ## Learning
 

@@ -166,7 +166,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - PR: `feat: add the extended-range M1 window`.
 - Paths: `crates/quantrule-data/src/window.rs`, `crates/quantrule-data/src/timeframe_set.rs`, `crates/quantrule-data/src/lib.rs`, `crates/quantrule-model/tests/extended_bench.rs`, `docs/adr/2026-10-27/extended-range-window.md`, `docs/README.md`.
 - Decision gate: resolved. The 520k benchmark fits in 16.1 s and 822 MiB peak; the ADR chooses a 600,000-candle cap and rejects streaming for v1.
-- Status: Implementation complete; PR open.
+- Status: Implementation complete; PR [#147](https://github.com/quant-rule/quant-rule/pull/147) open.
 
 ### Phase 1 — Market analysis
 
