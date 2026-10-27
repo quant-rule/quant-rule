@@ -35,6 +35,7 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | SQLite per-bar store and research schema | Accepted | `docs/adr/2026-10-24/sqlite-store.md` |
 | History, retention, and display policy | Accepted | `docs/adr/2026-10-25/history-retention-and-display-policy.md` |
 | Market analysis and full-execution backtest boundaries | Accepted (#145) | `docs/adr/2026-10-27/analysis-and-backtest-boundaries.md` |
+| Extended-range M1 window | Accepted (#144) | `docs/adr/2026-10-27/extended-range-window.md` |
 
 ## Reading a work item
 

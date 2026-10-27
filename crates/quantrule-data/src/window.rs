@@ -17,6 +17,19 @@ use crate::candle::{Candle, CandleError, RawCandle};
 /// evicting the oldest one, so a truncated series can never look complete.
 pub const MAX_SERIES: usize = 100_000;
 
+/// The maximum number of M1 candles in an extended analysis series.
+///
+/// The extended range exists for a full-period analysis or backtest of one
+/// instrument-year: 2025 has 525,600 minutes, and a year of provider data is
+/// roughly 520,000 rows. The cap leaves headroom for a leap year and a small
+/// amount of provider padding while still refusing a multi-year file instead
+/// of truncating it.
+///
+/// Existing model commands, the store, and research keep [`MAX_SERIES`]. Only
+/// a fixed-retention window built through [`crate::TimeframeSet::extended`]
+/// uses this bound.
+pub const EXTENDED_SERIES: usize = 600_000;
+
 /// The maximum number of candles retained by a [`CandleWindow`].
 pub const DEFAULT_WINDOW: usize = 1_000;
 
@@ -143,10 +156,14 @@ impl CandleWindow {
     /// The window never evicts. A push beyond the limit returns
     /// [`WindowError::CapacityExceeded`], so the caller must reject the input
     /// rather than publish a truncated series.
+    ///
+    /// The initial allocation is bounded by [`DEFAULT_WINDOW`]: an extended
+    /// limit is a refusal bound, not a promise to reserve that much memory
+    /// before the first candle arrives.
     #[must_use]
     pub fn with_limit(limit: usize) -> Self {
         Self {
-            candles: VecDeque::with_capacity(limit),
+            candles: VecDeque::with_capacity(limit.min(DEFAULT_WINDOW)),
             next_series_index: 0,
             last_timestamp: None,
             limit,
@@ -303,7 +320,9 @@ impl Default for CandleWindow {
 
 #[cfg(test)]
 mod tests {
-    use super::{CandleValues, CandleWindow, DEFAULT_WINDOW, MAX_SERIES, WindowError};
+    use super::{
+        CandleValues, CandleWindow, DEFAULT_WINDOW, EXTENDED_SERIES, MAX_SERIES, WindowError,
+    };
     use crate::candle::{CandleError, RawCandle};
     use crate::time::format_utc_timestamp;
 
@@ -748,6 +767,16 @@ mod tests {
     fn the_full_window_uses_the_dataset_cap() {
         let window = CandleWindow::full();
         assert_eq!(window.capacity(), MAX_SERIES);
+        assert!(window.is_empty());
+    }
+
+    #[test]
+    fn the_extended_cap_leaves_room_for_one_instrument_year() {
+        const { assert!(EXTENDED_SERIES > MAX_SERIES) };
+        const { assert!(EXTENDED_SERIES > 525_600) };
+
+        let window = CandleWindow::with_limit(EXTENDED_SERIES);
+        assert_eq!(window.capacity(), EXTENDED_SERIES);
         assert!(window.is_empty());
     }
 }

@@ -78,6 +78,15 @@ impl TimeframeSeries {
         self.window.len()
     }
 
+    /// The series' candle limit.
+    ///
+    /// The limit is the refusal bound: a fixed-retention series rejects the
+    /// candle over it instead of evicting the oldest one.
+    #[must_use]
+    pub fn capacity(&self) -> usize {
+        self.window.capacity()
+    }
+
     /// Whether the series holds no candles.
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -205,10 +214,27 @@ impl TimeframeSet {
         Self::with_limit(crate::MAX_SERIES)
     }
 
+    /// Creates an empty fixed-retention set for an extended analysis range.
+    ///
+    /// The set keeps up to [`crate::EXTENDED_SERIES`] M1 candles and rejects
+    /// the next one instead of evicting the first. It exists for a full-period
+    /// analysis or backtest; the existing model commands, the store, and
+    /// research keep [`crate::MAX_SERIES`].
+    ///
+    /// The extended limit is a refusal bound. A series that would exceed it
+    /// fails with [`TimeframeError::Window`] rather than being truncated, so a
+    /// partial year can never look complete.
+    #[must_use]
+    pub fn extended() -> Self {
+        Self::with_limit(crate::EXTENDED_SERIES)
+    }
+
     /// Creates an empty set with a fixed-retention window per series.
     ///
-    /// This is the shared constructor behind [`TimeframeSet::full`] and the
-    /// tests; the dataset cap is [`crate::MAX_SERIES`].
+    /// This is the shared constructor behind [`TimeframeSet::full`],
+    /// [`TimeframeSet::extended`], and the tests. Every series receives the
+    /// same bound; the limit is a refusal bound rather than an up-front
+    /// allocation.
     #[must_use]
     pub fn with_limit(limit: usize) -> Self {
         Self {
@@ -419,7 +445,10 @@ fn series_position(timeframe: Timeframe) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{PartialBucket, TimeframeError, TimeframeSet};
-    use crate::{Candle, CandleValues, DEFAULT_WINDOW, RawCandle, Timeframe, WindowError};
+    use crate::{
+        Candle, CandleValues, DEFAULT_WINDOW, EXTENDED_SERIES, MAX_SERIES, RawCandle, Timeframe,
+        WindowError,
+    };
 
     const BASE: i64 = 1_735_689_600;
 
@@ -960,6 +989,17 @@ mod tests {
     fn a_different_split_of_the_input_produces_the_same_set() {
         assert_eq!(build_in_chunks(1), build_in_chunks(7));
         assert_eq!(build_in_chunks(7), build_in_chunks(125));
+    }
+
+    #[test]
+    fn the_full_and_extended_sets_use_their_own_caps() {
+        let full = TimeframeSet::full();
+        let extended = TimeframeSet::extended();
+
+        for timeframe in Timeframe::ALL {
+            assert_eq!(full.series(timeframe).capacity(), MAX_SERIES);
+            assert_eq!(extended.series(timeframe).capacity(), EXTENDED_SERIES);
+        }
     }
 
     #[test]

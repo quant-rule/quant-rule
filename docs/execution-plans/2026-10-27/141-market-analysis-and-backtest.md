@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Current work item: [#145](https://github.com/quant-rule/quant-rule/issues/145) — analysis and backtest boundaries. D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143).
+- Current work item: [#144](https://github.com/quant-rule/quant-rule/issues/144) — extended-range M1 window. D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143); D1 (#145) merged in [PR #146](https://github.com/quant-rule/quant-rule/pull/146).
 - Related open issues: [#10](https://github.com/quant-rule/quant-rule/issues/10) execution, [#11](https://github.com/quant-rule/quant-rule/issues/11) strategy, [#12](https://github.com/quant-rule/quant-rule/issues/12) portfolio
 - Related merged work: [#14](https://github.com/quant-rule/quant-rule/issues/14) model, [#106](https://github.com/quant-rule/quant-rule/issues/106) market chart, [#122](https://github.com/quant-rule/quant-rule/issues/122) dashboard
 - Program plan: `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`
@@ -137,6 +137,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 
 - Goal: Track the program that delivers the two paths and the verified SOLUSD 2025 runs.
 - Scope: Link D0, D1, D2, A0, #11, #10, #12, B0, V1, and V2. Keep the scope and non-goals of this plan.
+- Linked sub-issues: #142, #144, #145, #10, #11, #12. A0, B0, V1, and V2 are created and linked when their phase starts.
 - Done when: `market-report` and `backtest` exist; the SOLUSD 2025 artifacts are verified; docs, ADRs, plans, and logs are updated; all child issues are Done.
 - Depends on: none.
 - Branch/PR: none; this is a tracking container.
@@ -150,23 +151,23 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Depends on: P0.
 - Branch: `docs/145-analysis-backtest-boundaries`.
 - Commits: `docs: define market analysis and backtest paths`.
-- PR: `docs: define market analysis and backtest paths`.
+- PR: `docs: define market analysis and backtest paths` — merged in [#146](https://github.com/quant-rule/quant-rule/pull/146).
 - Paths: `docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`, `docs/README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/145-analysis-backtest-boundaries.md`.
-- Status: Implementation complete; PR open.
+- Status: Done. Merged as `134821c`.
 
 #### D2 — `feat: add the extended-range M1 window` ([#144](https://github.com/quant-rule/quant-rule/issues/144))
 
 - Goal: Let `market-report` and `backtest` load a full-year M1 series without changing the existing 100k contracts.
-- Scope: Benchmark 520k; record peak memory and runtime; choose an explicit extended cap or a streaming path in an ADR; add the shared loader; wire the two new commands to it; keep `market-*`, store, and research at 100k; update the fetch warning text.
-- Done when: the benchmark is recorded; a 520k M1 file loads deterministically; the 100k boundary is unchanged for existing commands; tests cover the new cap, truncation refusal, and memory/runtime budget; the ADR is merged.
+- Scope: Benchmark 520k; record peak memory and runtime; choose an explicit extended cap or a streaming path in an ADR; add the extended data-engine set; keep `market-*`, store, and research at 100k. The shell loader is added with the first consumer (A3) and reused by B3; the fetch warning wording follows the first extended command, because until then no command accepts the extended range.
+- Done when: the benchmark is recorded; a 520k M1 series loads deterministically through the extended set; the 100k boundary is unchanged for existing commands; tests cover the new cap and truncation refusal; the ADR is merged.
 - Depends on: D1.
 - Branch: `feat/144-extended-range-window`.
 - Commits: `arch: record the extended-range window decision`, `feat(data): add the extended-range analysis window`, `test: cover the extended-range boundary`.
 - PR: `feat: add the extended-range M1 window`.
-- Paths: `crates/quantrule-data/src/window.rs`, `crates/quantrule-data/src/timeframe_set.rs`, `crates/quantrule-shell/src/csv.rs`, `crates/quantrule-shell/src/command/`, `docs/adr/2026-10-27/extended-range-window.md`, `README.md`.
-- Decision gate: if the 520k run exceeds the approved memory/time budget, stop and revise this phase to streaming before continuing.
-- Status: Queued; starts after D1 merges.
+- Paths: `crates/quantrule-data/src/window.rs`, `crates/quantrule-data/src/timeframe_set.rs`, `crates/quantrule-data/src/lib.rs`, `crates/quantrule-model/tests/extended_bench.rs`, `docs/adr/2026-10-27/extended-range-window.md`, `docs/README.md`.
+- Decision gate: resolved. The 520k benchmark fits in 16.1 s and 822 MiB peak; the ADR chooses a 600,000-candle cap and rejects streaming for v1.
+- Status: Implementation complete; PR [#147](https://github.com/quant-rule/quant-rule/pull/147) open.
 
 ### Phase 1 — Market analysis
 
@@ -480,4 +481,4 @@ Stop and ask the human when:
 
 ## 12. First action
 
-D0 (#142) merged in PR #143. D1 (#145) is in flight: it adds the ADR and indexes it. D2 (#144) is queued. Keep A0, #11, #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
+D0 (#142) merged in PR #143 and D1 (#145) merged in PR #146. D2 (#144) is in flight: it adds the extended-range data-engine set and its benchmark. After D2 merges, A0 starts with the market-report contract (A1). Keep #11, #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
