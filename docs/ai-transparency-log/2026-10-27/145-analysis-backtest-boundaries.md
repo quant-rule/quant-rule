@@ -7,7 +7,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - ADR: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)
 - Branch/worktree: `docs/145-analysis-backtest-boundaries` in `quant-rule--analysis-backtest-boundaries`
-- Status: Implementation complete; pull request open.
+- PR: [#146](https://github.com/quant-rule/quant-rule/pull/146)
+- Status: Implementation complete; PR #146 open; `verify` and `sync` pass.
 
 ## Intent and boundary
 
