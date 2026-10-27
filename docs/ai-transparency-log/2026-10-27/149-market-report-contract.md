@@ -8,7 +8,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Contract: [`docs/model/2026-10-27/market-report.md`](../../model/2026-10-27/market-report.md)
 - Branch/worktree: `docs/149-market-report-contract` in `quant-rule--149-market-report-contract`
-- Status: Contract written; PR not yet opened.
+- PR: [#153](https://github.com/quant-rule/quant-rule/pull/153)
+- Status: Contract written; PR #153 open.
 
 ## Intent and boundary
 

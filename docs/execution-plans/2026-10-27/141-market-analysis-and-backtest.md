@@ -188,10 +188,10 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Depends on: A0.
 - Branch: `docs/149-market-report-contract`.
 - Commits: `docs(model): define the market-report view`.
-- PR: `docs(model): define the market-report view`.
+- PR: `docs(model): define the market-report view` — [#153](https://github.com/quant-rule/quant-rule/pull/153).
 - Paths: `docs/model/2026-10-27/market-report.md`, `docs/README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/149-market-report-contract.md`.
-- Status: In Progress. Contract written; it follows D11 with H1 and at most 240 buckets.
+- Status: PR [#153](https://github.com/quant-rule/quant-rule/pull/153) open; contract follows D11 with H1 and at most 240 buckets.
 
 #### A2 — `feat(model): assemble the market-report view` ([#150](https://github.com/quant-rule/quant-rule/issues/150))
 

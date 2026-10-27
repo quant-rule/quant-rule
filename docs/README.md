@@ -24,7 +24,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 
 | Program | Status | Plan |
 |---|---|---|
-| Market analysis and full-execution backtest | Approved (#141); D0–D2 merged; A1 (#149) in progress | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
+| Market analysis and full-execution backtest | Approved (#141); D0–D2 merged; A1 (#149) in review | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 
