@@ -117,6 +117,7 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` — the AI transparency log required by section 6. One file per work item, named to match its execution plan.
   - `docs/model/<YYYY-MM-DD>/<file>.md` — the analytical model's contract: the four axes, the numeric output fields, the event model, and the aggregation rules. The implementation follows it.
   - `docs/adr/<YYYY-MM-DD>/<file>.md` — architecture decision records, describing the decision, the alternatives considered, and the consequences.
+- **Plans live in the repository.** An execution plan drafted outside the repository is a scratch copy, not the plan of record. Before implementation, it is written to `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` and committed. No implementation begins until that file exists.
 - **Documentation follows the code.** A change that invalidates a documented behavior updates that document in the same pull request, not in a follow-up.
 - **No stale documentation.** If a document describes behavior that no longer exists, the change that removed the behavior removes the description.
 
@@ -510,11 +511,11 @@ For a small, low-risk change, a concise scope and verification checklist may be 
 
 ### Execution Plan Location
 
-Use the following path for approved project plans:
+All project plans live in the repository at the following path. A plan drafted elsewhere is a scratch copy and is not approved or implemented until it is committed here:
 
 `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md`
 
-The date segment is the UTC date on which the work item was recorded (section 12).
+The date segment is the UTC date on which the work item was recorded (section 12). The plan and its AI transparency log share the same base name.
 
 Do not invent issue numbers. If the task has no issue, agree on an appropriate filename with the human.
 
