@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Current work item: [#144](https://github.com/quant-rule/quant-rule/issues/144) — extended-range M1 window. D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143); D1 (#145) merged in [PR #146](https://github.com/quant-rule/quant-rule/pull/146).
+- Current work item: [#149](https://github.com/quant-rule/quant-rule/issues/149) — market-report view contract (A1). D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143); D1 (#145) merged in [PR #146](https://github.com/quant-rule/quant-rule/pull/146); D2 (#144) merged in [PR #147](https://github.com/quant-rule/quant-rule/pull/147) as `c9be8b3`.
 - Related open issues: [#10](https://github.com/quant-rule/quant-rule/issues/10) execution, [#11](https://github.com/quant-rule/quant-rule/issues/11) strategy, [#12](https://github.com/quant-rule/quant-rule/issues/12) portfolio
 - Related merged work: [#14](https://github.com/quant-rule/quant-rule/issues/14) model, [#106](https://github.com/quant-rule/quant-rule/issues/106) market chart, [#122](https://github.com/quant-rule/quant-rule/issues/122) dashboard
 - Program plan: `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`
@@ -57,7 +57,7 @@ Excluded:
 ## 4. Assumptions and uncertainty
 
 - The full-year SOLUSD file is roughly 520k M1 rows. It may contain provider gaps and may not start at 00:00 UTC on 2025-01-01.
-- A 520k M1 model run is expected to fit in memory on the development machine, but this is unproven. D2 benchmarks it before choosing an extended cap versus streaming.
+- A 520k M1 model run fits in memory on the development machine: D2 measured 16.1 s and 822 MiB peak, and the ADR chose a 600,000-candle refusal bound over streaming.
 - The first strategy rule is a product decision. The proposed rule below is a starting point, not an approved signal definition.
 - The fill policy, costs, and stop/target rules are product decisions. The proposed defaults are explicit and replaceable.
 - The model's per-bar outputs are causal and available at bar close. Events must be consumed by their availability bar, not their occurrence bar.
@@ -73,11 +73,11 @@ Excluded:
 | D4 | `market-report` and `backtest` require an explicit `--data-version` and `--out <dir>`, and write deterministic artifact sets. | Approved |
 | D5 | One new pure crate `quantrule-backtest` with `strategy`, `execution`, `portfolio`, `runner`, and `report` modules. It depends on `quantrule-model` and `quantrule-data`; the shell depends on it. Separate strategy/execution/portfolio crates are deferred until an independent consumer exists. | Approved |
 | D6 | The market-report view lives in `quantrule-model` as a descriptive view, following the `DashboardState` precedent. The shell only renders it. | Approved |
-| D7 | Full-year inputs use a shared extended-range loader. Existing commands, store, and research keep the 100k cap. The benchmark in D2 decides between an explicit larger cap and a streaming path. | Approved |
+| D7 | Full-year inputs use a shared extended-range loader. Existing commands, store, and research keep the 100k cap. The D2 benchmark chose an explicit 600,000-candle cap over streaming. | Approved |
 | D8 | First strategy: M15, long when `direction > +0.1`, `momentum_force > +0.1`, and `structure_score > +0.1`; short when all are below `-0.1`; exit when the agreement fails. Equality is neutral. | Approved as a first-run default; revisable after V1 |
 | D9 | Execution: next M15 open after the signal bar closes; ATR(14) stop at 2×ATR and target at 3×ATR; stop wins if both are touched in one bar; explicit fee and slippage per side; one position; fixed notional; no leverage; no funding. | Approved as a first-run default; revisable after V1 |
 | D10 | Reports record the data version, model version, strategy/config, costs, period, and actual coverage. Artifacts are byte-identical across repeated runs. | Approved |
-| D11 | Full-year charts use H1 price and axis series and daily/trade-level equity, not 525k M1 candles. A deterministic downsampling rule is documented. | Approved |
+| D11 | Full-year charts use H1 price and axis series and daily/trade-level equity, not 525k M1 candles. A deterministic downsampling rule is documented; the market report reduces H1 to at most 240 buckets and keeps the last published axis value per bucket. | Approved |
 | D12 | One worktree and one PR per subissue; one work item in flight. One execution plan and one AI log per container, following the #122 dashboard precedent. | Approved |
 
 ## 6. Terminology and command contracts
@@ -137,7 +137,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 
 - Goal: Track the program that delivers the two paths and the verified SOLUSD 2025 runs.
 - Scope: Link D0, D1, D2, A0, #11, #10, #12, B0, V1, and V2. Keep the scope and non-goals of this plan.
-- Linked sub-issues: #142, #144, #145, #10, #11, #12. A0, B0, V1, and V2 are created and linked when their phase starts.
+- Linked sub-issues: #142, #144, #145, #148, #10, #11, #12. A0 (#148) links A1–A4 (#149–#152). B0, V1, and V2 are created and linked when their phase starts.
 - Done when: `market-report` and `backtest` exist; the SOLUSD 2025 artifacts are verified; docs, ADRs, plans, and logs are updated; all child issues are Done.
 - Depends on: none.
 - Branch/PR: none; this is a tracking container.
@@ -164,61 +164,64 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Depends on: D1.
 - Branch: `feat/144-extended-range-window`.
 - Commits: `arch: record the extended-range window decision`, `feat(data): add the extended-range analysis window`, `test: cover the extended-range boundary`.
-- PR: `feat: add the extended-range M1 window`.
+- PR: `feat: add the extended-range M1 window` — merged in [#147](https://github.com/quant-rule/quant-rule/pull/147).
 - Paths: `crates/quantrule-data/src/window.rs`, `crates/quantrule-data/src/timeframe_set.rs`, `crates/quantrule-data/src/lib.rs`, `crates/quantrule-model/tests/extended_bench.rs`, `docs/adr/2026-10-27/extended-range-window.md`, `docs/README.md`.
 - Decision gate: resolved. The 520k benchmark fits in 16.1 s and 822 MiB peak; the ADR chooses a 600,000-candle cap and rejects streaming for v1.
-- Status: Implementation complete; PR [#147](https://github.com/quant-rule/quant-rule/pull/147) open.
+- Status: Done. Merged as `c9be8b3`.
 
 ### Phase 1 — Market analysis
 
-#### A0 — `feat: add the market-report analysis command` (container)
+#### A0 — `feat: add the market-report analysis command` ([#148](https://github.com/quant-rule/quant-rule/issues/148)) (container)
 
 - Goal: Deliver the full-period descriptive report and charts.
 - Scope: A1–A4. No strategy, orders, fills, positions, or P&L.
 - Done when: `market-report` runs on SOLUSD 2025, writes deterministic artifacts, and is documented.
 - Depends on: D2.
 - Board: container; status follows A1–A4.
+- Status: In Progress.
 
-#### A1 — `docs(model): define the market-report view`
+#### A1 — `docs(model): define the market-report view` ([#149](https://github.com/quant-rule/quant-rule/issues/149))
 
 - Goal: Define the numeric view and artifact contract before implementation.
-- Scope: Period, data version, ladder, per-timeframe coverage, per-axis present/null counts, min/max/mean, ordinal histograms, event counts by type/subtype, latest state, cross-TF aggregates; chart layout and resolution; JSON schema; deterministic ordering; no labels beyond stable codes.
+- Scope: Period, data version, ladder, per-timeframe coverage, per-axis present/null counts, min/max/mean, ordinal histograms, event counts by type/subtype, latest state, cross-TF aggregates; H1 chart bucketing; JSON schema; deterministic ordering; no labels beyond stable codes.
 - Done when: `docs/model/2026-10-27/market-report.md` is approved and merged; it states that the view is descriptive and never publishes a trade.
 - Depends on: A0.
-- Branch: `docs/<issue>-market-report-contract`.
+- Branch: `docs/149-market-report-contract`.
 - Commits: `docs(model): define the market-report view`.
-- PR: `docs(model): define the market-report view`.
+- PR: `docs(model): define the market-report view` — [#153](https://github.com/quant-rule/quant-rule/pull/153).
 - Paths: `docs/model/2026-10-27/market-report.md`, `docs/README.md`.
+- Log: `docs/ai-transparency-log/2026-10-27/149-market-report-contract.md`.
+- Status: PR [#153](https://github.com/quant-rule/quant-rule/pull/153) open; contract follows D11 with H1 and at most 240 buckets.
 
-#### A2 — `feat(model): assemble the market-report view`
+#### A2 — `feat(model): assemble the market-report view` ([#150](https://github.com/quant-rule/quant-rule/issues/150))
 
 - Goal: Implement the pure `MarketReport` assembly over `ModelRun`.
 - Scope: Summary statistics, histograms, event counts, coverage, latest state, aggregates; no I/O; no clock; deterministic order; no 100k-only assumption.
 - Done when: unit, golden, causality, determinism, and edge-case tests pass; the view compiles over a 520k model run; no shell logic is added.
 - Depends on: A1, D2.
-- Branch: `feat/<issue>-market-report-view`.
+- Branch: `feat/150-market-report-view`.
 - Commits: `feat(model): assemble the market-report view`.
 - PR: `feat(model): assemble the market-report view`.
 - Paths: `crates/quantrule-model/src/`, `crates/quantrule-model/src/lib.rs`.
 
-#### A3 — `feat(shell): add the market-report command`
+#### A3 — `feat(shell): add the market-report command` ([#151](https://github.com/quant-rule/quant-rule/issues/151))
 
 - Goal: Expose the view through `market-report` with text, JSON, and PNG artifacts.
 - Scope: Parse `--data-version`, `--from`, `--to`, `--out`, `--json`; load the extended range; call the view; render; write the artifact set atomically; print paths; help/README.
 - Done when: CLI tests assert stdout, files, and chart bytes; the command is deterministic; errors leave no partial artifact directory; help lists the contract.
 - Depends on: A2.
-- Branch: `feat/<issue>-market-report-command`.
+- Branch: `feat/151-market-report-command`.
 - Commits: `feat(shell): add the market-report command`, `docs: document the market-report command`.
 - PR: `feat(shell): add the market-report command`.
 - Paths: `crates/quantrule-shell/src/command/`, `crates/quantrule-shell/src/render_*.rs`, `crates/quantrule-shell/src/chart/`, `crates/quantrule-shell/src/command/help.rs`, `README.md`.
 
-#### A4 — `test: verify and document the market-report`
+#### A4 — `test: verify and document the market-report` ([#152](https://github.com/quant-rule/quant-rule/issues/152))
 
 - Goal: Close the market-analysis container with evidence.
 - Scope: SOLUSD 2025 run, reproducibility hashes, coverage/gap check, artifact inspection, plan/log updates, README/help review.
 - Done when: two runs produce byte-identical artifacts; the report covers the requested period; no trades/P&L fields exist; the container plan is Verified.
 - Depends on: A3.
-- Branch: `test/<issue>-market-report`.
+- Branch: `test/152-market-report`.
 - Commits: `test: verify the market-report output`, `docs: close out the market-report`.
 - PR: `test: verify the market-report output`.
 - Paths: `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `README.md`.
@@ -457,7 +460,7 @@ Additional evidence:
 
 | Risk | Mitigation |
 |---|---|
-| 520k M1 model run exceeds memory or time budget. | D2 benchmarks before implementation; if the cap is not viable, switch to streaming and revise the plan. |
+| 520k M1 model run exceeds memory or time budget. | D2 measured 16.1 s and 822 MiB; the 600,000-candle cap is the refusal bound, and a larger input stops instead of truncating. |
 | Extended loader changes existing command behavior. | Keep the 100k cap for existing commands; add a separate explicit path; tests at the 100k and new boundaries. |
 | Strategy rule is arbitrary or produces too few/many trades. | The rule is explicit and configurable; v1 does not optimize; the human approves the rule before S2. |
 | Fill model is optimistic. | Document next-bar open, stop-first tie-break, fees, and slippage; golden fills; no intrabar M1 claim. |
@@ -471,7 +474,7 @@ Additional evidence:
 
 Stop and ask the human when:
 
-- D2's benchmark requires streaming or a cap above the approved memory budget.
+- A new full-year input would exceed the 600,000-candle cap or the measured memory budget.
 - The first strategy rule, fill policy, cost model, or sizing rule needs a product decision.
 - The `market-report` contract would publish a trade, entry, exit, stop, target, confidence, or recommendation.
 - A new dependency is proposed.
@@ -481,4 +484,4 @@ Stop and ask the human when:
 
 ## 12. First action
 
-D0 (#142) merged in PR #143 and D1 (#145) merged in PR #146. D2 (#144) is in flight: it adds the extended-range data-engine set and its benchmark. After D2 merges, A0 starts with the market-report contract (A1). Keep #11, #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
+D0 (#142) merged in PR #143, D1 (#145) in PR #146, and D2 (#144) in PR #147 as `c9be8b3`. A0 (#148) and its four sub-issues are open. A1 (#149) is in flight: it writes the market-report view contract at `docs/model/2026-10-27/market-report.md`, including the D11 H1 240-bucket chart rule. After A1 merges, A2 (#150) assembles the pure view; A3 (#151) adds `market-report` and the extended loader; A4 (#152) verifies the SOLUSD 2025 run. Keep #11, #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
