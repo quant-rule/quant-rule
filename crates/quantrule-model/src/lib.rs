@@ -7,7 +7,8 @@
 //! the shared event record and event detectors in [`events`], the volatility and
 //! participation context in [`context`], and the cross-timeframe aggregates in
 //! [`aggregate`]; [`state`] assembles the published market state and consensus,
-//! and [`dashboard`] defines the typed four-axis dashboard view.
+//! [`dashboard`] defines the typed four-axis dashboard view, and [`report`]
+//! defines the full-period descriptive market report.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -19,6 +20,7 @@ pub mod dashboard;
 pub mod events;
 pub mod kernel;
 pub mod readings;
+pub mod report;
 pub mod retention;
 pub mod run;
 pub mod state;
