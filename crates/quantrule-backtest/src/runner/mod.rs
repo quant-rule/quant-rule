@@ -202,3 +202,6 @@ impl std::error::Error for BacktestError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
