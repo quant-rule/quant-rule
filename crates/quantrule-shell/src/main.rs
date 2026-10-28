@@ -8,6 +8,7 @@
 
 mod chart;
 mod command;
+mod config;
 mod csv;
 mod export;
 mod fetch;
