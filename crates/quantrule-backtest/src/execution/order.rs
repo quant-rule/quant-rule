@@ -160,6 +160,11 @@ pub enum RejectReason {
     /// The ATR-derived stop or target was not a valid positive bracket around
     /// the entry price.
     InvalidBracket,
+    /// An entry decision carried no quantity, because sizing produced none.
+    MissingQuantity,
+    /// An entry decision carried a quantity that is zero, negative, or not
+    /// finite.
+    NonPositiveQuantity,
 }
 
 /// A request to trade one quantity of one instrument.

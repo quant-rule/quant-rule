@@ -43,11 +43,8 @@ fn exit(index: usize, time: i64, side: Side) -> Decision {
 }
 
 fn test_engine() -> ExecutionEngine {
-    ExecutionEngine::new(
-        ExecutionConfig::new(FEE_RATE, SLIPPAGE_BPS).expect("the costs are valid"),
-        QUANTITY,
-    )
-    .expect("the engine is valid")
+    ExecutionEngine::new(ExecutionConfig::new(FEE_RATE, SLIPPAGE_BPS).expect("the costs are valid"))
+        .expect("the engine is valid")
 }
 
 fn approx(actual: f64, expected: f64) {
@@ -62,6 +59,24 @@ fn open_position(engine: &ExecutionEngine) -> Position {
         panic!("expected an open position, got {:?}", engine.position());
     };
     position
+}
+
+fn advance(engine: &mut ExecutionEngine, bar: &Candle) -> Vec<Fill> {
+    engine.advance(bar).expect("the bar is valid")
+}
+
+/// Advances `bar` and submits `decision` with the test quantity and ATR.
+fn step(
+    engine: &mut ExecutionEngine,
+    bar: &Candle,
+    atr: Option<f64>,
+    decision: Decision,
+) -> Vec<Fill> {
+    let fills = advance(engine, bar);
+    engine
+        .submit(decision, Some(QUANTITY), atr)
+        .expect("the decision is valid");
+    fills
 }
 
 /// Bars 0 and 1: a long entry decided on bar 0 fills on bar 1 at 100.
@@ -80,11 +95,7 @@ fn run(
     let mut engine = test_engine();
     let mut fills = Vec::new();
     for ((bar, atr), decision) in bars.iter().zip(atrs).zip(decisions) {
-        fills.extend(
-            engine
-                .on_bar(bar, *atr, *decision)
-                .expect("the bar is valid"),
-        );
+        fills.extend(step(&mut engine, bar, *atr, *decision));
     }
     engine.finish();
     (fills, engine.rejections().to_vec(), engine.position())
@@ -95,17 +106,10 @@ fn a_market_entry_fills_at_the_next_open_with_costs() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
 
-    assert!(
-        engine
-            .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-            .expect("bar 0 is valid")
-            .is_empty()
-    );
+    assert!(step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long)).is_empty());
     assert!(engine.position().is_flat());
 
-    let fills = engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    let fills = step(&mut engine, &second, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     let fill = fills[0];
     assert_eq!(fill.side, OrderSide::Buy);
@@ -130,9 +134,7 @@ fn a_decision_does_not_fill_on_its_own_bar() {
     let mut engine = test_engine();
     let (first, _) = entry_series();
 
-    let fills = engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
+    let fills = step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
     assert!(fills.is_empty());
     assert!(engine.position().is_flat());
 }
@@ -141,17 +143,11 @@ fn a_decision_does_not_fill_on_its_own_bar() {
 fn a_long_stop_fills_at_the_stop() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 100.0, 100.5, 97.5, 98.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     let fill = fills[0];
     assert_eq!(fill.reason, FillReason::StopLoss);
@@ -167,17 +163,11 @@ fn a_long_stop_fills_at_the_stop() {
 fn a_long_stop_gap_fills_at_the_open() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 97.0, 98.0, 96.0, 97.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::StopLoss);
     approx(fills[0].reference_price, 97.0);
@@ -187,17 +177,11 @@ fn a_long_stop_gap_fills_at_the_open() {
 fn a_long_target_fills_at_the_target() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 100.5, 104.0, 100.0, 103.5, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     let fill = fills[0];
     assert_eq!(fill.reason, FillReason::TakeProfit);
@@ -210,17 +194,11 @@ fn a_long_target_fills_at_the_target() {
 fn a_long_target_gap_fills_at_the_open() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 104.0, 104.5, 103.5, 104.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::TakeProfit);
     approx(fills[0].reference_price, 104.0);
@@ -230,17 +208,11 @@ fn a_long_target_gap_fills_at_the_open() {
 fn the_stop_wins_when_a_long_bar_touches_both() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 100.0, 104.0, 97.0, 100.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::StopLoss);
     approx(fills[0].reference_price, 98.02);
@@ -250,19 +222,13 @@ fn the_stop_wins_when_a_long_bar_touches_both() {
 fn a_bracket_triggers_on_an_exact_touch_and_the_stop_wins() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     // The bar's low equals the stop and its high equals the target. The stop
     // must win when both levels are touched, equality included.
     let third = candle(2, 1800, 100.0, 103.02, 98.02, 100.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::StopLoss);
     approx(fills[0].reference_price, 98.02);
@@ -272,17 +238,11 @@ fn a_bracket_triggers_on_an_exact_touch_and_the_stop_wins() {
 fn a_short_stop_gap_fills_at_the_open() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Short))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Short));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 102.0, 102.5, 101.5, 102.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::StopLoss);
     approx(fills[0].reference_price, 102.0);
@@ -292,12 +252,8 @@ fn a_short_stop_gap_fills_at_the_open() {
 fn a_short_entry_and_stop_are_mirrored() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Short))
-        .expect("bar 0 is valid");
-    let fills = engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Short));
+    let fills = step(&mut engine, &second, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].side, OrderSide::Sell);
     approx(fills[0].price, 99.98);
@@ -308,9 +264,7 @@ fn a_short_entry_and_stop_are_mirrored() {
     approx(position.target_price, 96.98);
 
     let third = candle(2, 1800, 100.0, 102.0, 99.0, 100.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::StopLoss);
     assert_eq!(fills[0].side, OrderSide::Buy);
@@ -323,17 +277,11 @@ fn a_short_entry_and_stop_are_mirrored() {
 fn a_short_target_fills_at_the_target() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Short))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Short));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 100.0, 100.5, 96.5, 97.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     let fill = fills[0];
     assert_eq!(fill.reason, FillReason::TakeProfit);
@@ -346,17 +294,11 @@ fn a_short_target_fills_at_the_target() {
 fn a_short_target_gap_fills_at_the_open() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Short))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Short));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 96.0, 97.0, 95.5, 96.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::TakeProfit);
     approx(fills[0].reference_price, 96.0);
@@ -366,17 +308,11 @@ fn a_short_target_gap_fills_at_the_open() {
 fn the_stop_wins_when_a_short_bar_touches_both() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Short))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Short));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 100.0, 102.0, 96.0, 100.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::StopLoss);
     approx(fills[0].reference_price, 101.98);
@@ -386,18 +322,12 @@ fn the_stop_wins_when_a_short_bar_touches_both() {
 fn a_market_exit_fills_at_the_next_open_and_cancels_the_bracket() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), exit(1, 900, Side::Long))
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), exit(1, 900, Side::Long));
     assert!(engine.position().is_open());
 
     let third = candle(2, 1800, 101.0, 101.5, 100.5, 101.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::Exit);
     assert_eq!(fills[0].side, OrderSide::Sell);
@@ -405,29 +335,18 @@ fn a_market_exit_fills_at_the_next_open_and_cancels_the_bracket() {
     assert!(engine.position().is_flat());
 
     let fourth = candle(3, 2700, 100.0, 100.5, 90.0, 95.0, Some(10.0));
-    assert!(
-        engine
-            .on_bar(&fourth, Some(1.0), Decision::Hold)
-            .expect("bar 3 is valid")
-            .is_empty()
-    );
+    assert!(step(&mut engine, &fourth, Some(1.0), Decision::Hold).is_empty());
 }
 
 #[test]
 fn an_exit_at_the_open_wins_over_a_same_bar_stop() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), exit(1, 900, Side::Long))
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), exit(1, 900, Side::Long));
 
     let third = candle(2, 1800, 101.0, 101.0, 90.0, 95.0, Some(10.0));
-    let fills = engine
-        .on_bar(&third, Some(1.0), Decision::Hold)
-        .expect("bar 2 is valid");
+    let fills = step(&mut engine, &third, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::Exit);
     approx(fills[0].reference_price, 101.0);
@@ -440,12 +359,8 @@ fn an_entry_bar_can_trigger_its_own_stop() {
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
     let second = candle(1, 900, 100.0, 100.5, 97.5, 98.0, Some(10.0));
 
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    let fills = engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    let fills = step(&mut engine, &second, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 2);
     assert_eq!(fills[0].reason, FillReason::Entry);
     assert_eq!(fills[1].reason, FillReason::StopLoss);
@@ -464,12 +379,8 @@ fn a_missing_or_invalid_atr_rejects_the_entry() {
     ] {
         let mut engine = test_engine();
         let (first, second) = entry_series();
-        engine
-            .on_bar(&first, atr, enter(0, 0, Side::Long))
-            .expect("bar 0 is valid");
-        let fills = engine
-            .on_bar(&second, Some(1.0), Decision::Hold)
-            .expect("bar 1 is valid");
+        step(&mut engine, &first, atr, enter(0, 0, Side::Long));
+        let fills = step(&mut engine, &second, Some(1.0), Decision::Hold);
         assert!(fills.is_empty(), "atr {atr:?} produced a fill");
         assert_eq!(
             engine.rejections(),
@@ -489,15 +400,8 @@ fn a_zero_volume_next_bar_rejects_the_entry() {
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
     let second = candle(1, 900, 100.0, 101.0, 99.5, 100.5, Some(0.0));
 
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    assert!(
-        engine
-            .on_bar(&second, Some(1.0), Decision::Hold)
-            .expect("bar 1 is valid")
-            .is_empty()
-    );
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    assert!(step(&mut engine, &second, Some(1.0), Decision::Hold).is_empty());
     assert_eq!(
         engine.rejections(),
         &[Rejection {
@@ -513,26 +417,15 @@ fn a_zero_volume_next_bar_rejects_the_entry() {
 fn a_zero_volume_bar_does_not_trigger_the_bracket() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
 
     let third = candle(2, 1800, 100.0, 100.0, 97.0, 98.0, Some(0.0));
-    assert!(
-        engine
-            .on_bar(&third, Some(1.0), Decision::Hold)
-            .expect("bar 2 is valid")
-            .is_empty()
-    );
+    assert!(step(&mut engine, &third, Some(1.0), Decision::Hold).is_empty());
     assert!(engine.position().is_open());
 
     let fourth = candle(3, 2700, 98.0, 98.5, 97.0, 97.5, Some(10.0));
-    let fills = engine
-        .on_bar(&fourth, Some(1.0), Decision::Hold)
-        .expect("bar 3 is valid");
+    let fills = step(&mut engine, &fourth, Some(1.0), Decision::Hold);
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::StopLoss);
     assert_eq!(fills[0].bar, 3);
@@ -542,12 +435,8 @@ fn a_zero_volume_bar_does_not_trigger_the_bracket() {
 fn an_entry_while_open_is_rejected() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    let fills = engine
-        .on_bar(&second, Some(1.0), enter(1, 900, Side::Long))
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    let fills = step(&mut engine, &second, Some(1.0), enter(1, 900, Side::Long));
     assert_eq!(fills.len(), 1);
     assert_eq!(fills[0].reason, FillReason::Entry);
     assert_eq!(
@@ -566,12 +455,7 @@ fn an_exit_while_flat_is_rejected() {
     let mut engine = test_engine();
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
 
-    assert!(
-        engine
-            .on_bar(&first, Some(1.0), exit(0, 0, Side::Long))
-            .expect("bar 0 is valid")
-            .is_empty()
-    );
+    assert!(step(&mut engine, &first, Some(1.0), exit(0, 0, Side::Long)).is_empty());
     assert_eq!(
         engine.rejections(),
         &[Rejection {
@@ -586,16 +470,17 @@ fn an_exit_while_flat_is_rejected() {
 fn a_decision_for_another_bar_is_an_error() {
     let mut engine = test_engine();
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
+    advance(&mut engine, &first);
 
     assert_eq!(
-        engine.on_bar(&first, Some(1.0), enter(1, 0, Side::Long)),
+        engine.submit(enter(1, 0, Side::Long), Some(QUANTITY), Some(1.0)),
         Err(ExecutionError::DecisionBarMismatch {
             expected: 0,
             found: 1,
         })
     );
     assert_eq!(
-        engine.on_bar(&first, Some(1.0), enter(0, 1, Side::Long)),
+        engine.submit(enter(0, 1, Side::Long), Some(QUANTITY), Some(1.0)),
         Err(ExecutionError::DecisionTimeMismatch {
             expected: 0,
             found: 1,
@@ -603,9 +488,18 @@ fn a_decision_for_another_bar_is_an_error() {
     );
     assert!(
         engine
-            .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-            .expect("the bar is valid")
-            .is_empty()
+            .submit(enter(0, 0, Side::Long), Some(QUANTITY), Some(1.0))
+            .is_ok()
+    );
+}
+
+#[test]
+fn a_decision_before_any_bar_is_an_error() {
+    let mut engine = test_engine();
+
+    assert_eq!(
+        engine.submit(enter(0, 0, Side::Long), Some(QUANTITY), Some(1.0)),
+        Err(ExecutionError::SubmitBeforeAdvance)
     );
 }
 
@@ -613,9 +507,7 @@ fn a_decision_for_another_bar_is_an_error() {
 fn finish_rejects_a_pending_order_and_leaves_an_open_position() {
     let mut engine = test_engine();
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
     engine.finish();
     assert_eq!(
         engine.rejections(),
@@ -631,12 +523,8 @@ fn finish_rejects_a_pending_order_and_leaves_an_open_position() {
 
     let mut engine = test_engine();
     let (first, second) = entry_series();
-    engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), Decision::Hold);
     engine.finish();
     assert!(engine.position().is_open());
     assert!(engine.rejections().is_empty());
@@ -645,16 +533,15 @@ fn finish_rejects_a_pending_order_and_leaves_an_open_position() {
 #[test]
 fn the_fee_uses_the_executed_notional_and_the_quantity() {
     let config = ExecutionConfig::new(0.001, 2.0).expect("the costs are valid");
-    let mut engine = ExecutionEngine::new(config, 2.0).expect("the engine is valid");
+    let mut engine = ExecutionEngine::new(config).expect("the engine is valid");
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
     let second = candle(1, 900, 100.0, 101.0, 99.5, 100.5, Some(10.0));
 
+    advance(&mut engine, &first);
     engine
-        .on_bar(&first, Some(1.0), enter(0, 0, Side::Long))
-        .expect("bar 0 is valid");
-    let fills = engine
-        .on_bar(&second, Some(1.0), Decision::Hold)
-        .expect("bar 1 is valid");
+        .submit(enter(0, 0, Side::Long), Some(2.0), Some(1.0))
+        .expect("the decision is valid");
+    let fills = advance(&mut engine, &second);
     assert_eq!(fills.len(), 1);
     approx(fills[0].slippage, 0.02);
     approx(fills[0].price, 100.02);
@@ -662,24 +549,41 @@ fn the_fee_uses_the_executed_notional_and_the_quantity() {
 }
 
 #[test]
-fn the_engine_rejects_an_unusable_quantity_or_slippage() {
-    let config = ExecutionConfig::new(0.001, 2.0).expect("the costs are valid");
-    assert_eq!(
-        ExecutionEngine::new(config, 0.0).expect_err("zero quantity must be rejected"),
-        ExecutionError::NonPositiveQuantity
-    );
-    assert_eq!(
-        ExecutionEngine::new(config, -1.0).expect_err("negative quantity must be rejected"),
-        ExecutionError::NonPositiveQuantity
-    );
-    assert_eq!(
-        ExecutionEngine::new(config, f64::NAN).expect_err("non-finite quantity must be rejected"),
-        ExecutionError::NonFiniteQuantity
-    );
+fn an_unusable_quantity_rejects_the_entry() {
+    for (quantity, reason) in [
+        (None, RejectReason::MissingQuantity),
+        (Some(0.0), RejectReason::NonPositiveQuantity),
+        (Some(-1.0), RejectReason::NonPositiveQuantity),
+        (Some(f64::NAN), RejectReason::NonPositiveQuantity),
+        (Some(f64::INFINITY), RejectReason::NonPositiveQuantity),
+    ] {
+        let mut engine = test_engine();
+        let (first, second) = entry_series();
+        advance(&mut engine, &first);
+        engine
+            .submit(enter(0, 0, Side::Long), quantity, Some(1.0))
+            .expect("the decision is valid");
+        assert!(
+            advance(&mut engine, &second).is_empty(),
+            "quantity {quantity:?} produced a fill"
+        );
+        assert_eq!(
+            engine.rejections(),
+            &[Rejection {
+                bar: 0,
+                time: 0,
+                reason,
+            }]
+        );
+        assert!(engine.position().is_flat());
+    }
+}
 
+#[test]
+fn a_wide_slippage_is_rejected_at_construction() {
     let wide = ExecutionConfig::new(0.0, 10_000.0).expect("the costs are valid");
     assert_eq!(
-        ExecutionEngine::new(wide, 1.0).expect_err("slippage at 100% must be rejected"),
+        ExecutionEngine::new(wide).expect_err("slippage at 100% must be rejected"),
         ExecutionError::SlippageAtOrAboveOne
     );
 }

@@ -187,11 +187,8 @@ fn load_fills() -> Vec<FillRow> {
 }
 
 fn engine() -> ExecutionEngine {
-    ExecutionEngine::new(
-        ExecutionConfig::new(FEE_RATE, SLIPPAGE_BPS).expect("the costs are valid"),
-        QUANTITY,
-    )
-    .expect("the engine is valid")
+    ExecutionEngine::new(ExecutionConfig::new(FEE_RATE, SLIPPAGE_BPS).expect("the costs are valid"))
+        .expect("the engine is valid")
 }
 
 fn run(rows: &[BarRow]) -> (Vec<Fill>, Vec<Rejection>) {
@@ -200,9 +197,12 @@ fn run(rows: &[BarRow]) -> (Vec<Fill>, Vec<Rejection>) {
     for row in rows {
         fills.extend(
             engine
-                .on_bar(&row.candle, row.atr14, row.decision)
+                .advance(&row.candle)
                 .expect("the fixture bar is valid"),
         );
+        engine
+            .submit(row.decision, Some(QUANTITY), row.atr14)
+            .expect("the fixture decision is valid");
     }
     engine.finish();
     (fills, engine.rejections().to_vec())

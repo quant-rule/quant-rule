@@ -9,7 +9,21 @@
 //! The engine owns no portfolio accounting: it records the fill's price, fee,
 //! and slippage, but cash, equity, trade records, and P&L belong to the
 //! portfolio module. Position sizing is outside this module too: the caller
-//! supplies one fixed quantity for the run.
+//! supplies the quantity with each decision.
+//!
+//! # Bar protocol
+//!
+//! A bar is processed in two calls, in this order:
+//!
+//! 1. [`ExecutionEngine::advance`] fills the order scheduled by the previous
+//!    bar at this bar's open and evaluates the open position's bracket.
+//! 2. [`ExecutionEngine::submit`] schedules this bar's decision for the next
+//!    bar.
+//!
+//! The split exists because the caller must apply the bar's fills and mark the
+//! position to market before it can size a new entry from the same close. A
+//! single call cannot do both: the bar's own fills are not known until it has
+//! advanced.
 //!
 //! # Input
 //!
@@ -17,7 +31,7 @@
 //! inspect a timeframe: selecting the series and ignoring bars from another
 //! timeframe belong to the caller, and the strategy already ignores other
 //! timeframes. The decision must carry the same bar index and open time as the
-//! candle it is passed with.
+//! bar it was submitted with.
 //!
 //! # Bracket
 //!
@@ -104,15 +118,18 @@ pub struct Rejection {
 /// use quantrule_data::Candle;
 ///
 /// let config = ExecutionConfig::new(0.001, 2.0)?;
-/// let mut engine = ExecutionEngine::new(config, 1.0)?;
+/// let mut engine = ExecutionEngine::new(config)?;
 /// let first = Candle::new(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0))?;
 /// let second = Candle::new(1, 900, 100.0, 102.0, 99.5, 101.0, Some(10.0))?;
 /// let bar = StrategyInput::new(900, 0, 0, Some(0.5), Some(0.5), Some(1.0));
 ///
-/// assert!(engine
-///     .on_bar(&first, Some(1.0), Decision::Enter(Entry { side: Side::Long, bar }))?
-///     .is_empty());
-/// let fills = engine.on_bar(&second, Some(1.0), Decision::Hold)?;
+/// assert!(engine.advance(&first)?.is_empty());
+/// engine.submit(
+///     Decision::Enter(Entry { side: Side::Long, bar }),
+///     Some(1.0),
+///     Some(1.0),
+/// )?;
+/// let fills = engine.advance(&second)?;
 /// assert_eq!(fills.len(), 1);
 /// assert_eq!(fills[0].reference_price, 100.0);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -120,65 +137,57 @@ pub struct Rejection {
 #[derive(Debug)]
 pub struct ExecutionEngine {
     config: ExecutionConfig,
-    quantity: f64,
     next_bar: usize,
+    last_bar: Option<(usize, i64)>,
     position: PositionState,
     pending: Option<PendingOrder>,
     rejections: Vec<Rejection>,
 }
 
 impl ExecutionEngine {
-    /// Builds an engine with one fixed quantity per entry.
+    /// Builds an engine with no run-wide quantity.
+    ///
+    /// The quantity is supplied with each entry decision by
+    /// [`Self::submit`].
     ///
     /// # Errors
     ///
-    /// Returns [`ExecutionError`] when the quantity is not finite or not
-    /// positive, or when the configured slippage is at least 100% of the
-    /// reference price and would make a sell fill non-positive. The execution
-    /// costs are already validated by [`ExecutionConfig`].
-    pub fn new(config: ExecutionConfig, quantity: f64) -> Result<Self, ExecutionError> {
-        if !quantity.is_finite() {
-            return Err(ExecutionError::NonFiniteQuantity);
-        }
-        if quantity <= 0.0 {
-            return Err(ExecutionError::NonPositiveQuantity);
-        }
+    /// Returns [`ExecutionError::SlippageAtOrAboveOne`] when the configured
+    /// slippage is at least 100% of the reference price and would make a sell
+    /// fill non-positive. The execution costs are already validated by
+    /// [`ExecutionConfig`].
+    pub fn new(config: ExecutionConfig) -> Result<Self, ExecutionError> {
         if config.slippage_rate() >= 1.0 {
             return Err(ExecutionError::SlippageAtOrAboveOne);
         }
 
         Ok(Self {
             config,
-            quantity,
             next_bar: 0,
+            last_bar: None,
             position: PositionState::Flat,
             pending: None,
             rejections: Vec::new(),
         })
     }
 
-    /// Feeds one closed bar and the decision made on that bar.
+    /// Advances one closed bar: fills the pending order and evaluates the
+    /// bracket.
     ///
     /// The engine first fills a market order scheduled by the previous bar at
     /// this bar's open, then evaluates an open position's bracket against this
-    /// bar's range, then schedules `decision` for the next bar. The decision
-    /// must carry this bar's index and open time; a mismatch is a caller
-    /// error, not a rejection.
+    /// bar's range. It returns the fills produced on this bar. The decision for
+    /// this bar is scheduled afterwards by [`Self::submit`].
     ///
     /// # Errors
     ///
-    /// Returns [`ExecutionError`] when the decision does not describe `bar`,
-    /// or when a validated value cannot be constructed.
-    pub fn on_bar(
-        &mut self,
-        bar: &Candle,
-        atr14: Option<f64>,
-        decision: Decision,
-    ) -> Result<Vec<Fill>, ExecutionError> {
+    /// Returns [`ExecutionError`] when a validated value cannot be
+    /// constructed.
+    pub fn advance(&mut self, bar: &Candle) -> Result<Vec<Fill>, ExecutionError> {
         let index = self.next_bar;
         let time = bar.timestamp();
-        self.validate_decision(decision, index, time)?;
         self.next_bar += 1;
+        self.last_bar = Some((index, time));
 
         let mut fills = Vec::new();
 
@@ -193,8 +202,82 @@ impl ExecutionEngine {
             fills.push(fill);
         }
 
-        self.schedule(decision, index, time, atr14)?;
         Ok(fills)
+    }
+
+    /// Schedules one decision for the next bar.
+    ///
+    /// `quantity` is the entry quantity. It is `None` when the caller could not
+    /// size the entry; the decision is then rejected with
+    /// [`RejectReason::MissingQuantity`]. An exit always closes the open
+    /// position with the position's quantity, so its quantity is ignored.
+    ///
+    /// `atr14` is the decision bar's ATR(14), used to bracket the entry when it
+    /// fills. The decision must carry the last advanced bar's index and open
+    /// time; a mismatch is a caller error, not a rejection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutionError::SubmitBeforeAdvance`] when no bar has been
+    /// advanced, [`ExecutionError`] when the decision does not describe the
+    /// last advanced bar, or when a validated value cannot be constructed.
+    pub fn submit(
+        &mut self,
+        decision: Decision,
+        quantity: Option<f64>,
+        atr14: Option<f64>,
+    ) -> Result<(), ExecutionError> {
+        let Some((index, time)) = self.last_bar else {
+            return Err(ExecutionError::SubmitBeforeAdvance);
+        };
+        self.validate_decision(decision, index, time)?;
+
+        match decision {
+            Decision::Hold => Ok(()),
+            Decision::Enter(entry) => {
+                if self.position.is_open() {
+                    self.reject(index, time, RejectReason::PositionAlreadyOpen);
+                    return Ok(());
+                }
+                let quantity = match usable_quantity(quantity) {
+                    Ok(quantity) => quantity,
+                    Err(reason) => {
+                        self.reject(index, time, reason);
+                        return Ok(());
+                    }
+                };
+                let order = Order::new(
+                    order_side(entry.side),
+                    quantity,
+                    FillReason::Entry,
+                    Trigger::Market,
+                    index,
+                    time,
+                )
+                .map_err(ExecutionError::Order)?;
+                self.pending = Some(PendingOrder { order, atr14 });
+                Ok(())
+            }
+            Decision::Exit(_) => {
+                let PositionState::Open(position) = self.position else {
+                    self.reject(index, time, RejectReason::NoPosition);
+                    return Ok(());
+                };
+                // The engine closes the position it holds; the decision's side
+                // is the strategy's view of that position, not the order side.
+                let order = Order::new(
+                    order_side(position.side).opposite(),
+                    position.quantity,
+                    FillReason::Exit,
+                    Trigger::Market,
+                    index,
+                    time,
+                )
+                .map_err(ExecutionError::Order)?;
+                self.pending = Some(PendingOrder { order, atr14 });
+                Ok(())
+            }
+        }
     }
 
     /// Rejects a pending order that has no next bar.
@@ -410,54 +493,6 @@ impl ExecutionEngine {
         Ok(Some(fill))
     }
 
-    fn schedule(
-        &mut self,
-        decision: Decision,
-        index: usize,
-        time: i64,
-        atr14: Option<f64>,
-    ) -> Result<(), ExecutionError> {
-        match decision {
-            Decision::Hold => Ok(()),
-            Decision::Enter(entry) => {
-                if self.position.is_open() {
-                    self.reject(index, time, RejectReason::PositionAlreadyOpen);
-                    return Ok(());
-                }
-                let order = Order::new(
-                    order_side(entry.side),
-                    self.quantity,
-                    FillReason::Entry,
-                    Trigger::Market,
-                    index,
-                    time,
-                )
-                .map_err(ExecutionError::Order)?;
-                self.pending = Some(PendingOrder { order, atr14 });
-                Ok(())
-            }
-            Decision::Exit(_) => {
-                let PositionState::Open(position) = self.position else {
-                    self.reject(index, time, RejectReason::NoPosition);
-                    return Ok(());
-                };
-                // The engine closes the position it holds; the decision's side
-                // is the strategy's view of that position, not the order side.
-                let order = Order::new(
-                    order_side(position.side).opposite(),
-                    position.quantity,
-                    FillReason::Exit,
-                    Trigger::Market,
-                    index,
-                    time,
-                )
-                .map_err(ExecutionError::Order)?;
-                self.pending = Some(PendingOrder { order, atr14 });
-                Ok(())
-            }
-        }
-    }
-
     fn fill(
         &self,
         side: OrderSide,
@@ -499,6 +534,19 @@ fn is_tradable(bar: &Candle) -> bool {
 
 fn usable_atr(atr14: Option<f64>) -> Option<f64> {
     atr14.filter(|value| value.is_finite() && *value > 0.0)
+}
+
+/// The quantity an entry may be submitted with.
+///
+/// A missing quantity and an unusable one are distinct rejections: the first
+/// says sizing produced nothing, the second says it produced a value the engine
+/// cannot trade.
+fn usable_quantity(quantity: Option<f64>) -> Result<f64, RejectReason> {
+    match quantity {
+        None => Err(RejectReason::MissingQuantity),
+        Some(value) if value.is_finite() && value > 0.0 => Ok(value),
+        Some(_) => Err(RejectReason::NonPositiveQuantity),
+    }
 }
 
 fn bracket(side: Side, entry: f64, atr: f64) -> (f64, f64) {
@@ -574,10 +622,8 @@ fn order_side(side: Side) -> OrderSide {
 /// A fill or decision could not be simulated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecutionError {
-    /// The quantity is not a finite number.
-    NonFiniteQuantity,
-    /// The quantity is zero or negative.
-    NonPositiveQuantity,
+    /// A decision was submitted before any bar had been advanced.
+    SubmitBeforeAdvance,
     /// The decision carries a different bar index than the bar it was given
     /// with.
     DecisionBarMismatch {
@@ -609,9 +655,11 @@ pub enum ExecutionError {
 impl std::fmt::Display for ExecutionError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NonFiniteQuantity => write!(formatter, "the execution quantity must be finite"),
-            Self::NonPositiveQuantity => {
-                write!(formatter, "the execution quantity must be positive")
+            Self::SubmitBeforeAdvance => {
+                write!(
+                    formatter,
+                    "a decision cannot be submitted before a bar is advanced"
+                )
             }
             Self::DecisionBarMismatch { expected, found } => write!(
                 formatter,
