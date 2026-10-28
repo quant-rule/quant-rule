@@ -57,6 +57,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars; `--window latest` supports inputs above the 100k cap |
 | `market-report` | `<csv-path> --data-version <id> --out <dir>` [options] | A deterministic full-period report: `summary.txt`, `report.json`, and two PNGs |
 | `strategy-run` | `<csv-path> --strategy <name> --data-version <id>` [options] | Strategy entries and exits as NDJSON; no fills, positions, equity, or P&L |
+| `report` | `<engine> --config <run.json>` [options] | One config-driven bundle under `<out>/<engine>`; `model` and `strategy` are wired in this work item |
 | `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
 | `legs` | `<csv-path>` [`--window full\|latest`] | The minor and major leg per timeframe as NDJSON |
@@ -244,6 +245,8 @@ The output is deterministic: the same input and configuration produce the same b
 The report publishes coverage, axis statistics and ordinal histograms, full-period event counts, the latest published state, cross-timeframe aggregates, and chart buckets. It contains no order, fill, position, trade, equity, drawdown, or P&L field, and it applies no strategy. A range with no M1 candles fails and writes no artifacts. The JSON envelope carries `model_version`, `view_contract`, `data_version`, `requested_period`, and `market_report`; object keys have a fixed order, numbers keep full precision, and a missing value is `null`.
 
 The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles; existing commands, the store, and research keep the 100,000-candle cap.
+
+`report model --config <run.json> [--out <dir>] [--json]` writes the model bundle under `<out>/model/`: `summary.txt`, `report.json`, `price-axes.png`, `events.png`, and `provenance.json`. `report strategy --config <run.json> [--out <dir>] [--json]` runs only the data, model, and strategy engines and writes `summary.txt`, `report.json`, `decisions.csv`, `price-decisions.png`, and `provenance.json` under `<out>/strategy/`. A bundle is available when its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `provenance.json` records the data version, the requested and actual periods, the config file names, the resolved engine values, and the artifact list, never a resolved absolute path. The `execution`, `portfolio`, and `analytical` reports answer with a not-implemented error until R2 and R3. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data and period.
 
 ### Strategy-run contract
 

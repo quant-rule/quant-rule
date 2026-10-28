@@ -296,14 +296,45 @@ pub(crate) fn render_png(
     range: &DateRange,
     timeframe: Timeframe,
 ) -> Result<Vec<u8>, ChartError> {
+    render_with_markers(candles, &[], symbol, range, timeframe)
+}
+
+/// Renders one PNG with entry and exit markers.
+///
+/// A marker is a `(bar, is_entry)` pair. The marker is drawn at the bar's close
+/// on the price panel; the shell supplies the markers from the strategy
+/// decisions and does not recompute them here.
+///
+/// # Errors
+///
+/// Returns [`ChartError::Empty`] when the slice is empty and
+/// [`ChartError::Encode`] when the PNG encoder fails.
+pub(crate) fn render_decisions_png(
+    candles: &[Candle],
+    markers: &[(usize, bool)],
+    symbol: &str,
+    range: &DateRange,
+    timeframe: Timeframe,
+) -> Result<Vec<u8>, ChartError> {
+    render_with_markers(candles, markers, symbol, range, timeframe)
+}
+
+fn render_with_markers(
+    candles: &[Candle],
+    markers: &[(usize, bool)],
+    symbol: &str,
+    range: &DateRange,
+    timeframe: Timeframe,
+) -> Result<Vec<u8>, ChartError> {
     let mut canvas = Canvas::new(WIDTH, HEIGHT, BACKGROUND);
-    draw_chart(&mut canvas, candles, symbol, range, timeframe)?;
+    draw_chart(&mut canvas, candles, markers, symbol, range, timeframe)?;
     canvas.encode_png().map_err(ChartError::Encode)
 }
 
 fn draw_chart(
     canvas: &mut Canvas,
     candles: &[Candle],
+    markers: &[(usize, bool)],
     symbol: &str,
     range: &DateRange,
     timeframe: Timeframe,
@@ -323,6 +354,7 @@ fn draw_chart(
     draw_time_grid(canvas, candles);
 
     draw_candles(canvas, candles, min_price, max_price);
+    draw_decision_markers(canvas, candles, markers, min_price, max_price);
     draw_volumes(canvas, candles, max_volume);
 
     draw_borders(canvas);
@@ -466,6 +498,26 @@ fn draw_candles(canvas: &mut Canvas, candles: &[Candle], min_price: f64, max_pri
         let bottom = open_y.max(close_y);
         let body_height = (bottom - top).max(1);
         canvas.fill_rect(x - half, top, body_width, body_height, color);
+    }
+}
+
+fn draw_decision_markers(
+    canvas: &mut Canvas,
+    candles: &[Candle],
+    markers: &[(usize, bool)],
+    min_price: f64,
+    max_price: f64,
+) {
+    let count = candles.len().max(1);
+    let step = f64::from(PLOT_WIDTH) / count as f64;
+    for (index, is_entry) in markers {
+        let Some(candle) = candles.get(*index) else {
+            continue;
+        };
+        let x = (f64::from(LEFT) + (*index as f64 + 0.5) * step).round() as i32;
+        let y = price_y(candle.close(), min_price, max_price);
+        let color = if *is_entry { UP } else { DOWN };
+        canvas.fill_rect(x - 3, y - 3, 7, 7, color);
     }
 }
 

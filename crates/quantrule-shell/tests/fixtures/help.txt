@@ -24,6 +24,12 @@ QuantRule shell commands:
       --from <date>             Inclusive UTC start date, YYYY-MM-DD.
       --to <date>               Inclusive UTC end date, YYYY-MM-DD.
       --json                    Print one provenance envelope instead of bare NDJSON.
+  report <engine> --config <run.json>
+                                Write one config-driven report bundle under <out>/<engine>.
+      <engine>                  model, strategy, execution, portfolio, or analytical.
+      --config <path>           The run configuration; required.
+      --out <dir>               Output root override (default: the run config).
+      --json                    Print report.json bytes to stdout.
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   events <csv-path>             Print every event record in the analyzed window as NDJSON.

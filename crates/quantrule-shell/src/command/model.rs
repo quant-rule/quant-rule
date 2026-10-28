@@ -319,6 +319,14 @@ pub(crate) fn load_model_run(path: &Path, window: WindowMode) -> Result<ModelRun
 /// The shell owns the source access and the data engine owns the ladder; this
 /// helper only copies the four series into the model's input shape.
 pub(crate) fn model_run_from_set(set: &TimeframeSet) -> ModelRun {
+    model_run_from_set_with_config(set, MarketStateConfig::default())
+}
+
+/// Builds the model run for the supplied timeframe set and configuration.
+pub(crate) fn model_run_from_set_with_config(
+    set: &TimeframeSet,
+    config: MarketStateConfig,
+) -> ModelRun {
     let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
     let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
     let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
@@ -343,7 +351,7 @@ pub(crate) fn model_run_from_set(set: &TimeframeSet) -> ModelRun {
                 candles: &h1,
             },
         ],
-        &MarketStateConfig::default(),
+        &config,
     )
 }
 

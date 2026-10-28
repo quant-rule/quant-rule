@@ -1,0 +1,11 @@
+{
+  "schema": "quantrule.run/v1",
+  "name": "fixture",
+  "data": "data.json",
+  "model": "model.json",
+  "strategy": "strategy.json",
+  "execution": "execution.json",
+  "portfolio": "portfolio.json",
+  "analytics": "analytics.json",
+  "output_root": "../../../../target/report-tests/report-command-default"
+}

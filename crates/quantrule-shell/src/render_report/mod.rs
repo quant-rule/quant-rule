@@ -4,9 +4,13 @@
 //! computes no statistic. The text maps stable codes to the shell's fixed
 //! labels, and the JSON carries codes and numbers only.
 
+mod bundle;
 mod json;
+mod provenance;
 
+pub(crate) use bundle::{BundleError, ensure_available, write_bundle};
 pub(crate) use json::json_bytes;
+pub(crate) use provenance::{Provenance, REPORT_VERSION, bytes as provenance_bytes};
 
 use std::io::{self, Write};
 
