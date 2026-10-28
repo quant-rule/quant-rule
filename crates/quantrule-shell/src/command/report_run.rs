@@ -9,14 +9,17 @@ use std::fmt::Write as _;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+use quantrule_backtest::runner::{BacktestConfig, BacktestRun, run_backtest};
 use quantrule_backtest::strategy::{
     Agreement, AxisAgreementStrategy, Decision, ExitReason, Side, Strategy, StrategyInput,
 };
-use quantrule_data::{Timeframe, TimeframeSet, format_utc_timestamp};
+use quantrule_data::{Candle, Timeframe, TimeframeSet, format_utc_timestamp};
 use quantrule_model::readings::PivotScale;
 use quantrule_model::report::MarketReport;
 use quantrule_model::run::{ModelRun, TimeframeModel};
 use serde_json::{Value, json};
+
+mod bundles;
 
 use super::model;
 use super::types::{ParseError, ReportArgs, ReportEngine, ReportError, RunError};
@@ -133,6 +136,8 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
     match args.engine {
         ReportEngine::Model => model_bundle(&config, &out, args.json, writer),
         ReportEngine::Strategy => strategy_bundle(&config, &out, args.json, writer),
+        ReportEngine::Execution => bundles::execution_bundle(&config, &out, args.json, writer),
+        ReportEngine::Portfolio => bundles::portfolio_bundle(&config, &out, args.json, writer),
         engine => Err(RunError::Report(ReportError::NotImplemented {
             engine: engine.code(),
         })),
@@ -520,6 +525,40 @@ fn chart_range(
         .unwrap_or_else(|| day_label(last.timestamp()));
     DateRange::parse(&from, &to)
         .map_err(|error| RunError::Report(ReportError::Period(error.to_string())))
+}
+
+/// Runs the full pipeline once for the execution and portfolio reports.
+fn run_pipeline(config: &RunConfig) -> Result<BacktestRun, RunError> {
+    let set = load_set(config)?;
+    let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
+    let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
+    let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
+    let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
+    let inputs = [
+        quantrule_model::state::TimeframeInput {
+            timeframe_secs: u64::from(Timeframe::M1.seconds()),
+            candles: &m1,
+        },
+        quantrule_model::state::TimeframeInput {
+            timeframe_secs: u64::from(Timeframe::M5.seconds()),
+            candles: &m5,
+        },
+        quantrule_model::state::TimeframeInput {
+            timeframe_secs: u64::from(Timeframe::M15.seconds()),
+            candles: &m15,
+        },
+        quantrule_model::state::TimeframeInput {
+            timeframe_secs: u64::from(Timeframe::H1.seconds()),
+            candles: &h1,
+        },
+    ];
+    let backtest = BacktestConfig {
+        model: config.model,
+        strategy: config.strategy,
+        execution: config.execution.engine,
+        portfolio: config.portfolio,
+    };
+    run_backtest(&inputs, &backtest).map_err(RunError::Backtest)
 }
 
 fn load_model(config: &RunConfig) -> Result<ModelRun, RunError> {

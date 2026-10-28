@@ -60,9 +60,9 @@ const TEXT: Rgb = Rgb::new(216, 222, 233);
 /// Secondary labels.
 const MUTED: Rgb = Rgb::new(138, 148, 158);
 /// A rising candle.
-const UP: Rgb = Rgb::new(38, 166, 154);
+pub(crate) const UP: Rgb = Rgb::new(38, 166, 154);
 /// A falling candle.
-const DOWN: Rgb = Rgb::new(239, 83, 80);
+pub(crate) const DOWN: Rgb = Rgb::new(239, 83, 80);
 /// A candle whose open equals its close.
 const DOJI: Rgb = Rgb::new(176, 190, 197);
 
@@ -499,6 +499,91 @@ fn draw_candles(canvas: &mut Canvas, candles: &[Candle], min_price: f64, max_pri
         let body_height = (bottom - top).max(1);
         canvas.fill_rect(x - half, top, body_width, body_height, color);
     }
+}
+
+/// Renders a single-series line chart for a daily equity or drawdown curve.
+///
+/// The x-axis is the point order, the y-axis the value. A missing date is
+/// absent from the slice, so the line has a gap rather than a zero. The caller
+/// supplies the already-downsampled points.
+///
+/// # Errors
+///
+/// Returns [`ChartError::Empty`] when the slice is empty and
+/// [`ChartError::Encode`] when the PNG encoder fails.
+pub(crate) fn render_line_png(
+    points: &[(i64, f64)],
+    title: &str,
+    color: Rgb,
+) -> Result<Vec<u8>, ChartError> {
+    if points.is_empty() {
+        return Err(ChartError::Empty);
+    }
+
+    const LINE_WIDTH: u32 = 1_280;
+    const LINE_HEIGHT: u32 = 480;
+    const TOP: i32 = 72;
+    const BOTTOM: i32 = 408;
+    const DIVISIONS: i32 = 4;
+
+    let mut canvas = Canvas::new(LINE_WIDTH, LINE_HEIGHT, BACKGROUND);
+    canvas.fill_rect(LEFT, TOP, PLOT_WIDTH, BOTTOM - TOP, PANEL);
+    canvas.text(LEFT, 28, title, TEXT, 2);
+
+    let (mut min, mut max) = points.iter().fold(
+        (f64::INFINITY, f64::NEG_INFINITY),
+        |(min, max), (_, value)| (min.min(*value), max.max(*value)),
+    );
+    if !min.is_finite() || !max.is_finite() {
+        return Err(ChartError::Empty);
+    }
+    if (max - min).abs() < f64::EPSILON {
+        min -= 1.0;
+        max += 1.0;
+    }
+    let y =
+        |value: f64| TOP + (((max - value) / (max - min)) * f64::from(BOTTOM - TOP)).round() as i32;
+
+    for division in 0..=DIVISIONS {
+        let grid_y = TOP
+            + (f64::from(BOTTOM - TOP) * f64::from(division) / f64::from(DIVISIONS)).round() as i32;
+        canvas.line(LEFT, grid_y, LEFT + PLOT_WIDTH, grid_y, GRID);
+        let value = max - (max - min) * f64::from(division) / f64::from(DIVISIONS);
+        let label = format!("{value:.4}");
+        text_right(
+            &mut canvas,
+            LINE_WIDTH as i32 - 12,
+            grid_y - 6,
+            &label,
+            MUTED,
+            1,
+        );
+    }
+
+    let step = f64::from(PLOT_WIDTH) / (points.len().max(2) - 1) as f64;
+    let mut previous = None;
+    for (index, (_, value)) in points.iter().enumerate() {
+        let x = LEFT + (index as f64 * step).round() as i32;
+        let point = (x, y(*value));
+        if let Some((previous_x, previous_y)) = previous {
+            canvas.line(previous_x, previous_y, point.0, point.1, color);
+        }
+        previous = Some(point);
+    }
+
+    let first = format_utc_timestamp(points[0].0);
+    let last = format_utc_timestamp(points[points.len() - 1].0);
+    canvas.text(LEFT, BOTTOM + 18, &first[..10], MUTED, 1);
+    text_right(
+        &mut canvas,
+        LEFT + PLOT_WIDTH,
+        BOTTOM + 18,
+        &last[..10],
+        MUTED,
+        1,
+    );
+
+    canvas.encode_png().map_err(ChartError::Encode)
 }
 
 fn draw_decision_markers(
