@@ -8,8 +8,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Boundary: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)
 - Branch/worktree: `feat/165-execution-fills` in `quant-rule--165-execution-fills`
-- PR: pending
-- Status: Implemented and verified; pull request not yet opened.
+- PR: [#166](https://github.com/quant-rule/quant-rule/pull/166)
+- Status: Open; local verification passed, CI pending.
 
 ## Intent and boundary
 
