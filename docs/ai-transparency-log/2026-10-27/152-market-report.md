@@ -8,8 +8,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Contract: [`docs/model/2026-10-27/market-report.md`](../../model/2026-10-27/market-report.md)
 - Branch/worktree: `test/152-market-report` in `quant-rule--152-market-report`
-- PR: pending
-- Status: Verification complete; documentation close-out pending the pull request.
+- PR: [#156](https://github.com/quant-rule/quant-rule/pull/156)
+- Status: Verification and documentation complete; PR #156 open.
 
 ## Intent and boundary
 
