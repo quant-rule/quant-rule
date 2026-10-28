@@ -8,7 +8,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Contract: [`docs/model/2026-10-27/market-report.md`](../../model/2026-10-27/market-report.md)
 - Branch/worktree: `feat/151-market-report-command` in `quant-rule--151-market-report-command`
-- Status: Implementation, tests, and documentation complete; commit and pull request pending.
+- PR: [#155](https://github.com/quant-rule/quant-rule/pull/155)
+- Status: Implementation, tests, and documentation complete; PR #155 open.
 
 ## Intent and boundary
 

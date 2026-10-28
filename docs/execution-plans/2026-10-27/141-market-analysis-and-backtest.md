@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Current work item: [#151](https://github.com/quant-rule/quant-rule/issues/151) — the `market-report` command (A3). D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143); D1 (#145) merged in [PR #146](https://github.com/quant-rule/quant-rule/pull/146); D2 (#144) merged in [PR #147](https://github.com/quant-rule/quant-rule/pull/147) as `c9be8b3`; A1 (#149) merged in [PR #153](https://github.com/quant-rule/quant-rule/pull/153) as `d887a18`; A2 (#150) merged in [PR #154](https://github.com/quant-rule/quant-rule/pull/154) as `4170335`.
+- Current work item: [#151](https://github.com/quant-rule/quant-rule/issues/151) — the `market-report` command (A3), [PR #155](https://github.com/quant-rule/quant-rule/pull/155) open. D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143); D1 (#145) merged in [PR #146](https://github.com/quant-rule/quant-rule/pull/146); D2 (#144) merged in [PR #147](https://github.com/quant-rule/quant-rule/pull/147) as `c9be8b3`; A1 (#149) merged in [PR #153](https://github.com/quant-rule/quant-rule/pull/153) as `d887a18`; A2 (#150) merged in [PR #154](https://github.com/quant-rule/quant-rule/pull/154) as `4170335`.
 - Related open issues: [#10](https://github.com/quant-rule/quant-rule/issues/10) execution, [#11](https://github.com/quant-rule/quant-rule/issues/11) strategy, [#12](https://github.com/quant-rule/quant-rule/issues/12) portfolio
 - Related merged work: [#14](https://github.com/quant-rule/quant-rule/issues/14) model, [#106](https://github.com/quant-rule/quant-rule/issues/106) market chart, [#122](https://github.com/quant-rule/quant-rule/issues/122) dashboard
 - Program plan: `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`
@@ -214,10 +214,10 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Depends on: A2.
 - Branch: `feat/151-market-report-command`.
 - Commits: `feat(shell): add the market-report command`, `docs: document the market-report command`.
-- PR: `feat(shell): add the market-report command`.
+- PR: `feat(shell): add the market-report command` — [#155](https://github.com/quant-rule/quant-rule/pull/155).
 - Paths: `crates/quantrule-shell/src/command/`, `crates/quantrule-shell/src/render_report/`, `crates/quantrule-shell/src/chart/`, `crates/quantrule-shell/src/command/help.rs`, `README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/151-market-report-command.md`.
-- Status: In Progress. The command, extended loader, renderers, CLI tests, goldens, help, and README are written and locally verified; commit and pull request are pending.
+- Status: Done. The command, extended loader, renderers, CLI tests, goldens, help, and README are complete and locally verified; [PR #155](https://github.com/quant-rule/quant-rule/pull/155) is open.
 
 #### A4 — `test: verify and document the market-report` ([#152](https://github.com/quant-rule/quant-rule/issues/152))
 
