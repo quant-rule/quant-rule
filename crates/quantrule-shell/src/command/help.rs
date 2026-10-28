@@ -37,6 +37,11 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
       --config <path>           The run configuration; required.
       --out <dir>               Output root override (default: the run config).
       --json                    Print report.json bytes to stdout.
+  backtest --config <run.json>
+                                Run the full pipeline and write all five bundles.
+      --config <path>           The run configuration; required.
+      --out <dir>               Output root override (default: the run config).
+      --json                    Print a deterministic summary envelope.
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   events <csv-path>             Print every event record in the analyzed window as NDJSON.

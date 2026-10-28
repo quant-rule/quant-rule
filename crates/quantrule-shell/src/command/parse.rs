@@ -7,6 +7,7 @@
 
 use std::path::PathBuf;
 
+use super::backtest::parse_backtest_arguments;
 use super::chart::parse_market_chart_arguments;
 use super::dashboard::parse_dashboard_arguments;
 use super::fetch::parse_fetch_arguments;
@@ -66,6 +67,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "report" => {
             let arguments = tokenize(rest)?;
             parse_report_arguments(&arguments).map(|args| Some(Command::Report(args)))
+        }
+        "backtest" => {
+            let arguments = tokenize(rest)?;
+            parse_backtest_arguments(&arguments).map(|args| Some(Command::Backtest(args)))
         }
         "strategy-run" => {
             let arguments = tokenize(rest)?;

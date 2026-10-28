@@ -38,6 +38,14 @@ impl TimeframeSeries {
         let model_config = MarketStateConfig::new(config.structure_scale);
         let model =
             TimeframeModel::compute(input, &model_config).ok_or(LayerError::ZeroTimeframe)?;
+        Self::from_model(model)
+    }
+
+    /// Wraps an already computed model timeframe.
+    pub(crate) fn from_model(model: TimeframeModel) -> Result<Self, LayerError> {
+        if NonZeroU64::new(model.timeframe_secs()).is_none() {
+            return Err(LayerError::ZeroTimeframe);
+        }
         Ok(Self { model })
     }
 

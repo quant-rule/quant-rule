@@ -8,11 +8,11 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use super::{
-    Command, ParseError, run_axis, run_candles, run_candles_tolerant, run_db, run_events,
-    run_fetch, run_help, run_legs, run_market_chart, run_market_dashboard, run_market_report,
-    run_market_state, run_model_series, run_report, run_research_export, run_research_summary,
-    run_store_ingest, run_store_init, run_store_list, run_store_remove, run_store_show,
-    run_store_verify, run_strategy_run, run_timeframes,
+    Command, ParseError, run_axis, run_backtest_command, run_candles, run_candles_tolerant, run_db,
+    run_events, run_fetch, run_help, run_legs, run_market_chart, run_market_dashboard,
+    run_market_report, run_market_state, run_model_series, run_report, run_research_export,
+    run_research_summary, run_store_ingest, run_store_init, run_store_list, run_store_remove,
+    run_store_show, run_store_verify, run_strategy_run, run_timeframes,
 };
 
 /// Parses the already-split arguments after the binary name.
@@ -54,6 +54,9 @@ pub(crate) fn parse_argv(arguments: &[String]) -> Result<Option<Command>, ParseE
             super::parse_market_report_arguments(rest).map(|args| Some(Command::MarketReport(args)))
         }
         "report" => super::parse_report_arguments(rest).map(|args| Some(Command::Report(args))),
+        "backtest" => {
+            super::parse_backtest_arguments(rest).map(|args| Some(Command::Backtest(args)))
+        }
         "strategy-run" => {
             super::parse_strategy_run_arguments(rest).map(|args| Some(Command::StrategyRun(args)))
         }
@@ -104,6 +107,7 @@ pub(crate) fn execute(command: Command, stdout: &mut impl Write, stderr: &mut im
         Command::MarketChart(args) => run_market_chart(&args, stdout),
         Command::MarketReport(args) => run_market_report(&args, stdout),
         Command::Report(args) => run_report(&args, stdout),
+        Command::Backtest(args) => run_backtest_command(&args, stdout),
         Command::StrategyRun(args) => run_strategy_run(&args, stdout),
         Command::Axis { args, axis } => run_axis(&args, axis, stdout),
         Command::Events(args) => run_events(&args, stdout),

@@ -41,6 +41,8 @@ pub(crate) enum Command {
     MarketReport(MarketReportArgs),
     /// Write one config-driven report bundle.
     Report(ReportArgs),
+    /// Run the full pipeline and write all five bundles.
+    Backtest(BacktestArgs),
     /// Print strategy entries and exits without fills or P&L.
     StrategyRun(StrategyRunArgs),
     /// Print one axis per timeframe.
@@ -296,6 +298,17 @@ impl ReportEngine {
     }
 }
 
+/// A parsed `backtest` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct BacktestArgs {
+    /// The run configuration.
+    pub(crate) config: PathBuf,
+    /// The output-root override, when supplied.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print the summary envelope.
+    pub(crate) json: bool,
+}
+
 /// A parsed `report` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReportArgs {
@@ -424,6 +437,8 @@ pub(crate) enum ParseError {
     StrategyRun(String),
     /// A `report` argument list is invalid.
     Report(String),
+    /// A `backtest` argument list is invalid.
+    Backtest(String),
     /// `axis` needs a CSV path and an axis name.
     AxisUsage,
     /// The axis name is not known.
@@ -454,6 +469,7 @@ impl fmt::Display for ParseError {
             Self::MarketReport(message) => formatter.write_str(message),
             Self::StrategyRun(message) => formatter.write_str(message),
             Self::Report(message) => formatter.write_str(message),
+            Self::Backtest(message) => formatter.write_str(message),
             Self::AxisUsage => write!(
                 formatter,
                 "usage: axis <csv-path> <direction|momentum|structure|progression>"

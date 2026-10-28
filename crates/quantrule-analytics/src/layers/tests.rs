@@ -13,11 +13,12 @@ use quantrule_model::events::divergence::{DivergenceConfig, DivergenceEventSerie
 use quantrule_model::events::level::{LevelEventConfig, LevelEventSeries};
 use quantrule_model::events::signal::{SignalConfig, SignalEventSeries};
 use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries, Readings};
+use quantrule_model::run::ModelRun;
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
 use super::{
     AGGREGATE_COLUMNS, HIGHER_BLOCK_COLUMNS, LAYER1_COLUMNS, LAYER2_COLUMNS, Layer2Row,
-    LayerConfig, LayerError, Metrics, build_layers, layer3_columns,
+    LayerConfig, LayerError, Metrics, build_layers, build_layers_from_run, layer3_columns,
 };
 use crate::resolution::clamp_unit;
 
@@ -964,4 +965,18 @@ fn layer2_row(set: &super::LayerSet, timeframe_secs: u64, bar_index: usize) -> &
             row.layer1.timeframe_secs == timeframe_secs && row.layer1.bar_index == bar_index
         })
         .expect("the Layer 2 row")
+}
+
+#[test]
+fn layers_from_a_model_run_match_layers_from_inputs() {
+    let m1 = candles(80, 0, 60, 0.0);
+    let m5 = candles(40, 0, 300, 0.5);
+    let inputs = [input(M1, &m1), input(M5, &m5)];
+    let config = LayerConfig::default();
+
+    let from_inputs = build_layers(&inputs, &config).expect("the layers build");
+    let run = ModelRun::compute(&inputs, &MarketStateConfig::new(config.structure_scale));
+    let from_run = build_layers_from_run(&run, &config).expect("the layers build from the run");
+
+    assert_eq!(from_run, from_inputs);
 }

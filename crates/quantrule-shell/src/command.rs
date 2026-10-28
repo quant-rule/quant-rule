@@ -5,6 +5,7 @@
 //! in the data engine. Each command family owns its argument grammar and its
 //! execution path behind this vocabulary.
 
+mod backtest;
 mod chart;
 mod dashboard;
 mod data;
@@ -26,6 +27,7 @@ mod types;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use self::backtest::{parse_backtest_arguments, run_backtest_command};
 pub(crate) use self::dashboard::{parse_dashboard_arguments, run_market_dashboard};
 pub(crate) use self::dispatch::{execute, parse_argv};
 pub(crate) use self::parse::parse;
