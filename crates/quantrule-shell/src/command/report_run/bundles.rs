@@ -8,10 +8,9 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
-use std::io::Write;
 use std::path::Path;
 
-use quantrule_analytics::layers::{LayerConfig, build_layers};
+use quantrule_analytics::layers::{LayerConfig, build_layers_from_run};
 use quantrule_analytics::summary::{AxisSummary, DatasetSummary, RelationSummary, summarize};
 use quantrule_backtest::execution::{
     Fill, FillReason, OrderRecord, OrderState, RejectReason, Rejection, Trigger,
@@ -22,38 +21,36 @@ use quantrule_backtest::portfolio::{
 };
 use quantrule_backtest::runner::BacktestRun;
 use quantrule_data::Timeframe;
-use quantrule_model::state::TimeframeInput;
+use quantrule_model::run::ModelRun;
 use serde_json::{Value, json};
 
 use super::{
-    ReportError, RunError, artifact_names, chart_range, config_files, day_label, emit, json_bytes,
-    period_label, run_pipeline,
+    BundleOutput, ReportError, RunError, artifact_names, chart_range, config_files, day_label,
+    json_bytes, period_label,
 };
 use crate::chart;
 use crate::config::RunConfig;
 use crate::render_report::{self, Provenance};
 
-pub(super) fn execution_bundle(
+pub(crate) fn execution_bundle_from(
     config: &RunConfig,
     out: &Path,
-    json_stdout: bool,
-    writer: &mut impl Write,
-) -> Result<(), RunError> {
+    run: &BacktestRun,
+) -> Result<BundleOutput, RunError> {
     let bundle = out.join("execution");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
-    let run = run_pipeline(config)?;
 
-    let orders = last_orders(&run);
-    let fills = paired_fills(&run);
-    let rejections = all_rejections(&run);
+    let orders = last_orders(run);
+    let fills = paired_fills(run);
+    let rejections = all_rejections(run);
     let summary = execution_summary(&orders, &fills, &rejections);
 
     let orders_csv = orders_csv(&orders);
     let fills_csv = fills_csv(&fills);
     let rejections_csv = rejections_csv(&rejections, &orders);
     let summary_text = execution_text(config, &summary);
-    let report_json = execution_json(config, &run, &orders, &fills, &rejections, &summary);
-    let chart = execution_chart(config, &run, &fills)?;
+    let report_json = execution_json(config, run, &orders, &fills, &rejections, &summary);
+    let chart = execution_chart(config, run, &fills)?;
 
     let names = artifact_names(&[
         "summary.txt",
@@ -70,8 +67,8 @@ pub(super) fn execution_bundle(
         data_version: &config.data.data_version,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
-        first_open_time: first_open_time(&run, config),
-        last_open_time: last_open_time(&run, config),
+        first_open_time: first_open_time(run, config),
+        last_open_time: last_open_time(run, config),
         config_files: &files,
         config: json!({
             "fill_timeframe": config.execution.fill_timeframe.code(),
@@ -94,25 +91,27 @@ pub(super) fn execution_bundle(
         ("price-fills.png", chart),
     ];
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
-    emit(writer, json_stdout, &bundle, &names, &json)
+    Ok(BundleOutput {
+        path: bundle,
+        names,
+        json,
+    })
 }
 
-pub(super) fn portfolio_bundle(
+pub(crate) fn portfolio_bundle_from(
     config: &RunConfig,
     out: &Path,
-    json_stdout: bool,
-    writer: &mut impl Write,
-) -> Result<(), RunError> {
+    run: &BacktestRun,
+) -> Result<BundleOutput, RunError> {
     let bundle = out.join("portfolio");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
-    let run = run_pipeline(config)?;
     let ledger = run.ledger();
     let metrics = run.metrics();
 
     let trades_csv = trades_csv(ledger.trades());
     let equity_csv = equity_csv(ledger.equity_points());
     let summary_text = portfolio_text(config, &metrics);
-    let report_json = portfolio_json(config, &run, &metrics);
+    let report_json = portfolio_json(config, run, &metrics);
     let equity = chart::render_line_png(
         &ledger
             .equity_points()
@@ -149,8 +148,8 @@ pub(super) fn portfolio_bundle(
         data_version: &config.data.data_version,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
-        first_open_time: first_open_time(&run, config),
-        last_open_time: last_open_time(&run, config),
+        first_open_time: first_open_time(run, config),
+        last_open_time: last_open_time(run, config),
         config_files: &files,
         config: json!({
             "initial_cash": config.portfolio.initial_cash,
@@ -188,7 +187,11 @@ pub(super) fn portfolio_bundle(
         ("drawdown.png", drawdown),
     ];
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
-    emit(writer, json_stdout, &bundle, &names, &json)
+    Ok(BundleOutput {
+        path: bundle,
+        names,
+        json,
+    })
 }
 
 fn first_open_time(run: &BacktestRun, config: &RunConfig) -> Option<i64> {
@@ -947,50 +950,18 @@ fn exit_reason_label(reason: ExitReason) -> &'static str {
     }
 }
 
-pub(super) fn analytical_bundle(
+pub(crate) fn analytical_bundle_from(
     config: &RunConfig,
     out: &Path,
-    json_stdout: bool,
-    writer: &mut impl Write,
-) -> Result<(), RunError> {
+    model_run: &ModelRun,
+) -> Result<BundleOutput, RunError> {
     let bundle = out.join("analytical");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
-    let set = super::load_set(config)?;
-    let m1: Vec<_> = set.series(Timeframe::M1).iter().copied().collect();
-    let m5: Vec<_> = set.series(Timeframe::M5).iter().copied().collect();
-    let m15: Vec<_> = set.series(Timeframe::M15).iter().copied().collect();
-    let h1: Vec<_> = set.series(Timeframe::H1).iter().copied().collect();
-    let all = [
-        TimeframeInput {
-            timeframe_secs: u64::from(Timeframe::M1.seconds()),
-            candles: &m1,
-        },
-        TimeframeInput {
-            timeframe_secs: u64::from(Timeframe::M5.seconds()),
-            candles: &m5,
-        },
-        TimeframeInput {
-            timeframe_secs: u64::from(Timeframe::M15.seconds()),
-            candles: &m15,
-        },
-        TimeframeInput {
-            timeframe_secs: u64::from(Timeframe::H1.seconds()),
-            candles: &h1,
-        },
-    ];
-    let inputs: Vec<TimeframeInput> = all
-        .iter()
-        .copied()
-        .filter(|input| {
-            config
-                .analytics
-                .timeframes
-                .iter()
-                .any(|timeframe| u64::from(timeframe.seconds()) == input.timeframe_secs)
-        })
-        .collect();
-    let layers = build_layers(&inputs, &LayerConfig::new(config.analytics.structure_scale))
-        .map_err(RunError::Layers)?;
+    let layers = build_layers_from_run(
+        model_run,
+        &LayerConfig::new(config.analytics.structure_scale),
+    )
+    .map_err(RunError::Layers)?;
     let summary = summarize(&layers);
 
     let axes_csv = axes_csv(&summary.axes);
@@ -1037,7 +1008,11 @@ pub(super) fn analytical_bundle(
         ("relations.csv", relations_csv.into_bytes()),
     ];
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
-    emit(writer, json_stdout, &bundle, &names, &json)
+    Ok(BundleOutput {
+        path: bundle,
+        names,
+        json,
+    })
 }
 
 fn axes_csv(axes: &[AxisSummary]) -> String {

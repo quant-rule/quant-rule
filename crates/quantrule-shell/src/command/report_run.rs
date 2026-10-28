@@ -19,7 +19,7 @@ use quantrule_model::report::MarketReport;
 use quantrule_model::run::{ModelRun, TimeframeModel};
 use serde_json::{Value, json};
 
-mod bundles;
+pub(super) mod bundles;
 
 pub(super) use super::model;
 use super::types::{ParseError, ReportArgs, ReportEngine, ReportError, RunError};
@@ -133,26 +133,47 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
         .clone()
         .unwrap_or_else(|| config.output_root.clone());
 
-    match args.engine {
-        ReportEngine::Model => model_bundle(&config, &out, args.json, writer),
-        ReportEngine::Strategy => strategy_bundle(&config, &out, args.json, writer),
-        ReportEngine::Execution => bundles::execution_bundle(&config, &out, args.json, writer),
-        ReportEngine::Portfolio => bundles::portfolio_bundle(&config, &out, args.json, writer),
-        ReportEngine::Analytical => bundles::analytical_bundle(&config, &out, args.json, writer),
-    }
+    let bundle = match args.engine {
+        ReportEngine::Model => {
+            let model = load_model(&config)?;
+            model_bundle_from(&config, &out, &model)?
+        }
+        ReportEngine::Strategy => {
+            let model = load_model(&config)?;
+            strategy_bundle_from(&config, &out, &model)?
+        }
+        ReportEngine::Execution => {
+            let run = run_pipeline(&config)?;
+            bundles::execution_bundle_from(&config, &out, &run)?
+        }
+        ReportEngine::Portfolio => {
+            let run = run_pipeline(&config)?;
+            bundles::portfolio_bundle_from(&config, &out, &run)?
+        }
+        ReportEngine::Analytical => {
+            let model = load_model(&config)?;
+            bundles::analytical_bundle_from(&config, &out, &model)?
+        }
+    };
+    emit(writer, args.json, &bundle)
 }
 
-fn model_bundle(
+/// One written bundle and the bytes of its `report.json`.
+pub(super) struct BundleOutput {
+    pub(super) path: PathBuf,
+    pub(super) names: Vec<String>,
+    pub(super) json: Vec<u8>,
+}
+
+pub(super) fn model_bundle_from(
     config: &RunConfig,
     out: &Path,
-    json_stdout: bool,
-    writer: &mut impl Write,
-) -> Result<(), RunError> {
+    model_run: &ModelRun,
+) -> Result<BundleOutput, RunError> {
     let bundle = out.join("model");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
-    let model_run = load_model(config)?;
-    let report = MarketReport::compute(&model_run, &LADDER);
+    let report = MarketReport::compute(model_run, &LADDER);
     if report.charts.bars.is_empty() {
         return Err(RunError::Report(ReportError::EmptyChart {
             period: period_label(config),
@@ -203,19 +224,21 @@ fn model_bundle(
         ("events.png", events),
     ];
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
-    emit(writer, json_stdout, &bundle, &names, &json)
+    Ok(BundleOutput {
+        path: bundle,
+        names,
+        json,
+    })
 }
 
-fn strategy_bundle(
+pub(super) fn strategy_bundle_from(
     config: &RunConfig,
     out: &Path,
-    json_stdout: bool,
-    writer: &mut impl Write,
-) -> Result<(), RunError> {
+    model_run: &ModelRun,
+) -> Result<BundleOutput, RunError> {
     let bundle = out.join("strategy");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
-    let model_run = load_model(config)?;
     let timeframe_secs = config.strategy.timeframe_secs();
     let Some(timeframe) = model_run.timeframe(timeframe_secs) else {
         return Err(RunError::Report(ReportError::NoStrategyBars {
@@ -270,7 +293,11 @@ fn strategy_bundle(
         ("price-decisions.png", chart),
     ];
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
-    emit(writer, json_stdout, &bundle, &names, &json_bytes)
+    Ok(BundleOutput {
+        path: bundle,
+        names,
+        json: json_bytes,
+    })
 }
 
 #[derive(Debug, Default)]
@@ -526,7 +553,7 @@ fn chart_range(
 }
 
 /// Runs the full pipeline once for the execution and portfolio reports.
-fn run_pipeline(config: &RunConfig) -> Result<BacktestRun, RunError> {
+pub(super) fn run_pipeline(config: &RunConfig) -> Result<BacktestRun, RunError> {
     let set = load_set(config)?;
     let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
     let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
@@ -656,18 +683,12 @@ fn json_bytes(value: &Value) -> Result<Vec<u8>, RunError> {
     Ok(format!("{text}\n").into_bytes())
 }
 
-fn emit(
-    writer: &mut impl Write,
-    json_stdout: bool,
-    bundle: &Path,
-    names: &[String],
-    json: &[u8],
-) -> Result<(), RunError> {
+fn emit(writer: &mut impl Write, json_stdout: bool, bundle: &BundleOutput) -> Result<(), RunError> {
     if json_stdout {
-        writer.write_all(json).map_err(RunError::Output)?;
+        writer.write_all(&bundle.json).map_err(RunError::Output)?;
     } else {
-        for name in names {
-            writeln!(writer, "{}", bundle.join(name).display()).map_err(RunError::Output)?;
+        for name in &bundle.names {
+            writeln!(writer, "{}", bundle.path.join(name).display()).map_err(RunError::Output)?;
         }
     }
     writer.flush().map_err(RunError::Output)

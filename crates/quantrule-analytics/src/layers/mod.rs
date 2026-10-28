@@ -36,6 +36,7 @@ use std::fmt;
 use quantrule_data::Candle;
 use quantrule_model::aggregate::CrossTimeframeAggregates;
 use quantrule_model::readings::PivotScale;
+use quantrule_model::run::ModelRun;
 use quantrule_model::state::TimeframeInput;
 
 use crate::alignment;
@@ -246,6 +247,31 @@ pub fn build_layers(
         series.push(TimeframeSeries::build(input, config)?);
     }
 
+    Ok(assemble(timeframes, series))
+}
+
+/// Builds the research layers from an already computed model run.
+///
+/// The run's per-timeframe models supply every bar; the layers do not recompute
+/// the readings or the axes. The run's structure scale must match `config`; the
+/// shell's cross-config validation enforces that.
+///
+/// # Errors
+///
+/// Returns [`LayerError::ZeroTimeframe`] when a run timeframe is zero.
+pub fn build_layers_from_run(
+    run: &ModelRun,
+    _config: &LayerConfig,
+) -> Result<LayerSet, LayerError> {
+    let mut series = Vec::with_capacity(run.timeframes().len());
+    for timeframe in run.timeframes() {
+        series.push(TimeframeSeries::from_model(timeframe.clone())?);
+    }
+    let timeframes = series.iter().map(TimeframeSeries::timeframe_secs).collect();
+    Ok(assemble(timeframes, series))
+}
+
+fn assemble(timeframes: Vec<u64>, mut series: Vec<TimeframeSeries>) -> LayerSet {
     let mut layer1 = Vec::new();
     let mut layer2 = Vec::new();
     let mut consensus = Vec::new();
@@ -364,7 +390,7 @@ pub fn build_layers(
         }
     }
 
-    Ok(LayerSet {
+    LayerSet {
         timeframes,
         layer1,
         layer2,
@@ -374,7 +400,7 @@ pub fn build_layers(
         levels,
         events,
         legs,
-    })
+    }
 }
 
 /// Derives the four resolutions from a Layer 1 row's own metrics.
