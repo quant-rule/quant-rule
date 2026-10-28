@@ -11,6 +11,8 @@ use std::fmt::Write as _;
 use std::io::Write;
 use std::path::Path;
 
+use quantrule_analytics::layers::{LayerConfig, build_layers};
+use quantrule_analytics::summary::{AxisSummary, DatasetSummary, RelationSummary, summarize};
 use quantrule_backtest::execution::{
     Fill, FillReason, OrderRecord, OrderState, RejectReason, Rejection, Trigger,
 };
@@ -20,6 +22,7 @@ use quantrule_backtest::portfolio::{
 };
 use quantrule_backtest::runner::BacktestRun;
 use quantrule_data::Timeframe;
+use quantrule_model::state::TimeframeInput;
 use serde_json::{Value, json};
 
 use super::{
@@ -942,6 +945,270 @@ fn exit_reason_label(reason: ExitReason) -> &'static str {
         ExitReason::Stop => "stop",
         ExitReason::Target => "target",
     }
+}
+
+pub(super) fn analytical_bundle(
+    config: &RunConfig,
+    out: &Path,
+    json_stdout: bool,
+    writer: &mut impl Write,
+) -> Result<(), RunError> {
+    let bundle = out.join("analytical");
+    render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
+    let set = super::load_set(config)?;
+    let m1: Vec<_> = set.series(Timeframe::M1).iter().copied().collect();
+    let m5: Vec<_> = set.series(Timeframe::M5).iter().copied().collect();
+    let m15: Vec<_> = set.series(Timeframe::M15).iter().copied().collect();
+    let h1: Vec<_> = set.series(Timeframe::H1).iter().copied().collect();
+    let all = [
+        TimeframeInput {
+            timeframe_secs: u64::from(Timeframe::M1.seconds()),
+            candles: &m1,
+        },
+        TimeframeInput {
+            timeframe_secs: u64::from(Timeframe::M5.seconds()),
+            candles: &m5,
+        },
+        TimeframeInput {
+            timeframe_secs: u64::from(Timeframe::M15.seconds()),
+            candles: &m15,
+        },
+        TimeframeInput {
+            timeframe_secs: u64::from(Timeframe::H1.seconds()),
+            candles: &h1,
+        },
+    ];
+    let inputs: Vec<TimeframeInput> = all
+        .iter()
+        .copied()
+        .filter(|input| {
+            config
+                .analytics
+                .timeframes
+                .iter()
+                .any(|timeframe| u64::from(timeframe.seconds()) == input.timeframe_secs)
+        })
+        .collect();
+    let layers = build_layers(&inputs, &LayerConfig::new(config.analytics.structure_scale))
+        .map_err(RunError::Layers)?;
+    let summary = summarize(&layers);
+
+    let axes_csv = axes_csv(&summary.axes);
+    let relations_csv = if config.analytics.relations {
+        relations_csv(&summary.relations)
+    } else {
+        String::from("timeframe_secs,timeframe,left,right,count,correlation\n")
+    };
+    let summary_text = analytical_text(config, &summary);
+    let report_json = analytical_json(config, &summary);
+
+    let names = artifact_names(&[
+        "summary.txt",
+        "report.json",
+        "axes.csv",
+        "relations.csv",
+        "provenance.json",
+    ]);
+    let files = config_files(config);
+    let first_open_time = layers.layer1.iter().map(|row| row.candle.timestamp()).min();
+    let last_open_time = layers.layer1.iter().map(|row| row.candle.timestamp()).max();
+    let provenance = render_report::provenance_bytes(&Provenance {
+        report: "analytical",
+        data_version: &config.data.data_version,
+        from: config.data.from.as_deref(),
+        to: config.data.to.as_deref(),
+        first_open_time,
+        last_open_time,
+        config_files: &files,
+        config: json!({
+            "structure_scale": crate::command::report_run::scale_label(config.analytics.structure_scale),
+            "timeframes": config.analytics.timeframes.iter().map(|timeframe| timeframe.code()).collect::<Vec<_>>(),
+            "relations": config.analytics.relations,
+        }),
+        artifacts: &names,
+    })
+    .map_err(RunError::Output)?;
+
+    let json = json_bytes(&report_json)?;
+    let artifacts = vec![
+        ("summary.txt", summary_text.into_bytes()),
+        ("report.json", json.clone()),
+        ("axes.csv", axes_csv.into_bytes()),
+        ("relations.csv", relations_csv.into_bytes()),
+    ];
+    render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
+    emit(writer, json_stdout, &bundle, &names, &json)
+}
+
+fn axes_csv(axes: &[AxisSummary]) -> String {
+    let mut csv = String::from(
+        "timeframe_secs,timeframe,axis,count,nulls,min,max,mean,ordinal_0,ordinal_1,ordinal_2,ordinal_3,ordinal_4,ordinal_5,ordinal_6,ordinal_7,ordinal_8,ordinal_9,ordinal_nulls\n",
+    );
+    for axis in axes {
+        let _ = write!(
+            csv,
+            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+            axis.timeframe_secs,
+            timeframe_code(axis.timeframe_secs),
+            axis.axis,
+            axis.count,
+            axis.nulls,
+            empty(axis.min),
+            empty(axis.max),
+            empty(axis.mean),
+            axis.ordinal_counts[0],
+            axis.ordinal_counts[1],
+            axis.ordinal_counts[2],
+            axis.ordinal_counts[3],
+            axis.ordinal_counts[4],
+            axis.ordinal_counts[5],
+            axis.ordinal_counts[6],
+            axis.ordinal_counts[7],
+            axis.ordinal_counts[8],
+            axis.ordinal_counts[9],
+            axis.ordinal_nulls,
+        );
+        csv.push('\n');
+    }
+    csv
+}
+
+fn relations_csv(relations: &[RelationSummary]) -> String {
+    let mut csv = String::from("timeframe_secs,timeframe,left,right,count,correlation\n");
+    for relation in relations {
+        let _ = writeln!(
+            csv,
+            "{},{},{},{},{},{}",
+            relation.timeframe_secs,
+            timeframe_code(relation.timeframe_secs),
+            relation.left,
+            relation.right,
+            relation.count,
+            empty(relation.correlation),
+        );
+    }
+    csv
+}
+
+fn analytical_text(config: &RunConfig, summary: &DatasetSummary) -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "QuantRule analytical report");
+    let _ = writeln!(out, "data_version: {}", config.data.data_version);
+    let _ = writeln!(out, "requested_period: {}", period_label(config));
+    let _ = writeln!(out, "layer1_rows: {}", summary.layer1_rows);
+    let _ = writeln!(out, "layer2_rows: {}", summary.layer2_rows);
+    let _ = writeln!(out, "layer3_rows: {}", summary.layer3_rows);
+    let _ = writeln!(out, "timeframes:");
+    for timeframe in &config.analytics.timeframes {
+        let _ = writeln!(out, "  {}:", timeframe.code());
+        for axis in summary
+            .axes
+            .iter()
+            .filter(|axis| axis.timeframe_secs == u64::from(timeframe.seconds()))
+        {
+            let _ = writeln!(
+                out,
+                "    {}: count={} nulls={} min={} max={} mean={}",
+                axis.axis,
+                axis.count,
+                axis.nulls,
+                empty(axis.min),
+                empty(axis.max),
+                empty(axis.mean),
+            );
+        }
+    }
+    let _ = writeln!(out, "relations:");
+    if config.analytics.relations {
+        for relation in &summary.relations {
+            let _ = writeln!(
+                out,
+                "  {} {}/{}: count={} correlation={}",
+                timeframe_code(relation.timeframe_secs),
+                relation.left,
+                relation.right,
+                relation.count,
+                empty(relation.correlation),
+            );
+        }
+    } else {
+        let _ = writeln!(out, "  disabled");
+    }
+    out
+}
+
+fn analytical_json(config: &RunConfig, summary: &DatasetSummary) -> Value {
+    let mut timeframes = Vec::new();
+    for timeframe in &config.analytics.timeframes {
+        let axes: Vec<Value> = summary
+            .axes
+            .iter()
+            .filter(|axis| axis.timeframe_secs == u64::from(timeframe.seconds()))
+            .map(|axis| {
+                json!({
+                    "axis": axis.axis,
+                    "count": axis.count,
+                    "nulls": axis.nulls,
+                    "min": axis.min,
+                    "max": axis.max,
+                    "mean": axis.mean,
+                    "ordinal_counts": axis.ordinal_counts,
+                    "ordinal_nulls": axis.ordinal_nulls,
+                })
+            })
+            .collect();
+        timeframes.push(json!({
+            "timeframe_secs": u64::from(timeframe.seconds()),
+            "axes": axes,
+        }));
+    }
+    let relations: Vec<Value> = if config.analytics.relations {
+        summary
+            .relations
+            .iter()
+            .map(|relation| {
+                json!({
+                    "timeframe_secs": relation.timeframe_secs,
+                    "left": relation.left,
+                    "right": relation.right,
+                    "count": relation.count,
+                    "correlation": relation.correlation,
+                })
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    json!({
+        "report": "analytical",
+        "report_version": render_report::REPORT_VERSION,
+        "model_version": env!("CARGO_PKG_VERSION"),
+        "data_version": config.data.data_version,
+        "requested_period": {"from": config.data.from, "to": config.data.to},
+        "config": {
+            "structure_scale": crate::command::report_run::scale_label(config.analytics.structure_scale),
+            "timeframes": config.analytics.timeframes.iter().map(|timeframe| timeframe.code()).collect::<Vec<_>>(),
+            "relations": config.analytics.relations,
+        },
+        "summary": {
+            "layer1_rows": summary.layer1_rows,
+            "layer2_rows": summary.layer2_rows,
+            "layer3_rows": summary.layer3_rows,
+            "timeframes": timeframes,
+            "relations": relations,
+        },
+    })
+}
+
+fn timeframe_code(timeframe_secs: u64) -> &'static str {
+    Timeframe::ALL
+        .iter()
+        .find(|timeframe| u64::from(timeframe.seconds()) == timeframe_secs)
+        .map_or("custom", |timeframe| timeframe.code())
+}
+
+fn empty(value: Option<f64>) -> String {
+    value.map_or_else(String::new, |value| value.to_string())
 }
 
 #[cfg(test)]

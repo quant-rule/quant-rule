@@ -320,16 +320,66 @@ fn the_execution_and_portfolio_bundles_have_their_shape() {
 }
 
 #[test]
-fn the_unwired_report_answers_with_a_clear_error() {
+fn the_analytical_bundle_has_its_shape() {
+    let out = output_dir("report-analytical");
     let config = fixture(CONFIG);
     let output = run(&[
         "report",
         "analytical",
         "--config",
         config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
     ]);
-    assert!(!output.status.success());
-    assert!(error(&output).contains("not implemented in this work item"));
+    assert_success(&output);
+
+    let bundle = out.join("analytical");
+    for name in [
+        "summary.txt",
+        "report.json",
+        "axes.csv",
+        "relations.csv",
+        "provenance.json",
+    ] {
+        assert!(bundle.join(name).exists(), "{name} is missing");
+    }
+
+    let axes = String::from_utf8(read(&bundle.join("axes.csv"))).expect("csv is UTF-8");
+    assert_eq!(
+        axes.lines().next(),
+        Some(
+            "timeframe_secs,timeframe,axis,count,nulls,min,max,mean,ordinal_0,ordinal_1,ordinal_2,ordinal_3,ordinal_4,ordinal_5,ordinal_6,ordinal_7,ordinal_8,ordinal_9,ordinal_nulls"
+        )
+    );
+    assert_eq!(axes.lines().count(), 17, "four timeframes by four axes");
+
+    let relations = String::from_utf8(read(&bundle.join("relations.csv"))).expect("csv is UTF-8");
+    assert_eq!(
+        relations.lines().next(),
+        Some("timeframe_secs,timeframe,left,right,count,correlation")
+    );
+    assert_eq!(
+        relations.lines().count(),
+        25,
+        "four timeframes by six pairs"
+    );
+
+    let report = String::from_utf8(read(&bundle.join("report.json"))).expect("json is UTF-8");
+    assert!(report.contains("\"report\":\"analytical\""));
+    assert!(report.contains("\"layer1_rows\""));
+    assert!(report.contains("\"relations\":[{"));
+    let lower = report.to_ascii_lowercase();
+    for forbidden in ["strategy", "orders", "fills", "pnl", "cash", "equity"] {
+        assert!(
+            !lower.contains(forbidden),
+            "analytical must not publish {forbidden}"
+        );
+    }
+
+    let provenance =
+        String::from_utf8(read(&bundle.join("provenance.json"))).expect("provenance is UTF-8");
+    assert!(provenance.contains("\"report\":\"analytical\""));
+    assert!(!provenance.contains(env!("CARGO_MANIFEST_DIR")));
 }
 
 #[test]
