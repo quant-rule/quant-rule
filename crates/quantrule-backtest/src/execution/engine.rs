@@ -25,6 +25,19 @@
 //! single call cannot do both: the bar's own fills are not known until it has
 //! advanced.
 //!
+//! # Order lifecycle
+//!
+//! Every call returns an [`ExecutionBatch`] of order records, fills, and
+//! rejections. Ids are assigned in creation order from zero and never repeat.
+//! A decision that becomes an order emits a pending record at submission; the
+//! same order id is emitted again when the order fills or is rejected, and a
+//! report keeps the last record per id. A decision refused before an order
+//! exists emits a rejected record with the same id as its rejection.
+//!
+//! A bracket order is recorded when its stop or target is reached, with the
+//! entry fill's bar and time as its submission, because that is when the
+//! bracket became live. The level that never triggers is not an order.
+//!
 //! # Input
 //!
 //! The engine consumes the strategy's candle series in order. It does not
@@ -67,8 +80,8 @@ use quantrule_data::Candle;
 use crate::strategy::{Decision, Side};
 
 use super::{
-    ExecutionConfig, Fill, FillError, FillReason, Order, OrderError, OrderSide, Position,
-    PositionError, PositionState, RejectReason, Trigger,
+    ExecutionConfig, Fill, FillError, FillReason, Order, OrderError, OrderRecord, OrderSide,
+    OrderState, Position, PositionError, PositionState, RejectReason, Trigger,
 };
 
 /// The stop distance in ATR units.
@@ -80,25 +93,45 @@ pub const TARGET_ATR_MULTIPLE: f64 = 3.0;
 /// A pending market order and the ATR of the bar that produced it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct PendingOrder {
+    order_id: u64,
     order: Order,
     atr14: Option<f64>,
+}
+
+/// A decision refused before an order was accepted.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct RejectedDecision {
+    side: OrderSide,
+    quantity: Option<f64>,
+    reason: FillReason,
+    submitted_bar: usize,
+    submitted_time: i64,
+    reject_reason: RejectReason,
 }
 
 /// One decision the engine could not execute.
 ///
 /// A rejection is not a fill. The engine records it so a caller can see that a
-/// strategy decision had no effect; the strategy itself is not rewritten.
+/// strategy decision had no effect; the strategy itself is not rewritten. The
+/// rejection shares its `order_id` with the order record it resolved.
 ///
 /// # Examples
 ///
 /// ```
 /// use quantrule_backtest::execution::{Rejection, RejectReason};
 ///
-/// let rejection = Rejection { bar: 3, time: 1_700_002_700, reason: RejectReason::ZeroVolume };
+/// let rejection = Rejection {
+///     order_id: 3,
+///     bar: 3,
+///     time: 1_700_002_700,
+///     reason: RejectReason::ZeroVolume,
+/// };
 /// assert_eq!(rejection.reason, RejectReason::ZeroVolume);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rejection {
+    /// The id of the order the decision became, or would have become.
+    pub order_id: u64,
     /// The bar on which the engine refused the order. For
     /// [`RejectReason::NoNextBar`], this is the order's submission bar.
     pub bar: usize,
@@ -106,6 +139,40 @@ pub struct Rejection {
     pub time: i64,
     /// Why the order was refused.
     pub reason: RejectReason,
+}
+
+/// The orders, fills, and rejections produced by one engine call.
+///
+/// [`ExecutionEngine::advance`], [`ExecutionEngine::submit`], and
+/// [`ExecutionEngine::finish`] each return one batch. Concatenating the
+/// batches in call order yields the run's records; a report keeps the last
+/// order record per id.
+///
+/// # Examples
+///
+/// ```
+/// use quantrule_backtest::execution::ExecutionBatch;
+///
+/// let batch = ExecutionBatch::default();
+/// assert!(batch.is_empty());
+/// assert!(batch.orders.is_empty());
+/// ```
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ExecutionBatch {
+    /// Order records created or resolved by this call.
+    pub orders: Vec<OrderRecord>,
+    /// Fills produced by this call, in fill-id order.
+    pub fills: Vec<Fill>,
+    /// Decisions refused by this call, in detection order.
+    pub rejections: Vec<Rejection>,
+}
+
+impl ExecutionBatch {
+    /// Whether the call produced no orders, fills, or rejections.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.orders.is_empty() && self.fills.is_empty() && self.rejections.is_empty()
+    }
 }
 
 /// The causal fill simulator for one instrument and one position.
@@ -129,9 +196,9 @@ pub struct Rejection {
 ///     Some(1.0),
 ///     Some(1.0),
 /// )?;
-/// let fills = engine.advance(&second)?;
-/// assert_eq!(fills.len(), 1);
-/// assert_eq!(fills[0].reference_price, 100.0);
+/// let batch = engine.advance(&second)?;
+/// assert_eq!(batch.fills.len(), 1);
+/// assert_eq!(batch.fills[0].reference_price, 100.0);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
@@ -141,7 +208,8 @@ pub struct ExecutionEngine {
     last_bar: Option<(usize, i64)>,
     position: PositionState,
     pending: Option<PendingOrder>,
-    rejections: Vec<Rejection>,
+    next_order_id: u64,
+    next_fill_id: u64,
 }
 
 impl ExecutionEngine {
@@ -167,7 +235,8 @@ impl ExecutionEngine {
             last_bar: None,
             position: PositionState::Flat,
             pending: None,
-            rejections: Vec::new(),
+            next_order_id: 0,
+            next_fill_id: 0,
         })
     }
 
@@ -176,33 +245,30 @@ impl ExecutionEngine {
     ///
     /// The engine first fills a market order scheduled by the previous bar at
     /// this bar's open, then evaluates an open position's bracket against this
-    /// bar's range. It returns the fills produced on this bar. The decision for
-    /// this bar is scheduled afterwards by [`Self::submit`].
+    /// bar's range. It returns the bar's order records, fills, and rejections.
+    /// The decision for this bar is scheduled afterwards by [`Self::submit`].
     ///
     /// # Errors
     ///
     /// Returns [`ExecutionError`] when a validated value cannot be
     /// constructed.
-    pub fn advance(&mut self, bar: &Candle) -> Result<Vec<Fill>, ExecutionError> {
+    pub fn advance(&mut self, bar: &Candle) -> Result<ExecutionBatch, ExecutionError> {
         let index = self.next_bar;
         let time = bar.timestamp();
         self.next_bar += 1;
         self.last_bar = Some((index, time));
 
-        let mut fills = Vec::new();
+        let mut batch = ExecutionBatch::default();
 
         if let Some(pending) = self.pending.take() {
-            self.apply_pending(pending, bar, index, time, &mut fills)?;
+            self.apply_pending(pending, bar, index, time, &mut batch)?;
         }
 
-        if self.position.is_open()
-            && let Some(fill) = self.bracket_fill(bar, index, time)?
-        {
-            self.position = PositionState::Flat;
-            fills.push(fill);
+        if self.position.is_open() {
+            self.apply_bracket(bar, index, time, &mut batch)?;
         }
 
-        Ok(fills)
+        Ok(batch)
     }
 
     /// Schedules one decision for the next bar.
@@ -226,72 +292,113 @@ impl ExecutionEngine {
         decision: Decision,
         quantity: Option<f64>,
         atr14: Option<f64>,
-    ) -> Result<(), ExecutionError> {
+    ) -> Result<ExecutionBatch, ExecutionError> {
         let Some((index, time)) = self.last_bar else {
             return Err(ExecutionError::SubmitBeforeAdvance);
         };
         self.validate_decision(decision, index, time)?;
 
+        let mut batch = ExecutionBatch::default();
         match decision {
-            Decision::Hold => Ok(()),
+            Decision::Hold => {}
             Decision::Enter(entry) => {
+                let side = order_side(entry.side);
                 if self.position.is_open() {
-                    self.reject(index, time, RejectReason::PositionAlreadyOpen);
-                    return Ok(());
-                }
-                let quantity = match usable_quantity(quantity) {
-                    Ok(quantity) => quantity,
-                    Err(reason) => {
-                        self.reject(index, time, reason);
-                        return Ok(());
+                    self.reject_decision(
+                        &mut batch,
+                        RejectedDecision {
+                            side,
+                            quantity,
+                            reason: FillReason::Entry,
+                            submitted_bar: index,
+                            submitted_time: time,
+                            reject_reason: RejectReason::PositionAlreadyOpen,
+                        },
+                    );
+                } else {
+                    match usable_quantity(quantity) {
+                        Err(reject_reason) => self.reject_decision(
+                            &mut batch,
+                            RejectedDecision {
+                                side,
+                                quantity,
+                                reason: FillReason::Entry,
+                                submitted_bar: index,
+                                submitted_time: time,
+                                reject_reason,
+                            },
+                        ),
+                        Ok(quantity) => {
+                            let order = Order::new(
+                                side,
+                                quantity,
+                                FillReason::Entry,
+                                Trigger::Market,
+                                index,
+                                time,
+                            )
+                            .map_err(ExecutionError::Order)?;
+                            let order_id = self.next_order_id();
+                            batch.orders.push(pending_record(order_id, &order));
+                            self.pending = Some(PendingOrder {
+                                order_id,
+                                order,
+                                atr14,
+                            });
+                        }
                     }
-                };
-                let order = Order::new(
-                    order_side(entry.side),
-                    quantity,
-                    FillReason::Entry,
-                    Trigger::Market,
-                    index,
-                    time,
-                )
-                .map_err(ExecutionError::Order)?;
-                self.pending = Some(PendingOrder { order, atr14 });
-                Ok(())
+                }
             }
-            Decision::Exit(_) => {
-                let PositionState::Open(position) = self.position else {
-                    self.reject(index, time, RejectReason::NoPosition);
-                    return Ok(());
-                };
-                // The engine closes the position it holds; the decision's side
-                // is the strategy's view of that position, not the order side.
-                let order = Order::new(
-                    order_side(position.side).opposite(),
-                    position.quantity,
-                    FillReason::Exit,
-                    Trigger::Market,
-                    index,
-                    time,
-                )
-                .map_err(ExecutionError::Order)?;
-                self.pending = Some(PendingOrder { order, atr14 });
-                Ok(())
-            }
+            Decision::Exit(exit) => match self.position {
+                PositionState::Open(position) => {
+                    // The engine closes the position it holds; the decision's
+                    // side is the strategy's view of that position, not the
+                    // order side.
+                    let order = Order::new(
+                        order_side(position.side).opposite(),
+                        position.quantity,
+                        FillReason::Exit,
+                        Trigger::Market,
+                        index,
+                        time,
+                    )
+                    .map_err(ExecutionError::Order)?;
+                    let order_id = self.next_order_id();
+                    batch.orders.push(pending_record(order_id, &order));
+                    self.pending = Some(PendingOrder {
+                        order_id,
+                        order,
+                        atr14,
+                    });
+                }
+                PositionState::Flat | PositionState::Closed => self.reject_decision(
+                    &mut batch,
+                    RejectedDecision {
+                        side: order_side(exit.side).opposite(),
+                        quantity: None,
+                        reason: FillReason::Exit,
+                        submitted_bar: index,
+                        submitted_time: time,
+                        reject_reason: RejectReason::NoPosition,
+                    },
+                ),
+            },
         }
+        Ok(batch)
     }
 
     /// Rejects a pending order that has no next bar.
     ///
     /// Call this after the last bar. An open position is left open: the first
     /// backtest has no end-of-data exit. Calling it twice is harmless.
-    pub fn finish(&mut self) {
+    pub fn finish(&mut self) -> ExecutionBatch {
+        let mut batch = ExecutionBatch::default();
         if let Some(pending) = self.pending.take() {
-            self.rejections.push(Rejection {
-                bar: pending.order.submitted_bar,
-                time: pending.order.submitted_time,
-                reason: RejectReason::NoNextBar,
-            });
+            let bar = pending.order.submitted_bar;
+            let time = pending.order.submitted_time;
+            self.reject_pending(&mut batch, pending, bar, time, RejectReason::NoNextBar);
         }
+        batch
     }
 
     /// The current position state.
@@ -300,10 +407,16 @@ impl ExecutionEngine {
         self.position
     }
 
-    /// Every decision the engine could not execute, in detection order.
-    #[must_use]
-    pub fn rejections(&self) -> &[Rejection] {
-        &self.rejections
+    fn next_order_id(&mut self) -> u64 {
+        let order_id = self.next_order_id;
+        self.next_order_id += 1;
+        order_id
+    }
+
+    fn next_fill_id(&mut self) -> u64 {
+        let fill_id = self.next_fill_id;
+        self.next_fill_id += 1;
+        fill_id
     }
 
     fn validate_decision(
@@ -338,24 +451,30 @@ impl ExecutionEngine {
         bar: &Candle,
         index: usize,
         time: i64,
-        fills: &mut Vec<Fill>,
+        batch: &mut ExecutionBatch,
     ) -> Result<(), ExecutionError> {
         if !is_tradable(bar) {
-            self.reject(index, time, RejectReason::ZeroVolume);
+            self.reject_pending(batch, pending, index, time, RejectReason::ZeroVolume);
             return Ok(());
         }
 
         match pending.order.reason {
             FillReason::Entry => {
                 if self.position.is_open() {
-                    self.reject(index, time, RejectReason::PositionAlreadyOpen);
+                    self.reject_pending(
+                        batch,
+                        pending,
+                        index,
+                        time,
+                        RejectReason::PositionAlreadyOpen,
+                    );
                 } else {
-                    self.enter(pending, bar, index, time, fills)?;
+                    self.enter(pending, bar, index, time, batch)?;
                 }
             }
             FillReason::Exit => {
                 let PositionState::Open(position) = self.position else {
-                    self.reject(index, time, RejectReason::NoPosition);
+                    self.reject_pending(batch, pending, index, time, RejectReason::NoPosition);
                     return Ok(());
                 };
                 let fill = self.fill(
@@ -366,8 +485,16 @@ impl ExecutionEngine {
                     time,
                     FillReason::Exit,
                 )?;
+                let fill_id = self.next_fill_id();
                 self.position = PositionState::Flat;
-                fills.push(fill);
+                batch.orders.push(filled_record(
+                    pending.order_id,
+                    &pending.order,
+                    index,
+                    time,
+                    fill_id,
+                ));
+                batch.fills.push(fill);
             }
             // A pending order is always a market entry or exit. The bracket is
             // carried by the position, not by the pending slot.
@@ -382,10 +509,10 @@ impl ExecutionEngine {
         bar: &Candle,
         index: usize,
         time: i64,
-        fills: &mut Vec<Fill>,
+        batch: &mut ExecutionBatch,
     ) -> Result<(), ExecutionError> {
         let Some(atr14) = usable_atr(pending.atr14) else {
-            self.reject(index, time, RejectReason::MissingAtr);
+            self.reject_pending(batch, pending, index, time, RejectReason::MissingAtr);
             return Ok(());
         };
 
@@ -403,7 +530,7 @@ impl ExecutionEngine {
         };
         let (stop_price, target_price) = bracket(side, fill.price, atr14);
         if !is_valid_bracket(side, fill.price, stop_price, target_price) {
-            self.reject(index, time, RejectReason::InvalidBracket);
+            self.reject_pending(batch, pending, index, time, RejectReason::InvalidBracket);
             return Ok(());
         }
 
@@ -417,22 +544,31 @@ impl ExecutionEngine {
             target_price,
         )
         .map_err(ExecutionError::Position)?;
+        let fill_id = self.next_fill_id();
         self.position = PositionState::Open(position);
-        fills.push(fill);
+        batch.orders.push(filled_record(
+            pending.order_id,
+            &pending.order,
+            index,
+            time,
+            fill_id,
+        ));
+        batch.fills.push(fill);
         Ok(())
     }
 
-    fn bracket_fill(
-        &self,
+    fn apply_bracket(
+        &mut self,
         bar: &Candle,
         index: usize,
         time: i64,
-    ) -> Result<Option<Fill>, ExecutionError> {
+        batch: &mut ExecutionBatch,
+    ) -> Result<(), ExecutionError> {
         let PositionState::Open(position) = self.position else {
-            return Ok(None);
+            return Ok(());
         };
         if !is_tradable(bar) {
-            return Ok(None);
+            return Ok(());
         }
 
         let (reference, reason, trigger_price, side) = match position.side {
@@ -452,7 +588,7 @@ impl ExecutionEngine {
                         OrderSide::Sell,
                     )
                 } else {
-                    return Ok(None);
+                    return Ok(());
                 }
             }
             Side::Short => {
@@ -471,7 +607,7 @@ impl ExecutionEngine {
                         OrderSide::Buy,
                     )
                 } else {
-                    return Ok(None);
+                    return Ok(());
                 }
             }
         };
@@ -487,10 +623,26 @@ impl ExecutionEngine {
                 return Err(ExecutionError::UnexpectedFillReason);
             }
         };
-        let order = Order::new(side, position.quantity, reason, trigger, index, time)
-            .map_err(ExecutionError::Order)?;
+        // The bracket became live when the entry filled, so that is its
+        // submission. Only the level that triggers becomes an order.
+        let order = Order::new(
+            side,
+            position.quantity,
+            reason,
+            trigger,
+            position.entry_bar,
+            position.entry_time,
+        )
+        .map_err(ExecutionError::Order)?;
         let fill = self.fill(order.side, order.quantity, reference, index, time, reason)?;
-        Ok(Some(fill))
+        let order_id = self.next_order_id();
+        let fill_id = self.next_fill_id();
+        self.position = PositionState::Flat;
+        batch
+            .orders
+            .push(filled_record(order_id, &order, index, time, fill_id));
+        batch.fills.push(fill);
+        Ok(())
     }
 
     fn fill(
@@ -521,8 +673,94 @@ impl ExecutionEngine {
         .map_err(ExecutionError::Fill)
     }
 
-    fn reject(&mut self, bar: usize, time: i64, reason: RejectReason) {
-        self.rejections.push(Rejection { bar, time, reason });
+    /// Records a decision refused before an order was accepted.
+    fn reject_decision(&mut self, batch: &mut ExecutionBatch, decision: RejectedDecision) {
+        let order_id = self.next_order_id();
+        batch.orders.push(OrderRecord {
+            order_id,
+            submitted_bar: decision.submitted_bar,
+            submitted_time: decision.submitted_time,
+            side: decision.side,
+            quantity: decision.quantity,
+            reason: decision.reason,
+            trigger: Trigger::Market,
+            state: OrderState::Rejected,
+            filled_bar: None,
+            filled_time: None,
+            fill_id: None,
+            rejection_reason: Some(decision.reject_reason),
+        });
+        batch.rejections.push(Rejection {
+            order_id,
+            bar: decision.submitted_bar,
+            time: decision.submitted_time,
+            reason: decision.reject_reason,
+        });
+    }
+
+    /// Records a pending order refused on a later bar.
+    fn reject_pending(
+        &mut self,
+        batch: &mut ExecutionBatch,
+        pending: PendingOrder,
+        bar: usize,
+        time: i64,
+        reason: RejectReason,
+    ) {
+        batch.orders.push(OrderRecord {
+            order_id: pending.order_id,
+            submitted_bar: pending.order.submitted_bar,
+            submitted_time: pending.order.submitted_time,
+            side: pending.order.side,
+            quantity: Some(pending.order.quantity),
+            reason: pending.order.reason,
+            trigger: pending.order.trigger,
+            state: OrderState::Rejected,
+            filled_bar: None,
+            filled_time: None,
+            fill_id: None,
+            rejection_reason: Some(reason),
+        });
+        batch.rejections.push(Rejection {
+            order_id: pending.order_id,
+            bar,
+            time,
+            reason,
+        });
+    }
+}
+
+fn pending_record(order_id: u64, order: &Order) -> OrderRecord {
+    OrderRecord {
+        order_id,
+        submitted_bar: order.submitted_bar,
+        submitted_time: order.submitted_time,
+        side: order.side,
+        quantity: Some(order.quantity),
+        reason: order.reason,
+        trigger: order.trigger,
+        state: OrderState::Pending,
+        filled_bar: None,
+        filled_time: None,
+        fill_id: None,
+        rejection_reason: None,
+    }
+}
+
+fn filled_record(order_id: u64, order: &Order, bar: usize, time: i64, fill_id: u64) -> OrderRecord {
+    OrderRecord {
+        order_id,
+        submitted_bar: order.submitted_bar,
+        submitted_time: order.submitted_time,
+        side: order.side,
+        quantity: Some(order.quantity),
+        reason: order.reason,
+        trigger: order.trigger,
+        state: OrderState::Filled,
+        filled_bar: Some(bar),
+        filled_time: Some(time),
+        fill_id: Some(fill_id),
+        rejection_reason: None,
     }
 }
 

@@ -13,7 +13,8 @@
 //! engine's own values across repeated runs.
 
 use quantrule_backtest::execution::{
-    ExecutionConfig, ExecutionEngine, Fill, FillReason, OrderSide, RejectReason, Rejection,
+    ExecutionConfig, ExecutionEngine, Fill, FillReason, OrderRecord, OrderSide, OrderState,
+    RejectReason, Rejection, Trigger,
 };
 use quantrule_backtest::strategy::{Decision, Entry, Exit, ExitReason, Side, StrategyInput};
 use quantrule_data::Candle;
@@ -191,21 +192,28 @@ fn engine() -> ExecutionEngine {
         .expect("the engine is valid")
 }
 
-fn run(rows: &[BarRow]) -> (Vec<Fill>, Vec<Rejection>) {
+fn run(rows: &[BarRow]) -> (Vec<Fill>, Vec<Rejection>, Vec<OrderRecord>) {
     let mut engine = engine();
     let mut fills = Vec::new();
+    let mut rejections = Vec::new();
+    let mut orders = Vec::new();
     for row in rows {
-        fills.extend(
-            engine
-                .advance(&row.candle)
-                .expect("the fixture bar is valid"),
-        );
-        engine
+        let batch = engine
+            .advance(&row.candle)
+            .expect("the fixture bar is valid");
+        fills.extend(batch.fills);
+        rejections.extend(batch.rejections);
+        orders.extend(batch.orders);
+        let batch = engine
             .submit(row.decision, Some(QUANTITY), row.atr14)
             .expect("the fixture decision is valid");
+        rejections.extend(batch.rejections);
+        orders.extend(batch.orders);
     }
-    engine.finish();
-    (fills, engine.rejections().to_vec())
+    let batch = engine.finish();
+    rejections.extend(batch.rejections);
+    orders.extend(batch.orders);
+    (fills, rejections, orders)
 }
 
 fn approx(actual: f64, expected: f64, field: &str, bar: usize) {
@@ -222,7 +230,7 @@ fn the_engine_matches_the_golden_fill_fixture() {
     let expected = load_fills();
     assert_eq!(expected.len(), 4, "fill fixture row count changed");
 
-    let (fills, rejections) = run(&bars);
+    let (fills, rejections, orders) = run(&bars);
     assert!(
         rejections.is_empty(),
         "unexpected rejections: {rejections:?}"
@@ -245,6 +253,30 @@ fn the_engine_matches_the_golden_fill_fixture() {
         approx(fill.price, row.price, "price", fill.bar);
         approx(fill.fee, row.fee, "fee", fill.bar);
     }
+
+    // A report keeps the last record per id: two pending records and four
+    // resolved ones collapse to one record per order.
+    let mut resolved: Vec<OrderRecord> = Vec::new();
+    for order in &orders {
+        match resolved
+            .iter_mut()
+            .find(|seen| seen.order_id == order.order_id)
+        {
+            Some(slot) => *slot = *order,
+            None => resolved.push(*order),
+        }
+    }
+    assert_eq!(resolved.len(), 4, "unique order count changed");
+    for (order_id, order) in resolved.iter().enumerate() {
+        assert_eq!(order.order_id, order_id as u64);
+        assert_eq!(order.state, OrderState::Filled);
+        assert_eq!(order.fill_id, Some(order_id as u64));
+        assert_eq!(order.rejection_reason, None);
+    }
+    // The bracket orders became live when their entries filled.
+    assert_eq!(resolved[1].submitted_bar, 1);
+    assert_eq!(resolved[1].trigger, Trigger::Stop { price: 98.02 });
+    assert_eq!(resolved[3].submitted_bar, 4);
 }
 
 #[test]
@@ -252,8 +284,8 @@ fn later_bars_do_not_change_earlier_fills() {
     let bars = load_bars();
     let prefix = 3;
 
-    let (prefix_fills, _) = run(&bars[..prefix]);
-    let (full_fills, _) = run(&bars);
+    let (prefix_fills, _, _) = run(&bars[..prefix]);
+    let (full_fills, _, _) = run(&bars);
 
     let prefix_early: Vec<Fill> = prefix_fills
         .iter()
@@ -270,7 +302,7 @@ fn later_bars_do_not_change_earlier_fills() {
     let mut changed = bars.to_vec();
     changed[4].candle = Candle::new(4, 3600, 200.0, 200.5, 199.0, 200.0, Some(10.0))
         .expect("the changed candle is valid");
-    let (changed_fills, _) = run(&changed);
+    let (changed_fills, _, _) = run(&changed);
     let changed_early: Vec<Fill> = changed_fills
         .iter()
         .copied()
@@ -297,21 +329,22 @@ fn repeated_runs_are_identical() {
 #[test]
 fn an_empty_series_produces_no_fills_or_rejections() {
     let mut engine = engine();
-    engine.finish();
+    let batch = engine.finish();
 
-    assert!(engine.rejections().is_empty());
+    assert!(batch.is_empty());
     assert!(engine.position().is_flat());
 }
 
 #[test]
 fn a_single_candle_cannot_fill_and_is_rejected_at_finish() {
     let bars = load_bars();
-    let (fills, rejections) = run(&bars[..1]);
+    let (fills, rejections, _) = run(&bars[..1]);
 
     assert!(fills.is_empty());
     assert_eq!(
         rejections,
         vec![Rejection {
+            order_id: 0,
             bar: 0,
             time: 0,
             reason: RejectReason::NoNextBar,
@@ -339,11 +372,12 @@ fn a_series_that_never_fills_leaves_the_order_pending_until_finish() {
         },
     ];
 
-    let (fills, rejections) = run(&bars);
+    let (fills, rejections, _) = run(&bars);
     assert!(fills.is_empty());
     assert_eq!(
         rejections,
         vec![Rejection {
+            order_id: 0,
             bar: 1,
             time: 900,
             reason: RejectReason::NoNextBar,

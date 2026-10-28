@@ -44,8 +44,10 @@
 //! next bar is rejected by [`ExecutionEngine::finish`].
 //!
 //! Orders that never trigger remain [`OrderState::Pending`]; an order with no
-//! next bar or an invalid execution condition is [`OrderState::Rejected`].
-//! Position sizing, cash, equity, and P&L are outside this module.
+//! next bar or an invalid execution condition is [`OrderState::Rejected`]. The
+//! engine publishes each order as an [`OrderRecord`] and returns it in an
+//! [`ExecutionBatch`]. Position sizing, cash, equity, and P&L are outside this
+//! module.
 
 mod config;
 mod engine;
@@ -59,8 +61,9 @@ mod tests;
 
 pub use config::{ExecutionConfig, ExecutionConfigError};
 pub use engine::{
-    ExecutionEngine, ExecutionError, Rejection, STOP_ATR_MULTIPLE, TARGET_ATR_MULTIPLE,
+    ExecutionBatch, ExecutionEngine, ExecutionError, Rejection, STOP_ATR_MULTIPLE,
+    TARGET_ATR_MULTIPLE,
 };
 pub use fill::{Fill, FillError, FillReason};
-pub use order::{Order, OrderError, OrderSide, OrderState, RejectReason, Trigger};
+pub use order::{Order, OrderError, OrderRecord, OrderSide, OrderState, RejectReason, Trigger};
 pub use position::{Position, PositionError, PositionState};
