@@ -21,7 +21,7 @@ use serde_json::{Value, json};
 
 mod bundles;
 
-use super::model;
+pub(super) use super::model;
 use super::types::{ParseError, ReportArgs, ReportEngine, ReportError, RunError};
 use crate::chart;
 use crate::config::RunConfig;
@@ -138,9 +138,7 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
         ReportEngine::Strategy => strategy_bundle(&config, &out, args.json, writer),
         ReportEngine::Execution => bundles::execution_bundle(&config, &out, args.json, writer),
         ReportEngine::Portfolio => bundles::portfolio_bundle(&config, &out, args.json, writer),
-        engine => Err(RunError::Report(ReportError::NotImplemented {
-            engine: engine.code(),
-        })),
+        ReportEngine::Analytical => bundles::analytical_bundle(&config, &out, args.json, writer),
     }
 }
 

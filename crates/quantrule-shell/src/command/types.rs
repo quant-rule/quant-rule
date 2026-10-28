@@ -294,17 +294,6 @@ impl ReportEngine {
             _ => None,
         }
     }
-
-    /// The contract's report name.
-    pub(crate) const fn code(self) -> &'static str {
-        match self {
-            Self::Model => "model",
-            Self::Strategy => "strategy",
-            Self::Execution => "execution",
-            Self::Portfolio => "portfolio",
-            Self::Analytical => "analytical",
-        }
-    }
 }
 
 /// A parsed `report` command.
@@ -516,11 +505,6 @@ pub(crate) enum ReportError {
         /// The requested period label.
         period: String,
     },
-    /// The report is not implemented in this work item.
-    NotImplemented {
-        /// The report name.
-        engine: &'static str,
-    },
     /// The strategy timeframe has no bars.
     NoStrategyBars {
         /// The strategy timeframe in seconds.
@@ -570,10 +554,6 @@ impl fmt::Display for ReportError {
                 formatter,
                 "the requested period '{period}' produced no chart bars"
             ),
-            Self::NotImplemented { engine } => write!(
-                formatter,
-                "report {engine} is not implemented in this work item"
-            ),
             Self::NoStrategyBars { timeframe_secs } => write!(
                 formatter,
                 "the strategy timeframe {timeframe_secs} produced no bars"
@@ -598,7 +578,6 @@ impl std::error::Error for ReportError {
             | Self::OutputNotDirectory { .. }
             | Self::EmptyPeriod { .. }
             | Self::EmptyChart { .. }
-            | Self::NotImplemented { .. }
             | Self::NoStrategyBars { .. }
             | Self::Period(_) => None,
         }
