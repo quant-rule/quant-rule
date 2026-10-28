@@ -16,7 +16,7 @@ use crate::chart;
 use crate::csv::SourceError;
 use crate::export::ExportError as FileExportError;
 use crate::fetch;
-use crate::source::{DateRange, Symbol};
+use crate::source::{DateBounds, DateRange, Symbol};
 use crate::store::{StoreError, Table};
 
 /// A parsed shell command.
@@ -34,6 +34,8 @@ pub(crate) enum Command {
     MarketDashboard(DashboardArgs),
     /// Render the last candles with the four axis panels.
     MarketChart(MarketChartArgs),
+    /// Write the full-period market report and its charts.
+    MarketReport(MarketReportArgs),
     /// Print one axis per timeframe.
     Axis { args: ModelArgs, axis: Axis },
     /// Print the event records.
@@ -227,6 +229,37 @@ pub(crate) struct MarketChartArgs {
     pub(crate) window: WindowMode,
 }
 
+/// A parsed `market-report` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MarketReportArgs {
+    /// The M1 source CSV.
+    pub(crate) path: PathBuf,
+    /// The caller-supplied identity of the input series.
+    pub(crate) data_version: String,
+    /// The exact `--from` value, when supplied.
+    pub(crate) from: Option<String>,
+    /// The exact `--to` value, when supplied.
+    pub(crate) to: Option<String>,
+    /// The parsed inclusive UTC bounds.
+    pub(crate) bounds: DateBounds,
+    /// The output directory.
+    pub(crate) out: PathBuf,
+    /// Whether to print the `report.json` bytes to stdout.
+    pub(crate) json: bool,
+}
+
+impl MarketReportArgs {
+    /// The requested period as a stable one-line label.
+    pub(crate) fn requested_period(&self) -> String {
+        match (&self.from, &self.to) {
+            (Some(from), Some(to)) => format!("{from}..{to}"),
+            (Some(from), None) => format!("{from}..open"),
+            (None, Some(to)) => format!("open..{to}"),
+            (None, None) => String::from("full file"),
+        }
+    }
+}
+
 /// Arguments for `store list`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct StoreListArgs {
@@ -305,6 +338,8 @@ pub(crate) enum ParseError {
     Fetch(String),
     /// A `market-chart` argument list is invalid.
     MarketChart(String),
+    /// A `market-report` argument list is invalid.
+    MarketReport(String),
     /// `axis` needs a CSV path and an axis name.
     AxisUsage,
     /// The axis name is not known.
@@ -332,6 +367,7 @@ impl fmt::Display for ParseError {
             }
             Self::Fetch(message) => formatter.write_str(message),
             Self::MarketChart(message) => formatter.write_str(message),
+            Self::MarketReport(message) => formatter.write_str(message),
             Self::AxisUsage => write!(
                 formatter,
                 "usage: axis <csv-path> <direction|momentum|structure|progression>"
@@ -353,6 +389,101 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
+/// A `market-report` run could not be completed.
+#[derive(Debug)]
+pub(crate) enum ReportError {
+    /// The output directory exists and is not empty.
+    OutputNotEmpty {
+        /// The output path.
+        path: PathBuf,
+    },
+    /// The output path exists and is not a directory.
+    OutputNotDirectory {
+        /// The output path.
+        path: PathBuf,
+    },
+    /// The output directory could not be read.
+    ReadOutput {
+        /// The output path.
+        path: PathBuf,
+        /// The underlying I/O error.
+        source: io::Error,
+    },
+    /// The requested period selected no M1 candles.
+    EmptyPeriod {
+        /// The requested period label.
+        period: String,
+    },
+    /// The report's chart projection has no bars.
+    EmptyChart {
+        /// The requested period label.
+        period: String,
+    },
+    /// The output directory could not be created.
+    CreateDirectory {
+        /// The output path.
+        path: PathBuf,
+        /// The underlying I/O error.
+        source: io::Error,
+    },
+    /// One artifact could not be written.
+    Artifact {
+        /// The artifact path.
+        path: PathBuf,
+        /// The file export error.
+        source: FileExportError,
+    },
+}
+
+impl fmt::Display for ReportError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OutputNotEmpty { path } => write!(
+                formatter,
+                "output directory {} must be absent or empty",
+                path.display()
+            ),
+            Self::OutputNotDirectory { path } => write!(
+                formatter,
+                "output path {} exists and is not a directory",
+                path.display()
+            ),
+            Self::ReadOutput { path, source } => {
+                write!(formatter, "cannot read {}: {source}", path.display())
+            }
+            Self::EmptyPeriod { period } => {
+                write!(
+                    formatter,
+                    "no M1 candles in the requested period '{period}'"
+                )
+            }
+            Self::EmptyChart { period } => write!(
+                formatter,
+                "the requested period '{period}' produced no chart bars"
+            ),
+            Self::CreateDirectory { path, source } => {
+                write!(formatter, "cannot create {}: {source}", path.display())
+            }
+            Self::Artifact { path, source } => {
+                write!(formatter, "cannot write {}: {source}", path.display())
+            }
+        }
+    }
+}
+
+impl std::error::Error for ReportError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ReadOutput { source, .. } | Self::CreateDirectory { source, .. } => Some(source),
+            Self::Artifact { source, .. } => Some(source),
+            Self::OutputNotEmpty { .. }
+            | Self::OutputNotDirectory { .. }
+            | Self::EmptyPeriod { .. }
+            | Self::EmptyChart { .. } => None,
+        }
+    }
+}
+
 /// A command was parsed but could not be completed.
 #[derive(Debug)]
 pub(crate) enum RunError {
@@ -364,6 +495,8 @@ pub(crate) enum RunError {
     Chart(chart::ChartError),
     /// The market chart could not be written.
     ChartWrite(FileExportError),
+    /// The market report could not be completed.
+    Report(ReportError),
     /// The research layers could not be built.
     Layers(LayerError),
     /// The research dataset could not be rendered.
@@ -383,6 +516,7 @@ impl fmt::Display for RunError {
             Self::Fetch(source) => source.fmt(formatter),
             Self::Chart(source) => write!(formatter, "cannot render the market chart: {source}"),
             Self::ChartWrite(source) => write!(formatter, "cannot write the chart PNG: {source}"),
+            Self::Report(source) => source.fmt(formatter),
             Self::Layers(source) => write!(formatter, "cannot build the research layers: {source}"),
             Self::ResearchExport(source) => {
                 write!(formatter, "cannot render the research dataset: {source}")
@@ -401,6 +535,7 @@ impl std::error::Error for RunError {
             Self::Fetch(source) => Some(source),
             Self::Chart(source) => Some(source),
             Self::ChartWrite(source) => Some(source),
+            Self::Report(source) => Some(source),
             Self::Layers(source) => Some(source),
             Self::ResearchExport(source) => Some(source),
             Self::Write(source) => Some(source),

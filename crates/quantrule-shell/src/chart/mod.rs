@@ -13,8 +13,10 @@
 
 mod font;
 mod market;
+mod report;
 
 pub(crate) use market::render_market_png;
+pub(crate) use report::{render_report_events_png, render_report_price_axes_png};
 
 use std::fmt;
 

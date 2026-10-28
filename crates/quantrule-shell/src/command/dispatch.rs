@@ -9,9 +9,10 @@ use std::path::PathBuf;
 
 use super::{
     Command, ParseError, run_axis, run_candles, run_candles_tolerant, run_db, run_events,
-    run_fetch, run_help, run_legs, run_market_chart, run_market_dashboard, run_market_state,
-    run_model_series, run_research_export, run_research_summary, run_store_ingest, run_store_init,
-    run_store_list, run_store_remove, run_store_show, run_store_verify, run_timeframes,
+    run_fetch, run_help, run_legs, run_market_chart, run_market_dashboard, run_market_report,
+    run_market_state, run_model_series, run_research_export, run_research_summary,
+    run_store_ingest, run_store_init, run_store_list, run_store_remove, run_store_show,
+    run_store_verify, run_timeframes,
 };
 
 /// Parses the already-split arguments after the binary name.
@@ -48,6 +49,9 @@ pub(crate) fn parse_argv(arguments: &[String]) -> Result<Option<Command>, ParseE
         }
         "market-chart" => {
             super::parse_market_chart_arguments(rest).map(|args| Some(Command::MarketChart(args)))
+        }
+        "market-report" => {
+            super::parse_market_report_arguments(rest).map(|args| Some(Command::MarketReport(args)))
         }
         "fetch" => super::parse_fetch_arguments(rest).map(|args| Some(Command::Fetch(args))),
         "research" => super::parse_research_arguments(rest),
@@ -94,6 +98,7 @@ pub(crate) fn execute(command: Command, stdout: &mut impl Write, stderr: &mut im
         Command::MarketState(args) => run_market_state(&args, stdout),
         Command::MarketDashboard(args) => run_market_dashboard(&args, stdout),
         Command::MarketChart(args) => run_market_chart(&args, stdout),
+        Command::MarketReport(args) => run_market_report(&args, stdout),
         Command::Axis { args, axis } => run_axis(&args, axis, stdout),
         Command::Events(args) => run_events(&args, stdout),
         Command::Legs(args) => run_legs(&args, stdout),

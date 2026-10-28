@@ -19,6 +19,12 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
       --timeframe <tf>          Chart timeframe: 1m, 5m, 15m, or 1h (default 1m).
       --candles <n>             Last n bars, 1..1000 (default 1000).
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
+  market-report <csv-path>      Write the full-period market report and its charts.
+      --data-version <id>       Caller-supplied identity; required.
+      --from <date>             Inclusive UTC start date, YYYY-MM-DD.
+      --to <date>               Inclusive UTC end date, YYYY-MM-DD.
+      --out <dir>               New or empty output directory; required.
+      --json                    Print report.json bytes to stdout.
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   events <csv-path>             Print every event record in the analyzed window as NDJSON.
@@ -71,6 +77,7 @@ CSV header: Date,Open,High,Low,Close,Volume
 Timestamp: YYYY-MM-DD HH:MM:SS+00:00
 The candle and timeframe display commands retain the last 1000 candles.
 Model analysis uses the full series up to 100000 by default; --window latest uses the last 1000 per timeframe.
+market-report uses the extended range up to 600000 M1 candles; existing commands keep the 100000 cap.
 NDJSON: one candle per line, oldest first:
 {"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
 Timeframes: M1 is the source; M5, M15, and H1 are derived by the data engine.
@@ -89,6 +96,7 @@ Non-interactive: quantrule timeframes <csv-path>
 Non-interactive: quantrule market-state <csv-path> [--window full|latest]
 Non-interactive: quantrule market-dashboard <csv-path> [--window full|latest] [--json]
 Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
+Non-interactive: quantrule market-report path/to/m1.csv --data-version source:demo:60:0-1000 --out data/report
 Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
 Non-interactive: quantrule events <csv-path> [--window full|latest]
 Non-interactive: quantrule legs <csv-path> [--window full|latest]

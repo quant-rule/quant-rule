@@ -11,6 +11,7 @@ use super::chart::parse_market_chart_arguments;
 use super::dashboard::parse_dashboard_arguments;
 use super::fetch::parse_fetch_arguments;
 use super::model::parse_model_series_arguments;
+use super::report::parse_market_report_arguments;
 use super::research::parse_research_arguments;
 use super::store::parse_store_arguments;
 use super::store_query;
@@ -55,6 +56,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "market-chart" => {
             let arguments = tokenize(rest)?;
             parse_market_chart_arguments(&arguments).map(|args| Some(Command::MarketChart(args)))
+        }
+        "market-report" => {
+            let arguments = tokenize(rest)?;
+            parse_market_report_arguments(&arguments).map(|args| Some(Command::MarketReport(args)))
         }
         "research" => {
             let arguments = tokenize(rest)?;
