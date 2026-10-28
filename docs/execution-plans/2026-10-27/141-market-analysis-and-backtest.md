@@ -290,15 +290,18 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Done when: the backtest command exposes fills; causality/determinism/golden tests pass; the fill policy is documented.
 - Depends on: #11.
 
-#### E1 — `feat(backtest): add order, fill, and position types`
+#### E1 — `feat(backtest): add order, fill, and position types` ([#163](https://github.com/quant-rule/quant-rule/issues/163))
 
 - Goal: Define side, quantity, fill price, fill reason, order state, and position lifecycle.
 - Scope: Market orders; next-bar open; fees/slippage fields; stop/target trigger types; no-fill and rejected-order cases; no I/O.
 - Done when: types are documented; unit tests cover every state; the fill-price policy is explicit.
 - Depends on: #10, S2.
-- Branch: `feat/<issue>-execution-types`.
-- Commits: `feat(backtest): add order and fill types`.
-- PR: `feat(backtest): add order and fill types`.
+- Branch: `feat/163-execution-types`.
+- Commits: `feat(backtest): add order, fill, and position types`.
+- PR: `feat(backtest): add order, fill, and position types`.
+- Paths: `crates/quantrule-backtest/src/execution/`, `crates/quantrule-backtest/src/lib.rs`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
+- Log: `docs/ai-transparency-log/2026-10-27/163-execution-types.md`.
+- Status: Done. Merged in [PR #164](https://github.com/quant-rule/quant-rule/pull/164); the execution vocabulary, documented fill policy, and 17 unit tests are in `main`.
 
 #### E2 — `feat(backtest): simulate fills and position lifecycle`
 

@@ -1,0 +1,43 @@
+//! Execution vocabulary: orders, fills, and the position lifecycle.
+//!
+//! Execution turns a strategy entry or exit into an order and, on a later
+//! candle, into a fill. It owns no portfolio accounting: fees and slippage are
+//! recorded on the fill, but cash, equity, and P&L belong to the portfolio
+//! module.
+//!
+//! # Fill policy
+//!
+//! The first backtest fills on the M15 ladder. A decision on bar `N` is
+//! submitted as an order on bar `N`; the order may fill on bar `N + 1`, never
+//! on bar `N`. No later bar is read to decide an earlier fill.
+//!
+//! | Order | Reference price on the next bar |
+//! |---|---|
+//! | Market entry or exit | the bar's open |
+//! | Stop, long | the open when it gaps at or below the stop, otherwise the stop when the bar's low reaches it |
+//! | Stop, short | the open when it gaps at or above the stop, otherwise the stop when the bar's high reaches it |
+//! | Target, long | the open when it gaps at or above the target, otherwise the target when the bar's high reaches it |
+//! | Target, short | the open when it gaps at or below the target, otherwise the target when the bar's low reaches it |
+//!
+//! If a bar reaches both the stop and the target, the stop wins. A fill's
+//! [`Fill::reference_price`] is the price selected above; [`Fill::slippage`] is
+//! the non-negative per-unit adjustment applied against the position, so a buy
+//! pays `reference + slippage` and a sell receives `reference - slippage`.
+//! [`Fill::fee`] is the total quote-currency fee for the fill. The policy does
+//! not model an order book, partial fills, or intrabar M1 data.
+//!
+//! Orders that never trigger remain [`OrderState::Pending`]; an order with no
+//! next bar or an invalid execution condition is [`OrderState::Rejected`].
+//! Position sizing, cash, equity, and P&L are outside this module.
+
+mod config;
+mod fill;
+mod order;
+mod position;
+#[cfg(test)]
+mod tests;
+
+pub use config::{ExecutionConfig, ExecutionConfigError};
+pub use fill::{Fill, FillError, FillReason};
+pub use order::{Order, OrderError, OrderSide, OrderState, RejectReason, Trigger};
+pub use position::{Position, PositionError, PositionState};
