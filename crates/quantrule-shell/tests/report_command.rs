@@ -198,11 +198,133 @@ fn repeated_runs_are_byte_identical() {
 }
 
 #[test]
-fn the_unwired_reports_answer_with_a_clear_error() {
+fn the_execution_and_portfolio_bundles_have_their_shape() {
     let config = fixture(CONFIG);
+    for (engine, artifacts) in [
+        (
+            "execution",
+            vec![
+                "summary.txt",
+                "report.json",
+                "orders.csv",
+                "fills.csv",
+                "rejections.csv",
+                "price-fills.png",
+                "provenance.json",
+            ],
+        ),
+        (
+            "portfolio",
+            vec![
+                "summary.txt",
+                "report.json",
+                "trades.csv",
+                "equity.csv",
+                "equity.png",
+                "drawdown.png",
+                "provenance.json",
+            ],
+        ),
+    ] {
+        let out = output_dir(&format!("report-{engine}-shape"));
+        let output = run(&[
+            "report",
+            engine,
+            "--config",
+            config.to_str().expect("the config path is UTF-8"),
+            "--out",
+            out.to_str().expect("the output path is UTF-8"),
+        ]);
+        assert_success(&output);
+        let bundle = out.join(engine);
+        for artifact in artifacts {
+            assert!(
+                bundle.join(artifact).exists(),
+                "{engine}/{artifact} is missing"
+            );
+        }
+        let report = String::from_utf8(read(&bundle.join("report.json"))).expect("json is UTF-8");
+        assert!(report.contains(&format!("\"report\":\"{engine}\"")));
+        let lower = report.to_ascii_lowercase();
+        if engine == "execution" {
+            for forbidden in [
+                "cash",
+                "equity",
+                "pnl",
+                "commission",
+                "funding",
+                "drawdown",
+                "trade",
+            ] {
+                assert!(
+                    !lower.contains(forbidden),
+                    "execution must not publish {forbidden}"
+                );
+            }
+        } else {
+            for forbidden in ["direction", "momentum", "structure", "agreement", "axis"] {
+                assert!(
+                    !lower.contains(forbidden),
+                    "portfolio must not publish {forbidden}"
+                );
+            }
+        }
+        let provenance =
+            String::from_utf8(read(&bundle.join("provenance.json"))).expect("provenance is UTF-8");
+        assert!(provenance.contains(&format!("\"report\":\"{engine}\"")));
+        assert!(!provenance.contains(env!("CARGO_MANIFEST_DIR")));
+    }
+
+    let out = output_dir("report-execution-headers");
     let output = run(&[
         "report",
         "execution",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert_success(&output);
+    let bundle = out.join("execution");
+    assert!(String::from_utf8(read(&bundle.join("orders.csv")))
+        .expect("csv is UTF-8")
+        .starts_with("order_id,submitted_bar,submitted_time,side,quantity,trigger,state,filled_bar,filled_time,fill_id,rejection_reason\n"));
+    assert!(String::from_utf8(read(&bundle.join("fills.csv")))
+        .expect("csv is UTF-8")
+        .starts_with("fill_id,order_id,side,quantity,reference_price,fill_price,slippage,fee,reason,bar,time,position_side,entry\n"));
+    assert!(
+        String::from_utf8(read(&bundle.join("rejections.csv")))
+            .expect("csv is UTF-8")
+            .starts_with("bar,time,reason,decision\n")
+    );
+
+    let out = output_dir("report-portfolio-headers");
+    let output = run(&[
+        "report",
+        "portfolio",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert_success(&output);
+    let bundle = out.join("portfolio");
+    assert!(String::from_utf8(read(&bundle.join("trades.csv")))
+        .expect("csv is UTF-8")
+        .starts_with("trade_id,side,quantity,entry_bar,entry_time,entry_price,exit_bar,exit_time,exit_price,gross_pnl,execution_fees,commission,funding,net_pnl,return,hold_bars,exit_reason\n"));
+    assert!(
+        String::from_utf8(read(&bundle.join("equity.csv")))
+            .expect("csv is UTF-8")
+            .starts_with("date,cash,position_value,equity,peak_equity,drawdown\n")
+    );
+}
+
+#[test]
+fn the_unwired_report_answers_with_a_clear_error() {
+    let config = fixture(CONFIG);
+    let output = run(&[
+        "report",
+        "analytical",
         "--config",
         config.to_str().expect("the config path is UTF-8"),
     ]);

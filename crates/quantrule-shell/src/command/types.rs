@@ -20,6 +20,7 @@ use crate::fetch;
 use crate::render_report::BundleError;
 use crate::source::{DateBounds, DateRange, Symbol};
 use crate::store::{StoreError, Table};
+use quantrule_backtest::runner::BacktestError;
 
 /// A parsed shell command.
 #[derive(Debug, PartialEq, Eq)]
@@ -677,6 +678,8 @@ pub(crate) enum RunError {
     Config(ConfigError),
     /// A report bundle could not be written.
     Bundle(BundleError),
+    /// The full backtest pipeline could not be completed.
+    Backtest(BacktestError),
     /// The strategy run could not be completed.
     StrategyRun(StrategyRunError),
     /// The research layers could not be built.
@@ -701,6 +704,7 @@ impl fmt::Display for RunError {
             Self::Report(source) => source.fmt(formatter),
             Self::Config(source) => source.fmt(formatter),
             Self::Bundle(source) => source.fmt(formatter),
+            Self::Backtest(source) => source.fmt(formatter),
             Self::StrategyRun(source) => source.fmt(formatter),
             Self::Layers(source) => write!(formatter, "cannot build the research layers: {source}"),
             Self::ResearchExport(source) => {
@@ -723,6 +727,7 @@ impl std::error::Error for RunError {
             Self::Report(source) => Some(source),
             Self::Config(source) => Some(source),
             Self::Bundle(source) => Some(source),
+            Self::Backtest(source) => Some(source),
             Self::StrategyRun(source) => Some(source),
             Self::Layers(source) => Some(source),
             Self::ResearchExport(source) => Some(source),
