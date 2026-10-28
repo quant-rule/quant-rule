@@ -391,7 +391,25 @@ pub(crate) fn load_extended_timeframes(
     path: &Path,
     bounds: DateBounds,
 ) -> Result<TimeframeSet, SourceError> {
-    load_timeframe_set(path, TimeframeSet::extended(), Some(bounds))
+    load_timeframes_with_limit(path, bounds, quantrule_data::EXTENDED_SERIES)
+}
+
+/// Loads an M1 CSV into a set with an explicit refusal bound.
+///
+/// The set keeps up to `limit` M1 candles and rejects the next one instead of
+/// evicting the first. The bound comes from `data.json.max_candles`; the
+/// 600,000 extended cap is the maximum the contract allows.
+///
+/// # Errors
+///
+/// Returns a [`SourceError`] for the same reasons as [`load_timeframes`], and
+/// when the input exceeds `limit`.
+pub(crate) fn load_timeframes_with_limit(
+    path: &Path,
+    bounds: DateBounds,
+    limit: usize,
+) -> Result<TimeframeSet, SourceError> {
+    load_timeframe_set(path, TimeframeSet::with_limit(limit), Some(bounds))
 }
 
 fn load_timeframe_set(
