@@ -301,7 +301,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - PR: `feat(backtest): add order, fill, and position types`.
 - Paths: `crates/quantrule-backtest/src/execution/`, `crates/quantrule-backtest/src/lib.rs`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/163-execution-types.md`.
-- Status: In Progress. The execution vocabulary, validated constructors, documented fill policy, and 17 unit tests are implemented and verified; [PR #164](https://github.com/quant-rule/quant-rule/pull/164) is open and CI passed.
+- Status: Done. Merged in [PR #164](https://github.com/quant-rule/quant-rule/pull/164); the execution vocabulary, documented fill policy, and 17 unit tests are in `main`.
 
 #### E2 — `feat(backtest): simulate fills and position lifecycle`
 

@@ -9,7 +9,7 @@
 - Boundary: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)
 - Branch/worktree: `feat/163-execution-types` in `quant-rule--163-execution-types`
 - PR: [#164](https://github.com/quant-rule/quant-rule/pull/164)
-- Status: Open; CI passed.
+- Status: Merged in PR #164.
 
 ## Intent and boundary
 
