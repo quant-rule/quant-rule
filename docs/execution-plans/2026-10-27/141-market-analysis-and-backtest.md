@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Current work item: [#157](https://github.com/quant-rule/quant-rule/issues/157) — the strategy type boundary (S1), [PR #158](https://github.com/quant-rule/quant-rule/pull/158) open. Phase 1 is complete: A4 (#152) merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`. D0–D2 and A1–A3 are also merged; their references are in the phase blocks.
+- Current work item: [#159](https://github.com/quant-rule/quant-rule/issues/159) — the first model-driven strategy (S2), in progress. Phase 1 is complete: A4 (#152) merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`. S1 (#157) merged in [PR #158](https://github.com/quant-rule/quant-rule/pull/158) as `a448f32`. D0–D2 and A1–A3 are also merged; their references are in the phase blocks.
 - Related open issues: [#10](https://github.com/quant-rule/quant-rule/issues/10) execution, [#11](https://github.com/quant-rule/quant-rule/issues/11) strategy, [#12](https://github.com/quant-rule/quant-rule/issues/12) portfolio
 - Related merged work: [#14](https://github.com/quant-rule/quant-rule/issues/14) model, [#106](https://github.com/quant-rule/quant-rule/issues/106) market chart, [#122](https://github.com/quant-rule/quant-rule/issues/122) dashboard
 - Program plan: `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`
@@ -240,9 +240,9 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Scope: S1–S3. No fills, positions, or P&L.
 - Done when: `strategy-run` prints causal entries and exits; tests and docs are merged; the backtest can consume the strategy.
 - Depends on: D1.
-- Status: In Progress. S1 (#157) defines the type boundary; S2 and S3 follow.
+- Status: In Progress. S1 (#157) merged in [PR #158](https://github.com/quant-rule/quant-rule/pull/158) as `a448f32`; S2 (#159) implements the rule; S3 (#160) follows.
 
-#### S1 — `feat(backtest): add strategy types and the rule contract`
+#### S1 — `feat(backtest): add strategy types and the rule contract` ([#157](https://github.com/quant-rule/quant-rule/issues/157))
 
 - Goal: Define the strategy input, rule, entry, exit, and config types.
 - Scope: Pure types; explicit thresholds; tie-breaking; no I/O; no clock; no randomness.
@@ -253,27 +253,31 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - PR: `feat(backtest): add strategy and entry/exit types` — [#158](https://github.com/quant-rule/quant-rule/pull/158).
 - Paths: `crates/quantrule-backtest/`, `Cargo.toml`, `Cargo.lock`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/157-strategy-types.md`.
-- Status: PR open. The crate and the strategy type boundary are implemented; tests and docs pass. The boundary is approved when the PR merges.
+- Status: Done. Merged in [PR #158](https://github.com/quant-rule/quant-rule/pull/158) as `a448f32`; the boundary is approved.
 
-#### S2 — `feat(backtest): add the first model-driven strategy`
+#### S2 — `feat(backtest): add the first model-driven strategy` ([#159](https://github.com/quant-rule/quant-rule/issues/159))
 
 - Goal: Implement the proposed M15 axis-agreement strategy.
 - Scope: Long/short entries; exit on agreement loss; thresholds ±0.1; equality neutral; no future bars; uses only published model values.
 - Done when: causality test (later bars do not change earlier entries/exits); determinism test; golden fixture; edge cases (empty, single bar, short history, equality); the strategy is configurable but not optimized.
 - Depends on: S1.
-- Branch: `feat/<issue>-first-strategy`.
+- Branch: `feat/159-first-strategy`.
 - Commits: `feat(backtest): add the axis-agreement strategy`.
 - PR: `feat(backtest): add the axis-agreement strategy`.
+- Paths: `crates/quantrule-backtest/src/strategy/`, `crates/quantrule-backtest/tests/`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
+- Log: `docs/ai-transparency-log/2026-10-27/159-first-strategy.md`.
+- Status: In Progress. The strategy, its unit tests, and the golden fixture are implemented; the PR is pending.
 
-#### S3 — `feat(shell): add strategy-run`
+#### S3 — `feat(shell): add strategy-run` ([#160](https://github.com/quant-rule/quant-rule/issues/160))
 
 - Goal: Expose strategy entries/exits without fills or P&L.
 - Scope: Parse command; load range; call strategy; print deterministic NDJSON; help/README; no `market-*` change.
 - Done when: CLI tests assert output; no fill/equity/P&L fields exist; the command is documented.
 - Depends on: S2.
-- Branch: `feat/<issue>-strategy-run`.
+- Branch: `feat/160-strategy-run`.
 - Commits: `feat(shell): add the strategy-run command`, `docs: document strategy-run`.
 - PR: `feat(shell): add the strategy-run command`.
+- Status: Todo. Starts after S2 merges.
 
 ### Phase 3 — Execution engine (#10)
 
@@ -494,4 +498,4 @@ Stop and ask the human when:
 
 ## 12. First action
 
-Phase 1 is complete: A4 (#152) merged in PR #156 as `4acb5b8`. Phase 2 (#11) has started with S1 (#157), the strategy type boundary; S2 and S3 follow. Keep #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
+Phase 1 is complete: A4 (#152) merged in PR #156 as `4acb5b8`. Phase 2 (#11) is in progress: S1 (#157) merged in PR #158 as `a448f32`; S2 (#159) implements the first strategy; S3 (#160) exposes it. Keep #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
