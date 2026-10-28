@@ -8,8 +8,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Boundary: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)
 - Branch/worktree: `feat/159-first-strategy` in `quant-rule--159-first-strategy`
-- PR: pending
-- Status: Implementation, tests, and documentation complete; PR pending.
+- PR: [#161](https://github.com/quant-rule/quant-rule/pull/161)
+- Status: Implementation, tests, and documentation complete; PR #161 open.
 
 ## Intent and boundary
 
