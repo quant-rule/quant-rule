@@ -13,9 +13,11 @@ use quantrule_analytics::research::ExportError as ResearchExportError;
 use quantrule_data::Timeframe;
 
 use crate::chart;
+use crate::config::ConfigError;
 use crate::csv::SourceError;
 use crate::export::ExportError as FileExportError;
 use crate::fetch;
+use crate::render_report::BundleError;
 use crate::source::{DateBounds, DateRange, Symbol};
 use crate::store::{StoreError, Table};
 
@@ -36,6 +38,8 @@ pub(crate) enum Command {
     MarketChart(MarketChartArgs),
     /// Write the full-period market report and its charts.
     MarketReport(MarketReportArgs),
+    /// Write one config-driven report bundle.
+    Report(ReportArgs),
     /// Print strategy entries and exits without fills or P&L.
     StrategyRun(StrategyRunArgs),
     /// Print one axis per timeframe.
@@ -262,6 +266,59 @@ impl MarketReportArgs {
     }
 }
 
+/// A report bundle selected by `report`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReportEngine {
+    /// The model report.
+    Model,
+    /// The strategy report.
+    Strategy,
+    /// The execution report.
+    Execution,
+    /// The portfolio report.
+    Portfolio,
+    /// The analytical report.
+    Analytical,
+}
+
+impl ReportEngine {
+    /// Parses the report name exactly.
+    pub(crate) fn parse(code: &str) -> Option<Self> {
+        match code {
+            "model" => Some(Self::Model),
+            "strategy" => Some(Self::Strategy),
+            "execution" => Some(Self::Execution),
+            "portfolio" => Some(Self::Portfolio),
+            "analytical" => Some(Self::Analytical),
+            _ => None,
+        }
+    }
+
+    /// The contract's report name.
+    pub(crate) const fn code(self) -> &'static str {
+        match self {
+            Self::Model => "model",
+            Self::Strategy => "strategy",
+            Self::Execution => "execution",
+            Self::Portfolio => "portfolio",
+            Self::Analytical => "analytical",
+        }
+    }
+}
+
+/// A parsed `report` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReportArgs {
+    /// The report bundle to write.
+    pub(crate) engine: ReportEngine,
+    /// The run configuration.
+    pub(crate) config: PathBuf,
+    /// The output-root override, when supplied.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print the `report.json` bytes to stdout.
+    pub(crate) json: bool,
+}
+
 /// A parsed `strategy-run` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct StrategyRunArgs {
@@ -375,6 +432,8 @@ pub(crate) enum ParseError {
     MarketReport(String),
     /// A `strategy-run` argument list is invalid.
     StrategyRun(String),
+    /// A `report` argument list is invalid.
+    Report(String),
     /// `axis` needs a CSV path and an axis name.
     AxisUsage,
     /// The axis name is not known.
@@ -404,6 +463,7 @@ impl fmt::Display for ParseError {
             Self::MarketChart(message) => formatter.write_str(message),
             Self::MarketReport(message) => formatter.write_str(message),
             Self::StrategyRun(message) => formatter.write_str(message),
+            Self::Report(message) => formatter.write_str(message),
             Self::AxisUsage => write!(
                 formatter,
                 "usage: axis <csv-path> <direction|momentum|structure|progression>"
@@ -455,6 +515,18 @@ pub(crate) enum ReportError {
         /// The requested period label.
         period: String,
     },
+    /// The report is not implemented in this work item.
+    NotImplemented {
+        /// The report name.
+        engine: &'static str,
+    },
+    /// The strategy timeframe has no bars.
+    NoStrategyBars {
+        /// The strategy timeframe in seconds.
+        timeframe_secs: u64,
+    },
+    /// A date range could not be built.
+    Period(String),
     /// The output directory could not be created.
     CreateDirectory {
         /// The output path.
@@ -497,6 +569,15 @@ impl fmt::Display for ReportError {
                 formatter,
                 "the requested period '{period}' produced no chart bars"
             ),
+            Self::NotImplemented { engine } => write!(
+                formatter,
+                "report {engine} is not implemented in this work item"
+            ),
+            Self::NoStrategyBars { timeframe_secs } => write!(
+                formatter,
+                "the strategy timeframe {timeframe_secs} produced no bars"
+            ),
+            Self::Period(message) => formatter.write_str(message),
             Self::CreateDirectory { path, source } => {
                 write!(formatter, "cannot create {}: {source}", path.display())
             }
@@ -515,7 +596,10 @@ impl std::error::Error for ReportError {
             Self::OutputNotEmpty { .. }
             | Self::OutputNotDirectory { .. }
             | Self::EmptyPeriod { .. }
-            | Self::EmptyChart { .. } => None,
+            | Self::EmptyChart { .. }
+            | Self::NotImplemented { .. }
+            | Self::NoStrategyBars { .. }
+            | Self::Period(_) => None,
         }
     }
 }
@@ -589,6 +673,10 @@ pub(crate) enum RunError {
     ChartWrite(FileExportError),
     /// The market report could not be completed.
     Report(ReportError),
+    /// The run configuration could not be loaded.
+    Config(ConfigError),
+    /// A report bundle could not be written.
+    Bundle(BundleError),
     /// The strategy run could not be completed.
     StrategyRun(StrategyRunError),
     /// The research layers could not be built.
@@ -611,6 +699,8 @@ impl fmt::Display for RunError {
             Self::Chart(source) => write!(formatter, "cannot render the market chart: {source}"),
             Self::ChartWrite(source) => write!(formatter, "cannot write the chart PNG: {source}"),
             Self::Report(source) => source.fmt(formatter),
+            Self::Config(source) => source.fmt(formatter),
+            Self::Bundle(source) => source.fmt(formatter),
             Self::StrategyRun(source) => source.fmt(formatter),
             Self::Layers(source) => write!(formatter, "cannot build the research layers: {source}"),
             Self::ResearchExport(source) => {
@@ -631,6 +721,8 @@ impl std::error::Error for RunError {
             Self::Chart(source) => Some(source),
             Self::ChartWrite(source) => Some(source),
             Self::Report(source) => Some(source),
+            Self::Config(source) => Some(source),
+            Self::Bundle(source) => Some(source),
             Self::StrategyRun(source) => Some(source),
             Self::Layers(source) => Some(source),
             Self::ResearchExport(source) => Some(source),

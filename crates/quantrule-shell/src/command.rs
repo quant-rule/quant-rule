@@ -15,6 +15,7 @@ mod layers;
 mod model;
 mod parse;
 mod report;
+mod report_run;
 mod research;
 mod store;
 mod store_query;
@@ -29,6 +30,7 @@ pub(crate) use self::dashboard::{parse_dashboard_arguments, run_market_dashboard
 pub(crate) use self::dispatch::{execute, parse_argv};
 pub(crate) use self::parse::parse;
 pub(crate) use self::report::{parse_market_report_arguments, run_market_report};
+pub(crate) use self::report_run::{parse_report_arguments, run_report};
 pub(crate) use self::strategy::{parse_strategy_run_arguments, run_strategy_run};
 pub(crate) use self::types::{Axis, Command, ParseError};
 
