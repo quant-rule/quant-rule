@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Current work item: [#159](https://github.com/quant-rule/quant-rule/issues/159) — the first model-driven strategy (S2), [PR #161](https://github.com/quant-rule/quant-rule/pull/161) open. Phase 1 is complete: A4 (#152) merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`. S1 (#157) merged in [PR #158](https://github.com/quant-rule/quant-rule/pull/158) as `a448f32`. D0–D2 and A1–A3 are also merged; their references are in the phase blocks.
+- Current work item: [#160](https://github.com/quant-rule/quant-rule/issues/160) — `strategy-run` (S3), in progress. Phase 1 is complete: A4 (#152) merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`. S1 (#157) merged in [PR #158](https://github.com/quant-rule/quant-rule/pull/158) as `a448f32`; S2 (#159) merged in [PR #161](https://github.com/quant-rule/quant-rule/pull/161) as `d2b61ec`. D0–D2 and A1–A3 are also merged; their references are in the phase blocks.
 - Related open issues: [#10](https://github.com/quant-rule/quant-rule/issues/10) execution, [#11](https://github.com/quant-rule/quant-rule/issues/11) strategy, [#12](https://github.com/quant-rule/quant-rule/issues/12) portfolio
 - Related merged work: [#14](https://github.com/quant-rule/quant-rule/issues/14) model, [#106](https://github.com/quant-rule/quant-rule/issues/106) market chart, [#122](https://github.com/quant-rule/quant-rule/issues/122) dashboard
 - Program plan: `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`
@@ -240,7 +240,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Scope: S1–S3. No fills, positions, or P&L.
 - Done when: `strategy-run` prints causal entries and exits; tests and docs are merged; the backtest can consume the strategy.
 - Depends on: D1.
-- Status: In Progress. S1 (#157) merged in [PR #158](https://github.com/quant-rule/quant-rule/pull/158) as `a448f32`; S2 (#159) implements the rule; S3 (#160) follows.
+- Status: In Progress. S1 (#157) merged in [PR #158](https://github.com/quant-rule/quant-rule/pull/158) as `a448f32`; S2 (#159) merged in [PR #161](https://github.com/quant-rule/quant-rule/pull/161) as `d2b61ec`; S3 (#160) exposes the rule and is in progress.
 
 #### S1 — `feat(backtest): add strategy types and the rule contract` ([#157](https://github.com/quant-rule/quant-rule/issues/157))
 
@@ -266,7 +266,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - PR: `feat(backtest): add the axis-agreement strategy` — [#161](https://github.com/quant-rule/quant-rule/pull/161).
 - Paths: `crates/quantrule-backtest/src/strategy/`, `crates/quantrule-backtest/tests/`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/159-first-strategy.md`.
-- Status: PR open. The strategy, its unit tests, and the golden fixture are implemented; tests and docs pass.
+- Status: Done. Merged in [PR #161](https://github.com/quant-rule/quant-rule/pull/161) as `d2b61ec`; the strategy, 13 unit and 6 integration tests, and the 26-row golden fixture are in `main`.
 
 #### S3 — `feat(shell): add strategy-run` ([#160](https://github.com/quant-rule/quant-rule/issues/160))
 
@@ -276,8 +276,10 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Depends on: S2.
 - Branch: `feat/160-strategy-run`.
 - Commits: `feat(shell): add the strategy-run command`, `docs: document strategy-run`.
-- PR: `feat(shell): add the strategy-run command`.
-- Status: Todo. Starts after S2 merges.
+- PR: `feat(shell): add the strategy-run command` — [#162](https://github.com/quant-rule/quant-rule/pull/162).
+- Paths: `crates/quantrule-shell/`, `Cargo.lock`, `README.md`, `docs/README.md`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`.
+- Log: `docs/ai-transparency-log/2026-10-27/160-strategy-run.md`.
+- Status: In Progress. The command, its unit tests, CLI tests, and golden fixture are implemented; PR #162 is open.
 
 ### Phase 3 — Execution engine (#10)
 
@@ -498,4 +500,4 @@ Stop and ask the human when:
 
 ## 12. First action
 
-Phase 1 is complete: A4 (#152) merged in PR #156 as `4acb5b8`. Phase 2 (#11) is in progress: S1 (#157) merged in PR #158 as `a448f32`; S2 (#159) implements the first strategy; S3 (#160) exposes it. Keep #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
+Phase 1 is complete: A4 (#152) merged in PR #156 as `4acb5b8`. Phase 2 (#11) is in progress: S1 (#157) merged in PR #158 as `a448f32`; S2 (#159) merged in PR #161 as `d2b61ec`; S3 (#160) exposes the rule and is in progress. Keep #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
