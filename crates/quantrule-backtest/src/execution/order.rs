@@ -2,9 +2,13 @@
 //!
 //! An order is a request, not a fill. It records the transaction side, the
 //! quantity, why it was submitted, the trigger that decides its reference
-//! price, and the bar it was submitted on. Execution moves it from
+//! price, and the bar it was submitted on. Execution resolves it from
 //! [`OrderState::Pending`] to exactly one terminal state; the fill record is
 //! separate and belongs to [`super::Fill`].
+//!
+//! [`OrderRecord`] is the published lifecycle record: the engine emits a
+//! pending record when it accepts an order and a filled or rejected record with
+//! the same id when the order resolves.
 
 use std::fmt;
 
@@ -108,17 +112,17 @@ impl Trigger {
 /// The lifecycle state of an order.
 ///
 /// `Pending` is the only non-terminal state. A filled order has a separate
-/// [`super::Fill`] record; the state records only that the fill happened.
+/// [`super::Fill`] record; the state records only that the fill happened. A
+/// rejected order carries its reason on [`OrderRecord::rejection_reason`].
 ///
 /// # Examples
 ///
 /// ```
-/// use quantrule_backtest::execution::{OrderState, RejectReason};
+/// use quantrule_backtest::execution::OrderState;
 ///
 /// assert!(!OrderState::Pending.is_terminal());
 /// assert!(OrderState::Filled.is_terminal());
-/// assert!(OrderState::Rejected(RejectReason::NoNextBar).is_terminal());
-/// assert!(OrderState::Cancelled.is_terminal());
+/// assert!(OrderState::Rejected.is_terminal());
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OrderState {
@@ -127,9 +131,7 @@ pub enum OrderState {
     /// Filled; the fill record carries the price and costs.
     Filled,
     /// Refused before it could fill.
-    Rejected(RejectReason),
-    /// Withdrawn before it could fill.
-    Cancelled,
+    Rejected,
 }
 
 impl OrderState {
@@ -142,8 +144,9 @@ impl OrderState {
 
 /// Why an order was rejected before it could fill.
 ///
-/// These are execution conditions, not construction errors. An invalid
-/// quantity or trigger price is refused by [`Order::new`].
+/// These are execution conditions, not construction errors. A malformed order
+/// is refused by [`Order::new`]; a decision refused before an order exists is
+/// recorded here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RejectReason {
     /// The order was submitted on the last available bar.
@@ -160,17 +163,23 @@ pub enum RejectReason {
     /// The ATR-derived stop or target was not a valid positive bracket around
     /// the entry price.
     InvalidBracket,
+    /// An entry decision carried no quantity, because sizing produced none.
+    MissingQuantity,
+    /// An entry decision carried a quantity that is zero, negative, or not
+    /// finite.
+    NonPositiveQuantity,
 }
 
 /// A request to trade one quantity of one instrument.
 ///
 /// The order carries the bar it was submitted on, not the bar it fills on.
-/// Execution may fill it on the next bar or leave it pending.
+/// Execution may fill it on the next bar or leave it pending. It carries no
+/// lifecycle state: that belongs to [`OrderRecord`].
 ///
 /// # Examples
 ///
 /// ```
-/// use quantrule_backtest::execution::{FillReason, Order, OrderSide, OrderState, Trigger};
+/// use quantrule_backtest::execution::{FillReason, Order, OrderSide, Trigger};
 ///
 /// let order = Order::new(
 ///     OrderSide::Buy,
@@ -181,7 +190,7 @@ pub enum RejectReason {
 ///     1_700_000_000,
 /// )?;
 /// assert_eq!(order.side, OrderSide::Buy);
-/// assert_eq!(order.state, OrderState::Pending);
+/// assert_eq!(order.quantity, 1.5);
 /// # Ok::<(), quantrule_backtest::execution::OrderError>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -198,8 +207,6 @@ pub struct Order {
     pub submitted_bar: usize,
     /// The submission bar's open time as UTC Unix seconds.
     pub submitted_time: i64,
-    /// The current lifecycle state.
-    pub state: OrderState,
 }
 
 impl Order {
@@ -245,9 +252,69 @@ impl Order {
             trigger,
             submitted_bar,
             submitted_time,
-            state: OrderState::Pending,
         })
     }
+}
+
+/// The published lifecycle record of one order.
+///
+/// The engine emits a pending record when it accepts an order and a filled or
+/// rejected record with the same [`order_id`](Self::order_id) when the order
+/// resolves. A report keeps the last record per id.
+///
+/// A bracket order is recorded when its stop or target is reached. Its
+/// submission bar and time are the entry fill's, because that is when the
+/// bracket became live. The level that never triggers is not an order and is
+/// not recorded.
+///
+/// # Examples
+///
+/// ```
+/// use quantrule_backtest::execution::{ExecutionConfig, ExecutionEngine, OrderState};
+/// use quantrule_backtest::strategy::{Decision, Entry, Side, StrategyInput};
+/// use quantrule_data::Candle;
+///
+/// let config = ExecutionConfig::new(0.001, 2.0)?;
+/// let mut engine = ExecutionEngine::new(config)?;
+/// let first = Candle::new(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0))?;
+/// let bar = StrategyInput::new(900, 0, 0, Some(0.5), Some(0.5), Some(1.0));
+/// engine.advance(&first)?;
+/// let batch = engine.submit(
+///     Decision::Enter(Entry { side: Side::Long, bar }),
+///     Some(1.0),
+///     Some(1.0),
+/// )?;
+/// assert_eq!(batch.orders.len(), 1);
+/// assert_eq!(batch.orders[0].order_id, 0);
+/// assert_eq!(batch.orders[0].state, OrderState::Pending);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OrderRecord {
+    /// The deterministic order id, assigned in creation order from zero.
+    pub order_id: u64,
+    /// The zero-based bar index the order was submitted on.
+    pub submitted_bar: usize,
+    /// The submission bar's open time as UTC Unix seconds.
+    pub submitted_time: i64,
+    /// The transaction side.
+    pub side: OrderSide,
+    /// The quantity to trade, or `None` when the decision carried none.
+    pub quantity: Option<f64>,
+    /// Why the order was submitted.
+    pub reason: FillReason,
+    /// What causes the order to fill.
+    pub trigger: Trigger,
+    /// The lifecycle state at the time of the record.
+    pub state: OrderState,
+    /// The bar the order filled on, when it filled.
+    pub filled_bar: Option<usize>,
+    /// The fill bar's open time as UTC Unix seconds, when it filled.
+    pub filled_time: Option<i64>,
+    /// The id of the fill that resolved the order, when it filled.
+    pub fill_id: Option<u64>,
+    /// Why the order was refused, when it was refused.
+    pub rejection_reason: Option<RejectReason>,
 }
 
 /// An order could not be constructed.

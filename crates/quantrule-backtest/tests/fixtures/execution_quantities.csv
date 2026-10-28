@@ -1,0 +1,5 @@
+entry_bar,quantity,fill_id,fill_bar,side,fill_quantity,fill_price,fill_fee
+0,1.5,0,1,buy,1.5,100.02,0.15003
+0,1.5,1,2,sell,1.5,98.000396,0.147000594
+3,0.25,2,4,sell,0.25,97.9804,0.0244951
+3,0.25,3,6,buy,0.25,94.99939608,0.02374984902

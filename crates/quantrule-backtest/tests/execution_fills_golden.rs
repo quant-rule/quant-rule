@@ -13,16 +13,20 @@
 //! engine's own values across repeated runs.
 
 use quantrule_backtest::execution::{
-    ExecutionConfig, ExecutionEngine, Fill, FillReason, OrderSide, RejectReason, Rejection,
+    ExecutionConfig, ExecutionEngine, Fill, FillReason, OrderRecord, OrderSide, OrderState,
+    RejectReason, Rejection, Trigger,
 };
 use quantrule_backtest::strategy::{Decision, Entry, Exit, ExitReason, Side, StrategyInput};
 use quantrule_data::Candle;
 
 const BARS: &str = include_str!("fixtures/execution_fills_bars.csv");
 const FILLS: &str = include_str!("fixtures/execution_fills_golden.csv");
+const QUANTITIES: &str = include_str!("fixtures/execution_quantities.csv");
 const BARS_HEADER: &str = "bar,timestamp,open,high,low,close,volume,atr14,decision";
 const FILLS_HEADER: &str =
     "fill,bar,timestamp,side,quantity,reference_price,slippage,price,fee,reason";
+const QUANTITIES_HEADER: &str =
+    "entry_bar,quantity,fill_id,fill_bar,side,fill_quantity,fill_price,fill_fee";
 
 const FEE_RATE: f64 = 0.001;
 const SLIPPAGE_BPS: f64 = 2.0;
@@ -46,6 +50,18 @@ struct FillRow {
     bar: usize,
     time: i64,
     reason: FillReason,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct QuantityRow {
+    entry_bar: usize,
+    quantity: f64,
+    fill_id: u64,
+    fill_bar: usize,
+    side: OrderSide,
+    fill_quantity: f64,
+    fill_price: f64,
+    fill_fee: f64,
 }
 
 fn number(field: &str) -> Option<f64> {
@@ -186,26 +202,120 @@ fn load_fills() -> Vec<FillRow> {
     rows
 }
 
-fn engine() -> ExecutionEngine {
-    ExecutionEngine::new(
-        ExecutionConfig::new(FEE_RATE, SLIPPAGE_BPS).expect("the costs are valid"),
-        QUANTITY,
-    )
-    .expect("the engine is valid")
+fn load_quantities() -> Vec<QuantityRow> {
+    let mut lines = QUANTITIES.lines();
+    assert_eq!(
+        lines.next(),
+        Some(QUANTITIES_HEADER),
+        "quantity fixture header changed"
+    );
+
+    let mut rows = Vec::new();
+    for line in lines {
+        let fields: Vec<&str> = line.split(',').collect();
+        assert_eq!(fields.len(), 8, "wrong column count in {line:?}");
+        rows.push(QuantityRow {
+            entry_bar: parse::<usize>(fields[0]),
+            quantity: parse::<f64>(fields[1]),
+            fill_id: parse::<u64>(fields[2]),
+            fill_bar: parse::<usize>(fields[3]),
+            side: order_side(fields[4]),
+            fill_quantity: parse::<f64>(fields[5]),
+            fill_price: parse::<f64>(fields[6]),
+            fill_fee: parse::<f64>(fields[7]),
+        });
+    }
+    rows
 }
 
-fn run(rows: &[BarRow]) -> (Vec<Fill>, Vec<Rejection>) {
+fn engine() -> ExecutionEngine {
+    ExecutionEngine::new(ExecutionConfig::new(FEE_RATE, SLIPPAGE_BPS).expect("the costs are valid"))
+        .expect("the engine is valid")
+}
+
+fn run(rows: &[BarRow]) -> (Vec<Fill>, Vec<Rejection>, Vec<OrderRecord>) {
     let mut engine = engine();
     let mut fills = Vec::new();
+    let mut rejections = Vec::new();
+    let mut orders = Vec::new();
     for row in rows {
-        fills.extend(
-            engine
-                .on_bar(&row.candle, row.atr14, row.decision)
-                .expect("the fixture bar is valid"),
-        );
+        let batch = engine
+            .advance(&row.candle)
+            .expect("the fixture bar is valid");
+        fills.extend(batch.fills);
+        rejections.extend(batch.rejections);
+        orders.extend(batch.orders);
+        let batch = engine
+            .submit(row.decision, Some(QUANTITY), row.atr14)
+            .expect("the fixture decision is valid");
+        rejections.extend(batch.rejections);
+        orders.extend(batch.orders);
     }
-    engine.finish();
-    (fills, engine.rejections().to_vec())
+    let batch = engine.finish();
+    rejections.extend(batch.rejections);
+    orders.extend(batch.orders);
+    (fills, rejections, orders)
+}
+
+fn run_with_quantities(
+    rows: &[BarRow],
+    quantities: &[QuantityRow],
+) -> (Vec<Fill>, Vec<Rejection>, Vec<OrderRecord>) {
+    let mut engine = engine();
+    let mut fills = Vec::new();
+    let mut rejections = Vec::new();
+    let mut orders = Vec::new();
+    for row in rows {
+        let quantity = match row.decision {
+            Decision::Enter(entry) => Some(
+                quantities
+                    .iter()
+                    .find(|row| row.entry_bar == entry.bar.bar_index)
+                    .unwrap_or_else(|| {
+                        panic!("no quantity fixture for entry bar {}", entry.bar.bar_index)
+                    })
+                    .quantity,
+            ),
+            Decision::Hold | Decision::Exit(_) => Some(QUANTITY),
+        };
+        let batch = engine
+            .advance(&row.candle)
+            .expect("the fixture bar is valid");
+        fills.extend(batch.fills);
+        rejections.extend(batch.rejections);
+        orders.extend(batch.orders);
+        let batch = engine
+            .submit(row.decision, quantity, row.atr14)
+            .expect("the fixture decision is valid");
+        rejections.extend(batch.rejections);
+        orders.extend(batch.orders);
+    }
+    let batch = engine.finish();
+    rejections.extend(batch.rejections);
+    orders.extend(batch.orders);
+    (fills, rejections, orders)
+}
+
+/// Collapses the record stream to one record per order, keeping the last.
+fn last_record_per_order(orders: &[OrderRecord]) -> Vec<OrderRecord> {
+    let mut resolved: Vec<OrderRecord> = Vec::new();
+    for order in orders {
+        if let Some(index) = resolved
+            .iter()
+            .position(|seen| seen.order_id == order.order_id)
+        {
+            resolved[index] = *order;
+        } else {
+            resolved.push(*order);
+        }
+    }
+    resolved
+}
+
+/// The bar at which a record became knowable: the fill bar, else the
+/// submission bar.
+fn effective_bar(order: &OrderRecord) -> usize {
+    order.filled_bar.unwrap_or(order.submitted_bar)
 }
 
 fn approx(actual: f64, expected: f64, field: &str, bar: usize) {
@@ -222,7 +332,7 @@ fn the_engine_matches_the_golden_fill_fixture() {
     let expected = load_fills();
     assert_eq!(expected.len(), 4, "fill fixture row count changed");
 
-    let (fills, rejections) = run(&bars);
+    let (fills, rejections, orders) = run(&bars);
     assert!(
         rejections.is_empty(),
         "unexpected rejections: {rejections:?}"
@@ -245,6 +355,21 @@ fn the_engine_matches_the_golden_fill_fixture() {
         approx(fill.price, row.price, "price", fill.bar);
         approx(fill.fee, row.fee, "fee", fill.bar);
     }
+
+    // A report keeps the last record per id: two pending records and four
+    // resolved ones collapse to one record per order.
+    let resolved = last_record_per_order(&orders);
+    assert_eq!(resolved.len(), 4, "unique order count changed");
+    for (order_id, order) in resolved.iter().enumerate() {
+        assert_eq!(order.order_id, order_id as u64);
+        assert_eq!(order.state, OrderState::Filled);
+        assert_eq!(order.fill_id, Some(order_id as u64));
+        assert_eq!(order.rejection_reason, None);
+    }
+    // The bracket orders became live when their entries filled.
+    assert_eq!(resolved[1].submitted_bar, 1);
+    assert_eq!(resolved[1].trigger, Trigger::Stop { price: 98.02 });
+    assert_eq!(resolved[3].submitted_bar, 4);
 }
 
 #[test]
@@ -252,8 +377,8 @@ fn later_bars_do_not_change_earlier_fills() {
     let bars = load_bars();
     let prefix = 3;
 
-    let (prefix_fills, _) = run(&bars[..prefix]);
-    let (full_fills, _) = run(&bars);
+    let (prefix_fills, _, _) = run(&bars[..prefix]);
+    let (full_fills, _, _) = run(&bars);
 
     let prefix_early: Vec<Fill> = prefix_fills
         .iter()
@@ -270,7 +395,7 @@ fn later_bars_do_not_change_earlier_fills() {
     let mut changed = bars.to_vec();
     changed[4].candle = Candle::new(4, 3600, 200.0, 200.5, 199.0, 200.0, Some(10.0))
         .expect("the changed candle is valid");
-    let (changed_fills, _) = run(&changed);
+    let (changed_fills, _, _) = run(&changed);
     let changed_early: Vec<Fill> = changed_fills
         .iter()
         .copied()
@@ -297,21 +422,22 @@ fn repeated_runs_are_identical() {
 #[test]
 fn an_empty_series_produces_no_fills_or_rejections() {
     let mut engine = engine();
-    engine.finish();
+    let batch = engine.finish();
 
-    assert!(engine.rejections().is_empty());
+    assert!(batch.is_empty());
     assert!(engine.position().is_flat());
 }
 
 #[test]
 fn a_single_candle_cannot_fill_and_is_rejected_at_finish() {
     let bars = load_bars();
-    let (fills, rejections) = run(&bars[..1]);
+    let (fills, rejections, _) = run(&bars[..1]);
 
     assert!(fills.is_empty());
     assert_eq!(
         rejections,
         vec![Rejection {
+            order_id: 0,
             bar: 0,
             time: 0,
             reason: RejectReason::NoNextBar,
@@ -339,14 +465,118 @@ fn a_series_that_never_fills_leaves_the_order_pending_until_finish() {
         },
     ];
 
-    let (fills, rejections) = run(&bars);
+    let (fills, rejections, _) = run(&bars);
     assert!(fills.is_empty());
     assert_eq!(
         rejections,
         vec![Rejection {
+            order_id: 0,
             bar: 1,
             time: 900,
             reason: RejectReason::NoNextBar,
         }]
+    );
+}
+
+#[test]
+fn per_entry_quantities_reach_the_fills() {
+    let bars = load_bars();
+    let quantities = load_quantities();
+    let (fills, rejections, orders) = run_with_quantities(&bars, &quantities);
+    assert!(
+        rejections.is_empty(),
+        "unexpected rejections: {rejections:?}"
+    );
+    assert_eq!(fills.len(), quantities.len(), "fill count changed");
+
+    for (fill, row) in fills.iter().zip(&quantities) {
+        assert_eq!(fill.bar, row.fill_bar, "fill bar");
+        assert_eq!(fill.side, row.side, "bar {} side", fill.bar);
+        approx(fill.quantity, row.fill_quantity, "quantity", fill.bar);
+        approx(fill.price, row.fill_price, "price", fill.bar);
+        approx(fill.fee, row.fill_fee, "fee", fill.bar);
+    }
+
+    // A bracket fill carries its entry's quantity, and the order record that
+    // carries the fill id agrees with the fixture.
+    assert_eq!(fills[1].quantity, fills[0].quantity);
+    assert_eq!(fills[3].quantity, fills[2].quantity);
+    for row in &quantities {
+        let order = orders
+            .iter()
+            .find(|order| order.fill_id == Some(row.fill_id))
+            .unwrap_or_else(|| panic!("no order carries fill id {}", row.fill_id));
+        assert_eq!(order.state, OrderState::Filled);
+        assert_eq!(order.filled_bar, Some(row.fill_bar));
+        match order.quantity {
+            Some(quantity) => approx(quantity, row.fill_quantity, "order quantity", row.fill_bar),
+            None => panic!("the filled order has no quantity"),
+        }
+    }
+}
+
+#[test]
+fn no_order_is_pending_after_finish() {
+    let bars = load_bars();
+    let (_, _, orders) = run(&bars);
+    let resolved = last_record_per_order(&orders);
+
+    assert!(!resolved.is_empty());
+    for order in &resolved {
+        assert_ne!(
+            order.state,
+            OrderState::Pending,
+            "order {} is still pending",
+            order.order_id
+        );
+    }
+}
+
+#[test]
+fn later_bars_do_not_change_earlier_records() {
+    let bars = load_bars();
+    let prefix = 3;
+
+    let (prefix_fills, prefix_rejections, prefix_orders) = run(&bars[..prefix]);
+    let (full_fills, full_rejections, full_orders) = run(&bars);
+
+    let early_fills = |fills: &[Fill]| -> Vec<Fill> {
+        fills
+            .iter()
+            .copied()
+            .filter(|fill| fill.bar < prefix)
+            .collect()
+    };
+    let early_orders = |orders: &[OrderRecord]| -> Vec<OrderRecord> {
+        orders
+            .iter()
+            .copied()
+            .filter(|order| effective_bar(order) < prefix)
+            .collect()
+    };
+    let early_rejections = |rejections: &[Rejection]| -> Vec<Rejection> {
+        rejections
+            .iter()
+            .copied()
+            .filter(|rejection| rejection.bar < prefix)
+            .collect()
+    };
+
+    assert_eq!(early_fills(&prefix_fills), early_fills(&full_fills));
+    assert_eq!(early_orders(&prefix_orders), early_orders(&full_orders));
+    assert_eq!(
+        early_rejections(&prefix_rejections),
+        early_rejections(&full_rejections)
+    );
+
+    let mut changed = bars.to_vec();
+    changed[4].candle = Candle::new(4, 3600, 200.0, 200.5, 199.0, 200.0, Some(10.0))
+        .expect("the changed candle is valid");
+    let (changed_fills, changed_rejections, changed_orders) = run(&changed);
+    assert_eq!(early_fills(&changed_fills), early_fills(&full_fills));
+    assert_eq!(early_orders(&changed_orders), early_orders(&full_orders));
+    assert_eq!(
+        early_rejections(&changed_rejections),
+        early_rejections(&full_rejections)
     );
 }

@@ -2,7 +2,7 @@
 
 use super::{
     ExecutionConfig, ExecutionConfigError, Fill, FillError, FillReason, Order, OrderError,
-    OrderSide, OrderState, Position, PositionError, PositionState, RejectReason, Trigger,
+    OrderSide, OrderState, Position, PositionError, PositionState, Trigger,
 };
 use crate::strategy::Side;
 
@@ -99,7 +99,6 @@ fn trigger_prices_are_explicit() {
 #[test]
 fn market_orders_carry_entry_or_exit() {
     let entry = market_order(OrderSide::Buy, FillReason::Entry);
-    assert_eq!(entry.state, OrderState::Pending);
     assert_eq!(entry.side, OrderSide::Buy);
     assert_eq!(entry.quantity, 1.0);
     assert_eq!(entry.reason, FillReason::Entry);
@@ -108,7 +107,6 @@ fn market_orders_carry_entry_or_exit() {
     assert_eq!(entry.submitted_time, 1_700_000_000);
 
     let exit = market_order(OrderSide::Sell, FillReason::Exit);
-    assert_eq!(exit.state, OrderState::Pending);
     assert_eq!(exit.reason, FillReason::Exit);
 }
 
@@ -229,11 +227,7 @@ fn order_state_is_terminal_only_after_pending() {
     let states = [
         OrderState::Pending,
         OrderState::Filled,
-        OrderState::Rejected(RejectReason::NoNextBar),
-        OrderState::Rejected(RejectReason::NoPosition),
-        OrderState::Rejected(RejectReason::PositionAlreadyOpen),
-        OrderState::Rejected(RejectReason::ZeroVolume),
-        OrderState::Cancelled,
+        OrderState::Rejected,
     ];
 
     assert!(!states[0].is_terminal());
