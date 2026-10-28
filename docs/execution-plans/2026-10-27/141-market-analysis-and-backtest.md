@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Current work item: [#152](https://github.com/quant-rule/quant-rule/issues/152) — the `market-report` verification (A4), [PR #156](https://github.com/quant-rule/quant-rule/pull/156) open. D0 (#142) merged in [PR #143](https://github.com/quant-rule/quant-rule/pull/143); D1 (#145) merged in [PR #146](https://github.com/quant-rule/quant-rule/pull/146); D2 (#144) merged in [PR #147](https://github.com/quant-rule/quant-rule/pull/147) as `c9be8b3`; A1 (#149) merged in [PR #153](https://github.com/quant-rule/quant-rule/pull/153) as `d887a18`; A2 (#150) merged in [PR #154](https://github.com/quant-rule/quant-rule/pull/154) as `4170335`; A3 (#151) merged in [PR #155](https://github.com/quant-rule/quant-rule/pull/155) as `c380698`.
+- Current work item: [#157](https://github.com/quant-rule/quant-rule/issues/157) — the strategy type boundary (S1), in progress. Phase 1 is complete: A4 (#152) merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`. D0–D2 and A1–A3 are also merged; their references are in the phase blocks.
 - Related open issues: [#10](https://github.com/quant-rule/quant-rule/issues/10) execution, [#11](https://github.com/quant-rule/quant-rule/issues/11) strategy, [#12](https://github.com/quant-rule/quant-rule/issues/12) portfolio
 - Related merged work: [#14](https://github.com/quant-rule/quant-rule/issues/14) model, [#106](https://github.com/quant-rule/quant-rule/issues/106) market chart, [#122](https://github.com/quant-rule/quant-rule/issues/122) dashboard
 - Program plan: `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`
@@ -178,7 +178,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Done when: `market-report` runs on SOLUSD 2025, writes deterministic artifacts, and is documented.
 - Depends on: D2.
 - Board: container; status follows A1–A4.
-- Status: Verified — 2026-10-27. All A1–A4 acceptance criteria were evaluated: `market-report` runs on SOLUSD 2025, its four artifacts are byte-identical across runs, and the report publishes no execution field. A4 records the evidence in [PR #156](https://github.com/quant-rule/quant-rule/pull/156).
+- Status: Verified — 2026-10-27. All A1–A4 acceptance criteria were evaluated: `market-report` runs on SOLUSD 2025, its four artifacts are byte-identical across runs, and the report publishes no execution field. A4 merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`; Phase 1 is complete.
 
 #### A1 — `docs(model): define the market-report view` ([#149](https://github.com/quant-rule/quant-rule/issues/149))
 
@@ -230,7 +230,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - PR: `test: verify the market-report output`.
 - Paths: `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/152-market-report.md`.
-- Status: Done. [PR #156](https://github.com/quant-rule/quant-rule/pull/156) records the evidence. Dukascopy BID `SOL/USD` 2025 M1: 522,633 accepted rows, first `2025-01-01T14:05:00Z`, last `2025-12-31T14:58:00Z`. Two identical runs over 670,196 model bars produced byte-identical artifacts (hashes in the log); 1m coverage 99.70%, 1h 97.71%; the H1 chart has 238 buckets; `--json` equals `report.json`; no execution field is published. Run 1 took 19.05 s at 795,184 KiB peak RSS.
+- Status: Done. Merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`; the PR records the evidence. Dukascopy BID `SOL/USD` 2025 M1: 522,633 accepted rows, first `2025-01-01T14:05:00Z`, last `2025-12-31T14:58:00Z`. Two identical runs over 670,196 model bars produced byte-identical artifacts (hashes in the log); 1m coverage 99.70%, 1h 97.71%; the H1 chart has 238 buckets; `--json` equals `report.json`; no execution field is published. Run 1 took 19.05 s at 795,184 KiB peak RSS.
 
 ### Phase 2 — Strategy engine (#11)
 
@@ -238,8 +238,9 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 
 - Goal: Turn model output into causal strategy entries and exits.
 - Scope: S1–S3. No fills, positions, or P&L.
-- Done when: `strategy-run` prints causal signals; tests and docs are merged; the backtest can consume the strategy.
+- Done when: `strategy-run` prints causal entries and exits; tests and docs are merged; the backtest can consume the strategy.
 - Depends on: D1.
+- Status: In Progress. S1 (#157) defines the type boundary; S2 and S3 follow.
 
 #### S1 — `feat(backtest): add strategy types and the rule contract`
 
@@ -247,9 +248,12 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Scope: Pure types; explicit thresholds; tie-breaking; no I/O; no clock; no randomness.
 - Done when: the public API is documented; unit tests cover construction and invalid config; the type boundary is approved.
 - Depends on: #11, D1.
-- Branch: `feat/<issue>-strategy-types`.
+- Branch: `feat/157-strategy-types`.
 - Commits: `feat(backtest): add strategy and entry/exit types`.
 - PR: `feat(backtest): add strategy and entry/exit types`.
+- Paths: `crates/quantrule-backtest/`, `Cargo.toml`, `Cargo.lock`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
+- Log: `docs/ai-transparency-log/2026-10-27/157-strategy-types.md`.
+- Status: In Progress. The crate and the strategy type boundary are implemented locally; tests and docs pass. The boundary is approved when the PR merges.
 
 #### S2 — `feat(backtest): add the first model-driven strategy`
 
@@ -490,4 +494,4 @@ Stop and ask the human when:
 
 ## 12. First action
 
-D0 (#142) merged in PR #143, D1 (#145) in PR #146, and D2 (#144) in PR #147 as `c9be8b3`. A1 (#149) merged in PR #153 as `d887a18`; its contract is at `docs/model/2026-10-27/market-report.md`, including the D11 H1 240-bucket chart rule. A2 (#150) merged in PR #154 as `4170335`: it assembles the pure view and proves it over a 520k model run. A3 (#151) added `market-report` and the extended loader, merged in PR #155 as `c380698`. A4 (#152) has verified the SOLUSD 2025 run and records the evidence in PR #156; Phase 1 is complete once it merges. Phase 2 (#11) starts after that; keep #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
+Phase 1 is complete: A4 (#152) merged in PR #156 as `4acb5b8`. Phase 2 (#11) has started with S1 (#157), the strategy type boundary; S2 and S3 follow. Keep #10, #12, B0, V1, and V2 closed until their dependencies are near, so the board has one work item in flight.
