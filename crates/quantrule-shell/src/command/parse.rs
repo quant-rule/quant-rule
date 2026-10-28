@@ -15,6 +15,7 @@ use super::report::parse_market_report_arguments;
 use super::research::parse_research_arguments;
 use super::store::parse_store_arguments;
 use super::store_query;
+use super::strategy::parse_strategy_run_arguments;
 use super::types::{Axis, Command, ModelArgs, ParseError, WindowMode};
 
 /// Parses one command line.
@@ -60,6 +61,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "market-report" => {
             let arguments = tokenize(rest)?;
             parse_market_report_arguments(&arguments).map(|args| Some(Command::MarketReport(args)))
+        }
+        "strategy-run" => {
+            let arguments = tokenize(rest)?;
+            parse_strategy_run_arguments(&arguments).map(|args| Some(Command::StrategyRun(args)))
         }
         "research" => {
             let arguments = tokenize(rest)?;

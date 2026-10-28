@@ -274,6 +274,7 @@ version = "0.1.0"
 dependencies = [
  "png",
  "quantrule-analytics",
+ "quantrule-backtest",
  "quantrule-data",
  "quantrule-model",
  "rusqlite",
