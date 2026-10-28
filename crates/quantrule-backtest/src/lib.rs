@@ -4,7 +4,7 @@
 //! model values and simulates execution and, in later work items, portfolio
 //! accounting. The [`strategy`] module holds the type boundary and the first
 //! axis-agreement strategy; the [`execution`] module holds the order, fill, and
-//! position vocabulary and the documented fill policy.
+//! position vocabulary, the causal fill engine, and the documented fill policy.
 //!
 //! The crate is pure. It performs no I/O, reads no clock, uses no randomness,
 //! and keeps no global mutable state. The shell owns source access and

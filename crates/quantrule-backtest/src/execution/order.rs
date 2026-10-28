@@ -154,6 +154,12 @@ pub enum RejectReason {
     PositionAlreadyOpen,
     /// The next bar has zero volume, so no fill is possible.
     ZeroVolume,
+    /// The decision bar had no usable ATR(14), so no stop or target could be
+    /// derived.
+    MissingAtr,
+    /// The ATR-derived stop or target was not a valid positive bracket around
+    /// the entry price.
+    InvalidBracket,
 }
 
 /// A request to trade one quantity of one instrument.

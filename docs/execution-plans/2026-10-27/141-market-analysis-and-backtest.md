@@ -303,15 +303,18 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Log: `docs/ai-transparency-log/2026-10-27/163-execution-types.md`.
 - Status: Done. Merged in [PR #164](https://github.com/quant-rule/quant-rule/pull/164); the execution vocabulary, documented fill policy, and 17 unit tests are in `main`.
 
-#### E2 — `feat(backtest): simulate fills and position lifecycle`
+#### E2 — `feat(backtest): simulate fills and position lifecycle` ([#165](https://github.com/quant-rule/quant-rule/issues/165))
 
 - Goal: Implement causal fills against M15 candles.
 - Scope: Next-bar open fills; ATR stop/target; stop-first tie-break; fees and slippage; one position; no same-bar lookahead; no future bars.
-- Done when: causality test (append/change/remove later bars; earlier fills unchanged); determinism test; golden fill fixture; edge cases (empty, single candle, never fills, zero volume, gap, equal high/low); the shell backtest command can expose the fills.
+- Done when: causality test (append/change/remove later bars; earlier fills unchanged); determinism test; golden fill fixture; edge cases (empty, single candle, never fills, zero volume, gap, equal high/low); the engine is exported and usable by the shell backtest path (the `backtest` command ships in B3).
 - Depends on: E1.
-- Branch: `feat/<issue>-execution-fills`.
+- Branch: `feat/165-execution-fills`.
 - Commits: `feat(backtest): simulate next-bar fills`.
 - PR: `feat(backtest): simulate next-bar fills`.
+- Paths: `crates/quantrule-backtest/src/execution/`, `crates/quantrule-backtest/tests/`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
+- Log: `docs/ai-transparency-log/2026-10-27/165-execution-fills.md`.
+- Status: In progress.
 
 ### Phase 4 — Portfolio engine (#12)
 

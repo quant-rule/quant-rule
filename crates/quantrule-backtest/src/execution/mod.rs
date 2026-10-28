@@ -1,9 +1,10 @@
-//! Execution vocabulary: orders, fills, and the position lifecycle.
+//! Execution vocabulary and the causal fill simulator.
 //!
 //! Execution turns a strategy entry or exit into an order and, on a later
 //! candle, into a fill. It owns no portfolio accounting: fees and slippage are
 //! recorded on the fill, but cash, equity, and P&L belong to the portfolio
-//! module.
+//! module. Position sizing is outside this module: the caller supplies one
+//! fixed quantity per entry.
 //!
 //! # Fill policy
 //!
@@ -26,11 +27,27 @@
 //! [`Fill::fee`] is the total quote-currency fee for the fill. The policy does
 //! not model an order book, partial fills, or intrabar M1 data.
 //!
+//! # Position bracket
+//!
+//! An entry fill opens a position bracketed by the decision bar's ATR(14),
+//! anchored at the fill price: a long stop is `fill - 2 * ATR` and its target
+//! is `fill + 3 * ATR`; a short stop is `fill + 2 * ATR` and its target is
+//! `fill - 3 * ATR`. The bracket is live from the entry bar onward, so one bar
+//! can fill the entry at its open and trigger the stop or target later in the
+//! same bar. A missing or non-positive ATR rejects the entry.
+//!
+//! A bar with zero volume cannot fill a market order or trigger a bracket. An
+//! absent volume is not zero: it is treated as tradable. An order that has no
+//! next bar is rejected by [`ExecutionEngine::finish`].
+//!
 //! Orders that never trigger remain [`OrderState::Pending`]; an order with no
 //! next bar or an invalid execution condition is [`OrderState::Rejected`].
 //! Position sizing, cash, equity, and P&L are outside this module.
 
 mod config;
+mod engine;
+#[cfg(test)]
+mod engine_tests;
 mod fill;
 mod order;
 mod position;
@@ -38,6 +55,9 @@ mod position;
 mod tests;
 
 pub use config::{ExecutionConfig, ExecutionConfigError};
+pub use engine::{
+    ExecutionEngine, ExecutionError, Rejection, STOP_ATR_MULTIPLE, TARGET_ATR_MULTIPLE,
+};
 pub use fill::{Fill, FillError, FillReason};
 pub use order::{Order, OrderError, OrderSide, OrderState, RejectReason, Trigger};
 pub use position::{Position, PositionError, PositionState};
