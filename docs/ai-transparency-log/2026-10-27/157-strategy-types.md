@@ -8,8 +8,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Boundary: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)
 - Branch/worktree: `feat/157-strategy-types` in `quant-rule--157-strategy-types`
-- PR: pending
-- Status: Implementation and tests complete; PR pending. The type boundary is approved when the PR merges.
+- PR: [#158](https://github.com/quant-rule/quant-rule/pull/158)
+- Status: Implementation and tests complete; PR #158 open. The type boundary is approved when the PR merges.
 
 ## Intent and boundary
 

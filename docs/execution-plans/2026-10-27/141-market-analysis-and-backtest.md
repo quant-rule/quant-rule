@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Current work item: [#157](https://github.com/quant-rule/quant-rule/issues/157) — the strategy type boundary (S1), in progress. Phase 1 is complete: A4 (#152) merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`. D0–D2 and A1–A3 are also merged; their references are in the phase blocks.
+- Current work item: [#157](https://github.com/quant-rule/quant-rule/issues/157) — the strategy type boundary (S1), [PR #158](https://github.com/quant-rule/quant-rule/pull/158) open. Phase 1 is complete: A4 (#152) merged in [PR #156](https://github.com/quant-rule/quant-rule/pull/156) as `4acb5b8`. D0–D2 and A1–A3 are also merged; their references are in the phase blocks.
 - Related open issues: [#10](https://github.com/quant-rule/quant-rule/issues/10) execution, [#11](https://github.com/quant-rule/quant-rule/issues/11) strategy, [#12](https://github.com/quant-rule/quant-rule/issues/12) portfolio
 - Related merged work: [#14](https://github.com/quant-rule/quant-rule/issues/14) model, [#106](https://github.com/quant-rule/quant-rule/issues/106) market chart, [#122](https://github.com/quant-rule/quant-rule/issues/122) dashboard
 - Program plan: `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`
@@ -250,10 +250,10 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - Depends on: #11, D1.
 - Branch: `feat/157-strategy-types`.
 - Commits: `feat(backtest): add strategy and entry/exit types`.
-- PR: `feat(backtest): add strategy and entry/exit types`.
+- PR: `feat(backtest): add strategy and entry/exit types` — [#158](https://github.com/quant-rule/quant-rule/pull/158).
 - Paths: `crates/quantrule-backtest/`, `Cargo.toml`, `Cargo.lock`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/157-strategy-types.md`.
-- Status: In Progress. The crate and the strategy type boundary are implemented locally; tests and docs pass. The boundary is approved when the PR merges.
+- Status: PR open. The crate and the strategy type boundary are implemented; tests and docs pass. The boundary is approved when the PR merges.
 
 #### S2 — `feat(backtest): add the first model-driven strategy`
 
