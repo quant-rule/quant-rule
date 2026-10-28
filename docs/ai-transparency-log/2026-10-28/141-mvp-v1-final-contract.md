@@ -6,7 +6,8 @@
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan: [`docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`](../../execution-plans/2026-10-28/141-mvp-v1-final-contract.md)
 - Branch/worktree: `docs/168-mvp-v1-contract` in `quant-rule--168-mvp-v1-contract`
-- Status: In progress.
+- PR: [#179](https://github.com/quant-rule/quant-rule/pull/179)
+- Status: PR open; merge after checks pass.
 
 ## Intent and boundary
 
