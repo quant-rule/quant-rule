@@ -416,8 +416,8 @@ fn execution_matches_the_contract() {
     assert_eq!(valid.fill_timeframe, Timeframe::M15);
     assert_eq!(valid.engine.fee_rate(), 0.0);
     assert_eq!(valid.engine.slippage_bps(), 2.0);
-    assert_eq!(valid.stop_atr_multiple, 2.0);
-    assert_eq!(valid.target_atr_multiple, 3.0);
+    assert_eq!(valid.engine.stop_atr_multiple(), 2.0);
+    assert_eq!(valid.engine.target_atr_multiple(), 3.0);
 
     for (value, kind, path) in [
         (json!(1), Type, "$"),
@@ -962,8 +962,8 @@ fn the_example_config_loads_and_resolves() {
     assert_eq!(config.execution.fill_timeframe, Timeframe::M15);
     assert_eq!(config.execution.engine.fee_rate(), 0.0);
     assert_eq!(config.execution.engine.slippage_bps(), 2.0);
-    assert_eq!(config.execution.stop_atr_multiple, 2.0);
-    assert_eq!(config.execution.target_atr_multiple, 3.0);
+    assert_eq!(config.execution.engine.stop_atr_multiple(), 2.0);
+    assert_eq!(config.execution.engine.target_atr_multiple(), 3.0);
 
     assert_eq!(config.portfolio.initial_cash, 10_000.0);
     assert_eq!(

@@ -84,11 +84,11 @@ use super::{
     OrderState, Position, PositionError, PositionState, RejectReason, Trigger,
 };
 
-/// The stop distance in ATR units.
-pub const STOP_ATR_MULTIPLE: f64 = 2.0;
+/// The default stop distance in ATR units.
+pub use super::config::DEFAULT_STOP_ATR_MULTIPLE as STOP_ATR_MULTIPLE;
 
-/// The target distance in ATR units.
-pub const TARGET_ATR_MULTIPLE: f64 = 3.0;
+/// The default target distance in ATR units.
+pub use super::config::DEFAULT_TARGET_ATR_MULTIPLE as TARGET_ATR_MULTIPLE;
 
 /// A pending market order and the ATR of the bar that produced it.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -528,7 +528,13 @@ impl ExecutionEngine {
             OrderSide::Buy => Side::Long,
             OrderSide::Sell => Side::Short,
         };
-        let (stop_price, target_price) = bracket(side, fill.price, atr14);
+        let (stop_price, target_price) = bracket(
+            side,
+            fill.price,
+            atr14,
+            self.config.stop_atr_multiple(),
+            self.config.target_atr_multiple(),
+        );
         if !is_valid_bracket(side, fill.price, stop_price, target_price) {
             self.reject_pending(batch, pending, index, time, RejectReason::InvalidBracket);
             return Ok(());
@@ -787,16 +793,16 @@ fn usable_quantity(quantity: Option<f64>) -> Result<f64, RejectReason> {
     }
 }
 
-fn bracket(side: Side, entry: f64, atr: f64) -> (f64, f64) {
+fn bracket(
+    side: Side,
+    entry: f64,
+    atr: f64,
+    stop_multiple: f64,
+    target_multiple: f64,
+) -> (f64, f64) {
     match side {
-        Side::Long => (
-            entry - STOP_ATR_MULTIPLE * atr,
-            entry + TARGET_ATR_MULTIPLE * atr,
-        ),
-        Side::Short => (
-            entry + STOP_ATR_MULTIPLE * atr,
-            entry - TARGET_ATR_MULTIPLE * atr,
-        ),
+        Side::Long => (entry - stop_multiple * atr, entry + target_multiple * atr),
+        Side::Short => (entry + stop_multiple * atr, entry - target_multiple * atr),
     }
 }
 

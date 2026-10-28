@@ -5,8 +5,9 @@
 //! accounting. The [`strategy`] module holds the type boundary and the first
 //! axis-agreement strategy; the [`execution`] module holds the order, fill, and
 //! position vocabulary, the causal fill engine, and the documented fill policy;
-//! the [`portfolio`] module holds the capital configuration, sizing, state, and
-//! records.
+//! the [`portfolio`] module holds the capital configuration, sizing, state,
+//! records, and the ledger; the [`runner`] module composes all three in one
+//! deterministic pass.
 //!
 //! The crate is pure. It performs no I/O, reads no clock, uses no randomness,
 //! and keeps no global mutable state. The shell owns source access and
@@ -20,4 +21,5 @@
 
 pub mod execution;
 pub mod portfolio;
+pub mod runner;
 pub mod strategy;

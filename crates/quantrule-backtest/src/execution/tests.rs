@@ -460,6 +460,44 @@ fn execution_config_validates_costs() {
 }
 
 #[test]
+fn execution_config_validates_and_exposes_the_bracket_multiples() {
+    let config = ExecutionConfig::with_bracket(0.001, 2.0, 4.0, 6.0).expect("the values are valid");
+    assert_eq!(config.stop_atr_multiple(), 4.0);
+    assert_eq!(config.target_atr_multiple(), 6.0);
+    assert_eq!(
+        ExecutionConfig::new(0.001, 2.0)
+            .expect("the defaults are valid")
+            .stop_atr_multiple(),
+        2.0
+    );
+
+    for (stop, target, expected) in [
+        (0.0, 3.0, ExecutionConfigError::NonPositiveStopMultiple),
+        (-1.0, 3.0, ExecutionConfigError::NonPositiveStopMultiple),
+        (f64::NAN, 3.0, ExecutionConfigError::NonFiniteStopMultiple),
+        (
+            f64::INFINITY,
+            3.0,
+            ExecutionConfigError::NonFiniteStopMultiple,
+        ),
+        (2.0, 0.0, ExecutionConfigError::NonPositiveTargetMultiple),
+        (2.0, -1.0, ExecutionConfigError::NonPositiveTargetMultiple),
+        (2.0, f64::NAN, ExecutionConfigError::NonFiniteTargetMultiple),
+        (
+            2.0,
+            f64::INFINITY,
+            ExecutionConfigError::NonFiniteTargetMultiple,
+        ),
+    ] {
+        assert_eq!(
+            ExecutionConfig::with_bracket(0.0, 0.0, stop, target),
+            Err(expected),
+            "stop {stop}, target {target}"
+        );
+    }
+}
+
+#[test]
 fn repeated_construction_is_identical() {
     assert_eq!(stop_order(), stop_order());
     assert_eq!(fill(), fill());

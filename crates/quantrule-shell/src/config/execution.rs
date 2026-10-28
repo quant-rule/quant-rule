@@ -16,15 +16,11 @@ use super::read::{self, ROOT};
 /// The resolved `execution.json`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ExecutionRunConfig {
-    /// The fee and slippage the execution engine applies.
+    /// The costs and bracket multiples the execution engine applies.
     pub(crate) engine: ExecutionConfig,
     /// The timeframe fills are simulated on; it must equal the strategy
     /// timeframe.
     pub(crate) fill_timeframe: Timeframe,
-    /// The stop distance in ATR units.
-    pub(crate) stop_atr_multiple: f64,
-    /// The target distance in ATR units.
-    pub(crate) target_atr_multiple: f64,
 }
 
 /// Parses `execution.json`.
@@ -137,15 +133,17 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, Con
         "leave_open",
     )?;
 
-    let engine = ExecutionConfig::new(fee_rate, slippage_bps).map_err(|error| {
-        ConfigError::range(file, "$", "valid execution costs", &error.to_string())
-    })?;
+    let engine = ExecutionConfig::with_bracket(
+        fee_rate,
+        slippage_bps,
+        stop_atr_multiple,
+        target_atr_multiple,
+    )
+    .map_err(|error| ConfigError::range(file, "$", "valid execution costs", &error.to_string()))?;
 
     Ok(ExecutionRunConfig {
         engine,
         fill_timeframe,
-        stop_atr_multiple,
-        target_atr_multiple,
     })
 }
 

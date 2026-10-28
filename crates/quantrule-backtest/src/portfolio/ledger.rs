@@ -31,7 +31,7 @@ use super::state::{OpenPosition, OpenPositionError, PortfolioState, PortfolioSta
 const SECONDS_PER_DAY: i64 = 86_400;
 
 /// The accounting state machine of one run.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PortfolioLedger {
     config: PortfolioConfig,
     state: PortfolioState,
