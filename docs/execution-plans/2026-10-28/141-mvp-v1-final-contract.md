@@ -1,7 +1,7 @@
 # MVP v1 — Final Execution Plan
 
 - Date: 2026-10-28 (UTC)
-- Status: **Approved — 2026-10-28**
+- Status: **Verified — 2026-10-28; two criteria unresolved: the 2 GiB performance budget ([#189](https://github.com/quant-rule/quant-rule/issues/189)) and the release tag (V2)**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan of record after C0: `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`
 - AI transparency log: `docs/ai-transparency-log/2026-10-28/141-mvp-v1-final-contract.md`
@@ -1293,21 +1293,23 @@ gh project item-edit --project-id "$PROJECT" --id "$(item_id <n>)" \
 
 | AC | Criterion | Work item | Evidence |
 |---|---|---|---|
-| 1 | `backtest --config` writes five bundles | B3, B4 | Full-year run and artifact listing |
-| 2 | Each engine has its own config file; CLI carries only `--config`, `--out`, `--json` | C1, B3 | Loader tests and command help |
-| 3 | Each bundle contains exactly the contract artifacts, in order | R1, R2, R3, B3, B4 | Artifact listing per bundle |
-| 4 | A bundle exists iff generated | R1, R2, R3, B4 | Fresh-root test for each engine |
-| 5 | `report model` matches `market-report` byte for byte | R1, B4 | `cmp` on the four artifacts |
-| 6 | Strategy bundle has no fill, position, equity, or P&L field | R1, B4 | JSON key scan and CSV header check |
-| 7 | Execution bundle has no cash, equity, trade, P&L, commission, funding, or drawdown field | R2, B4 | JSON key scan and CSV header check |
-| 8 | Portfolio bundle has trades, equity, P&L, costs, drawdown, monthly returns; no model label | R2, B4 | JSON key scan and CSV header check |
-| 9 | Analytical bundle has layer counts, axis summaries, ordinal histograms, correlations; no strategy/execution/portfolio field | R3, B4 | JSON key scan and CSV header check |
-| 10 | Config validation rejects every listed failure before output | C1, B4 | Table-driven tests and CLI runs |
-| 11 | Commission, funding, halt, and leverage behave as specified | P2, B4 | Golden fixtures and full-year summary |
-| 12 | Two SOLUSD 2025 runs are byte-identical | B4 | `sha256sum` and `diff -r` |
-| 13 | `fmt`, `clippy`, `test`, `doc` pass | Every item, final at V2 | Recorded command output |
-| 14 | README, help, docs index, config and report references, ADRs match | C0, R1, R2, R3, B3, V2 | Link and content review |
-| 15 | Version `0.2.0`; `v0.2.0` tagged on `main` | V2 | `Cargo.toml`, `git tag --list` |
+| 1 | `backtest --config` writes five bundles | B3, B4 | `data/verification/run-a` has 29 files across `model/`, `strategy/`, `execution/`, `portfolio/`, `analytical/` |
+| 2 | Each engine has its own config file; CLI carries only `--config`, `--out`, `--json` | C1, B3 | `cargo test -p quantrule-shell config::tests`: 12 passed; `help` fixture test |
+| 3 | Each bundle contains exactly the contract artifacts, in order | R1, R2, R3, B3, B4 | Artifact counts: model 5, strategy 5, execution 7, portfolio 7, analytical 5 |
+| 4 | A bundle exists iff generated | R1, R2, R3, B4 | Fresh-root `report portfolio` created only `portfolio/`; B3 bundle tests |
+| 5 | `report model` matches `market-report` byte for byte | R1, B4 | `cmp` on `summary.txt`, `report.json`, `price-axes.png`, `events.png`: identical |
+| 6 | Strategy bundle has no fill, position, equity, or P&L field | R1, B4 | `decisions.csv` header and JSON key scan; B3 fixture test |
+| 7 | Execution bundle has no cash, equity, trade, P&L, commission, funding, or drawdown field | R2, B4 | JSON key scan in `report_command`; full-year bundle present |
+| 8 | Portfolio bundle has trades, equity, P&L, costs, drawdown, monthly returns; no model label | R2, B4 | 48 trades, 365 daily equity rows, monthly returns, no direction/momentum/structure key |
+| 9 | Analytical bundle has layer counts, axis summaries, ordinal histograms, correlations; no strategy/execution/portfolio field | R3, B4 | `layer1_rows` 670,196, `layer3_rows` 522,633; 16 axis rows, 24 relation rows |
+| 10 | Config validation rejects every listed failure before output | C1, B4 | Config tests 12 passed; missing-source run failed with no root |
+| 11 | Commission, funding, halt, and leverage behave as specified | P2, B4 | Ledger golden tests 12 passed; full-year commission 885.61, funding paid 4.00 / received 1.99, halt latched at 20.315% |
+| 12 | Two SOLUSD 2025 runs are byte-identical | B4 | `diff -r` identical; `sha256sum` identical over 29 files |
+| 13 | `fmt`, `clippy`, `test`, `doc` pass | Every item, final at V2 | B3: fmt, clippy, 1,346 tests, doc; B4 re-ran all four |
+| 14 | README, help, docs index, config and report references, ADRs match | C0, R1, R2, R3, B3, V2 | Help fixture test; README sections for the five bundles and `backtest` |
+| 15 | Version `0.2.0`; `v0.2.0` tagged on `main` | V2 | Pending V2 |
+
+Verification record: [`docs/reports/2026-10-28/mvp-v1-verification.md`](../../reports/2026-10-28/mvp-v1-verification.md).
 
 ### 9.1 Full-year commands
 
@@ -1368,11 +1370,16 @@ test ! -e data/reports-portfolio-only/analytical
 
 ### 9.5 Performance
 
-- Record wall time and peak RSS for the full-year run.
-- Budget: 2 GiB peak and 60 s wall time on the development machine.
-- If the analytical pass exceeds the budget, `backtest` may run it in a second
-  pass and record that in `provenance.json`. The output stays deterministic. This
-  is a fallback, not the default.
+- Observed on 2026-10-28 with the release binary (`target/release/quantrule`):
+  run A **29.14 s**, **3,890,928 KiB** peak RSS; run B **28.90 s**,
+  **4,032,920 KiB** peak RSS.
+- Budget: 2 GiB peak and 60 s wall time on the development machine. Wall time is
+  within budget; peak RSS is not.
+- The plan allows the analytical pass to run after the pipeline is released
+  (§9.5 fallback), but that is a production change and B4 does not patch it.
+  Filed as [#189](https://github.com/quant-rule/quant-rule/issues/189); the
+  release is blocked pending either an optimization or an approved higher
+  budget.
 - Report the benchmark in the PR; do not hide a regression.
 
 ---
