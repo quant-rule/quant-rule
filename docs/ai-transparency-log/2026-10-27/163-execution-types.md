@@ -8,8 +8,8 @@
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Boundary: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)
 - Branch/worktree: `feat/163-execution-types` in `quant-rule--163-execution-types`
-- PR: none yet
-- Status: In progress.
+- PR: [#164](https://github.com/quant-rule/quant-rule/pull/164)
+- Status: Open; CI passed.
 
 ## Intent and boundary
 
