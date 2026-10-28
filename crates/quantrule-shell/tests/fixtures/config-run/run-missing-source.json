@@ -1,0 +1,11 @@
+{
+  "schema": "quantrule.run/v1",
+  "name": "missing-source",
+  "data": "data-missing.json",
+  "model": "model.json",
+  "strategy": "strategy.json",
+  "execution": "execution.json",
+  "portfolio": "portfolio.json",
+  "analytics": "analytics.json",
+  "output_root": "../../../../target/report-tests/backtest-missing-default"
+}
