@@ -248,6 +248,7 @@ fn the_fetch_cap_warning_is_only_written_over_the_cap() {
     assert!(text.contains("accepted=100001"));
     assert!(text.contains("100000-row batch cap"));
     assert!(text.contains("--window latest"));
+    assert!(text.contains("market-report accepts up to 600000 rows"));
 
     let mut real_world = Vec::new();
     write_fetch_cap_warning(354_442, &mut real_world).expect("the warning writes");

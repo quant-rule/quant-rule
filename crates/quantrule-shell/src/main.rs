@@ -14,6 +14,7 @@ mod fetch;
 mod labels;
 mod render;
 mod render_dashboard;
+mod render_report;
 mod render_series;
 mod render_state;
 mod source;

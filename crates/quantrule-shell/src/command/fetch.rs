@@ -7,7 +7,7 @@
 use std::io::{self, Write};
 use std::path::PathBuf;
 
-use quantrule_data::{DEFAULT_WINDOW, MAX_SERIES, Timeframe};
+use quantrule_data::{DEFAULT_WINDOW, EXTENDED_SERIES, MAX_SERIES, Timeframe};
 
 use super::types::{FetchArgs, ParseError, RunError};
 use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
@@ -175,7 +175,7 @@ pub(crate) fn write_fetch_cap_warning(
     if accepted > MAX_SERIES {
         writeln!(
             warnings,
-            "warning: accepted={accepted} exceeds the {MAX_SERIES}-row batch cap; store and research reject this file, and market-chart requires --window latest"
+            "warning: accepted={accepted} exceeds the {MAX_SERIES}-row batch cap; store and research reject this file, market-chart requires --window latest, and market-report accepts up to {EXTENDED_SERIES} rows"
         )?;
     }
     Ok(())

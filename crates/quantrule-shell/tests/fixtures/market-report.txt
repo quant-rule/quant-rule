@@ -1,0 +1,70 @@
+QuantRule market report
+data_version: test:v1
+requested_period: full file
+actual_period: 2025-01-01T00:00:00Z..2025-01-01T04:19:00Z
+ladder: 1m 5m 15m 1h
+
+[coverage]
+timeframe      bars  expected  missing   share first                 last
+1m              260       260        0  1.0000 2025-01-01T00:00:00Z  2025-01-01T04:19:00Z
+5m               52        52        0  1.0000 2025-01-01T00:00:00Z  2025-01-01T04:15:00Z
+15m              17        17        0  1.0000 2025-01-01T00:00:00Z  2025-01-01T04:00:00Z
+1h                4         4        0  1.0000 2025-01-01T00:00:00Z  2025-01-01T03:00:00Z
+
+[axes]
+timeframe  axis          present   null         min         max        mean
+1m         direction          61    199   -0.649684   -0.309006   -0.472847
+1m         momentum          246     14   -0.611575    0.389036   -0.081490
+1m         structure         226     34   -1.000000    1.000000   -0.376106
+1m         progression       222     38    0.018868    3.500000    0.453125
+5m         direction           0     52           -           -           -
+5m         momentum           38     14   -0.382294    0.088982   -0.151304
+5m         structure          15     37   -1.000000    0.000000   -0.800000
+5m         progression        44      8    0.016502    1.920000    0.358815
+15m        direction           0     17           -           -           -
+15m        momentum            3     14   -0.300686   -0.182746   -0.241726
+15m        structure           0     17           -           -           -
+15m        progression         6     11    0.065336    0.349127    0.204265
+1h         direction           0      4           -           -           -
+1h         momentum            0      4           -           -           -
+1h         structure           0      4           -           -           -
+1h         progression         0      4           -           -           -
+
+[histograms]
+timeframe  axis         codes                                null
+1m         direction    -1:61 0:0 1:0                         199
+1m         momentum     -1:111 0:84 1:51                       14
+1m         structure    -2:126 -1:0 0:59 1:0 2:41              34
+1m         progression  0:0 1:0 2:0 3:0 4:1 5:0               259
+5m         direction    -1:0 0:0 1:0                           52
+5m         momentum     -1:25 0:13 1:0                         14
+5m         structure    -2:12 -1:0 0:3 1:0 2:0                 37
+5m         progression  0:0 1:0 2:0 3:0 4:0 5:0                52
+15m        direction    -1:0 0:0 1:0                           17
+15m        momentum     -1:3 0:0 1:0                           14
+15m        structure    -2:0 -1:0 0:0 1:0 2:0                  17
+15m        progression  0:0 1:0 2:0 3:0 4:0 5:0                17
+1h         direction    -1:0 0:0 1:0                            4
+1h         momentum     -1:0 0:0 1:0                            4
+1h         structure    -2:0 -1:0 0:0 1:0 2:0                   4
+1h         progression  0:0 1:0 2:0 3:0 4:0 5:0                 4
+
+[events]
+timeframe   level  divergence  signal  total latest_type          latest_subtype        occurred  available
+1m            438           6     109    553 level                test                       259        259
+5m             54           0      14     68 signal               compact_state_change        51         51
+15m             3           0       0      3 level                test                        16         16
+1h              0           0       0      0 -                    -                            -          -
+
+[latest]
+timeframe  open_time              direction dir_ready   momentum mom_ready  structure str_ready progression prog_ready context bullish bearish neutral
+1m         2025-01-01T04:19:00Z   -0.336754         2   0.239484         2   0.000000         2    0.730769          1       2       1       1       1
+5m         2025-01-01T04:15:00Z           -         0  -0.069701         1  -1.000000         1    0.452381          1       3       0       1       1
+15m        2025-01-01T04:00:00Z           -         0  -0.182746         1          -         0    0.230490          1       -       0       1       0
+1h         2025-01-01T03:00:00Z           -         0          -         0          -         0           -          0       -       0       0       0
+
+[artifacts]
+summary.txt
+report.json
+price-axes.png
+events.png

@@ -16,7 +16,7 @@ pub(crate) mod instrument;
 pub(crate) mod jsonp;
 pub(crate) mod transport;
 
-pub(crate) use date::DateRange;
+pub(crate) use date::{DateBounds, DateRange};
 pub(crate) use dukascopy::{FetchError, FetchFailure, FetchRequest, RetryPolicy, fetch_candles};
 pub(crate) use instrument::Symbol;
 pub(crate) use transport::{HttpTransport, Transport};

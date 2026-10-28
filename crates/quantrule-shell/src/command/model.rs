@@ -7,7 +7,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe};
+use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe, TimeframeSet};
 use quantrule_model::run::ModelRun;
 use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 
@@ -311,12 +311,20 @@ pub(crate) fn load_model_run(path: &Path, window: WindowMode) -> Result<ModelRun
         WindowMode::Latest => csv::load_timeframes(path),
     }
     .map_err(RunError::Source)?;
+    Ok(model_run_from_set(&set))
+}
+
+/// Builds the four-timeframe model run from an already loaded set.
+///
+/// The shell owns the source access and the data engine owns the ladder; this
+/// helper only copies the four series into the model's input shape.
+pub(crate) fn model_run_from_set(set: &TimeframeSet) -> ModelRun {
     let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
     let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
     let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
     let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
 
-    Ok(ModelRun::compute(
+    ModelRun::compute(
         &[
             TimeframeInput {
                 timeframe_secs: u64::from(Timeframe::M1.seconds()),
@@ -336,7 +344,7 @@ pub(crate) fn load_model_run(path: &Path, window: WindowMode) -> Result<ModelRun
             },
         ],
         &MarketStateConfig::default(),
-    ))
+    )
 }
 
 fn load_market_state(path: &Path, window: WindowMode) -> Result<MarketState, RunError> {

@@ -16,8 +16,10 @@ use std::path::{Path, PathBuf};
 
 use quantrule_data::{
     CandleError, CandleWindow, RawCandle, TimeframeError, TimeframeSet, WindowError,
-    format_utc_timestamp,
+    format_utc_timestamp, parse_utc_timestamp,
 };
+
+use crate::source::DateBounds;
 
 /// The exact header required by the CSV source.
 const HEADER: &str = "Date,Open,High,Low,Close,Volume";
@@ -355,7 +357,7 @@ pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
 /// is missing or invalid, a row does not have six fields, the data engine
 /// rejects a row, or the final bucket cannot be finished.
 pub(crate) fn load_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
-    load_timeframe_set(path, TimeframeSet::new())
+    load_timeframe_set(path, TimeframeSet::new(), None)
 }
 
 /// Loads every accepted M1 candle into a full-series set.
@@ -369,10 +371,34 @@ pub(crate) fn load_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> 
 /// Returns a [`SourceError`] for the same reasons as [`load_timeframes`], and
 /// when the input exceeds the full-series cap.
 pub(crate) fn load_full_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
-    load_timeframe_set(path, TimeframeSet::full())
+    load_timeframe_set(path, TimeframeSet::full(), None)
 }
 
-fn load_timeframe_set(path: &Path, mut set: TimeframeSet) -> Result<TimeframeSet, SourceError> {
+/// Loads an M1 CSV into the extended-range set.
+///
+/// The set keeps up to [`quantrule_data::EXTENDED_SERIES`] M1 candles. When a
+/// bound is supplied, an M1 row is handed to the engine only when its timestamp
+/// lies inside the inclusive UTC range; the filter runs before the ladder
+/// build, so the model never sees a candle outside the requested period. A row
+/// whose timestamp cannot be parsed is still handed to the engine, which
+/// reports the canonical error.
+///
+/// # Errors
+///
+/// Returns a [`SourceError`] for the same reasons as [`load_timeframes`], and
+/// when the input exceeds the extended-range cap.
+pub(crate) fn load_extended_timeframes(
+    path: &Path,
+    bounds: DateBounds,
+) -> Result<TimeframeSet, SourceError> {
+    load_timeframe_set(path, TimeframeSet::extended(), Some(bounds))
+}
+
+fn load_timeframe_set(
+    path: &Path,
+    mut set: TimeframeSet,
+    bounds: Option<DateBounds>,
+) -> Result<TimeframeSet, SourceError> {
     let mut reader = open_reader(path)?;
     read_header(&mut reader, path)?;
 
@@ -394,6 +420,11 @@ fn load_timeframe_set(path: &Path, mut set: TimeframeSet) -> Result<TimeframeSet
             expected: error.expected,
             actual: error.actual,
         })?;
+        if let Some(bounds) = bounds
+            && !within_bounds(&raw, bounds)
+        {
+            continue;
+        }
         set.push(raw).map_err(|source| SourceError::Timeframe {
             path: path.to_path_buf(),
             line: line_number,
@@ -407,6 +438,25 @@ fn load_timeframe_set(path: &Path, mut set: TimeframeSet) -> Result<TimeframeSet
     })?;
 
     Ok(set)
+}
+
+fn within_bounds(raw: &RawCandle<'_>, bounds: DateBounds) -> bool {
+    let Ok(timestamp) = parse_utc_timestamp(raw.date) else {
+        // Let the data engine reject the row with its canonical error instead
+        // of duplicating the timestamp contract here.
+        return true;
+    };
+    if let Some(start) = bounds.start_seconds()
+        && timestamp < start
+    {
+        return false;
+    }
+    if let Some(end) = bounds.end_exclusive_seconds()
+        && timestamp >= end
+    {
+        return false;
+    }
+    true
 }
 
 /// Opens a CSV source, skips row-level failures, and reports what was skipped.

@@ -82,6 +82,62 @@ impl DateRange {
     }
 }
 
+/// Optional inclusive UTC date bounds.
+///
+/// Unlike [`DateRange`], either bound may be absent. The start is inclusive and
+/// the end is exclusive and is exactly the midnight after the supplied end
+/// date. The command layer uses this for an open-ended `--from` or `--to`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct DateBounds {
+    start_seconds: Option<i64>,
+    end_exclusive_seconds: Option<i64>,
+}
+
+impl DateBounds {
+    /// Parses optional `YYYY-MM-DD` bounds.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DateRangeError`] when a supplied date is invalid, when the
+    /// start is after the end, or when the exclusive end overflows.
+    pub(crate) fn parse(from: Option<&str>, to: Option<&str>) -> Result<Self, DateRangeError> {
+        let start_seconds = from.map(parse_date).transpose()?;
+        let end_seconds = to.map(parse_date).transpose()?;
+
+        if let (Some(start), Some(end)) = (start_seconds, end_seconds)
+            && start > end
+        {
+            return Err(DateRangeError::StartAfterEnd {
+                start: from.unwrap_or_default().to_owned(),
+                end: to.unwrap_or_default().to_owned(),
+            });
+        }
+
+        let end_exclusive_seconds = match end_seconds {
+            Some(end) => Some(
+                end.checked_add(SECONDS_PER_DAY)
+                    .ok_or(DateRangeError::Overflow)?,
+            ),
+            None => None,
+        };
+
+        Ok(Self {
+            start_seconds,
+            end_exclusive_seconds,
+        })
+    }
+
+    /// The inclusive start as UTC Unix seconds, when supplied.
+    pub(crate) const fn start_seconds(self) -> Option<i64> {
+        self.start_seconds
+    }
+
+    /// The exclusive end as UTC Unix seconds, when supplied.
+    pub(crate) const fn end_exclusive_seconds(self) -> Option<i64> {
+        self.end_exclusive_seconds
+    }
+}
+
 /// A date range could not be built.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum DateRangeError {
@@ -146,7 +202,7 @@ fn parse_date(text: &str) -> Result<i64, DateRangeError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{DateRange, DateRangeError};
+    use super::{DateBounds, DateRange, DateRangeError};
     use quantrule_data::TimestampError;
 
     #[test]
@@ -214,6 +270,52 @@ mod tests {
     fn rejects_a_single_digit_month() {
         assert!(matches!(
             DateRange::parse("2025-1-01", "2025-01-02"),
+            Err(DateRangeError::InvalidDate { .. })
+        ));
+    }
+
+    #[test]
+    fn bounds_accept_both_ends_or_neither() {
+        let both = DateBounds::parse(Some("2025-01-01"), Some("2025-12-31"))
+            .expect("the dates are valid and ordered");
+        assert_eq!(both.start_seconds(), Some(1_735_689_600));
+        assert_eq!(both.end_exclusive_seconds(), Some(1_767_225_600));
+
+        let open = DateBounds::parse(None, None).expect("no bounds are valid");
+        assert_eq!(open.start_seconds(), None);
+        assert_eq!(open.end_exclusive_seconds(), None);
+    }
+
+    #[test]
+    fn bounds_accept_one_open_end() {
+        let from = DateBounds::parse(Some("2025-06-01"), None).expect("the start is valid");
+        assert_eq!(from.start_seconds(), Some(1_748_736_000));
+        assert_eq!(from.end_exclusive_seconds(), None);
+
+        let to = DateBounds::parse(None, Some("2025-06-01")).expect("the end is valid");
+        assert_eq!(to.start_seconds(), None);
+        assert_eq!(to.end_exclusive_seconds(), Some(1_748_822_400));
+    }
+
+    #[test]
+    fn bounds_reject_a_reversed_pair() {
+        assert_eq!(
+            DateBounds::parse(Some("2025-01-02"), Some("2025-01-01")),
+            Err(DateRangeError::StartAfterEnd {
+                start: String::from("2025-01-02"),
+                end: String::from("2025-01-01"),
+            })
+        );
+    }
+
+    #[test]
+    fn bounds_reject_an_invalid_date() {
+        assert!(matches!(
+            DateBounds::parse(Some("2025-01-01T00:00"), None),
+            Err(DateRangeError::InvalidDate { .. })
+        ));
+        assert!(matches!(
+            DateBounds::parse(None, Some("2025-02-30")),
             Err(DateRangeError::InvalidDate { .. })
         ));
     }
