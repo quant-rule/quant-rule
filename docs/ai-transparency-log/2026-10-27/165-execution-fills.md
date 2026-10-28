@@ -9,7 +9,7 @@
 - Boundary: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)
 - Branch/worktree: `feat/165-execution-fills` in `quant-rule--165-execution-fills`
 - PR: [#166](https://github.com/quant-rule/quant-rule/pull/166)
-- Status: Open; local verification passed, CI pending.
+- Status: Open; local verification and CI passed.
 
 ## Intent and boundary
 
@@ -55,6 +55,7 @@ is not on `PATH` in this environment, so each command was invoked through
 | `cargo clippy --all-targets -- -D warnings` | passed |
 | `cargo test` | 1,217 passed, 0 failed, 6 ignored |
 | `cargo doc --no-deps` | passed, no warnings |
+| GitHub Actions `verify` | passed (1m54s) |
 
 The total is the previous 1,182 plus 27 new unit tests, 6 new integration tests,
 and 2 new doc tests. No test was removed, skipped, or weakened.
