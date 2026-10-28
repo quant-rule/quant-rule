@@ -18,13 +18,13 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 |---|---|---|
 | Four-axis analytical model | Contract | `docs/model/2026-10-21/four-axis-analytical-model.md` |
 | DashboardState four-axis CLI view | Approved (#123) | `docs/model/2026-10-25/dashboard-state.md` |
-| MarketReport full-period descriptive view | Implemented (#150); command layer pending (#151) | `docs/model/2026-10-27/market-report.md` |
+| MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151) | `docs/model/2026-10-27/market-report.md` |
 
 ## Current programs
 
 | Program | Status | Plan |
 |---|---|---|
-| Market analysis and full-execution backtest | Approved (#141); D0–D2 and A1 merged; A2 (#150) in PR #154 | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
+| Market analysis and full-execution backtest | Approved (#141); D0–D2, A1, and A2 merged; A3 (#151) in progress | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

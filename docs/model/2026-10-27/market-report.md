@@ -4,7 +4,7 @@
 - Issue: [#149](https://github.com/quant-rule/quant-rule/issues/149)
 - Container: [#148](https://github.com/quant-rule/quant-rule/issues/148)
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Status: Approved and implemented — 2026-10-27. The A1 contract merged in [PR #153](https://github.com/quant-rule/quant-rule/pull/153) as `d887a18`; the pure view is implemented in `quantrule-model::report` by A2 (#150). The command layer is A3 (#151).
+- Status: Approved and implemented — 2026-10-27. The A1 contract merged in [PR #153](https://github.com/quant-rule/quant-rule/pull/153) as `d887a18`; the pure view is implemented in `quantrule-model::report` by A2 (#150), and the `market-report` command layer is A3 (#151). A4 (#152) verifies the full-year run.
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
 - Core model contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../2026-10-21/four-axis-analytical-model.md)
 - Boundaries ADR: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)

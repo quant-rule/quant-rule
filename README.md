@@ -55,6 +55,7 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauu
 | `market-state` | `<csv-path>` [`--window full\|latest`] | The four-timeframe market state as one JSON object |
 | `market-dashboard` | `<csv-path>` [`--window full\|latest`] [`--json`] | The four-axis text dashboard, or the numeric dashboard state as one JSON object |
 | `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars; `--window latest` supports inputs above the 100k cap |
+| `market-report` | `<csv-path> --data-version <id> --out <dir>` [options] | A deterministic full-period report: `summary.txt`, `report.json`, and two PNGs |
 | `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
 | `legs` | `<csv-path>` [`--window full\|latest`] | The minor and major leg per timeframe as NDJSON |
@@ -227,7 +228,21 @@ The text and JSON outputs are deterministic: the same input, window, and configu
 
 `market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>] [--window full|latest]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The default window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe and lets a larger fetch be charted. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
 
-The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `market-dashboard`, `market-chart`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
+The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `market-dashboard`, `market-chart`, `market-report`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
+
+### Market-report contract
+
+`market-report <csv-path> --data-version <id> [--from <date>] [--to <date>] --out <dir> [--json]` runs the model over the extended M1 range and writes the model's full-period descriptive view as exactly four artifacts, in this order: `summary.txt`, `report.json`, `price-axes.png`, `events.png`. It calls the model's `MarketReport`; the shell only loads, renders, and writes.
+
+- `--data-version <id>` is the caller-supplied identity of the input series; the report records it and never infers it from the path.
+- `--from` and `--to` are inclusive UTC `YYYY-MM-DD` dates. The shell filters the M1 source before building the ladder, and no pre-range warm-up is used. Omitting both uses the file's full coverage.
+- `--out` must be absent or an empty directory. Every byte is built before the directory is populated, each artifact is written atomically, and a failure removes the partial set. A non-empty directory or an output path that is a file is refused.
+- `--json` prints the exact `report.json` bytes to stdout. Without it, the command prints the four artifact paths in contract order.
+- The chart uses H1, or the slowest available timeframe, reduced to at most 240 buckets. Each bucket keeps the last published axis value; an ordinal code is never averaged.
+
+The report publishes coverage, axis statistics and ordinal histograms, full-period event counts, the latest published state, cross-timeframe aggregates, and chart buckets. It contains no order, fill, position, trade, equity, drawdown, or P&L field, and it applies no strategy. A range with no M1 candles fails and writes no artifacts. The JSON envelope carries `model_version`, `view_contract`, `data_version`, `requested_period`, and `market_report`; object keys have a fixed order, numbers keep full precision, and a missing value is `null`.
+
+The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles; existing commands, the store, and research keep the 100,000-candle cap.
 
 ### Fetch contract
 
@@ -261,7 +276,7 @@ csv=data/XAUUSD_M1_2025-01-01_2025-12-31.csv
 png=none
 ```
 
-The CSV is written through a temporary sibling and renamed only after the fetch completes, so an interrupted or failed fetch does not leave a partial file under the requested name. A fetch whose accepted row count exceeds 100,000 writes a warning to stderr: `store` and `research` reject that file, and `market-chart` needs `--window latest` to chart it. The source requires network access; the test suite does not, because pagination, retries, JSONP parsing, CSV shape, and chart determinism are exercised with fixtures.
+The CSV is written through a temporary sibling and renamed only after the fetch completes, so an interrupted or failed fetch does not leave a partial file under the requested name. A fetch whose accepted row count exceeds 100,000 writes a warning to stderr: `store` and `research` reject that file, `market-chart` needs `--window latest` to chart it, and `market-report` accepts it up to 600,000 rows. The source requires network access; the test suite does not, because pagination, retries, JSONP parsing, CSV shape, and chart determinism are exercised with fixtures.
 
 ### NDJSON contract
 
