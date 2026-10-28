@@ -1,0 +1,646 @@
+//! Causal fill simulation over one candle series.
+//!
+//! The engine consumes one closed bar at a time. A decision made on bar `N`
+//! schedules a market order that fills on bar `N + 1` at the open; the fill
+//! opens or closes one position. While a position is open, its ATR bracket is
+//! evaluated on every bar, including the entry bar, against the bar's high and
+//! low. No later bar is read to decide an earlier fill.
+//!
+//! The engine owns no portfolio accounting: it records the fill's price, fee,
+//! and slippage, but cash, equity, trade records, and P&L belong to the
+//! portfolio module. Position sizing is outside this module too: the caller
+//! supplies one fixed quantity for the run.
+//!
+//! # Input
+//!
+//! The engine consumes the strategy's candle series in order. It does not
+//! inspect a timeframe: selecting the series and ignoring bars from another
+//! timeframe belong to the caller, and the strategy already ignores other
+//! timeframes. The decision must carry the same bar index and open time as the
+//! candle it is passed with.
+//!
+//! # Bracket
+//!
+//! An entry is bracketed with the decision bar's ATR(14), anchored at the entry
+//! fill price:
+//!
+//! | Side | Stop | Target |
+//! |---|---|---|
+//! | Long | `fill - 2 * ATR` | `fill + 3 * ATR` |
+//! | Short | `fill + 2 * ATR` | `fill - 3 * ATR` |
+//!
+//! A missing, zero, or non-finite ATR rejects the entry with
+//! [`RejectReason::MissingAtr`]. A bracket that is not a valid positive
+//! bracket around the fill price rejects it with
+//! [`RejectReason::InvalidBracket`]. The bracket is live from the entry bar
+//! onward, so one bar can fill the entry at its open and trigger the stop or
+//! target later in the same bar. If both levels are touched, the stop wins.
+//!
+//! A bar with zero volume cannot fill a market order or trigger a bracket.
+//! A zero-volume next bar rejects the pending market order with
+//! [`RejectReason::ZeroVolume`]; a zero-volume bar while a position is open
+//! leaves the bracket active for the next bar. An absent volume is not zero:
+//! it is treated as tradable.
+//!
+//! # End of data
+//!
+//! [`ExecutionEngine::finish`] rejects an order that has no next bar with
+//! [`RejectReason::NoNextBar`]. It does not close an open position: the first
+//! backtest has no end-of-data exit.
+
+use quantrule_data::Candle;
+
+use crate::strategy::{Decision, Side};
+
+use super::{
+    ExecutionConfig, Fill, FillError, FillReason, Order, OrderError, OrderSide, Position,
+    PositionError, PositionState, RejectReason, Trigger,
+};
+
+/// The stop distance in ATR units.
+pub const STOP_ATR_MULTIPLE: f64 = 2.0;
+
+/// The target distance in ATR units.
+pub const TARGET_ATR_MULTIPLE: f64 = 3.0;
+
+/// A pending market order and the ATR of the bar that produced it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct PendingOrder {
+    order: Order,
+    atr14: Option<f64>,
+}
+
+/// One decision the engine could not execute.
+///
+/// A rejection is not a fill. The engine records it so a caller can see that a
+/// strategy decision had no effect; the strategy itself is not rewritten.
+///
+/// # Examples
+///
+/// ```
+/// use quantrule_backtest::execution::{Rejection, RejectReason};
+///
+/// let rejection = Rejection { bar: 3, time: 1_700_002_700, reason: RejectReason::ZeroVolume };
+/// assert_eq!(rejection.reason, RejectReason::ZeroVolume);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rejection {
+    /// The bar on which the engine refused the order. For
+    /// [`RejectReason::NoNextBar`], this is the order's submission bar.
+    pub bar: usize,
+    /// That bar's open time as UTC Unix seconds.
+    pub time: i64,
+    /// Why the order was refused.
+    pub reason: RejectReason,
+}
+
+/// The causal fill simulator for one instrument and one position.
+///
+/// # Examples
+///
+/// ```
+/// use quantrule_backtest::execution::{ExecutionConfig, ExecutionEngine};
+/// use quantrule_backtest::strategy::{Decision, Entry, Side, StrategyInput};
+/// use quantrule_data::Candle;
+///
+/// let config = ExecutionConfig::new(0.001, 2.0)?;
+/// let mut engine = ExecutionEngine::new(config, 1.0)?;
+/// let first = Candle::new(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0))?;
+/// let second = Candle::new(1, 900, 100.0, 102.0, 99.5, 101.0, Some(10.0))?;
+/// let bar = StrategyInput::new(900, 0, 0, Some(0.5), Some(0.5), Some(1.0));
+///
+/// assert!(engine
+///     .on_bar(&first, Some(1.0), Decision::Enter(Entry { side: Side::Long, bar }))?
+///     .is_empty());
+/// let fills = engine.on_bar(&second, Some(1.0), Decision::Hold)?;
+/// assert_eq!(fills.len(), 1);
+/// assert_eq!(fills[0].reference_price, 100.0);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Debug)]
+pub struct ExecutionEngine {
+    config: ExecutionConfig,
+    quantity: f64,
+    next_bar: usize,
+    position: PositionState,
+    pending: Option<PendingOrder>,
+    rejections: Vec<Rejection>,
+}
+
+impl ExecutionEngine {
+    /// Builds an engine with one fixed quantity per entry.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutionError`] when the quantity is not finite or not
+    /// positive, or when the configured slippage is at least 100% of the
+    /// reference price and would make a sell fill non-positive. The execution
+    /// costs are already validated by [`ExecutionConfig`].
+    pub fn new(config: ExecutionConfig, quantity: f64) -> Result<Self, ExecutionError> {
+        if !quantity.is_finite() {
+            return Err(ExecutionError::NonFiniteQuantity);
+        }
+        if quantity <= 0.0 {
+            return Err(ExecutionError::NonPositiveQuantity);
+        }
+        if config.slippage_rate() >= 1.0 {
+            return Err(ExecutionError::SlippageAtOrAboveOne);
+        }
+
+        Ok(Self {
+            config,
+            quantity,
+            next_bar: 0,
+            position: PositionState::Flat,
+            pending: None,
+            rejections: Vec::new(),
+        })
+    }
+
+    /// Feeds one closed bar and the decision made on that bar.
+    ///
+    /// The engine first fills a market order scheduled by the previous bar at
+    /// this bar's open, then evaluates an open position's bracket against this
+    /// bar's range, then schedules `decision` for the next bar. The decision
+    /// must carry this bar's index and open time; a mismatch is a caller
+    /// error, not a rejection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutionError`] when the decision does not describe `bar`,
+    /// or when a validated value cannot be constructed.
+    pub fn on_bar(
+        &mut self,
+        bar: &Candle,
+        atr14: Option<f64>,
+        decision: Decision,
+    ) -> Result<Vec<Fill>, ExecutionError> {
+        let index = self.next_bar;
+        let time = bar.timestamp();
+        self.validate_decision(decision, index, time)?;
+        self.next_bar += 1;
+
+        let mut fills = Vec::new();
+
+        if let Some(pending) = self.pending.take() {
+            self.apply_pending(pending, bar, index, time, &mut fills)?;
+        }
+
+        if self.position.is_open()
+            && let Some(fill) = self.bracket_fill(bar, index, time)?
+        {
+            self.position = PositionState::Flat;
+            fills.push(fill);
+        }
+
+        self.schedule(decision, index, time, atr14)?;
+        Ok(fills)
+    }
+
+    /// Rejects a pending order that has no next bar.
+    ///
+    /// Call this after the last bar. An open position is left open: the first
+    /// backtest has no end-of-data exit. Calling it twice is harmless.
+    pub fn finish(&mut self) {
+        if let Some(pending) = self.pending.take() {
+            self.rejections.push(Rejection {
+                bar: pending.order.submitted_bar,
+                time: pending.order.submitted_time,
+                reason: RejectReason::NoNextBar,
+            });
+        }
+    }
+
+    /// The current position state.
+    #[must_use]
+    pub const fn position(&self) -> PositionState {
+        self.position
+    }
+
+    /// Every decision the engine could not execute, in detection order.
+    #[must_use]
+    pub fn rejections(&self) -> &[Rejection] {
+        &self.rejections
+    }
+
+    fn validate_decision(
+        &self,
+        decision: Decision,
+        index: usize,
+        time: i64,
+    ) -> Result<(), ExecutionError> {
+        let bar = match decision {
+            Decision::Hold => return Ok(()),
+            Decision::Enter(entry) => entry.bar,
+            Decision::Exit(exit) => exit.bar,
+        };
+        if bar.bar_index != index {
+            return Err(ExecutionError::DecisionBarMismatch {
+                expected: index,
+                found: bar.bar_index,
+            });
+        }
+        if bar.open_time != time {
+            return Err(ExecutionError::DecisionTimeMismatch {
+                expected: time,
+                found: bar.open_time,
+            });
+        }
+        Ok(())
+    }
+
+    fn apply_pending(
+        &mut self,
+        pending: PendingOrder,
+        bar: &Candle,
+        index: usize,
+        time: i64,
+        fills: &mut Vec<Fill>,
+    ) -> Result<(), ExecutionError> {
+        if !is_tradable(bar) {
+            self.reject(index, time, RejectReason::ZeroVolume);
+            return Ok(());
+        }
+
+        match pending.order.reason {
+            FillReason::Entry => {
+                if self.position.is_open() {
+                    self.reject(index, time, RejectReason::PositionAlreadyOpen);
+                } else {
+                    self.enter(pending, bar, index, time, fills)?;
+                }
+            }
+            FillReason::Exit => {
+                let PositionState::Open(position) = self.position else {
+                    self.reject(index, time, RejectReason::NoPosition);
+                    return Ok(());
+                };
+                let fill = self.fill(
+                    pending.order.side,
+                    position.quantity,
+                    bar.open(),
+                    index,
+                    time,
+                    FillReason::Exit,
+                )?;
+                self.position = PositionState::Flat;
+                fills.push(fill);
+            }
+            // A pending order is always a market entry or exit. The bracket is
+            // carried by the position, not by the pending slot.
+            FillReason::StopLoss | FillReason::TakeProfit => {}
+        }
+        Ok(())
+    }
+
+    fn enter(
+        &mut self,
+        pending: PendingOrder,
+        bar: &Candle,
+        index: usize,
+        time: i64,
+        fills: &mut Vec<Fill>,
+    ) -> Result<(), ExecutionError> {
+        let Some(atr14) = usable_atr(pending.atr14) else {
+            self.reject(index, time, RejectReason::MissingAtr);
+            return Ok(());
+        };
+
+        let fill = self.fill(
+            pending.order.side,
+            pending.order.quantity,
+            bar.open(),
+            index,
+            time,
+            FillReason::Entry,
+        )?;
+        let side = match pending.order.side {
+            OrderSide::Buy => Side::Long,
+            OrderSide::Sell => Side::Short,
+        };
+        let (stop_price, target_price) = bracket(side, fill.price, atr14);
+        if !is_valid_bracket(side, fill.price, stop_price, target_price) {
+            self.reject(index, time, RejectReason::InvalidBracket);
+            return Ok(());
+        }
+
+        let position = Position::new(
+            side,
+            fill.quantity,
+            fill.price,
+            index,
+            time,
+            stop_price,
+            target_price,
+        )
+        .map_err(ExecutionError::Position)?;
+        self.position = PositionState::Open(position);
+        fills.push(fill);
+        Ok(())
+    }
+
+    fn bracket_fill(
+        &self,
+        bar: &Candle,
+        index: usize,
+        time: i64,
+    ) -> Result<Option<Fill>, ExecutionError> {
+        let PositionState::Open(position) = self.position else {
+            return Ok(None);
+        };
+        if !is_tradable(bar) {
+            return Ok(None);
+        }
+
+        let (reference, reason, trigger_price, side) = match position.side {
+            Side::Long => {
+                if long_stop_hit(bar, position.stop_price) {
+                    (
+                        long_stop_reference(bar, position.stop_price),
+                        FillReason::StopLoss,
+                        position.stop_price,
+                        OrderSide::Sell,
+                    )
+                } else if long_target_hit(bar, position.target_price) {
+                    (
+                        long_target_reference(bar, position.target_price),
+                        FillReason::TakeProfit,
+                        position.target_price,
+                        OrderSide::Sell,
+                    )
+                } else {
+                    return Ok(None);
+                }
+            }
+            Side::Short => {
+                if short_stop_hit(bar, position.stop_price) {
+                    (
+                        short_stop_reference(bar, position.stop_price),
+                        FillReason::StopLoss,
+                        position.stop_price,
+                        OrderSide::Buy,
+                    )
+                } else if short_target_hit(bar, position.target_price) {
+                    (
+                        short_target_reference(bar, position.target_price),
+                        FillReason::TakeProfit,
+                        position.target_price,
+                        OrderSide::Buy,
+                    )
+                } else {
+                    return Ok(None);
+                }
+            }
+        };
+
+        let trigger = match reason {
+            FillReason::StopLoss => Trigger::Stop {
+                price: trigger_price,
+            },
+            FillReason::TakeProfit => Trigger::Target {
+                price: trigger_price,
+            },
+            FillReason::Entry | FillReason::Exit => {
+                return Err(ExecutionError::UnexpectedFillReason);
+            }
+        };
+        let order = Order::new(side, position.quantity, reason, trigger, index, time)
+            .map_err(ExecutionError::Order)?;
+        let fill = self.fill(order.side, order.quantity, reference, index, time, reason)?;
+        Ok(Some(fill))
+    }
+
+    fn schedule(
+        &mut self,
+        decision: Decision,
+        index: usize,
+        time: i64,
+        atr14: Option<f64>,
+    ) -> Result<(), ExecutionError> {
+        match decision {
+            Decision::Hold => Ok(()),
+            Decision::Enter(entry) => {
+                if self.position.is_open() {
+                    self.reject(index, time, RejectReason::PositionAlreadyOpen);
+                    return Ok(());
+                }
+                let order = Order::new(
+                    order_side(entry.side),
+                    self.quantity,
+                    FillReason::Entry,
+                    Trigger::Market,
+                    index,
+                    time,
+                )
+                .map_err(ExecutionError::Order)?;
+                self.pending = Some(PendingOrder { order, atr14 });
+                Ok(())
+            }
+            Decision::Exit(_) => {
+                let PositionState::Open(position) = self.position else {
+                    self.reject(index, time, RejectReason::NoPosition);
+                    return Ok(());
+                };
+                // The engine closes the position it holds; the decision's side
+                // is the strategy's view of that position, not the order side.
+                let order = Order::new(
+                    order_side(position.side).opposite(),
+                    position.quantity,
+                    FillReason::Exit,
+                    Trigger::Market,
+                    index,
+                    time,
+                )
+                .map_err(ExecutionError::Order)?;
+                self.pending = Some(PendingOrder { order, atr14 });
+                Ok(())
+            }
+        }
+    }
+
+    fn fill(
+        &self,
+        side: OrderSide,
+        quantity: f64,
+        reference_price: f64,
+        bar: usize,
+        time: i64,
+        reason: FillReason,
+    ) -> Result<Fill, ExecutionError> {
+        let slippage = reference_price * self.config.slippage_rate();
+        let executed_price = match side {
+            OrderSide::Buy => reference_price + slippage,
+            OrderSide::Sell => reference_price - slippage,
+        };
+        let fee = executed_price * quantity * self.config.fee_rate();
+        Fill::new(
+            side,
+            quantity,
+            reference_price,
+            fee,
+            slippage,
+            bar,
+            time,
+            reason,
+        )
+        .map_err(ExecutionError::Fill)
+    }
+
+    fn reject(&mut self, bar: usize, time: i64, reason: RejectReason) {
+        self.rejections.push(Rejection { bar, time, reason });
+    }
+}
+
+fn is_tradable(bar: &Candle) -> bool {
+    // An absent volume is not zero: the source did not supply it, so the bar
+    // is treated as tradable rather than as an empty one.
+    bar.volume() != Some(0.0)
+}
+
+fn usable_atr(atr14: Option<f64>) -> Option<f64> {
+    atr14.filter(|value| value.is_finite() && *value > 0.0)
+}
+
+fn bracket(side: Side, entry: f64, atr: f64) -> (f64, f64) {
+    match side {
+        Side::Long => (
+            entry - STOP_ATR_MULTIPLE * atr,
+            entry + TARGET_ATR_MULTIPLE * atr,
+        ),
+        Side::Short => (
+            entry + STOP_ATR_MULTIPLE * atr,
+            entry - TARGET_ATR_MULTIPLE * atr,
+        ),
+    }
+}
+
+fn is_valid_bracket(side: Side, entry: f64, stop: f64, target: f64) -> bool {
+    if !stop.is_finite() || stop <= 0.0 || !target.is_finite() || target <= 0.0 {
+        return false;
+    }
+    match side {
+        Side::Long => stop < entry && entry < target,
+        Side::Short => target < entry && entry < stop,
+    }
+}
+
+fn long_stop_hit(bar: &Candle, stop: f64) -> bool {
+    bar.open() <= stop || bar.low() <= stop
+}
+
+fn long_stop_reference(bar: &Candle, stop: f64) -> f64 {
+    if bar.open() <= stop { bar.open() } else { stop }
+}
+
+fn long_target_hit(bar: &Candle, target: f64) -> bool {
+    bar.open() >= target || bar.high() >= target
+}
+
+fn long_target_reference(bar: &Candle, target: f64) -> f64 {
+    if bar.open() >= target {
+        bar.open()
+    } else {
+        target
+    }
+}
+
+fn short_stop_hit(bar: &Candle, stop: f64) -> bool {
+    bar.open() >= stop || bar.high() >= stop
+}
+
+fn short_stop_reference(bar: &Candle, stop: f64) -> f64 {
+    if bar.open() >= stop { bar.open() } else { stop }
+}
+
+fn short_target_hit(bar: &Candle, target: f64) -> bool {
+    bar.open() <= target || bar.low() <= target
+}
+
+fn short_target_reference(bar: &Candle, target: f64) -> f64 {
+    if bar.open() <= target {
+        bar.open()
+    } else {
+        target
+    }
+}
+
+fn order_side(side: Side) -> OrderSide {
+    match side {
+        Side::Long => OrderSide::Buy,
+        Side::Short => OrderSide::Sell,
+    }
+}
+
+/// A fill or decision could not be simulated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionError {
+    /// The quantity is not a finite number.
+    NonFiniteQuantity,
+    /// The quantity is zero or negative.
+    NonPositiveQuantity,
+    /// The decision carries a different bar index than the bar it was given
+    /// with.
+    DecisionBarMismatch {
+        /// The engine's next bar index.
+        expected: usize,
+        /// The decision's bar index.
+        found: usize,
+    },
+    /// The decision carries a different open time than the bar it was given
+    /// with.
+    DecisionTimeMismatch {
+        /// The bar's open time.
+        expected: i64,
+        /// The decision's open time.
+        found: i64,
+    },
+    /// The configured slippage is at least 100% of the reference price.
+    SlippageAtOrAboveOne,
+    /// A bracket fill was labelled as an entry or exit, which cannot happen.
+    UnexpectedFillReason,
+    /// An order could not be constructed.
+    Order(OrderError),
+    /// A fill could not be constructed.
+    Fill(FillError),
+    /// A position could not be constructed.
+    Position(PositionError),
+}
+
+impl std::fmt::Display for ExecutionError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NonFiniteQuantity => write!(formatter, "the execution quantity must be finite"),
+            Self::NonPositiveQuantity => {
+                write!(formatter, "the execution quantity must be positive")
+            }
+            Self::DecisionBarMismatch { expected, found } => write!(
+                formatter,
+                "the decision is for bar {found}, but the engine expects bar {expected}"
+            ),
+            Self::DecisionTimeMismatch { expected, found } => write!(
+                formatter,
+                "the decision is for time {found}, but the bar opens at {expected}"
+            ),
+            Self::SlippageAtOrAboveOne => {
+                write!(formatter, "the execution slippage must be below 100%")
+            }
+            Self::UnexpectedFillReason => {
+                write!(formatter, "a bracket fill must be a stop or a target")
+            }
+            Self::Order(source) => source.fmt(formatter),
+            Self::Fill(source) => source.fmt(formatter),
+            Self::Position(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for ExecutionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Order(source) => Some(source),
+            Self::Fill(source) => Some(source),
+            Self::Position(source) => Some(source),
+            _ => None,
+        }
+    }
+}
