@@ -20,9 +20,11 @@ mod execution;
 mod model;
 mod portfolio;
 mod read;
+mod run;
 mod strategy;
 
 pub(crate) use analytics::AnalyticsConfig;
 pub(crate) use data::{DataConfig, DataSource};
 pub(crate) use error::ConfigError;
 pub(crate) use execution::ExecutionRunConfig;
+pub(crate) use run::{ConfigPaths, RunConfig};
