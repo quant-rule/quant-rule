@@ -1,0 +1,7 @@
+{
+  "schema": "quantrule.strategy/v1",
+  "name": "axis-agreement",
+  "timeframe": "15m",
+  "long_threshold": 0.1,
+  "short_threshold": -0.1
+}

@@ -1,5 +1,11 @@
 # ADR: Market Analysis and Full-Execution Backtest Boundaries
 
+> **Superseded in part (2026-10-28).** The boundary between market analysis and
+> the backtest still holds. The report and configuration surfaces it described
+> are replaced by the per-engine configs and the five report bundles in
+> [`docs/adr/2026-10-28/config-driven-engines-and-reports.md`](../2026-10-28/config-driven-engines-and-reports.md).
+> The rest of this file is preserved as the record of the original decision.
+
 - Date: 2026-10-27 (UTC)
 - Status: Accepted. The program plan and this decision are approved; implementation follows the plan.
 - Related: [program plan](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md), [model contract](../../model/2026-10-21/four-axis-analytical-model.md), [history and retention policy](../2026-10-25/history-retention-and-display-policy.md), issues [#10](https://github.com/quant-rule/quant-rule/issues/10), [#11](https://github.com/quant-rule/quant-rule/issues/11), [#12](https://github.com/quant-rule/quant-rule/issues/12)

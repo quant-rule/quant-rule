@@ -1,5 +1,11 @@
 # Market Analysis and Full-Execution Backtest — Program Plan
 
+> **Superseded for MVP v1 closeout (2026-10-28).** The program's remaining scope —
+> config-driven engines, five per-engine reports, portfolio accounting, the
+> `backtest` command, verification, and the `v0.2.0` release — is now governed by
+> [`docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`](../2026-10-28/141-mvp-v1-final-contract.md).
+> This file remains the record of Phases 1–3 and is not rewritten.
+
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)

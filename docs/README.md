@@ -10,6 +10,9 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | AI transparency log | The record of material AI contributions for a work item, per `AGENTS.md` section 6. One file per work item, named to match its execution plan. | `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` |
 | Model | The analytical model's contract: the four axes, the numeric output fields, the event model, and the aggregation rules. The implementation follows it. | `docs/model/<YYYY-MM-DD>/<file>.md` |
 | Analytics and research | The research output contract and the dataset definition: layers, columns, null rules, alignment, and export metadata. | `docs/analytics/<YYYY-MM-DD>/<file>.md` |
+| Configuration | The per-engine JSON configuration: files, fields, validation, and cross-config rules. | `docs/config/<YYYY-MM-DD>/<file>.md` |
+| Reports | The per-engine report bundles: artifacts, JSON and CSV schemas, boundaries, and availability. | `docs/reports/<YYYY-MM-DD>/<file>.md` |
+| Releases | The notes for a tagged release: commands, configuration, reports, accounting rules, and evidence. | `docs/releases/<YYYY-MM-DD>/<file>.md` |
 | Architecture decision records | A decision, the alternatives considered, and the consequences. | `docs/adr/<YYYY-MM-DD>/<file>.md` |
 
 ## Current model contracts
@@ -20,11 +23,20 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | DashboardState four-axis CLI view | Approved (#123) | `docs/model/2026-10-25/dashboard-state.md` |
 | MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified on SOLUSD 2025 (#152) | `docs/model/2026-10-27/market-report.md` |
 
+## Current run contracts
+
+| Contract | Status | Path |
+|---|---|---|
+| Per-engine configuration | Approved (#168); implemented by the config loader (#170) | `docs/config/2026-10-28/per-engine-config.md` |
+| Per-engine reports | Approved (#168); implemented by #173, #174, #175, and #176 | `docs/reports/2026-10-28/per-engine-reports.md` |
+| SOLUSD 2025 example run | Approved (#168) | `config/examples/solusd-2025/` |
+
 ## Current programs
 
 | Program | Status | Plan |
 |---|---|---|
-| Market analysis and full-execution backtest | Approved (#141); Phase 1 (A1–A4) merged; Phase 2 (S1–S3) merged; Phase 3 (E1, E2) merged; Phase 4 next | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
+| MVP v1: config-driven engines, five reports, and the full-execution SOLUSD 2025 run | Approved (#141); Phases 1–3 merged; C0 contract in progress | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
+| Market analysis and full-execution backtest | Superseded for MVP v1 closeout by the 2026-10-28 plan; history preserved | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 
@@ -35,8 +47,9 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | Four-axis analytical model | Accepted | `docs/adr/2026-10-21/four-axis-analytical-model.md` |
 | SQLite per-bar store and research schema | Accepted | `docs/adr/2026-10-24/sqlite-store.md` |
 | History, retention, and display policy | Accepted | `docs/adr/2026-10-25/history-retention-and-display-policy.md` |
-| Market analysis and full-execution backtest boundaries | Accepted (#145) | `docs/adr/2026-10-27/analysis-and-backtest-boundaries.md` |
+| Market analysis and full-execution backtest boundaries | Accepted (#145); superseded in part by the 2026-10-28 decision | `docs/adr/2026-10-27/analysis-and-backtest-boundaries.md` |
 | Extended-range M1 window | Accepted (#144) | `docs/adr/2026-10-27/extended-range-window.md` |
+| Config-driven engines and per-engine reports | Accepted (#168) | `docs/adr/2026-10-28/config-driven-engines-and-reports.md` |
 
 ## Reading a work item
 
