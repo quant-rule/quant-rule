@@ -4,6 +4,8 @@
 //! and no model label, axis word, or strategy threshold. The shell renders it;
 //! the report contract fixes the field names and the row order.
 
+use super::state::OpenPosition;
+
 /// Why a position was closed.
 ///
 /// The portfolio's exit reason is the fill's reason, not the strategy's. A
@@ -219,4 +221,79 @@ pub struct RiskEvent {
     pub peak_equity: f64,
     /// The configured limit.
     pub limit: f64,
+}
+
+/// One month's return in the actual period.
+///
+/// The month is numeric so the engine publishes no label; the shell renders
+/// `YYYY-MM`. A month with no equity point, or whose prior equity is zero, has
+/// no return and is never written as zero.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MonthlyReturn {
+    /// The UTC year.
+    pub year: i32,
+    /// The UTC month, `1..=12`.
+    pub month: u8,
+    /// The month's return, or `None` when it is undefined.
+    pub return_fraction: Option<f64>,
+}
+
+/// The portfolio summary metrics of one run.
+///
+/// `realized_pnl` is the sum of closed-trade net P&L. `unrealized_pnl` is the
+/// open position's gross mark-to-market P&L minus its entry costs and accrued
+/// funding; it is zero when flat. `net_pnl` is their sum, and the ledger
+/// invariant is `final_equity = initial_cash + net_pnl`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PortfolioMetrics {
+    /// The starting cash.
+    pub initial_cash: f64,
+    /// The equity at the last mark, fill, or the initial cash.
+    pub final_equity: f64,
+    /// `final_equity / initial_cash - 1`.
+    pub total_return: f64,
+    /// Closed-trade net P&L.
+    pub realized_pnl: f64,
+    /// Open-position net P&L, or zero when flat.
+    pub unrealized_pnl: f64,
+    /// Closed gross P&L plus the open position's gross P&L.
+    pub gross_pnl: f64,
+    /// `realized_pnl + unrealized_pnl`.
+    pub net_pnl: f64,
+    /// Execution fees paid on every fill.
+    pub execution_fees: f64,
+    /// Commission paid on every fill.
+    pub commission: f64,
+    /// Funding paid at aligned boundaries.
+    pub funding_paid: f64,
+    /// Funding received at aligned boundaries.
+    pub funding_received: f64,
+    /// The maximum drawdown observed at a mark.
+    pub max_drawdown: f64,
+    /// The longest run of marked bars with a positive drawdown.
+    pub max_drawdown_duration_bars: usize,
+    /// The number of closed trades.
+    pub trades: usize,
+    /// Closed trades with a positive net P&L.
+    pub wins: usize,
+    /// Closed trades with a negative net P&L.
+    pub losses: usize,
+    /// `wins / trades`, or `None` with no trades.
+    pub win_rate: Option<f64>,
+    /// Winning net P&L divided by the absolute losing net P&L, or `None` when
+    /// there are no trades or no losses.
+    pub profit_factor: Option<f64>,
+    /// Mean closed-trade net P&L, or `None` with no trades.
+    pub average_trade: Option<f64>,
+    /// Mean closed-trade hold in strategy bars, or `None` with no trades.
+    pub average_hold_bars: Option<f64>,
+    /// `sum(position_value) / sum(equity)` over marks, or `None` when no mark
+    /// exists or the equity sum is zero.
+    pub exposure: Option<f64>,
+    /// Whether the drawdown halt has latched.
+    pub halted: bool,
+    /// The open position at the last update, or `None` when flat.
+    pub open_position: Option<OpenPosition>,
+    /// One entry per month in the actual period.
+    pub monthly_returns: Vec<MonthlyReturn>,
 }
