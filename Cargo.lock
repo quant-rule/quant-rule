@@ -250,6 +250,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "quantrule-backtest"
+version = "0.1.0"
+dependencies = [
+ "quantrule-data",
+ "quantrule-model",
+]
+
+[[package]]
 name = "quantrule-data"
 version = "0.1.0"
 

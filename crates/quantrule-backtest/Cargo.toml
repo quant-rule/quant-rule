@@ -1,0 +1,12 @@
+[package]
+name = "quantrule-backtest"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+quantrule-data = { path = "../quantrule-data" }
+quantrule-model = { path = "../quantrule-model" }
+
+[lints]
+workspace = true
