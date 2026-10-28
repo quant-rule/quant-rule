@@ -131,7 +131,13 @@ impl ConfigError {
 
     /// Two values disagree across files.
     pub(crate) fn inconsistent(file: &str, path: &str, expected: &str, observed: &str) -> Self {
-        Self::new(file, path, ConfigErrorKind::Inconsistent, expected, observed)
+        Self::new(
+            file,
+            path,
+            ConfigErrorKind::Inconsistent,
+            expected,
+            observed,
+        )
     }
 
     /// A value is valid in the schema but not supported in v1.

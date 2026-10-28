@@ -23,6 +23,9 @@ mod read;
 mod run;
 mod strategy;
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) use analytics::AnalyticsConfig;
 pub(crate) use data::{DataConfig, DataSource};
 pub(crate) use error::ConfigError;

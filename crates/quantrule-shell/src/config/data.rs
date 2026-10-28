@@ -76,12 +76,7 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         read::field(file, "$.source", source_object, "kind")?,
     )?;
     if kind != "csv" {
-        return Err(ConfigError::unsupported(
-            file,
-            "$.source.kind",
-            "csv",
-            kind,
-        ));
+        return Err(ConfigError::unsupported(file, "$.source.kind", "csv", kind));
     }
     let source_path = read::non_empty_string(
         file,
@@ -131,7 +126,12 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         ));
     }
     let max_candles = usize::try_from(max_candles).map_err(|_| {
-        ConfigError::range(file, "$.max_candles", "a representable length", &max_candles.to_string())
+        ConfigError::range(
+            file,
+            "$.max_candles",
+            "a representable length",
+            &max_candles.to_string(),
+        )
     })?;
 
     Ok(DataConfig {
@@ -153,22 +153,14 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
 /// `Timeframe::from_code` accepts either case and both the user and file forms.
 /// The contract matches enum values exactly, so only the canonical lowercase
 /// code is accepted here.
-pub(super) fn timeframe(
-    file: &str,
-    path: &str,
-    value: &Value,
-) -> Result<Timeframe, ConfigError> {
+pub(super) fn timeframe(file: &str, path: &str, value: &Value) -> Result<Timeframe, ConfigError> {
     let code = read::string(file, path, value)?;
     Timeframe::from_code(code)
         .filter(|timeframe| timeframe.code() == code)
         .ok_or_else(|| ConfigError::range(file, path, "a supported timeframe", code))
 }
 
-fn optional_date(
-    file: &str,
-    path: &str,
-    value: &Value,
-) -> Result<Option<String>, ConfigError> {
+fn optional_date(file: &str, path: &str, value: &Value) -> Result<Option<String>, ConfigError> {
     if value.is_null() {
         Ok(None)
     } else {

@@ -69,11 +69,7 @@ pub(crate) fn check_fields(
 ) -> Result<(), ConfigError> {
     for name in object.keys() {
         if !allowed.contains(&name.as_str()) {
-            return Err(ConfigError::unknown_field(
-                file,
-                &child(path, name),
-                name,
-            ));
+            return Err(ConfigError::unknown_field(file, &child(path, name), name));
         }
     }
     Ok(())
@@ -99,11 +95,7 @@ pub(crate) fn schema(
 }
 
 /// Requires a JSON string.
-pub(crate) fn string<'a>(
-    file: &str,
-    path: &str,
-    value: &'a Value,
-) -> Result<&'a str, ConfigError> {
+pub(crate) fn string<'a>(file: &str, path: &str, value: &'a Value) -> Result<&'a str, ConfigError> {
     value
         .as_str()
         .ok_or_else(|| ConfigError::wrong_type(file, path, "a string", &observed(value)))
@@ -117,12 +109,7 @@ pub(crate) fn non_empty_string<'a>(
 ) -> Result<&'a str, ConfigError> {
     let text = string(file, path, value)?;
     if text.is_empty() {
-        return Err(ConfigError::range(
-            file,
-            path,
-            "a non-empty string",
-            text,
-        ));
+        return Err(ConfigError::range(file, path, "a non-empty string", text));
     }
     Ok(text)
 }

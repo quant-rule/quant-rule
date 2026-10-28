@@ -71,10 +71,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<PortfolioConfig, Config
         ));
     }
 
-    let sizing = sizing(
-        file,
-        read::field(file, ROOT, object, "sizing")?,
-    )?;
+    let sizing = sizing(file, read::field(file, ROOT, object, "sizing")?)?;
 
     let leverage = read::number(
         file,
@@ -299,16 +296,14 @@ fn commission(file: &str, value: &Value) -> Result<CommissionConfig, ConfigError
         ));
     }
 
-    CommissionConfig::new(rate, CommissionBase::Equity, CommissionPer::Operation).map_err(
-        |error| {
-            ConfigError::range(
-                file,
-                "$.commission",
-                "a valid commission configuration",
-                &error.to_string(),
-            )
-        },
-    )
+    CommissionConfig::new(rate, CommissionBase::Equity, CommissionPer::Operation).map_err(|error| {
+        ConfigError::range(
+            file,
+            "$.commission",
+            "a valid commission configuration",
+            &error.to_string(),
+        )
+    })
 }
 
 fn funding(file: &str, value: &Value) -> Result<FundingConfig, ConfigError> {

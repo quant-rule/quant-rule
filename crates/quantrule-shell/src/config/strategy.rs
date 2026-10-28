@@ -79,14 +79,17 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyConfig, ConfigE
         ));
     }
 
-    StrategyConfig::new(u64::from(timeframe.seconds()), long_threshold, short_threshold).map_err(
-        |error| {
-            ConfigError::range(
-                file,
-                "$",
-                "a valid strategy configuration",
-                &error.to_string(),
-            )
-        },
+    StrategyConfig::new(
+        u64::from(timeframe.seconds()),
+        long_threshold,
+        short_threshold,
     )
+    .map_err(|error| {
+        ConfigError::range(
+            file,
+            "$",
+            "a valid strategy configuration",
+            &error.to_string(),
+        )
+    })
 }

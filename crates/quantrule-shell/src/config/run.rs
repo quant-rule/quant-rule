@@ -130,7 +130,7 @@ impl RunConfig {
         Ok(config)
     }
 
-    fn validate_cross(&self) -> Result<(), ConfigError> {
+    pub(super) fn validate_cross(&self) -> Result<(), ConfigError> {
         let strategy_secs = self.strategy.timeframe_secs();
         let Some(strategy_timeframe) = self
             .data
@@ -181,18 +181,19 @@ impl RunConfig {
 }
 
 /// The parsed `run.json`, before its referenced files are read.
-struct RunFile {
-    name: String,
+#[derive(Debug)]
+pub(super) struct RunFile {
+    pub(super) name: String,
     data: String,
     model: String,
     strategy: String,
     execution: String,
     portfolio: String,
     analytics: String,
-    output_root: String,
+    pub(super) output_root: String,
 }
 
-fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
+pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::check_fields(
         file,
@@ -213,20 +214,12 @@ fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
     read::schema(file, object, "quantrule.run/v1")?;
 
     Ok(RunFile {
-        name: read::non_empty_string(
-            file,
-            "$.name",
-            read::field(file, ROOT, object, "name")?,
-        )?
-        .to_owned(),
+        name: read::non_empty_string(file, "$.name", read::field(file, ROOT, object, "name")?)?
+            .to_owned(),
         data: read::non_empty_string(file, "$.data", read::field(file, ROOT, object, "data")?)?
             .to_owned(),
-        model: read::non_empty_string(
-            file,
-            "$.model",
-            read::field(file, ROOT, object, "model")?,
-        )?
-        .to_owned(),
+        model: read::non_empty_string(file, "$.model", read::field(file, ROOT, object, "model")?)?
+            .to_owned(),
         strategy: read::non_empty_string(
             file,
             "$.strategy",
