@@ -14,6 +14,8 @@ mod config;
 mod records;
 mod sizing;
 mod state;
+#[cfg(test)]
+mod tests;
 
 pub use config::{
     CommissionBase, CommissionConfig, CommissionPer, Currency, DrawdownAction, FundingConfig,
