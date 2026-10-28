@@ -9,7 +9,7 @@
 - Boundary: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../../adr/2026-10-27/analysis-and-backtest-boundaries.md)
 - Branch/worktree: `feat/160-strategy-run` in `quant-rule--160-strategy-run`
 - PR: [#162](https://github.com/quant-rule/quant-rule/pull/162)
-- Status: Implementation, tests, and documentation complete; PR #162 open.
+- Status: Merged in PR #162.
 
 ## Intent and boundary
 
