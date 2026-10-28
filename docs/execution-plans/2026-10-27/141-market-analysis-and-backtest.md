@@ -314,7 +314,7 @@ Each issue body below uses the project's `Goal / Scope / Done when` format. GitH
 - PR: [#166](https://github.com/quant-rule/quant-rule/pull/166) — `feat(backtest): simulate next-bar fills`.
 - Paths: `crates/quantrule-backtest/src/execution/`, `crates/quantrule-backtest/tests/`, `docs/execution-plans/2026-10-27/`, `docs/ai-transparency-log/2026-10-27/`, `docs/README.md`.
 - Log: `docs/ai-transparency-log/2026-10-27/165-execution-fills.md`.
-- Status: In review.
+- Status: Done. Merged in [PR #166](https://github.com/quant-rule/quant-rule/pull/166); the causal fill engine, 27 unit tests, and the 4-fill golden fixture are in `main`.
 
 ### Phase 4 — Portfolio engine (#12)
 
