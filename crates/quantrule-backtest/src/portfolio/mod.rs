@@ -1,16 +1,18 @@
-//! Portfolio types: configuration, sizing, state, and records.
+//! Portfolio types: configuration, sizing, state, records, and the ledger.
 //!
 //! The module owns the capital side of a backtest. It defines the configuration
-//! and the sizing rule, the state the ledger maintains, and the records the
-//! ledger publishes. It performs no accounting yet: cash, equity, and P&L are
-//! updated by the ledger in a later work item. It reads no clock, performs no
-//! I/O, and uses no randomness.
+//! and the sizing rule, the state the ledger maintains, the records the ledger
+//! publishes, and the accounting state machine that turns fills into cash,
+//! equity, trades, funding charges, and drawdown.
 //!
-//! The module depends on [`crate::strategy::Side`] for the trade direction. It
-//! does not depend on [`crate::execution`]: execution supplies fills, and the
-//! ledger turns those fills into capital.
+//! The ledger reads no clock, performs no I/O, and uses no randomness. It takes
+//! execution's [`crate::execution::Fill`] as its input; execution does not know
+//! the portfolio exists.
 
 mod config;
+mod ledger;
+#[cfg(test)]
+mod ledger_tests;
 mod records;
 mod sizing;
 mod state;
@@ -22,6 +24,9 @@ pub use config::{
     FundingInterval, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, PortfolioConfigError,
     SUPPORTED_LEVERAGE, SUPPORTED_MAX_OPEN_POSITIONS,
 };
-pub use records::{EquityPoint, ExitReason, FundingCharge, RiskEvent, TradeRecord};
+pub use ledger::{PortfolioLedger, PortfolioLedgerError};
+pub use records::{
+    EquityPoint, ExitReason, FundingCharge, MonthlyReturn, PortfolioMetrics, RiskEvent, TradeRecord,
+};
 pub use sizing::{SizingMode, SizingRejection};
 pub use state::{OpenPosition, OpenPositionError, PortfolioState, PortfolioStateError};

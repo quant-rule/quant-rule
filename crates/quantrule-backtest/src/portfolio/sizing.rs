@@ -236,6 +236,8 @@ pub enum SizingRejection {
         /// The configured step.
         step: f64,
     },
+    /// The portfolio is halted by the drawdown limit.
+    Halted,
 }
 
 impl fmt::Display for SizingRejection {
@@ -257,6 +259,7 @@ impl fmt::Display for SizingRejection {
             Self::BelowOneStep { raw, step } => {
                 write!(formatter, "the quantity {raw} is below one step of {step}")
             }
+            Self::Halted => write!(formatter, "the portfolio is halted"),
         }
     }
 }
