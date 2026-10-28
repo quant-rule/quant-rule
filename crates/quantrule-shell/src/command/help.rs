@@ -25,6 +25,12 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
       --to <date>               Inclusive UTC end date, YYYY-MM-DD.
       --out <dir>               New or empty output directory; required.
       --json                    Print report.json bytes to stdout.
+  strategy-run <csv-path>       Print strategy entries and exits as NDJSON; no fills or P&L.
+      --strategy <name>         Strategy name; required (axis-agreement).
+      --data-version <id>       Caller-supplied identity; required.
+      --from <date>             Inclusive UTC start date, YYYY-MM-DD.
+      --to <date>               Inclusive UTC end date, YYYY-MM-DD.
+      --json                    Print one provenance envelope instead of bare NDJSON.
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   events <csv-path>             Print every event record in the analyzed window as NDJSON.
@@ -78,6 +84,7 @@ Timestamp: YYYY-MM-DD HH:MM:SS+00:00
 The candle and timeframe display commands retain the last 1000 candles.
 Model analysis uses the full series up to 100000 by default; --window latest uses the last 1000 per timeframe.
 market-report uses the extended range up to 600000 M1 candles; existing commands keep the 100000 cap.
+strategy-run uses the extended range up to 600000 M1 candles and reads only the strategy timeframe.
 NDJSON: one candle per line, oldest first:
 {"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
 Timeframes: M1 is the source; M5, M15, and H1 are derived by the data engine.
@@ -97,6 +104,7 @@ Non-interactive: quantrule market-state <csv-path> [--window full|latest]
 Non-interactive: quantrule market-dashboard <csv-path> [--window full|latest] [--json]
 Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
 Non-interactive: quantrule market-report path/to/m1.csv --data-version source:demo:60:0-1000 --out data/report
+Non-interactive: quantrule strategy-run path/to/m1.csv --strategy axis-agreement --data-version source:demo:60:0-1000
 Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
 Non-interactive: quantrule events <csv-path> [--window full|latest]
 Non-interactive: quantrule legs <csv-path> [--window full|latest]

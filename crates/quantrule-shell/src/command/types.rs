@@ -36,6 +36,8 @@ pub(crate) enum Command {
     MarketChart(MarketChartArgs),
     /// Write the full-period market report and its charts.
     MarketReport(MarketReportArgs),
+    /// Print strategy entries and exits without fills or P&L.
+    StrategyRun(StrategyRunArgs),
     /// Print one axis per timeframe.
     Axis { args: ModelArgs, axis: Axis },
     /// Print the event records.
@@ -260,6 +262,37 @@ impl MarketReportArgs {
     }
 }
 
+/// A parsed `strategy-run` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StrategyRunArgs {
+    /// The M1 source CSV.
+    pub(crate) path: PathBuf,
+    /// The strategy name.
+    pub(crate) strategy: String,
+    /// The caller-supplied identity of the input series.
+    pub(crate) data_version: String,
+    /// The exact `--from` value, when supplied.
+    pub(crate) from: Option<String>,
+    /// The exact `--to` value, when supplied.
+    pub(crate) to: Option<String>,
+    /// The parsed inclusive UTC bounds.
+    pub(crate) bounds: DateBounds,
+    /// Whether to print the provenance envelope instead of bare NDJSON.
+    pub(crate) json: bool,
+}
+
+impl StrategyRunArgs {
+    /// The requested period as a stable one-line label.
+    pub(crate) fn requested_period(&self) -> String {
+        match (&self.from, &self.to) {
+            (Some(from), Some(to)) => format!("{from}..{to}"),
+            (Some(from), None) => format!("{from}..open"),
+            (None, Some(to)) => format!("open..{to}"),
+            (None, None) => String::from("full file"),
+        }
+    }
+}
+
 /// Arguments for `store list`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct StoreListArgs {
@@ -340,6 +373,8 @@ pub(crate) enum ParseError {
     MarketChart(String),
     /// A `market-report` argument list is invalid.
     MarketReport(String),
+    /// A `strategy-run` argument list is invalid.
+    StrategyRun(String),
     /// `axis` needs a CSV path and an axis name.
     AxisUsage,
     /// The axis name is not known.
@@ -368,6 +403,7 @@ impl fmt::Display for ParseError {
             Self::Fetch(message) => formatter.write_str(message),
             Self::MarketChart(message) => formatter.write_str(message),
             Self::MarketReport(message) => formatter.write_str(message),
+            Self::StrategyRun(message) => formatter.write_str(message),
             Self::AxisUsage => write!(
                 formatter,
                 "usage: axis <csv-path> <direction|momentum|structure|progression>"
@@ -484,6 +520,62 @@ impl std::error::Error for ReportError {
     }
 }
 
+/// A `strategy-run` could not be completed.
+#[derive(Debug)]
+pub(crate) enum StrategyRunError {
+    /// The requested period selected no M1 candles.
+    EmptyPeriod {
+        /// The requested period label.
+        period: String,
+    },
+    /// The requested period produced no bars for the strategy timeframe.
+    NoTimeframeBars {
+        /// The strategy timeframe in seconds.
+        timeframe_secs: u64,
+        /// The requested period label.
+        period: String,
+    },
+    /// The strategy name is not known to the command.
+    UnknownStrategy {
+        /// The supplied name.
+        name: String,
+    },
+    /// The strategy timeframe is not one the data engine builds.
+    UnsupportedTimeframe {
+        /// The strategy timeframe in seconds.
+        timeframe_secs: u64,
+    },
+}
+
+impl fmt::Display for StrategyRunError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::EmptyPeriod { period } => {
+                write!(
+                    formatter,
+                    "no M1 candles in the requested period '{period}'"
+                )
+            }
+            Self::NoTimeframeBars {
+                timeframe_secs,
+                period,
+            } => write!(
+                formatter,
+                "the requested period '{period}' produced no {timeframe_secs}-second bars"
+            ),
+            Self::UnknownStrategy { name } => {
+                write!(formatter, "unknown strategy '{name}'; use axis-agreement")
+            }
+            Self::UnsupportedTimeframe { timeframe_secs } => write!(
+                formatter,
+                "the strategy timeframe {timeframe_secs} is not built by the data engine"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for StrategyRunError {}
+
 /// A command was parsed but could not be completed.
 #[derive(Debug)]
 pub(crate) enum RunError {
@@ -497,6 +589,8 @@ pub(crate) enum RunError {
     ChartWrite(FileExportError),
     /// The market report could not be completed.
     Report(ReportError),
+    /// The strategy run could not be completed.
+    StrategyRun(StrategyRunError),
     /// The research layers could not be built.
     Layers(LayerError),
     /// The research dataset could not be rendered.
@@ -517,6 +611,7 @@ impl fmt::Display for RunError {
             Self::Chart(source) => write!(formatter, "cannot render the market chart: {source}"),
             Self::ChartWrite(source) => write!(formatter, "cannot write the chart PNG: {source}"),
             Self::Report(source) => source.fmt(formatter),
+            Self::StrategyRun(source) => source.fmt(formatter),
             Self::Layers(source) => write!(formatter, "cannot build the research layers: {source}"),
             Self::ResearchExport(source) => {
                 write!(formatter, "cannot render the research dataset: {source}")
@@ -536,6 +631,7 @@ impl std::error::Error for RunError {
             Self::Chart(source) => Some(source),
             Self::ChartWrite(source) => Some(source),
             Self::Report(source) => Some(source),
+            Self::StrategyRun(source) => Some(source),
             Self::Layers(source) => Some(source),
             Self::ResearchExport(source) => Some(source),
             Self::Write(source) => Some(source),

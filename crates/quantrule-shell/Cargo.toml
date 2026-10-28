@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 png = "0.18"
 quantrule-analytics = { path = "../quantrule-analytics" }
+quantrule-backtest = { path = "../quantrule-backtest" }
 quantrule-data = { path = "../quantrule-data" }
 quantrule-model = { path = "../quantrule-model" }
 rusqlite = { version = "0.32", features = ["bundled"] }
