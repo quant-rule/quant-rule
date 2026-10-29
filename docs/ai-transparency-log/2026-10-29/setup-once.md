@@ -5,8 +5,8 @@
 - Work item: post-release documentation; no issue
 - Related: [`v0.2.0` release notes](../../releases/2026-10-28/v0.2.0.md)
 - Branch/worktree: `docs/setup-once` in `quant-rule--setup-docs`
-- PR: pending
-- Status: Implementation complete; checks pass; PR not yet open.
+- PR: [#194](https://github.com/quant-rule/quant-rule/pull/194)
+- Status: PR open; merge after checks pass.
 
 ## Intent and boundary
 
