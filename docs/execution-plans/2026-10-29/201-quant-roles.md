@@ -242,7 +242,7 @@ checking.
 | `cargo test` | 1,350 passed, 0 failed, 6 ignored. |
 | Changed paths | Only `AGENTS.md`, this plan, and the transparency log; no Rust, configuration, fixture, oracle, or CI change. |
 | Manual review | Role boundaries, specialization, and applicability rules read consistently; PR #203 adds the role reference and its links. |
-| Remote CI | Pending the push of `docs/202-quant-roles-agents`. |
+| Remote CI | PR #205: `sync` passed (14s), `verify` passed (1m33s). |
 
 ## Risks and recovery
 
