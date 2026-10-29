@@ -1,7 +1,7 @@
 # MVP v1 — Final Execution Plan
 
 - Date: 2026-10-28 (UTC)
-- Status: **Verified — 2026-10-28; two criteria unresolved: the 2 GiB performance budget ([#189](https://github.com/quant-rule/quant-rule/issues/189)) and the release tag (V2)**
+- Status: **Verified — 2026-10-28; one criterion unresolved: the release tag (V2)**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan of record after C0: `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`
 - AI transparency log: `docs/ai-transparency-log/2026-10-28/141-mvp-v1-final-contract.md`
@@ -1370,16 +1370,17 @@ test ! -e data/reports-portfolio-only/analytical
 
 ### 9.5 Performance
 
-- Observed on 2026-10-28 with the release binary (`target/release/quantrule`):
-  run A **29.14 s**, **3,890,928 KiB** peak RSS; run B **28.90 s**,
-  **4,032,920 KiB** peak RSS.
-- Budget: 2 GiB peak and 60 s wall time on the development machine. Wall time is
-  within budget; peak RSS is not.
-- The plan allows the analytical pass to run after the pipeline is released
-  (§9.5 fallback), but that is a production change and B4 does not patch it.
-  Filed as [#189](https://github.com/quant-rule/quant-rule/issues/189); the
-  release is blocked pending either an optimization or an approved higher
-  budget.
+- Budget: 2 GiB peak RSS and 60 s wall time on the development machine.
+- B4 observed 29.14 s / 3,890,928 KiB and 28.90 s / 4,032,920 KiB. The
+  analytical pass alone peaked at 4,040,568 KiB because it materialized Layers
+  1–3 for 670,196 bars and cloned the model run.
+- [#189](https://github.com/quant-rule/quant-rule/issues/189) fixed the cause
+  rather than splitting the pass: the analytical report now streams one bar at a
+  time from the run (`summarize_model_run`), and the layer builder borrows the
+  model instead of cloning it. B4's plan fallback (a second pass) was not needed.
+- Re-measured on 2026-10-28 after the fix: `backtest` **19.88 s**,
+  **811,760 KiB**; `report analytical` 19.51 s, 795,748 KiB; `report portfolio`
+  19.28 s, 811,608 KiB. All five bundles are byte-identical to the B4 run.
 - Report the benchmark in the PR; do not hide a regression.
 
 ---
