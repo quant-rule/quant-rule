@@ -5,8 +5,8 @@
 - Work item: post-release documentation correction; no issue
 - Related: [#141](https://github.com/quant-rule/quant-rule/issues/141), release `v0.2.0`
 - Branch/worktree: `docs/readme-report-bundles` in `quant-rule--readme-report-bundles`
-- PR: pending
-- Status: Implementation complete; checks pass; PR not yet open.
+- PR: [#193](https://github.com/quant-rule/quant-rule/pull/193)
+- Status: PR open; merge after checks pass.
 
 ## Intent and boundary
 
