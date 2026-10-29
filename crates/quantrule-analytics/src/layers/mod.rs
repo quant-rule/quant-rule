@@ -36,8 +36,8 @@ use std::fmt;
 use quantrule_data::Candle;
 use quantrule_model::aggregate::CrossTimeframeAggregates;
 use quantrule_model::readings::PivotScale;
-use quantrule_model::run::ModelRun;
-use quantrule_model::state::TimeframeInput;
+use quantrule_model::run::{ModelRun, TimeframeModel};
+use quantrule_model::state::{MarketStateConfig, TimeframeInput};
 
 use crate::alignment;
 use crate::resolution::{AxisResolution, AxisResolutions, clamp_unit};
@@ -241,10 +241,18 @@ pub fn build_layers(
     }
 
     let timeframes: Vec<u64> = ordered.iter().map(|input| input.timeframe_secs).collect();
+    let model_config = MarketStateConfig::new(config.structure_scale);
 
-    let mut series: Vec<TimeframeSeries> = Vec::with_capacity(ordered.len());
+    let mut models: Vec<TimeframeModel> = Vec::with_capacity(ordered.len());
     for input in &ordered {
-        series.push(TimeframeSeries::build(input, config)?);
+        let model =
+            TimeframeModel::compute(input, &model_config).ok_or(LayerError::ZeroTimeframe)?;
+        models.push(model);
+    }
+
+    let mut series = Vec::with_capacity(models.len());
+    for model in &models {
+        series.push(TimeframeSeries::new(model)?);
     }
 
     Ok(assemble(timeframes, series))
@@ -253,25 +261,76 @@ pub fn build_layers(
 /// Builds the research layers from an already computed model run.
 ///
 /// The run's per-timeframe models supply every bar; the layers do not recompute
-/// the readings or the axes. The run's structure scale must match `config`; the
-/// shell's cross-config validation enforces that.
+/// the readings or the axes, and they borrow the run instead of cloning it. The
+/// run's structure scale must match `config`; the shell's cross-config
+/// validation enforces that.
+///
+/// `timeframes` selects the subset to publish, in the run's ascending order. A
+/// timeframe that the run does not have is omitted.
 ///
 /// # Errors
 ///
-/// Returns [`LayerError::ZeroTimeframe`] when a run timeframe is zero.
+/// Returns [`LayerError::ZeroTimeframe`] when a selected run timeframe is zero.
 pub fn build_layers_from_run(
     run: &ModelRun,
+    timeframes: &[u64],
     _config: &LayerConfig,
 ) -> Result<LayerSet, LayerError> {
     let mut series = Vec::with_capacity(run.timeframes().len());
     for timeframe in run.timeframes() {
-        series.push(TimeframeSeries::from_model(timeframe.clone())?);
+        if !timeframes.contains(&timeframe.timeframe_secs()) {
+            continue;
+        }
+        series.push(TimeframeSeries::new(timeframe)?);
     }
-    let timeframes = series.iter().map(TimeframeSeries::timeframe_secs).collect();
-    Ok(assemble(timeframes, series))
+    let selected = series.iter().map(TimeframeSeries::timeframe_secs).collect();
+    Ok(assemble(selected, series))
 }
 
-fn assemble(timeframes: Vec<u64>, mut series: Vec<TimeframeSeries>) -> LayerSet {
+/// Summarizes a model run for the selected timeframes without building the
+/// layers.
+///
+/// The report needs the axis summaries, the correlations, and the layer row
+/// counts, not the rows themselves. Building them for a full year costs several
+/// gigabytes; this path streams one bar at a time and keeps only the
+/// accumulators. The numbers are the same as [`crate::summary::summarize`] over
+/// [`build_layers_from_run`] for the same run and timeframes.
+///
+/// Layer 3 is published only for an M1 base. Its row count is the number of M1
+/// bars that publish a snapshot, which is the condition the layer build uses.
+#[must_use]
+pub fn summarize_model_run(run: &ModelRun, timeframes: &[u64]) -> crate::summary::DatasetSummary {
+    let mut builder = crate::summary::DatasetSummaryBuilder::new();
+    let mut layer3_rows = 0;
+    for model in run.timeframes() {
+        if !timeframes.contains(&model.timeframe_secs()) {
+            continue;
+        }
+        builder.add_timeframe(
+            model.timeframe_secs(),
+            (0..model.len()).filter_map(|bar| {
+                let bar = model.bar(bar)?;
+                let metrics = Metrics::from_bars(
+                    &bar.direction,
+                    &bar.momentum,
+                    &bar.structure,
+                    &bar.progression,
+                    &bar.context,
+                );
+                Some(resolutions(&metrics))
+            }),
+        );
+        if model.timeframe_secs() == M1_SECONDS {
+            layer3_rows = (0..model.len())
+                .filter(|bar| model.snapshot_at(*bar).is_some())
+                .count();
+        }
+    }
+    builder.set_layer3_rows(layer3_rows);
+    builder.build()
+}
+
+fn assemble(timeframes: Vec<u64>, mut series: Vec<TimeframeSeries<'_>>) -> LayerSet {
     let mut layer1 = Vec::new();
     let mut layer2 = Vec::new();
     let mut consensus = Vec::new();

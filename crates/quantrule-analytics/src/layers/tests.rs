@@ -19,6 +19,7 @@ use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
 use super::{
     AGGREGATE_COLUMNS, HIGHER_BLOCK_COLUMNS, LAYER1_COLUMNS, LAYER2_COLUMNS, Layer2Row,
     LayerConfig, LayerError, Metrics, build_layers, build_layers_from_run, layer3_columns,
+    summarize_model_run,
 };
 use crate::resolution::clamp_unit;
 
@@ -976,7 +977,49 @@ fn layers_from_a_model_run_match_layers_from_inputs() {
 
     let from_inputs = build_layers(&inputs, &config).expect("the layers build");
     let run = ModelRun::compute(&inputs, &MarketStateConfig::new(config.structure_scale));
-    let from_run = build_layers_from_run(&run, &config).expect("the layers build from the run");
+    let from_run =
+        build_layers_from_run(&run, &[M1, M5], &config).expect("the layers build from the run");
 
     assert_eq!(from_run, from_inputs);
+}
+
+#[test]
+fn the_streamed_summary_matches_the_layer_summary() {
+    let m1 = candles(80, 0, 60, 0.0);
+    let m5 = candles(40, 0, 300, 0.5);
+    let inputs = [input(M1, &m1), input(M5, &m5)];
+    let config = LayerConfig::default();
+    let run = ModelRun::compute(&inputs, &MarketStateConfig::new(config.structure_scale));
+
+    let layers =
+        build_layers_from_run(&run, &[M1, M5], &config).expect("the layers build from the run");
+    assert_eq!(
+        summarize_model_run(&run, &[M1, M5]),
+        crate::summary::summarize(&layers)
+    );
+}
+
+#[test]
+fn the_streamed_summary_keeps_only_the_selected_timeframes() {
+    let m1 = candles(80, 0, 60, 0.0);
+    let m5 = candles(40, 0, 300, 0.5);
+    let inputs = [input(M1, &m1), input(M5, &m5)];
+    let config = LayerConfig::default();
+    let run = ModelRun::compute(&inputs, &MarketStateConfig::new(config.structure_scale));
+
+    let summary = summarize_model_run(&run, &[M5]);
+    assert_eq!(summary.layer1_rows, 40);
+    assert_eq!(summary.layer2_rows, 40);
+    assert_eq!(summary.layer3_rows, 0, "no M1 base, no Layer 3");
+    assert!(
+        summary.axes.iter().all(|axis| axis.timeframe_secs == M5),
+        "only the selected timeframe appears"
+    );
+    assert!(
+        summary
+            .relations
+            .iter()
+            .all(|relation| relation.timeframe_secs == M5),
+        "only the selected timeframe appears"
+    );
 }
