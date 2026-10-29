@@ -1309,7 +1309,7 @@ gh project item-edit --project-id "$PROJECT" --id "$(item_id <n>)" \
 | 14 | README, help, docs index, config and report references, ADRs match | C0, R1, R2, R3, B3, V2 | Help fixture test; README sections for the five bundles and `backtest` |
 | 15 | Version `0.2.0`; `v0.2.0` tagged on `main` | V2 | Workspace and lockfile at `0.2.0`; `git tag --list` shows `v0.2.0` after the release step |
 
-Verification record: [`docs/reports/2026-10-28/mvp-v1-verification.md`](../../reports/2026-10-28/mvp-v1-verification.md).
+Verification record: [`docs/reports/2026-10-28/mvp-v1-verification.md`](../../reports/2026-10-28/mvp-v1-verification.md). Post-release re-verification on 2026-10-29 (current `main`, after #189 and #196) re-ran the same matrix: 29 artifacts, two byte-identical runs, 1,350 tests, 900,300 / 900,816 KiB peak RSS; see the report §7.
 
 ### 9.1 Full-year commands
 
