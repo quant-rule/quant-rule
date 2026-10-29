@@ -4,6 +4,73 @@ A deterministic, rule-based trading signal engine.
 
 QuantRule is a shell application. You start it and write commands — print a candle series, compute an indicator, run a backtest. The shell is the whole interface: there is no graphical interface, no service, and no library to embed.
 
+## Set up once
+
+These steps are per machine, not per run. They put the Rust toolchain and the
+binary on `PATH`, so later commands are just `quantrule ...` from any directory.
+Use `~/.zshrc` for zsh or `~/.bashrc` for bash in each `echo` line.
+
+**1. Put the Rust toolchain on `PATH`.** The workspace pins Rust 1.99
+(`rust-version` in `Cargo.toml`). Install it with [rustup](https://rustup.rs) if
+`cargo` is missing. The installer usually adds `~/.cargo/bin` to the shell
+profile; if `cargo --version` still fails in a new terminal, append it yourself:
+
+```bash
+# Only when rustup is absent:
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Only when `cargo --version` still fails after reopening the terminal:
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc
+exec "$SHELL" -l
+cargo --version
+```
+
+Do not install a second `cargo` from the distribution package manager. It can
+shadow rustup and compile the project with a different toolchain.
+
+**2. Build the release binary once, from the repository root.**
+
+```bash
+cargo build --release -p quantrule-shell
+```
+
+**3. Put the binary on `PATH`.** Run this from the repository root, so `$PWD`
+expands to the absolute path:
+
+```bash
+echo "export PATH=\"$PWD/target/release:\$PATH\"" >> ~/.zshrc
+exec "$SHELL" -l
+quantrule help | head -3
+```
+
+`quantrule` now resolves from any directory. Config-internal paths stay anchored
+to the config files, so `quantrule backtest --config /absolute/path/run.json`
+works from anywhere. If you would rather not change your shell, call the binary
+by path instead: `./target/release/quantrule`.
+
+**4. Fetch the example data once.** The full-year example reads
+`data/SOLUSD_M1_2025-01-01_2025-12-31.csv`, which is not committed:
+
+```bash
+quantrule fetch sol/usd 2025-01-01 2025-12-31 \
+  --csv data/SOLUSD_M1_2025-01-01_2025-12-31.csv
+```
+
+It downloads about 31 MB and takes a few minutes.
+
+**5. Verify with one full run.**
+
+```bash
+test -f data/SOLUSD_M1_2025-01-01_2025-12-31.csv && echo "data ready"
+quantrule backtest --config config/examples/solusd-2025/run.json --out data/first-run
+```
+
+The last command prints five paths under `data/first-run/` and takes about 20
+seconds on a release build. When it does, the machine is set up.
+
+When the code changes, rebuild with `cargo build --release -p quantrule-shell`;
+the `PATH` entry keeps pointing at the new binary.
+
 ## Releases
 
 | Tag | Title | Notes |
@@ -12,7 +79,9 @@ QuantRule is a shell application. You start it and write commands — print a ca
 
 ## Build and run
 
-The workspace uses the Rust version in `Cargo.toml`.
+The workspace uses the Rust version in `Cargo.toml`. After the setup above,
+`quantrule` is the same binary as `cargo run -p quantrule-shell --`, so the
+commands below can drop the `cargo run` prefix.
 
 ```bash
 cargo run -p quantrule-shell
