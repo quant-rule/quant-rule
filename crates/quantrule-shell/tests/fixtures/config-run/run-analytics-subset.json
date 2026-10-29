@@ -1,0 +1,11 @@
+{
+  "schema": "quantrule.run/v1",
+  "name": "fixture-analytics-subset",
+  "data": "data.json",
+  "model": "model.json",
+  "strategy": "strategy.json",
+  "execution": "execution.json",
+  "portfolio": "portfolio.json",
+  "analytics": "analytics-15m.json",
+  "output_root": "../../../../target/report-tests/report-analytical-subset-default"
+}
