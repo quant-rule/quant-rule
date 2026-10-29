@@ -205,7 +205,11 @@ appears.
 The strategy, execution, and portfolio bundles are byte-identical to the
 pre-#196 baseline. The model and analytical bundles differ, as intended: #196
 publishes the newest origin-confirmed Progression leg and adds the continuous
-`progression_progress` chart field. On the SOLUSD 2025 H1 series the stage is
+`progression_progress` chart field. A field-level diff of the model report found
+changes only in the Progression axis statistics, the Progression chart fields,
+and the latest Progression leg; the analytical axes changed only in the four
+Progression rows, and the relations only in the 12 Progression pairs. On the
+SOLUSD 2025 H1 series the stage is
 available on 3,911 of 8,535 bars (45.8%), up from 52 bars (0.6%). The remaining
 4,624 null stages are 4,589 invalid denominator, 27 unstable target, 4 no
 target, and 4 unconfirmed origin. The three Progression goldens are temporarily

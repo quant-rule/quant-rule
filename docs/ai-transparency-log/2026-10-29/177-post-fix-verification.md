@@ -53,7 +53,10 @@ docs index, the plan's evidence line, and this log.
 - **The strategy, execution, and portfolio bundles are unchanged.** They are
   byte-identical to the pre-#196 baseline. The model and analytical bundles
   differ only because #196 publishes the confirmed Progression leg and the
-  continuous chart field.
+  continuous chart field. A field-level diff of the model report found changes
+  only in the Progression axis statistics, the Progression chart fields, and the
+  latest Progression leg; the analytical axes changed only in the four
+  Progression rows, and the relations only in the 12 Progression pairs.
 - **The 2026-10-28 report was stale, not wrong.** Its measurements were accurate
   for the commit it verified. The correction labels them as historical and adds
   the current evidence instead of rewriting them.
@@ -83,6 +86,8 @@ Commands were run in `quant-rule--177-mvp-v1-verification` on 2026-10-29.
 | Missing source | Exit 1; no run root created |
 | Strategy/execution/portfolio vs baseline | Byte-identical |
 | Model/analytical vs baseline | Differ, as intended by #196 |
+| Model report field diff | Only Progression axis statistics, chart fields, and latest leg |
+| Analytical axes/relations | Only the four Progression rows and the 12 Progression pairs |
 | H1 Progression stage availability | 3,911/8,535 (45.8%), up from 52/8,535 (0.6%) |
 
 ## Learning
