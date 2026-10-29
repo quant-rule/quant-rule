@@ -1,7 +1,7 @@
 # MVP v1 — Final Execution Plan
 
 - Date: 2026-10-28 (UTC)
-- Status: **Verified — 2026-10-28; one criterion unresolved: the release tag (V2)**
+- Status: **Delivered — 2026-10-28; `v0.2.0` tagged on `main`; release notes in [`docs/releases/2026-10-28/v0.2.0.md`](../../releases/2026-10-28/v0.2.0.md)**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan of record after C0: `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`
 - AI transparency log: `docs/ai-transparency-log/2026-10-28/141-mvp-v1-final-contract.md`
@@ -1307,7 +1307,7 @@ gh project item-edit --project-id "$PROJECT" --id "$(item_id <n>)" \
 | 12 | Two SOLUSD 2025 runs are byte-identical | B4 | `diff -r` identical; `sha256sum` identical over 29 files |
 | 13 | `fmt`, `clippy`, `test`, `doc` pass | Every item, final at V2 | B3: fmt, clippy, 1,346 tests, doc; B4 re-ran all four |
 | 14 | README, help, docs index, config and report references, ADRs match | C0, R1, R2, R3, B3, V2 | Help fixture test; README sections for the five bundles and `backtest` |
-| 15 | Version `0.2.0`; `v0.2.0` tagged on `main` | V2 | Pending V2 |
+| 15 | Version `0.2.0`; `v0.2.0` tagged on `main` | V2 | Workspace and lockfile at `0.2.0`; `git tag --list` shows `v0.2.0` after the release step |
 
 Verification record: [`docs/reports/2026-10-28/mvp-v1-verification.md`](../../reports/2026-10-28/mvp-v1-verification.md).
 

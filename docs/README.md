@@ -31,11 +31,17 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Per-engine reports | Approved (#168); implemented by #173, #174, #175, and #176 | `docs/reports/2026-10-28/per-engine-reports.md` |
 | SOLUSD 2025 example run | Approved (#168) | `config/examples/solusd-2025/` |
 
+## Releases
+
+| Release | Tag | Notes |
+|---|---|---|
+| MVP v1 | `v0.2.0` | `docs/releases/2026-10-28/v0.2.0.md` |
+
 ## Current programs
 
 | Program | Status | Plan |
 |---|---|---|
-| MVP v1: config-driven engines, five reports, and the full-execution SOLUSD 2025 run | Approved (#141); Phases 1–3 merged; C0 contract in progress | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
+| MVP v1: config-driven engines, five reports, and the full-execution SOLUSD 2025 run | Delivered (#141); tagged `v0.2.0` | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
 | Market analysis and full-execution backtest | Superseded for MVP v1 closeout by the 2026-10-28 plan; history preserved | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.

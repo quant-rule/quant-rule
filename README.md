@@ -4,6 +4,12 @@ A deterministic, rule-based trading signal engine.
 
 QuantRule is a shell application. You start it and write commands — print a candle series, compute an indicator, run a backtest. The shell is the whole interface: there is no graphical interface, no service, and no library to embed.
 
+## Releases
+
+| Tag | Title | Notes |
+|---|---|---|
+| `v0.2.0` | MVP v1 | [`docs/releases/2026-10-28/v0.2.0.md`](docs/releases/2026-10-28/v0.2.0.md) |
+
 ## Build and run
 
 The workspace uses the Rust version in `Cargo.toml`.
@@ -43,6 +49,13 @@ cargo run -p quantrule-shell -- db layer3 demo --limit 10 --db data/quantrule.db
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --csv data/XAUUSD_M1_2025-01-01_2025-12-31.csv
 cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1h --csv data/EURUSD_H1_2026-01-01_2026-06-30.csv
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauusd_2025.png
+```
+
+A full config-driven run and its five report bundles:
+
+```bash
+cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/solusd-2025
+cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/solusd-2025
 ```
 
 ## Commands
@@ -347,7 +360,7 @@ The counts satisfy `rows_read = accepted + rejected` and `accepted = evicted + r
 
 ## Scope
 
-This slice covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, the four-axis market state and its event and leg records, and a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h` with an optional chart. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. Backtests, strategies, and portfolio execution are not implemented yet.
+MVP v1 covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, the four-axis market state with its events and legs, a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h`, and a full config-driven backtest: the axis-agreement strategy, next-open execution with an ATR bracket, portfolio accounting with commission, funding, and a drawdown halt, and the five report bundles. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. A run is deterministic: the same data and configuration produce the same bundles and the same printed output.
 
 ## Verification
 

@@ -4,7 +4,8 @@
 > config-driven engines, five per-engine reports, portfolio accounting, the
 > `backtest` command, verification, and the `v0.2.0` release — is now governed by
 > [`docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`](../2026-10-28/141-mvp-v1-final-contract.md).
-> This file remains the record of Phases 1–3 and is not rewritten.
+> This file remains the record of Phases 1–3 and is not rewritten. The program
+> was delivered and tagged `v0.2.0` (MVP v1) on 2026-10-28.
 
 - Date: 2026-10-27 (UTC)
 - Status: **Approved — 2026-10-27. Implementation proceeds one work item at a time.**
