@@ -93,6 +93,7 @@
     `docs/README.md` from the role page, and the role page from both indexes.
   - The page names `AGENTS.md` as normative and does not restate the role text
     as a second authority.
+  - PR #206: `sync` passed (14s) and `verify` passed (1m37s).
 - **Learning:**
   - The plain-language page needs the "when required" matrix more than a
     paraphrase of the role definitions. The matrix is what a maintainer uses

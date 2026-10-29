@@ -245,6 +245,7 @@ checking.
 | Manual review | Role boundaries, specialization, and applicability rules read consistently; PR #203 adds the role reference and its links. |
 | Remote CI | PR #205: `sync` passed (14s), `verify` passed (1m33s). |
 | PR #203 | Role reference and links added; `git diff --check` clean; `cargo test` 1,350 passed; relative links resolve. |
+| PR #206 CI | `sync` passed (14s), `verify` passed (1m37s). |
 
 ## Risks and recovery
 
