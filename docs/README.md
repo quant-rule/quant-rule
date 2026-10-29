@@ -35,7 +35,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 
 | Evidence | Status | Path |
 |---|---|---|
-| MVP v1 verification | Verified (#177); release notes `v0.2.0` | `docs/reports/2026-10-28/mvp-v1-verification.md` |
+| MVP v1 verification | Verified (#177); re-verified on current `main` after #189 and #196; release notes `v0.2.0` | `docs/reports/2026-10-28/mvp-v1-verification.md` |
 
 ## Releases
 
