@@ -10,8 +10,8 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use quantrule_analytics::layers::{LayerConfig, build_layers_from_run};
-use quantrule_analytics::summary::{AxisSummary, DatasetSummary, RelationSummary, summarize};
+use quantrule_analytics::layers::summarize_model_run;
+use quantrule_analytics::summary::{AxisSummary, DatasetSummary, RelationSummary};
 use quantrule_backtest::execution::{
     Fill, FillReason, OrderRecord, OrderState, RejectReason, Rejection, Trigger,
 };
@@ -957,12 +957,8 @@ pub(crate) fn analytical_bundle_from(
 ) -> Result<BundleOutput, RunError> {
     let bundle = out.join("analytical");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
-    let layers = build_layers_from_run(
-        model_run,
-        &LayerConfig::new(config.analytics.structure_scale),
-    )
-    .map_err(RunError::Layers)?;
-    let summary = summarize(&layers);
+    let selected = selected_timeframes(config);
+    let summary = summarize_model_run(model_run, &selected);
 
     let axes_csv = axes_csv(&summary.axes);
     let relations_csv = if config.analytics.relations {
@@ -981,8 +977,14 @@ pub(crate) fn analytical_bundle_from(
         "provenance.json",
     ]);
     let files = config_files(config);
-    let first_open_time = layers.layer1.iter().map(|row| row.candle.timestamp()).min();
-    let last_open_time = layers.layer1.iter().map(|row| row.candle.timestamp()).max();
+    let first_open_time = selected_models(model_run, &selected)
+        .filter_map(|timeframe| timeframe.candle(0))
+        .map(|candle| candle.timestamp())
+        .min();
+    let last_open_time = selected_models(model_run, &selected)
+        .filter_map(|timeframe| timeframe.candle(timeframe.len().saturating_sub(1)))
+        .map(|candle| candle.timestamp())
+        .max();
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "analytical",
         data_version: &config.data.data_version,
@@ -1013,6 +1015,26 @@ pub(crate) fn analytical_bundle_from(
         names,
         json,
     })
+}
+
+/// The configured analytical timeframes, in seconds.
+fn selected_timeframes(config: &RunConfig) -> Vec<u64> {
+    config
+        .analytics
+        .timeframes
+        .iter()
+        .map(|timeframe| u64::from(timeframe.seconds()))
+        .collect()
+}
+
+/// The run's models for the selected timeframes.
+fn selected_models<'a>(
+    run: &'a ModelRun,
+    selected: &'a [u64],
+) -> impl Iterator<Item = &'a quantrule_model::run::TimeframeModel> {
+    run.timeframes()
+        .iter()
+        .filter(move |timeframe| selected.contains(&timeframe.timeframe_secs()))
 }
 
 fn axes_csv(axes: &[AxisSummary]) -> String {

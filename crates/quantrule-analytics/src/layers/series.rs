@@ -16,33 +16,22 @@ use quantrule_model::axes::structure::registry::ConfirmedLevel;
 use quantrule_model::events::EventRecord;
 use quantrule_model::readings::PivotSeries;
 use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::{MarketStateConfig, TimeframeConsensus, TimeframeInput};
+use quantrule_model::state::TimeframeConsensus;
 
+use super::LayerError;
 use super::metrics::{Metrics, ReadingsSnapshot};
-use super::{LayerConfig, LayerError};
 
 /// One timeframe's model series, adapted for the layer builder.
-pub(crate) struct TimeframeSeries {
-    model: TimeframeModel,
+///
+/// The series borrows the model rather than owning it: the layers are a view of
+/// the run, and a clone would double the peak memory of a full-year build.
+pub(crate) struct TimeframeSeries<'a> {
+    model: &'a TimeframeModel,
 }
 
-impl TimeframeSeries {
-    /// Builds the analytics view from the model-owned timeframe computation.
-    pub(crate) fn build(
-        input: &TimeframeInput<'_>,
-        config: &LayerConfig,
-    ) -> Result<Self, LayerError> {
-        if NonZeroU64::new(input.timeframe_secs).is_none() {
-            return Err(LayerError::ZeroTimeframe);
-        }
-        let model_config = MarketStateConfig::new(config.structure_scale);
-        let model =
-            TimeframeModel::compute(input, &model_config).ok_or(LayerError::ZeroTimeframe)?;
-        Self::from_model(model)
-    }
-
+impl<'a> TimeframeSeries<'a> {
     /// Wraps an already computed model timeframe.
-    pub(crate) fn from_model(model: TimeframeModel) -> Result<Self, LayerError> {
+    pub(crate) fn new(model: &'a TimeframeModel) -> Result<Self, LayerError> {
         if NonZeroU64::new(model.timeframe_secs()).is_none() {
             return Err(LayerError::ZeroTimeframe);
         }
@@ -112,7 +101,7 @@ impl TimeframeSeries {
     }
 
     /// The aggregate input at `bar`.
-    pub(crate) fn snapshot_at(&mut self, bar: usize) -> Option<TimeframeSnapshot> {
+    pub(crate) fn snapshot_at(&self, bar: usize) -> Option<TimeframeSnapshot> {
         self.model.snapshot_at(bar)
     }
 }

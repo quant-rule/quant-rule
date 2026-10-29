@@ -210,8 +210,11 @@ Records:
 
 ## 9. Analytical report
 
-The analytical report runs the model and builds the research layers from that
-model run. It does not run the strategy, execution, or portfolio.
+The analytical report runs the model and summarizes the research layer rows of
+that model run for the timeframes `analytics.json` names. It streams one bar at a
+time and never holds the layer set: the counts and statistics are the same as a
+full layer build over the same run. It does not run the strategy, execution, or
+portfolio.
 
 Artifacts:
 

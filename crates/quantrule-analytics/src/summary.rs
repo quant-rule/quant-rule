@@ -9,8 +9,8 @@
 //! accumulation order is the row order, so the same layers produce the same
 //! numbers.
 
-use crate::layers::{Layer2Row, LayerSet};
-use crate::resolution::AxisResolution;
+use crate::layers::LayerSet;
+use crate::resolution::{AxisResolution, AxisResolutions};
 
 /// The four axis names, in contract order.
 pub const AXES: [&str; 4] = ["direction", "momentum", "structure", "progression"];
@@ -74,26 +74,54 @@ pub struct DatasetSummary {
 /// Summarizes the layers.
 #[must_use]
 pub fn summarize(layers: &LayerSet) -> DatasetSummary {
-    let mut axes = Vec::new();
-    let mut relations = Vec::new();
-
+    let mut builder = DatasetSummaryBuilder::new();
     for timeframe in &layers.timeframes {
-        let rows: Vec<&Layer2Row> = layers
+        let rows = layers
             .layer2
             .iter()
-            .filter(|row| row.layer1.timeframe_secs == *timeframe)
-            .collect();
+            .filter(|row| row.layer1.timeframe_secs == *timeframe);
+        builder.add_timeframe(*timeframe, rows.map(|row| row.resolution));
+    }
+    builder.set_layer3_rows(layers.layer3.len());
+    builder.build()
+}
 
+/// Accumulates a [`DatasetSummary`] one timeframe at a time.
+///
+/// The full-layer summary and the streaming report path share this accumulator,
+/// so a long run can be summarized without holding every row at once. Rows must
+/// arrive in bar order, which is the order the layer build uses.
+#[derive(Debug, Default)]
+pub struct DatasetSummaryBuilder {
+    axes: Vec<AxisSummary>,
+    relations: Vec<RelationSummary>,
+    layer1_rows: usize,
+    layer2_rows: usize,
+    layer3_rows: usize,
+}
+
+impl DatasetSummaryBuilder {
+    /// Creates an empty builder.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds one timeframe's rows, in bar order.
+    ///
+    /// One row is one Layer 1 and one Layer 2 row, so both counts grow by the
+    /// number of rows added.
+    pub fn add_timeframe<I>(&mut self, timeframe_secs: u64, rows: I)
+    where
+        I: IntoIterator<Item = AxisResolutions>,
+    {
         let mut axis_accumulators = [AxisAccumulator::default(); 4];
         let mut pair_accumulators = [PairAccumulator::default(); 6];
+        let mut count = 0_usize;
 
-        for row in &rows {
-            let values = [
-                row.resolution.direction,
-                row.resolution.momentum,
-                row.resolution.structure,
-                row.resolution.progression,
-            ];
+        for row in rows {
+            count += 1;
+            let values = [row.direction, row.momentum, row.structure, row.progression];
             for (index, value) in values.iter().enumerate() {
                 axis_accumulators[index].add(*value);
             }
@@ -103,25 +131,37 @@ pub fn summarize(layers: &LayerSet) -> DatasetSummary {
         }
 
         for (index, axis) in AXES.iter().enumerate() {
-            axes.push(axis_accumulators[index].summary(*timeframe, axis, rows.len()));
+            self.axes
+                .push(axis_accumulators[index].summary(timeframe_secs, axis, count));
         }
         for (index, (left, right)) in PAIRS.iter().enumerate() {
-            relations.push(RelationSummary {
-                timeframe_secs: *timeframe,
+            self.relations.push(RelationSummary {
+                timeframe_secs,
                 left: AXES[*left],
                 right: AXES[*right],
                 count: pair_accumulators[index].count,
                 correlation: pair_accumulators[index].correlation(),
             });
         }
+        self.layer1_rows += count;
+        self.layer2_rows += count;
     }
 
-    DatasetSummary {
-        layer1_rows: layers.layer1.len(),
-        layer2_rows: layers.layer2.len(),
-        layer3_rows: layers.layer3.len(),
-        axes,
-        relations,
+    /// Records the Layer 3 row count.
+    pub fn set_layer3_rows(&mut self, rows: usize) {
+        self.layer3_rows = rows;
+    }
+
+    /// Finishes the summary.
+    #[must_use]
+    pub fn build(self) -> DatasetSummary {
+        DatasetSummary {
+            layer1_rows: self.layer1_rows,
+            layer2_rows: self.layer2_rows,
+            layer3_rows: self.layer3_rows,
+            axes: self.axes,
+            relations: self.relations,
+        }
     }
 }
 

@@ -418,3 +418,36 @@ fn report_requires_an_engine_and_a_config() {
     assert!(!output.status.success());
     assert!(error(&output).contains("unknown report engine"));
 }
+
+#[test]
+fn the_analytical_bundle_uses_the_configured_timeframes() {
+    let out = output_dir("report-analytical-subset");
+    let config = fixture("config-run/run-analytics-subset.json");
+    let output = run(&[
+        "report",
+        "analytical",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert_success(&output);
+
+    let bundle = out.join("analytical");
+    let axes = String::from_utf8(read(&bundle.join("axes.csv"))).expect("csv is UTF-8");
+    assert_eq!(axes.lines().count(), 5, "one timeframe by four axes");
+    assert!(
+        axes.lines().skip(1).all(|line| line.contains(",15m,")),
+        "{axes}"
+    );
+
+    let relations = String::from_utf8(read(&bundle.join("relations.csv"))).expect("csv is UTF-8");
+    assert_eq!(relations.lines().count(), 7, "one timeframe by six pairs");
+
+    let report = String::from_utf8(read(&bundle.join("report.json"))).expect("json is UTF-8");
+    assert!(
+        report.contains("\"layer3_rows\":0"),
+        "no M1 base, no Layer 3: {report}"
+    );
+    assert!(report.contains("\"timeframes\":[\"15m\"]"), "{report}");
+}
