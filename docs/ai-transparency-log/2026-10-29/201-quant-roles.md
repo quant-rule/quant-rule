@@ -100,3 +100,30 @@
     when deciding whether a change needs a validation pass.
   - The worked example makes the handoff concrete without turning the page into
     a tutorial.
+
+## Entry: PR checklist (PR #204)
+
+- **Intent and boundary:** Add a pull request template that keeps the required
+  PR sections and makes the quant validation evidence visible. No CI or
+  production behavior changes.
+- **Implemented:**
+  - `.github/pull_request_template.md` with Summary, Closes, Scope, Changes,
+    Verification and Claim, Risks, Quant validation, and AI transparency.
+  - The Quant validation section offers the two cases from `AGENTS.md`: not
+    applicable, or a validator record.
+- **Verification and evidence:**
+  - `git diff --check`: clean.
+  - `cargo test`: 1,350 passed, 0 failed, 6 ignored.
+  - The file is at GitHub's documented default template path. It will render
+    on pull requests opened after this change reaches `main`; the PR that adds
+    it cannot use it, so the rendering observation is deferred and recorded as
+    a limitation.
+- **Learning:**
+  - The template mirrors the required fields instead of restating the role
+    rules. A long template would be ignored; the validator section is two
+    checkboxes and one line.
+  - The checkbox is a prompt, not a gate. The human and CI still decide whether
+    the evidence is sufficient.
+  - The branch was based on the merge of #205, before #206 merged. Merging
+    `main` into the branch brought the role-reference plan updates without a
+    history rewrite; the template file itself did not conflict.
