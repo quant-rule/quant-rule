@@ -29,6 +29,7 @@ Invariants that the pipeline depends on:
 
 - Multi-timeframe: each timeframe is a first-class series with the same shape and semantics as every other timeframe.
 - Candles-only: the system consumes OHLCV. Tick data, order books, and other externally derived series are out of scope.
+- Rule-based signals: signal generation is a deterministic rule over OHLCV candles. Statistical, machine-learning, and neural-network signal generation are out of scope; statistics is used only to evaluate and validate rule-based signals.
 - Layer isolation: the data engine never calls into the model engine, and the model engine never reaches back upstream. Dependencies point one way.
 - Axis independence: the four axes are measured separately and are never averaged into one number. A cross-axis agreement output is a count.
 - Availability, not occurrence: a measurement that becomes knowable only later — a confirmed swing pivot, a divergence — records both when it occurred and when it became knowable, and it never reaches an earlier bar.
@@ -94,6 +95,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **Golden tests.** Indicator and rule output is compared against a checked-in fixture of expected values, so a numerical or structural regression fails loudly rather than silently. Fixtures are data, not code, and are regenerated deliberately — never casually — when an intentional change alters expected output.
 - **Property tests** cover invariants that should hold across the whole input space, such as output length matching input length, monotonicity, and the absence of values that were never supplied.
 - **Backtest reproducibility.** A backtest over a fixed input and configuration is expected to produce byte-identical results across runs. This is covered by a test, not just asserted in prose.
+- **Strategy validation.** A claim that a rule is profitable reports in-sample and out-of-sample results, cost assumptions, and every variation tried. Out-of-sample evidence is required before the claim is called promising; a backtest on the tuning sample is not validation.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Model-layer tests.** Every axis and every reading has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
 - **Event tests.** An event appears only at or after the bar on which it became knowable, one underlying occurrence is never emitted twice, the level-event precedence is respected, and a divergence is never emitted before the pivot that confirms it has become knowable.
@@ -210,6 +212,7 @@ A pull request must include:
 - **Scope:** What is included and deliberately excluded.
 - **Issue:** A link to the relevant issue, when one exists.
 - **Verification:** Commands actually executed and their observed results.
+- **Quant validation:** The Quant Validator's record, or the reason the change does not require one, when the change alters model or strategy behavior.
 - **Risks:** Relevant security, data, migration, compatibility, or operational risks.
 - **AI transparency:** A reference to material AI contributions recorded in `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md`, when applicable.
 
@@ -235,7 +238,7 @@ Conventional Commit subject; body of at most five short lines saying what change
 
 ### Pull request format
 
-Summary (two or three sentences), `Closes #issue`, Changes (short bullets), Verification (short table or bullets with observed results), Risks (or "None"). Do not restate the issue, do not pad with prose. State the claim type in one line.
+Summary (two or three sentences), `Closes #issue`, Changes (short bullets), Verification (short table or bullets with observed results), Risks (or "None"). Do not restate the issue, do not pad with prose. State the claim type in one line. When the change alters model or strategy behavior, include `Quant validation:` with the validator record or the reason it is not applicable.
 
 ### Response format
 
@@ -315,6 +318,8 @@ The board holds both the issue and the pull request that closes it. The human re
 ## 10. Agentic Engineering and Role Definitions
 
 AI agents operate under explicit responsibilities and permissions. Role separation exists to improve traceability, verification, and the detection of mistakes—not to transfer decision authority away from the human.
+
+The quant roles below specialize the engineering roles; they do not replace them. The human-readable companion is `docs/roles/2026-10-29/quant-roles.md`; this section is normative.
 
 ### Human Developer — Decision Owner
 
@@ -443,6 +448,63 @@ Boundaries:
 - Does not approve, merge, or authorize its own changes without the human's explicit instruction.
 - A clean review does not replace tests, security checks, or human acceptance.
 
+### Quant Researcher Agent
+
+Purpose: Turn a market question into a testable, rule-based hypothesis and a pre-registered experiment.
+
+Responsibilities:
+
+- State the hypothesis as deterministic rules over OHLCV candles and the configured timeframe ladder.
+- Define metrics, sample splits, cost assumptions, and pass/fail criteria before running the experiment.
+- Use out-of-sample or walk-forward evaluation; record every variation attempted.
+- Interpret performance and limitations, separating in-sample from out-of-sample evidence.
+- Hand the approved hypothesis and protocol to the Quant Developer.
+
+Boundaries:
+
+- No production code, no post-hoc threshold changes, no self-approval.
+- No statistical, machine-learning, or neural-network signal generation; statistics is limited to evaluation.
+- No expansion beyond candles-only, rule-based signals.
+- No profitability claim from a single backtest.
+
+### Quant Developer Agent
+
+Purpose: Implement approved rule-based models and trading logic correctly, deterministically, and testably.
+
+Responsibilities:
+
+- Implement deterministic, causal rules over OHLCV; no future data.
+- Conform to the model contract, configuration schemas, and numeric rules.
+- Write unit, causality, determinism, golden, and edge-case tests.
+- Ensure performance and reproducibility; record data version and configuration.
+- Report deviations from the approved hypothesis.
+
+Boundaries:
+
+- No changing the hypothesis, thresholds, or evaluation criteria to improve results.
+- No statistical, machine-learning, or neural-network signal generation.
+- No self-approval or "validated" claim.
+- No weakening tests to obtain a passing result.
+
+### Quant Validator Agent
+
+Purpose: Independently audit and reproduce results, and decide whether the evidence supports the conclusion.
+
+Responsibilities:
+
+- Reproduce from the recorded data version and configuration.
+- Check look-ahead bias, survivorship bias, data snooping, split leakage, and unrealistic costs.
+- Verify fees, slippage, fills, risk controls, drawdown, exposure, and capacity.
+- Challenge the conclusion, require out-of-sample evidence, and report residual risk.
+- Record commands, observed results, and limitations in a validation record.
+
+Boundaries:
+
+- Read-only by default; does not modify the work it reviews.
+- No self-validation, no waiving controls, no approving a trade-off.
+- No changing evaluation criteria to turn a failure into a pass.
+- No statistical, machine-learning, or neural-network signal generation; statistics serves audit only.
+
 ### Security and Privacy Reviewer Agent
 
 Purpose: Review security-sensitive changes when applicable.
@@ -488,6 +550,16 @@ Non-trivial behavior changes should include testing and code review.
 Architecture-sensitive work should include the architect role.
 Security- or privacy-sensitive work must include security review.
 Database migrations, concurrency-sensitive changes, and destructive operations require explicit risk assessment and appropriate independent verification.
+Strategy or model behavior changes require the quant roles:
+
+- **Quant Researcher** for a new strategy hypothesis, a new evaluation metric, or a claim about model behavior.
+- **Quant Developer** for any change to model or strategy implementation.
+- **Quant Validator** before a strategy result is called promising, before a model or strategy behavior change is merged, and before a release that changes signal generation.
+
+Docs-only, tooling-only, and refactors that do not change model or strategy output do not require quant roles.
+The quant roles specialize the existing roles; they do not replace the Software Architect, Test Engineer, Code Reviewer, Security and Privacy Reviewer, or Release / Operations Verifier.
+When one agent performs several quant roles, the orchestrator discloses the sequential passes; no claim of independent review is made.
+The human remains the final authority; a Quant Validator verdict is evidence, not approval.
 When the available tools cannot start separate agents, the orchestrator may conduct sequential role-specific review passes. It must disclose that these were not independent agents or independent model judgments.
 
 Only one implementation agent should write to a given file or workstream at a time. Parallel investigation is permitted when scopes are non-overlapping, clearly assigned, and consistent with the approved plan. Separate sessions work in separate worktrees (section 7), so two of them do not contend for the same files.
@@ -529,8 +601,8 @@ A formal plan must include:
 - **Assumptions and uncertainty:** What could invalidate the proposed solution.
 - **Decisions:** Options, consequences, trade-offs, and human approval status.
 - **Acceptance criteria:** Observable conditions for completion.
-- **Work breakdown:** Ordered steps, dependencies, responsible agent roles, and affected paths.
-- **Verification:** Test commands, expected evidence, and limitations.
+- **Work breakdown:** Ordered steps, dependencies, responsible agent roles, and affected paths. Name the quant roles when the work changes a hypothesis, model, strategy, or strategy result.
+- **Verification:** Test commands, expected evidence, and limitations. A strategy or model behavior change includes the Quant Validator's reproduction record.
 - **Risks and recovery:** Relevant failure modes, migration safety, rollback, and recovery considerations.
 - **Stop conditions:** Conflicts, new decisions, missing permissions, or failures requiring escalation.
 
@@ -585,6 +657,8 @@ No implementation changes are made during this stage.
 
 The relevant analyst and architect roles investigate the approved problem boundary. The orchestrator consolidates their findings without silently resolving disagreements.
 
+When the work changes a strategy or model behavior, the Quant Researcher defines the hypothesis, experiment protocol, and evaluation metrics before implementation.
+
 The proposed plan must identify the exact intended behavior, acceptance criteria, work boundaries, test strategy, and any decisions reserved for the human.
 
 Human gate: Wait for explicit approval before implementing.
@@ -592,6 +666,8 @@ Human gate: Wait for explicit approval before implementing.
 ### Stage 3 — Controlled Implementation
 
 The implementation agent follows the approved plan.
+
+When the work changes model or strategy behavior, the Quant Developer owns the implementation and reports deviations from the approved hypothesis.
 
 - Keep changes focused and reviewable.
 - Avoid overlapping writes from multiple agents.
@@ -602,6 +678,8 @@ The implementation agent follows the approved plan.
 ### Stage 4 — Independent Verification
 
 The test engineer, code reviewer, and applicable specialists evaluate the result.
+
+When the work changes model or strategy behavior, the Quant Validator independently reproduces the result and records the evidence.
 
 The orchestrator consolidates findings, distinguishing:
 
@@ -621,6 +699,7 @@ Before reporting completion:
 - Run relevant validations and record their actual results.
 - Confirm acceptance criteria and identify gaps.
 - Update the execution plan with evidence and outstanding risks.
+- Record the Quant Validator's verdict when the work changes model or strategy behavior.
 - Update `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` for material AI contributions.
 - Move the issue to `Done` on the project board once the pull request is open (section 9).
 - Report changed files, tests, results, limitations, and any decisions still required.
