@@ -2,8 +2,8 @@
 
 - Date: 2026-10-29 (UTC)
 - Status: **Approved — 2026-10-29.** The human authorized the full implementation
-  with "proceed with the full implementation". PR #205 (AGENTS.md) is merged;
-  PR #203 (role reference) is in progress; PR #204 (PR checklist) is pending.
+  with "proceed with the full implementation". PR #205 (AGENTS.md) and PR #206
+  (role reference) are merged; PR #207 (PR checklist) is in progress.
   Verification evidence is recorded as it is observed.
 - Container: [#201](https://github.com/quant-rule/quant-rule/issues/201)
 - Sub-issues: [#202](https://github.com/quant-rule/quant-rule/issues/202) (AGENTS.md),
@@ -246,6 +246,8 @@ checking.
 | Remote CI | PR #205: `sync` passed (14s), `verify` passed (1m33s). |
 | PR #203 | Role reference and links added; `git diff --check` clean; `cargo test` 1,350 passed; relative links resolve. |
 | PR #206 CI | `sync` passed (14s), `verify` passed (1m37s). |
+| PR #204 | PR template added at `.github/pull_request_template.md`; `git diff --check` clean; `cargo test` 1,350 passed; rendering is deferred to the first PR opened after merge. |
+| PR #207 CI | Pending the post-merge push. |
 
 ## Risks and recovery
 
