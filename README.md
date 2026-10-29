@@ -8,7 +8,7 @@ QuantRule is a shell application. You start it and write commands — print a ca
 
 These steps are per machine, not per run. They put the Rust toolchain and the
 binary on `PATH`, so later commands are just `quantrule ...` from any directory.
-Use `~/.zshrc` for zsh or `~/.bashrc` for bash in each `echo` line.
+The examples use `~/.bashrc`. If your shell is zsh, substitute `~/.zshrc`.
 
 **1. Put the Rust toolchain on `PATH`.** The workspace pins Rust 1.99
 (`rust-version` in `Cargo.toml`). Install it with [rustup](https://rustup.rs) if
@@ -20,7 +20,7 @@ profile; if `cargo --version` still fails in a new terminal, append it yourself:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Only when `cargo --version` still fails after reopening the terminal:
-echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 exec "$SHELL" -l
 cargo --version
 ```
@@ -38,7 +38,7 @@ cargo build --release -p quantrule-shell
 expands to the absolute path:
 
 ```bash
-echo "export PATH=\"$PWD/target/release:\$PATH\"" >> ~/.zshrc
+echo "export PATH=\"$PWD/target/release:\$PATH\"" >> ~/.bashrc
 exec "$SHELL" -l
 quantrule help | head -3
 ```

@@ -70,3 +70,13 @@ generated line is expected to be empty there; the main checkout has the binary.
   already present; the documentation should say so explicitly.
 - Setup instructions are only proven when the last step is a real run, not a
   version check.
+
+## Correction (2026-10-29)
+
+The first version used `~/.zshrc` in the examples. The prompt was misread: the
+machine's shell is bash, and the human stated that bash is always the default.
+The examples now use `~/.bashrc` and name zsh only as a substitute. At the
+human's explicit request the two `export` lines were appended to `~/.bashrc`,
+which is a symlink into the human's dotfiles repository; the dotfiles change is
+left uncommitted for the human to review. A fresh interactive bash resolves
+`cargo 1.99.1` and `quantrule` from `/home/zantgo/Proyectos/quant-rule/target/release`.
