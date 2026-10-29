@@ -5,8 +5,9 @@
 - Work item: [#201](https://github.com/quant-rule/quant-rule/issues/201)
 - Execution plan:
   [`201-quant-roles.md`](../../execution-plans/2026-10-29/201-quant-roles.md)
-- Branch/worktree: `docs/202-quant-roles-agents` in
-  `quant-rule--202-quant-roles-agents`
+- Branches/worktrees: `docs/202-quant-roles-agents` in
+  `quant-rule--202-quant-roles-agents` (merged), then
+  `docs/203-quant-roles-reference` in `quant-rule--203-quant-roles-reference`
 - Status: implementation in progress; verification evidence is added as it is
   observed.
 
@@ -72,3 +73,30 @@
   - The statistics boundary needed to be stated in the invariant and in every
     role boundary. A single mention in one place would let a later change treat
     statistical signal generation as permitted.
+
+## Entry: role reference (PR #203)
+
+- **Intent and boundary:** Publish the plain-language reference for the three
+  quant roles and link it from the docs index and README. This entry does not
+  change the normative role text in `AGENTS.md`.
+- **Implemented:**
+  - `docs/roles/2026-10-29/quant-roles.md`: purpose, role table, handoff,
+    applicability matrix, relationship to the engineering roles, scope rules,
+    a worked threshold example, and explicit non-goals.
+  - `docs/README.md`: an "Agent roles" kind and a "Current roles" entry.
+  - `README.md`: a "Developing QuantRule" section linking the role reference,
+    `AGENTS.md`, and the docs index.
+- **Verification and evidence:**
+  - `git diff --check`: clean.
+  - `cargo test`: 1,350 passed, 0 failed, 6 ignored.
+  - Relative links resolve: `AGENTS.md` from the role page,
+    `docs/README.md` from the role page, and the role page from both indexes.
+  - The page names `AGENTS.md` as normative and does not restate the role text
+    as a second authority.
+  - PR #206: `sync` passed (14s) and `verify` passed (1m37s).
+- **Learning:**
+  - The plain-language page needs the "when required" matrix more than a
+    paraphrase of the role definitions. The matrix is what a maintainer uses
+    when deciding whether a change needs a validation pass.
+  - The worked example makes the handoff concrete without turning the page into
+    a tutorial.

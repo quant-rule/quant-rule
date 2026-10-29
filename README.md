@@ -496,3 +496,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 cargo doc --no-deps
 ```
+
+## Developing QuantRule
+
+The agent roles, review gates, and verification rules are in [`AGENTS.md`](AGENTS.md). The plain-language reference for the Quant Researcher, Quant Developer, and Quant Validator is [`docs/roles/2026-10-29/quant-roles.md`](docs/roles/2026-10-29/quant-roles.md). The rest of the documentation is indexed in [`docs/README.md`](docs/README.md).
