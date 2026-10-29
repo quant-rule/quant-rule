@@ -27,9 +27,15 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 
 | Contract | Status | Path |
 |---|---|---|
-| Per-engine configuration | Approved (#168); implemented by the config loader (#170) | `docs/config/2026-10-28/per-engine-config.md` |
-| Per-engine reports | Approved (#168); implemented by #173, #174, #175, and #176 | `docs/reports/2026-10-28/per-engine-reports.md` |
-| SOLUSD 2025 example run | Approved (#168) | `config/examples/solusd-2025/` |
+| Per-engine configuration | Approved (#168); implemented by #170; used by `report` and `backtest` (#172–#176); verified by #177 | `docs/config/2026-10-28/per-engine-config.md` |
+| Per-engine reports | Approved (#168); implemented by #173–#176; verified by #177 | `docs/reports/2026-10-28/per-engine-reports.md` |
+| SOLUSD 2025 example run | Verified by #177: five bundles, 29 artifacts, two byte-identical runs | `config/examples/solusd-2025/` |
+
+## Current evidence
+
+| Evidence | Status | Path |
+|---|---|---|
+| MVP v1 verification | Verified (#177); release notes `v0.2.0` | `docs/reports/2026-10-28/mvp-v1-verification.md` |
 
 ## Releases
 

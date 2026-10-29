@@ -94,8 +94,9 @@ CSV header: Date,Open,High,Low,Close,Volume
 Timestamp: YYYY-MM-DD HH:MM:SS+00:00
 The candle and timeframe display commands retain the last 1000 candles.
 Model analysis uses the full series up to 100000 by default; --window latest uses the last 1000 per timeframe.
-market-report uses the extended range up to 600000 M1 candles; existing commands keep the 100000 cap.
-strategy-run uses the extended range up to 600000 M1 candles and reads only the strategy timeframe.
+market-report accepts up to 600000 M1 candles; the candle, timeframe, store, and research commands keep the 100000 cap.
+strategy-run reads only the strategy timeframe and accepts up to 600000 M1 candles.
+report and backtest take their input cap from the run configuration, at most 600000.
 NDJSON: one candle per line, oldest first:
 {"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":1,"close":2,"volume":null}
 Timeframes: M1 is the source; M5, M15, and H1 are derived by the data engine.
@@ -116,6 +117,8 @@ Non-interactive: quantrule market-dashboard <csv-path> [--window full|latest] [-
 Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
 Non-interactive: quantrule market-report path/to/m1.csv --data-version source:demo:60:0-1000 --out data/report
 Non-interactive: quantrule strategy-run path/to/m1.csv --strategy axis-agreement --data-version source:demo:60:0-1000
+Non-interactive: quantrule report portfolio --config config/examples/solusd-2025/run.json --out data/solusd-2025
+Non-interactive: quantrule backtest --config config/examples/solusd-2025/run.json --out data/solusd-2025
 Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
 Non-interactive: quantrule events <csv-path> [--window full|latest]
 Non-interactive: quantrule legs <csv-path> [--window full|latest]

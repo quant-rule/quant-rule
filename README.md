@@ -70,8 +70,8 @@ cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd
 | `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars; `--window latest` supports inputs above the 100k cap |
 | `market-report` | `<csv-path> --data-version <id> --out <dir>` [options] | A deterministic full-period report: `summary.txt`, `report.json`, and two PNGs |
 | `strategy-run` | `<csv-path> --strategy <name> --data-version <id>` [options] | Strategy entries and exits as NDJSON; no fills, positions, equity, or P&L |
-| `report` | `<engine> --config <run.json>` [options] | One config-driven bundle under `<out>/<engine>` |
-| `backtest` | `--config <run.json>` [options] | One full run and all five bundles; the model and analytical layers are computed once |
+| `report` | `<model\|strategy\|execution\|portfolio\|analytical> --config <run.json>` [options] | One bundle under `<out>/<engine>/`; with `--json`, the `report.json` bytes |
+| `backtest` | `--config <run.json>` [options] | One full run and all five bundles; the model is computed once and the analytical summary streams from it; with `--json`, a summary envelope |
 | `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
 | `legs` | `<csv-path>` [`--window full\|latest`] | The minor and major leg per timeframe as NDJSON |
@@ -244,7 +244,7 @@ The text and JSON outputs are deterministic: the same input, window, and configu
 
 `market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>] [--window full|latest]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The default window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe and lets a larger fetch be charted. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
 
-The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command names `market-state`, `market-dashboard`, `market-chart`, `market-report`, `strategy-run`, `axis`, `events`, and `legs` are the implemented contract; changing them is a command-contract decision.
+The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command set is the product's public interface; changing a command name or what it means is a command-contract decision.
 
 ### Market-report contract
 
@@ -258,9 +258,66 @@ The output is deterministic: the same input and configuration produce the same b
 
 The report publishes coverage, axis statistics and ordinal histograms, full-period event counts, the latest published state, cross-timeframe aggregates, and chart buckets. It contains no order, fill, position, trade, equity, drawdown, or P&L field, and it applies no strategy. A range with no M1 candles fails and writes no artifacts. The JSON envelope carries `model_version`, `view_contract`, `data_version`, `requested_period`, and `market_report`; object keys have a fixed order, numbers keep full precision, and a missing value is `null`.
 
-The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles; existing commands, the store, and research keep the 100,000-candle cap.
+The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles. `market-state`, `market-dashboard`, `market-chart`, `axis`, `events`, `legs`, `model-series`, the store, and research accept up to 100,000 M1 candles; `market-report` and `strategy-run` accept up to 600,000; `report` and `backtest` take their cap from `data.json.max_candles`, at most 600,000.
 
-`report model --config <run.json> [--out <dir>] [--json]` writes the model bundle under `<out>/model/`: `summary.txt`, `report.json`, `price-axes.png`, `events.png`, and `provenance.json`. `report strategy --config <run.json> [--out <dir>] [--json]` runs only the data, model, and strategy engines and writes `summary.txt`, `report.json`, `decisions.csv`, `price-decisions.png`, and `provenance.json` under `<out>/strategy/`. `report execution` runs the full pipeline and writes the orders, fills, rejections, prices, and costs under `<out>/execution/`; `report portfolio` runs the same pipeline and writes the trades, daily equity, funding, risk events, and the equity and drawdown charts under `<out>/portfolio/`. A bundle is available when its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `backtest --config <run.json> [--out <dir>] [--json]` loads and validates the run, loads the candles once, calls the backtest runner once, and writes the five bundles in contract order: `model`, `strategy`, `execution`, `portfolio`, and `analytical`. The model and analytical bundles use that run's model and layers, so neither recomputes them. The run root must be absent or empty; a failure removes every bundle written and the root when the command created it. `--json` prints a summary envelope with the data version, the requested and actual periods, the five bundle paths, and the portfolio's final equity, return, net P&L, drawdown, trade count, and halt flag. `provenance.json` records the data version, the requested and actual periods, the config file names, the resolved engine values, and the artifact list, never a resolved absolute path. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data and period.
+### Report bundles and backtest
+
+`report <engine> --config <run.json> [--out <dir>] [--json]` runs only the engines one bundle needs and writes it under `<out>/<engine>/`. `backtest --config <run.json> [--out <dir>] [--json]` loads the candles once, runs the pipeline once, and writes all five bundles from that result.
+
+| Bundle | Engines | Artifacts |
+|---|---|---|
+| `model` | data, model | `summary.txt`, `report.json`, `price-axes.png`, `events.png`, `provenance.json` |
+| `strategy` | data, model, strategy | `summary.txt`, `report.json`, `decisions.csv`, `price-decisions.png`, `provenance.json` |
+| `execution` | data, model, strategy, execution, portfolio | `summary.txt`, `report.json`, `orders.csv`, `fills.csv`, `rejections.csv`, `price-fills.png`, `provenance.json` |
+| `portfolio` | data, model, strategy, execution, portfolio | `summary.txt`, `report.json`, `trades.csv`, `equity.csv`, `equity.png`, `drawdown.png`, `provenance.json` |
+| `analytical` | data, model | `summary.txt`, `report.json`, `axes.csv`, `relations.csv`, `provenance.json` |
+
+A run is specified by seven files. The command line carries only the config path, an optional output override, and an optional JSON flag.
+
+| File | Contents |
+|---|---|
+| `run.json` | Run name, output root, and the six engine file names |
+| `data.json` | Source CSV, data version, UTC period, the fixed `1m`/`5m`/`15m`/`1h` ladder, and `max_candles` (`1..=600000`) |
+| `model.json` | Structure scale (`major` or `minor`) |
+| `strategy.json` | `axis-agreement` timeframe and the long/short thresholds |
+| `execution.json` | Fill timeframe, order type, stop and target ATR multiples, tie break, fee rate, slippage, zero-volume and end-of-data policy |
+| `portfolio.json` | Cash, currency, sizing, leverage, position limit, commission, funding, drawdown limit and action, mark policy |
+| `analytics.json` | Analytical report scale, timeframe subset, and relations switch |
+
+`data.source.path` resolves against `data.json`; `output_root` and the other file names resolve against `run.json`. The loader validates every file before a candle is read or a byte is written: an error names the file and the JSON path, never an absolute path. `analytics.json.timeframes` must be a subset of the ladder, and its structure scale must equal the model's. The contracts are [`docs/config/2026-10-28/per-engine-config.md`](docs/config/2026-10-28/per-engine-config.md) and [`docs/reports/2026-10-28/per-engine-reports.md`](docs/reports/2026-10-28/per-engine-reports.md).
+
+`--out` defaults to the run's `output_root`. A bundle is available if and only if its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `report --json` prints the `report.json` bytes; `backtest --json` prints a summary envelope with the data version, the requested and actual periods, the five bundle paths, and the portfolio's final equity, return, net P&L, drawdown, trade count, and halt flag. `provenance.json` records the data version, the periods, the config file names, the resolved engine values, and the artifact list.
+
+The model is computed once per run. The analytical bundle summarizes that model one bar at a time, so no layer set is materialized and the model is not recomputed. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data and period.
+
+A fresh checkout has no source data, because `data/` is not committed. The example run needs its M1 file first:
+
+```bash
+cargo run -p quantrule-shell -- fetch sol/usd 2025-01-01 2025-12-31 --csv data/SOLUSD_M1_2025-01-01_2025-12-31.csv
+cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/solusd-2025
+```
+
+Without `--json`, the command prints the five bundle paths in contract order:
+
+```text
+data/solusd-2025/model
+data/solusd-2025/strategy
+data/solusd-2025/execution
+data/solusd-2025/portfolio
+data/solusd-2025/analytical
+```
+
+`--json` prints one envelope instead:
+
+```json
+{"actual_period":{"first_open_time":1735740900,"last_open_time":1767191400},"bundles":{"analytical":"data/solusd-2025/analytical","execution":"data/solusd-2025/execution","model":"data/solusd-2025/model","portfolio":"data/solusd-2025/portfolio","strategy":"data/solusd-2025/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","model_version":"0.2.0","portfolio":{"final_equity":8016.143909900684,"halted":true,"max_drawdown":0.20315025809884202,"net_pnl":-1983.85609009931,"total_return":-0.19838560900993163,"trades":48},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
+```
+
+`first_open_time` and `last_open_time` are the strategy timeframe's first and last open times. The run is deterministic: the same inputs and configuration produce byte-identical bundles and the same envelope, interactively or non-interactively. A single report writes only its own directory:
+
+```bash
+cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/solusd-2025
+```
 
 ### Strategy-run contract
 
