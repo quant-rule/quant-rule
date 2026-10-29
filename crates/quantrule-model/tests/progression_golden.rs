@@ -3,15 +3,11 @@
 //! The per-bar fixture is a checked-in CSV of 260 candles and the expected
 //! Progression values on every bar, including the full record of the latest
 //! minor and major leg. The ledger fixture is the final record of every
-//! retained leg in creation order. Both were produced by an independent Python
-//! implementation of contract §8.4 and §9 from the independently generated ATR
-//! and pivot columns of the readings fixture, not by the Rust code under test.
-//!
-//! Exception (2026-10-29, #196): the published columns listed in the fixture
-//! header were regenerated from the Rust implementation for the confirmed-leg
-//! change. Their independence is temporarily lost until #197 rebuilds the
-//! replay. The per-scale record columns and the ledger fixture are unchanged
-//! from the independent replay.
+//! retained leg in creation order. Both are produced by the checked-in oracle
+//! at `tools/oracle/progression_replay.py`, an independent Python
+//! implementation of contract §8.4 and §9. It reads the independently
+//! generated ATR and pivot columns of the readings fixture and never runs the
+//! Rust code under test. Run the oracle with `--check` to verify them.
 //!
 //! An empty cell is an unavailable measurement; a numeric cell is a measured
 //! value, and a measured zero is written as `0.0`.

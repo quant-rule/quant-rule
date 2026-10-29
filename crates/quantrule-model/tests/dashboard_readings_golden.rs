@@ -2,12 +2,10 @@
 //!
 //! The expected file is an independent Python replay of the approved readings
 //! contract over the checked-in Level, Divergence, Signal, and Progression
-//! fixtures. It never runs the Rust code under test.
-//!
-//! Exception (2026-10-29, #196): the Progression rows (axis_code 4) were
-//! regenerated from the Rust implementation for the confirmed-leg change.
-//! Their independence is temporarily lost until #197 rebuilds the replay. The
-//! other axes are unchanged from the independent replay.
+//! fixtures. It never runs the Rust code under test. The Progression rows
+//! (axis_code 4) are produced by the checked-in oracle at
+//! `tools/oracle/progression_replay.py`; the other axes remain from their
+//! earlier independent replay.
 //!
 //! Each row is one retained reading: `rank` pins its position in the axis list,
 //! `kind_code` selects an Event or a Transition, and an empty optional cell is
