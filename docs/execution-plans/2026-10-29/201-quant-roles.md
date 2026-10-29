@@ -2,8 +2,9 @@
 
 - Date: 2026-10-29 (UTC)
 - Status: **Approved — 2026-10-29.** The human authorized the full implementation
-  with "proceed with the full implementation". Implementation is in progress;
-  verification evidence is recorded as it is observed.
+  with "proceed with the full implementation". PR #205 (AGENTS.md) is merged;
+  PR #203 (role reference) is in progress; PR #204 (PR checklist) is pending.
+  Verification evidence is recorded as it is observed.
 - Container: [#201](https://github.com/quant-rule/quant-rule/issues/201)
 - Sub-issues: [#202](https://github.com/quant-rule/quant-rule/issues/202) (AGENTS.md),
   [#203](https://github.com/quant-rule/quant-rule/issues/203) (role reference),
@@ -243,6 +244,7 @@ checking.
 | Changed paths | Only `AGENTS.md`, this plan, and the transparency log; no Rust, configuration, fixture, oracle, or CI change. |
 | Manual review | Role boundaries, specialization, and applicability rules read consistently; PR #203 adds the role reference and its links. |
 | Remote CI | PR #205: `sync` passed (14s), `verify` passed (1m33s). |
+| PR #203 | Role reference and links added; `git diff --check` clean; `cargo test` 1,350 passed; relative links resolve. |
 
 ## Risks and recovery
 
