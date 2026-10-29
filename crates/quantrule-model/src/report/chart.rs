@@ -103,6 +103,7 @@ fn bucket(timeframe: &TimeframeModel, start: usize, end: usize) -> Option<Report
     let mut momentum = None;
     let mut structure = None;
     let mut progression_stage_code = None;
+    let mut progression_progress = None;
 
     for bar in start..end {
         let Some(candle) = timeframe.candle(bar) else {
@@ -138,6 +139,13 @@ fn bucket(timeframe: &TimeframeModel, start: usize, end: usize) -> Option<Report
         {
             progression_stage_code = Some(value);
         }
+        if let Some(value) = timeframe
+            .progression()
+            .get(bar)
+            .and_then(|bar| bar.progress)
+        {
+            progression_progress = Some(value);
+        }
     }
 
     Some(ReportChartBar {
@@ -154,5 +162,6 @@ fn bucket(timeframe: &TimeframeModel, start: usize, end: usize) -> Option<Report
         momentum,
         structure,
         progression_stage_code,
+        progression_progress,
     })
 }

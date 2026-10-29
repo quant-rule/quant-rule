@@ -331,6 +331,7 @@ mod tests {
             stage_code: None,
             leg_direction: None,
             leg_scale_code: None,
+            published_leg: None,
             minor_leg: None,
             major_leg: None,
             size_percentile: None,

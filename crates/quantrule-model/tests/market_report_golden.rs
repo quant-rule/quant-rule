@@ -6,6 +6,11 @@
 //! divergence rows are restricted to the major scale because that is the
 //! run's default structure scale.
 //!
+//! Exception (2026-10-29, #196): the Progression lines listed in the fixture
+//! header were regenerated from the Rust implementation for the confirmed-leg
+//! change. Their independence is temporarily lost until #197 rebuilds the
+//! replay. Every other line is unchanged from the independent replay.
+//!
 //! The render is a deterministic, line-oriented projection of every published
 //! report field. An empty optional value is `-`, a measured zero is
 //! `0.000000000`, and every float is printed with nine decimals.
@@ -319,10 +324,16 @@ fn the_market_report_matches_the_independent_golden_fixture() {
     );
     let report = MarketReport::compute(&run, &[TIMEFRAME_SECS]);
     let actual = render(&report);
+    let expected = REPORT_FIXTURE
+        .lines()
+        .skip_while(|line| line.starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
 
     assert_eq!(
-        actual, REPORT_FIXTURE,
-        "the market report differs from the independent fixture"
+        actual, expected,
+        "the market report differs from the golden fixture"
     );
 }
 

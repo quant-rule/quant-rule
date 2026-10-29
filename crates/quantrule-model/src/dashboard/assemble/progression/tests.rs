@@ -52,6 +52,7 @@ fn bar(leg: Option<ProgressionLeg>) -> ProgressionBar {
         stage_code: leg.and_then(|leg| leg.stage_code),
         leg_direction: leg.map(|leg| leg.direction_code),
         leg_scale_code: leg.map(|leg| leg.scale_code),
+        published_leg: leg,
         minor_leg: leg,
         major_leg: None,
         size_percentile: leg
@@ -636,6 +637,7 @@ fn golden_rows() -> Vec<GoldenRow> {
                 stage_code: optional_integer(fields[8]),
                 leg_direction: leg.map(|leg| leg.direction_code),
                 leg_scale_code: leg.map(|leg| leg.scale_code),
+                published_leg: leg,
                 minor_leg: leg,
                 major_leg: None,
                 size_percentile: number(fields[9]),

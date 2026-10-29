@@ -128,6 +128,7 @@ fn progression(
         stage_code: minor.or(major).and_then(|leg| leg.stage_code),
         leg_direction: minor.or(major).map(|leg| leg.direction_code),
         leg_scale_code: minor.or(major).map(|leg| leg.scale_code),
+        published_leg: minor.or(major),
         minor_leg: minor,
         major_leg: major,
         size_percentile: None,

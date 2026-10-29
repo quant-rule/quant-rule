@@ -366,6 +366,7 @@ ReportChartBar
   momentum: Option<f64>
   structure: Option<f64>
   progression_stage_code: Option<i8>
+  progression_progress: Option<f64>
 
 ReportChartEvent
   bucket_index: usize
@@ -385,7 +386,7 @@ ReportChartEvent
   - `open_time` and `last_open_time` are their UTC open times.
   - `open` is the first bar's open; `high` is the maximum high; `low` is the minimum low; `close` is the last bar's close.
   - `volume` is the sum of the bucket's volumes when every bar has a volume, and `null` when any bar's volume is missing. A zero volume is a valid sum.
-  - `direction`, `momentum`, and `structure` are the last non-null continuous primary value in the bucket. `progression_stage_code` is the last non-null stage code in the bucket. The rule is "last published value", never an average, so an ordinal code is never averaged and the bucket ends on the state the model actually published.
+  - `direction`, `momentum`, and `structure` are the last non-null continuous primary value in the bucket. `progression_stage_code` is the last non-null stage code in the bucket, and `progression_progress` is the last non-null progress in the bucket. The rule is "last published value", never an average, so an ordinal code is never averaged and the bucket ends on the state the model actually published.
 - A bucket with no valid axis value publishes `null` for that axis; it is a gap in the panel.
 - `events` includes every event of the selected timeframe. Its `bucket_index` is `available_bar_index / bucket_size`, because the selected series starts at absolute bar 0. The event is drawn at the bucket's x position, at the bucket's last close. Markers in the same bucket may overlap; the chart is a locator, not a count. The exact counts are in §9.
 - `events` is sorted by `(available_bar_index, occurred_bar_index, event_type_code, event_subtype_code, source_code, reference_code, primary_value, direction_code, reference_value)`, using `f64::total_cmp` for the two optional numbers.
@@ -397,7 +398,7 @@ ReportChartEvent
 - The geometry is the existing `market-chart` geometry: price panel 72–400, volume strip 418–478, four axis panels 500–930 with 10-pixel gaps, shared x-axis labels at 938.
 - The header states `market-report`, the timeframe, the source bar count, the bucket count, the first bucket's first open time, and the last bucket's last open time in UTC.
 - The price panel draws the bucket OHLC as candles. The volume strip draws the bucket volume.
-- The four axis panels plot Direction, Momentum, Structure, and Progression in that order. The first three use the bucket's last published values; Progression maps the stage code to six evenly spaced heights, against at the bottom and terminal at the top. A null is a gap, never a point at zero.
+- The four axis panels plot Direction, Momentum, Structure, and Progression in that order. The first three use the bucket's last published values. Progression plots `progression_progress` on a fixed `-1..+2` panel: `0` is the origin, `1` is the target, and values outside the domain are clipped and marked at the panel edge. The stage code remains in the report and its histogram but is not the panel's vertical coordinate. A null is a gap, never a point at zero.
 - The renderer copies the report's values. It does not compute an axis, an indicator, an event, or a bucket.
 
 ### 11.2 `events.png`
@@ -476,7 +477,7 @@ The text may map codes to words using the shell's stable label mapping. It must 
 2. **No double counting:** an event is counted once, at its availability bar, in one type and one subtype.
 3. **Axis independence:** the report summarizes axes separately; it never combines them into one score. Consensus is a count.
 4. **Missing is not zero:** a null measurement stays null and is counted as null.
-5. **Ordinals are counted, not averaged:** stage and state codes are counted in histograms and published as codes in the latest state and chart; they are never averaged into a continuous number.
+5. **Ordinals are counted, not averaged:** stage and state codes are counted in histograms and published as codes in the latest state and the chart JSON; the Progression panel plots the continuous progress. An ordinal code is never averaged into a continuous number.
 6. **Availability, not occurrence:** events are counted and drawn at their availability bar; the chart never draws an event before it is knowable.
 7. **Causality:** a value published for a given bar does not change when later bars are appended. The latest state and the chart select a different bar or buckets, but they never rewrite an earlier bar's value.
 8. **Determinism:** the same run produces the same view, JSON, text, and PNG bytes.

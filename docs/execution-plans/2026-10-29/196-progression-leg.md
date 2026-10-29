@@ -1,7 +1,7 @@
 # Progression: Publish the Confirmed Leg and Plot Progress
 
 - Date: 2026-10-29 (UTC)
-- Status: **Approved — 2026-10-29.** The human approved the two-part recommendation in conversation before implementation.
+- Status: **Approved — 2026-10-29; B2 approved — 2026-10-29.** The human approved the two-part recommendation and, after the missing oracle was found, the B2 validation path with five merge conditions.
 - Issue: [#196](https://github.com/quant-rule/quant-rule/issues/196)
 - Baseline: `v0.2.0`, `main` at `56ab072`
 - Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md) §8.4; [`docs/model/2026-10-27/market-report.md`](../../model/2026-10-27/market-report.md) §10–§11
@@ -113,6 +113,50 @@ change and ships as `v0.3.0`, not a patch.
 - `git diff` on every regenerated fixture: only progression fields and the
   progression panel may change.
 - Four checks and `cargo doc`.
+
+## Validation update — B2 (2026-10-29)
+
+The independent Python replay that generated the three Progression fixtures is
+not present in the repository. Rebuilding it solely for this change would
+expand #196 into a separate project. The human approved B2 under five
+conditions:
+
+1. **Strict fixture diff.** The regenerated fixtures were compared line by
+   line. `progression_golden.csv` changed only columns 7-15 (the published
+   values); `dashboard_readings_golden.csv` changed only `axis_code 4` rows
+   (9 changed, 226 added, 0 removed); `market_report_golden.txt` changed only
+   the Progression axis statistics, the latest Progression state, the published
+   leg line, and the chart stage entries (106 lines). No unexplained
+   state-machine field changed.
+2. **Transparency.** Each fixture header names the regenerated fields and says
+   that their independence from the code under test is temporarily lost. The
+   headers reference #197.
+3. **Selection tests.** `axes/progression/tests.rs` covers the fallback before
+   the first confirmation, rejection of newer forming candidates at the same
+   and the other scale, and cross-scale confirmed-leg selection.
+   `report/tests.rs` checks the published leg id and progress in the report;
+   `dashboard/assemble/tests.rs` checks every published detail against the
+   published leg record.
+4. **Oracle tracked.** [#197](https://github.com/quant-rule/quant-rule/issues/197)
+   rebuilds the independent Python replay, including the full §8.4 state
+   machine and the selection rule.
+5. **Memory.** The full-year M1 backtest peaked at 900,420 KiB RSS (879 MiB)
+   against the 2 GiB budget, in 22.08 s wall time. The v0.2.0 baseline on the
+   same input peaked at 811,512 KiB. The increase is the per-bar published leg
+   record; it stays well inside the budget.
+
+Observed stage availability on SOLUSD 2025 H1: 3,911 of 8,535 bars (45.8%),
+up from 52 bars (0.6%). The remaining 4,624 null stages are 4,589 invalid
+denominator, 27 unstable target, 4 no target, and 4 unconfirmed origin. The
+strategy, execution, and portfolio bundles are byte-identical to a fresh
+v0.2.0 baseline; the model and analytical bundles differ, as expected.
+
+B2 permits shipping without the independent generator; it does not establish
+that the regenerated expected values are independently correct.
+
+Final checks: `cargo fmt --all -- --check` passed, `cargo clippy --all-targets
+-- -D warnings` passed, `cargo test` reported 1,350 passed, 0 failed, 6 ignored,
+and `cargo doc --no-deps` passed without warnings.
 
 ## Risks and recovery
 

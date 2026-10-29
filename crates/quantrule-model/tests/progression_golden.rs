@@ -7,6 +7,12 @@
 //! implementation of contract §8.4 and §9 from the independently generated ATR
 //! and pivot columns of the readings fixture, not by the Rust code under test.
 //!
+//! Exception (2026-10-29, #196): the published columns listed in the fixture
+//! header were regenerated from the Rust implementation for the confirmed-leg
+//! change. Their independence is temporarily lost until #197 rebuilds the
+//! replay. The per-scale record columns and the ledger fixture are unchanged
+//! from the independent replay.
+//!
 //! An empty cell is an unavailable measurement; a numeric cell is a measured
 //! value, and a measured zero is written as `0.0`.
 
@@ -146,7 +152,7 @@ fn parse_leg(fields: &[&str], index: &HashMap<&str, usize>, prefix: &str) -> Opt
 }
 
 fn load() -> Vec<GoldenRow> {
-    let mut lines = FIXTURE.lines();
+    let mut lines = FIXTURE.lines().skip_while(|line| line.starts_with('#'));
     let header = lines.next().expect("the fixture has a header");
     let index = columns(header);
 
@@ -656,11 +662,12 @@ fn the_percentile_starts_at_fifty_prior_samples() {
 }
 
 #[test]
-fn the_published_leg_is_one_of_the_two_scale_records() {
+fn the_published_leg_record_matches_the_published_fields() {
     let rows = load();
     let candles: Vec<Candle> = rows.iter().map(|row| row.candle).collect();
     let readings = Readings::compute(&candles);
     let series = ProgressionSeries::compute(&candles, &readings);
+    let mut differs_from_scale_records = false;
 
     for bar in 0..series.len() {
         let bar = series.get(bar).expect("a bar");
@@ -672,14 +679,25 @@ fn the_published_leg_is_one_of_the_two_scale_records() {
             Some(published) => {
                 assert_eq!(bar.leg_direction, Some(published.direction_code));
                 assert_eq!(bar.leg_scale_code, Some(published.scale_code));
-                let is_minor = bar
+                let is_scale_record = bar
                     .minor_leg
-                    .is_some_and(|leg| leg.leg_id == published.leg_id);
-                let is_major = bar
-                    .major_leg
-                    .is_some_and(|leg| leg.leg_id == published.leg_id);
-                assert!(is_minor || is_major);
+                    .is_some_and(|leg| leg.leg_id == published.leg_id)
+                    || bar
+                        .major_leg
+                        .is_some_and(|leg| leg.leg_id == published.leg_id);
+                if !is_scale_record {
+                    assert_eq!(
+                        published.origin_confirmed_code, 1,
+                        "a published leg outside the scale records is confirmed"
+                    );
+                }
+                differs_from_scale_records |= !is_scale_record;
             }
         }
     }
+
+    assert!(
+        differs_from_scale_records,
+        "the fixture exercises a published leg older than both latest scale records"
+    );
 }

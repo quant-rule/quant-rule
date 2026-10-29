@@ -3,8 +3,9 @@
 //! Progression follows a structural leg from its pivot candidate through
 //! confirmation, target selection, progress, and a terminal lifecycle. It keeps
 //! a separate minor and a separate major leg, publishes the most recently
-//! created retained leg across the two scales, and publishes the full record of
-//! the leg at each scale.
+//! created retained leg whose origin is confirmed across the two scales, and
+//! publishes the full record of the leg at each scale. A series with no
+//! confirmed leg yet publishes its newest forming leg.
 //!
 //! The axis reads the pivot candidates and confirmed pivots from [`Readings`],
 //! the ATR 14 value at the origin, and the close of each candle. It rebuilds the
@@ -13,7 +14,9 @@
 //! pure: it performs no I/O, reads no clock, and uses no randomness.
 //!
 //! The two scales are never blended. The published leg is one record chosen by
-//! creation order, and the stage codes of the two legs are never combined.
+//! creation order among the confirmed legs, and the stage codes of the two legs
+//! are never combined. A newer unconfirmed candidate does not displace a
+//! confirmed leg: its origin may never exist.
 
 mod leg;
 mod target;
@@ -88,6 +91,14 @@ pub struct ProgressionBar {
     pub leg_direction: Option<i8>,
     /// The published leg's scale: 1 or 2, or `None` without a leg.
     pub leg_scale_code: Option<u8>,
+    /// The published leg record, or `None` when no leg exists.
+    ///
+    /// This is the leg whose progress, stage, direction, and scale the other
+    /// fields describe: the newest leg whose origin is confirmed, or the newest
+    /// forming leg before the first confirmation. It is not necessarily one of
+    /// the two per-scale records below, because a newer candidate may be
+    /// forming at the published leg's scale.
+    pub published_leg: Option<ProgressionLeg>,
     /// The most recently created retained minor leg.
     pub minor_leg: Option<ProgressionLeg>,
     /// The most recently created retained major leg.
@@ -106,26 +117,13 @@ pub struct ProgressionBar {
 }
 
 impl ProgressionBar {
-    /// The published leg record, or `None` when neither scale has a retained
-    /// leg.
+    /// The published leg record, or `None` when no leg exists.
     ///
-    /// The record is the more recently created of the two scale records. The
-    /// identifiers are assigned in creation order, so the larger identifier is
-    /// the newer leg; a same-bar tie was resolved toward major at creation.
+    /// The record is the leg the axis published on this bar, so its id, target,
+    /// origin, and lifecycle agree with the bar's published progress and stage.
     #[must_use]
     pub fn published_leg(&self) -> Option<ProgressionLeg> {
-        match (self.minor_leg, self.major_leg) {
-            (None, None) => None,
-            (Some(minor), None) => Some(minor),
-            (None, Some(major)) => Some(major),
-            (Some(minor), Some(major)) => {
-                if major.leg_id > minor.leg_id {
-                    Some(major)
-                } else {
-                    Some(minor)
-                }
-            }
-        }
+        self.published_leg
     }
 }
 
@@ -343,22 +341,7 @@ impl ProgressionSeries {
                 }
             }
 
-            let minor = scales.minor.last();
-            let major = scales.major.last();
-            let published = match (minor, major) {
-                (None, None) => None,
-                (Some(minor), None) => Some(minor),
-                (None, Some(major)) => Some(major),
-                (Some(minor), Some(major)) => {
-                    // Higher identifiers are newer; a same-bar tie went to the
-                    // major scale when the two were created.
-                    if major.id > minor.id {
-                        Some(major)
-                    } else {
-                        Some(minor)
-                    }
-                }
-            };
+            let published = scales.published();
 
             let progress = published.and_then(|leg| leg.progress);
             let stage_code = published.and_then(|leg| leg.stage);
@@ -392,6 +375,7 @@ impl ProgressionSeries {
                 stage_code,
                 leg_direction: published.map(|leg| leg.direction),
                 leg_scale_code: published.map(|leg| leg.scale.code()),
+                published_leg: published.map(|leg| leg.record(config.timeframe_secs)),
                 minor_leg: scales
                     .minor
                     .last()
@@ -487,6 +471,25 @@ impl ScaleLegs {
             PivotScale::Minor => &mut self.minor,
             PivotScale::Major => &mut self.major,
         }
+    }
+
+    /// The leg the axis publishes.
+    ///
+    /// The newest leg whose origin is confirmed, across both scales; before any
+    /// leg confirms, the newest leg overall. A newer unconfirmed candidate is
+    /// not published, because its origin may never exist and its progress would
+    /// describe a pivot that can disappear. The candidate stays visible in the
+    /// per-scale record. Higher identifiers are newer, and a same-bar tie went
+    /// to the major scale when the two were created.
+    fn published(&self) -> Option<&Leg> {
+        let newest = |confirmed_only: bool| {
+            self.minor
+                .iter()
+                .chain(self.major.iter())
+                .filter(|leg| !confirmed_only || leg.origin_confirmed)
+                .max_by_key(|leg| leg.id)
+        };
+        newest(true).or_else(|| newest(false))
     }
 }
 
