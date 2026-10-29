@@ -16,15 +16,15 @@ timeframe  axis          present   null         min         max        mean
 1m         direction          61    199   -0.649684   -0.309006   -0.472847
 1m         momentum          246     14   -0.611575    0.389036   -0.081490
 1m         structure         226     34   -1.000000    1.000000   -0.376106
-1m         progression       222     38    0.018868    3.500000    0.453125
+1m         progression       188     72   -0.750000    9.300000    1.149680
 5m         direction           0     52           -           -           -
 5m         momentum           38     14   -0.382294    0.088982   -0.151304
 5m         structure          15     37   -1.000000    0.000000   -0.800000
-5m         progression        44      8    0.016502    1.920000    0.358815
+5m         progression        44      8   -0.417178    1.969697    0.433361
 15m        direction           0     17           -           -           -
 15m        momentum            3     14   -0.300686   -0.182746   -0.241726
 15m        structure           0     17           -           -           -
-15m        progression         6     11    0.065336    0.349127    0.204265
+15m        progression         8      9   -0.284289    0.827089    0.302392
 1h         direction           0      4           -           -           -
 1h         momentum            0      4           -           -           -
 1h         structure           0      4           -           -           -
@@ -35,15 +35,15 @@ timeframe  axis         codes                                null
 1m         direction    -1:61 0:0 1:0                         199
 1m         momentum     -1:111 0:84 1:51                       14
 1m         structure    -2:126 -1:0 0:59 1:0 2:41              34
-1m         progression  0:0 1:0 2:0 3:0 4:1 5:0               259
+1m         progression  0:3 1:18 2:35 3:30 4:82 5:28           64
 5m         direction    -1:0 0:0 1:0                           52
 5m         momentum     -1:25 0:13 1:0                         14
 5m         structure    -2:12 -1:0 0:3 1:0 2:0                 37
-5m         progression  0:0 1:0 2:0 3:0 4:0 5:0                52
+5m         progression  0:4 1:5 2:9 3:8 4:10 5:5               11
 15m        direction    -1:0 0:0 1:0                           17
 15m        momentum     -1:3 0:0 1:0                           14
 15m        structure    -2:0 -1:0 0:0 1:0 2:0                  17
-15m        progression  0:0 1:0 2:0 3:0 4:0 5:0                17
+15m        progression  0:2 1:2 2:1 3:2 4:1 5:0                 9
 1h         direction    -1:0 0:0 1:0                            4
 1h         momentum     -1:0 0:0 1:0                            4
 1h         structure    -2:0 -1:0 0:0 1:0 2:0                   4
@@ -58,8 +58,8 @@ timeframe   level  divergence  signal  total latest_type          latest_subtype
 
 [latest]
 timeframe  open_time              direction dir_ready   momentum mom_ready  structure str_ready progression prog_ready context bullish bearish neutral
-1m         2025-01-01T04:19:00Z   -0.336754         2   0.239484         2   0.000000         2    0.730769          1       2       1       1       1
-5m         2025-01-01T04:15:00Z           -         0  -0.069701         1  -1.000000         1    0.452381          1       3       0       1       1
+1m         2025-01-01T04:19:00Z   -0.336754         2   0.239484         2   0.000000         2    3.080000          2       2       1       1       1
+5m         2025-01-01T04:15:00Z           -         0  -0.069701         1  -1.000000         1    1.000000          1       3       0       1       1
 15m        2025-01-01T04:00:00Z           -         0  -0.182746         1          -         0    0.230490          1       -       0       1       0
 1h         2025-01-01T03:00:00Z           -         0          -         0          -         0           -          0       -       0       0       0
 

@@ -1,13 +1,13 @@
 market-dashboard  window=full  ladder=1m,5m,15m,1h  model=0.2.0  view=2026-10-25
 as-of  1m 2025-01-01T04:19:00Z | 5m 2025-01-01T04:15:00Z | 15m 2025-01-01T04:00:00Z | 1h 2025-01-01T03:00:00Z
 cross-TF agreement  0/3 axes have a strict majority (direction insufficient coverage, momentum no majority, structure no majority) · coverage 4/4
-churn  max 9 state changes (1m momentum, 5m momentum) · threshold 6 · history 4/4 (incomplete) · class Building
+churn  max 24 state changes (1m progression, 5m progression) · threshold 6 · history 4/4 (incomplete) · class Building
 
       DIRECTION -1..+1             MOMENTUM decel..accel        STRUCTURE bear..bull         PROGRESSION against..terminal
 legend  ● position · small • medium ● large  ■ solid □ dashed  — unavailable (r<code>)
-  1m  ───●─────── 100% ●■          ─────●─────  72% ●■          ─────●─────  26% ·■          — r6           — —□
-  5m  — r1           — —□          ────────●──    — —□          ●──────────    — —□          — r6           — —□
-  15m — r1           — —□          — r1           — —□          — r2           — —□          — r6           — —□
+  1m  ───●─────── 100% ●■          ─────●─────  72% ●■          ─────●─────  26% ·■          ────────●──    — —■
+  5m  — r1           — —□          ────────●──    — —□          ●──────────    — —□          ────────●──    — —□
+  15m — r1           — —□          — r1           — —□          — r2           — —□          ──●────────    — —□
   1h  — r1           — —□          — r1           — —□          — r2           — —□          — r6           — —□
 
 diagnostics
@@ -21,17 +21,17 @@ evidence
   evidence  1m  MOM     force +0.24 · acceleration +0.10 · intensification +0.10 · age 4 · churn 9
   evidence  1m  STRUCT  score 0.00 · HH -1 HL +1 · major · d20 +0.92 d50 +0.74 d200 -1.59 · x20 0 x50 0 x200 0 · t20 0 t50 +1 t200 0 · levels 68 · activity 15/5 (3.00/bar) · age 10 · churn 1
   levels    1m  ema20 96.02833@259 · ema50 96.13166@259 · ema200 97.44593@259 · minor_high 96.57000@255 · minor_low 95.78000@257 · major_high 96.55000@242 · major_low 94.89000@250
-  evidence  1m  PROG    stage — · progress +0.73 · leg down major · lifecycle forming · target v0 stable · pace — — · speed — · avg net 0.34 · disp 31% · origin 259@— · frozen false
+  evidence  1m  PROG    stage late · progress +3.08 · leg up minor · lifecycle active · target v0 stable · pace — — · speed — · avg net 0.34 · disp 57% · origin 255@257 · frozen false
   evidence  5m  DIR     undefined · tenure — · continuity undefined · origin none@— · magnitude — · age 0 · churn 0
   evidence  5m  MOM     force -0.07 · acceleration +0.52 · intensification +0.52 · age 1 · churn 9
   evidence  5m  STRUCT  score -1.00 · HH -1 HL -1 · major · d20 -0.08 d50 -1.25 d200 — · x20 0 x50 0 x200 — · t20 -1 t50 0 t200 — · levels 21 · activity 8/5 (1.60/bar) · age 12 · churn 1
   levels    5m  ema20 96.63589@51 · ema50 97.90477@51 · minor_high 96.55000@49 · minor_low 94.89000@51 · major_high 99.05000@40 · major_low 94.82000@49
-  evidence  5m  PROG    stage — · progress +0.45 · leg down major · lifecycle forming · target v0 stable · pace — — · speed — · avg net 0.18 · disp — · origin 51@— · frozen false
+  evidence  5m  PROG    stage late · progress +1.00 · leg up minor · lifecycle active · target v0 stable · pace — — · speed — · avg net 0.77 · disp — · origin 49@51 · frozen false
   evidence  15m DIR     undefined · tenure — · continuity undefined · origin none@— · magnitude — · age 0 · churn 0
   evidence  15m MOM     force -0.18 · acceleration — · intensification — · age 3 · churn 0
   evidence  15m STRUCT  score — · HH — HL — · major · d20 — d50 — d200 — · x20 — x50 — x200 — · t20 — t50 — t200 — · levels 5 · activity 3/5 (0.60/bar) · age 0 · churn 0
   levels    15m minor_high 100.33000@9 · minor_low 94.82000@16 · major_high 100.33000@12
-  evidence  15m PROG    stage — · progress +0.23 · leg up major · lifecycle forming · target v0 stable · pace — — · speed — · avg net 0.35 · disp — · origin 14@— · frozen false
+  evidence  15m PROG    stage early · progress +0.23 · leg up minor · lifecycle active · target v0 stable · pace — — · speed — · avg net 0.35 · disp — · origin 14@16 · frozen false
   evidence  1h  DIR     undefined · tenure — · continuity undefined · origin none@— · magnitude — · age 0 · churn 0
   evidence  1h  MOM     force — · acceleration — · intensification — · age 0 · churn 0
   evidence  1h  STRUCT  score — · HH — HL — · major · d20 — d50 — d200 — · x20 — x50 — x200 — · t20 — t50 — t200 — · levels 0 · activity 0/4 (0.00/bar) · age 0 · churn 0
@@ -39,7 +39,7 @@ evidence
   evidence  1h  PROG    stage — · progress — · leg up minor · lifecycle forming · target v0 unstable · pace — — · speed — · avg net — · disp — · origin 3@— · frozen false
 
 readings
-  reading   1m  DIR — | MOM transition compact neutral->bullish occ=256 avail=256 | STRUCT event level test occ=259 avail=259 dir=0 ref=1064 primary=96.55 reference=96.55 | PROG transition stage late->— occ=58 avail=58
-  reading   5m  DIR — | MOM transition compact bearish->neutral occ=51 avail=51 | STRUCT event level test occ=51 avail=51 dir=0 ref=1019 primary=96.55 reference=96.55 | PROG —
-  reading   15m DIR — | MOM — | STRUCT event level test occ=16 avail=16 dir=+1 ref=1005 primary=96.09 reference=94.82 | PROG —
+  reading   1m  DIR — | MOM transition compact neutral->bullish occ=256 avail=256 | STRUCT event level test occ=259 avail=259 dir=0 ref=1064 primary=96.55 reference=96.55 | PROG transition stage —->late occ=257 avail=257
+  reading   5m  DIR — | MOM transition compact bearish->neutral occ=51 avail=51 | STRUCT event level test occ=51 avail=51 dir=0 ref=1019 primary=96.55 reference=96.55 | PROG transition stage —->late occ=51 avail=51
+  reading   15m DIR — | MOM — | STRUCT event level test occ=16 avail=16 dir=+1 ref=1005 primary=96.09 reference=94.82 | PROG transition stage against->early occ=16 avail=16
   reading   1h  DIR — | MOM — | STRUCT — | PROG —

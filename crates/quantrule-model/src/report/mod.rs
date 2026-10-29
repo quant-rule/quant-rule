@@ -478,6 +478,11 @@ pub struct ReportChartBar {
     pub structure: Option<f64>,
     /// The last non-null Progression stage code, or `None`.
     pub progression_stage_code: Option<i8>,
+    /// The last non-null Progression progress, or `None`.
+    ///
+    /// Unclamped: it may be negative or greater than one. The chart clips the
+    /// display at `-1..=2` and marks a value outside that range.
+    pub progression_progress: Option<f64>,
 }
 
 /// One event marker in the chart projection.

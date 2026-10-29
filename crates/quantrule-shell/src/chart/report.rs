@@ -338,10 +338,17 @@ fn draw_axis_panel(
     canvas.text(LEFT + 4, top + 4, label, color, 1);
 
     if index == 3 {
-        for stage in 0..=5 {
-            let y = progression_y(stage, top, height);
+        // Progress is unclamped; the panel fixes the domain at -1..+2 and marks
+        // a value outside it. The reference lines are the origin (0) and the
+        // target (1).
+        for division in 0..=3 {
+            let y = top + (height * division) / 3;
             canvas.line(LEFT, y, RIGHT, y, GRID);
-            text_right(canvas, LEFT - 8, y - 4, &stage.to_string(), MUTED, 1);
+            let value = 2.0 - f64::from(division);
+            text_right(canvas, LEFT - 8, y - 4, &format!("{value:+.1}"), MUTED, 1);
+            if division == 1 || division == 2 {
+                canvas.line(LEFT, y, RIGHT, y, AXIS_ZERO);
+            }
         }
     } else {
         for division in 0..=DIVISIONS {
@@ -359,20 +366,30 @@ fn draw_axis_panel(
     let mut previous: Option<(i32, i32)> = None;
     for (bar_index, bar) in bars.iter().enumerate() {
         let x = x_center(bar_index, count);
-        let y = match index {
-            0 => bar.direction.map(|value| axis_y(value, top, height)),
-            1 => bar.momentum.map(|value| axis_y(value, top, height)),
-            2 => bar.structure.map(|value| axis_y(value, top, height)),
+        let plotted = match index {
+            0 => bar
+                .direction
+                .map(|value| (axis_y(value, top, height), false)),
+            1 => bar
+                .momentum
+                .map(|value| (axis_y(value, top, height), false)),
+            2 => bar
+                .structure
+                .map(|value| (axis_y(value, top, height), false)),
             _ => bar
-                .progression_stage_code
-                .map(|code| progression_y(code, top, height)),
+                .progression_progress
+                .map(|value| progress_point(value, top, height)),
         };
-        match y {
-            Some(y) => {
+        match plotted {
+            Some((y, clipped)) => {
                 if let Some((previous_x, previous_y)) = previous {
                     canvas.line(previous_x, previous_y, x, y, color);
                 } else {
                     canvas.fill_rect(x - 1, y - 1, 2, 2, color);
+                }
+                if clipped {
+                    let edge = if y <= top { top } else { top + height - 2 };
+                    canvas.fill_rect(x - 1, edge, 3, 2, color);
                 }
                 previous = Some((x, y));
             }
@@ -541,9 +558,18 @@ fn axis_y(value: f64, top: i32, height: i32) -> i32 {
     (f64::from(top) + offset).round() as i32
 }
 
-fn progression_y(code: i8, top: i32, height: i32) -> i32 {
-    let code = i32::from(code.clamp(0, 5));
-    top + height - code * height / 5
+fn progress_y(value: f64, top: i32, height: i32) -> i32 {
+    top + (((2.0 - value) / 3.0) * f64::from(height)).round() as i32
+}
+
+/// The panel position of a progress value and whether it was clipped.
+///
+/// The panel fixes the domain at `-1..+2`; a value outside it is drawn at the
+/// edge and marked, so the marker never implies a value the model did not
+/// publish.
+fn progress_point(value: f64, top: i32, height: i32) -> (i32, bool) {
+    let clamped = value.clamp(-1.0, 2.0);
+    (progress_y(clamped, top, height), clamped != value)
 }
 
 fn candle_color(bar: &ReportChartBar) -> Rgb {
@@ -562,7 +588,7 @@ mod tests {
 
     use quantrule_model::report::{ChartReport, ReportChartBar, ReportChartEvent};
 
-    use super::{render_report_events_png, render_report_price_axes_png};
+    use super::{progress_point, render_report_events_png, render_report_price_axes_png};
     use crate::chart::ChartError;
 
     fn bar(index: usize, close: f64) -> ReportChartBar {
@@ -580,6 +606,7 @@ mod tests {
             momentum: Some(-0.1),
             structure: Some(0.3),
             progression_stage_code: Some(2),
+            progression_progress: Some(0.6),
         }
     }
 
@@ -616,6 +643,16 @@ mod tests {
                 },
             ],
         }
+    }
+
+    #[test]
+    fn the_progress_panel_maps_the_fixed_domain_and_marks_clipping() {
+        assert_eq!(progress_point(2.0, 0, 300), (0, false));
+        assert_eq!(progress_point(1.0, 0, 300), (100, false));
+        assert_eq!(progress_point(0.0, 0, 300), (200, false));
+        assert_eq!(progress_point(-1.0, 0, 300), (300, false));
+        assert_eq!(progress_point(9.0, 0, 300), (0, true));
+        assert_eq!(progress_point(-9.0, 0, 300), (300, true));
     }
 
     #[test]

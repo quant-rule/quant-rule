@@ -249,11 +249,11 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
         ),
     }
     // The radius is the recent-pace percentile, not the model's displacement
-    // percentile. The latest bar's published leg is still forming, so pace is
-    // absent and the displacement percentile stays a detail.
+    // percentile. The published leg is confirmed now, but the pace still needs
+    // more closed bars, so the size stays undefined for insufficient bars.
     assert_eq!(
         progression.size,
-        AxisValue::undefined(UnavailableReason::OriginUnconfirmed)
+        AxisValue::undefined(UnavailableReason::InsufficientBars)
     );
     assert_eq!(progression.readiness_code, bar.progression.readiness.code());
     assert_eq!(
@@ -263,6 +263,40 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
     let AxisDetail::Progression(progression_detail) = &progression.detail else {
         panic!("the Progression axis carries Progression detail");
     };
+    let published = bar
+        .progression
+        .published_leg()
+        .expect("the fixture publishes a leg");
+    assert_eq!(progression_detail.progress, published.progress);
+    assert_eq!(progression_detail.stage_code, published.stage_code);
+    assert_eq!(
+        progression_detail.leg_direction,
+        Some(published.direction_code)
+    );
+    assert_eq!(
+        progression_detail.leg_scale_code,
+        Some(published.scale_code)
+    );
+    assert_eq!(
+        progression_detail.lifecycle_code,
+        Some(published.lifecycle_code)
+    );
+    assert_eq!(
+        progression_detail.target_version,
+        Some(published.target_version)
+    );
+    assert_eq!(
+        progression_detail.target_stable,
+        Some(published.target_stable_code == 1)
+    );
+    assert_eq!(
+        progression_detail.origin_bar,
+        Some(published.origin_occurred_at)
+    );
+    assert_eq!(
+        progression_detail.origin_available_bar,
+        published.origin_available_at
+    );
     assert_eq!(progression_detail.progress, bar.progression.progress);
     assert_eq!(progression_detail.stage_code, bar.progression.stage_code);
     assert_eq!(
@@ -275,12 +309,12 @@ fn all_four_axes_map_their_positions_sizes_and_readiness() {
     );
     assert_eq!(progression_detail.recent_pace_signed_atr_per_bar, None);
     assert_eq!(progression_detail.recent_pace_direction, None);
-    assert_eq!(progression_detail.lifecycle_code, Some(0));
-    assert_eq!(progression_detail.origin_bar, Some(latest));
-    assert_eq!(progression_detail.origin_available_bar, None);
+    assert_eq!(progression_detail.lifecycle_code, Some(1));
+    assert_eq!(progression_detail.origin_bar, Some(255));
+    assert_eq!(progression_detail.origin_available_bar, Some(257));
     assert_eq!(
         progression_detail.average_net_displacement_atr_per_bar,
-        Some(0.336_548_496_290_132_84)
+        Some(0.339_207_219_666_638_25)
     );
     assert!(!progression_detail.recent_pace_frozen_terminal);
     assert_eq!(
@@ -895,8 +929,8 @@ fn the_dated_readings_land_on_their_axes() {
     );
     assert_eq!(
         progression.readings.len(),
-        2,
-        "the fixture publishes two stage changes"
+        50,
+        "the confirmed leg changes stage often; readings are capped at 50"
     );
 
     assert!(

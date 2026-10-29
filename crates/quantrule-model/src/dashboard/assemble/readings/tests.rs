@@ -40,6 +40,7 @@ fn stage(stage_code: Option<i8>) -> ProgressionBar {
         stage_code,
         leg_direction: None,
         leg_scale_code: None,
+        published_leg: None,
         minor_leg: None,
         major_leg: None,
         size_percentile: None,

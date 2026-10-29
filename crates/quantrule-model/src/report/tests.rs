@@ -199,6 +199,10 @@ fn the_latest_state_maps_the_last_model_bar() {
         state.progression.leg.is_some(),
         bar.progression.published_leg().is_some()
     );
+    if let (Some(leg), Some(published)) = (state.progression.leg, bar.progression.published_leg()) {
+        assert_eq!(leg.leg_id, published.leg_id);
+        assert_eq!(leg.progress, published.progress);
+    }
     assert_eq!(state.context.context_code, bar.context.context_code);
     assert_eq!(
         state.consensus.bullish_axis_count,
@@ -345,6 +349,10 @@ fn chart_buckets_copy_the_first_open_last_close_and_extremes() {
     assert_eq!(
         first.progression_stage_code,
         bar1.progression.stage_code.or(bar0.progression.stage_code)
+    );
+    assert_eq!(
+        first.progression_progress,
+        bar1.progression.progress.or(bar0.progression.progress)
     );
 
     let last = chart

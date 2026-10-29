@@ -161,7 +161,8 @@ fn a_candidate_creates_a_forming_leg_with_an_unconfirmed_origin() {
         Some(UnavailableReason::OriginUnconfirmed)
     );
 
-    // The first major candidate appears once five bars stand to its left.
+    // The first major candidate appears once five bars stand to its left. It is
+    // forming, so the confirmed minor high remains the published leg.
     let bar = series.get(6).expect("bar 6");
     let major = bar.major_leg.expect("the major leg exists");
     assert_eq!(major.scale_code, 2);
@@ -169,7 +170,8 @@ fn a_candidate_creates_a_forming_leg_with_an_unconfirmed_origin() {
     assert_eq!(major.origin_price, 99.5);
     assert_eq!(major.lifecycle_code, 0);
     assert_eq!(major.origin_confirmed_code, 0);
-    assert_eq!(bar.leg_scale_code, Some(2));
+    assert_eq!(bar.leg_scale_code, Some(1));
+    assert_eq!(bar.leg_direction, Some(-1));
 }
 
 #[test]
@@ -228,25 +230,88 @@ fn a_major_confirmation_promotes_the_major_leg() {
 }
 
 #[test]
-fn the_published_leg_is_the_newest_record_across_scales() {
-    let series = series(&[(0, 100.0), (4, 110.0), (8, 90.0), (12, 110.0)]);
+fn the_published_leg_is_the_newest_confirmed_record() {
+    let series = series(&[(0, 100.0), (4, 110.0), (8, 90.0), (12, 110.0), (16, 90.0)]);
 
-    // At bar 8 the low candidate creates a new major leg, newer than the
-    // minor leg.
-    let bar = series.get(8).expect("bar 8");
-    let minor = bar.minor_leg.expect("the minor leg exists");
-    let major = bar.major_leg.expect("the major leg exists");
-    assert!(major.leg_id > minor.leg_id);
-    assert_eq!(bar.leg_scale_code, Some(2));
-    assert_eq!(bar.leg_direction, Some(1));
-
-    // At bar 10 a new minor candidate is newer than the major leg.
-    let bar = series.get(10).expect("bar 10");
-    let minor = bar.minor_leg.expect("the minor leg exists");
-    let major = bar.major_leg.expect("the major leg exists");
-    assert!(minor.leg_id > major.leg_id);
+    // Before any confirmation, the newest forming leg is published.
+    let bar = series.get(4).expect("bar 4");
     assert_eq!(bar.leg_scale_code, Some(1));
     assert_eq!(bar.leg_direction, Some(-1));
+    assert_eq!(bar.stage_code, None);
+    let forming = bar.minor_leg.expect("the minor candidate");
+    assert_eq!(forming.origin_confirmed_code, 0);
+    let published = bar.published_leg().expect("the forming leg is published");
+    assert_eq!(published.leg_id, forming.leg_id);
+    assert_eq!(published.origin_confirmed_code, 0);
+    assert_eq!(published.origin_occurred_at, 4);
+
+    // The minor high at 4 confirms at 6. It is the only confirmed leg, so it is
+    // published even though a newer low candidate forms at 6.
+    let bar = series.get(6).expect("bar 6");
+    let confirmed = series
+        .legs()
+        .iter()
+        .find(|leg| leg.scale_code == 1 && leg.origin_occurred_at == 4)
+        .expect("the confirmed minor high is retained");
+    assert_eq!(confirmed.origin_confirmed_code, 1);
+    assert_eq!(bar.leg_scale_code, Some(1));
+    assert_eq!(bar.leg_direction, Some(-1));
+    let published = bar.published_leg().expect("the confirmed leg is published");
+    assert_eq!(published.leg_id, confirmed.leg_id);
+    assert_ne!(
+        bar.minor_leg.expect("the newer candidate").leg_id,
+        published.leg_id,
+        "a newer forming candidate does not displace the confirmed leg"
+    );
+
+    // At 8 the minor and major low candidates form. The confirmed minor high
+    // stays published; the forming candidates remain in the per-scale records.
+    let bar = series.get(8).expect("bar 8");
+    let major = bar.major_leg.expect("the major candidate is retained");
+    assert_eq!(major.origin_confirmed_code, 0);
+    assert_eq!(bar.leg_scale_code, Some(1));
+    assert_eq!(bar.leg_direction, Some(-1));
+    let published = bar.published_leg().expect("the confirmed leg is published");
+    assert_eq!(published.leg_id, confirmed.leg_id);
+    assert_ne!(published.leg_id, major.leg_id);
+
+    // The minor low at 8 confirms at 10 and is the newest confirmed leg, while
+    // a newer high candidate forms beside it.
+    let bar = series.get(10).expect("bar 10");
+    let minor = bar.minor_leg.expect("the minor candidate is retained");
+    assert_eq!(minor.origin_confirmed_code, 0);
+    assert_eq!(bar.leg_scale_code, Some(1));
+    assert_eq!(bar.leg_direction, Some(1));
+    let published = bar.published_leg().expect("the confirmed leg is published");
+    assert_eq!(published.origin_confirmed_code, 1);
+    assert_eq!(published.origin_occurred_at, 8);
+    assert_ne!(
+        published.leg_id, minor.leg_id,
+        "the newer high candidate is still forming"
+    );
+
+    // At 13 the major low at 8 confirms across scales. The high candidates at
+    // 12 are newer at both scales but still forming, so the confirmed major leg
+    // is published and its full record is inspectable even though neither scale
+    // record is the published leg.
+    let bar = series.get(13).expect("bar 13");
+    assert_eq!(bar.leg_scale_code, Some(2));
+    assert_eq!(bar.leg_direction, Some(1));
+    assert_eq!(
+        bar.major_leg
+            .expect("the major record")
+            .origin_confirmed_code,
+        0
+    );
+    let published = bar.published_leg().expect("the confirmed leg is published");
+    assert_eq!(published.scale_code, 2);
+    assert_eq!(published.origin_confirmed_code, 1);
+    assert_eq!(published.origin_occurred_at, 8);
+    assert_ne!(
+        published.leg_id,
+        bar.major_leg.expect("the newer major candidate").leg_id,
+        "the newer forming candidate at the published scale is not selected"
+    );
 }
 
 #[test]
@@ -761,17 +826,23 @@ fn every_published_stage_and_ready_are_reachable_on_a_crafted_path() {
     assert_eq!(stage(39), Some(4));
 
     // The stage-bearing bars before 50 samples are provisional, and the
-    // first bar with 50 prior magnitude samples is ready.
+    // first bar with 50 prior magnitude samples is ready. The exact bar depends
+    // on when the confirmed leg first publishes a magnitude, so the test finds
+    // the first ready bar rather than pinning the old sample history.
     assert_eq!(
         series.get(39).expect("bar 39").readiness,
         Readiness::Provisional
     );
-    let ready = series.get(66).expect("bar 66");
+    let (ready_bar, ready) = (66..series.len())
+        .find_map(|bar| {
+            let value = series.get(bar)?;
+            (value.readiness == Readiness::Ready).then_some((bar, value))
+        })
+        .expect("a ready bar exists");
     assert_eq!(ready.stage_code, Some(4));
-    assert_eq!(ready.readiness, Readiness::Ready);
     assert!(ready.size_percentile.is_some());
     assert!(ready.state_changes_50 > 0);
-    assert_eq!(ready.state_age_bars, 28);
+    assert_eq!(ready.state_age_bars, (ready_bar - 39 + 1) as u64);
 
     // The leg is published as one record; its stage is never blended with
     // the other scale.

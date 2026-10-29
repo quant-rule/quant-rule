@@ -229,7 +229,7 @@ This is why a leg can exist before its origin is confirmed. A leg created from a
 
 **Leg transitions.** A confirmed pivot of the opposite kind at the same scale completes the active leg — lifecycle 2 — and starts a new leg. A confirmed pivot of the same kind supersedes the active leg — lifecycle 4 — and starts a new leg. A close beyond the origin against the leg by more than `0.2 * ATR_at_origin` invalidates the leg — lifecycle 3.
 
-**The published leg.** A timeframe publishes one leg: the most recently created retained leg across both scales. A retained leg is forming, active, or terminal; a terminal leg is published with its measurements frozen at the bar it ended, until a newer leg is created. Its scale is published as `progression_leg_scale_code` and its direction as `progression_leg_direction`, which is the leg record's own `leg_direction_code` carried into the per-timeframe output. The full record of the leg at each scale is published as well (§9), so the other scale's leg stays inspectable and the two are never blended.
+**The published leg.** A timeframe publishes one leg: the most recently created retained leg whose origin is confirmed, across both scales. A newer candidate whose origin is not confirmed does not displace a confirmed leg, because its origin may never exist and its progress would describe a pivot that can disappear. Before the first confirmation, the timeframe publishes the most recently created retained leg, so the axis still reports the forming candidate and lifecycle 0 remains reachable. A retained leg is forming, active, or terminal; a terminal leg is published with its measurements frozen at the bar it ended, until a newer confirmed leg is created. Its scale is published as `progression_leg_scale_code` and its direction as `progression_leg_direction`, which is the leg record's own `leg_direction_code` carried into the per-timeframe output. The full record of the published leg is published as `published_leg`; the full record of the leg at each scale is published as well (§9), so a forming candidate and the other scale's leg stay inspectable and the two are never blended.
 
 Each leg stores numeric fields for:
 
@@ -337,7 +337,7 @@ Each timeframe publishes the same output shape. Field names describe the quantit
 | `rvol_ratio` | continuous or null | RVOL20 |
 | `context_code` | integer 1..4 or null | Volatility and participation bucket |
 
-**Records.** Alongside the fields above, each timeframe publishes the full leg record of each scale (§8.4), the confirmed-level registry (§8.3), the event records (§7.1), and the per-timeframe event window counts (§10). These are records of numeric values, not strings.
+**Records.** Alongside the fields above, each timeframe publishes the full record of the published leg and of the leg at each scale (§8.4), the confirmed-level registry (§8.3), the event records (§7.1), and the per-timeframe event window counts (§10). These are records of numeric values, not strings.
 
 The progression ledger exposed for inspection retains the most recent 1024 legs per scale; the per-scale published record is always the most recent retained leg. The bound keeps the per-bar state machine linear on a long series and does not change the published record. The batch event series may expose every computed event to a consumer that needs the full record; the 1024-record retention bound applies to the per-timeframe live history, and the published five-bar window is always computed from the retained records.
 
@@ -451,7 +451,7 @@ Eleven points in the source specification left a choice open. Each is applied wh
 
 | Decision | Applied in |
 |---|---|
-| A1 — the published leg is the most recently created leg, with its scale published | §8.4, §9, §10 |
+| A1 — the published leg is the most recently created leg whose origin is confirmed, with its scale published; before the first confirmation, the newest forming leg | §8.4, §9, §10 |
 | A2 — a leg is created from a pivot candidate, so lifecycle 0 and reason 6 are reachable | §5, §8.4 |
 | A3 — the exact empirical percentile | §9 |
 | A4 — the state counters freeze while the compact code is null | §9 |

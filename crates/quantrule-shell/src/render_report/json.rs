@@ -299,6 +299,7 @@ fn chart_bar_value(bar: &ReportChartBar) -> Value {
         "momentum": bar.momentum,
         "structure": bar.structure,
         "progression_stage_code": bar.progression_stage_code,
+        "progression_progress": bar.progression_progress,
     })
 }
 
