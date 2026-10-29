@@ -6,7 +6,8 @@
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan: [`docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`](../../execution-plans/2026-10-28/141-mvp-v1-final-contract.md) §9
 - Branch/worktree: `test/177-post-fix-verification` in `quant-rule--177-mvp-v1-verification`
-- Status: verification complete; documentation update prepared for review.
+- PR: [#199](https://github.com/quant-rule/quant-rule/pull/199)
+- Status: PR open; checks pass; merge pending.
 
 ## Intent and boundary
 
