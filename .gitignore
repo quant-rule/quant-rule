@@ -10,6 +10,10 @@
 # application, so Cargo.lock pins the exact dependencies of the build that is
 # published, and it is committed like any other source file.
 
+# Python bytecode
+__pycache__/
+*.py[cod]
+
 # Editors
 .idea/
 .vscode/

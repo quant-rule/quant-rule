@@ -3,13 +3,10 @@
 //! The expected file is an independent Python replay of the report contract
 //! over the checked-in readings, Direction, Momentum, Structure, Progression,
 //! context, and event fixtures. It never runs the Rust code under test. The
-//! divergence rows are restricted to the major scale because that is the
-//! run's default structure scale.
-//!
-//! Exception (2026-10-29, #196): the Progression lines listed in the fixture
-//! header were regenerated from the Rust implementation for the confirmed-leg
-//! change. Their independence is temporarily lost until #197 rebuilds the
-//! replay. Every other line is unchanged from the independent replay.
+//! Progression lines are produced by the checked-in oracle at
+//! `tools/oracle/progression_replay.py`; every other line remains from its
+//! earlier independent replay. The divergence rows are restricted to the
+//! major scale because that is the run's default structure scale.
 //!
 //! The render is a deterministic, line-oriented projection of every published
 //! report field. An empty optional value is `-`, a measured zero is

@@ -37,6 +37,12 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 |---|---|---|
 | MVP v1 verification | Verified (#177); re-verified on current `main` after #189 and #196; release notes `v0.2.0` | `docs/reports/2026-10-28/mvp-v1-verification.md` |
 
+## Developer tools
+
+| Tool | Purpose | Path |
+|---|---|---|
+| Progression replay oracle | Regenerates and checks the Progression golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
+
 ## Releases
 
 | Release | Tag | Notes |
