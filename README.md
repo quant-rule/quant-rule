@@ -91,6 +91,7 @@ and the lab summary. It also contains one lab for each quant role.
 
 | Tag | Title | Notes |
 |---|---|---|
+| `v0.3.0` | Lab Summary and Help | [`docs/releases/2026-10-30/v0.3.0.md`](docs/releases/2026-10-30/v0.3.0.md) |
 | `v0.2.0` | MVP v1 | [`docs/releases/2026-10-28/v0.2.0.md`](docs/releases/2026-10-28/v0.2.0.md) |
 
 ## Build and run
@@ -415,7 +416,7 @@ data/lab-result-2026-10-29T12-00-00Z/analytical
 `--json` prints one envelope instead:
 
 ```json
-{"actual_period":{"first_open_time":1735740900,"last_open_time":1767191400},"bundles":{"analytical":"data/lab-result-2026-10-29T12-00-00Z/analytical","execution":"data/lab-result-2026-10-29T12-00-00Z/execution","model":"data/lab-result-2026-10-29T12-00-00Z/model","portfolio":"data/lab-result-2026-10-29T12-00-00Z/portfolio","strategy":"data/lab-result-2026-10-29T12-00-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","model_version":"0.2.0","portfolio":{"final_equity":8016.143909900684,"halted":true,"max_drawdown":0.20315025809884202,"net_pnl":-1983.85609009931,"total_return":-0.19838560900993163,"trades":48},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
+{"actual_period":{"first_open_time":1735740900,"last_open_time":1767191400},"bundles":{"analytical":"data/lab-result-2026-10-29T12-00-00Z/analytical","execution":"data/lab-result-2026-10-29T12-00-00Z/execution","model":"data/lab-result-2026-10-29T12-00-00Z/model","portfolio":"data/lab-result-2026-10-29T12-00-00Z/portfolio","strategy":"data/lab-result-2026-10-29T12-00-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","model_version":"0.3.0","portfolio":{"final_equity":8016.143909900684,"halted":true,"max_drawdown":0.20315025809884202,"net_pnl":-1983.85609009931,"total_return":-0.19838560900993163,"trades":48},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
 ```
 
 `first_open_time` and `last_open_time` are the strategy timeframe's first and last open times. The run is deterministic: the same inputs and configuration produce byte-identical bundles and the same envelope, interactively or non-interactively. A single report writes only its own directory:

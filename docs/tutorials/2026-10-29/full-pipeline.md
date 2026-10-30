@@ -2,8 +2,8 @@
 
 - Date: 2026-10-29 (UTC)
 - Status: Current
-- Applies to: QuantRule v0.2.0, model 0.2.0
-- Last verified: 2026-10-30 against `main` at `a9fb070`
+- Applies to: QuantRule v0.3.0, model 0.3.0
+- Last verified: 2026-10-30 against the v0.3.0 release
 - Audience: a human, or an agent acting as Quant Researcher, Quant Developer, or
   Quant Validator
 - Claim type: procedural. This tutorial makes no profitability claim.
@@ -258,7 +258,7 @@ sed -n '1,12p' data/tutorial-dashboard.txt
 Expected: 45 lines, beginning with:
 
 ```text
-market-dashboard  window=latest  ladder=1m,5m,15m,1h  model=0.2.0  view=2026-10-25
+market-dashboard  window=latest  ladder=1m,5m,15m,1h  model=0.3.0  view=2026-10-25
 as-of  1m 2025-02-28T23:59:00Z | 5m 2025-02-28T23:55:00Z | 15m 2025-02-28T23:45:00Z | 1h 2025-02-28T23:00:00Z
 cross-TF agreement  2/3 axes have a strict majority (direction bullish 3/4, momentum no majority, structure bullish 3/4) · coverage 4/4
 churn  max 20 state changes (1h progression) · threshold 6 · history 4/4 (complete) · class Unstable
@@ -733,7 +733,7 @@ Expected: one header row and one data row.
 
 ```text
 name,data_version,model_version,structure_scale_code,m1_bars,layer3_materialized,bar_rows,consensus_rows,layer3_rows,pivot_rows,level_rows,event_rows,leg_rows
-solusd-2025-q1,tutorial-solusd-m1-2025-01-01_2025-02-28,0.2.0,2,84108,1,107918,107918,84108,126405,34542,192405,7232
+solusd-2025-q1,tutorial-solusd-m1-2025-01-01_2025-02-28,0.3.0,2,84108,1,107918,107918,84108,126405,34542,192405,7232
 ```
 
 ```bash
