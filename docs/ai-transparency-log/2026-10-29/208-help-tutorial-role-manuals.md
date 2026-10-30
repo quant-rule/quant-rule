@@ -10,9 +10,10 @@
   [#211](https://github.com/quant-rule/quant-rule/issues/211),
   [#212](https://github.com/quant-rule/quant-rule/issues/212)
 - Branches/worktrees: `feat/209-lab-summary` in
-  `quant-rule--209-lab-summary`; later work items use their own worktree.
-- Status: implementation in progress; verification evidence is added as it is
-  observed.
+  `quant-rule--209-lab-summary`; `docs/210-lab-tutorial` in
+  `quant-rule--210-lab-tutorial`; later work items use their own worktree.
+- Status: PR 1 is merged; PR 2 is implemented and its verification is recorded
+  below. Verification evidence is added as it is observed.
 
 ## Entry: preflight and issue tree
 
@@ -82,4 +83,67 @@
   - The command records `--created-utc` as supplied and never reads the clock,
     so the same lab and arguments produce the same bytes.
 - **Pull request:** [#213](https://github.com/quant-rule/quant-rule/pull/213),
-  open. Merge requires explicit human authorization.
+  merged at `2026-10-30T00:59:55Z` (merge commit `a9fb070`).
+
+## Entry: PR 2 — tutorial
+
+- **Intent and boundary:** Publish `docs/tutorials/2026-10-29/full-pipeline.md`
+  as an end-to-end procedure for a human or an agent acting as Quant Researcher,
+  Quant Developer, or Quant Validator. The document covers the data engine, the
+  model, research, strategy, the full five-bundle run, the store, three role
+  labs, limitations, troubleshooting, and a command index. It changes only
+  documentation: the tutorial, the docs index, the README, the `docs/tutorials`
+  kind in `AGENTS.md` section 5, the roles-overview link, the execution plan, and
+  this log. No Rust source, model formula, strategy, execution, portfolio,
+  configuration, fixture, oracle, or CI file was changed.
+- **Verification and evidence:**
+  - `cargo fmt --all -- --check` is clean; `cargo clippy --all-targets -- -D
+    warnings` reports no warnings.
+  - `cargo test` reports 1,374 passed, 0 failed, and 6 ignored across the
+    workspace; `cargo doc --no-deps` builds without warnings.
+  - `git diff --check` is clean. A relative-link check over the changed
+    documents found 24 links and all resolve.
+  - The two-month SOLUSD slice has 84,108 M1 rows. `candles` printed 1,000
+    lines; `candles-tolerant` reported 84,108 read and 0 rejected;
+    `timeframes` printed 4,000 lines and the four aggregation lines in the
+    tutorial.
+  - `market-dashboard` printed 45 lines; `market-state` carried
+    `aggregates`, `consensus`, `ladder`, and `timeframes`; `axis direction`
+    printed four lines; `events` printed 7,095 lines; `legs` printed eight;
+    `model-series` printed two; `market-chart` printed
+    `bytes=21922`; `market-report` wrote its four artifacts.
+  - `research export` wrote 9 files with 107,918 layer rows; `research summary`
+    printed 41 lines. `strategy-run` printed 363 records: 182 entries and 181
+    exits.
+  - `store init`, `ingest`, `verify`, `list`, `show`, and the four `db` queries
+    were run against the two-month slice. The store reported `schema=2`,
+    `bars=107918`, `verified ... tables=7`, and CSV widths of 74, 61, and 285
+    columns. The 176 MB database was ingested once; a harness restart cancelled
+    two verification attempts, and the final `store verify` printed
+    `verified solusd-2025-q1 bars=107918 tables=7`.
+  - Three full-year `backtest` runs (22.1 s, 22.6 s, 23.9 s) wrote the five
+    bundles to three separate lab folders. A recursive `diff` of each bundle
+    across the runs showed no differences. The three root summaries reported
+    48 trades, final equity `8016.143910`, max drawdown `0.203150`, commission
+    `885.610499`, slippage `3.994526`, funding paid `4.003485`, funding received
+    `1.993983`, and `halted: true`.
+  - The researcher, developer, and validator `lab summary` invocations wrote
+    their notes under Role notes and their `Next` lines handed off to the next
+    role. The validator notes record the halt and the in-sample split.
+- **Learning:**
+  - The first draft used `"$QR" candles "$CSV" | head -1`; the command exited 1
+    with `cannot write output: Broken pipe` because `head` closed the pipe. The
+    tutorial now redirects large NDJSON to a file and slices the file.
+  - The first fetch example stated `pages=3` without observing a fetch. It was
+    replaced with a shape that leaves the provider counts as `<n>`; the file's
+    observed row count is stated separately.
+  - The determinism section first called the store "pure". The store is
+    shell-owned and performs SQLite I/O, so the text now limits purity to the
+    model and research computations and says the store's inputs are explicit.
+  - The three full-year runs confirmed byte-identical bundles, so the developer
+    and validator labs compare bundle directories rather than root summaries.
+    The root summaries differ by role identity and notes, as intended.
+  - The tutorial shows the full run before the researcher protocol so the
+    pipeline is concrete. The researcher lab states that a real work item writes
+    the protocol first; the lab demonstrates the record, not the chronology.
+- **Pull request:** pending. Merge requires explicit human authorization.

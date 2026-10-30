@@ -80,6 +80,13 @@ on a release build. When it does, the machine is set up.
 When the code changes, rebuild with `cargo build --release -p quantrule-shell`;
 the `PATH` entry keeps pointing at the new binary.
 
+## Learn the pipeline
+
+The [full-pipeline tutorial](docs/tutorials/2026-10-29/full-pipeline.md) runs
+every stage through shell commands: data ingestion, the four-axis model,
+research export, strategy decisions, the five-bundle backtest, the SQLite store,
+and the lab summary. It also contains one lab for each quant role.
+
 ## Releases
 
 | Tag | Title | Notes |

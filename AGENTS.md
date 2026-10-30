@@ -118,6 +118,7 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` — approved execution plans, per section 11.
   - `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` — the AI transparency log required by section 6. One file per work item, named to match its execution plan.
   - `docs/model/<YYYY-MM-DD>/<file>.md` — the analytical model's contract: the four axes, the numeric output fields, the event model, and the aggregation rules. The implementation follows it.
+  - `docs/tutorials/<YYYY-MM-DD>/<file>.md` — end-to-end procedures that run the product through shell commands, including role labs.
   - `docs/adr/<YYYY-MM-DD>/<file>.md` — architecture decision records, describing the decision, the alternatives considered, and the consequences.
 - **Plans live in the repository.** An execution plan drafted outside the repository is a scratch copy, not the plan of record. Before implementation, it is written to `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` and committed. No implementation begins until that file exists.
 - **Documentation follows the code.** A change that invalidates a documented behavior updates that document in the same pull request, not in a follow-up.

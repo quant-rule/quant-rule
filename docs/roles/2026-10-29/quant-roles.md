@@ -99,6 +99,8 @@ changes signal generation. A docs-only change does not need a validation pass.
 - They do not replace tests, code review, security review, or human acceptance.
 - They do not authorize commits, pushes, merges, or releases.
 
-See the [container plan](../../execution-plans/2026-10-29/201-quant-roles.md)
-for the adoption work and the [docs index](../../README.md) for the rest of the
+The [full-pipeline tutorial](../../tutorials/2026-10-29/full-pipeline.md) runs
+the pipeline and the three role labs through shell commands. See the
+[container plan](../../execution-plans/2026-10-29/201-quant-roles.md) for the
+adoption work and the [docs index](../../README.md) for the rest of the
 documentation.
