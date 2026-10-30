@@ -45,3 +45,20 @@
   run was executed once; no out-of-sample or profitability claim is made. The
   implementation is committed on the task branch at `f38e298`; no push, PR, or
   merge was performed.
+
+## Entry: AUD-04 entry-envelope validation
+
+- **Intent and boundary:** Close AUD-04's missing Quant Validator record by
+  reproducing the current-equity entry envelope on the merged code and the
+  full-year example. Read-only validation; no code change.
+- **Evidence:** `docs/audits/2026-10-30/aud-04-cap-validation.md`. The full-year
+  run made 65 entries, 54 after equity fell below initial cash; the maximum
+  `fill notional / equity_before_entry` was `1.000000000000002` and zero entries
+  exceeded the envelope beyond tolerance. The gap-cap and half-equity tests
+  passed.
+- **Learning:** the cap is a partial fill and can be below the configured
+  quantity step; the per-engine contract documents that. The example fixed
+  notional equals initial cash, so strict rejection would have made it
+  untradeable.
+- **Limitations:** in-sample, one data version, sequential Quant Validator pass by
+  the implementing agent; no independent-model judgment or profitability claim.
