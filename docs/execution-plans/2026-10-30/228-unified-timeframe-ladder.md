@@ -729,9 +729,7 @@ until then.
 
 **Goal:** Build the as-of context the strategy will use.
 
-**Status:** Implemented; PR pending. The builder streams one context per
-execution bar and reads only context bars closed at or before the execution
-close. The 600k-bar debug benchmark completed in 1.378 s for the context pass.
+**Status:** Implemented in PR [#242](https://github.com/quant-rule/quant-rule/pull/242); CI passed. The builder streams one context per execution bar and reads only context bars closed at or before the execution close. The 600k-bar debug benchmark completed in 1.378 s for the context pass.
 
 **Files:**
 

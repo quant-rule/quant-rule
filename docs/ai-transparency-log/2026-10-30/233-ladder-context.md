@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#233](https://github.com/quant-rule/quant-rule/issues/233)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR pending
+- Status: Implemented; PR [#242](https://github.com/quant-rule/quant-rule/pull/242) open; CI passed
 
 ## Intent and boundary
 
@@ -53,6 +53,8 @@ recomputes a model reading.
 | Exact-close availability | A context bar closing at the execution close is used |
 | Missing context | Axis contexts unavailable; not zero/neutral |
 | Ordinal handling | Stage histogram; no stage averaging |
+| PR | #242 opened |
+| CI `verify` and `sync` | Passed |
 
 ## Deviations and decisions
 
