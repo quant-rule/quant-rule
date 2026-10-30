@@ -10,6 +10,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use quantrule_backtest::portfolio::{DrawdownAction, PortfolioConfig};
+use quantrule_data::Timeframe;
 use quantrule_model::input::MarketStateConfig;
 use quantrule_model::readings::PivotScale;
 use serde_json::Value;
@@ -179,6 +180,19 @@ impl RunConfig {
                 scale_code(self.model.structure_scale),
                 scale_code(self.analytics.structure_scale),
             ));
+        }
+
+        for timeframe in Timeframe::ALL {
+            if self.model.is_overridden(timeframe)
+                && !self.data.available_timeframes.contains(&timeframe)
+            {
+                return Err(ConfigError::inconsistent(
+                    file_name(&self.paths.model),
+                    &format!("$.timeframes.{}", timeframe.code()),
+                    "a timeframe from the available data ladder",
+                    timeframe.code(),
+                ));
+            }
         }
 
         for timeframe in &self.analytics.timeframes {

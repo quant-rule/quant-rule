@@ -358,6 +358,46 @@ fn model_object() -> Value {
     json!({"schema": "quantrule.model/v1", "structure_scale": "major"})
 }
 
+fn model_v2_object() -> Value {
+    json!({
+        "schema": "quantrule.model/v2",
+        "defaults": {
+            "ema": [20, 50, 200],
+            "rsi": 14,
+            "atr": 14,
+            "rvol": 20
+        },
+        "timeframes": {},
+        "structure": {"scale": "major"}
+    })
+}
+
+#[test]
+fn model_v2_reads_defaults_and_timeframe_overrides() {
+    let defaults = model::parse(&model_v2_object(), "model.json").expect("the v2 config loads");
+    assert_eq!(defaults.structure_scale, PivotScale::Major);
+    let m1 = defaults.readings_for(u64::from(Timeframe::M1.seconds()));
+    assert_eq!(m1, quantrule_model::readings::ReadingsConfig::default());
+
+    let overridden = set(
+        model_v2_object(),
+        &["timeframes"],
+        json!({"1m": {"ema": [10, 30, 90], "rsi": 21}}),
+    );
+    let config = model::parse(&overridden, "model.json").expect("the override loads");
+    assert!(config.is_overridden(Timeframe::M1));
+    assert!(!config.is_overridden(Timeframe::M5));
+    let m1 = config.readings_for(u64::from(Timeframe::M1.seconds()));
+    assert_eq!(m1.ema_fast, 10);
+    assert_eq!(m1.ema_mid, 30);
+    assert_eq!(m1.ema_slow, 90);
+    assert_eq!(m1.rsi, 21);
+    assert_eq!(m1.atr, 14);
+    assert_eq!(m1.rvol, 20);
+    let m5 = config.readings_for(u64::from(Timeframe::M5.seconds()));
+    assert_eq!(m5, quantrule_model::readings::ReadingsConfig::default());
+}
+
 #[test]
 fn model_matches_the_contract() {
     let valid = model::parse(&model_object(), "model.json").expect("the valid config loads");
@@ -373,8 +413,8 @@ fn model_matches_the_contract() {
     for (value, kind, path) in [
         (json!(1), Type, "$"),
         (
-            set(model_object(), &["schema"], json!("quantrule.model/v2")),
-            Schema,
+            set(model_object(), &["schema"], json!("quantrule.model/v3")),
+            Unsupported,
             "$.schema",
         ),
         (
@@ -401,6 +441,71 @@ fn model_matches_the_contract() {
             set(model_object(), &["structure_scale"], json!(2)),
             Type,
             "$.structure_scale",
+        ),
+    ] {
+        assert_rejected(model::parse(&value, "model.json"), kind, path);
+    }
+}
+
+#[test]
+fn model_v2_rejects_invalid_readings() {
+    for (value, kind, path) in [
+        (
+            remove(model_v2_object(), &["defaults"]),
+            MissingField,
+            "$.defaults",
+        ),
+        (
+            remove(model_v2_object(), &["defaults", "rsi"]),
+            MissingField,
+            "$.defaults.rsi",
+        ),
+        (
+            set(model_v2_object(), &["defaults", "ema"], json!([20, 50])),
+            Range,
+            "$.defaults.ema",
+        ),
+        (
+            set(
+                model_v2_object(),
+                &["defaults", "ema"],
+                json!([50, 20, 200]),
+            ),
+            Range,
+            "$.defaults",
+        ),
+        (
+            set(model_v2_object(), &["defaults", "rsi"], json!(0)),
+            Range,
+            "$.defaults.rsi",
+        ),
+        (
+            set(
+                model_v2_object(),
+                &["timeframes"],
+                json!({"30m": {"rsi": 21}}),
+            ),
+            Range,
+            "$.timeframes.30m",
+        ),
+        (
+            set(
+                model_v2_object(),
+                &["timeframes"],
+                json!({"1m": {"unknown": 1}}),
+            ),
+            UnknownField,
+            "$.timeframes.1m.unknown",
+        ),
+        (
+            remove(model_v2_object(), &["structure"]),
+            MissingField,
+            "$.structure",
+        ),
+        (
+            set(model_v2_object(), &["structure", "scale"], json!("weekly")),
+            Range,
+            "$.structure.scale",
         ),
     ] {
         assert_rejected(model::parse(&value, "model.json"), kind, path);

@@ -1,4 +1,13 @@
 {
-  "schema": "quantrule.model/v1",
-  "structure_scale": "major"
+  "schema": "quantrule.model/v2",
+  "defaults": {
+    "ema": [20, 50, 200],
+    "rsi": 14,
+    "atr": 14,
+    "rvol": 20
+  },
+  "timeframes": {},
+  "structure": {
+    "scale": "major"
+  }
 }

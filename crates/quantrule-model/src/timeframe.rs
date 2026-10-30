@@ -112,7 +112,8 @@ impl TimeframeModel {
             return None;
         }
 
-        let readings = Readings::compute(input.candles);
+        let readings_config = config.readings_for(input.timeframe_secs);
+        let readings = Readings::compute_with_config(input.candles, &readings_config);
         let direction = DirectionSeries::compute(&readings);
         let momentum = MomentumSeries::compute(&readings);
         let structure = StructureSeries::compute_with_config(
