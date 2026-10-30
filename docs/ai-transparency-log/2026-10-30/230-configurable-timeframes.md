@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#230](https://github.com/quant-rule/quant-rule/issues/230)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR pending
+- Status: Implemented; PR [#239](https://github.com/quant-rule/quant-rule/pull/239) open; CI passed
 
 ## Intent and boundary
 
@@ -50,6 +50,8 @@ timeframes from `data.json` v3.
 | Existing 1m/5m/15m/1h tests | Passed |
 | Source-cadence rejection | Passed |
 | Worktree | `quant-rule--230-configurable-timeframes` |
+| PR | #239 opened |
+| CI `verify` and `sync` | Passed |
 
 ## Deviations and decisions
 

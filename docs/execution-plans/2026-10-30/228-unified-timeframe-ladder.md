@@ -626,8 +626,7 @@ until then.
 
 **Goal:** Make the available timeframe set configurable and add 4h.
 
-**Status:** Implemented; PR pending. Path-based commands keep the historical
-four-timeframe default; configured runs use `available_timeframes`.
+**Status:** Implemented in PR [#239](https://github.com/quant-rule/quant-rule/pull/239); CI passed. Path-based commands keep the historical four-timeframe default; configured runs use `available_timeframes`.
 
 **Files:**
 
