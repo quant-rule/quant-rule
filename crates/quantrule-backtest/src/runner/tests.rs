@@ -7,8 +7,8 @@
 //! equity are asserted from the same run.
 
 use quantrule_data::Candle;
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::PivotScale;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
 
 use crate::execution::{ExecutionConfig, RejectReason};
 use crate::portfolio::ExitReason;

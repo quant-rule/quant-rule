@@ -405,9 +405,9 @@ fn event_summary_value(summary: &TimeframeEventSummary) -> Value {
 
 #[cfg(test)]
 mod tests {
+    use quantrule_model::input::MarketStateConfig;
     use quantrule_model::report::MarketReport;
     use quantrule_model::run::ModelRun;
-    use quantrule_model::state::MarketStateConfig;
     use serde_json::Value;
 
     use super::json_bytes;

@@ -1,8 +1,8 @@
 //! Unit tests for the strategy type boundary.
 
 use quantrule_data::Candle;
-use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
+use quantrule_model::timeframe::TimeframeModel;
 
 use super::*;
 

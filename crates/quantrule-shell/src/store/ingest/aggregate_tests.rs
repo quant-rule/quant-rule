@@ -18,7 +18,7 @@ use quantrule_model::aggregate::{
     CrossTimeframeAggregates, DirectionAggregates, EventAggregates, EventSubtypeCounts,
     MomentumAggregates, ProgressionAggregates, ScaleStageAggregates, StructureAggregates,
 };
-use quantrule_model::state::TimeframeConsensus;
+use quantrule_model::consensus::TimeframeConsensus;
 
 const M1: u64 = 60;
 const M5: u64 = 300;

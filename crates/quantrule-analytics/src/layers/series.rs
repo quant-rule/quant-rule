@@ -13,10 +13,10 @@ use quantrule_data::Candle;
 use quantrule_model::aggregate::TimeframeSnapshot;
 use quantrule_model::axes::progression::ProgressionLeg;
 use quantrule_model::axes::structure::registry::ConfirmedLevel;
+use quantrule_model::consensus::TimeframeConsensus;
 use quantrule_model::events::EventRecord;
 use quantrule_model::readings::PivotSeries;
-use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::TimeframeConsensus;
+use quantrule_model::timeframe::TimeframeModel;
 
 use super::LayerError;
 use super::metrics::{Metrics, ReadingsSnapshot};

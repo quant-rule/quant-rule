@@ -17,7 +17,7 @@ use crate::events::signal::{
 use crate::readings::PivotKind;
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
-use crate::run::{ModelBar, TimeframeModel};
+use crate::timeframe::{ModelBar, TimeframeModel};
 
 use super::super::LevelReading;
 

@@ -18,8 +18,8 @@
 //! the blocked entry with [`crate::execution::RejectReason::MissingQuantity`];
 //! the ledger's risk event and `halted` flag record the drawdown halt itself.
 
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::run::ModelRun;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
 
 use crate::execution::{ExecutionBatch, ExecutionConfig, ExecutionEngine, ExecutionError};
 use crate::portfolio::{PortfolioConfig, PortfolioLedger, PortfolioLedgerError, PortfolioMetrics};

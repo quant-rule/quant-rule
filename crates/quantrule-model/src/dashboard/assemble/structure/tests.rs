@@ -4,10 +4,10 @@ use crate::events::signal::{
     STRUCTURE_SOURCE_CODE, SignalSubtype,
 };
 use crate::events::{EventRecord, EventType};
+use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::readings::roles::AxisCode;
 use crate::readings::{PivotKind, PivotScale};
-use crate::run::TimeframeModel;
-use crate::state::{MarketStateConfig, TimeframeInput};
+use crate::timeframe::TimeframeModel;
 use quantrule_data::Candle;
 
 const READINGS_FIXTURE: &str = include_str!("../../../../tests/fixtures/readings_golden.csv");

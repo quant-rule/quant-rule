@@ -1037,7 +1037,7 @@ fn selected_timeframes(config: &RunConfig) -> Vec<u64> {
 fn selected_models<'a>(
     run: &'a ModelRun,
     selected: &'a [u64],
-) -> impl Iterator<Item = &'a quantrule_model::run::TimeframeModel> {
+) -> impl Iterator<Item = &'a quantrule_model::timeframe::TimeframeModel> {
     run.timeframes()
         .iter()
         .filter(move |timeframe| selected.contains(&timeframe.timeframe_secs()))

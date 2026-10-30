@@ -314,9 +314,9 @@ fn opt_u8(value: Option<u8>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use quantrule_model::input::MarketStateConfig;
     use quantrule_model::report::MarketReport;
     use quantrule_model::run::ModelRun;
-    use quantrule_model::state::MarketStateConfig;
 
     use super::summary_bytes;
 

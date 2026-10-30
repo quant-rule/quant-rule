@@ -12,7 +12,8 @@ use crate::aggregate::{CrossTimeframeAggregates, EventSubtypeCounts};
 use crate::axes::progression::ProgressionLeg;
 use crate::events::EventRecord;
 use crate::readings::roles::AxisCode;
-use crate::run::{ModelBar, ModelRun, TimeframeModel};
+use crate::run::ModelRun;
+use crate::timeframe::{ModelBar, TimeframeModel};
 
 use super::order::event_cmp;
 use super::{
@@ -33,7 +34,7 @@ impl MarketReport {
     /// ```
     /// use quantrule_model::report::MarketReport;
     /// use quantrule_model::run::ModelRun;
-    /// use quantrule_model::state::MarketStateConfig;
+    /// use quantrule_model::input::MarketStateConfig;
     ///
     /// let run = ModelRun::compute(&[], &MarketStateConfig::default());
     /// let report = MarketReport::compute(&run, &[300, 60, 300]);

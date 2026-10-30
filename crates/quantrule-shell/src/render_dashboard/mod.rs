@@ -610,8 +610,8 @@ mod tests {
     use quantrule_model::dashboard::{
         AxisReadiness, BiasContinuity, BiasState, DashboardConfig, Domain, Stage, TenureOriginKind,
     };
+    use quantrule_model::input::MarketStateConfig;
     use quantrule_model::run::ModelRun;
-    use quantrule_model::state::MarketStateConfig;
     use serde_json::{Value, json};
 
     fn empty_state() -> DashboardState {

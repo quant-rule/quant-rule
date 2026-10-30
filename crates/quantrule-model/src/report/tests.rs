@@ -4,9 +4,9 @@ use quantrule_data::Candle;
 
 use super::MarketReport;
 use super::order::event_cmp;
+use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::readings::roles::AxisCode;
 use crate::run::ModelRun;
-use crate::state::{MarketStateConfig, TimeframeInput};
 
 const READINGS_FIXTURE: &str = include_str!("../../tests/fixtures/readings_golden.csv");
 const READINGS_HEADER: &str = "bar,timestamp,open,high,low,close,volume,ema20,ema50,ema200,rsi14,atr14,rvol20,minor_candidate_high,minor_candidate_low,minor_pivot_high,minor_pivot_low,minor_pivot_occurred_at,major_candidate_high,major_candidate_low,major_pivot_high,major_pivot_low,major_pivot_occurred_at";

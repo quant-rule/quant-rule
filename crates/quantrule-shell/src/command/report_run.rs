@@ -16,7 +16,8 @@ use quantrule_backtest::strategy::{
 use quantrule_data::{Candle, Timeframe, TimeframeSet, format_utc_timestamp};
 use quantrule_model::readings::PivotScale;
 use quantrule_model::report::MarketReport;
-use quantrule_model::run::{ModelRun, TimeframeModel};
+use quantrule_model::run::ModelRun;
+use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
 pub(super) mod bundles;
@@ -568,19 +569,19 @@ pub(super) fn run_pipeline(config: &RunConfig) -> Result<BacktestRun, RunError> 
     let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
     let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
     let inputs = [
-        quantrule_model::state::TimeframeInput {
+        quantrule_model::input::TimeframeInput {
             timeframe_secs: u64::from(Timeframe::M1.seconds()),
             candles: &m1,
         },
-        quantrule_model::state::TimeframeInput {
+        quantrule_model::input::TimeframeInput {
             timeframe_secs: u64::from(Timeframe::M5.seconds()),
             candles: &m5,
         },
-        quantrule_model::state::TimeframeInput {
+        quantrule_model::input::TimeframeInput {
             timeframe_secs: u64::from(Timeframe::M15.seconds()),
             candles: &m15,
         },
-        quantrule_model::state::TimeframeInput {
+        quantrule_model::input::TimeframeInput {
             timeframe_secs: u64::from(Timeframe::H1.seconds()),
             candles: &h1,
         },

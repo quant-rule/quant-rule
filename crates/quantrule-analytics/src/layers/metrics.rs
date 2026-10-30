@@ -11,7 +11,7 @@ use quantrule_model::axes::progression::ProgressionBar;
 use quantrule_model::axes::structure::StructureBar;
 use quantrule_model::context::ContextBar;
 use quantrule_model::kernel::UnavailableReason;
-use quantrule_model::run::ModelReadings;
+use quantrule_model::timeframe::ModelReadings;
 
 /// The six scalar indicator readings for one bar.
 #[derive(Debug, Clone, Copy, PartialEq)]

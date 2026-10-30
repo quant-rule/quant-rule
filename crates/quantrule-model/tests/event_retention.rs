@@ -5,9 +5,9 @@
 //! published history stays at the newest 1,024 records.
 
 use quantrule_data::Candle;
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::retention::EVENT_SNAPSHOT_LIMIT;
-use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_model::timeframe::TimeframeModel;
 
 const BARS: usize = 3_000;
 const TIMEFRAME_SECS: u64 = 60;

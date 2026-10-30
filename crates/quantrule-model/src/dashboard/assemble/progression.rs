@@ -27,7 +27,7 @@
 use crate::axes::progression::{ProgressionBar, ProgressionLeg};
 use crate::kernel::{PERCENTILE_WINDOW, UnavailableReason, empirical_percentile};
 use crate::readings::roles::AxisCode;
-use crate::run::{ModelBar, TimeframeModel};
+use crate::timeframe::{ModelBar, TimeframeModel};
 
 use super::super::{
     AxisDetail, AxisState, AxisValue, PaceDirection, ProgressionDetail, RECENT_PACE_WINDOW_BARS,

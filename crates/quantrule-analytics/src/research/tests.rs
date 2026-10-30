@@ -1,5 +1,5 @@
 use quantrule_data::Candle;
-use quantrule_model::state::TimeframeInput;
+use quantrule_model::input::TimeframeInput;
 
 use super::{DatasetMeta, ExportBundle, ExportError, ExportFile, render_dataset};
 use crate::layers::{LayerConfig, LayerSet, build_layers};

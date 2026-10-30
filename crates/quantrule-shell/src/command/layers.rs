@@ -8,7 +8,7 @@ use std::path::Path;
 
 use quantrule_analytics::layers::{LayerConfig, LayerSet, build_layers};
 use quantrule_data::{Candle, Timeframe};
-use quantrule_model::state::TimeframeInput;
+use quantrule_model::input::TimeframeInput;
 
 use super::types::{RunError, WindowMode};
 use crate::csv;

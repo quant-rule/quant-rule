@@ -7,7 +7,7 @@
 use std::io::{self, Write};
 
 use quantrule_data::format_utc_timestamp;
-use quantrule_model::run::ModelBar;
+use quantrule_model::timeframe::ModelBar;
 use serde_json::{Value, json};
 
 use crate::labels;

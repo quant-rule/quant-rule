@@ -16,7 +16,7 @@ use quantrule_model::aggregate::{
     CrossTimeframeAggregates, DirectionAggregates, EventAggregates, EventSubtypeCounts,
     MomentumAggregates, ProgressionAggregates, ScaleStageAggregates, StructureAggregates,
 };
-use quantrule_model::state::TimeframeConsensus;
+use quantrule_model::consensus::TimeframeConsensus;
 use rusqlite::types::Value;
 
 /// The 74 columns the writer binds, in `BAR_INSERT` order.

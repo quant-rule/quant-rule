@@ -22,7 +22,8 @@ mod structure;
 use crate::kernel::{Readiness, UnavailableReason};
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
-use crate::run::{ModelBar, ModelRun, TimeframeModel};
+use crate::run::ModelRun;
+use crate::timeframe::{ModelBar, TimeframeModel};
 
 use self::direction::direction_tenure;
 use self::progression::progression_axis;
@@ -60,7 +61,7 @@ impl DashboardState {
     /// ```
     /// use quantrule_model::dashboard::{DashboardConfig, DashboardState};
     /// use quantrule_model::run::ModelRun;
-    /// use quantrule_model::state::MarketStateConfig;
+    /// use quantrule_model::input::MarketStateConfig;
     ///
     /// let run = ModelRun::compute(&[], &MarketStateConfig::default());
     /// let view = DashboardState::from_run(&run, &[300, 60], &DashboardConfig::default());
@@ -137,8 +138,8 @@ impl TimeframeState {
     /// ```
     /// use quantrule_data::Candle;
     /// use quantrule_model::dashboard::TimeframeState;
-    /// use quantrule_model::run::TimeframeModel;
-    /// use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+    /// use quantrule_model::timeframe::TimeframeModel;
+    /// use quantrule_model::input::{MarketStateConfig, TimeframeInput};
     ///
     /// let candle = Candle::new(0, 0, 1.0, 1.0, 1.0, 1.0, Some(10.0))
     ///     .expect("the example candle is valid");

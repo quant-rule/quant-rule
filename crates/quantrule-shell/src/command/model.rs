@@ -8,8 +8,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe, TimeframeSet};
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::run::ModelRun;
-use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
+use quantrule_model::state::MarketState;
 
 use super::types::{Axis, ModelArgs, ModelSeriesArgs, ParseError, RunError, WindowMode};
 use crate::csv;

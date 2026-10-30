@@ -35,9 +35,10 @@ use std::fmt;
 
 use quantrule_data::Candle;
 use quantrule_model::aggregate::CrossTimeframeAggregates;
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::PivotScale;
-use quantrule_model::run::{ModelRun, TimeframeModel};
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_model::run::ModelRun;
+use quantrule_model::timeframe::TimeframeModel;
 
 use crate::alignment;
 use crate::resolution::{AxisResolution, AxisResolutions, clamp_unit};

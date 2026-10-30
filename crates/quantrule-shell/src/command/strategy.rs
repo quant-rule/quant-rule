@@ -17,8 +17,8 @@ use quantrule_backtest::strategy::{
     AxisAgreementStrategy, Decision, ExitReason, Side, Strategy, StrategyConfig, StrategyInput,
 };
 use quantrule_data::{Candle, Timeframe, format_utc_timestamp};
-use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
+use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
 use super::types::{ParseError, RunError, StrategyRunArgs, StrategyRunError};

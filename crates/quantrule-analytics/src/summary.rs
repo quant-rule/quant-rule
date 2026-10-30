@@ -256,7 +256,7 @@ fn resolution(value: Option<f64>) -> AxisResolution {
 #[cfg(test)]
 mod tests {
     use quantrule_data::Candle;
-    use quantrule_model::state::TimeframeInput;
+    use quantrule_model::input::TimeframeInput;
 
     use super::{AXES, summarize};
     use crate::layers::{LayerConfig, LayerSet, build_layers};

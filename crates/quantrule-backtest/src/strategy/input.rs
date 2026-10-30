@@ -5,7 +5,7 @@
 //! It carries no candle price, so a strategy cannot accidentally treat a price
 //! as a fill.
 
-use quantrule_model::run::ModelBar;
+use quantrule_model::timeframe::ModelBar;
 
 use super::config::StrategyConfig;
 use super::decision::Side;
