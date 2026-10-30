@@ -2,7 +2,7 @@
 //!
 //! The set owns one bounded series per supported timeframe. M1 candles enter
 //! through [`TimeframeSet::push`] or [`TimeframeSet::push_values`]; the engine
-//! builds M5, M15, and H1 from them. A derived bucket is published only after
+//! builds M5, M15, H1, and H4 from them. A derived bucket is published only after
 //! every expected M1 candle is present, so a partial bucket can never become a
 //! candle. Gaps are recorded between consecutive candles of each series.
 //!
@@ -178,7 +178,7 @@ impl TimeframeSeries {
     }
 }
 
-/// A set of first-class M1, M5, M15, and H1 series.
+/// A set of first-class M1, M5, M15, H1, and H4 series.
 ///
 /// Feed closed M1 candles in strictly increasing timestamp order. The set
 /// validates and retains M1, derives M5/M15/H1, and bounds every series. Call
@@ -192,8 +192,8 @@ impl TimeframeSeries {
 /// never silently truncated.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeframeSet {
-    series: [TimeframeSeries; 4],
-    buckets: [Option<Bucket>; 3],
+    series: [TimeframeSeries; 5],
+    buckets: [Option<Bucket>; 4],
     finished: bool,
 }
 
@@ -203,7 +203,7 @@ impl TimeframeSet {
     pub fn new() -> Self {
         Self {
             series: Timeframe::ALL.map(TimeframeSeries::new),
-            buckets: [None; 3],
+            buckets: [None; 4],
             finished: false,
         }
     }
@@ -245,7 +245,7 @@ impl TimeframeSet {
             series: Timeframe::ALL.map(|timeframe| {
                 TimeframeSeries::with_window(timeframe, CandleWindow::with_limit(limit))
             }),
-            buckets: [None; 3],
+            buckets: [None; 4],
             finished: false,
         }
     }
@@ -325,7 +325,7 @@ impl TimeframeSet {
         &self.series[series_position(timeframe)]
     }
 
-    /// Iterates over M1, M5, M15, and H1 in that fixed order.
+    /// Iterates over M1, M5, M15, H1, and H4 in that fixed order.
     pub fn series_iter(&self) -> impl Iterator<Item = &TimeframeSeries> {
         self.series.iter()
     }
@@ -540,13 +540,50 @@ mod tests {
     }
 
     #[test]
-    fn a_new_set_has_four_empty_series_in_fixed_order() {
+    fn a_complete_h4_bucket_is_aggregated_from_m1() {
+        let set = build_minutes(240);
+        let series = set.series(Timeframe::H4);
+
+        assert_eq!(series.len(), 1);
+        let candle = series.last().expect("the complete H4 bucket is published");
+        assert_eq!(candle.timestamp(), BASE);
+        assert_eq!(candle.open(), 1.0);
+        assert_eq!(candle.high(), 2.0);
+        assert_eq!(candle.low(), 0.5);
+        assert_eq!(candle.close(), 1.5);
+        assert_eq!(candle.volume(), Some(2_400.0));
+    }
+
+    #[test]
+    fn a_partial_h4_bucket_is_recorded_and_not_published() {
+        let set = build_minutes(239);
+        let series = set.series(Timeframe::H4);
+
+        assert!(series.is_empty());
+        assert_eq!(
+            series.partial_buckets(),
+            &[PartialBucket {
+                bucket_start: BASE,
+                present: 239,
+                expected: 240,
+            }]
+        );
+    }
+
+    #[test]
+    fn a_new_set_has_five_empty_series_in_fixed_order() {
         let set = TimeframeSet::new();
         let series: Vec<Timeframe> = set.series_iter().map(|series| series.timeframe()).collect();
 
         assert_eq!(
             series,
-            vec![Timeframe::M1, Timeframe::M5, Timeframe::M15, Timeframe::H1]
+            vec![
+                Timeframe::M1,
+                Timeframe::M5,
+                Timeframe::M15,
+                Timeframe::H1,
+                Timeframe::H4
+            ]
         );
         for timeframe in Timeframe::ALL {
             let series = set.series(timeframe);

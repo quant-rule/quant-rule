@@ -182,7 +182,10 @@ pub(super) fn model_bundle_from(
     let bundle = out.join("model");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
-    let report = MarketReport::compute(model_run, &pipeline::ladder_secs());
+    let report = MarketReport::compute(
+        model_run,
+        &pipeline::ladder_secs_for(&config.data.available_timeframes),
+    );
     if report.charts.bars.is_empty() {
         return Err(RunError::Report(ReportError::EmptyChart {
             period: period_label(config),
@@ -729,7 +732,7 @@ fn artifact_names(names: &[&str]) -> Vec<String> {
 fn ladder_codes(config: &RunConfig) -> Vec<&'static str> {
     config
         .data
-        .ladder
+        .available_timeframes
         .iter()
         .map(|timeframe| timeframe.code())
         .collect()

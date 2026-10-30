@@ -47,56 +47,59 @@ impl WindowMode {
     }
 }
 
-/// The ladder in seconds, fastest first.
+/// The default ladder in seconds, fastest first.
+///
+/// Path-based commands use this ladder. A configured run uses the available
+/// ladder from `data.json`.
 #[must_use]
 pub(crate) fn ladder_secs() -> [u64; 4] {
-    Timeframe::ALL.map(|timeframe| u64::from(timeframe.seconds()))
+    Timeframe::DEFAULT_LADDER.map(|timeframe| u64::from(timeframe.seconds()))
 }
 
-/// The four owned candle series in ladder order.
+/// The configured ladder in seconds, fastest first.
+#[must_use]
+pub(crate) fn ladder_secs_for(timeframes: &[Timeframe]) -> Vec<u64> {
+    timeframes
+        .iter()
+        .map(|timeframe| u64::from(timeframe.seconds()))
+        .collect()
+}
+
+/// The owned candle series for the selected ladder.
 ///
 /// `TimeframeInput` borrows a slice, so the vectors must outlive the inputs.
 /// This type keeps that ownership in one place and exposes the borrowed view.
 pub(crate) struct ModelInputs {
-    m1: Vec<Candle>,
-    m5: Vec<Candle>,
-    m15: Vec<Candle>,
-    h1: Vec<Candle>,
+    series: Vec<(Timeframe, Vec<Candle>)>,
 }
 
 impl ModelInputs {
-    /// Copies the four ladder series out of a loaded set.
+    /// Copies the default ladder's series out of a loaded set.
     #[must_use]
     pub(crate) fn from_set(set: &TimeframeSet) -> Self {
-        Self {
-            m1: set.series(Timeframe::M1).iter().copied().collect(),
-            m5: set.series(Timeframe::M5).iter().copied().collect(),
-            m15: set.series(Timeframe::M15).iter().copied().collect(),
-            h1: set.series(Timeframe::H1).iter().copied().collect(),
-        }
+        Self::from_set_with_ladder(set, &Timeframe::DEFAULT_LADDER)
     }
 
-    /// The four model inputs, fastest first.
+    /// Copies the selected ladder's series out of a loaded set.
     #[must_use]
-    pub(crate) fn as_inputs(&self) -> [TimeframeInput<'_>; 4] {
-        [
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M1.seconds()),
-                candles: &self.m1,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M5.seconds()),
-                candles: &self.m5,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M15.seconds()),
-                candles: &self.m15,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::H1.seconds()),
-                candles: &self.h1,
-            },
-        ]
+    pub(crate) fn from_set_with_ladder(set: &TimeframeSet, ladder: &[Timeframe]) -> Self {
+        let series = ladder
+            .iter()
+            .map(|timeframe| (*timeframe, set.series(*timeframe).iter().copied().collect()))
+            .collect();
+        Self { series }
+    }
+
+    /// The model inputs, in ladder order.
+    #[must_use]
+    pub(crate) fn as_inputs(&self) -> Vec<TimeframeInput<'_>> {
+        self.series
+            .iter()
+            .map(|(timeframe, candles)| TimeframeInput {
+                timeframe_secs: u64::from(timeframe.seconds()),
+                candles,
+            })
+            .collect()
     }
 }
 
@@ -139,7 +142,17 @@ pub(crate) fn load_extended_set(
 /// Builds a model run from an already loaded set and an explicit configuration.
 #[must_use]
 pub(crate) fn model_run_from_set(set: &TimeframeSet, config: &MarketStateConfig) -> ModelRun {
-    let inputs = ModelInputs::from_set(set);
+    model_run_from_set_with_ladder(set, &Timeframe::DEFAULT_LADDER, config)
+}
+
+/// Builds a model run over an explicit ladder.
+#[must_use]
+pub(crate) fn model_run_from_set_with_ladder(
+    set: &TimeframeSet,
+    ladder: &[Timeframe],
+    config: &MarketStateConfig,
+) -> ModelRun {
+    let inputs = ModelInputs::from_set_with_ladder(set, ladder);
     ModelRun::compute(&inputs.as_inputs(), config)
 }
 
@@ -154,7 +167,11 @@ pub(crate) fn run_model(config: &RunConfig) -> Result<ModelRun, PipelineError> {
     if set.series(Timeframe::M1).is_empty() {
         return Err(PipelineError::EmptyPeriod);
     }
-    Ok(model_run_from_set(&set, &config.model))
+    Ok(model_run_from_set_with_ladder(
+        &set,
+        &config.data.available_timeframes,
+        &config.model,
+    ))
 }
 
 /// Loads the configured run and runs the full backtest once.
@@ -168,7 +185,7 @@ pub(crate) fn run_backtest(config: &RunConfig) -> Result<BacktestRun, PipelineEr
     if set.series(Timeframe::M1).is_empty() {
         return Err(PipelineError::EmptyPeriod);
     }
-    let inputs = ModelInputs::from_set(&set);
+    let inputs = ModelInputs::from_set_with_ladder(&set, &config.data.available_timeframes);
     let backtest = BacktestConfig {
         model: config.model,
         strategy: config.strategy.engine,

@@ -420,7 +420,7 @@ A run is specified by eight files. The command line carries only the config path
 |---|---|
 | `run.json` | Run name, policy reference, output root, and the six engine file names |
 | `policy.json` | Account, objective, risk envelope, tickets, and timeframes |
-| `data.json` | Instrument ticket, source CSV, data version, UTC period, the fixed `1m`/`5m`/`15m`/`1h` ladder, and `max_candles` (`1..=600000`) |
+| `data.json` | Instrument ticket, source CSV, data version, UTC period, the configurable `available_timeframes` list (default `1m`/`5m`/`15m`/`1h`, with `4h` supported), and `max_candles` (`1..=600000`) |
 | `model.json` | Structure scale (`major` or `minor`) |
 | `strategy.json` | Thesis, `axis-agreement` timeframe, long/short thresholds, stop ATR multiple, and reward-to-risk |
 | `execution.json` | Fill timeframe, order type, tie break, fee rate, slippage, zero-volume and end-of-data policy |
@@ -540,7 +540,7 @@ One candle per line, oldest first:
 
 | Field | Meaning |
 |---|---|
-| `timeframe` | Series code (`1m`, `5m`, `15m`, or `1h`); present only in `timeframes` output |
+| `timeframe` | Series code (`1m`, `5m`, `15m`, `1h`, or `4h`); present only in `timeframes` output |
 | `series_index` | Stable index assigned by the data engine; survives eviction |
 | `window_index` | Position in the printed window; the oldest candle is 0 |
 | `datetime` | RFC 3339 UTC timestamp |

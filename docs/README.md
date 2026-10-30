@@ -40,17 +40,16 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 
 ### Approved target contracts
 
-The unified ladder contracts are approved under #228. They describe the target
-architecture; the current v2 behavior remains in force until the corresponding
-code phases merge.
+The unified ladder contracts are approved under #228. The data v3 contract is
+implemented by #230; the remaining target contracts wait for their code phases.
 
-| Contract | Target | Path |
+| Contract | Status | Path |
 |---|---|---|
-| Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
-| Per-timeframe model | `quantrule.model/v2` | `docs/config/2026-10-30/model-v2.md` |
-| Active ladder and context | `quantrule.strategy/v3` | `docs/config/2026-10-30/strategy-v3.md` |
-| Fill mechanics | `quantrule.execution/v3` | `docs/config/2026-10-30/execution-v3.md` |
-| Strategy/execution boundary | `TradeIntent` | `docs/config/2026-10-30/trade-intent.md` |
+| Available timeframes | `quantrule.data/v3`; implemented by #230 | `docs/config/2026-10-30/data-v3.md` |
+| Per-timeframe model | `quantrule.model/v2`; implementation pending (#231) | `docs/config/2026-10-30/model-v2.md` |
+| Active ladder and context | `quantrule.strategy/v3`; implementation pending (#233, #235) | `docs/config/2026-10-30/strategy-v3.md` |
+| Fill mechanics | `quantrule.execution/v3`; implementation pending (#234) | `docs/config/2026-10-30/execution-v3.md` |
+| Strategy/execution boundary | `TradeIntent`; implementation pending (#234) | `docs/config/2026-10-30/trade-intent.md` |
 
 ## Current evidence
 
@@ -102,7 +101,7 @@ code phases merge.
 | Remaining MVP audit remediation (AUD-02…11) | Merged; all findings `Verified` | `docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md` |
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | MVP pre-release audit closure | All findings `Verified`; AUD-04 validation recorded | `docs/audits/2026-10-30/mvp-pre-release-closure.md` |
-| Unified timeframe ladder | Approved (#228); Phase 1 contracts in progress; code phases #230–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
+| Unified timeframe ladder | Approved (#228); Phase 1 merged; Phase 2 (#230) implemented, PR pending; phases #231–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

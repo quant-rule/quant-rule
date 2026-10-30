@@ -54,7 +54,7 @@ pub(super) fn render_glossary() -> String {
         ),
         (
             "timeframe ladder",
-            "The configured 1m/5m/15m/1h series. Each timeframe is first-class; M1 is the source and M5/M15/H1 are derived by the data engine.",
+            "The available-series ladder. The data engine supports 1m, 5m, 15m, 1h, and 4h; M1 is the source and the higher series are derived. Path commands default to 1m/5m/15m/1h; a configured run uses data.json available_timeframes.",
         ),
         (
             "M1 source",

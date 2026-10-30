@@ -1,5 +1,5 @@
 {
-  "schema": "quantrule.data/v2",
+  "schema": "quantrule.data/v3",
   "source": {
     "kind": "csv",
     "path": "../state_m1.csv"
@@ -8,7 +8,7 @@
   "from": "2025-01-01",
   "to": "2025-01-01",
   "source_timeframe": "1m",
-  "ladder": [
+  "available_timeframes": [
     "1m",
     "5m",
     "15m",

@@ -54,14 +54,14 @@ fn assert_rejected<T: std::fmt::Debug>(
 
 fn data_object() -> Value {
     json!({
-        "schema": "quantrule.data/v2",
+        "schema": "quantrule.data/v3",
         "source": {"kind": "csv", "path": "candles.csv"},
         "instrument": "EURUSD",
         "data_version": "version",
         "from": "2025-01-01",
         "to": "2025-12-31",
         "source_timeframe": "1m",
-        "ladder": ["1m", "5m", "15m", "1h"],
+        "available_timeframes": ["1m", "5m", "15m", "1h", "4h"],
         "max_candles": 600000
     })
 }
@@ -74,10 +74,21 @@ fn data_matches_the_contract() {
     assert_eq!(valid.data_version, "version");
     assert_eq!(valid.source.path, Path::new("config/candles.csv"));
     assert_eq!(valid.source_timeframe, Timeframe::M1);
-    assert_eq!(valid.ladder, Timeframe::ALL);
+    assert_eq!(valid.available_timeframes, Timeframe::ALL);
     assert_eq!(valid.max_candles, 600_000);
     assert_eq!(valid.from.as_deref(), Some("2025-01-01"));
     assert_eq!(valid.to.as_deref(), Some("2025-12-31"));
+
+    let subset = set(
+        data_object(),
+        &["available_timeframes"],
+        json!(["1m", "15m", "4h"]),
+    );
+    let subset = data::parse(&subset, "data.json", base).expect("a supported subset is valid");
+    assert_eq!(
+        subset.available_timeframes,
+        vec![Timeframe::M1, Timeframe::M15, Timeframe::H4]
+    );
 
     let open = set(
         set(data_object(), &["from"], json!(null)),
@@ -123,7 +134,7 @@ fn data_matches_the_contract() {
         ("top level", json!([]), Type, "$"),
         (
             "schema",
-            set(data_object(), &["schema"], json!("quantrule.data/v3")),
+            set(data_object(), &["schema"], json!("quantrule.data/v2")),
             Schema,
             "$.schema",
         ),
@@ -210,22 +221,50 @@ fn data_matches_the_contract() {
             "$.source_timeframe",
         ),
         (
-            "ladder length",
-            set(data_object(), &["ladder"], json!(["1m", "15m"])),
+            "available empty",
+            set(data_object(), &["available_timeframes"], json!([])),
             Range,
-            "$.ladder",
+            "$.available_timeframes",
         ),
         (
-            "ladder order",
-            set(data_object(), &["ladder"], json!(["1h", "15m", "5m", "1m"])),
+            "available missing m1",
+            set(
+                data_object(),
+                &["available_timeframes"],
+                json!(["5m", "15m"]),
+            ),
             Range,
-            "$.ladder",
+            "$.available_timeframes[0]",
         ),
         (
-            "ladder element",
-            set(data_object(), &["ladder"], json!(["1m", 5, "15m", "1h"])),
+            "available duplicate",
+            set(
+                data_object(),
+                &["available_timeframes"],
+                json!(["1m", "5m", "5m"]),
+            ),
+            Range,
+            "$.available_timeframes",
+        ),
+        (
+            "available order",
+            set(
+                data_object(),
+                &["available_timeframes"],
+                json!(["1h", "15m", "5m", "1m"]),
+            ),
+            Range,
+            "$.available_timeframes",
+        ),
+        (
+            "available element",
+            set(
+                data_object(),
+                &["available_timeframes"],
+                json!(["1m", 5, "15m"]),
+            ),
             Type,
-            "$.ladder[1]",
+            "$.available_timeframes[1]",
         ),
         (
             "max candles zero",
@@ -863,7 +902,7 @@ fn analytics_matches_the_contract() {
     let valid =
         analytics::parse(&analytics_object(), "analytics.json").expect("the valid config loads");
     assert_eq!(valid.structure_scale, PivotScale::Major);
-    assert_eq!(valid.timeframes, Timeframe::ALL);
+    assert_eq!(valid.timeframes, Timeframe::DEFAULT_LADDER);
     assert!(valid.relations);
 
     let subset = set(analytics_object(), &["timeframes"], json!(["1m", "15m"]));
@@ -997,7 +1036,7 @@ fn the_example_config_loads_and_resolves() {
     assert_eq!(config.data.from.as_deref(), Some("2025-01-01"));
     assert_eq!(config.data.to.as_deref(), Some("2025-12-31"));
     assert_eq!(config.data.source_timeframe, Timeframe::M1);
-    assert_eq!(config.data.ladder, Timeframe::ALL);
+    assert_eq!(config.data.available_timeframes, Timeframe::DEFAULT_LADDER);
     assert_eq!(config.data.max_candles, 600_000);
     assert!(
         config
@@ -1045,7 +1084,7 @@ fn the_example_config_loads_and_resolves() {
     assert_eq!(config.portfolio.max_drawdown.action(), DrawdownAction::Halt);
 
     assert_eq!(config.analytics.structure_scale, PivotScale::Major);
-    assert_eq!(config.analytics.timeframes, Timeframe::ALL);
+    assert_eq!(config.analytics.timeframes, Timeframe::DEFAULT_LADDER);
     assert!(config.analytics.relations);
 }
 
@@ -1066,7 +1105,7 @@ fn cross_config_invariants_are_enforced() {
     let base = run::RunConfig::load(&example_path()).expect("the example config is valid");
 
     let mut missing_strategy_timeframe = base.clone();
-    missing_strategy_timeframe.data.ladder = vec![Timeframe::M1, Timeframe::M5];
+    missing_strategy_timeframe.data.available_timeframes = vec![Timeframe::M1, Timeframe::M5];
     assert_cross(
         &missing_strategy_timeframe,
         Inconsistent,
@@ -1093,7 +1132,8 @@ fn cross_config_invariants_are_enforced() {
     );
 
     let mut missing_timeframe = base.clone();
-    missing_timeframe.data.ladder = vec![Timeframe::M1, Timeframe::M5, Timeframe::M15];
+    missing_timeframe.data.available_timeframes =
+        vec![Timeframe::M1, Timeframe::M5, Timeframe::M15];
     missing_timeframe.analytics.timeframes = vec![Timeframe::H1];
     assert_cross(
         &missing_timeframe,
@@ -1138,14 +1178,14 @@ fn invalid_json_is_reported() {
 #[test]
 fn the_error_format_names_the_file_path_and_values() {
     let error = data::parse(
-        &set(data_object(), &["schema"], json!("quantrule.data/v3")),
+        &set(data_object(), &["schema"], json!("quantrule.data/v2")),
         "data.json",
         Path::new("config"),
     )
     .expect_err("the schema is wrong");
     assert_eq!(
         error.to_string(),
-        "config error: data.json: $.schema: expected quantrule.data/v2, found quantrule.data/v3"
+        "config error: data.json: $.schema: expected quantrule.data/v3, found quantrule.data/v2"
     );
 
     let error = data::parse(

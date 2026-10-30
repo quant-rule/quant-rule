@@ -150,7 +150,7 @@ impl RunConfig {
         let strategy_secs = self.strategy.engine.timeframe_secs();
         let Some(strategy_timeframe) = self
             .data
-            .ladder
+            .available_timeframes
             .iter()
             .copied()
             .find(|timeframe| u64::from(timeframe.seconds()) == strategy_secs)
@@ -182,22 +182,22 @@ impl RunConfig {
         }
 
         for timeframe in &self.analytics.timeframes {
-            if !self.data.ladder.contains(timeframe) {
+            if !self.data.available_timeframes.contains(timeframe) {
                 return Err(ConfigError::inconsistent(
                     file_name(&self.paths.analytics),
                     "$.timeframes",
-                    "timeframes from the data ladder",
+                    "timeframes from the available data ladder",
                     timeframe.code(),
                 ));
             }
         }
 
         for timeframe in &self.policy.universe.timeframes {
-            if !self.data.ladder.contains(timeframe) {
+            if !self.data.available_timeframes.contains(timeframe) {
                 return Err(ConfigError::inconsistent(
                     file_name(&self.paths.policy),
                     "$.universe.timeframes",
-                    "timeframes from the data ladder",
+                    "timeframes from the available data ladder",
                     timeframe.code(),
                 ));
             }

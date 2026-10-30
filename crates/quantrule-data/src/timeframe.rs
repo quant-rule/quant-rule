@@ -1,14 +1,15 @@
 //! Timeframes supported by the data engine.
 //!
-//! The source slice can fetch these intervals natively from Dukascopy, and the
-//! data engine derives M5, M15, and H1 from M1. A derived series uses the same
-//! candle shape and bounded window as the source M1 series.
+//! The source slice can fetch M1, M5, M15, and H1 natively from Dukascopy; the
+//! data engine derives M5, M15, H1, and H4 from an M1 series. A derived series
+//! uses the same candle shape and bounded window as the source M1 series.
 
 /// A candle timeframe.
 ///
-/// The source slice fetches these intervals natively from Dukascopy. The data
-/// engine also derives [`Timeframe::M5`], [`Timeframe::M15`], and
-/// [`Timeframe::H1`] from an M1 series. H4 and D1 are not supported.
+/// The source slice fetches M1, M5, M15, and H1 natively from Dukascopy. The
+/// data engine derives [`Timeframe::M5`], [`Timeframe::M15`],
+/// [`Timeframe::H1`], and [`Timeframe::H4`] from an M1 series. D1 is not
+/// supported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Timeframe {
     seconds: u32,
@@ -18,10 +19,16 @@ pub struct Timeframe {
 
 impl Timeframe {
     /// Every supported timeframe in ascending duration order.
-    pub const ALL: [Self; 4] = [Self::M1, Self::M5, Self::M15, Self::H1];
+    pub const ALL: [Self; 5] = [Self::M1, Self::M5, Self::M15, Self::H1, Self::H4];
+
+    /// The default ladder used by commands that do not read a run config.
+    ///
+    /// It is the historical four-timeframe ladder. The configured `data.json`
+    /// v3 available ladder may include H4 or omit members.
+    pub const DEFAULT_LADDER: [Self; 4] = [Self::M1, Self::M5, Self::M15, Self::H1];
 
     /// The timeframes derived from M1 by the data engine.
-    pub const DERIVED: [Self; 3] = [Self::M5, Self::M15, Self::H1];
+    pub const DERIVED: [Self; 4] = [Self::M5, Self::M15, Self::H1, Self::H4];
 
     /// One minute.
     pub const M1: Self = Self {
@@ -49,6 +56,13 @@ impl Timeframe {
         seconds: 3_600,
         code: "1h",
         file_code: "H1",
+    };
+
+    /// Four hours.
+    pub const H4: Self = Self {
+        seconds: 14_400,
+        code: "4h",
+        file_code: "H4",
     };
 
     /// The timeframe length in seconds.
@@ -93,6 +107,8 @@ impl Timeframe {
             Some(Self::M15)
         } else if code.eq_ignore_ascii_case("1h") || code.eq_ignore_ascii_case("h1") {
             Some(Self::H1)
+        } else if code.eq_ignore_ascii_case("4h") || code.eq_ignore_ascii_case("h4") {
+            Some(Self::H4)
         } else {
             None
         }
@@ -119,6 +135,7 @@ mod tests {
         assert_eq!(Timeframe::M5.seconds(), 300);
         assert_eq!(Timeframe::M15.seconds(), 900);
         assert_eq!(Timeframe::H1.seconds(), 3_600);
+        assert_eq!(Timeframe::H4.seconds(), 14_400);
     }
 
     #[test]
@@ -127,21 +144,33 @@ mod tests {
         assert_eq!(Timeframe::M5.code(), "5m");
         assert_eq!(Timeframe::M15.code(), "15m");
         assert_eq!(Timeframe::H1.code(), "1h");
+        assert_eq!(Timeframe::H4.code(), "4h");
         assert_eq!(Timeframe::M1.file_code(), "M1");
         assert_eq!(Timeframe::M5.file_code(), "M5");
         assert_eq!(Timeframe::M15.file_code(), "M15");
         assert_eq!(Timeframe::H1.file_code(), "H1");
+        assert_eq!(Timeframe::H4.file_code(), "H4");
     }
 
     #[test]
     fn the_timeframe_order_is_fixed() {
         assert_eq!(
             Timeframe::ALL,
+            [
+                Timeframe::M1,
+                Timeframe::M5,
+                Timeframe::M15,
+                Timeframe::H1,
+                Timeframe::H4
+            ]
+        );
+        assert_eq!(
+            Timeframe::DEFAULT_LADDER,
             [Timeframe::M1, Timeframe::M5, Timeframe::M15, Timeframe::H1]
         );
         assert_eq!(
             Timeframe::DERIVED,
-            [Timeframe::M5, Timeframe::M15, Timeframe::H1]
+            [Timeframe::M5, Timeframe::M15, Timeframe::H1, Timeframe::H4]
         );
     }
 
@@ -156,6 +185,8 @@ mod tests {
         assert_eq!(Timeframe::M15.bucket_start(base + 900), base + 900);
         assert_eq!(Timeframe::H1.bucket_start(base + 3_599), base);
         assert_eq!(Timeframe::H1.bucket_start(base + 3_600), base + 3_600);
+        assert_eq!(Timeframe::H4.bucket_start(base + 14_399), base);
+        assert_eq!(Timeframe::H4.bucket_start(base + 14_400), base + 14_400);
     }
 
     #[test]
@@ -171,12 +202,13 @@ mod tests {
         }
         assert_eq!(Timeframe::from_code("15m"), Some(Timeframe::M15));
         assert_eq!(Timeframe::from_code("1H"), Some(Timeframe::H1));
+        assert_eq!(Timeframe::from_code("4h"), Some(Timeframe::H4));
+        assert_eq!(Timeframe::from_code("H4"), Some(Timeframe::H4));
     }
 
     #[test]
     fn unknown_codes_are_rejected() {
         assert_eq!(Timeframe::from_code("30m"), None);
-        assert_eq!(Timeframe::from_code("4h"), None);
         assert_eq!(Timeframe::from_code("1d"), None);
         assert_eq!(Timeframe::from_code(""), None);
     }

@@ -4,7 +4,7 @@ INPUT > DATA > MODEL > OUTPUT; the shell wraps the pipeline.
 Data
   candles <csv-path>              Read strictly; last 1000 candles as NDJSON.
   candles-tolerant <csv-path>     Skip bad rows; NDJSON plus quality on stderr.
-  timeframes <csv-path>           Build M1/M5/M15/H1; NDJSON plus aggregation.
+  timeframes <csv-path>           Build M1/M5/M15/H1/H4; NDJSON plus aggregation.
 Model
   market-state <csv-path>         Four-timeframe state as JSON.
   market-dashboard <csv-path>     Four-axis dashboard, one row per timeframe.

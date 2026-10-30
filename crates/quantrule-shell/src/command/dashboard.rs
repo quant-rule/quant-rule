@@ -99,7 +99,7 @@ pub(crate) fn run_market_dashboard(
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
     let run = load_model_run(&args.path, args.window)?;
-    let ladder: Vec<u64> = Timeframe::ALL
+    let ladder: Vec<u64> = Timeframe::DEFAULT_LADDER
         .iter()
         .map(|timeframe| u64::from(timeframe.seconds()))
         .collect();

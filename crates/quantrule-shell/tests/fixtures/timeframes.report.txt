@@ -2,3 +2,5 @@ aggregation timeframe=1m retained=60 partial=0 gaps=0
 aggregation timeframe=5m retained=12 partial=0 gaps=0
 aggregation timeframe=15m retained=4 partial=0 gaps=0
 aggregation timeframe=1h retained=1 partial=0 gaps=0
+aggregation timeframe=4h retained=0 partial=1 gaps=0
+partial timeframe=4h bucket=2025-01-01T00:00:00Z present=60 expected=240
