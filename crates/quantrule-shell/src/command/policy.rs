@@ -101,8 +101,8 @@ pub(crate) fn run_policy_check(
         config.policy.risk.max_open_positions,
         tickets,
         timeframes,
-        config.strategy.stop_atr_multiple,
-        config.strategy.reward_to_risk,
+        config.strategy.stop_atr_multiple(),
+        config.strategy.reward_to_risk(),
     )
     .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)

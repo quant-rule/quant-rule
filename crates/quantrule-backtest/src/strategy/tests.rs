@@ -6,17 +6,17 @@ use quantrule_model::timeframe::TimeframeModel;
 
 use super::*;
 
-/// A test adapter that supplies the position the stateless rule no longer owns.
+/// A test adapter that supplies the position the stateless rule does not own.
 struct Tracked {
     strategy: AxisAgreementStrategy,
-    position: Option<Side>,
+    position: StrategyPosition,
 }
 
 impl Tracked {
     fn new(config: StrategyConfig) -> Self {
         Self {
             strategy: AxisAgreementStrategy::new(config),
-            position: None,
+            position: StrategyPosition::flat(),
         }
     }
 
@@ -25,21 +25,34 @@ impl Tracked {
     }
 
     fn on_bar(&mut self, input: &StrategyInput) -> Decision {
+        if self.position.is_open() {
+            self.position.bars_held += 1;
+        }
         let decision = self.strategy.decide(input, self.position);
         match decision {
-            Decision::Enter(entry) => self.position = Some(entry.side),
-            Decision::Exit(_) => self.position = None,
+            Decision::Enter(entry) => {
+                self.position = StrategyPosition::opened(entry.intent.side, input.bar_index);
+            }
+            Decision::Exit(_) => self.position = StrategyPosition::flat(),
             Decision::Hold => {}
         }
         decision
     }
 
     fn position(&self) -> Option<Side> {
-        self.position
+        self.position.side
     }
 
     fn config(&self) -> StrategyConfig {
         self.strategy.config()
+    }
+}
+
+/// The entry an adapter with the default risk policy produces.
+fn entry(side: Side, bar: StrategyInput) -> Entry {
+    Entry {
+        bar,
+        intent: RiskPolicy::default().intent(side),
     }
 }
 
@@ -261,17 +274,14 @@ fn side_codes_and_opposites_are_stable() {
 #[test]
 fn entry_and_exit_records_preserve_the_bar() {
     let input = bar(Some(0.2), Some(0.3), Some(0.4));
-    let entry = Entry {
-        side: Side::Long,
-        bar: input,
-    };
+    let entry = entry(Side::Long, input);
     let exit = Exit {
         side: Side::Long,
         bar: input,
         reason: ExitReason::AgreementLost,
     };
 
-    assert_eq!(entry.side, Side::Long);
+    assert_eq!(entry.side(), Side::Long);
     assert_eq!(entry.bar, input);
     assert_eq!(exit.side, Side::Long);
     assert_eq!(exit.bar, input);
@@ -283,12 +293,9 @@ fn a_test_strategy_can_enter_and_hold() {
     struct EnterOnLong;
 
     impl Strategy for EnterOnLong {
-        fn decide(&self, input: &StrategyInput, _position: Option<Side>) -> Decision {
+        fn decide(&self, input: &StrategyInput, _position: StrategyPosition) -> Decision {
             match Agreement::classify(input, &StrategyConfig::default()) {
-                Some(Agreement::Long) => Decision::Enter(Entry {
-                    side: Side::Long,
-                    bar: *input,
-                }),
+                Some(Agreement::Long) => Decision::Enter(entry(Side::Long, *input)),
                 _ => Decision::Hold,
             }
         }
@@ -299,13 +306,13 @@ fn a_test_strategy_can_enter_and_hold() {
     let neutral = bar(Some(0.2), Some(0.3), Some(-0.4));
 
     assert_eq!(
-        strategy.decide(&long, None),
-        Decision::Enter(Entry {
-            side: Side::Long,
-            bar: long,
-        })
+        strategy.decide(&long, StrategyPosition::flat()),
+        Decision::Enter(entry(Side::Long, long))
     );
-    assert_eq!(strategy.decide(&neutral, None), Decision::Hold);
+    assert_eq!(
+        strategy.decide(&neutral, StrategyPosition::flat()),
+        Decision::Hold
+    );
 }
 
 #[test]
@@ -371,16 +378,32 @@ fn agreement_strategy_defaults_to_the_first_configuration() {
 }
 
 #[test]
+fn agreement_strategy_carries_the_configured_risk_policy() {
+    let risk = RiskPolicy::new(3.0, 2.0).expect("the risk policy is valid");
+    let strategy = AxisAgreementStrategy::with_risk(StrategyConfig::default(), risk);
+    let input = bar(Some(0.2), Some(0.5), Some(1.0));
+
+    match strategy.decide(&input, StrategyPosition::flat()) {
+        Decision::Enter(entry) => {
+            assert_eq!(entry.intent.side, Side::Long);
+            assert_eq!(entry.intent.stop, StopSpec::AtrMultiple { multiple: 3.0 });
+            assert_eq!(
+                entry.intent.target,
+                TargetSpec::RewardToRisk { multiple: 2.0 }
+            );
+        }
+        other => panic!("expected an entry, got {other:?}"),
+    }
+}
+
+#[test]
 fn agreement_strategy_enters_long_on_agreement() {
     let mut strategy = Tracked::default();
     let input = bar(Some(0.2), Some(0.5), Some(1.0));
 
     assert_eq!(
         strategy.on_bar(&input),
-        Decision::Enter(Entry {
-            side: Side::Long,
-            bar: input,
-        })
+        Decision::Enter(entry(Side::Long, input))
     );
     assert_eq!(strategy.position(), Some(Side::Long));
 }
@@ -392,10 +415,7 @@ fn agreement_strategy_enters_short_on_agreement() {
 
     assert_eq!(
         strategy.on_bar(&input),
-        Decision::Enter(Entry {
-            side: Side::Short,
-            bar: input,
-        })
+        Decision::Enter(entry(Side::Short, input))
     );
     assert_eq!(strategy.position(), Some(Side::Short));
 }
@@ -475,10 +495,7 @@ fn agreement_strategy_exits_on_the_opposite_agreement_without_reversing() {
     let next_short = strategy_input(900, 2, Some(-0.3), Some(-0.4), Some(-0.8));
     assert_eq!(
         strategy.on_bar(&next_short),
-        Decision::Enter(Entry {
-            side: Side::Short,
-            bar: next_short,
-        })
+        Decision::Enter(entry(Side::Short, next_short))
     );
     assert_eq!(strategy.position(), Some(Side::Short));
 }
@@ -538,10 +555,7 @@ fn agreement_strategy_uses_the_configured_thresholds() {
     let short = strategy_input(900, 1, Some(-0.06), Some(-0.06), Some(-0.06));
     assert_eq!(
         strategy.on_bar(&short),
-        Decision::Enter(Entry {
-            side: Side::Short,
-            bar: short,
-        })
+        Decision::Enter(entry(Side::Short, short))
     );
 }
 

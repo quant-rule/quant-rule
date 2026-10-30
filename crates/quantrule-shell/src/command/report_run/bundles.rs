@@ -75,8 +75,6 @@ pub(crate) fn execution_bundle_from(
             "fill_timeframe": config.execution.fill_timeframe.code(),
             "fee_rate": config.execution.engine.fee_rate(),
             "slippage_bps": config.execution.engine.slippage_bps(),
-            "stop_atr_multiple": config.execution.engine.stop_atr_multiple(),
-            "target_atr_multiple": config.execution.engine.target_atr_multiple(),
         }),
         artifacts: &names,
     })
@@ -579,8 +577,6 @@ fn execution_json(
             "fill_timeframe": config.execution.fill_timeframe.code(),
             "fee_rate": config.execution.engine.fee_rate(),
             "slippage_bps": config.execution.engine.slippage_bps(),
-            "stop_atr_multiple": config.execution.engine.stop_atr_multiple(),
-            "target_atr_multiple": config.execution.engine.target_atr_multiple(),
         },
         "summary": {
             "orders": summary.orders,
@@ -934,6 +930,9 @@ fn reject_reason_code(reason: RejectReason) -> &'static str {
         RejectReason::ZeroVolume => "zero_volume",
         RejectReason::MissingAtr => "missing_atr",
         RejectReason::InvalidBracket => "invalid_bracket",
+        RejectReason::UnsupportedEntryStyle => "unsupported_entry_style",
+        RejectReason::ExpiredIntent => "expired_intent",
+        RejectReason::SlippageLimit => "slippage_limit",
         RejectReason::MissingQuantity => "missing_quantity",
         RejectReason::NonPositiveQuantity => "non_positive_quantity",
         RejectReason::RiskLimit => "risk_limit",

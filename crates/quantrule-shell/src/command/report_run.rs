@@ -140,8 +140,8 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
             let timeframe = model
                 .timeframe(timeframe_secs)
                 .ok_or_else(|| RunError::Report(ReportError::NoStrategyBars { timeframe_secs }))?;
-            let walk =
-                walk_strategy(timeframe, &config.strategy.engine).map_err(RunError::Backtest)?;
+            let walk = walk_strategy(timeframe, &config.strategy.engine, config.strategy.risk())
+                .map_err(RunError::Backtest)?;
             strategy_bundle_from_walk(
                 &config,
                 &out,
@@ -402,7 +402,7 @@ fn summarize_walk(
         match decision {
             Decision::Enter(entry) => {
                 summary.entries += 1;
-                match entry.side {
+                match entry.intent.side {
                     Side::Long => summary.long_entries += 1,
                     Side::Short => summary.short_entries += 1,
                 }
@@ -422,7 +422,7 @@ fn decisions_csv(inputs: &[StrategyInput], decisions: &[Decision], timeframe_sec
     for (input, decision) in inputs.iter().zip(decisions) {
         let (kind, side, reason) = match decision {
             Decision::Hold => continue,
-            Decision::Enter(entry) => ("entry", entry.side, String::new()),
+            Decision::Enter(entry) => ("entry", entry.intent.side, String::new()),
             Decision::Exit(exit) => ("exit", exit.side, exit_reason_code(exit.reason).to_owned()),
         };
         let _ = writeln!(
@@ -452,7 +452,7 @@ fn strategy_json(
         .filter_map(|(input, decision)| {
             let (kind, side, reason) = match decision {
                 Decision::Hold => return None,
-                Decision::Enter(entry) => ("entry", entry.side, Value::Null),
+                Decision::Enter(entry) => ("entry", entry.intent.side, Value::Null),
                 Decision::Exit(exit) => (
                     "exit",
                     exit.side,
@@ -664,8 +664,8 @@ fn strategy_value(config: &RunConfig) -> Value {
         "timeframe_secs": config.strategy.engine.timeframe_secs(),
         "long_threshold": config.strategy.engine.long_threshold(),
         "short_threshold": config.strategy.engine.short_threshold(),
-        "stop_atr_multiple": config.strategy.stop_atr_multiple,
-        "reward_to_risk": config.strategy.reward_to_risk,
+        "stop_atr_multiple": config.strategy.stop_atr_multiple(),
+        "reward_to_risk": config.strategy.reward_to_risk(),
         "target_atr_multiple": config.strategy.target_atr_multiple(),
     })
 }
@@ -823,8 +823,8 @@ mod tests {
         let inputs = vec![entry_bar, entry_bar, exit_bar];
         let decisions = vec![
             Decision::Enter(quantrule_backtest::strategy::Entry {
-                side: Side::Long,
                 bar: entry_bar,
+                intent: quantrule_backtest::intent::RiskPolicy::default().intent(Side::Long),
             }),
             Decision::Hold,
             Decision::Exit(quantrule_backtest::strategy::Exit {

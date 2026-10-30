@@ -21,6 +21,7 @@
 
 pub mod context;
 pub mod execution;
+pub mod intent;
 pub mod portfolio;
 pub mod runner;
 pub mod side;

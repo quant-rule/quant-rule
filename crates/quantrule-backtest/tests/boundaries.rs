@@ -47,6 +47,19 @@ fn execution_and_portfolio_do_not_import_strategy() {
 }
 
 #[test]
+fn the_strategy_does_not_import_execution_or_portfolio() {
+    for (path, source) in sources("strategy") {
+        for forbidden in ["use crate::execution", "use crate::portfolio"] {
+            assert!(
+                !source.contains(forbidden),
+                "{} must not import the execution or portfolio module",
+                path.display()
+            );
+        }
+    }
+}
+
+#[test]
 fn the_execution_engine_does_not_accept_a_strategy_decision() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")

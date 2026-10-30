@@ -12,19 +12,20 @@
 
 use quantrule_backtest::strategy::{
     AxisAgreementStrategy, Decision, Side, Strategy, StrategyConfig, StrategyInput,
+    StrategyPosition,
 };
 
-/// A test adapter that supplies the position the stateless rule no longer owns.
+/// A test adapter that supplies the position the stateless rule does not own.
 struct Tracked {
     strategy: AxisAgreementStrategy,
-    position: Option<Side>,
+    position: StrategyPosition,
 }
 
 impl Tracked {
     fn new(config: StrategyConfig) -> Self {
         Self {
             strategy: AxisAgreementStrategy::new(config),
-            position: None,
+            position: StrategyPosition::flat(),
         }
     }
 
@@ -33,17 +34,22 @@ impl Tracked {
     }
 
     fn on_bar(&mut self, input: &StrategyInput) -> Decision {
+        if self.position.is_open() {
+            self.position.bars_held += 1;
+        }
         let decision = self.strategy.decide(input, self.position);
         match decision {
-            Decision::Enter(entry) => self.position = Some(entry.side),
-            Decision::Exit(_) => self.position = None,
+            Decision::Enter(entry) => {
+                self.position = StrategyPosition::opened(entry.intent.side, input.bar_index);
+            }
+            Decision::Exit(_) => self.position = StrategyPosition::flat(),
             Decision::Hold => {}
         }
         decision
     }
 
     fn position(&self) -> Option<Side> {
-        self.position
+        self.position.side
     }
 }
 
@@ -130,7 +136,7 @@ fn position_label(position: Option<Side>) -> &'static str {
 fn parts(decision: Decision) -> (&'static str, &'static str, &'static str) {
     match decision {
         Decision::Hold => ("hold", "", ""),
-        Decision::Enter(entry) => ("enter", side_label(entry.side), ""),
+        Decision::Enter(entry) => ("enter", side_label(entry.intent.side), ""),
         Decision::Exit(exit) => ("exit", side_label(exit.side), "agreement_lost"),
     }
 }
@@ -223,8 +229,8 @@ fn a_single_bar_can_open_a_position() {
     assert_eq!(
         strategy.on_bar(&input),
         Decision::Enter(quantrule_backtest::strategy::Entry {
-            side: Side::Long,
             bar: input,
+            intent: quantrule_backtest::intent::RiskPolicy::default().intent(Side::Long),
         })
     );
     assert_eq!(strategy.position(), Some(Side::Long));

@@ -100,7 +100,9 @@ pub(crate) fn run_strategy_explain(
     writeln!(
         writer,
         "risk stop={} ATR target={} ATR reward_to_risk={}",
-        strategy.stop_atr_multiple, target, strategy.reward_to_risk
+        strategy.stop_atr_multiple(),
+        target,
+        strategy.reward_to_risk()
     )
     .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)

@@ -16,14 +16,16 @@ use quantrule_backtest::execution::{
     ExecutionConfig, ExecutionEngine, Fill, FillReason, OrderIntent, OrderRecord, OrderSide,
     OrderState, RejectReason, Rejection, Trigger,
 };
-use quantrule_backtest::strategy::{Decision, Entry, Exit, ExitReason, Side, StrategyInput};
+use quantrule_backtest::strategy::{
+    Decision, Entry, Exit, ExitReason, RiskPolicy, Side, StrategyInput,
+};
 use quantrule_data::Candle;
 
 fn intent(decision: Decision) -> OrderIntent {
     match decision {
         Decision::Hold => OrderIntent::Hold,
         Decision::Enter(entry) => OrderIntent::Enter {
-            side: entry.side,
+            intent: entry.intent,
             bar_index: entry.bar.bar_index,
             open_time: entry.bar.open_time,
             max_notional: None,
@@ -125,12 +127,12 @@ fn decision(field: &str, bar: StrategyInput) -> Decision {
     match field {
         "hold" => Decision::Hold,
         "enter_long" => Decision::Enter(Entry {
-            side: Side::Long,
             bar,
+            intent: RiskPolicy::default().intent(Side::Long),
         }),
         "enter_short" => Decision::Enter(Entry {
-            side: Side::Short,
             bar,
+            intent: RiskPolicy::default().intent(Side::Short),
         }),
         "exit_long" => Decision::Exit(Exit {
             side: Side::Long,
@@ -476,8 +478,8 @@ fn a_series_that_never_fills_leaves_the_order_pending_until_finish() {
                 .expect("the candle is valid"),
             atr14: Some(1.0),
             decision: Decision::Enter(Entry {
-                side: Side::Long,
                 bar: StrategyInput::new(900, 1, 900, Some(0.5), Some(0.5), Some(1.0)),
+                intent: RiskPolicy::default().intent(Side::Long),
             }),
         },
     ];

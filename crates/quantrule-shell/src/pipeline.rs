@@ -189,6 +189,7 @@ pub(crate) fn run_backtest(config: &RunConfig) -> Result<BacktestRun, PipelineEr
     let backtest = BacktestConfig {
         model: config.model,
         strategy: config.strategy.engine,
+        risk: config.strategy.risk(),
         execution: config.execution.engine,
         portfolio: config.portfolio,
         max_position_fraction: config.policy.risk.max_position_fraction,

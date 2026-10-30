@@ -729,7 +729,7 @@ until then.
 
 **Goal:** Build the as-of context the strategy will use.
 
-**Status:** Implemented in PR [#242](https://github.com/quant-rule/quant-rule/pull/242); CI passed. The builder streams one context per execution bar and reads only context bars closed at or before the execution close. The 600k-bar debug benchmark completed in 1.378 s for the context pass.
+**Status:** Merged in PR [#242](https://github.com/quant-rule/quant-rule/pull/242) as `12cea18`. The builder streams one context per execution bar and reads only context bars closed at or before the execution close. The 600k-bar debug benchmark completed in 1.378 s for the context pass.
 
 **Files:**
 
@@ -761,6 +761,13 @@ until then.
 **Goal:** Separate strategy intent from execution mechanics and preserve the
 stateless strategy contract.
 
+**Status:** Implemented; PR pending. `TradeIntent` is the strategy-to-execution
+boundary. The strategy emits it from its `RiskPolicy`; execution resolves the
+stop and target, rejects unsupported or expired intents, and publishes
+`StrategyPosition` for the next decision. The default policy remains a 2-ATR
+stop and a 1.5 reward-to-risk target, so the existing rule is behaviorally
+unchanged.
+
 **Files:**
 
 - `crates/quantrule-backtest/src/strategy/decision.rs`
@@ -776,11 +783,11 @@ stateless strategy contract.
 **Work:**
 
 - Add `TradeIntent`, `EntryStyle`, `StopSpec`, `TargetSpec`, and
-  `PositionState`.
+  `StrategyPosition`.
 - Extend the existing `OrderIntent` path rather than inventing a second one.
 - Remove stop/target multiples from `ExecutionConfig`.
 - Pass intent to execution; execution resolves the bracket.
-- Keep the strategy stateless; pass actual `PositionState`.
+- Keep the strategy stateless; pass actual `StrategyPosition`.
 - Reconcile fills and rejections.
 - Add the `AUD-02` regression guard: a rejected entry cannot create a virtual
   position.
@@ -1098,18 +1105,20 @@ Stop and request human direction if:
 
 ### Phase 6 — TradeIntent boundary
 
-- [ ] `TradeIntent` exists.
-- [ ] `StopSpec` and `TargetSpec` exist.
-- [ ] `PositionState` exists.
-- [ ] Execution config has no stop/target multiples.
-- [ ] Execution resolves ATR specs.
-- [ ] Execution sets correct stop/target sides.
-- [ ] Invalid brackets are rejected.
-- [ ] Rejected entry leaves strategy flat.
-- [ ] Bracket exit updates position before next decision.
-- [ ] Strategy does not read P&L or cash.
-- [ ] `AUD-02` regression guard remains.
-- [ ] Old rule tests pass except intentional reconciliation changes.
+- [x] `TradeIntent` exists.
+- [x] `StopSpec` and `TargetSpec` exist.
+- [x] `StrategyPosition` exists; the execution `PositionState` enum stays
+  execution-internal.
+- [x] Execution config has no stop/target multiples.
+- [x] Execution resolves ATR and absolute stop specs.
+- [x] Execution sets correct stop/target sides.
+- [x] Invalid brackets are rejected.
+- [x] Rejected entry leaves strategy flat.
+- [x] Bracket exit updates position before next decision.
+- [x] Strategy does not read P&L or cash.
+- [x] `AUD-02` regression guard remains.
+- [x] Old rule tests pass; the default policy preserves the 2-ATR/1.5-R:R
+  bracket.
 
 ### Phase 7 — Unified strategy
 

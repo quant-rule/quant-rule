@@ -9,7 +9,11 @@
 //! The config keeps the current `axis-agreement` rule shape. A future rule adds
 //! a new explicit `rule` value and its own parameters; it cannot smuggle a
 //! statistical field into the strategy input.
+//!
+//! The risk block becomes a [`RiskPolicy`] on the strategy. Execution receives
+//! the resulting `TradeIntent`; it does not own the stop or target distance.
 
+use quantrule_backtest::intent::RiskPolicy;
 use quantrule_backtest::strategy::StrategyConfig;
 use serde_json::Value;
 
@@ -27,17 +31,33 @@ pub(crate) struct StrategyRunConfig {
     pub(crate) engine: StrategyConfig,
     /// The human explanation of why the rule should have an edge.
     pub(crate) thesis: String,
-    /// The stop distance in ATR units.
-    pub(crate) stop_atr_multiple: f64,
-    /// The target distance as a multiple of the stop distance.
-    pub(crate) reward_to_risk: f64,
+    /// The risk intent attached to each entry.
+    risk: RiskPolicy,
 }
 
 impl StrategyRunConfig {
+    /// The strategy's risk policy.
+    #[must_use]
+    pub(crate) const fn risk(&self) -> RiskPolicy {
+        self.risk
+    }
+
+    /// The stop distance in ATR units.
+    #[must_use]
+    pub(crate) const fn stop_atr_multiple(&self) -> f64 {
+        self.risk.stop_atr_multiple()
+    }
+
+    /// The target distance as a multiple of the stop distance.
+    #[must_use]
+    pub(crate) const fn reward_to_risk(&self) -> f64 {
+        self.risk.reward_to_risk()
+    }
+
     /// The target distance in ATR units: `stop × reward_to_risk`.
     #[must_use]
     pub(crate) fn target_atr_multiple(&self) -> f64 {
-        self.stop_atr_multiple * self.reward_to_risk
+        self.risk.stop_atr_multiple() * self.risk.reward_to_risk()
     }
 }
 
@@ -116,7 +136,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
         "$.stop_atr_multiple",
         read::field(file, ROOT, object, "stop_atr_multiple")?,
     )?;
-    if stop_atr_multiple <= 0.0 {
+    if !stop_atr_multiple.is_finite() || stop_atr_multiple <= 0.0 {
         return Err(ConfigError::range(
             file,
             "$.stop_atr_multiple",
@@ -130,7 +150,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
         "$.reward_to_risk",
         read::field(file, ROOT, object, "reward_to_risk")?,
     )?;
-    if reward_to_risk <= 0.0 {
+    if !reward_to_risk.is_finite() || reward_to_risk <= 0.0 {
         return Err(ConfigError::range(
             file,
             "$.reward_to_risk",
@@ -152,12 +172,14 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
             &error.to_string(),
         )
     })?;
+    let risk = RiskPolicy::new(stop_atr_multiple, reward_to_risk).map_err(|error| {
+        ConfigError::range(file, "$", "a valid risk policy", &error.to_string())
+    })?;
 
     Ok(StrategyRunConfig {
         engine,
         thesis,
-        stop_atr_multiple,
-        reward_to_risk,
+        risk,
     })
 }
 
@@ -189,8 +211,10 @@ mod tests {
             "Trade only when direction, momentum, and structure agree."
         );
         assert_eq!(strategy.engine.timeframe_secs(), 900);
-        assert_eq!(strategy.stop_atr_multiple, 2.0);
+        assert_eq!(strategy.stop_atr_multiple(), 2.0);
+        assert_eq!(strategy.reward_to_risk(), 1.5);
         assert_eq!(strategy.target_atr_multiple(), 3.0);
+        assert_eq!(strategy.risk().stop_atr_multiple(), 2.0);
     }
 
     #[test]
