@@ -761,12 +761,7 @@ until then.
 **Goal:** Separate strategy intent from execution mechanics and preserve the
 stateless strategy contract.
 
-**Status:** Implemented; PR pending. `TradeIntent` is the strategy-to-execution
-boundary. The strategy emits it from its `RiskPolicy`; execution resolves the
-stop and target, rejects unsupported or expired intents, and publishes
-`StrategyPosition` for the next decision. The default policy remains a 2-ATR
-stop and a 1.5 reward-to-risk target, so the existing rule is behaviorally
-unchanged.
+**Status:** Implemented in PR [#243](https://github.com/quant-rule/quant-rule/pull/243); CI passed. `TradeIntent` is the strategy-to-execution boundary. The strategy emits it from its `RiskPolicy`; execution resolves the stop and target, rejects unsupported or expired intents, and publishes `StrategyPosition` for the next decision. The default policy remains a 2-ATR stop and a 1.5 reward-to-risk target, so the existing rule is behaviorally unchanged.
 
 **Files:**
 

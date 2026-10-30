@@ -1,7 +1,7 @@
 # Trade Intent Contract
 
 - Date: 2026-10-30 (UTC)
-- Status: Implemented (#234); strategy wiring pending (#235)
+- Status: Implemented (#234, PR #243); strategy wiring pending (#235)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#234](https://github.com/quant-rule/quant-rule/issues/234)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)

@@ -1,7 +1,7 @@
 # Execution Configuration v3 — Fill Mechanics Only
 
 - Date: 2026-10-30 (UTC)
-- Status: Approved; bracket resolution and risk-free execution config implemented (#234); v3 schema pending (#235–#237)
+- Status: Approved; bracket resolution and risk-free execution config implemented (#234, PR #243); v3 schema pending (#235–#237)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#234](https://github.com/quant-rule/quant-rule/issues/234)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - Trade intent: [`docs/config/2026-10-30/trade-intent.md`](trade-intent.md)

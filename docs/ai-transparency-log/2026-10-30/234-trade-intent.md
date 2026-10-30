@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#234](https://github.com/quant-rule/quant-rule/issues/234)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR pending
+- Status: Implemented; PR [#243](https://github.com/quant-rule/quant-rule/pull/243) open; CI passed
 
 ## Intent and boundary
 
@@ -65,6 +65,8 @@ reward-to-risk target, so the refactor is behaviorally safe.
 | Final position | Strategy position matches the portfolio position |
 | `OrderIntent` boundary test | Execution does not import the strategy module |
 | Strategy boundary test | Strategy does not import execution or portfolio |
+| PR | #243 opened |
+| CI `verify` and `sync` | Passed; documentation gate run with `RUSTDOCFLAGS=-D warnings` |
 
 ## Deviations and decisions
 
