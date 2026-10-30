@@ -4,7 +4,7 @@
 - Audit: [`mvp-pre-release-audit.md`](mvp-pre-release-audit.md)
 - Baseline: merged `main` at `a006a17`
 - Verifier: separate agent session, DeepSeek V4.1 Flash; not an independent model
-- Status: **AUD-01…03, 05…11 Verified; AUD-04 Fixed**
+- Status: **All findings Verified**
 
 ## Verification
 
@@ -28,7 +28,7 @@ removal behavior, and the entry cap.
 | AUD-2026-10-30-01 | Verified | Cadence guard in every ladder consumer |
 | AUD-2026-10-30-02 | Verified | Stateless strategy, `WrongExitSide`, execution-state marker, executed counts |
 | AUD-2026-10-30-03 | Verified | Open-gap precedence before the intrabar stop-first rule |
-| AUD-2026-10-30-04 | **Fixed** | Cap behavior and tests pass; Quant Validator record remains pending |
+| AUD-2026-10-30-04 | Verified | Cap behavior reproduced on the full-year run and gap tests; see [`aud-04-cap-validation.md`](aud-04-cap-validation.md) |
 | AUD-2026-10-30-05 | Verified | Positive OHLC contract across commands |
 | AUD-2026-10-30-06 | Verified | Step-derived normalization; `1e-13` through `1e-19` and non-grid cases pass |
 | AUD-2026-10-30-07 | Verified | Existing-DB-only `store remove` |
@@ -39,10 +39,8 @@ removal behavior, and the entry cap.
 
 ## Residual
 
-- AUD-04 is `Fixed`, not `Verified`: the cap is code- and regression-tested, but
-  the audit requires a Quant Validator reproduction record. The validator pass
-  performed with AUD-02 is same-agent and does not satisfy that requirement for
-  AUD-04.
+- AUD-04’s Quant Validator pass was performed sequentially by the implementing
+  agent; it is not an independent-agent or independent-model judgment.
 - The full-year runs used local market data outside the repository and were not
   re-run by the closure verifier.
 - The closure verifier is a separate agent session of the same model family, not
