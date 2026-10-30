@@ -19,6 +19,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod context;
 pub mod execution;
 pub mod portfolio;
 pub mod runner;
