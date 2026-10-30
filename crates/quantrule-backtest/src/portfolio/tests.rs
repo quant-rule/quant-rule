@@ -427,6 +427,44 @@ fn exact_step_boundaries_are_not_lost_to_binary_rounding() {
 }
 
 #[test]
+fn exact_step_boundaries_at_small_and_non_grid_steps() {
+    for (notional, step, expected) in [
+        (5e-13, 1e-13, 5e-13),
+        (4e-13, 1e-13, 4e-13),
+        (5e-13, 2.5e-13, 5e-13),
+        (1.5e-12, 1.5e-12, 1.5e-12),
+        (1.51e-12, 1.5e-12, 1.5e-12),
+        (5e-15, 1e-15, 5e-15),
+        (5e-18, 1e-18, 5e-18),
+        (5e-19, 1e-19, 5e-19),
+        (0.001, 1.0 / 3000.0, 3.0 * (1.0 / 3000.0)),
+    ] {
+        let mut config = config();
+        config.sizing = SizingMode::FixedNotional {
+            notional,
+            quantity_step: step,
+        };
+        let quantity = config
+            .size_entry(Side::Long, 1_000.0, 1.0)
+            .expect("the exact boundary is sizeable");
+        assert_eq!(quantity, expected, "notional={notional}, step={step}");
+    }
+
+    let mut config = config();
+    config.sizing = SizingMode::FixedNotional {
+        notional: 1.49e-12,
+        quantity_step: 1.5e-12,
+    };
+    assert!(
+        matches!(
+            config.size_entry(Side::Long, 1_000.0, 1.0),
+            Err(SizingRejection::BelowOneStep { .. })
+        ),
+        "a quantity below one step must reject"
+    );
+}
+
+#[test]
 fn quantity_below_one_step_is_rejected() {
     let mut config = config();
     config.sizing = SizingMode::FixedNotional {

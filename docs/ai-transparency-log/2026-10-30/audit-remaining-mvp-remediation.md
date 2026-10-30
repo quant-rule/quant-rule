@@ -24,12 +24,12 @@
   - Current-equity × leverage × policy-fraction entry envelope, applied as a fill
     quantity cap.
   - Positive open/close validation and cross-command tests.
-  - Tolerance-aware quantity step and twelve-decimal normalization.
+  - Tolerance-aware quantity step and step-aware quantity normalization.
   - Existing-DB-only `store remove`, tolerant ordering precedence, bucket volume
     overflow error, latest-window documentation, `config_hash` check, and the
     strategy-position ADR/AGENTS clarification.
 - **Verification:** `cargo test --workspace --lib --bins --tests` passed all 40
-  suites; `cargo test --workspace --doc` passed 35 doctests; clippy, fmt, and doc
+  suites; `cargo test --workspace --doc` passed 77 doctests across four doctest binaries; clippy, fmt, and doc
   passed. The full-year SOLUSD example backtest wrote five bundles in 4m24s;
   strategy executed counts and execution counts agree at 65/65, and `lab summary`
   passed the data-version, config-hash, and executed-count checks. Two
