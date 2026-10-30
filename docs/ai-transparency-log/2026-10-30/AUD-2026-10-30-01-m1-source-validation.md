@@ -15,8 +15,9 @@ execution, portfolio, or analytics behavior changed. After human authorization,
 the work was committed as `598708f`, pushed to
 `fix/aud-2026-10-30-01-m1-source-validation`, tracked by
 [#220](https://github.com/quant-rule/quant-rule/issues/220), and opened as
-[#221](https://github.com/quant-rule/quant-rule/pull/221). Merge, board
-acceptance, and independent verification remain open.
+[#221](https://github.com/quant-rule/quant-rule/pull/221). The issue was moved
+to `Done` and closed on the board. Merge, independent verification, and human
+acceptance remain open.
 
 ## Implemented
 
