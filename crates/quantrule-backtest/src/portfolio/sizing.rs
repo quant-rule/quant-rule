@@ -10,7 +10,7 @@
 
 use std::fmt;
 
-use crate::strategy::Side;
+use crate::side::Side;
 
 use super::config::PortfolioConfigError;
 
@@ -23,7 +23,7 @@ use super::config::PortfolioConfigError;
 ///
 /// ```
 /// use quantrule_backtest::portfolio::SizingMode;
-/// use quantrule_backtest::strategy::Side;
+/// use quantrule_backtest::side::Side;
 ///
 /// let fixed = SizingMode::FixedNotional {
 ///     notional: 10_000.0,

@@ -22,4 +22,5 @@
 pub mod execution;
 pub mod portfolio;
 pub mod runner;
+pub mod side;
 pub mod strategy;

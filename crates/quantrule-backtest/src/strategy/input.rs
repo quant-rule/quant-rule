@@ -7,8 +7,9 @@
 
 use quantrule_model::timeframe::ModelBar;
 
+use crate::side::Side;
+
 use super::config::StrategyConfig;
-use super::decision::Side;
 
 /// One closed model bar as the strategy sees it.
 ///

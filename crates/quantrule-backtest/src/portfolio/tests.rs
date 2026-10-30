@@ -1,7 +1,7 @@
 //! Unit tests for the portfolio type layer.
 
 use super::*;
-use crate::strategy::Side;
+use crate::side::Side;
 
 fn commission() -> CommissionConfig {
     CommissionConfig::new(0.001, CommissionBase::Equity, CommissionPer::Operation)

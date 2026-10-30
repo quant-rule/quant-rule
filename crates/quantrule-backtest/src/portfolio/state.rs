@@ -7,7 +7,7 @@
 
 use std::fmt;
 
-use crate::strategy::Side;
+use crate::side::Side;
 
 /// One open position as the portfolio sees it.
 ///
@@ -20,7 +20,7 @@ use crate::strategy::Side;
 ///
 /// ```
 /// use quantrule_backtest::portfolio::OpenPosition;
-/// use quantrule_backtest::strategy::Side;
+/// use quantrule_backtest::side::Side;
 ///
 /// let position = OpenPosition::new(Side::Long, 2.0, 100.0, 10, 1_700_000_000, 10_000.0, 1.0, 10.0)?;
 /// assert!(position.is_long());

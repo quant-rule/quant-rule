@@ -270,17 +270,16 @@ impl Order {
 /// # Examples
 ///
 /// ```
-/// use quantrule_backtest::execution::{ExecutionConfig, ExecutionEngine, OrderState};
-/// use quantrule_backtest::strategy::{Decision, Entry, Side, StrategyInput};
+/// use quantrule_backtest::execution::{ExecutionConfig, ExecutionEngine, OrderIntent, OrderState};
+/// use quantrule_backtest::side::Side;
 /// use quantrule_data::Candle;
 ///
 /// let config = ExecutionConfig::new(0.001, 2.0)?;
 /// let mut engine = ExecutionEngine::new(config)?;
 /// let first = Candle::new(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0))?;
-/// let bar = StrategyInput::new(900, 0, 0, Some(0.5), Some(0.5), Some(1.0));
 /// engine.advance(&first)?;
 /// let batch = engine.submit(
-///     Decision::Enter(Entry { side: Side::Long, bar }),
+///     OrderIntent::Enter { side: Side::Long, bar_index: 0, open_time: 0 },
 ///     Some(1.0),
 ///     Some(1.0),
 /// )?;

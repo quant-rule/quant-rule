@@ -46,6 +46,19 @@
 - Verification and evidence: `cargo test -p quantrule-model` passed (442 unit tests plus the model integration tests and 2 boundary tests); `cargo clippy -p quantrule-model --all-targets` passed. No golden fixture was regenerated. `cargo check --workspace` passed after the import migration.
 - Learning: the private `TimeframeModel` field access in `ModelRun::timeframe` had to become the public accessor; the move made the previous same-module privacy visible. The split is behavior-preserving so far.
 
+## Entry 4 — Phase 2 backtest dependency inversion
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: remove the upward `execution -> strategy` and `portfolio -> strategy` edges without changing fills, rejections, or accounting.
+- What the AI did:
+  - Moved `Side` to `quantrule-backtest::side`; `strategy` re-exports it for the existing public path.
+  - Added `execution::OrderIntent` (`Hold`, `Enter`, `Exit`) carrying only side and bar identity.
+  - Changed `ExecutionEngine::submit` to take `OrderIntent`; the runner maps `Decision` to the intent.
+  - Updated execution/portfolio docs and tests to the new vocabulary.
+  - Added `crates/quantrule-backtest/tests/boundaries.rs` with source-level guards.
+- Verification and evidence: `cargo check --workspace --all-targets` passed; `cargo test -p quantrule-backtest` passed (152 unit tests, integration suites, and 2 boundary tests); `cargo clippy -p quantrule-backtest --all-targets` passed; `cargo test -p quantrule-backtest --doc` passed 38 doctests. The execution golden fixtures were not regenerated.
+- Learning: the engine still validates the same bar index and open time, so the rejection behavior is preserved. The `Decision` name remains in the existing `ExecutionError` variants for compatibility; the type itself is no longer imported.
+
 ## Phase evidence
 
 | Phase | Command | Observed | Date |
@@ -59,6 +72,10 @@
 | 1 | `cargo test -p quantrule-model` | 442 unit tests, model integration suites, and 2 boundary tests passed | 2026-10-30 |
 | 1 | `cargo clippy -p quantrule-model --all-targets` | no warnings | 2026-10-30 |
 | 1 | `cargo check --workspace` | passed | 2026-10-30 |
+| 2 | `cargo check --workspace --all-targets` | passed | 2026-10-30 |
+| 2 | `cargo test -p quantrule-backtest` | 152 unit tests, integration suites, and 2 boundary tests passed | 2026-10-30 |
+| 2 | `cargo clippy -p quantrule-backtest --all-targets` | no warnings | 2026-10-30 |
+| 2 | `cargo test -p quantrule-backtest --doc` | 38 doctests passed | 2026-10-30 |
 
 ## Open items
 

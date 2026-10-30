@@ -53,7 +53,7 @@ impl ExitReason {
 ///
 /// ```
 /// use quantrule_backtest::portfolio::{ExitReason, TradeRecord};
-/// use quantrule_backtest::strategy::Side;
+/// use quantrule_backtest::side::Side;
 ///
 /// let trade = TradeRecord {
 ///     trade_id: 1,

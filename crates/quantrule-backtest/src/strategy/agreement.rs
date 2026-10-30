@@ -18,7 +18,9 @@
 //! that bar's decision, and a new entry can occur only on a later bar.
 
 use super::config::StrategyConfig;
-use super::decision::{Decision, Entry, Exit, ExitReason, Side, Strategy};
+use crate::side::Side;
+
+use super::decision::{Decision, Entry, Exit, ExitReason, Strategy};
 use super::input::{Agreement, StrategyInput};
 
 /// The axis-agreement strategy.

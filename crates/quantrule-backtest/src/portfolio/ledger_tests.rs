@@ -8,7 +8,7 @@
 //! fails loudly.
 
 use crate::execution::{Fill, FillReason, OrderSide};
-use crate::strategy::Side;
+use crate::side::Side;
 
 use super::config::{
     CommissionBase, CommissionConfig, CommissionPer, Currency, DrawdownAction, FundingConfig,

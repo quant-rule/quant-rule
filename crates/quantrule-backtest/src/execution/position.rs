@@ -7,7 +7,7 @@
 
 use std::fmt;
 
-use crate::strategy::Side;
+use crate::side::Side;
 
 /// One open position.
 ///
@@ -19,7 +19,7 @@ use crate::strategy::Side;
 ///
 /// ```
 /// use quantrule_backtest::execution::Position;
-/// use quantrule_backtest::strategy::Side;
+/// use quantrule_backtest::side::Side;
 ///
 /// let position = Position::new(Side::Long, 2.0, 100.0, 10, 1_700_000_000, 95.0, 110.0)?;
 /// assert!(position.is_long());
@@ -141,7 +141,7 @@ impl Position {
 ///
 /// ```
 /// use quantrule_backtest::execution::{Position, PositionState};
-/// use quantrule_backtest::strategy::Side;
+/// use quantrule_backtest::side::Side;
 ///
 /// let position = Position::new(Side::Long, 1.0, 100.0, 0, 0, 95.0, 110.0)?;
 /// let state = PositionState::Open(position);

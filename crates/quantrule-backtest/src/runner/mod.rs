@@ -21,7 +21,9 @@
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::run::ModelRun;
 
-use crate::execution::{ExecutionBatch, ExecutionConfig, ExecutionEngine, ExecutionError};
+use crate::execution::{
+    ExecutionBatch, ExecutionConfig, ExecutionEngine, ExecutionError, OrderIntent,
+};
 use crate::portfolio::{PortfolioConfig, PortfolioLedger, PortfolioLedgerError, PortfolioMetrics};
 use crate::strategy::{AxisAgreementStrategy, Decision, Strategy, StrategyConfig, StrategyInput};
 
@@ -146,8 +148,21 @@ pub fn run_backtest(
                 Decision::Enter(_) => bar.readings.atr14,
                 Decision::Exit(_) | Decision::Hold => None,
             };
+            let intent = match decision {
+                Decision::Hold => OrderIntent::Hold,
+                Decision::Enter(entry) => OrderIntent::Enter {
+                    side: entry.side,
+                    bar_index: entry.bar.bar_index,
+                    open_time: entry.bar.open_time,
+                },
+                Decision::Exit(exit) => OrderIntent::Exit {
+                    side: exit.side,
+                    bar_index: exit.bar.bar_index,
+                    open_time: exit.bar.open_time,
+                },
+            };
             let batch = execution
-                .submit(decision, quantity, atr14)
+                .submit(intent, quantity, atr14)
                 .map_err(BacktestError::Execution)?;
             batches.push(batch);
         }

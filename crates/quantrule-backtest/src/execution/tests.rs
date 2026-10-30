@@ -4,7 +4,7 @@ use super::{
     ExecutionConfig, ExecutionConfigError, Fill, FillError, FillReason, Order, OrderError,
     OrderSide, OrderState, Position, PositionError, PositionState, Trigger,
 };
-use crate::strategy::Side;
+use crate::side::Side;
 
 fn market_order(side: OrderSide, reason: FillReason) -> Order {
     Order::new(side, 1.0, reason, Trigger::Market, 10, 1_700_000_000)

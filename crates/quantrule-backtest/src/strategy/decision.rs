@@ -4,34 +4,9 @@
 //! that produced the decision and the values that justified it; it carries no
 //! fill price, quantity, fee, position, or P&L. Execution owns those.
 
+use crate::side::Side;
+
 use super::input::StrategyInput;
-
-/// The direction of a position or a decision.
-#[repr(i8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Side {
-    /// A long position.
-    Long = 1,
-    /// A short position.
-    Short = -1,
-}
-
-impl Side {
-    /// The contract's numeric code: `+1` for long and `-1` for short.
-    #[must_use]
-    pub const fn code(self) -> i8 {
-        self as i8
-    }
-
-    /// The opposite side.
-    #[must_use]
-    pub const fn opposite(self) -> Self {
-        match self {
-            Self::Long => Self::Short,
-            Self::Short => Self::Long,
-        }
-    }
-}
 
 /// An entry decision.
 ///
