@@ -3,7 +3,8 @@
 - Status: Verified
 - Date: 2026-10-30 (UTC)
 - Approved: 2026-10-30 (UTC), human authorization to implement in the task worktree
-- Verified: 2026-10-30 (UTC), acceptance criteria evaluated locally; independent post-merge verification and human acceptance remain open
+- Merged: 2026-10-30 (UTC) as `98cf9d5` (PR #221)
+- Verified: 2026-10-30 (UTC) on merged `main` by a sequential read-only pass; not an independent agent judgment. Human acceptance remains open.
 - Work item: `AUD-2026-10-30-01`
 - Issue: [#220](https://github.com/quant-rule/quant-rule/issues/220)
 - PR: [#221](https://github.com/quant-rule/quant-rule/pull/221)
@@ -123,6 +124,24 @@ rejection behavior.
 
 The fail-before run confirms the tests exercise the defect and the fix. No
 model, strategy, execution, or portfolio code changed.
+
+### Closure verification (2026-10-30, merged `main` at `98cf9d5`)
+
+| Check | Observed |
+|---|---|
+| 15 ladder consumers on `timeframes-h1.csv` | Exit 1, empty stdout, no artifact, same cadence error |
+| `timeframes`, `market-state`, `axis`, `events`, `legs`, `market-dashboard`, `market-chart`, `market-report`, `store ingest`, `store verify`, `research summary`, `research export`, `strategy-run` | All rejected |
+| Config-driven `backtest` and `report model` with an H1 `data.json` | Exit 1, no bundle root, same error |
+| Sparse M1, single-row, and header-only fixtures | Accepted; gaps and partial buckets unchanged |
+| `candles` and `candles-tolerant` on the H1 fixture | Accepted; raw inspection is outside the guard |
+| One-row `market-report` date bound | Rejected; no output directory |
+| Repeated H1 run | Byte-identical stderr |
+| 7 regression tests on `0f21b61` | 7 failed |
+| Same 7 tests on `98cf9d5` | 7 passed |
+| `cargo fmt`, `clippy`, `test --workspace`, `doc --no-deps` | Passed |
+
+The pass was sequential in the same agent session that implemented the fix; it
+is not an independent agent or model judgment.
 
 ## Risks and recovery
 

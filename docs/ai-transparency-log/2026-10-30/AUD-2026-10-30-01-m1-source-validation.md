@@ -16,8 +16,8 @@ the work was committed as `598708f`, pushed to
 `fix/aud-2026-10-30-01-m1-source-validation`, tracked by
 [#220](https://github.com/quant-rule/quant-rule/issues/220), and opened as
 [#221](https://github.com/quant-rule/quant-rule/pull/221). The issue was moved
-to `Done` and closed on the board. Merge, independent verification, and human
-acceptance remain open.
+to `Done` and closed on the board, and the PR merged as `98cf9d5`. A sequential
+verification pass and human acceptance follow.
 
 ## Implemented
 
@@ -37,8 +37,8 @@ acceptance remain open.
 - Updated the README CSV and command contracts, the config contract, the
   in-shell glossary and `timeframes` help, the audit finding status and detail,
   and the help fixtures.
-- Marked the plan `Verified` after recording observed evidence. Independent
-  post-merge verification and human acceptance remain open.
+- Marked the plan `Verified` after recording observed evidence. The merged
+  finding was checked in a sequential pass; human acceptance remains open.
 
 ## Verification and evidence
 
@@ -65,6 +65,25 @@ Commands actually run in this worktree:
 The fail-before run is the regression guard evidence: the tests fail on the
 pre-fix code and pass on the fixed code. The old `store ingest` output also
 reproduces the audit finding directly.
+
+## Closure verification (sequential pass)
+
+A separate verifier subagent could not be started because the free usage limit
+was reached. The same agent and model therefore performed the read-only pass on
+merged `main` at `98cf9d5`; this is not an independent agent or model judgment.
+
+| Check | Observed |
+|---|---|
+| 15 ladder consumers on the H1 fixture | Exit 1, empty stdout, no artifact, same error |
+| Config-driven `backtest` and `report model` | Exit 1, no bundle root, same error |
+| Sparse M1, single-row, and header-only fixtures | Accepted |
+| `candles` and `candles-tolerant` on the H1 fixture | Accepted |
+| One-row `market-report` date bound | Rejected; no output directory |
+| Repeated H1 run | Byte-identical stderr |
+| 7 regression tests on `0f21b61` / `98cf9d5` | 7 failed / 7 passed |
+| `cargo fmt`, `clippy`, `test --workspace`, `doc --no-deps` | Passed |
+
+The audit finding moved to `Verified` on this evidence.
 
 ## Learning and rejected suggestions
 
