@@ -363,12 +363,49 @@ Observed verification (2026-10-29 UTC):
 | Existing summary | Second run without `--force` | Refused with `already exists; use --force` |
 | Whitespace | `git diff --check` | Clean |
 
-Pull request: [#213](https://github.com/quant-rule/quant-rule/pull/213), open.
-Merge requires explicit human authorization.
+Pull request: [#213](https://github.com/quant-rule/quant-rule/pull/213), merged
+at `2026-10-30T00:59:55Z` (merge commit `a9fb070`).
 
 ### PR 2 — tutorial
 
-Pending.
+Implemented on `docs/210-lab-tutorial` in `quant-rule--210-lab-tutorial`:
+
+- `docs/tutorials/2026-10-29/full-pipeline.md` — the full pipeline, the store,
+  three role labs, checkpoints, stop conditions, handoff packets, limitations,
+  troubleshooting, and a command index.
+- `docs/README.md` — the `tutorials` kind and the current-tutorial table.
+- `README.md` — the "Learn the pipeline" link.
+- `AGENTS.md` section 5 — the `docs/tutorials` kind.
+- `docs/roles/2026-10-29/quant-roles.md` — the tutorial link.
+
+Observed verification (2026-10-30 UTC):
+
+| Check | Command | Result |
+|---|---|---|
+| Format | `cargo fmt --all -- --check` | Clean |
+| Lints | `cargo clippy --all-targets -- -D warnings` | No warnings |
+| Tests | `cargo test` | 1,374 passed, 0 failed, 6 ignored |
+| Docs | `cargo doc --no-deps` | Built without warnings |
+| Whitespace | `git diff --check` | Clean |
+| Links | Relative-link check over the changed docs | 24 links; all resolve |
+| Data engine | `candles`, `candles-tolerant`, `timeframes` on the two-month slice | 1,000 candles; 84,108 read, 0 rejected; 4,000 timeframe lines |
+| Model | Dashboard, state, axis, events, legs, model-series, chart, market-report | 45 dashboard lines; four state keys; 4 axis lines; 7,095 events; 8 legs; 2 model bars; 21,922-byte PNG; four report artifacts |
+| Research | `research export`, `research summary` | 9 files; 107,918 layer rows; 41 summary lines |
+| Strategy | `strategy-run` on the two-month slice | 363 records: 182 entries, 181 exits |
+| Store | `store init`, `ingest`, `verify`, `list`, `show`, `db` | `schema=2`; 107,918 bars; `verified ... tables=7`; 74/61/285 CSV columns |
+| Full run | Three full-year `backtest` runs plus `lab summary` | 22.1 s, 22.6 s, 23.9 s; all five bundles byte-identical across the three runs; 48 trades, final equity 8016.143910, commission 885.610499, halted true |
+| Role labs | Researcher, developer, and validator notes plus `lab summary --force` | Notes appear under Role notes; `Next` hands off to the next role; validator records the halt and the in-sample split |
+
+Pull request: [#214](https://github.com/quant-rule/quant-rule/pull/214),
+open. Merge requires explicit human authorization.
+
+Limitations:
+
+- The example backtest halts at the 20% drawdown limit. The tutorial reports
+  that as an observed result and makes no profitability claim.
+- The Validator lab is an exercise, not a production validation record.
+- The role manuals are the next work item; the tutorial's role labs are
+  self-contained and link to the roles overview and `AGENTS.md` section 10.
 
 ### PR 3 — role manuals
 
