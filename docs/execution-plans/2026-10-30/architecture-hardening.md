@@ -495,3 +495,25 @@ Total: **8–12 working days**, sequential. Phase 1 and Phase 2 may run in paral
 3. **Parallel Phase 1/2:** default sequential; confirm if parallel work is authorized.
 4. **Branch slugs:** confirm the proposed slugs (no issue number exists). If an issue is created, rename to `<issue>-<slug>`.
 5. **`strategy-run` config fix:** confirm that using `run.model` is intended. If not, keep the default and document the divergence instead of changing behavior.
+
+## 16. Implementation evidence (2026-10-30)
+
+| Phase | Status | Evidence |
+|---|---|---|
+| 0 Records | Complete | `6874e28`; baseline `cargo test --workspace` and `cargo clippy --all-targets` passed before source changes |
+| 1 Model de-cycling | Complete | `cc6afe6`; `run` no longer imports `state`; 442 model unit tests, model integration suites, and the boundary tests passed |
+| 2 Backtest inversion | Complete | `cf5df38`; no `use crate::strategy` in execution/portfolio; 152 backtest unit tests, integration suites, and boundary tests passed |
+| 3a Shell pipeline | Complete | `ec11683`; one `pipeline` input builder; no `LADDER` const; `strategy-run` config test passed |
+| 3b One strategy walk | Complete | `7276c6d`; no production `.on_bar(` in the shell; `report strategy` and `strategy-run` agree |
+| 3c AUD-2026-10-30-02 | **Blocked** | Needs the A/B decision and quant-role evidence; not implemented |
+| 4 Shell slimming | **Partial** | `f8d743f`; renderer cycles broken and architecture guards added. Args split, bundle split, and CLI-test split are deferred |
+| 5 Hygiene and docs | **Partial** | `6640066`, `3db20e5`; config allow removed, AGENTS crate list updated, columns split. `lab_summary` split and the optional store-validation move are deferred |
+
+### Verification run
+
+- `cargo fmt --all --check`: passed.
+- `cargo clippy --workspace --all-targets`: no warnings.
+- `cargo test --workspace`: all suites passed, including 442 model unit tests, 152 backtest unit tests, 272 shell unit tests, 99 CLI tests, and the new boundary/architecture tests.
+- `cargo doc --workspace --no-deps`: passed.
+- No dependency was added; `Cargo.toml` is unchanged.
+- No golden fixture was regenerated.
