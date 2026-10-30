@@ -5,6 +5,7 @@ use super::{
     Domain, Readiness, TimeframeState, UnavailableReason, absent_structure_scale_code, rank_size,
     signed_position,
 };
+use crate::aggregate::CrossTimeframeAggregates;
 use crate::dashboard::{ChurnClass, DatedReading, Stage};
 use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::readings::PivotScale;
@@ -73,7 +74,8 @@ fn run(candles: &[Candle], timeframes: &[u64]) -> ModelRun {
 }
 
 fn view(run: &ModelRun, ladder: &[u64]) -> DashboardState {
-    DashboardState::from_run(run, ladder, &DashboardConfig::default())
+    let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+    DashboardState::from_run(run, ladder, &DashboardConfig::default(), &aggregates)
 }
 
 fn axis(state: &TimeframeState, axis_code: AxisCode) -> &AxisState {
@@ -458,7 +460,7 @@ fn missing_timeframe_is_typed_absence() {
 #[test]
 fn an_empty_run_builds_one_absent_row_per_ladder_member() {
     let run = ModelRun::compute(&[], &MarketStateConfig::default());
-    let view = DashboardState::from_run(&run, &[300, 60, 300], &DashboardConfig::default());
+    let view = view(&run, &[300, 60, 300]);
 
     assert_eq!(view.ladder, vec![60, 300]);
     assert_eq!(view.timeframes.len(), 2);
@@ -574,11 +576,7 @@ fn reordered_inputs_and_ladders_are_deterministic() {
     assert_eq!(forward, reversed);
 
     let first = view(&forward, &[60, 300, 3600]);
-    let second = DashboardState::from_run(
-        &reversed,
-        &[3600, 300, 60, 300],
-        &DashboardConfig::default(),
-    );
+    let second = view(&reversed, &[3600, 300, 60, 300]);
     let third = view(&forward, &[60, 300, 3600]);
 
     assert_eq!(first, second);
@@ -854,7 +852,8 @@ fn the_cross_timeframe_envelope_uses_the_configured_thresholds() {
     let candles = fixture_candles();
     let run = run(&candles, &[60, 300]);
     let config = DashboardConfig::new(9, 3);
-    let view = DashboardState::from_run(&run, &[3600, 300, 60], &config);
+    let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+    let view = DashboardState::from_run(&run, &[3600, 300, 60], &config, &aggregates);
 
     assert_eq!(
         view.cross_tf_state.configured_timeframes,
@@ -888,7 +887,7 @@ fn a_missing_row_carries_the_configured_structure_scale() {
         }],
         &config,
     );
-    let view = DashboardState::from_run(&run, &[60, 300], &DashboardConfig::default());
+    let view = view(&run, &[60, 300]);
     let structure = axis(&view.timeframes[1], AxisCode::Structure);
     let AxisDetail::Structure(detail) = &structure.detail else {
         panic!("the Structure axis carries Structure detail");

@@ -412,10 +412,15 @@ mod tests {
 
     use super::json_bytes;
 
+    fn report(run: &ModelRun, ladder: &[u64]) -> MarketReport {
+        let aggregates = quantrule_analytics::cross_timeframe(run);
+        MarketReport::compute(run, ladder, &aggregates)
+    }
+
     #[test]
     fn an_empty_report_renders_the_full_envelope() {
         let run = ModelRun::compute(&[], &MarketStateConfig::default());
-        let report = MarketReport::compute(&run, &[60, 300, 900, 3_600]);
+        let report = report(&run, &[60, 300, 900, 3_600]);
 
         let bytes = json_bytes(&report, "v1", None, None).expect("the report serializes");
         assert!(bytes.ends_with(b"\n"));
@@ -449,7 +454,7 @@ mod tests {
     #[test]
     fn the_envelope_keeps_the_requested_period() {
         let run = ModelRun::compute(&[], &MarketStateConfig::default());
-        let report = MarketReport::compute(&run, &[]);
+        let report = report(&run, &[]);
 
         let bytes = json_bytes(&report, "sol:2025", Some("2025-01-01"), Some("2025-12-31"))
             .expect("the report serializes");
@@ -463,7 +468,7 @@ mod tests {
     #[test]
     fn the_envelope_has_no_execution_fields() {
         let run = ModelRun::compute(&[], &MarketStateConfig::default());
-        let report = MarketReport::compute(&run, &[60, 300, 900, 3_600]);
+        let report = report(&run, &[60, 300, 900, 3_600]);
 
         let bytes = json_bytes(&report, "v1", None, None).expect("the report serializes");
         let text = String::from_utf8(bytes).expect("the report is UTF-8");

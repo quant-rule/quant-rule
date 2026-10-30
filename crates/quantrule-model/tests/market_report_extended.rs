@@ -10,6 +10,7 @@
 use std::time::Instant;
 
 use quantrule_data::{Candle, CandleValues, Timeframe, TimeframeSet};
+use quantrule_model::aggregate::CrossTimeframeAggregates;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::roles::AxisCode;
 use quantrule_model::report::{CHART_BUCKET_LIMIT, MarketReport};
@@ -18,6 +19,11 @@ use quantrule_model::run::ModelRun;
 const BASE_EPOCH: i64 = 1_735_689_600;
 const M1_BARS: usize = 520_000;
 const LADDER: [u64; 4] = [60, 300, 900, 3_600];
+
+fn build_report(run: &ModelRun, ladder: &[u64]) -> MarketReport {
+    let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+    MarketReport::compute(run, ladder, &aggregates)
+}
 
 fn values(index: usize) -> CandleValues {
     let phase = (index % 1_000) as f64;
@@ -77,7 +83,7 @@ fn a_520k_m1_report_assembles_over_the_extended_ladder() {
     let model_elapsed = model_started.elapsed();
 
     let report_started = Instant::now();
-    let report = MarketReport::compute(&run, &LADDER);
+    let report = build_report(&run, &LADDER);
     let report_elapsed = report_started.elapsed();
 
     assert_eq!(report.ladder, LADDER);
@@ -136,7 +142,7 @@ fn a_520k_m1_report_assembles_over_the_extended_ladder() {
     );
     assert!(report.charts.bars.len() <= CHART_BUCKET_LIMIT);
 
-    let second = MarketReport::compute(&run, &LADDER);
+    let second = build_report(&run, &LADDER);
     assert_eq!(report, second);
 
     eprintln!(

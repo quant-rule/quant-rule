@@ -46,11 +46,15 @@ impl Axis {
 }
 
 /// Writes the assembled market state as one JSON object.
-pub(crate) fn write_market_state(state: &MarketState, writer: &mut impl Write) -> io::Result<()> {
+pub(crate) fn write_market_state(
+    state: &MarketState,
+    aggregates: &CrossTimeframeAggregates,
+    writer: &mut impl Write,
+) -> io::Result<()> {
     let value = json!({
         "ladder": state.timeframes.iter().map(|timeframe| labels::timeframe_label(timeframe.snapshot.timeframe_secs)).collect::<Vec<_>>(),
-        "timeframes": state.timeframes.iter().enumerate().map(|(index, timeframe)| timeframe_value(index, timeframe, &state.aggregates, state.consensus.get(index))).collect::<Vec<_>>(),
-        "aggregates": aggregates_value(&state.aggregates),
+        "timeframes": state.timeframes.iter().enumerate().map(|(index, timeframe)| timeframe_value(index, timeframe, aggregates, state.consensus.get(index))).collect::<Vec<_>>(),
+        "aggregates": aggregates_value(aggregates),
         "consensus": state.consensus.iter().map(consensus_value).collect::<Vec<_>>(),
     });
     write_line(&value, writer)

@@ -320,10 +320,15 @@ mod tests {
 
     use super::summary_bytes;
 
+    fn report(run: &ModelRun, ladder: &[u64]) -> MarketReport {
+        let aggregates = quantrule_analytics::cross_timeframe(run);
+        MarketReport::compute(run, ladder, &aggregates)
+    }
+
     #[test]
     fn an_empty_report_still_renders_every_section() {
         let run = ModelRun::compute(&[], &MarketStateConfig::default());
-        let report = MarketReport::compute(&run, &[60, 300, 900, 3_600]);
+        let report = report(&run, &[60, 300, 900, 3_600]);
 
         let bytes = summary_bytes(&report, "v1", "full file").expect("the summary renders");
         let text = String::from_utf8(bytes).expect("the summary is UTF-8");

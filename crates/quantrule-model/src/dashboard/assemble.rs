@@ -19,6 +19,7 @@ mod progression;
 mod readings;
 mod structure;
 
+use crate::aggregate::CrossTimeframeAggregates;
 use crate::kernel::{Readiness, UnavailableReason};
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
@@ -59,12 +60,19 @@ impl DashboardState {
     /// # Examples
     ///
     /// ```
+    /// use quantrule_model::aggregate::CrossTimeframeAggregates;
     /// use quantrule_model::dashboard::{DashboardConfig, DashboardState};
     /// use quantrule_model::run::ModelRun;
     /// use quantrule_model::input::MarketStateConfig;
     ///
     /// let run = ModelRun::compute(&[], &MarketStateConfig::default());
-    /// let view = DashboardState::from_run(&run, &[300, 60], &DashboardConfig::default());
+    /// let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+    /// let view = DashboardState::from_run(
+    ///     &run,
+    ///     &[300, 60],
+    ///     &DashboardConfig::default(),
+    ///     &aggregates,
+    /// );
     ///
     /// assert_eq!(view.ladder, vec![60, 300]);
     /// assert!(view.timeframes.iter().all(|timeframe| !timeframe.present));
@@ -72,7 +80,12 @@ impl DashboardState {
     /// assert!(!view.cross_tf_state.churn.history_complete);
     /// ```
     #[must_use]
-    pub fn from_run(run: &ModelRun, ladder: &[u64], config: &DashboardConfig) -> Self {
+    pub fn from_run(
+        run: &ModelRun,
+        ladder: &[u64],
+        config: &DashboardConfig,
+        aggregates: &CrossTimeframeAggregates,
+    ) -> Self {
         let ladder = normalized_ladder(ladder);
         let absent_scale_code = absent_structure_scale_code(run);
         let mut present_timeframes = Vec::new();
@@ -107,7 +120,7 @@ impl DashboardState {
         let cross_tf_state = CrossTfState {
             configured_timeframes: ladder.clone(),
             present_timeframes,
-            aggregates: run.aggregates().clone(),
+            aggregates: aggregates.clone(),
             agreement,
             churn,
             progression_leg_direction,

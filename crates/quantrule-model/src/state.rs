@@ -1,14 +1,17 @@
 //! The assembled market state view.
 //!
 //! The state combines the per-timeframe snapshots, confirmed levels, and the
-//! cross-timeframe aggregates and consensus into the latest published view. It
-//! is a view over a completed [`crate::run::ModelRun`]; the input contract lives
-//! in [`crate::input`] and the consensus diagnostic in [`crate::consensus`].
+//! consensus diagnostic into the latest published view. It is a view over a
+//! completed [`crate::run::ModelRun`]; the input contract lives in
+//! [`crate::input`] and the consensus diagnostic in [`crate::consensus`].
+//!
+//! The state does not publish cross-timeframe aggregates. Reporting and
+//! analytics compute that descriptive view explicitly.
 //!
 //! The module is pure: it reads the run it is given. It performs no I/O, reads
 //! no clock, and uses no randomness.
 
-use crate::aggregate::{CrossTimeframeAggregates, TimeframeSnapshot};
+use crate::aggregate::TimeframeSnapshot;
 use crate::axes::structure::registry::ConfirmedLevel;
 use crate::consensus::TimeframeConsensus;
 use crate::input::{MarketStateConfig, TimeframeInput};
@@ -36,8 +39,6 @@ pub struct TimeframeMarketState {
 pub struct MarketState {
     /// Per-timeframe states, fastest first.
     pub timeframes: Vec<TimeframeMarketState>,
-    /// Cross-timeframe aggregates.
-    pub aggregates: CrossTimeframeAggregates,
     /// Per-timeframe consensus diagnostics, fastest first.
     pub consensus: Vec<TimeframeConsensus>,
 }
@@ -75,7 +76,6 @@ impl MarketState {
 
         Self {
             timeframes,
-            aggregates: run.aggregates().clone(),
             consensus: run.consensus().to_vec(),
         }
     }

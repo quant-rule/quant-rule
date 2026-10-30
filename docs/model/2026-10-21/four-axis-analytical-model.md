@@ -353,6 +353,12 @@ There is no universal confidence field and no string-valued state label in the m
 
 ## 10. Cross-timeframe aggregation
 
+> **Reporting view, not model output.** `ModelRun` and `MarketState` publish
+> per-timeframe measurements only. The rules below describe the descriptive
+> view computed by `quantrule_analytics::cross_timeframe` over explicit
+> snapshots. They are not part of the strategy decision path. See
+> [`per-timeframe-model.md`](../2026-10-30/per-timeframe-model.md).
+
 An ordered timeframe ladder runs from fastest to slowest. Each timeframe is calculated independently first. Only fields with the same defined meaning are aggregated, and every aggregate keeps its source timeframes available so it can be traced back to its inputs.
 
 **Direction.** `direction_mean` (the arithmetic mean of valid Direction scores), `direction_bullish_share` (score > +0.1), `direction_bearish_share` (score < -0.1), `direction_neutral_share` (abs(score) <= 0.1), `direction_gradient` (slowest-timeframe score minus fastest-timeframe score), `direction_ready_count`, and `direction_timeframe_count`. The mean is allowed because Direction uses the same signed scale on every timeframe.

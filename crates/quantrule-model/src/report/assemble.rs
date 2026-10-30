@@ -36,15 +36,18 @@ impl MarketReport {
     /// use quantrule_model::run::ModelRun;
     /// use quantrule_model::input::MarketStateConfig;
     ///
+    /// use quantrule_model::aggregate::CrossTimeframeAggregates;
+    ///
     /// let run = ModelRun::compute(&[], &MarketStateConfig::default());
-    /// let report = MarketReport::compute(&run, &[300, 60, 300]);
+    /// let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+    /// let report = MarketReport::compute(&run, &[300, 60, 300], &aggregates);
     ///
     /// assert_eq!(report.ladder, vec![60, 300]);
     /// assert_eq!(report.timeframes.len(), 2);
     /// assert_eq!(report.timeframes[0].bars, 0);
     /// ```
     #[must_use]
-    pub fn compute(run: &ModelRun, ladder: &[u64]) -> Self {
+    pub fn compute(run: &ModelRun, ladder: &[u64], aggregates: &CrossTimeframeAggregates) -> Self {
         let mut ladder = ladder.to_vec();
         ladder.sort_unstable();
         ladder.dedup();
@@ -61,7 +64,7 @@ impl MarketReport {
         let cross_timeframe = if ladder.is_empty() {
             CrossTimeframeAggregates::compute(&[])
         } else {
-            run.aggregates().clone()
+            aggregates.clone()
         };
         let events = EventReport::compute(run, &ladder);
         let charts = ChartReport::compute(run, &timeframes);

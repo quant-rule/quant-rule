@@ -172,7 +172,6 @@ fn the_market_state_assembles_the_latest_readings_and_events() {
     );
 
     assert_eq!(state.timeframes.len(), 1);
-    assert_eq!(state.aggregates.ladder, [60]);
     assert_eq!(state.consensus.len(), 1);
     let snapshot = &state.timeframes[0].snapshot;
     let latest = candles.len() - 1;
@@ -294,9 +293,7 @@ fn the_market_state_builds_the_four_timeframe_ladder() {
     );
 
     assert_eq!(state.timeframes.len(), 4);
-    assert_eq!(state.aggregates.ladder, [60, 300, 900, 3600]);
     assert_eq!(state.consensus.len(), 4);
-    assert_eq!(state.aggregates.progression.progression_timeframe_count, 4);
     for (state, series_len) in
         state
             .timeframes
@@ -433,7 +430,6 @@ fn the_consensus_matches_the_golden_fixture() {
 fn an_empty_state_is_empty() {
     let empty = MarketState::compute(&[], &MarketStateConfig::default());
     assert!(empty.timeframes.is_empty());
-    assert!(empty.aggregates.ladder.is_empty());
     assert!(empty.consensus.is_empty());
 
     let input = TimeframeInput {

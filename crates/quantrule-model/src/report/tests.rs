@@ -4,6 +4,7 @@ use quantrule_data::Candle;
 
 use super::MarketReport;
 use super::order::event_cmp;
+use crate::aggregate::CrossTimeframeAggregates;
 use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::readings::roles::AxisCode;
 use crate::run::ModelRun;
@@ -68,7 +69,8 @@ fn run_inputs(inputs: &[(u64, &[Candle])]) -> ModelRun {
 }
 
 fn build_report(run: &ModelRun, ladder: &[u64]) -> MarketReport {
-    MarketReport::compute(run, ladder)
+    let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+    MarketReport::compute(run, ladder, &aggregates)
 }
 
 fn candle(index: usize, timestamp: i64, volume: Option<f64>) -> Candle {

@@ -8,16 +8,19 @@
 //! The module is pure: it reads the candles and configuration it is given. It
 //! performs no I/O, reads no clock, and uses no randomness.
 
-use crate::aggregate::{CrossTimeframeAggregates, TimeframeSnapshot};
+use crate::aggregate::TimeframeSnapshot;
 use crate::consensus::TimeframeConsensus;
 use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::timeframe::{ModelBar, TimeframeModel};
 
 /// The complete model run across the timeframe ladder.
+///
+/// The run publishes per-timeframe models and consensus diagnostics. It does
+/// not publish cross-timeframe aggregates; reporting and analytics compute that
+/// descriptive view explicitly from [`Self::snapshots`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModelRun {
     timeframes: Vec<TimeframeModel>,
-    aggregates: CrossTimeframeAggregates,
     consensus: Vec<TimeframeConsensus>,
 }
 
@@ -35,12 +38,10 @@ impl ModelRun {
             .iter()
             .map(|timeframe| timeframe.snapshot().clone())
             .collect();
-        let aggregates = CrossTimeframeAggregates::compute(&snapshots);
         let consensus = snapshots.iter().map(TimeframeConsensus::compute).collect();
 
         Self {
             timeframes,
-            aggregates,
             consensus,
         }
     }
@@ -59,10 +60,16 @@ impl ModelRun {
             .find(|timeframe| timeframe.timeframe_secs() == timeframe_secs)
     }
 
-    /// The cross-timeframe aggregates at the latest bar.
+    /// The latest per-timeframe snapshots, fastest first.
+    ///
+    /// Reporting and analytics pass these snapshots to the explicit
+    /// cross-timeframe view. The model run does not publish the view itself.
     #[must_use]
-    pub const fn aggregates(&self) -> &CrossTimeframeAggregates {
-        &self.aggregates
+    pub fn snapshots(&self) -> Vec<TimeframeSnapshot> {
+        self.timeframes
+            .iter()
+            .map(|timeframe| timeframe.snapshot().clone())
+            .collect()
     }
 
     /// The consensus diagnostics, fastest first.

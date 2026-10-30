@@ -17,3 +17,16 @@ pub mod layers;
 pub mod research;
 pub mod resolution;
 pub mod summary;
+
+use quantrule_model::aggregate::CrossTimeframeAggregates;
+use quantrule_model::run::ModelRun;
+
+/// Computes the descriptive cross-timeframe view over a model run.
+///
+/// The model run publishes per-timeframe snapshots only. Reporting and
+/// analytics call this function when they need the descriptive aggregate; the
+/// strategy decision path must not use it.
+#[must_use]
+pub fn cross_timeframe(run: &ModelRun) -> CrossTimeframeAggregates {
+    CrossTimeframeAggregates::compute(&run.snapshots())
+}
