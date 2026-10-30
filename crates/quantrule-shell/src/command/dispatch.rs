@@ -65,13 +65,7 @@ pub(crate) fn parse_argv(arguments: &[String]) -> Result<Option<Command>, ParseE
         "research" => super::parse_research_arguments(rest),
         "store" => super::parse_store_arguments(rest),
         "db" => super::store_query::parse_db_arguments(rest),
-        "help" => {
-            if rest.is_empty() {
-                Ok(Some(Command::Help))
-            } else {
-                Err(ParseError::UnexpectedArguments("help"))
-            }
-        }
+        "help" => super::parse_help_arguments(rest).map(|topic| Some(Command::Help(topic))),
         "quit" => {
             if rest.is_empty() {
                 Ok(Some(Command::Quit))
@@ -125,7 +119,7 @@ pub(crate) fn execute(command: Command, stdout: &mut impl Write, stderr: &mut im
         Command::StoreRemove(args) => run_store_remove(&args, stdout),
         Command::Db(args) => run_db(&args, stdout),
         Command::Fetch(args) => run_fetch(&args, stdout, stderr),
-        Command::Help => run_help(stdout),
+        Command::Help(topic) => run_help(&topic, stdout),
         Command::Quit => return 0,
     };
 

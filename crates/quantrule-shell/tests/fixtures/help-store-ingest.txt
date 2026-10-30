@@ -1,0 +1,16 @@
+store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>]
+
+Ingest one M1 dataset into the SQLite store.
+
+Options
+  --dataset <name>             Dataset name; required.
+  --data-version <id>          Caller-supplied identity; required.
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  Prints ingested <name> bars=<n> timeframes=<n>.
+
+Notes
+  Input cap: 100000 M1 candles.
+  Writes one dataset, every ladder bar, consensus row, Layer 3 row, pivot, level, event, and retained leg in one transaction.
+  A same-name dataset with a different identity is a conflict until it is removed.

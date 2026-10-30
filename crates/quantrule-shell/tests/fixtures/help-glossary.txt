@@ -1,0 +1,118 @@
+QuantRule glossary
+==================
+
+Precise terms used by the shell and the contracts.
+
+NDJSON
+  Newline-delimited JSON: one JSON value per line, oldest first for candles and timeframes.
+
+report bundle
+  One engine's directory under a lab result folder. It holds report.json, summary.txt,
+  provenance.json, and the engine's artifacts.
+
+data version
+  The caller-supplied identity of an input series: source, timeframe, and coverage. The engine
+  records it and never infers it from the path.
+
+lab result folder
+  data/lab-result-YYYY-MM-DDTHH-MM-SSZ in UTC. It holds the five report bundles and the root
+  summary.txt.
+
+timeframe ladder
+  The configured 1m/5m/15m/1h series. Each timeframe is first-class; M1 is the source and
+  M5/M15/H1 are derived by the data engine.
+
+Direction
+  A continuous [-1,+1] score of EMA alignment. Positive is bullish, negative is bearish, and
+  zero is neutral alignment, not missing data.
+
+Momentum
+  A continuous [-1,+1] force from RSI, with acceleration and intensification. It is not a
+  confidence score.
+
+Structure
+  The confirmed swing sequence and EMA levels: a discrete swing code and a signed score. It is
+  not another trend-strength score.
+
+Progression
+  A leg's unclamped progress and ordinal stage toward its target. It is not a probability or a
+  forecast of reversal.
+
+axis resolution
+  One axis's continuous value, ordinal bucket, and unavailable reason for one timeframe and bar.
+
+consensus
+  A per-timeframe count of bullish, bearish, and neutral axis votes, with the weakest axis.
+  Progression does not vote and the count is not an average.
+
+cross-axis agreement
+  A count over Direction, Momentum, and Structure. It is never averaged into a single score.
+
+level event
+  Price interacts with an EMA or confirmed swing level. Subtypes are test/retest, cross, and
+  break; break precedes cross, which precedes test.
+
+divergence event
+  Price swings and RSI disagree directionally: regular or hidden, bullish or bearish. It is
+  emitted only after the newer pivot is confirmed.
+
+signal event
+  A discrete change in a reading: an RSI threshold crossing, an EMA crossover, or a compact
+  state change. It is not a vote.
+
+occurrence bar
+  The bar on which the underlying relationship occurred.
+
+availability bar
+  The first closed bar on which the model could know the measurement. An event never reaches an
+  earlier bar.
+
+confirmed pivot
+  A swing extreme confirmed after k bars on both sides: 2 for minor, 5 for major. It records
+  both occurrence and availability.
+
+leg
+  A movement from a pivot origin toward a target, maintained separately at the minor and major
+  scales per timeframe.
+
+progression stage
+  The ordinal stage of a leg. It is null while the origin is unconfirmed or the target is
+  unstable.
+
+Layer 1
+  The research layer with the candle, readings, axis metrics, context, and consensus for every
+  ladder bar.
+
+Layer 2
+  The research layer with each axis's continuous value, ordinal bucket, and unavailable reason.
+
+Layer 3
+  The research layer with the as-of higher-timeframe block and the cross-timeframe aggregates.
+
+provenance
+  The provenance.json record of a bundle's data version, periods, config files, resolved values,
+  and artifacts.
+
+in-sample
+  Data used to form or tune a hypothesis. A result on this data alone is not validation.
+
+out-of-sample
+  Data not used to form or tune a hypothesis. It is required before a result is called
+  promising.
+
+walk-forward
+  Adjacent in-sample and out-of-sample windows evaluated in sequence.
+
+input cap
+  The maximum M1 candles a command accepts. An over-cap input fails and is never silently
+  truncated.
+
+deterministic
+  The same input and configuration produce the same bytes. No clock, unseeded randomness, or
+  unordered iteration affects the result.
+
+See also
+--------
+  docs/model/2026-10-21/four-axis-analytical-model.md
+  docs/analytics/2026-10-24/research-output.md
+  docs/reports/2026-10-28/per-engine-reports.md

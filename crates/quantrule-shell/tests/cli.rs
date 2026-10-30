@@ -237,6 +237,142 @@ fn interactive_help_matches_non_interactive_help() {
 }
 
 #[test]
+fn help_detail_prints_one_command_contract() {
+    let output = run(&["help", "lab", "summary"]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/help-lab-summary.txt")
+    );
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn help_two_word_topic_prints_the_store_ingest_contract() {
+    let output = run(&["help", "store", "ingest"]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/help-store-ingest.txt")
+    );
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn help_all_prints_the_complete_reference() {
+    let output = run(&["help", "all"]);
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), include_str!("fixtures/help-all.txt"));
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn help_glossary_prints_the_definitions() {
+    let output = run(&["help", "glossary"]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/help-glossary.txt")
+    );
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn help_tutorial_points_at_the_tutorial() {
+    let output = run(&["help", "tutorial"]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/help-tutorial.txt")
+    );
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn help_roles_points_at_the_manuals() {
+    let output = run(&["help", "roles"]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/help-roles.txt")
+    );
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn interactive_help_topic_matches_non_interactive() {
+    let output = run_interactive("help store ingest\nquit\n");
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        include_str!("fixtures/help-store-ingest.txt")
+    );
+    assert!(stderr_text(&output).contains("quantrule> "));
+}
+
+#[test]
+fn help_unknown_topic_points_to_all() {
+    let output = run(&["help", "bogus"]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "error: unknown help topic 'bogus'; type 'help all' for every command and reference topic\n"
+    );
+}
+
+#[test]
+fn interactive_unknown_help_topic_keeps_the_session_alive() {
+    let output = run_interactive("help bogus\nhelp\nquit\n");
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), include_str!("fixtures/help.txt"));
+    assert!(
+        stderr_text(&output).contains("unknown help topic 'bogus'"),
+        "unexpected stderr: {}",
+        stderr_text(&output)
+    );
+    assert!(stderr_text(&output).contains("quantrule> "));
+}
+
+#[test]
+fn help_reserved_topic_rejects_extra_words() {
+    let output = run(&["help", "all", "extra"]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "error: usage: help [<command>|all|glossary|tutorial|roles]\n"
+    );
+}
+
+#[test]
+fn help_three_words_are_rejected() {
+    let output = run(&["help", "store", "ingest", "extra"]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "error: usage: help [<command>|all|glossary|tutorial|roles]\n"
+    );
+}
+
+#[test]
+fn help_output_has_no_ansi_escape() {
+    let output = run(&["help", "all"]);
+
+    assert_success(&output);
+    assert!(!stdout_text(&output).contains('\u{1b}'));
+}
+
+#[test]
 fn fetch_without_arguments_fails_with_usage() {
     let output = run(&["fetch"]);
 

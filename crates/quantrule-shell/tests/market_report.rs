@@ -598,8 +598,8 @@ fn market_report_refuses_bad_arguments() {
 }
 
 #[test]
-fn help_lists_the_market_report_command() {
-    let output = run(&["help"]);
+fn help_market_report_lists_the_command_and_options() {
+    let output = run(&["help", "market-report"]);
     assert_success(&output);
     let text = stdout_text(&output);
     for token in [
@@ -610,6 +610,6 @@ fn help_lists_the_market_report_command() {
         "--out",
         "--json",
     ] {
-        assert!(text.contains(token), "help omits {token}");
+        assert!(text.contains(token), "help market-report omits {token}");
     }
 }

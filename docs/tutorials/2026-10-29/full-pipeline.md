@@ -164,6 +164,13 @@ form is `quantrule <command> ...`; the output is identical. Interactive errors
 keep the session open; non-interactive errors exit with status 1. Type `quit` to
 exit the interactive shell.
 
+### Help
+
+The shell has one entry point for the reference: `help` prints the short map;
+`help <command>` prints one command contract; `help all` prints every command and
+option. `help glossary`, `help tutorial`, and `help roles` are the reference
+topics. The tutorial's section names match the `help tutorial` map.
+
 **Checkpoint.** `"$QR" help` lists the commands and both data files exist. Stop
 if the binary is missing or a file is absent and the fetch cannot run.
 
@@ -1106,7 +1113,7 @@ the same configuration produced all three runs.
 
 | Command | Section | Purpose | Output |
 |---|---|---|---|
-| `help` | 2 | List the commands. | Plain text |
+| `help` | 2 | Show the map, a command contract, or a reference topic. | Plain text |
 | `fetch` | 2 | Fetch native BID candles from the source. | CSV and a summary |
 | `candles` | 3 | Read a CSV strictly and print the last 1,000 candles. | NDJSON |
 | `candles-tolerant` | 3 | Read a CSV, skip bad rows, report quality. | NDJSON and a quality report |

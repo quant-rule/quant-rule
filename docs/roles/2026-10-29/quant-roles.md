@@ -7,7 +7,8 @@
 
 This page explains the three quant roles in plain language. `AGENTS.md` is the
 normative source; if the two disagree, `AGENTS.md` wins and this page is
-corrected.
+corrected. From the shell, `help roles` prints this map and `help tutorial`
+prints the pipeline map.
 
 ## Why three roles
 

@@ -176,8 +176,26 @@ cargo run -p quantrule-shell -- lab summary data/lab-result-2026-10-29T12-00-00Z
 | `db metrics` | `<dataset>` [options] | Metrics and resolutions as CSV |
 | `db layer3` | `<dataset>` [options] | Materialized Layer 3 rows as CSV |
 | `fetch` | `<symbol> <start> <end>` [options] | A CSV of native BID candles and an optional PNG chart |
-| `help` | none | The command reference |
+| `help` | [`<command>` \| `all` \| `glossary` \| `tutorial` \| `roles`] | The short map, one command contract, or a reference topic |
 | `quit` | none | Exits with status 0 |
+
+### Help contract
+
+`help` has three levels and three reference topics. The short map, the command
+pages, and `help all` render from one command metadata table, so they cannot
+drift. The output is fixed-width plain text with no terminal-width dependence
+and no color.
+
+| Command | Output |
+|---|---|
+| `help` | A one-screen map of the pipeline, commands, and reference topics. |
+| `help <command>` | The full contract for one command. One- or two-word topics such as `store ingest`, `research export`, and `lab summary` are accepted. |
+| `help all` | Every command and option. |
+| `help glossary` | Precise terms such as `NDJSON`, `report bundle`, `data version`, the four axes, events, and legs. |
+| `help tutorial` | The full-pipeline tutorial map and its repository path. |
+| `help roles` | The Quant Researcher, Quant Developer, and Quant Validator map and handoff. |
+
+An unknown topic is an error that points to `help all`.
 
 `fetch` options:
 

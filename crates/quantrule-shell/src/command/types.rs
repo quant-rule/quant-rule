@@ -76,10 +76,27 @@ pub(crate) enum Command {
     Db(DbArgs),
     /// Fetch a Dukascopy range and write a CSV and optional PNG.
     Fetch(FetchArgs),
-    /// Print the command reference.
-    Help,
+    /// Print the command reference, one command, or a reference topic.
+    Help(HelpTopic),
     /// Exit the shell.
     Quit,
+}
+
+/// A topic selected by the `help` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum HelpTopic {
+    /// The one-screen command map.
+    Short,
+    /// Every command and option.
+    All,
+    /// The precise-term glossary.
+    Glossary,
+    /// The full-pipeline tutorial map.
+    Tutorial,
+    /// The quant role map.
+    Roles,
+    /// One command, named by one or two words.
+    Command(String),
 }
 
 /// A model axis selected by the `axis` command.
@@ -548,6 +565,8 @@ pub(crate) enum ParseError {
     Store(String),
     /// The command name is not recognized.
     Unknown(String),
+    /// The help topic is not a command or a reference topic.
+    UnknownHelpTopic(String),
 }
 
 impl fmt::Display for ParseError {
@@ -581,6 +600,10 @@ impl fmt::Display for ParseError {
             Self::Unknown(command) => {
                 write!(formatter, "unknown command '{command}'; type 'help'")
             }
+            Self::UnknownHelpTopic(topic) => write!(
+                formatter,
+                "unknown help topic '{topic}'; type 'help all' for every command and reference topic"
+            ),
         }
     }
 }
@@ -783,6 +806,8 @@ pub(crate) enum RunError {
     Write(FileExportError),
     /// The store could not be opened or queried.
     Store(StoreError),
+    /// A help topic could not be rendered.
+    Help(String),
     /// The output could not be written.
     Output(io::Error),
 }
@@ -806,6 +831,7 @@ impl fmt::Display for RunError {
             }
             Self::Write(source) => write!(formatter, "cannot write the research dataset: {source}"),
             Self::Store(source) => source.fmt(formatter),
+            Self::Help(message) => formatter.write_str(message),
             Self::Output(source) => write!(formatter, "cannot write output: {source}"),
         }
     }
@@ -828,6 +854,7 @@ impl std::error::Error for RunError {
             Self::ResearchExport(source) => Some(source),
             Self::Write(source) => Some(source),
             Self::Store(source) => Some(source),
+            Self::Help(_) => None,
             Self::Output(source) => Some(source),
         }
     }

@@ -8,6 +8,7 @@
   [full-pipeline tutorial](../../tutorials/2026-10-29/full-pipeline.md)
 - Scope: candles-only, rule-based signals. Statistics serves audit only.
 - Claim type: procedural. This manual makes no profitability claim.
+- Shell entry: `help roles` for the role map; `help tutorial` for the pipeline.
 
 This is the operating manual for the Quant Validator role. `AGENTS.md` section
 10 is normative; if this manual disagrees with it, `AGENTS.md` wins. The
