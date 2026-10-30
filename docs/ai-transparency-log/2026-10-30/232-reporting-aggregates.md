@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#232](https://github.com/quant-rule/quant-rule/issues/232)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR pending
+- Status: Implemented; PR [#241](https://github.com/quant-rule/quant-rule/pull/241) open; CI passed
 
 ## Intent and boundary
 
@@ -42,6 +42,8 @@ research, and store outputs must remain byte-identical.
 | Research export/summary | Passed |
 | `ModelRun`/`MarketState` aggregate field | Removed |
 | Strategy aggregate input | None; strategy input unchanged |
+| PR | #241 opened |
+| CI `verify` and `sync` | Passed |
 
 No model formula, strategy decision, execution fill, or portfolio accounting
 changed. The reporting view is computed from the same snapshots as before.

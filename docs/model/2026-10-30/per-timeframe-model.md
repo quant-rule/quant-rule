@@ -1,7 +1,7 @@
 # Per-Timeframe Model Contract
 
 - Date: 2026-10-30 (UTC)
-- Status: Implemented for per-timeframe readings and reporting-view extraction (#231, #232); strategy context pending (#233)
+- Status: Implemented for per-timeframe readings and reporting-view extraction (#231, #232; Phase 4 PR #241 open); strategy context pending (#233)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), sub-issues [#231](https://github.com/quant-rule/quant-rule/issues/231), [#232](https://github.com/quant-rule/quant-rule/issues/232)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)

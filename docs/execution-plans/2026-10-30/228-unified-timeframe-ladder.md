@@ -696,11 +696,7 @@ until then.
 
 **Goal:** Remove decision-oriented cross-timeframe aggregation from the model.
 
-**Status:** Implemented; PR pending. `ModelRun` and `MarketState` no longer
-publish aggregates. Reporting calls `quantrule_analytics::cross_timeframe` over
-explicit snapshots. The pure view records and computation remain in
-`quantrule_model::aggregate` as a shared reporting helper; the model run does
-not carry them.
+**Status:** Implemented in PR [#241](https://github.com/quant-rule/quant-rule/pull/241); CI passed. `ModelRun` and `MarketState` no longer publish aggregates. Reporting calls `quantrule_analytics::cross_timeframe` over explicit snapshots. The pure view records and computation remain in `quantrule_model::aggregate` as a shared reporting helper; the model run does not carry them.
 
 **Files:**
 
