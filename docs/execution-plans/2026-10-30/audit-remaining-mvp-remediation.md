@@ -426,7 +426,7 @@ are kept sequential by the default one-work-item-in-flight rule.
 ## 15. Implementation evidence (2026-10-30)
 
 The plan is implemented in the `fix/audit-remaining-mvp-remediation` worktree
-from `origin/main` at `63eff7d`. The implementation is committed on the task branch;
+from `origin/main` at `63eff7d`. The implementation is committed on the task branch at `f38e298`;
 push, PR, and merge remain gated by AGENTS §9.
 
 | Phase | Status | Evidence |

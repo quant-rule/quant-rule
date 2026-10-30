@@ -43,5 +43,5 @@
 - **Limitations:** The Quant Validator pass is a sequential pass by the
   implementing agent, not an independent agent or model judgment. The full-year
   run was executed once; no out-of-sample or profitability claim is made. The
-  implementation is committed on the task branch; no push, PR, or merge was
-  performed.
+  implementation is committed on the task branch at `f38e298`; no push, PR, or
+  merge was performed.
