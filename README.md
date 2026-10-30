@@ -533,4 +533,4 @@ cargo doc --no-deps
 
 ## Developing QuantRule
 
-The agent roles, review gates, and verification rules are in [`AGENTS.md`](AGENTS.md). The plain-language reference for the Quant Researcher, Quant Developer, and Quant Validator is [`docs/roles/2026-10-29/quant-roles.md`](docs/roles/2026-10-29/quant-roles.md). The rest of the documentation is indexed in [`docs/README.md`](docs/README.md).
+The agent roles, review gates, and verification rules are in [`AGENTS.md`](AGENTS.md). The role overview and handoff chain are in [`docs/roles/2026-10-29/quant-roles.md`](docs/roles/2026-10-29/quant-roles.md). The operating manuals are [Quant Researcher](docs/roles/2026-10-29/quant-researcher-manual.md), [Quant Developer](docs/roles/2026-10-29/quant-developer-manual.md), and [Quant Validator](docs/roles/2026-10-29/quant-validator-manual.md). The rest of the documentation is indexed in [`docs/README.md`](docs/README.md).

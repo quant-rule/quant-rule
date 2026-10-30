@@ -47,9 +47,12 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 
 ## Current roles
 
-| Role | Status | Path |
+| Role | Manual | Status |
 |---|---|---|
-| Quant Researcher, Quant Developer, Quant Validator | Current; normative in `AGENTS.md` section 10 | [`docs/roles/2026-10-29/quant-roles.md`](roles/2026-10-29/quant-roles.md) |
+| Quant Researcher | [Quant Researcher Manual](roles/2026-10-29/quant-researcher-manual.md) | Current; normative in `AGENTS.md` section 10 |
+| Quant Developer | [Quant Developer Manual](roles/2026-10-29/quant-developer-manual.md) | Current; normative in `AGENTS.md` section 10 |
+| Quant Validator | [Quant Validator Manual](roles/2026-10-29/quant-validator-manual.md) | Current; normative in `AGENTS.md` section 10 |
+| All three | [Quant roles overview](roles/2026-10-29/quant-roles.md) | Current; role table and handoff chain |
 
 ## Developer tools
 
