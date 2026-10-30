@@ -11,9 +11,10 @@
   [#212](https://github.com/quant-rule/quant-rule/issues/212)
 - Branches/worktrees: `feat/209-lab-summary` in
   `quant-rule--209-lab-summary`; `docs/210-lab-tutorial` in
-  `quant-rule--210-lab-tutorial`; later work items use their own worktree.
-- Status: PR 1 is merged; PR 2 is implemented and its verification is recorded
-  below. Verification evidence is added as it is observed.
+  `quant-rule--210-lab-tutorial`; `docs/211-quant-role-manuals` in
+  `quant-rule--211-quant-role-manuals`; later work items use their own worktree.
+- Status: PR 1 and PR 2 are merged; PR 3 is implemented and its verification is
+  recorded below. Verification evidence is added as it is observed.
 
 ## Entry: preflight and issue tree
 
@@ -147,4 +148,52 @@
     pipeline is concrete. The researcher lab states that a real work item writes
     the protocol first; the lab demonstrates the record, not the chronology.
 - **Pull request:** [#214](https://github.com/quant-rule/quant-rule/pull/214),
+  merged at `2026-10-30T01:35:19Z` (merge commit `023155d`).
+
+## Entry: PR 3 — role manuals
+
+- **Intent and boundary:** Publish the Quant Researcher, Quant Developer, and
+  Quant Validator operating manuals. Each manual contains a role card, the
+  conditions that require the role, a numbered procedure with shell commands,
+  artifacts and the lab result folder, handoff checks, agent instructions, human
+  instructions, a handoff packet template, common failure modes, and normative
+  links. The roles overview gains a manual table and the three-packet handoff
+  chain; the docs index and README link the manuals. The change is documentation
+  only: no Rust source, model formula, strategy, execution, portfolio,
+  configuration, fixture, oracle, or CI file changed.
+- **Verification and evidence:**
+  - `cargo fmt --all -- --check` is clean; `cargo clippy --all-targets -- -D
+    warnings` reports no warnings.
+  - `cargo test` reports 1,374 passed, 0 failed, and 6 ignored; `cargo doc
+    --no-deps` builds without warnings.
+  - `git diff --check` is clean. A relative-link check over the changed
+    documents found 60 links and all resolve.
+  - `cargo test -p quantrule-model` and `cargo test -p quantrule-backtest`
+    pass; these cover the model golden, causality, and determinism suites and
+    the strategy, execution, and portfolio suites the manuals tell the
+    validator to run.
+  - The validator's availability sample used
+    `events data/SOLUSD_M1_2025-01-01_2025-02-28.csv --window latest`; the
+    sample had 7,095 events and 0 events before their availability bar.
+  - The example values quoted in the manuals match the PR 2 lab:
+    48 trades, final equity `8016.143910`, max drawdown `0.203150`,
+    commission `885.610499`, and `halted: true`.
+  - The three packets form one chain: researcher to developer, developer to
+    validator, validator to human. Each manual names `AGENTS.md` section 10 as
+    normative and links the roles overview and the tutorial.
+- **Learning:**
+  - The first developer and validator drafts passed `--notes` before the notes
+    file existed, so `lab summary` would have failed. The procedures now write
+    the lab summary first and refresh it with `--force` after the notes are
+    written.
+  - The researcher protocol example says `Variations: none`; the validator
+    record now says "no unrecorded variation" rather than claiming a variation.
+  - The validator audit first used `cargo test -p quantrule-model causal` and
+    `deterministic`. Those filters do not cover every model test, so the manual
+    now runs the full `quantrule-model` and `quantrule-backtest` suites and uses
+    the filtered tests only as a quick check.
+  - The researcher manual separates the `candles-tolerant` quality line from
+    the `timeframes` aggregation lines; the first draft showed them as one
+    command's output, which confused the capture.
+- **Pull request:** [#215](https://github.com/quant-rule/quant-rule/pull/215),
   open. Merge requires explicit human authorization.

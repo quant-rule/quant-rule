@@ -409,7 +409,44 @@ Limitations:
 
 ### PR 3 — role manuals
 
-Pending.
+Implemented on `docs/211-quant-role-manuals` in
+`quant-rule--211-quant-role-manuals`:
+
+- `docs/roles/2026-10-29/quant-researcher-manual.md`,
+  `quant-developer-manual.md`, and `quant-validator-manual.md` — each with a
+  role card, when-required table, numbered procedure with commands, artifacts,
+  handoff checks, agent and human instructions, a packet template, failure
+  modes, and normative links.
+- `docs/roles/2026-10-29/quant-roles.md` — the role-manual table and the
+  three-packet handoff chain.
+- `docs/README.md` — the role manuals table.
+- `README.md` — the three manual links.
+
+Observed verification (2026-10-30 UTC):
+
+| Check | Command | Result |
+|---|---|---|
+| Format | `cargo fmt --all -- --check` | Clean |
+| Lints | `cargo clippy --all-targets -- -D warnings` | No warnings |
+| Tests | `cargo test` | 1,374 passed, 0 failed, 6 ignored |
+| Docs | `cargo doc --no-deps` | Built without warnings |
+| Whitespace | `git diff --check` | Clean |
+| Links | Relative-link check over the changed docs | 60 links; all resolve |
+| Manual audit | `cargo test -p quantrule-model`, `cargo test -p quantrule-backtest` | All pass |
+| Availability sample | `events ... --window latest` plus the record check | 0 events before availability; 7,095 events in the sample |
+| Example values | `grep` over the validator lab summary | 48 trades, 8016.143910, 0.203150, halted true, commission 885.610499 |
+
+Pull request: [#215](https://github.com/quant-rule/quant-rule/pull/215),
+open. Merge requires explicit human authorization.
+
+Limitations:
+
+- The manuals are procedures. The example lab is illustrative and is not a
+  production validation record.
+- The Validator manual is not an independent model judgment: the same engine
+  and machine produce the reproduction.
+- No model, strategy, execution, portfolio, configuration, fixture, oracle, or
+  CI behavior changed.
 
 ### PR 4 — help redesign
 

@@ -28,19 +28,36 @@ must disclose that the passes were sequential.
 | **Quant Developer** | The implementation, tests, determinism, and performance | The approved protocol, model contract, and configuration schemas | Code, tests, a reproducible run configuration, reported deviations | Change the hypothesis, thresholds, or evaluation criteria to improve results, or call its own work validated |
 | **Quant Validator** | Independent reproduction and the evidence verdict | The recorded data version, configuration, and candidate result | A validation record: commands, observed results, limitations, and verdict | Modify the work it reviews, waive a control, or change the criteria to turn a failure into a pass |
 
+## Role manuals
+
+| Role | Manual | Use it when |
+|---|---|---|
+| **Quant Researcher** | [Quant Researcher Manual](quant-researcher-manual.md) | Forming a hypothesis, pre-registering a protocol, or interpreting evidence. |
+| **Quant Developer** | [Quant Developer Manual](quant-developer-manual.md) | Implementing an approved protocol, adding tests, or producing a reproducible run. |
+| **Quant Validator** | [Quant Validator Manual](quant-validator-manual.md) | Reproducing a candidate result and auditing bias, costs, and risk. |
+
 ## Handoff
 
 ```
 market question
     -> Quant Researcher: hypothesis + protocol + metrics
+         packet -> Quant Developer
     -> Quant Developer: implementation + tests + reproducible run
-    -> Quant Validator: independent reproduction + bias and cost audit
+         packet -> Quant Validator
+    -> Quant Validator: reproduction + bias and cost audit + verdict
+         packet -> Human
     -> Human: accept, revise, or reject
 ```
 
 The handoff is one way. The researcher does not implement the strategy, and the
 developer does not certify the result. The validator can send the result back
 with findings; it does not repair it.
+
+| From | To | The packet carries |
+|---|---|---|
+| Quant Researcher | Quant Developer | Question, hypothesis, data version, sample, split, metrics, costs, pass/fail, variations, limitations. |
+| Quant Developer | Quant Validator | Protocol, code and test record, data version, config, lab, gates, reproducibility, deviations. |
+| Quant Validator | Human | Candidate lab, validator lab, reproduction result, split, costs, audit findings, verdict, residual risks. |
 
 ## When each role is required
 
