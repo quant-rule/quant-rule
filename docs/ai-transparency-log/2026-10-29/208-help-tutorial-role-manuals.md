@@ -14,9 +14,9 @@
   `quant-rule--210-lab-tutorial`; `docs/211-quant-role-manuals` in
   `quant-rule--211-quant-role-manuals`; `feat/212-help-topics` in
   `quant-rule--212-help-topics`; later work items use their own worktree.
-- Status: PR 1, PR 2, and PR 3 are merged; PR 4 is implemented and its
-  verification is recorded below. Verification evidence is added as it is
-  observed.
+- Status: All four sub-issues are merged and closed; container #208 is Done and
+  closed. The execution plan is Verified. Verification evidence is recorded
+  below.
 
 ## Entry: preflight and issue tree
 
@@ -250,4 +250,36 @@
     one-word or two-word topic is a distinct `UnknownHelpTopic` error that
     points to `help all`.
 - **Pull request:** [#216](https://github.com/quant-rule/quant-rule/pull/216),
-  open. Merge requires explicit human authorization.
+  merged at `2026-10-30T02:44:45Z` (merge commit `45566ac`).
+
+## Entry: closeout
+
+- **Intent and boundary:** Record the final acceptance of the four work items in
+  the execution plan and this log: all sub-issues and the container are closed;
+  `main` is verified; the tutorial, manuals, and help topics work; the four task
+  worktrees and branches are gone. This is a documentation-only record. No Rust
+  source, model formula, strategy, execution, portfolio, configuration, fixture,
+  oracle, or CI file changed.
+- **Verification and evidence:**
+  - #209, #210, #211, and #212 are `Done` and closed; container #208 is `Done`
+    and closed.
+  - `main` is at `45566ac` and is clean and in sync with `origin/main`.
+  - The four task worktrees and branches were removed after merge. The closeout
+    worktree and branch are removed after this record merges.
+  - The full-year tutorial run on `main` wrote five bundles, 29 bundle
+    artifacts, and the root `summary.txt`: 48 trades, final equity
+    `8016.143910`, max drawdown `0.203150`, `halted: true`, commission
+    `885.610499`.
+  - `help` prints 43 lines, `help all` 504, `help glossary` 118, `help tutorial`
+    30, and `help roles` 23.
+  - `cargo fmt --all -- --check` is clean; `cargo clippy --all-targets -- -D
+    warnings` reports no warnings; `cargo test` reports 1,391 passed, 0 failed,
+    and 6 ignored; `cargo doc --no-deps` builds without warnings; `git diff
+    --check` is clean.
+- **Learning:**
+  - The plan cannot be marked `Verified` before the last sub-issue merges; the
+    final status is recorded in this closeout rather than in the PR that
+    delivered the help command.
+  - The board workflow moved the container to `Done` and closed it when the
+    last sub-issue closed; no manual board transition was needed.
+- **Pull request:** closeout record; merge requires explicit human authorization.

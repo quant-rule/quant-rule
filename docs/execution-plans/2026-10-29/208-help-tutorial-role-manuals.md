@@ -1,9 +1,9 @@
 # Help, Tutorial, and Quant Role Manuals
 
 - Date: 2026-10-29 (UTC)
-- Status: **Approved — 2026-10-29.** The human authorized the full implementation
-  with "proceed with the full implementation following the plan". Verification
-  evidence is recorded as it is observed.
+- Status: **Verified — 2026-10-30.** All four sub-issues are merged and closed;
+  the container is Done. Final acceptance was evaluated against observed
+  evidence on `main` at `45566ac`.
 - Container: [#208](https://github.com/quant-rule/quant-rule/issues/208)
 - Sub-issues:
   [#209](https://github.com/quant-rule/quant-rule/issues/209) (lab summary),
@@ -320,19 +320,20 @@ Stop and ask if:
 
 ## Final acceptance
 
-- All four sub-issues are Done and closed.
-- The container is Done.
-- `main` is clean and up to date.
-- The tutorial runs end-to-end on `main` and produces five bundles plus
+- [x] All four sub-issues are Done and closed.
+- [x] The container is Done.
+- [x] `main` is clean and up to date.
+- [x] The tutorial runs end-to-end on `main` and produces five bundles plus
   `summary.txt`.
-- `help`, `help <command>`, `help all`, `help glossary`, `help tutorial`, and
+- [x] `help`, `help <command>`, `help all`, `help glossary`, `help tutorial`, and
   `help roles` all work.
-- The three manuals are linked and consistent with `AGENTS.md` section 10.
-- `cargo fmt`, `clippy`, `test`, and `doc` pass.
-- No model or strategy behavior changed.
-- The execution plan is marked `Verified`; the transparency log records the
+- [x] The three manuals are linked and consistent with `AGENTS.md` section 10.
+- [x] `cargo fmt`, `clippy`, `test`, and `doc` pass.
+- [x] No model or strategy behavior changed.
+- [x] The execution plan is marked `Verified`; the transparency log records the
   evidence.
-- All task worktrees and branches are removed after merge.
+- [x] The four task worktrees and branches are removed; this closeout worktree
+  and branch are removed after this record merges.
 
 ## Evidence
 
@@ -491,7 +492,7 @@ Observed verification (2026-10-30 UTC):
 | Drift | Unit test over the metadata | Every command page and option is in `help all`; the short map uses the same metadata |
 
 Pull request: [#216](https://github.com/quant-rule/quant-rule/pull/216),
-open. Merge requires explicit human authorization.
+merged at `2026-10-30T02:44:45Z` (merge commit `45566ac`).
 
 Limitations:
 
@@ -501,3 +502,23 @@ Limitations:
   contracts.
 - No model, strategy, execution, portfolio, configuration, fixture, oracle, or
   CI behavior changed.
+
+### Closeout
+
+Final acceptance was evaluated on 2026-10-30 against `main` at `45566ac`:
+
+- #209, #210, #211, and #212 are Done and closed; container #208 is Done and
+  closed.
+- `main` is clean and in sync with `origin/main`.
+- The four task worktrees and branches were removed after merge. This closeout
+  worktree and branch are removed after this record merges.
+- The full-year tutorial run on `main` wrote the five bundles, 29 bundle
+  artifacts, and the root `summary.txt`: 48 trades, final equity `8016.143910`,
+  max drawdown `0.203150`, `halted: true`, commission `885.610499`.
+- `help` prints 43 lines, `help all` 504, `help glossary` 118, `help tutorial`
+  30, and `help roles` 23. Every command page and option is in `help all`.
+- `cargo fmt --all -- --check` is clean; `cargo clippy --all-targets -- -D
+  warnings` reports no warnings; `cargo test` reports 1,391 passed, 0 failed,
+  and 6 ignored; `cargo doc --no-deps` builds without warnings; `git diff
+  --check` is clean.
+- No model or strategy behavior changed.
