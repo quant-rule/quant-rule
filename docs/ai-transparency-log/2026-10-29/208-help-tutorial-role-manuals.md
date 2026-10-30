@@ -12,9 +12,11 @@
 - Branches/worktrees: `feat/209-lab-summary` in
   `quant-rule--209-lab-summary`; `docs/210-lab-tutorial` in
   `quant-rule--210-lab-tutorial`; `docs/211-quant-role-manuals` in
-  `quant-rule--211-quant-role-manuals`; later work items use their own worktree.
-- Status: PR 1 and PR 2 are merged; PR 3 is implemented and its verification is
-  recorded below. Verification evidence is added as it is observed.
+  `quant-rule--211-quant-role-manuals`; `feat/212-help-topics` in
+  `quant-rule--212-help-topics`; later work items use their own worktree.
+- Status: PR 1, PR 2, and PR 3 are merged; PR 4 is implemented and its
+  verification is recorded below. Verification evidence is added as it is
+  observed.
 
 ## Entry: preflight and issue tree
 
@@ -196,4 +198,56 @@
     the `timeframes` aggregation lines; the first draft showed them as one
     command's output, which confused the capture.
 - **Pull request:** [#215](https://github.com/quant-rule/quant-rule/pull/215),
+  merged at `2026-10-30T02:24:52Z` (merge commit `48ec159`).
+
+## Entry: PR 4 — help redesign
+
+- **Intent and boundary:** Replace the single help constant with a
+  metadata-driven reference. `help` is the one-screen map, `help <command>` is
+  one full contract, and `help all` is the complete reference. `help glossary`,
+  `help tutorial`, and `help roles` are the reference topics. The short map,
+  the command pages, and `help all` render from one command table; the glossaries
+  and maps are static text. The change is limited to the shell's help module,
+  its parser and dispatcher, its tests and fixtures, the README help contract,
+  and one-line shell entry points in the tutorial, manuals, and roles overview.
+  No model, strategy, execution, portfolio, configuration, fixture, oracle, or
+  CI behavior changed.
+- **Verification and evidence:**
+  - `cargo fmt --all -- --check` is clean; `cargo clippy --all-targets -- -D
+    warnings` reports no warnings.
+  - `cargo test` reports 1,391 passed, 0 failed, and 6 ignored; `cargo doc
+    --no-deps` builds without warnings.
+  - `git diff --check` is clean. A relative-link check over the changed
+    documents found 63 links and all resolve.
+  - `quantrule help` prints 43 lines and names every command; `help all` prints
+    504 lines with every command page and option; `help lab summary` prints the
+    21-line full contract; `help store ingest` prints the 16-line full contract.
+  - `help glossary` prints 118 lines, `help tutorial` prints 30, and
+    `help roles` prints 23.
+  - `help bogus` exits 1 with
+    `unknown help topic 'bogus'; type 'help all' for every command and reference topic`.
+  - The interactive `help` and `help store ingest` outputs are byte-identical to
+    their non-interactive forms.
+  - A unit test walks the command table and checks that every command page and
+    option appears in `help all`; the short map is generated from the same table.
+  - `cargo test -p quantrule-shell --test cli help` runs 15 help tests; the
+    command unit suite runs 7 help tests.
+- **Learning:**
+  - The first help implementation put the command table, the short map, the
+    reference topics, and the renderers in one 1,074-line file. The topics moved
+    to `command/help/topics.rs`, leaving `help.rs` at 830 lines and the topics at
+    219.
+  - The first short map was a second hand-written table. It now derives each
+    line from the same `CommandHelp` entry, so a renamed command or changed
+    short usage cannot drift.
+  - The glossary's first definitions were single long lines. A fixed-width
+    96-column wrapper keeps the text readable without reading the terminal
+    width.
+  - The existing `market_report` test expected `help` to list `--data-version`;
+    the short map intentionally omits options. The test now asks
+    `help market-report`, which is the contract page.
+  - `help all extra` and a three-word topic are usage errors; an unknown
+    one-word or two-word topic is a distinct `UnknownHelpTopic` error that
+    points to `help all`.
+- **Pull request:** [#216](https://github.com/quant-rule/quant-rule/pull/216),
   open. Merge requires explicit human authorization.

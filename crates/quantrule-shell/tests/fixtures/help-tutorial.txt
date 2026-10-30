@@ -1,0 +1,30 @@
+QuantRule full-pipeline tutorial
+================================
+Repository path: docs/tutorials/2026-10-29/full-pipeline.md
+
+1. What the lab produces
+2. Before you start
+3. Data engine
+4. Model engine
+5. Research engine
+6. Strategy
+7. Full run
+8. Store
+9. Role labs
+10. What the lab proves and does not prove
+11. Troubleshooting
+12. Command index
+
+Start
+  quantrule help
+  quantrule fetch sol/usd 2025-01-01 2025-02-28 --csv data/SOLUSD_M1_2025-01-01_2025-02-28.csv
+  quantrule candles data/SOLUSD_M1_2025-01-01_2025-02-28.csv
+  quantrule backtest --config config/examples/solusd-2025/run.json --out data/lab-result-<UTC>
+  quantrule lab summary data/lab-result-<UTC> --role researcher --data-version <id> --config config/examples/solusd-2025/run.json --created-utc <UTC>
+
+Role labs
+  Quant Researcher  docs/roles/2026-10-29/quant-researcher-manual.md
+  Quant Developer   docs/roles/2026-10-29/quant-developer-manual.md
+  Quant Validator   docs/roles/2026-10-29/quant-validator-manual.md
+
+Paths are relative to the repository root.

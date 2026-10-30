@@ -1,0 +1,23 @@
+QuantRule quant roles
+=====================
+Normative: AGENTS.md section 10
+
+Quant Researcher
+  Manual: docs/roles/2026-10-29/quant-researcher-manual.md
+  Owns: hypothesis, protocol, metrics, split, costs, pass/fail.
+  Hands to: Quant Developer.
+
+Quant Developer
+  Manual: docs/roles/2026-10-29/quant-developer-manual.md
+  Owns: implementation, tests, determinism, reproducible run.
+  Hands to: Quant Validator.
+
+Quant Validator
+  Manual: docs/roles/2026-10-29/quant-validator-manual.md
+  Owns: independent reproduction, bias and cost audit, verdict.
+  Hands to: Human.
+
+Handoff: researcher -> developer -> validator -> human.
+A validator verdict is evidence, not approval.
+
+Paths are relative to the repository root.

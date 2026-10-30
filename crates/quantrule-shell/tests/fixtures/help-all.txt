@@ -1,0 +1,504 @@
+QuantRule complete command reference
+====================================
+
+Data
+----
+
+candles <csv-path>
+
+Read a CSV strictly and print the retained candle window as NDJSON.
+
+Options
+  none
+
+Output
+  NDJSON, one candle per line, oldest first; at most 1000 lines.
+
+Notes
+  A malformed row, invalid OHLC, duplicate timestamp, or out-of-order timestamp aborts the command.
+  The window is built before writing, so a late error produces no partial NDJSON.
+
+candles-tolerant <csv-path>
+
+Read a CSV, skip row-level failures, and report quality on stderr.
+
+Options
+  none
+
+Output
+  NDJSON on stdout; one quality summary and one line per skipped row on stderr.
+
+Notes
+  A missing file or bad header aborts; row-level failures are skipped and counted.
+  A run with skipped rows, including a file where every row is rejected, exits 0.
+
+timeframes <csv-path>
+
+Build M5, M15, and H1 from an M1 CSV and print the four series.
+
+Options
+  none
+
+Output
+  NDJSON grouped M1, M5, M15, H1; aggregation, partial, and gap records on stderr.
+
+Notes
+  M1 is the source; M5, M15, and H1 are derived by the data engine.
+  A complete trailing bucket is published; an incomplete bucket is dropped and counted.
+  No derived CSV is written.
+
+Model
+-----
+
+market-state <csv-path> [--window full|latest]
+
+Print the four-timeframe market state as one JSON object.
+
+Options
+  --window <full|latest>       Input window: full up to 100000 (default) or last 1000.
+
+Output
+  One JSON object with ladder, timeframes, aggregates, and consensus.
+
+Notes
+  The model publishes numbers; the shell maps stable codes to labels.
+  The four axes are separate; agreement is a count, never an average.
+  Input cap: 100000 M1 candles; --window latest uses the last 1000 per timeframe.
+
+market-dashboard <csv-path> [--window full|latest] [--json]
+
+Print the four-axis dashboard, one row per timeframe.
+
+Options
+  --window <full|latest>       Input window: full up to 100000 (default) or last 1000.
+  --json                       Print the numeric dashboard state as one JSON object.
+
+Output
+  Fixed-width four-track text, or one numeric JSON object with --json.
+
+Notes
+  Missing value: an em dash with a reason code; a valid zero prints 0%.
+  The view is descriptive; it is not a strategy, forecast, or recommendation.
+
+market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>] [--window full|latest]
+
+Render the last candles and the four axis panels as a deterministic PNG.
+
+Options
+  --png <path>                 Required PNG target.
+  --timeframe <tf>             Chart timeframe: 1m, 5m, 15m, or 1h (default 1m).
+  --candles <n>                Last n bars, 1..1000 (default 1000).
+  --window <full|latest>       Input window: full up to 100000 (default) or last 1000.
+
+Output
+  A PNG; prints png=<path> timeframe=<tf> candles=<n> bytes=<n>.
+
+Notes
+  Input cap: 100000 M1 candles; --window latest charts a larger fetch.
+  The four axis panels share the [-1,+1] scale; a missing axis is a gap, never zero.
+
+market-report <csv-path> --data-version <id> [--from <date>] [--to <date>] --out <dir> [--json]
+
+Write the full-period market report and its charts.
+
+Options
+  --data-version <id>          Caller-supplied identity; required.
+  --from <date>                Inclusive UTC start date, YYYY-MM-DD.
+  --to <date>                  Inclusive UTC end date, YYYY-MM-DD.
+  --out <dir>                  New or empty output directory; required.
+  --json                       Print report.json bytes to stdout.
+
+Output
+  Four artifacts in order: summary.txt, report.json, price-axes.png, events.png.
+
+Notes
+  Input cap: 600000 M1 candles.
+  Contains no order, fill, position, trade, equity, or P&L field.
+  The output directory must be absent or empty; a failure removes the partial set.
+
+axis <csv-path> <axis> [--window full|latest]
+
+Print one axis per timeframe: direction, momentum, structure, or progression.
+
+Options
+  --window <full|latest>       Input window: full up to 100000 (default) or last 1000.
+
+Output
+  One NDJSON line per timeframe.
+
+Notes
+  Each line carries the numeric fields, compact code, readiness and reason codes, labels, and counters.
+  Input cap: 100000 M1 candles.
+
+events <csv-path> [--window full|latest]
+
+Print every event record in the analyzed window as NDJSON.
+
+Options
+  --window <full|latest>       Input window: full up to 100000 (default) or last 1000.
+
+Output
+  One NDJSON line per event, grouped by timeframe and ordered by availability.
+
+Notes
+  Types: level, divergence, and signal.
+  Every record carries occurrence and availability; an event never appears before it is knowable.
+  Events are evidence; they do not alter an axis value.
+
+legs <csv-path> [--window full|latest]
+
+Print the minor and major leg per timeframe.
+
+Options
+  --window <full|latest>       Input window: full up to 100000 (default) or last 1000.
+
+Output
+  Two NDJSON lines per timeframe, one per pivot scale.
+
+Notes
+  A leg's stage may be null while its origin is unconfirmed or its target is unstable.
+  A target revision changes the target version without a price movement.
+
+model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]
+
+Print the last complete model bars as NDJSON.
+
+Options
+  --timeframe <tf>             Restrict to 1m, 5m, 15m, or 1h (default: whole ladder).
+  --bars <n>                   Bars per timeframe, 1..1000 (default 1000).
+  --window <full|latest>       Input window: full up to 100000 (default) or last 1000.
+
+Output
+  NDJSON, one complete model bar per line, oldest first.
+
+Notes
+  Each line carries the candle, six readings, the four axes with diagnostics, context, and consensus.
+  Events stay a separate command because one bar can carry several events.
+  Input cap: 100000 M1 candles.
+
+Research
+--------
+
+research export <csv-path> <dataset> --data-version <id> [--root <dir>]
+
+Write the research dataset: raw M1, three layers, manifest, dictionary, and codes.
+
+Options
+  --data-version <id>          Caller-supplied identity; required.
+  --root <dir>                 Export root (default: data).
+
+Output
+  Writes the raw M1 file and the processed layer files; prints row counts and file count.
+
+Notes
+  Input cap: 100000 M1 candles; an over-cap input fails rather than truncating.
+  The export is deterministic; the manifest records the data version, configuration, row counts, and files.
+
+research summary <csv-path>
+
+Print counts, ranges, ordinal histograms, and axis correlations.
+
+Options
+  none
+
+Output
+  One line per timeframe and axis, then one line per timeframe and axis pair.
+
+Notes
+  Ordinal codes are counted, never averaged; no line combines the axes.
+  Input cap: 100000 M1 candles.
+
+Strategy
+--------
+
+strategy-run <csv-path> --strategy <name> --data-version <id> [--from <date>] [--to <date>] [--json]
+
+Print strategy entries and exits as NDJSON; no fills or P&L.
+
+Options
+  --strategy <name>            Strategy name; required (axis-agreement).
+  --data-version <id>          Caller-supplied identity; required.
+  --from <date>                Inclusive UTC start date, YYYY-MM-DD.
+  --to <date>                  Inclusive UTC end date, YYYY-MM-DD.
+  --json                       Print one provenance envelope instead of bare NDJSON.
+
+Output
+  NDJSON entries and exits, or one JSON envelope with --json.
+
+Notes
+  Input cap: 600000 M1 candles; reads the strategy timeframe only.
+  Stops at the decision: no order, fill, position, equity, trade, or P&L.
+  Model Signal events are not strategy entries or exits.
+
+Runs
+----
+
+report <engine> --config <run.json> [--out <dir>] [--json]
+
+Write one config-driven report bundle under <out>/<engine>/.
+
+Options
+  --config <path>              The run configuration; required.
+  --out <dir>                  Output root override (default: the run config).
+  --json                       Print report.json bytes to stdout.
+
+Output
+  One bundle and its artifact paths, or report.json bytes with --json.
+
+Notes
+  Engines: model, strategy, execution, portfolio, or analytical.
+  Runs only the engines the bundle needs; a non-empty target is refused and a partial bundle is removed on failure.
+
+backtest --config <run.json> [--out <dir>] [--json]
+
+Run the full pipeline and write all five bundles.
+
+Options
+  --config <path>              The run configuration; required.
+  --out <dir>                  Output root override (default: the run config).
+  --json                       Print a deterministic summary envelope.
+
+Output
+  Five bundle paths, or one JSON summary envelope with --json.
+
+Notes
+  Loads the candles once, runs the pipeline once, and computes the model once.
+  The input cap comes from data.json.max_candles, at most 600000.
+  A non-empty output root is refused before any write.
+
+lab summary <lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <ts> [--operator human|agent] [--notes <path>] [--force]
+
+Write one deterministic summary.txt for a lab result folder.
+
+Options
+  --role <role>                researcher, developer, or validator; required.
+  --data-version <id>          Caller-supplied identity; required.
+  --config <path>              The run configuration; required.
+  --created-utc <ts>           Explicit UTC time, YYYY-MM-DDTHH:MM:SSZ; required.
+  --operator <kind>            human or agent (default human).
+  --notes <path>               Include role notes verbatim.
+  --force                      Overwrite an existing summary.txt.
+
+Output
+  Writes <lab-dir>/summary.txt and prints wrote <path>.
+
+Notes
+  Reads the five report bundles and copies published values; it never recomputes the model.
+  The data version must match every report.json and provenance.json.
+  Never reads the clock; --created-utc is explicit.
+  Refuses an existing summary.txt unless --force is given.
+
+Store
+-----
+
+store init [--db <path>]
+
+Create or open the SQLite store and apply the schema migrations.
+
+Options
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  Prints store <path> schema=<n>.
+
+Notes
+  Reopening an existing store is idempotent; a version 1 database is migrated in place.
+  A store whose schema is newer than the binary is rejected; a file that is not a database fails clearly.
+
+store ingest <csv-path> --dataset <name> --data-version <id> [--db <path>]
+
+Ingest one M1 dataset into the SQLite store.
+
+Options
+  --dataset <name>             Dataset name; required.
+  --data-version <id>          Caller-supplied identity; required.
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  Prints ingested <name> bars=<n> timeframes=<n>.
+
+Notes
+  Input cap: 100000 M1 candles.
+  Writes one dataset, every ladder bar, consensus row, Layer 3 row, pivot, level, event, and retained leg in one transaction.
+  A same-name dataset with a different identity is a conflict until it is removed.
+
+store verify <csv-path> --dataset <name> --data-version <id> [--db <path>]
+
+Verify a stored dataset against a fresh build.
+
+Options
+  --dataset <name>             Dataset name; required.
+  --data-version <id>          Caller-supplied identity; required.
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  Prints verified <name> bars=<n> tables=7, or the first mismatch.
+
+Notes
+  Rebuilds the source, opens the store read-only, and compares every table; it never repairs.
+  A dataset with layer3_materialized = 0 is incomplete; re-ingest into a fresh database.
+
+store list [--db <path>]
+
+List the stored datasets as CSV.
+
+Options
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  One CSV row per dataset, sorted by name, with identity, counts, and Layer 3 state.
+
+Notes
+  Read-only; a missing file is an error and is never created.
+
+store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]
+
+Show one stored table as CSV.
+
+Options
+  --timeframe <tf>             Timeframe filter: 1m, 5m, 15m, or 1h.
+  --bar <n>                    Bar-index filter where the table has one.
+  --limit <n>                  Maximum rows, 1..1000 (default 100).
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  CSV rows in DDL order and primary-key order.
+
+Notes
+  Tables: bar, consensus, layer3, pivot, level, event, or leg.
+  event.reference_code = 0 is rendered as NULL.
+  Read-only; a missing file is an error and is never created.
+
+store remove <dataset> [--db <path>]
+
+Remove one dataset and its cascading records.
+
+Options
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  Prints removed <name> bars=<n>; the database file remains.
+
+Notes
+  Removing a missing dataset is an error.
+  Other datasets remain; removing the same name with a different identity is a conflict until removed.
+
+db series <dataset> [--timeframe <tf>] [--limit <n>] [--db <path>]
+
+Read stored candles as NDJSON.
+
+Options
+  --timeframe <tf>             Timeframe filter: 1m, 5m, 15m, or 1h.
+  --limit <n>                  Maximum rows, 1..1000 (default 100).
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  NDJSON with dataset, timeframe_secs, bar_index, ISO open_time, OHLC, and nullable volume; oldest first.
+
+Notes
+  Read-only; a missing file is an error and is never created.
+
+db bars <dataset> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]
+
+Read the full stored bar table as CSV.
+
+Options
+  --timeframe <tf>             Timeframe filter: 1m, 5m, 15m, or 1h.
+  --bar <n>                    Bar-index filter where the table has one.
+  --limit <n>                  Maximum rows, 1..1000 (default 100).
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  CSV with 74 columns.
+
+Notes
+  Read-only; a missing file is an error and is never created.
+
+db metrics <dataset> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]
+
+Read metrics and resolutions as CSV.
+
+Options
+  --timeframe <tf>             Timeframe filter: 1m, 5m, 15m, or 1h.
+  --bar <n>                    Bar-index filter where the table has one.
+  --limit <n>                  Maximum rows, 1..1000 (default 100).
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  CSV with 61 columns: identity, 47 metric columns, and 12 resolution columns.
+
+Notes
+  Read-only; a missing file is an error and is never created.
+
+db layer3 <dataset> [--bar <n>] [--limit <n>] [--db <path>]
+
+Read the materialized Layer 3 rows as CSV.
+
+Options
+  --bar <n>                    Bar-index filter where the table has one.
+  --limit <n>                  Maximum rows, 1..1000 (default 100).
+  --db <path>                  Database path (default data/quantrule.db).
+
+Output
+  CSV with 285 columns.
+
+Notes
+  Read-only; a missing file is an error and is never created.
+
+Sources
+-------
+
+fetch <symbol> <start> <end> [--timeframe <tf>] [--csv <path>] [--png <path>] [--candles <n>]
+
+Fetch native BID candles; write a CSV and an optional PNG.
+
+Options
+  --timeframe <tf>             Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
+  --csv <path>                 CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
+  --png <path>                 Required PNG target.
+  --candles <n>                Last n bars, 1..1000 (default 1000).
+
+Output
+  Writes the CSV and PNG; prints symbol, timeframe, dates, row counts, first/last, csv, and png.
+
+Notes
+  Reads Dukascopy BID candles; network access is required.
+  Dates are inclusive UTC dates in YYYY-MM-DD form; no clock is read.
+  Fetched higher intervals are source references; canonical M5/M15/H1 come from timeframes.
+
+Shell
+-----
+
+help [<command>|all|glossary|tutorial|roles]
+
+Show the short map, one command contract, or a reference topic.
+
+Options
+  none
+
+Output
+  The short map with no topic, one command contract, or a reference topic.
+
+Notes
+  A topic may be one or two words, such as 'store ingest' or 'lab summary'.
+  An unknown topic is an error that points to 'help all'.
+  Output is fixed-width plain text; it does not depend on terminal width and has no color.
+
+quit
+
+Exit the shell with status 0.
+
+Options
+  none
+
+Output
+  No output.
+
+Notes
+  Interactive: exits the shell. Non-interactive: exits with status 0.
+
+Reference topics
+----------------
+  help glossary  Precise terms and definitions.
+  help tutorial  The full-pipeline tutorial map.
+  help roles     The quant role map and handoffs.

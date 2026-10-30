@@ -19,7 +19,7 @@ use super::research::parse_research_arguments;
 use super::store::parse_store_arguments;
 use super::store_query;
 use super::strategy::parse_strategy_run_arguments;
-use super::types::{Axis, Command, ModelArgs, ParseError, WindowMode};
+use super::types::{Axis, Command, HelpTopic, ModelArgs, ParseError, WindowMode};
 
 /// Parses one command line.
 ///
@@ -98,11 +98,8 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
             parse_fetch_arguments(&arguments).map(|args| Some(Command::Fetch(args)))
         }
         "help" => {
-            if rest.is_empty() {
-                Ok(Some(Command::Help))
-            } else {
-                Err(ParseError::UnexpectedArguments("help"))
-            }
+            let arguments = tokenize(rest)?;
+            parse_help_arguments(&arguments).map(|topic| Some(Command::Help(topic)))
         }
         "quit" => {
             if rest.is_empty() {
@@ -248,5 +245,49 @@ fn path_command(
         Err(ParseError::MissingPath(name))
     } else {
         Ok(Some(build(PathBuf::from(rest))))
+    }
+}
+
+/// The help usage line.
+const HELP_USAGE: &str = "usage: help [<command>|all|glossary|tutorial|roles]";
+
+/// Parses the optional one- or two-word help topic.
+///
+/// `all`, `glossary`, `tutorial`, and `roles` are reserved topics. Any other
+/// topic must name a command in the help metadata; the error points to
+/// `help all` so the caller can recover.
+///
+/// # Errors
+///
+/// Returns [`ParseError::Usage`] for more than two words or for a reserved
+/// topic with extra words, and [`ParseError::UnknownHelpTopic`] for a name that
+/// is not a command.
+pub(crate) fn parse_help_arguments(arguments: &[String]) -> Result<HelpTopic, ParseError> {
+    if arguments.len() > 2 {
+        return Err(ParseError::Usage(HELP_USAGE.to_owned()));
+    }
+    if arguments.is_empty() {
+        return Ok(HelpTopic::Short);
+    }
+    if arguments.len() == 1 {
+        match arguments[0].as_str() {
+            "all" => return Ok(HelpTopic::All),
+            "glossary" => return Ok(HelpTopic::Glossary),
+            "tutorial" => return Ok(HelpTopic::Tutorial),
+            "roles" => return Ok(HelpTopic::Roles),
+            _ => {}
+        }
+    }
+    if matches!(
+        arguments[0].as_str(),
+        "all" | "glossary" | "tutorial" | "roles"
+    ) {
+        return Err(ParseError::Usage(HELP_USAGE.to_owned()));
+    }
+    let name = arguments.join(" ");
+    if super::help::is_command(&name) {
+        Ok(HelpTopic::Command(name))
+    } else {
+        Err(ParseError::UnknownHelpTopic(name))
     }
 }

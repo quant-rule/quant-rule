@@ -2,9 +2,9 @@ use super::chart::parse_market_chart_arguments;
 use super::fetch::{parse_fetch_arguments, write_fetch_cap_warning};
 use super::parse::parse;
 use super::types::{
-    Axis, Command, DashboardArgs, FetchArgs, LabOperator, LabRole, LabSummaryArgs, MarketChartArgs,
-    ModelArgs, ModelSeriesArgs, ParseError, ResearchExportArgs, StoreIngestArgs, StoreRemoveArgs,
-    WindowMode,
+    Axis, Command, DashboardArgs, FetchArgs, HelpTopic, LabOperator, LabRole, LabSummaryArgs,
+    MarketChartArgs, ModelArgs, ModelSeriesArgs, ParseError, ResearchExportArgs, StoreIngestArgs,
+    StoreRemoveArgs, WindowMode,
 };
 use std::path::PathBuf;
 
@@ -129,15 +129,74 @@ fn rejects_timeframes_without_a_path() {
 
 #[test]
 fn parses_help_and_quit() {
-    assert_eq!(parse("help"), Ok(Some(Command::Help)));
+    assert_eq!(parse("help"), Ok(Some(Command::Help(HelpTopic::Short))));
     assert_eq!(parse("quit"), Ok(Some(Command::Quit)));
 }
 
 #[test]
-fn rejects_arguments_to_help_and_quit() {
+fn parses_help_topics() {
+    assert_eq!(parse("help all"), Ok(Some(Command::Help(HelpTopic::All))));
+    assert_eq!(
+        parse("help glossary"),
+        Ok(Some(Command::Help(HelpTopic::Glossary)))
+    );
+    assert_eq!(
+        parse("help tutorial"),
+        Ok(Some(Command::Help(HelpTopic::Tutorial)))
+    );
+    assert_eq!(
+        parse("help roles"),
+        Ok(Some(Command::Help(HelpTopic::Roles)))
+    );
+    assert_eq!(
+        parse("help candles"),
+        Ok(Some(Command::Help(HelpTopic::Command(String::from(
+            "candles"
+        )))))
+    );
+    assert_eq!(
+        parse("help store ingest"),
+        Ok(Some(Command::Help(HelpTopic::Command(String::from(
+            "store ingest"
+        )))))
+    );
+    assert_eq!(
+        parse("help research export"),
+        Ok(Some(Command::Help(HelpTopic::Command(String::from(
+            "research export"
+        )))))
+    );
+    assert_eq!(
+        parse("help lab summary"),
+        Ok(Some(Command::Help(HelpTopic::Command(String::from(
+            "lab summary"
+        )))))
+    );
+    assert_eq!(
+        parse("help \"store ingest\""),
+        Ok(Some(Command::Help(HelpTopic::Command(String::from(
+            "store ingest"
+        )))))
+    );
+}
+
+#[test]
+fn rejects_invalid_help_topics() {
     assert_eq!(
         parse("help now"),
-        Err(ParseError::UnexpectedArguments("help"))
+        Err(ParseError::UnknownHelpTopic(String::from("now")))
+    );
+    assert_eq!(
+        parse("help all extra"),
+        Err(ParseError::Usage(String::from(
+            "usage: help [<command>|all|glossary|tutorial|roles]"
+        )))
+    );
+    assert_eq!(
+        parse("help a b c"),
+        Err(ParseError::Usage(String::from(
+            "usage: help [<command>|all|glossary|tutorial|roles]"
+        )))
     );
     assert_eq!(
         parse("quit now"),

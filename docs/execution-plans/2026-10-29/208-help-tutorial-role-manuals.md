@@ -450,4 +450,54 @@ Limitations:
 
 ### PR 4 — help redesign
 
-Pending.
+Implemented on `feat/212-help-topics` in `quant-rule--212-help-topics`:
+
+- `crates/quantrule-shell/src/command/help.rs` — the command metadata table
+  and the short-map, per-command, and complete-reference renderers.
+- `crates/quantrule-shell/src/command/help/topics.rs` — the glossary,
+  tutorial, and roles maps.
+- `crates/quantrule-shell/src/command/types.rs` — `HelpTopic`,
+  `ParseError::UnknownHelpTopic`, and `RunError::Help`.
+- `crates/quantrule-shell/src/command/parse.rs` — one- and two-word topic
+  parsing; `dispatch.rs` and `command.rs` wiring.
+- `crates/quantrule-shell/src/command/tests.rs` — parser coverage for topics
+  and the unknown-topic error.
+- `crates/quantrule-shell/tests/cli.rs` and
+  `crates/quantrule-shell/tests/fixtures/help*.txt` — golden output for the
+  short map, one command page, `help all`, glossary, tutorial, roles, and the
+  `store ingest` two-word topic.
+- `README.md` — the help contract and topics; the tutorial, the three manuals,
+  and the roles overview — one-line shell entry points.
+
+Observed verification (2026-10-30 UTC):
+
+| Check | Command | Result |
+|---|---|---|
+| Format | `cargo fmt --all -- --check` | Clean |
+| Lints | `cargo clippy --all-targets -- -D warnings` | No warnings |
+| Tests | `cargo test` | 1,391 passed, 0 failed, 6 ignored |
+| Docs | `cargo doc --no-deps` | Built without warnings |
+| Whitespace | `git diff --check` | Clean |
+| Links | Relative-link check over the changed docs | 63 links; all resolve |
+| Short map | `quantrule help` | 43 lines; every command name present |
+| Complete reference | `quantrule help all` | 504 lines; every command and option present |
+| Command page | `quantrule help lab summary` | 21 lines; the full contract |
+| Two-word topic | `quantrule help store ingest` | 16 lines; the full contract |
+| Glossary | `quantrule help glossary` | 118 lines; precise terms and contract paths |
+| Tutorial map | `quantrule help tutorial` | 30 lines; points at the tutorial |
+| Role map | `quantrule help roles` | 23 lines; points at the three manuals |
+| Unknown topic | `quantrule help bogus` | Exit 1; `unknown help topic 'bogus'; type 'help all' ...` |
+| Parity | `help` and `help store ingest` interactive vs non-interactive | Byte-identical |
+| Drift | Unit test over the metadata | Every command page and option is in `help all`; the short map uses the same metadata |
+
+Pull request: [#216](https://github.com/quant-rule/quant-rule/pull/216),
+open. Merge requires explicit human authorization.
+
+Limitations:
+
+- The help text is static. It names the tutorial and manuals but does not read
+  them; a missing file is not detected by the shell.
+- The glossary defines terms; it does not replace the model, research, or report
+  contracts.
+- No model, strategy, execution, portfolio, configuration, fixture, oracle, or
+  CI behavior changed.

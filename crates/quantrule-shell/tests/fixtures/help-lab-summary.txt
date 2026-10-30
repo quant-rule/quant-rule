@@ -1,0 +1,21 @@
+lab summary <lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <ts> [--operator human|agent] [--notes <path>] [--force]
+
+Write one deterministic summary.txt for a lab result folder.
+
+Options
+  --role <role>                researcher, developer, or validator; required.
+  --data-version <id>          Caller-supplied identity; required.
+  --config <path>              The run configuration; required.
+  --created-utc <ts>           Explicit UTC time, YYYY-MM-DDTHH:MM:SSZ; required.
+  --operator <kind>            human or agent (default human).
+  --notes <path>               Include role notes verbatim.
+  --force                      Overwrite an existing summary.txt.
+
+Output
+  Writes <lab-dir>/summary.txt and prints wrote <path>.
+
+Notes
+  Reads the five report bundles and copies published values; it never recomputes the model.
+  The data version must match every report.json and provenance.json.
+  Never reads the clock; --created-utc is explicit.
+  Refuses an existing summary.txt unless --force is given.
