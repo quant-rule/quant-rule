@@ -115,23 +115,26 @@ strategy risk block; they are not duplicated in the execution file.
 
 ## Data
 
-`data.json` adds `instrument` and uses schema `quantrule.data/v2`:
+`data.json` adds `instrument` and uses schema `quantrule.data/v3`:
 
 ```json
 {
-  "schema": "quantrule.data/v2",
+  "schema": "quantrule.data/v3",
   "source": { "kind": "csv", "path": "../../../data/EURUSD_M1_2025-01-01_2025-12-31.csv" },
   "instrument": "EURUSD",
   "data_version": "dukascopy-bid-eurusd-m1-2025",
   "from": "2025-01-01",
   "to": "2025-12-31",
   "source_timeframe": "1m",
-  "ladder": ["1m", "5m", "15m", "1h"],
+  "available_timeframes": ["1m", "5m", "15m", "1h", "4h"],
   "max_candles": 600000
 }
 ```
 
-`source_timeframe` is fixed at `1m` in v2. The CSV must be one-minute spaced:
+`source_timeframe` is fixed at `1m`. The `available_timeframes` list is
+ascending, unique, includes `1m`, and may include `4h`. The data engine supports
+`1m`, `5m`, `15m`, `1h`, and `4h`; the strategy's active ladder is a subset and
+is introduced in the strategy v3 contract. The CSV must be one-minute spaced:
 the loader measures every parsed source row before `from`/`to` is applied and
 rejects a native M5/M15/H1 file, even when the date bound would retain only one
 row. A sparse M1 file with gaps is accepted while at least one adjacent pair is

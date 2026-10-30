@@ -9,3 +9,5 @@ partial timeframe=15m bucket=2025-01-01T00:00:00Z present=14 expected=15
 partial timeframe=15m bucket=2025-01-01T00:15:00Z present=5 expected=15
 aggregation timeframe=1h retained=0 partial=1 gaps=0
 partial timeframe=1h bucket=2025-01-01T00:00:00Z present=19 expected=60
+aggregation timeframe=4h retained=0 partial=1 gaps=0
+partial timeframe=4h bucket=2025-01-01T00:00:00Z present=19 expected=240

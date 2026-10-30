@@ -277,13 +277,13 @@ const COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "timeframes",
         short_usage: "timeframes <csv-path>",
-        short_summary: "Build M1/M5/M15/H1; NDJSON plus aggregation.",
+        short_summary: "Build M1/M5/M15/H1/H4; NDJSON plus aggregation.",
         usage: "timeframes <csv-path>",
-        summary: "Build M5, M15, and H1 from an M1 CSV and print the four series.",
+        summary: "Build M5, M15, H1, and H4 from an M1 CSV and print the five series.",
         options: NO_OPTIONS,
-        output: "NDJSON grouped M1, M5, M15, H1; aggregation, partial, and gap records on stderr.",
+        output: "NDJSON grouped M1, M5, M15, H1, H4; aggregation, partial, and gap records on stderr.",
         notes: &[
-            "M1 is the source; M5, M15, and H1 are derived by the data engine.",
+            "M1 is the source; M5, M15, H1, and H4 are derived by the data engine.",
             "A source whose rows are never closer than 5m, 15m, or 1h is rejected; supply M1 rows.",
             "A complete trailing bucket is published; an incomplete bucket is dropped and counted.",
             "No derived CSV is written.",
@@ -665,7 +665,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "Reads Dukascopy BID candles; network access is required.",
             "Dates are inclusive UTC dates in YYYY-MM-DD form; no clock is read.",
-            "Fetched higher intervals are source references; canonical M5/M15/H1 come from timeframes.",
+            "Fetched higher intervals are source references; canonical M5/M15/H1/H4 come from timeframes.",
         ],
         group: Group::Sources,
     },

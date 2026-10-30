@@ -1,9 +1,9 @@
-//! `data.json`: the source, the period, and the timeframe ladder.
+//! `data.json`: the source, the period, and the available timeframes.
 //!
 //! The data engine owns candle validation and bucket construction. This module
 //! owns the file's shape and the path resolution the contract assigns to the
-//! file that names the source. The ladder is fixed in v1 and is the single
-//! owner of the run's timeframe set.
+//! file that names the source. The available ladder is configurable in v3; the
+//! strategy owns the active subset.
 
 use std::path::{Path, PathBuf};
 
@@ -31,10 +31,10 @@ pub(crate) struct DataConfig {
     pub(crate) to: Option<String>,
     /// The range as half-open UTC seconds.
     pub(crate) bounds: DateBounds,
-    /// The source timeframe; exactly `1m` in v1.
+    /// The source timeframe; exactly `1m`.
     pub(crate) source_timeframe: Timeframe,
-    /// The timeframe ladder, fastest first.
-    pub(crate) ladder: Vec<Timeframe>,
+    /// The available timeframes, fastest first.
+    pub(crate) available_timeframes: Vec<Timeframe>,
     /// The refusal bound for each series.
     pub(crate) max_candles: usize,
 }
@@ -61,11 +61,11 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
             "from",
             "to",
             "source_timeframe",
-            "ladder",
+            "available_timeframes",
             "max_candles",
         ],
     )?;
-    read::schema(file, object, "quantrule.data/v2")?;
+    read::schema(file, object, "quantrule.data/v3")?;
 
     let source_value = read::field(file, ROOT, object, "source")?;
     let source_object = read::object(file, "$.source", source_value)?;
@@ -116,7 +116,10 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         ));
     }
 
-    let ladder = ladder(file, read::field(file, ROOT, object, "ladder")?)?;
+    let available_timeframes = available_timeframes(
+        file,
+        read::field(file, ROOT, object, "available_timeframes")?,
+    )?;
 
     let max_candles = read::u64(
         file,
@@ -151,7 +154,7 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         to,
         bounds,
         source_timeframe,
-        ladder,
+        available_timeframes,
         max_candles,
     })
 }
@@ -202,28 +205,42 @@ fn date_bounds(
     })
 }
 
-fn ladder(file: &str, value: &Value) -> Result<Vec<Timeframe>, ConfigError> {
-    let items = read::array(file, "$.ladder", value)?;
-    let mut codes = Vec::with_capacity(items.len());
-    for (position, item) in items.iter().enumerate() {
-        codes.push(read::string(
-            file,
-            &read::index("$.ladder", position),
-            item,
-        )?);
-    }
-    let expected: Vec<&str> = Timeframe::ALL
-        .iter()
-        .map(|timeframe| timeframe.code())
-        .collect();
-    if codes != expected {
+fn available_timeframes(file: &str, value: &Value) -> Result<Vec<Timeframe>, ConfigError> {
+    let items = read::array(file, "$.available_timeframes", value)?;
+    if items.is_empty() {
         return Err(ConfigError::range(
             file,
-            "$.ladder",
-            "[\"1m\",\"5m\",\"15m\",\"1h\"]",
+            "$.available_timeframes",
+            "a non-empty ascending timeframe list",
+            "[]",
+        ));
+    }
+
+    let mut timeframes: Vec<Timeframe> = Vec::with_capacity(items.len());
+    for (position, item) in items.iter().enumerate() {
+        let path = read::index("$.available_timeframes", position);
+        let timeframe = timeframe(file, &path, item)?;
+        if let Some(previous) = timeframes.last()
+            && previous.seconds() >= timeframe.seconds()
+        {
+            return Err(ConfigError::range(
+                file,
+                "$.available_timeframes",
+                "strictly ascending, without duplicates",
+                &read::observed(value),
+            ));
+        }
+        timeframes.push(timeframe);
+    }
+
+    if timeframes.first() != Some(&Timeframe::M1) {
+        return Err(ConfigError::range(
+            file,
+            "$.available_timeframes[0]",
+            "1m, the source timeframe",
             &read::observed(value),
         ));
     }
 
-    Ok(Timeframe::ALL.to_vec())
+    Ok(timeframes)
 }

@@ -558,7 +558,7 @@ fn interactive_error_keeps_the_session_alive() {
 }
 
 #[test]
-fn timeframes_complete_m1_prints_all_four_series_and_exact_report() {
+fn timeframes_complete_m1_prints_all_five_series_and_exact_report() {
     let path = fixture("timeframes.csv");
     let output = run(&["timeframes", &path]);
 
@@ -590,7 +590,7 @@ fn timeframes_reports_partial_buckets_and_gaps() {
 }
 
 #[test]
-fn timeframes_empty_input_reports_four_empty_series() {
+fn timeframes_empty_input_reports_five_empty_series() {
     let path = fixture("empty.csv");
     let output = run(&["timeframes", &path]);
 
@@ -601,7 +601,8 @@ fn timeframes_empty_input_reports_four_empty_series() {
         "aggregation timeframe=1m retained=0 partial=0 gaps=0\n\
          aggregation timeframe=5m retained=0 partial=0 gaps=0\n\
          aggregation timeframe=15m retained=0 partial=0 gaps=0\n\
-         aggregation timeframe=1h retained=0 partial=0 gaps=0\n"
+         aggregation timeframe=1h retained=0 partial=0 gaps=0\n\
+         aggregation timeframe=4h retained=0 partial=0 gaps=0\n"
     );
 }
 
@@ -672,7 +673,9 @@ fn timeframes_a_single_row_is_not_rejected_on_cadence() {
          aggregation timeframe=15m retained=0 partial=1 gaps=0\n\
          partial timeframe=15m bucket=2025-01-01T00:00:00Z present=1 expected=15\n\
          aggregation timeframe=1h retained=0 partial=1 gaps=0\n\
-         partial timeframe=1h bucket=2025-01-01T00:00:00Z present=1 expected=60\n"
+         partial timeframe=1h bucket=2025-01-01T00:00:00Z present=1 expected=60\n\
+         aggregation timeframe=4h retained=0 partial=1 gaps=0\n\
+         partial timeframe=4h bucket=2025-01-01T00:00:00Z present=1 expected=240\n"
     );
 }
 

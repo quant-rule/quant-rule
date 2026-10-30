@@ -626,6 +626,8 @@ until then.
 
 **Goal:** Make the available timeframe set configurable and add 4h.
 
+**Status:** Implemented in PR [#239](https://github.com/quant-rule/quant-rule/pull/239); CI passed. Path-based commands keep the historical four-timeframe default; configured runs use `available_timeframes`.
+
 **Files:**
 
 - `crates/quantrule-data/src/timeframe.rs`
@@ -1034,16 +1036,16 @@ Stop and request human direction if:
 
 ### Phase 2 — Data engine
 
-- [ ] H4 exists in the timeframe enum and labels.
-- [ ] `available_timeframes` parses and validates.
-- [ ] Ladder is ascending, unique, includes `1m`.
-- [ ] 4h buckets align to UTC boundaries.
-- [ ] Partial 4h buckets behave correctly.
-- [ ] Gaps are handled.
-- [ ] Native M5/M15/H1 CSV is still rejected.
-- [ ] Sparse M1 and single-row inputs are accepted.
-- [ ] Existing 1m/5m/15m/1h tests pass.
-- [ ] Config examples updated.
+- [x] H4 exists in the timeframe enum and labels.
+- [x] `available_timeframes` parses and validates.
+- [x] Ladder is ascending, unique, includes `1m`.
+- [x] 4h buckets align to UTC boundaries.
+- [x] Partial 4h buckets behave correctly.
+- [x] Gaps are handled.
+- [x] Native M5/M15/H1 CSV is still rejected.
+- [x] Sparse M1 and single-row inputs are accepted.
+- [x] Existing 1m/5m/15m/1h tests pass.
+- [x] Config examples updated.
 
 ### Phase 3 — Model config v2
 
