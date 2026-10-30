@@ -729,6 +729,10 @@ until then.
 
 **Goal:** Build the as-of context the strategy will use.
 
+**Status:** Implemented; PR pending. The builder streams one context per
+execution bar and reads only context bars closed at or before the execution
+close. The 600k-bar debug benchmark completed in 1.378 s for the context pass.
+
 **Files:**
 
 - `crates/quantrule-backtest/src/context/*`
@@ -1078,21 +1082,21 @@ Stop and request human direction if:
 
 ### Phase 5 — Ladder context
 
-- [ ] Context uses only closed context bars.
-- [ ] Context bar at exact close is available.
-- [ ] Forming context bar is never used.
-- [ ] Context bar index and times are recorded.
-- [ ] Weights apply per axis and per context timeframe.
-- [ ] Default weights are equal.
-- [ ] Normalization order is active-ladder order.
-- [ ] Missing context is explicit and rejects by default.
-- [ ] Continuous axes use weighted means.
-- [ ] Structure uses shares/histograms.
-- [ ] Progression uses stage histograms.
-- [ ] No ordinal code averaging.
-- [ ] Future-bar mutation cannot change past context.
-- [ ] Repeated runs are identical.
-- [ ] Benchmark recorded.
+- [x] Context uses only closed context bars.
+- [x] Context bar at exact close is available.
+- [x] Forming context bar is never used.
+- [x] Context bar index and times are recorded.
+- [x] Weights apply per axis and per context timeframe.
+- [x] Default weights are equal.
+- [x] Normalization order is active-ladder order.
+- [x] Missing context is explicit and rejects by default.
+- [x] Continuous axes use weighted means.
+- [x] Structure uses shares/histograms.
+- [x] Progression uses stage histograms.
+- [x] No ordinal code averaging.
+- [x] Future-bar mutation cannot change past context.
+- [x] Repeated runs are identical.
+- [x] Benchmark recorded: 600k bars, 1.378 s (debug, context pass).
 
 ### Phase 6 — TradeIntent boundary
 

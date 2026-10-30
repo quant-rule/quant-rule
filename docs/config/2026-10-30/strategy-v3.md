@@ -1,7 +1,7 @@
 # Strategy Configuration v3 — Active Ladder and Ladder Context
 
 - Date: 2026-10-30 (UTC)
-- Status: Approved; implementation pending
+- Status: Context builder implemented (#233); strategy wiring pending (#235)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#233](https://github.com/quant-rule/quant-rule/issues/233), [#235](https://github.com/quant-rule/quant-rule/issues/235)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)
@@ -83,6 +83,28 @@ file states what can be built.
 
 Continuous axes use weighted means. Structure and Progression use weighted
 shares and histograms; ordinal codes are never averaged.
+
+### 4.1 Context output
+
+For each execution bar the builder publishes:
+
+- execution timeframe, bar index, open time, and close time;
+- one context identity per selected timeframe: timeframe, bar index, open time,
+  and close time;
+- the context timeframes with no closed bar, if any;
+- Direction and Momentum: weighted value, bullish/bearish/neutral counts,
+  weighted shares, and an agreement code;
+- Structure: the same score context plus a conflict count;
+- Progression: the leg-direction context, a weighted stage histogram `0..5`, and
+  a late-or-terminal count.
+
+Agreement codes are numeric: 0 unavailable, 1 bullish, 2 bearish, 3 mixed. A
+missing context timeframe makes the axis context unavailable; the weights are
+not silently renormalized. A null axis value is excluded from that axis's valid
+set; it is never treated as neutral or zero.
+
+The builder reads only a context bar whose close is at or before the execution
+bar's close. A bar that closes exactly at the execution close is available.
 
 ## 5. Entry
 
