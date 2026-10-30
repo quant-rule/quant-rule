@@ -110,6 +110,17 @@
 - Verification and evidence: `cargo check -p quantrule-shell --all-targets` passed with no warnings. A full fmt/test/clippy run is recorded below after the remaining hygiene work.
 - Learning: the blanket allow hid only one unused test helper; the seven re-exports were genuinely dead, so removing them was safe.
 
+## Entry 9 — Phase 5 analytics column split
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: split the 1,706-line research column registry along its existing layer seams. No column order, name, or description changes.
+- What the AI did:
+  - Replaced `research/columns.rs` with `research/columns/{mod,layer1,layer2,aggregates,raw}.rs`.
+  - Kept `Column` and the `c` constructor in `mod.rs`; moved each table and its name function to the owning module.
+  - Preserved the public `research::{aggregate_names, layer1_names, layer2_names}` paths and the internal table paths used by `metadata` and `render`.
+- Verification and evidence: `cargo test -p quantrule-analytics` passed (68 unit tests, integration suites); `cargo clippy -p quantrule-analytics --all-targets` passed. The largest resulting file is `aggregates.rs` at 833 lines.
+- Learning: the split exposed that the `RESOLUTIONS` doc comment belonged with the table, not with `layer1_names`; it was moved during the split. No values changed.
+
 ## Phase evidence
 
 | Phase | Command | Observed | Date |
@@ -135,6 +146,8 @@
 | 4 | `cargo test -p quantrule-shell` | all suites passed, including 3 architecture tests | 2026-10-30 |
 | 4 | `cargo clippy --workspace --all-targets` | no warnings | 2026-10-30 |
 | 5 | `cargo check -p quantrule-shell --all-targets` | no warnings after the allow removal | 2026-10-30 |
+| 5 | `cargo test -p quantrule-analytics` | all suites passed | 2026-10-30 |
+| 5 | `cargo clippy -p quantrule-analytics --all-targets` | no warnings | 2026-10-30 |
 
 ## Open items
 
