@@ -249,4 +249,5 @@
   - `help all extra` and a three-word topic are usage errors; an unknown
     one-word or two-word topic is a distinct `UnknownHelpTopic` error that
     points to `help all`.
-- **Pull request:** pending. Merge requires explicit human authorization.
+- **Pull request:** [#216](https://github.com/quant-rule/quant-rule/pull/216),
+  open. Merge requires explicit human authorization.

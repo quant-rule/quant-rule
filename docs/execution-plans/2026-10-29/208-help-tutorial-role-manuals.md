@@ -490,7 +490,8 @@ Observed verification (2026-10-30 UTC):
 | Parity | `help` and `help store ingest` interactive vs non-interactive | Byte-identical |
 | Drift | Unit test over the metadata | Every command page and option is in `help all`; the short map uses the same metadata |
 
-Pull request: pending. Merge requires explicit human authorization.
+Pull request: [#216](https://github.com/quant-rule/quant-rule/pull/216),
+open. Merge requires explicit human authorization.
 
 Limitations:
 
