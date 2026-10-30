@@ -1,7 +1,7 @@
 # Remaining MVP Audit Remediation — Execution Plan
 
 - Date: 2026-10-30 (UTC)
-- Status: **Merged as `d9ada57`** — closure verification found the AUD-06 small-step regression; the fix is tracked in `docs/execution-plans/2026-10-30/aud-06-step-precision.md`.
+- Status: **Merged as `d9ada57`** — closure verification found an AUD-06 small-step regression; the fix merged as `a006a17` and AUD-06 is `Verified`. AUD-04 remains `Fixed` pending its Quant Validator record.
 - Work item: `audit-remaining-mvp-remediation` (no issue number assigned)
 - Baseline: `origin/main` at `63eff7d` (tree identical to `refactor/architecture-hardening` at `3808685`)
 - Toolchain: Rust 1.99.1, edition 2024
