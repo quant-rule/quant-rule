@@ -64,12 +64,14 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 
 | Release | Tag | Notes |
 |---|---|---|
+| Lab Summary and Help | `v0.3.0` | `docs/releases/2026-10-30/v0.3.0.md` |
 | MVP v1 | `v0.2.0` | `docs/releases/2026-10-28/v0.2.0.md` |
 
 ## Current programs
 
 | Program | Status | Plan |
 |---|---|---|
+| Help, tutorial, and quant role manuals | Delivered (#208); tagged `v0.3.0` | `docs/execution-plans/2026-10-29/208-help-tutorial-role-manuals.md` |
 | MVP v1: config-driven engines, five reports, and the full-execution SOLUSD 2025 run | Delivered (#141); tagged `v0.2.0` | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
 | Market analysis and full-execution backtest | Superseded for MVP v1 closeout by the 2026-10-28 plan; history preserved | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
 

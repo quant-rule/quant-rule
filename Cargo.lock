@@ -243,7 +243,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-analytics"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "quantrule-data",
  "quantrule-model",
@@ -251,7 +251,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-backtest"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "quantrule-data",
  "quantrule-model",
@@ -259,18 +259,18 @@ dependencies = [
 
 [[package]]
 name = "quantrule-data"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "quantrule-model"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "quantrule-data",
 ]
 
 [[package]]
 name = "quantrule-shell"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "png",
  "quantrule-analytics",

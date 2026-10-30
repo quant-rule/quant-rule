@@ -1365,7 +1365,7 @@ fn research_export_writes_the_dataset_and_repeats_byte_for_byte() {
     let manifest = fs::read_to_string(Path::new(&first).join("processed/demo/manifest.json"))
         .expect("the manifest");
     assert!(manifest.contains("\"data_version\": \"test:demo:60:0-260\""));
-    assert!(manifest.contains("\"model_version\": \"0.2.0\""));
+    assert!(manifest.contains("\"model_version\": \"0.3.0\""));
     assert!(
         manifest.contains(&format!(
             "\"model_version\": \"{}\"",
