@@ -16,12 +16,14 @@
 //! # Examples
 //!
 //! ```
+//! use quantrule_model::aggregate::CrossTimeframeAggregates;
 //! use quantrule_model::report::MarketReport;
 //! use quantrule_model::run::ModelRun;
 //! use quantrule_model::input::MarketStateConfig;
 //!
 //! let run = ModelRun::compute(&[], &MarketStateConfig::default());
-//! let report = MarketReport::compute(&run, &[]);
+//! let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+//! let report = MarketReport::compute(&run, &[], &aggregates);
 //!
 //! assert!(report.ladder.is_empty());
 //! assert!(report.timeframes.is_empty());

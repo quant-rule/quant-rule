@@ -696,6 +696,8 @@ until then.
 
 **Goal:** Remove decision-oriented cross-timeframe aggregation from the model.
 
+**Status:** Implemented in PR [#241](https://github.com/quant-rule/quant-rule/pull/241); CI passed. `ModelRun` and `MarketState` no longer publish aggregates. Reporting calls `quantrule_analytics::cross_timeframe` over explicit snapshots. The pure view records and computation remain in `quantrule_model::aggregate` as a shared reporting helper; the model run does not carry them.
+
 **Files:**
 
 - `crates/quantrule-model/src/aggregate/*`
@@ -1065,14 +1067,14 @@ Stop and request human direction if:
 
 ### Phase 4 — Reporting aggregates
 
-- [ ] Every `CrossTimeframeAggregates` consumer is inventoried.
-- [ ] Reports use analytics/reporting aggregates.
-- [ ] Dashboard uses the new descriptive view.
-- [ ] Research export/summary works.
-- [ ] Model no longer publishes decision aggregates.
-- [ ] No strategy reads reporting aggregates.
-- [ ] Report goldens pass.
-- [ ] No stale report fields.
+- [x] Every `CrossTimeframeAggregates` consumer is inventoried.
+- [x] Reports use analytics/reporting aggregates.
+- [x] Dashboard uses the new descriptive view.
+- [x] Research export/summary works.
+- [x] Model no longer publishes decision aggregates.
+- [x] No strategy reads reporting aggregates.
+- [x] Report goldens pass.
+- [x] No stale report fields.
 
 ### Phase 5 — Ladder context
 

@@ -1,7 +1,7 @@
 # Per-Timeframe Model Contract
 
 - Date: 2026-10-30 (UTC)
-- Status: Partially implemented (#231); per-timeframe readings implemented, reporting aggregates pending
+- Status: Implemented for per-timeframe readings and reporting-view extraction (#231, #232; Phase 4 PR #241 open); strategy context pending (#233)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), sub-issues [#231](https://github.com/quant-rule/quant-rule/issues/231), [#232](https://github.com/quant-rule/quant-rule/issues/232)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)
@@ -106,26 +106,26 @@ rejects them until they affect the computation.
 
 ## 7. Reporting aggregates
 
-Descriptive cross-timeframe aggregation is not part of the model contract.
+`ModelRun` and `MarketState` do not publish cross-timeframe aggregates.
 
-Reports, the dashboard, and research may aggregate the model's per-timeframe
-outputs over the available ladder. Those aggregates are descriptive. They are
-not the strategy's decision context and must not be read by a strategy.
+Reports, the dashboard, and research aggregate the per-timeframe outputs over
+the available ladder through `quantrule_analytics::cross_timeframe`. The
+descriptive view is not the strategy's decision context and must not be read by
+a strategy. The pure view records remain in `quantrule_model::aggregate` as a
+shared reporting type; the model run does not compute or carry them.
 
 The strategy's `LadderContext` is built in `quantrule-backtest` from the
 per-timeframe outputs and the strategy-owned active ladder and weights.
 
 ## 8. Implementation status
 
-This document is approved but not yet implemented. The code migration is tracked
-by:
-
 - [#231](https://github.com/quant-rule/quant-rule/issues/231) — per-timeframe
-  model configuration.
-- [#232](https://github.com/quant-rule/quant-rule/issues/232) — move reporting
-  aggregates out of the model.
+  model configuration: implemented.
+- [#232](https://github.com/quant-rule/quant-rule/issues/232) — reporting view
+  extraction: `ModelRun` and `MarketState` no longer publish aggregates;
+  reporting calls `quantrule_analytics::cross_timeframe`.
 - [#233](https://github.com/quant-rule/quant-rule/issues/233) — ladder context
-  builder.
+  builder: pending.
 
 Until those issues merge, the current model contract remains the implementation
 of record.

@@ -182,9 +182,11 @@ pub(super) fn model_bundle_from(
     let bundle = out.join("model");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
+    let aggregates = quantrule_analytics::cross_timeframe(model_run);
     let report = MarketReport::compute(
         model_run,
         &pipeline::ladder_secs_for(&config.data.available_timeframes),
+        &aggregates,
     );
     if report.charts.bars.is_empty() {
         return Err(RunError::Report(ReportError::EmptyChart {

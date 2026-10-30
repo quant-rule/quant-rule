@@ -172,7 +172,8 @@ pub(crate) fn run_market_report(
     }
 
     let run = pipeline::model_run_from_set(&set, &MarketStateConfig::default());
-    let report = MarketReport::compute(&run, &pipeline::ladder_secs());
+    let aggregates = quantrule_analytics::cross_timeframe(&run);
+    let report = MarketReport::compute(&run, &pipeline::ladder_secs(), &aggregates);
     if report.charts.bars.is_empty() {
         return Err(RunError::Report(ReportError::EmptyChart {
             period: args.requested_period(),

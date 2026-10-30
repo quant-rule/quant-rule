@@ -238,8 +238,10 @@ pub(crate) fn parse_axis_arguments(arguments: &[String]) -> Result<(ModelArgs, A
 ///
 /// Returns a [`RunError`] when the source or writer fails.
 pub(crate) fn run_market_state(args: &ModelArgs, writer: &mut impl Write) -> Result<(), RunError> {
-    let state = load_market_state(&args.path, args.window)?;
-    render_state::write_market_state(&state, writer).map_err(RunError::Output)?;
+    let run = load_model_run(&args.path, args.window)?;
+    let state = MarketState::from_run(&run);
+    let aggregates = quantrule_analytics::cross_timeframe(&run);
+    render_state::write_market_state(&state, &aggregates, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
 

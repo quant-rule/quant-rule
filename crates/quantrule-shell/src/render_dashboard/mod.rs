@@ -616,7 +616,13 @@ mod tests {
 
     fn empty_state() -> DashboardState {
         let run = ModelRun::compute(&[], &MarketStateConfig::default());
-        DashboardState::from_run(&run, &[60, 300, 900, 3_600], &DashboardConfig::default())
+        let aggregates = quantrule_analytics::cross_timeframe(&run);
+        DashboardState::from_run(
+            &run,
+            &[60, 300, 900, 3_600],
+            &DashboardConfig::default(),
+            &aggregates,
+        )
     }
 
     #[test]

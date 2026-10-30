@@ -4,6 +4,7 @@ use super::{
     ChurnEvidence, agreement, axis_agreement, churn_class, churn_evidence, code_bearing_counts,
     summarize_churn,
 };
+use crate::aggregate::CrossTimeframeAggregates;
 use crate::dashboard::{
     AxisValue, ChurnClass, ChurnSource, Coverage, DashboardConfig, DashboardState, Domain,
     MajorityClass, TimeframeState,
@@ -13,6 +14,11 @@ use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
 use crate::run::ModelRun;
 use crate::timeframe::TimeframeModel;
+
+fn view(run: &ModelRun, ladder: &[u64]) -> DashboardState {
+    let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+    DashboardState::from_run(run, ladder, &DashboardConfig::default(), &aggregates)
+}
 
 fn state(timeframe_secs: u64, present: bool, positions: [Option<f64>; 3]) -> TimeframeState {
     let mut state = TimeframeState::absent(timeframe_secs, PivotScale::Major.code());
@@ -373,7 +379,7 @@ fn history_requires_every_configured_timeframe_and_axis() {
 #[test]
 fn a_short_present_series_is_building() {
     let run = run(&candles(10), &[60]);
-    let view = DashboardState::from_run(&run, &[60, 300], &DashboardConfig::default());
+    let view = view(&run, &[60, 300]);
 
     assert_eq!(view.cross_tf_state.present_timeframes, vec![60]);
     assert_eq!(view.cross_tf_state.agreement.coverage, coverage(1, 2));
@@ -462,7 +468,7 @@ fn run(candles: &[Candle], timeframes: &[u64]) -> ModelRun {
 fn the_view_summaries_follow_the_published_values() {
     let candles = candles(200);
     let run = run(&candles, &[60, 300]);
-    let view = DashboardState::from_run(&run, &[60, 300], &DashboardConfig::default());
+    let view = view(&run, &[60, 300]);
 
     let agreement = &view.cross_tf_state.agreement;
     assert_eq!(agreement.of, 3);
@@ -651,7 +657,7 @@ fn code_bearing_counts_match_a_manual_count() {
 #[test]
 fn an_empty_run_has_no_agreement_or_complete_churn() {
     let run = ModelRun::compute(&[], &MarketStateConfig::default());
-    let view = DashboardState::from_run(&run, &[60, 300], &DashboardConfig::default());
+    let view = view(&run, &[60, 300]);
 
     assert_eq!(view.cross_tf_state.agreement.axes.len(), 3);
     assert_eq!(view.cross_tf_state.agreement.agreeing_axes, 0);

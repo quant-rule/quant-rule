@@ -103,7 +103,8 @@ pub(crate) fn run_market_dashboard(
         .iter()
         .map(|timeframe| u64::from(timeframe.seconds()))
         .collect();
-    let state = DashboardState::from_run(&run, &ladder, &DashboardConfig::default());
+    let aggregates = quantrule_analytics::cross_timeframe(&run);
+    let state = DashboardState::from_run(&run, &ladder, &DashboardConfig::default(), &aggregates);
 
     if args.json {
         render_dashboard::write_json(&state, writer).map_err(RunError::Output)?;

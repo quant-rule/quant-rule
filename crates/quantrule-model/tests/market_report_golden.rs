@@ -13,6 +13,7 @@
 //! `0.000000000`, and every float is printed with nine decimals.
 
 use quantrule_data::Candle;
+use quantrule_model::aggregate::CrossTimeframeAggregates;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::report::MarketReport;
 use quantrule_model::run::ModelRun;
@@ -21,6 +22,11 @@ const READINGS_FIXTURE: &str = include_str!("fixtures/readings_golden.csv");
 const REPORT_FIXTURE: &str = include_str!("fixtures/market_report_golden.txt");
 const READINGS_HEADER: &str = "bar,timestamp,open,high,low,close,volume,ema20,ema50,ema200,rsi14,atr14,rvol20,minor_candidate_high,minor_candidate_low,minor_pivot_high,minor_pivot_low,minor_pivot_occurred_at,major_candidate_high,major_candidate_low,major_pivot_high,major_pivot_low,major_pivot_occurred_at";
 const TIMEFRAME_SECS: u64 = 300;
+
+fn report(run: &ModelRun, ladder: &[u64]) -> MarketReport {
+    let aggregates = CrossTimeframeAggregates::compute(&run.snapshots());
+    MarketReport::compute(run, ladder, &aggregates)
+}
 
 fn number(field: &str) -> Option<f64> {
     if field.is_empty() {
@@ -319,7 +325,7 @@ fn the_market_report_matches_the_independent_golden_fixture() {
         }],
         &MarketStateConfig::default(),
     );
-    let report = MarketReport::compute(&run, &[TIMEFRAME_SECS]);
+    let report = report(&run, &[TIMEFRAME_SECS]);
     let actual = render(&report);
     let expected = REPORT_FIXTURE
         .lines()
@@ -341,11 +347,11 @@ fn the_render_is_stable_across_repeated_runs() {
         timeframe_secs: TIMEFRAME_SECS,
         candles: &candles,
     }];
-    let first = MarketReport::compute(
+    let first = report(
         &ModelRun::compute(&inputs, &MarketStateConfig::default()),
         &[TIMEFRAME_SECS],
     );
-    let second = MarketReport::compute(
+    let second = report(
         &ModelRun::compute(&inputs, &MarketStateConfig::default()),
         &[TIMEFRAME_SECS],
     );
