@@ -131,6 +131,13 @@ strategy risk block; they are not duplicated in the execution file.
 }
 ```
 
+`source_timeframe` is fixed at `1m` in v2. The CSV must be one-minute spaced:
+the loader measures every parsed source row before `from`/`to` is applied and
+rejects a native M5/M15/H1 file, even when the date bound would retain only one
+row. A sparse M1 file with gaps is accepted while at least one adjacent pair is
+one minute apart; a single row has no pair and is accepted. The error names the
+observed cadence.
+
 ## Commands
 
 ```bash

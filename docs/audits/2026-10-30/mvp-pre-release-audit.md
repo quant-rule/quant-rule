@@ -23,7 +23,7 @@
 
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AUD-2026-10-30-01 | Critical | data | Native M5/M15/H1 CSVs are accepted as M1 | `timeframes data/EURUSD_H1_...csv`; `market-state ... --window latest`; `market-report`; `store ingest`; `research summary` | Silent wrong timeframe labels and wrong model/store/research output | A reject non-M1 cadence; B add `--source-timeframe`; C warn only | A | Reject an H1/M5 file in every ladder consumer | Open | [`plan`](../../execution-plans/2026-10-30/AUD-2026-10-30-01-m1-source-validation.md) |
+| AUD-2026-10-30-01 | Critical | data | Native M5/M15/H1 CSVs are accepted as M1 | `timeframes data/EURUSD_H1_...csv`; `market-state ... --window latest`; `market-report`; `store ingest`; `research summary` | Silent wrong timeframe labels and wrong model/store/research output | A reject non-M1 cadence; B add `--source-timeframe`; C warn only | A | Reject an H1/M5 file in every ladder consumer | Fixed | [`plan`](../../execution-plans/2026-10-30/AUD-2026-10-30-01-m1-source-validation.md) |
 | AUD-2026-10-30-02 | Critical | backtest | Strategy virtual state diverges from execution | `allow_short=false` run: strategy 166 entries, 93 executed; 73 `missing_quantity` | Backtest evaluates a different strategy from the one reported | A reconcile fills/rejections into strategy; B make strategy stateless; C reject mismatched exits | A | `allow_short=false` cannot report a short it did not execute; exit side is checked | Open | — |
 | AUD-2026-10-30-03 | Major | backtest | A bar opening beyond the target but dipping below the stop fills as a stop | `execution/engine.rs` stop-first branch; entry 100, ATR 1, target 103, next open 104, low 97 → StopLoss at 98 | Impossible sequence; biases results toward losses | A fill target at open before stop; B define stop-first even for gap; C reject ambiguous cases | A | A gap-through-target test asserts TakeProfit at the open | Open | — |
 | AUD-2026-10-30-04 | Major | portfolio | Fixed notional ignores the leverage/equity envelope | `portfolio/sizing.rs`; initial cash 1000, notional 100000 → quantity 96953, cash negative | 100x exposure despite `leverage: 1.0`; wipe-out risk | A cap/reject at fill; B enforce at sizing; C define fixed notional as leverage-free and remove the claim | A | A fixed-notional entry above the envelope is rejected | Open | — |
@@ -52,6 +52,16 @@
   - B. Add an explicit `--source-timeframe` and build the ladder from it.
   - C. Warn only; the user must choose.
 - Recommendation: A for MVP; B is the longer-term source model.
+- Remediation: implemented in branch
+  `fix/aud-2026-10-30-01-m1-source-validation` (not merged). Every ladder
+  consumer measures the smallest spacing across all parsed source rows before a
+  date bound is applied and rejects a file wider than 60s with
+  `source cadence is <n>s, not 60s; provide an M1 source file for the timeframe
+  ladder`. Regression tests cover `timeframes`, `market-state`, `market-report`
+  (including a one-row date bound), `store ingest`, `research summary`, and a
+  `backtest --config` run whose `data.json` points at the H1 fixture; the sparse
+  M1 fixture with gaps remains accepted. Status is `Fixed`; independent
+  verification is pending.
 
 ### AUD-2026-10-30-02 — Strategy virtual state diverges from execution
 

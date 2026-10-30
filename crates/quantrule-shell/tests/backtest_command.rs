@@ -193,6 +193,45 @@ fn a_failed_run_leaves_no_partial_root() {
 }
 
 #[test]
+fn backtest_rejects_a_native_h1_source_before_any_write() {
+    let root = output_dir("backtest-h1-source");
+    let config_dir = root.join("config");
+    fs::create_dir_all(&config_dir).expect("the config directory is created");
+    for entry in fs::read_dir(fixture("config-run")).expect("the config fixture is readable") {
+        let entry = entry.expect("the config entry is readable");
+        fs::copy(entry.path(), config_dir.join(entry.file_name()))
+            .expect("the config file is copied");
+    }
+
+    // Point the copied config at the native H1 fixture. Its one-row 2025-01-01
+    // bound would otherwise hide the coarser cadence.
+    let h1 = fixture("timeframes-h1.csv");
+    let data_path = config_dir.join("data.json");
+    let data = fs::read_to_string(&data_path).expect("data.json is readable");
+    let data = data.replace("../state_m1.csv", &h1.display().to_string());
+    fs::write(&data_path, data).expect("data.json is rewritten");
+
+    let out = root.join("out");
+    let config = config_dir.join("run.json");
+    let output = run(&[
+        "backtest",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert!(!output.status.success());
+    assert_eq!(
+        error(&output),
+        format!(
+            "error: {}: source cadence is 3600s, not 60s; provide an M1 source file for the timeframe ladder\n",
+            h1.display()
+        )
+    );
+    assert!(!out.exists(), "a rejected source created the bundle root");
+}
+
+#[test]
 fn backtest_requires_a_config() {
     let output = run(&["backtest"]);
     assert!(!output.status.success());

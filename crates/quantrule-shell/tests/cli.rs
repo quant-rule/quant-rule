@@ -631,6 +631,40 @@ fn timeframes_interactive_and_non_interactive_stdout_are_byte_identical() {
 }
 
 #[test]
+fn timeframes_native_h1_fails_with_the_source_cadence_error() {
+    let path = fixture("timeframes-h1.csv");
+    let first = run(&["timeframes", &path]);
+    let second = run(&["timeframes", &path]);
+
+    assert_failure(&first);
+    assert_eq!(
+        stderr_text(&first),
+        format!(
+            "error: {path}: source cadence is 3600s, not 60s; provide an M1 source file for the timeframe ladder\n"
+        )
+    );
+    assert_eq!(first.stderr, second.stderr);
+}
+
+#[test]
+fn timeframes_a_single_row_is_not_rejected_on_cadence() {
+    let path = fixture("single.csv");
+    let output = run(&["timeframes", &path]);
+
+    assert_success(&output);
+    assert_eq!(
+        stderr_text(&output),
+        "aggregation timeframe=1m retained=1 partial=0 gaps=0\n\
+         aggregation timeframe=5m retained=0 partial=1 gaps=0\n\
+         partial timeframe=5m bucket=2025-01-01T00:00:00Z present=1 expected=5\n\
+         aggregation timeframe=15m retained=0 partial=1 gaps=0\n\
+         partial timeframe=15m bucket=2025-01-01T00:00:00Z present=1 expected=15\n\
+         aggregation timeframe=1h retained=0 partial=1 gaps=0\n\
+         partial timeframe=1h bucket=2025-01-01T00:00:00Z present=1 expected=60\n"
+    );
+}
+
+#[test]
 fn timeframes_misaligned_m1_fails_without_stdout() {
     let path = fixture("timeframes-misaligned.csv");
     let output = run(&["timeframes", &path]);
@@ -903,6 +937,20 @@ fn market_state_prints_the_four_timeframe_ladder() {
     assert!(value["aggregates"]["direction"].is_object());
     assert!(value["aggregates"]["events"]["per_timeframe"].is_array());
     assert!(value["timeframes"][0]["consensus"]["bullish"].is_number());
+}
+
+#[test]
+fn market_state_rejects_a_native_h1_source() {
+    let path = fixture("timeframes-h1.csv");
+    let output = run(&["market-state", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!(
+            "error: {path}: source cadence is 3600s, not 60s; provide an M1 source file for the timeframe ladder\n"
+        )
+    );
 }
 
 #[test]
@@ -1403,6 +1451,20 @@ fn research_export_rejects_an_unsafe_dataset_name() {
 }
 
 #[test]
+fn research_summary_rejects_a_native_h1_source() {
+    let path = fixture("timeframes-h1.csv");
+    let output = run(&["research", "summary", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!(
+            "error: {path}: source cadence is 3600s, not 60s; provide an M1 source file for the timeframe ladder\n"
+        )
+    );
+}
+
+#[test]
 fn research_summary_is_deterministic_and_counts_every_axis() {
     let path = fixture("state_m1.csv");
     let first = run(&["research", "summary", &path]);
@@ -1785,6 +1847,36 @@ fn store_ingest_rejects_an_invalid_source_without_creating_the_database() {
     ]);
     assert_failure(&output);
     assert!(!Path::new(&db).exists(), "a failed source wrote a database");
+}
+
+#[test]
+fn store_ingest_rejects_a_native_h1_source_without_creating_the_database() {
+    let root = artifact_dir("store-ingest-h1");
+    let db = format!("{root}/store.db");
+    let path = fixture("timeframes-h1.csv");
+
+    let output = run(&[
+        "store",
+        "ingest",
+        &path,
+        "--dataset",
+        "demo",
+        "--data-version",
+        "test:demo:60:0-6",
+        "--db",
+        &db,
+    ]);
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!(
+            "error: {path}: source cadence is 3600s, not 60s; provide an M1 source file for the timeframe ladder\n"
+        )
+    );
+    assert!(
+        !Path::new(&db).exists(),
+        "a rejected source wrote a database"
+    );
 }
 
 #[test]

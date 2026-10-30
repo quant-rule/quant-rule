@@ -83,6 +83,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | MVP v1: config-driven engines, five reports, and the full-execution SOLUSD 2025 run | Delivered (#141); tagged `v0.2.0` | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
 | Market analysis and full-execution backtest | Superseded for MVP v1 closeout by the 2026-10-28 plan; history preserved | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
 | Audit and continuous-improvement workflow | In progress; policy/strategy v2 and swarm model | `docs/execution-plans/2026-10-30/audit-improvement-workflow.md` |
+| AUD-2026-10-30-01: reject non-M1 ladder inputs | Implemented and locally verified; PR pending approval | `docs/execution-plans/2026-10-30/AUD-2026-10-30-01-m1-source-validation.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

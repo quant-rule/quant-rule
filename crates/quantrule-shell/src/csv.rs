@@ -15,7 +15,7 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
 use quantrule_data::{
-    CandleError, CandleWindow, RawCandle, TimeframeError, TimeframeSet, WindowError,
+    CandleError, CandleWindow, RawCandle, SourceCadence, TimeframeError, TimeframeSet, WindowError,
     format_utc_timestamp, parse_utc_timestamp,
 };
 
@@ -92,6 +92,16 @@ pub(crate) enum SourceError {
         /// The engine error.
         source: TimeframeError,
     },
+    /// The source rows are not one-minute spaced.
+    ///
+    /// A ladder consumer requires an M1 source; a native higher-timeframe file
+    /// would otherwise be labeled `1m`.
+    SourceCadence {
+        /// The source path.
+        path: PathBuf,
+        /// The engine error, carrying the observed spacing.
+        source: TimeframeError,
+    },
 }
 
 impl fmt::Display for SourceError {
@@ -145,6 +155,12 @@ impl fmt::Display for SourceError {
                 path.display(),
                 describe_timeframe_error(source)
             ),
+            Self::SourceCadence { path, source } => write!(
+                formatter,
+                "{}: {}",
+                path.display(),
+                describe_timeframe_error(source)
+            ),
         }
     }
 }
@@ -154,7 +170,9 @@ impl std::error::Error for SourceError {
         match self {
             Self::Open { source, .. } | Self::Read { source, .. } => Some(source),
             Self::Candle { source, .. } => Some(source),
-            Self::Timeframe { source, .. } | Self::Finish { source, .. } => Some(source),
+            Self::Timeframe { source, .. }
+            | Self::Finish { source, .. }
+            | Self::SourceCadence { source, .. } => Some(source),
             Self::MissingHeader { .. } | Self::InvalidHeader { .. } | Self::FieldCount { .. } => {
                 None
             }
@@ -349,13 +367,16 @@ pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
 /// The input is an M1 series. The data engine derives M5, M15, and H1 while
 /// the file is read, so the shell never builds a timeframe itself. The header
 /// is checked before any row is accepted, and the full file is never
-/// collected.
+/// collected. Every parsed row feeds a source-cadence tracker before any date
+/// bound is applied; a file whose rows are never closer than a coarser
+/// timeframe is rejected instead of being relabeled `1m`.
 ///
 /// # Errors
 ///
 /// Returns a [`SourceError`] when the file cannot be opened or read, the header
-/// is missing or invalid, a row does not have six fields, the data engine
-/// rejects a row, or the final bucket cannot be finished.
+/// is missing or invalid, a row does not have six fields, the source is not
+/// one-minute spaced, the data engine rejects a row, or the final bucket cannot
+/// be finished.
 pub(crate) fn load_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
     load_timeframe_set(path, TimeframeSet::new(), None)
 }
@@ -420,6 +441,7 @@ fn load_timeframe_set(
     let mut reader = open_reader(path)?;
     read_header(&mut reader, path)?;
 
+    let mut cadence = SourceCadence::new();
     let mut line = String::new();
     let mut line_number = 1_usize;
 
@@ -438,6 +460,11 @@ fn load_timeframe_set(
             expected: error.expected,
             actual: error.actual,
         })?;
+        // Measure the file, not the filtered window: a native H1 source stays
+        // H1 when a date bound leaves only a handful of its rows.
+        if let Ok(timestamp) = parse_utc_timestamp(raw.date) {
+            cadence.observe(timestamp);
+        }
         if let Some(bounds) = bounds
             && !within_bounds(&raw, bounds)
         {
@@ -449,6 +476,13 @@ fn load_timeframe_set(
             source,
         })?;
     }
+
+    cadence
+        .require_m1()
+        .map_err(|source| SourceError::SourceCadence {
+            path: path.to_path_buf(),
+            source,
+        })?;
 
     set.finish().map_err(|source| SourceError::Finish {
         path: path.to_path_buf(),
@@ -637,8 +671,8 @@ fn describe_window_error(error: &WindowError) -> String {
 fn describe_timeframe_error(error: &TimeframeError) -> String {
     match error {
         TimeframeError::Window(source) => describe_window_error(source),
-        TimeframeError::MisalignedM1Timestamp { .. } | TimeframeError::Finished => {
-            error.to_string()
-        }
+        TimeframeError::MisalignedM1Timestamp { .. }
+        | TimeframeError::SourceCadence { .. }
+        | TimeframeError::Finished => error.to_string(),
     }
 }

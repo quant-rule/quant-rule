@@ -515,6 +515,62 @@ fn market_report_empty_range_writes_no_artifacts() {
 }
 
 #[test]
+fn market_report_rejects_a_native_h1_source_before_writing() {
+    let path = fixture("timeframes-h1.csv");
+    let out = report_dir("h1-source");
+
+    let output = run(&[
+        "market-report",
+        &path,
+        "--data-version",
+        DATA_VERSION,
+        "--out",
+        path_text(&out),
+    ]);
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!(
+            "error: {path}: source cadence is 3600s, not 60s; provide an M1 source file for the timeframe ladder\n"
+        )
+    );
+    assert!(
+        !out.exists(),
+        "a rejected source created the output directory"
+    );
+}
+
+#[test]
+fn market_report_rejects_a_native_h1_source_even_when_the_date_bound_keeps_one_row() {
+    let path = fixture("timeframes-h1.csv");
+    let out = report_dir("h1-source-one-row");
+
+    let output = run(&[
+        "market-report",
+        &path,
+        "--data-version",
+        DATA_VERSION,
+        "--from",
+        "2025-01-01",
+        "--to",
+        "2025-01-01",
+        "--out",
+        path_text(&out),
+    ]);
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!(
+            "error: {path}: source cadence is 3600s, not 60s; provide an M1 source file for the timeframe ladder\n"
+        )
+    );
+    assert!(
+        !out.exists(),
+        "a rejected source created the output directory"
+    );
+}
+
+#[test]
 fn market_report_has_no_execution_vocabulary() {
     let path = fixture("state_m1.csv");
     let out = report_dir("vocabulary");
