@@ -2,8 +2,9 @@ use super::chart::parse_market_chart_arguments;
 use super::fetch::{parse_fetch_arguments, write_fetch_cap_warning};
 use super::parse::parse;
 use super::types::{
-    Axis, Command, DashboardArgs, FetchArgs, MarketChartArgs, ModelArgs, ModelSeriesArgs,
-    ParseError, ResearchExportArgs, StoreIngestArgs, StoreRemoveArgs, WindowMode,
+    Axis, Command, DashboardArgs, FetchArgs, LabOperator, LabRole, LabSummaryArgs, MarketChartArgs,
+    ModelArgs, ModelSeriesArgs, ParseError, ResearchExportArgs, StoreIngestArgs, StoreRemoveArgs,
+    WindowMode,
 };
 use std::path::PathBuf;
 
@@ -623,4 +624,145 @@ fn parses_store_removal() {
             database: PathBuf::from("other.db"),
         })))
     );
+}
+
+fn lab_summary_args() -> LabSummaryArgs {
+    LabSummaryArgs {
+        lab_dir: PathBuf::from("data/lab-result-2026-10-29T12-00-00Z"),
+        role: LabRole::Researcher,
+        data_version: String::from("test:v1"),
+        config: PathBuf::from("config/examples/solusd-2025/run.json"),
+        created_utc: String::from("2026-10-29T12:00:00Z"),
+        operator: LabOperator::Human,
+        notes: None,
+        force: false,
+    }
+}
+
+#[test]
+fn parses_lab_summary_with_defaults() {
+    assert_eq!(
+        parse(
+            "lab summary data/lab-result-2026-10-29T12-00-00Z \
+--role researcher --data-version test:v1 \
+--config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z"
+        ),
+        Ok(Some(Command::LabSummary(lab_summary_args())))
+    );
+}
+
+#[test]
+fn parses_lab_summary_with_every_option() {
+    let mut expected = lab_summary_args();
+    expected.role = LabRole::Validator;
+    expected.operator = LabOperator::Agent;
+    expected.notes = Some(PathBuf::from("data/notes.md"));
+    expected.force = true;
+
+    assert_eq!(
+        parse(
+            "lab summary --force data/lab-result-2026-10-29T12-00-00Z \
+--role validator --data-version test:v1 \
+--config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z \
+--operator agent --notes data/notes.md"
+        ),
+        Ok(Some(Command::LabSummary(expected)))
+    );
+}
+
+#[test]
+fn lab_requires_a_summary_subcommand() {
+    assert!(matches!(parse("lab"), Err(ParseError::Lab(_))));
+    assert!(matches!(parse("lab report"), Err(ParseError::Lab(_))));
+}
+
+#[test]
+fn lab_summary_requires_the_lab_directory_and_every_required_option() {
+    assert!(matches!(parse("lab summary"), Err(ParseError::Lab(_))));
+    assert!(matches!(
+        parse(
+            "lab summary data/lab --data-version v --config c --created-utc 2026-10-29T12:00:00Z"
+        ),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse(
+            "lab summary data/lab --role researcher --config c --created-utc 2026-10-29T12:00:00Z"
+        ),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse(
+            "lab summary data/lab --role researcher --data-version v --created-utc 2026-10-29T12:00:00Z"
+        ),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse("lab summary data/lab --role researcher --data-version v --config c"),
+        Err(ParseError::Lab(_))
+    ));
+}
+
+#[test]
+fn lab_summary_rejects_an_unknown_role() {
+    let error = parse(
+        "lab summary data/lab --role wizard --data-version v --config c \
+--created-utc 2026-10-29T12:00:00Z",
+    );
+    assert!(matches!(error, Err(ParseError::Lab(_))));
+}
+
+#[test]
+fn lab_summary_rejects_an_unknown_operator() {
+    let error = parse(
+        "lab summary data/lab --role researcher --data-version v --config c \
+--created-utc 2026-10-29T12:00:00Z --operator robot",
+    );
+    assert!(matches!(error, Err(ParseError::Lab(_))));
+}
+
+#[test]
+fn lab_summary_rejects_a_non_canonical_created_utc() {
+    for value in [
+        "2026-10-29T12:00:00+00:00",
+        "2026-10-29 12:00:00Z",
+        "2026-10-29T12:00Z",
+        "2026-10-29T12:00:00",
+    ] {
+        let line = format!(
+            "lab summary data/lab --role researcher --data-version v --config c --created-utc {value}"
+        );
+        assert!(matches!(parse(&line), Err(ParseError::Lab(_))), "{value}");
+    }
+}
+
+#[test]
+fn lab_summary_rejects_an_impossible_created_utc() {
+    let error = parse(
+        "lab summary data/lab --role researcher --data-version v --config c \
+--created-utc 2025-02-30T00:00:00Z",
+    );
+    assert!(matches!(error, Err(ParseError::Lab(_))));
+}
+
+#[test]
+fn lab_summary_rejects_repeated_options_and_extra_arguments() {
+    let base = "lab summary data/lab --role researcher --data-version v --config c \
+--created-utc 2026-10-29T12:00:00Z";
+    assert!(matches!(
+        parse(&format!("{base} --role developer")),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse(&format!("{base} --force --force")),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse(&format!("{base} other")),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse(&format!("{base} --bogus x")),
+        Err(ParseError::Lab(_))
+    ));
 }

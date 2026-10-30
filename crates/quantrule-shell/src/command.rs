@@ -12,6 +12,7 @@ mod data;
 mod dispatch;
 mod fetch;
 mod help;
+mod lab;
 mod layers;
 mod model;
 mod parse;
@@ -34,12 +35,13 @@ pub(crate) use self::parse::parse;
 pub(crate) use self::report::{parse_market_report_arguments, run_market_report};
 pub(crate) use self::report_run::{parse_report_arguments, run_report};
 pub(crate) use self::strategy::{parse_strategy_run_arguments, run_strategy_run};
-pub(crate) use self::types::{Axis, Command, ParseError};
+pub(crate) use self::types::{Axis, Command, LabSummaryArgs, ParseError};
 
 use self::chart::{parse_market_chart_arguments, run_market_chart};
 use self::data::{run_candles, run_candles_tolerant, run_timeframes};
 use self::fetch::{parse_fetch_arguments, run_fetch};
 use self::help::run_help;
+use self::lab::{parse_lab_arguments, run_lab_summary};
 use self::model::{
     parse_axis_arguments, parse_model_arguments, parse_model_series_arguments, run_axis,
     run_events, run_legs, run_market_state, run_model_series,
