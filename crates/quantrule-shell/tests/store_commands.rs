@@ -270,6 +270,20 @@ fn store_remove_drops_one_dataset_and_keeps_the_database() {
 }
 
 #[test]
+fn store_remove_a_missing_database_does_not_create_it() {
+    let root = artifact_dir("remove-missing");
+    let db = format!("{root}/missing.db");
+
+    let output = run(&["store", "remove", "demo", "--db", &db]);
+    assert_failure(&output);
+    assert!(stderr_text(&output).contains("store not found"));
+    assert!(
+        !Path::new(&db).exists(),
+        "remove created a database at a missing path"
+    );
+}
+
+#[test]
 fn interactive_store_list_matches_non_interactive() {
     let root = artifact_dir("interactive-list");
     let db = ingest(&root);

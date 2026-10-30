@@ -221,7 +221,10 @@ The fill policy:
   long stop `fill - stop_atr_multiple × ATR`, target
   `fill + target_atr_multiple × ATR`; short stop
   `fill + stop_atr_multiple × ATR`, target `fill - target_atr_multiple × ATR`.
-- If one bar touches both, the stop wins.
+- A gap at the open resolves first: a long open at or above the target (or a
+  short open at or below it) fills the target at the open even if the bar later
+  reaches the stop. If the open is between both levels and the bar touches both,
+  the stop wins.
 - A zero-volume bar cannot fill a market order or trigger a bracket.
 - An order with no next bar is rejected at `finish`; an open position is not
   force-closed.
@@ -314,7 +317,18 @@ Quantity is `(equity × fraction) / sizing_price`, floored to `quantity_step`.
 
 The sizing price is the decision bar's close. The fill occurs at the next bar's
 open, so the realized notional can differ from the sizing notional. A quantity
-below one step rejects the entry; it is never rounded up to a step.
+below one step rejects the entry; it is never rounded up to a step. Sizing
+quantities are published at twelve decimal places, which removes binary noise
+such as `6 × 0.1 = 0.6000000000000001`. A risk-capped partial fill may be below
+the configured step; it is the largest quantity that fits the entry envelope.
+
+The runner passes an entry envelope of `current equity × leverage ×
+policy.risk.max_position_fraction`. If the fill notional exceeds that envelope,
+execution caps the fill quantity to the envelope; a non-positive envelope rejects
+the entry with `risk_limit`. The cap is applied at the fill price, so slippage
+and a gap cannot push a filled entry above the envelope. A capped fill is a
+partial fill: the order quantity remains the sizing quantity and the fill and
+position quantities are the capped quantity.
 
 ### 9.2 Accounting rules
 

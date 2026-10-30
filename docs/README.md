@@ -84,6 +84,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Market analysis and full-execution backtest | Superseded for MVP v1 closeout by the 2026-10-28 plan; history preserved | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
 | Audit and continuous-improvement workflow | In progress; policy/strategy v2 and swarm model | `docs/execution-plans/2026-10-30/audit-improvement-workflow.md` |
 | AUD-2026-10-30-01: reject non-M1 ladder inputs | Merged as `98cf9d5` in [#221](https://github.com/quant-rule/quant-rule/pull/221); finding `Verified` | `docs/execution-plans/2026-10-30/AUD-2026-10-30-01-m1-source-validation.md` |
+| Remaining MVP audit remediation (AUD-02…11) | Implemented in the audit-remediation worktree; verification pending | `docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 
@@ -100,6 +101,7 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | Abstraction levels and engine boundaries | Accepted 2026-10-30 | `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md` |
 | Governing swarm and improvement loop | Accepted 2026-10-30 | `docs/adr/2026-10-30/governing-swarm-and-improvement-loop.md` |
 | Rule purity and statistics boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/rule-purity-and-statistics-boundary.md` |
+| Stateless strategy and the position parameter | Accepted 2026-10-30 | `docs/adr/2026-10-30/stateless-strategy-position-parameter.md` |
 
 ## Reading a work item
 

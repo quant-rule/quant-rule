@@ -1,0 +1,2 @@
+quality rows_read=2 accepted=1 rejected=1 duplicate=1 out_of_order=0 invalid=0 evicted=0 retained=1
+skipped line=3 reason=duplicate: duplicate timestamp at 2025-01-01T00:00:00Z

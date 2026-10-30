@@ -16,7 +16,12 @@
 passes the position execution actually holds after the bar's `advance` and fills.
 The strategy no longer carries a virtual position. `strategy-run` and
 `report strategy` remain decision-only diagnostics and use a virtual fill walk;
-the backtest strategy bundle uses the executed walk.
+the backtest strategy bundle uses the executed walk. The strategy report marks
+`execution_state` (`virtual` or `executed`) and the executed form publishes
+`executed_entries`/`executed_exits`. A mismatched exit intent is rejected with
+`WrongExitSide` rather than closing the opposite side. The run below also
+includes the AUD-03 open-gap rule and the AUD-04 current-equity fill cap, so its
+trade counts differ from the pre-cap validation run.
 
 ## Hypothesis
 
@@ -29,32 +34,34 @@ held. The executed walk must expose the actual execution position.
 | Command | Observed |
 |---|---|
 | `cargo test -p quantrule-backtest --lib a_rejected_short_is_never_an_open_strategy_position` | passed; the fixture exercises a short entry and a `MissingQuantity` rejection |
-| `cargo test -p quantrule-backtest` | 153 unit tests and all integration suites passed |
-| `cargo test -p quantrule-shell` | all shell suites passed, including 99 CLI tests |
-| `target/debug/quantrule backtest --config target/audit-02-config/run.json --out target/audit-02-final` | completed in 4m27s; five bundles written |
+| `cargo test --workspace --lib --bins --tests` | 40 suites passed, 0 failed |
+| `cargo test --workspace --doc` | 35 doctests passed |
+| `target/debug/quantrule backtest --config /tmp/opencode/audit-remediation-config-short/run.json --out /tmp/opencode/audit-remediation-run-short` | completed in 4m24s; five bundles written |
+| Same command to a second output root; `diff -rq` | no differences; 29 files in each root |
 
 Full-year `allow_short=false` run:
 
 | Field | Observed |
 |---|---:|
 | Strategy bars | 34,664 |
-| Strategy decisions | 7,565 |
-| Strategy entry decisions | 7,528 |
-| — long entry decisions | 3,509 |
+| Strategy decisions | 7,537 |
+| Strategy entry decisions | 7,499 |
+| — long entry decisions | 3,480 |
 | — short entry decisions | 4,019 |
-| Strategy exit decisions | 37 |
+| Strategy exit decisions | 38 |
+| Strategy executed entries / exits | 44 / 44 |
 | Strategy open position at end | null |
-| Execution entries | 43 |
-| Execution exits | 43 |
-| Execution fills | 86 |
-| Execution rejections | 7,485 |
-| Rejection reason | `missing_quantity` (7,485) |
-| Portfolio trades | 43 |
-| Portfolio trade sides | 43 long, 0 short |
+| Execution entries | 44 |
+| Execution exits | 44 |
+| Execution fills | 88 |
+| Execution rejections | 7,455 |
+| Rejection reason | `missing_quantity` (7,455) |
+| Portfolio trades | 44 |
+| Portfolio trade sides | 44 long, 0 short |
 | Portfolio open position at end | null |
-| Final equity | 8,001.864857986594 |
-| Net P&L | -1,998.1351420134042 |
-| Max drawdown | 0.20456967608337728 |
+| Final equity | 8,203.74663501846 |
+| Net P&L | -1,796.2533649815473 |
+| Max drawdown | 0.20218938888908922 |
 | Halted | true |
 
 ## Interpretation
@@ -76,10 +83,10 @@ Full-year `allow_short=false` run:
 
 ## Residual risk and limitations
 
-- The strategy report (`report strategy`) and `strategy-run` remain decision-only
-  diagnostics with a virtual fill walk. They can list rejected entry decisions by
-  contract. If the finding is read as requiring the decision report to filter to
-  executed fills, that is a separate report-contract change.
+- The standalone `report strategy` and `strategy-run` remain decision-only
+  diagnostics with a virtual fill walk; the backtest strategy bundle is the
+  executed walk and marks `execution_state`. The decision list can include
+  rejected entries by contract; executed entries/exits are published separately.
 - One data version, one full-year in-sample run. No out-of-sample or walk-forward
   evidence is claimed.
 - The Quant Validator pass was performed by the same agent that implemented the

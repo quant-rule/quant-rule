@@ -45,6 +45,8 @@ pub struct BacktestConfig {
     pub execution: ExecutionConfig,
     /// The portfolio's capital, costs, and risk limits.
     pub portfolio: PortfolioConfig,
+    /// The policy's maximum position notional as a fraction of current equity.
+    pub max_position_fraction: f64,
 }
 
 /// The result of one full run.
@@ -116,6 +118,13 @@ pub fn run_backtest(
     inputs: &[TimeframeInput<'_>],
     config: &BacktestConfig,
 ) -> Result<BacktestRun, BacktestError> {
+    if !config.max_position_fraction.is_finite()
+        || config.max_position_fraction <= 0.0
+        || config.max_position_fraction > 1.0
+    {
+        return Err(BacktestError::RiskEnvelope);
+    }
+
     let model = ModelRun::compute(inputs, &config.model);
     let mut execution = ExecutionEngine::new(config.execution).map_err(BacktestError::Execution)?;
     let mut ledger = PortfolioLedger::new(config.portfolio).map_err(BacktestError::Ledger)?;
@@ -174,12 +183,15 @@ pub fn run_backtest(
                 Decision::Enter(_) => bar.readings.atr14,
                 Decision::Exit(_) | Decision::Hold => None,
             };
+            let max_entry_notional =
+                ledger.state().equity * config.portfolio.leverage * config.max_position_fraction;
             let intent = match decision {
                 Decision::Hold => OrderIntent::Hold,
                 Decision::Enter(entry) => OrderIntent::Enter {
                     side: entry.side,
                     bar_index: entry.bar.bar_index,
                     open_time: entry.bar.open_time,
+                    max_notional: Some(max_entry_notional),
                 },
                 Decision::Exit(exit) => OrderIntent::Exit {
                     side: exit.side,
@@ -270,6 +282,8 @@ pub fn walk_strategy(
 /// The runner could not complete a run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BacktestError {
+    /// The policy risk envelope is not a finite fraction in `(0, 1]`.
+    RiskEnvelope,
     /// Execution rejected its configuration or a bar.
     Execution(ExecutionError),
     /// The ledger rejected its configuration, a fill, or a mark.
@@ -284,6 +298,9 @@ pub enum BacktestError {
 impl std::fmt::Display for BacktestError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::RiskEnvelope => {
+                formatter.write_str("the max position fraction must be finite and in (0, 1]")
+            }
             Self::Execution(source) => source.fmt(formatter),
             Self::Ledger(source) => source.fmt(formatter),
             Self::MissingBar { bar } => write!(formatter, "the model has no bar {bar}"),
@@ -294,6 +311,7 @@ impl std::fmt::Display for BacktestError {
 impl std::error::Error for BacktestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::RiskEnvelope => None,
             Self::Execution(source) => Some(source),
             Self::Ledger(source) => Some(source),
             Self::MissingBar { .. } => None,

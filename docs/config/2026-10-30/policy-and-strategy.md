@@ -54,7 +54,7 @@
 | `objective.performance_target` | Finite, `> 0`; evaluation target, never a signal |
 | `objective.evaluation_days` | Integer `1..=3650` |
 | `objective.max_drawdown` | `(0, 1]`; portfolio limit must be at most this and must halt |
-| `risk.max_position_fraction` | `(0, 1]`; fixed notional must be at most account × fraction; equity fraction must be at most this |
+| `risk.max_position_fraction` | `(0, 1]`; fixed notional must be at most initial account × fraction; at each fill the runner caps the entry notional at current equity × leverage × fraction |
 | `risk.max_leverage` | Exactly `1.0` in v1 |
 | `risk.max_open_positions` | Exactly `1` in v1 |
 | `universe.tickets` | Non-empty, unique, no whitespace; `data.instrument` must be present |

@@ -86,7 +86,7 @@ impl Group {
 
 const WINDOW: OptionHelp = OptionHelp {
     flag: "--window <full|latest>",
-    description: "Input window: full up to 100000 (default) or last 1000.",
+    description: "Input window: full up to 100000 M1 candles (default), or the last 1000 per timeframe. Latest streams the file and bypasses the full-series cap.",
 };
 const JSON_DASHBOARD: OptionHelp = OptionHelp {
     flag: "--json",
@@ -301,7 +301,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "The model publishes numbers; the shell maps stable codes to labels.",
             "The four axes are separate; agreement is a count, never an average.",
-            "Input cap: 100000 M1 candles; --window latest uses the last 1000 per timeframe.",
+            "Full window cap: 100000 M1 candles; --window latest streams the file and keeps the last 1000 per timeframe.",
         ],
         group: Group::Model,
     },
@@ -314,6 +314,7 @@ const COMMANDS: &[CommandHelp] = &[
         options: DASHBOARD_OPTIONS,
         output: "Fixed-width four-track text, or one numeric JSON object with --json.",
         notes: &[
+            "Full window cap: 100000 M1 candles; --window latest streams the file and keeps the last 1000 per timeframe.",
             "Missing value: an em dash with a reason code; a valid zero prints 0%.",
             "The view is descriptive; it is not a strategy, forecast, or recommendation.",
         ],
@@ -358,7 +359,7 @@ const COMMANDS: &[CommandHelp] = &[
         output: "One NDJSON line per timeframe.",
         notes: &[
             "Each line carries the numeric fields, compact code, readiness and reason codes, labels, and counters.",
-            "Input cap: 100000 M1 candles.",
+            "Full window cap: 100000 M1 candles; --window latest keeps the last 1000 per timeframe.",
         ],
         group: Group::Model,
     },
@@ -374,6 +375,7 @@ const COMMANDS: &[CommandHelp] = &[
             "Types: level, divergence, and signal.",
             "Every record carries occurrence and availability; an event never appears before it is knowable.",
             "Events are evidence; they do not alter an axis value.",
+            "Full window cap: 100000 M1 candles; --window latest keeps the last 1000 per timeframe.",
         ],
         group: Group::Model,
     },
@@ -388,6 +390,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "A leg's stage may be null while its origin is unconfirmed or its target is unstable.",
             "A target revision changes the target version without a price movement.",
+            "Full window cap: 100000 M1 candles; --window latest keeps the last 1000 per timeframe.",
         ],
         group: Group::Model,
     },
@@ -402,7 +405,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "Each line carries the candle, six readings, the four axes with diagnostics, context, and consensus.",
             "Events stay a separate command because one bar can carry several events.",
-            "Input cap: 100000 M1 candles.",
+            "Full window cap: 100000 M1 candles; --window latest keeps the last 1000 per timeframe.",
         ],
         group: Group::Model,
     },

@@ -24,16 +24,16 @@
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
 | AUD-2026-10-30-01 | Critical | data | Native M5/M15/H1 CSVs are accepted as M1 | `timeframes data/EURUSD_H1_...csv`; `market-state ... --window latest`; `market-report`; `store ingest`; `research summary` | Silent wrong timeframe labels and wrong model/store/research output | A reject non-M1 cadence; B add `--source-timeframe`; C warn only | A | Reject an H1/M5 file in every ladder consumer | Verified | [`plan`](../../execution-plans/2026-10-30/AUD-2026-10-30-01-m1-source-validation.md) · [#220](https://github.com/quant-rule/quant-rule/issues/220) · [#221](https://github.com/quant-rule/quant-rule/pull/221) |
-| AUD-2026-10-30-02 | Critical | backtest | Strategy virtual state diverges from execution | `allow_short=false` run: strategy 166 entries, 93 executed; 73 `missing_quantity` | Backtest evaluates a different strategy from the one reported | A reconcile fills/rejections into strategy; B make strategy stateless; C reject mismatched exits | A | `allow_short=false` cannot report a short it did not execute; exit side is checked | Fixed | [`validation`](aud-2026-10-30-02-validation.md) · [`plan`](../../execution-plans/2026-10-30/architecture-hardening.md) |
-| AUD-2026-10-30-03 | Major | backtest | A bar opening beyond the target but dipping below the stop fills as a stop | `execution/engine.rs` stop-first branch; entry 100, ATR 1, target 103, next open 104, low 97 → StopLoss at 98 | Impossible sequence; biases results toward losses | A fill target at open before stop; B define stop-first even for gap; C reject ambiguous cases | A | A gap-through-target test asserts TakeProfit at the open | Open | — |
-| AUD-2026-10-30-04 | Major | portfolio | Fixed notional ignores the leverage/equity envelope | `portfolio/sizing.rs`; initial cash 1000, notional 100000 → quantity 96953, cash negative | 100x exposure despite `leverage: 1.0`; wipe-out risk | A cap/reject at fill; B enforce at sizing; C define fixed notional as leverage-free and remove the claim | A | A fixed-notional entry above the envelope is rejected | Open | — |
-| AUD-2026-10-30-05 | Major | data | Zero/negative prices are accepted by data/model/store but rejected by backtest | `candles zero.csv` exit 0; `market-state` exit 0; `store ingest` exit 0; `backtest` exits 1 “price must be finite and positive” | Supported commands disagree on input validity | A reject non-positive prices in the data engine; B support them in portfolio; C document the split | A | The same candle is accepted or rejected consistently by every command | Open | — |
-| AUD-2026-10-30-06 | Major | backtest | Quantity floor uses binary `f64` and can under-size or reject | `notional 3.0 / price 5.0 → 0.5`; `0.3 / 3.0 → BelowOneStep` | Silent one-step under-size or a valid entry rejected | A decimal/tolerance floor; B document the one-step rule; C reject non-exact steps | A | Exact step boundaries produce the exact quantity | Open | — |
-| AUD-2026-10-30-07 | Minor | shell/store | `store remove` creates a new database when the path is missing | `store remove nope --db missing.db` exits 1 but creates a 135 KB DB | A typo leaves an empty database; surprising side effect | A open existing read-write only; B keep creation; C require `store init` | A | Missing DB is an error and no file is created | Open | — |
-| AUD-2026-10-30-08 | Minor | shell | Tolerant reader classifies an invalid duplicate/out-of-order row as `invalid` | duplicate timestamp with `high < low` reports `invalid`, not `duplicate` | Quality counts disagree with the README rule | A validate ordering before candle validity; B document the precedence | A | A duplicate invalid row is counted as duplicate | Open | — |
-| AUD-2026-10-30-09 | Minor | data | Aggregated volume can overflow to infinity | five `1e308` volumes then a new bucket | A finite input is rejected as `NonFinite` at an innocent row | A reject overflow with a bucket error; B use a checked sum policy | A | Overflow reports the bucket, not the next source row | Open | — |
-| AUD-2026-10-30-10 | Minor | docs | `--window latest` bypasses the 100000 cap while help says “Input cap: 100000” | `market-state --window latest` on a 183k-row file succeeds | Ambiguous cap contract and surprising runtime | A state the latest-window exception; B enforce the cap; C add a warning | A | Help and README agree with the observed behavior | Open | — |
-| AUD-2026-10-30-11 | Info | model | Percentile/readiness diagnostics are present but not read by the strategy | `StrategyInput` fields; model diagnostic fields | Needs a permanent boundary guard, not a behavior change now | A boundary test + doc; B move diagnostics to analytics later | A | The strategy cannot access a percentile/readiness field | Open | — |
+| AUD-2026-10-30-02 | Critical | backtest | Strategy virtual state diverges from execution | `allow_short=false` run: the executed walk holds no short and the strategy bundle is marked `executed`; pre-fix run had 166 strategy entries vs 93 executed | Backtest evaluates a different strategy from the one reported | A reconcile fills/rejections into strategy; B make strategy stateless; C reject mismatched exits | B (stateless) | The executed walk has no virtual short; the strategy report marks `virtual`/`executed`; an exit-side mismatch is rejected | Fixed | [`validation`](aud-2026-10-30-02-validation.md) · [`plan`](../../execution-plans/2026-10-30/architecture-hardening.md) |
+| AUD-2026-10-30-03 | Major | backtest | A bar opening beyond the target but dipping below the stop fills as a stop | `execution/engine.rs` stop-first branch; entry 100, ATR 1, target 103, next open 104, low 97 → StopLoss at 98 | Impossible sequence; biases results toward losses | A fill target at open before stop; B define stop-first even for gap; C reject ambiguous cases | A | A gap-through-target test asserts TakeProfit at the open | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
+| AUD-2026-10-30-04 | Major | portfolio | Fixed notional ignores current equity | `portfolio/sizing.rs`; config validation compared notional with initial cash only | Post-drawdown or gap-up exposure exceeds `leverage: 1.0` | A cap/reject at fill; B enforce at sizing; C define fixed notional as leverage-free | A (cap) | A fill above the envelope is capped at the envelope; the cap holds after a gap and at a 0.5 fraction | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
+| AUD-2026-10-30-05 | Major | data | Zero/negative prices are accepted by data/model/store but rejected by backtest | `candles zero.csv` exit 0; `market-state` exit 0; `store ingest` exit 0; `backtest` exits 1 “price must be finite and positive” | Supported commands disagree on input validity | A reject non-positive prices in the data engine; B support them in portfolio; C document the split | A | The same candle is accepted or rejected consistently by every command | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
+| AUD-2026-10-30-06 | Major | backtest | Quantity floor uses binary `f64` and can under-size or reject | `notional 3.0 / price 5.0 → 0.5`; `0.3 / 3.0 → BelowOneStep` | Silent one-step under-size or a valid entry rejected | A decimal/tolerance floor; B document the one-step rule; C reject non-exact steps | A | Exact step boundaries produce the exact quantity | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
+| AUD-2026-10-30-07 | Minor | shell/store | `store remove` creates a new database when the path is missing | `store remove nope --db missing.db` exits 1 but creates a 135 KB DB | A typo leaves an empty database; surprising side effect | A open existing read-write only; B keep creation; C require `store init` | A | Missing DB is an error and no file is created | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
+| AUD-2026-10-30-08 | Minor | shell | Tolerant reader classifies an invalid duplicate/out-of-order row as `invalid` | duplicate timestamp with `high < low` reports `invalid`, not `duplicate` | Quality counts disagree with the README rule | A validate ordering before candle validity; B document the precedence | A | A duplicate invalid row is counted as duplicate | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
+| AUD-2026-10-30-09 | Minor | data | Aggregated volume can overflow to infinity | five `1e308` volumes then a new bucket | A finite input is rejected as `NonFinite` at an innocent row | A reject overflow with a bucket error; B use a checked sum policy | A | Overflow reports the bucket, not the next source row | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
+| AUD-2026-10-30-10 | Minor | docs | `--window latest` bypasses the 100000 cap while help says “Input cap: 100000” | `market-state --window latest` on a 183k-row file succeeds | Ambiguous cap contract and surprising runtime | A state the latest-window exception; B enforce the cap; C add a warning | A | Help and README agree with the observed behavior | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
+| AUD-2026-10-30-11 | Info | model | Percentile/readiness diagnostics are present but not read by the strategy | `StrategyInput` fields; model diagnostic fields | Needs a permanent boundary guard, not a behavior change now | A boundary test + doc; B move diagnostics to analytics later | A | The strategy cannot access a percentile/readiness field | Fixed | [plan](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md) |
 
 ## Detail
 
@@ -73,12 +73,12 @@
 ### AUD-2026-10-30-02 — Strategy virtual state diverges from execution
 
 - Expected: the strategy reported by the system is the strategy the account ran.
-- Observed: with `allow_short=false`, the strategy reports 166 entries (93 long,
-  73 short) while execution has 93 entries and 73 `missing_quantity` rejections.
-  The strategy keeps a virtual short that never existed.
-- Root cause: `AxisAgreementStrategy` updates its position on the decision, but
-  the runner never feeds fills, rejections, or bracket exits back to it. The
-  engine also ignores `Exit.side`.
+- Observed: the pre-fix strategy held a virtual position after a rejection or
+  bracket exit. The full-year `allow_short=false` run reported 7,528 entry
+  decisions but only 43 executed entries.
+- Root cause: `AxisAgreementStrategy` updated its position on the decision, but
+  the runner did not feed fills, rejections, or bracket exits back to it. The
+  engine also ignored `Exit.side`.
 - Options:
   - A. Add `on_fill`/`on_reject` reconciliation; reject a mismatched exit side.
   - B. Make the strategy stateless and let execution own the position.
@@ -87,13 +87,16 @@
 - Recommendation: A for the current strategy; B is the cleaner long-term shape.
 - Fix (2026-10-30): implemented B. `AxisAgreementStrategy` is stateless and
   receives the execution position on every bar. The executed walk carries the
-  actual position and is used by the backtest strategy bundle. The decision-only
+  actual position and is used by the backtest strategy bundle. The strategy
+  report marks `execution_state` as `virtual` or `executed`; the executed form
+  publishes `executed_entries` and `executed_exits`. A mismatched
+  `OrderIntent::Exit` side is rejected with `WrongExitSide`. The decision-only
   `report strategy` and `strategy-run` remain virtual diagnostics; they can list
   rejected entry decisions, which the execution bundle reports separately.
 - Validation: [`aud-2026-10-30-02-validation.md`](aud-2026-10-30-02-validation.md).
   With `allow_short=false`, the executed walk contains no short position, no
   short exit, and the strategy bundle's open position is null. Execution reports
-  7,485 `missing_quantity` rejections and 43 long trades. This is an in-sample
+  7,455 `missing_quantity` rejections and 44 long trades. This is an in-sample
   state validation, not a profitability claim.
 
 ### AUD-2026-10-30-03 — Gap-through-target stop
@@ -109,20 +112,33 @@
   - B. Define stop-first even for gaps and document the bias.
   - C. Reject bars whose open/target/stop sequence is ambiguous.
 - Recommendation: A; B is inconsistent with the target-gap reference rule.
+- Fix: the open gap is resolved before the intrabar stop-first rule; the
+  intrabar stop-first rule remains for an open between both levels.
+- Verification: `a_long_gap_through_the_target_wins_over_a_later_stop` and the
+  mirrored short test.
 
-### AUD-2026-10-30-04 — Fixed notional exceeds leverage
+### AUD-2026-10-30-04 — Fixed notional exceeds current equity
 
-- Expected: `leverage: 1.0` caps exposure at equity.
-- Observed: initial cash 1000, fixed notional 100000, quantity 96953; cash is
-  negative and no entry is rejected.
-- Root cause: `SizingMode::FixedNotional` ignores equity; `leverage` is only a
-  config value.
+- Expected: `leverage: 1.0` caps exposure at current equity.
+- Observed: the audit’s 100× unit example is config-unreachable because
+  `max_position_fraction` is `(0, 1]`; the reachable defect is that a valid fixed
+  notional equal to initial cash exceeds current equity after a drawdown or a
+  gap-up fill.
+- Root cause: `SizingMode::FixedNotional` ignored current equity; `leverage` was
+  only a config value and the shell compared notional with initial cash only.
 - Options:
-  - A. Reject or cap at sizing/fill when notional exceeds equity × leverage.
-  - B. Enforce at the portfolio ledger.
+  - A. Cap at the fill when notional exceeds current equity × leverage × policy
+    fraction.
+  - B. Reject at sizing/fill.
   - C. Remove the leverage claim from fixed notional and document it as
     leverage-free.
-- Recommendation: A.
+- Recommendation: A (cap); it preserves the entry and prevents over-leverage.
+- Fix: the runner passes `current equity × leverage × policy.max_position_fraction`
+  as the entry envelope; execution caps the fill quantity to that envelope. A
+  non-positive envelope rejects with `risk_limit`.
+- Verification: `an_entry_above_the_risk_limit_is_capped_at_the_fill`,
+  `the_risk_envelope_caps_the_first_entry_at_half_equity`, and the full-year run.
+  Quant Validator reproduction pending.
 
 ### AUD-2026-10-30-05 — Non-positive prices disagree across commands
 
@@ -137,6 +153,11 @@
   - B. Support non-positive prices in the portfolio (e.g., certain futures).
   - C. Document the split and make it explicit.
 - Recommendation: A unless a supported instrument requires non-positive prices.
+- Fix: `Candle::new` rejects a zero or negative open, high, low, or close; the
+  source parsers and every command propagate the same error.
+- Verification: `rejects_negative_and_zero_prices`,
+  `candles_reject_a_non_positive_price`, and
+  `timeframes_reject_a_non_positive_price`.
 
 ### AUD-2026-10-30-06 — Quantity floor
 
@@ -146,6 +167,9 @@
 - Root cause: binary `f64` division and `floor` at the boundary.
 - Options: decimal arithmetic; a checked tolerance; or a documented one-step
   rule. Recommend the tolerance/checked floor.
+- Fix: a relative tolerance snaps an exact boundary to the nearest step, and
+  quantities are published at twelve decimal places.
+- Verification: `exact_step_boundaries_are_not_lost_to_binary_rounding`.
 
 ### AUD-2026-10-30-07 — `store remove` creates a database
 
@@ -155,6 +179,9 @@
 - Root cause: `store remove` uses the create-capable `Store::open`.
 - Options: open an existing database read-write; require `store init`; keep the
   behavior. Recommend the first.
+- Fix: `Store::open_existing` opens read-write only when the file exists; a
+  missing path creates nothing.
+- Verification: `store_remove_a_missing_database_does_not_create_it`.
 
 ### AUD-2026-10-30-08 — Tolerant duplicate classification
 
@@ -164,6 +191,9 @@
 - Root cause: candle validity is checked before ordering.
 - Options: check ordering first, or document the precedence. Recommend ordering
   first.
+- Fix: the tolerant loader checks the timestamp against the last accepted row
+  before candle validity; ordering wins.
+- Verification: `tolerant_duplicate_ordering_wins_over_candle_validity`.
 
 ### AUD-2026-10-30-09 — Volume overflow
 
@@ -171,6 +201,10 @@
 - Observed: `NonFinite` is reported at the next source row.
 - Root cause: unchecked volume sum and aggregate candle validation.
 - Options: checked sum with a bucket error; or a documented finite-input policy.
+- Fix: `Bucket::push` returns `VolumeOverflow { bucket_start }`; the timeframe
+  error names the bucket, not the next row.
+- Verification: `volume_overflow_reports_the_bucket` and
+  `volume_overflow_reports_the_bucket_and_leaves_it_unchanged`.
 
 ### AUD-2026-10-30-10 — Latest-window cap wording
 
@@ -178,6 +212,10 @@
 - Observed: help says “Input cap: 100000” while the latest path accepts a larger
   file and retains the last 1000.
 - Options: fix the docs, enforce the cap, or warn. Recommend the docs.
+- Fix: help, README, and the option description state that the full window is
+  capped at 100000 and `--window latest` streams the file and keeps the last
+  1000 per timeframe.
+- Verification: help and CLI golden fixtures pass.
 
 ### AUD-2026-10-30-11 — Diagnostic statistics boundary
 
@@ -187,3 +225,8 @@
 - Action: add a permanent boundary test and keep statistics in analytics. If a
   statistical field ever influences an axis value or entry/exit, escalate to a
   model-contract decision.
+- Fix: the source-level `strategy::input::boundary_tests` guard is present and
+  the ADR explicitly makes the position argument the strategy's own state, not a
+  market reading.
+- Verification: the boundary test passes; the Improvement Verifier marks this
+  Info item Verified.

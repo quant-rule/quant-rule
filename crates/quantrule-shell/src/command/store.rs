@@ -219,7 +219,7 @@ pub(crate) fn run_store_remove(
     args: &StoreRemoveArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let mut store = Store::open(&args.database).map_err(RunError::Store)?;
+    let mut store = Store::open_existing(&args.database).map_err(RunError::Store)?;
     let RemoveReport { name, bars } = store.remove(&args.dataset).map_err(RunError::Store)?;
     writeln!(writer, "removed {name} bars={bars}").map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)

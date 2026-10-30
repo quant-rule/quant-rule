@@ -5,6 +5,11 @@
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan: [`docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`](../../execution-plans/2026-10-28/141-mvp-v1-final-contract.md) §9
 - Status: Verified — 2026-10-28; re-verified 2026-10-29 after [#189](https://github.com/quant-rule/quant-rule/issues/189) and [#196](https://github.com/quant-rule/quant-rule/issues/196). Both criteria that were unresolved on 2026-10-28 are now closed; see §7.
+- Historical note: the 2026-10-30 audit remediation changes execution, price
+  validity, and sizing behavior. The numbers below describe the earlier
+  `6c1e705` verification, not the remediation worktree; see
+  [`docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md`](../../execution-plans/2026-10-30/audit-remaining-mvp-remediation.md)
+  for the current full-year evidence.
 
 ## 1. Method
 

@@ -156,6 +156,7 @@ pub(crate) fn write(args: &LabSummaryArgs) -> Result<PathBuf, LabSummaryError> {
 
 fn read_bundles(args: &LabSummaryArgs) -> Result<Vec<Bundle>, LabSummaryError> {
     let mut bundles = Vec::with_capacity(BUNDLES.len());
+    let mut config_hash: Option<(String, PathBuf)> = None;
     for name in BUNDLES {
         let directory = args.lab_dir.join(name);
         let report_path = directory.join("report.json");
@@ -169,6 +170,25 @@ fn read_bundles(args: &LabSummaryArgs) -> Result<Vec<Bundle>, LabSummaryError> {
         let provenance = if provenance_path.is_file() {
             let provenance = read_json(&provenance_path)?;
             check_data_version(&provenance_path, &provenance, &args.data_version)?;
+            if let Some(hash_value) = provenance.get("config_hash") {
+                let hash = hash_value
+                    .as_str()
+                    .ok_or_else(|| invalid(&provenance_path, "config_hash", "expected a string"))?;
+                match &config_hash {
+                    Some((expected, expected_path)) if hash != expected => {
+                        return Err(invalid(
+                            &provenance_path,
+                            "config_hash",
+                            &format!(
+                                "expected {expected} from {}, found {hash}",
+                                expected_path.display()
+                            ),
+                        ));
+                    }
+                    Some(_) => {}
+                    None => config_hash = Some((hash.to_owned(), provenance_path.clone())),
+                }
+            }
             Some(provenance)
         } else {
             None
@@ -329,6 +349,30 @@ fn write_observed(
     let slippage = f64_at(&execution.report, execution_path, "summary.slippage.total")?;
     let strategy_entries = u64_at(&strategy.report, strategy_path, "summary.entries")?;
     let strategy_exits = u64_at(&strategy.report, strategy_path, "summary.exits")?;
+    let executed_entries =
+        optional_u64_at(&strategy.report, strategy_path, "summary.executed_entries")?;
+    let executed_exits =
+        optional_u64_at(&strategy.report, strategy_path, "summary.executed_exits")?;
+    let execution_entries = u64_at(&execution.report, execution_path, "summary.entries")?;
+    let execution_exits = u64_at(&execution.report, execution_path, "summary.exits")?;
+    if let Some(executed) = executed_entries
+        && executed != execution_entries
+    {
+        return Err(invalid(
+            strategy_path,
+            "summary.executed_entries",
+            &format!("execution report has {execution_entries} entries"),
+        ));
+    }
+    if let Some(executed) = executed_exits
+        && executed != execution_exits
+    {
+        return Err(invalid(
+            strategy_path,
+            "summary.executed_exits",
+            &format!("execution report has {execution_exits} exits"),
+        ));
+    }
     let layer3_rows = u64_at(&analytical.report, analytical_path, "summary.layer3_rows")?;
 
     let ladder = array_at(&model.report, model_path, "market_report.ladder")?;
@@ -385,6 +429,16 @@ fn write_observed(
     writeln!(out, "  funding_received: {:.6}", number(funding_received))?;
     writeln!(out, "  strategy_entries: {strategy_entries}")?;
     writeln!(out, "  strategy_exits: {strategy_exits}")?;
+    writeln!(
+        out,
+        "  executed_entries: {}",
+        executed_entries.map_or_else(|| String::from("-"), |value| value.to_string())
+    )?;
+    writeln!(
+        out,
+        "  executed_exits: {}",
+        executed_exits.map_or_else(|| String::from("-"), |value| value.to_string())
+    )?;
     writeln!(out, "  analytical_layer3_rows: {layer3_rows}")?;
     writeln!(out, "  model_ladder: {ladder_labels}")?;
     writeln!(
@@ -518,6 +572,27 @@ fn u64_at(value: &Value, path: &Path, field: &str) -> Result<u64, LabSummaryErro
     get(value, path, field)?
         .as_u64()
         .ok_or_else(|| invalid(path, field, "expected a non-negative integer"))
+}
+
+fn optional_u64_at(
+    value: &Value,
+    path: &Path,
+    field: &str,
+) -> Result<Option<u64>, LabSummaryError> {
+    let mut current = value;
+    for part in field.split('.') {
+        let Some(next) = current.get(part) else {
+            return Ok(None);
+        };
+        current = next;
+    }
+    match current {
+        Value::Null => Ok(None),
+        value => value
+            .as_u64()
+            .map(Some)
+            .ok_or_else(|| invalid(path, field, "expected a non-negative integer or null")),
+    }
 }
 
 fn optional_i64_at(

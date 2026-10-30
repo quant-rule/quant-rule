@@ -276,6 +276,12 @@ impl CandleWindow {
         Ok(series_index)
     }
 
+    /// The timestamp of the last accepted candle, or `None` while empty.
+    #[must_use]
+    pub const fn last_timestamp(&self) -> Option<i64> {
+        self.last_timestamp
+    }
+
     /// The number of retained candles.
     #[must_use]
     pub fn len(&self) -> usize {

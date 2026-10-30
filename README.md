@@ -293,10 +293,11 @@ Interactive errors are printed to stderr and keep the session open. Non-interact
 | Header | `Date,Open,High,Low,Close,Volume` |
 | Timestamp | `YYYY-MM-DD HH:MM:SS+00:00` (UTC) |
 | Columns | Exactly six; volume may be empty |
+| Prices | Open, high, low, and close must be finite and positive; zero or negative prices are rejected by every command |
 | Order | Strictly increasing timestamps for `candles`; out-of-order rows are skipped by `candles-tolerant` |
 | Ladder source | Every ladder consumer requires one-minute spacing when two or more rows are present; a file whose rows are never closer than 5m, 15m, or 1h is rejected |
 
-A header-only file is a valid empty series and prints nothing. In tolerant mode it reports zero counts.
+A header-only file is a valid empty series and prints nothing. In tolerant mode it reports zero counts. Ordering is checked before candle validity, so an invalid row with a duplicate timestamp is counted as `duplicate`, not `invalid`.
 
 The ladder guard measures every parsed source row before a date bound is applied, so a native higher-timeframe file is rejected even when the requested period would retain only one row. A sparse M1 file with gaps is accepted as soon as one adjacent pair is one minute apart. A single row has no spacing to measure and is accepted; a header-only file remains a valid empty series. The error names the observed spacing and asks for an M1 source.
 
@@ -313,7 +314,7 @@ The ladder guard measures every parsed source row before a date bound is applied
 | Complete bucket | Exactly 5, 15, or 60 M1 candles, checked on bucket transition or at end of input |
 | Partial bucket | Recorded and dropped; never printed as a candle |
 | OHLC | Open is the first M1 open, high the maximum, low the minimum, close the last M1 close |
-| Volume | Summed only when every source volume is known; otherwise `null`; a real zero is `0` |
+| Volume | Summed only when every source volume is known; otherwise `null`; a real zero is `0`; a non-finite sum is rejected at the bucket that overflowed |
 | Gap | `after`, `before`, and `missing` between consecutive candles in a series; no market-session calendar is applied |
 | stdout | NDJSON grouped M1, M5, M15, H1; oldest candle first within each series |
 | stderr | One aggregation summary per timeframe, then its partial-bucket and gap records |
@@ -332,7 +333,7 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 ### Market-state contract
 
-`market-state`, `axis`, `events`, and `legs` read an M1 CSV, build the M1/M5/M15/H1 ladder through the data engine, and call the model. Every ladder consumer requires one-minute source spacing; a native higher-timeframe file is rejected before the model runs. They analyze the full series up to the 100,000 M1 cap by default; `--window latest` retains the last 1,000 candles per timeframe. The model publishes numbers; the shell maps the stable numeric codes to labels and never recomputes an axis, aggregate, or event. `events` covers every event in the analyzed window, not only the retained candle tail.
+`market-state`, `axis`, `events`, and `legs` read an M1 CSV, build the M1/M5/M15/H1 ladder through the data engine, and call the model. Every ladder consumer requires one-minute source spacing; a native higher-timeframe file is rejected before the model runs. They analyze the full series up to the 100,000 M1 cap by default; `--window latest` streams the file without the full-series cap and retains the last 1,000 candles per timeframe. The model publishes numbers; the shell maps the stable numeric codes to labels and never recomputes an axis, aggregate, or event. `events` covers every event in the analyzed window, not only the retained candle tail.
 
 `market-state` prints one JSON object with four keys:
 
@@ -349,11 +350,11 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 `legs` prints two NDJSON lines per timeframe, one for each pivot scale. Each line carries the published leg or `null`, its origin and availability bars, target basis and version, progress, displacement, lifecycle, stage, and target-reached code, with the lifecycle, stage, direction, scale, and target-basis labels.
 
-`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, window start and length, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=1000` and defaults to 1000; `--timeframe` defaults to the whole ladder. Events remain a separate command because a bar can have several events. The default input window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe.
+`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, window start and length, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=1000` and defaults to 1000; `--timeframe` defaults to the whole ladder. Events remain a separate command because a bar can have several events. The default input window is the full series up to 100,000 M1 candles; `--window latest` streams the file without the full-series cap and uses the last 1,000 candles per timeframe.
 
 ### Market-dashboard contract
 
-`market-dashboard <csv-path> [--window full|latest] [--json]` prints one instrument's four-axis dashboard over the fixed M1/M5/M15/H1 ladder. It calls the model's `DashboardState`; the shell only formats the published numbers. The default input is the full series up to 100,000 M1 candles; `--window latest` retains the last 1,000 candles per timeframe.
+`market-dashboard <csv-path> [--window full|latest] [--json]` prints one instrument's four-axis dashboard over the fixed M1/M5/M15/H1 ladder. It calls the model's `DashboardState`; the shell only formats the published numbers. The default input is the full series up to 100,000 M1 candles; `--window latest` streams the file without the full-series cap and retains the last 1,000 candles per timeframe.
 
 The text output has:
 
@@ -394,7 +395,7 @@ The output is deterministic: the same input and configuration produce the same b
 
 The report publishes coverage, axis statistics and ordinal histograms, full-period event counts, the latest published state, cross-timeframe aggregates, and chart buckets. It contains no order, fill, position, trade, equity, drawdown, or P&L field, and it applies no strategy. A range with no M1 candles fails and writes no artifacts. The JSON envelope carries `model_version`, `view_contract`, `data_version`, `requested_period`, and `market_report`; object keys have a fixed order, numbers keep full precision, and a missing value is `null`.
 
-The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles. `market-state`, `market-dashboard`, `market-chart`, `axis`, `events`, `legs`, `model-series`, the store, and research accept up to 100,000 M1 candles; `market-report` and `strategy-run` accept up to 600,000; `report` and `backtest` take their cap from `data.json.max_candles`, at most 600,000.
+The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles. `market-state`, `market-dashboard`, `market-chart`, `axis`, `events`, `legs`, `model-series`, the store, and research accept up to 100,000 M1 candles on the full-window path; `--window latest` streams the file without that cap and keeps the last 1,000 candles per timeframe. `market-report` and `strategy-run` accept up to 600,000; `report` and `backtest` take their cap from `data.json.max_candles`, at most 600,000.
 
 ### Report bundles and backtest
 
@@ -407,6 +408,11 @@ The output is deterministic: the same input, range, data version, and configurat
 | `execution` | data, model, strategy, execution, portfolio | `summary.txt`, `report.json`, `orders.csv`, `fills.csv`, `rejections.csv`, `price-fills.png`, `provenance.json` |
 | `portfolio` | data, model, strategy, execution, portfolio | `summary.txt`, `report.json`, `trades.csv`, `equity.csv`, `equity.png`, `drawdown.png`, `provenance.json` |
 | `analytical` | data, model | `summary.txt`, `report.json`, `axes.csv`, `relations.csv`, `provenance.json` |
+
+The `strategy` bundle written by `backtest` uses the executed walk and marks
+`execution_state` as `executed`; it also publishes `executed_entries` and
+`executed_exits`. The standalone `report strategy` uses the virtual diagnostic
+walk and marks `execution_state` as `virtual`; its executed counts are null.
 
 A run is specified by eight files. The command line carries only the config path, an optional output override, and an optional JSON flag.
 
@@ -425,7 +431,7 @@ A run is specified by eight files. The command line carries only the config path
 
 `--out` defaults to the run's `output_root`. A bundle is available if and only if its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `report --json` prints the `report.json` bytes; `backtest --json` prints a summary envelope with the data version, the requested and actual periods, the five bundle paths, and the portfolio's final equity, return, net P&L, drawdown, trade count, and halt flag. `provenance.json` records the data version, the config hash, the periods, the config file names, the resolved engine values, and the artifact list.
 
-The model is computed once per run. The analytical bundle summarizes that model one bar at a time, so no layer set is materialized and the model is not recomputed. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data and period.
+The model is computed once per run. The analytical bundle summarizes that model one bar at a time, so no layer set is materialized and the model is not recomputed. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data, period, and default model settings.
 
 A fresh checkout has no source data, because `data/` is not committed. The example run needs its M1 file first:
 
@@ -474,7 +480,7 @@ The summary has seven sections: Identity, Artifacts, Observed result, Checks, Ro
 
 ### Strategy-run contract
 
-`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs the first model-driven strategy, `axis-agreement`, over the M15 series and prints its entries and exits. It requires a one-minute-spaced source and rejects a native higher-timeframe file before printing. With `--config`, it uses the run's strategy and model configuration. The JSON envelope marks `execution_state` as `virtual`: the diagnostic walk assumes every decision fills immediately, unlike `report strategy`, which reads the executed backtest walk. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
+`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs the first model-driven strategy, `axis-agreement`, over the M15 series and prints its entries and exits. It requires a one-minute-spaced source and rejects a native higher-timeframe file before printing. With `--config`, it uses the run's strategy and model configuration. The JSON envelope marks `execution_state` as `virtual`: the diagnostic walk assumes every decision fills immediately. The standalone `report strategy` is also virtual; only the `strategy` bundle written by `backtest` reads the executed walk. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
 
 - `axis-agreement` enters long when Direction, Momentum force, and Structure score are all above the configured long threshold (default `+0.1`), and short when all are below the configured short threshold (default `-0.1`). Equality at a threshold is neutral. It exits when the agreement is lost; it never reverses on the same bar and never exits at the end of the data.
 - `--data-version <id>` is the caller-supplied identity of the input series; the envelope records it and never infers it from the path.

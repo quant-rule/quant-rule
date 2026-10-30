@@ -28,6 +28,16 @@ fn enter(index: usize, time: i64, side: Side) -> OrderIntent {
         side,
         bar_index: index,
         open_time: time,
+        max_notional: None,
+    }
+}
+
+fn enter_limited(index: usize, time: i64, side: Side, max_notional: f64) -> OrderIntent {
+    OrderIntent::Enter {
+        side,
+        bar_index: index,
+        open_time: time,
+        max_notional: Some(max_notional),
     }
 }
 
@@ -241,6 +251,22 @@ fn a_long_target_gap_fills_at_the_open() {
 }
 
 #[test]
+fn a_long_gap_through_the_target_wins_over_a_later_stop() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
+
+    // The open is already beyond the target, so the target was reached before
+    // the intraday dip to the stop.
+    let third = candle(2, 1800, 104.0, 104.5, 97.0, 104.0, Some(10.0));
+    let batch = step(&mut engine, &third, Some(1.0), OrderIntent::Hold);
+    assert_eq!(batch.fills.len(), 1);
+    assert_eq!(batch.fills[0].reason, FillReason::TakeProfit);
+    approx(batch.fills[0].reference_price, 104.0);
+}
+
+#[test]
 fn the_stop_wins_when_a_long_bar_touches_both() {
     let mut engine = test_engine();
     let (first, second) = entry_series();
@@ -334,6 +360,22 @@ fn a_short_target_gap_fills_at_the_open() {
     step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
 
     let third = candle(2, 1800, 96.0, 97.0, 95.5, 96.0, Some(10.0));
+    let batch = step(&mut engine, &third, Some(1.0), OrderIntent::Hold);
+    assert_eq!(batch.fills.len(), 1);
+    assert_eq!(batch.fills[0].reason, FillReason::TakeProfit);
+    approx(batch.fills[0].reference_price, 96.0);
+}
+
+#[test]
+fn a_short_gap_through_the_target_wins_over_a_later_stop() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Short));
+    step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
+
+    // The open is already below the target, so the target was reached before
+    // the intraday rise to the stop.
+    let third = candle(2, 1800, 96.0, 102.0, 95.5, 96.0, Some(10.0));
     let batch = step(&mut engine, &third, Some(1.0), OrderIntent::Hold);
     assert_eq!(batch.fills.len(), 1);
     assert_eq!(batch.fills[0].reason, FillReason::TakeProfit);
@@ -444,6 +486,24 @@ fn a_missing_or_invalid_atr_rejects_the_entry() {
 }
 
 #[test]
+fn an_entry_above_the_risk_limit_is_capped_at_the_fill() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    step(
+        &mut engine,
+        &first,
+        Some(1.0),
+        enter_limited(0, 0, Side::Long, 50.0),
+    );
+    let batch = step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
+    assert_eq!(batch.fills.len(), 1);
+    let fill = batch.fills[0];
+    assert!(fill.price * fill.quantity <= 50.0 + 1e-9);
+    assert!(fill.quantity < QUANTITY);
+    assert!(engine.position().is_open());
+}
+
+#[test]
 fn a_zero_volume_next_bar_rejects_the_entry() {
     let mut engine = test_engine();
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
@@ -527,6 +587,24 @@ fn an_exit_while_flat_is_rejected() {
     );
     assert_eq!(batch.orders[0].side, OrderSide::Sell);
     assert_eq!(batch.orders[0].quantity, None);
+}
+
+#[test]
+fn an_exit_with_the_wrong_side_is_rejected() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
+
+    let batch = engine
+        .submit(exit(1, 900, Side::Short), None, None)
+        .expect("the intent is valid");
+    assert!(batch.fills.is_empty());
+    assert_eq!(batch.rejections.len(), 1);
+    assert_eq!(batch.rejections[0].reason, RejectReason::WrongExitSide);
+    assert_eq!(batch.orders[0].side, OrderSide::Sell);
+    assert_eq!(batch.orders[0].quantity, Some(QUANTITY));
+    assert!(engine.position().is_open());
 }
 
 #[test]
