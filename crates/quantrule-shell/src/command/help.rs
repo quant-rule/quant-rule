@@ -284,6 +284,7 @@ const COMMANDS: &[CommandHelp] = &[
         output: "NDJSON grouped M1, M5, M15, H1; aggregation, partial, and gap records on stderr.",
         notes: &[
             "M1 is the source; M5, M15, and H1 are derived by the data engine.",
+            "A source whose rows are never closer than 5m, 15m, or 1h is rejected; supply M1 rows.",
             "A complete trailing bucket is published; an incomplete bucket is dropped and counted.",
             "No derived CSV is written.",
         ],

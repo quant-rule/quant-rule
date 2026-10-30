@@ -6,6 +6,10 @@
 //! every expected M1 candle is present, so a partial bucket can never become a
 //! candle. Gaps are recorded between consecutive candles of each series.
 //!
+//! The set accepts sparse whole-minute rows: a gap is data, not an error. The
+//! shell's ladder loader additionally requires the source rows to be
+//! M1-spaced before it publishes the set; see [`crate::SourceCadence`].
+//!
 //! This module performs no I/O and reads no clock. The shell supplies the M1
 //! candles and renders the resulting series.
 
@@ -393,6 +397,15 @@ pub enum TimeframeError {
         /// The rejected timestamp as UTC Unix seconds.
         timestamp: i64,
     },
+    /// The source rows are not spaced as M1 candles.
+    ///
+    /// A ladder built from a native higher-timeframe file would label hourly
+    /// rows `1m` and leave every derived series empty. The shell rejects the
+    /// file instead of publishing that state.
+    SourceCadence {
+        /// The smallest spacing between consecutive source rows, in seconds.
+        observed_seconds: i64,
+    },
     /// The set was already finished.
     Finished,
 }
@@ -412,6 +425,10 @@ impl fmt::Display for TimeframeError {
                 "M1 timestamp {} is not aligned to a 60-second boundary",
                 format_utc_timestamp(*timestamp)
             ),
+            Self::SourceCadence { observed_seconds } => write!(
+                formatter,
+                "source cadence is {observed_seconds}s, not 60s; provide an M1 source file for the timeframe ladder"
+            ),
             Self::Finished => formatter.write_str("the timeframe set is already finished"),
         }
     }
@@ -421,7 +438,9 @@ impl std::error::Error for TimeframeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Window(source) => Some(source),
-            Self::MisalignedM1Timestamp { .. } | Self::Finished => None,
+            Self::MisalignedM1Timestamp { .. } | Self::SourceCadence { .. } | Self::Finished => {
+                None
+            }
         }
     }
 }

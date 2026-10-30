@@ -22,6 +22,11 @@ timeframe ladder
   The configured 1m/5m/15m/1h series. Each timeframe is first-class; M1 is the source and
   M5/M15/H1 are derived by the data engine.
 
+M1 source
+  A CSV whose rows are one minute apart. A ladder consumer rejects a file whose rows are never
+  closer than a coarser timeframe instead of labeling it 1m; the error names the observed
+  cadence.
+
 Direction
   A continuous [-1,+1] score of EMA alignment. Positive is bullish, negative is bearish, and
   zero is neutral alignment, not missing data.

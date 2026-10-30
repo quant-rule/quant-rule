@@ -240,9 +240,9 @@ An unknown topic is an error that points to `help all`.
 | `--data-version <id>` | Required identity of the input series: source, timeframe, and coverage |
 | `--root <dir>` | Export root (default `data`) |
 
-`research export` reads an M1 CSV, builds M1/M5/M15/H1, and writes `<root>/raw/<dataset>/m1.csv` and `<root>/processed/<dataset>/` with `layer1.csv`, `layer2.csv`, `layer3.csv`, `manifest.json`, `data_dictionary.csv`, `data_dictionary.md`, `codes.csv`, and `README.md`. The manifest records the data version, the model and contract versions, the configuration, the row counts, and the data file list. The export is deterministic: the same input and configuration produce byte-identical files. The input is capped at 100,000 M1 candles; an over-cap input fails rather than being truncated.
+`research export` reads an M1 CSV, builds M1/M5/M15/H1, and writes `<root>/raw/<dataset>/m1.csv` and `<root>/processed/<dataset>/` with `layer1.csv`, `layer2.csv`, `layer3.csv`, `manifest.json`, `data_dictionary.csv`, `data_dictionary.md`, `codes.csv`, and `README.md`. A native higher-timeframe file is rejected before any file is written. The manifest records the data version, the model and contract versions, the configuration, the row counts, and the data file list. The export is deterministic: the same input and configuration produce byte-identical files. The input is capped at 100,000 M1 candles; an over-cap input fails rather than being truncated.
 
-`research summary` prints one line per timeframe and axis with the present count, null count, minimum, maximum, mean, and the ten ordinal bucket counts. It then prints one line per timeframe and axis pair with the Pearson correlation of the two continuous values. Ordinal codes are counted, never averaged, and no line combines the axes. The output is deterministic: the same input prints the same text.
+`research summary` prints one line per timeframe and axis with the present count, null count, minimum, maximum, mean, and the ten ordinal bucket counts. It then prints one line per timeframe and axis pair with the Pearson correlation of the two continuous values. Ordinal codes are counted, never averaged, and no line combines the axes. A native higher-timeframe file is rejected before any line is printed. The output is deterministic: the same input prints the same text.
 
 `store init` options:
 
@@ -262,7 +262,7 @@ An unknown topic is an error that points to `help all`.
 | `--data-version <id>` | Required identity of the input series: source, timeframe, and coverage |
 | `--db <path>` | Database path (default `data/quantrule.db`) |
 
-`store ingest` reads one M1 CSV, builds M1/M5/M15/H1 in memory, and writes one `dataset` row, one wide `bar` row per Layer 2 row, one `consensus` row per closed bar per timeframe, one `layer3` row per M1 bar, one `pivot` row per pivot occurrence, one `level` row per confirmed level, one `event` row per event record, and one `leg` row per retained progression leg in a single `BEGIN IMMEDIATE` transaction. It writes the candle, the six readings, the four-axis metrics, and the 12 axis-resolution columns for every ladder bar; a missing value is `NULL` with its unavailable-reason code, and a valid zero stays `0`. The resolution columns carry each axis's continuous value, ordinal bucket, and unavailable reason. The consensus row carries the three axis counts and the weakest directional axis code; a missing axis is excluded, and Progression does not vote. The Layer 3 row carries the as-of M5/M15/H1 block columns and the 82 cross-timeframe aggregate columns over the configured ladder; a missing measurement is `NULL`, a count of zero stays `0`, and a list is `;`-separated text with no spaces, with an empty list stored as an empty string rather than `NULL`. A block that has no closed higher bar yet is `NULL` in all its columns; a new dataset is marked `layer3_materialized = 1`. A #68–#72 dataset is not backfilled and stays `0`. A pivot candidate is available on its occurrence bar; a confirmed pivot carries the confirmation bar as its availability bar and is stored once, with `confirmed_code = 1`, rather than duplicated. Every level carries its `1000 + n` reference code and both its occurrence and availability bars. Every event is stored once, on or after its availability bar, and never before it. Coincident Signal threshold crossings are distinct rows because the threshold value is part of their identity; every other event keeps the original occurrence key. Every retained leg carries its origin, target, progress, displacement, and lifecycle codes; a value that is not yet knowable is `NULL`. The M1 `bar` count equals the accepted source rows; the full count covers the whole ladder. The input is capped at 100,000 M1 candles and a count mismatch or over-cap input is rejected before anything is written. Re-running the same name with the same identity is a no-op that prints `unchanged`; a different identity for an existing name is a conflict and changes nothing. Output is one deterministic line: `ingested <name> bars=<n> timeframes=<k>` or `unchanged <name> bars=<n> timeframes=<k>`.
+`store ingest` reads one M1 CSV, builds M1/M5/M15/H1 in memory, and writes one `dataset` row, one wide `bar` row per Layer 2 row, one `consensus` row per closed bar per timeframe, one `layer3` row per M1 bar, one `pivot` row per pivot occurrence, one `level` row per confirmed level, one `event` row per event record, and one `leg` row per retained progression leg in a single `BEGIN IMMEDIATE` transaction. It writes the candle, the six readings, the four-axis metrics, and the 12 axis-resolution columns for every ladder bar; a missing value is `NULL` with its unavailable-reason code, and a valid zero stays `0`. The resolution columns carry each axis's continuous value, ordinal bucket, and unavailable reason. The consensus row carries the three axis counts and the weakest directional axis code; a missing axis is excluded, and Progression does not vote. The Layer 3 row carries the as-of M5/M15/H1 block columns and the 82 cross-timeframe aggregate columns over the configured ladder; a missing measurement is `NULL`, a count of zero stays `0`, and a list is `;`-separated text with no spaces, with an empty list stored as an empty string rather than `NULL`. A block that has no closed higher bar yet is `NULL` in all its columns; a new dataset is marked `layer3_materialized = 1`. A #68–#72 dataset is not backfilled and stays `0`. A pivot candidate is available on its occurrence bar; a confirmed pivot carries the confirmation bar as its availability bar and is stored once, with `confirmed_code = 1`, rather than duplicated. Every level carries its `1000 + n` reference code and both its occurrence and availability bars. Every event is stored once, on or after its availability bar, and never before it. Coincident Signal threshold crossings are distinct rows because the threshold value is part of their identity; every other event keeps the original occurrence key. Every retained leg carries its origin, target, progress, displacement, and lifecycle codes; a value that is not yet knowable is `NULL`. The M1 `bar` count equals the accepted source rows; the full count covers the whole ladder. The input is capped at 100,000 M1 candles and a count mismatch or over-cap input is rejected before anything is written; a native higher-timeframe file is rejected before the database is opened. Re-running the same name with the same identity is a no-op that prints `unchanged`; a different identity for an existing name is a conflict and changes nothing. Output is one deterministic line: `ingested <name> bars=<n> timeframes=<k>` or `unchanged <name> bars=<n> timeframes=<k>`.
 
 `store verify` reads the same source again, rebuilds the layers, opens the store read-only, and compares the dataset identity, the foreign-key graph, and every row of `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, and `leg`. A success prints `verified <name> bars=<n> tables=7`; the first value, count, or structural mismatch fails with a deterministic message. A dataset with `layer3_materialized = 0` is incomplete and must be re-ingested into a fresh database. Verification never writes, migrates, or repairs the store.
 
@@ -294,8 +294,11 @@ Interactive errors are printed to stderr and keep the session open. Non-interact
 | Timestamp | `YYYY-MM-DD HH:MM:SS+00:00` (UTC) |
 | Columns | Exactly six; volume may be empty |
 | Order | Strictly increasing timestamps for `candles`; out-of-order rows are skipped by `candles-tolerant` |
+| Ladder source | Every ladder consumer requires one-minute spacing when two or more rows are present; a file whose rows are never closer than 5m, 15m, or 1h is rejected |
 
 A header-only file is a valid empty series and prints nothing. In tolerant mode it reports zero counts.
+
+The ladder guard measures every parsed source row before a date bound is applied, so a native higher-timeframe file is rejected even when the requested period would retain only one row. A sparse M1 file with gaps is accepted as soon as one adjacent pair is one minute apart. A single row has no spacing to measure and is accepted; a header-only file remains a valid empty series. The error names the observed spacing and asks for an M1 source.
 
 ### Timeframe construction contract
 
@@ -303,8 +306,8 @@ A header-only file is a valid empty series and prints nothing. In tolerant mode 
 
 | Item | Rule |
 |---|---|
-| Source | Validated M1 rows from the strict CSV reader |
-| M1 validation | Timestamps strictly increasing and aligned to whole UTC minutes; any invalid row aborts the command |
+| Source | Validated M1 rows from the strict CSV reader; when two or more rows are present, the smallest spacing between consecutive rows must be 60s |
+| M1 validation | Timestamps strictly increasing and aligned to whole UTC minutes; a native M5/M15/H1 cadence is rejected; any invalid row aborts the command |
 | Derived series | M5, M15, H1 |
 | Window | 1000 candles per timeframe |
 | Complete bucket | Exactly 5, 15, or 60 M1 candles, checked on bucket transition or at end of input |
@@ -329,7 +332,7 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 ### Market-state contract
 
-`market-state`, `axis`, `events`, and `legs` read an M1 CSV, build the M1/M5/M15/H1 ladder through the data engine, and call the model. They analyze the full series up to the 100,000 M1 cap by default; `--window latest` retains the last 1,000 candles per timeframe. The model publishes numbers; the shell maps the stable numeric codes to labels and never recomputes an axis, aggregate, or event. `events` covers every event in the analyzed window, not only the retained candle tail.
+`market-state`, `axis`, `events`, and `legs` read an M1 CSV, build the M1/M5/M15/H1 ladder through the data engine, and call the model. Every ladder consumer requires one-minute source spacing; a native higher-timeframe file is rejected before the model runs. They analyze the full series up to the 100,000 M1 cap by default; `--window latest` retains the last 1,000 candles per timeframe. The model publishes numbers; the shell maps the stable numeric codes to labels and never recomputes an axis, aggregate, or event. `events` covers every event in the analyzed window, not only the retained candle tail.
 
 `market-state` prints one JSON object with four keys:
 
@@ -384,6 +387,7 @@ The output is deterministic: the same input and configuration produce the same b
 
 - `--data-version <id>` is the caller-supplied identity of the input series; the report records it and never infers it from the path.
 - `--from` and `--to` are inclusive UTC `YYYY-MM-DD` dates. The shell filters the M1 source before building the ladder, and no pre-range warm-up is used. Omitting both uses the file's full coverage.
+- The source must be one-minute spaced. A native higher-timeframe file is rejected before the report is built, including when the date bound would leave only one row; no output directory is created.
 - `--out` must be absent or an empty directory. Every byte is built before the directory is populated, each artifact is written atomically, and a failure removes the partial set. A non-empty directory or an output path that is a file is refused.
 - `--json` prints the exact `report.json` bytes to stdout. Without it, the command prints the four artifact paths in contract order.
 - The chart uses H1, or the slowest available timeframe, reduced to at most 240 buckets. Each bucket keeps the last published axis value; an ordinal code is never averaged.
@@ -394,7 +398,7 @@ The output is deterministic: the same input, range, data version, and configurat
 
 ### Report bundles and backtest
 
-`report <engine> --config <run.json> [--out <dir>] [--json]` runs only the engines one bundle needs and writes it under `<out>/<engine>/`. `backtest --config <run.json> [--out <dir>] [--json]` loads the candles once, runs the pipeline once, and writes all five bundles from that result.
+`report <engine> --config <run.json> [--out <dir>] [--json]` runs only the engines one bundle needs and writes it under `<out>/<engine>/`. `backtest --config <run.json> [--out <dir>] [--json]` loads the candles once, runs the pipeline once, and writes all five bundles from that result. Both require a one-minute-spaced source; a native higher-timeframe file is rejected before any bundle directory is created.
 
 | Bundle | Engines | Artifacts |
 |---|---|---|
@@ -470,7 +474,7 @@ The summary has seven sections: Identity, Artifacts, Observed result, Checks, Ro
 
 ### Strategy-run contract
 
-`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs the first model-driven strategy, `axis-agreement`, over the M15 series and prints its entries and exits. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
+`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs the first model-driven strategy, `axis-agreement`, over the M15 series and prints its entries and exits. It requires a one-minute-spaced source and rejects a native higher-timeframe file before printing. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
 
 - `axis-agreement` enters long when Direction, Momentum force, and Structure score are all above the configured long threshold (default `+0.1`), and short when all are below the configured short threshold (default `-0.1`). Equality at a threshold is neutral. It exits when the agreement is lost; it never reverses on the same bar and never exits at the end of the data.
 - `--data-version <id>` is the caller-supplied identity of the input series; the envelope records it and never infers it from the path.
