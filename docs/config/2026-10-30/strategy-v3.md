@@ -1,7 +1,7 @@
 # Strategy Configuration v3 — Active Ladder and Ladder Context
 
 - Date: 2026-10-30 (UTC)
-- Status: Context builder implemented (#233, PR #242); strategy wiring pending (#235)
+- Status: Context builder (#233) and trade-intent boundary (#234, PR #243) implemented; strategy wiring pending (#235)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#233](https://github.com/quant-rule/quant-rule/issues/233), [#235](https://github.com/quant-rule/quant-rule/issues/235)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)
@@ -144,7 +144,8 @@ The agreement condition is part of this rule. There is no separate
 | `risk.target.multiple` | Finite, `> 0` |
 
 The strategy emits a `TradeIntent`; execution resolves the ATR specification.
-Structural stop/target is future work.
+The execution engine also supports absolute stop and target prices, but this
+rule uses the ATR form. Structural stop/target is future work.
 
 ## 8. Migration
 

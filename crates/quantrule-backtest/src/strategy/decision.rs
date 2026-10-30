@@ -3,7 +3,12 @@
 //! An entry or an exit is a decision, not a fill. The record carries the bar
 //! that produced the decision and the values that justified it; it carries no
 //! fill price, quantity, fee, position, or P&L. Execution owns those.
+//!
+//! An entry carries a [`TradeIntent`], which is the strategy's request for a
+//! side and a risk bracket. Execution resolves the request; the strategy never
+//! sets a fill price, fee, or slippage.
 
+use crate::intent::{StrategyPosition, TradeIntent};
 use crate::side::Side;
 
 use super::input::StrategyInput;
@@ -18,18 +23,30 @@ use super::input::StrategyInput;
 /// # Examples
 ///
 /// ```
+/// use quantrule_backtest::intent::RiskPolicy;
 /// use quantrule_backtest::strategy::{Entry, Side, StrategyInput};
 ///
 /// let bar = StrategyInput::new(900, 0, 0, Some(0.4), Some(0.2), Some(1.0));
-/// let entry = Entry { side: Side::Long, bar };
-/// assert_eq!(entry.side, Side::Long);
+/// let entry = Entry {
+///     bar,
+///     intent: RiskPolicy::default().intent(Side::Long),
+/// };
+/// assert_eq!(entry.side(), Side::Long);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Entry {
-    /// The side to enter.
-    pub side: Side,
     /// The bar whose agreement produced the entry.
     pub bar: StrategyInput,
+    /// The strategy's complete entry request.
+    pub intent: TradeIntent,
+}
+
+impl Entry {
+    /// The side to enter.
+    #[must_use]
+    pub const fn side(&self) -> Side {
+        self.intent.side
+    }
 }
 
 /// An exit decision.
@@ -84,29 +101,30 @@ pub enum Decision {
 /// A causal, stateless strategy over one timeframe.
 ///
 /// The runner calls [`Strategy::decide`] once per closed bar, in ascending
-/// open-time order. The current position is passed in by the caller; execution
-/// and portfolio own it. A strategy must not read a bar it has not been given,
-/// the clock, or any random source. It emits `Enter` only when the position is
-/// `None` and `Exit` only when the position is open.
+/// open-time order. The position execution actually holds is passed in by the
+/// caller; execution and portfolio own it. A strategy must not read a bar it
+/// has not been given, the clock, or any random source. It emits `Enter` only
+/// when the position is flat and `Exit` only when the position is open.
 ///
 /// # Examples
 ///
 /// ```
-/// use quantrule_backtest::strategy::{Decision, Side, Strategy, StrategyInput};
+/// use quantrule_backtest::intent::StrategyPosition;
+/// use quantrule_backtest::strategy::{Decision, Strategy, StrategyInput};
 ///
 /// struct NeverTrades;
 ///
 /// impl Strategy for NeverTrades {
-///     fn decide(&self, _input: &StrategyInput, _position: Option<Side>) -> Decision {
+///     fn decide(&self, _input: &StrategyInput, _position: StrategyPosition) -> Decision {
 ///         Decision::Hold
 ///     }
 /// }
 ///
 /// let strategy = NeverTrades;
 /// let bar = StrategyInput::new(900, 0, 0, None, None, None);
-/// assert_eq!(strategy.decide(&bar, None), Decision::Hold);
+/// assert_eq!(strategy.decide(&bar, StrategyPosition::flat()), Decision::Hold);
 /// ```
 pub trait Strategy {
     /// Decides for one closed bar given the position execution currently holds.
-    fn decide(&self, input: &StrategyInput, position: Option<Side>) -> Decision;
+    fn decide(&self, input: &StrategyInput, position: StrategyPosition) -> Decision;
 }

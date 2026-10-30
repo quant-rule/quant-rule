@@ -11,6 +11,7 @@ use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::PivotScale;
 
 use crate::execution::{ExecutionConfig, RejectReason};
+use crate::intent::RiskPolicy;
 use crate::portfolio::ExitReason;
 use crate::portfolio::{
     CommissionBase, CommissionConfig, CommissionPer, Currency, DrawdownAction, FundingConfig,
@@ -82,8 +83,8 @@ fn config() -> BacktestConfig {
     BacktestConfig {
         model: MarketStateConfig::new(PivotScale::Major),
         strategy: StrategyConfig::new(900, 0.1, -0.1).expect("the strategy config is valid"),
-        execution: ExecutionConfig::with_bracket(0.0, 2.0, 2.0, 3.0)
-            .expect("the execution config is valid"),
+        risk: RiskPolicy::default(),
+        execution: ExecutionConfig::new(0.0, 2.0).expect("the execution config is valid"),
         portfolio: PortfolioConfig {
             initial_cash: 10_000.0,
             currency: Currency::Usd,
@@ -196,7 +197,7 @@ fn the_runner_matches_the_golden_run() {
         .iter()
         .filter_map(|decision| match decision {
             Decision::Hold => None,
-            Decision::Enter(entry) => Some(("enter", side_label(entry.side))),
+            Decision::Enter(entry) => Some(("enter", side_label(entry.intent.side))),
             Decision::Exit(exit) => Some(("exit", side_label(exit.side))),
         })
         .collect();
@@ -482,11 +483,10 @@ fn the_halt_blocks_a_later_entry() {
 }
 
 #[test]
-fn the_configured_bracket_multiples_are_used() {
+fn the_strategy_risk_policy_sets_the_bracket() {
     let candles = candles(320);
     let mut wide = config();
-    wide.execution =
-        ExecutionConfig::with_bracket(0.0, 2.0, 2.0, 10.0).expect("the execution config is valid");
+    wide.risk = RiskPolicy::new(2.0, 5.0).expect("the risk policy is valid");
     let run = run(&candles, &wide);
     let metrics = run.metrics();
 
@@ -531,11 +531,21 @@ fn every_decision_uses_the_execution_position() {
 
     for (position, decision) in run.strategy_walk().positions().iter().zip(run.decisions()) {
         match decision {
-            Decision::Enter(_) => assert_eq!(*position, None),
-            Decision::Exit(exit) => assert_eq!(*position, Some(exit.side)),
+            Decision::Enter(_) => assert!(position.is_flat()),
+            Decision::Exit(exit) => assert_eq!(position.side, Some(exit.side)),
             Decision::Hold => {}
         }
     }
+}
+
+#[test]
+fn the_final_strategy_position_matches_the_portfolio_position() {
+    let run = run(&candles(292), &config());
+    let strategy = run.strategy_walk().final_position();
+    let portfolio = run.metrics().open_position.expect("the fixture ends open");
+
+    assert_eq!(strategy.side, Some(portfolio.side));
+    assert_eq!(strategy.entry_bar, Some(portfolio.entry_bar));
 }
 
 #[test]
@@ -548,20 +558,20 @@ fn a_rejected_short_is_never_an_open_strategy_position() {
     assert!(
         walk.decisions().iter().any(|decision| matches!(
             decision,
-            Decision::Enter(entry) if entry.side == Side::Short
+            Decision::Enter(entry) if entry.intent.side == Side::Short
         )),
         "the fixture must exercise a short entry"
     );
     assert!(
         walk.positions()
             .iter()
-            .all(|position| *position != Some(Side::Short)),
+            .all(|position| position.side != Some(Side::Short)),
         "a rejected short must not become a strategy position"
     );
     for (position, decision) in walk.positions().iter().zip(walk.decisions()) {
         match decision {
-            Decision::Enter(_) => assert_eq!(*position, None),
-            Decision::Exit(exit) => assert_eq!(*position, Some(exit.side)),
+            Decision::Enter(_) => assert!(position.is_flat()),
+            Decision::Exit(exit) => assert_eq!(position.side, Some(exit.side)),
             Decision::Hold => {}
         }
     }

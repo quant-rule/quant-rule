@@ -48,21 +48,31 @@
 //!
 //! # Bracket
 //!
-//! An entry is bracketed with the decision bar's ATR(14), anchored at the entry
-//! fill price:
+//! An entry carries the strategy's [`TradeIntent`]. Execution resolves its stop
+//! and target against the entry fill price and the decision bar's ATR(14):
 //!
-//! | Side | Stop | Target |
+//! | Stop spec | Long | Short |
 //! |---|---|---|
-//! | Long | `fill - 2 * ATR` | `fill + 3 * ATR` |
-//! | Short | `fill + 2 * ATR` | `fill - 3 * ATR` |
+//! | `AtrMultiple { multiple }` | `fill - multiple * ATR` | `fill + multiple * ATR` |
+//! | `Price { price }` | `price` | `price` |
 //!
-//! A missing, zero, or non-finite ATR rejects the entry with
-//! [`RejectReason::MissingAtr`]. A bracket that is not a valid positive
-//! bracket around the fill price rejects it with
-//! [`RejectReason::InvalidBracket`]. The bracket is live from the entry bar
-//! onward, so one bar can fill the entry at its open and trigger the stop or
-//! target later in the same bar. A gap at the open is resolved first; if the
-//! open is between both levels and both are touched, the stop wins.
+//! A `RewardToRisk { multiple }` target is the stop distance times `multiple`,
+//! projected on the profitable side of the fill. A `Price { price }` target is
+//! used as given. Execution never chooses a distance.
+//!
+//! An ATR is required only when the stop is ATR-based. A missing, zero, or
+//! non-finite ATR rejects that entry with [`RejectReason::MissingAtr`]. A stop
+//! or target that is not a valid positive bracket around the fill price
+//! rejects it with [`RejectReason::InvalidBracket`]. An unsupported entry
+//! style, an expired intent, and an intent whose slippage limit is below
+//! execution's configured slippage are rejected with
+//! [`RejectReason::UnsupportedEntryStyle`], [`RejectReason::ExpiredIntent`], and
+//! [`RejectReason::SlippageLimit`]. A rejection leaves the position unchanged.
+//!
+//! The bracket is live from the entry bar onward, so one bar can fill the entry
+//! at its open and trigger the stop or target later in the same bar. A gap at
+//! the open is resolved first; if the open is between both levels and both are
+//! touched, the stop wins.
 //!
 //! A bar with zero volume cannot fill a market order or trigger a bracket.
 //! A zero-volume next bar rejects the pending market order with
@@ -78,24 +88,22 @@
 
 use quantrule_data::Candle;
 
+use crate::intent::{StrategyPosition, TradeIntent};
 use crate::side::Side;
 
 use super::{
-    ExecutionConfig, Fill, FillError, FillReason, Order, OrderError, OrderIntent, OrderRecord,
-    OrderSide, OrderState, Position, PositionError, PositionState, RejectReason, Trigger,
+    ExecutionBatch, ExecutionConfig, ExecutionError, Fill, FillReason, Order, OrderIntent,
+    OrderRecord, OrderSide, OrderState, Position, PositionState, RejectReason, Rejection, Trigger,
+    bracket,
 };
 
-/// The default stop distance in ATR units.
-pub use super::config::DEFAULT_STOP_ATR_MULTIPLE as STOP_ATR_MULTIPLE;
-
-/// The default target distance in ATR units.
-pub use super::config::DEFAULT_TARGET_ATR_MULTIPLE as TARGET_ATR_MULTIPLE;
-
-/// A pending market order and the ATR of the bar that produced it.
+/// A pending market order and the decision that produced it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct PendingOrder {
     order_id: u64,
     order: Order,
+    /// The strategy entry request; `None` for a market exit.
+    intent: Option<TradeIntent>,
     atr14: Option<f64>,
     max_notional: Option<f64>,
 }
@@ -111,78 +119,13 @@ struct RejectedDecision {
     reject_reason: RejectReason,
 }
 
-/// One decision the engine could not execute.
-///
-/// A rejection is not a fill. The engine records it so a caller can see that a
-/// strategy decision had no effect; the strategy itself is not rewritten. The
-/// rejection shares its `order_id` with the order record it resolved.
-///
-/// # Examples
-///
-/// ```
-/// use quantrule_backtest::execution::{Rejection, RejectReason};
-///
-/// let rejection = Rejection {
-///     order_id: 3,
-///     bar: 3,
-///     time: 1_700_002_700,
-///     reason: RejectReason::ZeroVolume,
-/// };
-/// assert_eq!(rejection.reason, RejectReason::ZeroVolume);
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Rejection {
-    /// The id of the order the decision became, or would have become.
-    pub order_id: u64,
-    /// The bar on which the engine refused the order. For
-    /// [`RejectReason::NoNextBar`], this is the order's submission bar.
-    pub bar: usize,
-    /// That bar's open time as UTC Unix seconds.
-    pub time: i64,
-    /// Why the order was refused.
-    pub reason: RejectReason,
-}
-
-/// The orders, fills, and rejections produced by one engine call.
-///
-/// [`ExecutionEngine::advance`], [`ExecutionEngine::submit`], and
-/// [`ExecutionEngine::finish`] each return one batch. Concatenating the
-/// batches in call order yields the run's records; a report keeps the last
-/// order record per id.
-///
-/// # Examples
-///
-/// ```
-/// use quantrule_backtest::execution::ExecutionBatch;
-///
-/// let batch = ExecutionBatch::default();
-/// assert!(batch.is_empty());
-/// assert!(batch.orders.is_empty());
-/// ```
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct ExecutionBatch {
-    /// Order records created or resolved by this call.
-    pub orders: Vec<OrderRecord>,
-    /// Fills produced by this call, in fill-id order.
-    pub fills: Vec<Fill>,
-    /// Decisions refused by this call, in detection order.
-    pub rejections: Vec<Rejection>,
-}
-
-impl ExecutionBatch {
-    /// Whether the call produced no orders, fills, or rejections.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.orders.is_empty() && self.fills.is_empty() && self.rejections.is_empty()
-    }
-}
-
 /// The causal fill simulator for one instrument and one position.
 ///
 /// # Examples
 ///
 /// ```
 /// use quantrule_backtest::execution::{ExecutionConfig, ExecutionEngine, OrderIntent};
+/// use quantrule_backtest::intent::RiskPolicy;
 /// use quantrule_backtest::side::Side;
 /// use quantrule_data::Candle;
 ///
@@ -194,7 +137,7 @@ impl ExecutionBatch {
 /// assert!(engine.advance(&first)?.is_empty());
 /// engine.submit(
 ///     OrderIntent::Enter {
-///         side: Side::Long,
+///         intent: RiskPolicy::default().intent(Side::Long),
 ///         bar_index: 0,
 ///         open_time: 0,
 ///         max_notional: None,
@@ -287,9 +230,15 @@ impl ExecutionEngine {
     /// [`RejectReason::WrongExitSide`]; the engine never closes the opposite
     /// side on a mismatched intent.
     ///
-    /// `atr14` is the decision bar's ATR(14), used to bracket the entry when it
-    /// fills. The decision must carry the last advanced bar's index and open
-    /// time; a mismatch is a caller error, not a rejection.
+    /// `atr14` is the decision bar's ATR(14). It is used only when the entry's
+    /// stop is ATR-based. The decision must carry the last advanced bar's index
+    /// and open time; a mismatch is a caller error, not a rejection.
+    ///
+    /// An entry whose style execution does not fill, whose `valid_until` bar
+    /// has passed, whose slippage limit is below execution's configured
+    /// slippage, or whose stop or target specification is invalid is rejected
+    /// before an order is accepted. A rejected entry leaves the position
+    /// unchanged.
     ///
     /// # Errors
     ///
@@ -311,9 +260,11 @@ impl ExecutionEngine {
         match intent {
             OrderIntent::Hold => {}
             OrderIntent::Enter {
-                side, max_notional, ..
+                intent,
+                max_notional,
+                ..
             } => {
-                let side = order_side(side);
+                let side = order_side(intent.side);
                 if self.position.is_open() {
                     self.reject_decision(
                         &mut batch,
@@ -324,6 +275,18 @@ impl ExecutionEngine {
                             submitted_bar: index,
                             submitted_time: time,
                             reject_reason: RejectReason::PositionAlreadyOpen,
+                        },
+                    );
+                } else if let Some(reject_reason) = self.entry_reject_reason(&intent, index) {
+                    self.reject_decision(
+                        &mut batch,
+                        RejectedDecision {
+                            side,
+                            quantity,
+                            reason: FillReason::Entry,
+                            submitted_bar: index,
+                            submitted_time: time,
+                            reject_reason,
                         },
                     );
                 } else {
@@ -354,6 +317,7 @@ impl ExecutionEngine {
                             self.pending = Some(PendingOrder {
                                 order_id,
                                 order,
+                                intent: Some(intent),
                                 atr14,
                                 max_notional,
                             });
@@ -391,6 +355,7 @@ impl ExecutionEngine {
                     self.pending = Some(PendingOrder {
                         order_id,
                         order,
+                        intent: None,
                         atr14,
                         max_notional: None,
                     });
@@ -438,6 +403,56 @@ impl ExecutionEngine {
             PositionState::Open(position) => Some(position.side),
             PositionState::Flat | PositionState::Closed => None,
         }
+    }
+
+    /// The position as the strategy sees it.
+    ///
+    /// The strategy receives the side, the entry fill bar, and the number of
+    /// closed bars since entry. It never receives the stop, target, quantity,
+    /// or P&L, and it cannot change the position.
+    #[must_use]
+    pub fn position_view(&self) -> StrategyPosition {
+        match self.position {
+            PositionState::Open(position) => {
+                let bars_held = self
+                    .last_bar
+                    .map(|(bar, _)| bar.saturating_sub(position.entry_bar) as u64)
+                    .unwrap_or(0);
+                StrategyPosition {
+                    side: Some(position.side),
+                    entry_bar: Some(position.entry_bar),
+                    bars_held,
+                }
+            }
+            PositionState::Flat | PositionState::Closed => StrategyPosition::flat(),
+        }
+    }
+
+    /// The execution-level rejection reason for an entry request, if any.
+    ///
+    /// These checks are independent of the fill price, so they are applied when
+    /// the order is submitted. A bracket that is invalid only around the actual
+    /// fill is checked when the order fills.
+    fn entry_reject_reason(&self, intent: &TradeIntent, bar_index: usize) -> Option<RejectReason> {
+        if !intent.entry.is_market_next_open() {
+            return Some(RejectReason::UnsupportedEntryStyle);
+        }
+        if let Some(valid_until) = intent.valid_until
+            && bar_index > valid_until
+        {
+            return Some(RejectReason::ExpiredIntent);
+        }
+        if let Some(max_slippage_bps) = intent.max_slippage_bps
+            && (!max_slippage_bps.is_finite()
+                || max_slippage_bps < 0.0
+                || self.config.slippage_bps() > max_slippage_bps)
+        {
+            return Some(RejectReason::SlippageLimit);
+        }
+        if !intent.stop.is_valid() || !intent.target.is_valid() {
+            return Some(RejectReason::InvalidBracket);
+        }
+        None
     }
 
     fn next_order_id(&mut self) -> u64 {
@@ -552,8 +567,10 @@ impl ExecutionEngine {
         time: i64,
         batch: &mut ExecutionBatch,
     ) -> Result<(), ExecutionError> {
-        let Some(atr14) = usable_atr(pending.atr14) else {
-            self.reject_pending(batch, pending, index, time, RejectReason::MissingAtr);
+        let Some(intent) = pending.intent else {
+            // A pending entry always carries its intent. If that invariant is
+            // ever broken, reject the order rather than inventing a bracket.
+            self.reject_pending(batch, pending, index, time, RejectReason::InvalidBracket);
             return Ok(());
         };
 
@@ -588,18 +605,16 @@ impl ExecutionEngine {
             }
         }
 
-        let side = match pending.order.side {
-            OrderSide::Buy => Side::Long,
-            OrderSide::Sell => Side::Short,
-        };
-        let (stop_price, target_price) = bracket(
-            side,
-            fill.price,
-            atr14,
-            self.config.stop_atr_multiple(),
-            self.config.target_atr_multiple(),
-        );
-        if !is_valid_bracket(side, fill.price, stop_price, target_price) {
+        let side = intent.side;
+        let (stop_price, target_price) =
+            match bracket::resolve(side, fill.price, pending.atr14, intent.stop, intent.target) {
+                Ok(bracket) => bracket,
+                Err(reason) => {
+                    self.reject_pending(batch, pending, index, time, reason);
+                    return Ok(());
+                }
+            };
+        if !bracket::is_valid(side, fill.price, stop_price, target_price) {
             self.reject_pending(batch, pending, index, time, RejectReason::InvalidBracket);
             return Ok(());
         }
@@ -871,10 +886,6 @@ fn is_tradable(bar: &Candle) -> bool {
     bar.volume() != Some(0.0)
 }
 
-fn usable_atr(atr14: Option<f64>) -> Option<f64> {
-    atr14.filter(|value| value.is_finite() && *value > 0.0)
-}
-
 /// The quantity an entry may be submitted with.
 ///
 /// A missing quantity and an unusable one are distinct rejections: the first
@@ -885,29 +896,6 @@ fn usable_quantity(quantity: Option<f64>) -> Result<f64, RejectReason> {
         None => Err(RejectReason::MissingQuantity),
         Some(value) if value.is_finite() && value > 0.0 => Ok(value),
         Some(_) => Err(RejectReason::NonPositiveQuantity),
-    }
-}
-
-fn bracket(
-    side: Side,
-    entry: f64,
-    atr: f64,
-    stop_multiple: f64,
-    target_multiple: f64,
-) -> (f64, f64) {
-    match side {
-        Side::Long => (entry - stop_multiple * atr, entry + target_multiple * atr),
-        Side::Short => (entry + stop_multiple * atr, entry - target_multiple * atr),
-    }
-}
-
-fn is_valid_bracket(side: Side, entry: f64, stop: f64, target: f64) -> bool {
-    if !stop.is_finite() || stop <= 0.0 || !target.is_finite() || target <= 0.0 {
-        return false;
-    }
-    match side {
-        Side::Long => stop < entry && entry < target,
-        Side::Short => target < entry && entry < stop,
     }
 }
 
@@ -955,79 +943,5 @@ fn order_side(side: Side) -> OrderSide {
     match side {
         Side::Long => OrderSide::Buy,
         Side::Short => OrderSide::Sell,
-    }
-}
-
-/// A fill or decision could not be simulated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExecutionError {
-    /// A decision was submitted before any bar had been advanced.
-    SubmitBeforeAdvance,
-    /// The decision carries a different bar index than the bar it was given
-    /// with.
-    DecisionBarMismatch {
-        /// The engine's next bar index.
-        expected: usize,
-        /// The decision's bar index.
-        found: usize,
-    },
-    /// The decision carries a different open time than the bar it was given
-    /// with.
-    DecisionTimeMismatch {
-        /// The bar's open time.
-        expected: i64,
-        /// The decision's open time.
-        found: i64,
-    },
-    /// The configured slippage is at least 100% of the reference price.
-    SlippageAtOrAboveOne,
-    /// A bracket fill was labelled as an entry or exit, which cannot happen.
-    UnexpectedFillReason,
-    /// An order could not be constructed.
-    Order(OrderError),
-    /// A fill could not be constructed.
-    Fill(FillError),
-    /// A position could not be constructed.
-    Position(PositionError),
-}
-
-impl std::fmt::Display for ExecutionError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::SubmitBeforeAdvance => {
-                write!(
-                    formatter,
-                    "a decision cannot be submitted before a bar is advanced"
-                )
-            }
-            Self::DecisionBarMismatch { expected, found } => write!(
-                formatter,
-                "the decision is for bar {found}, but the engine expects bar {expected}"
-            ),
-            Self::DecisionTimeMismatch { expected, found } => write!(
-                formatter,
-                "the decision is for time {found}, but the bar opens at {expected}"
-            ),
-            Self::SlippageAtOrAboveOne => {
-                write!(formatter, "the execution slippage must be below 100%")
-            }
-            Self::UnexpectedFillReason => {
-                write!(formatter, "a bracket fill must be a stop or a target")
-            }
-            Self::Order(source) => source.fmt(formatter),
-            Self::Fill(source) => source.fmt(formatter),
-            Self::Position(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for ExecutionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Order(source) => Some(source),
-            Self::Fill(source) => Some(source),
-            Self::Position(source) => Some(source),
-            _ => None,
-        }
     }
 }

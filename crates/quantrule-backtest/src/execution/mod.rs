@@ -34,12 +34,29 @@
 //!
 //! # Position bracket
 //!
-//! An entry fill opens a position bracketed by the decision bar's ATR(14),
-//! anchored at the fill price: a long stop is `fill - 2 * ATR` and its target
-//! is `fill + 3 * ATR`; a short stop is `fill + 2 * ATR` and its target is
-//! `fill - 3 * ATR`. The bracket is live from the entry bar onward, so one bar
-//! can fill the entry at its open and trigger the stop or target later in the
-//! same bar. A missing or non-positive ATR rejects the entry.
+//! An entry carries a [`crate::intent::TradeIntent`]. Execution resolves the
+//! stop and target against the fill price and the decision bar's ATR(14):
+//!
+//! | Stop spec | Long | Short |
+//! |---|---|---|
+//! | `AtrMultiple { multiple }` | `fill - multiple * ATR` | `fill + multiple * ATR` |
+//! | `Price { price }` | `price` | `price` |
+//!
+//! A `RewardToRisk { multiple }` target is the stop distance multiplied by
+//! `multiple`, projected on the profitable side of the fill; a
+//! `Price { price }` target is used as given. Execution never chooses a
+//! distance. A missing ATR is required only when the stop is ATR-based; an
+//! absolute stop and an absolute target need no ATR. The bracket is live from
+//! the entry bar onward, so one bar can fill the entry at its open and trigger
+//! the stop or target later in the same bar.
+//!
+//! The entry is rejected with [`RejectReason::UnsupportedEntryStyle`] for an
+//! entry style execution does not fill, with [`RejectReason::ExpiredIntent`]
+//! when its submission bar is past `valid_until`, with
+//! [`RejectReason::SlippageLimit`] when execution's configured slippage exceeds
+//! the intent's `max_slippage_bps`, and with
+//! [`RejectReason::InvalidBracket`] when the resolved levels do not bracket the
+//! fill on the correct side. A rejection leaves the position unchanged.
 //!
 //! A bar with zero volume cannot fill a market order or trigger a bracket. An
 //! absent volume is not zero: it is treated as tradable. An order that has no
@@ -51,22 +68,26 @@
 //! [`ExecutionBatch`]. Position sizing, cash, equity, and P&L are outside this
 //! module.
 
+mod batch;
+mod bracket;
 mod config;
 mod engine;
 #[cfg(test)]
 mod engine_tests;
+mod error;
 mod fill;
 mod intent;
+#[cfg(test)]
+mod intent_tests;
 mod order;
 mod position;
 #[cfg(test)]
 mod tests;
 
+pub use batch::{ExecutionBatch, Rejection};
 pub use config::{ExecutionConfig, ExecutionConfigError};
-pub use engine::{
-    ExecutionBatch, ExecutionEngine, ExecutionError, Rejection, STOP_ATR_MULTIPLE,
-    TARGET_ATR_MULTIPLE,
-};
+pub use engine::ExecutionEngine;
+pub use error::ExecutionError;
 pub use fill::{Fill, FillError, FillReason};
 pub use intent::OrderIntent;
 pub use order::{Order, OrderError, OrderRecord, OrderSide, OrderState, RejectReason, Trigger};

@@ -2,15 +2,16 @@
 
 use quantrule_data::Candle;
 
+use crate::intent::{RiskPolicy, TradeIntent};
 use crate::side::Side;
 
 use super::*;
 
 const FEE_RATE: f64 = 0.001;
-const SLIPPAGE_BPS: f64 = 2.0;
+pub(super) const SLIPPAGE_BPS: f64 = 2.0;
 const QUANTITY: f64 = 1.0;
 
-fn candle(
+pub(super) fn candle(
     index: usize,
     time: i64,
     open: f64,
@@ -23,22 +24,31 @@ fn candle(
         .expect("the test candle is valid")
 }
 
-fn enter(index: usize, time: i64, side: Side) -> OrderIntent {
+pub(super) fn enter(index: usize, time: i64, side: Side) -> OrderIntent {
+    enter_with(index, time, RiskPolicy::default().intent(side), None)
+}
+
+pub(super) fn enter_with(
+    index: usize,
+    time: i64,
+    intent: TradeIntent,
+    max_notional: Option<f64>,
+) -> OrderIntent {
     OrderIntent::Enter {
-        side,
+        intent,
         bar_index: index,
         open_time: time,
-        max_notional: None,
+        max_notional,
     }
 }
 
 fn enter_limited(index: usize, time: i64, side: Side, max_notional: f64) -> OrderIntent {
-    OrderIntent::Enter {
-        side,
-        bar_index: index,
-        open_time: time,
-        max_notional: Some(max_notional),
-    }
+    enter_with(
+        index,
+        time,
+        RiskPolicy::default().intent(side),
+        Some(max_notional),
+    )
 }
 
 fn exit(index: usize, time: i64, side: Side) -> OrderIntent {
@@ -49,26 +59,26 @@ fn exit(index: usize, time: i64, side: Side) -> OrderIntent {
     }
 }
 
-fn test_engine() -> ExecutionEngine {
+pub(super) fn test_engine() -> ExecutionEngine {
     ExecutionEngine::new(ExecutionConfig::new(FEE_RATE, SLIPPAGE_BPS).expect("the costs are valid"))
         .expect("the engine is valid")
 }
 
-fn approx(actual: f64, expected: f64) {
+pub(super) fn approx(actual: f64, expected: f64) {
     assert!(
         (actual - expected).abs() < 1e-9,
         "expected {expected}, got {actual}"
     );
 }
 
-fn open_position(engine: &ExecutionEngine) -> Position {
+pub(super) fn open_position(engine: &ExecutionEngine) -> Position {
     let PositionState::Open(position) = engine.position() else {
         panic!("expected an open position, got {:?}", engine.position());
     };
     position
 }
 
-fn advance(engine: &mut ExecutionEngine, bar: &Candle) -> ExecutionBatch {
+pub(super) fn advance(engine: &mut ExecutionEngine, bar: &Candle) -> ExecutionBatch {
     engine.advance(bar).expect("the bar is valid")
 }
 
@@ -90,7 +100,7 @@ fn step_quantity(
 }
 
 /// Advances `bar` and submits `intent` with the test quantity and ATR.
-fn step(
+pub(super) fn step(
     engine: &mut ExecutionEngine,
     bar: &Candle,
     atr: Option<f64>,
@@ -100,7 +110,7 @@ fn step(
 }
 
 /// Bars 0 and 1: a long entry decided on bar 0 fills on bar 1 at 100.
-fn entry_series() -> (Candle, Candle) {
+pub(super) fn entry_series() -> (Candle, Candle) {
     (
         candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0)),
         candle(1, 900, 100.0, 101.0, 99.5, 100.5, Some(10.0)),

@@ -18,7 +18,7 @@ use super::fill::FillReason;
 ///
 /// This is the direction of the trade, not the direction of the position. A
 /// long entry is a buy, and closing that long is a sell. The position's own
-/// long/short direction is [`crate::strategy::Side`].
+/// long/short direction is [`crate::side::Side`].
 ///
 /// # Examples
 ///
@@ -159,12 +159,18 @@ pub enum RejectReason {
     PositionAlreadyOpen,
     /// The next bar has zero volume, so no fill is possible.
     ZeroVolume,
-    /// The decision bar had no usable ATR(14), so no stop or target could be
+    /// The decision bar had no usable ATR(14), so an ATR stop could not be
     /// derived.
     MissingAtr,
-    /// The ATR-derived stop or target was not a valid positive bracket around
+    /// The resolved stop or target was not a valid positive bracket around
     /// the entry price.
     InvalidBracket,
+    /// The intent named an entry style execution does not fill.
+    UnsupportedEntryStyle,
+    /// The intent's `valid_until` bar is before the submission bar.
+    ExpiredIntent,
+    /// Execution's configured slippage exceeds the intent's maximum.
+    SlippageLimit,
     /// An entry decision carried no quantity, because sizing produced none.
     MissingQuantity,
     /// An entry decision carried a quantity that is zero, negative, or not
@@ -275,6 +281,7 @@ impl Order {
 ///
 /// ```
 /// use quantrule_backtest::execution::{ExecutionConfig, ExecutionEngine, OrderIntent, OrderState};
+/// use quantrule_backtest::intent::RiskPolicy;
 /// use quantrule_backtest::side::Side;
 /// use quantrule_data::Candle;
 ///
@@ -284,7 +291,7 @@ impl Order {
 /// engine.advance(&first)?;
 /// let batch = engine.submit(
 ///     OrderIntent::Enter {
-///         side: Side::Long,
+///         intent: RiskPolicy::default().intent(Side::Long),
 ///         bar_index: 0,
 ///         open_time: 0,
 ///         max_notional: None,

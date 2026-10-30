@@ -117,8 +117,6 @@ impl RunConfig {
         let execution = execution::parse(
             &load_document(&paths.execution, display(&run.execution))?,
             display(&run.execution),
-            strategy.stop_atr_multiple,
-            strategy.target_atr_multiple(),
         )?;
         let portfolio = portfolio::parse(
             &load_document(&paths.portfolio, display(&run.portfolio))?,

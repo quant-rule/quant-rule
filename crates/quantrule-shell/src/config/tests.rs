@@ -532,7 +532,8 @@ fn strategy_matches_the_contract() {
     assert_eq!(valid.engine.timeframe_secs(), 900);
     assert_eq!(valid.engine.long_threshold(), 0.1);
     assert_eq!(valid.engine.short_threshold(), -0.1);
-    assert_eq!(valid.stop_atr_multiple, 2.0);
+    assert_eq!(valid.stop_atr_multiple(), 2.0);
+    assert_eq!(valid.reward_to_risk(), 1.5);
     assert_eq!(valid.target_atr_multiple(), 3.0);
 
     for (value, kind, path) in [
@@ -620,13 +621,11 @@ fn execution_object() -> Value {
 
 #[test]
 fn execution_matches_the_contract() {
-    let valid = execution::parse(&execution_object(), "execution.json", 2.0, 3.0)
-        .expect("the valid config loads");
+    let valid =
+        execution::parse(&execution_object(), "execution.json").expect("the valid config loads");
     assert_eq!(valid.fill_timeframe, Timeframe::M15);
     assert_eq!(valid.engine.fee_rate(), 0.0);
     assert_eq!(valid.engine.slippage_bps(), 2.0);
-    assert_eq!(valid.engine.stop_atr_multiple(), 2.0);
-    assert_eq!(valid.engine.target_atr_multiple(), 3.0);
 
     for (value, kind, path) in [
         (json!(1), Type, "$"),
@@ -690,11 +689,7 @@ fn execution_matches_the_contract() {
             "$.end_of_data",
         ),
     ] {
-        assert_rejected(
-            execution::parse(&value, "execution.json", 2.0, 3.0),
-            kind,
-            path,
-        );
+        assert_rejected(execution::parse(&value, "execution.json"), kind, path);
     }
 }
 
@@ -1162,14 +1157,13 @@ fn the_example_config_loads_and_resolves() {
     assert_eq!(config.strategy.engine.timeframe_secs(), 900);
     assert_eq!(config.strategy.engine.long_threshold(), 0.1);
     assert_eq!(config.strategy.engine.short_threshold(), -0.1);
-    assert_eq!(config.strategy.stop_atr_multiple, 2.0);
-    assert_eq!(config.strategy.reward_to_risk, 1.5);
+    assert_eq!(config.strategy.stop_atr_multiple(), 2.0);
+    assert_eq!(config.strategy.reward_to_risk(), 1.5);
+    assert_eq!(config.strategy.risk().stop_atr_multiple(), 2.0);
 
     assert_eq!(config.execution.fill_timeframe, Timeframe::M15);
     assert_eq!(config.execution.engine.fee_rate(), 0.0);
     assert_eq!(config.execution.engine.slippage_bps(), 2.0);
-    assert_eq!(config.execution.engine.stop_atr_multiple(), 2.0);
-    assert_eq!(config.execution.engine.target_atr_multiple(), 3.0);
 
     assert_eq!(config.portfolio.initial_cash, 10_000.0);
     assert_eq!(

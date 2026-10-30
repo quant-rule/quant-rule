@@ -16,6 +16,7 @@
 use std::io::{self, Write};
 use std::path::PathBuf;
 
+use quantrule_backtest::intent::RiskPolicy;
 use quantrule_backtest::runner::walk_strategy;
 use quantrule_backtest::strategy::{
     Decision, ExitReason, Side, StrategyConfig, StrategyInput, StrategyWalk,
@@ -195,12 +196,16 @@ pub(crate) fn run_strategy_run(
     args: &StrategyRunArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let (config, model_config) = match &args.config {
+    let (config, risk, model_config) = match &args.config {
         Some(path) => {
             let run = crate::config::RunConfig::load(path).map_err(RunError::Config)?;
-            (run.strategy.engine, run.model)
+            (run.strategy.engine, run.strategy.risk(), run.model)
         }
-        None => (StrategyConfig::default(), MarketStateConfig::default()),
+        None => (
+            StrategyConfig::default(),
+            RiskPolicy::default(),
+            MarketStateConfig::default(),
+        ),
     };
     if !is_supported_strategy(&args.strategy) {
         return Err(RunError::StrategyRun(StrategyRunError::UnknownStrategy {
@@ -230,10 +235,11 @@ pub(crate) fn run_strategy_run(
             })
         })?;
 
-    let walk = walk_strategy(model, &config).map_err(RunError::Backtest)?;
+    let walk = walk_strategy(model, &config, risk).map_err(RunError::Backtest)?;
     let records = collect_records(&walk);
     if args.json {
-        write_line(&envelope_value(args, &config, &records), writer).map_err(RunError::Output)?;
+        write_line(&envelope_value(args, &config, risk, &records), writer)
+            .map_err(RunError::Output)?;
     } else {
         for record in &records {
             write_line(record, writer).map_err(RunError::Output)?;
@@ -258,7 +264,7 @@ fn collect_records(walk: &StrategyWalk) -> Vec<Value> {
         match decision {
             Decision::Hold => {}
             Decision::Enter(entry) => {
-                records.push(record_value("entry", entry.side, None, input));
+                records.push(record_value("entry", entry.intent.side, None, input));
             }
             Decision::Exit(exit) => {
                 records.push(record_value("exit", exit.side, Some(exit.reason), input));
@@ -293,7 +299,12 @@ fn record_value(
     value
 }
 
-fn envelope_value(args: &StrategyRunArgs, config: &StrategyConfig, records: &[Value]) -> Value {
+fn envelope_value(
+    args: &StrategyRunArgs,
+    config: &StrategyConfig,
+    risk: RiskPolicy,
+    records: &[Value],
+) -> Value {
     json!({
         "model_version": env!("CARGO_PKG_VERSION"),
         "strategy": &args.strategy,
@@ -301,6 +312,10 @@ fn envelope_value(args: &StrategyRunArgs, config: &StrategyConfig, records: &[Va
             "timeframe_secs": config.timeframe_secs(),
             "long_threshold": config.long_threshold(),
             "short_threshold": config.short_threshold(),
+            "risk": {
+                "stop_atr_multiple": risk.stop_atr_multiple(),
+                "reward_to_risk": risk.reward_to_risk(),
+            },
         },
         "data_version": &args.data_version,
         "execution_state": "virtual",

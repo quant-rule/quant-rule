@@ -3,7 +3,8 @@
 //! Execution owns how a decision becomes a fill: the fill timeframe, the order
 //! type, the tie rule, slippage, fees, and the zero-volume/end-of-data policy.
 //! It does not own the strategy's risk/reward. The bracket distances arrive from
-//! `strategy.json` and are carried into the engine as explicit parameters.
+//! `strategy.json` as a `TradeIntent` and are resolved by the execution engine,
+//! not stored in this file.
 
 use quantrule_backtest::execution::ExecutionConfig;
 use quantrule_data::Timeframe;
@@ -16,7 +17,7 @@ use super::read::{self, ROOT};
 /// The resolved `execution.json`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ExecutionRunConfig {
-    /// The costs and the bracket multiples derived from the strategy risk.
+    /// The costs and fill mechanics.
     pub(crate) engine: ExecutionConfig,
     /// The timeframe fills are simulated on; it must equal the strategy
     /// timeframe.
@@ -25,14 +26,9 @@ pub(crate) struct ExecutionRunConfig {
 
 /// Parses `execution.json`.
 ///
-/// `stop_atr_multiple` and `target_atr_multiple` come from the strategy's risk
-/// block; the execution file must not duplicate them.
-pub(crate) fn parse(
-    value: &Value,
-    file: &str,
-    stop_atr_multiple: f64,
-    target_atr_multiple: f64,
-) -> Result<ExecutionRunConfig, ConfigError> {
+/// The file owns costs and mechanics only. Stop and target distances are part
+/// of the strategy's risk intent; the execution file must not duplicate them.
+pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::check_fields(
         file,
@@ -111,13 +107,9 @@ pub(crate) fn parse(
         "leave_open",
     )?;
 
-    let engine = ExecutionConfig::with_bracket(
-        fee_rate,
-        slippage_bps,
-        stop_atr_multiple,
-        target_atr_multiple,
-    )
-    .map_err(|error| ConfigError::range(file, "$", "valid execution costs", &error.to_string()))?;
+    let engine = ExecutionConfig::new(fee_rate, slippage_bps).map_err(|error| {
+        ConfigError::range(file, "$", "valid execution costs", &error.to_string())
+    })?;
 
     Ok(ExecutionRunConfig {
         engine,
@@ -155,10 +147,10 @@ mod tests {
     }
 
     #[test]
-    fn parses_the_fill_mechanics_and_applies_the_strategy_bracket() {
-        let execution = parse(&valid(), "execution.json", 2.0, 3.0).expect("the file is valid");
-        assert_eq!(execution.engine.stop_atr_multiple(), 2.0);
-        assert_eq!(execution.engine.target_atr_multiple(), 3.0);
+    fn parses_the_fill_mechanics() {
+        let execution = parse(&valid(), "execution.json").expect("the file is valid");
+        assert_eq!(execution.engine.fee_rate(), 0.0);
+        assert_eq!(execution.engine.slippage_bps(), 2.0);
         assert_eq!(execution.fill_timeframe.code(), "15m");
     }
 
@@ -167,7 +159,16 @@ mod tests {
         let mut value = valid();
         value["stop_atr_multiple"] = json!(2.0);
         assert_eq!(
-            parse(&value, "execution.json", 2.0, 3.0)
+            parse(&value, "execution.json")
+                .expect_err("the bracket moved to the strategy")
+                .kind(),
+            ConfigErrorKind::UnknownField
+        );
+
+        let mut value = valid();
+        value["target_atr_multiple"] = json!(3.0);
+        assert_eq!(
+            parse(&value, "execution.json")
                 .expect_err("the bracket moved to the strategy")
                 .kind(),
             ConfigErrorKind::UnknownField

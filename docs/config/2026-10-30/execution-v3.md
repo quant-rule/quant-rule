@@ -1,7 +1,7 @@
 # Execution Configuration v3 — Fill Mechanics Only
 
 - Date: 2026-10-30 (UTC)
-- Status: Approved; implementation pending
+- Status: Approved; bracket resolution and risk-free execution config implemented (#234, PR #243); v3 schema pending (#235–#237)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#234](https://github.com/quant-rule/quant-rule/issues/234)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - Trade intent: [`docs/config/2026-10-30/trade-intent.md`](trade-intent.md)
@@ -68,23 +68,28 @@ Execution may not:
 
 ## 5. Bracket resolution
 
-Execution resolves:
+Execution resolves the strategy's `StopSpec` and `TargetSpec`:
 
 ```text
-long:  stop = fill - stop_multiple * ATR(decision_bar)
-       target = fill + stop_distance * reward_to_risk
-short: stop = fill + stop_multiple * ATR(decision_bar)
-       target = fill - stop_distance * reward_to_risk
+ATR stop:  stop_distance = stop_multiple * ATR(decision_bar)
+Price stop: stop_distance = |fill - stop_price|
+
+long:  stop = fill - stop_distance                 (ATR) or stop_price
+       target = fill + stop_distance * reward_to_risk (R:R) or target_price
+short: stop = fill + stop_distance                 (ATR) or stop_price
+       target = fill - stop_distance * reward_to_risk (R:R) or target_price
 ```
 
-The ATR comes from the decision bar. The strategy never reads ATR; it emits the
-specification.
+An ATR is required only for an ATR stop. An absolute stop with a
+reward-to-risk target uses the absolute stop distance. The strategy never reads
+ATR; it emits the specification. Execution never chooses a distance.
 
 ## 6. Position state
 
-Execution reports the actual position side to the runner. The runner passes that
-position to the strategy on the next bar. A rejected entry cannot become a
-strategy position. A bracket exit updates the position before the next decision.
+Execution reports the actual position as a `StrategyPosition` (`side`,
+`entry_bar`, `bars_held`) to the runner. The runner passes that position to the
+strategy on the next bar. A rejected entry cannot become a strategy position. A
+bracket exit updates the position before the next decision.
 
 ## 7. Compatibility
 

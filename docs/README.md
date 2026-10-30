@@ -48,8 +48,8 @@ implemented by #230; the remaining target contracts wait for their code phases.
 | Available timeframes | `quantrule.data/v3`; implemented by #230 | `docs/config/2026-10-30/data-v3.md` |
 | Per-timeframe model | `quantrule.model/v2`; readings implemented (#231) | `docs/config/2026-10-30/model-v2.md` |
 | Active ladder and context | Context builder implemented (#233); strategy wiring pending (#235) | `docs/config/2026-10-30/strategy-v3.md` |
-| Fill mechanics | `quantrule.execution/v3`; implementation pending (#234) | `docs/config/2026-10-30/execution-v3.md` |
-| Strategy/execution boundary | `TradeIntent`; implementation pending (#234) | `docs/config/2026-10-30/trade-intent.md` |
+| Fill mechanics | `quantrule.execution/v3`; bracket resolution and risk-free config implemented (#234), v3 schema pending | `docs/config/2026-10-30/execution-v3.md` |
+| Strategy/execution boundary | `TradeIntent`; implemented (#234); strategy wiring pending (#235) | `docs/config/2026-10-30/trade-intent.md` |
 
 ## Current evidence
 
@@ -101,7 +101,7 @@ implemented by #230; the remaining target contracts wait for their code phases.
 | Remaining MVP audit remediation (AUD-02…11) | Merged; all findings `Verified` | `docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md` |
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | MVP pre-release audit closure | All findings `Verified`; AUD-04 validation recorded | `docs/audits/2026-10-30/mvp-pre-release-closure.md` |
-| Unified timeframe ladder | Approved (#228); Phases 1–4 merged; Phase 5 (#233) PR [#242](https://github.com/quant-rule/quant-rule/pull/242) open, CI passed; phases #234–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
+| Unified timeframe ladder | Approved (#228); Phases 1–5 merged; Phase 6 (#234) PR [#243](https://github.com/quant-rule/quant-rule/pull/243) open, CI passed; phases #235–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

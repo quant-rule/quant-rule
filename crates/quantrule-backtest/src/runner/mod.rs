@@ -25,6 +25,7 @@ use quantrule_model::timeframe::TimeframeModel;
 use crate::execution::{
     ExecutionBatch, ExecutionConfig, ExecutionEngine, ExecutionError, OrderIntent,
 };
+use crate::intent::{RiskPolicy, StrategyPosition};
 use crate::portfolio::{PortfolioConfig, PortfolioLedger, PortfolioLedgerError, PortfolioMetrics};
 use crate::strategy::{
     Agreement, AgreementCounts, AxisAgreementStrategy, Decision, Strategy, StrategyConfig,
@@ -41,7 +42,9 @@ pub struct BacktestConfig {
     pub model: MarketStateConfig,
     /// The strategy's timeframe and thresholds.
     pub strategy: StrategyConfig,
-    /// Execution's costs and bracket multiples.
+    /// The strategy's human-owned risk policy.
+    pub risk: RiskPolicy,
+    /// Execution's fill mechanics and costs.
     pub execution: ExecutionConfig,
     /// The portfolio's capital, costs, and risk limits.
     pub portfolio: PortfolioConfig,
@@ -128,10 +131,10 @@ pub fn run_backtest(
     let model = ModelRun::compute(inputs, &config.model);
     let mut execution = ExecutionEngine::new(config.execution).map_err(BacktestError::Execution)?;
     let mut ledger = PortfolioLedger::new(config.portfolio).map_err(BacktestError::Ledger)?;
-    let strategy = AxisAgreementStrategy::new(config.strategy);
+    let strategy = AxisAgreementStrategy::with_risk(config.strategy, config.risk);
     let mut inputs_seen = Vec::new();
     let mut decisions = Vec::new();
-    let mut positions = Vec::new();
+    let mut positions: Vec<StrategyPosition> = Vec::new();
     let mut agreements = AgreementCounts::default();
     let mut batches = Vec::new();
 
@@ -169,14 +172,14 @@ pub fn run_backtest(
                 Some(Agreement::Neutral) => agreements.neutral += 1,
                 None => agreements.unavailable += 1,
             }
-            let position = execution.position_side();
+            let position = execution.position_view();
             let decision = strategy.decide(&input, position);
             inputs_seen.push(input);
             decisions.push(decision);
             positions.push(position);
 
             let quantity = match decision {
-                Decision::Enter(entry) => ledger.size_entry(entry.side, candle.close()).ok(),
+                Decision::Enter(entry) => ledger.size_entry(entry.intent.side, candle.close()).ok(),
                 Decision::Exit(_) | Decision::Hold => None,
             };
             let atr14 = match decision {
@@ -188,7 +191,7 @@ pub fn run_backtest(
             let intent = match decision {
                 Decision::Hold => OrderIntent::Hold,
                 Decision::Enter(entry) => OrderIntent::Enter {
-                    side: entry.side,
+                    intent: entry.intent,
                     bar_index: entry.bar.bar_index,
                     open_time: entry.bar.open_time,
                     max_notional: Some(max_entry_notional),
@@ -219,7 +222,7 @@ pub fn run_backtest(
         decisions,
         positions,
         agreements,
-        execution.position_side(),
+        execution.position_view(),
     );
 
     Ok(BacktestRun {
@@ -244,9 +247,10 @@ pub fn run_backtest(
 pub fn walk_strategy(
     timeframe: &TimeframeModel,
     config: &StrategyConfig,
+    risk: RiskPolicy,
 ) -> Result<StrategyWalk, BacktestError> {
-    let strategy = AxisAgreementStrategy::new(*config);
-    let mut position = None;
+    let strategy = AxisAgreementStrategy::with_risk(*config, risk);
+    let mut position = StrategyPosition::flat();
     let mut inputs = Vec::with_capacity(timeframe.len());
     let mut decisions = Vec::with_capacity(timeframe.len());
     let mut positions = Vec::with_capacity(timeframe.len());
@@ -263,11 +267,16 @@ pub fn walk_strategy(
             Some(Agreement::Neutral) => agreements.neutral += 1,
             None => agreements.unavailable += 1,
         }
+        if position.is_open() {
+            position.bars_held += 1;
+        }
         let decision = strategy.decide(&input, position);
         positions.push(position);
         match decision {
-            Decision::Enter(entry) => position = Some(entry.side),
-            Decision::Exit(_) => position = None,
+            Decision::Enter(entry) => {
+                position = StrategyPosition::opened(entry.intent.side, input.bar_index);
+            }
+            Decision::Exit(_) => position = StrategyPosition::flat(),
             Decision::Hold => {}
         }
         inputs.push(input);

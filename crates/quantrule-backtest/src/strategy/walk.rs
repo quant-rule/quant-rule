@@ -1,9 +1,11 @@
 //! The strategy walk over one timeframe.
 //!
 //! The walk records the per-bar strategy input, the decision it produced, the
-//! agreement counts, and the strategy's final position. It is computed once by
-//! the runner and reused by the reports; the shell never re-walks the strategy.
+//! position execution actually held on that bar, the agreement counts, and the
+//! final position. It is computed once by the runner and reused by the reports;
+//! the shell never re-walks the strategy.
 
+use crate::intent::StrategyPosition;
 use crate::side::Side;
 
 use super::decision::Decision;
@@ -27,25 +29,25 @@ pub struct AgreementCounts {
 pub struct StrategyWalk {
     inputs: Vec<StrategyInput>,
     decisions: Vec<Decision>,
-    positions: Vec<Option<Side>>,
+    positions: Vec<StrategyPosition>,
     agreements: AgreementCounts,
-    open_position: Option<Side>,
+    final_position: StrategyPosition,
 }
 
 impl StrategyWalk {
     pub(crate) fn new(
         inputs: Vec<StrategyInput>,
         decisions: Vec<Decision>,
-        positions: Vec<Option<Side>>,
+        positions: Vec<StrategyPosition>,
         agreements: AgreementCounts,
-        open_position: Option<Side>,
+        final_position: StrategyPosition,
     ) -> Self {
         Self {
             inputs,
             decisions,
             positions,
             agreements,
-            open_position,
+            final_position,
         }
     }
 
@@ -61,12 +63,12 @@ impl StrategyWalk {
         &self.decisions
     }
 
-    /// The position supplied to the rule on each bar, oldest first.
+    /// The position execution supplied to the rule on each bar, oldest first.
     ///
     /// This is the execution position in a backtest walk and the virtual
-    /// position in the diagnostic walk.
+    /// position in the diagnostic walk. The strategy never owns either one.
     #[must_use]
-    pub fn positions(&self) -> &[Option<Side>] {
+    pub fn positions(&self) -> &[StrategyPosition] {
         &self.positions
     }
 
@@ -76,14 +78,20 @@ impl StrategyWalk {
         self.agreements
     }
 
-    /// The final position, or `None` when flat.
+    /// The final position, or flat when the run ended flat.
+    #[must_use]
+    pub const fn final_position(&self) -> StrategyPosition {
+        self.final_position
+    }
+
+    /// The final position's side, or `None` when flat.
     ///
-    /// In a backtest walk this is the position execution actually holds. In the
-    /// diagnostic walk it is the virtual position produced by assuming every
+    /// In a backtest walk this is the side execution actually holds. In the
+    /// diagnostic walk it is the virtual side produced by assuming every
     /// decision filled immediately.
     #[must_use]
     pub const fn open_position(&self) -> Option<Side> {
-        self.open_position
+        self.final_position.side
     }
 
     /// The number of bars in the walk.

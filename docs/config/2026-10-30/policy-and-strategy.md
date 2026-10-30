@@ -110,8 +110,10 @@ policy.
 }
 ```
 
-The engine receives `stop_atr_multiple` and `target_atr_multiple` from the
-strategy risk block; they are not duplicated in the execution file.
+The execution engine receives a `TradeIntent` from the strategy. The stop and
+target specifications live in the intent, not in the execution file or the
+execution config. Execution resolves them against the fill; it never stores or
+chooses a distance.
 
 ## Data
 

@@ -1,25 +1,21 @@
-//! Execution costs and the bracket multiples.
+//! Execution costs and fill mechanics configuration.
 //!
-//! The configuration records the per-side fee rate, the slippage, and the two
-//! ATR multiples that execution applies to a fill and to a position's bracket.
-//! It has no default: the caller supplies the costs so a run cannot silently
-//! assume zero fees. The portfolio module includes the fill fee in its
-//! accounting.
+//! The configuration records the per-side fee rate and the slippage. It has no
+//! default: the caller supplies the costs so a run cannot silently assume zero
+//! fees. The portfolio module includes the fill fee in its accounting.
+//!
+//! Stop and target distances are not execution settings. They arrive in the
+//! strategy's [`crate::intent::TradeIntent`] and execution resolves them against
+//! the fill. Keeping the distances out of this type is what makes execution
+//! mechanics independent of the strategy's risk policy.
 
 use std::fmt;
 
-/// The default stop distance in ATR units.
-pub const DEFAULT_STOP_ATR_MULTIPLE: f64 = 2.0;
-
-/// The default target distance in ATR units.
-pub const DEFAULT_TARGET_ATR_MULTIPLE: f64 = 3.0;
-
-/// The per-side fee rate, slippage, and bracket multiples used by execution.
+/// The per-side fee rate and slippage used by execution.
 ///
-/// `fee_rate` is a fraction of the fill notional, `slippage_bps` is in basis
-/// points of the reference price, and the two multiples are positive ATR
-/// distances. All values are finite. The configuration is a value, not a global
-/// setting.
+/// `fee_rate` is a fraction of the fill notional and `slippage_bps` is in basis
+/// points of the reference price. Both values are finite and non-negative. The
+/// configuration is a value, not a global setting.
 ///
 /// # Examples
 ///
@@ -30,46 +26,22 @@ pub const DEFAULT_TARGET_ATR_MULTIPLE: f64 = 3.0;
 /// assert_eq!(config.fee_rate(), 0.001);
 /// assert_eq!(config.slippage_bps(), 2.0);
 /// assert!((config.slippage_rate() - 0.0002).abs() < 1e-12);
-/// assert_eq!(config.stop_atr_multiple(), 2.0);
-/// assert_eq!(config.target_atr_multiple(), 3.0);
 /// # Ok::<(), quantrule_backtest::execution::ExecutionConfigError>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ExecutionConfig {
     fee_rate: f64,
     slippage_bps: f64,
-    stop_atr_multiple: f64,
-    target_atr_multiple: f64,
 }
 
 impl ExecutionConfig {
-    /// Builds an execution configuration with the default 2/3 bracket.
+    /// Builds an execution configuration.
     ///
     /// # Errors
     ///
     /// Returns [`ExecutionConfigError`] when either cost is not finite or is
     /// negative.
     pub fn new(fee_rate: f64, slippage_bps: f64) -> Result<Self, ExecutionConfigError> {
-        Self::with_bracket(
-            fee_rate,
-            slippage_bps,
-            DEFAULT_STOP_ATR_MULTIPLE,
-            DEFAULT_TARGET_ATR_MULTIPLE,
-        )
-    }
-
-    /// Builds an execution configuration with explicit bracket multiples.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ExecutionConfigError`] when a cost is not finite or is
-    /// negative, or when a multiple is not finite or not positive.
-    pub fn with_bracket(
-        fee_rate: f64,
-        slippage_bps: f64,
-        stop_atr_multiple: f64,
-        target_atr_multiple: f64,
-    ) -> Result<Self, ExecutionConfigError> {
         if !fee_rate.is_finite() {
             return Err(ExecutionConfigError::NonFiniteFeeRate);
         }
@@ -82,24 +54,10 @@ impl ExecutionConfig {
         if slippage_bps < 0.0 {
             return Err(ExecutionConfigError::NegativeSlippage);
         }
-        if !stop_atr_multiple.is_finite() {
-            return Err(ExecutionConfigError::NonFiniteStopMultiple);
-        }
-        if stop_atr_multiple <= 0.0 {
-            return Err(ExecutionConfigError::NonPositiveStopMultiple);
-        }
-        if !target_atr_multiple.is_finite() {
-            return Err(ExecutionConfigError::NonFiniteTargetMultiple);
-        }
-        if target_atr_multiple <= 0.0 {
-            return Err(ExecutionConfigError::NonPositiveTargetMultiple);
-        }
 
         Ok(Self {
             fee_rate,
             slippage_bps,
-            stop_atr_multiple,
-            target_atr_multiple,
         })
     }
 
@@ -120,18 +78,6 @@ impl ExecutionConfig {
     pub fn slippage_rate(&self) -> f64 {
         self.slippage_bps / 10_000.0
     }
-
-    /// The stop distance in ATR units.
-    #[must_use]
-    pub const fn stop_atr_multiple(&self) -> f64 {
-        self.stop_atr_multiple
-    }
-
-    /// The target distance in ATR units.
-    #[must_use]
-    pub const fn target_atr_multiple(&self) -> f64 {
-        self.target_atr_multiple
-    }
 }
 
 /// An execution configuration was rejected.
@@ -145,14 +91,6 @@ pub enum ExecutionConfigError {
     NonFiniteSlippage,
     /// The slippage is negative.
     NegativeSlippage,
-    /// The stop multiple is not a finite number.
-    NonFiniteStopMultiple,
-    /// The stop multiple is zero or negative.
-    NonPositiveStopMultiple,
-    /// The target multiple is not a finite number.
-    NonFiniteTargetMultiple,
-    /// The target multiple is zero or negative.
-    NonPositiveTargetMultiple,
 }
 
 impl fmt::Display for ExecutionConfigError {
@@ -162,18 +100,6 @@ impl fmt::Display for ExecutionConfigError {
             Self::NegativeFeeRate => write!(formatter, "the fee rate must not be negative"),
             Self::NonFiniteSlippage => write!(formatter, "the slippage must be finite"),
             Self::NegativeSlippage => write!(formatter, "the slippage must not be negative"),
-            Self::NonFiniteStopMultiple => {
-                write!(formatter, "the stop ATR multiple must be finite")
-            }
-            Self::NonPositiveStopMultiple => {
-                write!(formatter, "the stop ATR multiple must be positive")
-            }
-            Self::NonFiniteTargetMultiple => {
-                write!(formatter, "the target ATR multiple must be finite")
-            }
-            Self::NonPositiveTargetMultiple => {
-                write!(formatter, "the target ATR multiple must be positive")
-            }
         }
     }
 }
