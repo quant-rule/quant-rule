@@ -188,8 +188,7 @@ pub(crate) fn run_backtest(config: &RunConfig) -> Result<BacktestRun, PipelineEr
     let inputs = ModelInputs::from_set_with_ladder(&set, &config.data.available_timeframes);
     let backtest = BacktestConfig {
         model: config.model,
-        strategy: config.strategy.engine,
-        risk: config.strategy.risk(),
+        strategy: config.strategy.engine.clone(),
         execution: config.execution.engine,
         portfolio: config.portfolio,
         max_position_fraction: config.policy.risk.max_position_fraction,

@@ -19,6 +19,7 @@
       "EURUSD"
     ],
     "timeframes": [
+      "5m",
       "15m"
     ]
   }

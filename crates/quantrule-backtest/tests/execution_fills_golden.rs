@@ -137,12 +137,12 @@ fn decision(field: &str, bar: StrategyInput) -> Decision {
         "exit_long" => Decision::Exit(Exit {
             side: Side::Long,
             bar,
-            reason: ExitReason::AgreementLost,
+            reason: ExitReason::ContextLost,
         }),
         "exit_short" => Decision::Exit(Exit {
             side: Side::Short,
             bar,
-            reason: ExitReason::AgreementLost,
+            reason: ExitReason::ContextLost,
         }),
         other => panic!("unknown decision {other:?}"),
     }

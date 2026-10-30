@@ -78,30 +78,79 @@ pub(crate) fn run_strategy_explain(
 ) -> Result<(), RunError> {
     let config = RunConfig::load(Path::new(&args.config)).map_err(RunError::Config)?;
     let strategy = &config.strategy;
-    let timeframe = labels::timeframe_label(strategy.engine.timeframe_secs());
-    let long = strategy.engine.long_threshold();
-    let short = strategy.engine.short_threshold();
-    let target = strategy.target_atr_multiple();
+    let engine = &strategy.engine;
+    let execution = labels::timeframe_label(engine.timeframe_secs());
+    let context = engine
+        .ladder()
+        .context_timeframes()
+        .iter()
+        .map(|seconds| labels::timeframe_label(*seconds))
+        .collect::<Vec<_>>()
+        .join(",");
+    let entry = engine.entry();
+    let execution_entry = entry.execution();
+    let context_entry = entry.context();
+    let short_structure_max = if execution_entry.structure_min() == 0.0 {
+        0.0
+    } else {
+        -execution_entry.structure_min()
+    };
 
-    writeln!(writer, "strategy axis-agreement").map_err(RunError::Output)?;
-    writeln!(writer, "timeframe {timeframe}").map_err(RunError::Output)?;
+    writeln!(writer, "strategy ladder-context").map_err(RunError::Output)?;
+    writeln!(writer, "execution {execution}").map_err(RunError::Output)?;
+    writeln!(writer, "context {context}").map_err(RunError::Output)?;
     writeln!(writer, "thesis {}", strategy.thesis).map_err(RunError::Output)?;
     writeln!(
         writer,
-        "entry-long Direction, Momentum, and Structure all above {long}"
+        "entry-long direction > {}, momentum > {}, structure >= {}, shift <= {} -> >= {}",
+        execution_entry.direction_min(),
+        execution_entry.momentum_min(),
+        execution_entry.structure_min(),
+        execution_entry.structure_shift_from_max(),
+        execution_entry.structure_shift_to_min(),
     )
     .map_err(RunError::Output)?;
     writeln!(
         writer,
-        "entry-short Direction, Momentum, and Structure all below {short}"
+        "entry-short direction < -{}, momentum < -{}, structure <= {}, shift >= {} -> <= {}",
+        execution_entry.direction_min(),
+        execution_entry.momentum_min(),
+        short_structure_max,
+        -execution_entry.structure_shift_from_max(),
+        -execution_entry.structure_shift_to_min(),
     )
     .map_err(RunError::Output)?;
-    writeln!(writer, "exit agreement_lost").map_err(RunError::Output)?;
+    writeln!(
+        writer,
+        "context-long direction share >= {}, momentum bearish share <= {}, conflicts <= {}, progression bullish, late/terminal <= {}",
+        context_entry.direction_share_min(),
+        context_entry.momentum_bearish_share_max(),
+        context_entry.structure_conflict_count_max(),
+        context_entry.progression_late_or_terminal_count_max(),
+    )
+    .map_err(RunError::Output)?;
+    writeln!(
+        writer,
+        "context-short direction share >= {}, momentum bullish share <= {}, conflicts <= {}, progression bearish, late/terminal <= {}",
+        context_entry.direction_share_min(),
+        context_entry.momentum_bearish_share_max(),
+        context_entry.structure_conflict_count_max(),
+        context_entry.progression_late_or_terminal_count_max(),
+    )
+    .map_err(RunError::Output)?;
+    let mut exits = Vec::new();
+    if engine.exit().on_context_lost() {
+        exits.push("context_lost");
+    }
+    if engine.exit().on_structure_lost() {
+        exits.push("structure_lost");
+    }
+    writeln!(writer, "exit {}", exits.join(",")).map_err(RunError::Output)?;
     writeln!(
         writer,
         "risk stop={} ATR target={} ATR reward_to_risk={}",
         strategy.stop_atr_multiple(),
-        target,
+        strategy.target_atr_multiple(),
         strategy.reward_to_risk()
     )
     .map_err(RunError::Output)?;

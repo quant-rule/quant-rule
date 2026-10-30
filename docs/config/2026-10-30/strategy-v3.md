@@ -1,7 +1,7 @@
 # Strategy Configuration v3 — Active Ladder and Ladder Context
 
 - Date: 2026-10-30 (UTC)
-- Status: Context builder (#233) and trade-intent boundary (#234, PR #243) implemented; strategy wiring pending (#235)
+- Status: Implemented (#233, #234, #235, PR #244); migration, context, and the unified rule are live
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#233](https://github.com/quant-rule/quant-rule/issues/233), [#235](https://github.com/quant-rule/quant-rule/issues/235)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)
@@ -76,6 +76,7 @@ file states what can be built.
 - Keys are context timeframes only.
 - Values are finite and positive.
 - Missing block means equal weights for every context timeframe.
+- A present block must cover every context timeframe; missing keys are rejected.
 - Weights are normalized in active-ladder order.
 - Missing context defaults to `reject`.
 - Weights are fixed before the run and recorded in provenance.

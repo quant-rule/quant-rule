@@ -651,7 +651,7 @@ impl fmt::Display for StrategyRunError {
                 "the requested period '{period}' produced no {timeframe_secs}-second bars"
             ),
             Self::UnknownStrategy { name } => {
-                write!(formatter, "unknown strategy '{name}'; use axis-agreement")
+                write!(formatter, "unknown strategy '{name}'; use ladder-context")
             }
             Self::UnsupportedTimeframe { timeframe_secs } => write!(
                 formatter,

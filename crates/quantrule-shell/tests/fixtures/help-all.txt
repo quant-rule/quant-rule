@@ -220,7 +220,7 @@ strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.jso
 Print strategy entries and exits as NDJSON; no fills or P&L.
 
 Options
-  --strategy <name>            Strategy name; required (axis-agreement).
+  --strategy <name>            Strategy name; required (ladder-context).
   --data-version <id>          Caller-supplied identity; required.
   --config <path>              The strategy blueprint run configuration; optional.
   --from <date>                Inclusive UTC start date, YYYY-MM-DD.

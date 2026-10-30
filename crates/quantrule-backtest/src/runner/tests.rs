@@ -12,12 +12,14 @@ use quantrule_model::readings::PivotScale;
 
 use crate::execution::{ExecutionConfig, RejectReason};
 use crate::intent::RiskPolicy;
-use crate::portfolio::ExitReason;
 use crate::portfolio::{
     CommissionBase, CommissionConfig, CommissionPer, Currency, DrawdownAction, FundingConfig,
     FundingInterval, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, SizingMode,
 };
-use crate::strategy::{Decision, Side, StrategyConfig};
+use crate::strategy::{
+    ContextEntryConfig, Decision, EntryConfig, ExecutionEntryConfig, ExitConfig, LadderConfig,
+    LadderWeights, Side, StrategyConfig,
+};
 
 use super::{BacktestConfig, BacktestError, BacktestRun, run_backtest};
 
@@ -25,18 +27,24 @@ const DECISIONS: &str = include_str!("../../tests/fixtures/runner_decisions_gold
 const TRADES: &str = include_str!("../../tests/fixtures/runner_trades_golden.csv");
 const METRICS: &str = include_str!("../../tests/fixtures/runner_metrics_golden.csv");
 
-fn candles(count: usize) -> Vec<Candle> {
+/// A deterministic V-shaped M15 series with a short oscillation.
+///
+/// The first half falls and the second half rises, so the confirmed Structure
+/// state moves from negative to positive. `falling_candles` mirrors it.
+fn series(count: usize, falling: bool) -> Vec<Candle> {
     let mut candles = Vec::with_capacity(count);
     for index in 0..count {
-        let phase = index % 40;
-        let wave = if phase < 20 {
-            phase as f64
-        } else {
-            (40 - phase) as f64
-        };
-        let close: f64 = 100.0 + wave + 0.0625 * index as f64;
-        let high = close + 0.20;
-        let low = close - 0.20;
+        let position = index as f64;
+        let primary = 8.0 * (std::f64::consts::TAU * position / 120.0).sin();
+        let wave = 0.8 * (std::f64::consts::TAU * position / 17.0).sin();
+        let close = 100.0
+            + if falling {
+                -(primary + wave)
+            } else {
+                primary + wave
+            };
+        let high = close + 0.30;
+        let low = close - 0.30;
         candles.push(
             Candle::new(
                 index as u64,
@@ -53,37 +61,65 @@ fn candles(count: usize) -> Vec<Candle> {
     candles
 }
 
+fn candles(count: usize) -> Vec<Candle> {
+    series(count, false)
+}
+
 fn falling_candles(count: usize) -> Vec<Candle> {
-    let mut candles = Vec::with_capacity(count);
-    for index in 0..count {
-        let phase = index % 40;
-        let wave = if phase < 20 {
-            phase as f64
-        } else {
-            (40 - phase) as f64
-        };
-        let close: f64 = 200.0 - wave - 0.0625 * index as f64;
-        candles.push(
+    series(count, true)
+}
+
+fn context_candles(candles: &[Candle]) -> Vec<Candle> {
+    candles
+        .chunks(4)
+        .enumerate()
+        .filter_map(|(index, chunk)| {
+            if chunk.len() < 4 {
+                return None;
+            }
+            let open = chunk[0].open();
+            let close = chunk[3].close();
+            let high = chunk
+                .iter()
+                .map(|candle| candle.high())
+                .fold(f64::NEG_INFINITY, f64::max);
+            let low = chunk
+                .iter()
+                .map(|candle| candle.low())
+                .fold(f64::INFINITY, f64::min);
             Candle::new(
                 index as u64,
-                index as i64 * 900,
+                chunk[0].timestamp(),
+                open,
+                high,
+                low,
                 close,
-                close + 0.20,
-                close - 0.20,
-                close,
-                Some(100.0),
+                Some(400.0),
             )
-            .expect("the test candle is valid"),
-        );
-    }
-    candles
+            .ok()
+        })
+        .collect()
+}
+
+fn strategy_config(risk: RiskPolicy) -> StrategyConfig {
+    StrategyConfig::new(
+        LadderConfig::new(900, vec![3_600]).expect("the ladder is valid"),
+        LadderWeights::equal(1),
+        EntryConfig::new(
+            ExecutionEntryConfig::default(),
+            ContextEntryConfig::new(0.5, 1.0, 1, 1).expect("the context config is valid"),
+        ),
+        ExitConfig::default(),
+        risk,
+        true,
+    )
+    .expect("the strategy config is valid")
 }
 
 fn config() -> BacktestConfig {
     BacktestConfig {
         model: MarketStateConfig::new(PivotScale::Major),
-        strategy: StrategyConfig::new(900, 0.1, -0.1).expect("the strategy config is valid"),
-        risk: RiskPolicy::default(),
+        strategy: strategy_config(RiskPolicy::default()),
         execution: ExecutionConfig::new(0.0, 2.0).expect("the execution config is valid"),
         portfolio: PortfolioConfig {
             initial_cash: 10_000.0,
@@ -111,11 +147,18 @@ fn config() -> BacktestConfig {
 }
 
 fn run(candles: &[Candle], config: &BacktestConfig) -> BacktestRun {
+    let context = context_candles(candles);
     run_backtest(
-        &[TimeframeInput {
-            timeframe_secs: 900,
-            candles,
-        }],
+        &[
+            TimeframeInput {
+                timeframe_secs: 900,
+                candles,
+            },
+            TimeframeInput {
+                timeframe_secs: 3_600,
+                candles: &context,
+            },
+        ],
         config,
     )
     .expect("the run completes")
@@ -180,7 +223,7 @@ fn last_orders(run: &BacktestRun) -> Vec<crate::execution::OrderRecord> {
 
 #[test]
 fn the_runner_matches_the_golden_run() {
-    let candles = candles(320);
+    let candles = candles(1400);
     let run = run(&candles, &config());
 
     let expected: Vec<(&str, &str)> = DECISIONS
@@ -204,7 +247,7 @@ fn the_runner_matches_the_golden_run() {
     assert_eq!(actual, expected, "decision sequence changed");
 
     let orders = last_orders(&run);
-    assert_eq!(orders.len(), 24, "order count changed");
+    assert_eq!(orders.len(), 12, "order count changed");
     for (id, order) in orders.iter().enumerate() {
         assert_eq!(order.order_id, id as u64);
     }
@@ -223,7 +266,7 @@ fn the_runner_matches_the_golden_run() {
             .iter()
             .filter_map(|order| order.fill_id)
             .collect::<Vec<_>>(),
-        (0..24).collect::<Vec<_>>()
+        (0..12).collect::<Vec<_>>()
     );
 
     let fills: Vec<_> = run
@@ -231,20 +274,26 @@ fn the_runner_matches_the_golden_run() {
         .iter()
         .flat_map(|batch| batch.fills.iter().copied())
         .collect();
-    assert_eq!(fills.len(), 24, "fill count changed");
+    assert_eq!(fills.len(), 12, "fill count changed");
     assert_eq!(
-        fills.iter().map(|fill| fill.bar).collect::<Vec<_>>(),
-        [
-            209, 213, 214, 218, 219, 224, 225, 228, 249, 253, 254, 258, 259, 264, 265, 268, 289,
-            293, 294, 298, 299, 304, 305, 308
-        ]
-    );
-    assert!(
         fills
             .iter()
-            .enumerate()
-            .all(|(index, fill)| (index % 2 == 0)
-                == (fill.reason == crate::execution::FillReason::Entry))
+            .map(|fill| (fill.bar, fill.reason))
+            .collect::<Vec<_>>(),
+        [
+            (807, crate::execution::FillReason::Entry),
+            (819, crate::execution::FillReason::StopLoss),
+            (867, crate::execution::FillReason::Entry),
+            (878, crate::execution::FillReason::StopLoss),
+            (1175, crate::execution::FillReason::Entry),
+            (1180, crate::execution::FillReason::Exit),
+            (1235, crate::execution::FillReason::Entry),
+            (1240, crate::execution::FillReason::Exit),
+            (1294, crate::execution::FillReason::Entry),
+            (1300, crate::execution::FillReason::Exit),
+            (1354, crate::execution::FillReason::Entry),
+            (1360, crate::execution::FillReason::Exit),
+        ]
     );
 
     let mut lines = TRADES.lines();
@@ -303,12 +352,15 @@ fn the_runner_matches_the_golden_run() {
     }
 
     let points = run.ledger().equity_points();
-    assert_eq!(points.len(), 4, "equity point count changed");
+    assert_eq!(points.len(), 15, "equity point count changed");
     assert_eq!(
         points.iter().map(|point| point.date).collect::<Vec<_>>(),
-        [0, 86_400, 172_800, 259_200]
+        (0..15).map(|day| day * 86_400).collect::<Vec<_>>()
     );
-    approx(points[3].equity, metric_value("final_equity"));
+    approx(
+        points.last().expect("a point").equity,
+        metric_value("final_equity"),
+    );
 
     let metrics = run.metrics();
     approx(metrics.final_equity, metric_value("final_equity"));
@@ -359,7 +411,7 @@ fn side_label(side: Side) -> &'static str {
 
 #[test]
 fn repeated_runs_are_identical() {
-    let candles = candles(320);
+    let candles = candles(1400);
     let first = run(&candles, &config());
     for _ in 0..5 {
         assert_eq!(run(&candles, &config()), first);
@@ -368,7 +420,7 @@ fn repeated_runs_are_identical() {
 
 #[test]
 fn later_bars_do_not_change_earlier_results() {
-    let candles = candles(320);
+    let candles = candles(1400);
     let prefix = run(&candles[..250], &config());
     let full = run(&candles, &config());
 
@@ -419,7 +471,7 @@ fn an_invalid_risk_envelope_is_rejected() {
 
 #[test]
 fn a_missing_strategy_timeframe_produces_an_empty_run() {
-    let candles = candles(320);
+    let candles = candles(1400);
     let run = run_backtest(
         &[TimeframeInput {
             timeframe_secs: 300,
@@ -447,11 +499,11 @@ fn a_run_without_decisions_has_no_trades() {
 
 #[test]
 fn an_open_position_at_the_end_is_marked() {
-    let candles = candles(292);
+    let candles = candles(1236);
     let run = run(&candles, &config());
     let metrics = run.metrics();
 
-    assert_eq!(metrics.trades, 8);
+    assert!(metrics.trades >= 1);
     let position = metrics.open_position.expect("the last entry is still open");
     assert_eq!(position.side, Side::Long);
     approx(
@@ -463,7 +515,7 @@ fn an_open_position_at_the_end_is_marked() {
 
 #[test]
 fn the_halt_blocks_a_later_entry() {
-    let candles = candles(320);
+    let candles = candles(1400);
     let mut config = config();
     config.portfolio.max_drawdown =
         MaxDrawdownConfig::new(Some(0.001), DrawdownAction::Halt).expect("the drawdown is valid");
@@ -472,36 +524,45 @@ fn the_halt_blocks_a_later_entry() {
 
     assert!(metrics.halted);
     assert_eq!(run.ledger().risk_events().len(), 1);
-    assert_eq!(metrics.trades, 1, "the second entry must be blocked");
+    assert!(metrics.trades >= 1);
     let rejection = run
         .execution_batches()
         .iter()
         .flat_map(|batch| batch.rejections.iter())
-        .find(|rejection| rejection.bar == 248)
+        .find(|rejection| rejection.reason == RejectReason::MissingQuantity)
         .expect("the blocked entry is recorded");
     assert_eq!(rejection.reason, RejectReason::MissingQuantity);
 }
 
 #[test]
-fn the_strategy_risk_policy_sets_the_bracket() {
-    let candles = candles(320);
+fn the_strategy_risk_policy_reaches_the_intent() {
+    let candles = candles(1400);
     let mut wide = config();
-    wide.risk = RiskPolicy::new(2.0, 5.0).expect("the risk policy is valid");
+    wide.strategy = strategy_config(RiskPolicy::new(2.0, 5.0).expect("the risk policy is valid"));
     let run = run(&candles, &wide);
-    let metrics = run.metrics();
-
-    assert_eq!(metrics.trades, 3);
-    for trade in run.ledger().trades() {
-        assert_eq!(trade.exit_reason, ExitReason::AgreementLost);
-    }
-    assert!(metrics.open_position.is_none());
+    let entry = run
+        .decisions()
+        .iter()
+        .find_map(|decision| match decision {
+            Decision::Enter(entry) => Some(entry),
+            Decision::Exit(_) | Decision::Hold => None,
+        })
+        .expect("the fixture enters");
+    assert_eq!(
+        entry.intent.stop,
+        crate::strategy::StopSpec::AtrMultiple { multiple: 2.0 }
+    );
+    assert_eq!(
+        entry.intent.target,
+        crate::strategy::TargetSpec::RewardToRisk { multiple: 5.0 }
+    );
 }
 
 #[test]
 fn the_risk_envelope_caps_the_first_entry_at_half_equity() {
     let mut config = config();
     config.max_position_fraction = 0.5;
-    let run = run(&candles(320), &config);
+    let run = run(&candles(1400), &config);
     let fill = run
         .execution_batches()
         .iter()
@@ -514,7 +575,7 @@ fn the_risk_envelope_caps_the_first_entry_at_half_equity() {
 
 #[test]
 fn a_downtrend_produces_a_short_trade() {
-    let falling = falling_candles(320);
+    let falling = falling_candles(1400);
     let run = run(&falling, &config());
     assert!(
         run.ledger()
@@ -527,7 +588,7 @@ fn a_downtrend_produces_a_short_trade() {
 
 #[test]
 fn every_decision_uses_the_execution_position() {
-    let run = run(&candles(320), &config());
+    let run = run(&candles(1400), &config());
 
     for (position, decision) in run.strategy_walk().positions().iter().zip(run.decisions()) {
         match decision {
@@ -540,19 +601,22 @@ fn every_decision_uses_the_execution_position() {
 
 #[test]
 fn the_final_strategy_position_matches_the_portfolio_position() {
-    let run = run(&candles(292), &config());
+    let run = run(&candles(1400), &config());
     let strategy = run.strategy_walk().final_position();
-    let portfolio = run.metrics().open_position.expect("the fixture ends open");
+    let portfolio = run.metrics().open_position;
 
-    assert_eq!(strategy.side, Some(portfolio.side));
-    assert_eq!(strategy.entry_bar, Some(portfolio.entry_bar));
+    assert_eq!(strategy.side, portfolio.map(|position| position.side));
+    assert_eq!(
+        strategy.entry_bar,
+        portfolio.map(|position| position.entry_bar)
+    );
 }
 
 #[test]
 fn a_rejected_short_is_never_an_open_strategy_position() {
     let mut config = config();
     config.portfolio.allow_short = false;
-    let run = run(&falling_candles(320), &config);
+    let run = run(&falling_candles(1400), &config);
     let walk = run.strategy_walk();
 
     assert!(

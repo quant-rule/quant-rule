@@ -8,6 +8,7 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::config::RunConfig;
+use crate::labels;
 
 use super::types::{PolicyCheckArgs, RunError};
 
@@ -89,7 +90,7 @@ pub(crate) fn run_policy_check(
     let tickets = config.policy.universe.tickets.join(",");
     writeln!(
         writer,
-        "policy ok run={} account={} {} target={} {}d max_drawdown={} risk={} leverage={} positions={} tickets={} timeframes={} strategy=axis-agreement stop_atr={} reward_to_risk={}",
+        "policy ok run={} account={} {} target={} {}d max_drawdown={} risk={} leverage={} positions={} tickets={} timeframes={} strategy=ladder-context execution={} ladder={} stop_atr={} reward_to_risk={}",
         config.name,
         config.policy.account.currency,
         config.policy.account.initial_cash,
@@ -101,11 +102,25 @@ pub(crate) fn run_policy_check(
         config.policy.risk.max_open_positions,
         tickets,
         timeframes,
+        labels::timeframe_label(config.strategy.engine.timeframe_secs()),
+        ladder_label(&config),
         config.strategy.stop_atr_multiple(),
         config.strategy.reward_to_risk(),
     )
     .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
+}
+
+fn ladder_label(config: &RunConfig) -> String {
+    let mut parts =
+        Vec::with_capacity(config.strategy.engine.ladder().context_timeframes().len() + 1);
+    parts.push(labels::timeframe_label(
+        config.strategy.engine.timeframe_secs(),
+    ));
+    for seconds in config.strategy.engine.ladder().context_timeframes() {
+        parts.push(labels::timeframe_label(*seconds));
+    }
+    parts.join(",")
 }
 
 #[cfg(test)]

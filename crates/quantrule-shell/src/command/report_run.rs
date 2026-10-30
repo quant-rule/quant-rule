@@ -140,8 +140,8 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
             let timeframe = model
                 .timeframe(timeframe_secs)
                 .ok_or_else(|| RunError::Report(ReportError::NoStrategyBars { timeframe_secs }))?;
-            let walk = walk_strategy(timeframe, &config.strategy.engine, config.strategy.risk())
-                .map_err(RunError::Backtest)?;
+            let walk =
+                walk_strategy(&model, &config.strategy.engine).map_err(RunError::Backtest)?;
             strategy_bundle_from_walk(
                 &config,
                 &out,
@@ -368,10 +368,12 @@ struct StrategySummary {
     exits: usize,
     long_entries: usize,
     short_entries: usize,
-    agreements_long: usize,
-    agreements_short: usize,
-    agreements_neutral: usize,
-    agreements_unavailable: usize,
+    context_complete: usize,
+    context_missing: usize,
+    context_conflicts: usize,
+    progression_late: usize,
+    exit_context_lost: usize,
+    exit_structure_lost: usize,
     open_position: Option<Side>,
     execution_state: Option<StrategyExecutionState>,
     executed_entries: Option<usize>,
@@ -384,19 +386,28 @@ fn summarize_walk(
     execution_state: StrategyExecutionState,
     executed: Option<ExecutedCounts>,
 ) -> StrategySummary {
-    let agreements = walk.agreements();
     let mut summary = StrategySummary {
         bars,
-        agreements_long: agreements.long,
-        agreements_short: agreements.short,
-        agreements_neutral: agreements.neutral,
-        agreements_unavailable: agreements.unavailable,
         open_position: walk.open_position(),
         execution_state: Some(execution_state),
         executed_entries: executed.map(|counts| counts.entries),
         executed_exits: executed.map(|counts| counts.exits),
         ..StrategySummary::default()
     };
+
+    for context in walk.contexts() {
+        if context.context_complete() {
+            summary.context_complete += 1;
+        } else {
+            summary.context_missing += 1;
+        }
+        if context.structure.conflict_count > 0 {
+            summary.context_conflicts += 1;
+        }
+        if context.progression.late_or_terminal_count > 0 {
+            summary.progression_late += 1;
+        }
+    }
 
     for decision in walk.decisions() {
         match decision {
@@ -407,7 +418,13 @@ fn summarize_walk(
                     Side::Short => summary.short_entries += 1,
                 }
             }
-            Decision::Exit(_) => summary.exits += 1,
+            Decision::Exit(exit) => {
+                summary.exits += 1;
+                match exit.reason {
+                    ExitReason::ContextLost => summary.exit_context_lost += 1,
+                    ExitReason::StructureLost => summary.exit_structure_lost += 1,
+                }
+            }
             Decision::Hold => {}
         }
     }
@@ -468,6 +485,7 @@ fn strategy_json(
                 "direction": input.direction,
                 "momentum_force": input.momentum_force,
                 "structure_score": input.structure_score,
+                "structure_state_code": input.structure_state_code,
                 "reason": reason,
             }))
         })
@@ -498,12 +516,15 @@ fn strategy_json(
             "exits": summary.exits,
             "long_entries": summary.long_entries,
             "short_entries": summary.short_entries,
-            "exit_reasons": {"agreement_lost": summary.exits},
-            "agreements": {
-                "long": summary.agreements_long,
-                "short": summary.agreements_short,
-                "neutral": summary.agreements_neutral,
-                "unavailable": summary.agreements_unavailable,
+            "exit_reasons": {
+                "context_lost": summary.exit_context_lost,
+                "structure_lost": summary.exit_structure_lost,
+            },
+            "context": {
+                "complete_bars": summary.context_complete,
+                "missing_bars": summary.context_missing,
+                "conflict_bars": summary.context_conflicts,
+                "late_or_terminal_bars": summary.progression_late,
             },
             "open_position": summary.open_position.map(|side| side.code()),
             "executed_entries": summary.executed_entries,
@@ -523,16 +544,7 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
         "timeframe_secs: {}",
         config.strategy.engine.timeframe_secs()
     );
-    let _ = writeln!(
-        out,
-        "long_threshold: {}",
-        config.strategy.engine.long_threshold()
-    );
-    let _ = writeln!(
-        out,
-        "short_threshold: {}",
-        config.strategy.engine.short_threshold()
-    );
+    let _ = writeln!(out, "ladder: {}", ladder_label(config));
     let _ = writeln!(out, "bars: {}", summary.bars);
     let _ = writeln!(
         out,
@@ -561,12 +573,13 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
     let _ = writeln!(out, "long_entries: {}", summary.long_entries);
     let _ = writeln!(out, "short_entries: {}", summary.short_entries);
     let _ = writeln!(out, "exit_reasons:");
-    let _ = writeln!(out, "  agreement_lost: {}", summary.exits);
-    let _ = writeln!(out, "agreements:");
-    let _ = writeln!(out, "  long: {}", summary.agreements_long);
-    let _ = writeln!(out, "  short: {}", summary.agreements_short);
-    let _ = writeln!(out, "  neutral: {}", summary.agreements_neutral);
-    let _ = writeln!(out, "  unavailable: {}", summary.agreements_unavailable);
+    let _ = writeln!(out, "  context_lost: {}", summary.exit_context_lost);
+    let _ = writeln!(out, "  structure_lost: {}", summary.exit_structure_lost);
+    let _ = writeln!(out, "context:");
+    let _ = writeln!(out, "  complete_bars: {}", summary.context_complete);
+    let _ = writeln!(out, "  missing_bars: {}", summary.context_missing);
+    let _ = writeln!(out, "  conflict_bars: {}", summary.context_conflicts);
+    let _ = writeln!(out, "  late_or_terminal_bars: {}", summary.progression_late);
     let _ = writeln!(
         out,
         "open_position: {}",
@@ -576,6 +589,16 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
         })
     );
     out
+}
+
+fn ladder_label(config: &RunConfig) -> String {
+    let mut parts =
+        Vec::with_capacity(config.strategy.engine.ladder().context_timeframes().len() + 1);
+    parts.push(timeframe_label(config.strategy.engine.timeframe_secs()));
+    for seconds in config.strategy.engine.ladder().context_timeframes() {
+        parts.push(timeframe_label(*seconds));
+    }
+    parts.join(",")
 }
 
 fn strategy_chart(
@@ -658,16 +681,7 @@ fn pipeline_error(config: &RunConfig, error: PipelineError) -> RunError {
 }
 
 fn strategy_value(config: &RunConfig) -> Value {
-    json!({
-        "name": "axis-agreement",
-        "thesis": config.strategy.thesis,
-        "timeframe_secs": config.strategy.engine.timeframe_secs(),
-        "long_threshold": config.strategy.engine.long_threshold(),
-        "short_threshold": config.strategy.engine.short_threshold(),
-        "stop_atr_multiple": config.strategy.stop_atr_multiple(),
-        "reward_to_risk": config.strategy.reward_to_risk(),
-        "target_atr_multiple": config.strategy.target_atr_multiple(),
-    })
+    super::strategy::strategy_config_value(&config.strategy.engine, &config.strategy.thesis)
 }
 
 fn policy_value(config: &RunConfig) -> Value {
@@ -756,7 +770,8 @@ fn timeframe_label(timeframe_secs: u64) -> &'static str {
 
 fn exit_reason_code(reason: ExitReason) -> &'static str {
     match reason {
-        ExitReason::AgreementLost => "agreement_lost",
+        ExitReason::ContextLost => "context_lost",
+        ExitReason::StructureLost => "structure_lost",
     }
 }
 
@@ -830,7 +845,7 @@ mod tests {
             Decision::Exit(quantrule_backtest::strategy::Exit {
                 side: Side::Long,
                 bar: exit_bar,
-                reason: ExitReason::AgreementLost,
+                reason: ExitReason::ContextLost,
             }),
         ];
 
@@ -847,7 +862,7 @@ mod tests {
         );
         assert_eq!(
             lines[2],
-            "exit,1,15m,900,9,2025-01-01T02:15:00Z,0,0,0,agreement_lost"
+            "exit,1,15m,900,9,2025-01-01T02:15:00Z,0,0,0,context_lost"
         );
     }
 }
