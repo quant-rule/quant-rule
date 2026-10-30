@@ -40,8 +40,10 @@ pub struct Rejection {
 
 /// The orders, fills, and rejections produced by one engine call.
 ///
-/// [`ExecutionEngine::advance`], [`ExecutionEngine::submit`], and
-/// [`ExecutionEngine::finish`] each return one batch. Concatenating the
+/// [`crate::execution::ExecutionEngine::advance`],
+/// [`crate::execution::ExecutionEngine::submit`], and
+/// [`crate::execution::ExecutionEngine::finish`] each return one batch.
+/// Concatenating the
 /// batches in call order yields the run's records; a report keeps the last
 /// order record per id.
 ///
