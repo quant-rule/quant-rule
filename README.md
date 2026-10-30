@@ -94,6 +94,30 @@ and the lab summary. It also contains one lab for each quant role.
 | `v0.3.0` | Lab Summary and Help | [`docs/releases/2026-10-30/v0.3.0.md`](docs/releases/2026-10-30/v0.3.0.md) |
 | `v0.2.0` | MVP v1 | [`docs/releases/2026-10-28/v0.2.0.md`](docs/releases/2026-10-28/v0.2.0.md) |
 
+## Policy, strategy, and improvement
+
+QuantRule has three human-visible levels:
+
+| Level | File | What it decides |
+|---|---|---|
+| Policy | `policy.json` | Account size, performance target, max drawdown, position size, leverage, tickets, timeframes |
+| Strategy | `strategy.json` (with the human thesis) | Thesis, entry, exit, and risk/reward in trader words |
+| Engine contracts | `data.json`, `model.json`, `execution.json`, `portfolio.json`, `analytics.json` | Measurement, fills, accounting, evaluation |
+
+Validate the envelope and render the strategy:
+
+```bash
+cargo run -p quantrule-shell -- policy check --config config/examples/solusd-2025/run.json
+cargo run -p quantrule-shell -- strategy explain --config config/examples/solusd-2025/run.json
+```
+
+The improvement loop is documented in
+[`docs/tutorials/2026-10-30/improvement-loop.md`](docs/tutorials/2026-10-30/improvement-loop.md),
+the charter in [`docs/governance/2026-10-30/improvement-charter.md`](docs/governance/2026-10-30/improvement-charter.md),
+and the finding and experiment formats in
+[`docs/audits/README.md`](docs/audits/README.md) and
+[`docs/experiments/README.md`](docs/experiments/README.md).
+
 ## Build and run
 
 The workspace uses the Rust version in `Cargo.toml`. After the setup above,
@@ -157,6 +181,8 @@ cargo run -p quantrule-shell -- lab summary data/lab-result-2026-10-29T12-00-00Z
 | `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars; `--window latest` supports inputs above the 100k cap |
 | `market-report` | `<csv-path> --data-version <id> --out <dir>` [options] | A deterministic full-period report: `summary.txt`, `report.json`, and two PNGs |
 | `strategy-run` | `<csv-path> --strategy <name> --data-version <id>` [options] | Strategy entries and exits as NDJSON; no fills, positions, equity, or P&L |
+| `strategy explain` | `--config <run.json>` | The validated strategy thesis, entry, exit, and risk/reward in trader words |
+| `policy check` | `--config <run.json>` | Validate the policy against the strategy and engine configs |
 | `report` | `<model\|strategy\|execution\|portfolio\|analytical> --config <run.json>` [options] | One bundle under `<out>/<engine>/`; with `--json`, the `report.json` bytes |
 | `backtest` | `--config <run.json>` [options] | One full run and all five bundles; the model is computed once and the analytical summary streams from it; with `--json`, a summary envelope |
 | `lab summary` | `<lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <ts>` [options] | A deterministic root `summary.txt` for a lab result folder; prints `wrote <path>` |
@@ -378,21 +404,22 @@ The output is deterministic: the same input, range, data version, and configurat
 | `portfolio` | data, model, strategy, execution, portfolio | `summary.txt`, `report.json`, `trades.csv`, `equity.csv`, `equity.png`, `drawdown.png`, `provenance.json` |
 | `analytical` | data, model | `summary.txt`, `report.json`, `axes.csv`, `relations.csv`, `provenance.json` |
 
-A run is specified by seven files. The command line carries only the config path, an optional output override, and an optional JSON flag.
+A run is specified by eight files. The command line carries only the config path, an optional output override, and an optional JSON flag.
 
 | File | Contents |
 |---|---|
-| `run.json` | Run name, output root, and the six engine file names |
-| `data.json` | Source CSV, data version, UTC period, the fixed `1m`/`5m`/`15m`/`1h` ladder, and `max_candles` (`1..=600000`) |
+| `run.json` | Run name, policy reference, output root, and the six engine file names |
+| `policy.json` | Account, objective, risk envelope, tickets, and timeframes |
+| `data.json` | Instrument ticket, source CSV, data version, UTC period, the fixed `1m`/`5m`/`15m`/`1h` ladder, and `max_candles` (`1..=600000`) |
 | `model.json` | Structure scale (`major` or `minor`) |
-| `strategy.json` | `axis-agreement` timeframe and the long/short thresholds |
-| `execution.json` | Fill timeframe, order type, stop and target ATR multiples, tie break, fee rate, slippage, zero-volume and end-of-data policy |
+| `strategy.json` | Thesis, `axis-agreement` timeframe, long/short thresholds, stop ATR multiple, and reward-to-risk |
+| `execution.json` | Fill timeframe, order type, tie break, fee rate, slippage, zero-volume and end-of-data policy |
 | `portfolio.json` | Cash, currency, sizing, leverage, position limit, commission, funding, drawdown limit and action, mark policy |
 | `analytics.json` | Analytical report scale, timeframe subset, and relations switch |
 
-`data.source.path` resolves against `data.json`; `output_root` and the other file names resolve against `run.json`. The loader validates every file before a candle is read or a byte is written: an error names the file and the JSON path, never an absolute path. `analytics.json.timeframes` must be a subset of the ladder, and its structure scale must equal the model's. The contracts are [`docs/config/2026-10-28/per-engine-config.md`](docs/config/2026-10-28/per-engine-config.md) and [`docs/reports/2026-10-28/per-engine-reports.md`](docs/reports/2026-10-28/per-engine-reports.md).
+`data.source.path` resolves against `data.json`; `output_root` and the other file names resolve against `run.json`. The loader validates every file before a candle is read or a byte is written: an error names the file and the JSON path, never an absolute path. `analytics.json.timeframes` must be a subset of the ladder, and its structure scale must equal the model's. The policy must agree with the portfolio cash, drawdown, leverage, position size, ticket, and timeframe. The contracts are [`docs/config/2026-10-30/policy-and-strategy.md`](docs/config/2026-10-30/policy-and-strategy.md) and [`docs/reports/2026-10-28/per-engine-reports.md`](docs/reports/2026-10-28/per-engine-reports.md).
 
-`--out` defaults to the run's `output_root`. A bundle is available if and only if its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `report --json` prints the `report.json` bytes; `backtest --json` prints a summary envelope with the data version, the requested and actual periods, the five bundle paths, and the portfolio's final equity, return, net P&L, drawdown, trade count, and halt flag. `provenance.json` records the data version, the periods, the config file names, the resolved engine values, and the artifact list.
+`--out` defaults to the run's `output_root`. A bundle is available if and only if its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `report --json` prints the `report.json` bytes; `backtest --json` prints a summary envelope with the data version, the requested and actual periods, the five bundle paths, and the portfolio's final equity, return, net P&L, drawdown, trade count, and halt flag. `provenance.json` records the data version, the config hash, the periods, the config file names, the resolved engine values, and the artifact list.
 
 The model is computed once per run. The analytical bundle summarizes that model one bar at a time, so no layer set is materialized and the model is not recomputed. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data and period.
 
@@ -443,15 +470,15 @@ The summary has seven sections: Identity, Artifacts, Observed result, Checks, Ro
 
 ### Strategy-run contract
 
-`strategy-run <csv-path> --strategy <name> --data-version <id> [--from <date>] [--to <date>] [--json]` runs the first model-driven strategy, `axis-agreement`, over the M15 series and prints its entries and exits. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
+`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs the first model-driven strategy, `axis-agreement`, over the M15 series and prints its entries and exits. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
 
-- `axis-agreement` enters long when Direction, Momentum force, and Structure score are all above `+0.1`, and short when all are below `-0.1`. Equality at a threshold is neutral. It exits when the agreement is lost; it never reverses on the same bar and never exits at the end of the data.
+- `axis-agreement` enters long when Direction, Momentum force, and Structure score are all above the configured long threshold (default `+0.1`), and short when all are below the configured short threshold (default `-0.1`). Equality at a threshold is neutral. It exits when the agreement is lost; it never reverses on the same bar and never exits at the end of the data.
 - `--data-version <id>` is the caller-supplied identity of the input series; the envelope records it and never infers it from the path.
 - `--from` and `--to` are inclusive UTC `YYYY-MM-DD` dates applied to the M1 source before the ladder is built. No pre-range warm-up is used.
 - Without `--json`, the command prints one NDJSON line per entry or exit, oldest first. Each record carries `type`, `strategy`, `timeframe`, `timeframe_secs`, `bar`, `datetime`, `side`, `side_label`, `direction`, `momentum_force`, and `structure_score`; an exit also carries `reason` (`agreement_lost`). Model Signal events remain a separate event type and are never relabelled as strategy entries or exits.
 - With `--json`, the command prints one envelope with `model_version`, `strategy`, `strategy_config`, `data_version`, `requested_period`, `timeframe_secs`, and `records`; `records` carries the same records as the bare NDJSON output.
 
-The strategy reads only the configured timeframe, uses the extended range up to 600,000 M1 candles, and fails with a message rather than printing an empty result when the requested period has no M1 candles or no M15 bars. The output is deterministic: the same input, range, data version, and configuration produce the same bytes, interactively or non-interactively.
+`--config` uses the strategy blueprint from the run configuration; without it the built-in defaults are used. The strategy reads only the configured timeframe, uses the extended range up to 600,000 M1 candles, and fails with a message rather than printing an empty result when the requested period has no M1 candles or no M15 bars. The output is deterministic: the same input, range, data version, and configuration produce the same bytes, interactively or non-interactively.
 
 ### Fetch contract
 

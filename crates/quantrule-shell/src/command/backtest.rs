@@ -183,7 +183,9 @@ fn summary(
         );
     }
     let metrics = run.metrics();
-    let timeframe = run.model_run().timeframe(config.strategy.timeframe_secs());
+    let timeframe = run
+        .model_run()
+        .timeframe(config.strategy.engine.timeframe_secs());
     let first = timeframe
         .and_then(|timeframe| timeframe.candle(0))
         .map(|candle| candle.timestamp());

@@ -39,8 +39,9 @@ pub(crate) const AXIS_AGREEMENT: &str = "axis-agreement";
 pub(crate) fn parse_strategy_run_arguments(
     arguments: &[String],
 ) -> Result<StrategyRunArgs, ParseError> {
-    const USAGE: &str = "usage: strategy-run <csv-path> --strategy <name> --data-version <id> [--from <date>] [--to <date>] [--json]";
+    const USAGE: &str = "usage: strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]";
     let mut path = None;
+    let mut config = None;
     let mut strategy = None;
     let mut data_version = None;
     let mut from = None;
@@ -50,6 +51,23 @@ pub(crate) fn parse_strategy_run_arguments(
 
     while index < arguments.len() {
         match arguments[index].as_str() {
+            "--config" => {
+                if config.is_some() {
+                    return Err(ParseError::StrategyRun(format!(
+                        "--config was supplied twice\n{USAGE}"
+                    )));
+                }
+                index += 1;
+                let value = arguments
+                    .get(index)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| {
+                        ParseError::StrategyRun(format!(
+                            "--config requires a non-empty path\n{USAGE}"
+                        ))
+                    })?;
+                config = Some(PathBuf::from(value));
+            }
             "--strategy" => {
                 if strategy.is_some() {
                     return Err(ParseError::StrategyRun(format!(
@@ -153,6 +171,7 @@ pub(crate) fn parse_strategy_run_arguments(
 
     Ok(StrategyRunArgs {
         path,
+        config,
         strategy,
         data_version,
         from,
@@ -173,7 +192,13 @@ pub(crate) fn run_strategy_run(
     args: &StrategyRunArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let config = StrategyConfig::default();
+    let config = match &args.config {
+        Some(path) => {
+            let run = crate::config::RunConfig::load(path).map_err(RunError::Config)?;
+            run.strategy.engine
+        }
+        None => StrategyConfig::default(),
+    };
     let mut strategy = build_strategy(&args.strategy, config).ok_or_else(|| {
         RunError::StrategyRun(StrategyRunError::UnknownStrategy {
             name: args.strategy.clone(),

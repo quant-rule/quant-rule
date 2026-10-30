@@ -211,13 +211,14 @@ Notes
 Strategy
 --------
 
-strategy-run <csv-path> --strategy <name> --data-version <id> [--from <date>] [--to <date>] [--json]
+strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]
 
 Print strategy entries and exits as NDJSON; no fills or P&L.
 
 Options
   --strategy <name>            Strategy name; required (axis-agreement).
   --data-version <id>          Caller-supplied identity; required.
+  --config <path>              The strategy blueprint run configuration; optional.
   --from <date>                Inclusive UTC start date, YYYY-MM-DD.
   --to <date>                  Inclusive UTC end date, YYYY-MM-DD.
   --json                       Print one provenance envelope instead of bare NDJSON.
@@ -227,8 +228,23 @@ Output
 
 Notes
   Input cap: 600000 M1 candles; reads the strategy timeframe only.
+  With --config, uses the strategy blueprint from the run configuration.
   Stops at the decision: no order, fill, position, equity, trade, or P&L.
   Model Signal events are not strategy entries or exits.
+
+strategy explain --config <run.json>
+
+Print the validated strategy thesis, entry, exit, and risk in human trader words.
+
+Options
+  --config <path>              The run configuration; required.
+
+Output
+  Plain text: strategy name, timeframe, thesis, entry, exit, and risk.
+
+Notes
+  Reads the run configuration; it never runs the model or invents a rule.
+  The rendered rule is a presentation of the structured strategy config.
 
 Runs
 ----
@@ -287,6 +303,20 @@ Notes
   The data version must match every report.json and provenance.json.
   Never reads the clock; --created-utc is explicit.
   Refuses an existing summary.txt unless --force is given.
+
+policy check --config <run.json>
+
+Validate the policy blueprint against the strategy, data, execution, portfolio, and analytics.
+
+Options
+  --config <path>              The run configuration; required.
+
+Output
+  One deterministic policy summary line or a config error.
+
+Notes
+  Reads no candles and writes no output files.
+  The policy is the human-owned account, objective, risk, and universe envelope.
 
 Store
 -----

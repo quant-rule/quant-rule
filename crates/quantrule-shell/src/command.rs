@@ -16,6 +16,7 @@ mod lab;
 mod layers;
 mod model;
 mod parse;
+mod policy;
 mod report;
 mod report_run;
 mod research;
@@ -23,6 +24,7 @@ mod store;
 mod store_query;
 mod store_verify;
 mod strategy;
+mod strategy_explain;
 mod types;
 
 #[cfg(test)]
@@ -32,9 +34,11 @@ pub(crate) use self::backtest::{parse_backtest_arguments, run_backtest_command};
 pub(crate) use self::dashboard::{parse_dashboard_arguments, run_market_dashboard};
 pub(crate) use self::dispatch::{execute, parse_argv};
 pub(crate) use self::parse::{parse, parse_help_arguments};
+pub(crate) use self::policy::{parse_policy_arguments, run_policy_check};
 pub(crate) use self::report::{parse_market_report_arguments, run_market_report};
 pub(crate) use self::report_run::{parse_report_arguments, run_report};
 pub(crate) use self::strategy::{parse_strategy_run_arguments, run_strategy_run};
+pub(crate) use self::strategy_explain::{parse_strategy_explain_arguments, run_strategy_explain};
 pub(crate) use self::types::{Axis, Command, LabSummaryArgs, ParseError};
 
 use self::chart::{parse_market_chart_arguments, run_market_chart};

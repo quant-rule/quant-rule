@@ -1,5 +1,11 @@
 # Per-Engine Reports — MVP v1
 
+> Status: current report contract. The run configuration now uses `run v2`,
+> `strategy v2`, and `execution v2`; see
+> [`docs/config/2026-10-30/policy-and-strategy.md`](../../config/2026-10-30/policy-and-strategy.md).
+> The report artifacts and JSON fields below are unchanged. `provenance.json`
+now also records `config_hash`, the stable fingerprint of the eight config files.
+
 - Date: 2026-10-28 (UTC)
 - Issue: [#168](https://github.com/quant-rule/quant-rule/issues/168)
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
@@ -60,25 +66,19 @@ Every bundle contains `provenance.json`:
   "schema": "quantrule.provenance/v1",
   "report": "portfolio",
   "report_version": "2026-10-28",
-  "model_version": "0.2.0",
+  "model_version": "0.3.0",
   "data_version": "dukascopy-bid-solusd-m1-2025-01-01_2025-12-31",
+  "config_hash": "0123456789abcdef",
   "requested_period": { "from": "2025-01-01", "to": "2025-12-31" },
   "actual_period": { "first_open_time": 1735740300, "last_open_time": 1767193080 },
-  "config_files": ["run.json", "data.json", "model.json", "strategy.json", "execution.json", "portfolio.json", "analytics.json"],
-  "config": {
-    "run": { "name": "solusd-2025" },
-    "data": { "data_version": "...", "from": "2025-01-01", "to": "2025-12-31", "ladder": ["1m", "5m", "15m", "1h"], "max_candles": 600000 },
-    "model": { "structure_scale": "major" },
-    "strategy": { "name": "axis-agreement", "timeframe": "15m", "long_threshold": 0.1, "short_threshold": -0.1 },
-    "execution": { "fill_timeframe": "15m", "order_type": "market_next_open", "stop_atr_multiple": 2.0, "target_atr_multiple": 3.0, "tie_break": "stop_first", "fee_rate": 0.0, "slippage_bps": 2.0 },
-    "portfolio": { "initial_cash": 10000.0, "sizing": { "mode": "fixed_notional", "notional": 10000.0, "quantity_step": 0.0001 }, "leverage": 1.0, "max_open_positions": 1, "allow_short": true, "commission": { "rate": 0.001, "base": "equity", "per": "operation" }, "funding": { "rate": 0.0001, "interval_hours": 8 }, "max_drawdown": { "limit": 0.2, "action": "halt" } },
-    "analytics": { "structure_scale": "major", "timeframes": ["1m", "5m", "15m", "1h"], "relations": true }
-  },
+  "config_files": ["run.json", "policy.json", "data.json", "model.json", "strategy.json", "execution.json", "portfolio.json", "analytics.json"],
+  "config": { "...": "bundle-specific resolved values" },
   "artifacts": ["summary.txt", "report.json", "trades.csv", "equity.csv", "equity.png", "drawdown.png", "provenance.json"]
 }
 ```
 
 - `config_files` are file names, not absolute paths, so the bundle is portable.
+- `config_hash` is a stable FNV-1a fingerprint of the eight config files.
 - `config` holds resolved values, not raw bytes.
 - `actual_period` is the first and last bar of the report's primary timeframe. For
   the model report it spans the earliest and latest bar across the ladder; for

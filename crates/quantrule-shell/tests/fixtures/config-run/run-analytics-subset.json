@@ -1,5 +1,5 @@
 {
-  "schema": "quantrule.run/v1",
+  "schema": "quantrule.run/v2",
   "name": "fixture-analytics-subset",
   "data": "data.json",
   "model": "model.json",
@@ -7,5 +7,6 @@
   "execution": "execution.json",
   "portfolio": "portfolio.json",
   "analytics": "analytics-15m.json",
-  "output_root": "../../../../target/report-tests/report-analytical-subset-default"
+  "output_root": "../../../../target/report-tests/report-analytical-subset-default",
+  "policy": "policy.json"
 }

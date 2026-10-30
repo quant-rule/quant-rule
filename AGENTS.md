@@ -8,6 +8,8 @@ QuantRule ships as a shell application, and that is the whole of it. The result 
 
 The system is deterministic. Given the same input data and the same configuration, it must produce the same output every time. Any behavior that depends on wall-clock time, unseeded randomness, or iteration order of unordered collections is a defect, not a limitation. See section 12.
 
+The system is improved through an explicit loop: a human-owned policy and strategy blueprint, a Governing/Experiment Control Swarm, a Continuous Improvement Swarm (audit, plan, closure), an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the swarms never replace human acceptance. The loop may conclude "no edge" and stop.
+
 ## 2. Architecture and Data Flow
 
 The system is a pipeline with four stages:
@@ -30,6 +32,8 @@ Invariants that the pipeline depends on:
 - Multi-timeframe: each timeframe is a first-class series with the same shape and semantics as every other timeframe.
 - Candles-only: the system consumes OHLCV. Tick data, order books, and other externally derived series are out of scope.
 - Rule-based signals: signal generation is a deterministic rule over OHLCV candles. Statistical, machine-learning, and neural-network signal generation are out of scope; statistics is used only to evaluate and validate rule-based signals.
+- Rule purity: the signal path uses only addition, subtraction, multiplication, division, comparison, clamp, sign, and rounding. No statistical or fitted field may enter a model axis value or a strategy decision.
+- Configuration ownership: policy and strategy are human-owned; model, execution, portfolio, and analytics are technical contracts validated against the policy. The policy never contains an entry or exit rule, and the strategy never contains an indicator or accounting rule.
 - Layer isolation: the data engine never calls into the model engine, and the model engine never reaches back upstream. Dependencies point one way.
 - Axis independence: the four axes are measured separately and are never averaged into one number. A cross-axis agreement output is a count.
 - Availability, not occurrence: a measurement that becomes knowable only later — a confirmed swing pivot, a divergence — records both when it occurred and when it became knowable, and it never reaches an earlier bar.
@@ -41,6 +45,22 @@ The Rust workspace holds one crate per pipeline stage, plus the research engine,
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
 - `crates/quantrule-shell` — the shell binary, which depends on `quantrule-model` and `quantrule-data`.
 - `crates/quantrule-analytics` — the research engine, which depends on `quantrule-model` and builds the research dataset. It is not a pipeline stage; the shell owns its I/O.
+
+The decision stack above the pipeline is one-way:
+
+```
+POLICY (human) > STRATEGY (human) > MODEL (measurement) > EXECUTION (fills) > PORTFOLIO (accounting) > ANALYTICS (evaluation)
+```
+
+- The policy is the human-owned account/objective/risk/universe envelope. It never emits a signal.
+- The strategy is the human-owned, explainable rule. It reads only published primary axis values and bar identity; it never computes an indicator, reads a statistic, or touches cash/P&L.
+- The model measures and publishes numbers. It never reads strategy, execution, portfolio, policy, or analytics.
+- Execution fills decisions. It never decides direction.
+- Portfolio accounts. It never decides a signal.
+- Analytics evaluates. It never feeds a rule.
+- Audits, experiments, plans, and the Governing Swarm decide what to change; they never implement.
+
+Statistics is confined to evaluation and validation. No regression, correlation, p-value, optimization, fitted coefficient, percentile-driven entry/exit, or machine-learning model is part of the signal path. A model diagnostic may remain outside the signal path only if a boundary test proves the strategy cannot read it.
 
 The analytical model's contract — the four axes, the numeric output fields, the event model, and the aggregation rules — is written down in `docs/model/`; the research output contract is in `docs/analytics/`. The implementation follows both.
 
@@ -98,6 +118,9 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **Strategy validation.** A claim that a rule is profitable reports in-sample and out-of-sample results, cost assumptions, and every variation tried. Out-of-sample evidence is required before the claim is called promising; a backtest on the tuning sample is not validation.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Model-layer tests.** Every axis and every reading has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
+- **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. The strategy explain command is tested as printed output. A boundary test proves the strategy input exposes only the three primary axis values and bar identity.
+- **Audit regression guards.** A fix for an audit finding carries a regression test that fails before the fix and passes after it, or a written reason why a fail-before test is impossible.
+- **Experiment reproducibility.** An experiment record names the data versions, configs, splits, costs, and matrix; the same record reproduces the same labs.
 - **Event tests.** An event appears only at or after the bar on which it became knowable, one underlying occurrence is never emitted twice, the level-event precedence is respected, and a divergence is never emitted before the pivot that confirms it has become knowable.
 - **Progression tests.** A leg's stage is null while its origin is unconfirmed or its target is unstable, every lifecycle code is reachable, and a target revision changes the target version without a price movement.
 - **Aggregation tests.** A cross-timeframe aggregate uses a method that suits its axis: ordinal codes are counted rather than averaged, and every aggregate names the timeframes it came from.
@@ -120,6 +143,10 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/model/<YYYY-MM-DD>/<file>.md` — the analytical model's contract: the four axes, the numeric output fields, the event model, and the aggregation rules. The implementation follows it.
   - `docs/tutorials/<YYYY-MM-DD>/<file>.md` — end-to-end procedures that run the product through shell commands, including role labs.
   - `docs/adr/<YYYY-MM-DD>/<file>.md` — architecture decision records, describing the decision, the alternatives considered, and the consequences.
+  - `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` — read-only findings, evidence, and remediation options. `docs/audits/README.md` is the index/template.
+  - `docs/experiments/<YYYY-MM-DD>/<EXP-ID>-<slug>.md` — pre-registered experiment records. `docs/experiments/README.md` is the index/template.
+  - `docs/governance/<YYYY-MM-DD>/<file>.md` — the improvement charter, green criteria, autonomy, and stop conditions.
+  - `docs/config/<YYYY-MM-DD>/<file>.md` — policy, strategy, and engine configuration contracts.
 - **Plans live in the repository.** An execution plan drafted outside the repository is a scratch copy, not the plan of record. Before implementation, it is written to `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` and committed. No implementation begins until that file exists.
 - **Documentation follows the code.** A change that invalidates a documented behavior updates that document in the same pull request, not in a follow-up.
 - **No stale documentation.** If a document describes behavior that no longer exists, the change that removed the behavior removes the description.
@@ -128,7 +155,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 
 ### AI transparency log
 
-Record material AI contributions in `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md`, one file per work item, named to match its execution plan where the work item has one, including assistance with documentation, implementation, testing, and architectural analysis.
+Record material AI contributions in `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md`, one file per work item, named to match its execution plan where the work item has one, including assistance with documentation, implementation, testing, architectural analysis, audit, planning, and experiment triage.
 
 Each entry must record:
 
@@ -233,6 +260,23 @@ Scope: short bullet list.
 Done when: short bullet list of observable conditions.
 ```
 
+### Audit format
+
+An audit is one dated document under `docs/audits/<YYYY-MM-DD>/`. It carries a
+findings table with `ID`, `Severity`, `Area`, `Finding`, `Evidence`, `Impact`,
+`Options`, `Recommended`, `Verification`, `Status`, and `Links`, plus a detail
+block per finding. Evidence must be reproducible. Critical and Major findings
+carry at least two remediation options. The audit is read-only: it does not
+modify code, tests, issues, or PRs.
+
+### Experiment format
+
+An experiment is one dated record under `docs/experiments/<YYYY-MM-DD>/`. It
+states the hypothesis, policy, strategy, data versions, tickets, timeframes,
+splits, costs, green criteria, iteration cap, matrix, results, triage, decision,
+and limitations. The criteria are recorded before the run; a post-hoc change is a
+new experiment.
+
 ### Commit format
 
 Conventional Commit subject; body of at most five short lines saying what changed and why.
@@ -293,6 +337,16 @@ Rules for the lifecycle:
 - The board is kept in step by workflows rather than by hand. The project's built-in workflows mark an item `Done` when its issue is closed, and close the issue when the item is marked `Done`. A repository workflow owns the `State`, `Item type`, and `Closed date` fields, and recomputes a container's `Status` from its sub-issues. The agent sets a leaf's `Todo`, `In Progress`, and `Start date`, and does not set what a workflow owns.
 - If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
 
+### Audit and experiment tracking
+
+Audit documents and experiment records are repository artifacts, not board
+items. The board tracks the remediation issues/sub-issues and their PRs. An audit
+finding has its own status in the audit document: `Open`, `Triaged`, `Planned`,
+`In progress`, `Fixed`, `Verified`, `Won't fix`, `Duplicate`, or `Stale`. The
+Planner moves a finding to `Triaged`/`Planned`; execution/PR moves it to `Fixed`;
+the Improvement Verifier alone moves it to `Verified`; the human alone decides
+`Won't fix`.
+
 ### Decomposing an issue into sub-issues
 
 An issue that grows too large, or that comes to hold more than one deliverable, is split into sub-issues. The rules for the split:
@@ -321,6 +375,22 @@ The board holds both the issue and the pull request that closes it. The human re
 AI agents operate under explicit responsibilities and permissions. Role separation exists to improve traceability, verification, and the detection of mistakes—not to transfer decision authority away from the human.
 
 The quant roles below specialize the engineering roles; they do not replace them. The human-readable companion is `docs/roles/2026-10-29/quant-roles.md`; this section is normative.
+
+### Operating swarms
+
+The roles below operate in four groups. They are not four independent decision
+authorities.
+
+| Swarm | Roles | Delivery authority |
+|---|---|---|
+| Engineering | Orchestrator, Architect, Implementation, Test, Code Reviewer, Security, Release | Code, tests, PRs, technical execution |
+| Quant | Quant Researcher, Quant Developer, Quant Validator | Model/strategy hypotheses and independent validation |
+| Continuous Improvement | Audit, Planner, Improvement Verifier | Audit, plan, closure verification |
+| Governing / Experiment Control | Loop Governor, Result Analyst, Triage Officer | Experiment loop, triage, stop decision |
+
+The **Engineering** and **Quant** swarms are the two delivery sides. Continuous
+Improvement and Governing are cross-cutting oversight; they do not implement or
+approve. The human is above all four groups.
 
 ### Human Developer — Decision Owner
 
@@ -543,6 +613,52 @@ Boundaries:
 - Does not deploy, merge, publish a release, or modify external environments without explicit authorization.
 - Must distinguish local verification from staging or production evidence.
 
+### Governing / Experiment Control Swarm
+
+Purpose: Own the improvement loop and decide what should change next.
+
+Roles:
+
+- **Loop Governor / Experiment Orchestrator** — owns the matrix, baseline,
+  budget, iteration cap, and stop decision.
+- **Result Analyst** — reads labs, compares against baseline and out-of-sample,
+  checks costs and stability, and reports evidence.
+- **Triage Officer** — classifies program/model/strategy/execution/portfolio/
+  analytics/data/no-edge and routes the work.
+
+Boundaries: the Governing Swarm may run an approved matrix and recommend. It may
+not implement, change a config directly, merge, release, or declare validation.
+
+### Audit Agent
+
+Purpose: Find and record problems without modifying the system.
+
+Responsibilities: perform read-only audits; record reproducible evidence,
+invariants, impact, and remediation options; publish the audit document.
+
+Boundaries: no code, tests, issues, or PRs; no approval; no self-verification.
+
+### Planner Agent
+
+Purpose: Turn audit findings into a definitive, reviewable execution plan.
+
+Responsibilities: verify findings against the current code; deduplicate; find the
+root cause; compare remediation options; write the execution plan and
+finding→issue/sub-issue/PR/verification traceability; create fix
+issues/sub-issues after human approval.
+
+Boundaries: no implementation; no approval; no silent scope expansion.
+
+### Improvement Verifier Agent
+
+Purpose: Independently verify that a fix closes the finding without regressions.
+
+Responsibilities: check the regression guard, diff, tests, unrelated changes,
+and required Quant Validator record; update the finding to `Verified` or return
+it for remediation.
+
+Boundaries: read-only; cannot verify its own audit or plan; no code or approval.
+
 ### Role Assignment Rules
 
 Not every task needs every role.
@@ -563,11 +679,52 @@ When one agent performs several quant roles, the orchestrator discloses the sequ
 The human remains the final authority; a Quant Validator verdict is evidence, not approval.
 When the available tools cannot start separate agents, the orchestrator may conduct sequential role-specific review passes. It must disclose that these were not independent agents or independent model judgments.
 
+Audit findings that change model or strategy behavior require the Quant
+Researcher, Quant Developer, and Quant Validator in addition to the Planner and
+Engineering roles; Continuous Improvement cannot close them alone.
+
+The Governing Swarm may run approved experiments and recommend a route. It does
+not replace the Engineering, Quant, or human approval gates.
+
 Only one implementation agent should write to a given file or workstream at a time. Parallel investigation is permitted when scopes are non-overlapping, clearly assigned, and consistent with the approved plan. Separate sessions work in separate worktrees (section 7), so two of them do not contend for the same files.
 
-## 11. Execution Plans
+## 11. Audits, Experiments, and Execution Plans
 
 An execution plan makes substantial work reviewable before implementation. It is separate from the permanent repository rules in this file.
+
+### Improvement loop
+
+```text
+Policy and strategy (human)
+  → experiment matrix (Governing)
+  → result and triage
+  → program fix: Audit → Planner → Execution → Verifier
+  → trading change: Quant Researcher → Developer → Validator
+  → re-run or stop
+```
+
+The human owns the policy and strategy, approves the experiment protocol and
+material changes, and accepts residual risk. The loop may stop at “no edge”.
+
+### Audit workflow
+
+1. The Audit Agent audits a fixed baseline read-only and writes
+   `docs/audits/<date>/<scope>-audit.md`.
+2. The Planner verifies each finding against the current code, marks stale or
+   duplicate findings, and writes an execution plan with a traceability table.
+3. The human approves the plan.
+4. The Planner creates fix issues/sub-issues; execution proceeds under section 13.
+5. The Improvement Verifier checks closure and updates the finding to `Verified`.
+
+### Experiment workflow
+
+1. Pre-register the hypothesis, matrix, splits, costs, green criteria, iteration
+   cap, and stop conditions in `docs/experiments/<date>/`.
+2. Run independent cells in parallel with isolated output roots.
+3. Analyze against baseline and out-of-sample.
+4. Triage to program, model, strategy, execution, portfolio, analytics, data, or
+   no edge.
+5. Record the decision and the next experiment, or stop.
 
 ### When a Plan Is Required
 
@@ -640,6 +797,13 @@ QuantRule is a deterministic, rule-based system. A backtest that cannot be repro
 
 Follow these stages in order for planned work.
 
+### Stage 0 — Improvement intake
+
+The Governing Swarm or the human defines the experiment or accepts the audit
+finding. The audit/experiment record exists; when the work changes code, the
+Planner has a plan and the human has approved it. No implementation starts before
+this gate.
+
 ### Stage 1 — Read-only Preflight
 
 The orchestrator inspects the current working directory, branch, working tree, worktrees, repository structure, applicable instructions, requirements, relevant implementation, and existing tests.
@@ -709,6 +873,14 @@ The report itself follows the response format in section 8.
 
 Stop without beginning an unrequested subsequent task.
 
+### Stage 6 — Audit closure and improvement loop
+
+The Improvement Verifier checks the merged work against the finding, confirms
+the regression guard, and updates the finding to `Verified`. The Governing Swarm
+records the experiment result and decides whether to re-run, change one engine,
+or stop. Unresolved findings stay open; no release with an open Critical finding
+unless the human records residual-risk acceptance.
+
 ## 14. Human Approval Gates
 
 Human approval is required for decisions not already settled by explicit instructions or approved project rules.
@@ -721,6 +893,11 @@ Examples include:
 - Security, privacy, authorization, and data-retention decisions.
 - Schema changes and consequential migration or recovery decisions.
 - Changes to development methodology, Git conventions, or approval procedures.
+- A policy or strategy blueprint change, a model/strategy/execution/portfolio/
+  analytics contract change, or a new experiment protocol.
+- A finding marked `Won't fix`, a release with an open Critical finding, or a
+  claim of an edge.
+- The autonomy level of the Governing Swarm and any automatic config writing.
 - Acceptance of material residual risk.
 
 The Git operations gated in section 9 require separate human authorization and are not repeated here.

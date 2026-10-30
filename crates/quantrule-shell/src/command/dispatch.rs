@@ -10,9 +10,10 @@ use std::path::PathBuf;
 use super::{
     Command, ParseError, run_axis, run_backtest_command, run_candles, run_candles_tolerant, run_db,
     run_events, run_fetch, run_help, run_lab_summary, run_legs, run_market_chart,
-    run_market_dashboard, run_market_report, run_market_state, run_model_series, run_report,
-    run_research_export, run_research_summary, run_store_ingest, run_store_init, run_store_list,
-    run_store_remove, run_store_show, run_store_verify, run_strategy_run, run_timeframes,
+    run_market_dashboard, run_market_report, run_market_state, run_model_series, run_policy_check,
+    run_report, run_research_export, run_research_summary, run_store_ingest, run_store_init,
+    run_store_list, run_store_remove, run_store_show, run_store_verify, run_strategy_explain,
+    run_strategy_run, run_timeframes,
 };
 
 /// Parses the already-split arguments after the binary name.
@@ -60,6 +61,9 @@ pub(crate) fn parse_argv(arguments: &[String]) -> Result<Option<Command>, ParseE
         "strategy-run" => {
             super::parse_strategy_run_arguments(rest).map(|args| Some(Command::StrategyRun(args)))
         }
+        "strategy" => super::parse_strategy_explain_arguments(rest)
+            .map(|args| Some(Command::StrategyExplain(args))),
+        "policy" => super::parse_policy_arguments(rest).map(Some),
         "lab" => super::parse_lab_arguments(rest),
         "fetch" => super::parse_fetch_arguments(rest).map(|args| Some(Command::Fetch(args))),
         "research" => super::parse_research_arguments(rest),
@@ -105,6 +109,8 @@ pub(crate) fn execute(command: Command, stdout: &mut impl Write, stderr: &mut im
         Command::Backtest(args) => run_backtest_command(&args, stdout),
         Command::LabSummary(args) => run_lab_summary(&args, stdout),
         Command::StrategyRun(args) => run_strategy_run(&args, stdout),
+        Command::StrategyExplain(args) => run_strategy_explain(&args, stdout),
+        Command::PolicyCheck(args) => run_policy_check(&args, stdout),
         Command::Axis { args, axis } => run_axis(&args, axis, stdout),
         Command::Events(args) => run_events(&args, stdout),
         Command::Legs(args) => run_legs(&args, stdout),

@@ -17,6 +17,8 @@ pub(crate) struct Provenance<'a> {
     pub report: &'a str,
     /// The data version supplied by the run configuration.
     pub data_version: &'a str,
+    /// The stable fingerprint of the config files.
+    pub config_hash: &'a str,
     /// The requested lower date, as written.
     pub from: Option<&'a str>,
     /// The requested upper date, as written.
@@ -45,6 +47,7 @@ pub(crate) fn bytes(provenance: &Provenance<'_>) -> io::Result<Vec<u8>> {
         "report_version": REPORT_VERSION,
         "model_version": env!("CARGO_PKG_VERSION"),
         "data_version": provenance.data_version,
+        "config_hash": provenance.config_hash,
         "requested_period": {
             "from": provenance.from,
             "to": provenance.to,

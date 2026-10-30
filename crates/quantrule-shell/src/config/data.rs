@@ -24,6 +24,8 @@ const LADDER: [&str; 4] = ["1m", "5m", "15m", "1h"];
 pub(crate) struct DataConfig {
     /// The M1 source file.
     pub(crate) source: DataSource,
+    /// The instrument ticket this source represents, such as `EURUSD`.
+    pub(crate) instrument: String,
     /// The identity of the input series, set by the caller.
     pub(crate) data_version: String,
     /// The inclusive lower UTC date, as written.
@@ -57,6 +59,7 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         &[
             "schema",
             "source",
+            "instrument",
             "data_version",
             "from",
             "to",
@@ -65,7 +68,7 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
             "max_candles",
         ],
     )?;
-    read::schema(file, object, "quantrule.data/v1")?;
+    read::schema(file, object, "quantrule.data/v2")?;
 
     let source_value = read::field(file, ROOT, object, "source")?;
     let source_object = read::object(file, "$.source", source_value)?;
@@ -83,6 +86,13 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         "$.source.path",
         read::field(file, "$.source", source_object, "path")?,
     )?;
+
+    let instrument = read::non_empty_string(
+        file,
+        "$.instrument",
+        read::field(file, ROOT, object, "instrument")?,
+    )?
+    .to_owned();
 
     let data_version = read::non_empty_string(
         file,
@@ -138,6 +148,7 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         source: DataSource {
             path: base.join(source_path),
         },
+        instrument,
         data_version,
         from,
         to,

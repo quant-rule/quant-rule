@@ -1,6 +1,7 @@
 {
-  "schema": "quantrule.run/v1",
+  "schema": "quantrule.run/v2",
   "name": "solusd-2025",
+  "policy": "policy.json",
   "data": "data.json",
   "model": "model.json",
   "strategy": "strategy.json",

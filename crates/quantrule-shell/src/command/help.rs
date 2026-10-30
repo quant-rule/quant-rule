@@ -116,6 +116,10 @@ const CONFIG: OptionHelp = OptionHelp {
     flag: "--config <path>",
     description: "The run configuration; required.",
 };
+const OPTIONAL_CONFIG: OptionHelp = OptionHelp {
+    flag: "--config <path>",
+    description: "The strategy blueprint run configuration; optional.",
+};
 const BUNDLE_OUT: OptionHelp = OptionHelp {
     flag: "--out <dir>",
     description: "Output root override (default: the run config).",
@@ -216,7 +220,14 @@ const CHART_OPTIONS: &[OptionHelp] = &[PNG, CHART_TIMEFRAME, CANDLES, WINDOW];
 const MARKET_REPORT_OPTIONS: &[OptionHelp] = &[DATA_VERSION, FROM, TO, REPORT_OUT, JSON_REPORT];
 const MODEL_SERIES_OPTIONS: &[OptionHelp] = &[MODEL_TIMEFRAME, BARS, WINDOW];
 const RESEARCH_EXPORT_OPTIONS: &[OptionHelp] = &[DATA_VERSION, ROOT];
-const STRATEGY_RUN_OPTIONS: &[OptionHelp] = &[STRATEGY, DATA_VERSION, FROM, TO, JSON_STRATEGY];
+const STRATEGY_RUN_OPTIONS: &[OptionHelp] = &[
+    STRATEGY,
+    DATA_VERSION,
+    OPTIONAL_CONFIG,
+    FROM,
+    TO,
+    JSON_STRATEGY,
+];
 const REPORT_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BUNDLE];
 const BACKTEST_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BACKTEST];
 const LAB_SUMMARY_OPTIONS: &[OptionHelp] =
@@ -426,12 +437,13 @@ const COMMANDS: &[CommandHelp] = &[
         name: "strategy-run",
         short_usage: "strategy-run <csv-path>",
         short_summary: "Entries and exits; no fills or P&L.",
-        usage: "strategy-run <csv-path> --strategy <name> --data-version <id> [--from <date>] [--to <date>] [--json]",
+        usage: "strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]",
         summary: "Print strategy entries and exits as NDJSON; no fills or P&L.",
         options: STRATEGY_RUN_OPTIONS,
         output: "NDJSON entries and exits, or one JSON envelope with --json.",
         notes: &[
             "Input cap: 600000 M1 candles; reads the strategy timeframe only.",
+            "With --config, uses the strategy blueprint from the run configuration.",
             "Stops at the decision: no order, fill, position, equity, trade, or P&L.",
             "Model Signal events are not strategy entries or exits.",
         ],
@@ -495,6 +507,34 @@ const COMMANDS: &[CommandHelp] = &[
             "A store whose schema is newer than the binary is rejected; a file that is not a database fails clearly.",
         ],
         group: Group::Store,
+    },
+    CommandHelp {
+        name: "strategy explain",
+        short_usage: "strategy explain --config <run>",
+        short_summary: "Render the strategy in trader words.",
+        usage: "strategy explain --config <run.json>",
+        summary: "Print the validated strategy thesis, entry, exit, and risk in human trader words.",
+        options: &[CONFIG],
+        output: "Plain text: strategy name, timeframe, thesis, entry, exit, and risk.",
+        notes: &[
+            "Reads the run configuration; it never runs the model or invents a rule.",
+            "The rendered rule is a presentation of the structured strategy config.",
+        ],
+        group: Group::Strategy,
+    },
+    CommandHelp {
+        name: "policy check",
+        short_usage: "policy check --config <run>",
+        short_summary: "Validate the policy and engine configs.",
+        usage: "policy check --config <run.json>",
+        summary: "Validate the policy blueprint against the strategy, data, execution, portfolio, and analytics.",
+        options: &[CONFIG],
+        output: "One deterministic policy summary line or a config error.",
+        notes: &[
+            "Reads no candles and writes no output files.",
+            "The policy is the human-owned account, objective, risk, and universe envelope.",
+        ],
+        group: Group::Runs,
     },
     CommandHelp {
         name: "store ingest",

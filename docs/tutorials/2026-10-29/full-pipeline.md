@@ -557,6 +557,17 @@ is illustrative; it is not a recommendation and not out-of-sample validation.
 
 ```bash
 lab=data/lab-result-2026-10-30T12-00-00Z
+Before the run, validate the human envelope and read the strategy in trader
+words. The run config is `run v2` and names `policy.json`; the strategy owns the
+stop and reward-to-risk.
+
+```bash
+"$QR" policy check --config config/examples/solusd-2025/run.json
+"$QR" strategy explain --config config/examples/solusd-2025/run.json
+```
+
+Expected: `policy ok ...` and the strategy thesis, entry, exit, and risk lines.
+
 "$QR" backtest --config config/examples/solusd-2025/run.json --out "$lab"
 ```
 
