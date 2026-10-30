@@ -1,0 +1,187 @@
+# AI Transparency Log — Architecture Hardening
+
+- Date: 2026-10-30 (UTC)
+- Work item: `architecture-hardening`
+- Plan: [`docs/execution-plans/2026-10-30/architecture-hardening.md`](../../execution-plans/2026-10-30/architecture-hardening.md)
+- Tool: OpenCode agent, DeepSeek V4.1 Flash 1017 (model ID `deepseek-flash`), with shell and file tools
+- Human decision owner: repository owner
+
+## Entry 1 — Read-only audit and plan
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: inspect the repository read-only and produce an architectural audit plus a phased execution plan. No code, tests, issues, or PRs were changed in this entry.
+- What the AI did:
+  - Inspected the workspace layout, crate manifests, module trees, line counts, public surface, tests, ADRs, and the existing MVP audit.
+  - Traced module imports to find cycles and upward dependencies.
+  - Wrote the audit findings (ARCH-2026-10-30-01 through -08) and the execution plan.
+  - Proposed the target module graph: `model::input`/`consensus`/`timeframe`/`run`/`state`; `backtest::side` plus an execution-owned intent; a shell `pipeline`; split command arguments and renderers.
+- Verification and evidence: the evidence is file/line references at `9f0d0d5`. The test suite was not run for the audit; no passing-test claim is made.
+- Learning and corrections:
+  - The initial plan counted `snapshot_at` as 13 parameters; the signature has 12. Corrected before approval.
+  - The initial plan said “seven of eight” unused config re-exports; the count is seven of nine. Corrected before approval.
+  - The crate graph is not the problem; the module graph is. The plan therefore rejects new crates.
+  - Accepted ADRs constrain the solution: config parsing stays in the shell; descriptive views stay in the model; backtest stays one crate.
+
+## Entry 2 — Phase 0 records
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: create the repository audit, approved plan, and this log; establish the baseline. No production source changes.
+- What the AI did:
+  - Created the task worktree `../quant-rule--architecture-hardening` on branch `refactor/architecture-hardening` from `main` at `9f0d0d5`.
+  - Copied the approved plan to `docs/execution-plans/2026-10-30/architecture-hardening.md` and marked it Approved.
+  - Wrote `docs/audits/2026-10-30/architecture-audit.md`.
+  - Recorded the toolchain: Rust 1.99.1, Cargo 1.99.1, edition 2024.
+- Verification and evidence: `git worktree list` shows the worktree; the files exist. Baseline test/clippy results are recorded in the phase evidence section below when run.
+- Learning: the human approved the plan and authorized implementation; push, PR, and merge remain gated. The plan’s Phase 3c still requires an explicit A/B decision and quant-role evidence.
+
+## Entry 3 — Phase 1 model de-cycling
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: remove the `run ↔ state` cycle without changing numeric output. The model input contract, consensus diagnostic, and per-timeframe series were split into `input`, `consensus`, and `timeframe`; `state` is now a view over `run`.
+- What the AI did:
+  - Added `input.rs`, `consensus.rs`, and `timeframe.rs`; reduced `run.rs` to `ModelRun`; reduced `state.rs` to the view.
+  - Folded the 12-parameter free `snapshot_at` into a `SnapshotInputs` request struct, removing the `too_many_arguments` allow.
+  - Updated every workspace import from `run::TimeframeModel`/`run::ModelBar`/`state::MarketStateConfig`/`state::TimeframeInput`/`state::TimeframeConsensus` to the new modules.
+  - Added `crates/quantrule-model/tests/boundaries.rs` with source-level guards.
+- Verification and evidence: `cargo test -p quantrule-model` passed (442 unit tests plus the model integration tests and 2 boundary tests); `cargo clippy -p quantrule-model --all-targets` passed. No golden fixture was regenerated. `cargo check --workspace` passed after the import migration.
+- Learning: the private `TimeframeModel` field access in `ModelRun::timeframe` had to become the public accessor; the move made the previous same-module privacy visible. The split is behavior-preserving so far.
+
+## Entry 4 — Phase 2 backtest dependency inversion
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: remove the upward `execution -> strategy` and `portfolio -> strategy` edges without changing fills, rejections, or accounting.
+- What the AI did:
+  - Moved `Side` to `quantrule-backtest::side`; `strategy` re-exports it for the existing public path.
+  - Added `execution::OrderIntent` (`Hold`, `Enter`, `Exit`) carrying only side and bar identity.
+  - Changed `ExecutionEngine::submit` to take `OrderIntent`; the runner maps `Decision` to the intent.
+  - Updated execution/portfolio docs and tests to the new vocabulary.
+  - Added `crates/quantrule-backtest/tests/boundaries.rs` with source-level guards.
+- Verification and evidence: `cargo check --workspace --all-targets` passed; `cargo test -p quantrule-backtest` passed (152 unit tests, integration suites, and 2 boundary tests); `cargo clippy -p quantrule-backtest --all-targets` passed; `cargo test -p quantrule-backtest --doc` passed 38 doctests. The execution golden fixtures were not regenerated.
+- Learning: the engine still validates the same bar index and open time, so the rejection behavior is preserved. The `Decision` name remains in the existing `ExecutionError` variants for compatibility; the type itself is no longer imported.
+
+## Entry 5 — Phase 3a shell pipeline
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: make one shell pipeline own the source-to-model path, remove the duplicate ladder/input construction, and make `strategy-run --config` honor the run model config. The strategy decision rule is unchanged.
+- What the AI did:
+  - Added `shell/src/pipeline.rs` with `WindowMode`, `ModelInputs`, `load_set`, `load_extended_set`, `load_set_with_limit`, `model_run_from_set`, `run_model`, `run_backtest`, and `ladder_secs`.
+  - Replaced the four `TimeframeInput` construction sites in `command/model.rs`, `command/layers.rs`, `command/report_run.rs`, and `command/strategy.rs`.
+  - Removed the duplicate `LADDER` constants from `command/report.rs`, `command/report_run.rs`, and `config/data.rs`; the ladder now comes from `Timeframe::ALL`.
+  - `strategy-run` now carries `run.model` into the model run instead of `MarketStateConfig::default()`.
+  - Added an end-to-end test that runs `strategy-run --config` against a minor-structure-scale config and compares its decisions with `report strategy`.
+- Verification and evidence: `cargo test -p quantrule-shell` passed (including the 99 CLI tests, all report/backtest/store suites, and the new 12th strategy-run test); `cargo clippy -p quantrule-shell --all-targets` passed. The new test was also checked manually: the minor config produced 17 records while the default major config produced 13, so the test is sensitive to the fix.
+- Learning: computing the full four-timeframe model for `strategy-run` adds work compared with the old single-timeframe path, but it uses the same model contract as the report/backtest path and removes the last shell `TimeframeInput` literal. The command is a diagnostic, so the extra computation is acceptable in this refactor.
+
+## Entry 6 — Phase 3b one strategy walk
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: make the backtest runner the only place that walks the strategy; the shell reports and the diagnostic command read the recorded walk. The strategy rule is unchanged.
+- What the AI did:
+  - Added `strategy::StrategyWalk` and `AgreementCounts`, carrying inputs, decisions, agreement counts, and the final strategy position.
+  - Added `runner::walk_strategy`; `run_backtest` computes the walk once and feeds execution from it.
+  - `BacktestRun` stores the walk; `decisions()` and `strategy_walk()` read it.
+  - Deleted `report_run::run_strategy`; the strategy bundle now reads `BacktestRun::strategy_walk()`.
+  - Deleted `command/strategy.rs::collect_records`'s `on_bar` loop; it reads the walk instead.
+- Verification and evidence: `cargo test -p quantrule-backtest` passed (152 unit tests and all integration suites); `cargo test -p quantrule-shell` passed (all suites, including 99 CLI tests and the new config test); `cargo clippy --workspace --all-targets` initially found one needless borrow, which was fixed. No `on_bar` call remains in `crates/quantrule-shell/src`.
+- Learning: `report strategy` now runs the full backtest to obtain the executed walk. The output is unchanged for the current strategy; the benefit is that the report cannot re-walk the rule and drift from execution. AUD-02 remains open because the strategy still carries its own virtual position.
+
+## Entry 7 — Phase 4 shell cycle break
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: make the renderer edges one-way without changing the command contract or its output.
+- What the AI did:
+  - Moved `Axis` from `command/types.rs` to `render_state`.
+  - Moved `LabRole`, `LabOperator`, and `LabSummaryArgs` from `command/types.rs` to `lab_summary`; `command/types.rs` re-exports them for the parser vocabulary.
+  - Removed `Axis` and `LabSummaryArgs` from the `command.rs` re-export list.
+  - Added `crates/quantrule-shell/tests/architecture.rs` with guards for renderer imports, the strategy walk, and ladder/input construction.
+- Verification and evidence: `cargo test -p quantrule-shell` passed all suites, including 99 CLI tests and the 3 architecture tests; `cargo clippy --workspace --all-targets` passed. `grep` confirms no `use crate::command` in `lab_summary.rs` or `render_state.rs`.
+- Learning: moving the lab types also moved their presentation labels (`label`, `handoff`, `code`) next to the writer that uses them; the parser keeps the same type names through the re-export, so the command contract is unchanged.
+
+## Entry 8 — Phase 5 config and docs hygiene
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: remove the blanket lint suppression and document the backtest crate. No behavior change.
+- What the AI did:
+  - Removed `#![allow(dead_code, unused_imports)]` from `config/mod.rs`.
+  - Deleted the seven unused config re-exports; kept `ConfigError` and `RunConfig`.
+  - Removed the stale `#172-#176` module-doc paragraph.
+  - Removed an unused `parse_json` test helper.
+  - Added `quantrule-backtest` to the `AGENTS.md` crate list and updated the shell dependency line.
+- Verification and evidence: `cargo check -p quantrule-shell --all-targets` passed with no warnings. A full fmt/test/clippy run is recorded below after the remaining hygiene work.
+- Learning: the blanket allow hid only one unused test helper; the seven re-exports were genuinely dead, so removing them was safe.
+
+## Entry 9 — Phase 5 analytics column split
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: split the 1,706-line research column registry along its existing layer seams. No column order, name, or description changes.
+- What the AI did:
+  - Replaced `research/columns.rs` with `research/columns/{mod,layer1,layer2,aggregates,raw}.rs`.
+  - Kept `Column` and the `c` constructor in `mod.rs`; moved each table and its name function to the owning module.
+  - Preserved the public `research::{aggregate_names, layer1_names, layer2_names}` paths and the internal table paths used by `metadata` and `render`.
+- Verification and evidence: `cargo test -p quantrule-analytics` passed (68 unit tests, integration suites); `cargo clippy -p quantrule-analytics --all-targets` passed. The largest resulting file is `aggregates.rs` at 833 lines.
+- Learning: the split exposed that the `RESOLUTIONS` doc comment belonged with the table, not with `layer1_names`; it was moved during the split. No values changed.
+
+## Entry 10 — Phase 3c stateless strategy
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: implement the recommended option B for AUD-2026-10-30-02. Execution owns the position; the strategy is a stateless rule. This is an intentional strategy-behavior change.
+- What the AI did:
+  - Changed `Strategy` to `decide(&StrategyInput, position: Option<Side>) -> Decision`.
+  - Removed `AxisAgreementStrategy`'s position field and `position()` accessor.
+  - Interleaved the strategy decision with execution in `run_backtest`: the runner passes `execution.position_side()` after the bar's `advance` and fills.
+  - Kept `walk_strategy` as a clearly labeled virtual diagnostic; `strategy-run` now adds `"execution_state": "virtual"` to its JSON envelope.
+  - Added `StrategyWalk::positions()` so the executed walk records the position supplied to each decision.
+  - Added the regression test `a_rejected_short_is_never_an_open_strategy_position`.
+  - Regenerated the runner decision, trade, and metric goldens because the executed strategy now reacts to bracket exits; this is the intended behavior change, not a numerical regression.
+  - The `report strategy` command remains decision-only; the backtest strategy bundle uses the executed walk.
+- Verification and evidence: `cargo test -p quantrule-backtest` passed 153 unit tests and all integration suites; `cargo test -p quantrule-shell` passed all suites; `cargo clippy --workspace --all-targets` passed; `cargo fmt --all --check` passed.
+- Learning: B fixes the virtual-position divergence, but it does not make rejected entry decisions disappear. The strategy can still propose an entry that sizing rejects; the execution bundle reports the rejection. The state invariant is what changed.
+
+## Entry 11 — AUD-02 quant validation
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: reproduce the `allow_short=false` state invariant on the recorded full-year data. The Quant Researcher, Quant Developer, and Quant Validator passes were sequential, not independent agents.
+- What the AI did:
+  - Ran the focused regression test and the full backtest against the `SOLUSD` 2025 data with `allow_short=false`.
+  - Recorded the observed counts in `docs/audits/2026-10-30/aud-2026-10-30-02-validation.md`.
+- Verification and evidence: strategy decisions 7,565; entry decisions 7,528 (3,509 long, 4,019 short); execution 43 entries, 43 exits, 86 fills, 7,485 `missing_quantity` rejections; portfolio 43 long trades, 0 short trades; strategy and portfolio open positions null. The executed walk has no short position and no short exit.
+- Learning: the decision-only strategy report still lists rejected short entry decisions by contract; the execution bundle carries the rejections. The audit finding's virtual-position condition is fixed, but a future reporting change may be needed if the finding is read as requiring the decision report to filter to fills.
+
+## Phase evidence
+
+| Phase | Command | Observed | Date |
+|---|---|---|---|
+| 0 | `rustc --version` | `rustc 1.99.1 (58cf8f9c3 2026-10-13)` | 2026-10-30 |
+| 0 | `cargo --version` | `cargo 1.99.1 (5f94df478 2026-08-27)` | 2026-10-30 |
+| 0 | `git worktree list` | worktree created at `/home/zantgo/Proyectos/quant-rule--architecture-hardening` | 2026-10-30 |
+| 0 | `cargo fmt --all --check` | no output | 2026-10-30 |
+| 0 | `cargo test --workspace --quiet` | all reported suites passed | 2026-10-30 |
+| 0 | `cargo clippy --all-targets` | finished with no warnings | 2026-10-30 |
+| 1 | `cargo test -p quantrule-model` | 442 unit tests, model integration suites, and 2 boundary tests passed | 2026-10-30 |
+| 1 | `cargo clippy -p quantrule-model --all-targets` | no warnings | 2026-10-30 |
+| 1 | `cargo check --workspace` | passed | 2026-10-30 |
+| 2 | `cargo check --workspace --all-targets` | passed | 2026-10-30 |
+| 2 | `cargo test -p quantrule-backtest` | 152 unit tests, integration suites, and 2 boundary tests passed | 2026-10-30 |
+| 2 | `cargo clippy -p quantrule-backtest --all-targets` | no warnings | 2026-10-30 |
+| 2 | `cargo test -p quantrule-backtest --doc` | 38 doctests passed | 2026-10-30 |
+| 3a | `cargo test -p quantrule-shell` | all shell suites passed; 12 strategy-run tests including the new config test | 2026-10-30 |
+| 3a | `cargo clippy -p quantrule-shell --all-targets` | no warnings | 2026-10-30 |
+| 3b | `cargo test -p quantrule-backtest` | all suites passed | 2026-10-30 |
+| 3b | `cargo test -p quantrule-shell` | all suites passed | 2026-10-30 |
+| 3b | `cargo clippy --workspace --all-targets` | one needless-borrow warning fixed; final run clean | 2026-10-30 |
+| 4 | `cargo test -p quantrule-shell` | all suites passed, including 3 architecture tests | 2026-10-30 |
+| 4 | `cargo clippy --workspace --all-targets` | no warnings | 2026-10-30 |
+| 5 | `cargo check -p quantrule-shell --all-targets` | no warnings after the allow removal | 2026-10-30 |
+| 5 | `cargo test -p quantrule-analytics` | all suites passed | 2026-10-30 |
+| 5 | `cargo clippy -p quantrule-analytics --all-targets` | no warnings | 2026-10-30 |
+| 3c | `cargo test -p quantrule-backtest` | 153 unit tests and all integration suites passed | 2026-10-30 |
+| 3c | `cargo test -p quantrule-shell` | all suites passed, including 99 CLI tests | 2026-10-30 |
+| 3c | `target/debug/quantrule backtest --config target/audit-02-config/run.json --out target/audit-02-final` | completed in 4m27s; five bundles written | 2026-10-30 |
+| 3c | `cargo clippy --workspace --all-targets` | no warnings | 2026-10-30 |
+| 3c | `cargo fmt --all --check` | passed | 2026-10-30 |
+
+## Open items
+
+- Phase 3c option (A reconcile or B stateless) is not chosen yet. Implementation must stop at that gate unless the human records the choice.
+- The other open findings in `docs/audits/2026-10-30/mvp-pre-release-audit.md` are out of scope.
+- Push, pull request, and merge are not authorized by plan approval.

@@ -6,10 +6,11 @@ use super::{
     signed_position,
 };
 use crate::dashboard::{ChurnClass, DatedReading, Stage};
+use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
-use crate::run::{ModelRun, TimeframeModel};
-use crate::state::{MarketStateConfig, TimeframeInput};
+use crate::run::ModelRun;
+use crate::timeframe::TimeframeModel;
 use quantrule_data::Candle;
 
 const READINGS_FIXTURE: &str = include_str!("../../../tests/fixtures/readings_golden.csv");

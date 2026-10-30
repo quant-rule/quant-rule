@@ -14,6 +14,7 @@ mod export;
 mod fetch;
 mod lab_summary;
 mod labels;
+mod pipeline;
 mod render;
 mod render_dashboard;
 mod render_report;

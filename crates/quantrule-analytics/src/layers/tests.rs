@@ -12,9 +12,10 @@ use quantrule_model::events::EventRecord;
 use quantrule_model::events::divergence::{DivergenceConfig, DivergenceEventSeries};
 use quantrule_model::events::level::{LevelEventConfig, LevelEventSeries};
 use quantrule_model::events::signal::{SignalConfig, SignalEventSeries};
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries, Readings};
 use quantrule_model::run::ModelRun;
-use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
+use quantrule_model::state::MarketState;
 
 use super::{
     AGGREGATE_COLUMNS, HIGHER_BLOCK_COLUMNS, LAYER1_COLUMNS, LAYER2_COLUMNS, Layer2Row,

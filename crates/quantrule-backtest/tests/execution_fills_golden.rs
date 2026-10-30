@@ -13,11 +13,27 @@
 //! engine's own values across repeated runs.
 
 use quantrule_backtest::execution::{
-    ExecutionConfig, ExecutionEngine, Fill, FillReason, OrderRecord, OrderSide, OrderState,
-    RejectReason, Rejection, Trigger,
+    ExecutionConfig, ExecutionEngine, Fill, FillReason, OrderIntent, OrderRecord, OrderSide,
+    OrderState, RejectReason, Rejection, Trigger,
 };
 use quantrule_backtest::strategy::{Decision, Entry, Exit, ExitReason, Side, StrategyInput};
 use quantrule_data::Candle;
+
+fn intent(decision: Decision) -> OrderIntent {
+    match decision {
+        Decision::Hold => OrderIntent::Hold,
+        Decision::Enter(entry) => OrderIntent::Enter {
+            side: entry.side,
+            bar_index: entry.bar.bar_index,
+            open_time: entry.bar.open_time,
+        },
+        Decision::Exit(exit) => OrderIntent::Exit {
+            side: exit.side,
+            bar_index: exit.bar.bar_index,
+            open_time: exit.bar.open_time,
+        },
+    }
+}
 
 const BARS: &str = include_str!("fixtures/execution_fills_bars.csv");
 const FILLS: &str = include_str!("fixtures/execution_fills_golden.csv");
@@ -246,7 +262,7 @@ fn run(rows: &[BarRow]) -> (Vec<Fill>, Vec<Rejection>, Vec<OrderRecord>) {
         rejections.extend(batch.rejections);
         orders.extend(batch.orders);
         let batch = engine
-            .submit(row.decision, Some(QUANTITY), row.atr14)
+            .submit(intent(row.decision), Some(QUANTITY), row.atr14)
             .expect("the fixture decision is valid");
         rejections.extend(batch.rejections);
         orders.extend(batch.orders);
@@ -285,7 +301,7 @@ fn run_with_quantities(
         rejections.extend(batch.rejections);
         orders.extend(batch.orders);
         let batch = engine
-            .submit(row.decision, quantity, row.atr14)
+            .submit(intent(row.decision), quantity, row.atr14)
             .expect("the fixture decision is valid");
         rejections.extend(batch.rejections);
         orders.extend(batch.orders);

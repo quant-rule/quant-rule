@@ -15,8 +15,9 @@ use quantrule_model::context::ContextSeries;
 use quantrule_model::events::divergence::{DivergenceConfig, DivergenceEventSeries};
 use quantrule_model::events::level::{LevelEventConfig, LevelEventSeries};
 use quantrule_model::events::signal::{SignalConfig, SignalEventSeries};
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::{PivotScale, ReadingSeries, Readings};
-use quantrule_model::state::{MarketState, MarketStateConfig, TimeframeInput};
+use quantrule_model::state::MarketState;
 
 const READINGS_FIXTURE: &str = include_str!("fixtures/readings_golden.csv");
 const READINGS_HEADER: &str = "bar,timestamp,open,high,low,close,volume,ema20,ema50,ema200,rsi14,atr14,rvol20,minor_candidate_high,minor_candidate_low,minor_pivot_high,minor_pivot_low,minor_pivot_occurred_at,major_candidate_high,major_candidate_low,major_pivot_high,major_pivot_low,major_pivot_occurred_at";

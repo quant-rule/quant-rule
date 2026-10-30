@@ -15,7 +15,7 @@ use quantrule_analytics::research::{DatasetMeta, ExportBundle, ExportFile, rende
 use quantrule_analytics::resolution::{AxisResolution, clamp_unit, ordinal_bucket};
 use quantrule_analytics::summary::summarize;
 use quantrule_data::{Candle, CandleValues, Timeframe, TimeframeSet};
-use quantrule_model::state::TimeframeInput;
+use quantrule_model::input::TimeframeInput;
 
 struct Dataset {
     m1: Vec<Candle>,

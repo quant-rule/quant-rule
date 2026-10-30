@@ -21,11 +21,14 @@ mod decision;
 mod input;
 #[cfg(test)]
 mod tests;
+mod walk;
 
+pub use crate::side::Side;
 pub use agreement::AxisAgreementStrategy;
 pub use config::{
     DEFAULT_LONG_THRESHOLD, DEFAULT_SHORT_THRESHOLD, DEFAULT_TIMEFRAME_SECS, StrategyConfig,
     StrategyConfigError,
 };
-pub use decision::{Decision, Entry, Exit, ExitReason, Side, Strategy};
+pub use decision::{Decision, Entry, Exit, ExitReason, Strategy};
 pub use input::{Agreement, StrategyInput};
+pub use walk::{AgreementCounts, StrategyWalk};

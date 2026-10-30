@@ -4,34 +4,9 @@
 //! that produced the decision and the values that justified it; it carries no
 //! fill price, quantity, fee, position, or P&L. Execution owns those.
 
+use crate::side::Side;
+
 use super::input::StrategyInput;
-
-/// The direction of a position or a decision.
-#[repr(i8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Side {
-    /// A long position.
-    Long = 1,
-    /// A short position.
-    Short = -1,
-}
-
-impl Side {
-    /// The contract's numeric code: `+1` for long and `-1` for short.
-    #[must_use]
-    pub const fn code(self) -> i8 {
-        self as i8
-    }
-
-    /// The opposite side.
-    #[must_use]
-    pub const fn opposite(self) -> Self {
-        match self {
-            Self::Long => Self::Short,
-            Self::Short => Self::Long,
-        }
-    }
-}
 
 /// An entry decision.
 ///
@@ -106,32 +81,32 @@ pub enum Decision {
     Exit(Exit),
 }
 
-/// A causal strategy over one timeframe.
+/// A causal, stateless strategy over one timeframe.
 ///
-/// The runner calls [`Strategy::on_bar`] once per closed bar, in ascending
-/// open-time order. An implementation may keep position state between calls,
-/// but it must not read a bar it has not been given, the clock, or any random
-/// source. A strategy emits `Enter` only while flat and `Exit` only while a
-/// position is open.
+/// The runner calls [`Strategy::decide`] once per closed bar, in ascending
+/// open-time order. The current position is passed in by the caller; execution
+/// and portfolio own it. A strategy must not read a bar it has not been given,
+/// the clock, or any random source. It emits `Enter` only when the position is
+/// `None` and `Exit` only when the position is open.
 ///
 /// # Examples
 ///
 /// ```
-/// use quantrule_backtest::strategy::{Decision, Strategy, StrategyInput};
+/// use quantrule_backtest::strategy::{Decision, Side, Strategy, StrategyInput};
 ///
 /// struct NeverTrades;
 ///
 /// impl Strategy for NeverTrades {
-///     fn on_bar(&mut self, _input: &StrategyInput) -> Decision {
+///     fn decide(&self, _input: &StrategyInput, _position: Option<Side>) -> Decision {
 ///         Decision::Hold
 ///     }
 /// }
 ///
-/// let mut strategy = NeverTrades;
+/// let strategy = NeverTrades;
 /// let bar = StrategyInput::new(900, 0, 0, None, None, None);
-/// assert_eq!(strategy.on_bar(&bar), Decision::Hold);
+/// assert_eq!(strategy.decide(&bar, None), Decision::Hold);
 /// ```
 pub trait Strategy {
-    /// Feeds one closed bar and returns the decision for that bar.
-    fn on_bar(&mut self, input: &StrategyInput) -> Decision;
+    /// Decides for one closed bar given the position execution currently holds.
+    fn decide(&self, input: &StrategyInput, position: Option<Side>) -> Decision;
 }

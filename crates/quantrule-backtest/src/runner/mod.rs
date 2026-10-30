@@ -18,12 +18,18 @@
 //! the blocked entry with [`crate::execution::RejectReason::MissingQuantity`];
 //! the ledger's risk event and `halted` flag record the drawdown halt itself.
 
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::run::ModelRun;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_model::timeframe::TimeframeModel;
 
-use crate::execution::{ExecutionBatch, ExecutionConfig, ExecutionEngine, ExecutionError};
+use crate::execution::{
+    ExecutionBatch, ExecutionConfig, ExecutionEngine, ExecutionError, OrderIntent,
+};
 use crate::portfolio::{PortfolioConfig, PortfolioLedger, PortfolioLedgerError, PortfolioMetrics};
-use crate::strategy::{AxisAgreementStrategy, Decision, Strategy, StrategyConfig, StrategyInput};
+use crate::strategy::{
+    Agreement, AgreementCounts, AxisAgreementStrategy, Decision, Strategy, StrategyConfig,
+    StrategyInput, StrategyWalk,
+};
 
 /// The configuration of one full run.
 ///
@@ -45,7 +51,7 @@ pub struct BacktestConfig {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BacktestRun {
     model: ModelRun,
-    decisions: Vec<Decision>,
+    walk: StrategyWalk,
     batches: Vec<ExecutionBatch>,
     ledger: PortfolioLedger,
 }
@@ -57,10 +63,16 @@ impl BacktestRun {
         &self.model
     }
 
+    /// The one strategy walk computed for this run.
+    #[must_use]
+    pub const fn strategy_walk(&self) -> &StrategyWalk {
+        &self.walk
+    }
+
     /// One decision per strategy bar, in bar order.
     #[must_use]
     pub fn decisions(&self) -> &[Decision] {
-        &self.decisions
+        self.walk.decisions()
     }
 
     /// The execution batches, in call order: advance then submit per bar, then
@@ -85,7 +97,7 @@ impl BacktestRun {
     /// Whether the run produced no bars, decisions, batches, or trades.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.decisions.is_empty() && self.batches.is_empty() && self.ledger.trades().is_empty()
+        self.walk.is_empty() && self.batches.is_empty() && self.ledger.trades().is_empty()
     }
 }
 
@@ -107,11 +119,17 @@ pub fn run_backtest(
     let model = ModelRun::compute(inputs, &config.model);
     let mut execution = ExecutionEngine::new(config.execution).map_err(BacktestError::Execution)?;
     let mut ledger = PortfolioLedger::new(config.portfolio).map_err(BacktestError::Ledger)?;
-    let mut strategy = AxisAgreementStrategy::new(config.strategy);
+    let strategy = AxisAgreementStrategy::new(config.strategy);
+    let mut inputs_seen = Vec::new();
     let mut decisions = Vec::new();
+    let mut positions = Vec::new();
+    let mut agreements = AgreementCounts::default();
     let mut batches = Vec::new();
 
     if let Some(timeframe) = model.timeframe(config.strategy.timeframe_secs()) {
+        inputs_seen.reserve(timeframe.len());
+        decisions.reserve(timeframe.len());
+        positions.reserve(timeframe.len());
         for bar_index in 0..timeframe.len() {
             let bar = timeframe
                 .bar(bar_index)
@@ -135,8 +153,18 @@ pub fn run_backtest(
                 .mark(bar_index, time, candle.close())
                 .map_err(BacktestError::Ledger)?;
 
-            let decision = strategy.on_bar(&StrategyInput::from_model_bar(&bar));
+            let input = StrategyInput::from_model_bar(&bar);
+            match Agreement::classify(&input, &config.strategy) {
+                Some(Agreement::Long) => agreements.long += 1,
+                Some(Agreement::Short) => agreements.short += 1,
+                Some(Agreement::Neutral) => agreements.neutral += 1,
+                None => agreements.unavailable += 1,
+            }
+            let position = execution.position_side();
+            let decision = strategy.decide(&input, position);
+            inputs_seen.push(input);
             decisions.push(decision);
+            positions.push(position);
 
             let quantity = match decision {
                 Decision::Enter(entry) => ledger.size_entry(entry.side, candle.close()).ok(),
@@ -146,8 +174,21 @@ pub fn run_backtest(
                 Decision::Enter(_) => bar.readings.atr14,
                 Decision::Exit(_) | Decision::Hold => None,
             };
+            let intent = match decision {
+                Decision::Hold => OrderIntent::Hold,
+                Decision::Enter(entry) => OrderIntent::Enter {
+                    side: entry.side,
+                    bar_index: entry.bar.bar_index,
+                    open_time: entry.bar.open_time,
+                },
+                Decision::Exit(exit) => OrderIntent::Exit {
+                    side: exit.side,
+                    bar_index: exit.bar.bar_index,
+                    open_time: exit.bar.open_time,
+                },
+            };
             let batch = execution
-                .submit(decision, quantity, atr14)
+                .submit(intent, quantity, atr14)
                 .map_err(BacktestError::Execution)?;
             batches.push(batch);
         }
@@ -161,12 +202,69 @@ pub fn run_backtest(
         batches.push(batch);
     }
 
+    let walk = StrategyWalk::new(
+        inputs_seen,
+        decisions,
+        positions,
+        agreements,
+        execution.position_side(),
+    );
+
     Ok(BacktestRun {
         model,
-        decisions,
+        walk,
         batches,
         ledger,
     })
+}
+
+/// Walks one timeframe assuming every decision is filled immediately.
+///
+/// This is the diagnostic walk used by `strategy-run`; it is not the executed
+/// walk. The backtest runner passes the real execution position into
+/// [`Strategy::decide`] on every bar instead. The virtual position here is
+/// labeled as such by the command envelope.
+///
+/// # Errors
+///
+/// Returns [`BacktestError::MissingBar`] when the model omits a bar inside a
+/// non-empty timeframe.
+pub fn walk_strategy(
+    timeframe: &TimeframeModel,
+    config: &StrategyConfig,
+) -> Result<StrategyWalk, BacktestError> {
+    let strategy = AxisAgreementStrategy::new(*config);
+    let mut position = None;
+    let mut inputs = Vec::with_capacity(timeframe.len());
+    let mut decisions = Vec::with_capacity(timeframe.len());
+    let mut positions = Vec::with_capacity(timeframe.len());
+    let mut agreements = AgreementCounts::default();
+
+    for bar_index in 0..timeframe.len() {
+        let bar = timeframe
+            .bar(bar_index)
+            .ok_or(BacktestError::MissingBar { bar: bar_index })?;
+        let input = StrategyInput::from_model_bar(&bar);
+        match Agreement::classify(&input, config) {
+            Some(Agreement::Long) => agreements.long += 1,
+            Some(Agreement::Short) => agreements.short += 1,
+            Some(Agreement::Neutral) => agreements.neutral += 1,
+            None => agreements.unavailable += 1,
+        }
+        let decision = strategy.decide(&input, position);
+        positions.push(position);
+        match decision {
+            Decision::Enter(entry) => position = Some(entry.side),
+            Decision::Exit(_) => position = None,
+            Decision::Hold => {}
+        }
+        inputs.push(input);
+        decisions.push(decision);
+    }
+
+    Ok(StrategyWalk::new(
+        inputs, decisions, positions, agreements, position,
+    ))
 }
 
 /// The runner could not complete a run.

@@ -7,8 +7,8 @@
 //! equity are asserted from the same run.
 
 use quantrule_data::Candle;
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::PivotScale;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
 
 use crate::execution::{ExecutionConfig, RejectReason};
 use crate::portfolio::ExitReason;
@@ -43,6 +43,32 @@ fn candles(count: usize) -> Vec<Candle> {
                 close,
                 high,
                 low,
+                close,
+                Some(100.0),
+            )
+            .expect("the test candle is valid"),
+        );
+    }
+    candles
+}
+
+fn falling_candles(count: usize) -> Vec<Candle> {
+    let mut candles = Vec::with_capacity(count);
+    for index in 0..count {
+        let phase = index % 40;
+        let wave = if phase < 20 {
+            phase as f64
+        } else {
+            (40 - phase) as f64
+        };
+        let close: f64 = 200.0 - wave - 0.0625 * index as f64;
+        candles.push(
+            Candle::new(
+                index as u64,
+                index as i64 * 900,
+                close,
+                close + 0.20,
+                close - 0.20,
                 close,
                 Some(100.0),
             )
@@ -176,47 +202,26 @@ fn the_runner_matches_the_golden_run() {
     assert_eq!(actual, expected, "decision sequence changed");
 
     let orders = last_orders(&run);
-    assert_eq!(orders.len(), 9, "order count changed");
+    assert_eq!(orders.len(), 24, "order count changed");
     for (id, order) in orders.iter().enumerate() {
         assert_eq!(order.order_id, id as u64);
     }
-    let states: Vec<&str> = orders
-        .iter()
-        .map(|order| match order.state {
-            crate::execution::OrderState::Filled => "filled",
-            crate::execution::OrderState::Rejected => "rejected",
-            crate::execution::OrderState::Pending => "pending",
-        })
-        .collect();
-    assert_eq!(
-        states,
-        [
-            "filled", "filled", "rejected", "filled", "filled", "rejected", "filled", "filled",
-            "rejected"
-        ]
+    assert!(
+        orders
+            .iter()
+            .all(|order| order.state == crate::execution::OrderState::Filled),
+        "every order must fill in the executed walk"
     );
-    let reasons: Vec<Option<RejectReason>> =
-        orders.iter().map(|order| order.rejection_reason).collect();
-    assert_eq!(
-        reasons,
-        [
-            None,
-            None,
-            Some(RejectReason::NoPosition),
-            None,
-            None,
-            Some(RejectReason::NoPosition),
-            None,
-            None,
-            Some(RejectReason::NoPosition),
-        ]
+    assert!(
+        orders.iter().all(|order| order.rejection_reason.is_none()),
+        "the executed walk must not carry virtual rejections"
     );
     assert_eq!(
         orders
             .iter()
             .filter_map(|order| order.fill_id)
             .collect::<Vec<_>>(),
-        [0, 1, 2, 3, 4, 5]
+        (0..24).collect::<Vec<_>>()
     );
 
     let fills: Vec<_> = run
@@ -224,10 +229,13 @@ fn the_runner_matches_the_golden_run() {
         .iter()
         .flat_map(|batch| batch.fills.iter().copied())
         .collect();
-    assert_eq!(fills.len(), 6, "fill count changed");
+    assert_eq!(fills.len(), 24, "fill count changed");
     assert_eq!(
         fills.iter().map(|fill| fill.bar).collect::<Vec<_>>(),
-        [209, 213, 249, 253, 289, 293]
+        [
+            209, 213, 214, 218, 219, 224, 225, 228, 249, 253, 254, 258, 259, 264, 265, 268, 289,
+            293, 294, 298, 299, 304, 305, 308
+        ]
     );
     assert!(
         fills
@@ -363,7 +371,10 @@ fn later_bars_do_not_change_earlier_results() {
     let full = run(&candles, &config());
 
     assert_eq!(prefix.decisions(), &full.decisions()[..250]);
-    assert_eq!(prefix.ledger().trades(), &full.ledger().trades()[..1]);
+    assert_eq!(
+        prefix.ledger().trades(),
+        &full.ledger().trades()[..prefix.ledger().trades().len()]
+    );
     assert_eq!(
         &prefix.ledger().equity_points()[..2],
         &full.ledger().equity_points()[..2]
@@ -374,7 +385,10 @@ fn later_bars_do_not_change_earlier_results() {
         .expect("the changed candle is valid");
     let changed = run(&changed, &config());
     assert_eq!(changed.decisions()[..250], full.decisions()[..250]);
-    assert_eq!(changed.ledger().trades()[..1], full.ledger().trades()[..1]);
+    assert_eq!(
+        &changed.ledger().trades()[..prefix.ledger().trades().len()],
+        &full.ledger().trades()[..prefix.ledger().trades().len()]
+    );
     assert_eq!(
         &changed.ledger().equity_points()[..2],
         &full.ledger().equity_points()[..2]
@@ -426,10 +440,8 @@ fn an_open_position_at_the_end_is_marked() {
     let run = run(&candles, &config());
     let metrics = run.metrics();
 
-    assert_eq!(metrics.trades, 2);
-    let position = metrics
-        .open_position
-        .expect("the third entry is still open");
+    assert_eq!(metrics.trades, 8);
+    let position = metrics.open_position.expect("the last entry is still open");
     assert_eq!(position.side, Side::Long);
     approx(
         metrics.final_equity,
@@ -477,28 +489,7 @@ fn the_configured_bracket_multiples_are_used() {
 
 #[test]
 fn a_downtrend_produces_a_short_trade() {
-    let mut falling = Vec::new();
-    for index in 0..320 {
-        let phase = index % 40;
-        let wave = if phase < 20 {
-            phase as f64
-        } else {
-            (40 - phase) as f64
-        };
-        let close: f64 = 200.0 - wave - 0.0625 * index as f64;
-        falling.push(
-            Candle::new(
-                index as u64,
-                index as i64 * 900,
-                close,
-                close + 0.20,
-                close - 0.20,
-                close,
-                Some(100.0),
-            )
-            .expect("the test candle is valid"),
-        );
-    }
+    let falling = falling_candles(320);
     let run = run(&falling, &config());
     assert!(
         run.ledger()
@@ -506,5 +497,48 @@ fn a_downtrend_produces_a_short_trade() {
             .iter()
             .any(|trade| trade.side == Side::Short),
         "the downtrend must produce a short trade"
+    );
+}
+
+#[test]
+fn a_rejected_short_is_never_an_open_strategy_position() {
+    let mut config = config();
+    config.portfolio.allow_short = false;
+    let run = run(&falling_candles(320), &config);
+    let walk = run.strategy_walk();
+
+    assert!(
+        walk.decisions().iter().any(|decision| matches!(
+            decision,
+            Decision::Enter(entry) if entry.side == Side::Short
+        )),
+        "the fixture must exercise a short entry"
+    );
+    assert!(
+        walk.positions()
+            .iter()
+            .all(|position| *position != Some(Side::Short)),
+        "a rejected short must not become a strategy position"
+    );
+    for (position, decision) in walk.positions().iter().zip(walk.decisions()) {
+        match decision {
+            Decision::Enter(_) => assert_eq!(*position, None),
+            Decision::Exit(exit) => assert_eq!(*position, Some(exit.side)),
+            Decision::Hold => {}
+        }
+    }
+    assert!(
+        !walk
+            .decisions()
+            .iter()
+            .any(|decision| matches!(decision, Decision::Exit(exit) if exit.side == Side::Short)),
+        "the strategy must not exit a short position it never held"
+    );
+    assert!(
+        run.execution_batches()
+            .iter()
+            .flat_map(|batch| batch.rejections.iter())
+            .any(|rejection| rejection.reason == RejectReason::MissingQuantity),
+        "the fixture must exercise the short sizing rejection"
     );
 }

@@ -54,6 +54,7 @@ mod engine;
 #[cfg(test)]
 mod engine_tests;
 mod fill;
+mod intent;
 mod order;
 mod position;
 #[cfg(test)]
@@ -65,5 +66,6 @@ pub use engine::{
     TARGET_ATR_MULTIPLE,
 };
 pub use fill::{Fill, FillError, FillReason};
+pub use intent::OrderIntent;
 pub use order::{Order, OrderError, OrderRecord, OrderSide, OrderState, RejectReason, Trigger};
 pub use position::{Position, PositionError, PositionState};

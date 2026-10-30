@@ -8,10 +8,6 @@
 //! The loader reads and validates everything before a candle is read or an
 //! output byte is written. A rejection names the file and the JSON path, never
 //! a stack trace or an absolute path.
-//!
-//! The backtest and report commands consume the loader in #172-#176; until
-//! then the public surface of this module is exercised only by its tests.
-#![allow(dead_code, unused_imports)]
 
 mod analytics;
 mod data;
@@ -27,10 +23,5 @@ mod strategy;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use analytics::AnalyticsConfig;
-pub(crate) use data::{DataConfig, DataSource};
 pub(crate) use error::ConfigError;
-pub(crate) use execution::ExecutionRunConfig;
-pub(crate) use policy::PolicyConfig;
-pub(crate) use run::{ConfigPaths, RunConfig};
-pub(crate) use strategy::StrategyRunConfig;
+pub(crate) use run::RunConfig;

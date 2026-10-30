@@ -13,9 +13,9 @@
 //! `0.000000000`, and every float is printed with nine decimals.
 
 use quantrule_data::Candle;
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::report::MarketReport;
 use quantrule_model::run::ModelRun;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
 
 const READINGS_FIXTURE: &str = include_str!("fixtures/readings_golden.csv");
 const REPORT_FIXTURE: &str = include_str!("fixtures/market_report_golden.txt");

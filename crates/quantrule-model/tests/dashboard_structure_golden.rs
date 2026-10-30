@@ -11,9 +11,9 @@
 
 use quantrule_data::Candle;
 use quantrule_model::dashboard::{AxisDetail, TimeframeState};
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::roles::AxisCode;
-use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_model::timeframe::TimeframeModel;
 
 const STRUCTURE_FIXTURE: &str = include_str!("fixtures/structure_golden.csv");
 const LEVELS_FIXTURE: &str = include_str!("fixtures/structure_levels_golden.csv");

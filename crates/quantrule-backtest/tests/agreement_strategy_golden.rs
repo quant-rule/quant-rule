@@ -14,6 +14,39 @@ use quantrule_backtest::strategy::{
     AxisAgreementStrategy, Decision, Side, Strategy, StrategyConfig, StrategyInput,
 };
 
+/// A test adapter that supplies the position the stateless rule no longer owns.
+struct Tracked {
+    strategy: AxisAgreementStrategy,
+    position: Option<Side>,
+}
+
+impl Tracked {
+    fn new(config: StrategyConfig) -> Self {
+        Self {
+            strategy: AxisAgreementStrategy::new(config),
+            position: None,
+        }
+    }
+
+    fn default() -> Self {
+        Self::new(StrategyConfig::default())
+    }
+
+    fn on_bar(&mut self, input: &StrategyInput) -> Decision {
+        let decision = self.strategy.decide(input, self.position);
+        match decision {
+            Decision::Enter(entry) => self.position = Some(entry.side),
+            Decision::Exit(_) => self.position = None,
+            Decision::Hold => {}
+        }
+        decision
+    }
+
+    fn position(&self) -> Option<Side> {
+        self.position
+    }
+}
+
 const FIXTURE: &str = include_str!("fixtures/agreement_strategy_golden.csv");
 const HEADER: &str = "bar,timestamp,timeframe_secs,direction,momentum_force,structure_score,expected_decision,expected_side,expected_reason,expected_position";
 
@@ -102,7 +135,7 @@ fn parts(decision: Decision) -> (&'static str, &'static str, &'static str) {
     }
 }
 
-fn run(strategy: &mut AxisAgreementStrategy, inputs: &[StrategyInput]) -> Vec<Decision> {
+fn run(strategy: &mut Tracked, inputs: &[StrategyInput]) -> Vec<Decision> {
     inputs.iter().map(|input| strategy.on_bar(input)).collect()
 }
 
@@ -110,7 +143,7 @@ fn run(strategy: &mut AxisAgreementStrategy, inputs: &[StrategyInput]) -> Vec<De
 fn the_strategy_matches_the_golden_fixture() {
     let rows = load();
     assert_eq!(rows.len(), 26, "fixture row count changed");
-    let mut strategy = AxisAgreementStrategy::new(StrategyConfig::default());
+    let mut strategy = Tracked::new(StrategyConfig::default());
 
     for row in &rows {
         let decision = strategy.on_bar(&row.input);
@@ -140,10 +173,10 @@ fn later_bars_do_not_change_earlier_decisions() {
     let inputs: Vec<StrategyInput> = rows.iter().map(|row| row.input).collect();
     let prefix = 13;
 
-    let mut prefix_strategy = AxisAgreementStrategy::default();
+    let mut prefix_strategy = Tracked::default();
     let prefix_decisions = run(&mut prefix_strategy, &inputs[..prefix]);
 
-    let mut full_strategy = AxisAgreementStrategy::default();
+    let mut full_strategy = Tracked::default();
     let full_decisions = run(&mut full_strategy, &inputs);
     assert_eq!(full_decisions[..prefix], prefix_decisions);
 
@@ -156,7 +189,7 @@ fn later_bars_do_not_change_earlier_decisions() {
         Some(0.9),
         Some(0.9),
     );
-    let mut changed_strategy = AxisAgreementStrategy::default();
+    let mut changed_strategy = Tracked::default();
     let changed_decisions = run(&mut changed_strategy, &changed);
     assert_eq!(changed_decisions[..prefix], prefix_decisions);
 }
@@ -165,18 +198,18 @@ fn later_bars_do_not_change_earlier_decisions() {
 fn repeated_runs_are_identical() {
     let inputs: Vec<StrategyInput> = load().iter().map(|row| row.input).collect();
 
-    let mut first = AxisAgreementStrategy::default();
+    let mut first = Tracked::default();
     let expected = run(&mut first, &inputs);
 
     for _ in 0..10 {
-        let mut again = AxisAgreementStrategy::default();
+        let mut again = Tracked::default();
         assert_eq!(run(&mut again, &inputs), expected);
     }
 }
 
 #[test]
 fn an_empty_series_produces_no_decisions() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
 
     assert!(run(&mut strategy, &[]).is_empty());
     assert_eq!(strategy.position(), None);
@@ -185,7 +218,7 @@ fn an_empty_series_produces_no_decisions() {
 #[test]
 fn a_single_bar_can_open_a_position() {
     let input = StrategyInput::new(900, 0, 0, Some(0.2), Some(0.5), Some(1.0));
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
 
     assert_eq!(
         strategy.on_bar(&input),
@@ -204,7 +237,7 @@ fn a_short_history_with_missing_readings_stays_flat() {
         StrategyInput::new(900, 1, 900, Some(0.2), None, Some(1.0)),
         StrategyInput::new(900, 2, 1_800, Some(0.2), Some(0.5), None),
     ];
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
 
     assert_eq!(run(&mut strategy, &inputs), vec![Decision::Hold; 3]);
     assert_eq!(strategy.position(), None);

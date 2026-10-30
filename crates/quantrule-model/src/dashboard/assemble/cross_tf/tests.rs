@@ -8,10 +8,11 @@ use crate::dashboard::{
     AxisValue, ChurnClass, ChurnSource, Coverage, DashboardConfig, DashboardState, Domain,
     MajorityClass, TimeframeState,
 };
+use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::readings::PivotScale;
 use crate::readings::roles::AxisCode;
-use crate::run::{ModelRun, TimeframeModel};
-use crate::state::{MarketStateConfig, TimeframeInput};
+use crate::run::ModelRun;
+use crate::timeframe::TimeframeModel;
 
 fn state(timeframe_secs: u64, present: bool, positions: [Option<f64>; 3]) -> TimeframeState {
     let mut state = TimeframeState::absent(timeframe_secs, PivotScale::Major.code());

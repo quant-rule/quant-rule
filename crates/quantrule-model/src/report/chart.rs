@@ -9,7 +9,8 @@
 //! The module is pure: it reads the run and the per-timeframe reports it is
 //! given. It performs no I/O, reads no clock, and uses no randomness.
 
-use crate::run::{ModelRun, TimeframeModel};
+use crate::run::ModelRun;
+use crate::timeframe::TimeframeModel;
 
 use super::order::event_cmp;
 use super::{

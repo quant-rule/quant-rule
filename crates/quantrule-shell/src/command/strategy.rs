@@ -8,22 +8,25 @@
 //!
 //! The default output is one NDJSON line per entry or exit. `--json` prints a
 //! single provenance envelope whose `records` array carries the same records,
-//! so a run can be reproduced from its printed configuration.
+//! so a run can be reproduced from its printed configuration. The envelope
+//! marks `execution_state` as `virtual`: the diagnostic walk assumes every
+//! decision fills immediately, unlike `report strategy`, which reads the
+//! executed backtest walk.
 
 use std::io::{self, Write};
 use std::path::PathBuf;
 
+use quantrule_backtest::runner::walk_strategy;
 use quantrule_backtest::strategy::{
-    AxisAgreementStrategy, Decision, ExitReason, Side, Strategy, StrategyConfig, StrategyInput,
+    Decision, ExitReason, Side, StrategyConfig, StrategyInput, StrategyWalk,
 };
-use quantrule_data::{Candle, Timeframe, format_utc_timestamp};
-use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_data::{Timeframe, format_utc_timestamp};
+use quantrule_model::input::MarketStateConfig;
 use serde_json::{Value, json};
 
 use super::types::{ParseError, RunError, StrategyRunArgs, StrategyRunError};
-use crate::csv;
 use crate::labels;
+use crate::pipeline;
 use crate::source::DateBounds;
 
 /// The strategy name the command accepts.
@@ -192,47 +195,43 @@ pub(crate) fn run_strategy_run(
     args: &StrategyRunArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let config = match &args.config {
+    let (config, model_config) = match &args.config {
         Some(path) => {
             let run = crate::config::RunConfig::load(path).map_err(RunError::Config)?;
-            run.strategy.engine
+            (run.strategy.engine, run.model)
         }
-        None => StrategyConfig::default(),
+        None => (StrategyConfig::default(), MarketStateConfig::default()),
     };
-    let mut strategy = build_strategy(&args.strategy, config).ok_or_else(|| {
-        RunError::StrategyRun(StrategyRunError::UnknownStrategy {
+    if !is_supported_strategy(&args.strategy) {
+        return Err(RunError::StrategyRun(StrategyRunError::UnknownStrategy {
             name: args.strategy.clone(),
-        })
-    })?;
+        }));
+    }
     let timeframe = timeframe_for(config.timeframe_secs()).ok_or_else(|| {
         RunError::StrategyRun(StrategyRunError::UnsupportedTimeframe {
             timeframe_secs: config.timeframe_secs(),
         })
     })?;
 
-    let set = csv::load_extended_timeframes(&args.path, args.bounds).map_err(RunError::Source)?;
+    let set = pipeline::load_extended_set(&args.path, args.bounds).map_err(RunError::Source)?;
     if set.series(Timeframe::M1).is_empty() {
         return Err(RunError::StrategyRun(StrategyRunError::EmptyPeriod {
             period: args.requested_period(),
         }));
     }
 
-    let candles: Vec<Candle> = set.series(timeframe).iter().copied().collect();
-    let model = TimeframeModel::compute(
-        &TimeframeInput {
-            timeframe_secs: config.timeframe_secs(),
-            candles: &candles,
-        },
-        &MarketStateConfig::default(),
-    )
-    .ok_or_else(|| {
-        RunError::StrategyRun(StrategyRunError::NoTimeframeBars {
-            timeframe_secs: config.timeframe_secs(),
-            period: args.requested_period(),
-        })
-    })?;
+    let run = pipeline::model_run_from_set(&set, &model_config);
+    let model = run
+        .timeframe(u64::from(timeframe.seconds()))
+        .ok_or_else(|| {
+            RunError::StrategyRun(StrategyRunError::NoTimeframeBars {
+                timeframe_secs: config.timeframe_secs(),
+                period: args.requested_period(),
+            })
+        })?;
 
-    let records = collect_records(&model, &mut strategy);
+    let walk = walk_strategy(model, &config).map_err(RunError::Backtest)?;
+    let records = collect_records(&walk);
     if args.json {
         write_line(&envelope_value(args, &config, &records), writer).map_err(RunError::Output)?;
     } else {
@@ -247,39 +246,22 @@ fn is_supported_strategy(name: &str) -> bool {
     name == AXIS_AGREEMENT
 }
 
-fn build_strategy(name: &str, config: StrategyConfig) -> Option<AxisAgreementStrategy> {
-    match name {
-        AXIS_AGREEMENT => Some(AxisAgreementStrategy::new(config)),
-        _ => None,
-    }
-}
-
 fn timeframe_for(seconds: u64) -> Option<Timeframe> {
     Timeframe::ALL
         .into_iter()
         .find(|timeframe| u64::from(timeframe.seconds()) == seconds)
 }
 
-fn collect_records(model: &TimeframeModel, strategy: &mut AxisAgreementStrategy) -> Vec<Value> {
+fn collect_records(walk: &StrategyWalk) -> Vec<Value> {
     let mut records = Vec::new();
-    for bar_index in 0..model.len() {
-        // `bar` is present for every index below `len` by the model contract.
-        let Some(bar) = model.bar(bar_index) else {
-            continue;
-        };
-        let input = StrategyInput::from_model_bar(&bar);
-        match strategy.on_bar(&input) {
+    for (input, decision) in walk.inputs().iter().zip(walk.decisions()) {
+        match decision {
             Decision::Hold => {}
             Decision::Enter(entry) => {
-                records.push(record_value("entry", entry.side, None, &entry.bar));
+                records.push(record_value("entry", entry.side, None, input));
             }
             Decision::Exit(exit) => {
-                records.push(record_value(
-                    "exit",
-                    exit.side,
-                    Some(exit.reason),
-                    &exit.bar,
-                ));
+                records.push(record_value("exit", exit.side, Some(exit.reason), input));
             }
         }
     }
@@ -321,6 +303,7 @@ fn envelope_value(args: &StrategyRunArgs, config: &StrategyConfig, records: &[Va
             "short_threshold": config.short_threshold(),
         },
         "data_version": &args.data_version,
+        "execution_state": "virtual",
         "requested_period": {
             "from": args.from.as_deref(),
             "to": args.to.as_deref(),
@@ -352,8 +335,8 @@ fn write_line(value: &Value, writer: &mut impl Write) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        AXIS_AGREEMENT, build_strategy, is_supported_strategy, parse_strategy_run_arguments,
-        reason_code, record_value, timeframe_for,
+        AXIS_AGREEMENT, is_supported_strategy, parse_strategy_run_arguments, reason_code,
+        record_value, timeframe_for,
     };
     use crate::command::types::ParseError;
     use quantrule_backtest::strategy::{ExitReason, Side, StrategyConfig, StrategyInput};
@@ -506,8 +489,6 @@ mod tests {
         let config = StrategyConfig::default();
         assert_eq!(config.timeframe_secs(), 900);
         assert_eq!(timeframe_for(config.timeframe_secs()), Some(Timeframe::M15));
-        assert!(build_strategy(AXIS_AGREEMENT, config).is_some());
-        assert!(build_strategy("ema-cross", config).is_none());
         assert!(is_supported_strategy(AXIS_AGREEMENT));
         assert!(!is_supported_strategy("ema-cross"));
     }

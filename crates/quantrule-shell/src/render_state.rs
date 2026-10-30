@@ -12,12 +12,38 @@ use serde_json::{Value, json};
 
 use quantrule_model::aggregate::{CrossTimeframeAggregates, TimeframeEventSummary};
 use quantrule_model::axes::progression::ProgressionLeg;
+use quantrule_model::consensus::TimeframeConsensus;
 use quantrule_model::events::EventRecord;
-use quantrule_model::run::{ModelRun, TimeframeModel};
-use quantrule_model::state::{MarketState, TimeframeConsensus, TimeframeMarketState};
+use quantrule_model::run::ModelRun;
+use quantrule_model::state::{MarketState, TimeframeMarketState};
+use quantrule_model::timeframe::TimeframeModel;
 
-use crate::command::Axis;
 use crate::labels;
+
+/// A model axis selected by the `axis` command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Axis {
+    /// Direction.
+    Direction,
+    /// Momentum.
+    Momentum,
+    /// Structure.
+    Structure,
+    /// Progression.
+    Progression,
+}
+
+impl Axis {
+    pub(crate) fn from_code(code: &str) -> Option<Self> {
+        match code {
+            "direction" => Some(Self::Direction),
+            "momentum" => Some(Self::Momentum),
+            "structure" => Some(Self::Structure),
+            "progression" => Some(Self::Progression),
+            _ => None,
+        }
+    }
+}
 
 /// Writes the assembled market state as one JSON object.
 pub(crate) fn write_market_state(state: &MarketState, writer: &mut impl Write) -> io::Result<()> {

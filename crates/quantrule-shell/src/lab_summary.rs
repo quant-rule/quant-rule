@@ -14,12 +14,101 @@ use std::path::{Path, PathBuf};
 use quantrule_data::format_utc_timestamp;
 use serde_json::Value;
 
-use crate::command::LabSummaryArgs;
 use crate::export::{ExportError, write_atomic};
 use crate::labels;
 
 /// The five report bundles, in contract order.
 const BUNDLES: [&str; 5] = ["model", "strategy", "execution", "portfolio", "analytical"];
+
+/// A role named on the `lab summary` command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LabRole {
+    /// The Quant Researcher.
+    Researcher,
+    /// The Quant Developer.
+    Developer,
+    /// The Quant Validator.
+    Validator,
+}
+
+impl LabRole {
+    /// Parses the role code exactly.
+    pub(crate) fn parse(code: &str) -> Option<Self> {
+        match code {
+            "researcher" => Some(Self::Researcher),
+            "developer" => Some(Self::Developer),
+            "validator" => Some(Self::Validator),
+            _ => None,
+        }
+    }
+
+    /// The role label used in the summary.
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Researcher => "quant-researcher",
+            Self::Developer => "quant-developer",
+            Self::Validator => "quant-validator",
+        }
+    }
+
+    /// The next handoff after this role's lab.
+    pub(crate) const fn handoff(self) -> &'static str {
+        match self {
+            Self::Researcher => "Hand off the protocol to the Quant Developer.",
+            Self::Developer => "Hand off the implementation record and run to the Quant Validator.",
+            Self::Validator => "Hand off the validation record to the human for acceptance.",
+        }
+    }
+}
+
+/// The operator named on the `lab summary` command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LabOperator {
+    /// A human operator.
+    Human,
+    /// An agent operator.
+    Agent,
+}
+
+impl LabOperator {
+    /// Parses the operator code exactly.
+    pub(crate) fn parse(code: &str) -> Option<Self> {
+        match code {
+            "human" => Some(Self::Human),
+            "agent" => Some(Self::Agent),
+            _ => None,
+        }
+    }
+
+    /// The operator code used in the summary.
+    pub(crate) const fn code(self) -> &'static str {
+        match self {
+            Self::Human => "human",
+            Self::Agent => "agent",
+        }
+    }
+}
+
+/// A parsed `lab summary` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LabSummaryArgs {
+    /// The lab result folder that holds the five report bundles.
+    pub(crate) lab_dir: PathBuf,
+    /// The role that produced the lab.
+    pub(crate) role: LabRole,
+    /// The caller-supplied identity of the input series.
+    pub(crate) data_version: String,
+    /// The run configuration that produced the lab.
+    pub(crate) config: PathBuf,
+    /// The explicit UTC creation time.
+    pub(crate) created_utc: String,
+    /// The operator kind.
+    pub(crate) operator: LabOperator,
+    /// An optional role-notes file included verbatim.
+    pub(crate) notes: Option<PathBuf>,
+    /// Whether to overwrite an existing `summary.txt`.
+    pub(crate) force: bool,
+}
 
 /// One bundle read from a lab result folder.
 struct Bundle {

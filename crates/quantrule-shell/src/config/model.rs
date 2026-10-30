@@ -4,8 +4,8 @@
 //! are fixed by the model contract. The structure scale is the only value the
 //! run may choose, and the ladder always comes from `data.json`.
 
+use quantrule_model::input::MarketStateConfig;
 use quantrule_model::readings::PivotScale;
-use quantrule_model::state::MarketStateConfig;
 use serde_json::Value;
 
 use super::error::ConfigError;

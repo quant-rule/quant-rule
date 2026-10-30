@@ -77,11 +77,11 @@
 
 use quantrule_data::Candle;
 
-use crate::strategy::{Decision, Side};
+use crate::side::Side;
 
 use super::{
-    ExecutionConfig, Fill, FillError, FillReason, Order, OrderError, OrderRecord, OrderSide,
-    OrderState, Position, PositionError, PositionState, RejectReason, Trigger,
+    ExecutionConfig, Fill, FillError, FillReason, Order, OrderError, OrderIntent, OrderRecord,
+    OrderSide, OrderState, Position, PositionError, PositionState, RejectReason, Trigger,
 };
 
 /// The default stop distance in ATR units.
@@ -180,19 +180,18 @@ impl ExecutionBatch {
 /// # Examples
 ///
 /// ```
-/// use quantrule_backtest::execution::{ExecutionConfig, ExecutionEngine};
-/// use quantrule_backtest::strategy::{Decision, Entry, Side, StrategyInput};
+/// use quantrule_backtest::execution::{ExecutionConfig, ExecutionEngine, OrderIntent};
+/// use quantrule_backtest::side::Side;
 /// use quantrule_data::Candle;
 ///
 /// let config = ExecutionConfig::new(0.001, 2.0)?;
 /// let mut engine = ExecutionEngine::new(config)?;
 /// let first = Candle::new(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0))?;
 /// let second = Candle::new(1, 900, 100.0, 102.0, 99.5, 101.0, Some(10.0))?;
-/// let bar = StrategyInput::new(900, 0, 0, Some(0.5), Some(0.5), Some(1.0));
 ///
 /// assert!(engine.advance(&first)?.is_empty());
 /// engine.submit(
-///     Decision::Enter(Entry { side: Side::Long, bar }),
+///     OrderIntent::Enter { side: Side::Long, bar_index: 0, open_time: 0 },
 ///     Some(1.0),
 ///     Some(1.0),
 /// )?;
@@ -289,20 +288,20 @@ impl ExecutionEngine {
     /// last advanced bar, or when a validated value cannot be constructed.
     pub fn submit(
         &mut self,
-        decision: Decision,
+        intent: OrderIntent,
         quantity: Option<f64>,
         atr14: Option<f64>,
     ) -> Result<ExecutionBatch, ExecutionError> {
         let Some((index, time)) = self.last_bar else {
             return Err(ExecutionError::SubmitBeforeAdvance);
         };
-        self.validate_decision(decision, index, time)?;
+        self.validate_intent(intent, index, time)?;
 
         let mut batch = ExecutionBatch::default();
-        match decision {
-            Decision::Hold => {}
-            Decision::Enter(entry) => {
-                let side = order_side(entry.side);
+        match intent {
+            OrderIntent::Hold => {}
+            OrderIntent::Enter { side, .. } => {
+                let side = order_side(side);
                 if self.position.is_open() {
                     self.reject_decision(
                         &mut batch,
@@ -349,9 +348,9 @@ impl ExecutionEngine {
                     }
                 }
             }
-            Decision::Exit(exit) => match self.position {
+            OrderIntent::Exit { side, .. } => match self.position {
                 PositionState::Open(position) => {
-                    // The engine closes the position it holds; the decision's
+                    // The engine closes the position it holds; the intent's
                     // side is the strategy's view of that position, not the
                     // order side.
                     let order = Order::new(
@@ -374,7 +373,7 @@ impl ExecutionEngine {
                 PositionState::Flat | PositionState::Closed => self.reject_decision(
                     &mut batch,
                     RejectedDecision {
-                        side: order_side(exit.side).opposite(),
+                        side: order_side(side).opposite(),
                         quantity: None,
                         reason: FillReason::Exit,
                         submitted_bar: index,
@@ -407,6 +406,15 @@ impl ExecutionEngine {
         self.position
     }
 
+    /// The open position's side, or `None` while flat.
+    #[must_use]
+    pub const fn position_side(&self) -> Option<Side> {
+        match self.position {
+            PositionState::Open(position) => Some(position.side),
+            PositionState::Flat | PositionState::Closed => None,
+        }
+    }
+
     fn next_order_id(&mut self) -> u64 {
         let order_id = self.next_order_id;
         self.next_order_id += 1;
@@ -419,27 +427,35 @@ impl ExecutionEngine {
         fill_id
     }
 
-    fn validate_decision(
+    fn validate_intent(
         &self,
-        decision: Decision,
+        intent: OrderIntent,
         index: usize,
         time: i64,
     ) -> Result<(), ExecutionError> {
-        let bar = match decision {
-            Decision::Hold => return Ok(()),
-            Decision::Enter(entry) => entry.bar,
-            Decision::Exit(exit) => exit.bar,
+        let (bar_index, open_time) = match intent {
+            OrderIntent::Hold => return Ok(()),
+            OrderIntent::Enter {
+                bar_index,
+                open_time,
+                ..
+            }
+            | OrderIntent::Exit {
+                bar_index,
+                open_time,
+                ..
+            } => (bar_index, open_time),
         };
-        if bar.bar_index != index {
+        if bar_index != index {
             return Err(ExecutionError::DecisionBarMismatch {
                 expected: index,
-                found: bar.bar_index,
+                found: bar_index,
             });
         }
-        if bar.open_time != time {
+        if open_time != time {
             return Err(ExecutionError::DecisionTimeMismatch {
                 expected: time,
-                found: bar.open_time,
+                found: open_time,
             });
         }
         Ok(())

@@ -11,8 +11,8 @@
 use std::time::Instant;
 
 use quantrule_data::{Candle, CandleValues, Timeframe, TimeframeSet};
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::run::ModelRun;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
 
 const BASE_EPOCH: i64 = 1_735_689_600;
 const M1_BARS: usize = 520_000;

@@ -14,9 +14,9 @@ use quantrule_model::dashboard::TimeframeState;
 use quantrule_model::dashboard::{
     AxisDetail, AxisValue, BiasContinuity, BiasState, TenureOriginKind,
 };
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::roles::AxisCode;
-use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_model::timeframe::TimeframeModel;
 
 const DIRECTION_FIXTURE: &str = include_str!("fixtures/direction_golden.csv");
 const TENURE_FIXTURE: &str = include_str!("fixtures/dashboard_direction_tenure_golden.csv");

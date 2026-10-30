@@ -19,7 +19,7 @@
 use std::fmt;
 
 use crate::execution::{Fill, FillReason, OrderSide};
-use crate::strategy::Side;
+use crate::side::Side;
 
 use super::config::{DrawdownAction, PortfolioConfig, PortfolioConfigError};
 use super::records::{

@@ -16,9 +16,6 @@ use crate::source::date::DateRangeError;
 use super::error::ConfigError;
 use super::read::{self, ROOT};
 
-/// The exact ladder the v1 contract accepts.
-const LADDER: [&str; 4] = ["1m", "5m", "15m", "1h"];
-
 /// The resolved `data.json`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DataConfig {
@@ -215,7 +212,11 @@ fn ladder(file: &str, value: &Value) -> Result<Vec<Timeframe>, ConfigError> {
             item,
         )?);
     }
-    if codes != LADDER {
+    let expected: Vec<&str> = Timeframe::ALL
+        .iter()
+        .map(|timeframe| timeframe.code())
+        .collect();
+    if codes != expected {
         return Err(ConfigError::range(
             file,
             "$.ladder",

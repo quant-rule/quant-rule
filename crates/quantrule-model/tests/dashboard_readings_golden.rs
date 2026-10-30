@@ -15,9 +15,9 @@ use std::collections::BTreeMap;
 
 use quantrule_data::Candle;
 use quantrule_model::dashboard::{DatedReading, TimeframeState, TransitionKind};
+use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::roles::AxisCode;
-use quantrule_model::run::TimeframeModel;
-use quantrule_model::state::{MarketStateConfig, TimeframeInput};
+use quantrule_model::timeframe::TimeframeModel;
 
 const READINGS_FIXTURE: &str = include_str!("fixtures/readings_golden.csv");
 const DASHBOARD_FIXTURE: &str = include_str!("fixtures/dashboard_readings_golden.csv");

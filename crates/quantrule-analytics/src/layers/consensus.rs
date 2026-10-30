@@ -7,7 +7,7 @@
 //! The module is pure: it reads the series it is given and performs no I/O,
 //! reads no clock, and uses no randomness.
 
-use quantrule_model::state::TimeframeConsensus;
+use quantrule_model::consensus::TimeframeConsensus;
 
 use super::series::TimeframeSeries;
 

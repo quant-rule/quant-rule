@@ -16,7 +16,8 @@
 //! given, and performs no I/O, reads no clock, and uses no randomness.
 
 use crate::readings::roles::AxisCode;
-use crate::run::{ModelRun, TimeframeModel};
+use crate::run::ModelRun;
+use crate::timeframe::TimeframeModel;
 
 use super::super::{
     AxisAgreement, AxisValue, ChurnClass, ChurnSource, Coverage, CrossTfAgreement, CrossTfChurn,
