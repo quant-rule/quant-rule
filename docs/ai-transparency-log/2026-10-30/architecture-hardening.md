@@ -1,0 +1,67 @@
+# AI Transparency Log — Architecture Hardening
+
+- Date: 2026-10-30 (UTC)
+- Work item: `architecture-hardening`
+- Plan: [`docs/execution-plans/2026-10-30/architecture-hardening.md`](../../execution-plans/2026-10-30/architecture-hardening.md)
+- Tool: OpenCode agent, DeepSeek V4.1 Flash 1017 (model ID `deepseek-flash`), with shell and file tools
+- Human decision owner: repository owner
+
+## Entry 1 — Read-only audit and plan
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: inspect the repository read-only and produce an architectural audit plus a phased execution plan. No code, tests, issues, or PRs were changed in this entry.
+- What the AI did:
+  - Inspected the workspace layout, crate manifests, module trees, line counts, public surface, tests, ADRs, and the existing MVP audit.
+  - Traced module imports to find cycles and upward dependencies.
+  - Wrote the audit findings (ARCH-2026-10-30-01 through -08) and the execution plan.
+  - Proposed the target module graph: `model::input`/`consensus`/`timeframe`/`run`/`state`; `backtest::side` plus an execution-owned intent; a shell `pipeline`; split command arguments and renderers.
+- Verification and evidence: the evidence is file/line references at `9f0d0d5`. The test suite was not run for the audit; no passing-test claim is made.
+- Learning and corrections:
+  - The initial plan counted `snapshot_at` as 13 parameters; the signature has 12. Corrected before approval.
+  - The initial plan said “seven of eight” unused config re-exports; the count is seven of nine. Corrected before approval.
+  - The crate graph is not the problem; the module graph is. The plan therefore rejects new crates.
+  - Accepted ADRs constrain the solution: config parsing stays in the shell; descriptive views stay in the model; backtest stays one crate.
+
+## Entry 2 — Phase 0 records
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: create the repository audit, approved plan, and this log; establish the baseline. No production source changes.
+- What the AI did:
+  - Created the task worktree `../quant-rule--architecture-hardening` on branch `refactor/architecture-hardening` from `main` at `9f0d0d5`.
+  - Copied the approved plan to `docs/execution-plans/2026-10-30/architecture-hardening.md` and marked it Approved.
+  - Wrote `docs/audits/2026-10-30/architecture-audit.md`.
+  - Recorded the toolchain: Rust 1.99.1, Cargo 1.99.1, edition 2024.
+- Verification and evidence: `git worktree list` shows the worktree; the files exist. Baseline test/clippy results are recorded in the phase evidence section below when run.
+- Learning: the human approved the plan and authorized implementation; push, PR, and merge remain gated. The plan’s Phase 3c still requires an explicit A/B decision and quant-role evidence.
+
+## Entry 3 — Phase 1 model de-cycling
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: remove the `run ↔ state` cycle without changing numeric output. The model input contract, consensus diagnostic, and per-timeframe series were split into `input`, `consensus`, and `timeframe`; `state` is now a view over `run`.
+- What the AI did:
+  - Added `input.rs`, `consensus.rs`, and `timeframe.rs`; reduced `run.rs` to `ModelRun`; reduced `state.rs` to the view.
+  - Folded the 12-parameter free `snapshot_at` into a `SnapshotInputs` request struct, removing the `too_many_arguments` allow.
+  - Updated every workspace import from `run::TimeframeModel`/`run::ModelBar`/`state::MarketStateConfig`/`state::TimeframeInput`/`state::TimeframeConsensus` to the new modules.
+  - Added `crates/quantrule-model/tests/boundaries.rs` with source-level guards.
+- Verification and evidence: `cargo test -p quantrule-model` passed (442 unit tests plus the model integration tests and 2 boundary tests); `cargo clippy -p quantrule-model --all-targets` passed. No golden fixture was regenerated. `cargo check --workspace` passed after the import migration.
+- Learning: the private `TimeframeModel` field access in `ModelRun::timeframe` had to become the public accessor; the move made the previous same-module privacy visible. The split is behavior-preserving so far.
+
+## Phase evidence
+
+| Phase | Command | Observed | Date |
+|---|---|---|---|
+| 0 | `rustc --version` | `rustc 1.99.1 (58cf8f9c3 2026-10-13)` | 2026-10-30 |
+| 0 | `cargo --version` | `cargo 1.99.1 (5f94df478 2026-08-27)` | 2026-10-30 |
+| 0 | `git worktree list` | worktree created at `/home/zantgo/Proyectos/quant-rule--architecture-hardening` | 2026-10-30 |
+| 0 | `cargo fmt --all --check` | no output | 2026-10-30 |
+| 0 | `cargo test --workspace --quiet` | all reported suites passed | 2026-10-30 |
+| 0 | `cargo clippy --all-targets` | finished with no warnings | 2026-10-30 |
+| 1 | `cargo test -p quantrule-model` | 442 unit tests, model integration suites, and 2 boundary tests passed | 2026-10-30 |
+| 1 | `cargo clippy -p quantrule-model --all-targets` | no warnings | 2026-10-30 |
+| 1 | `cargo check --workspace` | passed | 2026-10-30 |
+
+## Open items
+
+- Phase 3c option (A reconcile or B stateless) is not chosen yet. Implementation must stop at that gate unless the human records the choice.
+- The other open findings in `docs/audits/2026-10-30/mvp-pre-release-audit.md` are out of scope.
+- Push, pull request, and merge are not authorized by plan approval.
