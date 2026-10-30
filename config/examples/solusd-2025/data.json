@@ -1,5 +1,5 @@
 {
-  "schema": "quantrule.data/v1",
+  "schema": "quantrule.data/v2",
   "source": {
     "kind": "csv",
     "path": "../../../data/SOLUSD_M1_2025-01-01_2025-12-31.csv"
@@ -8,6 +8,12 @@
   "from": "2025-01-01",
   "to": "2025-12-31",
   "source_timeframe": "1m",
-  "ladder": ["1m", "5m", "15m", "1h"],
-  "max_candles": 600000
+  "ladder": [
+    "1m",
+    "5m",
+    "15m",
+    "1h"
+  ],
+  "max_candles": 600000,
+  "instrument": "SOLUSD"
 }

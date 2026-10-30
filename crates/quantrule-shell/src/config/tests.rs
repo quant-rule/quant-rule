@@ -17,7 +17,7 @@ use super::error::ConfigErrorKind;
 use super::error::ConfigErrorKind::{
     Inconsistent, MissingField, Range, Schema, Type, UnknownField, Unsupported,
 };
-use super::{ConfigError, analytics, data, execution, model, portfolio, run, strategy};
+use super::{ConfigError, analytics, data, execution, model, policy, portfolio, run, strategy};
 
 fn parse_json(text: &str) -> Value {
     serde_json::from_str(text).expect("the test JSON is valid")
@@ -58,8 +58,9 @@ fn assert_rejected<T: std::fmt::Debug>(
 
 fn data_object() -> Value {
     json!({
-        "schema": "quantrule.data/v1",
+        "schema": "quantrule.data/v2",
         "source": {"kind": "csv", "path": "candles.csv"},
+        "instrument": "EURUSD",
         "data_version": "version",
         "from": "2025-01-01",
         "to": "2025-12-31",
@@ -73,6 +74,7 @@ fn data_object() -> Value {
 fn data_matches_the_contract() {
     let base = Path::new("config");
     let valid = data::parse(&data_object(), "data.json", base).expect("the valid config loads");
+    assert_eq!(valid.instrument, "EURUSD");
     assert_eq!(valid.data_version, "version");
     assert_eq!(valid.source.path, Path::new("config/candles.csv"));
     assert_eq!(valid.source_timeframe, Timeframe::M1);
@@ -125,7 +127,7 @@ fn data_matches_the_contract() {
         ("top level", json!([]), Type, "$"),
         (
             "schema",
-            set(data_object(), &["schema"], json!("quantrule.data/v2")),
+            set(data_object(), &["schema"], json!("quantrule.data/v3")),
             Schema,
             "$.schema",
         ),
@@ -253,6 +255,70 @@ fn data_matches_the_contract() {
     }
 }
 
+fn policy_object() -> Value {
+    json!({
+        "schema": "quantrule.policy/v1",
+        "account": { "currency": "USD", "initial_cash": 10000.0 },
+        "objective": {
+            "performance_target": 0.10,
+            "evaluation_days": 90,
+            "max_drawdown": 0.20
+        },
+        "risk": {
+            "max_position_fraction": 1.0,
+            "max_leverage": 1.0,
+            "max_open_positions": 1
+        },
+        "universe": {
+            "tickets": ["EURUSD", "SOLUSD"],
+            "timeframes": ["15m"]
+        }
+    })
+}
+
+#[test]
+fn policy_matches_the_contract() {
+    let valid = policy::parse(&policy_object(), "policy.json").expect("the valid policy loads");
+    assert_eq!(valid.account.initial_cash, 10_000.0);
+    assert_eq!(valid.objective.evaluation_days, 90);
+    assert_eq!(valid.universe.tickets, ["EURUSD", "SOLUSD"]);
+
+    for (value, kind, path) in [
+        (json!(1), Type, "$"),
+        (
+            set(policy_object(), &["schema"], json!("quantrule.policy/v2")),
+            Schema,
+            "$.schema",
+        ),
+        (
+            set(policy_object(), &["account", "currency"], json!("EUR")),
+            Unsupported,
+            "$.account.currency",
+        ),
+        (
+            set(policy_object(), &["risk", "max_leverage"], json!(2.0)),
+            Unsupported,
+            "$.risk.max_leverage",
+        ),
+        (
+            set(policy_object(), &["universe", "tickets"], json!([])),
+            Range,
+            "$.universe.tickets",
+        ),
+        (
+            set(
+                policy_object(),
+                &["universe", "timeframes"],
+                json!(["15m", "5m"]),
+            ),
+            Range,
+            "$.universe.timeframes[1]",
+        ),
+    ] {
+        assert_rejected(policy::parse(&value, "policy.json"), kind, path);
+    }
+}
+
 fn model_object() -> Value {
     json!({"schema": "quantrule.model/v1", "structure_scale": "major"})
 }
@@ -308,11 +374,14 @@ fn model_matches_the_contract() {
 
 fn strategy_object() -> Value {
     json!({
-        "schema": "quantrule.strategy/v1",
+        "schema": "quantrule.strategy/v2",
         "name": "axis-agreement",
+        "thesis": "Trade only when direction, momentum, and structure agree.",
         "timeframe": "15m",
         "long_threshold": 0.1,
-        "short_threshold": -0.1
+        "short_threshold": -0.1,
+        "stop_atr_multiple": 2.0,
+        "reward_to_risk": 1.5
     })
 }
 
@@ -320,9 +389,11 @@ fn strategy_object() -> Value {
 fn strategy_matches_the_contract() {
     let valid =
         strategy::parse(&strategy_object(), "strategy.json").expect("the valid config loads");
-    assert_eq!(valid.timeframe_secs(), 900);
-    assert_eq!(valid.long_threshold(), 0.1);
-    assert_eq!(valid.short_threshold(), -0.1);
+    assert_eq!(valid.engine.timeframe_secs(), 900);
+    assert_eq!(valid.engine.long_threshold(), 0.1);
+    assert_eq!(valid.engine.short_threshold(), -0.1);
+    assert_eq!(valid.stop_atr_multiple, 2.0);
+    assert_eq!(valid.target_atr_multiple(), 3.0);
 
     for (value, kind, path) in [
         (json!(1), Type, "$"),
@@ -330,7 +401,7 @@ fn strategy_matches_the_contract() {
             set(
                 strategy_object(),
                 &["schema"],
-                json!("quantrule.strategy/v2"),
+                json!("quantrule.strategy/v3"),
             ),
             Schema,
             "$.schema",
@@ -396,11 +467,9 @@ fn strategy_matches_the_contract() {
 
 fn execution_object() -> Value {
     json!({
-        "schema": "quantrule.execution/v1",
+        "schema": "quantrule.execution/v2",
         "fill_timeframe": "15m",
         "order_type": "market_next_open",
-        "stop_atr_multiple": 2.0,
-        "target_atr_multiple": 3.0,
         "tie_break": "stop_first",
         "fee_rate": 0.0,
         "slippage_bps": 2.0,
@@ -411,8 +480,8 @@ fn execution_object() -> Value {
 
 #[test]
 fn execution_matches_the_contract() {
-    let valid =
-        execution::parse(&execution_object(), "execution.json").expect("the valid config loads");
+    let valid = execution::parse(&execution_object(), "execution.json", 2.0, 3.0)
+        .expect("the valid config loads");
     assert_eq!(valid.fill_timeframe, Timeframe::M15);
     assert_eq!(valid.engine.fee_rate(), 0.0);
     assert_eq!(valid.engine.slippage_bps(), 2.0);
@@ -425,7 +494,7 @@ fn execution_matches_the_contract() {
             set(
                 execution_object(),
                 &["schema"],
-                json!("quantrule.execution/v2"),
+                json!("quantrule.execution/v3"),
             ),
             Schema,
             "$.schema",
@@ -449,16 +518,6 @@ fn execution_matches_the_contract() {
             set(execution_object(), &["order_type"], json!("limit")),
             Unsupported,
             "$.order_type",
-        ),
-        (
-            set(execution_object(), &["stop_atr_multiple"], json!(0.0)),
-            Range,
-            "$.stop_atr_multiple",
-        ),
-        (
-            set(execution_object(), &["target_atr_multiple"], json!(-1.0)),
-            Range,
-            "$.target_atr_multiple",
         ),
         (
             set(execution_object(), &["tie_break"], json!("target_first")),
@@ -491,7 +550,11 @@ fn execution_matches_the_contract() {
             "$.end_of_data",
         ),
     ] {
-        assert_rejected(execution::parse(&value, "execution.json"), kind, path);
+        assert_rejected(
+            execution::parse(&value, "execution.json", 2.0, 3.0),
+            kind,
+            path,
+        );
     }
 }
 
@@ -869,8 +932,9 @@ fn analytics_matches_the_contract() {
 
 fn run_object() -> Value {
     json!({
-        "schema": "quantrule.run/v1",
+        "schema": "quantrule.run/v2",
         "name": "run",
+        "policy": "policy.json",
         "data": "data.json",
         "model": "model.json",
         "strategy": "strategy.json",
@@ -890,7 +954,7 @@ fn run_matches_the_contract() {
     for (value, kind, path) in [
         (json!(1), Type, "$"),
         (
-            set(run_object(), &["schema"], json!("quantrule.run/v2")),
+            set(run_object(), &["schema"], json!("quantrule.run/v3")),
             Schema,
             "$.schema",
         ),
@@ -955,9 +1019,11 @@ fn the_example_config_loads_and_resolves() {
     assert!(config.output_root.ends_with("data/backtest-solusd-2025"));
 
     assert_eq!(config.model.structure_scale, PivotScale::Major);
-    assert_eq!(config.strategy.timeframe_secs(), 900);
-    assert_eq!(config.strategy.long_threshold(), 0.1);
-    assert_eq!(config.strategy.short_threshold(), -0.1);
+    assert_eq!(config.strategy.engine.timeframe_secs(), 900);
+    assert_eq!(config.strategy.engine.long_threshold(), 0.1);
+    assert_eq!(config.strategy.engine.short_threshold(), -0.1);
+    assert_eq!(config.strategy.stop_atr_multiple, 2.0);
+    assert_eq!(config.strategy.reward_to_risk, 1.5);
 
     assert_eq!(config.execution.fill_timeframe, Timeframe::M15);
     assert_eq!(config.execution.engine.fee_rate(), 0.0);
@@ -1042,6 +1108,15 @@ fn cross_config_invariants_are_enforced() {
 }
 
 #[test]
+fn the_config_fingerprint_is_stable_and_visible_in_provenance() {
+    let first = run::RunConfig::load(&example_path()).expect("the example loads");
+    let second = run::RunConfig::load(&example_path()).expect("the example loads again");
+    assert_eq!(first.config_hash, second.config_hash);
+    assert_eq!(first.config_hash.len(), 16);
+    assert!(first.config_hash.chars().all(|c| c.is_ascii_hexdigit()));
+}
+
+#[test]
 fn a_missing_file_is_reported_without_an_absolute_path() {
     let error = run::RunConfig::load(&fixtures_path().join("run-missing.json"))
         .expect_err("the referenced file is missing");
@@ -1067,14 +1142,14 @@ fn invalid_json_is_reported() {
 #[test]
 fn the_error_format_names_the_file_path_and_values() {
     let error = data::parse(
-        &set(data_object(), &["schema"], json!("quantrule.data/v2")),
+        &set(data_object(), &["schema"], json!("quantrule.data/v3")),
         "data.json",
         Path::new("config"),
     )
     .expect_err("the schema is wrong");
     assert_eq!(
         error.to_string(),
-        "config error: data.json: $.schema: expected quantrule.data/v1, found quantrule.data/v2"
+        "config error: data.json: $.schema: expected quantrule.data/v2, found quantrule.data/v3"
     );
 
     let error = data::parse(

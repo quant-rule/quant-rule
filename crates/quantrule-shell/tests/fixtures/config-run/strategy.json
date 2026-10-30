@@ -1,7 +1,10 @@
 {
-  "schema": "quantrule.strategy/v1",
+  "schema": "quantrule.strategy/v2",
   "name": "axis-agreement",
   "timeframe": "15m",
   "long_threshold": 0.1,
-  "short_threshold": -0.1
+  "short_threshold": -0.1,
+  "thesis": "Trade only when direction, momentum, and structure agree; exit when they disagree.",
+  "stop_atr_multiple": 2.0,
+  "reward_to_risk": 1.5
 }

@@ -204,6 +204,7 @@ pub(super) fn model_bundle_from(
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "model",
         data_version: &config.data.data_version,
+        config_hash: &config.config_hash,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
         first_open_time: report.period.first_open_time,
@@ -212,6 +213,8 @@ pub(super) fn model_bundle_from(
         config: json!({
             "structure_scale": scale_label(config.model.structure_scale),
             "ladder": ladder_codes(config),
+            "policy": policy_value(config),
+            "strategy": strategy_value(config),
         }),
         artifacts: &names,
     })
@@ -239,7 +242,7 @@ pub(super) fn strategy_bundle_from(
     let bundle = out.join("strategy");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
-    let timeframe_secs = config.strategy.timeframe_secs();
+    let timeframe_secs = config.strategy.engine.timeframe_secs();
     let Some(timeframe) = model_run.timeframe(timeframe_secs) else {
         return Err(RunError::Report(ReportError::NoStrategyBars {
             timeframe_secs,
@@ -268,6 +271,7 @@ pub(super) fn strategy_bundle_from(
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "strategy",
         data_version: &config.data.data_version,
+        config_hash: &config.config_hash,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
         first_open_time: timeframe.candle(0).map(|candle| candle.timestamp()),
@@ -277,9 +281,7 @@ pub(super) fn strategy_bundle_from(
         config_files: &files,
         config: json!({
             "structure_scale": scale_label(config.model.structure_scale),
-            "timeframe_secs": timeframe_secs,
-            "long_threshold": config.strategy.long_threshold(),
-            "short_threshold": config.strategy.short_threshold(),
+            "strategy": strategy_value(config),
         }),
         artifacts: &names,
     })
@@ -318,7 +320,7 @@ fn run_strategy(
     timeframe: &TimeframeModel,
     config: &RunConfig,
 ) -> Result<(Vec<StrategyInput>, Vec<Decision>, StrategySummary), RunError> {
-    let mut strategy = AxisAgreementStrategy::new(config.strategy);
+    let mut strategy = AxisAgreementStrategy::new(config.strategy.engine);
     let mut inputs = Vec::with_capacity(timeframe.len());
     let mut decisions = Vec::with_capacity(timeframe.len());
     let mut summary = StrategySummary {
@@ -329,11 +331,11 @@ fn run_strategy(
     for bar in 0..timeframe.len() {
         let Some(model_bar) = timeframe.bar(bar) else {
             return Err(RunError::Report(ReportError::NoStrategyBars {
-                timeframe_secs: config.strategy.timeframe_secs(),
+                timeframe_secs: config.strategy.engine.timeframe_secs(),
             }));
         };
         let input = StrategyInput::from_model_bar(&model_bar);
-        match Agreement::classify(&input, &config.strategy) {
+        match Agreement::classify(&input, &config.strategy.engine) {
             Some(Agreement::Long) => summary.agreements_long += 1,
             Some(Agreement::Short) => summary.agreements_short += 1,
             Some(Agreement::Neutral) => summary.agreements_neutral += 1,
@@ -432,9 +434,7 @@ fn strategy_json(
         },
         "config": {
             "structure_scale": scale_label(config.model.structure_scale),
-            "timeframe_secs": config.strategy.timeframe_secs(),
-            "long_threshold": config.strategy.long_threshold(),
-            "short_threshold": config.strategy.short_threshold(),
+            "strategy": strategy_value(config),
         },
         "summary": {
             "bars": summary.bars,
@@ -461,12 +461,20 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
     let _ = writeln!(out, "QuantRule strategy report");
     let _ = writeln!(out, "data_version: {}", config.data.data_version);
     let _ = writeln!(out, "requested_period: {}", period_label(config));
-    let _ = writeln!(out, "timeframe_secs: {}", config.strategy.timeframe_secs());
-    let _ = writeln!(out, "long_threshold: {}", config.strategy.long_threshold());
+    let _ = writeln!(
+        out,
+        "timeframe_secs: {}",
+        config.strategy.engine.timeframe_secs()
+    );
+    let _ = writeln!(
+        out,
+        "long_threshold: {}",
+        config.strategy.engine.long_threshold()
+    );
     let _ = writeln!(
         out,
         "short_threshold: {}",
-        config.strategy.short_threshold()
+        config.strategy.engine.short_threshold()
     );
     let _ = writeln!(out, "bars: {}", summary.bars);
     let _ = writeln!(out, "decisions: {}", summary.entries + summary.exits);
@@ -502,7 +510,7 @@ fn strategy_chart(
         .collect();
     if candles.is_empty() {
         return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs: config.strategy.timeframe_secs(),
+            timeframe_secs: config.strategy.engine.timeframe_secs(),
         }));
     }
     let range = chart_range(config, &candles)?;
@@ -518,7 +526,7 @@ fn strategy_chart(
     let timeframe = Timeframe::ALL
         .iter()
         .copied()
-        .find(|timeframe| u64::from(timeframe.seconds()) == config.strategy.timeframe_secs())
+        .find(|timeframe| u64::from(timeframe.seconds()) == config.strategy.engine.timeframe_secs())
         .unwrap_or(Timeframe::M15);
     chart::render_decisions_png(&candles, &markers, &config.name, &range, timeframe)
         .map_err(RunError::Chart)
@@ -530,12 +538,12 @@ fn chart_range(
 ) -> Result<DateRange, RunError> {
     let Some(first) = candles.first() else {
         return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs: config.strategy.timeframe_secs(),
+            timeframe_secs: config.strategy.engine.timeframe_secs(),
         }));
     };
     let Some(last) = candles.last() else {
         return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs: config.strategy.timeframe_secs(),
+            timeframe_secs: config.strategy.engine.timeframe_secs(),
         }));
     };
     let from = config
@@ -579,7 +587,7 @@ pub(super) fn run_pipeline(config: &RunConfig) -> Result<BacktestRun, RunError> 
     ];
     let backtest = BacktestConfig {
         model: config.model,
-        strategy: config.strategy,
+        strategy: config.strategy.engine,
         execution: config.execution.engine,
         portfolio: config.portfolio,
     };
@@ -606,6 +614,42 @@ fn load_set(config: &RunConfig) -> Result<TimeframeSet, RunError> {
     Ok(set)
 }
 
+fn strategy_value(config: &RunConfig) -> Value {
+    json!({
+        "name": "axis-agreement",
+        "thesis": config.strategy.thesis,
+        "timeframe_secs": config.strategy.engine.timeframe_secs(),
+        "long_threshold": config.strategy.engine.long_threshold(),
+        "short_threshold": config.strategy.engine.short_threshold(),
+        "stop_atr_multiple": config.strategy.stop_atr_multiple,
+        "reward_to_risk": config.strategy.reward_to_risk,
+        "target_atr_multiple": config.strategy.target_atr_multiple(),
+    })
+}
+
+fn policy_value(config: &RunConfig) -> Value {
+    json!({
+        "account": {
+            "currency": config.policy.account.currency,
+            "initial_cash": config.policy.account.initial_cash,
+        },
+        "objective": {
+            "performance_target": config.policy.objective.performance_target,
+            "evaluation_days": config.policy.objective.evaluation_days,
+            "max_drawdown": config.policy.objective.max_drawdown,
+        },
+        "risk": {
+            "max_position_fraction": config.policy.risk.max_position_fraction,
+            "max_leverage": config.policy.risk.max_leverage,
+            "max_open_positions": config.policy.risk.max_open_positions,
+        },
+        "universe": {
+            "tickets": config.policy.universe.tickets,
+            "timeframes": config.policy.universe.timeframes.iter().map(|timeframe| timeframe.code()).collect::<Vec<_>>(),
+        },
+    })
+}
+
 fn period_label(config: &RunConfig) -> String {
     match (&config.data.from, &config.data.to) {
         (Some(from), Some(to)) => format!("{from}..{to}"),
@@ -622,6 +666,7 @@ fn day_label(timestamp: i64) -> String {
 fn config_files(config: &RunConfig) -> Vec<String> {
     [
         &config.paths.run,
+        &config.paths.policy,
         &config.paths.data,
         &config.paths.model,
         &config.paths.strategy,

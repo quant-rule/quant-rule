@@ -1,10 +1,19 @@
 {
-  "schema": "quantrule.data/v1",
-  "source": {"kind": "csv", "path": "../state_m1.csv"},
+  "schema": "quantrule.data/v2",
+  "source": {
+    "kind": "csv",
+    "path": "../state_m1.csv"
+  },
   "data_version": "test:v1",
   "from": "2025-01-01",
   "to": "2025-01-01",
   "source_timeframe": "1m",
-  "ladder": ["1m", "5m", "15m", "1h"],
-  "max_candles": 600000
+  "ladder": [
+    "1m",
+    "5m",
+    "15m",
+    "1h"
+  ],
+  "max_candles": 600000,
+  "instrument": "EURUSD"
 }

@@ -1,9 +1,9 @@
-//! `execution.json`: the fill policy and the execution costs.
+//! `execution.json`: the fill mechanics and execution costs.
 //!
-//! The fill policy's enum values are fixed in v1. The two ATR multiples are
-//! carried here because the contract exposes them, and the example fixes them
-//! at 2 and 3. The engine's cost config is built from the fee rate and
-//! slippage; applying the multiples is the backtest runner's job (#172).
+//! Execution owns how a decision becomes a fill: the fill timeframe, the order
+//! type, the tie rule, slippage, fees, and the zero-volume/end-of-data policy.
+//! It does not own the strategy's risk/reward. The bracket distances arrive from
+//! `strategy.json` and are carried into the engine as explicit parameters.
 
 use quantrule_backtest::execution::ExecutionConfig;
 use quantrule_data::Timeframe;
@@ -16,7 +16,7 @@ use super::read::{self, ROOT};
 /// The resolved `execution.json`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ExecutionRunConfig {
-    /// The costs and bracket multiples the execution engine applies.
+    /// The costs and the bracket multiples derived from the strategy risk.
     pub(crate) engine: ExecutionConfig,
     /// The timeframe fills are simulated on; it must equal the strategy
     /// timeframe.
@@ -24,7 +24,15 @@ pub(crate) struct ExecutionRunConfig {
 }
 
 /// Parses `execution.json`.
-pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, ConfigError> {
+///
+/// `stop_atr_multiple` and `target_atr_multiple` come from the strategy's risk
+/// block; the execution file must not duplicate them.
+pub(crate) fn parse(
+    value: &Value,
+    file: &str,
+    stop_atr_multiple: f64,
+    target_atr_multiple: f64,
+) -> Result<ExecutionRunConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::check_fields(
         file,
@@ -34,8 +42,6 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, Con
             "schema",
             "fill_timeframe",
             "order_type",
-            "stop_atr_multiple",
-            "target_atr_multiple",
             "tie_break",
             "fee_rate",
             "slippage_bps",
@@ -43,7 +49,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, Con
             "end_of_data",
         ],
     )?;
-    read::schema(file, object, "quantrule.execution/v1")?;
+    read::schema(file, object, "quantrule.execution/v2")?;
 
     let fill_timeframe = timeframe(
         file,
@@ -57,34 +63,6 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, Con
         read::field(file, ROOT, object, "order_type")?,
         "market_next_open",
     )?;
-
-    let stop_atr_multiple = read::number(
-        file,
-        "$.stop_atr_multiple",
-        read::field(file, ROOT, object, "stop_atr_multiple")?,
-    )?;
-    if stop_atr_multiple <= 0.0 {
-        return Err(ConfigError::range(
-            file,
-            "$.stop_atr_multiple",
-            "> 0",
-            &stop_atr_multiple.to_string(),
-        ));
-    }
-    let target_atr_multiple = read::number(
-        file,
-        "$.target_atr_multiple",
-        read::field(file, ROOT, object, "target_atr_multiple")?,
-    )?;
-    if target_atr_multiple <= 0.0 {
-        return Err(ConfigError::range(
-            file,
-            "$.target_atr_multiple",
-            "> 0",
-            &target_atr_multiple.to_string(),
-        ));
-    }
-
     require_code(
         file,
         "$.tie_break",
@@ -154,4 +132,45 @@ fn require_code(file: &str, path: &str, value: &Value, expected: &str) -> Result
         return Err(ConfigError::unsupported(file, path, expected, found));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::parse;
+    use crate::config::error::ConfigErrorKind;
+
+    fn valid() -> serde_json::Value {
+        json!({
+            "schema": "quantrule.execution/v2",
+            "fill_timeframe": "15m",
+            "order_type": "market_next_open",
+            "tie_break": "stop_first",
+            "fee_rate": 0.0,
+            "slippage_bps": 2.0,
+            "zero_volume": "reject",
+            "end_of_data": "leave_open"
+        })
+    }
+
+    #[test]
+    fn parses_the_fill_mechanics_and_applies_the_strategy_bracket() {
+        let execution = parse(&valid(), "execution.json", 2.0, 3.0).expect("the file is valid");
+        assert_eq!(execution.engine.stop_atr_multiple(), 2.0);
+        assert_eq!(execution.engine.target_atr_multiple(), 3.0);
+        assert_eq!(execution.fill_timeframe.code(), "15m");
+    }
+
+    #[test]
+    fn rejects_the_old_bracket_fields() {
+        let mut value = valid();
+        value["stop_atr_multiple"] = json!(2.0);
+        assert_eq!(
+            parse(&value, "execution.json", 2.0, 3.0)
+                .expect_err("the bracket moved to the strategy")
+                .kind(),
+            ConfigErrorKind::UnknownField
+        );
+    }
 }

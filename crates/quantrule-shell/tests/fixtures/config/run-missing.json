@@ -1,6 +1,7 @@
 {
-  "schema": "quantrule.run/v1",
+  "schema": "quantrule.run/v2",
   "name": "missing",
+  "policy": "policy.json",
   "data": "absent.json",
   "model": "model.json",
   "strategy": "strategy.json",

@@ -146,3 +146,37 @@ impl Agreement {
         }
     }
 }
+
+#[cfg(test)]
+mod boundary_tests {
+    /// The strategy input must stay a narrow projection of the model bar.
+    ///
+    /// This is a source-level guard against a future field silently exposing a
+    /// statistical diagnostic, an event, context, execution, or portfolio data
+    /// to the strategy. The compiler enforces the same shape for every field
+    /// that is actually present.
+    #[test]
+    fn the_strategy_input_exposes_only_primary_axis_values_and_identity() {
+        let source = include_str!("input.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .expect("the source has a test marker");
+        for forbidden in [
+            "pub percentile",
+            "pub readiness",
+            "pub event",
+            "pub context",
+            "pub execution",
+            "pub portfolio",
+            "pub atr",
+            "pub rsi",
+            "pub ema",
+            "pub rvol",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "StrategyInput must not expose `{forbidden}`"
+            );
+        }
+    }
+}

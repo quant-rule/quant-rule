@@ -13,12 +13,14 @@ use super::dashboard::parse_dashboard_arguments;
 use super::fetch::parse_fetch_arguments;
 use super::lab::parse_lab_arguments;
 use super::model::parse_model_series_arguments;
+use super::policy::parse_policy_arguments;
 use super::report::parse_market_report_arguments;
 use super::report_run::parse_report_arguments;
 use super::research::parse_research_arguments;
 use super::store::parse_store_arguments;
 use super::store_query;
 use super::strategy::parse_strategy_run_arguments;
+use super::strategy_explain::parse_strategy_explain_arguments;
 use super::types::{Axis, Command, HelpTopic, ModelArgs, ParseError, WindowMode};
 
 /// Parses one command line.
@@ -76,6 +78,15 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "strategy-run" => {
             let arguments = tokenize(rest)?;
             parse_strategy_run_arguments(&arguments).map(|args| Some(Command::StrategyRun(args)))
+        }
+        "strategy" => {
+            let arguments = tokenize(rest)?;
+            parse_strategy_explain_arguments(&arguments)
+                .map(|args| Some(Command::StrategyExplain(args)))
+        }
+        "policy" => {
+            let arguments = tokenize(rest)?;
+            parse_policy_arguments(&arguments).map(Some)
         }
         "lab" => {
             let arguments = tokenize(rest)?;

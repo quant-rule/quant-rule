@@ -48,6 +48,10 @@ pub(crate) enum Command {
     LabSummary(LabSummaryArgs),
     /// Print strategy entries and exits without fills or P&L.
     StrategyRun(StrategyRunArgs),
+    /// Print the strategy rule in human trader words.
+    StrategyExplain(StrategyExplainArgs),
+    /// Validate the policy and every engine config against it.
+    PolicyCheck(PolicyCheckArgs),
     /// Print one axis per timeframe.
     Axis { args: ModelArgs, axis: Axis },
     /// Print the event records.
@@ -437,6 +441,8 @@ pub(crate) struct LabSummaryArgs {
 pub(crate) struct StrategyRunArgs {
     /// The M1 source CSV.
     pub(crate) path: PathBuf,
+    /// An optional run configuration; when supplied, its strategy is used.
+    pub(crate) config: Option<PathBuf>,
     /// The strategy name.
     pub(crate) strategy: String,
     /// The caller-supplied identity of the input series.
@@ -461,6 +467,20 @@ impl StrategyRunArgs {
             (None, None) => String::from("full file"),
         }
     }
+}
+
+/// A parsed `strategy explain` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StrategyExplainArgs {
+    /// The run configuration that names the strategy and policy.
+    pub(crate) config: PathBuf,
+}
+
+/// A parsed `policy check` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PolicyCheckArgs {
+    /// The run configuration that names the policy and engine configs.
+    pub(crate) config: PathBuf,
 }
 
 /// Arguments for `store list`.
@@ -545,6 +565,10 @@ pub(crate) enum ParseError {
     MarketReport(String),
     /// A `strategy-run` argument list is invalid.
     StrategyRun(String),
+    /// A `strategy explain` argument list is invalid.
+    StrategyExplain(String),
+    /// A `policy` argument list is invalid.
+    Policy(String),
     /// A `report` argument list is invalid.
     Report(String),
     /// A `backtest` argument list is invalid.
@@ -582,6 +606,8 @@ impl fmt::Display for ParseError {
             Self::MarketChart(message) => formatter.write_str(message),
             Self::MarketReport(message) => formatter.write_str(message),
             Self::StrategyRun(message) => formatter.write_str(message),
+            Self::StrategyExplain(message) => formatter.write_str(message),
+            Self::Policy(message) => formatter.write_str(message),
             Self::Report(message) => formatter.write_str(message),
             Self::Backtest(message) => formatter.write_str(message),
             Self::Lab(message) => formatter.write_str(message),

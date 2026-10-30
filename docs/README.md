@@ -16,6 +16,9 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Reports | The per-engine report bundles: artifacts, JSON and CSV schemas, boundaries, and availability. | `docs/reports/<YYYY-MM-DD>/<file>.md` |
 | Releases | The notes for a tagged release: commands, configuration, reports, accounting rules, and evidence. | `docs/releases/<YYYY-MM-DD>/<file>.md` |
 | Architecture decision records | A decision, the alternatives considered, and the consequences. | `docs/adr/<YYYY-MM-DD>/<file>.md` |
+| Audits | Read-only findings, evidence, and remediation options. | `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` |
+| Experiments | Pre-registered experiment records and triage. | `docs/experiments/<YYYY-MM-DD>/<EXP-ID>-<slug>.md` |
+| Governance | The improvement charter, green criteria, autonomy, and stop conditions. | `docs/governance/<YYYY-MM-DD>/<file>.md` |
 
 ## Current model contracts
 
@@ -29,7 +32,8 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 
 | Contract | Status | Path |
 |---|---|---|
-| Per-engine configuration | Approved (#168); implemented by #170; used by `report` and `backtest` (#172–#176); verified by #177 | `docs/config/2026-10-28/per-engine-config.md` |
+| Per-engine configuration (v1) | Historical; superseded by the policy/strategy v2 contract | `docs/config/2026-10-28/per-engine-config.md` |
+| Policy and strategy blueprints | Current; `run v2`, `policy v1`, `strategy v2`, `execution v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Per-engine reports | Approved (#168); implemented by #173–#176; verified by #177 | `docs/reports/2026-10-28/per-engine-reports.md` |
 | SOLUSD 2025 example run | Verified by #177: five bundles, 29 artifacts, two byte-identical runs | `config/examples/solusd-2025/` |
 
@@ -44,6 +48,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Tutorial | Status | Path |
 |---|---|---|
 | Run the full pipeline, with one lab per quant role | Current; verified 2026-10-30 | [`docs/tutorials/2026-10-29/full-pipeline.md`](tutorials/2026-10-29/full-pipeline.md) |
+| The human improvement loop | Current; policy → strategy → experiment → triage | [`docs/tutorials/2026-10-30/improvement-loop.md`](tutorials/2026-10-30/improvement-loop.md) |
 
 ## Current roles
 
@@ -53,12 +58,15 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Quant Developer | [Quant Developer Manual](roles/2026-10-29/quant-developer-manual.md) | Current; normative in `AGENTS.md` section 10 |
 | Quant Validator | [Quant Validator Manual](roles/2026-10-29/quant-validator-manual.md) | Current; normative in `AGENTS.md` section 10 |
 | All three | [Quant roles overview](roles/2026-10-29/quant-roles.md) | Current; role table and handoff chain |
+| Governing Swarm | [Governing Swarm](roles/2026-10-30/governing-swarm.md) | Current; Loop Governor, Result Analyst, Triage Officer |
+| Continuous Improvement | [Continuous Improvement roles](roles/2026-10-30/continuous-improvement-roles.md) | Current; Audit, Planner, Improvement Verifier |
 
 ## Developer tools
 
 | Tool | Purpose | Path |
 |---|---|---|
 | Progression replay oracle | Regenerates and checks the Progression golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
+| Experiment matrix runner | Runs one isolated `backtest` per manifest cell in deterministic order. | [`tools/experiment/README.md`](../tools/experiment/README.md) |
 
 ## Releases
 
@@ -74,6 +82,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Help, tutorial, and quant role manuals | Delivered (#208); tagged `v0.3.0` | `docs/execution-plans/2026-10-29/208-help-tutorial-role-manuals.md` |
 | MVP v1: config-driven engines, five reports, and the full-execution SOLUSD 2025 run | Delivered (#141); tagged `v0.2.0` | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
 | Market analysis and full-execution backtest | Superseded for MVP v1 closeout by the 2026-10-28 plan; history preserved | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
+| Audit and continuous-improvement workflow | In progress; policy/strategy v2 and swarm model | `docs/execution-plans/2026-10-30/audit-improvement-workflow.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 
@@ -87,6 +96,9 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | Market analysis and full-execution backtest boundaries | Accepted (#145); superseded in part by the 2026-10-28 decision | `docs/adr/2026-10-27/analysis-and-backtest-boundaries.md` |
 | Extended-range M1 window | Accepted (#144) | `docs/adr/2026-10-27/extended-range-window.md` |
 | Config-driven engines and per-engine reports | Accepted (#168) | `docs/adr/2026-10-28/config-driven-engines-and-reports.md` |
+| Abstraction levels and engine boundaries | Accepted 2026-10-30 | `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md` |
+| Governing swarm and improvement loop | Accepted 2026-10-30 | `docs/adr/2026-10-30/governing-swarm-and-improvement-loop.md` |
+| Rule purity and statistics boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/rule-purity-and-statistics-boundary.md` |
 
 ## Reading a work item
 

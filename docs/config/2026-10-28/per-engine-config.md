@@ -3,10 +3,16 @@
 - Date: 2026-10-28 (UTC)
 - Issue: [#168](https://github.com/quant-rule/quant-rule/issues/168)
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
-- Status: Approved and implemented by the config loader (#170)
+- Status: Historical v1 contract; superseded 2026-10-30 by the policy/strategy v2 contract
+- Current contract: [`docs/config/2026-10-30/policy-and-strategy.md`](../../config/2026-10-30/policy-and-strategy.md)
 - Plan: [`docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`](../../execution-plans/2026-10-28/141-mvp-v1-final-contract.md)
 - ADR: [`docs/adr/2026-10-28/config-driven-engines-and-reports.md`](../../adr/2026-10-28/config-driven-engines-and-reports.md)
-- Schema version: `quantrule.*/v1`
+- Schema version at the time: `quantrule.*/v1`
+
+> This document records the v1 run contract. The current contract is
+> `quantrule.run/v2`, `quantrule.data/v2`, `quantrule.strategy/v2`, and
+> `quantrule.execution/v2`, with a `policy.json`. Use the current contract for
+> any new run; the v1 shapes in this file are historical.
 
 ## 1. Purpose
 

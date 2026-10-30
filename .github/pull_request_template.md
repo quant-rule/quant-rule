@@ -20,6 +20,12 @@ Closes #
 
 Claim:
 
+Audit findings:
+
+Regression guard:
+
+Experiment record:
+
 ## Risks
 
 <!-- Security, data, migration, compatibility, or operational. Write "None" when none. -->

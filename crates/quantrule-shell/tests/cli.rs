@@ -1804,3 +1804,96 @@ fn interactive_store_ingest_matches_non_interactive_output() {
     );
     assert!(stderr_text(&output).contains("quantrule> "));
 }
+
+#[test]
+fn policy_check_prints_the_validated_envelope() {
+    let output = run(&[
+        "policy",
+        "check",
+        "--config",
+        &fixture("config-run/run.json"),
+    ]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        "policy ok run=fixture account=USD 10000 target=0.1 365d max_drawdown=0.2 risk=1 leverage=1 positions=1 tickets=EURUSD timeframes=15m strategy=axis-agreement stop_atr=2 reward_to_risk=1.5\n"
+    );
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn strategy_explain_prints_the_trader_rule() {
+    let output = run(&[
+        "strategy",
+        "explain",
+        "--config",
+        &fixture("config-run/run.json"),
+    ]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output),
+        "strategy axis-agreement\ntimeframe 15m\nthesis Trade only when direction, momentum, and structure agree; exit when they disagree.\nentry-long Direction, Momentum, and Structure all above 0.1\nentry-short Direction, Momentum, and Structure all below -0.1\nexit agreement_lost\nrisk stop=2 ATR target=3 ATR reward_to_risk=1.5\n"
+    );
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
+fn policy_check_rejects_a_cross_config_contradiction() {
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/policy-contradiction");
+    let _ = fs::remove_dir_all(&directory);
+    fs::create_dir_all(&directory).expect("the test directory is created");
+    for name in [
+        "policy.json",
+        "data.json",
+        "model.json",
+        "strategy.json",
+        "execution.json",
+        "portfolio.json",
+        "analytics.json",
+    ] {
+        fs::copy(fixture(&format!("config-run/{name}")), directory.join(name))
+            .expect("the fixture is copied");
+    }
+    let mut portfolio = fs::read_to_string(fixture("config-run/portfolio.json"))
+        .expect("the portfolio fixture is readable");
+    portfolio = portfolio.replace("\"notional\": 10000.0", "\"notional\": 20000.0");
+    fs::write(directory.join("portfolio.json"), portfolio).expect("the contradiction is written");
+    fs::write(
+        directory.join("run.json"),
+        "{\n  \"schema\": \"quantrule.run/v2\",\n  \"name\": \"contradiction\",\n  \"policy\": \"policy.json\",\n  \"data\": \"data.json\",\n  \"model\": \"model.json\",\n  \"strategy\": \"strategy.json\",\n  \"execution\": \"execution.json\",\n  \"portfolio\": \"portfolio.json\",\n  \"analytics\": \"analytics.json\",\n  \"output_root\": \"out\"\n}\n",
+    )
+    .expect("the run file is written");
+
+    let output = run(&[
+        "policy",
+        "check",
+        "--config",
+        directory
+            .join("run.json")
+            .to_str()
+            .expect("the path is UTF-8"),
+    ]);
+
+    assert_failure(&output);
+    assert!(stderr_text(&output).contains("$.sizing.notional"));
+    let _ = fs::remove_dir_all(&directory);
+}
+
+#[test]
+fn strategy_run_uses_the_config_strategy() {
+    let output = run(&[
+        "strategy-run",
+        &fixture("state_m1.csv"),
+        "--strategy",
+        "axis-agreement",
+        "--data-version",
+        "test:v1",
+        "--config",
+        &fixture("config-run/run.json"),
+    ]);
+
+    assert_success(&output);
+    assert_eq!(stderr_text(&output), "");
+}

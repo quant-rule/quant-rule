@@ -65,6 +65,7 @@ pub(crate) fn execution_bundle_from(
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "execution",
         data_version: &config.data.data_version,
+        config_hash: &config.config_hash,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
         first_open_time: first_open_time(run, config),
@@ -146,6 +147,7 @@ pub(crate) fn portfolio_bundle_from(
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "portfolio",
         data_version: &config.data.data_version,
+        config_hash: &config.config_hash,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
         first_open_time: first_open_time(run, config),
@@ -196,14 +198,14 @@ pub(crate) fn portfolio_bundle_from(
 
 fn first_open_time(run: &BacktestRun, config: &RunConfig) -> Option<i64> {
     run.model_run()
-        .timeframe(config.strategy.timeframe_secs())
+        .timeframe(config.strategy.engine.timeframe_secs())
         .and_then(|timeframe| timeframe.candle(0))
         .map(|candle| candle.timestamp())
 }
 
 fn last_open_time(run: &BacktestRun, config: &RunConfig) -> Option<i64> {
     run.model_run()
-        .timeframe(config.strategy.timeframe_secs())
+        .timeframe(config.strategy.engine.timeframe_secs())
         .and_then(|timeframe| timeframe.candle(timeframe.len().saturating_sub(1)))
         .map(|candle| candle.timestamp())
 }
@@ -255,9 +257,12 @@ fn execution_chart(
     run: &BacktestRun,
     fills: &[(OrderRecord, Fill)],
 ) -> Result<Vec<u8>, RunError> {
-    let Some(timeframe) = run.model_run().timeframe(config.strategy.timeframe_secs()) else {
+    let Some(timeframe) = run
+        .model_run()
+        .timeframe(config.strategy.engine.timeframe_secs())
+    else {
         return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs: config.strategy.timeframe_secs(),
+            timeframe_secs: config.strategy.engine.timeframe_secs(),
         }));
     };
     let candles: Vec<_> = (0..timeframe.len())
@@ -271,7 +276,7 @@ fn execution_chart(
     let timeframe = Timeframe::ALL
         .iter()
         .copied()
-        .find(|timeframe| u64::from(timeframe.seconds()) == config.strategy.timeframe_secs())
+        .find(|timeframe| u64::from(timeframe.seconds()) == config.strategy.engine.timeframe_secs())
         .unwrap_or(Timeframe::M15);
     chart::render_decisions_png(&candles, &markers, &config.name, &range, timeframe)
         .map_err(RunError::Chart)
@@ -988,6 +993,7 @@ pub(crate) fn analytical_bundle_from(
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "analytical",
         data_version: &config.data.data_version,
+        config_hash: &config.config_hash,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
         first_open_time,
