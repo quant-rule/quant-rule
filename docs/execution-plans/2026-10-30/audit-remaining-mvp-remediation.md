@@ -1,7 +1,7 @@
 # Remaining MVP Audit Remediation — Execution Plan
 
 - Date: 2026-10-30 (UTC)
-- Status: **Approved; implemented and committed on the task branch** — the human authorized full implementation and commits on 2026-10-30. Verification is recorded in §15; push, PR, and merge remain gated by AGENTS §9.
+- Status: **Merged as `d9ada57`** — closure verification found the AUD-06 small-step regression; the fix is tracked in `docs/execution-plans/2026-10-30/aud-06-step-precision.md`.
 - Work item: `audit-remaining-mvp-remediation` (no issue number assigned)
 - Baseline: `origin/main` at `63eff7d` (tree identical to `refactor/architecture-hardening` at `3808685`)
 - Toolchain: Rust 1.99.1, edition 2024
@@ -436,7 +436,7 @@ push, PR, and merge remain gated by AGENTS §9.
 | 2 AUD-04 | Complete (cap) | Current-equity × leverage × policy fraction envelope; fill quantity capped; `risk_limit` only for a non-positive envelope; engine and runner tests |
 | 3 AUD-03 | Complete | Open-gap precedence before the intrabar stop-first rule; long and short gap tests |
 | 4 AUD-05 | Complete | Open/close must be positive; data, CLI, and ladder tests |
-| 5 AUD-06 | Complete | Relative tolerance plus twelve-decimal quantity normalization; exact-boundary test |
+| 5 AUD-06 | Complete | Relative tolerance plus step-aware quantity normalization; exact-boundary and small-step tests |
 | 6 Minors | Complete | Existing-DB remove; tolerant ordering precedence; bucket volume error; latest-window docs; `config_hash` check; help/README updates |
 | 7 Closure | Pending PR/Verifier | Audit findings marked Fixed in this worktree; Improvement Verifier has not yet marked Verified |
 
@@ -444,7 +444,7 @@ push, PR, and merge remain gated by AGENTS §9.
 
 - `cargo test --workspace --lib --bins --tests`: 40 suites pass, 0 failed
   (the 100k store benchmark remains ignored by design).
-- `cargo test --workspace --doc`: 35 doctests pass.
+- `cargo test --workspace --doc`: 77 doctests pass across four doctest binaries.
 - `cargo clippy --workspace --all-targets -- -D warnings`: clean.
 - `cargo fmt --all -- --check`: clean.
 - Full-year `backtest` with the SOLUSD 2025 data and example config: five bundles
@@ -469,7 +469,7 @@ still prevents over-leverage. This is recorded for human acceptance.
 
 ### Remaining gates
 
-- Commit authorization is recorded on the task branch; push, PR creation, and merge are not granted.
+- The original remediation PR is merged; the AUD-06 regression fix has its own plan and branch.
 - Quant Validator reproduction of the full-year run is recorded as a sequential
   pass by the implementing agent, not an independent-agent review.
 - The Improvement Verifier must move the fixed findings from `Fixed` to

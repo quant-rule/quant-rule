@@ -318,9 +318,10 @@ Quantity is `(equity × fraction) / sizing_price`, floored to `quantity_step`.
 The sizing price is the decision bar's close. The fill occurs at the next bar's
 open, so the realized notional can differ from the sizing notional. A quantity
 below one step rejects the entry; it is never rounded up to a step. Sizing
-quantities are published at twelve decimal places, which removes binary noise
-such as `6 × 0.1 = 0.6000000000000001`. A risk-capped partial fill may be below
-the configured step; it is the largest quantity that fits the entry envelope.
+quantities are normalized at the configured step's own decimal precision, which
+removes binary noise such as `6 × 0.1 = 0.6000000000000001` without assuming a
+fixed `1e-12` grid. A risk-capped partial fill may be below the configured step;
+it is the largest quantity that fits the entry envelope.
 
 The runner passes an entry envelope of `current equity × leverage ×
 policy.risk.max_position_fraction`. If the fill notional exceeds that envelope,

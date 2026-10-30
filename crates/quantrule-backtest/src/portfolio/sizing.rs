@@ -183,7 +183,7 @@ impl SizingMode {
             return Err(SizingRejection::BelowOneStep { raw, step });
         }
 
-        let quantity = normalize_quantity(steps * step);
+        let quantity = normalize_quantity(steps * step, step);
         if !quantity.is_finite() || quantity <= 0.0 {
             return Err(SizingRejection::BelowOneStep { raw, step });
         }
@@ -192,19 +192,40 @@ impl SizingMode {
     }
 }
 
-/// The decimal scale used to publish a quantity.
+/// The decimal scale that represents `step` as an integer, or `1.0` when the
+/// step is not a decimal grid.
 ///
-/// Quantities are quote-asset units; twelve decimal places cover every
-/// configured step in the supported universe and remove binary noise such as
-/// `6 * 0.1 = 0.6000000000000001`.
-const QUANTITY_SCALE: f64 = 1_000_000_000_000.0;
-
-fn normalize_quantity(quantity: f64) -> f64 {
-    if quantity.is_finite() {
-        (quantity * QUANTITY_SCALE).round() / QUANTITY_SCALE
-    } else {
-        quantity
+/// A fixed twelve-decimal scale is wrong for a valid step below `1e-12` and for
+/// a non-grid step such as `2.5e-13`; the scale must follow the step.
+fn quantity_scale(step: f64) -> Option<f64> {
+    let mut scale = 1.0;
+    for _ in 0..18 {
+        let scaled = step * scale;
+        if !scaled.is_finite() {
+            break;
+        }
+        let nearest = scaled.round();
+        let tolerance = 16.0 * f64::EPSILON * scaled.abs().max(f64::MIN_POSITIVE);
+        if (scaled - nearest).abs() <= tolerance {
+            return Some(scale);
+        }
+        scale *= 10.0;
     }
+    None
+}
+
+fn normalize_quantity(quantity: f64, step: f64) -> f64 {
+    if !quantity.is_finite() {
+        return quantity;
+    }
+    let Some(scale) = quantity_scale(step) else {
+        return quantity;
+    };
+    let scaled = quantity * scale;
+    if !scaled.is_finite() {
+        return quantity;
+    }
+    scaled.round() / scale
 }
 
 /// Floors `raw / step` without losing an exact boundary to binary rounding.
