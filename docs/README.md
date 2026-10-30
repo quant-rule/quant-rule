@@ -25,6 +25,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Contract | Status | Path |
 |---|---|---|
 | Four-axis analytical model | Contract | `docs/model/2026-10-21/four-axis-analytical-model.md` |
+| Per-timeframe model (target) | Approved (#228); implementation pending (#231, #232) | `docs/model/2026-10-30/per-timeframe-model.md` |
 | DashboardState four-axis CLI view | Approved (#123) | `docs/model/2026-10-25/dashboard-state.md` |
 | MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified on SOLUSD 2025 (#152) | `docs/model/2026-10-27/market-report.md` |
 
@@ -36,6 +37,20 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Policy and strategy blueprints | Current; `run v2`, `policy v1`, `strategy v2`, `execution v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Per-engine reports | Approved (#168); implemented by #173–#176; verified by #177 | `docs/reports/2026-10-28/per-engine-reports.md` |
 | SOLUSD 2025 example run | Verified by #177: five bundles, 29 artifacts, two byte-identical runs | `config/examples/solusd-2025/` |
+
+### Approved target contracts
+
+The unified ladder contracts are approved under #228. They describe the target
+architecture; the current v2 behavior remains in force until the corresponding
+code phases merge.
+
+| Contract | Target | Path |
+|---|---|---|
+| Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
+| Per-timeframe model | `quantrule.model/v2` | `docs/config/2026-10-30/model-v2.md` |
+| Active ladder and context | `quantrule.strategy/v3` | `docs/config/2026-10-30/strategy-v3.md` |
+| Fill mechanics | `quantrule.execution/v3` | `docs/config/2026-10-30/execution-v3.md` |
+| Strategy/execution boundary | `TradeIntent` | `docs/config/2026-10-30/trade-intent.md` |
 
 ## Current evidence
 
@@ -87,6 +102,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Remaining MVP audit remediation (AUD-02…11) | Merged; all findings `Verified` | `docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md` |
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | MVP pre-release audit closure | All findings `Verified`; AUD-04 validation recorded | `docs/audits/2026-10-30/mvp-pre-release-closure.md` |
+| Unified timeframe ladder | Approved (#228); Phase 1 contracts in progress; code phases #230–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 
@@ -104,6 +120,7 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | Governing swarm and improvement loop | Accepted 2026-10-30 | `docs/adr/2026-10-30/governing-swarm-and-improvement-loop.md` |
 | Rule purity and statistics boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/rule-purity-and-statistics-boundary.md` |
 | Stateless strategy and the position parameter | Accepted 2026-10-30 | `docs/adr/2026-10-30/stateless-strategy-position-parameter.md` |
+| One-way timeframe ladder and trade-intent boundary | Accepted 2026-10-30 (#228) | `docs/adr/2026-10-30/one-way-timeframe-ladder.md` |
 
 ## Reading a work item
 
