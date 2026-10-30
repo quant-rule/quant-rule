@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential implementation and validation passes
 - Work item: [#231](https://github.com/quant-rule/quant-rule/issues/231)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR pending
+- Status: Implemented; PR [#240](https://github.com/quant-rule/quant-rule/pull/240) open; CI passed
 
 ## Intent and boundary
 
@@ -54,6 +54,8 @@ changed.
 | Unknown timeframe / unknown field | Rejected |
 | Override outside available ladder | Rejected by cross-config validation |
 | Worktree | `quant-rule--231-model-config-v2` |
+| PR | #240 opened |
+| CI `verify` and `sync` | Passed |
 
 ## Quant validation (sequential pass)
 

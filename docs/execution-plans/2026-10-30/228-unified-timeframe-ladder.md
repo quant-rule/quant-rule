@@ -662,10 +662,7 @@ until then.
 
 **Goal:** Make the model low-level configuration real.
 
-**Status:** Implemented; PR pending. This first delivery covers per-timeframe
-EMA/RSI/ATR/RVOL periods and the structure scale. Percentile, progression,
-event, and context knobs remain fixed and are reserved for a follow-up because
-they need separate golden review.
+**Status:** Implemented in PR [#240](https://github.com/quant-rule/quant-rule/pull/240); CI passed. This first delivery covers per-timeframe EMA/RSI/ATR/RVOL periods and the structure scale. Percentile, progression, event, and context knobs remain fixed and are reserved for a follow-up because they need separate golden review.
 
 **Files:**
 

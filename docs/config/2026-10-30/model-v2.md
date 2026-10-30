@@ -1,7 +1,7 @@
 # Model Configuration v2 — Per-Timeframe Readings
 
 - Date: 2026-10-30 (UTC)
-- Status: Implemented (#231); first delivery
+- Status: Implemented (#231, PR #240); first delivery
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#231](https://github.com/quant-rule/quant-rule/issues/231)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - Model contract: [`docs/model/2026-10-30/per-timeframe-model.md`](../../model/2026-10-30/per-timeframe-model.md)
