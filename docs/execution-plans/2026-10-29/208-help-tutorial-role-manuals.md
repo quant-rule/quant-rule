@@ -436,7 +436,8 @@ Observed verification (2026-10-30 UTC):
 | Availability sample | `events ... --window latest` plus the record check | 0 events before availability; 7,095 events in the sample |
 | Example values | `grep` over the validator lab summary | 48 trades, 8016.143910, 0.203150, halted true, commission 885.610499 |
 
-Pull request: pending. Merge requires explicit human authorization.
+Pull request: [#215](https://github.com/quant-rule/quant-rule/pull/215),
+open. Merge requires explicit human authorization.
 
 Limitations:
 

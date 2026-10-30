@@ -195,4 +195,5 @@
   - The researcher manual separates the `candles-tolerant` quality line from
     the `timeframes` aggregation lines; the first draft showed them as one
     command's output, which confused the capture.
-- **Pull request:** pending. Merge requires explicit human authorization.
+- **Pull request:** [#215](https://github.com/quant-rule/quant-rule/pull/215),
+  open. Merge requires explicit human authorization.
