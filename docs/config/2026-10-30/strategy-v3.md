@@ -1,7 +1,7 @@
 # Strategy Configuration v3 — Active Ladder and Ladder Context
 
 - Date: 2026-10-30 (UTC)
-- Status: Implemented (#233, #234, #235); migration, context, and the unified rule are live
+- Status: Implemented (#233, #234, #235, PR #244); migration, context, and the unified rule are live
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#233](https://github.com/quant-rule/quant-rule/issues/233), [#235](https://github.com/quant-rule/quant-rule/issues/235)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)

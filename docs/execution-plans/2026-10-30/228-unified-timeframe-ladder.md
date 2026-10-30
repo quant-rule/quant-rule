@@ -801,11 +801,7 @@ stateless strategy contract.
 
 **Goal:** Replace `axis-agreement` with the unified ladder rule.
 
-**Status:** Implemented; PR pending. The live strategy is `ladder-context`; the
-old `axis-agreement` source, config schema, and command name are removed. The
-historical golden fixture is archived with an ADR. The current execution loader
-still reads `quantrule.execution/v2`; `execution.fill_timeframe` is checked
-against `ladder[0]`.
+**Status:** Implemented in PR [#244](https://github.com/quant-rule/quant-rule/pull/244); CI passed. The live strategy is `ladder-context`; the old `axis-agreement` source, config schema, and command name are removed. The historical golden fixture is archived with an ADR. The current execution loader still reads `quantrule.execution/v2`; `execution.fill_timeframe` is checked against `ladder[0]`.
 
 **Files:**
 

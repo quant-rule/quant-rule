@@ -101,7 +101,7 @@ implemented by #230; the remaining target contracts wait for their code phases.
 | Remaining MVP audit remediation (AUD-02…11) | Merged; all findings `Verified` | `docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md` |
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | MVP pre-release audit closure | All findings `Verified`; AUD-04 validation recorded | `docs/audits/2026-10-30/mvp-pre-release-closure.md` |
-| Unified timeframe ladder | Approved (#228); Phases 1–6 merged; Phase 7 (#235) implemented, PR pending; phases #236–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
+| Unified timeframe ladder | Approved (#228); Phases 1–6 merged; Phase 7 (#235) PR [#244](https://github.com/quant-rule/quant-rule/pull/244) open, CI passed; phases #236–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

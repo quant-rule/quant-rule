@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#235](https://github.com/quant-rule/quant-rule/issues/235)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR pending
+- Status: Implemented; PR [#244](https://github.com/quant-rule/quant-rule/pull/244) open; CI passed
 
 ## Intent and boundary
 
@@ -60,6 +60,8 @@ fixture and a retirement ADR are archived as evidence, not as live tests.
 | Backtest unit tests | 165 passed, 1 ignored benchmark |
 | Shell unit tests | 272 passed |
 | New strategy golden | 3 tests passed |
+| PR | #244 opened |
+| CI `verify` and `sync` | Passed |
 | Runner golden | Decisions, fills, trades, and metrics regenerated and passing |
 | `strategy-run` golden | Regenerated and passing |
 | `backtest` five bundles | Written and matching standalone reports |
