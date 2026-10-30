@@ -11,8 +11,12 @@ The human asked to remediate the Critical audit finding that native M5/M15/H1
 CSVs are silently analyzed as M1. The approved plan chose Option A: reject a
 source whose cadence is not one minute, without adding native-timeframe
 analysis. The work stayed inside that scope. No model formula, strategy,
-execution, portfolio, or analytics behavior changed. No commit, push, issue, or
-PR was created because those remain separate approval gates.
+execution, portfolio, or analytics behavior changed. After human authorization,
+the work was committed as `598708f`, pushed to
+`fix/aud-2026-10-30-01-m1-source-validation`, tracked by
+[#220](https://github.com/quant-rule/quant-rule/issues/220), and opened as
+[#221](https://github.com/quant-rule/quant-rule/pull/221). Merge, board
+acceptance, and independent verification remain open.
 
 ## Implemented
 

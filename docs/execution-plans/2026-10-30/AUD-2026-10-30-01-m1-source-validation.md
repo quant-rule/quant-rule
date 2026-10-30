@@ -5,8 +5,10 @@
 - Approved: 2026-10-30 (UTC), human authorization to implement in the task worktree
 - Verified: 2026-10-30 (UTC), acceptance criteria evaluated locally; independent post-merge verification and human acceptance remain open
 - Work item: `AUD-2026-10-30-01`
+- Issue: [#220](https://github.com/quant-rule/quant-rule/issues/220)
+- PR: [#221](https://github.com/quant-rule/quant-rule/pull/221)
 - Audit: [`docs/audits/2026-10-30/mvp-pre-release-audit.md`](../../audits/2026-10-30/mvp-pre-release-audit.md)
-- Branch (when approved): `fix/aud-2026-10-30-01-m1-source-validation`
+- Branch: `fix/aud-2026-10-30-01-m1-source-validation`
 
 ## Intent
 
@@ -77,18 +79,16 @@ Excluded:
 | 3 | Add shell/integration regression tests | Test | `crates/quantrule-shell/tests/` |
 | 4 | Update command and config docs | Architect/Implementation | `README.md`, `docs/config/`, `docs/audits/` |
 
-## Issue and PR traceability (proposed; actual numbers at creation)
+## Issue and PR traceability
 
-| Finding | Issue | Sub-issue | PR | Verification |
+| Finding | Issue | Deliverable | PR | Verification |
 |---|---|---|---|---|
-| AUD-2026-10-30-01 | Reject non-M1 ladder inputs | Data-engine cadence error | PR-01a | Unit/edge test for the error |
-| AUD-2026-10-30-01 | Reject non-M1 ladder inputs | Shell ladder preflight | PR-01b | Shell test on the H1 fixture |
-| AUD-2026-10-30-01 | Reject non-M1 ladder inputs | Command regression matrix | PR-01c | `timeframes`, `market-state`, `market-report`, `store`, `research`, `backtest --config` |
-| AUD-2026-10-30-01 | Reject non-M1 ladder inputs | Docs and config contract | PR-01d | README/config review |
+| AUD-2026-10-30-01 | #220 | Cadence guard, shell preflight, regression matrix, and docs | #221 | Unit/edge tests, path and config command tests, fail-before archive |
 
-Each sub-issue is independently reviewable and has one PR. The container’s own
-deliverable is the complete rejection behavior. No issue or PR exists yet: the
-Git and GitHub gates are pending human authorization.
+The four proposed slices shipped together in #221. They are not independently
+mergeable: the data-engine error, the shell guard, the tests, and the docs
+describe one contract. The container’s own deliverable remains the complete
+rejection behavior.
 
 ## Verification
 
