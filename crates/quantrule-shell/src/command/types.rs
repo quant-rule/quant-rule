@@ -23,6 +23,9 @@ use crate::source::{DateBounds, DateRange, Symbol};
 use crate::store::{StoreError, Table};
 use quantrule_backtest::runner::BacktestError;
 
+pub(crate) use crate::lab_summary::{LabOperator, LabRole, LabSummaryArgs};
+pub(crate) use crate::render_state::Axis;
+
 /// A parsed shell command.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Command {
@@ -101,31 +104,6 @@ pub(crate) enum HelpTopic {
     Roles,
     /// One command, named by one or two words.
     Command(String),
-}
-
-/// A model axis selected by the `axis` command.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Axis {
-    /// Direction.
-    Direction,
-    /// Momentum.
-    Momentum,
-    /// Structure.
-    Structure,
-    /// Progression.
-    Progression,
-}
-
-impl Axis {
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
-        match code {
-            "direction" => Some(Self::Direction),
-            "momentum" => Some(Self::Momentum),
-            "structure" => Some(Self::Structure),
-            "progression" => Some(Self::Progression),
-            _ => None,
-        }
-    }
 }
 
 pub(crate) use crate::pipeline::WindowMode;
@@ -318,96 +296,6 @@ pub(crate) struct ReportArgs {
     pub(crate) out: Option<PathBuf>,
     /// Whether to print the `report.json` bytes to stdout.
     pub(crate) json: bool,
-}
-
-/// A role named on the `lab summary` command.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LabRole {
-    /// The Quant Researcher.
-    Researcher,
-    /// The Quant Developer.
-    Developer,
-    /// The Quant Validator.
-    Validator,
-}
-
-impl LabRole {
-    /// Parses the role code exactly.
-    pub(crate) fn parse(code: &str) -> Option<Self> {
-        match code {
-            "researcher" => Some(Self::Researcher),
-            "developer" => Some(Self::Developer),
-            "validator" => Some(Self::Validator),
-            _ => None,
-        }
-    }
-
-    /// The role label used in the summary.
-    pub(crate) const fn label(self) -> &'static str {
-        match self {
-            Self::Researcher => "quant-researcher",
-            Self::Developer => "quant-developer",
-            Self::Validator => "quant-validator",
-        }
-    }
-
-    /// The next handoff after this role's lab.
-    pub(crate) const fn handoff(self) -> &'static str {
-        match self {
-            Self::Researcher => "Hand off the protocol to the Quant Developer.",
-            Self::Developer => "Hand off the implementation record and run to the Quant Validator.",
-            Self::Validator => "Hand off the validation record to the human for acceptance.",
-        }
-    }
-}
-
-/// The operator named on the `lab summary` command.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LabOperator {
-    /// A human operator.
-    Human,
-    /// An agent operator.
-    Agent,
-}
-
-impl LabOperator {
-    /// Parses the operator code exactly.
-    pub(crate) fn parse(code: &str) -> Option<Self> {
-        match code {
-            "human" => Some(Self::Human),
-            "agent" => Some(Self::Agent),
-            _ => None,
-        }
-    }
-
-    /// The operator code used in the summary.
-    pub(crate) const fn code(self) -> &'static str {
-        match self {
-            Self::Human => "human",
-            Self::Agent => "agent",
-        }
-    }
-}
-
-/// A parsed `lab summary` command.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct LabSummaryArgs {
-    /// The lab result folder that holds the five report bundles.
-    pub(crate) lab_dir: PathBuf,
-    /// The role that produced the lab.
-    pub(crate) role: LabRole,
-    /// The caller-supplied identity of the input series.
-    pub(crate) data_version: String,
-    /// The run configuration that produced the lab.
-    pub(crate) config: PathBuf,
-    /// The explicit UTC creation time.
-    pub(crate) created_utc: String,
-    /// The operator kind.
-    pub(crate) operator: LabOperator,
-    /// An optional role-notes file included verbatim.
-    pub(crate) notes: Option<PathBuf>,
-    /// Whether to overwrite an existing `summary.txt`.
-    pub(crate) force: bool,
 }
 
 /// A parsed `strategy-run` command.

@@ -85,6 +85,31 @@
 - Verification and evidence: `cargo test -p quantrule-backtest` passed (152 unit tests and all integration suites); `cargo test -p quantrule-shell` passed (all suites, including 99 CLI tests and the new config test); `cargo clippy --workspace --all-targets` initially found one needless borrow, which was fixed. No `on_bar` call remains in `crates/quantrule-shell/src`.
 - Learning: `report strategy` now runs the full backtest to obtain the executed walk. The output is unchanged for the current strategy; the benefit is that the report cannot re-walk the rule and drift from execution. AUD-02 remains open because the strategy still carries its own virtual position.
 
+## Entry 7 — Phase 4 shell cycle break
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: make the renderer edges one-way without changing the command contract or its output.
+- What the AI did:
+  - Moved `Axis` from `command/types.rs` to `render_state`.
+  - Moved `LabRole`, `LabOperator`, and `LabSummaryArgs` from `command/types.rs` to `lab_summary`; `command/types.rs` re-exports them for the parser vocabulary.
+  - Removed `Axis` and `LabSummaryArgs` from the `command.rs` re-export list.
+  - Added `crates/quantrule-shell/tests/architecture.rs` with guards for renderer imports, the strategy walk, and ladder/input construction.
+- Verification and evidence: `cargo test -p quantrule-shell` passed all suites, including 99 CLI tests and the 3 architecture tests; `cargo clippy --workspace --all-targets` passed. `grep` confirms no `use crate::command` in `lab_summary.rs` or `render_state.rs`.
+- Learning: moving the lab types also moved their presentation labels (`label`, `handoff`, `code`) next to the writer that uses them; the parser keeps the same type names through the re-export, so the command contract is unchanged.
+
+## Entry 8 — Phase 5 config and docs hygiene
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: remove the blanket lint suppression and document the backtest crate. No behavior change.
+- What the AI did:
+  - Removed `#![allow(dead_code, unused_imports)]` from `config/mod.rs`.
+  - Deleted the seven unused config re-exports; kept `ConfigError` and `RunConfig`.
+  - Removed the stale `#172-#176` module-doc paragraph.
+  - Removed an unused `parse_json` test helper.
+  - Added `quantrule-backtest` to the `AGENTS.md` crate list and updated the shell dependency line.
+- Verification and evidence: `cargo check -p quantrule-shell --all-targets` passed with no warnings. A full fmt/test/clippy run is recorded below after the remaining hygiene work.
+- Learning: the blanket allow hid only one unused test helper; the seven re-exports were genuinely dead, so removing them was safe.
+
 ## Phase evidence
 
 | Phase | Command | Observed | Date |
@@ -107,6 +132,9 @@
 | 3b | `cargo test -p quantrule-backtest` | all suites passed | 2026-10-30 |
 | 3b | `cargo test -p quantrule-shell` | all suites passed | 2026-10-30 |
 | 3b | `cargo clippy --workspace --all-targets` | one needless-borrow warning fixed; final run clean | 2026-10-30 |
+| 4 | `cargo test -p quantrule-shell` | all suites passed, including 3 architecture tests | 2026-10-30 |
+| 4 | `cargo clippy --workspace --all-targets` | no warnings | 2026-10-30 |
+| 5 | `cargo check -p quantrule-shell --all-targets` | no warnings after the allow removal | 2026-10-30 |
 
 ## Open items
 
