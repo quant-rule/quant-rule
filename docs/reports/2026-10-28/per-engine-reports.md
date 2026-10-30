@@ -110,8 +110,11 @@ or strategy decision.
 
 ## 6. Strategy report
 
-The strategy report runs the data engine, the model, and the strategy. It does
-not run execution or portfolio accounting.
+The standalone `report strategy` runs the data engine, the model, and the
+strategy. It does not run execution or portfolio accounting; its open-position
+state is the strategy's virtual walk. The `strategy` bundle written by
+`backtest` uses the executed walk instead, so its open-position state matches the
+execution and portfolio bundles. Both forms publish decisions, not fills.
 
 Artifacts:
 
@@ -362,7 +365,9 @@ provenance. The four are byte-identical for the same data, period, and default
 model settings.
 
 `strategy-run` remains the decision-only command. It prints NDJSON entries and
-exits and creates no fill, position, equity, or P&L record.
+exits and creates no fill, position, equity, or P&L record. With `--json`, the
+envelope marks `execution_state` as `virtual`, because the diagnostic walk
+assumes every decision fills immediately.
 
 ## 15. Change control
 

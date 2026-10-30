@@ -24,7 +24,7 @@
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
 | AUD-2026-10-30-01 | Critical | data | Native M5/M15/H1 CSVs are accepted as M1 | `timeframes data/EURUSD_H1_...csv`; `market-state ... --window latest`; `market-report`; `store ingest`; `research summary` | Silent wrong timeframe labels and wrong model/store/research output | A reject non-M1 cadence; B add `--source-timeframe`; C warn only | A | Reject an H1/M5 file in every ladder consumer | Verified | [`plan`](../../execution-plans/2026-10-30/AUD-2026-10-30-01-m1-source-validation.md) · [#220](https://github.com/quant-rule/quant-rule/issues/220) · [#221](https://github.com/quant-rule/quant-rule/pull/221) |
-| AUD-2026-10-30-02 | Critical | backtest | Strategy virtual state diverges from execution | `allow_short=false` run: strategy 166 entries, 93 executed; 73 `missing_quantity` | Backtest evaluates a different strategy from the one reported | A reconcile fills/rejections into strategy; B make strategy stateless; C reject mismatched exits | A | `allow_short=false` cannot report a short it did not execute; exit side is checked | Open | — |
+| AUD-2026-10-30-02 | Critical | backtest | Strategy virtual state diverges from execution | `allow_short=false` run: strategy 166 entries, 93 executed; 73 `missing_quantity` | Backtest evaluates a different strategy from the one reported | A reconcile fills/rejections into strategy; B make strategy stateless; C reject mismatched exits | A | `allow_short=false` cannot report a short it did not execute; exit side is checked | Fixed | [`validation`](aud-2026-10-30-02-validation.md) · [`plan`](../../execution-plans/2026-10-30/architecture-hardening.md) |
 | AUD-2026-10-30-03 | Major | backtest | A bar opening beyond the target but dipping below the stop fills as a stop | `execution/engine.rs` stop-first branch; entry 100, ATR 1, target 103, next open 104, low 97 → StopLoss at 98 | Impossible sequence; biases results toward losses | A fill target at open before stop; B define stop-first even for gap; C reject ambiguous cases | A | A gap-through-target test asserts TakeProfit at the open | Open | — |
 | AUD-2026-10-30-04 | Major | portfolio | Fixed notional ignores the leverage/equity envelope | `portfolio/sizing.rs`; initial cash 1000, notional 100000 → quantity 96953, cash negative | 100x exposure despite `leverage: 1.0`; wipe-out risk | A cap/reject at fill; B enforce at sizing; C define fixed notional as leverage-free and remove the claim | A | A fixed-notional entry above the envelope is rejected | Open | — |
 | AUD-2026-10-30-05 | Major | data | Zero/negative prices are accepted by data/model/store but rejected by backtest | `candles zero.csv` exit 0; `market-state` exit 0; `store ingest` exit 0; `backtest` exits 1 “price must be finite and positive” | Supported commands disagree on input validity | A reject non-positive prices in the data engine; B support them in portfolio; C document the split | A | The same candle is accepted or rejected consistently by every command | Open | — |
@@ -85,6 +85,16 @@
   - C. Keep the separation but report both states explicitly and forbid the
     strategy from using its position for future decisions.
 - Recommendation: A for the current strategy; B is the cleaner long-term shape.
+- Fix (2026-10-30): implemented B. `AxisAgreementStrategy` is stateless and
+  receives the execution position on every bar. The executed walk carries the
+  actual position and is used by the backtest strategy bundle. The decision-only
+  `report strategy` and `strategy-run` remain virtual diagnostics; they can list
+  rejected entry decisions, which the execution bundle reports separately.
+- Validation: [`aud-2026-10-30-02-validation.md`](aud-2026-10-30-02-validation.md).
+  With `allow_short=false`, the executed walk contains no short position, no
+  short exit, and the strategy bundle's open position is null. Execution reports
+  7,485 `missing_quantity` rejections and 43 long trades. This is an in-sample
+  state validation, not a profitability claim.
 
 ### AUD-2026-10-30-03 — Gap-through-target stop
 

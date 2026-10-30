@@ -119,14 +119,18 @@ pub fn run_backtest(
     let model = ModelRun::compute(inputs, &config.model);
     let mut execution = ExecutionEngine::new(config.execution).map_err(BacktestError::Execution)?;
     let mut ledger = PortfolioLedger::new(config.portfolio).map_err(BacktestError::Ledger)?;
-    let walk = match model.timeframe(config.strategy.timeframe_secs()) {
-        Some(timeframe) => walk_strategy(timeframe, &config.strategy)?,
-        None => StrategyWalk::default(),
-    };
+    let strategy = AxisAgreementStrategy::new(config.strategy);
+    let mut inputs_seen = Vec::new();
+    let mut decisions = Vec::new();
+    let mut positions = Vec::new();
+    let mut agreements = AgreementCounts::default();
     let mut batches = Vec::new();
 
     if let Some(timeframe) = model.timeframe(config.strategy.timeframe_secs()) {
-        for bar_index in 0..walk.len() {
+        inputs_seen.reserve(timeframe.len());
+        decisions.reserve(timeframe.len());
+        positions.reserve(timeframe.len());
+        for bar_index in 0..timeframe.len() {
             let bar = timeframe
                 .bar(bar_index)
                 .ok_or(BacktestError::MissingBar { bar: bar_index })?;
@@ -149,7 +153,19 @@ pub fn run_backtest(
                 .mark(bar_index, time, candle.close())
                 .map_err(BacktestError::Ledger)?;
 
-            let decision = walk.decisions()[bar_index];
+            let input = StrategyInput::from_model_bar(&bar);
+            match Agreement::classify(&input, &config.strategy) {
+                Some(Agreement::Long) => agreements.long += 1,
+                Some(Agreement::Short) => agreements.short += 1,
+                Some(Agreement::Neutral) => agreements.neutral += 1,
+                None => agreements.unavailable += 1,
+            }
+            let position = execution.position_side();
+            let decision = strategy.decide(&input, position);
+            inputs_seen.push(input);
+            decisions.push(decision);
+            positions.push(position);
+
             let quantity = match decision {
                 Decision::Enter(entry) => ledger.size_entry(entry.side, candle.close()).ok(),
                 Decision::Exit(_) | Decision::Hold => None,
@@ -186,6 +202,14 @@ pub fn run_backtest(
         batches.push(batch);
     }
 
+    let walk = StrategyWalk::new(
+        inputs_seen,
+        decisions,
+        positions,
+        agreements,
+        execution.position_side(),
+    );
+
     Ok(BacktestRun {
         model,
         walk,
@@ -194,10 +218,12 @@ pub fn run_backtest(
     })
 }
 
-/// Walks one timeframe with a fresh strategy and records every decision.
+/// Walks one timeframe assuming every decision is filled immediately.
 ///
-/// The walk is the one place that calls [`Strategy::on_bar`]; the reports read
-/// the recorded inputs and decisions instead of re-running the rule.
+/// This is the diagnostic walk used by `strategy-run`; it is not the executed
+/// walk. The backtest runner passes the real execution position into
+/// [`Strategy::decide`] on every bar instead. The virtual position here is
+/// labeled as such by the command envelope.
 ///
 /// # Errors
 ///
@@ -207,9 +233,11 @@ pub fn walk_strategy(
     timeframe: &TimeframeModel,
     config: &StrategyConfig,
 ) -> Result<StrategyWalk, BacktestError> {
-    let mut strategy = AxisAgreementStrategy::new(*config);
+    let strategy = AxisAgreementStrategy::new(*config);
+    let mut position = None;
     let mut inputs = Vec::with_capacity(timeframe.len());
     let mut decisions = Vec::with_capacity(timeframe.len());
+    let mut positions = Vec::with_capacity(timeframe.len());
     let mut agreements = AgreementCounts::default();
 
     for bar_index in 0..timeframe.len() {
@@ -223,16 +251,19 @@ pub fn walk_strategy(
             Some(Agreement::Neutral) => agreements.neutral += 1,
             None => agreements.unavailable += 1,
         }
-        let decision = strategy.on_bar(&input);
+        let decision = strategy.decide(&input, position);
+        positions.push(position);
+        match decision {
+            Decision::Enter(entry) => position = Some(entry.side),
+            Decision::Exit(_) => position = None,
+            Decision::Hold => {}
+        }
         inputs.push(input);
         decisions.push(decision);
     }
 
     Ok(StrategyWalk::new(
-        inputs,
-        decisions,
-        agreements,
-        strategy.position(),
+        inputs, decisions, positions, agreements, position,
     ))
 }
 

@@ -121,6 +121,32 @@
 - Verification and evidence: `cargo test -p quantrule-analytics` passed (68 unit tests, integration suites); `cargo clippy -p quantrule-analytics --all-targets` passed. The largest resulting file is `aggregates.rs` at 833 lines.
 - Learning: the split exposed that the `RESOLUTIONS` doc comment belonged with the table, not with `layer1_names`; it was moved during the split. No values changed.
 
+## Entry 10 — Phase 3c stateless strategy
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: implement the recommended option B for AUD-2026-10-30-02. Execution owns the position; the strategy is a stateless rule. This is an intentional strategy-behavior change.
+- What the AI did:
+  - Changed `Strategy` to `decide(&StrategyInput, position: Option<Side>) -> Decision`.
+  - Removed `AxisAgreementStrategy`'s position field and `position()` accessor.
+  - Interleaved the strategy decision with execution in `run_backtest`: the runner passes `execution.position_side()` after the bar's `advance` and fills.
+  - Kept `walk_strategy` as a clearly labeled virtual diagnostic; `strategy-run` now adds `"execution_state": "virtual"` to its JSON envelope.
+  - Added `StrategyWalk::positions()` so the executed walk records the position supplied to each decision.
+  - Added the regression test `a_rejected_short_is_never_an_open_strategy_position`.
+  - Regenerated the runner decision, trade, and metric goldens because the executed strategy now reacts to bracket exits; this is the intended behavior change, not a numerical regression.
+  - The `report strategy` command remains decision-only; the backtest strategy bundle uses the executed walk.
+- Verification and evidence: `cargo test -p quantrule-backtest` passed 153 unit tests and all integration suites; `cargo test -p quantrule-shell` passed all suites; `cargo clippy --workspace --all-targets` passed; `cargo fmt --all --check` passed.
+- Learning: B fixes the virtual-position divergence, but it does not make rejected entry decisions disappear. The strategy can still propose an entry that sizing rejects; the execution bundle reports the rejection. The state invariant is what changed.
+
+## Entry 11 — AUD-02 quant validation
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: reproduce the `allow_short=false` state invariant on the recorded full-year data. The Quant Researcher, Quant Developer, and Quant Validator passes were sequential, not independent agents.
+- What the AI did:
+  - Ran the focused regression test and the full backtest against the `SOLUSD` 2025 data with `allow_short=false`.
+  - Recorded the observed counts in `docs/audits/2026-10-30/aud-2026-10-30-02-validation.md`.
+- Verification and evidence: strategy decisions 7,565; entry decisions 7,528 (3,509 long, 4,019 short); execution 43 entries, 43 exits, 86 fills, 7,485 `missing_quantity` rejections; portfolio 43 long trades, 0 short trades; strategy and portfolio open positions null. The executed walk has no short position and no short exit.
+- Learning: the decision-only strategy report still lists rejected short entry decisions by contract; the execution bundle carries the rejections. The audit finding's virtual-position condition is fixed, but a future reporting change may be needed if the finding is read as requiring the decision report to filter to fills.
+
 ## Phase evidence
 
 | Phase | Command | Observed | Date |
@@ -148,6 +174,11 @@
 | 5 | `cargo check -p quantrule-shell --all-targets` | no warnings after the allow removal | 2026-10-30 |
 | 5 | `cargo test -p quantrule-analytics` | all suites passed | 2026-10-30 |
 | 5 | `cargo clippy -p quantrule-analytics --all-targets` | no warnings | 2026-10-30 |
+| 3c | `cargo test -p quantrule-backtest` | 153 unit tests and all integration suites passed | 2026-10-30 |
+| 3c | `cargo test -p quantrule-shell` | all suites passed, including 99 CLI tests | 2026-10-30 |
+| 3c | `target/debug/quantrule backtest --config target/audit-02-config/run.json --out target/audit-02-final` | completed in 4m27s; five bundles written | 2026-10-30 |
+| 3c | `cargo clippy --workspace --all-targets` | no warnings | 2026-10-30 |
+| 3c | `cargo fmt --all --check` | passed | 2026-10-30 |
 
 ## Open items
 

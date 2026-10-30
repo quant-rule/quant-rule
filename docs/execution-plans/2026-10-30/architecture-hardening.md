@@ -505,9 +505,28 @@ Total: **8–12 working days**, sequential. Phase 1 and Phase 2 may run in paral
 | 2 Backtest inversion | Complete | `cf5df38`; no `use crate::strategy` in execution/portfolio; 152 backtest unit tests, integration suites, and boundary tests passed |
 | 3a Shell pipeline | Complete | `ec11683`; one `pipeline` input builder; no `LADDER` const; `strategy-run` config test passed |
 | 3b One strategy walk | Complete | `7276c6d`; no production `.on_bar(` in the shell; `report strategy` and `strategy-run` agree |
-| 3c AUD-2026-10-30-02 | **Blocked** | Needs the A/B decision and quant-role evidence; not implemented |
+| 3c AUD-2026-10-30-02 | Complete | Stateless strategy (option B) implemented; validation record at `docs/audits/2026-10-30/aud-2026-10-30-02-validation.md`; the executed walk has no virtual short |
 | 4 Shell slimming | **Partial** | `f8d743f`; renderer cycles broken and architecture guards added. Args split, bundle split, and CLI-test split are deferred |
 | 5 Hygiene and docs | **Partial** | `6640066`, `3db20e5`; config allow removed, AGENTS crate list updated, columns split. `lab_summary` split and the optional store-validation move are deferred |
+
+### AUD-02 quant validation
+
+The human selected the recommended option B (stateless strategy). The Quant
+Researcher, Quant Developer, and Quant Validator passes were performed
+sequentially by one agent; this is not an independent-agent review. The
+validation record is `docs/audits/2026-10-30/aud-2026-10-30-02-validation.md`.
+
+Observed on a full-year `allow_short=false` run:
+
+- strategy decisions: 7,565; entry decisions: 7,528 (3,509 long, 4,019 short);
+- execution: 43 entries, 43 exits, 86 fills, 7,485 `missing_quantity` rejections;
+- portfolio: 43 long trades, 0 short trades, open position null;
+- strategy bundle open position: null.
+
+The executed walk never carries a short position and never emits a short exit.
+The decision-only `report strategy`/`strategy-run` views still list short entry
+decisions, which the execution bundle reports as rejected. That residual is a
+reporting distinction, not a virtual-position divergence.
 
 ### Verification run
 

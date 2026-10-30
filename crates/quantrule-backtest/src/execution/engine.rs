@@ -406,6 +406,15 @@ impl ExecutionEngine {
         self.position
     }
 
+    /// The open position's side, or `None` while flat.
+    #[must_use]
+    pub const fn position_side(&self) -> Option<Side> {
+        match self.position {
+            PositionState::Open(position) => Some(position.side),
+            PositionState::Flat | PositionState::Closed => None,
+        }
+    }
+
     fn next_order_id(&mut self) -> u64 {
         let order_id = self.next_order_id;
         self.next_order_id += 1;

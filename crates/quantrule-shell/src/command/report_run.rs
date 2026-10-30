@@ -10,6 +10,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use quantrule_backtest::runner::BacktestRun;
+use quantrule_backtest::runner::walk_strategy;
 use quantrule_backtest::strategy::{Decision, ExitReason, Side, StrategyInput, StrategyWalk};
 use quantrule_data::{Timeframe, format_utc_timestamp};
 use quantrule_model::readings::PivotScale;
@@ -134,8 +135,14 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
             model_bundle_from(&config, &out, &model)?
         }
         ReportEngine::Strategy => {
-            let run = run_pipeline(&config)?;
-            strategy_bundle_from(&config, &out, &run)?
+            let model = load_model(&config)?;
+            let timeframe_secs = config.strategy.engine.timeframe_secs();
+            let timeframe = model
+                .timeframe(timeframe_secs)
+                .ok_or_else(|| RunError::Report(ReportError::NoStrategyBars { timeframe_secs }))?;
+            let walk =
+                walk_strategy(timeframe, &config.strategy.engine).map_err(RunError::Backtest)?;
+            strategy_bundle_from_walk(&config, &out, timeframe, &walk)?
         }
         ReportEngine::Execution => {
             let run = run_pipeline(&config)?;
@@ -229,27 +236,22 @@ pub(super) fn model_bundle_from(
     })
 }
 
-pub(super) fn strategy_bundle_from(
+pub(super) fn strategy_bundle_from_walk(
     config: &RunConfig,
     out: &Path,
-    run: &BacktestRun,
+    timeframe: &TimeframeModel,
+    walk: &StrategyWalk,
 ) -> Result<BundleOutput, RunError> {
     let bundle = out.join("strategy");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
     let timeframe_secs = config.strategy.engine.timeframe_secs();
-    let Some(timeframe) = run.model_run().timeframe(timeframe_secs) else {
-        return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs,
-        }));
-    };
     if timeframe.is_empty() {
         return Err(RunError::Report(ReportError::NoStrategyBars {
             timeframe_secs,
         }));
     }
 
-    let walk = run.strategy_walk();
     let inputs = walk.inputs();
     let decisions = walk.decisions();
     let summary = summarize_walk(walk, timeframe.len());

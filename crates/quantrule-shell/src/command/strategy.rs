@@ -8,7 +8,10 @@
 //!
 //! The default output is one NDJSON line per entry or exit. `--json` prints a
 //! single provenance envelope whose `records` array carries the same records,
-//! so a run can be reproduced from its printed configuration.
+//! so a run can be reproduced from its printed configuration. The envelope
+//! marks `execution_state` as `virtual`: the diagnostic walk assumes every
+//! decision fills immediately, unlike `report strategy`, which reads the
+//! executed backtest walk.
 
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -300,6 +303,7 @@ fn envelope_value(args: &StrategyRunArgs, config: &StrategyConfig, records: &[Va
             "short_threshold": config.short_threshold(),
         },
         "data_version": &args.data_version,
+        "execution_state": "virtual",
         "requested_period": {
             "from": args.from.as_deref(),
             "to": args.to.as_deref(),

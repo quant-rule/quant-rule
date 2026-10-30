@@ -507,6 +507,28 @@ fn strategy_run_uses_the_run_model_config() {
         .as_array()
         .expect("strategy-run records are an array");
 
+    assert_eq!(strategy["execution_state"], "virtual");
+
+    let default = run(&[
+        "strategy-run",
+        source,
+        "--strategy",
+        STRATEGY,
+        "--data-version",
+        DATA_VERSION,
+        "--json",
+    ]);
+    assert_success(&default);
+    let default: Value = serde_json::from_slice(&default.stdout).expect("strategy-run prints JSON");
+    let default_records = default["records"]
+        .as_array()
+        .expect("strategy-run records are an array");
+
+    assert_ne!(
+        records, default_records,
+        "the run model config must change the strategy inputs"
+    );
+
     let out = evidence_dir("report-minor");
     if out.exists() {
         fs::remove_dir_all(&out).expect("the old report is removed");

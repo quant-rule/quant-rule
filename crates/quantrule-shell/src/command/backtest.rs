@@ -14,7 +14,7 @@ use quantrule_backtest::runner::BacktestRun;
 use serde_json::{Map, Value, json};
 
 use super::report_run::{self, BundleOutput};
-use super::types::{BacktestArgs, ParseError, RunError};
+use super::types::{BacktestArgs, ParseError, ReportError, RunError};
 use crate::config::RunConfig;
 use crate::render_report;
 
@@ -130,9 +130,16 @@ fn execute(config: &RunConfig, out: &Path) -> Result<(BundleList, BacktestRun), 
     let model = run.model_run();
     let mut bundles = Vec::with_capacity(BUNDLES.len());
     bundles.push(("model", report_run::model_bundle_from(config, out, model)?));
+    let timeframe_secs = config.strategy.engine.timeframe_secs();
+    let timeframe = run
+        .model_run()
+        .timeframe(timeframe_secs)
+        .ok_or(RunError::Report(ReportError::NoStrategyBars {
+            timeframe_secs,
+        }))?;
     bundles.push((
         "strategy",
-        report_run::strategy_bundle_from(config, out, &run)?,
+        report_run::strategy_bundle_from_walk(config, out, timeframe, run.strategy_walk())?,
     ));
     bundles.push((
         "execution",

@@ -6,6 +6,43 @@ use quantrule_model::timeframe::TimeframeModel;
 
 use super::*;
 
+/// A test adapter that supplies the position the stateless rule no longer owns.
+struct Tracked {
+    strategy: AxisAgreementStrategy,
+    position: Option<Side>,
+}
+
+impl Tracked {
+    fn new(config: StrategyConfig) -> Self {
+        Self {
+            strategy: AxisAgreementStrategy::new(config),
+            position: None,
+        }
+    }
+
+    fn default() -> Self {
+        Self::new(StrategyConfig::default())
+    }
+
+    fn on_bar(&mut self, input: &StrategyInput) -> Decision {
+        let decision = self.strategy.decide(input, self.position);
+        match decision {
+            Decision::Enter(entry) => self.position = Some(entry.side),
+            Decision::Exit(_) => self.position = None,
+            Decision::Hold => {}
+        }
+        decision
+    }
+
+    fn position(&self) -> Option<Side> {
+        self.position
+    }
+
+    fn config(&self) -> StrategyConfig {
+        self.strategy.config()
+    }
+}
+
 fn bar(
     direction: Option<f64>,
     momentum_force: Option<f64>,
@@ -246,7 +283,7 @@ fn a_test_strategy_can_enter_and_hold() {
     struct EnterOnLong;
 
     impl Strategy for EnterOnLong {
-        fn on_bar(&mut self, input: &StrategyInput) -> Decision {
+        fn decide(&self, input: &StrategyInput, _position: Option<Side>) -> Decision {
             match Agreement::classify(input, &StrategyConfig::default()) {
                 Some(Agreement::Long) => Decision::Enter(Entry {
                     side: Side::Long,
@@ -257,18 +294,18 @@ fn a_test_strategy_can_enter_and_hold() {
         }
     }
 
-    let mut strategy = EnterOnLong;
+    let strategy = EnterOnLong;
     let long = bar(Some(0.2), Some(0.3), Some(0.4));
     let neutral = bar(Some(0.2), Some(0.3), Some(-0.4));
 
     assert_eq!(
-        strategy.on_bar(&long),
+        strategy.decide(&long, None),
         Decision::Enter(Entry {
             side: Side::Long,
             bar: long,
         })
     );
-    assert_eq!(strategy.on_bar(&neutral), Decision::Hold);
+    assert_eq!(strategy.decide(&neutral, None), Decision::Hold);
 }
 
 #[test]
@@ -321,13 +358,13 @@ fn strategy_input(
     )
 }
 
-fn run(strategy: &mut AxisAgreementStrategy, inputs: &[StrategyInput]) -> Vec<Decision> {
+fn run(strategy: &mut Tracked, inputs: &[StrategyInput]) -> Vec<Decision> {
     inputs.iter().map(|input| strategy.on_bar(input)).collect()
 }
 
 #[test]
 fn agreement_strategy_defaults_to_the_first_configuration() {
-    let strategy = AxisAgreementStrategy::default();
+    let strategy = Tracked::default();
 
     assert_eq!(strategy.config(), StrategyConfig::default());
     assert_eq!(strategy.position(), None);
@@ -335,7 +372,7 @@ fn agreement_strategy_defaults_to_the_first_configuration() {
 
 #[test]
 fn agreement_strategy_enters_long_on_agreement() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
     let input = bar(Some(0.2), Some(0.5), Some(1.0));
 
     assert_eq!(
@@ -350,7 +387,7 @@ fn agreement_strategy_enters_long_on_agreement() {
 
 #[test]
 fn agreement_strategy_enters_short_on_agreement() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
     let input = bar(Some(-0.2), Some(-0.5), Some(-1.0));
 
     assert_eq!(
@@ -365,7 +402,7 @@ fn agreement_strategy_enters_short_on_agreement() {
 
 #[test]
 fn agreement_strategy_holds_while_flat_without_agreement() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
 
     assert_eq!(
         strategy.on_bar(&bar(Some(0.2), Some(0.2), Some(-0.2))),
@@ -384,7 +421,7 @@ fn agreement_strategy_holds_while_flat_without_agreement() {
 
 #[test]
 fn agreement_strategy_exits_long_on_neutral() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
     let long = bar(Some(0.2), Some(0.5), Some(1.0));
     let neutral = bar(Some(0.2), Some(0.0), Some(0.5));
 
@@ -402,7 +439,7 @@ fn agreement_strategy_exits_long_on_neutral() {
 
 #[test]
 fn agreement_strategy_exits_short_on_neutral() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
     let short = bar(Some(-0.2), Some(-0.5), Some(-1.0));
     let neutral = bar(Some(-0.2), Some(0.0), Some(-0.5));
 
@@ -420,7 +457,7 @@ fn agreement_strategy_exits_short_on_neutral() {
 
 #[test]
 fn agreement_strategy_exits_on_the_opposite_agreement_without_reversing() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
     let long = strategy_input(900, 0, Some(0.2), Some(0.5), Some(1.0));
     let short = strategy_input(900, 1, Some(-0.3), Some(-0.4), Some(-0.8));
 
@@ -448,7 +485,7 @@ fn agreement_strategy_exits_on_the_opposite_agreement_without_reversing() {
 
 #[test]
 fn agreement_strategy_holds_on_an_unavailable_reading() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
     let long = strategy_input(900, 0, Some(0.2), Some(0.5), Some(1.0));
 
     assert!(matches!(strategy.on_bar(&long), Decision::Enter(_)));
@@ -471,7 +508,7 @@ fn agreement_strategy_holds_on_an_unavailable_reading() {
 
 #[test]
 fn agreement_strategy_ignores_other_timeframes() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
 
     assert_eq!(
         strategy.on_bar(&strategy_input(60, 0, Some(0.2), Some(0.5), Some(1.0))),
@@ -491,7 +528,7 @@ fn agreement_strategy_ignores_other_timeframes() {
 #[test]
 fn agreement_strategy_uses_the_configured_thresholds() {
     let config = StrategyConfig::new(900, 0.2, -0.05).unwrap();
-    let mut strategy = AxisAgreementStrategy::new(config);
+    let mut strategy = Tracked::new(config);
 
     assert_eq!(
         strategy.on_bar(&strategy_input(900, 0, Some(0.15), Some(0.15), Some(0.15))),
@@ -522,11 +559,11 @@ fn agreement_strategy_is_deterministic() {
         })
         .collect();
 
-    let mut first = AxisAgreementStrategy::default();
+    let mut first = Tracked::default();
     let expected = run(&mut first, &inputs);
 
     for _ in 0..10 {
-        let mut again = AxisAgreementStrategy::default();
+        let mut again = Tracked::default();
         assert_eq!(run(&mut again, &inputs), expected);
     }
 }
@@ -542,23 +579,23 @@ fn agreement_strategy_is_causal() {
     ];
     let prefix = 3;
 
-    let mut short = AxisAgreementStrategy::default();
+    let mut short = Tracked::default();
     let prefix_decisions = run(&mut short, &inputs[..prefix]);
 
-    let mut full = AxisAgreementStrategy::default();
+    let mut full = Tracked::default();
     let full_decisions = run(&mut full, &inputs);
     assert_eq!(full_decisions[..prefix], prefix_decisions);
 
     let mut changed = inputs.clone();
     changed[4] = strategy_input(900, 4, Some(0.9), Some(0.9), Some(0.9));
-    let mut other = AxisAgreementStrategy::default();
+    let mut other = Tracked::default();
     let changed_decisions = run(&mut other, &changed);
     assert_eq!(changed_decisions[..prefix], prefix_decisions);
 }
 
 #[test]
 fn agreement_strategy_handles_an_empty_series() {
-    let mut strategy = AxisAgreementStrategy::default();
+    let mut strategy = Tracked::default();
 
     assert!(run(&mut strategy, &[]).is_empty());
     assert_eq!(strategy.position(), None);

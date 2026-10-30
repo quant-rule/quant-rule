@@ -1,8 +1,8 @@
 //! The first strategy: agreement of Direction, Momentum, and Structure.
 //!
 //! The rule enters in the direction all three readings agree on and exits when
-//! that agreement no longer holds. It is causal: it reads the bar it is given
-//! and its own position state, and it never looks ahead.
+//! that agreement no longer holds. It is causal and stateless: it reads the bar
+//! it is given and the position execution passes in, and it never looks ahead.
 //!
 //! Two boundary cases are fixed here:
 //!
@@ -25,9 +25,9 @@ use super::input::{Agreement, StrategyInput};
 
 /// The axis-agreement strategy.
 ///
-/// The strategy is flat when constructed. It enters only while flat and exits
-/// only while a position is open, so it never pyramids and never holds two
-/// positions.
+/// The strategy is stateless. The caller passes the position execution
+/// currently holds; the rule enters only from flat and exits only from an open
+/// position, so it never pyramids and never holds two positions.
 ///
 /// # Examples
 ///
@@ -36,38 +36,31 @@ use super::input::{Agreement, StrategyInput};
 ///     AxisAgreementStrategy, Decision, Side, Strategy, StrategyConfig, StrategyInput,
 /// };
 ///
-/// let mut strategy = AxisAgreementStrategy::new(StrategyConfig::default());
+/// let strategy = AxisAgreementStrategy::new(StrategyConfig::default());
 /// let long = StrategyInput::new(900, 0, 0, Some(0.2), Some(0.5), Some(1.0));
 ///
-/// assert!(matches!(strategy.on_bar(&long), Decision::Enter(_)));
-/// assert_eq!(strategy.position(), Some(Side::Long));
+/// assert!(matches!(strategy.decide(&long, None), Decision::Enter(_)));
+/// assert!(matches!(
+///     strategy.decide(&long, Some(Side::Long)),
+///     Decision::Hold
+/// ));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AxisAgreementStrategy {
     config: StrategyConfig,
-    position: Option<Side>,
 }
 
 impl AxisAgreementStrategy {
-    /// Builds a flat strategy for a configuration.
+    /// Builds the rule for a configuration.
     #[must_use]
     pub const fn new(config: StrategyConfig) -> Self {
-        Self {
-            config,
-            position: None,
-        }
+        Self { config }
     }
 
     /// The configuration the strategy applies.
     #[must_use]
     pub const fn config(&self) -> StrategyConfig {
         self.config
-    }
-
-    /// The side of the open position, or `None` while the strategy is flat.
-    #[must_use]
-    pub const fn position(&self) -> Option<Side> {
-        self.position
     }
 }
 
@@ -78,26 +71,22 @@ impl Default for AxisAgreementStrategy {
 }
 
 impl Strategy for AxisAgreementStrategy {
-    fn on_bar(&mut self, input: &StrategyInput) -> Decision {
+    fn decide(&self, input: &StrategyInput, position: Option<Side>) -> Decision {
         if input.timeframe_secs != self.config.timeframe_secs() {
             return Decision::Hold;
         }
 
         let agreement = Agreement::classify(input, &self.config);
 
-        match self.position {
+        match position {
             None => match agreement.and_then(Agreement::side) {
-                Some(side) => {
-                    self.position = Some(side);
-                    Decision::Enter(Entry { side, bar: *input })
-                }
+                Some(side) => Decision::Enter(Entry { side, bar: *input }),
                 None => Decision::Hold,
             },
             Some(open) => {
                 if holds(open, agreement) {
                     Decision::Hold
                 } else {
-                    self.position = None;
                     Decision::Exit(Exit {
                         side: open,
                         bar: *input,

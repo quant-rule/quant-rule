@@ -27,6 +27,7 @@ pub struct AgreementCounts {
 pub struct StrategyWalk {
     inputs: Vec<StrategyInput>,
     decisions: Vec<Decision>,
+    positions: Vec<Option<Side>>,
     agreements: AgreementCounts,
     open_position: Option<Side>,
 }
@@ -35,12 +36,14 @@ impl StrategyWalk {
     pub(crate) fn new(
         inputs: Vec<StrategyInput>,
         decisions: Vec<Decision>,
+        positions: Vec<Option<Side>>,
         agreements: AgreementCounts,
         open_position: Option<Side>,
     ) -> Self {
         Self {
             inputs,
             decisions,
+            positions,
             agreements,
             open_position,
         }
@@ -58,13 +61,26 @@ impl StrategyWalk {
         &self.decisions
     }
 
+    /// The position supplied to the rule on each bar, oldest first.
+    ///
+    /// This is the execution position in a backtest walk and the virtual
+    /// position in the diagnostic walk.
+    #[must_use]
+    pub fn positions(&self) -> &[Option<Side>] {
+        &self.positions
+    }
+
     /// The agreement classification counts.
     #[must_use]
     pub const fn agreements(&self) -> AgreementCounts {
         self.agreements
     }
 
-    /// The strategy's final position, or `None` when flat.
+    /// The final position, or `None` when flat.
+    ///
+    /// In a backtest walk this is the position execution actually holds. In the
+    /// diagnostic walk it is the virtual position produced by assuming every
+    /// decision filled immediately.
     #[must_use]
     pub const fn open_position(&self) -> Option<Side> {
         self.open_position
