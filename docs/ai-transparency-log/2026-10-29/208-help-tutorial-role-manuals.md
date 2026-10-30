@@ -146,4 +146,5 @@
   - The tutorial shows the full run before the researcher protocol so the
     pipeline is concrete. The researcher lab states that a real work item writes
     the protocol first; the lab demonstrates the record, not the chronology.
-- **Pull request:** pending. Merge requires explicit human authorization.
+- **Pull request:** [#214](https://github.com/quant-rule/quant-rule/pull/214),
+  open. Merge requires explicit human authorization.

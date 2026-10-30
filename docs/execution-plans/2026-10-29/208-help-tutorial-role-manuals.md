@@ -396,7 +396,8 @@ Observed verification (2026-10-30 UTC):
 | Full run | Three full-year `backtest` runs plus `lab summary` | 22.1 s, 22.6 s, 23.9 s; all five bundles byte-identical across the three runs; 48 trades, final equity 8016.143910, commission 885.610499, halted true |
 | Role labs | Researcher, developer, and validator notes plus `lab summary --force` | Notes appear under Role notes; `Next` hands off to the next role; validator records the halt and the in-sample split |
 
-Pull request: pending. Merge requires explicit human authorization.
+Pull request: [#214](https://github.com/quant-rule/quant-rule/pull/214),
+open. Merge requires explicit human authorization.
 
 Limitations:
 
