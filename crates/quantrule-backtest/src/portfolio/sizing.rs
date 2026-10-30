@@ -192,11 +192,12 @@ impl SizingMode {
     }
 }
 
-/// The decimal scale that represents `step` as an integer, or `1.0` when the
-/// step is not a decimal grid.
+/// The power-of-ten scale at which `step` is an integer, or `None` when the
+/// step has no decimal grid.
 ///
 /// A fixed twelve-decimal scale is wrong for a valid step below `1e-12` and for
-/// a non-grid step such as `2.5e-13`; the scale must follow the step.
+/// a non-grid step such as `1/3000`; a `None` result keeps the raw step multiple
+/// instead of rounding it to an integer.
 fn quantity_scale(step: f64) -> Option<f64> {
     let mut scale = 1.0;
     for _ in 0..18 {

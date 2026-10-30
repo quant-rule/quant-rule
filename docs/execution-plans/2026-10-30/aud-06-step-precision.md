@@ -1,7 +1,7 @@
 # AUD-06 Step Precision Regression
 
 - Date: 2026-10-30 (UTC)
-- Status: **Approved; implemented in the worktree** — human approved reopening AUD-06. Verification/commit/PR remain gated.
+- Status: **Verified** — merged as `a006a17`; independent closure pass reproduced the small and non-grid step cases.
 - Baseline: `origin/main` at `d9ada57`
 - Finding: `AUD-2026-10-30-06`
 
@@ -35,4 +35,16 @@ precision instead.
 
 - Targeted `portfolio::tests` sizing tests.
 - Full workspace suite and doctests.
-- AUD-06 remains `Fixed` until independent closure verification.
+- AUD-06 is `Verified`; independent closure pass reproduced every acceptance case.
+
+## Evidence
+
+- Fix commit: `f07de31`.
+- Merge commit: `a006a17` (PR #225).
+- PR checks: `sync` and `verify` passed; post-merge `main` CI passed.
+- Full verification: 40 suites / 1,450 tests, 77 doctests, clippy, fmt, and doc clean.
+- Independent closure: `5e-13/1e-13`, `4e-13/1e-13`, `5e-13/2.5e-13`,
+  `1.5e-12/1.5e-12`, `5e-15/1e-15`, `5e-18/1e-18`, `5e-19/1e-19`, and a true
+  non-grid step all passed; a just-below-step quantity rejected.
+- Limitation: the closure verifier was a separate agent session of the same
+  model family, not an independent-model judgment.
