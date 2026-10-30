@@ -132,7 +132,7 @@ fn execute(config: &RunConfig, out: &Path) -> Result<(BundleList, BacktestRun), 
     bundles.push(("model", report_run::model_bundle_from(config, out, model)?));
     bundles.push((
         "strategy",
-        report_run::strategy_bundle_from(config, out, model)?,
+        report_run::strategy_bundle_from(config, out, &run)?,
     ));
     bundles.push((
         "execution",

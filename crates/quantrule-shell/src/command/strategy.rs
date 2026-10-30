@@ -13,12 +13,12 @@
 use std::io::{self, Write};
 use std::path::PathBuf;
 
+use quantrule_backtest::runner::walk_strategy;
 use quantrule_backtest::strategy::{
-    AxisAgreementStrategy, Decision, ExitReason, Side, Strategy, StrategyConfig, StrategyInput,
+    Decision, ExitReason, Side, StrategyConfig, StrategyInput, StrategyWalk,
 };
 use quantrule_data::{Timeframe, format_utc_timestamp};
 use quantrule_model::input::MarketStateConfig;
-use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
 use super::types::{ParseError, RunError, StrategyRunArgs, StrategyRunError};
@@ -199,11 +199,11 @@ pub(crate) fn run_strategy_run(
         }
         None => (StrategyConfig::default(), MarketStateConfig::default()),
     };
-    let mut strategy = build_strategy(&args.strategy, config).ok_or_else(|| {
-        RunError::StrategyRun(StrategyRunError::UnknownStrategy {
+    if !is_supported_strategy(&args.strategy) {
+        return Err(RunError::StrategyRun(StrategyRunError::UnknownStrategy {
             name: args.strategy.clone(),
-        })
-    })?;
+        }));
+    }
     let timeframe = timeframe_for(config.timeframe_secs()).ok_or_else(|| {
         RunError::StrategyRun(StrategyRunError::UnsupportedTimeframe {
             timeframe_secs: config.timeframe_secs(),
@@ -227,7 +227,8 @@ pub(crate) fn run_strategy_run(
             })
         })?;
 
-    let records = collect_records(model, &mut strategy);
+    let walk = walk_strategy(model, &config).map_err(RunError::Backtest)?;
+    let records = collect_records(&walk);
     if args.json {
         write_line(&envelope_value(args, &config, &records), writer).map_err(RunError::Output)?;
     } else {
@@ -242,39 +243,22 @@ fn is_supported_strategy(name: &str) -> bool {
     name == AXIS_AGREEMENT
 }
 
-fn build_strategy(name: &str, config: StrategyConfig) -> Option<AxisAgreementStrategy> {
-    match name {
-        AXIS_AGREEMENT => Some(AxisAgreementStrategy::new(config)),
-        _ => None,
-    }
-}
-
 fn timeframe_for(seconds: u64) -> Option<Timeframe> {
     Timeframe::ALL
         .into_iter()
         .find(|timeframe| u64::from(timeframe.seconds()) == seconds)
 }
 
-fn collect_records(model: &TimeframeModel, strategy: &mut AxisAgreementStrategy) -> Vec<Value> {
+fn collect_records(walk: &StrategyWalk) -> Vec<Value> {
     let mut records = Vec::new();
-    for bar_index in 0..model.len() {
-        // `bar` is present for every index below `len` by the model contract.
-        let Some(bar) = model.bar(bar_index) else {
-            continue;
-        };
-        let input = StrategyInput::from_model_bar(&bar);
-        match strategy.on_bar(&input) {
+    for (input, decision) in walk.inputs().iter().zip(walk.decisions()) {
+        match decision {
             Decision::Hold => {}
             Decision::Enter(entry) => {
-                records.push(record_value("entry", entry.side, None, &entry.bar));
+                records.push(record_value("entry", entry.side, None, input));
             }
             Decision::Exit(exit) => {
-                records.push(record_value(
-                    "exit",
-                    exit.side,
-                    Some(exit.reason),
-                    &exit.bar,
-                ));
+                records.push(record_value("exit", exit.side, Some(exit.reason), input));
             }
         }
     }
@@ -347,8 +331,8 @@ fn write_line(value: &Value, writer: &mut impl Write) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        AXIS_AGREEMENT, build_strategy, is_supported_strategy, parse_strategy_run_arguments,
-        reason_code, record_value, timeframe_for,
+        AXIS_AGREEMENT, is_supported_strategy, parse_strategy_run_arguments, reason_code,
+        record_value, timeframe_for,
     };
     use crate::command::types::ParseError;
     use quantrule_backtest::strategy::{ExitReason, Side, StrategyConfig, StrategyInput};
@@ -501,8 +485,6 @@ mod tests {
         let config = StrategyConfig::default();
         assert_eq!(config.timeframe_secs(), 900);
         assert_eq!(timeframe_for(config.timeframe_secs()), Some(Timeframe::M15));
-        assert!(build_strategy(AXIS_AGREEMENT, config).is_some());
-        assert!(build_strategy("ema-cross", config).is_none());
         assert!(is_supported_strategy(AXIS_AGREEMENT));
         assert!(!is_supported_strategy("ema-cross"));
     }

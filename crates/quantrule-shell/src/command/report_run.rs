@@ -10,9 +10,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use quantrule_backtest::runner::BacktestRun;
-use quantrule_backtest::strategy::{
-    Agreement, AxisAgreementStrategy, Decision, ExitReason, Side, Strategy, StrategyInput,
-};
+use quantrule_backtest::strategy::{Decision, ExitReason, Side, StrategyInput, StrategyWalk};
 use quantrule_data::{Timeframe, format_utc_timestamp};
 use quantrule_model::readings::PivotScale;
 use quantrule_model::report::MarketReport;
@@ -136,8 +134,8 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
             model_bundle_from(&config, &out, &model)?
         }
         ReportEngine::Strategy => {
-            let model = load_model(&config)?;
-            strategy_bundle_from(&config, &out, &model)?
+            let run = run_pipeline(&config)?;
+            strategy_bundle_from(&config, &out, &run)?
         }
         ReportEngine::Execution => {
             let run = run_pipeline(&config)?;
@@ -234,13 +232,13 @@ pub(super) fn model_bundle_from(
 pub(super) fn strategy_bundle_from(
     config: &RunConfig,
     out: &Path,
-    model_run: &ModelRun,
+    run: &BacktestRun,
 ) -> Result<BundleOutput, RunError> {
     let bundle = out.join("strategy");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
     let timeframe_secs = config.strategy.engine.timeframe_secs();
-    let Some(timeframe) = model_run.timeframe(timeframe_secs) else {
+    let Some(timeframe) = run.model_run().timeframe(timeframe_secs) else {
         return Err(RunError::Report(ReportError::NoStrategyBars {
             timeframe_secs,
         }));
@@ -251,11 +249,14 @@ pub(super) fn strategy_bundle_from(
         }));
     }
 
-    let (inputs, decisions, summary) = run_strategy(timeframe, config)?;
-    let csv = decisions_csv(&inputs, &decisions, timeframe_secs);
-    let report_json = strategy_json(config, timeframe, &inputs, &decisions, &summary);
+    let walk = run.strategy_walk();
+    let inputs = walk.inputs();
+    let decisions = walk.decisions();
+    let summary = summarize_walk(walk, timeframe.len());
+    let csv = decisions_csv(inputs, decisions, timeframe_secs);
+    let report_json = strategy_json(config, timeframe, inputs, decisions, &summary);
     let summary_text = strategy_summary(config, &summary);
-    let chart = strategy_chart(config, timeframe, &decisions)?;
+    let chart = strategy_chart(config, timeframe, decisions)?;
 
     let names = artifact_names(&[
         "summary.txt",
@@ -313,32 +314,19 @@ struct StrategySummary {
     open_position: Option<Side>,
 }
 
-fn run_strategy(
-    timeframe: &TimeframeModel,
-    config: &RunConfig,
-) -> Result<(Vec<StrategyInput>, Vec<Decision>, StrategySummary), RunError> {
-    let mut strategy = AxisAgreementStrategy::new(config.strategy.engine);
-    let mut inputs = Vec::with_capacity(timeframe.len());
-    let mut decisions = Vec::with_capacity(timeframe.len());
+fn summarize_walk(walk: &StrategyWalk, bars: usize) -> StrategySummary {
+    let agreements = walk.agreements();
     let mut summary = StrategySummary {
-        bars: timeframe.len(),
+        bars,
+        agreements_long: agreements.long,
+        agreements_short: agreements.short,
+        agreements_neutral: agreements.neutral,
+        agreements_unavailable: agreements.unavailable,
+        open_position: walk.open_position(),
         ..StrategySummary::default()
     };
 
-    for bar in 0..timeframe.len() {
-        let Some(model_bar) = timeframe.bar(bar) else {
-            return Err(RunError::Report(ReportError::NoStrategyBars {
-                timeframe_secs: config.strategy.engine.timeframe_secs(),
-            }));
-        };
-        let input = StrategyInput::from_model_bar(&model_bar);
-        match Agreement::classify(&input, &config.strategy.engine) {
-            Some(Agreement::Long) => summary.agreements_long += 1,
-            Some(Agreement::Short) => summary.agreements_short += 1,
-            Some(Agreement::Neutral) => summary.agreements_neutral += 1,
-            None => summary.agreements_unavailable += 1,
-        }
-        let decision = strategy.on_bar(&input);
+    for decision in walk.decisions() {
         match decision {
             Decision::Enter(entry) => {
                 summary.entries += 1;
@@ -350,11 +338,8 @@ fn run_strategy(
             Decision::Exit(_) => summary.exits += 1,
             Decision::Hold => {}
         }
-        inputs.push(input);
-        decisions.push(decision);
     }
-    summary.open_position = strategy.position();
-    Ok((inputs, decisions, summary))
+    summary
 }
 
 fn decisions_csv(inputs: &[StrategyInput], decisions: &[Decision], timeframe_secs: u64) -> String {

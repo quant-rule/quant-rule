@@ -72,6 +72,19 @@
 - Verification and evidence: `cargo test -p quantrule-shell` passed (including the 99 CLI tests, all report/backtest/store suites, and the new 12th strategy-run test); `cargo clippy -p quantrule-shell --all-targets` passed. The new test was also checked manually: the minor config produced 17 records while the default major config produced 13, so the test is sensitive to the fix.
 - Learning: computing the full four-timeframe model for `strategy-run` adds work compared with the old single-timeframe path, but it uses the same model contract as the report/backtest path and removes the last shell `TimeframeInput` literal. The command is a diagnostic, so the extra computation is acceptable in this refactor.
 
+## Entry 6 — Phase 3b one strategy walk
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: make the backtest runner the only place that walks the strategy; the shell reports and the diagnostic command read the recorded walk. The strategy rule is unchanged.
+- What the AI did:
+  - Added `strategy::StrategyWalk` and `AgreementCounts`, carrying inputs, decisions, agreement counts, and the final strategy position.
+  - Added `runner::walk_strategy`; `run_backtest` computes the walk once and feeds execution from it.
+  - `BacktestRun` stores the walk; `decisions()` and `strategy_walk()` read it.
+  - Deleted `report_run::run_strategy`; the strategy bundle now reads `BacktestRun::strategy_walk()`.
+  - Deleted `command/strategy.rs::collect_records`'s `on_bar` loop; it reads the walk instead.
+- Verification and evidence: `cargo test -p quantrule-backtest` passed (152 unit tests and all integration suites); `cargo test -p quantrule-shell` passed (all suites, including 99 CLI tests and the new config test); `cargo clippy --workspace --all-targets` initially found one needless borrow, which was fixed. No `on_bar` call remains in `crates/quantrule-shell/src`.
+- Learning: `report strategy` now runs the full backtest to obtain the executed walk. The output is unchanged for the current strategy; the benefit is that the report cannot re-walk the rule and drift from execution. AUD-02 remains open because the strategy still carries its own virtual position.
+
 ## Phase evidence
 
 | Phase | Command | Observed | Date |
@@ -91,6 +104,9 @@
 | 2 | `cargo test -p quantrule-backtest --doc` | 38 doctests passed | 2026-10-30 |
 | 3a | `cargo test -p quantrule-shell` | all shell suites passed; 12 strategy-run tests including the new config test | 2026-10-30 |
 | 3a | `cargo clippy -p quantrule-shell --all-targets` | no warnings | 2026-10-30 |
+| 3b | `cargo test -p quantrule-backtest` | all suites passed | 2026-10-30 |
+| 3b | `cargo test -p quantrule-shell` | all suites passed | 2026-10-30 |
+| 3b | `cargo clippy --workspace --all-targets` | one needless-borrow warning fixed; final run clean | 2026-10-30 |
 
 ## Open items
 

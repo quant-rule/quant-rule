@@ -21,6 +21,7 @@ mod decision;
 mod input;
 #[cfg(test)]
 mod tests;
+mod walk;
 
 pub use crate::side::Side;
 pub use agreement::AxisAgreementStrategy;
@@ -30,3 +31,4 @@ pub use config::{
 };
 pub use decision::{Decision, Entry, Exit, ExitReason, Strategy};
 pub use input::{Agreement, StrategyInput};
+pub use walk::{AgreementCounts, StrategyWalk};
