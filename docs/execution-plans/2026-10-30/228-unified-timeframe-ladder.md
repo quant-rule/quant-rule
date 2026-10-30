@@ -662,6 +662,11 @@ until then.
 
 **Goal:** Make the model low-level configuration real.
 
+**Status:** Implemented; PR pending. This first delivery covers per-timeframe
+EMA/RSI/ATR/RVOL periods and the structure scale. Percentile, progression,
+event, and context knobs remain fixed and are reserved for a follow-up because
+they need separate golden review.
+
 **Files:**
 
 - `crates/quantrule-model/src/input.rs`
@@ -676,11 +681,11 @@ until then.
 
 - Parameterize EMA, RSI, ATR, and RVOL periods.
 - Add `defaults` and per-timeframe overrides.
-- Parameterize structure, progression, and event settings.
+- Keep the structure scale; reserve progression, event, and context knobs.
 - Validate every override.
-- Record per-timeframe settings in provenance.
+- Record the model file in the run config fingerprint.
 - Keep a control config with current values.
-- Add a control golden and at least one override golden.
+- Add a control golden and at least one override test.
 
 **Exit criteria:**
 
@@ -1049,17 +1054,17 @@ Stop and request human direction if:
 
 ### Phase 3 — Model config v2
 
-- [ ] Defaults parse and apply.
-- [ ] Per-timeframe overrides parse and apply.
-- [ ] Unknown timeframe is rejected.
-- [ ] Unknown field is rejected.
-- [ ] EMA periods are strictly increasing.
-- [ ] Periods and windows are positive.
-- [ ] Control config runs.
-- [ ] Override config changes only the intended timeframe.
-- [ ] Provenance records per-timeframe settings.
-- [ ] Golden tests pass.
-- [ ] Model remains deterministic.
+- [x] Defaults parse and apply.
+- [x] Per-timeframe overrides parse and apply.
+- [x] Unknown timeframe is rejected.
+- [x] Unknown field is rejected.
+- [x] EMA periods are strictly increasing.
+- [x] Periods are positive.
+- [x] Control config runs.
+- [x] Override config changes only the intended timeframe.
+- [x] The model file is covered by the run config fingerprint.
+- [x] Golden tests pass.
+- [x] Model remains deterministic.
 
 ### Phase 4 — Reporting aggregates
 

@@ -421,7 +421,7 @@ A run is specified by eight files. The command line carries only the config path
 | `run.json` | Run name, policy reference, output root, and the six engine file names |
 | `policy.json` | Account, objective, risk envelope, tickets, and timeframes |
 | `data.json` | Instrument ticket, source CSV, data version, UTC period, the configurable `available_timeframes` list (default `1m`/`5m`/`15m`/`1h`, with `4h` supported), and `max_candles` (`1..=600000`) |
-| `model.json` | Structure scale (`major` or `minor`) |
+| `model.json` | Default reading periods (`ema`, `rsi`, `atr`, `rvol`), optional per-timeframe overrides, and the structure scale (`major` or `minor`) |
 | `strategy.json` | Thesis, `axis-agreement` timeframe, long/short thresholds, stop ATR multiple, and reward-to-risk |
 | `execution.json` | Fill timeframe, order type, tie break, fee rate, slippage, zero-volume and end-of-data policy |
 | `portfolio.json` | Cash, currency, sizing, leverage, position limit, commission, funding, drawdown limit and action, mark policy |

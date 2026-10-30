@@ -463,7 +463,7 @@ fn run_config_with(source: &str, structure_scale: &str) -> PathBuf {
     let mut model: Value =
         serde_json::from_str(&fs::read_to_string(&model_path).expect("model.json is read"))
             .expect("model.json is JSON");
-    model["structure_scale"] = Value::String(structure_scale.to_owned());
+    model["structure"]["scale"] = Value::String(structure_scale.to_owned());
     fs::write(
         &model_path,
         serde_json::to_vec_pretty(&model).expect("model.json is written"),

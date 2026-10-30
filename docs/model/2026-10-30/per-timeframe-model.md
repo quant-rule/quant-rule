@@ -1,7 +1,7 @@
 # Per-Timeframe Model Contract
 
 - Date: 2026-10-30 (UTC)
-- Status: Approved; implementation pending
+- Status: Partially implemented (#231); per-timeframe readings implemented, reporting aggregates pending
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), sub-issues [#231](https://github.com/quant-rule/quant-rule/issues/231), [#232](https://github.com/quant-rule/quant-rule/issues/232)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)
@@ -78,18 +78,21 @@ belongs in the strategy layer; it does not change the model contract.
 
 ## 5. Per-timeframe configuration
 
-`model.json` v2 provides:
+`model.json` v2 provides, in this delivery:
 
-- `defaults`: EMA periods, RSI period, ATR period, RVOL period, percentile window,
-  and minimum samples.
+- `defaults`: EMA periods, RSI period, ATR period, and RVOL period.
 - `timeframes`: optional per-timeframe overrides for the same readings.
-- `structure`: pivot scale, pivot bars, level proximity.
-- `progression`: target multiple, stability bars, invalidation buffer.
-- `events`: divergence scale, RSI thresholds, EMA pairs.
-- `context`: volatility and participation thresholds.
+- `structure.scale`: the pivot scale used by Structure and Divergence.
 
 The model config is a technical contract validated against the available
-timeframes. Per-timeframe overrides are explicit and recorded in provenance.
+timeframes. Per-timeframe overrides are explicit and recorded in the config
+fingerprint.
+
+The following knobs remain fixed and are reserved for a follow-up sub-issue:
+percentile window and minimum samples; progression target multiple, stability
+bars, and invalidation buffer; Level proximity, Signal thresholds, and EMA pair
+selection; and context volatility/participation thresholds. The v2 parser
+rejects them until they affect the computation.
 
 ## 6. Causality and determinism
 

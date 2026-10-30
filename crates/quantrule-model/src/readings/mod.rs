@@ -34,6 +34,82 @@ pub use series::ReadingSeries;
 
 use quantrule_data::Candle;
 
+/// The configurable periods of the scalar readings.
+///
+/// The field names on [`Readings`] identify the reading's role: `ema20`,
+/// `ema50`, and `ema200` are the fast, middle, and slow EMA roles, and `rsi14`,
+/// `atr14`, and `rvol20` are the RSI, ATR, and relative-volume roles. The
+/// configured period may differ from the role label; the model config records
+/// the period that produced the value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReadingsConfig {
+    /// The fast EMA period.
+    pub ema_fast: usize,
+    /// The middle EMA period.
+    pub ema_mid: usize,
+    /// The slow EMA period.
+    pub ema_slow: usize,
+    /// The RSI period.
+    pub rsi: usize,
+    /// The ATR period.
+    pub atr: usize,
+    /// The relative-volume baseline period.
+    pub rvol: usize,
+}
+
+impl ReadingsConfig {
+    /// The default periods: EMA 20/50/200, RSI 14, ATR 14, RVOL 20.
+    pub const DEFAULT: Self = Self {
+        ema_fast: 20,
+        ema_mid: 50,
+        ema_slow: 200,
+        rsi: 14,
+        atr: 14,
+        rvol: 20,
+    };
+
+    /// Builds a reading configuration.
+    ///
+    /// The caller validates the periods; a zero period produces an unavailable
+    /// series, and a non-increasing EMA triple is rejected by the config loader.
+    #[must_use]
+    pub const fn new(
+        ema_fast: usize,
+        ema_mid: usize,
+        ema_slow: usize,
+        rsi: usize,
+        atr: usize,
+        rvol: usize,
+    ) -> Self {
+        Self {
+            ema_fast,
+            ema_mid,
+            ema_slow,
+            rsi,
+            atr,
+            rvol,
+        }
+    }
+
+    /// Whether the periods are positive and the EMA periods are strictly
+    /// increasing.
+    #[must_use]
+    pub const fn is_valid(self) -> bool {
+        self.ema_fast > 0
+            && self.ema_fast < self.ema_mid
+            && self.ema_mid < self.ema_slow
+            && self.rsi > 0
+            && self.atr > 0
+            && self.rvol > 0
+    }
+}
+
+impl Default for ReadingsConfig {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 /// The complete set of indicator readings for one candle series.
 ///
 /// The scalar series and the pivot candidate series have exactly one entry per
@@ -72,19 +148,28 @@ pub struct Readings {
 }
 
 impl Readings {
-    /// Computes every reading from the closed candles.
+    /// Computes every reading with the default periods.
     ///
     /// The input is not modified. The output length equals the input length for
     /// every scalar series and for the candidate series.
     #[must_use]
     pub fn compute(candles: &[Candle]) -> Self {
+        Self::compute_with_config(candles, &ReadingsConfig::default())
+    }
+
+    /// Computes every reading with an explicit period configuration.
+    ///
+    /// The input is not modified. The output length equals the input length for
+    /// every scalar series and for the candidate series.
+    #[must_use]
+    pub fn compute_with_config(candles: &[Candle], config: &ReadingsConfig) -> Self {
         Self {
-            ema20: ema(candles, 20),
-            ema50: ema(candles, 50),
-            ema200: ema(candles, 200),
-            rsi14: rsi(candles, 14),
-            atr14: atr(candles, 14),
-            rvol20: rvol(candles, 20),
+            ema20: ema(candles, config.ema_fast),
+            ema50: ema(candles, config.ema_mid),
+            ema200: ema(candles, config.ema_slow),
+            rsi14: rsi(candles, config.rsi),
+            atr14: atr(candles, config.atr),
+            rvol20: rvol(candles, config.rvol),
             pivots: PivotSeries::compute(candles),
         }
     }
@@ -160,6 +245,31 @@ pub(crate) mod test_support {
 mod tests {
     use super::test_support::candles_from_closes;
     use super::{PivotScale, Readings};
+
+    #[test]
+    fn compute_with_config_uses_the_configured_periods() {
+        use super::ReadingsConfig;
+        use super::test_support::candle_with_volume;
+
+        let candles: Vec<_> = (0..25)
+            .map(|index| candle_with_volume(100.0 + f64::from(index), Some(10.0)))
+            .collect();
+        let config = ReadingsConfig::new(3, 5, 8, 2, 3, 4);
+        let readings = Readings::compute_with_config(&candles, &config);
+
+        assert_eq!(readings.ema20.get(1), None);
+        assert!(readings.ema20.get(2).is_some());
+        assert_eq!(readings.ema50.get(3), None);
+        assert!(readings.ema50.get(4).is_some());
+        assert_eq!(readings.ema200.get(6), None);
+        assert!(readings.ema200.get(7).is_some());
+        assert_eq!(readings.rsi14.get(1), None);
+        assert!(readings.rsi14.get(2).is_some());
+        assert_eq!(readings.atr14.get(2), None);
+        assert!(readings.atr14.get(3).is_some());
+        assert_eq!(readings.rvol20.get(2), None);
+        assert!(readings.rvol20.get(3).is_some());
+    }
 
     #[test]
     fn compute_aligns_every_series_to_the_input_length() {
