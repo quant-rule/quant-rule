@@ -81,3 +81,5 @@
     `view_contract` instead of `report_version`, and the checks accept either.
   - The command records `--created-utc` as supplied and never reads the clock,
     so the same lab and arguments produce the same bytes.
+- **Pull request:** [#213](https://github.com/quant-rule/quant-rule/pull/213),
+  open. Merge requires explicit human authorization.

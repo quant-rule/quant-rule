@@ -363,6 +363,9 @@ Observed verification (2026-10-29 UTC):
 | Existing summary | Second run without `--force` | Refused with `already exists; use --force` |
 | Whitespace | `git diff --check` | Clean |
 
+Pull request: [#213](https://github.com/quant-rule/quant-rule/pull/213), open.
+Merge requires explicit human authorization.
+
 ### PR 2 — tutorial
 
 Pending.
