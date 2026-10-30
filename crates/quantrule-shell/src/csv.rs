@@ -555,6 +555,33 @@ pub(crate) fn load_window_tolerant(path: &Path) -> Result<TolerantWindow, Source
             }
         };
 
+        // Ordering is the row's identity, so it takes precedence over candle
+        // validity when both are wrong. The window still enforces the same
+        // order on the accepted path.
+        if let (Ok(timestamp), Some(previous)) =
+            (parse_utc_timestamp(raw.date), window.last_timestamp())
+        {
+            if timestamp == previous {
+                report.record_skipped(
+                    line_number,
+                    SkipReason::Duplicate {
+                        timestamp: previous,
+                    },
+                );
+                continue;
+            }
+            if timestamp < previous {
+                report.record_skipped(
+                    line_number,
+                    SkipReason::OutOfOrder {
+                        previous,
+                        current: timestamp,
+                    },
+                );
+                continue;
+            }
+        }
+
         match window.push(raw) {
             Ok(_) => report.record_accepted(),
             Err(error) => match skip_reason(error) {
@@ -673,6 +700,7 @@ fn describe_timeframe_error(error: &TimeframeError) -> String {
         TimeframeError::Window(source) => describe_window_error(source),
         TimeframeError::MisalignedM1Timestamp { .. }
         | TimeframeError::SourceCadence { .. }
-        | TimeframeError::Finished => error.to_string(),
+        | TimeframeError::Finished
+        | TimeframeError::VolumeOverflow { .. } => error.to_string(),
     }
 }

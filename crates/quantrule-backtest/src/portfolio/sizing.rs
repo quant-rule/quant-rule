@@ -6,7 +6,9 @@
 //! quantity below one step is a rejection rather than a zero.
 //!
 //! The sizing price is the decision-bar close. The fill happens at the next
-//! bar's open, so the realized notional can differ from the sizing notional.
+//! bar's open, so the realized notional can differ from the sizing notional. The
+//! runner separately caps the fill quantity at current equity × leverage × the
+//! policy position fraction; this module computes the unconstrained quantity.
 
 use std::fmt;
 
@@ -176,17 +178,51 @@ impl SizingMode {
             }
         };
 
-        let steps = (raw / step).floor();
+        let steps = floored_steps(raw, step);
         if steps < 1.0 {
             return Err(SizingRejection::BelowOneStep { raw, step });
         }
 
-        let quantity = steps * step;
+        let quantity = normalize_quantity(steps * step);
         if !quantity.is_finite() || quantity <= 0.0 {
             return Err(SizingRejection::BelowOneStep { raw, step });
         }
 
         Ok(quantity)
+    }
+}
+
+/// The decimal scale used to publish a quantity.
+///
+/// Quantities are quote-asset units; twelve decimal places cover every
+/// configured step in the supported universe and remove binary noise such as
+/// `6 * 0.1 = 0.6000000000000001`.
+const QUANTITY_SCALE: f64 = 1_000_000_000_000.0;
+
+fn normalize_quantity(quantity: f64) -> f64 {
+    if quantity.is_finite() {
+        (quantity * QUANTITY_SCALE).round() / QUANTITY_SCALE
+    } else {
+        quantity
+    }
+}
+
+/// Floors `raw / step` without losing an exact boundary to binary rounding.
+///
+/// A decimal boundary such as `0.3 / 0.1` can evaluate to `2.999…`. The
+/// tolerance is relative to the ratio and only absorbs representation error;
+/// a ratio genuinely below the boundary still floors down.
+fn floored_steps(raw: f64, step: f64) -> f64 {
+    let ratio = raw / step;
+    if !ratio.is_finite() {
+        return ratio.floor();
+    }
+    let nearest = ratio.round();
+    let tolerance = 16.0 * f64::EPSILON * ratio.abs().max(1.0);
+    if (ratio - nearest).abs() <= tolerance {
+        nearest.max(0.0)
+    } else {
+        ratio.floor()
     }
 }
 

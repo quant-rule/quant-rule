@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn a_minor_pivot_high_is_confirmed_at_occurrence_plus_two() {
-        let candles = candles(&[1.0, 2.0, 3.0, 2.0, 1.0], &[0.0; 5]);
+        let candles = candles(&[1.0, 2.0, 3.0, 2.0, 1.0], &[0.5; 5]);
         let series = PivotSeries::compute(&candles);
 
         assert_eq!(
@@ -340,14 +340,14 @@ mod tests {
 
     #[test]
     fn a_minor_pivot_low_is_confirmed_at_occurrence_plus_two() {
-        let candles = candles(&[5.0; 5], &[2.0, 1.0, 0.0, 1.0, 2.0]);
+        let candles = candles(&[5.0; 5], &[2.0, 1.0, 0.5, 1.0, 2.0]);
         let series = PivotSeries::compute(&candles);
 
         let pivot = series
             .confirmed_at(PivotScale::Minor, 4)
             .expect("the pivot is confirmed at bar 4");
         assert_eq!(pivot.kind, PivotKind::Low);
-        assert_eq!(pivot.price, 0.0);
+        assert_eq!(pivot.price, 0.5);
         assert_eq!(pivot.occurred_at, 2);
     }
 
@@ -355,7 +355,7 @@ mod tests {
     fn a_major_pivot_high_is_confirmed_at_occurrence_plus_five() {
         let candles = candles(
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0],
-            &[0.0; 11],
+            &[0.5; 11],
         );
         let series = PivotSeries::compute(&candles);
 
@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn equal_highs_and_equal_lows_are_not_candidates() {
-        let candles = candles(&[5.0, 5.0, 5.0], &[0.0, 0.0, 0.0]);
+        let candles = candles(&[5.0, 5.0, 5.0], &[0.5, 0.5, 0.5]);
         let series = PivotSeries::compute(&candles);
 
         assert_eq!(series.candidate(PivotScale::Minor, 2), None);
@@ -379,25 +379,25 @@ mod tests {
 
     #[test]
     fn an_equal_left_high_blocks_only_the_high_candidate() {
-        let candles = candles(&[5.0, 5.0, 5.0, 4.0, 4.0], &[1.0, 2.0, 0.0, 2.0, 3.0]);
+        let candles = candles(&[5.0, 5.0, 5.0, 4.0, 4.0], &[1.0, 2.0, 0.5, 2.0, 3.0]);
         let series = PivotSeries::compute(&candles);
 
         let candidate = series
             .candidate(PivotScale::Minor, 2)
             .expect("the low is still a candidate");
         assert_eq!(candidate.kind, PivotKind::Low);
-        assert_eq!(candidate.price, 0.0);
+        assert_eq!(candidate.price, 0.5);
 
         let pivot = series
             .confirmed_at(PivotScale::Minor, 4)
             .expect("the low is confirmed at bar 4");
         assert_eq!(pivot.kind, PivotKind::Low);
-        assert_eq!(pivot.price, 0.0);
+        assert_eq!(pivot.price, 0.5);
     }
 
     #[test]
     fn a_bar_that_is_both_candidates_is_discarded() {
-        let candles = candles(&[10.0, 10.0, 11.0], &[0.0, 0.0, -1.0]);
+        let candles = candles(&[10.0, 10.0, 11.0], &[0.5, 0.5, 0.4]);
         let series = PivotSeries::compute(&candles);
 
         assert_eq!(series.candidate(PivotScale::Minor, 2), None);
@@ -406,7 +406,7 @@ mod tests {
 
     #[test]
     fn a_candidate_that_fails_confirmation_remains_a_candidate_only() {
-        let candles = candles(&[1.0, 2.0, 3.0, 3.0, 1.0], &[0.0; 5]);
+        let candles = candles(&[1.0, 2.0, 3.0, 3.0, 1.0], &[0.5; 5]);
         let series = PivotSeries::compute(&candles);
 
         assert_eq!(
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn a_pivot_is_absent_before_its_availability_bar() {
-        let candles = candles(&[1.0, 2.0, 3.0, 2.0, 1.0], &[0.0; 5]);
+        let candles = candles(&[1.0, 2.0, 3.0, 2.0, 1.0], &[0.5; 5]);
         let series = PivotSeries::compute(&candles);
 
         assert!(pivots_at(&series, PivotScale::Minor, 3).is_empty());
@@ -435,7 +435,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 2.0, 3.0,
             ],
             &[
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
             ],
         );
         let series = PivotSeries::compute(&candles);
@@ -454,7 +454,7 @@ mod tests {
 
     #[test]
     fn no_confirmed_pivot_exists_without_a_candidate() {
-        let candles = candles(&[1.0, 2.0, 3.0, 2.0, 1.0], &[0.0; 5]);
+        let candles = candles(&[1.0, 2.0, 3.0, 2.0, 1.0], &[0.5; 5]);
         let series = PivotSeries::compute(&candles);
 
         for scale in PivotScale::ALL {
@@ -468,7 +468,7 @@ mod tests {
     fn a_gap_can_form_a_pivot() {
         let candles = candles(
             &[1.0, 2.0, 3.0, 10.0, 1.0, 2.0, 3.0],
-            &[0.0, 0.0, 0.0, 9.0, 0.0, 0.0, 0.0],
+            &[0.5, 0.5, 0.5, 9.0, 0.5, 0.5, 0.5],
         );
         let series = PivotSeries::compute(&candles);
 
@@ -486,8 +486,16 @@ mod tests {
             .into_iter()
             .enumerate()
             .map(|(index, high)| {
-                Candle::new(index as u64, index as i64, high, high, 0.0, high, Some(0.0))
-                    .expect("valid test candle")
+                Candle::new(
+                    index as u64,
+                    index as i64,
+                    high,
+                    high,
+                    high - 0.5,
+                    high,
+                    Some(0.0),
+                )
+                .expect("valid test candle")
             })
             .collect();
         let series = PivotSeries::compute(&candles);
@@ -523,7 +531,7 @@ mod tests {
 
     #[test]
     fn a_short_series_has_no_major_pivots() {
-        let candles = candles(&[1.0, 2.0, 3.0, 2.0, 1.0], &[0.0; 5]);
+        let candles = candles(&[1.0, 2.0, 3.0, 2.0, 1.0], &[0.5; 5]);
         let series = PivotSeries::compute(&candles);
 
         assert_eq!(series.confirmed_count(PivotScale::Major), 0);
@@ -533,7 +541,7 @@ mod tests {
     fn appended_bars_do_not_change_earlier_confirmed_pivots() {
         let candles = candles(
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 2.0],
-            &[0.0; 12],
+            &[0.5; 12],
         );
         let full = PivotSeries::compute(&candles);
         let prefix = PivotSeries::compute(&candles[..11]);
@@ -551,7 +559,7 @@ mod tests {
     fn repeated_runs_are_identical() {
         let candles = candles(
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0],
-            &[0.0; 11],
+            &[0.5; 11],
         );
         let first = PivotSeries::compute(&candles);
         let second = PivotSeries::compute(&candles);

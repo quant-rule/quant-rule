@@ -253,7 +253,9 @@ impl TimeframeSet {
     /// Parses and accepts one M1 source candle.
     ///
     /// On success, returns the stable series index assigned in the M1 series.
-    /// A rejected candle does not change any series or aggregation state.
+    /// A candle rejected by the M1 window does not change any series or
+    /// aggregation state. A volume overflow is fatal: the M1 candle has already
+    /// been accepted when the bucket reports it, so the set must be discarded.
     ///
     /// # Errors
     ///
@@ -360,7 +362,11 @@ impl TimeframeSet {
             }
 
             match &mut self.buckets[index] {
-                Some(bucket) => bucket.push(values),
+                Some(bucket) => bucket.push(values).map_err(|error| match error {
+                    crate::bucket::BucketError::VolumeOverflow { bucket_start } => {
+                        TimeframeError::VolumeOverflow { bucket_start }
+                    }
+                })?,
                 None => {
                     self.buckets[index] = Some(Bucket::new(*timeframe, values));
                 }
@@ -408,6 +414,11 @@ pub enum TimeframeError {
     },
     /// The set was already finished.
     Finished,
+    /// A higher-timeframe bucket's volume sum exceeded the finite range.
+    VolumeOverflow {
+        /// The UTC start timestamp of the bucket that overflowed.
+        bucket_start: i64,
+    },
 }
 
 impl From<WindowError> for TimeframeError {
@@ -430,6 +441,11 @@ impl fmt::Display for TimeframeError {
                 "source cadence is {observed_seconds}s, not 60s; provide an M1 source file for the timeframe ladder"
             ),
             Self::Finished => formatter.write_str("the timeframe set is already finished"),
+            Self::VolumeOverflow { bucket_start } => write!(
+                formatter,
+                "aggregated volume overflowed in the bucket starting {}",
+                format_utc_timestamp(*bucket_start)
+            ),
         }
     }
 }
@@ -438,9 +454,10 @@ impl std::error::Error for TimeframeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Window(source) => Some(source),
-            Self::MisalignedM1Timestamp { .. } | Self::SourceCadence { .. } | Self::Finished => {
-                None
-            }
+            Self::MisalignedM1Timestamp { .. }
+            | Self::SourceCadence { .. }
+            | Self::Finished
+            | Self::VolumeOverflow { .. } => None,
         }
     }
 }
@@ -825,6 +842,19 @@ mod tests {
         assert_eq!(candle.high(), 1.0);
         assert_eq!(candle.low(), 1.0);
         assert_eq!(candle.volume(), Some(0.0));
+    }
+
+    #[test]
+    fn volume_overflow_is_reported_at_the_bucket() {
+        let mut set = TimeframeSet::new();
+        set.push_values(values_with(minute(0), 1.0, 2.0, 0.5, 1.5, Some(1e308)))
+            .expect("the first candle is valid");
+        let result = set.push_values(values_with(minute(1), 1.0, 2.0, 0.5, 1.5, Some(1e308)));
+
+        assert_eq!(
+            result,
+            Err(TimeframeError::VolumeOverflow { bucket_start: BASE })
+        );
     }
 
     #[test]

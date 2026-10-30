@@ -54,7 +54,7 @@ POLICY (human) > STRATEGY (human) > MODEL (measurement) > EXECUTION (fills) > PO
 ```
 
 - The policy is the human-owned account/objective/risk/universe envelope. It never emits a signal.
-- The strategy is the human-owned, explainable rule. It reads only published primary axis values and bar identity; it never computes an indicator, reads a statistic, or touches cash/P&L.
+- The strategy is the human-owned, explainable rule. It reads only published primary axis values, bar identity, and its own position state supplied explicitly by the runner; it never computes an indicator, reads a statistic, or touches cash/P&L.
 - The model measures and publishes numbers. It never reads strategy, execution, portfolio, policy, or analytics.
 - Execution fills decisions. It never decides direction.
 - Portfolio accounts. It never decides a signal.
@@ -119,7 +119,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **Strategy validation.** A claim that a rule is profitable reports in-sample and out-of-sample results, cost assumptions, and every variation tried. Out-of-sample evidence is required before the claim is called promising; a backtest on the tuning sample is not validation.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Model-layer tests.** Every axis and every reading has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
-- **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. The strategy explain command is tested as printed output. A boundary test proves the strategy input exposes only the three primary axis values and bar identity.
+- **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. The strategy explain command is tested as printed output. A boundary test proves the strategy input exposes only the three primary axis values and bar identity; the separate position argument is the strategy's own state, not a market reading.
 - **Audit regression guards.** A fix for an audit finding carries a regression test that fails before the fix and passes after it, or a written reason why a fail-before test is impossible.
 - **Experiment reproducibility.** An experiment record names the data versions, configs, splits, costs, and matrix; the same record reproduces the same labs.
 - **Event tests.** An event appears only at or after the bar on which it became knowable, one underlying occurrence is never emitted twice, the level-event precedence is respected, and a divergence is never emitted before the pivot that confirms it has become knowable.

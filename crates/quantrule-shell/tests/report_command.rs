@@ -141,9 +141,11 @@ fn the_strategy_bundle_has_its_fixed_shape() {
     let summary = String::from_utf8(read(&bundle.join("summary.txt"))).expect("summary is UTF-8");
     assert!(summary.contains("bars: 17"), "{summary}");
     assert!(summary.contains("open_position: flat"), "{summary}");
+    assert!(summary.contains("execution_state: virtual"), "{summary}");
 
     let report = String::from_utf8(read(&bundle.join("report.json"))).expect("json is UTF-8");
     assert!(report.contains("\"report\":\"strategy\""));
+    assert!(report.contains("\"execution_state\":\"virtual\""));
     for forbidden in [
         "fill",
         "fills",

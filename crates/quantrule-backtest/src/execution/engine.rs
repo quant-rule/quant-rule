@@ -61,7 +61,8 @@
 //! bracket around the fill price rejects it with
 //! [`RejectReason::InvalidBracket`]. The bracket is live from the entry bar
 //! onward, so one bar can fill the entry at its open and trigger the stop or
-//! target later in the same bar. If both levels are touched, the stop wins.
+//! target later in the same bar. A gap at the open is resolved first; if the
+//! open is between both levels and both are touched, the stop wins.
 //!
 //! A bar with zero volume cannot fill a market order or trigger a bracket.
 //! A zero-volume next bar rejects the pending market order with
@@ -96,6 +97,7 @@ struct PendingOrder {
     order_id: u64,
     order: Order,
     atr14: Option<f64>,
+    max_notional: Option<f64>,
 }
 
 /// A decision refused before an order was accepted.
@@ -191,7 +193,12 @@ impl ExecutionBatch {
 ///
 /// assert!(engine.advance(&first)?.is_empty());
 /// engine.submit(
-///     OrderIntent::Enter { side: Side::Long, bar_index: 0, open_time: 0 },
+///     OrderIntent::Enter {
+///         side: Side::Long,
+///         bar_index: 0,
+///         open_time: 0,
+///         max_notional: None,
+///     },
 ///     Some(1.0),
 ///     Some(1.0),
 /// )?;
@@ -275,7 +282,10 @@ impl ExecutionEngine {
     /// `quantity` is the entry quantity. It is `None` when the caller could not
     /// size the entry; the decision is then rejected with
     /// [`RejectReason::MissingQuantity`]. An exit always closes the open
-    /// position with the position's quantity, so its quantity is ignored.
+    /// position with the position's quantity, so its quantity is ignored. An
+    /// exit whose side does not match the open position is rejected with
+    /// [`RejectReason::WrongExitSide`]; the engine never closes the opposite
+    /// side on a mismatched intent.
     ///
     /// `atr14` is the decision bar's ATR(14), used to bracket the entry when it
     /// fills. The decision must carry the last advanced bar's index and open
@@ -300,7 +310,9 @@ impl ExecutionEngine {
         let mut batch = ExecutionBatch::default();
         match intent {
             OrderIntent::Hold => {}
-            OrderIntent::Enter { side, .. } => {
+            OrderIntent::Enter {
+                side, max_notional, ..
+            } => {
                 let side = order_side(side);
                 if self.position.is_open() {
                     self.reject_decision(
@@ -343,12 +355,24 @@ impl ExecutionEngine {
                                 order_id,
                                 order,
                                 atr14,
+                                max_notional,
                             });
                         }
                     }
                 }
             }
             OrderIntent::Exit { side, .. } => match self.position {
+                PositionState::Open(position) if position.side != side => self.reject_decision(
+                    &mut batch,
+                    RejectedDecision {
+                        side: order_side(position.side).opposite(),
+                        quantity: Some(position.quantity),
+                        reason: FillReason::Exit,
+                        submitted_bar: index,
+                        submitted_time: time,
+                        reject_reason: RejectReason::WrongExitSide,
+                    },
+                ),
                 PositionState::Open(position) => {
                     // The engine closes the position it holds; the intent's
                     // side is the strategy's view of that position, not the
@@ -368,6 +392,7 @@ impl ExecutionEngine {
                         order_id,
                         order,
                         atr14,
+                        max_notional: None,
                     });
                 }
                 PositionState::Flat | PositionState::Closed => self.reject_decision(
@@ -532,7 +557,7 @@ impl ExecutionEngine {
             return Ok(());
         };
 
-        let fill = self.fill(
+        let mut fill = self.fill(
             pending.order.side,
             pending.order.quantity,
             bar.open(),
@@ -540,6 +565,29 @@ impl ExecutionEngine {
             time,
             FillReason::Entry,
         )?;
+        if let Some(max_notional) = pending.max_notional {
+            if !max_notional.is_finite() || max_notional <= 0.0 {
+                self.reject_pending(batch, pending, index, time, RejectReason::RiskLimit);
+                return Ok(());
+            }
+            let notional = fill.price * fill.quantity;
+            if notional > max_notional {
+                let capped = max_notional / fill.price;
+                if !capped.is_finite() || capped <= 0.0 {
+                    self.reject_pending(batch, pending, index, time, RejectReason::RiskLimit);
+                    return Ok(());
+                }
+                fill = self.fill(
+                    pending.order.side,
+                    capped,
+                    bar.open(),
+                    index,
+                    time,
+                    FillReason::Entry,
+                )?;
+            }
+        }
+
         let side = match pending.order.side {
             OrderSide::Buy => Side::Long,
             OrderSide::Sell => Side::Short,
@@ -593,9 +641,26 @@ impl ExecutionEngine {
             return Ok(());
         }
 
+        // A gap at the open proves which level was reached first. Resolve it
+        // before the intrabar stop-first tie rule; only an open between both
+        // levels leaves the intrabar order unknowable from OHLC.
         let (reference, reason, trigger_price, side) = match position.side {
             Side::Long => {
-                if long_stop_hit(bar, position.stop_price) {
+                if bar.open() <= position.stop_price {
+                    (
+                        bar.open(),
+                        FillReason::StopLoss,
+                        position.stop_price,
+                        OrderSide::Sell,
+                    )
+                } else if bar.open() >= position.target_price {
+                    (
+                        bar.open(),
+                        FillReason::TakeProfit,
+                        position.target_price,
+                        OrderSide::Sell,
+                    )
+                } else if long_stop_hit(bar, position.stop_price) {
                     (
                         long_stop_reference(bar, position.stop_price),
                         FillReason::StopLoss,
@@ -614,7 +679,21 @@ impl ExecutionEngine {
                 }
             }
             Side::Short => {
-                if short_stop_hit(bar, position.stop_price) {
+                if bar.open() >= position.stop_price {
+                    (
+                        bar.open(),
+                        FillReason::StopLoss,
+                        position.stop_price,
+                        OrderSide::Buy,
+                    )
+                } else if bar.open() <= position.target_price {
+                    (
+                        bar.open(),
+                        FillReason::TakeProfit,
+                        position.target_price,
+                        OrderSide::Buy,
+                    )
+                } else if short_stop_hit(bar, position.stop_price) {
                     (
                         short_stop_reference(bar, position.stop_price),
                         FillReason::StopLoss,

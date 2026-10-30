@@ -18,7 +18,7 @@ use crate::portfolio::{
 };
 use crate::strategy::{Decision, Side, StrategyConfig};
 
-use super::{BacktestConfig, BacktestRun, run_backtest};
+use super::{BacktestConfig, BacktestError, BacktestRun, run_backtest};
 
 const DECISIONS: &str = include_str!("../../tests/fixtures/runner_decisions_golden.csv");
 const TRADES: &str = include_str!("../../tests/fixtures/runner_trades_golden.csv");
@@ -105,6 +105,7 @@ fn config() -> BacktestConfig {
                 .expect("the drawdown is valid"),
             mark_to_market: MarkToMarket::BarClose,
         },
+        max_position_fraction: 1.0,
     }
 }
 
@@ -407,6 +408,15 @@ fn empty_inputs_produce_an_empty_run() {
 }
 
 #[test]
+fn an_invalid_risk_envelope_is_rejected() {
+    let mut config = config();
+    config.max_position_fraction = 1.1;
+    let result = run_backtest(&[], &config);
+
+    assert_eq!(result, Err(BacktestError::RiskEnvelope));
+}
+
+#[test]
 fn a_missing_strategy_timeframe_produces_an_empty_run() {
     let candles = candles(320);
     let run = run_backtest(
@@ -488,6 +498,21 @@ fn the_configured_bracket_multiples_are_used() {
 }
 
 #[test]
+fn the_risk_envelope_caps_the_first_entry_at_half_equity() {
+    let mut config = config();
+    config.max_position_fraction = 0.5;
+    let run = run(&candles(320), &config);
+    let fill = run
+        .execution_batches()
+        .iter()
+        .flat_map(|batch| batch.fills.iter())
+        .find(|fill| fill.reason == crate::execution::FillReason::Entry)
+        .expect("the fixture enters");
+
+    assert!(fill.price * fill.quantity <= 5_000.0 + 1e-9);
+}
+
+#[test]
 fn a_downtrend_produces_a_short_trade() {
     let falling = falling_candles(320);
     let run = run(&falling, &config());
@@ -498,6 +523,19 @@ fn a_downtrend_produces_a_short_trade() {
             .any(|trade| trade.side == Side::Short),
         "the downtrend must produce a short trade"
     );
+}
+
+#[test]
+fn every_decision_uses_the_execution_position() {
+    let run = run(&candles(320), &config());
+
+    for (position, decision) in run.strategy_walk().positions().iter().zip(run.decisions()) {
+        match decision {
+            Decision::Enter(_) => assert_eq!(*position, None),
+            Decision::Exit(exit) => assert_eq!(*position, Some(exit.side)),
+            Decision::Hold => {}
+        }
+    }
 }
 
 #[test]

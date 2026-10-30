@@ -55,6 +55,11 @@ pub enum CandleError {
         /// The field that failed.
         field: &'static str,
     },
+    /// An OHLC price was zero or negative.
+    NonPositivePrice {
+        /// The field that failed.
+        field: &'static str,
+    },
     /// The high was below the low.
     HighBelowLow,
     /// The open was above the high.
@@ -82,6 +87,7 @@ impl fmt::Display for CandleError {
         match self {
             Self::InvalidNumber { field } => write!(formatter, "{field} is not a number"),
             Self::NonFinite { field } => write!(formatter, "{field} is not finite"),
+            Self::NonPositivePrice { field } => write!(formatter, "{field} must be positive"),
             Self::HighBelowLow => write!(formatter, "high is below low"),
             Self::OpenAboveHigh => write!(formatter, "open is above high"),
             Self::CloseAboveHigh => write!(formatter, "close is above high"),
@@ -108,7 +114,8 @@ impl Candle {
     /// # Errors
     ///
     /// Returns an error when a price or the volume is not finite, when the
-    /// OHLC values are inconsistent, or when the volume is negative.
+    /// OHLC values are inconsistent, when any OHLC price is zero or negative,
+    /// or when the volume is negative.
     pub fn new(
         series_index: u64,
         timestamp: i64,
@@ -144,6 +151,11 @@ impl Candle {
         if close < low {
             return Err(CandleError::CloseBelowLow);
         }
+
+        check_positive("open", open)?;
+        check_positive("high", high)?;
+        check_positive("low", low)?;
+        check_positive("close", close)?;
 
         Ok(Self {
             series_index,
@@ -234,6 +246,14 @@ fn check_finite(field: &'static str, value: f64) -> Result<(), CandleError> {
     }
 }
 
+fn check_positive(field: &'static str, value: f64) -> Result<(), CandleError> {
+    if value > 0.0 {
+        Ok(())
+    } else {
+        Err(CandleError::NonPositivePrice { field })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Candle, CandleError, RawCandle};
@@ -299,14 +319,21 @@ mod tests {
     }
 
     #[test]
-    fn accepts_negative_prices() {
-        let candle =
-            Candle::new(0, 0, -1.5, 0.0, -2.0, -1.0, None).expect("negative prices are valid");
+    fn rejects_negative_and_zero_prices() {
+        let negative = Candle::new(0, 0, -1.5, 0.0, -2.0, -1.0, None);
+        assert_eq!(
+            negative,
+            Err(CandleError::NonPositivePrice { field: "open" })
+        );
 
-        assert_eq!(candle.open(), -1.5);
-        assert_eq!(candle.high(), 0.0);
-        assert_eq!(candle.low(), -2.0);
-        assert_eq!(candle.close(), -1.0);
+        let zero = Candle::new(0, 0, 0.0, 1.0, 0.0, 1.0, None);
+        assert_eq!(zero, Err(CandleError::NonPositivePrice { field: "open" }));
+
+        let zero_low = Candle::new(0, 0, 1.0, 1.0, 0.0, 1.0, None);
+        assert_eq!(
+            zero_low,
+            Err(CandleError::NonPositivePrice { field: "low" })
+        );
     }
 
     #[test]

@@ -174,6 +174,7 @@ pub(crate) fn run_backtest(config: &RunConfig) -> Result<BacktestRun, PipelineEr
         strategy: config.strategy.engine,
         execution: config.execution.engine,
         portfolio: config.portfolio,
+        max_position_fraction: config.policy.risk.max_position_fraction,
     };
     quantrule_backtest::runner::run_backtest(&inputs.as_inputs(), &backtest)
         .map_err(PipelineError::Backtest)

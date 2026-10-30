@@ -302,7 +302,7 @@ mod tests {
             timestamp,
             open,
             open.max(close) + 1.0,
-            open.min(close) - 1.0,
+            open.min(close) - 0.5,
             close,
             volume,
         )
@@ -341,8 +341,8 @@ mod tests {
             fs::read_to_string(&path).expect("the artifact is readable"),
             concat!(
                 "Date,Open,High,Low,Close,Volume\n",
-                "1970-01-01 00:00:00+00:00,1.0,3.0,0.0,2.0,10.0\n",
-                "1970-01-01 00:01:00+00:00,2.0,3.0,0.5,1.5,0.0\n",
+                "1970-01-01 00:00:00+00:00,1.0,3.0,0.5,2.0,10.0\n",
+                "1970-01-01 00:01:00+00:00,2.0,3.0,1.0,1.5,0.0\n",
             )
         );
         assert!(!temp_path(&path).exists());
@@ -373,7 +373,7 @@ mod tests {
 
         assert_eq!(
             fs::read_to_string(&path).expect("the artifact is readable"),
-            "Date,Open,High,Low,Close,Volume\n1970-01-01 00:00:00+00:00,1.0,2.0,0.0,1.0,\n"
+            "Date,Open,High,Low,Close,Volume\n1970-01-01 00:00:00+00:00,1.0,2.0,0.5,1.0,\n"
         );
         assert!(!temp_path(&path).exists());
 

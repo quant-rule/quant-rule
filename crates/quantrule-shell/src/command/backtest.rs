@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use quantrule_backtest::runner::BacktestRun;
 use serde_json::{Map, Value, json};
 
-use super::report_run::{self, BundleOutput};
+use super::report_run::{self, BundleOutput, StrategyExecutionState, executed_counts};
 use super::types::{BacktestArgs, ParseError, ReportError, RunError};
 use crate::config::RunConfig;
 use crate::render_report;
@@ -139,7 +139,14 @@ fn execute(config: &RunConfig, out: &Path) -> Result<(BundleList, BacktestRun), 
         }))?;
     bundles.push((
         "strategy",
-        report_run::strategy_bundle_from_walk(config, out, timeframe, run.strategy_walk())?,
+        report_run::strategy_bundle_from_walk(
+            config,
+            out,
+            timeframe,
+            run.strategy_walk(),
+            StrategyExecutionState::Executed,
+            Some(executed_counts(&run)),
+        )?,
     ));
     bundles.push((
         "execution",

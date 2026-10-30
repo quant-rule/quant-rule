@@ -68,6 +68,46 @@ impl Store {
         })
     }
 
+    /// Opens an existing database read-write without creating it or migrating.
+    ///
+    /// The file is never created and no migration runs. A database whose
+    /// schema is newer than this binary is rejected; a version 1 or 2 database
+    /// is opened as stored for a delete-only operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Missing`] when the file does not exist,
+    /// [`StoreError::Open`] when it cannot be opened, and
+    /// [`StoreError::UnsupportedVersion`] when its schema is newer.
+    pub(crate) fn open_existing(path: &Path) -> Result<Self, StoreError> {
+        if !path.is_file() {
+            return Err(StoreError::Missing {
+                path: path.to_path_buf(),
+            });
+        }
+
+        let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)
+            .map_err(|source| map_error(source, path))?;
+        configure(&connection).map_err(|source| map_error(source, path))?;
+        let version = read_version(&connection, Some(path))?;
+        if version == 0 {
+            return Err(StoreError::Uninitialized {
+                path: path.to_path_buf(),
+            });
+        }
+        if version > SCHEMA_VERSION {
+            return Err(StoreError::UnsupportedVersion {
+                found: version,
+                supported: SCHEMA_VERSION,
+            });
+        }
+
+        Ok(Self {
+            connection,
+            path: Some(path.to_path_buf()),
+        })
+    }
+
     /// Opens an existing database read-only for inspection.
     ///
     /// The file is never created and no migration runs. A database whose schema

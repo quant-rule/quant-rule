@@ -405,6 +405,28 @@ fn quantity_floors_to_the_step() {
 }
 
 #[test]
+fn exact_step_boundaries_are_not_lost_to_binary_rounding() {
+    let mut config = config();
+    config.sizing = SizingMode::FixedNotional {
+        notional: 3.0,
+        quantity_step: 0.1,
+    };
+    let quantity = config
+        .size_entry(Side::Long, 1_000.0, 5.0)
+        .expect("the exact boundary is sizeable");
+    assert_eq!(quantity, 0.6);
+
+    config.sizing = SizingMode::FixedNotional {
+        notional: 0.3,
+        quantity_step: 0.1,
+    };
+    let quantity = config
+        .size_entry(Side::Long, 1_000.0, 3.0)
+        .expect("the exact boundary is sizeable");
+    assert_eq!(quantity, 0.1);
+}
+
+#[test]
 fn quantity_below_one_step_is_rejected() {
     let mut config = config();
     config.sizing = SizingMode::FixedNotional {

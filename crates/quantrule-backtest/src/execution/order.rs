@@ -153,6 +153,8 @@ pub enum RejectReason {
     NoNextBar,
     /// An exit order was submitted while no position was open.
     NoPosition,
+    /// An exit order named a side different from the open position.
+    WrongExitSide,
     /// An entry order was submitted while a position was already open.
     PositionAlreadyOpen,
     /// The next bar has zero volume, so no fill is possible.
@@ -168,6 +170,8 @@ pub enum RejectReason {
     /// An entry decision carried a quantity that is zero, negative, or not
     /// finite.
     NonPositiveQuantity,
+    /// The fill notional exceeded the caller's entry risk limit.
+    RiskLimit,
 }
 
 /// A request to trade one quantity of one instrument.
@@ -279,7 +283,12 @@ impl Order {
 /// let first = Candle::new(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0))?;
 /// engine.advance(&first)?;
 /// let batch = engine.submit(
-///     OrderIntent::Enter { side: Side::Long, bar_index: 0, open_time: 0 },
+///     OrderIntent::Enter {
+///         side: Side::Long,
+///         bar_index: 0,
+///         open_time: 0,
+///         max_notional: None,
+///     },
 ///     Some(1.0),
 ///     Some(1.0),
 /// )?;

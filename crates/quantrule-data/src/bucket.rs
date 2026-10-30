@@ -5,7 +5,33 @@
 //! present; an incomplete bucket is dropped rather than published with a
 //! misleading open or close.
 
-use crate::{CandleValues, Timeframe};
+use std::fmt;
+
+use crate::{CandleValues, Timeframe, format_utc_timestamp};
+
+/// A bucket could not accept a source candle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BucketError {
+    /// The summed volume exceeded the finite range of `f64`.
+    VolumeOverflow {
+        /// The UTC start timestamp of the bucket that overflowed.
+        bucket_start: i64,
+    },
+}
+
+impl fmt::Display for BucketError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::VolumeOverflow { bucket_start } => write!(
+                formatter,
+                "aggregated volume overflowed in the bucket starting {}",
+                format_utc_timestamp(*bucket_start)
+            ),
+        }
+    }
+}
+
+impl std::error::Error for BucketError {}
 
 /// An in-progress higher-timeframe bucket.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -56,15 +82,31 @@ impl Bucket {
     }
 
     /// Adds one M1 candle that belongs to this bucket.
-    pub(crate) fn push(&mut self, values: CandleValues) {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BucketError::VolumeOverflow`] when the summed volume is no
+    /// longer finite. The bucket is not modified in that case.
+    pub(crate) fn push(&mut self, values: CandleValues) -> Result<(), BucketError> {
+        let volume = match (self.volume, values.volume) {
+            (Some(total), Some(volume)) => {
+                let sum = total + volume;
+                if !sum.is_finite() {
+                    return Err(BucketError::VolumeOverflow {
+                        bucket_start: self.start,
+                    });
+                }
+                Some(sum)
+            }
+            _ => None,
+        };
+
         self.count += 1;
         self.high = self.high.max(values.high);
         self.low = self.low.min(values.low);
         self.close = values.close;
-        self.volume = match (self.volume, values.volume) {
-            (Some(total), Some(volume)) => Some(total + volume),
-            _ => None,
-        };
+        self.volume = volume;
+        Ok(())
     }
 
     /// Converts a complete bucket into the values of one candle.
@@ -114,23 +156,27 @@ mod tests {
     #[test]
     fn complete_bucket_keeps_ohlcv_and_sums_volume() {
         let mut bucket = Bucket::new(Timeframe::M5, values_at(BASE));
-        bucket.push(CandleValues {
-            timestamp: BASE + 60,
-            open: 3.0,
-            high: 5.0,
-            low: 2.0,
-            close: 4.0,
-            volume: Some(20.0),
-        });
-        for offset in 2..5 {
-            bucket.push(CandleValues {
-                timestamp: BASE + offset * 60,
-                open: 4.0,
-                high: 4.0,
-                low: 4.0,
+        bucket
+            .push(CandleValues {
+                timestamp: BASE + 60,
+                open: 3.0,
+                high: 5.0,
+                low: 2.0,
                 close: 4.0,
-                volume: Some(1.0),
-            });
+                volume: Some(20.0),
+            })
+            .expect("the bucket accepts the candle");
+        for offset in 2..5 {
+            bucket
+                .push(CandleValues {
+                    timestamp: BASE + offset * 60,
+                    open: 4.0,
+                    high: 4.0,
+                    low: 4.0,
+                    close: 4.0,
+                    volume: Some(1.0),
+                })
+                .expect("the bucket accepts the candle");
         }
 
         assert!(bucket.is_complete());
@@ -146,12 +192,37 @@ mod tests {
     #[test]
     fn missing_volume_makes_the_aggregate_volume_unknown() {
         let mut bucket = Bucket::new(Timeframe::M5, values_at(BASE));
-        bucket.push(CandleValues {
-            volume: None,
-            ..values_at(BASE + 60)
-        });
+        bucket
+            .push(CandleValues {
+                volume: None,
+                ..values_at(BASE + 60)
+            })
+            .expect("the bucket accepts the candle");
 
         assert_eq!(bucket.into_values().volume, None);
+    }
+
+    #[test]
+    fn volume_overflow_reports_the_bucket_and_leaves_it_unchanged() {
+        let mut bucket = Bucket::new(
+            Timeframe::M5,
+            CandleValues {
+                volume: Some(1e308),
+                ..values_at(BASE)
+            },
+        );
+        let error = bucket
+            .push(CandleValues {
+                volume: Some(1e308),
+                timestamp: BASE + 60,
+                ..values_at(BASE + 60)
+            })
+            .expect_err("the sum overflows");
+        assert_eq!(
+            error,
+            super::BucketError::VolumeOverflow { bucket_start: BASE }
+        );
+        assert_eq!(bucket.present(), 1);
     }
 
     #[test]
@@ -164,10 +235,12 @@ mod tests {
             },
         );
         for offset in 1..5 {
-            bucket.push(CandleValues {
-                volume: Some(0.0),
-                ..values_at(BASE + offset * 60)
-            });
+            bucket
+                .push(CandleValues {
+                    volume: Some(0.0),
+                    ..values_at(BASE + offset * 60)
+                })
+                .expect("the bucket accepts the candle");
         }
 
         assert_eq!(bucket.into_values().volume, Some(0.0));

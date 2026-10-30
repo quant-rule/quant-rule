@@ -112,9 +112,12 @@ or strategy decision.
 
 The standalone `report strategy` runs the data engine, the model, and the
 strategy. It does not run execution or portfolio accounting; its open-position
-state is the strategy's virtual walk. The `strategy` bundle written by
-`backtest` uses the executed walk instead, so its open-position state matches the
-execution and portfolio bundles. Both forms publish decisions, not fills.
+state is the strategy's virtual walk and its `execution_state` is `virtual`. The
+`strategy` bundle written by `backtest` uses the executed walk instead, so its
+open-position state matches the execution and portfolio bundles and its
+`execution_state` is `executed`. Both forms publish decisions, not fills; the
+executed form also publishes `executed_entries` and `executed_exits` so a
+decision that was rejected is not mistaken for a fill.
 
 Artifacts:
 
@@ -129,7 +132,8 @@ Artifacts:
 Summary fields:
 
 ```text
-bars, decisions, entries, exits, long_entries, short_entries,
+bars, execution_state, executed_entries, executed_exits,
+decisions, entries, exits, long_entries, short_entries,
 exit_reasons { agreement_lost },
 agreement_counts { long, short, neutral, unavailable },
 open_position_at_end

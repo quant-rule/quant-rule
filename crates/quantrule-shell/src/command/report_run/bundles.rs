@@ -929,12 +929,14 @@ fn reject_reason_code(reason: RejectReason) -> &'static str {
     match reason {
         RejectReason::NoNextBar => "no_next_bar",
         RejectReason::NoPosition => "no_position",
+        RejectReason::WrongExitSide => "wrong_exit_side",
         RejectReason::PositionAlreadyOpen => "position_already_open",
         RejectReason::ZeroVolume => "zero_volume",
         RejectReason::MissingAtr => "missing_atr",
         RejectReason::InvalidBracket => "invalid_bracket",
         RejectReason::MissingQuantity => "missing_quantity",
         RejectReason::NonPositiveQuantity => "non_positive_quantity",
+        RejectReason::RiskLimit => "risk_limit",
     }
 }
 

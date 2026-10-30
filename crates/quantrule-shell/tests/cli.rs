@@ -173,6 +173,18 @@ fn header_only_file_prints_nothing_and_succeeds() {
 }
 
 #[test]
+fn candles_reject_a_non_positive_price() {
+    let path = fixture("zero_price.csv");
+    let output = run(&["candles", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!("error: {path}: line 2: open must be positive\n")
+    );
+}
+
+#[test]
 fn over_window_prints_the_last_1000_candles() {
     let path = fixture("over_window.csv");
     let output = run(&["candles", &path]);
@@ -691,6 +703,18 @@ fn timeframes_invalid_candle_fails_without_stdout() {
 }
 
 #[test]
+fn timeframes_reject_a_non_positive_price() {
+    let path = fixture("zero_price.csv");
+    let output = run(&["timeframes", &path]);
+
+    assert_failure(&output);
+    assert_eq!(
+        stderr_text(&output),
+        format!("error: {path}: line 2: open must be positive\n")
+    );
+}
+
+#[test]
 fn timeframes_duplicate_timestamp_fails_without_stdout() {
     let path = fixture("duplicate.csv");
     let output = run(&["timeframes", &path]);
@@ -766,6 +790,19 @@ fn tolerant_mixed_prints_valid_candles_and_exact_report() {
     assert_eq!(
         stderr_text(&output),
         include_str!("fixtures/tolerant_mixed.report")
+    );
+}
+
+#[test]
+fn tolerant_duplicate_ordering_wins_over_candle_validity() {
+    let path = fixture("tolerant_invalid_duplicate.csv");
+    let output = run(&["candles-tolerant", &path]);
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output).lines().count(), 1);
+    assert_eq!(
+        stderr_text(&output),
+        include_str!("fixtures/tolerant_invalid_duplicate.report")
     );
 }
 

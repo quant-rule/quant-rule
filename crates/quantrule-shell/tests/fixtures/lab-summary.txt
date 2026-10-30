@@ -36,6 +36,8 @@ Observed result
   funding_received: 0.000000
   strategy_entries: 4
   strategy_exits: 3
+  executed_entries: -
+  executed_exits: -
   analytical_layer3_rows: 42
   model_ladder: 1m 5m 15m 1h
   model_events: level=3 divergence=1 signal=2 total=6

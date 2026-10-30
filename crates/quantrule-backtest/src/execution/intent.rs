@@ -23,8 +23,13 @@ pub enum OrderIntent {
         bar_index: usize,
         /// The decision bar's open time as UTC Unix seconds.
         open_time: i64,
+        /// The largest entry notional allowed at the fill, when the caller
+        /// enforces a risk envelope. `None` disables the check.
+        max_notional: Option<f64>,
     },
     /// Close the open position on the next bar.
+    ///
+    /// `side` must match the open position; a mismatch is rejected.
     Exit {
         /// The side the strategy believes is open.
         side: Side,

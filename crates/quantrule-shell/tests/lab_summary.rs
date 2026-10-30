@@ -224,6 +224,30 @@ fn a_provenance_data_version_mismatch_fails_before_writing() {
     assert!(!directory.join("summary.txt").exists());
 }
 
+fn insert_config_hash(directory: &Path, bundle: &str, hash: &str) {
+    let path = directory.join(bundle).join("provenance.json");
+    let text = fs::read_to_string(&path).expect("the provenance is readable");
+    let text = text.replacen('{', &format!("{{\n  \"config_hash\": \"{hash}\","), 1);
+    fs::write(&path, text).expect("the provenance is rewritten");
+}
+
+#[test]
+fn a_config_hash_mismatch_fails_before_writing() {
+    let directory = lab_dir("config-hash-mismatch");
+    insert_config_hash(&directory, "model", "aaaaaaaaaaaaaaaa");
+    insert_config_hash(&directory, "strategy", "bbbbbbbbbbbbbbbb");
+
+    let output = run(&arguments(&directory));
+
+    assert_failure(&output);
+    assert!(
+        stderr(&output).contains("config_hash"),
+        "unexpected stderr: {}",
+        stderr(&output)
+    );
+    assert!(!directory.join("summary.txt").exists());
+}
+
 #[test]
 fn notes_are_included_verbatim() {
     let directory = lab_dir("notes");

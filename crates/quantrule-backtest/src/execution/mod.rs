@@ -23,7 +23,9 @@
 //! | Target, long | the open when it gaps at or above the target, otherwise the target when the bar's high reaches it |
 //! | Target, short | the open when it gaps at or below the target, otherwise the target when the bar's low reaches it |
 //!
-//! If a bar reaches both the stop and the target, the stop wins. A fill's
+//! A gap at the open resolves first: an open at or beyond the target fills the
+//! target even if the bar later reaches the stop. If the open is between both
+//! levels and the bar reaches both, the stop wins. A fill's
 //! [`Fill::reference_price`] is the price selected above; [`Fill::slippage`] is
 //! the non-negative per-unit adjustment applied against the position, so a buy
 //! pays `reference + slippage` and a sell receives `reference - slippage`.

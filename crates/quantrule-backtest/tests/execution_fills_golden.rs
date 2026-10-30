@@ -26,6 +26,7 @@ fn intent(decision: Decision) -> OrderIntent {
             side: entry.side,
             bar_index: entry.bar.bar_index,
             open_time: entry.bar.open_time,
+            max_notional: None,
         },
         Decision::Exit(exit) => OrderIntent::Exit {
             side: exit.side,

@@ -1,9 +1,9 @@
 //! The config-driven `report` command.
 //!
-//! R1 wires the model and strategy bundles. The command loads the run
-//! configuration, runs only the engines the selected report needs, and writes
-//! the bundle through the shared writer. The other three report names answer
-//! with a clear not-implemented error until R2 and R3.
+//! The command loads the run configuration, runs only the engines the selected
+//! report needs, and writes the bundle through the shared writer. The strategy
+//! bundle is explicit about whether it is the virtual diagnostic walk or the
+//! executed backtest walk.
 
 use std::fmt::Write as _;
 use std::io::{self, Write};
@@ -142,7 +142,14 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
                 .ok_or_else(|| RunError::Report(ReportError::NoStrategyBars { timeframe_secs }))?;
             let walk =
                 walk_strategy(timeframe, &config.strategy.engine).map_err(RunError::Backtest)?;
-            strategy_bundle_from_walk(&config, &out, timeframe, &walk)?
+            strategy_bundle_from_walk(
+                &config,
+                &out,
+                timeframe,
+                &walk,
+                StrategyExecutionState::Virtual,
+                None,
+            )?
         }
         ReportEngine::Execution => {
             let run = run_pipeline(&config)?;
@@ -236,11 +243,58 @@ pub(super) fn model_bundle_from(
     })
 }
 
+/// Whether a strategy report is the execution-free diagnostic walk or the
+/// backtest's executed walk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum StrategyExecutionState {
+    /// Every decision is assumed to fill immediately.
+    Virtual,
+    /// Positions and outcomes come from the backtest execution.
+    Executed,
+}
+
+impl StrategyExecutionState {
+    const fn code(self) -> &'static str {
+        match self {
+            Self::Virtual => "virtual",
+            Self::Executed => "executed",
+        }
+    }
+}
+
+/// The entries and exits the backtest actually filled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct ExecutedCounts {
+    pub(super) entries: usize,
+    pub(super) exits: usize,
+}
+
+/// Counts the entries and exits the backtest actually filled.
+pub(super) fn executed_counts(run: &BacktestRun) -> ExecutedCounts {
+    let mut entries = 0;
+    let mut exits = 0;
+    for fill in run
+        .execution_batches()
+        .iter()
+        .flat_map(|batch| batch.fills.iter())
+    {
+        match fill.reason {
+            quantrule_backtest::execution::FillReason::Entry => entries += 1,
+            quantrule_backtest::execution::FillReason::Exit
+            | quantrule_backtest::execution::FillReason::StopLoss
+            | quantrule_backtest::execution::FillReason::TakeProfit => exits += 1,
+        }
+    }
+    ExecutedCounts { entries, exits }
+}
+
 pub(super) fn strategy_bundle_from_walk(
     config: &RunConfig,
     out: &Path,
     timeframe: &TimeframeModel,
     walk: &StrategyWalk,
+    execution_state: StrategyExecutionState,
+    executed: Option<ExecutedCounts>,
 ) -> Result<BundleOutput, RunError> {
     let bundle = out.join("strategy");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
@@ -254,7 +308,7 @@ pub(super) fn strategy_bundle_from_walk(
 
     let inputs = walk.inputs();
     let decisions = walk.decisions();
-    let summary = summarize_walk(walk, timeframe.len());
+    let summary = summarize_walk(walk, timeframe.len(), execution_state, executed);
     let csv = decisions_csv(inputs, decisions, timeframe_secs);
     let report_json = strategy_json(config, timeframe, inputs, decisions, &summary);
     let summary_text = strategy_summary(config, &summary);
@@ -314,9 +368,17 @@ struct StrategySummary {
     agreements_neutral: usize,
     agreements_unavailable: usize,
     open_position: Option<Side>,
+    execution_state: Option<StrategyExecutionState>,
+    executed_entries: Option<usize>,
+    executed_exits: Option<usize>,
 }
 
-fn summarize_walk(walk: &StrategyWalk, bars: usize) -> StrategySummary {
+fn summarize_walk(
+    walk: &StrategyWalk,
+    bars: usize,
+    execution_state: StrategyExecutionState,
+    executed: Option<ExecutedCounts>,
+) -> StrategySummary {
     let agreements = walk.agreements();
     let mut summary = StrategySummary {
         bars,
@@ -325,6 +387,9 @@ fn summarize_walk(walk: &StrategyWalk, bars: usize) -> StrategySummary {
         agreements_neutral: agreements.neutral,
         agreements_unavailable: agreements.unavailable,
         open_position: walk.open_position(),
+        execution_state: Some(execution_state),
+        executed_entries: executed.map(|counts| counts.entries),
+        executed_exits: executed.map(|counts| counts.exits),
         ..StrategySummary::default()
     };
 
@@ -407,6 +472,7 @@ fn strategy_json(
         "report": "strategy",
         "report_version": render_report::REPORT_VERSION,
         "model_version": env!("CARGO_PKG_VERSION"),
+        "execution_state": summary.execution_state.map_or("virtual", |state| state.code()),
         "data_version": config.data.data_version,
         "requested_period": {
             "from": config.data.from,
@@ -435,6 +501,8 @@ fn strategy_json(
                 "unavailable": summary.agreements_unavailable,
             },
             "open_position": summary.open_position.map(|side| side.code()),
+            "executed_entries": summary.executed_entries,
+            "executed_exits": summary.executed_exits,
         },
         "records": {"decisions": records},
     })
@@ -461,6 +529,27 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
         config.strategy.engine.short_threshold()
     );
     let _ = writeln!(out, "bars: {}", summary.bars);
+    let _ = writeln!(
+        out,
+        "execution_state: {}",
+        summary
+            .execution_state
+            .map_or("virtual", |state| state.code())
+    );
+    let _ = writeln!(
+        out,
+        "executed_entries: {}",
+        summary
+            .executed_entries
+            .map_or_else(|| String::from("-"), |count| count.to_string())
+    );
+    let _ = writeln!(
+        out,
+        "executed_exits: {}",
+        summary
+            .executed_exits
+            .map_or_else(|| String::from("-"), |count| count.to_string())
+    );
     let _ = writeln!(out, "decisions: {}", summary.entries + summary.exits);
     let _ = writeln!(out, "entries: {}", summary.entries);
     let _ = writeln!(out, "exits: {}", summary.exits);

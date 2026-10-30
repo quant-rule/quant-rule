@@ -100,7 +100,11 @@ fn each_bundle_matches_the_standalone_report() {
     ]);
     assert_success(&output);
 
-    for engine in ENGINES {
+    for engine in ENGINES
+        .iter()
+        .copied()
+        .filter(|engine| *engine != "strategy")
+    {
         let standalone = output_dir(&format!("backtest-compare-{engine}"));
         let output = run(&[
             "report",
@@ -133,6 +137,25 @@ fn each_bundle_matches_the_standalone_report() {
             );
         }
     }
+
+    let standalone = output_dir("backtest-compare-strategy");
+    let output = run(&[
+        "report",
+        "strategy",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        standalone.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert_success(&output);
+    let executed = String::from_utf8(read(&backtest.join("strategy/report.json")))
+        .expect("executed strategy report is UTF-8");
+    let virtual_report = String::from_utf8(read(&standalone.join("strategy/report.json")))
+        .expect("virtual strategy report is UTF-8");
+    assert!(executed.contains("\"execution_state\":\"executed\""));
+    assert!(virtual_report.contains("\"execution_state\":\"virtual\""));
+    assert!(executed.contains("\"executed_entries\":"));
+    assert!(virtual_report.contains("\"executed_entries\":null"));
 }
 
 #[test]
