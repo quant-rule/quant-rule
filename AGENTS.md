@@ -43,7 +43,8 @@ The Rust workspace holds one crate per pipeline stage, plus the research engine,
 
 - `crates/quantrule-data` — the data engine.
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
-- `crates/quantrule-shell` — the shell binary, which depends on `quantrule-model` and `quantrule-data`.
+- `crates/quantrule-backtest` — the strategy, execution, and portfolio engines and the deterministic runner, which depend on `quantrule-model` and `quantrule-data`.
+- `crates/quantrule-shell` — the shell binary, which depends on `quantrule-model`, `quantrule-backtest`, `quantrule-analytics`, and `quantrule-data`.
 - `crates/quantrule-analytics` — the research engine, which depends on `quantrule-model` and builds the research dataset. It is not a pipeline stage; the shell owns its I/O.
 
 The decision stack above the pipeline is one-way:

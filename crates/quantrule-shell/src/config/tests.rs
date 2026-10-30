@@ -19,10 +19,6 @@ use super::error::ConfigErrorKind::{
 };
 use super::{ConfigError, analytics, data, execution, model, policy, portfolio, run, strategy};
 
-fn parse_json(text: &str) -> Value {
-    serde_json::from_str(text).expect("the test JSON is valid")
-}
-
 fn set(mut value: Value, path: &[&str], replacement: Value) -> Value {
     let (last, parents) = path.split_last().expect("the path is not empty");
     let mut current = &mut value;
