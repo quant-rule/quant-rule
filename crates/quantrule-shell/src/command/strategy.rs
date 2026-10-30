@@ -16,14 +16,14 @@ use std::path::PathBuf;
 use quantrule_backtest::strategy::{
     AxisAgreementStrategy, Decision, ExitReason, Side, Strategy, StrategyConfig, StrategyInput,
 };
-use quantrule_data::{Candle, Timeframe, format_utc_timestamp};
-use quantrule_model::input::{MarketStateConfig, TimeframeInput};
+use quantrule_data::{Timeframe, format_utc_timestamp};
+use quantrule_model::input::MarketStateConfig;
 use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
 use super::types::{ParseError, RunError, StrategyRunArgs, StrategyRunError};
-use crate::csv;
 use crate::labels;
+use crate::pipeline;
 use crate::source::DateBounds;
 
 /// The strategy name the command accepts.
@@ -192,12 +192,12 @@ pub(crate) fn run_strategy_run(
     args: &StrategyRunArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let config = match &args.config {
+    let (config, model_config) = match &args.config {
         Some(path) => {
             let run = crate::config::RunConfig::load(path).map_err(RunError::Config)?;
-            run.strategy.engine
+            (run.strategy.engine, run.model)
         }
-        None => StrategyConfig::default(),
+        None => (StrategyConfig::default(), MarketStateConfig::default()),
     };
     let mut strategy = build_strategy(&args.strategy, config).ok_or_else(|| {
         RunError::StrategyRun(StrategyRunError::UnknownStrategy {
@@ -210,29 +210,24 @@ pub(crate) fn run_strategy_run(
         })
     })?;
 
-    let set = csv::load_extended_timeframes(&args.path, args.bounds).map_err(RunError::Source)?;
+    let set = pipeline::load_extended_set(&args.path, args.bounds).map_err(RunError::Source)?;
     if set.series(Timeframe::M1).is_empty() {
         return Err(RunError::StrategyRun(StrategyRunError::EmptyPeriod {
             period: args.requested_period(),
         }));
     }
 
-    let candles: Vec<Candle> = set.series(timeframe).iter().copied().collect();
-    let model = TimeframeModel::compute(
-        &TimeframeInput {
-            timeframe_secs: config.timeframe_secs(),
-            candles: &candles,
-        },
-        &MarketStateConfig::default(),
-    )
-    .ok_or_else(|| {
-        RunError::StrategyRun(StrategyRunError::NoTimeframeBars {
-            timeframe_secs: config.timeframe_secs(),
-            period: args.requested_period(),
-        })
-    })?;
+    let run = pipeline::model_run_from_set(&set, &model_config);
+    let model = run
+        .timeframe(u64::from(timeframe.seconds()))
+        .ok_or_else(|| {
+            RunError::StrategyRun(StrategyRunError::NoTimeframeBars {
+                timeframe_secs: config.timeframe_secs(),
+                period: args.requested_period(),
+            })
+        })?;
 
-    let records = collect_records(&model, &mut strategy);
+    let records = collect_records(model, &mut strategy);
     if args.json {
         write_line(&envelope_value(args, &config, &records), writer).map_err(RunError::Output)?;
     } else {

@@ -9,11 +9,11 @@ use std::fmt::Write as _;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use quantrule_backtest::runner::{BacktestConfig, BacktestRun, run_backtest};
+use quantrule_backtest::runner::BacktestRun;
 use quantrule_backtest::strategy::{
     Agreement, AxisAgreementStrategy, Decision, ExitReason, Side, Strategy, StrategyInput,
 };
-use quantrule_data::{Candle, Timeframe, TimeframeSet, format_utc_timestamp};
+use quantrule_data::{Timeframe, format_utc_timestamp};
 use quantrule_model::readings::PivotScale;
 use quantrule_model::report::MarketReport;
 use quantrule_model::run::ModelRun;
@@ -22,16 +22,12 @@ use serde_json::{Value, json};
 
 pub(super) mod bundles;
 
-pub(super) use super::model;
 use super::types::{ParseError, ReportArgs, ReportEngine, ReportError, RunError};
 use crate::chart;
 use crate::config::RunConfig;
-use crate::csv;
+use crate::pipeline::{self, PipelineError};
 use crate::render_report::{self, Provenance};
 use crate::source::DateRange;
-
-/// The configured timeframe ladder passed to the model report.
-const LADDER: [u64; 4] = [60, 300, 900, 3_600];
 
 /// Parses the already-split arguments of `report`.
 ///
@@ -174,7 +170,7 @@ pub(super) fn model_bundle_from(
     let bundle = out.join("model");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
-    let report = MarketReport::compute(model_run, &LADDER);
+    let report = MarketReport::compute(model_run, &pipeline::ladder_secs());
     if report.charts.bars.is_empty() {
         return Err(RunError::Report(ReportError::EmptyChart {
             period: period_label(config),
@@ -563,56 +559,21 @@ fn chart_range(
 
 /// Runs the full pipeline once for the execution and portfolio reports.
 pub(super) fn run_pipeline(config: &RunConfig) -> Result<BacktestRun, RunError> {
-    let set = load_set(config)?;
-    let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
-    let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
-    let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
-    let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
-    let inputs = [
-        quantrule_model::input::TimeframeInput {
-            timeframe_secs: u64::from(Timeframe::M1.seconds()),
-            candles: &m1,
-        },
-        quantrule_model::input::TimeframeInput {
-            timeframe_secs: u64::from(Timeframe::M5.seconds()),
-            candles: &m5,
-        },
-        quantrule_model::input::TimeframeInput {
-            timeframe_secs: u64::from(Timeframe::M15.seconds()),
-            candles: &m15,
-        },
-        quantrule_model::input::TimeframeInput {
-            timeframe_secs: u64::from(Timeframe::H1.seconds()),
-            candles: &h1,
-        },
-    ];
-    let backtest = BacktestConfig {
-        model: config.model,
-        strategy: config.strategy.engine,
-        execution: config.execution.engine,
-        portfolio: config.portfolio,
-    };
-    run_backtest(&inputs, &backtest).map_err(RunError::Backtest)
+    pipeline::run_backtest(config).map_err(|error| pipeline_error(config, error))
 }
 
 fn load_model(config: &RunConfig) -> Result<ModelRun, RunError> {
-    let set = load_set(config)?;
-    Ok(model::model_run_from_set_with_config(&set, config.model))
+    pipeline::run_model(config).map_err(|error| pipeline_error(config, error))
 }
 
-fn load_set(config: &RunConfig) -> Result<TimeframeSet, RunError> {
-    let set = csv::load_timeframes_with_limit(
-        &config.data.source.path,
-        config.data.bounds,
-        config.data.max_candles,
-    )
-    .map_err(RunError::Source)?;
-    if set.series(Timeframe::M1).is_empty() {
-        return Err(RunError::Report(ReportError::EmptyPeriod {
+fn pipeline_error(config: &RunConfig, error: PipelineError) -> RunError {
+    match error {
+        PipelineError::Source(error) => RunError::Source(error),
+        PipelineError::Backtest(error) => RunError::Backtest(error),
+        PipelineError::EmptyPeriod => RunError::Report(ReportError::EmptyPeriod {
             period: period_label(config),
-        }));
+        }),
     }
-    Ok(set)
 }
 
 fn strategy_value(config: &RunConfig) -> Value {

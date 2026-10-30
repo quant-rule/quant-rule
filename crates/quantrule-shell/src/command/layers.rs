@@ -8,10 +8,9 @@ use std::path::Path;
 
 use quantrule_analytics::layers::{LayerConfig, LayerSet, build_layers};
 use quantrule_data::{Candle, Timeframe};
-use quantrule_model::input::TimeframeInput;
 
 use super::types::{RunError, WindowMode};
-use crate::csv;
+use crate::pipeline::{self, ModelInputs};
 
 /// One layer build and its accepted M1 candles.
 pub(crate) struct LayerBuild {
@@ -28,38 +27,12 @@ pub(crate) fn load_layers_with_window(
     path: &Path,
     window: WindowMode,
 ) -> Result<LayerBuild, RunError> {
-    let set = match window {
-        WindowMode::Full => csv::load_full_timeframes(path),
-        WindowMode::Latest => csv::load_timeframes(path),
-    }
-    .map_err(RunError::Source)?;
+    let set = pipeline::load_set(path, window).map_err(RunError::Source)?;
     let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
-    let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
-    let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
-    let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
+    let inputs = ModelInputs::from_set(&set);
 
-    let layers = build_layers(
-        &[
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M1.seconds()),
-                candles: &m1,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M5.seconds()),
-                candles: &m5,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M15.seconds()),
-                candles: &m15,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::H1.seconds()),
-                candles: &h1,
-            },
-        ],
-        &LayerConfig::default(),
-    )
-    .map_err(RunError::Layers)?;
+    let layers =
+        build_layers(&inputs.as_inputs(), &LayerConfig::default()).map_err(RunError::Layers)?;
 
     Ok(LayerBuild { layers, m1 })
 }

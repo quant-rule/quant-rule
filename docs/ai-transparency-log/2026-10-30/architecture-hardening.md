@@ -59,6 +59,19 @@
 - Verification and evidence: `cargo check --workspace --all-targets` passed; `cargo test -p quantrule-backtest` passed (152 unit tests, integration suites, and 2 boundary tests); `cargo clippy -p quantrule-backtest --all-targets` passed; `cargo test -p quantrule-backtest --doc` passed 38 doctests. The execution golden fixtures were not regenerated.
 - Learning: the engine still validates the same bar index and open time, so the rejection behavior is preserved. The `Decision` name remains in the existing `ExecutionError` variants for compatibility; the type itself is no longer imported.
 
+## Entry 5 — Phase 3a shell pipeline
+
+- Date: 2026-10-30 (UTC)
+- Intent and boundary: make one shell pipeline own the source-to-model path, remove the duplicate ladder/input construction, and make `strategy-run --config` honor the run model config. The strategy decision rule is unchanged.
+- What the AI did:
+  - Added `shell/src/pipeline.rs` with `WindowMode`, `ModelInputs`, `load_set`, `load_extended_set`, `load_set_with_limit`, `model_run_from_set`, `run_model`, `run_backtest`, and `ladder_secs`.
+  - Replaced the four `TimeframeInput` construction sites in `command/model.rs`, `command/layers.rs`, `command/report_run.rs`, and `command/strategy.rs`.
+  - Removed the duplicate `LADDER` constants from `command/report.rs`, `command/report_run.rs`, and `config/data.rs`; the ladder now comes from `Timeframe::ALL`.
+  - `strategy-run` now carries `run.model` into the model run instead of `MarketStateConfig::default()`.
+  - Added an end-to-end test that runs `strategy-run --config` against a minor-structure-scale config and compares its decisions with `report strategy`.
+- Verification and evidence: `cargo test -p quantrule-shell` passed (including the 99 CLI tests, all report/backtest/store suites, and the new 12th strategy-run test); `cargo clippy -p quantrule-shell --all-targets` passed. The new test was also checked manually: the minor config produced 17 records while the default major config produced 13, so the test is sensitive to the fix.
+- Learning: computing the full four-timeframe model for `strategy-run` adds work compared with the old single-timeframe path, but it uses the same model contract as the report/backtest path and removes the last shell `TimeframeInput` literal. The command is a diagnostic, so the extra computation is acceptable in this refactor.
+
 ## Phase evidence
 
 | Phase | Command | Observed | Date |
@@ -76,6 +89,8 @@
 | 2 | `cargo test -p quantrule-backtest` | 152 unit tests, integration suites, and 2 boundary tests passed | 2026-10-30 |
 | 2 | `cargo clippy -p quantrule-backtest --all-targets` | no warnings | 2026-10-30 |
 | 2 | `cargo test -p quantrule-backtest --doc` | 38 doctests passed | 2026-10-30 |
+| 3a | `cargo test -p quantrule-shell` | all shell suites passed; 12 strategy-run tests including the new config test | 2026-10-30 |
+| 3a | `cargo clippy -p quantrule-shell --all-targets` | no warnings | 2026-10-30 |
 
 ## Open items
 

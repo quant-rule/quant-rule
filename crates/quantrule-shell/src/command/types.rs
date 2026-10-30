@@ -128,33 +128,7 @@ impl Axis {
     }
 }
 
-/// The input window used by a model analysis command.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) enum WindowMode {
-    /// Use the full supported series, up to the dataset cap.
-    #[default]
-    Full,
-    /// Use the last [`quantrule_data::DEFAULT_WINDOW`] candles per timeframe.
-    Latest,
-}
-
-impl WindowMode {
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
-        match code {
-            "full" => Some(Self::Full),
-            "latest" => Some(Self::Latest),
-            _ => None,
-        }
-    }
-
-    /// The stable code used in the dashboard header.
-    pub(crate) const fn code(self) -> &'static str {
-        match self {
-            Self::Full => "full",
-            Self::Latest => "latest",
-        }
-    }
-}
+pub(crate) use crate::pipeline::WindowMode;
 
 /// The path and input window shared by the model analysis commands.
 #[derive(Debug, Clone, PartialEq, Eq)]

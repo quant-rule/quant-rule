@@ -431,3 +431,108 @@ fn a_missing_data_version_is_rejected() {
         stderr_text(&output)
     );
 }
+
+/// Copies the example run configuration and points it at `source`.
+fn run_config_with(source: &str, structure_scale: &str) -> PathBuf {
+    let target = evidence_dir(&format!("config-{structure_scale}"));
+    if target.exists() {
+        fs::remove_dir_all(&target).expect("the old config copy is removed");
+    }
+    fs::create_dir_all(&target).expect("the config copy directory is created");
+    let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../config/examples/solusd-2025");
+    for entry in fs::read_dir(&example).expect("the example config is readable") {
+        let entry = entry.expect("the example entry is readable");
+        if entry.path().is_file() {
+            fs::copy(entry.path(), target.join(entry.file_name()))
+                .expect("the config file is copied");
+        }
+    }
+
+    let data_path = target.join("data.json");
+    let mut data: Value =
+        serde_json::from_str(&fs::read_to_string(&data_path).expect("data.json is read"))
+            .expect("data.json is JSON");
+    data["source"]["path"] = Value::String(source.to_owned());
+    fs::write(
+        &data_path,
+        serde_json::to_vec_pretty(&data).expect("data.json is written"),
+    )
+    .expect("data.json is written");
+
+    let model_path = target.join("model.json");
+    let mut model: Value =
+        serde_json::from_str(&fs::read_to_string(&model_path).expect("model.json is read"))
+            .expect("model.json is JSON");
+    model["structure_scale"] = Value::String(structure_scale.to_owned());
+    fs::write(
+        &model_path,
+        serde_json::to_vec_pretty(&model).expect("model.json is written"),
+    )
+    .expect("model.json is written");
+
+    let analytics_path = target.join("analytics.json");
+    let mut analytics: Value =
+        serde_json::from_str(&fs::read_to_string(&analytics_path).expect("analytics.json is read"))
+            .expect("analytics.json is JSON");
+    analytics["structure_scale"] = Value::String(structure_scale.to_owned());
+    fs::write(
+        &analytics_path,
+        serde_json::to_vec_pretty(&analytics).expect("analytics.json is written"),
+    )
+    .expect("analytics.json is written");
+
+    target.join("run.json")
+}
+
+#[test]
+fn strategy_run_uses_the_run_model_config() {
+    let source = long_series();
+    let run_config = run_config_with(source, "minor");
+
+    let strategy = run(&[
+        "strategy-run",
+        source,
+        "--strategy",
+        STRATEGY,
+        "--data-version",
+        DATA_VERSION,
+        "--config",
+        run_config.to_str().expect("the run path is UTF-8"),
+        "--json",
+    ]);
+    assert_success(&strategy);
+    let strategy: Value =
+        serde_json::from_slice(&strategy.stdout).expect("strategy-run prints JSON");
+    let records = strategy["records"]
+        .as_array()
+        .expect("strategy-run records are an array");
+
+    let out = evidence_dir("report-minor");
+    if out.exists() {
+        fs::remove_dir_all(&out).expect("the old report is removed");
+    }
+    let report = run(&[
+        "report",
+        "strategy",
+        "--config",
+        run_config.to_str().expect("the run path is UTF-8"),
+        "--out",
+        out.to_str().expect("the report path is UTF-8"),
+        "--json",
+    ]);
+    assert_success(&report);
+    let report: Value = serde_json::from_slice(&report.stdout).expect("report prints JSON");
+    let decisions = report["records"]["decisions"]
+        .as_array()
+        .expect("report decisions are an array");
+
+    assert_eq!(records.len(), decisions.len());
+    for (record, decision) in records.iter().zip(decisions) {
+        for key in ["type", "side", "bar"] {
+            assert_eq!(record[key], decision[key], "decision field {key} differs");
+        }
+        for key in ["direction", "momentum_force", "structure_score"] {
+            assert_eq!(record[key], decision[key], "model field {key} differs");
+        }
+    }
+}

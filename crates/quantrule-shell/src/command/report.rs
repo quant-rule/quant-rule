@@ -11,18 +11,15 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use quantrule_data::Timeframe;
+use quantrule_model::input::MarketStateConfig;
 use quantrule_model::report::MarketReport;
 
-use super::model;
 use super::types::{MarketReportArgs, ParseError, ReportError, RunError};
 use crate::chart;
-use crate::csv;
 use crate::export;
+use crate::pipeline;
 use crate::render_report;
 use crate::source::DateBounds;
-
-/// The configured timeframe ladder passed to the view.
-const LADDER: [u64; 4] = [60, 300, 900, 3_600];
 
 /// The artifact names, in the contract's fixed order.
 const ARTIFACTS: [&str; 4] = ["summary.txt", "report.json", "price-axes.png", "events.png"];
@@ -167,15 +164,15 @@ pub(crate) fn run_market_report(
 ) -> Result<(), RunError> {
     ensure_output_available(&args.out).map_err(RunError::Report)?;
 
-    let set = csv::load_extended_timeframes(&args.path, args.bounds).map_err(RunError::Source)?;
+    let set = pipeline::load_extended_set(&args.path, args.bounds).map_err(RunError::Source)?;
     if set.series(Timeframe::M1).is_empty() {
         return Err(RunError::Report(ReportError::EmptyPeriod {
             period: args.requested_period(),
         }));
     }
 
-    let run = model::model_run_from_set(&set);
-    let report = MarketReport::compute(&run, &LADDER);
+    let run = pipeline::model_run_from_set(&set, &MarketStateConfig::default());
+    let report = MarketReport::compute(&run, &pipeline::ladder_secs());
     if report.charts.bars.is_empty() {
         return Err(RunError::Report(ReportError::EmptyChart {
             period: args.requested_period(),

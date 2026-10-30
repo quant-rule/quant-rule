@@ -7,13 +7,13 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use quantrule_data::{Candle, DEFAULT_WINDOW, Timeframe, TimeframeSet};
-use quantrule_model::input::{MarketStateConfig, TimeframeInput};
+use quantrule_data::{DEFAULT_WINDOW, Timeframe};
+use quantrule_model::input::MarketStateConfig;
 use quantrule_model::run::ModelRun;
 use quantrule_model::state::MarketState;
 
 use super::types::{Axis, ModelArgs, ModelSeriesArgs, ParseError, RunError, WindowMode};
-use crate::csv;
+use crate::pipeline;
 use crate::render_state;
 
 /// Parses the already-split arguments of a model analysis command.
@@ -307,53 +307,11 @@ pub(crate) fn run_model_series(
 }
 
 pub(crate) fn load_model_run(path: &Path, window: WindowMode) -> Result<ModelRun, RunError> {
-    let set = match window {
-        WindowMode::Full => csv::load_full_timeframes(path),
-        WindowMode::Latest => csv::load_timeframes(path),
-    }
-    .map_err(RunError::Source)?;
-    Ok(model_run_from_set(&set))
-}
-
-/// Builds the four-timeframe model run from an already loaded set.
-///
-/// The shell owns the source access and the data engine owns the ladder; this
-/// helper only copies the four series into the model's input shape.
-pub(crate) fn model_run_from_set(set: &TimeframeSet) -> ModelRun {
-    model_run_from_set_with_config(set, MarketStateConfig::default())
-}
-
-/// Builds the model run for the supplied timeframe set and configuration.
-pub(crate) fn model_run_from_set_with_config(
-    set: &TimeframeSet,
-    config: MarketStateConfig,
-) -> ModelRun {
-    let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
-    let m5: Vec<Candle> = set.series(Timeframe::M5).iter().copied().collect();
-    let m15: Vec<Candle> = set.series(Timeframe::M15).iter().copied().collect();
-    let h1: Vec<Candle> = set.series(Timeframe::H1).iter().copied().collect();
-
-    ModelRun::compute(
-        &[
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M1.seconds()),
-                candles: &m1,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M5.seconds()),
-                candles: &m5,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::M15.seconds()),
-                candles: &m15,
-            },
-            TimeframeInput {
-                timeframe_secs: u64::from(Timeframe::H1.seconds()),
-                candles: &h1,
-            },
-        ],
-        &config,
-    )
+    let set = pipeline::load_set(path, window).map_err(RunError::Source)?;
+    Ok(pipeline::model_run_from_set(
+        &set,
+        &MarketStateConfig::default(),
+    ))
 }
 
 fn load_market_state(path: &Path, window: WindowMode) -> Result<MarketState, RunError> {
