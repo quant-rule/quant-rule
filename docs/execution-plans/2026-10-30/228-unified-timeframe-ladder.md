@@ -8,7 +8,7 @@
 - **Sub-issues:** [#229](https://github.com/quant-rule/quant-rule/issues/229) through [#237](https://github.com/quant-rule/quant-rule/issues/237)
 - **AI transparency log:** [`docs/ai-transparency-log/2026-10-30/228-unified-timeframe-ladder.md`](../../ai-transparency-log/2026-10-30/228-unified-timeframe-ladder.md)
 - **Claim type:** architecture and behavior change; no profitability claim
-- **Implementation status:** Phase 1 (contracts) in progress; code phases pending
+- **Implementation status:** Phase 1 PR [#238](https://github.com/quant-rule/quant-rule/pull/238) open; CI passed; code phases pending
 
 ## 1. Intent
 
@@ -581,12 +581,14 @@ These thresholds are strategy config values, not statistical estimates.
 
 - [x] Human approves the plan.
 - [x] Create parent issue #228 and sub-issues #229–#237.
-- [ ] Commit the plan and AI log.
+- [x] Commit the plan and AI log.
 - [x] Create the task worktree and branch for #229.
 
 ### Phase 1 — ADR and contracts (issue #229)
 
 **Goal:** Define the architecture before code.
+
+**PR:** [#238](https://github.com/quant-rule/quant-rule/pull/238) — open; `verify` and `sync` passed.
 
 **Files:**
 

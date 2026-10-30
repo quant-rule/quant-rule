@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#228](https://github.com/quant-rule/quant-rule/issues/228)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Phase 1 in progress; code phases pending
+- Status: Phase 1 PR [#238](https://github.com/quant-rule/quant-rule/pull/238) open; CI passed; code phases pending
 
 ## Intent and boundary
 
@@ -56,6 +56,8 @@ portfolio, or analytics behavior has changed in this work item yet.
 | AI log exists at the matching path | Observed |
 | Parent and sub-issues created | #228, #229–#237 observed |
 | Worktree and branch created | `quant-rule--229-ladder-contract`, `arch/229-ladder-contract` observed |
+| Phase 1 PR | #238 opened |
+| CI `verify` and `sync` | Passed |
 | Code behavior changed | No |
 | Tests run in Phase 1 | None claimed; documentation-only |
 
