@@ -62,11 +62,20 @@ It downloads about 31 MB and takes a few minutes.
 
 ```bash
 test -f data/SOLUSD_M1_2025-01-01_2025-12-31.csv && echo "data ready"
-quantrule backtest --config config/examples/solusd-2025/run.json --out data/first-run
+lab=data/lab-result-2026-10-29T12-00-00Z
+quantrule backtest --config config/examples/solusd-2025/run.json --out "$lab"
+quantrule lab summary "$lab" \
+  --role researcher \
+  --data-version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31 \
+  --config config/examples/solusd-2025/run.json \
+  --created-utc 2026-10-29T12:00:00Z
 ```
 
-The last command prints five paths under `data/first-run/` and takes about 20
-seconds on a release build. When it does, the machine is set up.
+The backtest prints five bundle paths under `$lab`; `lab summary` adds
+`$lab/summary.txt` for the whole folder. Replace the timestamp with the UTC
+time of the run: a lab result folder uses `YYYY-MM-DDTHH-MM-SSZ`, and
+`--created-utc` uses `YYYY-MM-DDTHH:MM:SSZ`. The backtest takes about 20 seconds
+on a release build. When it does, the machine is set up.
 
 When the code changes, rebuild with `cargo build --release -p quantrule-shell`;
 the `PATH` entry keeps pointing at the new binary.
@@ -120,11 +129,12 @@ cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1
 cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauusd_2025.png
 ```
 
-A full config-driven run and its five report bundles:
+A full config-driven run, its five report bundles, and the root lab summary:
 
 ```bash
-cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/solusd-2025
-cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/solusd-2025
+cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/lab-result-2026-10-29T12-00-00Z
+cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/portfolio-report
+cargo run -p quantrule-shell -- lab summary data/lab-result-2026-10-29T12-00-00Z --role researcher --data-version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31 --config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z
 ```
 
 ## Commands
@@ -141,6 +151,7 @@ cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd
 | `strategy-run` | `<csv-path> --strategy <name> --data-version <id>` [options] | Strategy entries and exits as NDJSON; no fills, positions, equity, or P&L |
 | `report` | `<model\|strategy\|execution\|portfolio\|analytical> --config <run.json>` [options] | One bundle under `<out>/<engine>/`; with `--json`, the `report.json` bytes |
 | `backtest` | `--config <run.json>` [options] | One full run and all five bundles; the model is computed once and the analytical summary streams from it; with `--json`, a summary envelope |
+| `lab summary` | `<lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <ts>` [options] | A deterministic root `summary.txt` for a lab result folder; prints `wrote <path>` |
 | `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
 | `legs` | `<csv-path>` [`--window full\|latest`] | The minor and major leg per timeframe as NDJSON |
@@ -363,30 +374,46 @@ A fresh checkout has no source data, because `data/` is not committed. The examp
 
 ```bash
 cargo run -p quantrule-shell -- fetch sol/usd 2025-01-01 2025-12-31 --csv data/SOLUSD_M1_2025-01-01_2025-12-31.csv
-cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/solusd-2025
+cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/lab-result-2026-10-29T12-00-00Z
 ```
 
 Without `--json`, the command prints the five bundle paths in contract order:
 
 ```text
-data/solusd-2025/model
-data/solusd-2025/strategy
-data/solusd-2025/execution
-data/solusd-2025/portfolio
-data/solusd-2025/analytical
+data/lab-result-2026-10-29T12-00-00Z/model
+data/lab-result-2026-10-29T12-00-00Z/strategy
+data/lab-result-2026-10-29T12-00-00Z/execution
+data/lab-result-2026-10-29T12-00-00Z/portfolio
+data/lab-result-2026-10-29T12-00-00Z/analytical
 ```
 
 `--json` prints one envelope instead:
 
 ```json
-{"actual_period":{"first_open_time":1735740900,"last_open_time":1767191400},"bundles":{"analytical":"data/solusd-2025/analytical","execution":"data/solusd-2025/execution","model":"data/solusd-2025/model","portfolio":"data/solusd-2025/portfolio","strategy":"data/solusd-2025/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","model_version":"0.2.0","portfolio":{"final_equity":8016.143909900684,"halted":true,"max_drawdown":0.20315025809884202,"net_pnl":-1983.85609009931,"total_return":-0.19838560900993163,"trades":48},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
+{"actual_period":{"first_open_time":1735740900,"last_open_time":1767191400},"bundles":{"analytical":"data/lab-result-2026-10-29T12-00-00Z/analytical","execution":"data/lab-result-2026-10-29T12-00-00Z/execution","model":"data/lab-result-2026-10-29T12-00-00Z/model","portfolio":"data/lab-result-2026-10-29T12-00-00Z/portfolio","strategy":"data/lab-result-2026-10-29T12-00-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","model_version":"0.2.0","portfolio":{"final_equity":8016.143909900684,"halted":true,"max_drawdown":0.20315025809884202,"net_pnl":-1983.85609009931,"total_return":-0.19838560900993163,"trades":48},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
 ```
 
 `first_open_time` and `last_open_time` are the strategy timeframe's first and last open times. The run is deterministic: the same inputs and configuration produce byte-identical bundles and the same envelope, interactively or non-interactively. A single report writes only its own directory:
 
 ```bash
-cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/solusd-2025
+cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/portfolio-report
 ```
+
+### Lab result summary
+
+`lab summary <lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <YYYY-MM-DDTHH:MM:SSZ> [--operator human|agent] [--notes <path>] [--force]` writes one deterministic `summary.txt` at the root of a lab result folder. A lab result folder is `data/lab-result-YYYY-MM-DDTHH-MM-SSZ` in UTC and holds the five report bundles from one `backtest` plus that root summary.
+
+| Option | Meaning |
+|---|---|
+| `--role <role>` | Required: `researcher`, `developer`, or `validator` |
+| `--data-version <id>` | Required; must match every bundle's `report.json` and `provenance.json` |
+| `--config <path>` | Required; recorded as the run configuration |
+| `--created-utc <ts>` | Required explicit UTC time, `YYYY-MM-DDTHH:MM:SSZ`; the command never reads the clock |
+| `--operator <kind>` | `human` (default) or `agent` |
+| `--notes <path>` | Include the file verbatim under Role notes |
+| `--force` | Overwrite an existing root `summary.txt` |
+
+The summary has seven sections: Identity, Artifacts, Observed result, Checks, Role notes, Limitations, and Next. It copies published values from the five `report.json` files; it does not recompute the model. It refuses a missing bundle, a data-version mismatch, or an existing summary without `--force`, and writes atomically. The same lab and the same arguments produce the same bytes. It prints `wrote <path>`.
 
 ### Strategy-run contract
 

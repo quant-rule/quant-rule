@@ -17,6 +17,7 @@ use crate::config::ConfigError;
 use crate::csv::SourceError;
 use crate::export::ExportError as FileExportError;
 use crate::fetch;
+use crate::lab_summary::LabSummaryError;
 use crate::render_report::BundleError;
 use crate::source::{DateBounds, DateRange, Symbol};
 use crate::store::{StoreError, Table};
@@ -43,6 +44,8 @@ pub(crate) enum Command {
     Report(ReportArgs),
     /// Run the full pipeline and write all five bundles.
     Backtest(BacktestArgs),
+    /// Write a deterministic summary for a lab result folder.
+    LabSummary(LabSummaryArgs),
     /// Print strategy entries and exits without fills or P&L.
     StrategyRun(StrategyRunArgs),
     /// Print one axis per timeframe.
@@ -322,6 +325,96 @@ pub(crate) struct ReportArgs {
     pub(crate) json: bool,
 }
 
+/// A role named on the `lab summary` command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LabRole {
+    /// The Quant Researcher.
+    Researcher,
+    /// The Quant Developer.
+    Developer,
+    /// The Quant Validator.
+    Validator,
+}
+
+impl LabRole {
+    /// Parses the role code exactly.
+    pub(crate) fn parse(code: &str) -> Option<Self> {
+        match code {
+            "researcher" => Some(Self::Researcher),
+            "developer" => Some(Self::Developer),
+            "validator" => Some(Self::Validator),
+            _ => None,
+        }
+    }
+
+    /// The role label used in the summary.
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Researcher => "quant-researcher",
+            Self::Developer => "quant-developer",
+            Self::Validator => "quant-validator",
+        }
+    }
+
+    /// The next handoff after this role's lab.
+    pub(crate) const fn handoff(self) -> &'static str {
+        match self {
+            Self::Researcher => "Hand off the protocol to the Quant Developer.",
+            Self::Developer => "Hand off the implementation record and run to the Quant Validator.",
+            Self::Validator => "Hand off the validation record to the human for acceptance.",
+        }
+    }
+}
+
+/// The operator named on the `lab summary` command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LabOperator {
+    /// A human operator.
+    Human,
+    /// An agent operator.
+    Agent,
+}
+
+impl LabOperator {
+    /// Parses the operator code exactly.
+    pub(crate) fn parse(code: &str) -> Option<Self> {
+        match code {
+            "human" => Some(Self::Human),
+            "agent" => Some(Self::Agent),
+            _ => None,
+        }
+    }
+
+    /// The operator code used in the summary.
+    pub(crate) const fn code(self) -> &'static str {
+        match self {
+            Self::Human => "human",
+            Self::Agent => "agent",
+        }
+    }
+}
+
+/// A parsed `lab summary` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LabSummaryArgs {
+    /// The lab result folder that holds the five report bundles.
+    pub(crate) lab_dir: PathBuf,
+    /// The role that produced the lab.
+    pub(crate) role: LabRole,
+    /// The caller-supplied identity of the input series.
+    pub(crate) data_version: String,
+    /// The run configuration that produced the lab.
+    pub(crate) config: PathBuf,
+    /// The explicit UTC creation time.
+    pub(crate) created_utc: String,
+    /// The operator kind.
+    pub(crate) operator: LabOperator,
+    /// An optional role-notes file included verbatim.
+    pub(crate) notes: Option<PathBuf>,
+    /// Whether to overwrite an existing `summary.txt`.
+    pub(crate) force: bool,
+}
+
 /// A parsed `strategy-run` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct StrategyRunArgs {
@@ -439,6 +532,8 @@ pub(crate) enum ParseError {
     Report(String),
     /// A `backtest` argument list is invalid.
     Backtest(String),
+    /// A `lab summary` argument list is invalid.
+    Lab(String),
     /// `axis` needs a CSV path and an axis name.
     AxisUsage,
     /// The axis name is not known.
@@ -470,6 +565,7 @@ impl fmt::Display for ParseError {
             Self::StrategyRun(message) => formatter.write_str(message),
             Self::Report(message) => formatter.write_str(message),
             Self::Backtest(message) => formatter.write_str(message),
+            Self::Lab(message) => formatter.write_str(message),
             Self::AxisUsage => write!(
                 formatter,
                 "usage: axis <csv-path> <direction|momentum|structure|progression>"
@@ -675,6 +771,8 @@ pub(crate) enum RunError {
     Bundle(BundleError),
     /// The full backtest pipeline could not be completed.
     Backtest(BacktestError),
+    /// The lab result summary could not be completed.
+    Lab(LabSummaryError),
     /// The strategy run could not be completed.
     StrategyRun(StrategyRunError),
     /// The research layers could not be built.
@@ -700,6 +798,7 @@ impl fmt::Display for RunError {
             Self::Config(source) => source.fmt(formatter),
             Self::Bundle(source) => source.fmt(formatter),
             Self::Backtest(source) => source.fmt(formatter),
+            Self::Lab(source) => source.fmt(formatter),
             Self::StrategyRun(source) => source.fmt(formatter),
             Self::Layers(source) => write!(formatter, "cannot build the research layers: {source}"),
             Self::ResearchExport(source) => {
@@ -723,6 +822,7 @@ impl std::error::Error for RunError {
             Self::Config(source) => Some(source),
             Self::Bundle(source) => Some(source),
             Self::Backtest(source) => Some(source),
+            Self::Lab(source) => Some(source),
             Self::StrategyRun(source) => Some(source),
             Self::Layers(source) => Some(source),
             Self::ResearchExport(source) => Some(source),

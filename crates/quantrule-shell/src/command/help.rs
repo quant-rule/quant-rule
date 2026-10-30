@@ -42,6 +42,14 @@ pub(crate) const HELP: &str = r#"QuantRule shell commands:
       --config <path>           The run configuration; required.
       --out <dir>               Output root override (default: the run config).
       --json                    Print a deterministic summary envelope.
+  lab summary <lab-dir>         Write summary.txt for a lab result folder.
+      --role <role>             researcher, developer, or validator; required.
+      --data-version <id>       Caller-supplied identity; required.
+      --config <path>           The run configuration; required.
+      --created-utc <ts>        Explicit UTC time, YYYY-MM-DDTHH:MM:SSZ; required.
+      --operator <kind>         human or agent (default human).
+      --notes <path>            Include role notes verbatim.
+      --force                   Overwrite an existing summary.txt.
   axis <csv-path> <axis>        Print one axis per timeframe: direction, momentum, structure, progression.
       --window <full|latest>    Input window: full up to 100000 (default) or last 1000.
   events <csv-path>             Print every event record in the analyzed window as NDJSON.
@@ -118,7 +126,8 @@ Non-interactive: quantrule market-chart path/to/m1.csv --png data/market.png --t
 Non-interactive: quantrule market-report path/to/m1.csv --data-version source:demo:60:0-1000 --out data/report
 Non-interactive: quantrule strategy-run path/to/m1.csv --strategy axis-agreement --data-version source:demo:60:0-1000
 Non-interactive: quantrule report portfolio --config config/examples/solusd-2025/run.json --out data/solusd-2025
-Non-interactive: quantrule backtest --config config/examples/solusd-2025/run.json --out data/solusd-2025
+Non-interactive: quantrule backtest --config config/examples/solusd-2025/run.json --out data/lab-result-2026-10-29T12-00-00Z
+Non-interactive: quantrule lab summary data/lab-result-2026-10-29T12-00-00Z --role researcher --data-version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31 --config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z
 Non-interactive: quantrule axis <csv-path> direction [--window full|latest]
 Non-interactive: quantrule events <csv-path> [--window full|latest]
 Non-interactive: quantrule legs <csv-path> [--window full|latest]

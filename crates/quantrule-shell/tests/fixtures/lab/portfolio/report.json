@@ -1,0 +1,23 @@
+{
+  "data_version": "test:v1",
+  "report_version": "2026-10-28",
+  "requested_period": {
+    "from": "2025-01-01",
+    "to": "2025-12-31"
+  },
+  "actual_period": {
+    "first_open_time": 1735740900,
+    "last_open_time": 1767191400
+  },
+  "summary": {
+    "final_equity": 10000.0,
+    "total_return": 0.0,
+    "net_pnl": 0.0,
+    "max_drawdown": 0.0,
+    "trades": 0,
+    "halted": false,
+    "commission": 0.0,
+    "funding_paid": 0.0,
+    "funding_received": 0.0
+  }
+}

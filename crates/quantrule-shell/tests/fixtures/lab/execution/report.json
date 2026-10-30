@@ -1,0 +1,12 @@
+{
+  "data_version": "test:v1",
+  "report_version": "2026-10-28",
+  "summary": {
+    "fees": {
+      "total": 0.0
+    },
+    "slippage": {
+      "total": 0.0
+    }
+  }
+}

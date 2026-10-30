@@ -12,6 +12,7 @@ mod config;
 mod csv;
 mod export;
 mod fetch;
+mod lab_summary;
 mod labels;
 mod render;
 mod render_dashboard;

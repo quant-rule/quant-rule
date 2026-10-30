@@ -1,0 +1,14 @@
+{
+  "data_version": "test:v1",
+  "view_contract": "2026-10-27",
+  "market_report": {
+    "ladder": [60, 300, 900, 3600],
+    "events": {
+      "by_type": {
+        "level": 3,
+        "divergence": 1,
+        "signal": 2
+      }
+    }
+  }
+}

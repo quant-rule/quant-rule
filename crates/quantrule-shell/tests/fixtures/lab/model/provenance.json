@@ -1,0 +1,6 @@
+{
+  "schema": "quantrule.provenance/v1",
+  "report": "model",
+  "report_version": "2026-10-28",
+  "data_version": "test:v1"
+}
