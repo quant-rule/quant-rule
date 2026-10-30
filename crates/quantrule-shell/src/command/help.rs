@@ -186,7 +186,7 @@ const FORCE: OptionHelp = OptionHelp {
 };
 const STRATEGY: OptionHelp = OptionHelp {
     flag: "--strategy <name>",
-    description: "Strategy name; required (axis-agreement).",
+    description: "Strategy name; required (ladder-context).",
 };
 const PNG: OptionHelp = OptionHelp {
     flag: "--png <path>",

@@ -47,9 +47,9 @@ implemented by #230; the remaining target contracts wait for their code phases.
 |---|---|---|
 | Available timeframes | `quantrule.data/v3`; implemented by #230 | `docs/config/2026-10-30/data-v3.md` |
 | Per-timeframe model | `quantrule.model/v2`; readings implemented (#231) | `docs/config/2026-10-30/model-v2.md` |
-| Active ladder and context | Context builder implemented (#233); strategy wiring pending (#235) | `docs/config/2026-10-30/strategy-v3.md` |
+| Active ladder and context | Implemented (#233, #235); `ladder-context` is live | `docs/config/2026-10-30/strategy-v3.md` |
 | Fill mechanics | `quantrule.execution/v3`; bracket resolution and risk-free config implemented (#234), v3 schema pending | `docs/config/2026-10-30/execution-v3.md` |
-| Strategy/execution boundary | `TradeIntent`; implemented (#234); strategy wiring pending (#235) | `docs/config/2026-10-30/trade-intent.md` |
+| Strategy/execution boundary | `TradeIntent`; implemented (#234) and wired into the unified rule (#235) | `docs/config/2026-10-30/trade-intent.md` |
 
 ## Current evidence
 
@@ -101,7 +101,7 @@ implemented by #230; the remaining target contracts wait for their code phases.
 | Remaining MVP audit remediation (AUD-02…11) | Merged; all findings `Verified` | `docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md` |
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | MVP pre-release audit closure | All findings `Verified`; AUD-04 validation recorded | `docs/audits/2026-10-30/mvp-pre-release-closure.md` |
-| Unified timeframe ladder | Approved (#228); Phases 1–5 merged; Phase 6 (#234) PR [#243](https://github.com/quant-rule/quant-rule/pull/243) open, CI passed; phases #235–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
+| Unified timeframe ladder | Approved (#228); Phases 1–6 merged; Phase 7 (#235) implemented, PR pending; phases #236–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 
@@ -120,6 +120,7 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | Rule purity and statistics boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/rule-purity-and-statistics-boundary.md` |
 | Stateless strategy and the position parameter | Accepted 2026-10-30 | `docs/adr/2026-10-30/stateless-strategy-position-parameter.md` |
 | One-way timeframe ladder and trade-intent boundary | Accepted 2026-10-30 (#228) | `docs/adr/2026-10-30/one-way-timeframe-ladder.md` |
+| Retirement of the axis-agreement strategy | Accepted 2026-10-30 (#235) | `docs/adr/2026-10-30/axis-agreement-retirement.md` |
 
 ## Reading a work item
 

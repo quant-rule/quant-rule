@@ -174,6 +174,16 @@ pub struct LadderConfig {
     context_timeframes: Vec<u64>,
 }
 
+impl Default for LadderConfig {
+    /// The control active ladder: 5m execution with 15m context.
+    fn default() -> Self {
+        Self {
+            execution_timeframe_secs: 300,
+            context_timeframes: vec![900],
+        }
+    }
+}
+
 impl LadderConfig {
     /// Builds an active ladder.
     ///
@@ -288,6 +298,30 @@ impl LadderWeights {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Direction weights, in active-ladder context order.
+    #[must_use]
+    pub fn direction(&self) -> &[f64] {
+        &self.weights[0]
+    }
+
+    /// Momentum weights, in active-ladder context order.
+    #[must_use]
+    pub fn momentum(&self) -> &[f64] {
+        &self.weights[1]
+    }
+
+    /// Structure weights, in active-ladder context order.
+    #[must_use]
+    pub fn structure(&self) -> &[f64] {
+        &self.weights[2]
+    }
+
+    /// Progression weights, in active-ladder context order.
+    #[must_use]
+    pub fn progression(&self) -> &[f64] {
+        &self.weights[3]
     }
 
     fn axis(&self, axis: usize) -> &[f64] {

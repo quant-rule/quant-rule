@@ -16,7 +16,7 @@ use serde_json::Value;
 
 const BIN: &str = env!("CARGO_BIN_EXE_quantrule");
 const DATA_VERSION: &str = "test:strategy:v1";
-const STRATEGY: &str = "axis-agreement";
+const STRATEGY: &str = "ladder-context";
 const GOLDEN: &str = include_str!("fixtures/strategy-run.ndjson");
 
 /// The UTC open time of `2025-01-01 00:00:00`, shared by the generated series.
@@ -144,9 +144,22 @@ fn parse_ndjson(text: &str) -> Vec<Value> {
         .collect()
 }
 
+fn golden_config() -> String {
+    static CONFIG: OnceLock<String> = OnceLock::new();
+    CONFIG
+        .get_or_init(|| {
+            run_config_with(long_series(), "major")
+                .to_str()
+                .expect("the config path is UTF-8")
+                .to_owned()
+        })
+        .clone()
+}
+
 #[test]
 fn strategy_run_prints_the_golden_ndjson() {
     let path = long_series();
+    let config = golden_config();
     let output = run(&[
         "strategy-run",
         path,
@@ -154,6 +167,8 @@ fn strategy_run_prints_the_golden_ndjson() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
     ]);
 
     assert_success(&output);
@@ -164,6 +179,7 @@ fn strategy_run_prints_the_golden_ndjson() {
 #[test]
 fn strategy_run_output_has_no_fill_or_pnl_fields() {
     let path = long_series();
+    let config = golden_config();
     let output = run(&[
         "strategy-run",
         path,
@@ -171,6 +187,8 @@ fn strategy_run_output_has_no_fill_or_pnl_fields() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
     ]);
     assert_success(&output);
 
@@ -201,7 +219,7 @@ fn strategy_run_output_has_no_fill_or_pnl_fields() {
         }
         assert!(matches!(record["type"].as_str(), Some("entry" | "exit")));
         assert!(matches!(record["side"].as_i64(), Some(1 | -1)));
-        assert_eq!(record["timeframe"], "15m");
+        assert_eq!(record["timeframe"], "5m");
         assert_eq!(record["strategy"], STRATEGY);
         assert!(record["bar"].is_u64());
         assert!(record["datetime"].is_string());
@@ -211,6 +229,7 @@ fn strategy_run_output_has_no_fill_or_pnl_fields() {
 #[test]
 fn repeated_runs_are_byte_identical() {
     let path = long_series();
+    let config = golden_config();
     let first = run(&[
         "strategy-run",
         path,
@@ -218,6 +237,8 @@ fn repeated_runs_are_byte_identical() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
     ]);
     let second = run(&[
         "strategy-run",
@@ -226,6 +247,8 @@ fn repeated_runs_are_byte_identical() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
     ]);
 
     assert_success(&first);
@@ -237,8 +260,10 @@ fn repeated_runs_are_byte_identical() {
 #[test]
 fn interactive_output_matches_non_interactive() {
     let path = long_series();
-    let command =
-        format!("strategy-run {path} --strategy {STRATEGY} --data-version {DATA_VERSION}\nquit\n");
+    let config = golden_config();
+    let command = format!(
+        "strategy-run {path} --strategy {STRATEGY} --data-version {DATA_VERSION} --config {config}\nquit\n"
+    );
     let interactive = run_interactive(&command);
     let non_interactive = run(&[
         "strategy-run",
@@ -247,6 +272,8 @@ fn interactive_output_matches_non_interactive() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
     ]);
 
     assert_success(&interactive);
@@ -262,6 +289,7 @@ fn interactive_output_matches_non_interactive() {
 #[test]
 fn json_envelope_carries_provenance_and_the_same_records() {
     let path = long_series();
+    let config = golden_config();
     let plain = run(&[
         "strategy-run",
         path,
@@ -269,6 +297,8 @@ fn json_envelope_carries_provenance_and_the_same_records() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
     ]);
     let envelope = run(&[
         "strategy-run",
@@ -277,6 +307,8 @@ fn json_envelope_carries_provenance_and_the_same_records() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
         "--json",
     ]);
 
@@ -287,10 +319,15 @@ fn json_envelope_carries_provenance_and_the_same_records() {
     assert_eq!(value["model_version"], env!("CARGO_PKG_VERSION"));
     assert_eq!(value["strategy"], STRATEGY);
     assert_eq!(value["data_version"], DATA_VERSION);
-    assert_eq!(value["timeframe_secs"], 900);
-    assert_eq!(value["strategy_config"]["timeframe_secs"], 900);
-    assert_eq!(value["strategy_config"]["long_threshold"], 0.1);
-    assert_eq!(value["strategy_config"]["short_threshold"], -0.1);
+    assert_eq!(value["timeframe_secs"], 300);
+    assert_eq!(value["strategy_config"]["timeframe_secs"], 300);
+    assert_eq!(value["strategy_config"]["ladder"][0], "5m");
+    assert_eq!(value["strategy_config"]["ladder"][1], "15m");
+    assert_eq!(
+        value["strategy_config"]["entry"]["execution"]["direction_min"],
+        0.1
+    );
+    assert_eq!(value["strategy_config"]["risk"]["stop"]["multiple"], 2.0);
     assert_eq!(value["requested_period"]["from"], Value::Null);
     assert_eq!(value["requested_period"]["to"], Value::Null);
     assert_eq!(
@@ -302,8 +339,9 @@ fn json_envelope_carries_provenance_and_the_same_records() {
 #[test]
 fn json_output_is_identical_interactively_and_non_interactively() {
     let path = long_series();
+    let config = golden_config();
     let command = format!(
-        "strategy-run {path} --strategy {STRATEGY} --data-version {DATA_VERSION} --json\nquit\n"
+        "strategy-run {path} --strategy {STRATEGY} --data-version {DATA_VERSION} --config {config} --json\nquit\n"
     );
     let interactive = run_interactive(&command);
     let non_interactive = run(&[
@@ -313,6 +351,8 @@ fn json_output_is_identical_interactively_and_non_interactively() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
         "--json",
     ]);
 
@@ -324,6 +364,7 @@ fn json_output_is_identical_interactively_and_non_interactively() {
 #[test]
 fn date_filter_keeps_records_inside_the_range() {
     let path = long_series();
+    let config = golden_config();
     let output = run(&[
         "strategy-run",
         path,
@@ -331,6 +372,8 @@ fn date_filter_keeps_records_inside_the_range() {
         STRATEGY,
         "--data-version",
         DATA_VERSION,
+        "--config",
+        &config,
         "--from",
         "2025-01-03",
         "--to",

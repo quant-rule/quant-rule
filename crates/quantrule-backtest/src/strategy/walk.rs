@@ -1,60 +1,54 @@
-//! The strategy walk over one timeframe.
+//! The strategy walk over one execution timeframe.
 //!
-//! The walk records the per-bar strategy input, the decision it produced, the
-//! position execution actually held on that bar, the agreement counts, and the
-//! final position. It is computed once by the runner and reused by the reports;
-//! the shell never re-walks the strategy.
+//! The walk records the per-bar execution snapshot, the as-of context, the
+//! decision it produced, the position execution actually held on that bar, and
+//! the final position. It is computed once by the runner and reused by the
+//! reports; the shell never re-walks the strategy.
 
+use crate::context::LadderContext;
 use crate::intent::StrategyPosition;
 use crate::side::Side;
 
 use super::decision::Decision;
 use super::input::StrategyInput;
 
-/// The agreement classification counts for one walk.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct AgreementCounts {
-    /// Bars where all three readings agreed long.
-    pub long: usize,
-    /// Bars where all three readings agreed short.
-    pub short: usize,
-    /// Bars where the readings were available but neutral.
-    pub neutral: usize,
-    /// Bars where at least one reading was unavailable.
-    pub unavailable: usize,
-}
-
 /// One deterministic strategy walk.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct StrategyWalk {
     inputs: Vec<StrategyInput>,
+    contexts: Vec<LadderContext>,
     decisions: Vec<Decision>,
     positions: Vec<StrategyPosition>,
-    agreements: AgreementCounts,
     final_position: StrategyPosition,
 }
 
 impl StrategyWalk {
     pub(crate) fn new(
         inputs: Vec<StrategyInput>,
+        contexts: Vec<LadderContext>,
         decisions: Vec<Decision>,
         positions: Vec<StrategyPosition>,
-        agreements: AgreementCounts,
         final_position: StrategyPosition,
     ) -> Self {
         Self {
             inputs,
+            contexts,
             decisions,
             positions,
-            agreements,
             final_position,
         }
     }
 
-    /// The per-bar strategy inputs, oldest first.
+    /// The per-bar execution snapshots, oldest first.
     #[must_use]
     pub fn inputs(&self) -> &[StrategyInput] {
         &self.inputs
+    }
+
+    /// The per-bar as-of contexts, oldest first.
+    #[must_use]
+    pub fn contexts(&self) -> &[LadderContext] {
+        &self.contexts
     }
 
     /// One decision per bar, oldest first.
@@ -70,12 +64,6 @@ impl StrategyWalk {
     #[must_use]
     pub fn positions(&self) -> &[StrategyPosition] {
         &self.positions
-    }
-
-    /// The agreement classification counts.
-    #[must_use]
-    pub const fn agreements(&self) -> AgreementCounts {
-        self.agreements
     }
 
     /// The final position, or flat when the run ended flat.

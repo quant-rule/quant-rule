@@ -264,7 +264,7 @@ fn notes_are_included_verbatim() {
 
     assert_success(&output);
     let text = String::from_utf8(summary(&directory)).expect("the summary is UTF-8");
-    assert!(text.contains("  Hypothesis: the axis-agreement rule over the configured ladder."));
+    assert!(text.contains("  Hypothesis: the ladder-context rule over the configured ladder."));
     assert!(text.contains("  In-sample: 2025-01-01..2025-12-31."));
     assert!(text.contains("  Out-of-sample: not run."));
     assert!(text.contains("  Variations tried: one."));

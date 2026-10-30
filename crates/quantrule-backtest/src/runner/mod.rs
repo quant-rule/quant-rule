@@ -20,30 +20,28 @@
 
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::run::ModelRun;
-use quantrule_model::timeframe::TimeframeModel;
+use quantrule_model::timeframe::ModelBar;
 
+use crate::context::{LadderContext, LadderContextBuilder, LadderContextError};
 use crate::execution::{
     ExecutionBatch, ExecutionConfig, ExecutionEngine, ExecutionError, OrderIntent,
 };
-use crate::intent::{RiskPolicy, StrategyPosition};
+use crate::intent::StrategyPosition;
 use crate::portfolio::{PortfolioConfig, PortfolioLedger, PortfolioLedgerError, PortfolioMetrics};
 use crate::strategy::{
-    Agreement, AgreementCounts, AxisAgreementStrategy, Decision, Strategy, StrategyConfig,
-    StrategyInput, StrategyWalk,
+    Decision, LadderContextStrategy, Strategy, StrategyConfig, StrategyInput, StrategyWalk,
 };
 
 /// The configuration of one full run.
 ///
 /// The strategy timeframe is the one in [`StrategyConfig`]; it must equal the
 /// execution fill timeframe, which the shell's config loader checks.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BacktestConfig {
     /// The model's structure scale.
     pub model: MarketStateConfig,
-    /// The strategy's timeframe and thresholds.
+    /// The strategy's active ladder, context weights, rule, and risk policy.
     pub strategy: StrategyConfig,
-    /// The strategy's human-owned risk policy.
-    pub risk: RiskPolicy,
     /// Execution's fill mechanics and costs.
     pub execution: ExecutionConfig,
     /// The portfolio's capital, costs, and risk limits.
@@ -131,15 +129,21 @@ pub fn run_backtest(
     let model = ModelRun::compute(inputs, &config.model);
     let mut execution = ExecutionEngine::new(config.execution).map_err(BacktestError::Execution)?;
     let mut ledger = PortfolioLedger::new(config.portfolio).map_err(BacktestError::Ledger)?;
-    let strategy = AxisAgreementStrategy::with_risk(config.strategy, config.risk);
+    let strategy = LadderContextStrategy::new(config.strategy.clone());
     let mut inputs_seen = Vec::new();
+    let mut contexts: Vec<LadderContext> = Vec::new();
     let mut decisions = Vec::new();
     let mut positions: Vec<StrategyPosition> = Vec::new();
-    let mut agreements = AgreementCounts::default();
     let mut batches = Vec::new();
+    let mut previous: Option<ModelBar> = None;
 
     if let Some(timeframe) = model.timeframe(config.strategy.timeframe_secs()) {
+        let execution_secs = i64::from(timeframe.timeframe_secs() as u32);
+        let mut context_builder =
+            LadderContextBuilder::new(&model, config.strategy.ladder(), config.strategy.weights())
+                .map_err(BacktestError::Context)?;
         inputs_seen.reserve(timeframe.len());
+        contexts.reserve(timeframe.len());
         decisions.reserve(timeframe.len());
         positions.reserve(timeframe.len());
         for bar_index in 0..timeframe.len() {
@@ -148,6 +152,10 @@ pub fn run_backtest(
                 .ok_or(BacktestError::MissingBar { bar: bar_index })?;
             let candle = bar.candle;
             let time = candle.timestamp();
+            let context = context_builder
+                .next_context()
+                .map_err(BacktestError::Context)?
+                .ok_or(BacktestError::MissingContext { bar: bar_index })?;
 
             ledger
                 .apply_funding(bar_index, time, candle.open(), candle.volume())
@@ -165,16 +173,14 @@ pub fn run_backtest(
                 .mark(bar_index, time, candle.close())
                 .map_err(BacktestError::Ledger)?;
 
-            let input = StrategyInput::from_model_bar(&bar);
-            match Agreement::classify(&input, &config.strategy) {
-                Some(Agreement::Long) => agreements.long += 1,
-                Some(Agreement::Short) => agreements.short += 1,
-                Some(Agreement::Neutral) => agreements.neutral += 1,
-                None => agreements.unavailable += 1,
-            }
+            let contiguous = previous
+                .as_ref()
+                .is_none_or(|previous| previous.candle.timestamp() + execution_secs == time);
+            let input = StrategyInput::from_model_bar(&bar, previous.as_ref(), contiguous);
             let position = execution.position_view();
-            let decision = strategy.decide(&input, position);
+            let decision = strategy.decide(&input, &context, position);
             inputs_seen.push(input);
+            contexts.push(context);
             decisions.push(decision);
             positions.push(position);
 
@@ -206,6 +212,7 @@ pub fn run_backtest(
                 .submit(intent, quantity, atr14)
                 .map_err(BacktestError::Execution)?;
             batches.push(batch);
+            previous = Some(bar);
         }
     }
 
@@ -219,9 +226,9 @@ pub fn run_backtest(
 
     let walk = StrategyWalk::new(
         inputs_seen,
+        contexts,
         decisions,
         positions,
-        agreements,
         execution.position_view(),
     );
 
@@ -243,34 +250,44 @@ pub fn run_backtest(
 /// # Errors
 ///
 /// Returns [`BacktestError::MissingBar`] when the model omits a bar inside a
-/// non-empty timeframe.
+/// non-empty timeframe, [`BacktestError::Context`] when the as-of context
+/// cannot be built, and [`BacktestError::MissingContext`] when the context
+/// stream ends before the execution series.
 pub fn walk_strategy(
-    timeframe: &TimeframeModel,
+    run: &ModelRun,
     config: &StrategyConfig,
-    risk: RiskPolicy,
 ) -> Result<StrategyWalk, BacktestError> {
-    let strategy = AxisAgreementStrategy::with_risk(*config, risk);
+    let Some(timeframe) = run.timeframe(config.timeframe_secs()) else {
+        return Ok(StrategyWalk::default());
+    };
+    let strategy = LadderContextStrategy::new(config.clone());
+    let execution_secs = i64::from(timeframe.timeframe_secs() as u32);
+    let mut context_builder = LadderContextBuilder::new(run, config.ladder(), config.weights())
+        .map_err(BacktestError::Context)?;
     let mut position = StrategyPosition::flat();
     let mut inputs = Vec::with_capacity(timeframe.len());
+    let mut contexts = Vec::with_capacity(timeframe.len());
     let mut decisions = Vec::with_capacity(timeframe.len());
     let mut positions = Vec::with_capacity(timeframe.len());
-    let mut agreements = AgreementCounts::default();
+    let mut previous: Option<ModelBar> = None;
 
     for bar_index in 0..timeframe.len() {
         let bar = timeframe
             .bar(bar_index)
             .ok_or(BacktestError::MissingBar { bar: bar_index })?;
-        let input = StrategyInput::from_model_bar(&bar);
-        match Agreement::classify(&input, config) {
-            Some(Agreement::Long) => agreements.long += 1,
-            Some(Agreement::Short) => agreements.short += 1,
-            Some(Agreement::Neutral) => agreements.neutral += 1,
-            None => agreements.unavailable += 1,
-        }
+        let time = bar.candle.timestamp();
+        let context = context_builder
+            .next_context()
+            .map_err(BacktestError::Context)?
+            .ok_or(BacktestError::MissingContext { bar: bar_index })?;
+        let contiguous = previous
+            .as_ref()
+            .is_none_or(|previous| previous.candle.timestamp() + execution_secs == time);
+        let input = StrategyInput::from_model_bar(&bar, previous.as_ref(), contiguous);
         if position.is_open() {
             position.bars_held += 1;
         }
-        let decision = strategy.decide(&input, position);
+        let decision = strategy.decide(&input, &context, position);
         positions.push(position);
         match decision {
             Decision::Enter(entry) => {
@@ -280,16 +297,18 @@ pub fn walk_strategy(
             Decision::Hold => {}
         }
         inputs.push(input);
+        contexts.push(context);
         decisions.push(decision);
+        previous = Some(bar);
     }
 
     Ok(StrategyWalk::new(
-        inputs, decisions, positions, agreements, position,
+        inputs, contexts, decisions, positions, position,
     ))
 }
 
 /// The runner could not complete a run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BacktestError {
     /// The policy risk envelope is not a finite fraction in `(0, 1]`.
     RiskEnvelope,
@@ -297,8 +316,15 @@ pub enum BacktestError {
     Execution(ExecutionError),
     /// The ledger rejected its configuration, a fill, or a mark.
     Ledger(PortfolioLedgerError),
+    /// The as-of context could not be built.
+    Context(LadderContextError),
     /// The model published a non-empty timeframe but omitted one of its bars.
     MissingBar {
+        /// The zero-based strategy bar.
+        bar: usize,
+    },
+    /// The context stream ended before the execution series.
+    MissingContext {
         /// The zero-based strategy bar.
         bar: usize,
     },
@@ -312,7 +338,11 @@ impl std::fmt::Display for BacktestError {
             }
             Self::Execution(source) => source.fmt(formatter),
             Self::Ledger(source) => source.fmt(formatter),
+            Self::Context(source) => source.fmt(formatter),
             Self::MissingBar { bar } => write!(formatter, "the model has no bar {bar}"),
+            Self::MissingContext { bar } => {
+                write!(formatter, "the context stream has no bar {bar}")
+            }
         }
     }
 }
@@ -323,7 +353,8 @@ impl std::error::Error for BacktestError {
             Self::RiskEnvelope => None,
             Self::Execution(source) => Some(source),
             Self::Ledger(source) => Some(source),
-            Self::MissingBar { .. } => None,
+            Self::Context(source) => Some(source),
+            Self::MissingBar { .. } | Self::MissingContext { .. } => None,
         }
     }
 }

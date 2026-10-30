@@ -549,7 +549,7 @@ fn validate_fill(fill: &Fill) -> Result<(), PortfolioLedgerError> {
 
 fn exit_reason(reason: FillReason) -> Result<ExitReason, PortfolioLedgerError> {
     match reason {
-        FillReason::Exit => Ok(ExitReason::AgreementLost),
+        FillReason::Exit => Ok(ExitReason::StrategyExit),
         FillReason::StopLoss => Ok(ExitReason::Stop),
         FillReason::TakeProfit => Ok(ExitReason::Target),
         FillReason::Entry => Err(PortfolioLedgerError::UnexpectedFillReason),

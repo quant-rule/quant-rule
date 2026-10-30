@@ -1,7 +1,7 @@
 # Policy and Strategy Blueprints
 
 - Date: 2026-10-30
-- Applies to: run schema `quantrule.run/v2`, policy `v1`, strategy `v2`,
+- Applies to: run schema `quantrule.run/v2`, policy `v1`, strategy `v3`,
   execution `v2`
 - Related: `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md`
 
@@ -42,7 +42,7 @@
   },
   "universe": {
     "tickets": ["EURUSD"],
-    "timeframes": ["15m"]
+    "timeframes": ["5m", "15m"]
   }
 }
 ```
@@ -58,7 +58,7 @@
 | `risk.max_leverage` | Exactly `1.0` in v1 |
 | `risk.max_open_positions` | Exactly `1` in v1 |
 | `universe.tickets` | Non-empty, unique, no whitespace; `data.instrument` must be present |
-| `universe.timeframes` | Non-empty, unique, ascending; subset of the data ladder; strategy timeframe must be present |
+| `universe.timeframes` | Non-empty, unique, ascending; subset of the data ladder; every active ladder member must be present |
 
 There are deliberately no news, weekend, session, or daily-loss fields.
 
@@ -66,30 +66,62 @@ There are deliberately no news, weekend, session, or daily-loss fields.
 
 ```json
 {
-  "schema": "quantrule.strategy/v2",
-  "name": "axis-agreement",
-  "thesis": "Trade only when direction, momentum, and structure agree; exit when they disagree.",
-  "timeframe": "15m",
-  "long_threshold": 0.1,
-  "short_threshold": -0.1,
-  "stop_atr_multiple": 2.0,
-  "reward_to_risk": 1.5
+  "schema": "quantrule.strategy/v3",
+  "rule": "ladder-context",
+  "thesis": "Trade with the higher-timeframe regime after a lower-timeframe structure shift.",
+  "ladder": ["5m", "15m"],
+  "weights": {
+    "direction": { "15m": 1.0 },
+    "momentum": { "15m": 1.0 },
+    "structure": { "15m": 1.0 },
+    "progression": { "15m": 1.0 }
+  },
+  "entry": {
+    "execution": {
+      "direction_min": 0.1,
+      "momentum_min": 0.1,
+      "structure_min": 0.0,
+      "structure_shift": { "from_max": 0, "to_min": 1 }
+    },
+    "context": {
+      "direction": { "kind": "bullish", "share_min": 0.5 },
+      "momentum": { "kind": "not_bearish", "bearish_share_max": 0.5 },
+      "structure": { "conflict_count_max": 0 },
+      "progression": {
+        "direction": "bullish",
+        "late_or_terminal_count_max": 0
+      }
+    }
+  },
+  "exit": { "on": ["context_lost", "structure_lost"] },
+  "risk": {
+    "stop": { "kind": "atr", "multiple": 2.0 },
+    "target": { "kind": "reward_to_risk", "multiple": 1.5 }
+  },
+  "no_trade": {
+    "missing_context": "reject",
+    "require_contiguous_execution": true
+  }
 }
 ```
 
 | Field | Rule |
 |---|---|
-| `name` | Exactly `axis-agreement` in v2 |
+| `rule` | Exactly `ladder-context` in v3 |
 | `thesis` | Non-empty human explanation; never executable |
-| `timeframe` | A ladder member and a policy timeframe |
-| `long_threshold` | Finite, `>= 0`; greater than `short_threshold` |
-| `short_threshold` | Finite, `<= 0`; less than `long_threshold` |
-| `stop_atr_multiple` | Finite, `> 0` |
-| `reward_to_risk` | Finite, `> 0`; target distance is stop × reward |
+| `ladder` | Ascending, unique, at least two members; `ladder[0]` is execution |
+| `weights` | Optional per-axis map keyed by context timeframe; finite, `> 0`; a present block must cover every context timeframe |
+| `entry.execution` | Execution thresholds and Structure state shift |
+| `entry.context` | Direction, Momentum, Structure conflict, and Progression filters |
+| `exit.on` | Non-empty, unique subset of `context_lost` and `structure_lost` |
+| `risk.stop` | `atr` with a finite multiple `> 0` |
+| `risk.target` | `reward_to_risk` with a finite multiple `> 0` |
+| `no_trade.missing_context` | Exactly `reject` |
+| `no_trade.require_contiguous_execution` | Exactly `true` |
 
-The strategy receives only the three primary axis values and bar identity. It
-cannot read percentiles, readiness, events, context, execution, portfolio, or
-policy.
+The strategy receives the execution bar snapshot and the as-of higher-timeframe
+context. It cannot read percentiles, readiness, events, execution, portfolio, or
+policy. A `quantrule.strategy/v2` file is rejected with a migration message.
 
 `strategy explain --config <run.json>` renders the rule in trader words.
 
@@ -100,7 +132,7 @@ policy.
 ```json
 {
   "schema": "quantrule.execution/v2",
-  "fill_timeframe": "15m",
+  "fill_timeframe": "5m",
   "order_type": "market_next_open",
   "tie_break": "stop_first",
   "fee_rate": 0.0,

@@ -8,6 +8,7 @@
 //! side and a risk bracket. Execution resolves the request; the strategy never
 //! sets a fill price, fee, or slippage.
 
+use crate::context::LadderContext;
 use crate::intent::{StrategyPosition, TradeIntent};
 use crate::side::Side;
 
@@ -15,10 +16,8 @@ use super::input::StrategyInput;
 
 /// An entry decision.
 ///
-/// The strategy constructs an entry only while flat, and only when the bar's
-/// agreement is [`super::input::Agreement::Long`] for [`Side::Long`] or
-/// [`super::input::Agreement::Short`] for [`Side::Short`]. The bar snapshot is
-/// the evidence for the decision; it is not a fill.
+/// The strategy constructs an entry only while flat. The bar snapshot is the
+/// evidence for the decision; it is not a fill.
 ///
 /// # Examples
 ///
@@ -26,7 +25,7 @@ use super::input::StrategyInput;
 /// use quantrule_backtest::intent::RiskPolicy;
 /// use quantrule_backtest::strategy::{Entry, Side, StrategyInput};
 ///
-/// let bar = StrategyInput::new(900, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+/// let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
 /// let entry = Entry {
 ///     bar,
 ///     intent: RiskPolicy::default().intent(Side::Long),
@@ -35,7 +34,7 @@ use super::input::StrategyInput;
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Entry {
-    /// The bar whose agreement produced the entry.
+    /// The bar whose readings produced the entry.
     pub bar: StrategyInput,
     /// The strategy's complete entry request.
     pub intent: TradeIntent,
@@ -60,9 +59,9 @@ impl Entry {
 /// ```
 /// use quantrule_backtest::strategy::{Exit, ExitReason, Side, StrategyInput};
 ///
-/// let bar = StrategyInput::new(900, 1, 900, Some(0.0), Some(0.0), Some(0.0));
-/// let exit = Exit { side: Side::Long, bar, reason: ExitReason::AgreementLost };
-/// assert_eq!(exit.reason, ExitReason::AgreementLost);
+/// let bar = StrategyInput::new(300, 1, 300, Some(0.0), Some(0.0), Some(0.0));
+/// let exit = Exit { side: Side::Long, bar, reason: ExitReason::ContextLost };
+/// assert_eq!(exit.reason, ExitReason::ContextLost);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Exit {
@@ -75,13 +74,12 @@ pub struct Exit {
 }
 
 /// Why a strategy closed a position.
-///
-/// The first rule has one exit condition. A later rule adds its own reason
-/// rather than overloading this one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitReason {
-    /// The three readings no longer agree in the position's direction.
-    AgreementLost,
+    /// The higher-timeframe context that justified the entry no longer holds.
+    ContextLost,
+    /// The execution Structure state flipped against the position.
+    StructureLost,
 }
 
 /// The decision a strategy makes for one closed bar.
@@ -98,33 +96,60 @@ pub enum Decision {
     Exit(Exit),
 }
 
-/// A causal, stateless strategy over one timeframe.
+/// A causal, stateless strategy over one execution timeframe.
 ///
-/// The runner calls [`Strategy::decide`] once per closed bar, in ascending
-/// open-time order. The position execution actually holds is passed in by the
-/// caller; execution and portfolio own it. A strategy must not read a bar it
-/// has not been given, the clock, or any random source. It emits `Enter` only
-/// when the position is flat and `Exit` only when the position is open.
+/// The runner calls [`Strategy::decide`] once per closed execution bar, in
+/// ascending open-time order, with the as-of [`LadderContext`] and the position
+/// execution actually holds. Execution and portfolio own the position. A
+/// strategy must not read a bar it has not been given, the clock, or any random
+/// source. It emits `Enter` only when the position is flat and `Exit` only when
+/// the position is open.
 ///
 /// # Examples
 ///
 /// ```
+/// use quantrule_backtest::context::LadderContext;
 /// use quantrule_backtest::intent::StrategyPosition;
 /// use quantrule_backtest::strategy::{Decision, Strategy, StrategyInput};
 ///
 /// struct NeverTrades;
 ///
 /// impl Strategy for NeverTrades {
-///     fn decide(&self, _input: &StrategyInput, _position: StrategyPosition) -> Decision {
+///     fn decide(
+///         &self,
+///         _input: &StrategyInput,
+///         _context: &LadderContext,
+///         _position: StrategyPosition,
+///     ) -> Decision {
 ///         Decision::Hold
 ///     }
 /// }
 ///
 /// let strategy = NeverTrades;
-/// let bar = StrategyInput::new(900, 0, 0, None, None, None);
-/// assert_eq!(strategy.decide(&bar, StrategyPosition::flat()), Decision::Hold);
+/// let bar = StrategyInput::new(300, 0, 0, None, None, None);
+/// let context = LadderContext {
+///     execution_timeframe_secs: 300,
+///     execution_bar_index: 0,
+///     execution_open_time: 0,
+///     execution_close_time: 300,
+///     context: Vec::new(),
+///     missing_timeframes: vec![900],
+///     direction: quantrule_backtest::context::AxisContext::unavailable(),
+///     momentum: quantrule_backtest::context::AxisContext::unavailable(),
+///     structure: quantrule_backtest::context::StructureContext::unavailable(),
+///     progression: quantrule_backtest::context::ProgressionContext::unavailable(),
+/// };
+/// assert_eq!(
+///     strategy.decide(&bar, &context, StrategyPosition::flat()),
+///     Decision::Hold
+/// );
 /// ```
 pub trait Strategy {
-    /// Decides for one closed bar given the position execution currently holds.
-    fn decide(&self, input: &StrategyInput, position: StrategyPosition) -> Decision;
+    /// Decides for one closed execution bar.
+    fn decide(
+        &self,
+        input: &StrategyInput,
+        context: &LadderContext,
+        position: StrategyPosition,
+    ) -> Decision;
 }

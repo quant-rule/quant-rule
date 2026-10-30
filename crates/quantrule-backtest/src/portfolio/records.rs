@@ -9,22 +9,23 @@ use super::state::OpenPosition;
 /// Why a position was closed.
 ///
 /// The portfolio's exit reason is the fill's reason, not the strategy's. A
-/// strategy exit becomes [`Self::AgreementLost`]; a bracket exit becomes
-/// [`Self::Stop`] or [`Self::Target`].
+/// strategy exit becomes [`Self::StrategyExit`]; a bracket exit becomes
+/// [`Self::Stop`] or [`Self::Target`]. The strategy report carries the specific
+/// context or structure reason.
 ///
 /// # Examples
 ///
 /// ```
 /// use quantrule_backtest::portfolio::ExitReason;
 ///
-/// assert_eq!(ExitReason::AgreementLost.code(), "agreement_lost");
+/// assert_eq!(ExitReason::StrategyExit.code(), "strategy");
 /// assert_eq!(ExitReason::Stop.code(), "stop");
 /// assert_eq!(ExitReason::Target.code(), "target");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitReason {
-    /// The strategy's agreement condition no longer held.
-    AgreementLost,
+    /// The strategy requested the close.
+    StrategyExit,
     /// The position's stop was reached.
     Stop,
     /// The position's target was reached.
@@ -36,7 +37,7 @@ impl ExitReason {
     #[must_use]
     pub const fn code(self) -> &'static str {
         match self {
-            Self::AgreementLost => "agreement_lost",
+            Self::StrategyExit => "strategy",
             Self::Stop => "stop",
             Self::Target => "target",
         }

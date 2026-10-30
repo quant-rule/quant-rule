@@ -801,6 +801,12 @@ stateless strategy contract.
 
 **Goal:** Replace `axis-agreement` with the unified ladder rule.
 
+**Status:** Implemented; PR pending. The live strategy is `ladder-context`; the
+old `axis-agreement` source, config schema, and command name are removed. The
+historical golden fixture is archived with an ADR. The current execution loader
+still reads `quantrule.execution/v2`; `execution.fill_timeframe` is checked
+against `ladder[0]`.
+
 **Files:**
 
 - `crates/quantrule-backtest/src/strategy/*`
@@ -815,7 +821,7 @@ stateless strategy contract.
 **Work:**
 
 - Implement `LadderContextStrategy`.
-- Use `ExecutionSnapshot + LadderContext + PositionState`.
+- Use the execution snapshot, `LadderContext`, and `StrategyPosition`.
 - Integrate the agreement conditions.
 - Support long and short mirroring.
 - Enforce execution on `ladder[0]`.
@@ -823,6 +829,24 @@ stateless strategy contract.
 - Reject v2 configs with a migration message.
 - Archive the old golden fixture and ADR.
 - Update `strategy explain`, `strategy-run`, `backtest`, and reports.
+
+**Implementation notes:**
+
+- The default control ladder is 5m execution with 15m context. The example
+  configs use the same ladder and relaxed context limits (`conflict_count_max`
+  and `late_or_terminal_count_max` equal to 1) so the short synthetic fixtures
+  exercise the rule; the built-in default keeps the plan's strict 0/0 limits.
+- `StrategyInput` now carries the execution Structure state and the previous
+  state for the configured shift, the published Progression fields, and a
+  contiguity flag. It still exposes no percentile, readiness, event, raw
+  indicator, fill, cash, or P&L field.
+- The strategy report records context-complete, missing, conflict, and
+  late/terminal bar counts, plus `context_lost` and `structure_lost` exits.
+- The portfolio trade exit reason for a strategy close is `strategy`; the
+  strategy report carries the specific context/structure reason.
+- The live rule has a checked-in golden fixture covering a long and short
+  entry, both exits, missing context, conflicts, late legs, a non-contiguous
+  bar, a missing execution value, and a missing Structure shift.
 
 **Exit criteria:**
 
@@ -1117,35 +1141,35 @@ Stop and request human direction if:
 
 ### Phase 7 — Unified strategy
 
-- [ ] `strategy.json` v3 parses.
-- [ ] `ladder[0]` is execution.
-- [ ] Context timeframes are higher.
-- [ ] Active ladder is a subset of available.
-- [ ] All active timeframes are in the policy universe.
-- [ ] `execution.fill_timeframe == ladder[0]`.
-- [ ] Weights are optional and default equal.
-- [ ] Weights are positive and normalized.
-- [ ] Unified long rule is implemented.
-- [ ] Unified short rule is mirrored.
-- [ ] Context agreement is integrated.
-- [ ] Structure conflict count is correct.
-- [ ] Progression late/terminal count is correct.
-- [ ] Exit on context lost.
-- [ ] Exit on structure lost.
-- [ ] ATR bracket applies.
-- [ ] No trade on null required fields.
-- [ ] No trade on missing context.
-- [ ] No trade on non-contiguous execution.
-- [ ] Execution on fastest active timeframe.
-- [ ] `axis-agreement` removed from config.
-- [ ] `axis-agreement` removed from commands.
-- [ ] v2 config rejected with migration message.
-- [ ] Historical golden fixture archived.
-- [ ] Historical ADR exists.
-- [ ] `strategy explain` prints the new rule.
-- [ ] `strategy-run` works.
-- [ ] `backtest` works.
-- [ ] Reports work.
+- [x] `strategy.json` v3 parses.
+- [x] `ladder[0]` is execution.
+- [x] Context timeframes are higher.
+- [x] Active ladder is a subset of available.
+- [x] All active timeframes are in the policy universe.
+- [x] `execution.fill_timeframe == ladder[0]`.
+- [x] Weights are optional and default equal.
+- [x] Weights are positive and normalized.
+- [x] Unified long rule is implemented.
+- [x] Unified short rule is mirrored.
+- [x] Context agreement is integrated.
+- [x] Structure conflict count is correct.
+- [x] Progression late/terminal count is correct.
+- [x] Exit on context lost.
+- [x] Exit on structure lost.
+- [x] ATR bracket applies.
+- [x] No trade on null required fields.
+- [x] No trade on missing context.
+- [x] No trade on non-contiguous execution.
+- [x] Execution on fastest active timeframe.
+- [x] `axis-agreement` removed from config.
+- [x] `axis-agreement` removed from commands.
+- [x] v2 config rejected with migration message.
+- [x] Historical golden fixture archived.
+- [x] Historical ADR exists.
+- [x] `strategy explain` prints the new rule.
+- [x] `strategy-run` works.
+- [x] `backtest` works.
+- [x] Reports work.
 
 ### Phase 8 — Documentation
 

@@ -688,7 +688,7 @@ fn sizing_rejections_display_a_deterministic_message() {
 
 #[test]
 fn exit_reasons_have_the_contract_codes() {
-    assert_eq!(ExitReason::AgreementLost.code(), "agreement_lost");
+    assert_eq!(ExitReason::StrategyExit.code(), "strategy");
     assert_eq!(ExitReason::Stop.code(), "stop");
     assert_eq!(ExitReason::Target.code(), "target");
 }

@@ -147,17 +147,45 @@ impl RunConfig {
 
     pub(super) fn validate_cross(&self) -> Result<(), ConfigError> {
         let strategy_secs = self.strategy.engine.timeframe_secs();
-        let Some(strategy_timeframe) = self
-            .data
-            .available_timeframes
-            .iter()
-            .copied()
-            .find(|timeframe| u64::from(timeframe.seconds()) == strategy_secs)
-        else {
+        let mut active =
+            Vec::with_capacity(self.strategy.engine.ladder().context_timeframes().len() + 1);
+        active.push(strategy_secs);
+        active.extend_from_slice(self.strategy.engine.ladder().context_timeframes());
+
+        let mut strategy_timeframe = None;
+        for seconds in &active {
+            let Some(timeframe) = self
+                .data
+                .available_timeframes
+                .iter()
+                .copied()
+                .find(|timeframe| u64::from(timeframe.seconds()) == *seconds)
+            else {
+                return Err(ConfigError::inconsistent(
+                    file_name(&self.paths.strategy),
+                    "$.ladder",
+                    "a member of the data ladder",
+                    &seconds.to_string(),
+                ));
+            };
+            if !self.policy.universe.timeframes.contains(&timeframe) {
+                return Err(ConfigError::inconsistent(
+                    file_name(&self.paths.strategy),
+                    "$.ladder",
+                    "a member of the policy universe",
+                    timeframe.code(),
+                ));
+            }
+            if *seconds == strategy_secs {
+                strategy_timeframe = Some(timeframe);
+            }
+        }
+
+        let Some(strategy_timeframe) = strategy_timeframe else {
             return Err(ConfigError::inconsistent(
                 file_name(&self.paths.strategy),
-                "$.timeframe",
-                "a member of the data ladder",
+                "$.ladder",
+                "the execution timeframe",
                 &strategy_secs.to_string(),
             ));
         };
@@ -213,21 +241,6 @@ impl RunConfig {
                     timeframe.code(),
                 ));
             }
-        }
-
-        if !self
-            .policy
-            .universe
-            .timeframes
-            .iter()
-            .any(|timeframe| timeframe.seconds() == strategy_timeframe.seconds())
-        {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.strategy),
-                "$.timeframe",
-                "a timeframe from the policy universe",
-                strategy_timeframe.code(),
-            ));
         }
 
         if !self

@@ -16,7 +16,6 @@
 use std::io::{self, Write};
 use std::path::PathBuf;
 
-use quantrule_backtest::intent::RiskPolicy;
 use quantrule_backtest::runner::walk_strategy;
 use quantrule_backtest::strategy::{
     Decision, ExitReason, Side, StrategyConfig, StrategyInput, StrategyWalk,
@@ -31,7 +30,7 @@ use crate::pipeline;
 use crate::source::DateBounds;
 
 /// The strategy name the command accepts.
-pub(crate) const AXIS_AGREEMENT: &str = "axis-agreement";
+pub(crate) const RULE_LADDER_CONTEXT: &str = "ladder-context";
 
 /// Parses the already-split arguments of `strategy-run`.
 ///
@@ -89,7 +88,7 @@ pub(crate) fn parse_strategy_run_arguments(
                     })?;
                 if !is_supported_strategy(value) {
                     return Err(ParseError::StrategyRun(format!(
-                        "unknown strategy '{value}'; use {AXIS_AGREEMENT}\n{USAGE}"
+                        "unknown strategy '{value}'; use {RULE_LADDER_CONTEXT}\n{USAGE}"
                     )));
                 }
                 strategy = Some(value.clone());
@@ -196,14 +195,14 @@ pub(crate) fn run_strategy_run(
     args: &StrategyRunArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let (config, risk, model_config) = match &args.config {
+    let (config, thesis, model_config) = match &args.config {
         Some(path) => {
             let run = crate::config::RunConfig::load(path).map_err(RunError::Config)?;
-            (run.strategy.engine, run.strategy.risk(), run.model)
+            (run.strategy.engine, run.strategy.thesis, run.model)
         }
         None => (
             StrategyConfig::default(),
-            RiskPolicy::default(),
+            String::new(),
             MarketStateConfig::default(),
         ),
     };
@@ -212,12 +211,6 @@ pub(crate) fn run_strategy_run(
             name: args.strategy.clone(),
         }));
     }
-    let timeframe = timeframe_for(config.timeframe_secs()).ok_or_else(|| {
-        RunError::StrategyRun(StrategyRunError::UnsupportedTimeframe {
-            timeframe_secs: config.timeframe_secs(),
-        })
-    })?;
-
     let set = pipeline::load_extended_set(&args.path, args.bounds).map_err(RunError::Source)?;
     if set.series(Timeframe::M1).is_empty() {
         return Err(RunError::StrategyRun(StrategyRunError::EmptyPeriod {
@@ -225,20 +218,21 @@ pub(crate) fn run_strategy_run(
         }));
     }
 
-    let run = pipeline::model_run_from_set(&set, &model_config);
-    let model = run
-        .timeframe(u64::from(timeframe.seconds()))
-        .ok_or_else(|| {
-            RunError::StrategyRun(StrategyRunError::NoTimeframeBars {
-                timeframe_secs: config.timeframe_secs(),
+    let model_run =
+        pipeline::model_run_from_set_with_ladder(&set, &active_timeframes(&config)?, &model_config);
+    for timeframe in active_timeframes(&config)? {
+        let seconds = u64::from(timeframe.seconds());
+        if model_run.timeframe(seconds).is_none() {
+            return Err(RunError::StrategyRun(StrategyRunError::NoTimeframeBars {
+                timeframe_secs: seconds,
                 period: args.requested_period(),
-            })
-        })?;
-
-    let walk = walk_strategy(model, &config, risk).map_err(RunError::Backtest)?;
+            }));
+        }
+    }
+    let walk = walk_strategy(&model_run, &config).map_err(RunError::Backtest)?;
     let records = collect_records(&walk);
     if args.json {
-        write_line(&envelope_value(args, &config, risk, &records), writer)
+        write_line(&envelope_value(args, &config, &thesis, &records), writer)
             .map_err(RunError::Output)?;
     } else {
         for record in &records {
@@ -249,13 +243,29 @@ pub(crate) fn run_strategy_run(
 }
 
 fn is_supported_strategy(name: &str) -> bool {
-    name == AXIS_AGREEMENT
+    name == RULE_LADDER_CONTEXT
 }
 
 fn timeframe_for(seconds: u64) -> Option<Timeframe> {
     Timeframe::ALL
         .into_iter()
         .find(|timeframe| u64::from(timeframe.seconds()) == seconds)
+}
+
+fn active_timeframes(config: &StrategyConfig) -> Result<Vec<Timeframe>, RunError> {
+    let mut seconds = Vec::with_capacity(config.ladder().context_timeframes().len() + 1);
+    seconds.push(config.timeframe_secs());
+    seconds.extend_from_slice(config.ladder().context_timeframes());
+    seconds
+        .into_iter()
+        .map(|seconds| {
+            timeframe_for(seconds).ok_or_else(|| {
+                RunError::StrategyRun(StrategyRunError::UnsupportedTimeframe {
+                    timeframe_secs: seconds,
+                })
+            })
+        })
+        .collect()
 }
 
 fn collect_records(walk: &StrategyWalk) -> Vec<Value> {
@@ -282,7 +292,7 @@ fn record_value(
 ) -> Value {
     let mut value = json!({
         "type": kind,
-        "strategy": AXIS_AGREEMENT,
+        "strategy": RULE_LADDER_CONTEXT,
         "timeframe": labels::timeframe_label(bar.timeframe_secs),
         "timeframe_secs": bar.timeframe_secs,
         "bar": bar.bar_index,
@@ -302,21 +312,13 @@ fn record_value(
 fn envelope_value(
     args: &StrategyRunArgs,
     config: &StrategyConfig,
-    risk: RiskPolicy,
+    thesis: &str,
     records: &[Value],
 ) -> Value {
     json!({
         "model_version": env!("CARGO_PKG_VERSION"),
         "strategy": &args.strategy,
-        "strategy_config": {
-            "timeframe_secs": config.timeframe_secs(),
-            "long_threshold": config.long_threshold(),
-            "short_threshold": config.short_threshold(),
-            "risk": {
-                "stop_atr_multiple": risk.stop_atr_multiple(),
-                "reward_to_risk": risk.reward_to_risk(),
-            },
-        },
+        "strategy_config": strategy_config_value(config, thesis),
         "data_version": &args.data_version,
         "execution_state": "virtual",
         "requested_period": {
@@ -328,6 +330,93 @@ fn envelope_value(
     })
 }
 
+pub(super) fn strategy_config_value(config: &StrategyConfig, thesis: &str) -> Value {
+    let context = config.ladder().context_timeframes();
+    let entry = config.entry();
+    let execution = entry.execution();
+    let context_entry = entry.context();
+    let exit = config.exit();
+    let risk = config.risk();
+    let mut exit_on = Vec::new();
+    if exit.on_context_lost() {
+        exit_on.push("context_lost");
+    }
+    if exit.on_structure_lost() {
+        exit_on.push("structure_lost");
+    }
+
+    json!({
+        "name": "ladder-context",
+        "thesis": thesis,
+        "timeframe_secs": config.timeframe_secs(),
+        "ladder": ladder_labels(config),
+        "weights": {
+            "direction": weight_map(context, config.weights().direction()),
+            "momentum": weight_map(context, config.weights().momentum()),
+            "structure": weight_map(context, config.weights().structure()),
+            "progression": weight_map(context, config.weights().progression()),
+        },
+        "entry": {
+            "execution": {
+                "direction_min": execution.direction_min(),
+                "momentum_min": execution.momentum_min(),
+                "structure_min": execution.structure_min(),
+                "structure_shift": {
+                    "from_max": execution.structure_shift_from_max(),
+                    "to_min": execution.structure_shift_to_min(),
+                },
+            },
+            "context": {
+                "direction": {
+                    "kind": "bullish",
+                    "share_min": context_entry.direction_share_min(),
+                },
+                "momentum": {
+                    "kind": "not_bearish",
+                    "bearish_share_max": context_entry.momentum_bearish_share_max(),
+                },
+                "structure": {
+                    "conflict_count_max": context_entry.structure_conflict_count_max(),
+                },
+                "progression": {
+                    "direction": "bullish",
+                    "late_or_terminal_count_max": context_entry
+                        .progression_late_or_terminal_count_max(),
+                },
+            },
+        },
+        "exit": {"on": exit_on},
+        "risk": {
+            "stop": {"kind": "atr", "multiple": risk.stop_atr_multiple()},
+            "target": {
+                "kind": "reward_to_risk",
+                "multiple": risk.reward_to_risk(),
+            },
+        },
+        "no_trade": {
+            "missing_context": "reject",
+            "require_contiguous_execution": config.require_contiguous_execution(),
+        },
+    })
+}
+
+fn ladder_labels(config: &StrategyConfig) -> Vec<&'static str> {
+    let mut labels = Vec::with_capacity(config.ladder().context_timeframes().len() + 1);
+    labels.push(labels::timeframe_label(config.timeframe_secs()));
+    for seconds in config.ladder().context_timeframes() {
+        labels.push(labels::timeframe_label(*seconds));
+    }
+    labels
+}
+
+fn weight_map(timeframes: &[u64], weights: &[f64]) -> Value {
+    let mut map = serde_json::Map::new();
+    for (seconds, weight) in timeframes.iter().zip(weights) {
+        map.insert(labels::timeframe_label(*seconds).to_owned(), json!(weight));
+    }
+    Value::Object(map)
+}
+
 fn side_label(side: Side) -> &'static str {
     match side {
         Side::Long => "long",
@@ -337,7 +426,8 @@ fn side_label(side: Side) -> &'static str {
 
 fn reason_code(reason: ExitReason) -> &'static str {
     match reason {
-        ExitReason::AgreementLost => "agreement_lost",
+        ExitReason::ContextLost => "context_lost",
+        ExitReason::StructureLost => "structure_lost",
     }
 }
 
@@ -350,7 +440,7 @@ fn write_line(value: &Value, writer: &mut impl Write) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        AXIS_AGREEMENT, is_supported_strategy, parse_strategy_run_arguments, reason_code,
+        RULE_LADDER_CONTEXT, is_supported_strategy, parse_strategy_run_arguments, reason_code,
         record_value, timeframe_for,
     };
     use crate::command::types::ParseError;
@@ -366,7 +456,7 @@ mod tests {
         let args = parse_strategy_run_arguments(&arguments(&[
             "data/m1.csv",
             "--strategy",
-            "axis-agreement",
+            "ladder-context",
             "--data-version",
             "source:sol:60:0-1000",
             "--from",
@@ -377,7 +467,7 @@ mod tests {
         ]))
         .expect("the arguments are valid");
 
-        assert_eq!(args.strategy, AXIS_AGREEMENT);
+        assert_eq!(args.strategy, RULE_LADDER_CONTEXT);
         assert_eq!(args.data_version, "source:sol:60:0-1000");
         assert_eq!(args.from.as_deref(), Some("2025-01-01"));
         assert_eq!(args.to.as_deref(), Some("2025-12-31"));
@@ -390,7 +480,7 @@ mod tests {
         let args = parse_strategy_run_arguments(&arguments(&[
             "m1.csv",
             "--strategy",
-            "axis-agreement",
+            "ladder-context",
             "--data-version",
             "v1",
         ]))
@@ -405,7 +495,7 @@ mod tests {
     #[test]
     fn rejects_missing_required_options() {
         assert!(matches!(
-            parse_strategy_run_arguments(&arguments(&["m1.csv", "--strategy", "axis-agreement"])),
+            parse_strategy_run_arguments(&arguments(&["m1.csv", "--strategy", "ladder-context"])),
             Err(ParseError::StrategyRun(message)) if message.contains("--data-version is required")
         ));
         assert!(matches!(
@@ -419,7 +509,7 @@ mod tests {
         assert!(matches!(
             parse_strategy_run_arguments(&arguments(&[
                 "--strategy",
-                "axis-agreement",
+                "ladder-context",
                 "--data-version",
                 "v1",
             ])),
@@ -447,7 +537,7 @@ mod tests {
             parse_strategy_run_arguments(&arguments(&[
                 "m1.csv",
                 "--strategy",
-                "axis-agreement",
+                "ladder-context",
                 "--data-version",
                 "v1",
                 "--from",
@@ -459,7 +549,7 @@ mod tests {
             parse_strategy_run_arguments(&arguments(&[
                 "m1.csv",
                 "--strategy",
-                "axis-agreement",
+                "ladder-context",
                 "--data-version",
                 "v1",
                 "--from",
@@ -477,9 +567,9 @@ mod tests {
             parse_strategy_run_arguments(&arguments(&[
                 "m1.csv",
                 "--strategy",
-                "axis-agreement",
+                "ladder-context",
                 "--strategy",
-                "axis-agreement",
+                "ladder-context",
                 "--data-version",
                 "v1",
             ])),
@@ -489,7 +579,7 @@ mod tests {
             parse_strategy_run_arguments(&arguments(&[
                 "m1.csv",
                 "--strategy",
-                "axis-agreement",
+                "ladder-context",
                 "--data-version",
                 "v1",
                 "--out",
@@ -500,22 +590,22 @@ mod tests {
     }
 
     #[test]
-    fn the_default_strategy_is_the_m15_axis_agreement_rule() {
+    fn the_default_strategy_is_the_m5_ladder_context_rule() {
         let config = StrategyConfig::default();
-        assert_eq!(config.timeframe_secs(), 900);
-        assert_eq!(timeframe_for(config.timeframe_secs()), Some(Timeframe::M15));
-        assert!(is_supported_strategy(AXIS_AGREEMENT));
+        assert_eq!(config.timeframe_secs(), 300);
+        assert_eq!(timeframe_for(config.timeframe_secs()), Some(Timeframe::M5));
+        assert!(is_supported_strategy(RULE_LADDER_CONTEXT));
         assert!(!is_supported_strategy("ema-cross"));
     }
 
     #[test]
     fn an_entry_record_carries_readings_and_no_fill_fields() {
-        let bar = StrategyInput::new(900, 7, 1_700_000_000, Some(0.2), Some(0.5), Some(1.0));
+        let bar = StrategyInput::new(300, 7, 1_700_000_000, Some(0.2), Some(0.5), Some(1.0));
         let value = record_value("entry", Side::Long, None, &bar);
 
         assert_eq!(value["type"], "entry");
-        assert_eq!(value["strategy"], AXIS_AGREEMENT);
-        assert_eq!(value["timeframe"], "15m");
+        assert_eq!(value["strategy"], RULE_LADDER_CONTEXT);
+        assert_eq!(value["timeframe"], "5m");
         assert_eq!(value["bar"], 7);
         assert_eq!(value["side"], 1);
         assert_eq!(value["side_label"], "long");
@@ -532,12 +622,12 @@ mod tests {
     #[test]
     fn an_exit_record_carries_its_reason() {
         let bar = StrategyInput::new(900, 8, 1_700_000_900, Some(0.0), Some(0.0), Some(0.0));
-        let value = record_value("exit", Side::Short, Some(ExitReason::AgreementLost), &bar);
+        let value = record_value("exit", Side::Short, Some(ExitReason::ContextLost), &bar);
 
         assert_eq!(value["type"], "exit");
         assert_eq!(value["side"], -1);
         assert_eq!(value["side_label"], "short");
-        assert_eq!(value["reason"], "agreement_lost");
-        assert_eq!(reason_code(ExitReason::AgreementLost), "agreement_lost");
+        assert_eq!(value["reason"], "context_lost");
+        assert_eq!(reason_code(ExitReason::ContextLost), "context_lost");
     }
 }

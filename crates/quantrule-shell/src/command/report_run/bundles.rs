@@ -950,7 +950,7 @@ fn fill_reason_label(reason: FillReason) -> &'static str {
 
 fn exit_reason_label(reason: ExitReason) -> &'static str {
     match reason {
-        ExitReason::AgreementLost => "agreement_lost",
+        ExitReason::StrategyExit => "strategy",
         ExitReason::Stop => "stop",
         ExitReason::Target => "target",
     }
@@ -1252,11 +1252,11 @@ mod tests {
             net_pnl: 0.9,
             return_fraction: Some(0.00009),
             hold_bars: 1,
-            exit_reason: ExitReason::AgreementLost,
+            exit_reason: ExitReason::StrategyExit,
         };
         let csv = trades_csv(&[trade]);
         assert!(csv.starts_with("trade_id,side,"));
-        assert!(csv.contains(",agreement_lost\n"));
+        assert!(csv.contains(",strategy\n"));
 
         let point = EquityPoint {
             date: 0,

@@ -422,7 +422,7 @@ A run is specified by eight files. The command line carries only the config path
 | `policy.json` | Account, objective, risk envelope, tickets, and timeframes |
 | `data.json` | Instrument ticket, source CSV, data version, UTC period, the configurable `available_timeframes` list (default `1m`/`5m`/`15m`/`1h`, with `4h` supported), and `max_candles` (`1..=600000`) |
 | `model.json` | Default reading periods (`ema`, `rsi`, `atr`, `rvol`), optional per-timeframe overrides, and the structure scale (`major` or `minor`) |
-| `strategy.json` | Thesis, `axis-agreement` timeframe, long/short thresholds, stop ATR multiple, and reward-to-risk |
+| `strategy.json` | Thesis, active ladder, context weights, execution and context entry conditions, exit reasons, and risk intent |
 | `execution.json` | Fill timeframe, order type, tie break, fee rate, slippage, zero-volume and end-of-data policy |
 | `portfolio.json` | Cash, currency, sizing, leverage, position limit, commission, funding, drawdown limit and action, mark policy |
 | `analytics.json` | Analytical report scale, timeframe subset, and relations switch |
@@ -480,15 +480,15 @@ The summary has seven sections: Identity, Artifacts, Observed result, Checks, Ro
 
 ### Strategy-run contract
 
-`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs the first model-driven strategy, `axis-agreement`, over the M15 series and prints its entries and exits. It requires a one-minute-spaced source and rejects a native higher-timeframe file before printing. With `--config`, it uses the run's strategy and model configuration. The JSON envelope marks `execution_state` as `virtual`: the diagnostic walk assumes every decision fills immediately. The standalone `report strategy` is also virtual; only the `strategy` bundle written by `backtest` reads the executed walk. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
+`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs the unified `ladder-context` strategy over its active ladder and prints its entries and exits. The built-in default is 5m execution with 15m context. It requires a one-minute-spaced source and rejects a native higher-timeframe file before printing. With `--config`, it uses the run's strategy and model configuration. The JSON envelope marks `execution_state` as `virtual`: the diagnostic walk assumes every decision fills immediately. The standalone `report strategy` is also virtual; only the `strategy` bundle written by `backtest` reads the executed walk. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
 
-- `axis-agreement` enters long when Direction, Momentum force, and Structure score are all above the configured long threshold (default `+0.1`), and short when all are below the configured short threshold (default `-0.1`). Equality at a threshold is neutral. It exits when the agreement is lost; it never reverses on the same bar and never exits at the end of the data.
+- `ladder-context` enters long when the execution Direction and Momentum are positive, Structure turns up, and the weighted context is bullish without conflicts or late/terminal legs. It enters short on the mirrored conditions. It exits on `context_lost`, `structure_lost`, or an execution bracket. It never reverses on the same bar and never exits at the end of the data.
 - `--data-version <id>` is the caller-supplied identity of the input series; the envelope records it and never infers it from the path.
 - `--from` and `--to` are inclusive UTC `YYYY-MM-DD` dates applied to the M1 source before the ladder is built. No pre-range warm-up is used.
-- Without `--json`, the command prints one NDJSON line per entry or exit, oldest first. Each record carries `type`, `strategy`, `timeframe`, `timeframe_secs`, `bar`, `datetime`, `side`, `side_label`, `direction`, `momentum_force`, and `structure_score`; an exit also carries `reason` (`agreement_lost`). Model Signal events remain a separate event type and are never relabelled as strategy entries or exits.
+- Without `--json`, the command prints one NDJSON line per entry or exit, oldest first. Each record carries `type`, `strategy`, `timeframe`, `timeframe_secs`, `bar`, `datetime`, `side`, `side_label`, `direction`, `momentum_force`, and `structure_score`; an exit also carries `reason` (`context_lost` or `structure_lost`). Model Signal events remain a separate event type and are never relabelled as strategy entries or exits.
 - With `--json`, the command prints one envelope with `model_version`, `strategy`, `strategy_config`, `data_version`, `requested_period`, `timeframe_secs`, and `records`; `records` carries the same records as the bare NDJSON output.
 
-`--config` uses the strategy blueprint from the run configuration; without it the built-in defaults are used. The strategy reads only the configured timeframe, uses the extended range up to 600,000 M1 candles, and fails with a message rather than printing an empty result when the requested period has no M1 candles or no M15 bars. The output is deterministic: the same input, range, data version, and configuration produce the same bytes, interactively or non-interactively.
+`--config` uses the strategy blueprint from the run configuration; without it the built-in defaults are used. The strategy reads only the configured timeframe, uses the extended range up to 600,000 M1 candles, and fails with a message rather than printing an empty result when the requested period has no M1 candles or an active-ladder timeframe cannot be built. The output is deterministic: the same input, range, data version, and configuration produce the same bytes, interactively or non-interactively.
 
 ### Fetch contract
 
@@ -576,7 +576,7 @@ The counts satisfy `rows_read = accepted + rejected` and `accepted = evicted + r
 
 ## Scope
 
-MVP v1 covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, the four-axis market state with its events and legs, a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h`, and a full config-driven backtest: the axis-agreement strategy, next-open execution with an ATR bracket, portfolio accounting with commission, funding, and a drawdown halt, and the five report bundles. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. A run is deterministic: the same data and configuration produce the same bundles and the same printed output.
+MVP v1 covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, the four-axis market state with its events and legs, a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h`, and a full config-driven backtest: the unified ladder-context strategy, next-open execution with an ATR bracket, portfolio accounting with commission, funding, and a drawdown halt, and the five report bundles. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. A run is deterministic: the same data and configuration produce the same bundles and the same printed output.
 
 ## Verification
 

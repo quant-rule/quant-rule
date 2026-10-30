@@ -514,14 +514,42 @@ fn model_v2_rejects_invalid_readings() {
 
 fn strategy_object() -> Value {
     json!({
-        "schema": "quantrule.strategy/v2",
-        "name": "axis-agreement",
-        "thesis": "Trade only when direction, momentum, and structure agree.",
-        "timeframe": "15m",
-        "long_threshold": 0.1,
-        "short_threshold": -0.1,
-        "stop_atr_multiple": 2.0,
-        "reward_to_risk": 1.5
+        "schema": "quantrule.strategy/v3",
+        "rule": "ladder-context",
+        "thesis": "Trade with the higher-timeframe regime after a lower-timeframe structure shift.",
+        "ladder": ["5m", "15m"],
+        "weights": {
+            "direction": {"15m": 1.0},
+            "momentum": {"15m": 1.0},
+            "structure": {"15m": 1.0},
+            "progression": {"15m": 1.0}
+        },
+        "entry": {
+            "execution": {
+                "direction_min": 0.1,
+                "momentum_min": 0.1,
+                "structure_min": 0.0,
+                "structure_shift": {"from_max": 0, "to_min": 1}
+            },
+            "context": {
+                "direction": {"kind": "bullish", "share_min": 0.5},
+                "momentum": {"kind": "not_bearish", "bearish_share_max": 0.5},
+                "structure": {"conflict_count_max": 0},
+                "progression": {
+                    "direction": "bullish",
+                    "late_or_terminal_count_max": 0
+                }
+            }
+        },
+        "exit": {"on": ["context_lost", "structure_lost"]},
+        "risk": {
+            "stop": {"kind": "atr", "multiple": 2.0},
+            "target": {"kind": "reward_to_risk", "multiple": 1.5}
+        },
+        "no_trade": {
+            "missing_context": "reject",
+            "require_contiguous_execution": true
+        }
     })
 }
 
@@ -529,12 +557,14 @@ fn strategy_object() -> Value {
 fn strategy_matches_the_contract() {
     let valid =
         strategy::parse(&strategy_object(), "strategy.json").expect("the valid config loads");
-    assert_eq!(valid.engine.timeframe_secs(), 900);
-    assert_eq!(valid.engine.long_threshold(), 0.1);
-    assert_eq!(valid.engine.short_threshold(), -0.1);
+    assert_eq!(valid.engine.timeframe_secs(), 300);
+    assert_eq!(valid.engine.ladder().context_timeframes(), &[900]);
+    assert_eq!(valid.engine.weights().direction(), &[1.0]);
+    assert_eq!(valid.engine.entry().execution().direction_min(), 0.1);
+    assert_eq!(valid.engine.risk().stop_atr_multiple(), 2.0);
+    assert_eq!(valid.engine.risk().reward_to_risk(), 1.5);
     assert_eq!(valid.stop_atr_multiple(), 2.0);
     assert_eq!(valid.reward_to_risk(), 1.5);
-    assert_eq!(valid.target_atr_multiple(), 3.0);
 
     for (value, kind, path) in [
         (json!(1), Type, "$"),
@@ -542,7 +572,16 @@ fn strategy_matches_the_contract() {
             set(
                 strategy_object(),
                 &["schema"],
-                json!("quantrule.strategy/v3"),
+                json!("quantrule.strategy/v2"),
+            ),
+            Range,
+            "$.schema",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["schema"],
+                json!("quantrule.strategy/v4"),
             ),
             Schema,
             "$.schema",
@@ -553,53 +592,168 @@ fn strategy_matches_the_contract() {
             "$.extra",
         ),
         (
-            set(strategy_object(), &["name"], json!("other")),
+            set(strategy_object(), &["rule"], json!("axis-agreement")),
             Unsupported,
-            "$.name",
+            "$.rule",
         ),
         (
-            remove(strategy_object(), &["timeframe"]),
+            remove(strategy_object(), &["thesis"]),
             MissingField,
-            "$.timeframe",
+            "$.thesis",
         ),
         (
-            set(strategy_object(), &["timeframe"], json!("30m")),
+            set(strategy_object(), &["thesis"], json!("")),
             Range,
-            "$.timeframe",
+            "$.thesis",
         ),
         (
-            set(strategy_object(), &["timeframe"], json!(15)),
-            Type,
-            "$.timeframe",
+            remove(strategy_object(), &["ladder"]),
+            MissingField,
+            "$.ladder",
         ),
         (
-            set(strategy_object(), &["long_threshold"], json!(-0.1)),
+            set(strategy_object(), &["ladder"], json!(["5m"])),
             Range,
-            "$.long_threshold",
+            "$.ladder",
         ),
         (
-            set(strategy_object(), &["long_threshold"], json!("0.1")),
-            Type,
-            "$.long_threshold",
-        ),
-        (
-            set(strategy_object(), &["short_threshold"], json!(0.1)),
+            set(strategy_object(), &["ladder"], json!(["5m", "30m"])),
             Range,
-            "$.short_threshold",
+            "$.ladder[1]",
+        ),
+        (
+            set(strategy_object(), &["ladder"], json!(["15m", "5m"])),
+            Range,
+            "$.ladder",
+        ),
+        (
+            set(strategy_object(), &["ladder"], json!(["5m", "5m"])),
+            Range,
+            "$.ladder",
         ),
         (
             set(
-                set(strategy_object(), &["long_threshold"], json!(0.0)),
-                &["short_threshold"],
-                json!(0.0),
+                strategy_object(),
+                &["weights", "other"],
+                json!({"15m": 1.0}),
             ),
-            Inconsistent,
-            "$.long_threshold",
+            UnknownField,
+            "$.weights.other",
         ),
         (
-            set(strategy_object(), &["short_threshold"], json!(0.1)),
+            set(
+                strategy_object(),
+                &["weights", "direction", "1h"],
+                json!(1.0),
+            ),
+            UnknownField,
+            "$.weights.direction.1h",
+        ),
+        (
+            remove(strategy_object(), &["weights", "direction", "15m"]),
+            MissingField,
+            "$.weights.direction.15m",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["weights", "direction", "15m"],
+                json!(0.0),
+            ),
             Range,
-            "$.short_threshold",
+            "$.weights.direction.15m",
+        ),
+        (
+            remove(strategy_object(), &["entry", "execution"]),
+            MissingField,
+            "$.entry.execution",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["entry", "execution", "direction_min"],
+                json!(1.1),
+            ),
+            Range,
+            "$.entry.execution",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["entry", "execution", "structure_shift", "from_max"],
+                json!(1),
+            ),
+            Range,
+            "$.entry.execution",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["entry", "context", "direction", "kind"],
+                json!("bearish"),
+            ),
+            Unsupported,
+            "$.entry.context.direction.kind",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["entry", "context", "direction", "share_min"],
+                json!(1.1),
+            ),
+            Range,
+            "$.entry.context",
+        ),
+        (
+            set(strategy_object(), &["exit", "on"], json!([])),
+            Range,
+            "$.exit.on",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["exit", "on"],
+                json!(["context_lost", "context_lost"]),
+            ),
+            Inconsistent,
+            "$.exit.on[1]",
+        ),
+        (
+            set(strategy_object(), &["exit", "on"], json!(["unknown"])),
+            Unsupported,
+            "$.exit.on[0]",
+        ),
+        (
+            set(strategy_object(), &["risk", "stop", "kind"], json!("price")),
+            Unsupported,
+            "$.risk.stop.kind",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["risk", "target", "multiple"],
+                json!(0.0),
+            ),
+            Range,
+            "$.risk",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["no_trade", "missing_context"],
+                json!("skip"),
+            ),
+            Unsupported,
+            "$.no_trade.missing_context",
+        ),
+        (
+            set(
+                strategy_object(),
+                &["no_trade", "require_contiguous_execution"],
+                json!(false),
+            ),
+            Range,
+            "$.no_trade.require_contiguous_execution",
         ),
     ] {
         assert_rejected(strategy::parse(&value, "strategy.json"), kind, path);
@@ -617,6 +771,20 @@ fn execution_object() -> Value {
         "zero_volume": "reject",
         "end_of_data": "leave_open"
     })
+}
+
+#[test]
+fn strategy_v2_is_rejected_with_a_migration_message() {
+    let mut value = strategy_object();
+    value["schema"] = json!("quantrule.strategy/v2");
+    let error =
+        strategy::parse(&value, "strategy.json").expect_err("the v2 schema must be rejected");
+    assert!(
+        error
+            .to_string()
+            .contains("quantrule.strategy/v2 is retired; use quantrule.strategy/v3 with rule \"ladder-context\""),
+        "the rejection must explain the migration: {error}"
+    );
 }
 
 #[test]
@@ -1154,14 +1322,17 @@ fn the_example_config_loads_and_resolves() {
     assert!(config.output_root.ends_with("data/backtest-solusd-2025"));
 
     assert_eq!(config.model.structure_scale, PivotScale::Major);
-    assert_eq!(config.strategy.engine.timeframe_secs(), 900);
-    assert_eq!(config.strategy.engine.long_threshold(), 0.1);
-    assert_eq!(config.strategy.engine.short_threshold(), -0.1);
+    assert_eq!(config.strategy.engine.timeframe_secs(), 300);
+    assert_eq!(config.strategy.engine.ladder().context_timeframes(), &[900]);
+    assert_eq!(
+        config.strategy.engine.entry().execution().direction_min(),
+        0.1
+    );
     assert_eq!(config.strategy.stop_atr_multiple(), 2.0);
     assert_eq!(config.strategy.reward_to_risk(), 1.5);
-    assert_eq!(config.strategy.risk().stop_atr_multiple(), 2.0);
+    assert_eq!(config.strategy.engine.risk().stop_atr_multiple(), 2.0);
 
-    assert_eq!(config.execution.fill_timeframe, Timeframe::M15);
+    assert_eq!(config.execution.fill_timeframe, Timeframe::M5);
     assert_eq!(config.execution.engine.fee_rate(), 0.0);
     assert_eq!(config.execution.engine.slippage_bps(), 2.0);
 
@@ -1208,12 +1379,12 @@ fn cross_config_invariants_are_enforced() {
     assert_cross(
         &missing_strategy_timeframe,
         Inconsistent,
-        "$.timeframe",
+        "$.ladder",
         "strategy.json",
     );
 
     let mut wrong_fill_timeframe = base.clone();
-    wrong_fill_timeframe.execution.fill_timeframe = Timeframe::H1;
+    wrong_fill_timeframe.execution.fill_timeframe = Timeframe::M15;
     assert_cross(
         &wrong_fill_timeframe,
         Inconsistent,
