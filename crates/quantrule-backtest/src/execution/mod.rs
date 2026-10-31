@@ -8,7 +8,7 @@
 //!
 //! # Fill policy
 //!
-//! The first backtest fills on the M15 ladder. A decision on bar `N` is
+//! The first backtest fills on the strategy ladder. A decision on bar `N` is
 //! submitted as an order on bar `N`; the order may fill on bar `N + 1`, never
 //! on bar `N`. No later bar is read to decide an earlier fill. A bar is
 //! processed in two calls: [`ExecutionEngine::advance`] resolves the previous

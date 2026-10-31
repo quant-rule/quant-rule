@@ -6,7 +6,7 @@
 //! fails validation is never used.
 //!
 //! The JSON schema is `quantrule.portfolio/v1`, documented in
-//! `docs/config/2026-10-28/per-engine-config.md`. The shell parses the JSON and
+//! `docs/config/2026-10-30/policy-and-strategy.md`. The shell parses the JSON and
 //! builds these values; the engine performs no I/O.
 
 use std::fmt;
