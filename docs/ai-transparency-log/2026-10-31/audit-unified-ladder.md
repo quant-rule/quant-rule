@@ -12,12 +12,12 @@ The human asked to run the full audit workflow against the merged unified-ladder
 system. The work was a read-only audit followed by a Planner remediation plan
 marked `Proposed`. The baseline was `main` at `7c865de`, the merge of PR #246.
 
-The audit did not modify code, tests, issues, or pull requests. It did not
-commit, push, or open a PR. It created no fix issues before approval. On
-2026-10-31 the human approved the plan and decisions D1–D12 as recommended; the
-Planner then created remediation issues #247–#255. Those remain the only issue
-changes made by this work item. Commits, pushes, and pull requests remain
-separate Git approval gates.
+The audit did not modify code or tests. It created no fix issues before
+approval. On 2026-10-31 the human approved the plan and decisions D1–D12 as
+recommended; the Planner then created remediation issues #247–#255. The
+audit/plan work was committed as `8643bf0` and opened as PR #256. W1 was
+implemented and committed as `7d29dcc` under #247, then opened as PR #257.
+Neither PR was merged. W2–W8 have not started.
 
 The audit covered five areas: strategy/config/context/runner; execution,
 portfolio, and the TradeIntent boundary; data/model/timeframe/causality; shell,
@@ -54,6 +54,8 @@ are listed as unexamined.
   `docs/ai-transparency-log/2026-10-31/247-noncontiguous-pending-fill.md`. This
   entry records the audit and plan work, not an independent verification of that
   implementation.
+- Committed the audit, plan, and this log as `8643bf0`; opened PR #256. W1 was
+  committed as `7d29dcc` and opened as PR #257.
 - Recorded this log. No repository artifact other than the audit, the plan, and
   this log was created by the audit work item itself.
 
@@ -78,8 +80,9 @@ Commands actually run in this worktree:
 | Probe `PF-01` | A 100-unit entry plus a 50-unit exit was accepted; `equity=5460.03` while `initial_cash + net_pnl=10960.03`; the trade claimed quantity 100 |
 | Stale-doc greps | Found the H4/four-series claim, “context pending”, “Phase 1 pending”, and “PR #246 open” |
 | Relative link check over the audit, plan, and log | 4 links checked, 0 broken |
-| Issue creation | #247–#254 created under parent #255; #247 is `In Progress`, the rest `Todo` |
-| Board read-back | #247 `In Progress` with start date `2026-10-31`; #255 `In Progress`; #248–#254 `Todo` |
+| Issue creation | #247–#254 created under parent #255; #247 moved to `Done` when PR #257 opened |
+| Board read-back | #247 `Done`; #255 `In Progress`; #248–#254 `Todo`; #247 start date `2026-10-31` |
+| Pull requests | Audit/plan PR #256; W1 PR #257; neither merged |
 
 The probe output is the runtime evidence for the Critical gap fill and the Major
 ledger exit-quantity defect. The remaining findings are code inspection plus the
@@ -92,7 +95,8 @@ The four exploration passes were separate read-only subagent sessions; the
 consolidation, severity assignment, and focused reproductions were performed by
 the main agent. This is a sequential role pass, not an independent-agent or
 independent-model review. The Improvement Verifier has not verified any finding:
-the audit findings are `Planned`, and the execution work has not started.
+AUD-2026-10-31-01 is `Fixed` pending its PR, the rest are `Planned`, and W2–W8
+have not started.
 
 ## Learning and rejected suggestions
 

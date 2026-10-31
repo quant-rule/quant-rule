@@ -121,6 +121,9 @@ so one leaf is in flight at a time.
 | W8 | [#254](https://github.com/quant-rule/quant-rule/issues/254) |
 | Parent | [#255](https://github.com/quant-rule/quant-rule/issues/255) |
 
+Audit/plan PR: [#256](https://github.com/quant-rule/quant-rule/pull/256).
+W1 PR: [#257](https://github.com/quant-rule/quant-rule/pull/257).
+
 ### W1 — Gap-safe pending fills (Critical)
 
 - Reject a pending entry when the next supplied bar is not exactly one
@@ -136,7 +139,7 @@ so one leaf is in flight at a time.
   `non_contiguous_bar`; the bracket still evaluates on the gap bar. The
   fail-before run failed 2 engine tests and 1 runner test; the fixed probe
   reports `fill count=0`. Validator record:
-  `docs/reports/2026-10-31/w1-gap-fill-validation.md`.
+  `docs/reports/2026-10-31/w1-gap-fill-validation.md`. Issue #247, PR #257.
 
 Proposed issue: **Reject pending fills across non-contiguous execution bars**.
 

@@ -39,7 +39,7 @@ changed.
 
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AUD-2026-10-31-01 | Critical | backtest | Pending entry fills on the first bar after a data gap | `runner/mod.rs:165,176`; probe `EX-01` | Silent wrong entry with pre-gap ATR | A guard fill-time contiguity; B document next-available fill and re-anchor ATR; C cancel pending on gap | A | Missing-bar test rejects the entry | Planned | — |
+| AUD-2026-10-31-01 | Critical | backtest | Pending entry fills on the first bar after a data gap | `runner/mod.rs:165,176`; probe `EX-01` | Silent wrong entry with pre-gap ATR | A guard fill-time contiguity; B document next-available fill and re-anchor ATR; C cancel pending on gap | A | Missing-bar test rejects the entry | Fixed | [#247](https://github.com/quant-rule/quant-rule/issues/247) · [#257](https://github.com/quant-rule/quant-rule/pull/257) |
 | AUD-2026-10-31-02 | Major | config | Real v2 strategy configs never reach the migration message | `config/strategy.rs:58,66`; probe output | Migration path broken; user sees unknown-field error | A check schema before field validation; B detect legacy fields; C change docs to unknown-field error | A | Real v2 fixture prints the documented migration sentence | Planned | — |
 | AUD-2026-10-31-03 | Major | shell/data | `model-series`/`market-chart` advertise 4h but cannot access H4 | `pipeline.rs:56,80,144`; `command/model.rs:311`; probe | 4h silently prints nothing or errors | A build H4 for path commands; B remove 4h from their help/parsers | A | 4h CLI tests emit H4 rows/write PNG | Planned | — |
 | AUD-2026-10-31-04 | Major | strategy/config | Structure context weights and context `kind` literals are accepted but inert | `strategy/ladder.rs:267`; `config/strategy.rs:319-386`; experiment C | Config/experiment imply a decision dimension that does nothing | A document diagnostics; B use score in rule (new hypothesis); C remove fields (new schema) | A now | Two structure weights produce identical decisions, documented | Planned | — |
@@ -94,7 +94,11 @@ changed.
 - Recommendation: A for entries; decide the exit policy explicitly.
 - Verification: a missing-bar test rejects the entry and leaves the position
   flat; a pending-exit test covers the chosen exit policy.
-- Links: —
+- Status: `Fixed` by #247 and PR #257. The validator record is
+  `docs/reports/2026-10-31/w1-gap-fill-validation.md`; the Improvement Verifier
+  has not marked it `Verified`.
+- Links: [#247](https://github.com/quant-rule/quant-rule/issues/247) ·
+  [#257](https://github.com/quant-rule/quant-rule/pull/257)
 
 ### AUD-2026-10-31-02 — Real v2 strategy configs miss the migration message
 
