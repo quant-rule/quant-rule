@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-unified-ladder
-- Status: Published
+- Status: Published; all findings `Verified` by a sequential Improvement Verifier pass on 2026-10-31 (not independent)
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `7c865de` (merge of PR #246)
 - Toolchain: see `rustc --version` / `cargo --version`; global gates were run
@@ -39,36 +39,36 @@ changed.
 
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AUD-2026-10-31-01 | Critical | backtest | Pending entry fills on the first bar after a data gap | `runner/mod.rs:165,176`; probe `EX-01` | Silent wrong entry with pre-gap ATR | A guard fill-time contiguity; B document next-available fill and re-anchor ATR; C cancel pending on gap | A | Missing-bar test rejects the entry | Fixed | [#247](https://github.com/quant-rule/quant-rule/issues/247) · [#257](https://github.com/quant-rule/quant-rule/pull/257) |
-| AUD-2026-10-31-02 | Major | config | Real v2 strategy configs never reach the migration message | `config/strategy.rs:58,66`; probe output | Migration path broken; user sees unknown-field error | A check schema before field validation; B detect legacy fields; C change docs to unknown-field error | A | Real v2 fixture prints the documented migration sentence | Fixed | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
-| AUD-2026-10-31-03 | Major | shell/data | `model-series`/`market-chart` advertise 4h but cannot access H4 | `pipeline.rs:56,80,144`; `command/model.rs:311`; probe | 4h silently prints nothing or errors | A build H4 for path commands; B remove 4h from their help/parsers | A | 4h CLI tests emit H4 rows/write PNG | Fixed | [#249](https://github.com/quant-rule/quant-rule/issues/249) · [#259](https://github.com/quant-rule/quant-rule/pull/259) |
-| AUD-2026-10-31-04 | Major | strategy/config | Structure context weights and context `kind` literals are accepted but inert | `strategy/ladder.rs:267`; `config/strategy.rs:319-386`; experiment C | Config/experiment imply a decision dimension that does nothing | A document diagnostics; B use score in rule (new hypothesis); C remove fields (new schema) | A now | Two structure weights produce identical decisions, documented | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
-| AUD-2026-10-31-05 | Major | portfolio | Exit fill quantity is not reconciled to the open position | `portfolio/ledger.rs:357,537`; probe `PF-01` | Ledger cash/equity can be corrupted by a partial exit | A reject quantity mismatch; B support partial exits; C clamp | A | Mismatched exit returns typed error and state unchanged | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
-| AUD-2026-10-31-06 | Major | docs/README | README and current-status docs describe the retired rule and stale outputs | `README.md:456-459`; `README.md:306`; `docs/model/2026-10-30/per-timeframe-model.md:4,128`; `docs/README.md:106` | Current example cannot reproduce; users are misled | A regenerate current docs/output; B mark examples historical | A | README envelope matches current 5m example; statuses say merged | Fixed | [#253](https://github.com/quant-rule/quant-rule/issues/253) · [#276](https://github.com/quant-rule/quant-rule/pull/276) |
-| AUD-2026-10-31-07 | Major | config/docs | Execution v3 contract says v2 is retired while the loader requires v2 | `docs/config/2026-10-30/execution-v3.md:95-98`; `config/execution.rs:48` | Users cannot tell which schema is current | A correct the doc; B implement v3 | A now | v2 config passes; v3 is documented as target | Fixed | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
-| AUD-2026-10-31-08 | Major | analytics | Layer 3 block width depends on whether higher series are empty | `analytics/layers/mod.rs:229,382`; `research/render.rs:127`; probe 155 columns | Fixed-schema contract violated; readers can misalign | A pass configured ladder and emit null blocks; B document variable width | A | Short source still exports configured blocks | Fixed | [#274](https://github.com/quant-rule/quant-rule/issues/274) · [#275](https://github.com/quant-rule/quant-rule/pull/275) |
-| AUD-2026-10-31-09 | Minor | model/events | Event batch order differs from the contract | `model/timeframe.rs:155`; `events/level.rs:197`; probe bar 28/37 | Published sequence order is contractually wrong | A preserve detector order; B explicit contract rank; C narrow contract | A | Integration test pins batch order | Fixed | [#266](https://github.com/quant-rule/quant-rule/issues/266) · [#267](https://github.com/quant-rule/quant-rule/pull/267) |
-| AUD-2026-10-31-10 | Minor | config | `model.json` `timeframes` is documented optional but required | `docs/config/2026-10-30/model-v2.md:50`; `config/model.rs:84`; probe | Valid documented config rejected | A default absent to `{}`; B document required | A | Config without `timeframes` parses | Fixed | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
-| AUD-2026-10-31-11 | Minor | model/dashboard | Forming-leg average net displacement contradicts dashboard contract | `docs/model/2026-10-25/dashboard-state.md:257`; `dashboard/assemble/progression.rs:169`; golden rows | Contract and golden fixture disagree | A amend contract; B gate average; C document exception | A or B | Forming-leg test matches chosen contract | Fixed | [#269](https://github.com/quant-rule/quant-rule/issues/269) · [#270](https://github.com/quant-rule/quant-rule/pull/270) |
-| AUD-2026-10-31-12 | Minor | strategy | `context_lost` fires on missing/unavailable context | `strategy/ladder.rs:151,249,280`; no open-position golden row | Exit reason is not a measured flip | A hold on missing; B document forced exit; C add policy switch | A or C | Open-position missing-context golden row | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
-| AUD-2026-10-31-13 | Minor | context/config | Unbounded weights can overflow and publish NaN | `context/mod.rs:281,710`; `strategy/config.rs` validation | Valid-looking config silently blocks entries | A reject non-finite weight sum; B normalize; C cap | A | `1e308` weights rejected | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
-| AUD-2026-10-31-14 | Minor | execution/portfolio | Risk-envelope cap bypasses `quantity_step` | `runner/mod.rs:203`; `execution/engine.rs:592`; `portfolio/sizing.rs:180` | Capped fill can violate step contract | A cap with step; B conservative pre-size; C document override | A | Capped quantity is a step multiple | Fixed | [#263](https://github.com/quant-rule/quant-rule/issues/263) · [#264](https://github.com/quant-rule/quant-rule/pull/264) |
-| AUD-2026-10-31-15 | Minor | execution | Second `submit` on one bar silently overwrites pending order | `execution/engine.rs:305,353` | Orphaned order remains pending | A reject second submit; B supersede record; C debug assert | A | Two submits yield one order and no pending | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
-| AUD-2026-10-31-16 | Minor | portfolio | `drawdown`/`peak_equity` stale after fills/funding | `portfolio/ledger.rs:202,348,418`; `state.rs:178` | Public state contradicts field contract | A centralize equity update; B document mark-only | A | Post-fill drawdown matches formula | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
-| AUD-2026-10-31-17 | Minor | portfolio | Exit commission uses prior mark, not fill-time equity | `portfolio/ledger.rs:369,428`; `docs/config/2026-10-28/per-engine-config.md:336` | Gap exits mis-charge commission | A use fill-time equity; B document prior-mark rule; C define one rule | A or B | Gap-exit commission test | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
-| AUD-2026-10-31-18 | Minor | shell | `strategy-run --config` ignores run data bounds | `command/strategy.rs:198-214`; `config/run.rs:104` | Same config can analyze different period | A default to run bounds; B document CLI-only bounds | A | Config period is honored unless overridden | Fixed | [#253](https://github.com/quant-rule/quant-rule/issues/253) · [#276](https://github.com/quant-rule/quant-rule/pull/276) |
-| AUD-2026-10-31-19 | Minor | config/docs | `missing_context` documented default but parser requires key | `docs/config/2026-10-30/strategy-v3.md:81`; `config/strategy.rs:524` | Doc-following config rejected | A default to reject; B document required | B | Missing-key test matches chosen rule | Fixed | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
-| AUD-2026-10-31-20 | Minor | context | Context identity, neutral band, and audit trail are not pinned | `context/mod.rs:139,712`; `strategy/ladder.rs:187`; no context artifact | Caller can mispair contexts; band drifts | A validate identity/share band; B private fields; C persist context | A/C | Mispair test; context artifact row count | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
-| AUD-2026-10-31-21 | Minor | backtest | Portfolio imports `Side` through the strategy module | `portfolio/config.rs:583`; `portfolio/records.rs:85` | Boundary edge contrary to stack | A use `crate::side::Side`; B neutral module | A | `rg` finds no portfolio→strategy import | Fixed | [#254](https://github.com/quant-rule/quant-rule/issues/254) · [#277](https://github.com/quant-rule/quant-rule/pull/277) |
-| AUD-2026-10-31-22 | Minor | intent/config | `valid_until`/`max_slippage_bps` are not wired to the shipped strategy | `intent.rs:277`; `strategy/ladder.rs:199`; `config/strategy.rs:475` | Engine checks reachable only from tests/custom callers | A add config fields; B remove claims/example | A or B | Config-driven expiry/slippage test | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
-| AUD-2026-10-31-23 | Minor | model/aggregate | Public aggregate can panic on malformed divergence direction | `model/aggregate/events.rs:129,210` | Library panic on invalid input | A validate/clamp; B return Result; C private fields | A | Out-of-range direction test does not panic | Fixed | [#266](https://github.com/quant-rule/quant-rule/issues/266) · [#267](https://github.com/quant-rule/quant-rule/pull/267) |
-| AUD-2026-10-31-24 | Minor | backtest/context | Zero-bar context series aborts backtest instead of missing-context rejection | `context/mod.rs:492`; `runner/mod.rs:142`; `strategy.rs:222` | Short source fails instead of rejecting entries | A represent as missing; B preflight error; C require source | A or B | Short 4h-context run behaves consistently | Fixed | [#272](https://github.com/quant-rule/quant-rule/issues/272) · [#273](https://github.com/quant-rule/quant-rule/pull/273) |
-| AUD-2026-10-31-25 | Info | execution/report | Capped fill order quantity differs from fill quantity | `execution/engine.rs:592,634`; `mod.rs:32` | Order row overstates the filled quantity | A add filled quantity; B reject over-cap; C document | A | Cap test reconciles order/fill/position | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
-| AUD-2026-10-31-26 | Info | reporting | All sizing rejections collapse to `missing_quantity` | `runner/mod.rs:187`; `portfolio/sizing.rs:266` | Causes indistinguishable in report | A carry reason; B separate record; C document | A | Short-disabled run shows distinct reason | Fixed | [#263](https://github.com/quant-rule/quant-rule/issues/263) · [#264](https://github.com/quant-rule/quant-rule/pull/264) |
-| AUD-2026-10-31-27 | Info | reporting | `slippage.total` is per-unit sum, not quote-currency cost | `report_run/bundles.rs:328`; `execution/fill.rs:101` | Total is not comparable with fees | A multiply by quantity; B rename | A | Quantity-100 fill reports currency total | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
-| AUD-2026-10-31-28 | Info | portfolio | Month after an empty month loses its return | `portfolio/ledger.rs:516`; `records.rs:227` | Contradicts prior-equity rule | A carry last equity; B document | A | Jan+Mar equity test | Fixed | [#254](https://github.com/quant-rule/quant-rule/issues/254) · [#277](https://github.com/quant-rule/quant-rule/pull/277) |
-| AUD-2026-10-31-29 | Info | docs | Current portfolio schema points to a superseded doc; M15 statement stale | `portfolio/config.rs:8`; `docs/config/2026-10-28/per-engine-config.md:6`; `execution/mod.rs:11` | Readers cannot find current schema | A update current contract; B annotate historical | A | Current docs contain portfolio schema | Fixed | [#253](https://github.com/quant-rule/quant-rule/issues/253) · [#276](https://github.com/quant-rule/quant-rule/pull/276) |
-| AUD-2026-10-31-30 | Info | tests | H4-specific and multi-context coverage is thin | `context/tests.rs` single context; no 4h CLI tests | Several findings above lack regression guards | A add multi-context/4h tests; B document gap | A | New tests fail first, pass after fixes | Fixed | [#249](https://github.com/quant-rule/quant-rule/issues/249) · [#259](https://github.com/quant-rule/quant-rule/pull/259) |
+| AUD-2026-10-31-01 | Critical | backtest | Pending entry fills on the first bar after a data gap | `runner/mod.rs:165,176`; probe `EX-01` | Silent wrong entry with pre-gap ATR | A guard fill-time contiguity; B document next-available fill and re-anchor ATR; C cancel pending on gap | A | Missing-bar test rejects the entry | Verified | [#247](https://github.com/quant-rule/quant-rule/issues/247) · [#257](https://github.com/quant-rule/quant-rule/pull/257) |
+| AUD-2026-10-31-02 | Major | config | Real v2 strategy configs never reach the migration message | `config/strategy.rs:58,66`; probe output | Migration path broken; user sees unknown-field error | A check schema before field validation; B detect legacy fields; C change docs to unknown-field error | A | Real v2 fixture prints the documented migration sentence | Verified | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
+| AUD-2026-10-31-03 | Major | shell/data | `model-series`/`market-chart` advertise 4h but cannot access H4 | `pipeline.rs:56,80,144`; `command/model.rs:311`; probe | 4h silently prints nothing or errors | A build H4 for path commands; B remove 4h from their help/parsers | A | 4h CLI tests emit H4 rows/write PNG | Verified | [#249](https://github.com/quant-rule/quant-rule/issues/249) · [#259](https://github.com/quant-rule/quant-rule/pull/259) |
+| AUD-2026-10-31-04 | Major | strategy/config | Structure context weights and context `kind` literals are accepted but inert | `strategy/ladder.rs:267`; `config/strategy.rs:319-386`; experiment C | Config/experiment imply a decision dimension that does nothing | A document diagnostics; B use score in rule (new hypothesis); C remove fields (new schema) | A now | Two structure weights produce identical decisions, documented | Verified | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
+| AUD-2026-10-31-05 | Major | portfolio | Exit fill quantity is not reconciled to the open position | `portfolio/ledger.rs:357,537`; probe `PF-01` | Ledger cash/equity can be corrupted by a partial exit | A reject quantity mismatch; B support partial exits; C clamp | A | Mismatched exit returns typed error and state unchanged | Verified | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
+| AUD-2026-10-31-06 | Major | docs/README | README and current-status docs describe the retired rule and stale outputs | `README.md:456-459`; `README.md:306`; `docs/model/2026-10-30/per-timeframe-model.md:4,128`; `docs/README.md:106` | Current example cannot reproduce; users are misled | A regenerate current docs/output; B mark examples historical | A | README envelope matches current 5m example; statuses say merged | Verified | [#253](https://github.com/quant-rule/quant-rule/issues/253) · [#276](https://github.com/quant-rule/quant-rule/pull/276) |
+| AUD-2026-10-31-07 | Major | config/docs | Execution v3 contract says v2 is retired while the loader requires v2 | `docs/config/2026-10-30/execution-v3.md:95-98`; `config/execution.rs:48` | Users cannot tell which schema is current | A correct the doc; B implement v3 | A now | v2 config passes; v3 is documented as target | Verified | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
+| AUD-2026-10-31-08 | Major | analytics | Layer 3 block width depends on whether higher series are empty | `analytics/layers/mod.rs:229,382`; `research/render.rs:127`; probe 155 columns | Fixed-schema contract violated; readers can misalign | A pass configured ladder and emit null blocks; B document variable width | A | Short source still exports configured blocks | Verified | [#274](https://github.com/quant-rule/quant-rule/issues/274) · [#275](https://github.com/quant-rule/quant-rule/pull/275) |
+| AUD-2026-10-31-09 | Minor | model/events | Event batch order differs from the contract | `model/timeframe.rs:155`; `events/level.rs:197`; probe bar 28/37 | Published sequence order is contractually wrong | A preserve detector order; B explicit contract rank; C narrow contract | A | Integration test pins batch order | Verified | [#266](https://github.com/quant-rule/quant-rule/issues/266) · [#267](https://github.com/quant-rule/quant-rule/pull/267) |
+| AUD-2026-10-31-10 | Minor | config | `model.json` `timeframes` is documented optional but required | `docs/config/2026-10-30/model-v2.md:50`; `config/model.rs:84`; probe | Valid documented config rejected | A default absent to `{}`; B document required | A | Config without `timeframes` parses | Verified | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
+| AUD-2026-10-31-11 | Minor | model/dashboard | Forming-leg average net displacement contradicts dashboard contract | `docs/model/2026-10-25/dashboard-state.md:257`; `dashboard/assemble/progression.rs:169`; golden rows | Contract and golden fixture disagree | A amend contract; B gate average; C document exception | A or B | Forming-leg test matches chosen contract | Verified | [#269](https://github.com/quant-rule/quant-rule/issues/269) · [#270](https://github.com/quant-rule/quant-rule/pull/270) |
+| AUD-2026-10-31-12 | Minor | strategy | `context_lost` fires on missing/unavailable context | `strategy/ladder.rs:151,249,280`; no open-position golden row | Exit reason is not a measured flip | A hold on missing; B document forced exit; C add policy switch | A or C | Open-position missing-context golden row | Verified | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
+| AUD-2026-10-31-13 | Minor | context/config | Unbounded weights can overflow and publish NaN | `context/mod.rs:281,710`; `strategy/config.rs` validation | Valid-looking config silently blocks entries | A reject non-finite weight sum; B normalize; C cap | A | `1e308` weights rejected | Verified | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
+| AUD-2026-10-31-14 | Minor | execution/portfolio | Risk-envelope cap bypasses `quantity_step` | `runner/mod.rs:203`; `execution/engine.rs:592`; `portfolio/sizing.rs:180` | Capped fill can violate step contract | A cap with step; B conservative pre-size; C document override | A | Capped quantity is a step multiple | Verified | [#263](https://github.com/quant-rule/quant-rule/issues/263) · [#264](https://github.com/quant-rule/quant-rule/pull/264) |
+| AUD-2026-10-31-15 | Minor | execution | Second `submit` on one bar silently overwrites pending order | `execution/engine.rs:305,353` | Orphaned order remains pending | A reject second submit; B supersede record; C debug assert | A | Two submits yield one order and no pending | Verified | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
+| AUD-2026-10-31-16 | Minor | portfolio | `drawdown`/`peak_equity` stale after fills/funding | `portfolio/ledger.rs:202,348,418`; `state.rs:178` | Public state contradicts field contract | A centralize equity update; B document mark-only | A | Post-fill drawdown matches formula | Verified | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
+| AUD-2026-10-31-17 | Minor | portfolio | Exit commission uses prior mark, not fill-time equity | `portfolio/ledger.rs:369,428`; `docs/config/2026-10-28/per-engine-config.md:336` | Gap exits mis-charge commission | A use fill-time equity; B document prior-mark rule; C define one rule | A or B | Gap-exit commission test | Verified | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
+| AUD-2026-10-31-18 | Minor | shell | `strategy-run --config` ignores run data bounds | `command/strategy.rs:198-214`; `config/run.rs:104` | Same config can analyze different period | A default to run bounds; B document CLI-only bounds | A | Config period is honored unless overridden | Verified | [#253](https://github.com/quant-rule/quant-rule/issues/253) · [#276](https://github.com/quant-rule/quant-rule/pull/276) |
+| AUD-2026-10-31-19 | Minor | config/docs | `missing_context` documented default but parser requires key | `docs/config/2026-10-30/strategy-v3.md:81`; `config/strategy.rs:524` | Doc-following config rejected | A default to reject; B document required | B | Missing-key test matches chosen rule | Verified | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
+| AUD-2026-10-31-20 | Minor | context | Context identity, neutral band, and audit trail are not pinned | `context/mod.rs:139,712`; `strategy/ladder.rs:187`; no context artifact | Caller can mispair contexts; band drifts | A validate identity/share band; B private fields; C persist context | A/C | Mispair test; context artifact row count | Verified | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
+| AUD-2026-10-31-21 | Minor | backtest | Portfolio imports `Side` through the strategy module | `portfolio/config.rs:583`; `portfolio/records.rs:85` | Boundary edge contrary to stack | A use `crate::side::Side`; B neutral module | A | `rg` finds no portfolio→strategy import | Verified | [#254](https://github.com/quant-rule/quant-rule/issues/254) · [#277](https://github.com/quant-rule/quant-rule/pull/277) |
+| AUD-2026-10-31-22 | Minor | intent/config | `valid_until`/`max_slippage_bps` are not wired to the shipped strategy | `intent.rs:277`; `strategy/ladder.rs:199`; `config/strategy.rs:475` | Engine checks reachable only from tests/custom callers | A add config fields; B remove claims/example | A or B | Config-driven expiry/slippage test | Verified | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
+| AUD-2026-10-31-23 | Minor | model/aggregate | Public aggregate can panic on malformed divergence direction | `model/aggregate/events.rs:129,210` | Library panic on invalid input | A validate/clamp; B return Result; C private fields | A | Out-of-range direction test does not panic | Verified | [#266](https://github.com/quant-rule/quant-rule/issues/266) · [#267](https://github.com/quant-rule/quant-rule/pull/267) |
+| AUD-2026-10-31-24 | Minor | backtest/context | Zero-bar context series aborts backtest instead of missing-context rejection | `context/mod.rs:492`; `runner/mod.rs:142`; `strategy.rs:222` | Short source fails instead of rejecting entries | A represent as missing; B preflight error; C require source | A or B | Short 4h-context run behaves consistently | Verified | [#272](https://github.com/quant-rule/quant-rule/issues/272) · [#273](https://github.com/quant-rule/quant-rule/pull/273) |
+| AUD-2026-10-31-25 | Info | execution/report | Capped fill order quantity differs from fill quantity | `execution/engine.rs:592,634`; `mod.rs:32` | Order row overstates the filled quantity | A add filled quantity; B reject over-cap; C document | A | Cap test reconciles order/fill/position | Verified | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
+| AUD-2026-10-31-26 | Info | reporting | All sizing rejections collapse to `missing_quantity` | `runner/mod.rs:187`; `portfolio/sizing.rs:266` | Causes indistinguishable in report | A carry reason; B separate record; C document | A | Short-disabled run shows distinct reason | Verified | [#263](https://github.com/quant-rule/quant-rule/issues/263) · [#264](https://github.com/quant-rule/quant-rule/pull/264) |
+| AUD-2026-10-31-27 | Info | reporting | `slippage.total` is per-unit sum, not quote-currency cost | `report_run/bundles.rs:328`; `execution/fill.rs:101` | Total is not comparable with fees | A multiply by quantity; B rename | A | Quantity-100 fill reports currency total | Verified | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
+| AUD-2026-10-31-28 | Info | portfolio | Month after an empty month loses its return | `portfolio/ledger.rs:516`; `records.rs:227` | Contradicts prior-equity rule | A carry last equity; B document | A | Jan+Mar equity test | Verified | [#254](https://github.com/quant-rule/quant-rule/issues/254) · [#277](https://github.com/quant-rule/quant-rule/pull/277) |
+| AUD-2026-10-31-29 | Info | docs | Current portfolio schema points to a superseded doc; M15 statement stale | `portfolio/config.rs:8`; `docs/config/2026-10-28/per-engine-config.md:6`; `execution/mod.rs:11` | Readers cannot find current schema | A update current contract; B annotate historical | A | Current docs contain portfolio schema | Verified | [#253](https://github.com/quant-rule/quant-rule/issues/253) · [#276](https://github.com/quant-rule/quant-rule/pull/276) |
+| AUD-2026-10-31-30 | Info | tests | H4-specific and multi-context coverage is thin | `context/tests.rs` single context; no 4h CLI tests | Several findings above lack regression guards | A add multi-context/4h tests; B document gap | A | New tests fail first, pass after fixes | Verified | [#249](https://github.com/quant-rule/quant-rule/issues/249) · [#259](https://github.com/quant-rule/quant-rule/pull/259) |
 
 ## Detail
 
@@ -94,7 +94,7 @@ changed.
 - Recommendation: A for entries; decide the exit policy explicitly.
 - Verification: a missing-bar test rejects the entry and leaves the position
   flat; a pending-exit test covers the chosen exit policy.
-- Status: `Fixed` by #247 and PR #257. The validator record is
+- Status: `Verified` by #247 and PR #257. The validator record is
   `docs/reports/2026-10-31/w1-gap-fill-validation.md`; the Improvement Verifier
   has not marked it `Verified`.
 - Links: [#247](https://github.com/quant-rule/quant-rule/issues/247) ·
@@ -117,7 +117,7 @@ changed.
 - Recommendation: A, with a regression test built from the historical v2 shape.
 - Verification: `strategy explain` on a real v2 file prints the migration
   sentence as its first error.
-- Status: `Fixed` by #248 and PR #258. The regression test uses the historical
+- Status: `Verified` by #248 and PR #258. The regression test uses the historical
   v2 shape.
 - Links: [#248](https://github.com/quant-rule/quant-rule/issues/248) ·
   [#258](https://github.com/quant-rule/quant-rule/pull/258)
@@ -139,7 +139,7 @@ changed.
     runs only.
 - Recommendation: A; the data engine already builds H4.
 - Verification: 4h `model-series` emits rows; 4h `market-chart` writes a PNG.
-- Status: `Fixed` by #249 and PR #259; the 4h CLI tests are the regression
+- Status: `Verified` by #249 and PR #259; the 4h CLI tests are the regression
   guards.
 - Links: [#249](https://github.com/quant-rule/quant-rule/issues/249) ·
   [#259](https://github.com/quant-rule/quant-rule/pull/259)
@@ -168,7 +168,7 @@ changed.
 - Recommendation: A now; B only through the improvement loop.
 - Verification: two different Structure weights produce identical decisions and
   fills, and the docs say why; or a new golden case distinguishes them after B.
-- Status: `Fixed` by #250 and PR #260; the fields are documented as diagnostic and the rule is unchanged.
+- Status: `Verified` by #250 and PR #260; the fields are documented as diagnostic and the rule is unchanged.
 - Links: [#250](https://github.com/quant-rule/quant-rule/issues/250) ·
   [#260](https://github.com/quant-rule/quant-rule/pull/260)
 
@@ -195,7 +195,7 @@ changed.
 - Verification: a mismatch test returns a typed error and leaves cash/equity/
   position/trade unchanged; a full-close invariant test asserts
   `final_equity == initial_cash + net_pnl`.
-- Status: `Fixed` by #261 and PR #262; a mismatched exit is a typed error and leaves the account unchanged.
+- Status: `Verified` by #261 and PR #262; a mismatched exit is a typed error and leaves the account unchanged.
 - Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
   [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
@@ -242,7 +242,7 @@ changed.
 - Recommendation: A now; B as a planned follow-up.
 - Verification: v2 example passes; v3 is documented as a target with a clear
   migration status.
-- Status: `Fixed` by #248 and PR #258; the document now says v2 is current and
+- Status: `Verified` by #248 and PR #258; the document now says v2 is current and
   v3 is the target.
 - Links: [#248](https://github.com/quant-rule/quant-rule/issues/248) ·
   [#258](https://github.com/quant-rule/quant-rule/pull/258)
@@ -296,7 +296,7 @@ changed.
 - Options: A. default an absent map to `{}`; B. document it as required.
 - Recommendation: A.
 - Verification: parse without `timeframes`.
-- Status: `Fixed` by #248 and PR #258; the absent map defaults to the
+- Status: `Verified` by #248 and PR #258; the absent map defaults to the
   per-timeframe readings.
 - Links: [#248](https://github.com/quant-rule/quant-rule/issues/248) ·
   [#258](https://github.com/quant-rule/quant-rule/pull/258)
@@ -330,7 +330,7 @@ changed.
   policy switch.
 - Recommendation: A or C.
 - Verification: open-position missing-context golden row.
-- Status: `Fixed` by #250 and PR #260; a missing/unavailable context holds, and golden bar 19 pins it.
+- Status: `Verified` by #250 and PR #260; a missing/unavailable context holds, and golden bar 19 pins it.
 - Links: [#250](https://github.com/quant-rule/quant-rule/issues/250) ·
   [#260](https://github.com/quant-rule/quant-rule/pull/260)
 
@@ -347,7 +347,7 @@ changed.
   C. cap weights.
 - Recommendation: A.
 - Verification: `1e308` weights are rejected at load.
-- Status: `Fixed` by #250 and PR #260; an overflowing weight sum is rejected.
+- Status: `Verified` by #250 and PR #260; an overflowing weight sum is rejected.
 - Links: [#250](https://github.com/quant-rule/quant-rule/issues/250) ·
   [#260](https://github.com/quant-rule/quant-rule/pull/260)
 
@@ -363,7 +363,7 @@ changed.
   override.
 - Recommendation: A.
 - Verification: capped quantity is a step multiple.
-- Status: `Fixed` by #263 and PR #264; a capped fill is a step multiple and a sub-step cap is rejected.
+- Status: `Verified` by #263 and PR #264; a capped fill is a step multiple and a sub-step cap is rejected.
 - Links: [#263](https://github.com/quant-rule/quant-rule/issues/263) ·
   [#264](https://github.com/quant-rule/quant-rule/pull/264)
 
@@ -379,7 +379,7 @@ changed.
   assertion.
 - Recommendation: A.
 - Verification: two submits yield one order and no pending order after finish.
-- Status: `Fixed` by #261 and PR #262; a second pending order returns a typed error.
+- Status: `Verified` by #261 and PR #262; a second pending order returns a typed error.
 - Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
   [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
@@ -393,7 +393,7 @@ changed.
 - Options: A. centralize equity updates; B. document mark-time-only.
 - Recommendation: A.
 - Verification: post-fill drawdown matches the formula.
-- Status: `Fixed` by #261 and PR #262; peak and drawdown are refreshed on every equity change.
+- Status: `Verified` by #261 and PR #262; peak and drawdown are refreshed on every equity change.
 - Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
   [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
@@ -408,7 +408,7 @@ changed.
   one rule for both sides.
 - Recommendation: A or B after contract clarification.
 - Verification: gap-exit commission test.
-- Status: `Fixed` by #261 and PR #262; the prior-mark rule is documented and pinned by a gap-exit test.
+- Status: `Verified` by #261 and PR #262; the prior-mark rule is documented and pinned by a gap-exit test.
 - Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
   [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
@@ -432,7 +432,7 @@ changed.
 - Options: A. default absent to reject; B. document required.
 - Recommendation: B (strict).
 - Verification: missing-key test matches chosen rule.
-- Status: `Fixed` by #248 and PR #258; the contract now says the key is
+- Status: `Verified` by #248 and PR #258; the contract now says the key is
   required.
 - Links: [#248](https://github.com/quant-rule/quant-rule/issues/248) ·
   [#258](https://github.com/quant-rule/quant-rule/pull/258)
@@ -451,7 +451,7 @@ changed.
   C. add a context CSV to the strategy bundle.
 - Recommendation: A/C.
 - Verification: mispair test returns Hold; context CSV row count matches bars.
-- Status: `Fixed` by #250 and PR #260; identity and the shared neutral band are enforced, and the ADR claim is narrowed.
+- Status: `Verified` by #250 and PR #260; identity and the shared neutral band are enforced, and the ADR claim is narrowed.
 - Links: [#250](https://github.com/quant-rule/quant-rule/issues/250) ·
   [#260](https://github.com/quant-rule/quant-rule/pull/260)
 
@@ -476,7 +476,7 @@ changed.
 - Options: A. add config fields and attach them; B. remove the fields/example.
 - Recommendation: A or B.
 - Verification: config-driven expiry/slippage rejection test.
-- Status: `Fixed` by #250 and PR #260; the shipped strategy is documented as leaving both fields unset.
+- Status: `Verified` by #250 and PR #260; the shipped strategy is documented as leaving both fields unset.
 - Links: [#250](https://github.com/quant-rule/quant-rule/issues/250) ·
   [#260](https://github.com/quant-rule/quant-rule/pull/260)
 
@@ -518,7 +518,7 @@ changed.
   the partial.
 - Recommendation: A.
 - Verification: cap test reconciles all three quantities.
-- Status: `Fixed` by #261 and PR #262; a capped order records the fill quantity.
+- Status: `Verified` by #261 and PR #262; a capped order records the fill quantity.
 - Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
   [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
@@ -533,7 +533,7 @@ changed.
   document the collapse.
 - Recommendation: A or B.
 - Verification: short-disabled run reports a distinct reason.
-- Status: `Fixed` by #263 and PR #264; the report carries the sizing rejection cause.
+- Status: `Verified` by #263 and PR #264; the report carries the sizing rejection cause.
 - Links: [#263](https://github.com/quant-rule/quant-rule/issues/263) ·
   [#264](https://github.com/quant-rule/quant-rule/pull/264)
 
@@ -545,7 +545,7 @@ changed.
 - Options: A. multiply by quantity; B. rename to per-unit.
 - Recommendation: A.
 - Verification: quantity-100 fill reports the currency total.
-- Status: `Fixed` by #261 and PR #262; the total is a quote-currency cost.
+- Status: `Verified` by #261 and PR #262; the total is a quote-currency cost.
 - Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
   [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
@@ -581,7 +581,7 @@ changed.
 - Options: A. add focused tests; B. document the gap.
 - Recommendation: A.
 - Verification: new tests fail before fixes and pass after.
-- Status: `Fixed` by #249 and PR #259 for H4 CLI, chart, and gap coverage; the
+- Status: `Verified` by #249 and PR #259 for H4 CLI, chart, and gap coverage; the
   multi-context weight test remains in W4.
 - Links: [#249](https://github.com/quant-rule/quant-rule/issues/249) ·
   [#259](https://github.com/quant-rule/quant-rule/pull/259)
