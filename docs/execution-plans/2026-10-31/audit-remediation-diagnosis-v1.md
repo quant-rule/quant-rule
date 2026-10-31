@@ -262,6 +262,9 @@ Sub-issues created with the work item:
   a closed trade counts as `entry_fills = 1`.
 - Validator record:
   `docs/reports/2026-10-31/w5-diagnosis-measurements-validation.md`.
+- Implementation evidence (#289, PR #301): the optional average hold, its
+  formatters, and the tests are implemented on `fix/289-null-hold`; gates pass
+  (1513 tests). #290 and #291 remain open.
 - Paths: `crates/quantrule-analytics/src/diagnosis/types.rs`,
   `crates/quantrule-analytics/src/diagnosis/compute.rs`,
   `crates/quantrule-analytics/src/diagnosis/text.rs`,
