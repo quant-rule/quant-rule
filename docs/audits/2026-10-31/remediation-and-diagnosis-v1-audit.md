@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-remediation-diagnosis-v1
-- Status: Published (PR #293); all ten findings `Verified` by a sequential Improvement Verifier pass on 2026-10-31 (not independent; record: [`docs/reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md`](../../reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md)); remediation plan `Approved` pending human closure
+- Status: Published (PR #293); all ten findings `Verified` by a sequential Improvement Verifier pass on 2026-10-31 (not independent; record: [`docs/reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md`](../../reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md)); remediation plan `Verified`
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `7c865de` (merge of PR #246; last audited state)
 - Head: `main` at `c8b1dc1` (merge of PR #279)
@@ -413,5 +413,5 @@ W1 (#280) by PR #294, W2 (#281) by PR #296, W3 (#282) by PR #297, W4a
 (#286) by PR #305; the audit, plan, and log are in PR #293. All ten findings
 were `Verified` by a sequential Improvement Verifier pass on 2026-10-31; the
 record is [`docs/reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md`](../../reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md).
-The plan stays `Approved` for the human: the W5 missing-value contract note and
-the AUD-23 verification-cell citation are still outstanding.
+The W5 missing-value contract note and the AUD-23 verification-cell citation
+were corrected after the verifier pass; the plan is `Verified`.
