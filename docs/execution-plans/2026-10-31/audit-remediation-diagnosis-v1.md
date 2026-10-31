@@ -267,7 +267,8 @@ Sub-issues created with the work item:
   (1513 tests).
 - Implementation evidence (#290, PR #302): the MFE/MAE clamp and its three
   tests are implemented on `fix/290-mfe-clamp`; gates pass (1516 tests).
-  #291 remains open.
+- Implementation evidence (#291, PR #303): the daily entry fills read the fill
+  list and exclude non-entry fills; gates pass (1517 tests). W5 is complete.
 - Paths: `crates/quantrule-analytics/src/diagnosis/types.rs`,
   `crates/quantrule-analytics/src/diagnosis/compute.rs`,
   `crates/quantrule-analytics/src/diagnosis/text.rs`,
