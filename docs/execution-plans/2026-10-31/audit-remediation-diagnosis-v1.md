@@ -289,6 +289,8 @@ Sub-issues created with the work item:
   `lab list`, and state the shared boundary: parse the lab folder, delegate
   reading and rendering, never open a source or compute a model value.
 - Verification: `cargo doc` builds and the header names the three commands.
+- Implementation evidence (#285, PR #304): the module header names the three
+  commands and their boundary; `cargo doc` and the full suite pass.
 - Paths: `crates/quantrule-shell/src/command/lab.rs`.
 
 Issue: [#285](https://github.com/quant-rule/quant-rule/issues/285) — **Update the `lab` module documentation**.
