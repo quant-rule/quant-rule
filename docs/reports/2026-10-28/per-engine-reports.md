@@ -1,10 +1,12 @@
 # Per-Engine Reports — MVP v1
 
-> Status: current report contract. The run configuration now uses `run v2`,
-> `strategy v2`, and `execution v2`; see
+> Status: current report contract. The run configuration uses `run v2`,
+> `strategy v3`, and `execution v2`; see
 > [`docs/config/2026-10-30/policy-and-strategy.md`](../../config/2026-10-30/policy-and-strategy.md).
-> The report artifacts and JSON fields below are unchanged. `provenance.json`
-now also records `config_hash`, the stable fingerprint of the eight config files.
+> The strategy summary now publishes as-of context counts and
+> `context_lost`/`structure_lost`; the portfolio strategy-close reason is
+> `strategy`. `provenance.json` records `config_hash`, the stable fingerprint of
+> the eight config files.
 
 - Date: 2026-10-28 (UTC)
 - Issue: [#168](https://github.com/quant-rule/quant-rule/issues/168)
@@ -123,7 +125,7 @@ Artifacts:
 
 | File | Contents |
 |---|---|
-| `summary.txt` | Decision counts and agreement counts |
+| `summary.txt` | Decision counts and as-of context counts |
 | `report.json` | Summary and decision records |
 | `decisions.csv` | One row per entry or exit |
 | `price-decisions.png` | Price with entry and exit markers |
@@ -134,14 +136,14 @@ Summary fields:
 ```text
 bars, execution_state, executed_entries, executed_exits,
 decisions, entries, exits, long_entries, short_entries,
-exit_reasons { agreement_lost },
-agreement_counts { long, short, neutral, unavailable },
+exit_reasons { context_lost, structure_lost },
+context { complete_bars, missing_bars, conflict_bars, late_or_terminal_bars },
 open_position_at_end
 ```
 
 Each record carries `type`, `side` (`1` or `-1`), `bar`, `datetime`, `direction`,
-`momentum_force`, `structure_score`, and `reason` on an exit. It carries no fill,
-price paid, quantity, cash, equity, or P&L field.
+`momentum_force`, `structure_score`, `structure_state_code`, and `reason` on an
+exit. It carries no fill, price paid, quantity, cash, equity, or P&L field.
 
 ## 7. Execution report
 
@@ -253,7 +255,7 @@ type,side,timeframe,timeframe_secs,bar,datetime,direction,momentum_force,structu
 ```
 
 Rows are ordered by bar ascending. `type` is `entry` or `exit`. `side` is `1` or
-`-1`. `reason` is empty for an entry and `agreement_lost` for an exit.
+`-1`. `reason` is empty for an entry and `context_lost` or `structure_lost` for an exit.
 
 ### 10.2 `execution/orders.csv`
 
@@ -288,8 +290,9 @@ trade_id,side,quantity,entry_bar,entry_time,entry_price,exit_bar,exit_time,exit_
 ```
 
 Rows are ordered by `trade_id`. `return` is net P&L divided by equity at entry;
-empty when equity at entry is zero. `exit_reason` is `agreement_lost`, `stop`, or
-`target`.
+empty when equity at entry is zero. `exit_reason` is `strategy`, `stop`, or
+`target`. A strategy close carries `strategy`; the strategy report carries the
+specific context or structure reason.
 
 ### 10.6 `portfolio/equity.csv`
 
@@ -322,7 +325,7 @@ correlation is undefined, not zero.
 | Bundle | May publish | Must not publish |
 |---|---|---|
 | `model` | Coverage, axis statistics, ordinal histograms, event counts, latest state, aggregates, chart buckets | Orders, fills, positions, trades, equity, drawdown, P&L, strategy decisions |
-| `strategy` | Entries, exits, agreement counts, thresholds, open-position state at end | Fills, prices paid, quantities, cash, equity, P&L |
+| `strategy` | Entries, exits, context counts, active ladder, open-position state at end | Fills, prices paid, quantities, cash, equity, P&L |
 | `execution` | Orders, fills, rejections, fill reasons, slippage, execution fees, bracket levels | Cash, equity, trades, P&L, commission, funding, drawdown |
 | `portfolio` | Cash, equity, trades, gross and net P&L, commission, funding, drawdown, exposure, monthly returns, risk events | Model labels, axis words, strategy thresholds as recommendations |
 | `analytical` | Layer row counts, per-axis counts, ranges, histograms, correlations | Strategy, execution, portfolio, orders, fills, P&L |

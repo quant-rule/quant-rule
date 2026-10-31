@@ -1,0 +1,19 @@
+{
+  "schema": "quantrule.data/v3",
+  "source": {
+    "kind": "csv",
+    "path": "../../../../crates/quantrule-shell/tests/fixtures/state_m1.csv"
+  },
+  "data_version": "tutorial:state:v1",
+  "from": "2025-01-01",
+  "to": "2025-01-01",
+  "source_timeframe": "1m",
+  "available_timeframes": [
+    "1m",
+    "5m",
+    "15m",
+    "1h"
+  ],
+  "max_candles": 600000,
+  "instrument": "SOLUSD"
+}

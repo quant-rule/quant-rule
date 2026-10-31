@@ -82,10 +82,10 @@ the `PATH` entry keeps pointing at the new binary.
 
 ## Learn the pipeline
 
-The [full-pipeline tutorial](docs/tutorials/2026-10-29/full-pipeline.md) runs
-every stage through shell commands: data ingestion, the four-axis model,
-research export, strategy decisions, the five-bundle backtest, the SQLite store,
-and the lab summary. It also contains one lab for each quant role.
+The [unified-ladder tutorial](docs/tutorials/2026-10-30/unified-ladder.md) runs
+the current strategy, policy check, strategy walk, five-bundle backtest, and
+strategy report through shell commands. The dated 2026-10-29 full-pipeline
+tutorial is preserved for the retired rule.
 
 ## Releases
 
@@ -219,7 +219,7 @@ and no color.
 | `help <command>` | The full contract for one command. One- or two-word topics such as `store ingest`, `research export`, and `lab summary` are accepted. |
 | `help all` | Every command and option. |
 | `help glossary` | Precise terms such as `NDJSON`, `report bundle`, `data version`, the four axes, events, and legs. |
-| `help tutorial` | The full-pipeline tutorial map and its repository path. |
+| `help tutorial` | The unified-ladder tutorial map and its repository path. |
 | `help roles` | The Quant Researcher, Quant Developer, and Quant Validator map and handoff. |
 
 An unknown topic is an error that points to `help all`.
@@ -295,7 +295,7 @@ Interactive errors are printed to stderr and keep the session open. Non-interact
 | Columns | Exactly six; volume may be empty |
 | Prices | Open, high, low, and close must be finite and positive; zero or negative prices are rejected by every command |
 | Order | Strictly increasing timestamps for `candles`; out-of-order rows are skipped by `candles-tolerant` |
-| Ladder source | Every ladder consumer requires one-minute spacing when two or more rows are present; a file whose rows are never closer than 5m, 15m, or 1h is rejected |
+| Ladder source | Every ladder consumer requires one-minute spacing when two or more rows are present; a file whose rows are never closer than 5m, 15m, 1h, or 4h is rejected |
 
 A header-only file is a valid empty series and prints nothing. In tolerant mode it reports zero counts. Ordering is checked before candle validity, so an invalid row with a duplicate timestamp is counted as `duplicate`, not `invalid`.
 
@@ -350,7 +350,7 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 `legs` prints two NDJSON lines per timeframe, one for each pivot scale. Each line carries the published leg or `null`, its origin and availability bars, target basis and version, progress, displacement, lifecycle, stage, and target-reached code, with the lifecycle, stage, direction, scale, and target-basis labels.
 
-`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, window start and length, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=1000` and defaults to 1000; `--timeframe` defaults to the whole ladder. Events remain a separate command because a bar can have several events. The default input window is the full series up to 100,000 M1 candles; `--window latest` streams the file without the full-series cap and uses the last 1,000 candles per timeframe.
+`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, window start and length, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=1000` and defaults to 1000; `--timeframe` defaults to the whole ladder and accepts `1m`, `5m`, `15m`, `1h`, or `4h`. Events remain a separate command because a bar can have several events. The default input window is the full series up to 100,000 M1 candles; `--window latest` streams the file without the full-series cap and uses the last 1,000 candles per timeframe.
 
 ### Market-dashboard contract
 
@@ -378,7 +378,7 @@ The text and JSON outputs are deterministic: the same input, window, and configu
 
 ### Market chart
 
-`market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>] [--window full|latest]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The default window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe and lets a larger fetch be charted. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
+`market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>] [--window full|latest]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, `1h`, or `4h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The default window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe and lets a larger fetch be charted. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
 
 The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command set is the product's public interface; changing a command name or what it means is a command-contract decision.
 
@@ -492,7 +492,7 @@ The summary has seven sections: Identity, Artifacts, Observed result, Checks, Ro
 
 ### Fetch contract
 
-`fetch` reads native OHLCV candles from Dukascopy's `freeserv.dukascopy.com` chart endpoint on the BID side. Each timeframe is requested with the provider's own interval and is never synthesized from 1-minute candles. These native intervals are for source inspection and comparison; the canonical M5, M15, and H1 series used for analysis come from `timeframes`, which derives them from M1. The request uses a fixed JSONP callback and fixed browser headers, and the page cursor is always the last timestamp delivered by the page, so the same data and configuration produce the same request sequence and the same output bytes.
+`fetch` reads native OHLCV candles from Dukascopy's `freeserv.dukascopy.com` chart endpoint on the BID side. Each timeframe is requested with the provider's own interval and is never synthesized from 1-minute candles. These native intervals are for source inspection and comparison; the canonical M5, M15, H1, and H4 series used for analysis come from `timeframes`, which derives them from M1. The request uses a fixed JSONP callback and fixed browser headers, and the page cursor is always the last timestamp delivered by the page, so the same data and configuration produce the same request sequence and the same output bytes.
 
 | Timeframe | Provider interval | File code |
 |---|---|---|

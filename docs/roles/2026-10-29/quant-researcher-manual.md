@@ -59,7 +59,7 @@ it uses, and what observable result would support or reject the hypothesis.
   and narrow it before running anything.
 
 Example activity-and-risk hypothesis: "On the full-year SOLUSD example, the
-`axis-agreement` rule produces at least 100 M15 entries, and the portfolio halts
+`ladder-context` rule produces at least 100 M5 entries, and the portfolio halts
 at the configured 20% drawdown limit." This is a testable claim about activity
 and risk control. It is not a claim that the rule is profitable.
 
@@ -161,8 +161,8 @@ pass/fail criterion, every planned variation, and the stop conditions.
 
 ```bash
 cat > data/researcher-protocol.md <<'EOF'
-Question: does the axis-agreement rule stay active on the full-year example?
-Hypothesis: at least 100 M15 entries, and the portfolio halts at the 20% drawdown limit.
+Question: does the ladder-context rule stay active on the full-year example?
+Hypothesis: at least 100 M5 entries, and the portfolio halts at the 20% drawdown limit.
 Data version: dukascopy-bid-solusd-m1-2025-01-01_2025-12-31.
 Sample: 2025-01-01..2025-12-31, full-year example.
 Split: in-sample only; no out-of-sample evidence.
@@ -188,15 +188,15 @@ The research commands are descriptive. They do not place orders or compute P&L.
 "$QR" research summary "$CSV2" > data/researcher-summary.txt
 wc -l < data/researcher-summary.txt
 "$QR" strategy-run "$CSV2" \
-  --strategy axis-agreement \
+  --strategy ladder-context \
   --data-version "$DV2" \
   > data/researcher-strategy.ndjson
 wc -l < data/researcher-strategy.ndjson
 ```
 
-Expected: 41 summary lines (16 axis lines, 24 relation lines, one header) and
-363 strategy records (182 entries, 181 exits) on the two-month slice. Count the
-record types explicitly:
+The research summary has 41 lines (16 axis lines, 24 relation lines, one
+header). The strategy record count depends on the source and the active ladder;
+count the record types explicitly and record them in the protocol:
 
 ```bash
 python3 - <<'PY'
@@ -209,11 +209,8 @@ print(dict(counts))
 PY
 ```
 
-Expected:
-
-```text
-{'entry': 182, 'exit': 181}
-```
+Record the printed counts in the protocol. Do not assume a target count before
+the run.
 
 The four axes are read separately. A cross-axis agreement is a count, not an
 average. Ordinal codes are counted, never averaged. A null is a missing

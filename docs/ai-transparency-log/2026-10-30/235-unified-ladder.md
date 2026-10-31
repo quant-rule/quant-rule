@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#235](https://github.com/quant-rule/quant-rule/issues/235)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR [#244](https://github.com/quant-rule/quant-rule/pull/244) open; CI passed
+- Status: Implemented; merged in PR [#244](https://github.com/quant-rule/quant-rule/pull/244) as `5c6ad59`
 
 ## Intent and boundary
 

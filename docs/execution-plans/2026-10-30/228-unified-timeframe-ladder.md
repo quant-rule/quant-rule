@@ -801,7 +801,7 @@ stateless strategy contract.
 
 **Goal:** Replace `axis-agreement` with the unified ladder rule.
 
-**Status:** Implemented in PR [#244](https://github.com/quant-rule/quant-rule/pull/244); CI passed. The live strategy is `ladder-context`; the old `axis-agreement` source, config schema, and command name are removed. The historical golden fixture is archived with an ADR. The current execution loader still reads `quantrule.execution/v2`; `execution.fill_timeframe` is checked against `ladder[0]`.
+**Status:** Merged in PR [#244](https://github.com/quant-rule/quant-rule/pull/244) as `5c6ad59`. The live strategy is `ladder-context`; the old `axis-agreement` source, config schema, and command name are removed. The historical golden fixture is archived with an ADR. The current execution loader still reads `quantrule.execution/v2`; `execution.fill_timeframe` is checked against `ladder[0]`.
 
 **Files:**
 
@@ -857,6 +857,8 @@ stateless strategy contract.
 
 **Goal:** Make the new system discoverable and accurate.
 
+**Status:** Implemented in PR [#245](https://github.com/quant-rule/quant-rule/pull/245); CI passed. The current command surface, config contracts, help topics, migration path, and tutorial describe the unified ladder rule. The dated 2026-10-29 full-pipeline tutorial is marked historical.
+
 **Files:**
 
 - `README.md`
@@ -879,6 +881,25 @@ stateless strategy contract.
 - Document the migration error.
 - Update help and tutorials.
 - Remove stale descriptions of `axis-agreement` and fixed ladder.
+
+**Implementation notes:**
+
+- Added `docs/tutorials/2026-10-30/unified-ladder.md` with a checked-in tutorial
+  config under `docs/tutorials/2026-10-30/config-state-fixture/`. The config
+  runs the policy check, strategy explain, strategy walk, backtest, and
+  strategy report end to end.
+- Added `docs/config/2026-10-30/migration-v2-to-v3.md` with the field mapping
+  and the exact migration error.
+- Updated the glossary with available ladder, active ladder, as-of context,
+  trade intent, and strategy context terms.
+- Updated help timeframes to include 4h where the data and chart commands
+  support it; store filters remain 1m/5m/15m/1h because the store schema has
+  no H4 block.
+- Updated the role researcher manual examples to `ladder-context` and M5.
+- Updated the per-engine report contract for context counts,
+  `context_lost`/`structure_lost`, and the portfolio `strategy` trade reason.
+- Execution v3 remains a target contract; the current loader reads
+  `quantrule.execution/v2`, and the docs say so.
 
 **Exit criteria:**
 
@@ -1169,21 +1190,21 @@ Stop and request human direction if:
 
 ### Phase 8 — Documentation
 
-- [ ] README updated.
-- [ ] Config reference updated.
-- [ ] Model contract updated.
-- [ ] Strategy contract updated.
-- [ ] Execution contract updated.
-- [ ] TradeIntent contract documented.
-- [ ] Command reference updated.
-- [ ] Help output updated.
-- [ ] Help goldens pass.
-- [ ] Tutorial runs.
-- [ ] Migration guide exists.
-- [ ] `docs/README.md` updated.
-- [ ] AI transparency log complete.
-- [ ] No stale `axis-agreement` docs.
-- [ ] No stale fixed-ladder docs.
+- [x] README updated.
+- [x] Config reference updated.
+- [x] Model contract updated.
+- [x] Strategy contract updated.
+- [x] Execution contract updated.
+- [x] TradeIntent contract documented.
+- [x] Command reference updated.
+- [x] Help output updated.
+- [x] Help goldens pass.
+- [x] Tutorial runs.
+- [x] Migration guide exists.
+- [x] `docs/README.md` updated.
+- [x] AI transparency log complete.
+- [x] No stale `axis-agreement` docs.
+- [x] No stale fixed-ladder docs.
 
 ### Phase 9 — Verification and experiment
 

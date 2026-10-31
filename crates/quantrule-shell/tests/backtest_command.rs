@@ -260,3 +260,51 @@ fn backtest_requires_a_config() {
     assert!(!output.status.success());
     assert!(error(&output).contains("--config is required"));
 }
+
+#[test]
+fn the_tutorial_config_runs_end_to_end() {
+    let config = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/tutorials/2026-10-30/config-state-fixture/run.json");
+
+    let policy = run(&[
+        "policy",
+        "check",
+        "--config",
+        config.to_str().expect("the tutorial config path is UTF-8"),
+    ]);
+    assert_success(&policy);
+    assert!(
+        String::from_utf8(policy.stdout)
+            .expect("stdout is UTF-8")
+            .contains("strategy=ladder-context")
+    );
+
+    let explain = run(&[
+        "strategy",
+        "explain",
+        "--config",
+        config.to_str().expect("the tutorial config path is UTF-8"),
+    ]);
+    assert_success(&explain);
+    assert!(
+        String::from_utf8(explain.stdout)
+            .expect("stdout is UTF-8")
+            .contains("strategy ladder-context")
+    );
+
+    let out = output_dir("tutorial-config");
+    let output = run(&[
+        "backtest",
+        "--config",
+        config.to_str().expect("the tutorial config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert_success(&output);
+    for engine in ENGINES {
+        assert!(
+            out.join(engine).join("report.json").exists(),
+            "{engine}/report.json is missing"
+        );
+    }
+}
