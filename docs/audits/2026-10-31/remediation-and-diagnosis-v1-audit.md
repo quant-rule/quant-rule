@@ -406,6 +406,7 @@ committed). The commands above are the reproducible evidence.
 ## Next step
 
 The plan is approved and the issue tree is created: W1–W7 are #280–#286,
-and the W4 and W5 sub-issues are #287–#291. W1 (#280) is `Fixed` by PR #294 and
-W2 (#281) by PR #296; the audit, plan, and log are in PR #293. The remaining
-findings are `Planned` and move to `Fixed` when their pull requests exist.
+and the W4 and W5 sub-issues are #287–#291. W1 (#280) is `Fixed` by PR #294,
+W2 (#281) by PR #296, and W3 (#282) by PR #297; the audit, plan, and log are in
+PR #293. The remaining findings are `Planned` and move to `Fixed` when their
+pull requests exist.
