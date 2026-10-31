@@ -240,14 +240,14 @@ is:
 | Field | Value |
 |---|---|
 | `trades` | `100` |
-| `final_equity` | `8010.410952` |
+| `final_equity` | `8010.411285` |
 | `total_return` | `-0.198959` |
 | `max_drawdown` | `0.200542` |
 | `halted` | `true` |
-| `commission` | `1822.737614` |
-| `slippage` | `6.772630` |
-| `funding_paid` | `1.896363` |
-| `funding_received` | `3.696679` |
+| `commission` | `1822.737609` |
+| `slippage` | `364.924990` |
+| `funding_paid` | `1.896360` |
+| `funding_received` | `3.696676` |
 | `strategy_entries` | `298` |
 | `strategy_exits` | `73` |
 

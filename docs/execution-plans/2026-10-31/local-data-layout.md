@@ -104,7 +104,7 @@ Excluded:
 | `cargo test` | 1,472 passed, 0 failed, 45 suites |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` | Passed |
 | `git add -n .` under `data/` | Exactly the nine READMEs |
-| Example run | 100 trades, final equity 8010.410952, max drawdown 0.200542, halted |
+| Example run | 100 trades, final equity 8010.411285, max drawdown 0.200542, halted |
 | Default commands | `store init`, `research export`, and `fetch` wrote into their subdirectories |
 | Local cleanup | 23 CSVs in `sources/`; eight directories at the `data/` root |
 

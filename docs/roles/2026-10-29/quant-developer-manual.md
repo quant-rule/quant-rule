@@ -220,7 +220,7 @@ Protocol: the researcher's protocol is unchanged.
 Gates: cargo fmt, cargo clippy, cargo test, cargo doc.
 Reproducibility: the developer bundles match the researcher bundles byte for byte.
 Deviation: none.
-Observed: 100 trades, final equity 8010.410952, halted true.
+Observed: 100 trades, final equity 8010.411285, halted true.
 EOF
 
 "$QR" lab summary "$lab_d" \

@@ -224,14 +224,14 @@ Check:
 The example result is:
 
 ```text
-  final_equity: 8010.410952
+  final_equity: 8010.411285
   max_drawdown: 0.200542
   trades: 100
   halted: true
-  commission: 1822.737614
-  slippage: 6.772630
-  funding_paid: 1.896363
-  funding_received: 3.696679
+  commission: 1822.737609
+  slippage: 364.924990
+  funding_paid: 1.896360
+  funding_received: 3.696676
 ```
 
 `max_drawdown: 0.200542` exceeds the configured `0.2` limit, so the run halts.

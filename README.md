@@ -458,7 +458,7 @@ data/labs/lab-result-2026-10-31T03-45-00Z/analytical
 `--json` prints one envelope instead:
 
 ```json
-{"actual_period":{"first_open_time":1735740300,"last_open_time":1767192600},"bundles":{"analytical":"data/labs/lab-result-2026-10-31T03-45-00Z/analytical","execution":"data/labs/lab-result-2026-10-31T03-45-00Z/execution","model":"data/labs/lab-result-2026-10-31T03-45-00Z/model","portfolio":"data/labs/lab-result-2026-10-31T03-45-00Z/portfolio","strategy":"data/labs/lab-result-2026-10-31T03-45-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","model_version":"0.3.0","portfolio":{"final_equity":8010.410952311678,"halted":true,"max_drawdown":0.20054183747112453,"net_pnl":-1989.5890476883308,"total_return":-0.19895890476883227,"trades":100},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
+{"actual_period":{"first_open_time":1735740300,"last_open_time":1767192600},"bundles":{"analytical":"data/labs/lab-result-2026-10-31T03-45-00Z/analytical","execution":"data/labs/lab-result-2026-10-31T03-45-00Z/execution","model":"data/labs/lab-result-2026-10-31T03-45-00Z/model","portfolio":"data/labs/lab-result-2026-10-31T03-45-00Z/portfolio","strategy":"data/labs/lab-result-2026-10-31T03-45-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","model_version":"0.3.0","portfolio":{"final_equity":8010.411285462277,"halted":true,"max_drawdown":0.2005418002304158,"net_pnl":-1989.5887145376817,"total_return":-0.19895887145377233,"trades":100},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
 ```
 
 | Field | Meaning |

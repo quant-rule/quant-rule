@@ -56,12 +56,12 @@ added.
 | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` | Passed |
 | `git diff --check` | Clean |
 | `git add -n .` under `data/` | Exactly the nine READMEs listed |
-| Example run | `backtest` completed in 4m44s; envelope matches the README |
+| Example run | `backtest` completed; envelope matches the README |
 | Default `store init` | Wrote `data/db/quantrule.db`, schema 2 |
 | Default `research export` | Wrote nine files under `data/research/` |
 | Default `fetch` | Wrote `data/sources/EURUSD_M1_2026-01-05_2026-01-05.csv`, 1,438 rows |
 | Lab summary | `wrote data/labs/lab-result-2026-10-31T03-45-00Z/summary.txt` |
-| Envelope values | 100 trades, final equity 8010.410952, max drawdown 0.200542, halted |
+| Envelope values | 100 trades, final equity 8010.411285, max drawdown 0.200542, halted |
 | Determinism | A second `backtest --json` printed a byte-identical envelope |
 | Local cleanup | 23 CSVs in `data/sources/`; eight directories at the root; 1.6 GB |
 
