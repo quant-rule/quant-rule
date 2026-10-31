@@ -472,7 +472,7 @@ pub fn build(
 pub struct LadderContextBuilder<'a> {
     execution: &'a TimeframeModel,
     execution_secs: i64,
-    context_models: Vec<&'a TimeframeModel>,
+    context_models: Vec<Option<&'a TimeframeModel>>,
     context_secs: Vec<i64>,
     weights: LadderWeights,
     pointers: Vec<Option<usize>>,
@@ -504,19 +504,15 @@ impl<'a> LadderContextBuilder<'a> {
                 timeframe_secs: ladder.execution_timeframe_secs(),
             },
         )?;
-        let context_models: Vec<&TimeframeModel> = ladder
+        let context_secs: Vec<i64> = ladder
             .context_timeframes()
             .iter()
-            .map(|timeframe_secs| {
-                run.timeframe(*timeframe_secs)
-                    .ok_or(LadderContextError::MissingContextTimeframe {
-                        timeframe_secs: *timeframe_secs,
-                    })
-            })
-            .collect::<Result<_, _>>()?;
-        let context_secs = context_models
+            .map(|seconds| *seconds as i64)
+            .collect();
+        let context_models: Vec<Option<&TimeframeModel>> = ladder
+            .context_timeframes()
             .iter()
-            .map(|model| model.timeframe_secs() as i64)
+            .map(|seconds| run.timeframe(*seconds))
             .collect();
 
         Ok(Self {
@@ -562,6 +558,10 @@ impl<'a> LadderContextBuilder<'a> {
         let mut missing = Vec::new();
 
         for (context_index, model) in self.context_models.iter().enumerate() {
+            let Some(model) = model else {
+                missing.push(self.context_secs[context_index] as u64);
+                continue;
+            };
             let timeframe_secs = model.timeframe_secs();
             let open_times = model.open_times();
             let context_secs = self.context_secs[context_index];
