@@ -128,8 +128,10 @@ pub(crate) fn aggregate(ordered: &[&TimeframeSnapshot]) -> EventAggregates {
             if let Some(direction) = latest_divergence_direction(snapshot) {
                 // A public snapshot may carry a direction outside -1..=1; do
                 // not index the three-slot count with it.
-                if let Ok(index) = usize::try_from(direction + 1)
-                    && index < divergence_directions.len()
+                if let Some(index) = direction
+                    .checked_add(1)
+                    .and_then(|value| usize::try_from(value).ok())
+                    .filter(|index| *index < divergence_directions.len())
                 {
                     divergence_directions[index] += 1;
                 }
