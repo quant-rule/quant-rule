@@ -18,7 +18,9 @@ contradiction, the optional `model.json.timeframes` map, and the
 The change is limited to the shell config parsers, their unit tests, and the
 affected configuration contracts. It does not change the strategy rule, the
 model formulas, execution fills, portfolio accounting, or any threshold. It does
-not implement execution v3. It adds no dependency and no `unsafe` code.
+not implement execution v3. It adds no dependency and no `unsafe` code. The
+human authorized commits and PRs; the work was committed as `92417ce`, pushed to
+`fix/248-schema-contracts`, and opened as PR #258. It is not merged.
 
 ## Implemented
 
@@ -49,6 +51,7 @@ not implement execution v3. It adds no dependency and no `unsafe` code.
 | `cargo test --workspace` | 45 test-result-ok suites, 0 failures |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` | Passed |
 | `git diff --check` | Clean |
+| Commit and PR | `92417ce`; PR #258; not merged |
 
 The two code tests have fail-before evidence. The `missing_context` and
 execution-v2 findings are documentation corrections: their tests and parser

@@ -156,7 +156,8 @@ Proposed issue: **Reject pending fills across non-contiguous execution bars**.
 - Implementation evidence: schema-before-fields, optional `timeframes`, v2
   current/v3 target, and `missing_context` required. The real-v2 and
   absent-`timeframes` tests fail before and pass after; the two documentation
-  findings are pinned by tests that match the strict contract. Issue #248.
+  findings are pinned by tests that match the strict contract. Issue #248,
+  PR #258.
 
 Proposed sub-issues:
 1. **Make the strategy v2 migration message reachable**
