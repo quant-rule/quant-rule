@@ -255,7 +255,7 @@ recent_pace_signed_atr_per_bar = leg_direction × (displacement_atr(t) - displac
   `recent_pace_direction` is `with_leg` when positive, `against_leg` when negative, `flat` when zero.
 - **Recent pace percentile:** percentile of `abs(recent_pace_signed_atr_per_bar)` against prior valid absolute values, 252 cap, minimum 50, inclusive ties. The radius uses this percentile. The signed pace remains a detail.
 - **Same-leg rule:** both endpoints must publish the same `leg_id`; a leg change resets the measurement. A forming leg, a missing displacement, or a different leg is `Undefined`.
-- **Availability:** a confirmed-leg measurement is never published before `origin_available_at`.
+- **Availability:** pace, radius, and percentile measurements are never published before `origin_available_at`. The **average net displacement** is detail-only and is computed for a forming leg from its known origin; it is not a decision input and is not availability-gated.
 - **Terminal freeze:** when the lifecycle becomes terminal, freeze recent pace and average net displacement at that bar. Later bars do not decay either value. The lifecycle detail distinguishes completed, invalidated, and superseded.
 - **Average historical pace:** `average_net_displacement_atr_per_bar = abs(displacement_atr) / max(1, t - origin_occurred_at)`. It measures net displacement per elapsed bar, not total path distance. It is detail only.
 - **Displacement percentile:** the existing displacement percentile remains a separate magnitude detail.
