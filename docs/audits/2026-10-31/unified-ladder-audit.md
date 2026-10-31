@@ -43,7 +43,7 @@ changed.
 | AUD-2026-10-31-02 | Major | config | Real v2 strategy configs never reach the migration message | `config/strategy.rs:58,66`; probe output | Migration path broken; user sees unknown-field error | A check schema before field validation; B detect legacy fields; C change docs to unknown-field error | A | Real v2 fixture prints the documented migration sentence | Fixed | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
 | AUD-2026-10-31-03 | Major | shell/data | `model-series`/`market-chart` advertise 4h but cannot access H4 | `pipeline.rs:56,80,144`; `command/model.rs:311`; probe | 4h silently prints nothing or errors | A build H4 for path commands; B remove 4h from their help/parsers | A | 4h CLI tests emit H4 rows/write PNG | Fixed | [#249](https://github.com/quant-rule/quant-rule/issues/249) · [#259](https://github.com/quant-rule/quant-rule/pull/259) |
 | AUD-2026-10-31-04 | Major | strategy/config | Structure context weights and context `kind` literals are accepted but inert | `strategy/ladder.rs:267`; `config/strategy.rs:319-386`; experiment C | Config/experiment imply a decision dimension that does nothing | A document diagnostics; B use score in rule (new hypothesis); C remove fields (new schema) | A now | Two structure weights produce identical decisions, documented | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
-| AUD-2026-10-31-05 | Major | portfolio | Exit fill quantity is not reconciled to the open position | `portfolio/ledger.rs:357,537`; probe `PF-01` | Ledger cash/equity can be corrupted by a partial exit | A reject quantity mismatch; B support partial exits; C clamp | A | Mismatched exit returns typed error and state unchanged | Planned | — |
+| AUD-2026-10-31-05 | Major | portfolio | Exit fill quantity is not reconciled to the open position | `portfolio/ledger.rs:357,537`; probe `PF-01` | Ledger cash/equity can be corrupted by a partial exit | A reject quantity mismatch; B support partial exits; C clamp | A | Mismatched exit returns typed error and state unchanged | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
 | AUD-2026-10-31-06 | Major | docs/README | README and current-status docs describe the retired rule and stale outputs | `README.md:456-459`; `README.md:306`; `docs/model/2026-10-30/per-timeframe-model.md:4,128`; `docs/README.md:106` | Current example cannot reproduce; users are misled | A regenerate current docs/output; B mark examples historical | A | README envelope matches current 5m example; statuses say merged | Planned | — |
 | AUD-2026-10-31-07 | Major | config/docs | Execution v3 contract says v2 is retired while the loader requires v2 | `docs/config/2026-10-30/execution-v3.md:95-98`; `config/execution.rs:48` | Users cannot tell which schema is current | A correct the doc; B implement v3 | A now | v2 config passes; v3 is documented as target | Fixed | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
 | AUD-2026-10-31-08 | Major | analytics | Layer 3 block width depends on whether higher series are empty | `analytics/layers/mod.rs:229,382`; `research/render.rs:127`; probe 155 columns | Fixed-schema contract violated; readers can misalign | A pass configured ladder and emit null blocks; B document variable width | A | Short source still exports configured blocks | Planned | — |
@@ -53,9 +53,9 @@ changed.
 | AUD-2026-10-31-12 | Minor | strategy | `context_lost` fires on missing/unavailable context | `strategy/ladder.rs:151,249,280`; no open-position golden row | Exit reason is not a measured flip | A hold on missing; B document forced exit; C add policy switch | A or C | Open-position missing-context golden row | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
 | AUD-2026-10-31-13 | Minor | context/config | Unbounded weights can overflow and publish NaN | `context/mod.rs:281,710`; `strategy/config.rs` validation | Valid-looking config silently blocks entries | A reject non-finite weight sum; B normalize; C cap | A | `1e308` weights rejected | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
 | AUD-2026-10-31-14 | Minor | execution/portfolio | Risk-envelope cap bypasses `quantity_step` | `runner/mod.rs:203`; `execution/engine.rs:592`; `portfolio/sizing.rs:180` | Capped fill can violate step contract | A cap with step; B conservative pre-size; C document override | A | Capped quantity is a step multiple | Planned | — |
-| AUD-2026-10-31-15 | Minor | execution | Second `submit` on one bar silently overwrites pending order | `execution/engine.rs:305,353` | Orphaned order remains pending | A reject second submit; B supersede record; C debug assert | A | Two submits yield one order and no pending | Planned | — |
-| AUD-2026-10-31-16 | Minor | portfolio | `drawdown`/`peak_equity` stale after fills/funding | `portfolio/ledger.rs:202,348,418`; `state.rs:178` | Public state contradicts field contract | A centralize equity update; B document mark-only | A | Post-fill drawdown matches formula | Planned | — |
-| AUD-2026-10-31-17 | Minor | portfolio | Exit commission uses prior mark, not fill-time equity | `portfolio/ledger.rs:369,428`; `docs/config/2026-10-28/per-engine-config.md:336` | Gap exits mis-charge commission | A use fill-time equity; B document prior-mark rule; C define one rule | A or B | Gap-exit commission test | Planned | — |
+| AUD-2026-10-31-15 | Minor | execution | Second `submit` on one bar silently overwrites pending order | `execution/engine.rs:305,353` | Orphaned order remains pending | A reject second submit; B supersede record; C debug assert | A | Two submits yield one order and no pending | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
+| AUD-2026-10-31-16 | Minor | portfolio | `drawdown`/`peak_equity` stale after fills/funding | `portfolio/ledger.rs:202,348,418`; `state.rs:178` | Public state contradicts field contract | A centralize equity update; B document mark-only | A | Post-fill drawdown matches formula | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
+| AUD-2026-10-31-17 | Minor | portfolio | Exit commission uses prior mark, not fill-time equity | `portfolio/ledger.rs:369,428`; `docs/config/2026-10-28/per-engine-config.md:336` | Gap exits mis-charge commission | A use fill-time equity; B document prior-mark rule; C define one rule | A or B | Gap-exit commission test | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
 | AUD-2026-10-31-18 | Minor | shell | `strategy-run --config` ignores run data bounds | `command/strategy.rs:198-214`; `config/run.rs:104` | Same config can analyze different period | A default to run bounds; B document CLI-only bounds | A | Config period is honored unless overridden | Planned | — |
 | AUD-2026-10-31-19 | Minor | config/docs | `missing_context` documented default but parser requires key | `docs/config/2026-10-30/strategy-v3.md:81`; `config/strategy.rs:524` | Doc-following config rejected | A default to reject; B document required | B | Missing-key test matches chosen rule | Fixed | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
 | AUD-2026-10-31-20 | Minor | context | Context identity, neutral band, and audit trail are not pinned | `context/mod.rs:139,712`; `strategy/ladder.rs:187`; no context artifact | Caller can mispair contexts; band drifts | A validate identity/share band; B private fields; C persist context | A/C | Mispair test; context artifact row count | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
@@ -63,9 +63,9 @@ changed.
 | AUD-2026-10-31-22 | Minor | intent/config | `valid_until`/`max_slippage_bps` are not wired to the shipped strategy | `intent.rs:277`; `strategy/ladder.rs:199`; `config/strategy.rs:475` | Engine checks reachable only from tests/custom callers | A add config fields; B remove claims/example | A or B | Config-driven expiry/slippage test | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
 | AUD-2026-10-31-23 | Minor | model/aggregate | Public aggregate can panic on malformed divergence direction | `model/aggregate/events.rs:129,210` | Library panic on invalid input | A validate/clamp; B return Result; C private fields | A | Out-of-range direction test does not panic | Planned | — |
 | AUD-2026-10-31-24 | Minor | backtest/context | Zero-bar context series aborts backtest instead of missing-context rejection | `context/mod.rs:492`; `runner/mod.rs:142`; `strategy.rs:222` | Short source fails instead of rejecting entries | A represent as missing; B preflight error; C require source | A or B | Short 4h-context run behaves consistently | Planned | — |
-| AUD-2026-10-31-25 | Info | execution/report | Capped fill order quantity differs from fill quantity | `execution/engine.rs:592,634`; `mod.rs:32` | Order row overstates the filled quantity | A add filled quantity; B reject over-cap; C document | A | Cap test reconciles order/fill/position | Planned | — |
+| AUD-2026-10-31-25 | Info | execution/report | Capped fill order quantity differs from fill quantity | `execution/engine.rs:592,634`; `mod.rs:32` | Order row overstates the filled quantity | A add filled quantity; B reject over-cap; C document | A | Cap test reconciles order/fill/position | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
 | AUD-2026-10-31-26 | Info | reporting | All sizing rejections collapse to `missing_quantity` | `runner/mod.rs:187`; `portfolio/sizing.rs:266` | Causes indistinguishable in report | A carry reason; B separate record; C document | A | Short-disabled run shows distinct reason | Planned | — |
-| AUD-2026-10-31-27 | Info | reporting | `slippage.total` is per-unit sum, not quote-currency cost | `report_run/bundles.rs:328`; `execution/fill.rs:101` | Total is not comparable with fees | A multiply by quantity; B rename | A | Quantity-100 fill reports currency total | Planned | — |
+| AUD-2026-10-31-27 | Info | reporting | `slippage.total` is per-unit sum, not quote-currency cost | `report_run/bundles.rs:328`; `execution/fill.rs:101` | Total is not comparable with fees | A multiply by quantity; B rename | A | Quantity-100 fill reports currency total | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
 | AUD-2026-10-31-28 | Info | portfolio | Month after an empty month loses its return | `portfolio/ledger.rs:516`; `records.rs:227` | Contradicts prior-equity rule | A carry last equity; B document | A | Jan+Mar equity test | Planned | — |
 | AUD-2026-10-31-29 | Info | docs | Current portfolio schema points to a superseded doc; M15 statement stale | `portfolio/config.rs:8`; `docs/config/2026-10-28/per-engine-config.md:6`; `execution/mod.rs:11` | Readers cannot find current schema | A update current contract; B annotate historical | A | Current docs contain portfolio schema | Planned | — |
 | AUD-2026-10-31-30 | Info | tests | H4-specific and multi-context coverage is thin | `context/tests.rs` single context; no 4h CLI tests | Several findings above lack regression guards | A add multi-context/4h tests; B document gap | A | New tests fail first, pass after fixes | Fixed | [#249](https://github.com/quant-rule/quant-rule/issues/249) · [#259](https://github.com/quant-rule/quant-rule/pull/259) |
@@ -195,7 +195,9 @@ changed.
 - Verification: a mismatch test returns a typed error and leaves cash/equity/
   position/trade unchanged; a full-close invariant test asserts
   `final_equity == initial_cash + net_pnl`.
-- Links: —
+- Status: `Fixed` by #261 and PR #262; a mismatched exit is a typed error and leaves the account unchanged.
+- Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
+  [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
 ### AUD-2026-10-31-06 — Current README/status docs describe the retired rule
 
@@ -375,7 +377,9 @@ changed.
   assertion.
 - Recommendation: A.
 - Verification: two submits yield one order and no pending order after finish.
-- Links: —
+- Status: `Fixed` by #261 and PR #262; a second pending order returns a typed error.
+- Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
+  [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
 ### AUD-2026-10-31-16 — Portfolio drawdown/peak stale after fills/funding
 
@@ -387,7 +391,9 @@ changed.
 - Options: A. centralize equity updates; B. document mark-time-only.
 - Recommendation: A.
 - Verification: post-fill drawdown matches the formula.
-- Links: —
+- Status: `Fixed` by #261 and PR #262; peak and drawdown are refreshed on every equity change.
+- Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
+  [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
 ### AUD-2026-10-31-17 — Exit commission uses the prior mark
 
@@ -400,7 +406,9 @@ changed.
   one rule for both sides.
 - Recommendation: A or B after contract clarification.
 - Verification: gap-exit commission test.
-- Links: —
+- Status: `Fixed` by #261 and PR #262; the prior-mark rule is documented and pinned by a gap-exit test.
+- Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
+  [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
 ### AUD-2026-10-31-18 — `strategy-run --config` ignores run data bounds
 
@@ -508,7 +516,9 @@ changed.
   the partial.
 - Recommendation: A.
 - Verification: cap test reconciles all three quantities.
-- Links: —
+- Status: `Fixed` by #261 and PR #262; a capped order records the fill quantity.
+- Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
+  [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
 ### AUD-2026-10-31-26 — Sizing rejections collapse to `missing_quantity`
 
@@ -531,7 +541,9 @@ changed.
 - Options: A. multiply by quantity; B. rename to per-unit.
 - Recommendation: A.
 - Verification: quantity-100 fill reports the currency total.
-- Links: —
+- Status: `Fixed` by #261 and PR #262; the total is a quote-currency cost.
+- Links: [#261](https://github.com/quant-rule/quant-rule/issues/261) ·
+  [#262](https://github.com/quant-rule/quant-rule/pull/262)
 
 ### AUD-2026-10-31-28 — Monthly return after an empty month
 
