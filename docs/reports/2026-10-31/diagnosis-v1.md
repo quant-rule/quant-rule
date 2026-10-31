@@ -49,7 +49,7 @@ created. A diagnosis is never written into a per-engine bundle.
 | `30-strategy-funnel.png` | 1280 x 720 |
 | `40-execution-quality.png` | 1280 x 720 |
 | `50-portfolio-attribution.png` | 1280 x 720 |
-| `manifest.txt` | Artifact names and byte lengths |
+| `manifest.txt` | Every artifact's name and byte length, including its own |
 
 ## 4. Identity and staleness
 
