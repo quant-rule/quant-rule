@@ -7,7 +7,7 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use quantrule_analytics::research::{DatasetMeta, render_dataset};
+use quantrule_analytics::research::{DatasetMeta, render_dataset_with_ladder};
 use quantrule_analytics::summary::{DatasetSummary, summarize};
 use quantrule_model::readings::PivotScale;
 
@@ -169,7 +169,7 @@ pub(crate) fn run_research_export(
     args: &ResearchExportArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let LayerBuild { layers, m1 } = load_layers(&args.path)?;
+    let LayerBuild { layers, m1, higher } = load_layers(&args.path)?;
 
     let meta = DatasetMeta {
         root: args.root.display().to_string(),
@@ -178,7 +178,8 @@ pub(crate) fn run_research_export(
         model_version: env!("CARGO_PKG_VERSION").to_string(),
         structure_scale_code: PivotScale::Major as u8,
     };
-    let bundle = render_dataset(&layers, &m1, &meta).map_err(RunError::ResearchExport)?;
+    let bundle = render_dataset_with_ladder(&layers, &m1, &meta, &higher)
+        .map_err(RunError::ResearchExport)?;
 
     for file in &bundle.files {
         export::write_atomic(Path::new(&file.path), file.contents.as_bytes())
