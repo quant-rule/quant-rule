@@ -52,7 +52,7 @@ changed.
 | AUD-2026-10-31-11 | Minor | model/dashboard | Forming-leg average net displacement contradicts dashboard contract | `docs/model/2026-10-25/dashboard-state.md:257`; `dashboard/assemble/progression.rs:169`; golden rows | Contract and golden fixture disagree | A amend contract; B gate average; C document exception | A or B | Forming-leg test matches chosen contract | Planned | — |
 | AUD-2026-10-31-12 | Minor | strategy | `context_lost` fires on missing/unavailable context | `strategy/ladder.rs:151,249,280`; no open-position golden row | Exit reason is not a measured flip | A hold on missing; B document forced exit; C add policy switch | A or C | Open-position missing-context golden row | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
 | AUD-2026-10-31-13 | Minor | context/config | Unbounded weights can overflow and publish NaN | `context/mod.rs:281,710`; `strategy/config.rs` validation | Valid-looking config silently blocks entries | A reject non-finite weight sum; B normalize; C cap | A | `1e308` weights rejected | Fixed | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
-| AUD-2026-10-31-14 | Minor | execution/portfolio | Risk-envelope cap bypasses `quantity_step` | `runner/mod.rs:203`; `execution/engine.rs:592`; `portfolio/sizing.rs:180` | Capped fill can violate step contract | A cap with step; B conservative pre-size; C document override | A | Capped quantity is a step multiple | Planned | — |
+| AUD-2026-10-31-14 | Minor | execution/portfolio | Risk-envelope cap bypasses `quantity_step` | `runner/mod.rs:203`; `execution/engine.rs:592`; `portfolio/sizing.rs:180` | Capped fill can violate step contract | A cap with step; B conservative pre-size; C document override | A | Capped quantity is a step multiple | Fixed | [#263](https://github.com/quant-rule/quant-rule/issues/263) · [#264](https://github.com/quant-rule/quant-rule/pull/264) |
 | AUD-2026-10-31-15 | Minor | execution | Second `submit` on one bar silently overwrites pending order | `execution/engine.rs:305,353` | Orphaned order remains pending | A reject second submit; B supersede record; C debug assert | A | Two submits yield one order and no pending | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
 | AUD-2026-10-31-16 | Minor | portfolio | `drawdown`/`peak_equity` stale after fills/funding | `portfolio/ledger.rs:202,348,418`; `state.rs:178` | Public state contradicts field contract | A centralize equity update; B document mark-only | A | Post-fill drawdown matches formula | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
 | AUD-2026-10-31-17 | Minor | portfolio | Exit commission uses prior mark, not fill-time equity | `portfolio/ledger.rs:369,428`; `docs/config/2026-10-28/per-engine-config.md:336` | Gap exits mis-charge commission | A use fill-time equity; B document prior-mark rule; C define one rule | A or B | Gap-exit commission test | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
@@ -64,7 +64,7 @@ changed.
 | AUD-2026-10-31-23 | Minor | model/aggregate | Public aggregate can panic on malformed divergence direction | `model/aggregate/events.rs:129,210` | Library panic on invalid input | A validate/clamp; B return Result; C private fields | A | Out-of-range direction test does not panic | Planned | — |
 | AUD-2026-10-31-24 | Minor | backtest/context | Zero-bar context series aborts backtest instead of missing-context rejection | `context/mod.rs:492`; `runner/mod.rs:142`; `strategy.rs:222` | Short source fails instead of rejecting entries | A represent as missing; B preflight error; C require source | A or B | Short 4h-context run behaves consistently | Planned | — |
 | AUD-2026-10-31-25 | Info | execution/report | Capped fill order quantity differs from fill quantity | `execution/engine.rs:592,634`; `mod.rs:32` | Order row overstates the filled quantity | A add filled quantity; B reject over-cap; C document | A | Cap test reconciles order/fill/position | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
-| AUD-2026-10-31-26 | Info | reporting | All sizing rejections collapse to `missing_quantity` | `runner/mod.rs:187`; `portfolio/sizing.rs:266` | Causes indistinguishable in report | A carry reason; B separate record; C document | A | Short-disabled run shows distinct reason | Planned | — |
+| AUD-2026-10-31-26 | Info | reporting | All sizing rejections collapse to `missing_quantity` | `runner/mod.rs:187`; `portfolio/sizing.rs:266` | Causes indistinguishable in report | A carry reason; B separate record; C document | A | Short-disabled run shows distinct reason | Fixed | [#263](https://github.com/quant-rule/quant-rule/issues/263) · [#264](https://github.com/quant-rule/quant-rule/pull/264) |
 | AUD-2026-10-31-27 | Info | reporting | `slippage.total` is per-unit sum, not quote-currency cost | `report_run/bundles.rs:328`; `execution/fill.rs:101` | Total is not comparable with fees | A multiply by quantity; B rename | A | Quantity-100 fill reports currency total | Fixed | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
 | AUD-2026-10-31-28 | Info | portfolio | Month after an empty month loses its return | `portfolio/ledger.rs:516`; `records.rs:227` | Contradicts prior-equity rule | A carry last equity; B document | A | Jan+Mar equity test | Planned | — |
 | AUD-2026-10-31-29 | Info | docs | Current portfolio schema points to a superseded doc; M15 statement stale | `portfolio/config.rs:8`; `docs/config/2026-10-28/per-engine-config.md:6`; `execution/mod.rs:11` | Readers cannot find current schema | A update current contract; B annotate historical | A | Current docs contain portfolio schema | Planned | — |
@@ -363,7 +363,9 @@ changed.
   override.
 - Recommendation: A.
 - Verification: capped quantity is a step multiple.
-- Links: —
+- Status: `Fixed` by #263 and PR #264; a capped fill is a step multiple and a sub-step cap is rejected.
+- Links: [#263](https://github.com/quant-rule/quant-rule/issues/263) ·
+  [#264](https://github.com/quant-rule/quant-rule/pull/264)
 
 ### AUD-2026-10-31-15 — Second submit overwrites the pending order
 
@@ -531,7 +533,9 @@ changed.
   document the collapse.
 - Recommendation: A or B.
 - Verification: short-disabled run reports a distinct reason.
-- Links: —
+- Status: `Fixed` by #263 and PR #264; the report carries the sizing rejection cause.
+- Links: [#263](https://github.com/quant-rule/quant-rule/issues/263) ·
+  [#264](https://github.com/quant-rule/quant-rule/pull/264)
 
 ### AUD-2026-10-31-27 — Slippage total is per-unit
 

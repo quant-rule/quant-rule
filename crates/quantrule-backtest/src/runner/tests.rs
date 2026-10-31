@@ -14,7 +14,7 @@ use crate::execution::{ExecutionConfig, RejectReason};
 use crate::intent::RiskPolicy;
 use crate::portfolio::{
     CommissionBase, CommissionConfig, CommissionPer, Currency, DrawdownAction, FundingConfig,
-    FundingInterval, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, SizingMode,
+    FundingInterval, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, SizingMode, SizingRejection,
 };
 use crate::strategy::{
     ContextEntryConfig, Decision, EntryConfig, ExecutionEntryConfig, ExitConfig, LadderConfig,
@@ -695,5 +695,11 @@ fn a_rejected_short_is_never_an_open_strategy_position() {
             .flat_map(|batch| batch.rejections.iter())
             .any(|rejection| rejection.reason == RejectReason::MissingQuantity),
         "the fixture must exercise the short sizing rejection"
+    );
+    assert!(
+        run.sizing_rejections()
+            .iter()
+            .any(|(_, reason)| *reason == SizingRejection::ShortNotAllowed),
+        "the report must carry the short-disabled sizing cause"
     );
 }

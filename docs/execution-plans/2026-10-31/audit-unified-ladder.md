@@ -234,8 +234,9 @@ Proposed sub-issues:
 Implementation evidence for W5a (#261): the partial-exit, second-submit,
 equity-state, capped-order, slippage, and gap-commission tests fail before and
 pass after. The validator record is
-`docs/reports/2026-10-31/w5-core-invariants-validation.md`. The step-aware cap
-(AUD-14) and sizing-rejection cause (AUD-26) remain open in W5b.
+`docs/reports/2026-10-31/w5-core-invariants-validation.md`. W5b (#263) then made
+the cap step-aware and added the sizing-rejection cause; its validator record is
+`docs/reports/2026-10-31/w5b-risk-cap-sizing-validation.md`.
 
 ### W6 — Model/analytics output contracts
 
