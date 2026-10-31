@@ -61,7 +61,7 @@ changed.
 | AUD-2026-10-31-20 | Minor | context | Context identity, neutral band, and audit trail are not pinned | `context/mod.rs:139,712`; `strategy/ladder.rs:187`; no context artifact | Caller can mispair contexts; band drifts | A validate identity/share band; B private fields; C persist context | A/C | Mispair test; context artifact row count | Verified | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
 | AUD-2026-10-31-21 | Minor | backtest | Portfolio imports `Side` through the strategy module | `portfolio/config.rs:583`; `portfolio/records.rs:85` | Boundary edge contrary to stack | A use `crate::side::Side`; B neutral module | A | `rg` finds no portfolio→strategy import | Verified | [#254](https://github.com/quant-rule/quant-rule/issues/254) · [#277](https://github.com/quant-rule/quant-rule/pull/277) |
 | AUD-2026-10-31-22 | Minor | intent/config | `valid_until`/`max_slippage_bps` are not wired to the shipped strategy | `intent.rs:277`; `strategy/ladder.rs:199`; `config/strategy.rs:475` | Engine checks reachable only from tests/custom callers | A add config fields; B remove claims/example | A or B | Config-driven expiry/slippage test | Verified | [#250](https://github.com/quant-rule/quant-rule/issues/250) · [#260](https://github.com/quant-rule/quant-rule/pull/260) |
-| AUD-2026-10-31-23 | Minor | model/aggregate | Public aggregate can panic on malformed divergence direction | `model/aggregate/events.rs:129,210` | Library panic on invalid input | A validate/clamp; B return Result; C private fields | A | Out-of-range direction test does not panic | Verified | [#266](https://github.com/quant-rule/quant-rule/issues/266) · [#267](https://github.com/quant-rule/quant-rule/pull/267) |
+| AUD-2026-10-31-23 | Minor | model/aggregate | Public aggregate can panic on malformed divergence direction | `model/aggregate/events.rs:129,210` | Library panic on invalid input | A validate/clamp; B return Result; C private fields | A | `out_of_range_divergence_directions_do_not_panic_or_count` (#297) | Verified | [#266](https://github.com/quant-rule/quant-rule/issues/266) · [#267](https://github.com/quant-rule/quant-rule/pull/267) · [#297](https://github.com/quant-rule/quant-rule/pull/297) |
 | AUD-2026-10-31-24 | Minor | backtest/context | Zero-bar context series aborts backtest instead of missing-context rejection | `context/mod.rs:492`; `runner/mod.rs:142`; `strategy.rs:222` | Short source fails instead of rejecting entries | A represent as missing; B preflight error; C require source | A or B | Short 4h-context run behaves consistently | Verified | [#272](https://github.com/quant-rule/quant-rule/issues/272) · [#273](https://github.com/quant-rule/quant-rule/pull/273) |
 | AUD-2026-10-31-25 | Info | execution/report | Capped fill order quantity differs from fill quantity | `execution/engine.rs:592,634`; `mod.rs:32` | Order row overstates the filled quantity | A add filled quantity; B reject over-cap; C document | A | Cap test reconciles order/fill/position | Verified | [#261](https://github.com/quant-rule/quant-rule/issues/261) · [#262](https://github.com/quant-rule/quant-rule/pull/262) |
 | AUD-2026-10-31-26 | Info | reporting | All sizing rejections collapse to `missing_quantity` | `runner/mod.rs:187`; `portfolio/sizing.rs:266` | Causes indistinguishable in report | A carry reason; B separate record; C document | A | Short-disabled run shows distinct reason | Verified | [#263](https://github.com/quant-rule/quant-rule/issues/263) · [#264](https://github.com/quant-rule/quant-rule/pull/264) |
@@ -491,7 +491,10 @@ changed.
 - Options: A. validate/clamp; B. return `Result`/`Option`; C. private fields.
 - Recommendation: A.
 - Verification: out-of-range direction test does not panic.
-- Links: —
+- Verification (2026-10-31): `out_of_range_divergence_directions_do_not_panic_or_count`
+  in `crates/quantrule-model/src/aggregate/tests.rs` covers `i8::MAX`, `i8::MIN`,
+  and `2`; W3 (#297) closes it.
+- Links: [#297](https://github.com/quant-rule/quant-rule/pull/297).
 
 ### AUD-2026-10-31-24 — Zero-bar context series aborts the backtest
 
