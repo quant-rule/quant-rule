@@ -857,9 +857,7 @@ stateless strategy contract.
 
 **Goal:** Make the new system discoverable and accurate.
 
-**Status:** Implemented; PR pending. The current command surface, config
-contracts, help topics, migration path, and tutorial describe the unified
-ladder rule. The dated 2026-10-29 full-pipeline tutorial is marked historical.
+**Status:** Implemented in PR [#245](https://github.com/quant-rule/quant-rule/pull/245); CI passed. The current command surface, config contracts, help topics, migration path, and tutorial describe the unified ladder rule. The dated 2026-10-29 full-pipeline tutorial is marked historical.
 
 **Files:**
 

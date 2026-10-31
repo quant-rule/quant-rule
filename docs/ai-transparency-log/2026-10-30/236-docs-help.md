@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#236](https://github.com/quant-rule/quant-rule/issues/236)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR pending
+- Status: Implemented; PR [#245](https://github.com/quant-rule/quant-rule/pull/245) open; CI passed
 
 ## Intent and boundary
 
@@ -57,6 +57,8 @@ and is marked superseded. The current procedure is the 2026-10-30 tutorial.
 | `report strategy` on the tutorial config | Passed; 52 bars, context summary |
 | Tutorial integration test | Passed |
 | Help goldens | Regenerated and passing |
+| PR | #245 opened |
+| CI `verify` and `sync` | Passed |
 | Local doc links | Resolved |
 
 The tutorial fixture is 260 M1 rows, so the 15m context never reaches the
