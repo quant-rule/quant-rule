@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use quantrule_model::readings::PivotScale;
 
 use super::layers::{LayerBuild, load_layers};
+use super::store_query::DEFAULT_DATABASE;
 use super::types::{Command, ParseError, RunError, StoreVerifyArgs};
 use crate::store::{DatasetRecord, IngestRows, Store};
 
@@ -22,7 +23,7 @@ pub(crate) fn parse_store_verify(arguments: &[String], usage: &str) -> Result<Co
     let mut path = None;
     let mut dataset = None;
     let mut data_version = None;
-    let mut database = PathBuf::from("data/quantrule.db");
+    let mut database = PathBuf::from(DEFAULT_DATABASE);
     let mut index = 1;
 
     while index < arguments.len() {
@@ -167,7 +168,7 @@ mod tests {
                 path: PathBuf::from("data/m1.csv"),
                 dataset: String::from("demo"),
                 data_version: String::from("source:1"),
-                database: PathBuf::from("data/quantrule.db"),
+                database: PathBuf::from("data/db/quantrule.db"),
             }))
         );
         assert_eq!(

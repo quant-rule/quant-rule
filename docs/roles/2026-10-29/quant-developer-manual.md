@@ -156,8 +156,8 @@ caller-supplied identity; do not derive it from the path. The folder uses
 QR=./target/release/quantrule
 CFG=config/examples/solusd-2025/run.json
 DV=dukascopy-bid-solusd-m1-2025-01-01_2025-12-31
-lab_r=data/lab-result-2026-10-30T12-00-00Z
-lab_d=data/lab-result-2026-10-30T12-30-00Z
+lab_r=data/labs/lab-result-2026-10-30T12-00-00Z
+lab_d=data/labs/lab-result-2026-10-30T12-30-00Z
 
 "$QR" backtest --config "$CFG" --out "$lab_d"
 "$QR" lab summary "$lab_d" \
@@ -200,7 +200,7 @@ Check the provenance of every bundle:
 python3 - <<'PY'
 import json
 for b in ["model", "strategy", "execution", "portfolio", "analytical"]:
-    path = f"data/lab-result-2026-10-30T12-30-00Z/{b}/provenance.json"
+    path = f"data/labs/lab-result-2026-10-30T12-30-00Z/{b}/provenance.json"
     d = json.load(open(path))
     print(b, d["data_version"], d["report_version"], d["artifacts"])
 PY
@@ -214,13 +214,13 @@ its artifact list. The data version must match the researcher's protocol.
 Write the developer notes, then refresh the summary with them:
 
 ```bash
-cat > data/developer-notes.md <<'EOF'
+cat > data/notes/developer-notes.md <<'EOF'
 Implementation: no code change; the approved configuration is unchanged.
 Protocol: the researcher's protocol is unchanged.
 Gates: cargo fmt, cargo clippy, cargo test, cargo doc.
 Reproducibility: the developer bundles match the researcher bundles byte for byte.
 Deviation: none.
-Observed: 48 trades, final equity 8016.143910, halted true.
+Observed: 100 trades, final equity 8010.411285, halted true.
 EOF
 
 "$QR" lab summary "$lab_d" \
@@ -228,7 +228,7 @@ EOF
   --data-version "$DV" \
   --config "$CFG" \
   --created-utc 2026-10-30T12:30:00Z \
-  --notes data/developer-notes.md \
+  --notes data/notes/developer-notes.md \
   --force \
   --operator human
 ```
@@ -244,9 +244,9 @@ researcher.
 |---|---|---|
 | Code and test diff | The task branch | The implementation and its verification. |
 | Gate log | The work item or pull request | The commands run and their observed results. |
-| Developer lab | `data/lab-result-YYYY-MM-DDTHH-MM-SSZ/` | Five report bundles plus the root summary. |
+| Developer lab | `data/labs/lab-result-YYYY-MM-DDTHH-MM-SSZ/` | Five report bundles plus the root summary. |
 | Provenance | `<lab>/<bundle>/provenance.json` | Data version, periods, config files, resolved values, artifacts. |
-| Developer notes | `data/developer-notes.md` | Implementation, gates, reproducibility, deviations, observed result. |
+| Developer notes | `data/notes/developer-notes.md` | Implementation, gates, reproducibility, deviations, observed result. |
 | Handoff packet | The work item or the packet below | The developer's record for the validator. |
 
 The lab folder contains:

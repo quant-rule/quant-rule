@@ -611,7 +611,7 @@ fn parses_a_store_ingest_with_defaults() {
             path: PathBuf::from("data/m1.csv"),
             dataset: "demo".to_string(),
             data_version: "source:1".to_string(),
-            database: PathBuf::from("data/quantrule.db"),
+            database: PathBuf::from("data/db/quantrule.db"),
         })))
     );
 }
@@ -670,7 +670,9 @@ fn a_store_ingest_rejects_an_unknown_option() {
 fn parses_a_store_init_with_defaults() {
     assert_eq!(
         parse("store init"),
-        Ok(Some(Command::StoreInit(PathBuf::from("data/quantrule.db"))))
+        Ok(Some(Command::StoreInit(PathBuf::from(
+            "data/db/quantrule.db"
+        ))))
     );
 }
 
@@ -687,7 +689,7 @@ fn parses_store_removal() {
 
 fn lab_summary_args() -> LabSummaryArgs {
     LabSummaryArgs {
-        lab_dir: PathBuf::from("data/lab-result-2026-10-29T12-00-00Z"),
+        lab_dir: PathBuf::from("data/labs/lab-result-2026-10-29T12-00-00Z"),
         role: LabRole::Researcher,
         data_version: String::from("test:v1"),
         config: PathBuf::from("config/examples/solusd-2025/run.json"),
@@ -702,7 +704,7 @@ fn lab_summary_args() -> LabSummaryArgs {
 fn parses_lab_summary_with_defaults() {
     assert_eq!(
         parse(
-            "lab summary data/lab-result-2026-10-29T12-00-00Z \
+            "lab summary data/labs/lab-result-2026-10-29T12-00-00Z \
 --role researcher --data-version test:v1 \
 --config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z"
         ),
@@ -720,7 +722,7 @@ fn parses_lab_summary_with_every_option() {
 
     assert_eq!(
         parse(
-            "lab summary --force data/lab-result-2026-10-29T12-00-00Z \
+            "lab summary --force data/labs/lab-result-2026-10-29T12-00-00Z \
 --role validator --data-version test:v1 \
 --config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z \
 --operator agent --notes data/notes.md"

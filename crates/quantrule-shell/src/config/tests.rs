@@ -1335,7 +1335,7 @@ fn the_example_config_loads_and_resolves() {
             .data
             .source
             .path
-            .ends_with("data/SOLUSD_M1_2025-01-01_2025-12-31.csv")
+            .ends_with("data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv")
     );
     assert!(
         config
@@ -1343,7 +1343,11 @@ fn the_example_config_loads_and_resolves() {
             .data
             .ends_with("config/examples/solusd-2025/data.json")
     );
-    assert!(config.output_root.ends_with("data/backtest-solusd-2025"));
+    assert!(
+        config
+            .output_root
+            .ends_with("data/labs/backtest-solusd-2025")
+    );
 
     assert_eq!(config.model.structure_scale, PivotScale::Major);
     assert_eq!(config.strategy.engine.timeframe_secs(), 300);
