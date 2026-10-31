@@ -27,7 +27,9 @@ use crate::execution::{
     ExecutionBatch, ExecutionConfig, ExecutionEngine, ExecutionError, OrderIntent,
 };
 use crate::intent::StrategyPosition;
-use crate::portfolio::{PortfolioConfig, PortfolioLedger, PortfolioLedgerError, PortfolioMetrics};
+use crate::portfolio::{
+    PortfolioConfig, PortfolioLedger, PortfolioLedgerError, PortfolioMetrics, SizingRejection,
+};
 use crate::strategy::{
     Decision, LadderContextStrategy, Strategy, StrategyConfig, StrategyInput, StrategyWalk,
 };
@@ -57,6 +59,7 @@ pub struct BacktestRun {
     walk: StrategyWalk,
     batches: Vec<ExecutionBatch>,
     ledger: PortfolioLedger,
+    sizing_rejections: Vec<(usize, SizingRejection)>,
 }
 
 impl BacktestRun {
@@ -97,6 +100,12 @@ impl BacktestRun {
         self.ledger.metrics()
     }
 
+    /// The sizing rejections, with the decision bar that produced each.
+    #[must_use]
+    pub fn sizing_rejections(&self) -> &[(usize, SizingRejection)] {
+        &self.sizing_rejections
+    }
+
     /// Whether the run produced no bars, decisions, batches, or trades.
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -135,6 +144,7 @@ pub fn run_backtest(
     let mut decisions = Vec::new();
     let mut positions: Vec<StrategyPosition> = Vec::new();
     let mut batches = Vec::new();
+    let mut sizing_rejections = Vec::new();
     let mut previous: Option<ModelBar> = None;
 
     if let Some(timeframe) = model.timeframe(config.strategy.timeframe_secs()) {
@@ -186,7 +196,15 @@ pub fn run_backtest(
             positions.push(position);
 
             let quantity = match decision {
-                Decision::Enter(entry) => ledger.size_entry(entry.intent.side, candle.close()).ok(),
+                Decision::Enter(entry) => {
+                    match ledger.size_entry(entry.intent.side, candle.close()) {
+                        Ok(quantity) => Some(quantity),
+                        Err(reason) => {
+                            sizing_rejections.push((bar_index, reason));
+                            None
+                        }
+                    }
+                }
                 Decision::Exit(_) | Decision::Hold => None,
             };
             let atr14 = match decision {
@@ -210,7 +228,7 @@ pub fn run_backtest(
                 },
             };
             let batch = execution
-                .submit(intent, quantity, atr14)
+                .submit_with_step(intent, quantity, atr14, Some(ledger.quantity_step()))
                 .map_err(BacktestError::Execution)?;
             batches.push(batch);
             previous = Some(bar);
@@ -238,6 +256,7 @@ pub fn run_backtest(
         walk,
         batches,
         ledger,
+        sizing_rejections,
     })
 }
 

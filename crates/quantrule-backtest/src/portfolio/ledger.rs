@@ -130,6 +130,12 @@ impl PortfolioLedger {
         &self.risk_events
     }
 
+    /// The configured quantity step, used by the risk-cap path.
+    #[must_use]
+    pub const fn quantity_step(&self) -> f64 {
+        self.config.sizing.quantity_step()
+    }
+
     /// Sizes one entry at the current equity and the supplied price.
     ///
     /// # Errors
