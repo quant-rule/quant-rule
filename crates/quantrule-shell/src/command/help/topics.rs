@@ -50,7 +50,7 @@ pub(super) fn render_glossary() -> String {
         ),
         (
             "lab result folder",
-            "data/lab-result-YYYY-MM-DDTHH-MM-SSZ in UTC. It holds the five report bundles and the root summary.txt.",
+            "data/labs/lab-result-YYYY-MM-DDTHH-MM-SSZ in UTC. It holds the five report bundles and the root summary.txt.",
         ),
         (
             "available ladder",

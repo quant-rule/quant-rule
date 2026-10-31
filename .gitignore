@@ -25,4 +25,11 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-/data/
+# Local data workspace
+#
+# The tree is documented by a README in every directory; the data itself is
+# local and never committed. The directory re-inclusion must follow the
+# exclusion, because Git does not descend into an excluded parent.
+/data/**
+!/data/**/
+!/data/**/README.md

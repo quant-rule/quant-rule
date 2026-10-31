@@ -5,7 +5,7 @@ Ingest one M1 dataset into the SQLite store.
 Options
   --dataset <name>             Dataset name; required.
   --data-version <id>          Caller-supplied identity; required.
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   Prints ingested <name> bars=<n> timeframes=<n>.

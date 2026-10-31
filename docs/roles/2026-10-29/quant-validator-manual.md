@@ -62,7 +62,7 @@ Do not change a criterion to turn a failure into a pass. If the criteria are
 missing or contradictory, stop and return the work to the researcher.
 
 ```bash
-cat data/researcher-protocol.md
+cat data/notes/researcher-protocol.md
 ```
 
 ### 3.2 Verify the inputs and provenance
@@ -74,15 +74,15 @@ timeframe, and coverage. It must match every report and provenance file.
 QR=./target/release/quantrule
 CFG=config/examples/solusd-2025/run.json
 DV=dukascopy-bid-solusd-m1-2025-01-01_2025-12-31
-lab_d=data/lab-result-2026-10-30T12-30-00Z
-lab_v=data/lab-result-2026-10-30T13-00-00Z
+lab_d=data/labs/lab-result-2026-10-30T12-30-00Z
+lab_v=data/labs/lab-result-2026-10-30T13-00-00Z
 
 cat "$lab_d/summary.txt"
 
 python3 - <<'PY'
 import json
 for b in ["model", "strategy", "execution", "portfolio", "analytical"]:
-    path = f"data/lab-result-2026-10-30T12-30-00Z/{b}/provenance.json"
+    path = f"data/labs/lab-result-2026-10-30T12-30-00Z/{b}/provenance.json"
     d = json.load(open(path))
     print(b, d["data_version"], d["report_version"],
           d["requested_period"], d["actual_period"], d["config_files"])
@@ -151,13 +151,13 @@ cargo test -p quantrule-backtest
 Inspect the event records for availability:
 
 ```bash
-"$QR" events data/SOLUSD_M1_2025-01-01_2025-02-28.csv --window latest \
-  > data/validator-events.ndjson
+"$QR" events data/sources/SOLUSD_M1_2025-01-01_2025-02-28.csv --window latest \
+  > data/scratch/validator-events.ndjson
 
 python3 - <<'PY'
 import json
 bad = []
-for line in open("data/validator-events.ndjson"):
+for line in open("data/scratch/validator-events.ndjson"):
     e = json.loads(line)
     if e["available_bar"] < e["occurred_bar"]:
         bad.append(e)
@@ -224,17 +224,17 @@ Check:
 The example result is:
 
 ```text
-  final_equity: 8016.143910
-  max_drawdown: 0.203150
-  trades: 48
+  final_equity: 8010.410952
+  max_drawdown: 0.200542
+  trades: 100
   halted: true
-  commission: 885.610499
-  slippage: 3.994526
-  funding_paid: 4.003485
-  funding_received: 1.993983
+  commission: 1822.737614
+  slippage: 6.772630
+  funding_paid: 1.896363
+  funding_received: 3.696679
 ```
 
-`max_drawdown: 0.203150` exceeds the configured `0.2` limit, so the run halts.
+`max_drawdown: 0.200542` exceeds the configured `0.2` limit, so the run halts.
 The final equity is after the halt, not a full-period result. Commission is the
 largest cost. These are configured assumptions, not live fills.
 
@@ -264,7 +264,7 @@ limitations, and a verdict. Do not write a narrative that is not backed by an
 observed command.
 
 ```bash
-cat > data/validator-record.md <<'EOF'
+cat > data/notes/validator-record.md <<'EOF'
 Reproduced: yes. A third run matched the developer bundles byte for byte.
 Data version: dukascopy-bid-solusd-m1-2025-01-01_2025-12-31.
 Config: config/examples/solusd-2025/run.json.
@@ -274,7 +274,7 @@ Survivorship: one symbol and one continuous series; no universe selection.
 Data snooping: no unrecorded variation; no threshold change after the run.
 Costs: commission 0.1% of equity per operation, slippage 2 bps, funding 0.0001 per 8h.
 Fills: next-open; ATR stop 2.0 and target 3.0; stop wins on a tie.
-Risk: max_drawdown 0.203150 exceeded the 0.2 limit; the run halted; the result is truncated.
+Risk: max_drawdown 0.200542 exceeded the 0.2 limit; the run halted; the result is truncated.
 Verdict: the evidence supports reproducibility, not a profitability claim.
 Residual risk: in-sample, halt, cost assumptions, same engine and machine.
 EOF
@@ -284,7 +284,7 @@ EOF
   --data-version "$DV" \
   --config "$CFG" \
   --created-utc 2026-10-30T13:00:00Z \
-  --notes data/validator-record.md \
+  --notes data/notes/validator-record.md \
   --force \
   --operator human
 ```
@@ -312,10 +312,10 @@ accepts, revises, or rejects.
 
 | Artifact | Path | Purpose |
 |---|---|---|
-| Validator lab | `data/lab-result-YYYY-MM-DDTHH-MM-SSZ/` | Five report bundles plus the root summary. |
-| Validation record | `data/validator-record.md` | Commands, observed results, audit findings, verdict, residual risk. |
+| Validator lab | `data/labs/lab-result-YYYY-MM-DDTHH-MM-SSZ/` | Five report bundles plus the root summary. |
+| Validation record | `data/notes/validator-record.md` | Commands, observed results, audit findings, verdict, residual risk. |
 | Bundle comparison | The command output or a log | The five `reproduced` lines, or the first difference. |
-| Event sample | `data/validator-events.ndjson` | The availability check sample. |
+| Event sample | `data/scratch/validator-events.ndjson` | The availability check sample. |
 | Handoff packet | The work item or the packet below | The validator's record for the human. |
 
 The validator lab is a separate folder from the researcher's and developer's

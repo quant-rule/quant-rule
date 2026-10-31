@@ -326,7 +326,7 @@ pub(crate) fn default_csv_path(
     range: &DateRange,
     timeframe: Timeframe,
 ) -> PathBuf {
-    PathBuf::from("data").join(format!(
+    PathBuf::from("data/sources").join(format!(
         "{}_{}_{}.csv",
         symbol.slug(),
         timeframe.file_code(),
@@ -661,7 +661,7 @@ mod tests {
 
         assert_eq!(
             default_csv_path(&request.symbol, &request.range, request.timeframe),
-            PathBuf::from("data/XAUUSD_M1_1970-01-01_1970-01-02.csv")
+            PathBuf::from("data/sources/XAUUSD_M1_1970-01-01_1970-01-02.csv")
         );
     }
 
@@ -672,11 +672,11 @@ mod tests {
 
         assert_eq!(
             default_csv_path(&symbol, &range, Timeframe::M5),
-            PathBuf::from("data/EURUSD_M5_2026-01-01_2026-06-30.csv")
+            PathBuf::from("data/sources/EURUSD_M5_2026-01-01_2026-06-30.csv")
         );
         assert_eq!(
             default_csv_path(&symbol, &range, Timeframe::H1),
-            PathBuf::from("data/EURUSD_H1_2026-01-01_2026-06-30.csv")
+            PathBuf::from("data/sources/EURUSD_H1_2026-01-01_2026-06-30.csv")
         );
     }
 }

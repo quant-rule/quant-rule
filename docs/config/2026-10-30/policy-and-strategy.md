@@ -20,7 +20,7 @@
   "execution": "execution.json",
   "portfolio": "portfolio.json",
   "analytics": "analytics.json",
-  "output_root": "../../../data/backtest-eurusd-2025"
+  "output_root": "../../../data/labs/backtest-eurusd-2025"
 }
 ```
 
@@ -162,7 +162,7 @@ fee and is never recomputed.
 ```json
 {
   "schema": "quantrule.data/v3",
-  "source": { "kind": "csv", "path": "../../../data/EURUSD_M1_2025-01-01_2025-12-31.csv" },
+  "source": { "kind": "csv", "path": "../../../data/sources/EURUSD_M1_2025-01-01_2025-12-31.csv" },
   "instrument": "EURUSD",
   "data_version": "dukascopy-bid-eurusd-m1-2025",
   "from": "2025-01-01",

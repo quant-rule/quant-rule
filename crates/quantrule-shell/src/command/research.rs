@@ -45,7 +45,7 @@ pub(crate) fn parse_research_arguments(
     let mut path = None;
     let mut dataset = None;
     let mut data_version = None;
-    let mut root = PathBuf::from("data");
+    let mut root = PathBuf::from("data/research");
     let mut index = 1;
 
     while index < arguments.len() {

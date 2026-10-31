@@ -15,7 +15,7 @@ use crate::store::{Cell, DatasetSummary, SeriesRow, Store, Table, TableRows};
 
 const DEFAULT_LIMIT: usize = 100;
 const MAX_LIMIT: usize = 1_000;
-const DEFAULT_DATABASE: &str = "data/quantrule.db";
+pub(super) const DEFAULT_DATABASE: &str = "data/db/quantrule.db";
 
 /// Parses `store list`.
 ///
@@ -469,7 +469,7 @@ mod tests {
         assert_eq!(
             parse_store_list(&args(&["list"]), "usage"),
             Ok(Command::StoreList(StoreListArgs {
-                database: PathBuf::from("data/quantrule.db"),
+                database: PathBuf::from("data/db/quantrule.db"),
             }))
         );
         assert_eq!(
@@ -556,7 +556,7 @@ mod tests {
                 timeframe: Some(60),
                 bar: None,
                 limit: 5,
-                database: PathBuf::from("data/quantrule.db"),
+                database: PathBuf::from("data/db/quantrule.db"),
             })))
         );
         assert_eq!(
@@ -567,7 +567,7 @@ mod tests {
                 timeframe: None,
                 bar: Some(2),
                 limit: 100,
-                database: PathBuf::from("data/quantrule.db"),
+                database: PathBuf::from("data/db/quantrule.db"),
             })))
         );
         assert_eq!(
@@ -578,7 +578,7 @@ mod tests {
                 timeframe: Some(900),
                 bar: None,
                 limit: 100,
-                database: PathBuf::from("data/quantrule.db"),
+                database: PathBuf::from("data/db/quantrule.db"),
             })))
         );
         assert_eq!(

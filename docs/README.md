@@ -77,6 +77,12 @@ implemented by #230; the remaining target contracts wait for their code phases.
 | Governing Swarm | [Governing Swarm](roles/2026-10-30/governing-swarm.md) | Current; Loop Governor, Result Analyst, Triage Officer |
 | Continuous Improvement | [Continuous Improvement roles](roles/2026-10-30/continuous-improvement-roles.md) | Current; Audit, Planner, Improvement Verifier |
 
+## Local workspace
+
+`data/` is a local workspace. Its directories, naming rules, and defaults are
+documented in [`data/README.md`](../data/README.md); only those README files are
+committed, and the candles, charts, reports, and databases stay local.
+
 ## Developer tools
 
 | Tool | Purpose | Path |
