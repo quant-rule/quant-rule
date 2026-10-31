@@ -542,7 +542,9 @@ impl PortfolioLedger {
                 return_fraction,
             });
 
-            previous = month_last.map(|point| point.equity);
+            if let Some(point) = month_last {
+                previous = Some(point.equity);
+            }
             if (year, month) == (last_year, last_month) {
                 break;
             }
