@@ -1,0 +1,5 @@
+# cell config
+control docs/experiments/2026-10-30/config/control/run.json
+a docs/experiments/2026-10-30/config/a/run.json
+b docs/experiments/2026-10-30/config/b/run.json
+c docs/experiments/2026-10-30/config/c/run.json

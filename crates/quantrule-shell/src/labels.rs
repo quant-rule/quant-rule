@@ -14,6 +14,7 @@ pub(crate) fn timeframe_label(seconds: u64) -> &'static str {
         300 => "5m",
         900 => "15m",
         3_600 => "1h",
+        14_400 => "4h",
         _ => "unknown",
     }
 }
@@ -283,5 +284,15 @@ pub(crate) fn transition_kind_code(kind: TransitionKind) -> &'static str {
     match kind {
         TransitionKind::CompactState => "compact_state",
         TransitionKind::ProgressionStage => "progression_stage",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::timeframe_label;
+
+    #[test]
+    fn the_four_hour_label_is_known() {
+        assert_eq!(timeframe_label(14_400), "4h");
     }
 }

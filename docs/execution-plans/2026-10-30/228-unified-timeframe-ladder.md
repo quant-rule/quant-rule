@@ -912,6 +912,11 @@ stateless strategy contract.
 
 **Goal:** Prove the implementation and evaluate it without an edge claim.
 
+**Status:** Implemented; PR pending.
+
+- Experiment: [`docs/experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md`](../../experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md)
+- Quant Validator: [`docs/reports/2026-10-30/unified-ladder-validation.md`](../../reports/2026-10-30/unified-ladder-validation.md)
+
 **Work:**
 
 - Run all global checks.
@@ -921,6 +926,18 @@ stateless strategy contract.
 - Record the experiment.
 - Update the plan and AI log.
 - Move the parent issue to Done after all children are Done.
+
+**Implementation notes:**
+
+- The matrix ran on the SOLUSD 2025 M1 source (522,633 rows) with the control,
+  A (1m execution), B (RSI 7 on 1m/5m), and C (higher-timeframe-heavy weights).
+- The full-year control returned +0.594% and B returned +1.160%; A returned
+  -9.098% and C returned -1.372%. Every OOS cell was negative. Triage: no edge.
+- The control and A reruns were bundle-identical.
+- The context builder benchmark is 0.270 s for 600,000 execution bars in a
+  release build.
+- Verification found and fixed a missing `4h` shell label (`timeframe_label`
+  returned `unknown` for 14,400 seconds). The fix has a unit test.
 
 **Exit criteria:**
 
@@ -1061,27 +1078,27 @@ Stop and request human direction if:
 
 ### Global gates
 
-- [ ] `cargo fmt --all -- --check`
-- [ ] `cargo clippy --all-targets -- -D warnings`
-- [ ] `cargo test --workspace`
-- [ ] `cargo doc --no-deps`
-- [ ] `git diff --check`
+- [x] `cargo fmt --all -- --check`
+- [x] `cargo clippy --all-targets -- -D warnings`
+- [x] `cargo test --workspace`
+- [x] `cargo doc --no-deps`
+- [x] `git diff --check`
 - [ ] CI `verify` green
-- [ ] No unrelated files in any PR
-- [ ] No secrets or credentials in configs, logs, or commits
-- [ ] Full diff reviewed
+- [x] No unrelated files in any PR
+- [x] No secrets or credentials in configs, logs, or commits
+- [x] Full diff reviewed
 
 ### Phase 1 — ADR and contracts
 
-- [ ] ADR defines the one-way ladder.
-- [ ] Available vs active ladder is explicit.
-- [ ] Model/strategy boundary is explicit.
-- [ ] Weight ownership is explicit.
-- [ ] Ordinal scales are explicit.
-- [ ] TradeIntent boundary is explicit.
-- [ ] Legacy removal and migration are explicit.
-- [ ] `docs/README.md` updated.
-- [ ] All relative links resolve.
+- [x] ADR defines the one-way ladder.
+- [x] Available vs active ladder is explicit.
+- [x] Model/strategy boundary is explicit.
+- [x] Weight ownership is explicit.
+- [x] Ordinal scales are explicit.
+- [x] TradeIntent boundary is explicit.
+- [x] Legacy removal and migration are explicit.
+- [x] `docs/README.md` updated.
+- [x] All relative links resolve.
 
 ### Phase 2 — Data engine
 
@@ -1208,70 +1225,74 @@ Stop and request human direction if:
 
 ### Phase 9 — Verification and experiment
 
-- [ ] Hypothesis pre-registered.
-- [ ] Control run recorded.
-- [ ] Variation A recorded.
-- [ ] Variation B recorded.
-- [ ] Variation C recorded.
-- [ ] In-sample and out-of-sample split recorded.
-- [ ] Costs recorded.
-- [ ] Look-ahead check recorded.
-- [ ] Split leakage check recorded.
-- [ ] Execution realism check recorded.
-- [ ] Quant Validator record exists.
-- [ ] No profitability claim.
-- [ ] Residual risk stated.
+- [x] Hypothesis pre-registered.
+- [x] Control run recorded.
+- [x] Variation A recorded.
+- [x] Variation B recorded.
+- [x] Variation C recorded.
+- [x] In-sample and out-of-sample split recorded.
+- [x] Costs recorded.
+- [x] Look-ahead check recorded.
+- [x] Split leakage check recorded.
+- [x] Execution realism check recorded.
+- [x] Quant Validator record exists.
+- [x] No profitability claim.
+- [x] Residual risk stated.
 
 ### Edge-case matrix
 
-- [ ] Empty series.
-- [ ] Single candle.
-- [ ] Shorter than indicator history.
-- [ ] Unaligned timeframe boundary.
-- [ ] Gap and missing candle.
-- [ ] Zero-volume candle.
-- [ ] Equal highs and lows.
-- [ ] Null direction.
-- [ ] Null momentum.
-- [ ] Null structure.
-- [ ] Null progression.
-- [ ] Missing context timeframe.
-- [ ] No closed context bar.
-- [ ] Context bar exactly at execution close.
-- [ ] 4h partial bucket.
-- [ ] 4h boundary.
-- [ ] Duplicate timestamp.
-- [ ] Out-of-order row.
-- [ ] Non-positive price.
-- [ ] Missing ATR.
-- [ ] Invalid bracket.
-- [ ] Rejected entry.
-- [ ] Rejected exit.
-- [ ] End-of-data open position.
+Covered by the data, model, strategy, execution, runner, and shell tests; see
+[`docs/reports/2026-10-30/unified-ladder-validation.md`](../../reports/2026-10-30/unified-ladder-validation.md)
+§5.
+
+- [x] Empty series.
+- [x] Single candle.
+- [x] Shorter than indicator history.
+- [x] Unaligned timeframe boundary.
+- [x] Gap and missing candle.
+- [x] Zero-volume candle.
+- [x] Equal highs and lows.
+- [x] Null direction.
+- [x] Null momentum.
+- [x] Null structure.
+- [x] Null progression.
+- [x] Missing context timeframe.
+- [x] No closed context bar.
+- [x] Context bar exactly at execution close.
+- [x] 4h partial bucket.
+- [x] 4h boundary.
+- [x] Duplicate timestamp.
+- [x] Out-of-order row.
+- [x] Non-positive price.
+- [x] Missing ATR.
+- [x] Invalid bracket.
+- [x] Rejected entry.
+- [x] Rejected exit.
+- [x] End-of-data open position.
 
 ### Causality and determinism
 
-- [ ] Appending future execution bars does not change past decisions.
-- [ ] Changing future execution bars does not change past decisions.
-- [ ] Removing future execution bars does not change past decisions.
-- [ ] Appending future context bars does not change past context.
-- [ ] Changing future context bars does not change past context.
-- [ ] Removing future context bars does not change past context.
-- [ ] An event with `available_bar_index` after the execution bar is never
+- [x] Appending future execution bars does not change past decisions.
+- [x] Changing future execution bars does not change past decisions.
+- [x] Removing future execution bars does not change past decisions.
+- [x] Appending future context bars does not change past context.
+- [x] Changing future context bars does not change past context.
+- [x] Removing future context bars does not change past context.
+- [x] An event with `available_bar_index` after the execution bar is never
   used.
-- [ ] Repeated runs produce identical decisions, fills, trades, and reports.
-- [ ] Reordered JSON maps do not change output.
-- [ ] No `HashMap` iteration affects output.
-- [ ] Weight normalization order is fixed.
-- [ ] Numeric accumulation order is documented.
+- [x] Repeated runs produce identical decisions, fills, trades, and reports.
+- [x] Reordered JSON maps do not change output.
+- [x] No `HashMap` iteration affects output.
+- [x] Weight normalization order is fixed.
+- [x] Numeric accumulation order is documented.
 
 ### Performance
 
-- [ ] Context builder benchmark on 600k M1 candles.
-- [ ] Model config per timeframe does not cause quadratic work.
-- [ ] 4h build does not reread the source.
-- [ ] Report aggregates are streamed or bounded.
-- [ ] Benchmark result reported in the PR.
+- [x] Context builder benchmark on 600k M1 candles: 0.270 s (release).
+- [x] Model config per timeframe does not cause quadratic work.
+- [x] 4h build does not reread the source.
+- [x] Report aggregates are streamed or bounded.
+- [x] Benchmark result reported in the PR.
 
 ## 15. Approval and execution gates
 
