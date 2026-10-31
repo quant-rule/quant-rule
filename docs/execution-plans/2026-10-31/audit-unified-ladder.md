@@ -174,6 +174,10 @@ Proposed sub-issues:
   `model-series` row assertion.
 - Update `docs/config/2026-10-30/data-v3.md` relative path and the stale M15
   statement.
+- Implementation evidence: `model-series` and `market-chart` now build H4 from
+  the five-series ladder; the README/data contract and parser text match. The
+  4h CLI tests fail before and pass after, and the H4 gap test pins the bucket
+  record. Issue #249, PR #259.
 
 Proposed sub-issues:
 1. **Make 4h reachable from model-series and market-chart**

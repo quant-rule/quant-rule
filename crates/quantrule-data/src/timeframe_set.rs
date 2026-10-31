@@ -571,6 +571,21 @@ mod tests {
     }
 
     #[test]
+    fn a_h4_gap_is_recorded_between_complete_buckets() {
+        let mut set = TimeframeSet::new();
+        push_range(&mut set, 0, 240);
+        push_range(&mut set, 480, 720);
+        set.finish().expect("fixture buckets are valid");
+
+        let series = set.series(Timeframe::H4);
+        assert_eq!(series.len(), 2);
+        assert_eq!(series.gaps().len(), 1);
+        assert_eq!(series.gaps()[0].after, BASE);
+        assert_eq!(series.gaps()[0].before, BASE + 28_800);
+        assert_eq!(series.gaps()[0].missing, 1);
+    }
+
+    #[test]
     fn a_new_set_has_five_empty_series_in_fixed_order() {
         let set = TimeframeSet::new();
         let series: Vec<Timeframe> = set.series_iter().map(|series| series.timeframe()).collect();

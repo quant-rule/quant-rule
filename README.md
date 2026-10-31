@@ -175,7 +175,7 @@ cargo run -p quantrule-shell -- lab summary data/lab-result-2026-10-29T12-00-00Z
 |---|---|---|
 | `candles` | `<csv-path>` | Up to the last 1000 candles as NDJSON, oldest first |
 | `candles-tolerant` | `<csv-path>` | Up to the last 1000 valid candles as NDJSON, plus a quality report on stderr |
-| `timeframes` | `<csv-path>` | M1, M5, M15, and H1 as NDJSON, plus an aggregation report on stderr |
+| `timeframes` | `<csv-path>` | M1, M5, M15, H1, and H4 as NDJSON, plus an aggregation report on stderr |
 | `market-state` | `<csv-path>` [`--window full\|latest`] | The four-timeframe market state as one JSON object |
 | `market-dashboard` | `<csv-path>` [`--window full\|latest`] [`--json`] | The four-axis text dashboard, or the numeric dashboard state as one JSON object |
 | `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars; `--window latest` supports inputs above the 100k cap |
@@ -303,20 +303,20 @@ The ladder guard measures every parsed source row before a date bound is applied
 
 ### Timeframe construction contract
 
-`timeframes` reads an M1 CSV strictly and builds four first-class series in the data engine. It does not fetch a source, and it does not write a derived CSV. M5, M15, and H1 are built from M1 only; H4 and D1 are not supported.
+`timeframes` reads an M1 CSV strictly and builds five first-class series in the data engine. It does not fetch a source, and it does not write a derived CSV. M5, M15, H1, and H4 are built from M1 only; D1 is not supported.
 
 | Item | Rule |
 |---|---|
 | Source | Validated M1 rows from the strict CSV reader; when two or more rows are present, the smallest spacing between consecutive rows must be 60s |
-| M1 validation | Timestamps strictly increasing and aligned to whole UTC minutes; a native M5/M15/H1 cadence is rejected; any invalid row aborts the command |
-| Derived series | M5, M15, H1 |
+| M1 validation | Timestamps strictly increasing and aligned to whole UTC minutes; a native M5/M15/H1/H4 cadence is rejected; any invalid row aborts the command |
+| Derived series | M5, M15, H1, H4 |
 | Window | 1000 candles per timeframe |
-| Complete bucket | Exactly 5, 15, or 60 M1 candles, checked on bucket transition or at end of input |
+| Complete bucket | Exactly 5, 15, 60, or 240 M1 candles, checked on bucket transition or at end of input |
 | Partial bucket | Recorded and dropped; never printed as a candle |
 | OHLC | Open is the first M1 open, high the maximum, low the minimum, close the last M1 close |
 | Volume | Summed only when every source volume is known; otherwise `null`; a real zero is `0`; a non-finite sum is rejected at the bucket that overflowed |
 | Gap | `after`, `before`, and `missing` between consecutive candles in a series; no market-session calendar is applied |
-| stdout | NDJSON grouped M1, M5, M15, H1; oldest candle first within each series |
+| stdout | NDJSON grouped M1, M5, M15, H1, H4; oldest candle first within each series |
 | stderr | One aggregation summary per timeframe, then its partial-bucket and gap records |
 
 A bucket is published only after every M1 candle it contains is known. The command builds the complete set before writing stdout, so a source error produces no partial NDJSON. A complete trailing bucket is published at end of input; an incomplete trailing bucket is dropped and counted.
@@ -329,7 +329,7 @@ partial timeframe=5m bucket=2025-01-01T00:00:00Z present=4 expected=5
 gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=1
 ```
 
-`retained` is the number of candles in the bounded window, `partial` is the number of dropped incomplete buckets, and `gaps` is the number of gap records. The four summaries always appear in M1, M5, M15, H1 order. The partial and gap records cover the entire input, not only the retained window.
+`retained` is the number of candles in the bounded window, `partial` is the number of dropped incomplete buckets, and `gaps` is the number of gap records. The five summaries always appear in M1, M5, M15, H1, H4 order. The partial and gap records cover the entire input, not only the retained window.
 
 ### Market-state contract
 
@@ -576,7 +576,7 @@ The counts satisfy `rows_read = accepted + rejected` and `accepted = evicted + r
 
 ## Scope
 
-MVP v1 covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1 construction from M1, the four-axis market state with its events and legs, a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h`, and a full config-driven backtest: the unified ladder-context strategy, next-open execution with an ATR bracket, portfolio accounting with commission, funding, and a drawdown halt, and the five report bundles. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. A run is deterministic: the same data and configuration produce the same bundles and the same printed output.
+MVP v1 covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1/H4 construction from M1, the four-axis market state with its events and legs, a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h`, and a full config-driven backtest: the unified ladder-context strategy, next-open execution with an ATR bracket, portfolio accounting with commission, funding, and a drawdown halt, and the five report bundles. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. A run is deterministic: the same data and configuration produce the same bundles and the same printed output.
 
 ## Verification
 

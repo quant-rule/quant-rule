@@ -74,12 +74,6 @@ pub(crate) struct ModelInputs {
 }
 
 impl ModelInputs {
-    /// Copies the default ladder's series out of a loaded set.
-    #[must_use]
-    pub(crate) fn from_set(set: &TimeframeSet) -> Self {
-        Self::from_set_with_ladder(set, &Timeframe::DEFAULT_LADDER)
-    }
-
     /// Copies the selected ladder's series out of a loaded set.
     #[must_use]
     pub(crate) fn from_set_with_ladder(set: &TimeframeSet, ladder: &[Timeframe]) -> Self {

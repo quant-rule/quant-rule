@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use quantrule_analytics::chart::ChartSeries;
 use quantrule_data::Timeframe;
 
-use super::layers::{LayerBuild, load_layers_with_window};
+use super::layers::{LayerBuild, load_layers_with_window_and_ladder};
 use super::types::{MarketChartArgs, ParseError, RunError, WindowMode};
 use crate::chart;
 use crate::export;
@@ -25,7 +25,7 @@ use crate::fetch::DEFAULT_CHART_CANDLES;
 pub(crate) fn parse_market_chart_arguments(
     arguments: &[String],
 ) -> Result<MarketChartArgs, ParseError> {
-    const USAGE: &str = "usage: market-chart <csv-path> --png <path> [--timeframe <1m|5m|15m|1h>] [--candles <n>] [--window full|latest]";
+    const USAGE: &str = "usage: market-chart <csv-path> --png <path> [--timeframe <1m|5m|15m|1h|4h>] [--candles <n>] [--window full|latest]";
     let mut path = None;
     let mut png = None;
     let mut timeframe = None;
@@ -54,7 +54,7 @@ pub(crate) fn parse_market_chart_arguments(
                 }
                 timeframe = Some(Timeframe::from_code(value).ok_or_else(|| {
                     ParseError::MarketChart(format!(
-                        "--timeframe expects 1m, 5m, 15m, or 1h, found '{value}'\n{USAGE}"
+                        "--timeframe expects 1m, 5m, 15m, 1h, or 4h, found '{value}'\n{USAGE}"
                     ))
                 })?);
             }
@@ -152,7 +152,8 @@ pub(crate) fn run_market_chart(
     args: &MarketChartArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let LayerBuild { layers, .. } = load_layers_with_window(&args.path, args.window)?;
+    let LayerBuild { layers, .. } =
+        load_layers_with_window_and_ladder(&args.path, args.window, &Timeframe::ALL)?;
     let series =
         ChartSeries::from_layers(&layers, u64::from(args.timeframe.seconds()), args.candles);
     let bytes = chart::render_market_png(&series, args.timeframe).map_err(RunError::Chart)?;
