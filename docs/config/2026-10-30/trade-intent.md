@@ -119,8 +119,8 @@ Execution validates:
 
 A rejected entry produces a rejection record and leaves the position unchanged.
 The rejection reasons are `unsupported_entry_style`, `expired_intent`,
-`slippage_limit`, `missing_atr`, `invalid_bracket`, and the existing sizing and
-position reasons.
+`slippage_limit`, `missing_atr`, `invalid_bracket`, `non_contiguous_bar`, and
+the existing sizing and position reasons.
 
 ## 5. Invariants
 

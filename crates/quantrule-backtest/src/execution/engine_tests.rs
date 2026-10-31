@@ -79,7 +79,15 @@ pub(super) fn open_position(engine: &ExecutionEngine) -> Position {
 }
 
 pub(super) fn advance(engine: &mut ExecutionEngine, bar: &Candle) -> ExecutionBatch {
-    engine.advance(bar).expect("the bar is valid")
+    engine.advance(bar, true).expect("the bar is valid")
+}
+
+pub(super) fn advance_with(
+    engine: &mut ExecutionEngine,
+    bar: &Candle,
+    contiguous: bool,
+) -> ExecutionBatch {
+    engine.advance(bar, contiguous).expect("the bar is valid")
 }
 
 /// Advances `bar` and submits `intent` with an explicit quantity and ATR.
@@ -183,6 +191,66 @@ fn a_intent_does_not_fill_on_its_own_bar() {
 
     let batch = step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
     assert!(batch.fills.is_empty());
+    assert!(engine.position().is_flat());
+}
+
+#[test]
+fn a_non_contiguous_bar_rejects_a_pending_entry() {
+    let mut engine = test_engine();
+    let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
+    assert!(advance(&mut engine, &first).is_empty());
+    engine
+        .submit(enter(0, 0, Side::Long), Some(QUANTITY), Some(1.0))
+        .expect("the entry is valid");
+
+    let gapped = candle(1, 1800, 100.0, 101.0, 99.0, 100.0, Some(10.0));
+    let batch = advance_with(&mut engine, &gapped, false);
+    assert!(batch.fills.is_empty());
+    assert_eq!(batch.rejections.len(), 1);
+    assert_eq!(batch.rejections[0].reason, RejectReason::NonContiguousBar);
+    assert_eq!(batch.rejections[0].bar, 1);
+    let order = batch
+        .orders
+        .iter()
+        .find(|order| order.state == OrderState::Rejected)
+        .expect("the pending order is rejected");
+    assert_eq!(order.submitted_bar, 0);
+    assert!(engine.position().is_flat());
+}
+
+#[test]
+fn a_non_contiguous_bar_rejects_a_pending_exit_and_keeps_the_position() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
+    assert!(engine.position().is_open());
+
+    let submitted = engine
+        .submit(exit(1, 900, Side::Long), Some(QUANTITY), Some(1.0))
+        .expect("the exit is valid");
+    assert_eq!(submitted.orders[0].state, OrderState::Pending);
+
+    let gapped = candle(2, 2700, 100.0, 100.5, 99.5, 100.0, Some(10.0));
+    let batch = advance_with(&mut engine, &gapped, false);
+    assert!(batch.fills.is_empty());
+    assert_eq!(batch.rejections.len(), 1);
+    assert_eq!(batch.rejections[0].reason, RejectReason::NonContiguousBar);
+    assert!(engine.position().is_open());
+}
+
+#[test]
+fn a_non_contiguous_bar_still_evaluates_the_bracket() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+    step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
+    assert!(engine.position().is_open());
+
+    let gapped = candle(2, 2700, 97.0, 98.0, 96.0, 97.0, Some(10.0));
+    let batch = advance_with(&mut engine, &gapped, false);
+    assert_eq!(batch.fills.len(), 1);
+    assert_eq!(batch.fills[0].reason, FillReason::StopLoss);
     assert!(engine.position().is_flat());
 }
 

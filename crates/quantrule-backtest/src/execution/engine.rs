@@ -80,6 +80,11 @@
 //! leaves the bracket active for the next bar. An absent volume is not zero:
 //! it is treated as tradable.
 //!
+//! A bar that does not immediately follow the previous bar at the execution
+//! timeframe's cadence cannot fill a pending market order. The order is
+//! rejected with [`RejectReason::NonContiguousBar`], and an open position's
+//! bracket is still evaluated on that bar.
+//!
 //! # End of data
 //!
 //! [`ExecutionEngine::finish`] rejects an order that has no next bar with
@@ -134,7 +139,7 @@ struct RejectedDecision {
 /// let first = Candle::new(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0))?;
 /// let second = Candle::new(1, 900, 100.0, 102.0, 99.5, 101.0, Some(10.0))?;
 ///
-/// assert!(engine.advance(&first)?.is_empty());
+/// assert!(engine.advance(&first, true)?.is_empty());
 /// engine.submit(
 ///     OrderIntent::Enter {
 ///         intent: RiskPolicy::default().intent(Side::Long),
@@ -145,7 +150,7 @@ struct RejectedDecision {
 ///     Some(1.0),
 ///     Some(1.0),
 /// )?;
-/// let batch = engine.advance(&second)?;
+/// let batch = engine.advance(&second, true)?;
 /// assert_eq!(batch.fills.len(), 1);
 /// assert_eq!(batch.fills[0].reference_price, 100.0);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -197,11 +202,21 @@ impl ExecutionEngine {
     /// bar's range. It returns the bar's order records, fills, and rejections.
     /// The decision for this bar is scheduled afterwards by [`Self::submit`].
     ///
+    /// `contiguous` is false when this bar does not immediately follow the
+    /// previous bar at the execution timeframe's cadence. A non-contiguous bar
+    /// rejects a pending market order with
+    /// [`RejectReason::NonContiguousBar`]; it never fills across a gap. An open
+    /// position's bracket is still evaluated on the bar.
+    ///
     /// # Errors
     ///
     /// Returns [`ExecutionError`] when a validated value cannot be
     /// constructed.
-    pub fn advance(&mut self, bar: &Candle) -> Result<ExecutionBatch, ExecutionError> {
+    pub fn advance(
+        &mut self,
+        bar: &Candle,
+        contiguous: bool,
+    ) -> Result<ExecutionBatch, ExecutionError> {
         let index = self.next_bar;
         let time = bar.timestamp();
         self.next_bar += 1;
@@ -210,7 +225,17 @@ impl ExecutionEngine {
         let mut batch = ExecutionBatch::default();
 
         if let Some(pending) = self.pending.take() {
-            self.apply_pending(pending, bar, index, time, &mut batch)?;
+            if contiguous {
+                self.apply_pending(pending, bar, index, time, &mut batch)?;
+            } else {
+                self.reject_pending(
+                    &mut batch,
+                    pending,
+                    index,
+                    time,
+                    RejectReason::NonContiguousBar,
+                );
+            }
         }
 
         if self.position.is_open() {

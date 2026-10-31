@@ -924,6 +924,7 @@ fn trigger_label(trigger: Trigger) -> &'static str {
 fn reject_reason_code(reason: RejectReason) -> &'static str {
     match reason {
         RejectReason::NoNextBar => "no_next_bar",
+        RejectReason::NonContiguousBar => "non_contiguous_bar",
         RejectReason::NoPosition => "no_position",
         RejectReason::WrongExitSide => "wrong_exit_side",
         RejectReason::PositionAlreadyOpen => "position_already_open",

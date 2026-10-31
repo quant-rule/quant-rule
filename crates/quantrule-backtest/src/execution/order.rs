@@ -151,6 +151,9 @@ impl OrderState {
 pub enum RejectReason {
     /// The order was submitted on the last available bar.
     NoNextBar,
+    /// The next bar is not contiguous with the decision bar at the execution
+    /// timeframe's cadence, so a market order cannot fill across the gap.
+    NonContiguousBar,
     /// An exit order was submitted while no position was open.
     NoPosition,
     /// An exit order named a side different from the open position.
@@ -288,7 +291,7 @@ impl Order {
 /// let config = ExecutionConfig::new(0.001, 2.0)?;
 /// let mut engine = ExecutionEngine::new(config)?;
 /// let first = Candle::new(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0))?;
-/// engine.advance(&first)?;
+/// engine.advance(&first, true)?;
 /// let batch = engine.submit(
 ///     OrderIntent::Enter {
 ///         intent: RiskPolicy::default().intent(Side::Long),
