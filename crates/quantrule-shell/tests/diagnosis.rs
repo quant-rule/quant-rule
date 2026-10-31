@@ -4,6 +4,7 @@
 //! command, the real pipeline, and the real artifact writer without the full
 //! year of source data.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -142,6 +143,51 @@ fn backtest_diagnose_writes_the_expected_artifact_set() {
     assert_eq!(json["diagnosis_version"], "2026-10-31");
     assert!(json["checks"]["items"].as_array().is_some());
     assert!(json["trades"].as_array().is_some());
+}
+
+#[test]
+fn manifest_lists_every_artifact_including_itself() {
+    let out = run_diagnose("diagnosis-manifest");
+    let diagnosis = out.join("diagnosis");
+    let manifest =
+        fs::read_to_string(diagnosis.join("manifest.txt")).expect("the manifest is readable");
+    let names = artifact_names(&diagnosis);
+
+    let header = manifest
+        .lines()
+        .find(|line| line.starts_with("artifacts: "))
+        .expect("the artifact count is present");
+    assert_eq!(
+        header,
+        format!("artifacts: {} (including this manifest)", names.len())
+    );
+
+    let mut rows = BTreeMap::new();
+    let mut in_table = false;
+    for line in manifest.lines() {
+        if line == "name,bytes" {
+            in_table = true;
+            continue;
+        }
+        if !in_table {
+            continue;
+        }
+        let (name, bytes) = line.split_once(',').expect("a manifest row");
+        rows.insert(
+            name.to_owned(),
+            bytes.parse::<u64>().expect("a byte length"),
+        );
+    }
+
+    let mut listed = rows.keys().cloned().collect::<Vec<_>>();
+    listed.sort();
+    assert_eq!(listed, names);
+    for (name, bytes) in &rows {
+        let length = fs::metadata(diagnosis.join(name))
+            .expect("the listed artifact exists")
+            .len();
+        assert_eq!(*bytes, length, "{name}");
+    }
 }
 
 #[test]

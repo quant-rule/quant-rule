@@ -869,6 +869,24 @@ fn counted_value(reasons: &[quantrule_analytics::diagnosis::types::CountedReason
 }
 
 fn manifest(diagnosis: &Diagnosis, artifacts: &[(&'static str, Vec<u8>)], json: &[u8]) -> Vec<u8> {
+    // The manifest lists its own byte length, so that length depends on the
+    // digits of the length itself. Iterate until the declared value is final.
+    let mut manifest_len = 0;
+    loop {
+        let out = manifest_with_len(diagnosis, artifacts, json, manifest_len);
+        if out.len() == manifest_len {
+            return out;
+        }
+        manifest_len = out.len();
+    }
+}
+
+fn manifest_with_len(
+    diagnosis: &Diagnosis,
+    artifacts: &[(&'static str, Vec<u8>)],
+    json: &[u8],
+    manifest_len: usize,
+) -> Vec<u8> {
     let mut out = Vec::new();
     let _ = writeln!(out, "QuantRule diagnosis manifest");
     let _ = writeln!(out, "diagnosis_version: {}", diagnosis.version);
@@ -885,6 +903,7 @@ fn manifest(diagnosis: &Diagnosis, artifacts: &[(&'static str, Vec<u8>)], json: 
     for (name, bytes) in artifacts {
         let _ = writeln!(out, "{name},{}", bytes.len());
     }
+    let _ = writeln!(out, "manifest.txt,{manifest_len}");
     let _ = writeln!(out, "diagnosis.json,{}", json.len());
     out
 }
