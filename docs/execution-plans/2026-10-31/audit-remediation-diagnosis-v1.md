@@ -208,6 +208,9 @@ Issue: [#281](https://github.com/quant-rule/quant-rule/issues/281) — **Report 
   existing model goldens are the no-change evidence.
 - On closure, the Improvement Verifier corrects AUD-23's verification cell to
   cite the new test.
+- Implementation evidence (#282, PR #297): the checked guard and the
+  out-of-range test are implemented on `fix/282-direction-guard`; gates pass
+  (1509 tests). The fail-before run reproduced the overflow.
 - Paths: `crates/quantrule-model/src/aggregate/events.rs` and
   `crates/quantrule-model/src/aggregate/tests.rs`.
 
