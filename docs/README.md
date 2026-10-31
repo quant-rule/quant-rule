@@ -33,8 +33,9 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 
 | Contract | Status | Path |
 |---|---|---|
-| Per-engine configuration (v1) | Historical; superseded by the policy/strategy v2 contract | `docs/config/2026-10-28/per-engine-config.md` |
-| Policy and strategy blueprints | Current; `run v2`, `policy v1`, `strategy v2`, `execution v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
+| Per-engine configuration (v1) | Historical; superseded by the policy/strategy v3 contract | `docs/config/2026-10-28/per-engine-config.md` |
+| Policy and strategy blueprints | Current; `run v2`, `policy v1`, `strategy v3`, `execution v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
+| Strategy v2 to v3 migration | Current | `docs/config/2026-10-30/migration-v2-to-v3.md` |
 | Per-engine reports | Approved (#168); implemented by #173–#176; verified by #177 | `docs/reports/2026-10-28/per-engine-reports.md` |
 | SOLUSD 2025 example run | Verified by #177: five bundles, 29 artifacts, two byte-identical runs | `config/examples/solusd-2025/` |
 
@@ -61,7 +62,8 @@ implemented by #230; the remaining target contracts wait for their code phases.
 
 | Tutorial | Status | Path |
 |---|---|---|
-| Run the full pipeline, with one lab per quant role | Current; verified 2026-10-30 | [`docs/tutorials/2026-10-29/full-pipeline.md`](tutorials/2026-10-29/full-pipeline.md) |
+| Run the unified ladder end to end | Current; verified 2026-10-30 | [`docs/tutorials/2026-10-30/unified-ladder.md`](tutorials/2026-10-30/unified-ladder.md) |
+| Run the full pipeline, with one lab per quant role | Historical; retired `axis-agreement` rule | [`docs/tutorials/2026-10-29/full-pipeline.md`](tutorials/2026-10-29/full-pipeline.md) |
 | The human improvement loop | Current; policy → strategy → experiment → triage | [`docs/tutorials/2026-10-30/improvement-loop.md`](tutorials/2026-10-30/improvement-loop.md) |
 
 ## Current roles
@@ -101,7 +103,7 @@ implemented by #230; the remaining target contracts wait for their code phases.
 | Remaining MVP audit remediation (AUD-02…11) | Merged; all findings `Verified` | `docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md` |
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | MVP pre-release audit closure | All findings `Verified`; AUD-04 validation recorded | `docs/audits/2026-10-30/mvp-pre-release-closure.md` |
-| Unified timeframe ladder | Approved (#228); Phases 1–6 merged; Phase 7 (#235) PR [#244](https://github.com/quant-rule/quant-rule/pull/244) open, CI passed; phases #236–#237 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
+| Unified timeframe ladder | Approved (#228); Phases 1–7 merged; Phase 8 (#236) in progress; Phase 9 pending | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

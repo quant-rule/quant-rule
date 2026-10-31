@@ -53,8 +53,20 @@ pub(super) fn render_glossary() -> String {
             "data/lab-result-YYYY-MM-DDTHH-MM-SSZ in UTC. It holds the five report bundles and the root summary.txt.",
         ),
         (
-            "timeframe ladder",
-            "The available-series ladder. The data engine supports 1m, 5m, 15m, 1h, and 4h; M1 is the source and the higher series are derived. Path commands default to 1m/5m/15m/1h; a configured run uses data.json available_timeframes.",
+            "available ladder",
+            "The series the data engine can build. data.json lists 1m, 5m, 15m, 1h, and 4h as supported; M1 is the source and the higher series are derived.",
+        ),
+        (
+            "active ladder",
+            "The strategy-owned subset of the available ladder. ladder[0] is the execution timeframe and the remaining members are context timeframes. It must also be in the policy universe.",
+        ),
+        (
+            "as-of context",
+            "The higher-timeframe context selected for one execution bar: only bars closed at or before the execution close. Direction and Momentum use weighted means and shares; Structure and Progression use counts and histograms, never averaged ordinal codes.",
+        ),
+        (
+            "trade intent",
+            "The strategy's request for a side, entry style, stop, target, validity, and optional slippage limit. Execution resolves it against the fill; the strategy never sets a fill price, fee, or slippage.",
         ),
         (
             "M1 source",
@@ -87,6 +99,10 @@ pub(super) fn render_glossary() -> String {
         (
             "cross-axis agreement",
             "A count over Direction, Momentum, and Structure. It is never averaged into a single score.",
+        ),
+        (
+            "strategy context",
+            "The as-of context the strategy composes from the active ladder. It is not a model aggregate and is never fed back into the model.",
         ),
         (
             "level event",
@@ -165,35 +181,38 @@ pub(super) fn render_glossary() -> String {
     }
     out.push_str("See also\n--------\n");
     out.push_str("  docs/model/2026-10-21/four-axis-analytical-model.md\n");
+    out.push_str("  docs/config/2026-10-30/strategy-v3.md\n");
+    out.push_str("  docs/config/2026-10-30/trade-intent.md\n");
+    out.push_str("  docs/config/2026-10-30/migration-v2-to-v3.md\n");
     out.push_str("  docs/analytics/2026-10-24/research-output.md\n");
     out.push_str("  docs/reports/2026-10-28/per-engine-reports.md\n");
     out
 }
 
-/// The one-screen map of the full-pipeline tutorial.
+/// The one-screen map of the unified-ladder tutorial.
 pub(super) fn render_tutorial() -> String {
     let mut out = String::from(
-        "QuantRule full-pipeline tutorial\n================================\n\
-         Repository path: docs/tutorials/2026-10-29/full-pipeline.md\n\n",
+        "QuantRule unified-ladder tutorial\n=================================\n\
+         Repository path: docs/tutorials/2026-10-30/unified-ladder.md\n\n",
     );
-    out.push_str("1. What the lab produces\n");
-    out.push_str("2. Before you start\n");
-    out.push_str("3. Data engine\n");
-    out.push_str("4. Model engine\n");
-    out.push_str("5. Research engine\n");
-    out.push_str("6. Strategy\n");
-    out.push_str("7. Full run\n");
-    out.push_str("8. Store\n");
-    out.push_str("9. Role labs\n");
-    out.push_str("10. What the lab proves and does not prove\n");
-    out.push_str("11. Troubleshooting\n");
-    out.push_str("12. Command index\n");
+    out.push_str("1. What this tutorial runs\n");
+    out.push_str("2. Available versus active ladder\n");
+    out.push_str("3. Inspect the tutorial config\n");
+    out.push_str("4. Validate the policy envelope\n");
+    out.push_str("5. Read the strategy in trader words\n");
+    out.push_str("6. Walk the strategy\n");
+    out.push_str("7. Run the full backtest\n");
+    out.push_str("8. Read the executed strategy report\n");
+    out.push_str("9. What the reports contain\n");
+    out.push_str("10. Migrate a v2 strategy config\n");
+    out.push_str("11. What this tutorial proves, and what it does not\n");
+    out.push_str("12. Role labs\n");
     out.push_str("\nStart\n");
     out.push_str("  quantrule help\n");
-    out.push_str("  quantrule fetch sol/usd 2025-01-01 2025-02-28 --csv data/SOLUSD_M1_2025-01-01_2025-02-28.csv\n");
-    out.push_str("  quantrule candles data/SOLUSD_M1_2025-01-01_2025-02-28.csv\n");
-    out.push_str("  quantrule backtest --config config/examples/solusd-2025/run.json --out data/lab-result-<UTC>\n");
-    out.push_str("  quantrule lab summary data/lab-result-<UTC> --role researcher --data-version <id> --config config/examples/solusd-2025/run.json --created-utc <UTC>\n");
+    out.push_str("  quantrule policy check --config docs/tutorials/2026-10-30/config-state-fixture/run.json\n");
+    out.push_str("  quantrule strategy explain --config docs/tutorials/2026-10-30/config-state-fixture/run.json\n");
+    out.push_str("  quantrule strategy-run crates/quantrule-shell/tests/fixtures/state_m1.csv --strategy ladder-context --data-version tutorial:state:v1 --config docs/tutorials/2026-10-30/config-state-fixture/run.json\n");
+    out.push_str("  quantrule backtest --config docs/tutorials/2026-10-30/config-state-fixture/run.json --out /tmp/quantrule-tutorial\n");
     out.push_str("\nRole labs\n");
     out.push_str("  Quant Researcher  docs/roles/2026-10-29/quant-researcher-manual.md\n");
     out.push_str("  Quant Developer   docs/roles/2026-10-29/quant-developer-manual.md\n");

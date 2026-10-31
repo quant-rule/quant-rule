@@ -18,10 +18,23 @@ lab result folder
   data/lab-result-YYYY-MM-DDTHH-MM-SSZ in UTC. It holds the five report bundles and the root
   summary.txt.
 
-timeframe ladder
-  The available-series ladder. The data engine supports 1m, 5m, 15m, 1h, and 4h; M1 is the
-  source and the higher series are derived. Path commands default to 1m/5m/15m/1h; a configured
-  run uses data.json available_timeframes.
+available ladder
+  The series the data engine can build. data.json lists 1m, 5m, 15m, 1h, and 4h as supported; M1
+  is the source and the higher series are derived.
+
+active ladder
+  The strategy-owned subset of the available ladder. ladder[0] is the execution timeframe and
+  the remaining members are context timeframes. It must also be in the policy universe.
+
+as-of context
+  The higher-timeframe context selected for one execution bar: only bars closed at or before the
+  execution close. Direction and Momentum use weighted means and shares; Structure and
+  Progression use counts and histograms, never averaged ordinal codes.
+
+trade intent
+  The strategy's request for a side, entry style, stop, target, validity, and optional slippage
+  limit. Execution resolves it against the fill; the strategy never sets a fill price, fee, or
+  slippage.
 
 M1 source
   A CSV whose rows are one minute apart. A ladder consumer rejects a file whose rows are never
@@ -53,6 +66,10 @@ consensus
 
 cross-axis agreement
   A count over Direction, Momentum, and Structure. It is never averaged into a single score.
+
+strategy context
+  The as-of context the strategy composes from the active ladder. It is not a model aggregate
+  and is never fed back into the model.
 
 level event
   Price interacts with an EMA or confirmed swing level. Subtypes are test/retest, cross, and
@@ -120,5 +137,8 @@ deterministic
 See also
 --------
   docs/model/2026-10-21/four-axis-analytical-model.md
+  docs/config/2026-10-30/strategy-v3.md
+  docs/config/2026-10-30/trade-intent.md
+  docs/config/2026-10-30/migration-v2-to-v3.md
   docs/analytics/2026-10-24/research-output.md
   docs/reports/2026-10-28/per-engine-reports.md

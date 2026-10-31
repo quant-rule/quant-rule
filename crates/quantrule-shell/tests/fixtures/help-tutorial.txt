@@ -1,26 +1,26 @@
-QuantRule full-pipeline tutorial
-================================
-Repository path: docs/tutorials/2026-10-29/full-pipeline.md
+QuantRule unified-ladder tutorial
+=================================
+Repository path: docs/tutorials/2026-10-30/unified-ladder.md
 
-1. What the lab produces
-2. Before you start
-3. Data engine
-4. Model engine
-5. Research engine
-6. Strategy
-7. Full run
-8. Store
-9. Role labs
-10. What the lab proves and does not prove
-11. Troubleshooting
-12. Command index
+1. What this tutorial runs
+2. Available versus active ladder
+3. Inspect the tutorial config
+4. Validate the policy envelope
+5. Read the strategy in trader words
+6. Walk the strategy
+7. Run the full backtest
+8. Read the executed strategy report
+9. What the reports contain
+10. Migrate a v2 strategy config
+11. What this tutorial proves, and what it does not
+12. Role labs
 
 Start
   quantrule help
-  quantrule fetch sol/usd 2025-01-01 2025-02-28 --csv data/SOLUSD_M1_2025-01-01_2025-02-28.csv
-  quantrule candles data/SOLUSD_M1_2025-01-01_2025-02-28.csv
-  quantrule backtest --config config/examples/solusd-2025/run.json --out data/lab-result-<UTC>
-  quantrule lab summary data/lab-result-<UTC> --role researcher --data-version <id> --config config/examples/solusd-2025/run.json --created-utc <UTC>
+  quantrule policy check --config docs/tutorials/2026-10-30/config-state-fixture/run.json
+  quantrule strategy explain --config docs/tutorials/2026-10-30/config-state-fixture/run.json
+  quantrule strategy-run crates/quantrule-shell/tests/fixtures/state_m1.csv --strategy ladder-context --data-version tutorial:state:v1 --config docs/tutorials/2026-10-30/config-state-fixture/run.json
+  quantrule backtest --config docs/tutorials/2026-10-30/config-state-fixture/run.json --out /tmp/quantrule-tutorial
 
 Role labs
   Quant Researcher  docs/roles/2026-10-29/quant-researcher-manual.md

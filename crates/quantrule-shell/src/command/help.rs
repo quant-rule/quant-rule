@@ -194,11 +194,11 @@ const PNG: OptionHelp = OptionHelp {
 };
 const CHART_TIMEFRAME: OptionHelp = OptionHelp {
     flag: "--timeframe <tf>",
-    description: "Chart timeframe: 1m, 5m, 15m, or 1h (default 1m).",
+    description: "Chart timeframe: 1m, 5m, 15m, 1h, or 4h (default 1m).",
 };
 const MODEL_TIMEFRAME: OptionHelp = OptionHelp {
     flag: "--timeframe <tf>",
-    description: "Restrict to 1m, 5m, 15m, or 1h (default: whole ladder).",
+    description: "Restrict to 1m, 5m, 15m, 1h, or 4h (default: whole ladder).",
 };
 const BARS: OptionHelp = OptionHelp {
     flag: "--bars <n>",
@@ -284,7 +284,7 @@ const COMMANDS: &[CommandHelp] = &[
         output: "NDJSON grouped M1, M5, M15, H1, H4; aggregation, partial, and gap records on stderr.",
         notes: &[
             "M1 is the source; M5, M15, H1, and H4 are derived by the data engine.",
-            "A source whose rows are never closer than 5m, 15m, or 1h is rejected; supply M1 rows.",
+            "A source whose rows are never closer than 5m, 15m, 1h, or 4h is rejected; supply M1 rows.",
             "A complete trailing bucket is published; an incomplete bucket is dropped and counted.",
             "No derived CSV is written.",
         ],
@@ -295,7 +295,7 @@ const COMMANDS: &[CommandHelp] = &[
         short_usage: "market-state <csv-path>",
         short_summary: "Four-timeframe state as JSON.",
         usage: "market-state <csv-path> [--window full|latest]",
-        summary: "Print the four-timeframe market state as one JSON object.",
+        summary: "Print the default-ladder market state as one JSON object.",
         options: WINDOW_ONLY,
         output: "One JSON object with ladder, timeframes, aggregates, and consensus.",
         notes: &[
@@ -446,8 +446,8 @@ const COMMANDS: &[CommandHelp] = &[
         options: STRATEGY_RUN_OPTIONS,
         output: "NDJSON entries and exits, or one JSON envelope with --json.",
         notes: &[
-            "Input cap: 600000 M1 candles; computes the configured ladder and walks the strategy timeframe.",
-            "With --config, uses the strategy and model configuration from the run.",
+            "Input cap: 600000 M1 candles; computes the active ladder and walks the execution timeframe.",
+            "With --config, uses the active ladder, strategy, and model configuration from the run.",
             "The JSON envelope marks execution_state as virtual; each decision is assumed to fill immediately.",
             "Stops at the decision: no order, fill, position, equity, trade, or P&L.",
             "Model Signal events are not strategy entries or exits.",
@@ -520,7 +520,7 @@ const COMMANDS: &[CommandHelp] = &[
         usage: "strategy explain --config <run.json>",
         summary: "Print the validated strategy thesis, entry, exit, and risk in human trader words.",
         options: &[CONFIG],
-        output: "Plain text: strategy name, timeframe, thesis, entry, exit, and risk.",
+        output: "Plain text: strategy name, execution and context ladder, thesis, entry, exit, and risk.",
         notes: &[
             "Reads the run configuration; it never runs the model or invents a rule.",
             "The rendered rule is a presentation of the structured strategy config.",

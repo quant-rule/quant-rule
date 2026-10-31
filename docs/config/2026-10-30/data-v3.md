@@ -1,7 +1,7 @@
 # Data Configuration v3 — Available Timeframes
 
 - Date: 2026-10-30 (UTC)
-- Status: Implemented (#230); PR pending
+- Status: Implemented (#230, PR #239)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#230](https://github.com/quant-rule/quant-rule/issues/230)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - Previous contract: [`docs/config/2026-10-30/policy-and-strategy.md`](policy-and-strategy.md)

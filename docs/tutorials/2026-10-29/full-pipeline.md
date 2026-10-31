@@ -1,14 +1,18 @@
 # Run the Full Pipeline
 
 - Date: 2026-10-29 (UTC)
-- Status: Current
+- Status: Historical; superseded by [`docs/tutorials/2026-10-30/unified-ladder.md`](../2026-10-30/unified-ladder.md) for the current `ladder-context` strategy
 - Applies to: QuantRule v0.3.0, model 0.3.0
 - Last verified: 2026-10-30 against the v0.3.0 release
 - Audience: a human, or an agent acting as Quant Researcher, Quant Developer, or
   Quant Validator
 - Claim type: procedural. This tutorial makes no profitability claim.
 
-This tutorial runs every QuantRule stage through shell commands: the data
+This dated tutorial describes the retired `axis-agreement` strategy. It is
+preserved as a record of the v0.3.0 procedure; use the 2026-10-30 unified-ladder
+tutorial for the current command surface.
+
+It runs every QuantRule stage through shell commands: the data
 engine, the four-axis model, the research engine, the strategy, the execution
 and portfolio engines, the SQLite store, and the whole-lab summary. It also
 contains one lab for each quant role. Every product step is a command; the
