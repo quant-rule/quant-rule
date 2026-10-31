@@ -161,8 +161,12 @@ pub fn run_backtest(
                 .apply_funding(bar_index, time, candle.open(), candle.volume())
                 .map_err(BacktestError::Ledger)?;
 
+            let contiguous = previous
+                .as_ref()
+                .is_none_or(|previous| previous.candle.timestamp() + execution_secs == time);
+
             let batch = execution
-                .advance(&candle)
+                .advance(&candle, contiguous)
                 .map_err(BacktestError::Execution)?;
             for fill in &batch.fills {
                 ledger.apply_fill(fill).map_err(BacktestError::Ledger)?;
@@ -173,9 +177,6 @@ pub fn run_backtest(
                 .mark(bar_index, time, candle.close())
                 .map_err(BacktestError::Ledger)?;
 
-            let contiguous = previous
-                .as_ref()
-                .is_none_or(|previous| previous.candle.timestamp() + execution_secs == time);
             let input = StrategyInput::from_model_bar(&bar, previous.as_ref(), contiguous);
             let position = execution.position_view();
             let decision = strategy.decide(&input, &context, position);

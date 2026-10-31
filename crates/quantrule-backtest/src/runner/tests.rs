@@ -148,6 +148,14 @@ fn config() -> BacktestConfig {
 
 fn run(candles: &[Candle], config: &BacktestConfig) -> BacktestRun {
     let context = context_candles(candles);
+    run_with_context(candles, &context, config)
+}
+
+fn run_with_context(
+    candles: &[Candle],
+    context: &[Candle],
+    config: &BacktestConfig,
+) -> BacktestRun {
     run_backtest(
         &[
             TimeframeInput {
@@ -156,7 +164,7 @@ fn run(candles: &[Candle], config: &BacktestConfig) -> BacktestRun {
             },
             TimeframeInput {
                 timeframe_secs: 3_600,
-                candles: &context,
+                candles: context,
             },
         ],
         config,
@@ -400,6 +408,41 @@ fn the_runner_matches_the_golden_run() {
     assert!(!metrics.halted);
     assert!(metrics.open_position.is_none());
     approx(metrics.final_equity, 10_000.0 + metrics.net_pnl);
+}
+
+#[test]
+fn a_pending_entry_does_not_fill_across_a_missing_bar() {
+    let full = candles(1400);
+    let mut execution = full.clone();
+    execution.remove(807);
+    let mut context = context_candles(&full);
+    // Remove the 4h bucket that contains the missing bar so the context for
+    // the entry bar is unchanged and no future close leaks into it.
+    context.retain(|candle| candle.timestamp() != 804 * 900);
+
+    let run = run_with_context(&execution, &context, &config());
+    let rejection = run
+        .execution_batches()
+        .iter()
+        .flat_map(|batch| batch.rejections.iter())
+        .find(|rejection| rejection.reason == RejectReason::NonContiguousBar)
+        .expect("the pending entry is rejected at the gap");
+
+    assert_eq!(rejection.bar, 807);
+    assert!(
+        run.execution_batches()
+            .iter()
+            .flat_map(|batch| batch.fills.iter())
+            .all(|fill| fill.bar != 807),
+        "no fill may cross the missing bar"
+    );
+    assert!(
+        run.ledger()
+            .trades()
+            .iter()
+            .all(|trade| trade.entry_bar != 806),
+        "the rejected entry must not open a trade"
+    );
 }
 
 fn side_label(side: Side) -> &'static str {

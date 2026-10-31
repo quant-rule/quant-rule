@@ -54,7 +54,9 @@
 //! entry style execution does not fill, with [`RejectReason::ExpiredIntent`]
 //! when its submission bar is past `valid_until`, with
 //! [`RejectReason::SlippageLimit`] when execution's configured slippage exceeds
-//! the intent's `max_slippage_bps`, and with
+//! the intent's `max_slippage_bps`, with
+//! [`RejectReason::NonContiguousBar`] when the next supplied bar does not follow
+//! the decision bar at the execution cadence, and with
 //! [`RejectReason::InvalidBracket`] when the resolved levels do not bracket the
 //! fill on the correct side. A rejection leaves the position unchanged.
 //!

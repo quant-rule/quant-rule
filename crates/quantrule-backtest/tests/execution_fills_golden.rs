@@ -259,7 +259,7 @@ fn run(rows: &[BarRow]) -> (Vec<Fill>, Vec<Rejection>, Vec<OrderRecord>) {
     let mut orders = Vec::new();
     for row in rows {
         let batch = engine
-            .advance(&row.candle)
+            .advance(&row.candle, true)
             .expect("the fixture bar is valid");
         fills.extend(batch.fills);
         rejections.extend(batch.rejections);
@@ -298,7 +298,7 @@ fn run_with_quantities(
             Decision::Hold | Decision::Exit(_) => Some(QUANTITY),
         };
         let batch = engine
-            .advance(&row.candle)
+            .advance(&row.candle, true)
             .expect("the fixture bar is valid");
         fills.extend(batch.fills);
         rejections.extend(batch.rejections);
