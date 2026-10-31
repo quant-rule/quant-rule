@@ -22,6 +22,9 @@ use super::types::{
     OutOfSampleStatus, PortfolioDiagnosis, StrategyDiagnosis, TimeframeQuality,
 };
 
+/// The five report bundles the diagnosis expects.
+const REPORT_BUNDLES: [&str; 5] = ["model", "strategy", "execution", "portfolio", "analytical"];
+
 /// The fixed exit-reason order.
 const EXIT_REASONS: [&str; 3] = ["strategy", "stop", "target"];
 
@@ -914,12 +917,20 @@ fn checks(
 ) -> Vec<Check> {
     let mut checks = Vec::new();
 
-    let report_versions_present = !input.identity.report_versions.is_empty()
-        && input
-            .identity
-            .report_versions
-            .iter()
-            .all(|version| !version.version.is_empty());
+    let report_versions_present = input.identity.report_versions.len() == REPORT_BUNDLES.len()
+        && REPORT_BUNDLES.iter().all(|bundle| {
+            input
+                .identity
+                .report_versions
+                .iter()
+                .any(|version| version.bundle == *bundle && !version.version.is_empty())
+        });
+    let observed = input
+        .identity
+        .report_versions
+        .iter()
+        .map(|version| version.bundle.as_str())
+        .collect::<Vec<_>>();
     checks.push(check(
         "identity.report_versions",
         if report_versions_present {
@@ -930,10 +941,15 @@ fn checks(
         Some(input.identity.report_versions.len() as f64),
         "bundles",
         Some(String::from("5 report versions recorded")),
-        format!(
-            "{} of 5 bundle versions recorded",
-            input.identity.report_versions.len()
-        ),
+        if observed.is_empty() {
+            String::from("0 of 5 bundle versions recorded")
+        } else {
+            format!(
+                "{} of 5 bundle versions recorded: {}",
+                observed.len(),
+                observed.join(", ")
+            )
+        },
     ));
     checks.push(check(
         "identity.config_hash",
