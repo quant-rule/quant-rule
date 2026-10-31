@@ -798,6 +798,23 @@ pub struct EntryContextFacts {
     pub progression_late: u32,
 }
 
+/// The out-of-sample evidence a lab records.
+///
+/// The states stay apart because the diagnosis must not report an unreadable
+/// or same-data `oos/` folder as out-of-sample evidence. The shell reads the
+/// two portfolio reports; the analytics engine only maps the state to a check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutOfSampleStatus {
+    /// No `oos/` lab is recorded.
+    Absent,
+    /// An `oos/` report exists but cannot be read or names no data version.
+    Unreadable,
+    /// The `oos/` report uses the same data version as the main lab.
+    SameDataVersion,
+    /// The `oos/` report uses a different data version.
+    DistinctDataVersion,
+}
+
 /// The shell's projection of one completed run.
 pub struct DiagnosisInput<'a> {
     /// The identity the diagnosis is bound to.
@@ -828,8 +845,8 @@ pub struct DiagnosisInput<'a> {
     pub strategy: StrategyFacts,
     /// Entry decisions and their contexts, in decision order.
     pub entry_contexts: Vec<EntryContextFacts>,
-    /// Whether the lab has out-of-sample evidence.
-    pub out_of_sample: bool,
+    /// The out-of-sample evidence the lab records.
+    pub out_of_sample: OutOfSampleStatus,
     /// Whether a rerun reproduced the lab.
     pub rerun_verified: bool,
     /// The number of instruments in the run.

@@ -498,7 +498,7 @@ cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd
 | `--notes <path>` | Include the file verbatim under Role notes |
 | `--force` | Overwrite an existing root `summary.txt` |
 
-The summary has seven sections: Identity, Artifacts, Observed result, Checks, Role notes, Limitations, and Next. It copies published values from the five `report.json` files; it does not recompute the model. It refuses a missing bundle, a data-version mismatch, a config-hash mismatch, a model-version mismatch, or an existing summary without `--force`, and writes atomically. Out-of-sample evidence is read from `oos/`; a rerun is read from `rerun/`. The same lab and the same arguments produce the same bytes. It prints `wrote <path>`.
+The summary has seven sections: Identity, Artifacts, Observed result, Checks, Role notes, Limitations, and Next. It copies published values from the five `report.json` files; it does not recompute the model. It refuses a missing bundle, a data-version mismatch, a config-hash mismatch, a model-version mismatch, or an existing summary without `--force`, and writes atomically. Out-of-sample evidence is an `oos/` portfolio report whose `data_version` differs from the main lab's; a same-version or unreadable report is not evidence. A rerun is read from `rerun/`. The same lab and the same arguments produce the same bytes. It prints `wrote <path>`.
 
 ### Cross-engine diagnosis
 

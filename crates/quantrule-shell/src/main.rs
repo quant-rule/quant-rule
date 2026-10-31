@@ -13,6 +13,7 @@ mod csv;
 mod diagnosis;
 mod export;
 mod fetch;
+mod lab_evidence;
 mod lab_summary;
 mod labels;
 mod pipeline;

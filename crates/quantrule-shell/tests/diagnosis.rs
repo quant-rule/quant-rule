@@ -70,6 +70,38 @@ fn run_diagnose(name: &str) -> PathBuf {
     out
 }
 
+fn run_lab_diagnose(lab: &Path, name: &str) -> PathBuf {
+    let out = output_dir(name);
+    let config = fixture("config-run/run.json");
+    let output = run(&[
+        "lab",
+        "diagnose",
+        lab.to_str().expect("the lab path is UTF-8"),
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert_success(&output);
+    out
+}
+
+fn check_status(diagnosis: &Path, id: &str) -> String {
+    let json: serde_json::Value = serde_json::from_slice(
+        &fs::read(diagnosis.join("diagnosis.json")).expect("diagnosis.json is readable"),
+    )
+    .expect("diagnosis.json is valid JSON");
+    json["checks"]["items"]
+        .as_array()
+        .expect("the checks are an array")
+        .iter()
+        .find(|check| check["id"] == id)
+        .expect("the check exists")["status"]
+        .as_str()
+        .expect("the status is a string")
+        .to_owned()
+}
+
 #[test]
 fn backtest_diagnose_writes_the_expected_artifact_set() {
     let out = run_diagnose("diagnosis-command");
@@ -128,8 +160,42 @@ fn two_diagnoses_of_the_same_run_are_byte_identical() {
 }
 
 #[test]
+fn lab_diagnose_requires_a_distinct_oos_data_version() {
+    let lab = run_diagnose("diagnosis-oos");
+    let main =
+        fs::read(lab.join("portfolio/report.json")).expect("the portfolio report is readable");
+    let mut oos: serde_json::Value =
+        serde_json::from_slice(&main).expect("the portfolio report is valid JSON");
+    let main_version = oos["data_version"]
+        .as_str()
+        .expect("the main report records a data version")
+        .to_owned();
+    let oos_dir = lab.join("oos/portfolio");
+    fs::create_dir_all(&oos_dir).expect("the oos directory is created");
+    fs::write(
+        oos_dir.join("report.json"),
+        serde_json::to_vec_pretty(&oos).expect("the oos report is serializable"),
+    )
+    .expect("the oos report is written");
+
+    let same = run_lab_diagnose(&lab, "diagnosis-oos-same");
+    assert_eq!(check_status(&same, "evidence.out_of_sample"), "unknown");
+
+    oos["data_version"] = serde_json::Value::String(format!("{main_version}:oos"));
+    fs::write(
+        oos_dir.join("report.json"),
+        serde_json::to_vec_pretty(&oos).expect("the oos report is serializable"),
+    )
+    .expect("the oos report is rewritten");
+
+    let distinct = run_lab_diagnose(&lab, "diagnosis-oos-distinct");
+    assert_eq!(check_status(&distinct, "evidence.out_of_sample"), "pass");
+}
+
+#[test]
 fn lab_list_prints_a_json_array() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/report-tests");
+    fs::create_dir_all(&root).expect("the lab root is created");
     let output = run(&[
         "lab",
         "list",
