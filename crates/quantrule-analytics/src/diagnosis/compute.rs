@@ -501,9 +501,9 @@ fn exit_reason_stats(input: &DiagnosisInput<'_>, reason: &str) -> ExitReasonStat
         net_pnl: sum(trades.iter().map(|trade| trade.net_pnl)),
         wins: trades.iter().filter(|trade| trade.net_pnl > 0.0).count(),
         average_hold_bars: if trades.is_empty() {
-            0.0
+            None
         } else {
-            sum(trades.iter().map(|trade| trade.hold_bars as f64)) / trades.len() as f64
+            Some(sum(trades.iter().map(|trade| trade.hold_bars as f64)) / trades.len() as f64)
         },
     }
 }

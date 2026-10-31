@@ -4,7 +4,7 @@ use quantrule_analytics::diagnosis::diagnose;
 use quantrule_analytics::diagnosis::text;
 use quantrule_analytics::diagnosis::types::{
     CheckStatus, DiagnosisIdentity, DiagnosisInput, EquityFacts, MetricsFacts, OutOfSampleStatus,
-    ReportVersion, StrategyFacts,
+    ReportVersion, StrategyFacts, TradeFacts,
 };
 use quantrule_data::Candle;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
@@ -166,6 +166,28 @@ fn report_version_status(fixture: &Fixture, versions: Vec<ReportVersion>) -> Che
         .status
 }
 
+fn trade(exit_reason: &str, hold_bars: usize) -> TradeFacts {
+    TradeFacts {
+        trade_id: 1,
+        side: 1,
+        quantity: 1.0,
+        entry_bar: 10,
+        entry_time: 1_735_689_600 + 10 * 300,
+        entry_price: 100.0,
+        exit_bar: 10 + hold_bars,
+        exit_time: 1_735_689_600 + (10 + hold_bars as i64) * 300,
+        exit_price: 101.0,
+        gross_pnl: 1.0,
+        commission: 0.0,
+        execution_fees: 0.0,
+        funding: 0.0,
+        net_pnl: 1.0,
+        return_fraction: None,
+        hold_bars,
+        exit_reason: exit_reason.to_owned(),
+    }
+}
+
 #[test]
 fn the_same_input_produces_the_same_diagnosis_and_text() {
     let fixture = Fixture::new(80);
@@ -295,6 +317,55 @@ fn report_versions_require_the_five_expected_bundles() {
     let mut empty = report_versions(&all);
     empty[0].version.clear();
     assert_eq!(report_version_status(&fixture, empty), CheckStatus::Fail);
+}
+
+#[test]
+fn a_zero_trade_exit_reason_has_no_average_hold() {
+    let fixture = Fixture::new(80);
+    let diagnosis = diagnose(&fixture.input());
+    for reason in &diagnosis.strategy.exit_reasons {
+        assert_eq!(reason.trades, 0);
+        assert_eq!(reason.average_hold_bars, None);
+    }
+    let csv = String::from_utf8(
+        text::exit_reasons_csv(&diagnosis.strategy).expect("the exit reasons render"),
+    )
+    .expect("the CSV is UTF-8");
+    assert!(
+        csv.lines()
+            .any(|line| line == "strategy,0,0.000000,0.000000,0,")
+    );
+}
+
+#[test]
+fn a_traded_exit_reason_keeps_its_average_hold() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    input.trades = vec![trade("stop", 4)];
+    let diagnosis = diagnose(&input);
+    let stop = diagnosis
+        .strategy
+        .exit_reasons
+        .iter()
+        .find(|reason| reason.reason == "stop")
+        .expect("the stop reason exists");
+    assert_eq!(stop.trades, 1);
+    assert_eq!(stop.average_hold_bars, Some(4.0));
+    let target = diagnosis
+        .strategy
+        .exit_reasons
+        .iter()
+        .find(|reason| reason.reason == "target")
+        .expect("the target reason exists");
+    assert_eq!(target.average_hold_bars, None);
+    let csv = String::from_utf8(
+        text::exit_reasons_csv(&diagnosis.strategy).expect("the exit reasons render"),
+    )
+    .expect("the CSV is UTF-8");
+    assert!(
+        csv.lines()
+            .any(|line| line == "stop,1,1.000000,1.000000,1,4.000000")
+    );
 }
 
 #[test]

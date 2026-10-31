@@ -283,7 +283,7 @@ fn write_strategy(out: &mut impl Write, strategy: &StrategyDiagnosis) -> io::Res
             money(reason.gross_pnl),
             money(reason.net_pnl),
             reason.wins,
-            format_value(reason.average_hold_bars)
+            opt_number(reason.average_hold_bars)
         )?;
     }
     writeln!(out, "  hold buckets:")?;
@@ -577,7 +577,9 @@ pub fn exit_reasons_csv(strategy: &StrategyDiagnosis) -> io::Result<Vec<u8>> {
             format_value(reason.gross_pnl),
             format_value(reason.net_pnl),
             reason.wins,
-            format_value(reason.average_hold_bars)
+            reason
+                .average_hold_bars
+                .map_or_else(String::new, format_value)
         )?;
     }
     Ok(out)
