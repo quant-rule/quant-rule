@@ -399,6 +399,17 @@ fn model_v2_reads_defaults_and_timeframe_overrides() {
 }
 
 #[test]
+fn model_v2_timeframes_map_is_optional() {
+    let without_map = remove(model_v2_object(), &["timeframes"]);
+    let config =
+        model::parse(&without_map, "model.json").expect("an absent timeframes map is valid");
+    assert_eq!(
+        config.readings_for(u64::from(Timeframe::M1.seconds())),
+        quantrule_model::readings::ReadingsConfig::default()
+    );
+}
+
+#[test]
 fn model_matches_the_contract() {
     let valid = model::parse(&model_object(), "model.json").expect("the valid config loads");
     assert_eq!(valid.structure_scale, PivotScale::Major);
@@ -738,6 +749,11 @@ fn strategy_matches_the_contract() {
             "$.risk",
         ),
         (
+            remove(strategy_object(), &["no_trade", "missing_context"]),
+            MissingField,
+            "$.no_trade.missing_context",
+        ),
+        (
             set(
                 strategy_object(),
                 &["no_trade", "missing_context"],
@@ -775,8 +791,16 @@ fn execution_object() -> Value {
 
 #[test]
 fn strategy_v2_is_rejected_with_a_migration_message() {
-    let mut value = strategy_object();
-    value["schema"] = json!("quantrule.strategy/v2");
+    let value = json!({
+        "schema": "quantrule.strategy/v2",
+        "name": "axis-agreement",
+        "thesis": "Trade only when direction, momentum, and structure agree; exit when they disagree.",
+        "timeframe": "15m",
+        "long_threshold": 0.1,
+        "short_threshold": -0.1,
+        "stop_atr_multiple": 2.0,
+        "reward_to_risk": 1.5
+    });
     let error =
         strategy::parse(&value, "strategy.json").expect_err("the v2 schema must be rejected");
     assert!(

@@ -81,17 +81,20 @@ fn parse_v2(
     )?;
 
     let mut config = MarketStateConfig::new(scale);
-    let timeframes_value = read::field(file, ROOT, object, "timeframes")?;
-    let timeframes_object = read::object(file, "$.timeframes", timeframes_value)?;
-    for (code, value) in timeframes_object {
-        let path = format!("$.timeframes.{code}");
-        let timeframe = Timeframe::from_code(code)
-            .filter(|timeframe| timeframe.code() == code)
-            .ok_or_else(|| ConfigError::range(file, &path, "a supported timeframe", code))?;
-        let override_object = read::object(file, &path, value)?;
-        read::check_fields(file, &path, override_object, &["ema", "rsi", "atr", "rvol"])?;
-        let override_readings = readings(file, &path, override_object, defaults)?;
-        config.set_readings(timeframe, override_readings);
+    // The v2 contract makes the override map optional; an absent map means
+    // every timeframe inherits the defaults.
+    if let Some(timeframes_value) = object.get("timeframes") {
+        let timeframes_object = read::object(file, "$.timeframes", timeframes_value)?;
+        for (code, value) in timeframes_object {
+            let path = format!("$.timeframes.{code}");
+            let timeframe = Timeframe::from_code(code)
+                .filter(|timeframe| timeframe.code() == code)
+                .ok_or_else(|| ConfigError::range(file, &path, "a supported timeframe", code))?;
+            let override_object = read::object(file, &path, value)?;
+            read::check_fields(file, &path, override_object, &["ema", "rsi", "atr", "rvol"])?;
+            let override_readings = readings(file, &path, override_object, defaults)?;
+            config.set_readings(timeframe, override_readings);
+        }
     }
 
     Ok(config)
