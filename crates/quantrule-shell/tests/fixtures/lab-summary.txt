@@ -19,6 +19,7 @@ Artifacts
   portfolio/provenance.json      present
   analytical/report.json         present
   analytical/provenance.json     present
+  diagnosis/diagnosis.json       missing
 
 Observed result
   requested_period: 2025-01-01..2025-12-31
@@ -48,14 +49,14 @@ Checks
   [x] data version matches report.json
   [x] data version matches provenance.json (5/5)
   [x] report versions present (5/5)
-  [ ] out-of-sample evidence
-  [ ] independent rerun
+  [ ] out-of-sample evidence (no oos/ lab)
+  [ ] independent rerun (no rerun/ lab)
 
 Role notes
   (none)
 
 Limitations
-  - In-sample only unless an out-of-sample run is recorded in the role notes.
+  - In-sample only unless an out-of-sample lab is recorded under oos/.
   - Costs are the configured assumptions; no live fills.
   - No profitability claim.
 

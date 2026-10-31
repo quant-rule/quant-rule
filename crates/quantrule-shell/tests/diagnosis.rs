@@ -1,0 +1,172 @@
+//! Binary-level tests for the cross-engine diagnosis.
+//!
+//! The tests use the small checked-in run fixture, so they exercise the real
+//! command, the real pipeline, and the real artifact writer without the full
+//! year of source data.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
+
+const BIN: &str = env!("CARGO_BIN_EXE_quantrule");
+
+fn fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name)
+}
+
+fn output_dir(name: &str) -> PathBuf {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/report-tests")
+        .join(name);
+    let _ = fs::remove_dir_all(&path);
+    path
+}
+
+fn run(args: &[&str]) -> Output {
+    Command::new(BIN)
+        .args(args)
+        .output()
+        .expect("the quantrule binary runs")
+}
+
+fn assert_success(output: &Output) {
+    assert!(
+        output.status.success(),
+        "expected success, got {:?}; stderr: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn artifact_names(directory: &Path) -> Vec<String> {
+    let mut names: Vec<String> = fs::read_dir(directory)
+        .expect("the diagnosis directory is readable")
+        .map(|entry| {
+            entry
+                .expect("the directory entry is readable")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+fn run_diagnose(name: &str) -> PathBuf {
+    let out = output_dir(name);
+    let config = fixture("config-run/run.json");
+    let output = run(&[
+        "backtest",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+        "--diagnose",
+    ]);
+    assert_success(&output);
+    out
+}
+
+#[test]
+fn backtest_diagnose_writes_the_expected_artifact_set() {
+    let out = run_diagnose("diagnosis-command");
+    let diagnosis = out.join("diagnosis");
+    let names = artifact_names(&diagnosis);
+    let expected = [
+        "00-run-scorecard.png",
+        "10-data-quality.png",
+        "30-strategy-funnel.png",
+        "40-execution-quality.png",
+        "50-portfolio-attribution.png",
+        "checks.csv",
+        "data-quality.csv",
+        "diagnosis.json",
+        "execution-rejections.csv",
+        "funnel.csv",
+        "manifest.txt",
+        "model-health.csv",
+        "portfolio-monthly.csv",
+        "strategy-exit-reasons.csv",
+        "strategy-funnel.csv",
+        "summary.txt",
+        "trades_enriched.csv",
+    ];
+    assert_eq!(names, expected);
+
+    let summary = fs::read_to_string(diagnosis.join("summary.txt"))
+        .expect("the diagnosis summary is readable");
+    assert!(summary.starts_with("QuantRule diagnosis\n"));
+    assert!(summary.contains("Scorecard\n"));
+    assert!(summary.contains("Funnel\n"));
+    assert!(summary.contains("Limitations\n"));
+
+    let json: serde_json::Value = serde_json::from_slice(
+        &fs::read(diagnosis.join("diagnosis.json")).expect("diagnosis.json is readable"),
+    )
+    .expect("diagnosis.json is valid JSON");
+    assert_eq!(json["diagnosis_version"], "2026-10-31");
+    assert!(json["checks"]["items"].as_array().is_some());
+    assert!(json["trades"].as_array().is_some());
+}
+
+#[test]
+fn two_diagnoses_of_the_same_run_are_byte_identical() {
+    let first = run_diagnose("diagnosis-command-a").join("diagnosis");
+    let second = run_diagnose("diagnosis-command-b").join("diagnosis");
+    let names = artifact_names(&first);
+    assert_eq!(names, artifact_names(&second));
+    for name in names {
+        assert_eq!(
+            fs::read(first.join(&name)).expect("the first artifact is readable"),
+            fs::read(second.join(&name)).expect("the second artifact is readable"),
+            "artifact {name} differs"
+        );
+    }
+}
+
+#[test]
+fn lab_list_prints_a_json_array() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/report-tests");
+    let output = run(&[
+        "lab",
+        "list",
+        "--root",
+        root.to_str().expect("the root path is UTF-8"),
+        "--json",
+    ]);
+    assert_success(&output);
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("the lab list is valid JSON");
+    assert!(value.as_array().is_some());
+}
+
+#[test]
+fn lab_diagnose_reproduces_the_backtest_diagnosis() {
+    let lab = run_diagnose("diagnosis-command-lab");
+    let out = output_dir("diagnosis-command-lab-diagnose");
+    let config = fixture("config-run/run.json");
+    let output = run(&[
+        "lab",
+        "diagnose",
+        lab.to_str().expect("the lab path is UTF-8"),
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert_success(&output);
+    let first = lab.join("diagnosis");
+    let second = out;
+    let names = artifact_names(&first);
+    assert_eq!(names, artifact_names(&second));
+    for name in names {
+        assert_eq!(
+            fs::read(first.join(&name)).expect("the lab artifact is readable"),
+            fs::read(second.join(&name)).expect("the rerun artifact is readable"),
+            "artifact {name} differs"
+        );
+    }
+}

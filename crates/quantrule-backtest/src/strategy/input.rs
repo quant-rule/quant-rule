@@ -171,6 +171,8 @@ mod boundary_tests {
             "pub fill",
             "pub order",
             "pub quantity",
+            "pub diagnosis",
+            "diagnosis_",
         ] {
             assert!(
                 !source.contains(forbidden),

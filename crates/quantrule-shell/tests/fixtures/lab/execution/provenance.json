@@ -2,5 +2,7 @@
   "schema": "quantrule.provenance/v1",
   "report": "execution",
   "report_version": "2026-10-28",
-  "data_version": "test:v1"
+  "data_version": "test:v1",
+  "config_hash": "9f74ea64cc4e6af9",
+  "model_version": "0.3.0"
 }

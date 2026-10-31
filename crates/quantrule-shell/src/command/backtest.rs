@@ -31,10 +31,11 @@ type BundleList = Vec<(&'static str, BundleOutput)>;
 /// Returns [`ParseError::Backtest`] for a missing or repeated `--config`/
 /// `--out`, an unknown option, or an extra positional argument.
 pub(crate) fn parse_backtest_arguments(arguments: &[String]) -> Result<BacktestArgs, ParseError> {
-    const USAGE: &str = "usage: backtest --config <run.json> [--out <dir>] [--json]";
+    const USAGE: &str = "usage: backtest --config <run.json> [--out <dir>] [--json] [--diagnose]";
     let mut config = None;
     let mut out = None;
     let mut json = false;
+    let mut diagnose = false;
     let mut index = 0;
 
     while index < arguments.len() {
@@ -77,6 +78,14 @@ pub(crate) fn parse_backtest_arguments(arguments: &[String]) -> Result<BacktestA
                 }
                 json = true;
             }
+            "--diagnose" => {
+                if diagnose {
+                    return Err(ParseError::Backtest(format!(
+                        "--diagnose was supplied twice\n{USAGE}"
+                    )));
+                }
+                diagnose = true;
+            }
             option if option.starts_with("--") => {
                 return Err(ParseError::Backtest(format!(
                     "unknown option '{option}'\n{USAGE}"
@@ -94,7 +103,12 @@ pub(crate) fn parse_backtest_arguments(arguments: &[String]) -> Result<BacktestA
     let config =
         config.ok_or_else(|| ParseError::Backtest(format!("--config is required\n{USAGE}")))?;
 
-    Ok(BacktestArgs { config, out, json })
+    Ok(BacktestArgs {
+        config,
+        out,
+        json,
+        diagnose,
+    })
 }
 
 /// Runs the pipeline once and writes the five bundles.
@@ -116,8 +130,15 @@ pub(crate) fn run_backtest_command(
     render_report::ensure_available(&out).map_err(RunError::Bundle)?;
     let created = !out.exists();
 
-    match execute(&config, &out) {
-        Ok((bundles, run)) => output(writer, args.json, &config, &bundles, &run),
+    match execute(&config, &out, args.diagnose) {
+        Ok((bundles, run, diagnosis)) => output(
+            writer,
+            args.json,
+            &config,
+            &bundles,
+            &run,
+            diagnosis.as_ref(),
+        ),
         Err(error) => {
             cleanup(&out, created);
             Err(error)
@@ -125,7 +146,18 @@ pub(crate) fn run_backtest_command(
     }
 }
 
-fn execute(config: &RunConfig, out: &Path) -> Result<(BundleList, BacktestRun), RunError> {
+fn execute(
+    config: &RunConfig,
+    out: &Path,
+    diagnose: bool,
+) -> Result<
+    (
+        BundleList,
+        BacktestRun,
+        Option<crate::diagnosis::DiagnosisOutput>,
+    ),
+    RunError,
+> {
     let run = report_run::run_pipeline(config)?;
     let model = run.model_run();
     let mut bundles = Vec::with_capacity(BUNDLES.len());
@@ -160,7 +192,17 @@ fn execute(config: &RunConfig, out: &Path) -> Result<(BundleList, BacktestRun), 
         "analytical",
         report_run::bundles::analytical_bundle_from(config, out, model)?,
     ));
-    Ok((bundles, run))
+    let diagnosis = if diagnose {
+        Some(crate::diagnosis::write(
+            config,
+            &run,
+            &out.join("diagnosis"),
+            Some(out),
+        )?)
+    } else {
+        None
+    };
+    Ok((bundles, run, diagnosis))
 }
 
 fn output(
@@ -169,9 +211,10 @@ fn output(
     config: &RunConfig,
     bundles: &[(&'static str, BundleOutput)],
     run: &BacktestRun,
+    diagnosis: Option<&crate::diagnosis::DiagnosisOutput>,
 ) -> Result<(), RunError> {
     if json_stdout {
-        let value = summary(config, bundles, run);
+        let value = summary(config, bundles, run, diagnosis);
         let text = serde_json::to_string(&value)
             .map_err(std::io::Error::other)
             .map_err(RunError::Output)?;
@@ -179,6 +222,9 @@ fn output(
     } else {
         for (_, bundle) in bundles {
             writeln!(writer, "{}", bundle.path.display()).map_err(RunError::Output)?;
+        }
+        if let Some(diagnosis) = diagnosis {
+            writeln!(writer, "{}", diagnosis.path.display()).map_err(RunError::Output)?;
         }
     }
     writer.flush().map_err(RunError::Output)
@@ -188,6 +234,7 @@ fn summary(
     config: &RunConfig,
     bundles: &[(&'static str, BundleOutput)],
     run: &BacktestRun,
+    diagnosis: Option<&crate::diagnosis::DiagnosisOutput>,
 ) -> Value {
     let mut paths = Map::new();
     for (name, bundle) in bundles {
@@ -214,6 +261,8 @@ fn summary(
         "requested_period": {"from": config.data.from, "to": config.data.to},
         "actual_period": {"first_open_time": first, "last_open_time": last},
         "bundles": paths,
+        "diagnosis": diagnosis.map(|output| output.path.display().to_string()),
+        "diagnosis_artifacts": diagnosis.map(|output| output.names.clone()),
         "portfolio": {
             "final_equity": metrics.final_equity,
             "total_return": metrics.total_return,
@@ -229,6 +278,7 @@ fn cleanup(out: &Path, created: bool) {
     for name in BUNDLES {
         let _ = fs::remove_dir_all(out.join(name));
     }
+    let _ = fs::remove_dir_all(out.join("diagnosis"));
     if created {
         let _ = fs::remove_dir(out);
     }
@@ -250,11 +300,13 @@ mod tests {
             "--out",
             "out",
             "--json",
+            "--diagnose",
         ]))
         .expect("the arguments are valid");
         assert_eq!(args.config, PathBuf::from("config/run.json"));
         assert_eq!(args.out, Some(PathBuf::from("out")));
         assert!(args.json);
+        assert!(args.diagnose);
 
         assert!(parse_backtest_arguments(&arguments(&[])).is_err());
         assert!(

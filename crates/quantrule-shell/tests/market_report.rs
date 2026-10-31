@@ -190,7 +190,7 @@ fn market_report_writes_the_four_artifacts_in_order() {
     let price_axes = fs::read(out.join("price-axes.png")).expect("the price chart is readable");
     let events = fs::read(out.join("events.png")).expect("the events chart is readable");
     assert_eq!(png_info(&price_axes), (1_280, 960));
-    assert_eq!(png_info(&events), (1_280, 720));
+    assert_eq!(png_info(&events), (1_280, 760));
 }
 
 #[test]

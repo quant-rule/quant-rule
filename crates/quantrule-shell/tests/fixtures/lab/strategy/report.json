@@ -4,5 +4,6 @@
   "summary": {
     "entries": 4,
     "exits": 3
-  }
+  },
+  "model_version": "0.3.0"
 }

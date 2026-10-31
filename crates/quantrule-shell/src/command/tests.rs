@@ -2,9 +2,9 @@ use super::chart::parse_market_chart_arguments;
 use super::fetch::{parse_fetch_arguments, write_fetch_cap_warning};
 use super::parse::parse;
 use super::types::{
-    Axis, Command, DashboardArgs, FetchArgs, HelpTopic, LabOperator, LabRole, LabSummaryArgs,
-    MarketChartArgs, ModelArgs, ModelSeriesArgs, ParseError, ResearchExportArgs, StoreIngestArgs,
-    StoreRemoveArgs, WindowMode,
+    Axis, Command, DashboardArgs, FetchArgs, HelpTopic, LabDiagnoseArgs, LabListArgs, LabOperator,
+    LabRole, LabSummaryArgs, MarketChartArgs, ModelArgs, ModelSeriesArgs, ParseError,
+    ResearchExportArgs, StoreIngestArgs, StoreRemoveArgs, WindowMode,
 };
 use std::path::PathBuf;
 
@@ -824,6 +824,70 @@ fn lab_summary_rejects_repeated_options_and_extra_arguments() {
     ));
     assert!(matches!(
         parse(&format!("{base} --bogus x")),
+        Err(ParseError::Lab(_))
+    ));
+}
+
+#[test]
+fn parses_lab_diagnose_with_every_option() {
+    assert_eq!(
+        parse(
+            "lab diagnose data/lab --config config/run.json --out data/diagnosis --json --strict"
+        ),
+        Ok(Some(Command::LabDiagnose(LabDiagnoseArgs {
+            lab_dir: PathBuf::from("data/lab"),
+            config: PathBuf::from("config/run.json"),
+            out: Some(PathBuf::from("data/diagnosis")),
+            json: true,
+            strict: true,
+        })))
+    );
+}
+
+#[test]
+fn lab_diagnose_requires_the_lab_and_config() {
+    assert!(matches!(parse("lab diagnose"), Err(ParseError::Lab(_))));
+    assert!(matches!(
+        parse("lab diagnose data/lab"),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse("lab diagnose data/lab --config a --config b"),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse("lab diagnose data/lab --config a extra"),
+        Err(ParseError::Lab(_))
+    ));
+}
+
+#[test]
+fn parses_lab_list() {
+    assert_eq!(
+        parse("lab list --root data/labs"),
+        Ok(Some(Command::LabList(LabListArgs {
+            root: PathBuf::from("data/labs"),
+            json: false,
+        })))
+    );
+    assert_eq!(
+        parse("lab list --root data/labs --json"),
+        Ok(Some(Command::LabList(LabListArgs {
+            root: PathBuf::from("data/labs"),
+            json: true,
+        })))
+    );
+}
+
+#[test]
+fn lab_list_requires_a_root() {
+    assert!(matches!(parse("lab list"), Err(ParseError::Lab(_))));
+    assert!(matches!(
+        parse("lab list --root a --root b"),
+        Err(ParseError::Lab(_))
+    ));
+    assert!(matches!(
+        parse("lab list --root a extra"),
         Err(ParseError::Lab(_))
     ));
 }

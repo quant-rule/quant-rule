@@ -19,5 +19,6 @@
     "commission": 0.0,
     "funding_paid": 0.0,
     "funding_received": 0.0
-  }
+  },
+  "model_version": "0.3.0"
 }

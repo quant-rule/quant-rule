@@ -108,6 +108,22 @@ const JSON_BACKTEST: OptionHelp = OptionHelp {
     flag: "--json",
     description: "Print a deterministic summary envelope.",
 };
+const JSON_DIAGNOSIS: OptionHelp = OptionHelp {
+    flag: "--json",
+    description: "Print diagnosis.json to stdout.",
+};
+const JSON_LIST: OptionHelp = OptionHelp {
+    flag: "--json",
+    description: "Print one JSON array.",
+};
+const DIAGNOSE: OptionHelp = OptionHelp {
+    flag: "--diagnose",
+    description: "Write the cross-engine diagnosis after the five bundles.",
+};
+const STRICT: OptionHelp = OptionHelp {
+    flag: "--strict",
+    description: "Fail when an identity or data-integrity check fails.",
+};
 const DATA_VERSION: OptionHelp = OptionHelp {
     flag: "--data-version <id>",
     description: "Caller-supplied identity; required.",
@@ -159,6 +175,10 @@ const TO: OptionHelp = OptionHelp {
 const ROOT: OptionHelp = OptionHelp {
     flag: "--root <dir>",
     description: "Export root (default: data/research).",
+};
+const LAB_ROOT: OptionHelp = OptionHelp {
+    flag: "--root <dir>",
+    description: "Root holding lab result folders; required.",
 };
 const DATASET: OptionHelp = OptionHelp {
     flag: "--dataset <name>",
@@ -229,9 +249,11 @@ const STRATEGY_RUN_OPTIONS: &[OptionHelp] = &[
     JSON_STRATEGY,
 ];
 const REPORT_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BUNDLE];
-const BACKTEST_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BACKTEST];
+const BACKTEST_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BACKTEST, DIAGNOSE];
 const LAB_SUMMARY_OPTIONS: &[OptionHelp] =
     &[ROLE, DATA_VERSION, CONFIG, CREATED, OPERATOR, NOTES, FORCE];
+const LAB_DIAGNOSE_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_DIAGNOSIS, STRICT];
+const LAB_LIST_OPTIONS: &[OptionHelp] = &[LAB_ROOT, JSON_LIST];
 const STORE_INIT_OPTIONS: &[OptionHelp] = &[DB];
 const STORE_INGEST_OPTIONS: &[OptionHelp] = &[DATASET, DATA_VERSION, DB];
 const STORE_VERIFY_OPTIONS: &[OptionHelp] = &[DATASET, DATA_VERSION, DB];
@@ -472,14 +494,15 @@ const COMMANDS: &[CommandHelp] = &[
         name: "backtest",
         short_usage: "backtest --config <run>",
         short_summary: "Five bundles from one full run.",
-        usage: "backtest --config <run.json> [--out <dir>] [--json]",
-        summary: "Run the full pipeline and write all five bundles.",
+        usage: "backtest --config <run.json> [--out <dir>] [--json] [--diagnose]",
+        summary: "Run the full pipeline and write all five bundles, plus the diagnosis with --diagnose.",
         options: BACKTEST_OPTIONS,
-        output: "Five bundle paths, or one JSON summary envelope with --json.",
+        output: "Five bundle paths, or one JSON summary envelope with --json; --diagnose adds diagnosis/.",
         notes: &[
             "Loads the candles once, runs the pipeline once, and computes the model once.",
             "The input cap comes from data.json.max_candles, at most 600000.",
             "A non-empty output root is refused before any write.",
+            "The diagnosis is read-only evaluation; no engine reads it.",
         ],
         group: Group::Runs,
     },
@@ -493,9 +516,39 @@ const COMMANDS: &[CommandHelp] = &[
         output: "Writes <lab-dir>/summary.txt and prints wrote <path>.",
         notes: &[
             "Reads the five report bundles and copies published values; it never recomputes the model.",
-            "The data version must match every report.json and provenance.json.",
+            "The data version, config hash, and model version must match every bundle and the supplied config.",
+            "Out-of-sample evidence is read from oos/; a rerun is read from rerun/.",
             "Never reads the clock; --created-utc is explicit.",
             "Refuses an existing summary.txt unless --force is given.",
+        ],
+        group: Group::Runs,
+    },
+    CommandHelp {
+        name: "lab diagnose",
+        short_usage: "lab diagnose <lab-dir>",
+        short_summary: "Re-run and write the cross-engine diagnosis.",
+        usage: "lab diagnose <lab-dir> --config <run.json> [--out <dir>] [--json] [--strict]",
+        summary: "Re-run a lab's config, verify identity, and write <lab-dir>/diagnosis/.",
+        options: LAB_DIAGNOSE_OPTIONS,
+        output: "Writes summary.txt, diagnosis.json, tables, and five PNGs; prints the path, or diagnosis.json with --json.",
+        notes: &[
+            "The rerun must reproduce final equity, net P&L, trades, max drawdown, and halt state.",
+            "A config-hash, data-version, or model-version mismatch is refused.",
+            "--strict fails only on identity or data-integrity checks, never on a bad trading result.",
+        ],
+        group: Group::Runs,
+    },
+    CommandHelp {
+        name: "lab list",
+        short_usage: "lab list --root <dir>",
+        short_summary: "List lab result folders deterministically.",
+        usage: "lab list --root <dir> [--json]",
+        summary: "List the lab result folders under a root, sorted by folder name.",
+        options: LAB_LIST_OPTIONS,
+        output: "A fixed-width table, or one JSON array with --json.",
+        notes: &[
+            "A folder is a lab when portfolio/report.json exists.",
+            "The diagnosis column says whether diagnosis/diagnosis.json exists.",
         ],
         group: Group::Runs,
     },

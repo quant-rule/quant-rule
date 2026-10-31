@@ -49,6 +49,10 @@ pub(crate) enum Command {
     Backtest(BacktestArgs),
     /// Write a deterministic summary for a lab result folder.
     LabSummary(LabSummaryArgs),
+    /// Re-run a lab's config and write the cross-engine diagnosis.
+    LabDiagnose(LabDiagnoseArgs),
+    /// List the lab result folders under a root.
+    LabList(LabListArgs),
     /// Print strategy entries and exits without fills or P&L.
     StrategyRun(StrategyRunArgs),
     /// Print the strategy rule in human trader words.
@@ -282,6 +286,32 @@ pub(crate) struct BacktestArgs {
     /// The output-root override, when supplied.
     pub(crate) out: Option<PathBuf>,
     /// Whether to print the summary envelope.
+    pub(crate) json: bool,
+    /// Whether to write the cross-engine diagnosis after the bundles.
+    pub(crate) diagnose: bool,
+}
+
+/// A parsed `lab diagnose` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LabDiagnoseArgs {
+    /// The lab result folder that holds the five report bundles.
+    pub(crate) lab_dir: PathBuf,
+    /// The run configuration that produced the lab.
+    pub(crate) config: PathBuf,
+    /// The output override; the default is `<lab-dir>/diagnosis`.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print the diagnosis JSON.
+    pub(crate) json: bool,
+    /// Whether an integrity failure is a command failure.
+    pub(crate) strict: bool,
+}
+
+/// A parsed `lab list` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LabListArgs {
+    /// The root that holds lab result folders.
+    pub(crate) root: PathBuf,
+    /// Whether to print a JSON array.
     pub(crate) json: bool,
 }
 
@@ -670,6 +700,8 @@ pub(crate) enum RunError {
     Backtest(BacktestError),
     /// The lab result summary could not be completed.
     Lab(LabSummaryError),
+    /// The cross-engine diagnosis could not be completed.
+    Diagnosis(String),
     /// The strategy run could not be completed.
     StrategyRun(StrategyRunError),
     /// The research layers could not be built.
@@ -698,6 +730,7 @@ impl fmt::Display for RunError {
             Self::Bundle(source) => source.fmt(formatter),
             Self::Backtest(source) => source.fmt(formatter),
             Self::Lab(source) => source.fmt(formatter),
+            Self::Diagnosis(message) => formatter.write_str(message),
             Self::StrategyRun(source) => source.fmt(formatter),
             Self::Layers(source) => write!(formatter, "cannot build the research layers: {source}"),
             Self::ResearchExport(source) => {
@@ -723,6 +756,7 @@ impl std::error::Error for RunError {
             Self::Bundle(source) => Some(source),
             Self::Backtest(source) => Some(source),
             Self::Lab(source) => Some(source),
+            Self::Diagnosis(_) => None,
             Self::StrategyRun(source) => Some(source),
             Self::Layers(source) => Some(source),
             Self::ResearchExport(source) => Some(source),

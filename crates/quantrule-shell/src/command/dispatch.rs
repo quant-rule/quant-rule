@@ -9,11 +9,11 @@ use std::path::PathBuf;
 
 use super::{
     Command, ParseError, run_axis, run_backtest_command, run_candles, run_candles_tolerant, run_db,
-    run_events, run_fetch, run_help, run_lab_summary, run_legs, run_market_chart,
-    run_market_dashboard, run_market_report, run_market_state, run_model_series, run_policy_check,
-    run_report, run_research_export, run_research_summary, run_store_ingest, run_store_init,
-    run_store_list, run_store_remove, run_store_show, run_store_verify, run_strategy_explain,
-    run_strategy_run, run_timeframes,
+    run_events, run_fetch, run_help, run_lab_diagnose, run_lab_list, run_lab_summary, run_legs,
+    run_market_chart, run_market_dashboard, run_market_report, run_market_state, run_model_series,
+    run_policy_check, run_report, run_research_export, run_research_summary, run_store_ingest,
+    run_store_init, run_store_list, run_store_remove, run_store_show, run_store_verify,
+    run_strategy_explain, run_strategy_run, run_timeframes,
 };
 
 /// Parses the already-split arguments after the binary name.
@@ -108,6 +108,8 @@ pub(crate) fn execute(command: Command, stdout: &mut impl Write, stderr: &mut im
         Command::Report(args) => run_report(&args, stdout),
         Command::Backtest(args) => run_backtest_command(&args, stdout),
         Command::LabSummary(args) => run_lab_summary(&args, stdout),
+        Command::LabDiagnose(args) => run_lab_diagnose(&args, stdout),
+        Command::LabList(args) => run_lab_list(&args, stdout),
         Command::StrategyRun(args) => run_strategy_run(&args, stdout),
         Command::StrategyExplain(args) => run_strategy_explain(&args, stdout),
         Command::PolicyCheck(args) => run_policy_check(&args, stdout),

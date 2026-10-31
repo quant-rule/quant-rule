@@ -189,8 +189,10 @@ cargo run -p quantrule-shell -- lab summary data/labs/lab-result-2026-10-31T03-4
 | `strategy explain` | `--config <run.json>` | The validated strategy thesis, entry, exit, and risk/reward in trader words |
 | `policy check` | `--config <run.json>` | Validate the policy against the strategy and engine configs |
 | `report` | `<model\|strategy\|execution\|portfolio\|analytical> --config <run.json>` [options] | One bundle under `<out>/<engine>/`; with `--json`, the `report.json` bytes |
-| `backtest` | `--config <run.json>` [options] | One full run and all five bundles; the model is computed once and the analytical summary streams from it; with `--json`, a summary envelope |
+| `backtest` | `--config <run.json>` [options] | One full run and all five bundles; with `--diagnose`, also `diagnosis/`; with `--json`, a summary envelope |
 | `lab summary` | `<lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <ts>` [options] | A deterministic root `summary.txt` for a lab result folder; prints `wrote <path>` |
+| `lab diagnose` | `<lab-dir> --config <run.json>` [options] | Re-runs the config, verifies the lab identity, and writes `<lab-dir>/diagnosis/` |
+| `lab list` | `--root <dir>` [options] | A deterministic table or JSON array of lab result folders under a root |
 | `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
 | `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
 | `legs` | `<csv-path>` [`--window full\|latest`] | The minor and major leg per timeframe as NDJSON |
@@ -434,7 +436,7 @@ A run is specified by eight files. The command line carries only the config path
 
 `data.source.path` resolves against `data.json`; `output_root` and the other file names resolve against `run.json`. The loader validates every file before a candle is read or a byte is written: an error names the file and the JSON path, never an absolute path. `analytics.json.timeframes` must be a subset of the ladder, and its structure scale must equal the model's. The policy must agree with the portfolio cash, drawdown, leverage, position size, ticket, and timeframe. The contracts are [`docs/config/2026-10-30/policy-and-strategy.md`](docs/config/2026-10-30/policy-and-strategy.md) and [`docs/reports/2026-10-28/per-engine-reports.md`](docs/reports/2026-10-28/per-engine-reports.md).
 
-`--out` defaults to the run's `output_root`. A bundle is available if and only if its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `report --json` prints the `report.json` bytes; `backtest --json` prints a summary envelope with the data version, the requested and actual periods, the five bundle paths, and the portfolio's final equity, return, net P&L, drawdown, trade count, and halt flag. `provenance.json` records the data version, the config hash, the periods, the config file names, the resolved engine values, and the artifact list.
+`--out` defaults to the run's `output_root`. A bundle is available if and only if its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `report --json` prints the `report.json` bytes; `backtest --json` prints a summary envelope with the data version, the requested and actual periods, the five bundle paths, the diagnosis path when `--diagnose` is set, and the portfolio's final equity, return, net P&L, drawdown, trade count, and halt flag. `provenance.json` records the data version, the config hash, the periods, the config file names, the resolved engine values, and the artifact list.
 
 The model is computed once per run. The analytical bundle summarizes that model one bar at a time, so no layer set is materialized and the model is not recomputed. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data, period, and default model settings.
 
@@ -460,7 +462,7 @@ The envelope below is historical: it is the retired 15m `axis-agreement` run, no
 `--json` prints one envelope instead:
 
 ```json
-{"actual_period":{"first_open_time":1735740300,"last_open_time":1767192600},"bundles":{"analytical":"data/labs/lab-result-2026-10-31T03-45-00Z/analytical","execution":"data/labs/lab-result-2026-10-31T03-45-00Z/execution","model":"data/labs/lab-result-2026-10-31T03-45-00Z/model","portfolio":"data/labs/lab-result-2026-10-31T03-45-00Z/portfolio","strategy":"data/labs/lab-result-2026-10-31T03-45-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","model_version":"0.3.0","portfolio":{"final_equity":8010.411285462277,"halted":true,"max_drawdown":0.2005418002304158,"net_pnl":-1989.5887145376817,"total_return":-0.19895887145377233,"trades":100},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
+{"actual_period":{"first_open_time":1735740300,"last_open_time":1767192600},"bundles":{"analytical":"data/labs/lab-result-2026-10-31T03-45-00Z/analytical","execution":"data/labs/lab-result-2026-10-31T03-45-00Z/execution","model":"data/labs/lab-result-2026-10-31T03-45-00Z/model","portfolio":"data/labs/lab-result-2026-10-31T03-45-00Z/portfolio","strategy":"data/labs/lab-result-2026-10-31T03-45-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","diagnosis":null,"diagnosis_artifacts":null,"model_version":"0.3.0","portfolio":{"final_equity":8010.411285462277,"halted":true,"max_drawdown":0.2005418002304158,"net_pnl":-1989.5887145376817,"total_return":-0.19895887145377233,"trades":100},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
 ```
 
 | Field | Meaning |
@@ -496,7 +498,27 @@ cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd
 | `--notes <path>` | Include the file verbatim under Role notes |
 | `--force` | Overwrite an existing root `summary.txt` |
 
-The summary has seven sections: Identity, Artifacts, Observed result, Checks, Role notes, Limitations, and Next. It copies published values from the five `report.json` files; it does not recompute the model. It refuses a missing bundle, a data-version mismatch, or an existing summary without `--force`, and writes atomically. The same lab and the same arguments produce the same bytes. It prints `wrote <path>`.
+The summary has seven sections: Identity, Artifacts, Observed result, Checks, Role notes, Limitations, and Next. It copies published values from the five `report.json` files; it does not recompute the model. It refuses a missing bundle, a data-version mismatch, a config-hash mismatch, a model-version mismatch, or an existing summary without `--force`, and writes atomically. Out-of-sample evidence is read from `oos/`; a rerun is read from `rerun/`. The same lab and the same arguments produce the same bytes. It prints `wrote <path>`.
+
+### Cross-engine diagnosis
+
+`backtest --config <run.json> [--out <dir>] --diagnose` writes the five per-engine bundles and a separate `<out>/diagnosis/` artifact from the same completed run. `lab diagnose <lab-dir> --config <run.json> [--out <dir>] [--json] [--strict]` re-runs the config, checks that the rerun reproduces the lab's final equity, net P&L, trades, drawdown, and halt state, and writes the same artifact. A stale lab is refused when its config hash, data version, or model version differs from the supplied config.
+
+| Artifact | Contents |
+|---|---|
+| `summary.txt` | Identity, scorecard, funnel, data quality, model health, strategy, execution, portfolio, triage, limitations |
+| `diagnosis.json` | The same evidence as machine-readable JSON |
+| `00-run-scorecard.png` | Checks, funnel, cost waterfall, and triage |
+| `10-data-quality.png` | Per-timeframe coverage, gap histogram, and longest gaps |
+| `30-strategy-funnel.png` | Entry attempts vs fills by day, exit-reason and hold-time P&L |
+| `40-execution-quality.png` | Order states, fill reasons, rejections, slippage, and latency |
+| `50-portfolio-attribution.png` | Equity vs buy-and-hold, drawdown vs limit, cost waterfall, monthly returns |
+| `checks.csv`, `funnel.csv`, `data-quality.csv`, `model-health.csv`, `strategy-funnel.csv`, `strategy-exit-reasons.csv`, `execution-rejections.csv`, `portfolio-monthly.csv`, `trades_enriched.csv` | Companion tables |
+| `manifest.txt` | Artifact names and byte lengths |
+
+The scorecard counts checks by `pass`, `fail`, and `unknown`; it never combines them into a score. The thresholds are reporting defaults, not trading rules. The diagnosis is read-only evaluation: no model, strategy, execution, or portfolio engine reads it, and it never enters the signal path. `--strict` fails only on identity and data-integrity checks, never on a bad trading result. The same lab and configuration produce byte-identical text, JSON, CSV, and PNG files. The full contract is [`docs/reports/2026-10-31/diagnosis-v1.md`](docs/reports/2026-10-31/diagnosis-v1.md).
+
+`lab list --root <dir> [--json]` lists the lab result folders under a root in folder-name order. A folder is a lab when `portfolio/report.json` exists; the `diagnosis` column says whether `diagnosis/diagnosis.json` exists.
 
 ### Strategy-run contract
 

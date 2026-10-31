@@ -270,22 +270,24 @@ Notes
   Engines: model, strategy, execution, portfolio, or analytical.
   Runs only the engines the bundle needs; a non-empty target is refused and a partial bundle is removed on failure.
 
-backtest --config <run.json> [--out <dir>] [--json]
+backtest --config <run.json> [--out <dir>] [--json] [--diagnose]
 
-Run the full pipeline and write all five bundles.
+Run the full pipeline and write all five bundles, plus the diagnosis with --diagnose.
 
 Options
   --config <path>              The run configuration; required.
   --out <dir>                  Output root override (default: the run config).
   --json                       Print a deterministic summary envelope.
+  --diagnose                   Write the cross-engine diagnosis after the five bundles.
 
 Output
-  Five bundle paths, or one JSON summary envelope with --json.
+  Five bundle paths, or one JSON summary envelope with --json; --diagnose adds diagnosis/.
 
 Notes
   Loads the candles once, runs the pipeline once, and computes the model once.
   The input cap comes from data.json.max_candles, at most 600000.
   A non-empty output root is refused before any write.
+  The diagnosis is read-only evaluation; no engine reads it.
 
 lab summary <lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <ts> [--operator human|agent] [--notes <path>] [--force]
 
@@ -305,9 +307,43 @@ Output
 
 Notes
   Reads the five report bundles and copies published values; it never recomputes the model.
-  The data version must match every report.json and provenance.json.
+  The data version, config hash, and model version must match every bundle and the supplied config.
+  Out-of-sample evidence is read from oos/; a rerun is read from rerun/.
   Never reads the clock; --created-utc is explicit.
   Refuses an existing summary.txt unless --force is given.
+
+lab diagnose <lab-dir> --config <run.json> [--out <dir>] [--json] [--strict]
+
+Re-run a lab's config, verify identity, and write <lab-dir>/diagnosis/.
+
+Options
+  --config <path>              The run configuration; required.
+  --out <dir>                  Output root override (default: the run config).
+  --json                       Print diagnosis.json to stdout.
+  --strict                     Fail when an identity or data-integrity check fails.
+
+Output
+  Writes summary.txt, diagnosis.json, tables, and five PNGs; prints the path, or diagnosis.json with --json.
+
+Notes
+  The rerun must reproduce final equity, net P&L, trades, max drawdown, and halt state.
+  A config-hash, data-version, or model-version mismatch is refused.
+  --strict fails only on identity or data-integrity checks, never on a bad trading result.
+
+lab list --root <dir> [--json]
+
+List the lab result folders under a root, sorted by folder name.
+
+Options
+  --root <dir>                 Root holding lab result folders; required.
+  --json                       Print one JSON array.
+
+Output
+  A fixed-width table, or one JSON array with --json.
+
+Notes
+  A folder is a lab when portfolio/report.json exists.
+  The diagnosis column says whether diagnosis/diagnosis.json exists.
 
 policy check --config <run.json>
 
