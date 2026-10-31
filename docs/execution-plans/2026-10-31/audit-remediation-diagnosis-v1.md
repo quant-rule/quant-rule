@@ -264,7 +264,10 @@ Sub-issues created with the work item:
   `docs/reports/2026-10-31/w5-diagnosis-measurements-validation.md`.
 - Implementation evidence (#289, PR #301): the optional average hold, its
   formatters, and the tests are implemented on `fix/289-null-hold`; gates pass
-  (1513 tests). #290 and #291 remain open.
+  (1513 tests).
+- Implementation evidence (#290, PR #302): the MFE/MAE clamp and its three
+  tests are implemented on `fix/290-mfe-clamp`; gates pass (1516 tests).
+  #291 remains open.
 - Paths: `crates/quantrule-analytics/src/diagnosis/types.rs`,
   `crates/quantrule-analytics/src/diagnosis/compute.rs`,
   `crates/quantrule-analytics/src/diagnosis/text.rs`,

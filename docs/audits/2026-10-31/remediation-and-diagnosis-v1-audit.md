@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-remediation-diagnosis-v1
-- Status: Published (PR #293); findings `Planned` (W1–W4, W5a `Fixed`); remediation plan `Approved` and issue tree created
+- Status: Published (PR #293); findings `Planned` (W1–W4, W5a, W5b `Fixed`); remediation plan `Approved` and issue tree created
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `7c865de` (merge of PR #246; last audited state)
 - Head: `main` at `c8b1dc1` (merge of PR #279)
@@ -53,7 +53,7 @@ committed). The commands above are the reproducible evidence.
 | AUD-2026-10-31-34 | Minor | analytics | `identity.report_versions` passes with fewer than five versions | `compute.rs:917-936`; `docs/reports/2026-10-31/diagnosis-v1.md:85` | A lab missing bundle versions passes a check that claims all five are recorded | A require `len() == 5`; B require the five expected bundle names; C fail on any missing version | B | Four versions -> `fail`; five -> `pass` | Fixed | [#287](https://github.com/quant-rule/quant-rule/issues/287) · [#299](https://github.com/quant-rule/quant-rule/pull/299) |
 | AUD-2026-10-31-35 | Minor | analytics | `average_hold_bars` is `0.0` for an exit reason with no trades | `compute.rs:500-504`; `crates/quantrule-analytics/src/diagnosis/types.rs:288` | A missing measurement is published as a valid zero | A `Option<f64>` and null; B NaN; C omit the row | A | Zero-trade reason -> `None` in the struct, `null` in JSON, empty CSV | Fixed | [#289](https://github.com/quant-rule/quant-rule/issues/289) · [#301](https://github.com/quant-rule/quant-rule/pull/301) |
 | AUD-2026-10-31-36 | Minor | shell | `manifest.txt` omits itself from the artifact table | `crates/quantrule-shell/src/diagnosis.rs:878-897`; observed `target/report-tests/diagnosis-command/diagnosis/manifest.txt` | The manifest cannot be used to verify the complete artifact set | A add the `manifest.txt` row; B change the header to "16 listed + this manifest"; C drop the count | A | Manifest row set equals the 17 files in the directory | Fixed | [#288](https://github.com/quant-rule/quant-rule/issues/288) · [#300](https://github.com/quant-rule/quant-rule/pull/300) |
-| AUD-2026-10-31-37 | Minor | analytics | `trades_enriched.csv` MFE can be negative | `compute.rs:883-897`; `docs/reports/2026-10-31/diagnosis-v1.md:157-159` | A documented non-negative invariant is violated when the entry fill is outside the entry bar's range | A clamp MFE/MAE at 0; B amend the contract to allow fill-relative signs; C measure from the reference/open | A | Test with a fill outside the bar range -> `mfe >= 0` | Planned | [#290](https://github.com/quant-rule/quant-rule/issues/290) |
+| AUD-2026-10-31-37 | Minor | analytics | `trades_enriched.csv` MFE can be negative | `compute.rs:883-897`; `docs/reports/2026-10-31/diagnosis-v1.md:157-159` | A documented non-negative invariant is violated when the entry fill is outside the entry bar's range | A clamp MFE/MAE at 0; B amend the contract to allow fill-relative signs; C measure from the reference/open | A | Test with a fill outside the bar range -> `mfe >= 0` | Fixed | [#290](https://github.com/quant-rule/quant-rule/issues/290) · [#302](https://github.com/quant-rule/quant-rule/pull/302) |
 | AUD-2026-10-31-38 | Minor | analytics | Daily `entry_fills` omits an entry still open at run end | `compute.rs:583-613`, `384`; `types.rs:116-123` | The daily funnel undercounts fills and disagrees with `funnel.csv` | A build from `input.fills` filtered to `entry`; B add open positions; C document the closed-trade basis | A | One open entry on day D -> `entry_fills = 1` on D | Planned | [#291](https://github.com/quant-rule/quant-rule/issues/291) |
 | AUD-2026-10-31-39 | Minor | docs | `lab.rs` module doc names only `lab summary` | `crates/quantrule-shell/src/command/lab.rs:1-5` | The module doc is stale for `lab diagnose` and `lab list` | A update the module doc; B split the module per command | A | `cargo doc`; review the module header | Planned | [#285](https://github.com/quant-rule/quant-rule/issues/285) |
 | AUD-2026-10-31-40 | Minor | shell | `lab list` can panic on a non-ASCII `config_hash` | `crates/quantrule-shell/src/command/lab.rs:717`, `616-626` | A malformed lab folder panics the shell instead of returning an error | A `get(..12).unwrap_or(config_hash)`; B validate 16 hex characters; C typed error for a malformed lab | B | Multi-byte `config_hash` -> error, no panic | Planned | [#286](https://github.com/quant-rule/quant-rule/issues/286) |
@@ -284,8 +284,8 @@ committed). The commands above are the reproducible evidence.
   expects `mfe >= 0` under A; under B the contract and test assert the
   documented sign rule. Add a property test `mfe >= 0`, `mae <= 0` if A is
   chosen.
-- Status: `Planned`.
-- Links: [#290](https://github.com/quant-rule/quant-rule/issues/290).
+- Status: `Fixed`.
+- Links: [#290](https://github.com/quant-rule/quant-rule/issues/290) · [#302](https://github.com/quant-rule/quant-rule/pull/302).
 
 ### AUD-2026-10-31-38 — Daily entry fills exclude an open entry
 
@@ -408,6 +408,6 @@ committed). The commands above are the reproducible evidence.
 The plan is approved and the issue tree is created: W1–W7 are #280–#286,
 and the W4 and W5 sub-issues are #287–#291. W1 (#280) is `Fixed` by PR #294,
 W2 (#281) by PR #296, W3 (#282) by PR #297, W4a (#287) by PR #299, W4b
-(#288) by PR #300, and W5a (#289) by PR #301; the audit, plan, and log are in
-PR #293. The remaining findings are `Planned` (W5b/W5c #290/#291 continue W5)
-and move to `Fixed` when their pull requests exist.
+(#288) by PR #300, W5a (#289) by PR #301, and W5b (#290) by PR #302; the
+audit, plan, and log are in PR #293. The remaining findings are `Planned`
+(W5c #291 continues W5) and move to `Fixed` when their pull requests exist.
