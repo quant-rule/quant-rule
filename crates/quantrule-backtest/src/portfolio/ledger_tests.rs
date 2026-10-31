@@ -70,6 +70,101 @@ fn number(field: &str) -> f64 {
 }
 
 #[test]
+fn a_partial_exit_is_rejected_without_changing_the_account() {
+    let mut ledger = ledger();
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Buy,
+            100.0,
+            100.0,
+            0.0,
+            0,
+            0,
+            FillReason::Entry,
+        ))
+        .expect("the entry is valid");
+    let before = ledger.state();
+
+    let error = ledger
+        .apply_fill(&fill(
+            OrderSide::Sell,
+            50.0,
+            110.0,
+            0.0,
+            1,
+            900,
+            FillReason::Exit,
+        ))
+        .expect_err("a partial exit must be rejected");
+
+    assert_eq!(
+        error,
+        PortfolioLedgerError::ExitQuantityMismatch {
+            expected: 100.0,
+            found: 50.0,
+        }
+    );
+    assert_eq!(ledger.state(), before);
+    assert!(ledger.trades().is_empty());
+}
+
+#[test]
+fn a_fill_updates_peak_equity_and_drawdown() {
+    let mut ledger = ledger();
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Buy,
+            100.0,
+            100.0,
+            0.0,
+            0,
+            0,
+            FillReason::Entry,
+        ))
+        .expect("the entry is valid");
+
+    let state = ledger.state();
+    approx(state.equity, 9_990.0);
+    approx(state.peak_equity, 10_000.0);
+    approx(state.drawdown, 1.0 - 9_990.0 / 10_000.0);
+}
+
+#[test]
+fn a_gap_exit_commission_uses_the_prior_mark() {
+    let mut ledger = ledger();
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Buy,
+            100.0,
+            100.0,
+            0.0,
+            0,
+            0,
+            FillReason::Entry,
+        ))
+        .expect("the entry is valid");
+    ledger.mark(0, 0, 100.0).expect("the mark is valid");
+    let prior_equity = ledger.state().equity;
+
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Sell,
+            100.0,
+            120.0,
+            0.0,
+            1,
+            900,
+            FillReason::Exit,
+        ))
+        .expect("the gap exit is valid");
+
+    let trade = ledger.trades()[0];
+    let entry_commission = config().commission.rate() * 10_000.0;
+    let exit_commission = config().commission.rate() * prior_equity;
+    approx(trade.commission, entry_commission + exit_commission);
+}
+
+#[test]
 fn a_long_trade_charges_commission_on_both_fills() {
     let mut ledger = ledger();
     ledger

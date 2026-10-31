@@ -7,6 +7,8 @@ use super::{FillError, OrderError, PositionError};
 pub enum ExecutionError {
     /// A decision was submitted before any bar had been advanced.
     SubmitBeforeAdvance,
+    /// A second order was submitted while one was already pending.
+    PendingOrderExists,
     /// The decision carries a different bar index than the bar it was given
     /// with.
     DecisionBarMismatch {
@@ -43,6 +45,9 @@ impl std::fmt::Display for ExecutionError {
                     formatter,
                     "a decision cannot be submitted before a bar is advanced"
                 )
+            }
+            Self::PendingOrderExists => {
+                write!(formatter, "a pending order already exists for the next bar")
             }
             Self::DecisionBarMismatch { expected, found } => write!(
                 formatter,

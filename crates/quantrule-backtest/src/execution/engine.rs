@@ -280,6 +280,9 @@ impl ExecutionEngine {
             return Err(ExecutionError::SubmitBeforeAdvance);
         };
         self.validate_intent(intent, index, time)?;
+        if self.pending.is_some() && !matches!(intent, OrderIntent::Hold) {
+            return Err(ExecutionError::PendingOrderExists);
+        }
 
         let mut batch = ExecutionBatch::default();
         match intent {
@@ -571,6 +574,7 @@ impl ExecutionEngine {
                 batch.orders.push(filled_record(
                     pending.order_id,
                     &pending.order,
+                    fill.quantity,
                     index,
                     time,
                     fill_id,
@@ -659,6 +663,7 @@ impl ExecutionEngine {
         batch.orders.push(filled_record(
             pending.order_id,
             &pending.order,
+            fill.quantity,
             index,
             time,
             fill_id,
@@ -779,9 +784,14 @@ impl ExecutionEngine {
         let order_id = self.next_order_id();
         let fill_id = self.next_fill_id();
         self.position = PositionState::Flat;
-        batch
-            .orders
-            .push(filled_record(order_id, &order, index, time, fill_id));
+        batch.orders.push(filled_record(
+            order_id,
+            &order,
+            fill.quantity,
+            index,
+            time,
+            fill_id,
+        ));
         batch.fills.push(fill);
         Ok(())
     }
@@ -888,13 +898,20 @@ fn pending_record(order_id: u64, order: &Order) -> OrderRecord {
     }
 }
 
-fn filled_record(order_id: u64, order: &Order, bar: usize, time: i64, fill_id: u64) -> OrderRecord {
+fn filled_record(
+    order_id: u64,
+    order: &Order,
+    quantity: f64,
+    bar: usize,
+    time: i64,
+    fill_id: u64,
+) -> OrderRecord {
     OrderRecord {
         order_id,
         submitted_bar: order.submitted_bar,
         submitted_time: order.submitted_time,
         side: order.side,
-        quantity: Some(order.quantity),
+        quantity: Some(quantity),
         reason: order.reason,
         trigger: order.trigger,
         state: OrderState::Filled,

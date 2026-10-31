@@ -325,7 +325,7 @@ fn execution_summary(
             }
         };
         fill_reasons[index] += 1;
-        slippage_total += fill.slippage;
+        slippage_total += fill.slippage * fill.quantity;
         fee_total += fill.fee;
     }
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
@@ -1218,7 +1218,40 @@ fn empty(value: Option<f64>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use quantrule_backtest::execution::OrderSide;
+
     use super::*;
+
+    #[test]
+    fn the_execution_summary_slippage_is_a_quote_currency_total() {
+        let order = OrderRecord {
+            order_id: 0,
+            submitted_bar: 0,
+            submitted_time: 0,
+            side: OrderSide::Buy,
+            quantity: Some(100.0),
+            reason: FillReason::Entry,
+            trigger: Trigger::Market,
+            state: OrderState::Filled,
+            filled_bar: Some(1),
+            filled_time: Some(900),
+            fill_id: Some(0),
+            rejection_reason: None,
+        };
+        let fill = Fill::new(
+            OrderSide::Buy,
+            100.0,
+            100.0,
+            0.0,
+            0.02,
+            1,
+            900,
+            FillReason::Entry,
+        )
+        .expect("the fill is valid");
+        let summary = execution_summary(&[], &[(order, fill)], &[]);
+        assert!((summary.slippage_total - 2.0).abs() < 1e-12);
+    }
 
     #[test]
     fn the_execution_summary_counts_reasons() {

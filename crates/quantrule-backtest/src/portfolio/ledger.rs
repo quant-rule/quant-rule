@@ -200,7 +200,8 @@ impl PortfolioLedger {
             Side::Short => -amount,
         };
         self.state.cash -= signed;
-        self.state.equity -= signed;
+        let equity = self.state.equity - signed;
+        self.refresh_equity_state(equity);
         if signed > 0.0 {
             self.funding_paid += signed;
             position.funding_paid += signed;
@@ -239,15 +240,7 @@ impl PortfolioLedger {
 
         let position_value = self.position_value(close);
         let equity = self.state.cash + position_value;
-        self.state.equity = equity;
-        if equity > self.state.peak_equity {
-            self.state.peak_equity = equity;
-        }
-        let drawdown = 1.0 - equity / self.state.peak_equity;
-        self.state.drawdown = drawdown;
-        if drawdown > self.max_drawdown {
-            self.max_drawdown = drawdown;
-        }
+        let drawdown = self.refresh_equity_state(equity);
         if drawdown > 0.0 {
             self.current_drawdown_bars += 1;
             if self.current_drawdown_bars > self.max_drawdown_duration {
@@ -347,7 +340,7 @@ impl PortfolioLedger {
 
         self.state.cash = cash;
         self.state.position = Some(position);
-        self.state.equity = cash + position_value;
+        self.refresh_equity_state(cash + position_value);
         self.execution_fees += fill.fee;
         self.commission += commission;
         self.last_price = Some(fill.price);
@@ -364,6 +357,12 @@ impl PortfolioLedger {
         };
         if fill.side != closing_side {
             return Err(PortfolioLedgerError::WrongSide);
+        }
+        if fill.quantity != position.quantity {
+            return Err(PortfolioLedgerError::ExitQuantityMismatch {
+                expected: position.quantity,
+                found: fill.quantity,
+            });
         }
 
         let equity = self.state.equity;
@@ -417,7 +416,7 @@ impl PortfolioLedger {
         self.hold_bars_total += hold_bars;
         self.state.cash = cash;
         self.state.position = None;
-        self.state.equity = cash;
+        self.refresh_equity_state(cash);
         self.execution_fees += fill.fee;
         self.commission += commission;
         self.last_price = None;
@@ -426,6 +425,20 @@ impl PortfolioLedger {
 
     fn commission_on(&self, equity: f64) -> f64 {
         self.config.commission.rate() * equity.max(0.0)
+    }
+
+    /// Sets equity and keeps peak and drawdown in step with it.
+    fn refresh_equity_state(&mut self, equity: f64) -> f64 {
+        self.state.equity = equity;
+        if equity > self.state.peak_equity {
+            self.state.peak_equity = equity;
+        }
+        let drawdown = 1.0 - equity / self.state.peak_equity;
+        self.state.drawdown = drawdown;
+        if drawdown > self.max_drawdown {
+            self.max_drawdown = drawdown;
+        }
+        drawdown
     }
 
     fn position_value(&self, price: f64) -> f64 {
@@ -590,7 +603,7 @@ fn civil_from_days(days: i64) -> (i32, u32, u32) {
 }
 
 /// A ledger operation was refused.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PortfolioLedgerError {
     /// The configuration is invalid.
     Config(PortfolioConfigError),
@@ -604,6 +617,13 @@ pub enum PortfolioLedgerError {
     NoPosition,
     /// The exit side does not close the open position.
     WrongSide,
+    /// The exit quantity does not equal the open position quantity.
+    ExitQuantityMismatch {
+        /// The open position quantity.
+        expected: f64,
+        /// The fill quantity.
+        found: f64,
+    },
     /// A fill price, quantity, or fee is invalid.
     InvalidFill,
     /// A fill reason cannot close a position.
@@ -623,6 +643,10 @@ impl fmt::Display for PortfolioLedgerError {
             Self::WrongSide => {
                 formatter.write_str("the fill side does not close the open position")
             }
+            Self::ExitQuantityMismatch { expected, found } => write!(
+                formatter,
+                "the exit quantity {found} does not equal the open position {expected}"
+            ),
             Self::InvalidFill => formatter.write_str("the fill values are invalid"),
             Self::UnexpectedFillReason => {
                 formatter.write_str("the fill reason cannot close a position")
