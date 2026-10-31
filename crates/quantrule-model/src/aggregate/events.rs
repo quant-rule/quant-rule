@@ -126,7 +126,13 @@ pub(crate) fn aggregate(ordered: &[&TimeframeSnapshot]) -> EventAggregates {
         {
             divergence_timeframe_count += 1;
             if let Some(direction) = latest_divergence_direction(snapshot) {
-                divergence_directions[(direction + 1) as usize] += 1;
+                // A public snapshot may carry a direction outside -1..=1; do
+                // not index the three-slot count with it.
+                if let Ok(index) = usize::try_from(direction + 1)
+                    && index < divergence_directions.len()
+                {
+                    divergence_directions[index] += 1;
+                }
             }
         }
         if summary.counts_by_type[0] > 0 {
