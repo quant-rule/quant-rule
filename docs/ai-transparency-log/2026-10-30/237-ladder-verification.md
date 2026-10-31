@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: [#237](https://github.com/quant-rule/quant-rule/issues/237)
 - Parent plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Status: Implemented; PR pending
+- Status: Implemented; PR [#246](https://github.com/quant-rule/quant-rule/pull/246) open; CI passed
 
 ## Intent and boundary
 
@@ -75,6 +75,8 @@ claim. No threshold was changed after the result.
 | 4h label | Fixed and unit-tested |
 | OOS analysis | Reproduced from `trades.csv` and `equity.csv` |
 | Local doc links | Resolved |
+| PR | #246 opened |
+| CI `verify` and `sync` | Passed |
 
 ## Quant validation (sequential pass)
 

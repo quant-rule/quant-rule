@@ -912,7 +912,7 @@ stateless strategy contract.
 
 **Goal:** Prove the implementation and evaluate it without an edge claim.
 
-**Status:** Implemented; PR pending.
+**Status:** Implemented in PR [#246](https://github.com/quant-rule/quant-rule/pull/246); CI passed.
 
 - Experiment: [`docs/experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md`](../../experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md)
 - Quant Validator: [`docs/reports/2026-10-30/unified-ladder-validation.md`](../../reports/2026-10-30/unified-ladder-validation.md)
@@ -1083,7 +1083,7 @@ Stop and request human direction if:
 - [x] `cargo test --workspace`
 - [x] `cargo doc --no-deps`
 - [x] `git diff --check`
-- [ ] CI `verify` green
+- [x] CI `verify` green
 - [x] No unrelated files in any PR
 - [x] No secrets or credentials in configs, logs, or commits
 - [x] Full diff reviewed
