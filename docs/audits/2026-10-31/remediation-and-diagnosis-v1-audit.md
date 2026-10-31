@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-remediation-diagnosis-v1
-- Status: Draft (uncommitted); findings `Planned` (W1 `Fixed`); remediation plan `Approved` and issue tree created
+- Status: Published (PR #293); findings `Planned` (W1 `Fixed`); remediation plan `Approved` and issue tree created
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `7c865de` (merge of PR #246; last audited state)
 - Head: `main` at `c8b1dc1` (merge of PR #279)

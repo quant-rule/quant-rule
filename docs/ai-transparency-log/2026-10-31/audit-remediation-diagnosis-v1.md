@@ -28,8 +28,8 @@ strategy, execution, portfolio, or analytics behavior.
 
 The work started in the project root in Plan mode. The audit document could not
 be written there; after the human switched agents and said to proceed, the work
-moved to a dedicated worktree and branch. The audit document and this log are
-uncommitted in that worktree.
+moved to a dedicated worktree and branch. The audit document, plan, and this log
+were committed on `docs/audit-remediation-diagnosis-v1` and opened as PR #293.
 
 ## Implemented
 
