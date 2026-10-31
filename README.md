@@ -525,7 +525,7 @@ The summary has seven sections: Identity, Artifacts, Observed result, Checks, Ro
 
 The scorecard counts checks by `pass`, `fail`, and `unknown`; it never combines them into a score. The thresholds are reporting defaults, not trading rules. The diagnosis is read-only evaluation: no model, strategy, execution, or portfolio engine reads it, and it never enters the signal path. `--strict` fails only on identity and data-integrity checks, never on a bad trading result. The same lab and configuration produce byte-identical text, JSON, CSV, and PNG files. The full contract is [`docs/reports/2026-10-31/diagnosis-v1.md`](docs/reports/2026-10-31/diagnosis-v1.md).
 
-`lab list --root <dir> [--json]` lists the lab result folders under a root in folder-name order. A folder is a lab when `portfolio/report.json` exists; the `diagnosis` column says whether `diagnosis/diagnosis.json` exists.
+`lab list --root <dir> [--json]` lists the lab result folders under a root in folder-name order. A folder is a lab when `portfolio/report.json` exists; the `diagnosis` column says whether `diagnosis/diagnosis.json` exists. A present `config_hash` must be 16 hex characters; a lab with a malformed hash is rejected.
 
 ### Strategy-run contract
 

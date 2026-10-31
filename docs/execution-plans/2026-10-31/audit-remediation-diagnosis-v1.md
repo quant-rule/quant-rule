@@ -304,6 +304,9 @@ Issue: [#285](https://github.com/quant-rule/quant-rule/issues/285) — **Update 
 - Update the README `lab list` contract to state the validation.
 - Closure tests: a multi-byte hash returns an error and does not panic; a
   16-hex hash lists; a lab without provenance still lists.
+- Implementation evidence (#286, PR #305): the validation, the bounds-safe
+  display, and the multi-byte/valid/absent test are implemented on
+  `fix/286-lab-list-hash`; gates pass (1518 tests).
 - Paths: `crates/quantrule-shell/src/command/lab.rs`, `README.md`, and the
   shell diagnosis lab tests.
 

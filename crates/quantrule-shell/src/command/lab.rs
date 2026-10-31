@@ -468,6 +468,28 @@ fn read_json(path: &Path) -> Result<Value, RunError> {
         .map_err(|source| RunError::Diagnosis(format!("cannot parse {}: {source}", path.display())))
 }
 
+fn lab_config_hash(path: &Path) -> Result<String, RunError> {
+    let Ok(provenance) = read_json(path) else {
+        return Ok(String::new());
+    };
+    let Some(value) = provenance.get("config_hash") else {
+        return Ok(String::new());
+    };
+    let invalid = || {
+        RunError::Diagnosis(format!(
+            "{} has an invalid config_hash: expected 16 hex characters",
+            path.display()
+        ))
+    };
+    let Some(hash) = value.as_str() else {
+        return Err(invalid());
+    };
+    if hash.len() != 16 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(invalid());
+    }
+    Ok(hash.to_owned())
+}
+
 fn string_at<'a>(value: &'a Value, field: &str) -> Result<&'a str, RunError> {
     value
         .get(field)
@@ -618,15 +640,7 @@ pub(crate) fn run_lab_list(args: &LabListArgs, writer: &mut impl Write) -> Resul
         let portfolio = read_json(&path.join("portfolio").join("report.json"))?;
         let data_version = string_at(&portfolio, "data_version")?.to_owned();
         let model_version = string_at(&portfolio, "model_version")?.to_owned();
-        let config_hash = read_json(&path.join("portfolio").join("provenance.json"))
-            .ok()
-            .and_then(|value| {
-                value
-                    .get("config_hash")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-            })
-            .unwrap_or_default();
+        let config_hash = lab_config_hash(&path.join("portfolio").join("provenance.json"))?;
         let final_equity = f64_at(&portfolio, "summary.final_equity")?;
         let total_return = f64_at(&portfolio, "summary.total_return")?;
         let net_pnl = f64_at(&portfolio, "summary.net_pnl")?;
@@ -717,7 +731,7 @@ pub(crate) fn run_lab_list(args: &LabListArgs, writer: &mut impl Write) -> Resul
                 "{:<28} {:<54} {:<12} {:>12.2} {:>8.4} {:>10.2} {:>6} {:<6} {}",
                 lab,
                 data_version,
-                &config_hash[..config_hash.len().min(12)],
+                config_hash.get(..12).unwrap_or(&config_hash),
                 final_equity,
                 total_return,
                 net_pnl,
