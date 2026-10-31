@@ -4,7 +4,7 @@ use quantrule_analytics::diagnosis::diagnose;
 use quantrule_analytics::diagnosis::text;
 use quantrule_analytics::diagnosis::types::{
     CheckStatus, DiagnosisIdentity, DiagnosisInput, EquityFacts, MetricsFacts, OutOfSampleStatus,
-    StrategyFacts,
+    ReportVersion, StrategyFacts,
 };
 use quantrule_data::Candle;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
@@ -144,6 +144,28 @@ fn candles(count: usize, step: i64) -> Vec<Candle> {
         .collect()
 }
 
+fn report_versions(bundles: &[&str]) -> Vec<ReportVersion> {
+    bundles
+        .iter()
+        .map(|bundle| ReportVersion {
+            bundle: (*bundle).to_owned(),
+            version: String::from("2026-10-31"),
+        })
+        .collect()
+}
+
+fn report_version_status(fixture: &Fixture, versions: Vec<ReportVersion>) -> CheckStatus {
+    let mut input = fixture.input();
+    input.identity.report_versions = versions;
+    let diagnosis = diagnose(&input);
+    diagnosis
+        .checks
+        .iter()
+        .find(|check| check.id == "identity.report_versions")
+        .expect("the report-version check exists")
+        .status
+}
+
 #[test]
 fn the_same_input_produces_the_same_diagnosis_and_text() {
     let fixture = Fixture::new(80);
@@ -247,6 +269,32 @@ fn a_present_1m_series_with_no_gaps_passes_with_zero() {
     assert_eq!(check.status, CheckStatus::Pass);
     assert_eq!(check.value, Some(0.0));
     assert!(check.evidence.contains("no 1m gap"));
+}
+
+#[test]
+fn report_versions_require_the_five_expected_bundles() {
+    let fixture = Fixture::new(80);
+    let all = ["model", "strategy", "execution", "portfolio", "analytical"];
+
+    assert_eq!(
+        report_version_status(&fixture, report_versions(&all)),
+        CheckStatus::Pass
+    );
+    assert_eq!(
+        report_version_status(&fixture, report_versions(&all[..4])),
+        CheckStatus::Fail
+    );
+    assert_eq!(
+        report_version_status(
+            &fixture,
+            report_versions(&["model", "strategy", "execution", "portfolio", "wrong"])
+        ),
+        CheckStatus::Fail
+    );
+
+    let mut empty = report_versions(&all);
+    empty[0].version.clear();
+    assert_eq!(report_version_status(&fixture, empty), CheckStatus::Fail);
 }
 
 #[test]
