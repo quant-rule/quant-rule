@@ -144,9 +144,14 @@ the existing sizing and position reasons.
   "stop": { "kind": "atr", "multiple": 2.0 },
   "target": { "kind": "reward_to_risk", "multiple": 1.5 },
   "valid_until": null,
-  "max_slippage_bps": 5.0
+  "max_slippage_bps": null
 }
 ```
 
 The strategy emits the intent. Execution resolves it against the decision bar's
 ATR and the fill price.
+
+The shipped `ladder-context` strategy leaves `valid_until` and
+`max_slippage_bps` unset. The engine checks are available to a custom strategy
+caller, and the intent tests cover them; the shipped rule does not attach an
+expiry or a slippage limit.

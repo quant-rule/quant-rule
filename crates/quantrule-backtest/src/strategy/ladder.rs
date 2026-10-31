@@ -141,15 +141,15 @@ impl LadderContextStrategy {
     }
 
     fn long_context(&self, context: &LadderContext) -> bool {
-        context_side(context, Side::Long, &self.config)
+        context_side(context, Side::Long, &self.config) == Some(true)
     }
 
     fn short_context(&self, context: &LadderContext) -> bool {
-        context_side(context, Side::Short, &self.config)
+        context_side(context, Side::Short, &self.config) == Some(true)
     }
 
     fn context_lost(&self, context: &LadderContext, side: Side) -> bool {
-        !context_side(context, side, &self.config)
+        context_side(context, side, &self.config) == Some(false)
     }
 
     fn structure_lost(&self, input: &StrategyInput, side: Side) -> bool {
@@ -185,6 +185,12 @@ impl Strategy for LadderContextStrategy {
         position: StrategyPosition,
     ) -> Decision {
         if input.timeframe_secs != self.config.timeframe_secs() {
+            return Decision::Hold;
+        }
+        if context.execution_timeframe_secs != input.timeframe_secs
+            || context.execution_bar_index != input.bar_index
+            || context.execution_open_time != input.open_time
+        {
             return Decision::Hold;
         }
 
@@ -246,44 +252,46 @@ fn shift_short(input: &StrategyInput, from_max: i8, to_min: i8) -> bool {
     }
 }
 
-fn context_side(context: &LadderContext, side: Side, config: &StrategyConfig) -> bool {
+fn context_side(context: &LadderContext, side: Side, config: &StrategyConfig) -> Option<bool> {
     if !context.context_complete() {
-        return false;
+        return None;
     }
     let entry = config.entry().context();
-    let direction = axis_side(&context.direction, side, entry.direction_share_min());
-    if !direction {
-        return false;
+    if !axis_side(&context.direction, side, entry.direction_share_min())? {
+        return Some(false);
     }
 
     let opposing_momentum = match side {
         Side::Long => context.momentum.bearish_share,
         Side::Short => context.momentum.bullish_share,
     };
-    if !finite(opposing_momentum).is_some_and(|share| share <= entry.momentum_bearish_share_max()) {
-        return false;
+    let opposing_momentum = finite(opposing_momentum)?;
+    if opposing_momentum > entry.momentum_bearish_share_max() {
+        return Some(false);
     }
 
     if context.structure.conflict_count > entry.structure_conflict_count_max() {
-        return false;
+        return Some(false);
     }
 
     let progression_agrees = match side {
         Side::Long => context.progression.direction.agreement == AgreementCode::Bullish,
         Side::Short => context.progression.direction.agreement == AgreementCode::Bearish,
     };
-    progression_agrees
-        && context.progression.late_or_terminal_count
-            <= entry.progression_late_or_terminal_count_max()
+    Some(
+        progression_agrees
+            && context.progression.late_or_terminal_count
+                <= entry.progression_late_or_terminal_count_max(),
+    )
 }
 
-fn axis_side(axis: &AxisContext, side: Side, share_min: f64) -> bool {
+fn axis_side(axis: &AxisContext, side: Side, share_min: f64) -> Option<bool> {
     let (own, opposite) = match side {
         Side::Long => (axis.bullish_share, axis.bearish_share),
         Side::Short => (axis.bearish_share, axis.bullish_share),
     };
     match (finite(own), finite(opposite)) {
-        (Some(own), Some(opposite)) => own >= share_min && own > opposite,
-        _ => false,
+        (Some(own), Some(opposite)) => Some(own >= share_min && own > opposite),
+        _ => None,
     }
 }

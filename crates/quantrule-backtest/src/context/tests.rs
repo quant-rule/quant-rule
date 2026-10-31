@@ -225,4 +225,13 @@ fn invalid_ladders_and_weights_are_rejected() {
     assert!(LadderWeights::new(vec![1.0], vec![1.0, 2.0], vec![1.0], vec![1.0]).is_err());
     assert!(LadderWeights::new(vec![0.0], vec![1.0], vec![1.0], vec![1.0]).is_err());
     assert!(LadderWeights::new(vec![f64::NAN], vec![1.0], vec![1.0], vec![1.0]).is_err());
+    assert_eq!(
+        LadderWeights::new(
+            vec![1e308, 1e308],
+            vec![1.0, 1.0],
+            vec![1.0, 1.0],
+            vec![1.0, 1.0]
+        ),
+        Err(LadderContextError::InvalidWeightSum { axis: 0 })
+    );
 }

@@ -197,6 +197,10 @@ Proposed sub-issues:
   timeframes, axis shares/agreements, conflict/late counts) or explicitly
   narrow the ADR’s audit claim.
 - Add multi-context and open-position missing-context golden rows.
+- Implementation evidence: diagnostic-only docs and explain output; weight-sum
+  and context-identity guards; shared neutral threshold; `context_lost` holds
+  on a missing/unavailable context; the ADR claim is narrowed. The golden bar
+  19 is the open-position missing-context row. Issue #250, PR #260.
 
 Proposed sub-issues:
 1. **Document or use the inert strategy context fields**

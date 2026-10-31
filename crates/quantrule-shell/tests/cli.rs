@@ -1980,7 +1980,7 @@ fn strategy_explain_prints_the_trader_rule() {
     assert_success(&output);
     assert_eq!(
         stdout_text(&output),
-        "strategy ladder-context\nexecution 5m\ncontext 15m\nthesis Trade with the higher-timeframe regime after a lower-timeframe structure shift.\nentry-long direction > 0.1, momentum > 0.1, structure >= 0, shift <= 0 -> >= 1\nentry-short direction < -0.1, momentum < -0.1, structure <= 0, shift >= 0 -> <= -1\ncontext-long direction share >= 0.5, momentum bearish share <= 0.5, conflicts <= 1, progression bullish, late/terminal <= 1\ncontext-short direction share >= 0.5, momentum bullish share <= 0.5, conflicts <= 1, progression bearish, late/terminal <= 1\nexit context_lost,structure_lost\nrisk stop=2 ATR target=3 ATR reward_to_risk=1.5\n"
+        "strategy ladder-context\nexecution 5m\ncontext 15m\nthesis Trade with the higher-timeframe regime after a lower-timeframe structure shift.\nentry-long direction > 0.1, momentum > 0.1, structure >= 0, shift <= 0 -> >= 1\nentry-short direction < -0.1, momentum < -0.1, structure <= 0, shift >= 0 -> <= -1\ncontext-long direction share >= 0.5, momentum bearish share <= 0.5, conflicts <= 1, progression bullish, late/terminal <= 1\ncontext-short direction share >= 0.5, momentum bullish share <= 0.5, conflicts <= 1, progression bearish, late/terminal <= 1\nexit context_lost,structure_lost\nrisk stop=2 ATR target=3 ATR reward_to_risk=1.5\ndiagnostics structure-score and context-kind literals are informational; the rule uses shares and conflict counts\n"
     );
     assert_eq!(stderr_text(&output), "");
 }

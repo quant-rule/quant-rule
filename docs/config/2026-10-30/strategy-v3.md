@@ -85,6 +85,22 @@ file states what can be built.
 Continuous axes use weighted means. Structure and Progression use weighted
 shares and histograms; ordinal codes are never averaged.
 
+### 4.2 Diagnostic-only fields
+
+- `weights.structure` changes the diagnostic Structure score and share; the
+  entry uses `structure.conflict_count`, so the weight does not change a
+  decision.
+- `entry.context.direction.kind`, `momentum.kind`, and
+  `progression.direction` are validated intent literals. The rule uses the
+  numeric shares, the conflict count, and the progression agreement, not the
+  literal itself.
+- The Progression `stage_histogram` and the axis agreement codes are context
+  diagnostics. They are published and counted, never averaged into a decision.
+
+These fields are fixed before the run and recorded in provenance. Using the
+Structure score or a context literal in the rule would be a rule change and
+requires a pre-registered hypothesis.
+
 ### 4.1 Context output
 
 For each execution bar the builder publishes:
@@ -130,8 +146,9 @@ The agreement condition is part of this rule. There is no separate
 
 ## 6. Exit
 
-- `context_lost`: the context condition that justified the entry no longer
-  holds.
+- `context_lost`: the measured context condition that justified the entry no
+  longer holds. A missing or unavailable context does not trigger it; the
+  position holds until another exit condition applies.
 - `structure_lost`: the execution structure flips against the position.
 - The ATR bracket can also close the position.
 
