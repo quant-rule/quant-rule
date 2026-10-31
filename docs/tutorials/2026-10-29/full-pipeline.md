@@ -12,10 +12,6 @@ This dated tutorial describes the retired `axis-agreement` strategy. It is
 preserved as a record of the v0.3.0 procedure; use the 2026-10-30 unified-ladder
 tutorial for the current command surface.
 
-Note (2026-10-31): the example config named below was renamed to
-`config/examples/btcusd-2024/`. This record keeps the original SOLUSD path and
-observed values; they describe the run that was actually performed.
-
 It runs every QuantRule stage through shell commands: the data
 engine, the four-axis model, the research engine, the strategy, the execution
 and portfolio engines, the SQLite store, and the whole-lab summary. It also

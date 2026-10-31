@@ -27,7 +27,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Four-axis analytical model | Contract | `docs/model/2026-10-21/four-axis-analytical-model.md` |
 | Per-timeframe model | Approved (#228); readings and reporting-view extraction implemented (#231, #232) | `docs/model/2026-10-30/per-timeframe-model.md` |
 | DashboardState four-axis CLI view | Approved (#123) | `docs/model/2026-10-25/dashboard-state.md` |
-| MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified on SOLUSD 2025 (#152) | `docs/model/2026-10-27/market-report.md` |
+| MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified (#152) | `docs/model/2026-10-27/market-report.md` |
 
 ## Current run contracts
 
@@ -39,9 +39,6 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Per-engine reports | Approved (#168); implemented by #173–#176; verified by #177 | `docs/reports/2026-10-28/per-engine-reports.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/reports/2026-10-31/diagnosis-v1.md` |
 | BTCUSD 2024 example run | Current example: five bundles, 29 artifacts, byte-identical rerun; captured on 2026-10-31 | `config/examples/btcusd-2024/` |
-
-Historical audit, experiment, and verification records keep the instrument they
-were produced with. The current example is BTCUSD 2024.
 
 ### Approved target contracts
 
@@ -67,7 +64,6 @@ implemented by #230; the remaining target contracts wait for their code phases.
 | Tutorial | Status | Path |
 |---|---|---|
 | Run the unified ladder end to end | Current; verified 2026-10-30 | [`docs/tutorials/2026-10-30/unified-ladder.md`](tutorials/2026-10-30/unified-ladder.md) |
-| Run the full pipeline, with one lab per quant role | Historical; retired `axis-agreement` rule | [`docs/tutorials/2026-10-29/full-pipeline.md`](tutorials/2026-10-29/full-pipeline.md) |
 | The human improvement loop | Current; policy → strategy → experiment → triage | [`docs/tutorials/2026-10-30/improvement-loop.md`](tutorials/2026-10-30/improvement-loop.md) |
 
 ## Current roles
@@ -106,7 +102,7 @@ committed, and the candles, charts, reports, and databases stay local.
 | Program | Status | Plan |
 |---|---|---|
 | Help, tutorial, and quant role manuals | Delivered (#208); tagged `v0.3.0` | `docs/execution-plans/2026-10-29/208-help-tutorial-role-manuals.md` |
-| MVP v1: config-driven engines, five reports, and the full-execution SOLUSD 2025 run | Delivered (#141); tagged `v0.2.0` | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
+| MVP v1: config-driven engines, five reports, and the full-execution 2025 example run | Delivered (#141); tagged `v0.2.0` | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
 | Market analysis and full-execution backtest | Superseded for MVP v1 closeout by the 2026-10-28 plan; history preserved | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
 | Audit and continuous-improvement workflow | In progress; policy/strategy v2 and swarm model | `docs/execution-plans/2026-10-30/audit-improvement-workflow.md` |
 | AUD-2026-10-30-01: reject non-M1 ladder inputs | Merged as `98cf9d5` in [#221](https://github.com/quant-rule/quant-rule/pull/221); finding `Verified` | `docs/execution-plans/2026-10-30/AUD-2026-10-30-01-m1-source-validation.md` |
