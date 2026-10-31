@@ -256,6 +256,81 @@ fn lab_list_prints_a_json_array() {
 }
 
 #[test]
+fn lab_list_validates_a_present_config_hash() {
+    let lab = run_diagnose("lab-list-hash");
+    let root = output_dir("lab-list-hash-root");
+    let target = root.join("bad-lab");
+    fs::create_dir_all(target.join("portfolio")).expect("the lab portfolio is created");
+    fs::copy(
+        lab.join("portfolio/report.json"),
+        target.join("portfolio/report.json"),
+    )
+    .expect("the report is copied");
+    let provenance = fs::read_to_string(lab.join("portfolio/provenance.json"))
+        .expect("the provenance is readable");
+    let mut value: serde_json::Value =
+        serde_json::from_str(&provenance).expect("the provenance is valid JSON");
+
+    // Eleven ASCII bytes, two two-byte characters, and one ASCII byte: 16 bytes,
+    // but byte 12 falls inside a multi-byte character.
+    value["config_hash"] = serde_json::Value::String(String::from("aaaaaaaaaaaééa"));
+    fs::write(
+        target.join("portfolio/provenance.json"),
+        serde_json::to_vec_pretty(&value).expect("the provenance is serializable"),
+    )
+    .expect("the provenance is written");
+
+    let output = run(&[
+        "lab",
+        "list",
+        "--root",
+        root.to_str().expect("the root path is UTF-8"),
+    ]);
+    assert!(!output.status.success());
+    assert_ne!(
+        output.status.code(),
+        Some(101),
+        "the command must not panic"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("config_hash"),
+        "unexpected stderr: {stderr}"
+    );
+
+    value["config_hash"] = serde_json::Value::String(String::from("0123456789abcdef"));
+    fs::write(
+        target.join("portfolio/provenance.json"),
+        serde_json::to_vec_pretty(&value).expect("the provenance is serializable"),
+    )
+    .expect("the provenance is rewritten");
+    let output = run(&[
+        "lab",
+        "list",
+        "--root",
+        root.to_str().expect("the root path is UTF-8"),
+        "--json",
+    ]);
+    assert_success(&output);
+    let listed: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("the lab list is valid JSON");
+    assert_eq!(listed[0]["config_hash"], "0123456789abcdef");
+
+    fs::remove_file(target.join("portfolio/provenance.json")).expect("the provenance is removed");
+    let output = run(&[
+        "lab",
+        "list",
+        "--root",
+        root.to_str().expect("the root path is UTF-8"),
+        "--json",
+    ]);
+    assert_success(&output);
+    let listed: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("the lab list is valid JSON");
+    assert_eq!(listed[0]["config_hash"], "");
+}
+
+#[test]
 fn lab_diagnose_reproduces_the_backtest_diagnosis() {
     let lab = run_diagnose("diagnosis-command-lab");
     let out = output_dir("diagnosis-command-lab-diagnose");
