@@ -41,7 +41,7 @@ changed.
 |---|---|---|---|---|---|---|---|---|---|---|
 | AUD-2026-10-31-01 | Critical | backtest | Pending entry fills on the first bar after a data gap | `runner/mod.rs:165,176`; probe `EX-01` | Silent wrong entry with pre-gap ATR | A guard fill-time contiguity; B document next-available fill and re-anchor ATR; C cancel pending on gap | A | Missing-bar test rejects the entry | Fixed | [#247](https://github.com/quant-rule/quant-rule/issues/247) · [#257](https://github.com/quant-rule/quant-rule/pull/257) |
 | AUD-2026-10-31-02 | Major | config | Real v2 strategy configs never reach the migration message | `config/strategy.rs:58,66`; probe output | Migration path broken; user sees unknown-field error | A check schema before field validation; B detect legacy fields; C change docs to unknown-field error | A | Real v2 fixture prints the documented migration sentence | Fixed | [#248](https://github.com/quant-rule/quant-rule/issues/248) · [#258](https://github.com/quant-rule/quant-rule/pull/258) |
-| AUD-2026-10-31-03 | Major | shell/data | `model-series`/`market-chart` advertise 4h but cannot access H4 | `pipeline.rs:56,80,144`; `command/model.rs:311`; probe | 4h silently prints nothing or errors | A build H4 for path commands; B remove 4h from their help/parsers | A | 4h CLI tests emit H4 rows/write PNG | Planned | — |
+| AUD-2026-10-31-03 | Major | shell/data | `model-series`/`market-chart` advertise 4h but cannot access H4 | `pipeline.rs:56,80,144`; `command/model.rs:311`; probe | 4h silently prints nothing or errors | A build H4 for path commands; B remove 4h from their help/parsers | A | 4h CLI tests emit H4 rows/write PNG | Fixed | [#249](https://github.com/quant-rule/quant-rule/issues/249) · [#259](https://github.com/quant-rule/quant-rule/pull/259) |
 | AUD-2026-10-31-04 | Major | strategy/config | Structure context weights and context `kind` literals are accepted but inert | `strategy/ladder.rs:267`; `config/strategy.rs:319-386`; experiment C | Config/experiment imply a decision dimension that does nothing | A document diagnostics; B use score in rule (new hypothesis); C remove fields (new schema) | A now | Two structure weights produce identical decisions, documented | Planned | — |
 | AUD-2026-10-31-05 | Major | portfolio | Exit fill quantity is not reconciled to the open position | `portfolio/ledger.rs:357,537`; probe `PF-01` | Ledger cash/equity can be corrupted by a partial exit | A reject quantity mismatch; B support partial exits; C clamp | A | Mismatched exit returns typed error and state unchanged | Planned | — |
 | AUD-2026-10-31-06 | Major | docs/README | README and current-status docs describe the retired rule and stale outputs | `README.md:456-459`; `README.md:306`; `docs/model/2026-10-30/per-timeframe-model.md:4,128`; `docs/README.md:106` | Current example cannot reproduce; users are misled | A regenerate current docs/output; B mark examples historical | A | README envelope matches current 5m example; statuses say merged | Planned | — |
@@ -68,7 +68,7 @@ changed.
 | AUD-2026-10-31-27 | Info | reporting | `slippage.total` is per-unit sum, not quote-currency cost | `report_run/bundles.rs:328`; `execution/fill.rs:101` | Total is not comparable with fees | A multiply by quantity; B rename | A | Quantity-100 fill reports currency total | Planned | — |
 | AUD-2026-10-31-28 | Info | portfolio | Month after an empty month loses its return | `portfolio/ledger.rs:516`; `records.rs:227` | Contradicts prior-equity rule | A carry last equity; B document | A | Jan+Mar equity test | Planned | — |
 | AUD-2026-10-31-29 | Info | docs | Current portfolio schema points to a superseded doc; M15 statement stale | `portfolio/config.rs:8`; `docs/config/2026-10-28/per-engine-config.md:6`; `execution/mod.rs:11` | Readers cannot find current schema | A update current contract; B annotate historical | A | Current docs contain portfolio schema | Planned | — |
-| AUD-2026-10-31-30 | Info | tests | H4-specific and multi-context coverage is thin | `context/tests.rs` single context; no 4h CLI tests | Several findings above lack regression guards | A add multi-context/4h tests; B document gap | A | New tests fail first, pass after fixes | Planned | — |
+| AUD-2026-10-31-30 | Info | tests | H4-specific and multi-context coverage is thin | `context/tests.rs` single context; no 4h CLI tests | Several findings above lack regression guards | A add multi-context/4h tests; B document gap | A | New tests fail first, pass after fixes | Fixed | [#249](https://github.com/quant-rule/quant-rule/issues/249) · [#259](https://github.com/quant-rule/quant-rule/pull/259) |
 
 ## Detail
 
@@ -139,7 +139,10 @@ changed.
     runs only.
 - Recommendation: A; the data engine already builds H4.
 - Verification: 4h `model-series` emits rows; 4h `market-chart` writes a PNG.
-- Links: —
+- Status: `Fixed` by #249 and PR #259; the 4h CLI tests are the regression
+  guards.
+- Links: [#249](https://github.com/quant-rule/quant-rule/issues/249) ·
+  [#259](https://github.com/quant-rule/quant-rule/pull/259)
 
 ### AUD-2026-10-31-04 — Strategy context config fields are inert
 
@@ -552,7 +555,10 @@ changed.
 - Options: A. add focused tests; B. document the gap.
 - Recommendation: A.
 - Verification: new tests fail before fixes and pass after.
-- Links: —
+- Status: `Fixed` by #249 and PR #259 for H4 CLI, chart, and gap coverage; the
+  multi-context weight test remains in W4.
+- Links: [#249](https://github.com/quant-rule/quant-rule/issues/249) ·
+  [#259](https://github.com/quant-rule/quant-rule/pull/259)
 
 ## Limitations
 

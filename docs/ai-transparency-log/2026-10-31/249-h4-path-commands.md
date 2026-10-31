@@ -15,7 +15,9 @@ documentation and tests with the five-series data engine.
 
 The change stays in the shell path-command composition and its tests. It does
 not change the model, the strategy, execution, portfolio, research layers, or
-the configured run ladder. It adds no dependency and no `unsafe` code.
+the configured run ladder. It adds no dependency and no `unsafe` code. The
+human authorized commits and PRs; the work was committed as `7661e34`, pushed to
+`fix/249-h4-path-commands`, and opened as PR #259. It is not merged.
 
 ## Implemented
 
@@ -43,6 +45,7 @@ the configured run ladder. It adds no dependency and no `unsafe` code.
 | `cargo test --workspace` | 45 test-result-ok suites, 0 failures |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` | Passed |
 | `git diff --check` | Clean |
+| Commit and PR | `7661e34`; PR #259; not merged |
 
 The 4h CLI tests are the fail-before/pass-after guards. The H4 gap test pins the
 data-engine gap record between two complete H4 buckets.
