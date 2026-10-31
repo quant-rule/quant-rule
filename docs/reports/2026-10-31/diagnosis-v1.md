@@ -51,6 +51,9 @@ created. A diagnosis is never written into a per-engine bundle.
 | `50-portfolio-attribution.png` | 1280 x 720 |
 | `manifest.txt` | Every artifact's name and byte length, including its own |
 
+A missing numeric value in a CSV table is an empty cell; `diagnosis.json` uses
+`null` for the same missing value. A valid zero is written as `0.000000`.
+
 ## 4. Identity and staleness
 
 The diagnosis binds to:

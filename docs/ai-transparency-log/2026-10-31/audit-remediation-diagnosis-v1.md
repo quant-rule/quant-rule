@@ -144,9 +144,9 @@ the plan's verification table; it ran no new build or test.
 
 ## Limitations
 
-- No independent verifier or second model judgment was used. The audit is a
-  sequential read-only pass, and the Planner pass is a sequential role pass by
-  the same agent; neither is an independent judgment.
+- The audit is a sequential read-only pass, and the Planner pass is a sequential
+  role pass by the same agent. A separate verifier session was used later for
+  closure; it is the same model family, so it is not an independent judgment.
 - The prior audit's 30 fixes were reviewed at the diff level and spot-checked;
   not every fix was independently reproduced. AUD-23 is the concrete
   false-verification case.
@@ -157,3 +157,21 @@ the plan's verification table; it ran no new build or test.
   finding.
 - No performance benchmarks were run. The diff does not add a
   performance-sensitive path that would require one.
+
+## Verification pass
+
+- 2026-10-31 (UTC), OpenCode agent (DeepSeek V4.1 Flash), a separate session with
+  fresh context, working read-only against `main` at `476d00a`.
+- Intent: closure verification of AUD-2026-10-31-31..40. The verifier inspected
+  the fix PRs and regression guards, reproduced the fail-before behavior in
+  throwaway worktrees where the fix allowed it, and reran the global gates.
+- Evidence: `cargo test --workspace` 1518 passed, 0 failed, 7 ignored; fmt,
+  clippy, and rustdoc clean; record:
+  `docs/reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md`.
+- Result: all ten findings `Verified`; three documentation gaps found (W5
+  contract note, AUD-23 cell, plan traceability). The human authorized their
+  correction after the pass, and the plan was marked `Verified`.
+- Learning: the regression guards and fail-before behavior hold up end to end;
+  the gaps were documentation and bookkeeping, not product defects.
+- Limitation: the verifier is a separate session but the same model family, so
+  this is not a human-independent judgment.

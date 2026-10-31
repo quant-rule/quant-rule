@@ -1,12 +1,13 @@
 # Remediation and Diagnosis-v1 Audit Remediation Plan
 
 - Date: 2026-10-31 (UTC)
-- Status: Approved
+- Status: Verified
 - Work item: `audit-remediation-diagnosis-v1`
 - Audit: [`docs/audits/2026-10-31/remediation-and-diagnosis-v1-audit.md`](../../audits/2026-10-31/remediation-and-diagnosis-v1-audit.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-10-31/audit-remediation-diagnosis-v1.md`](../../ai-transparency-log/2026-10-31/audit-remediation-diagnosis-v1.md)
 - Baseline: `main` at `c8b1dc1` (merge of PR #279)
 - Human approval: approved on 2026-10-31 (UTC) via "proceed"; decisions D1–D10 accepted as recommended
+- Verification: 2026-10-31, sequential Improvement Verifier pass (not independent); all ten findings `Verified`; record: [`docs/reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md`](../../reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md)
 - Claim type: program remediation plan; no strategy edge claim
 
 ## 1. Intent
@@ -338,16 +339,16 @@ Issue: [#286](https://github.com/quant-rule/quant-rule/issues/286) — **Validat
 
 | Finding | Work item | Issue | Closure verification | Status |
 |---|---|---|---|---|
-| AUD-2026-10-31-31 | W1 | [#280](https://github.com/quant-rule/quant-rule/issues/280) | Same-version `oos/` -> `unknown`; distinct -> `pass` | Planned |
-| AUD-2026-10-31-32 | W2 | [#281](https://github.com/quant-rule/quant-rule/issues/281) | 1m-absent run -> `unknown`, `value == None` | Planned |
-| AUD-2026-10-31-33 | W3 | [#282](https://github.com/quant-rule/quant-rule/issues/282) | `i8::MAX`/`i8::MIN`/`2` do not panic; counts unchanged | Planned |
-| AUD-2026-10-31-34 | W4 | [#287](https://github.com/quant-rule/quant-rule/issues/287) | Four versions -> `fail`; five expected -> `pass` | Planned |
-| AUD-2026-10-31-35 | W5 | [#289](https://github.com/quant-rule/quant-rule/issues/289) | Struct `None`, JSON `null`, CSV empty cell | Planned |
-| AUD-2026-10-31-36 | W4 | [#288](https://github.com/quant-rule/quant-rule/issues/288) | Manifest names == 17 artifacts; byte lengths match | Planned |
-| AUD-2026-10-31-37 | W5 | [#290](https://github.com/quant-rule/quant-rule/issues/290) | Fill outside bar -> `mfe >= 0`, `mae <= 0` (D7=A) | Planned |
-| AUD-2026-10-31-38 | W5 | [#291](https://github.com/quant-rule/quant-rule/issues/291) | Open entry on day D -> `entry_fills = 1` on D | Planned |
-| AUD-2026-10-31-39 | W6 | [#285](https://github.com/quant-rule/quant-rule/issues/285) | Header names the three commands | Planned |
-| AUD-2026-10-31-40 | W7 | [#286](https://github.com/quant-rule/quant-rule/issues/286) | Multi-byte hash -> error, no panic | Planned |
+| AUD-2026-10-31-31 | W1 | [#280](https://github.com/quant-rule/quant-rule/issues/280) | Same-version `oos/` -> `unknown`; distinct -> `pass` | Verified |
+| AUD-2026-10-31-32 | W2 | [#281](https://github.com/quant-rule/quant-rule/issues/281) | 1m-absent run -> `unknown`, `value == None` | Verified |
+| AUD-2026-10-31-33 | W3 | [#282](https://github.com/quant-rule/quant-rule/issues/282) | `i8::MAX`/`i8::MIN`/`2` do not panic; counts unchanged | Verified |
+| AUD-2026-10-31-34 | W4 | [#287](https://github.com/quant-rule/quant-rule/issues/287) | Four versions -> `fail`; five expected -> `pass` | Verified |
+| AUD-2026-10-31-35 | W5 | [#289](https://github.com/quant-rule/quant-rule/issues/289) | Struct `None`, JSON `null`, CSV empty cell | Verified |
+| AUD-2026-10-31-36 | W4 | [#288](https://github.com/quant-rule/quant-rule/issues/288) | Manifest names == 17 artifacts; byte lengths match | Verified |
+| AUD-2026-10-31-37 | W5 | [#290](https://github.com/quant-rule/quant-rule/issues/290) | Fill outside bar -> `mfe >= 0`, `mae <= 0` (D7=A) | Verified |
+| AUD-2026-10-31-38 | W5 | [#291](https://github.com/quant-rule/quant-rule/issues/291) | Open entry on day D -> `entry_fills = 1` on D | Verified |
+| AUD-2026-10-31-39 | W6 | [#285](https://github.com/quant-rule/quant-rule/issues/285) | Header names the three commands | Verified |
+| AUD-2026-10-31-40 | W7 | [#286](https://github.com/quant-rule/quant-rule/issues/286) | Multi-byte hash -> error, no panic | Verified |
 
 No finding is deferred. No finding is marked `Won't fix`; only the human can
 decide that.
@@ -423,4 +424,6 @@ Approved on 2026-10-31 (UTC) via the human's "proceed"; D1–D10 accepted as
 recommended. The approval authorizes W1–W7 and the issue tree. It does not
 authorize commits, pushes, merges, or pull requests (AGENTS.md section 9). The
 Planner created the issue tree (#280–#291) and marked the audit findings
-`Planned`; the work proceeds one leaf at a time in its own worktree.
+`Planned`. The acceptance criteria were evaluated on 2026-10-31 against the
+merged work: all ten findings are `Verified` and the plan is `Verified`; the
+verifier record is named in the header.

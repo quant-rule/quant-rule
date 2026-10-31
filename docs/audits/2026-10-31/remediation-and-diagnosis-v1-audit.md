@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-remediation-diagnosis-v1
-- Status: Published (PR #293); all findings `Fixed` (independent `Verified` pass pending); remediation plan `Approved` and issue tree created
+- Status: Published (PR #293); all ten findings `Verified` by a sequential Improvement Verifier pass on 2026-10-31 (not independent; record: [`docs/reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md`](../../reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md)); remediation plan `Approved` pending human closure
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `7c865de` (merge of PR #246; last audited state)
 - Head: `main` at `c8b1dc1` (merge of PR #279)
@@ -47,16 +47,16 @@ committed). The commands above are the reproducible evidence.
 
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AUD-2026-10-31-31 | Major | shell/analytics | `evidence.out_of_sample` passes on file existence, not a different data version | `crates/quantrule-shell/src/diagnosis.rs:545-551`; `crates/quantrule-analytics/src/diagnosis/compute.rs:1248-1263`; `docs/reports/2026-10-31/diagnosis-v1.md:99` | A same-data `oos/` folder is reported as OOS evidence; the human may treat in-sample results as OOS-validated | A compare `data_version`; B require a valid OOS report and period; C make it `unknown` unless a distinct OOS version is declared | A | Same-version `oos/` -> `unknown`; different version -> `pass` | Fixed | [#280](https://github.com/quant-rule/quant-rule/issues/280) · [#294](https://github.com/quant-rule/quant-rule/pull/294) |
-| AUD-2026-10-31-32 | Minor | analytics | `data.long_gap` passes with `0.0` when the 1m series is absent | `compute.rs:145`, `983-1011`; `docs/reports/2026-10-31/diagnosis-v1.md:81,88` | A missing measurement is published as a passing zero | A `None` -> `Unknown`; B require a 1m series at config load; C measure the fastest available timeframe and label it | A | A run without 1m -> `unknown`, no `0.0` value | Fixed | [#281](https://github.com/quant-rule/quant-rule/issues/281) · [#296](https://github.com/quant-rule/quant-rule/pull/296) |
-| AUD-2026-10-31-33 | Minor | model/aggregate | Divergence direction guard still overflows for `i8::MAX` | `crates/quantrule-model/src/aggregate/events.rs:131`; `crates/quantrule-model/src/events/mod.rs:76` | Public `CrossTimeframeAggregates::compute` panics in debug on a malformed public `direction_code`; the prior audit's claimed test is absent | A `checked_add(1)`; B explicit `-1..=1` match; C validated newtype | A | Debug test with `direction_code = i8::MAX` does not panic | Fixed | [#282](https://github.com/quant-rule/quant-rule/issues/282) · [#297](https://github.com/quant-rule/quant-rule/pull/297) |
-| AUD-2026-10-31-34 | Minor | analytics | `identity.report_versions` passes with fewer than five versions | `compute.rs:917-936`; `docs/reports/2026-10-31/diagnosis-v1.md:85` | A lab missing bundle versions passes a check that claims all five are recorded | A require `len() == 5`; B require the five expected bundle names; C fail on any missing version | B | Four versions -> `fail`; five -> `pass` | Fixed | [#287](https://github.com/quant-rule/quant-rule/issues/287) · [#299](https://github.com/quant-rule/quant-rule/pull/299) |
-| AUD-2026-10-31-35 | Minor | analytics | `average_hold_bars` is `0.0` for an exit reason with no trades | `compute.rs:500-504`; `crates/quantrule-analytics/src/diagnosis/types.rs:288` | A missing measurement is published as a valid zero | A `Option<f64>` and null; B NaN; C omit the row | A | Zero-trade reason -> `None` in the struct, `null` in JSON, empty CSV | Fixed | [#289](https://github.com/quant-rule/quant-rule/issues/289) · [#301](https://github.com/quant-rule/quant-rule/pull/301) |
-| AUD-2026-10-31-36 | Minor | shell | `manifest.txt` omits itself from the artifact table | `crates/quantrule-shell/src/diagnosis.rs:878-897`; observed `target/report-tests/diagnosis-command/diagnosis/manifest.txt` | The manifest cannot be used to verify the complete artifact set | A add the `manifest.txt` row; B change the header to "16 listed + this manifest"; C drop the count | A | Manifest row set equals the 17 files in the directory | Fixed | [#288](https://github.com/quant-rule/quant-rule/issues/288) · [#300](https://github.com/quant-rule/quant-rule/pull/300) |
-| AUD-2026-10-31-37 | Minor | analytics | `trades_enriched.csv` MFE can be negative | `compute.rs:883-897`; `docs/reports/2026-10-31/diagnosis-v1.md:157-159` | A documented non-negative invariant is violated when the entry fill is outside the entry bar's range | A clamp MFE/MAE at 0; B amend the contract to allow fill-relative signs; C measure from the reference/open | A | Test with a fill outside the bar range -> `mfe >= 0` | Fixed | [#290](https://github.com/quant-rule/quant-rule/issues/290) · [#302](https://github.com/quant-rule/quant-rule/pull/302) |
-| AUD-2026-10-31-38 | Minor | analytics | Daily `entry_fills` omits an entry still open at run end | `compute.rs:583-613`, `384`; `types.rs:116-123` | The daily funnel undercounts fills and disagrees with `funnel.csv` | A build from `input.fills` filtered to `entry`; B add open positions; C document the closed-trade basis | A | One open entry on day D -> `entry_fills = 1` on D | Fixed | [#291](https://github.com/quant-rule/quant-rule/issues/291) · [#303](https://github.com/quant-rule/quant-rule/pull/303) |
-| AUD-2026-10-31-39 | Minor | docs | `lab.rs` module doc names only `lab summary` | `crates/quantrule-shell/src/command/lab.rs:1-5` | The module doc is stale for `lab diagnose` and `lab list` | A update the module doc; B split the module per command | A | `cargo doc`; review the module header | Fixed | [#285](https://github.com/quant-rule/quant-rule/issues/285) · [#304](https://github.com/quant-rule/quant-rule/pull/304) |
-| AUD-2026-10-31-40 | Minor | shell | `lab list` can panic on a non-ASCII `config_hash` | `crates/quantrule-shell/src/command/lab.rs:717`, `616-626` | A malformed lab folder panics the shell instead of returning an error | A `get(..12).unwrap_or(config_hash)`; B validate 16 hex characters; C typed error for a malformed lab | B | Multi-byte `config_hash` -> error, no panic | Fixed | [#286](https://github.com/quant-rule/quant-rule/issues/286) · [#305](https://github.com/quant-rule/quant-rule/pull/305) |
+| AUD-2026-10-31-31 | Major | shell/analytics | `evidence.out_of_sample` passes on file existence, not a different data version | `crates/quantrule-shell/src/diagnosis.rs:545-551`; `crates/quantrule-analytics/src/diagnosis/compute.rs:1248-1263`; `docs/reports/2026-10-31/diagnosis-v1.md:99` | A same-data `oos/` folder is reported as OOS evidence; the human may treat in-sample results as OOS-validated | A compare `data_version`; B require a valid OOS report and period; C make it `unknown` unless a distinct OOS version is declared | A | Same-version `oos/` -> `unknown`; different version -> `pass` | Verified | [#280](https://github.com/quant-rule/quant-rule/issues/280) · [#294](https://github.com/quant-rule/quant-rule/pull/294) |
+| AUD-2026-10-31-32 | Minor | analytics | `data.long_gap` passes with `0.0` when the 1m series is absent | `compute.rs:145`, `983-1011`; `docs/reports/2026-10-31/diagnosis-v1.md:81,88` | A missing measurement is published as a passing zero | A `None` -> `Unknown`; B require a 1m series at config load; C measure the fastest available timeframe and label it | A | A run without 1m -> `unknown`, no `0.0` value | Verified | [#281](https://github.com/quant-rule/quant-rule/issues/281) · [#296](https://github.com/quant-rule/quant-rule/pull/296) |
+| AUD-2026-10-31-33 | Minor | model/aggregate | Divergence direction guard still overflows for `i8::MAX` | `crates/quantrule-model/src/aggregate/events.rs:131`; `crates/quantrule-model/src/events/mod.rs:76` | Public `CrossTimeframeAggregates::compute` panics in debug on a malformed public `direction_code`; the prior audit's claimed test is absent | A `checked_add(1)`; B explicit `-1..=1` match; C validated newtype | A | Debug test with `direction_code = i8::MAX` does not panic | Verified | [#282](https://github.com/quant-rule/quant-rule/issues/282) · [#297](https://github.com/quant-rule/quant-rule/pull/297) |
+| AUD-2026-10-31-34 | Minor | analytics | `identity.report_versions` passes with fewer than five versions | `compute.rs:917-936`; `docs/reports/2026-10-31/diagnosis-v1.md:85` | A lab missing bundle versions passes a check that claims all five are recorded | A require `len() == 5`; B require the five expected bundle names; C fail on any missing version | B | Four versions -> `fail`; five -> `pass` | Verified | [#287](https://github.com/quant-rule/quant-rule/issues/287) · [#299](https://github.com/quant-rule/quant-rule/pull/299) |
+| AUD-2026-10-31-35 | Minor | analytics | `average_hold_bars` is `0.0` for an exit reason with no trades | `compute.rs:500-504`; `crates/quantrule-analytics/src/diagnosis/types.rs:288` | A missing measurement is published as a valid zero | A `Option<f64>` and null; B NaN; C omit the row | A | Zero-trade reason -> `None` in the struct, `null` in JSON, empty CSV | Verified | [#289](https://github.com/quant-rule/quant-rule/issues/289) · [#301](https://github.com/quant-rule/quant-rule/pull/301) |
+| AUD-2026-10-31-36 | Minor | shell | `manifest.txt` omits itself from the artifact table | `crates/quantrule-shell/src/diagnosis.rs:878-897`; observed `target/report-tests/diagnosis-command/diagnosis/manifest.txt` | The manifest cannot be used to verify the complete artifact set | A add the `manifest.txt` row; B change the header to "16 listed + this manifest"; C drop the count | A | Manifest row set equals the 17 files in the directory | Verified | [#288](https://github.com/quant-rule/quant-rule/issues/288) · [#300](https://github.com/quant-rule/quant-rule/pull/300) |
+| AUD-2026-10-31-37 | Minor | analytics | `trades_enriched.csv` MFE can be negative | `compute.rs:883-897`; `docs/reports/2026-10-31/diagnosis-v1.md:157-159` | A documented non-negative invariant is violated when the entry fill is outside the entry bar's range | A clamp MFE/MAE at 0; B amend the contract to allow fill-relative signs; C measure from the reference/open | A | Test with a fill outside the bar range -> `mfe >= 0` | Verified | [#290](https://github.com/quant-rule/quant-rule/issues/290) · [#302](https://github.com/quant-rule/quant-rule/pull/302) |
+| AUD-2026-10-31-38 | Minor | analytics | Daily `entry_fills` omits an entry still open at run end | `compute.rs:583-613`, `384`; `types.rs:116-123` | The daily funnel undercounts fills and disagrees with `funnel.csv` | A build from `input.fills` filtered to `entry`; B add open positions; C document the closed-trade basis | A | One open entry on day D -> `entry_fills = 1` on D | Verified | [#291](https://github.com/quant-rule/quant-rule/issues/291) · [#303](https://github.com/quant-rule/quant-rule/pull/303) |
+| AUD-2026-10-31-39 | Minor | docs | `lab.rs` module doc names only `lab summary` | `crates/quantrule-shell/src/command/lab.rs:1-5` | The module doc is stale for `lab diagnose` and `lab list` | A update the module doc; B split the module per command | A | `cargo doc`; review the module header | Verified | [#285](https://github.com/quant-rule/quant-rule/issues/285) · [#304](https://github.com/quant-rule/quant-rule/pull/304) |
+| AUD-2026-10-31-40 | Minor | shell | `lab list` can panic on a non-ASCII `config_hash` | `crates/quantrule-shell/src/command/lab.rs:717`, `616-626` | A malformed lab folder panics the shell instead of returning an error | A `get(..12).unwrap_or(config_hash)`; B validate 16 hex characters; C typed error for a malformed lab | B | Multi-byte `config_hash` -> error, no panic | Verified | [#286](https://github.com/quant-rule/quant-rule/issues/286) · [#305](https://github.com/quant-rule/quant-rule/pull/305) |
 
 ## Detail
 
@@ -93,7 +93,7 @@ committed). The commands above are the reproducible evidence.
 - Verification: a shell test with an `oos/` report using the same
   `data_version` must produce `unknown`; a different `data_version` must
   produce `pass`. The existing `lab_summary` test is the model.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#280](https://github.com/quant-rule/quant-rule/issues/280) · [#294](https://github.com/quant-rule/quant-rule/pull/294).
 
 ### AUD-2026-10-31-32 — `data.long_gap` false pass without a 1m series
@@ -125,7 +125,7 @@ committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: a unit test with a `ModelRun` lacking 1m expects `unknown` and
   no `0.0` value; the triage action names the missing series.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#281](https://github.com/quant-rule/quant-rule/issues/281) · [#296](https://github.com/quant-rule/quant-rule/pull/296).
 
 ### AUD-2026-10-31-33 — Incomplete divergence direction guard
@@ -160,7 +160,7 @@ committed). The commands above are the reproducible evidence.
   `direction_code = i8::MAX` and calls `CrossTimeframeAggregates::compute`; the
   call returns without panicking and does not increment the divergence
   direction counts.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#282](https://github.com/quant-rule/quant-rule/issues/282) · [#297](https://github.com/quant-rule/quant-rule/pull/297).
 
 ### AUD-2026-10-31-34 — `identity.report_versions` passes with fewer than five
@@ -189,7 +189,7 @@ committed). The commands above are the reproducible evidence.
 - Recommendation: B.
 - Verification: a unit test with four versions expects `fail`; with the five
   expected names expects `pass`.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#287](https://github.com/quant-rule/quant-rule/issues/287) · [#299](https://github.com/quant-rule/quant-rule/pull/299).
 
 ### AUD-2026-10-31-35 — Zero-trade average hold is published as zero
@@ -216,7 +216,7 @@ committed). The commands above are the reproducible evidence.
 - Verification: a unit test with a zero-trade reason expects `None` in the
   struct, `null` in JSON, and an empty CSV cell; a reason with trades still
   emits the mean.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#289](https://github.com/quant-rule/quant-rule/issues/289) · [#301](https://github.com/quant-rule/quant-rule/pull/301).
 
 ### AUD-2026-10-31-36 — Manifest omits itself from the artifact table
@@ -247,7 +247,7 @@ committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: a test parses the manifest rows and asserts the name set equals
   the 17 files in the directory, including `manifest.txt`.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#288](https://github.com/quant-rule/quant-rule/issues/288) · [#300](https://github.com/quant-rule/quant-rule/pull/300).
 
 ### AUD-2026-10-31-37 — Enriched-trade MFE can be negative
@@ -284,7 +284,7 @@ committed). The commands above are the reproducible evidence.
   expects `mfe >= 0` under A; under B the contract and test assert the
   documented sign rule. Add a property test `mfe >= 0`, `mae <= 0` if A is
   chosen.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#290](https://github.com/quant-rule/quant-rule/issues/290) · [#302](https://github.com/quant-rule/quant-rule/pull/302).
 
 ### AUD-2026-10-31-38 — Daily entry fills exclude an open entry
@@ -312,7 +312,7 @@ committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: a unit test with one closed trade and one open entry on
   different days expects both fills counted on their fill days.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#291](https://github.com/quant-rule/quant-rule/issues/291) · [#303](https://github.com/quant-rule/quant-rule/pull/303).
 
 ### AUD-2026-10-31-39 — Stale `lab.rs` module documentation
@@ -335,7 +335,7 @@ committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: `cargo doc` builds; the module header names `lab summary`,
   `lab diagnose`, and `lab list`.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#285](https://github.com/quant-rule/quant-rule/issues/285) · [#304](https://github.com/quant-rule/quant-rule/pull/304).
 
 ### AUD-2026-10-31-40 — `lab list` panic on a non-ASCII `config_hash`
@@ -361,7 +361,7 @@ committed). The commands above are the reproducible evidence.
 - Recommendation: B, with A as a display defense.
 - Verification: a lab fixture with a multi-byte `config_hash` makes `lab list`
   return an error without panicking.
-- Status: `Fixed`.
+- Status: `Verified`.
 - Links: [#286](https://github.com/quant-rule/quant-rule/issues/286) · [#305](https://github.com/quant-rule/quant-rule/pull/305).
 
 ## Coverage and limitations
@@ -411,5 +411,7 @@ W1 (#280) by PR #294, W2 (#281) by PR #296, W3 (#282) by PR #297, W4a
 (#287) by PR #299, W4b (#288) by PR #300, W5a (#289) by PR #301, W5b
 (#290) by PR #302, W5c (#291) by PR #303, W6 (#285) by PR #304, and W7
 (#286) by PR #305; the audit, plan, and log are in PR #293. All ten findings
-are `Fixed`. The independent Improvement Verifier pass remains; the plan stays
-`Approved` until it is complete.
+were `Verified` by a sequential Improvement Verifier pass on 2026-10-31; the
+record is [`docs/reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md`](../../reports/2026-10-31/improvement-verification-remediation-diagnosis-v1.md).
+The plan stays `Approved` for the human: the W5 missing-value contract note and
+the AUD-23 verification-cell citation are still outstanding.
