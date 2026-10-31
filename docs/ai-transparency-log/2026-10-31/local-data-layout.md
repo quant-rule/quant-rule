@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential implementation and verification passes
 - Work item: none; human-approved local workspace change
 - Plan: [`docs/execution-plans/2026-10-31/local-data-layout.md`](../../execution-plans/2026-10-31/local-data-layout.md)
-- Status: Implementation and verification complete; commit and pull request await human authorization
+- Status: Committed as `509f6ed` and `43a5e29`; pull request [#271](https://github.com/quant-rule/quant-rule/pull/271) open
 
 ## Intent and boundary
 

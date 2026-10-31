@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Branch: `chore/local-data-layout`
-- Status: Approved
+- Status: Approved; implemented, verified, and open as [#271](https://github.com/quant-rule/quant-rule/pull/271)
 - Issue: none; human-approved work item
 - AI log: [`docs/ai-transparency-log/2026-10-31/local-data-layout.md`](../../ai-transparency-log/2026-10-31/local-data-layout.md)
 
@@ -108,7 +108,7 @@ Excluded:
 | Default commands | `store init`, `research export`, and `fetch` wrote into their subdirectories |
 | Local cleanup | 23 CSVs in `sources/`; eight directories at the `data/` root |
 
-Commit and pull request remain pending human authorization.
+Committed as `509f6ed` and `43a5e29`; pull request [#271](https://github.com/quant-rule/quant-rule/pull/271) open.
 
 ## Risks and recovery
 
