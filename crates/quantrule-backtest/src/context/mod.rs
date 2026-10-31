@@ -12,6 +12,7 @@
 
 use std::fmt;
 
+use quantrule_model::kernel::COMPACT_STATE_THRESHOLD;
 use quantrule_model::run::ModelRun;
 use quantrule_model::timeframe::{ModelBar, TimeframeModel};
 
@@ -258,7 +259,8 @@ impl LadderWeights {
     /// # Errors
     ///
     /// Returns [`LadderContextError`] when the vectors differ in length, are
-    /// empty, or contain a non-finite or non-positive value.
+    /// empty, contain a non-finite or non-positive value, or overflow the
+    /// finite range when summed per axis.
     pub fn new(
         direction: Vec<f64>,
         momentum: Vec<f64>,
@@ -283,6 +285,10 @@ impl LadderWeights {
                 if !value.is_finite() || *value <= 0.0 {
                     return Err(LadderContextError::InvalidWeight { axis, index });
                 }
+            }
+            let sum: f64 = values.iter().sum();
+            if !sum.is_finite() {
+                return Err(LadderContextError::InvalidWeightSum { axis });
             }
         }
         Ok(Self { weights })
@@ -366,6 +372,11 @@ pub enum LadderContextError {
         /// The number of weights.
         actual: usize,
     },
+    /// The weights for one axis overflow the finite range when summed.
+    InvalidWeightSum {
+        /// The axis index: 0 Direction, 1 Momentum, 2 Structure, 3 Progression.
+        axis: usize,
+    },
     /// The run does not contain the execution timeframe.
     MissingExecutionTimeframe {
         /// The missing timeframe in seconds.
@@ -408,6 +419,10 @@ impl fmt::Display for LadderContextError {
             Self::WeightCount { expected, actual } => write!(
                 formatter,
                 "the ladder has {expected} context timeframes but {actual} weights"
+            ),
+            Self::InvalidWeightSum { axis } => write!(
+                formatter,
+                "ladder weight axis {axis} must have a finite sum"
             ),
             Self::MissingExecutionTimeframe { timeframe_secs } => write!(
                 formatter,
@@ -709,10 +724,10 @@ impl AxisAccumulator {
         self.timeframes.push(timeframe_secs);
         self.weighted_sum += value * weight;
         self.weight_sum += weight;
-        if value > 0.1 {
+        if value > COMPACT_STATE_THRESHOLD {
             self.bullish_count += 1;
             self.bullish_weight += weight;
-        } else if value < -0.1 {
+        } else if value < -COMPACT_STATE_THRESHOLD {
             self.bearish_count += 1;
             self.bearish_weight += weight;
         } else {

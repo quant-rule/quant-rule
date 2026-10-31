@@ -68,7 +68,10 @@ The strategy layer builds an as-of `LadderContext` at each execution bar:
 - Structure and Progression use weighted shares and histograms; ordinal codes
   are never averaged.
 - Missing context is explicit and rejects by default.
-- Context bar indices, open times, and close times are recorded for audit.
+- Context bar indices, open times, and close times are recorded in the run's
+  in-memory context for the strategy decision. The strategy bundle does not
+  persist a separate context artifact; the decision and the strategy inputs are
+  the audit surface.
 
 The weights are strategy-owned, fixed before the run, and default equal. They
 express importance, not calibration.

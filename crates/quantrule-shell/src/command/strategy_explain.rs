@@ -154,6 +154,11 @@ pub(crate) fn run_strategy_explain(
         strategy.reward_to_risk()
     )
     .map_err(RunError::Output)?;
+    writeln!(
+        writer,
+        "diagnostics structure-score and context-kind literals are informational; the rule uses shares and conflict counts"
+    )
+    .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
 

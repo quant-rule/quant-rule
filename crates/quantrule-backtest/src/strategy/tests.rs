@@ -115,7 +115,11 @@ fn decide(
     context: &LadderContext,
     position: StrategyPosition,
 ) -> Decision {
-    strategy.decide(input, context, position)
+    let mut context = context.clone();
+    context.execution_timeframe_secs = input.timeframe_secs;
+    context.execution_bar_index = input.bar_index;
+    context.execution_open_time = input.open_time;
+    strategy.decide(input, &context, position)
 }
 
 #[test]
@@ -299,6 +303,76 @@ fn an_exit_on_context_lost_precedes_structure_lost() {
             bar: input,
             reason: ExitReason::ContextLost,
         })
+    );
+}
+
+#[test]
+fn a_missing_context_holds_an_open_position() {
+    let strategy = LadderContextStrategy::new(StrategyConfig::default());
+    let input = long_input(1).with_structure(Some(1), Some(0));
+    let context = context(
+        false,
+        axis(1.0, 0.0, AgreementCode::Bullish),
+        axis(0.5, 0.0, AgreementCode::Bullish),
+        0,
+        AgreementCode::Bullish,
+        0,
+    );
+
+    assert_eq!(
+        decide(
+            &strategy,
+            &input,
+            &context,
+            StrategyPosition::opened(Side::Long, 0)
+        ),
+        Decision::Hold
+    );
+}
+
+#[test]
+fn an_unavailable_context_share_holds_an_open_position() {
+    let strategy = LadderContextStrategy::new(StrategyConfig::default());
+    let input = long_input(1).with_structure(Some(1), Some(0));
+    let mut context = bullish_context();
+    context.direction.bullish_share = None;
+    context.direction.bearish_share = None;
+
+    assert_eq!(
+        decide(
+            &strategy,
+            &input,
+            &context,
+            StrategyPosition::opened(Side::Long, 0)
+        ),
+        Decision::Hold
+    );
+}
+
+#[test]
+fn a_context_from_another_bar_is_not_used() {
+    let strategy = LadderContextStrategy::new(StrategyConfig::default());
+    let input = long_input(1);
+    let context = bullish_context();
+
+    assert_eq!(
+        strategy.decide(&input, &context, StrategyPosition::flat()),
+        Decision::Hold
+    );
+}
+
+#[test]
+fn the_structure_score_does_not_change_the_decision() {
+    let strategy = LadderContextStrategy::new(StrategyConfig::default());
+    let input = long_input(0);
+    let mut first = bullish_context();
+    let mut second = bullish_context();
+    first.structure.score = axis(0.0, 0.0, AgreementCode::Mixed);
+    second.structure.score = axis(1.0, 0.0, AgreementCode::Bullish);
+
+    assert_eq!(
+        decide(&strategy, &input, &first, StrategyPosition::flat()),
+        decide(&strategy, &input, &second, StrategyPosition::flat())
     );
 }
 
