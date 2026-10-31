@@ -479,7 +479,7 @@ fn run_config_with(source: &str, structure_scale: &str) -> PathBuf {
         fs::remove_dir_all(&target).expect("the old config copy is removed");
     }
     fs::create_dir_all(&target).expect("the config copy directory is created");
-    let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../config/examples/solusd-2025");
+    let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../config/examples/btcusd-2024");
     for entry in fs::read_dir(&example).expect("the example config is readable") {
         let entry = entry.expect("the example entry is readable");
         if entry.path().is_file() {
@@ -493,6 +493,11 @@ fn run_config_with(source: &str, structure_scale: &str) -> PathBuf {
         serde_json::from_str(&fs::read_to_string(&data_path).expect("data.json is read"))
             .expect("data.json is JSON");
     data["source"]["path"] = Value::String(source.to_owned());
+    // The example period is BTCUSD 2024; this helper points the copied config
+    // at a synthetic source with its own dates, so the example bounds must not
+    // filter it away.
+    data["from"] = Value::Null;
+    data["to"] = Value::Null;
     fs::write(
         &data_path,
         serde_json::to_vec_pretty(&data).expect("data.json is written"),

@@ -51,7 +51,7 @@ cargo run -q -p quantrule-shell -- policy check \
 Observed output:
 
 ```text
-policy ok run=tutorial-state-fixture account=USD 10000 target=0.1 365d max_drawdown=0.2 risk=1 leverage=1 positions=1 tickets=SOLUSD timeframes=5m,15m strategy=ladder-context execution=5m ladder=5m,15m stop_atr=2 reward_to_risk=1.5
+policy ok run=tutorial-state-fixture account=USD 10000 target=0.1 365d max_drawdown=0.2 risk=1 leverage=1 positions=1 tickets=BTCUSD timeframes=5m,15m strategy=ladder-context execution=5m ladder=5m,15m stop_atr=2 reward_to_risk=1.5
 ```
 
 `policy check` reads no candles. It validates the policy, data, model,

@@ -49,30 +49,32 @@ works from anywhere. If you would rather not change your shell, call the binary
 by path instead: `./target/release/quantrule`.
 
 **4. Fetch the example data once.** The full-year example reads
-`data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv`, which is not committed:
+`data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv`, which is not committed:
 
 ```bash
-quantrule fetch sol/usd 2025-01-01 2025-12-31 \
-  --csv data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv
+quantrule fetch btc/usd 2024-01-01 2024-12-31 \
+  --csv data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv
 ```
 
-It downloads about 31 MB and takes a few minutes.
+It downloads about 34 MB and takes a few minutes. The captured run below uses a
+local 2024 slice of `BTCUSD_M1_2018-01-01_2024-12-31.csv`; a fresh fetch can
+differ if the provider's history has changed.
 
 **5. Verify with one full run.**
 
 ```bash
-test -f data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv && echo "data ready"
-lab=data/labs/lab-result-2026-10-31T03-45-00Z
-quantrule backtest --config config/examples/solusd-2025/run.json --out "$lab"
+test -f data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv && echo "data ready"
+lab=data/labs/lab-result-2026-10-31T14-15-00Z
+quantrule backtest --config config/examples/btcusd-2024/run.json --out "$lab" --diagnose
 quantrule lab summary "$lab" \
   --role researcher \
-  --data-version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31 \
-  --config config/examples/solusd-2025/run.json \
-  --created-utc 2026-10-31T03:45:00Z
+  --data-version dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31 \
+  --config config/examples/btcusd-2024/run.json \
+  --created-utc 2026-10-31T14:15:00Z
 ```
 
-The backtest prints five bundle paths under `$lab`; `lab summary` adds
-`$lab/summary.txt` for the whole folder. Replace the timestamp with the UTC
+The backtest prints the five bundle paths and the diagnosis path under `$lab`;
+`lab summary` adds `$lab/summary.txt` for the whole folder. Replace the timestamp with the UTC
 time of the run: a lab result folder uses `YYYY-MM-DDTHH-MM-SSZ`, and
 `--created-utc` uses `YYYY-MM-DDTHH:MM:SSZ`. The backtest takes about 20 seconds
 on a release build. When it does, the machine is set up.
@@ -112,8 +114,8 @@ QuantRule has three human-visible levels:
 Validate the envelope and render the strategy:
 
 ```bash
-cargo run -p quantrule-shell -- policy check --config config/examples/solusd-2025/run.json
-cargo run -p quantrule-shell -- strategy explain --config config/examples/solusd-2025/run.json
+cargo run -p quantrule-shell -- policy check --config config/examples/btcusd-2024/run.json
+cargo run -p quantrule-shell -- strategy explain --config config/examples/btcusd-2024/run.json
 ```
 
 The improvement loop is documented in
@@ -169,9 +171,9 @@ cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/char
 A full config-driven run, its five report bundles, and the root lab summary:
 
 ```bash
-cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/labs/lab-result-2026-10-31T03-45-00Z
-cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/reports/portfolio-report
-cargo run -p quantrule-shell -- lab summary data/labs/lab-result-2026-10-31T03-45-00Z --role researcher --data-version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31 --config config/examples/solusd-2025/run.json --created-utc 2026-10-31T03:45:00Z
+cargo run -p quantrule-shell -- backtest --config config/examples/btcusd-2024/run.json --out data/labs/lab-result-2026-10-31T14-15-00Z --diagnose
+cargo run -p quantrule-shell -- report portfolio --config config/examples/btcusd-2024/run.json --out data/reports/portfolio-report
+cargo run -p quantrule-shell -- lab summary data/labs/lab-result-2026-10-31T14-15-00Z --role researcher --data-version dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31 --config config/examples/btcusd-2024/run.json --created-utc 2026-10-31T14:15:00Z
 ```
 
 ## Commands
@@ -443,26 +445,28 @@ The model is computed once per run. The analytical bundle summarizes that model 
 A fresh checkout has no source data, because `data/sources/` is not committed. The example run needs its M1 file first:
 
 ```bash
-cargo run -p quantrule-shell -- fetch sol/usd 2025-01-01 2025-12-31 --csv data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv
-cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/labs/lab-result-2026-10-31T03-45-00Z
+cargo run -p quantrule-shell -- fetch btc/usd 2024-01-01 2024-12-31 --csv data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv
+cargo run -p quantrule-shell -- backtest --config config/examples/btcusd-2024/run.json --out data/labs/lab-result-2026-10-31T14-15-00Z --diagnose
 ```
 
-Without `--json`, the command prints the five bundle paths in contract order:
+Without `--json`, the command prints the five bundle paths in contract order,
+then the diagnosis path:
 
 ```text
-data/labs/lab-result-2026-10-31T03-45-00Z/model
-data/labs/lab-result-2026-10-31T03-45-00Z/strategy
-data/labs/lab-result-2026-10-31T03-45-00Z/execution
-data/labs/lab-result-2026-10-31T03-45-00Z/portfolio
-data/labs/lab-result-2026-10-31T03-45-00Z/analytical
+data/labs/lab-result-2026-10-31T14-15-00Z/model
+data/labs/lab-result-2026-10-31T14-15-00Z/strategy
+data/labs/lab-result-2026-10-31T14-15-00Z/execution
+data/labs/lab-result-2026-10-31T14-15-00Z/portfolio
+data/labs/lab-result-2026-10-31T14-15-00Z/analytical
+data/labs/lab-result-2026-10-31T14-15-00Z/diagnosis
 ```
 
-The envelope below is historical: it is the retired 15m `axis-agreement` run, not the current 5m `ladder-context` example.
+The envelope below is the current 5m `ladder-context` example run.
 
 `--json` prints one envelope instead:
 
 ```json
-{"actual_period":{"first_open_time":1735740300,"last_open_time":1767192600},"bundles":{"analytical":"data/labs/lab-result-2026-10-31T03-45-00Z/analytical","execution":"data/labs/lab-result-2026-10-31T03-45-00Z/execution","model":"data/labs/lab-result-2026-10-31T03-45-00Z/model","portfolio":"data/labs/lab-result-2026-10-31T03-45-00Z/portfolio","strategy":"data/labs/lab-result-2026-10-31T03-45-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","diagnosis":null,"diagnosis_artifacts":null,"model_version":"0.3.0","portfolio":{"final_equity":8010.411285462277,"halted":true,"max_drawdown":0.2005418002304158,"net_pnl":-1989.5887145376817,"total_return":-0.19895887145377233,"trades":100},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
+{"actual_period":{"first_open_time":1704143700,"last_open_time":1735656600},"bundles":{"analytical":"data/labs/lab-result-2026-10-31T14-15-00Z/analytical","execution":"data/labs/lab-result-2026-10-31T14-15-00Z/execution","model":"data/labs/lab-result-2026-10-31T14-15-00Z/model","portfolio":"data/labs/lab-result-2026-10-31T14-15-00Z/portfolio","strategy":"data/labs/lab-result-2026-10-31T14-15-00Z/strategy"},"data_version":"dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31","diagnosis":"data/labs/lab-result-2026-10-31T14-15-00Z/diagnosis","diagnosis_artifacts":["summary.txt","checks.csv","funnel.csv","data-quality.csv","model-health.csv","strategy-funnel.csv","strategy-exit-reasons.csv","execution-rejections.csv","portfolio-monthly.csv","trades_enriched.csv","00-run-scorecard.png","10-data-quality.png","30-strategy-funnel.png","40-execution-quality.png","50-portfolio-attribution.png","manifest.txt","diagnosis.json"],"model_version":"0.3.0","portfolio":{"final_equity":8035.586146102877,"halted":true,"max_drawdown":0.20217986431634316,"net_pnl":-1964.4138538971251,"total_return":-0.19644138538971223,"trades":117},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2024-01-01","to":"2024-12-31"}}
 ```
 
 | Field | Meaning |
@@ -474,14 +478,17 @@ The envelope below is historical: it is the retired 15m `axis-agreement` run, no
 | `portfolio` | Final equity, total return, net P&L, maximum drawdown, trade count, and the halt flag |
 | `model_version`, `report_version` | The versions that produced the run |
 
-The values above are the SOLUSD 2025 example run captured on 2026-10-31 with
-`data_version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31`. They describe that
-run; re-run the command to reproduce them.
+The values above are the BTCUSD 2024 example run captured on 2026-10-31 with
+`data_version dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31`. They describe that
+run; re-run the command to reproduce them. The run halts at the configured 20%
+drawdown limit, so the final equity is after the halt, not a full-period result.
+The source covers the strategy timeframe from 2024-01-01T21:15:00Z to
+2024-12-31T14:50:00Z; the actual period is recorded, not fabricated.
 
 `first_open_time` and `last_open_time` are the strategy timeframe's first and last open times. The run is deterministic: the same inputs and configuration produce byte-identical bundles and the same envelope, interactively or non-interactively. A single report writes only its own directory:
 
 ```bash
-cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/reports/portfolio-report
+cargo run -p quantrule-shell -- report portfolio --config config/examples/btcusd-2024/run.json --out data/reports/portfolio-report
 ```
 
 ### Lab result summary
