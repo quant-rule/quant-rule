@@ -386,6 +386,33 @@ fn event_counts_use_the_five_bar_window() {
 }
 
 #[test]
+fn out_of_range_divergence_directions_do_not_panic_or_count() {
+    let mut first = snapshot(60);
+    first.events = vec![event(EventType::Divergence, 1, i8::MAX, 100, 100)];
+    let mut second = snapshot(300);
+    second.events = vec![event(EventType::Divergence, 1, i8::MIN, 100, 100)];
+    let mut third = snapshot(900);
+    third.events = vec![event(EventType::Divergence, 1, 2, 100, 100)];
+    let mut fourth = snapshot(1800);
+    fourth.events = vec![event(EventType::Divergence, 1, -1, 100, 100)];
+    let mut fifth = snapshot(3600);
+    fifth.events = vec![event(EventType::Divergence, 1, 0, 100, 100)];
+    let mut sixth = snapshot(7200);
+    sixth.events = vec![event(EventType::Divergence, 1, 1, 100, 100)];
+
+    let aggregates =
+        CrossTimeframeAggregates::compute(&[first, second, third, fourth, fifth, sixth]);
+    let events = aggregates.events;
+
+    assert_eq!(events.divergence_timeframe_count, 6);
+    assert_eq!(events.divergence_count_by_subtype, [6, 0, 0, 0]);
+    let share = events
+        .divergence_direction_agreement_share
+        .expect("the valid directions produce a share");
+    assert!((share - 1.0 / 3.0).abs() <= 1e-12);
+}
+
+#[test]
 fn the_event_window_is_exactly_five_bars() {
     assert_eq!(EVENT_WINDOW_BARS, 5);
     let mut first = snapshot(300);

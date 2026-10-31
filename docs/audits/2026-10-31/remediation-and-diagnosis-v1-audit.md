@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-remediation-diagnosis-v1
-- Status: Published (PR #293); findings `Planned` (W1, W2 `Fixed`); remediation plan `Approved` and issue tree created
+- Status: Published (PR #293); findings `Planned` (W1, W2, W3 `Fixed`); remediation plan `Approved` and issue tree created
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `7c865de` (merge of PR #246; last audited state)
 - Head: `main` at `c8b1dc1` (merge of PR #279)
@@ -49,7 +49,7 @@ committed). The commands above are the reproducible evidence.
 |---|---|---|---|---|---|---|---|---|---|---|
 | AUD-2026-10-31-31 | Major | shell/analytics | `evidence.out_of_sample` passes on file existence, not a different data version | `crates/quantrule-shell/src/diagnosis.rs:545-551`; `crates/quantrule-analytics/src/diagnosis/compute.rs:1248-1263`; `docs/reports/2026-10-31/diagnosis-v1.md:99` | A same-data `oos/` folder is reported as OOS evidence; the human may treat in-sample results as OOS-validated | A compare `data_version`; B require a valid OOS report and period; C make it `unknown` unless a distinct OOS version is declared | A | Same-version `oos/` -> `unknown`; different version -> `pass` | Fixed | [#280](https://github.com/quant-rule/quant-rule/issues/280) · [#294](https://github.com/quant-rule/quant-rule/pull/294) |
 | AUD-2026-10-31-32 | Minor | analytics | `data.long_gap` passes with `0.0` when the 1m series is absent | `compute.rs:145`, `983-1011`; `docs/reports/2026-10-31/diagnosis-v1.md:81,88` | A missing measurement is published as a passing zero | A `None` -> `Unknown`; B require a 1m series at config load; C measure the fastest available timeframe and label it | A | A run without 1m -> `unknown`, no `0.0` value | Fixed | [#281](https://github.com/quant-rule/quant-rule/issues/281) · [#296](https://github.com/quant-rule/quant-rule/pull/296) |
-| AUD-2026-10-31-33 | Minor | model/aggregate | Divergence direction guard still overflows for `i8::MAX` | `crates/quantrule-model/src/aggregate/events.rs:131`; `crates/quantrule-model/src/events/mod.rs:76` | Public `CrossTimeframeAggregates::compute` panics in debug on a malformed public `direction_code`; the prior audit's claimed test is absent | A `checked_add(1)`; B explicit `-1..=1` match; C validated newtype | A | Debug test with `direction_code = i8::MAX` does not panic | Planned | [#282](https://github.com/quant-rule/quant-rule/issues/282) |
+| AUD-2026-10-31-33 | Minor | model/aggregate | Divergence direction guard still overflows for `i8::MAX` | `crates/quantrule-model/src/aggregate/events.rs:131`; `crates/quantrule-model/src/events/mod.rs:76` | Public `CrossTimeframeAggregates::compute` panics in debug on a malformed public `direction_code`; the prior audit's claimed test is absent | A `checked_add(1)`; B explicit `-1..=1` match; C validated newtype | A | Debug test with `direction_code = i8::MAX` does not panic | Fixed | [#282](https://github.com/quant-rule/quant-rule/issues/282) · [#297](https://github.com/quant-rule/quant-rule/pull/297) |
 | AUD-2026-10-31-34 | Minor | analytics | `identity.report_versions` passes with fewer than five versions | `compute.rs:917-936`; `docs/reports/2026-10-31/diagnosis-v1.md:85` | A lab missing bundle versions passes a check that claims all five are recorded | A require `len() == 5`; B require the five expected bundle names; C fail on any missing version | B | Four versions -> `fail`; five -> `pass` | Planned | [#287](https://github.com/quant-rule/quant-rule/issues/287) |
 | AUD-2026-10-31-35 | Minor | analytics | `average_hold_bars` is `0.0` for an exit reason with no trades | `compute.rs:500-504`; `crates/quantrule-analytics/src/diagnosis/types.rs:288` | A missing measurement is published as a valid zero | A `Option<f64>` and null; B NaN; C omit the row | A | Zero-trade reason -> `None` in the struct, `null` in JSON, empty CSV | Planned | [#289](https://github.com/quant-rule/quant-rule/issues/289) |
 | AUD-2026-10-31-36 | Minor | shell | `manifest.txt` omits itself from the artifact table | `crates/quantrule-shell/src/diagnosis.rs:878-897`; observed `target/report-tests/diagnosis-command/diagnosis/manifest.txt` | The manifest cannot be used to verify the complete artifact set | A add the `manifest.txt` row; B change the header to "16 listed + this manifest"; C drop the count | A | Manifest row set equals the 17 files in the directory | Planned | [#288](https://github.com/quant-rule/quant-rule/issues/288) |
@@ -160,8 +160,8 @@ committed). The commands above are the reproducible evidence.
   `direction_code = i8::MAX` and calls `CrossTimeframeAggregates::compute`; the
   call returns without panicking and does not increment the divergence
   direction counts.
-- Status: `Planned`.
-- Links: [#282](https://github.com/quant-rule/quant-rule/issues/282).
+- Status: `Fixed`.
+- Links: [#282](https://github.com/quant-rule/quant-rule/issues/282) · [#297](https://github.com/quant-rule/quant-rule/pull/297).
 
 ### AUD-2026-10-31-34 — `identity.report_versions` passes with fewer than five
 
@@ -406,6 +406,7 @@ committed). The commands above are the reproducible evidence.
 ## Next step
 
 The plan is approved and the issue tree is created: W1–W7 are #280–#286,
-and the W4 and W5 sub-issues are #287–#291. W1 (#280) is `Fixed` by PR #294 and
-W2 (#281) by PR #296; the audit, plan, and log are in PR #293. The remaining
-findings are `Planned` and move to `Fixed` when their pull requests exist.
+and the W4 and W5 sub-issues are #287–#291. W1 (#280) is `Fixed` by PR #294,
+W2 (#281) by PR #296, and W3 (#282) by PR #297; the audit, plan, and log are in
+PR #293. The remaining findings are `Planned` and move to `Fixed` when their
+pull requests exist.
