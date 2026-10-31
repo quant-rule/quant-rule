@@ -230,9 +230,9 @@ Issue: [#282](https://github.com/quant-rule/quant-rule/issues/282) — **Guard t
   name set equals the 17 `ARTIFACTS` names and every declared byte length
   equals the file's length.
 - No Quant Validator record: artifact completeness, not measurement semantics.
-- Implementation evidence (#287, PR #299): the five-bundle requirement and its
-  tests are implemented on `fix/287-report-versions`; gates pass (1510 tests).
-  #288 remains open for the manifest.
+- Implementation evidence (#287, PR #299; #288, PR #300): the five-bundle
+  requirement and the manifest self-row are implemented on
+  `fix/287-report-versions` and `fix/288-manifest-row`; gates pass (1511 tests).
 - Paths: `crates/quantrule-analytics/src/diagnosis/compute.rs`,
   `crates/quantrule-shell/src/diagnosis.rs`,
   `crates/quantrule-shell/tests/diagnosis.rs`,
