@@ -114,7 +114,11 @@ fn draw_gap_histogram(canvas: &mut Canvas, diagnosis: &Diagnosis) {
 
 fn draw_gaps(canvas: &mut Canvas, diagnosis: &Diagnosis) {
     panel(canvas, 648, 306, 600, 206, "Longest 1m gaps");
-    let mut gaps = diagnosis.data_quality.raw_gaps.iter().collect::<Vec<_>>();
+    let Some(gaps) = diagnosis.data_quality.raw_gaps.as_deref() else {
+        empty(canvas, 660, 340, "no 1m series");
+        return;
+    };
+    let mut gaps = gaps.iter().collect::<Vec<_>>();
     gaps.sort_by(|left, right| {
         right
             .missing_bars
@@ -150,20 +154,20 @@ fn draw_gaps(canvas: &mut Canvas, diagnosis: &Diagnosis) {
 
 fn draw_summary(canvas: &mut Canvas, diagnosis: &Diagnosis) {
     panel(canvas, MARGIN, 524, 1_216, 138, "Summary");
-    let longest = diagnosis
-        .data_quality
-        .raw_gaps
-        .iter()
-        .map(|gap| gap.missing_bars)
-        .max()
-        .unwrap_or(0);
+    let gap_text = match diagnosis.data_quality.raw_gaps.as_deref() {
+        Some(gaps) => format!(
+            "raw 1m gaps {} | longest {} minutes",
+            gaps.len(),
+            gaps.iter().map(|gap| gap.missing_bars).max().unwrap_or(0)
+        ),
+        None => String::from("raw 1m gaps unavailable | no 1m series"),
+    };
     canvas.text(
         MARGIN + 12,
         552,
         &format!(
-            "raw 1m gaps {} | longest {} minutes | timeframes {}",
-            diagnosis.data_quality.raw_gaps.len(),
-            longest,
+            "{} | timeframes {}",
+            gap_text,
             diagnosis.data_quality.timeframes.len()
         ),
         crate::chart::TEXT,

@@ -660,11 +660,11 @@ fn data_value(diagnosis: &Diagnosis) -> Value {
             "first_time": timeframe.first_time,
             "last_time": timeframe.last_time,
         })).collect::<Vec<_>>(),
-        "raw_gaps": diagnosis.data_quality.raw_gaps.iter().map(|gap| json!({
+        "raw_gaps": diagnosis.data_quality.raw_gaps.as_ref().map(|gaps| gaps.iter().map(|gap| json!({
             "start": gap.start,
             "end": gap.end,
             "missing_bars": gap.missing_bars,
-        })).collect::<Vec<_>>(),
+        })).collect::<Vec<_>>()),
         "gap_histogram": diagnosis.data_quality.gap_histogram.iter().map(|bucket| json!({
             "label": bucket.label,
             "count": bucket.count,

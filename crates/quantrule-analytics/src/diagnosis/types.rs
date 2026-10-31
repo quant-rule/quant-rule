@@ -208,8 +208,8 @@ pub struct GapBucket {
 pub struct DataQuality {
     /// One entry per timeframe, fastest first.
     pub timeframes: Vec<TimeframeQuality>,
-    /// Every 1m gap, oldest first.
-    pub raw_gaps: Vec<Gap>,
+    /// Every 1m gap, oldest first; `None` when the run has no 1m series.
+    pub raw_gaps: Option<Vec<Gap>>,
     /// The gap-length histogram, shortest bucket first.
     pub gap_histogram: Vec<GapBucket>,
 }
