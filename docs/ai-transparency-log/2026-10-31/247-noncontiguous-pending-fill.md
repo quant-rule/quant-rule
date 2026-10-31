@@ -18,8 +18,9 @@ The change stays inside the execution and runner boundary: it adds an explicit
 contiguity input to `ExecutionEngine::advance`, rejects a pending market order
 when the next bar is not contiguous, and records the rejection. It does not
 change the strategy rule, the model, the portfolio, or any threshold. It does
-not add a dependency or `unsafe` code. No commit, push, or pull request was made;
-those remain separate Git approval gates.
+not add a dependency or `unsafe` code. The human authorized commits and PRs on
+2026-10-31. The work was committed as `7d29dcc`, pushed to
+`fix/247-noncontiguous-pending-fill`, and opened as PR #257; it is not merged.
 
 ## Implemented
 
@@ -52,6 +53,7 @@ those remain separate Git approval gates.
 | `cargo test --workspace` | 45 test-result-ok suites, 0 failures |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` | Passed |
 | `git diff --check` | Clean |
+| Commit and PR | `7d29dcc`; PR #257; not merged |
 
 The fail-before run is the regression guard evidence. It temporarily replaced
 the `if contiguous` branch with `if true` while keeping the new signature; the

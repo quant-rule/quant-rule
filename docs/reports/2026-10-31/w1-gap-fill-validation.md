@@ -6,6 +6,7 @@
 - Plan: `docs/execution-plans/2026-10-31/audit-unified-ladder.md` (W1)
 - Validator: Quant Validator (AI), sequential read-only pass
 - Baseline: `main` at `7c865de`; fixed branch `fix/247-noncontiguous-pending-fill`
+- Commit: `7d29dcc`; PR: #257
 - Claim type: program correctness fix; no edge claim
 
 ## Scope
