@@ -19,7 +19,7 @@ use super::types::{
     AxisHealth, Check, CheckCounts, CheckStatus, ContextBucket, CostStep, DataQuality, Diagnosis,
     DiagnosisInput, EnrichedTrade, EventCounts, ExecutionDiagnosis, ExitReasonStats, Funnel,
     FunnelPoint, Gap, GapBucket, HoldBucket, LatencyBucket, ModelHealth, MonthlyReturnFacts,
-    PortfolioDiagnosis, StrategyDiagnosis, TimeframeQuality,
+    OutOfSampleStatus, PortfolioDiagnosis, StrategyDiagnosis, TimeframeQuality,
 };
 
 /// The fixed exit-reason order.
@@ -1245,21 +1245,31 @@ fn checks(
         ),
     });
 
+    let (out_of_sample_status, out_of_sample_evidence) = match input.out_of_sample {
+        OutOfSampleStatus::DistinctDataVersion => (
+            CheckStatus::Pass,
+            "an out-of-sample lab with a different data version is recorded",
+        ),
+        OutOfSampleStatus::SameDataVersion => (
+            CheckStatus::Unknown,
+            "in-sample only; the oos/ lab uses the same data version",
+        ),
+        OutOfSampleStatus::Unreadable => (
+            CheckStatus::Unknown,
+            "in-sample only; the oos/ report cannot be read",
+        ),
+        OutOfSampleStatus::Absent => (
+            CheckStatus::Unknown,
+            "in-sample only; no out-of-sample lab is recorded",
+        ),
+    };
     checks.push(check(
         "evidence.out_of_sample",
-        if input.out_of_sample {
-            CheckStatus::Pass
-        } else {
-            CheckStatus::Unknown
-        },
+        out_of_sample_status,
         None,
         "",
         Some(String::from("out-of-sample lab recorded")),
-        if input.out_of_sample {
-            String::from("an out-of-sample lab is recorded")
-        } else {
-            String::from("in-sample only; no out-of-sample lab is recorded")
-        },
+        String::from(out_of_sample_evidence),
     ));
     checks.push(check(
         "evidence.rerun",

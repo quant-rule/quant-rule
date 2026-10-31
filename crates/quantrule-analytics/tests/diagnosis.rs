@@ -3,7 +3,8 @@
 use quantrule_analytics::diagnosis::diagnose;
 use quantrule_analytics::diagnosis::text;
 use quantrule_analytics::diagnosis::types::{
-    DiagnosisIdentity, DiagnosisInput, EquityFacts, MetricsFacts, StrategyFacts,
+    CheckStatus, DiagnosisIdentity, DiagnosisInput, EquityFacts, MetricsFacts, OutOfSampleStatus,
+    StrategyFacts,
 };
 use quantrule_data::Candle;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
@@ -113,7 +114,7 @@ impl Fixture {
                 context_late_or_terminal_bars: 0,
             },
             entry_contexts: Vec::new(),
-            out_of_sample: false,
+            out_of_sample: OutOfSampleStatus::Absent,
             rerun_verified: false,
             instrument_count: 1,
         }
@@ -145,6 +146,50 @@ fn check_counts_always_sum_to_the_check_total() {
         counts.pass + counts.fail + counts.unknown,
         diagnosis.checks.len()
     );
+}
+
+#[test]
+fn out_of_sample_evidence_requires_a_distinct_data_version() {
+    let fixture = Fixture::new(80);
+    let cases = [
+        (
+            OutOfSampleStatus::Absent,
+            CheckStatus::Unknown,
+            "no out-of-sample lab",
+        ),
+        (
+            OutOfSampleStatus::Unreadable,
+            CheckStatus::Unknown,
+            "cannot be read",
+        ),
+        (
+            OutOfSampleStatus::SameDataVersion,
+            CheckStatus::Unknown,
+            "same data version",
+        ),
+        (
+            OutOfSampleStatus::DistinctDataVersion,
+            CheckStatus::Pass,
+            "different data version",
+        ),
+    ];
+    for (status, expected, evidence) in cases {
+        let mut input = fixture.input();
+        input.out_of_sample = status;
+        let diagnosis = diagnose(&input);
+        let check = diagnosis
+            .checks
+            .iter()
+            .find(|check| check.id == "evidence.out_of_sample")
+            .expect("the out-of-sample check exists");
+        assert_eq!(check.status, expected, "{status:?}");
+        assert!(
+            check.evidence.contains(evidence),
+            "{status:?}: {}",
+            check.evidence
+        );
+        assert_eq!(check.value, None, "{status:?}");
+    }
 }
 
 #[test]

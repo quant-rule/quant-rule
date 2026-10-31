@@ -11,11 +11,13 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+use quantrule_analytics::diagnosis::types::OutOfSampleStatus;
 use quantrule_data::format_utc_timestamp;
 use serde_json::Value;
 
 use crate::config::{ConfigError, RunConfig};
 use crate::export::{ExportError, write_atomic};
+use crate::lab_evidence;
 use crate::labels;
 
 /// The five report bundles, in contract order.
@@ -522,13 +524,21 @@ fn write_checks(
         "  [{}] report versions present ({version_count}/5)",
         check_mark(version_count == 5)
     )?;
-    match out_of_sample(lab_dir) {
-        Some(true) => writeln!(out, "  [x] out-of-sample evidence (oos/)")?,
-        Some(false) => writeln!(
+    match lab_evidence::out_of_sample(lab_dir) {
+        OutOfSampleStatus::DistinctDataVersion => {
+            writeln!(out, "  [x] out-of-sample evidence (oos/)")?;
+        }
+        OutOfSampleStatus::SameDataVersion => writeln!(
             out,
             "  [ ] out-of-sample evidence (oos/ uses the same data version)"
         )?,
-        None => writeln!(out, "  [ ] out-of-sample evidence (no oos/ lab)")?,
+        OutOfSampleStatus::Unreadable => writeln!(
+            out,
+            "  [ ] out-of-sample evidence (oos/ report is unreadable)"
+        )?,
+        OutOfSampleStatus::Absent => {
+            writeln!(out, "  [ ] out-of-sample evidence (no oos/ lab)")?;
+        }
     }
     match rerun(lab_dir) {
         Some(true) => writeln!(out, "  [x] independent rerun (rerun/ matches)")?,
@@ -537,15 +547,6 @@ fn write_checks(
     }
     writeln!(out)?;
     Ok(())
-}
-
-fn out_of_sample(lab_dir: &Path) -> Option<bool> {
-    let path = lab_dir.join("oos").join("portfolio").join("report.json");
-    let report = read_json(&path).ok()?;
-    let main = read_json(&lab_dir.join("portfolio").join("report.json")).ok()?;
-    let oos_version = report.get("data_version").and_then(Value::as_str)?;
-    let main_version = main.get("data_version").and_then(Value::as_str)?;
-    Some(oos_version != main_version)
 }
 
 fn rerun(lab_dir: &Path) -> Option<bool> {

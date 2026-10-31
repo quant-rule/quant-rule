@@ -292,6 +292,15 @@ fn out_of_sample_and_rerun_evidence_are_checked() {
     copy_directory(&directory.join("portfolio"), &oos.join("portfolio"));
     copy_directory(&directory.join("portfolio"), &rerun.join("portfolio"));
 
+    // A copied report keeps the main data version, so it is not evidence.
+    let output = run(&arguments(&directory));
+
+    assert_success(&output);
+    let text = String::from_utf8(summary(&directory)).expect("the summary is UTF-8");
+    assert!(text.contains("[ ] out-of-sample evidence (oos/ uses the same data version)"));
+    assert!(text.contains("[x] independent rerun (rerun/ matches)"));
+
+    // A distinct data version is evidence, and the second write needs --force.
     let oos_report = oos.join("portfolio/report.json");
     let text = fs::read_to_string(&oos_report).expect("the oos report is readable");
     let mut value: serde_json::Value =
@@ -303,7 +312,9 @@ fn out_of_sample_and_rerun_evidence_are_checked() {
     )
     .expect("the oos report is rewritten");
 
-    let output = run(&arguments(&directory));
+    let mut arguments = arguments(&directory);
+    arguments.push(String::from("--force"));
+    let output = run(&arguments);
 
     assert_success(&output);
     let text = String::from_utf8(summary(&directory)).expect("the summary is UTF-8");

@@ -13,8 +13,8 @@ use std::path::{Path, PathBuf};
 use quantrule_analytics::diagnosis::text;
 use quantrule_analytics::diagnosis::types::{
     Diagnosis, DiagnosisIdentity, DiagnosisInput, EntryContextFacts, EquityFacts, FillFacts,
-    MetricsFacts, OrderFacts, RejectionFacts, ReportVersion, RiskEventFacts, StrategyFacts,
-    TradeFacts,
+    MetricsFacts, OrderFacts, OutOfSampleStatus, RejectionFacts, ReportVersion, RiskEventFacts,
+    StrategyFacts, TradeFacts,
 };
 use quantrule_backtest::execution::{
     Fill, FillReason, OrderRecord, OrderState, RejectReason, Rejection,
@@ -28,6 +28,7 @@ use serde_json::{Value, json};
 use crate::command::RunError;
 use crate::config::RunConfig;
 use crate::export::write_atomic;
+use crate::lab_evidence;
 use crate::render_report;
 
 /// The diagnosis artifact names, in contract order.
@@ -172,7 +173,7 @@ fn project<'a>(
             },
         )
         .collect();
-    let out_of_sample = lab_dir.is_some_and(has_out_of_sample);
+    let out_of_sample = lab_dir.map_or(OutOfSampleStatus::Absent, lab_evidence::out_of_sample);
     let rerun_verified = lab_dir.is_some_and(rerun_matches);
 
     Ok(DiagnosisInput {
@@ -540,14 +541,6 @@ fn reject_reason_code(reason: RejectReason) -> &'static str {
         RejectReason::NonPositiveQuantity => "non_positive_quantity",
         RejectReason::RiskLimit => "risk_limit",
     }
-}
-
-fn has_out_of_sample(lab_dir: &Path) -> bool {
-    lab_dir
-        .join("oos")
-        .join("portfolio")
-        .join("report.json")
-        .is_file()
 }
 
 fn rerun_matches(lab_dir: &Path) -> bool {
