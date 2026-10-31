@@ -19,7 +19,9 @@ slippage behavior is documented rather than expanded.
 The change stays inside the context builder, the ladder strategy, the strategy
 contract/explain output, and their tests. It does not change the entry or exit
 hypothesis, the model formulas, execution, or portfolio accounting. It does not
-add a dependency or `unsafe` code.
+add a dependency or `unsafe` code. The human authorized commits and PRs; the work
+was committed as `4e2b357` and pushed to `fix/250-context-contract`. The
+validator record is `docs/reports/2026-10-31/w4-context-contract-validation.md`.
 
 ## Implemented
 
