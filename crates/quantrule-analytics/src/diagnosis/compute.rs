@@ -590,8 +590,13 @@ fn funnel_series(input: &DiagnosisInput<'_>) -> Vec<FunnelPoint> {
         *attempts.entry(day).or_default() += 1;
     }
     let mut fills: BTreeMap<i64, usize> = BTreeMap::new();
-    for trade in &input.trades {
-        let day = trade.entry_time.div_euclid(86_400) * 86_400;
+    for fill in &input.fills {
+        if fill.reason != "entry" {
+            continue;
+        }
+        // An entry still open at run end is not a closed trade, so the daily
+        // series must read the fills rather than the trade list.
+        let day = fill.time.div_euclid(86_400) * 86_400;
         *fills.entry(day).or_default() += 1;
     }
     let mut points = Vec::new();

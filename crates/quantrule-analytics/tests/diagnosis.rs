@@ -3,8 +3,8 @@
 use quantrule_analytics::diagnosis::diagnose;
 use quantrule_analytics::diagnosis::text;
 use quantrule_analytics::diagnosis::types::{
-    CheckStatus, DiagnosisIdentity, DiagnosisInput, EquityFacts, MetricsFacts, OutOfSampleStatus,
-    ReportVersion, StrategyFacts, TradeFacts,
+    CheckStatus, DiagnosisIdentity, DiagnosisInput, EquityFacts, FillFacts, MetricsFacts,
+    OutOfSampleStatus, ReportVersion, StrategyFacts, TradeFacts,
 };
 use quantrule_data::Candle;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
@@ -407,6 +407,43 @@ fn an_in_range_fill_keeps_its_measured_excursions() {
     assert_eq!(enriched.mae, Some(-1.0));
     assert_eq!(enriched.max_favorable_price, Some(111.0));
     assert_eq!(enriched.max_adverse_price, Some(109.0));
+}
+
+fn fill(time: i64, reason: &str) -> FillFacts {
+    FillFacts {
+        side: 1,
+        quantity: 1.0,
+        price: 100.0,
+        reference_price: 100.0,
+        fee: 0.0,
+        slippage: 0.0,
+        bar: 10,
+        time,
+        reason: reason.to_owned(),
+    }
+}
+
+#[test]
+fn the_daily_funnel_counts_open_entry_fills() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    let closed = trade("stop", 4, 100.0);
+    let entry_time = closed.entry_time;
+    let next_day = entry_time + 86_400;
+    input.trades = vec![closed];
+    input.fills = vec![
+        fill(entry_time, "entry"),
+        fill(next_day, "entry"),
+        fill(next_day + 300, "exit"),
+    ];
+    let diagnosis = diagnose(&input);
+    let series = &diagnosis.strategy.funnel_series;
+    let daily: usize = series.iter().map(|point| point.entry_fills).sum();
+    assert_eq!(daily, 2);
+    assert_eq!(daily, diagnosis.funnel.entry_fills);
+    assert!(series.iter().any(|point| {
+        point.time == next_day.div_euclid(86_400) * 86_400 && point.entry_fills == 1
+    }));
 }
 
 #[test]

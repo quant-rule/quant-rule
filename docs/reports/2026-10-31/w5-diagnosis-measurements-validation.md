@@ -1,7 +1,7 @@
 # W5 — Diagnosis Measurement Semantics Validation
 
 - Date: 2026-10-31 (UTC)
-- Issue: #289–#290 (of #289–#291)
+- Issue: #289–#291
 - Findings: AUD-2026-10-31-35, -37, -38
 - Plan: `docs/execution-plans/2026-10-31/audit-remediation-diagnosis-v1.md` (W5)
 - Validator: Quant Validator role, sequential pass by the implementation agent (not independent)
@@ -13,7 +13,7 @@
 |---|---|---|
 | #289 | 35 — zero-trade average hold | Validated here |
 | #290 | 37 — MFE/MAE sign | Validated here |
-| #291 | 38 — daily open entry fills | Pending |
+| #291 | 38 — daily open entry fills | Validated here |
 
 ## Claim for #289
 
@@ -25,8 +25,8 @@ with trades still publishes its mean hold.
 
 | Command | Observed |
 |---|---|
-| `cargo test -p quantrule-analytics --test diagnosis` | 12 passed, 0 failed |
-| `cargo test --workspace` | 1516 passed, 0 failed, 7 ignored |
+| `cargo test -p quantrule-analytics --test diagnosis` | 13 passed, 0 failed |
+| `cargo test --workspace` | 1517 passed, 0 failed, 7 ignored |
 | `cargo clippy --all-targets -- -D warnings` | exit 0 |
 | `cargo fmt --all -- --check` | exit 0 |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` | exit 0 |
@@ -65,6 +65,20 @@ are unchanged; only the excursions are clamped (D7=A).
 The old formula yielded `-1` MFE in the first two cases; the new assertion would
 fail against it. The fix is the clamp in `excursions`.
 
+## Claim for #291
+
+The daily strategy funnel counts every entry fill, including one still open at
+run end, keyed by the fill's UTC day. Non-entry fills are excluded. The daily sum
+equals the aggregate `funnel.entry_fills`.
+
+## Evidence for #291
+
+- A closed stop trade and a second entry fill on the next day, plus an exit fill
+  on that day, produce two daily points with `entry_fills = 1` each and a daily
+  sum of 2.
+- `funnel.entry_fills` also reads 2, so the daily series and the aggregate agree.
+- Fail-before: the old series read the closed-trade list and counted 1, not 2.
+
 ## Checks
 
 - Signal path: the diagnosis is evaluation evidence; no engine reads it.
@@ -80,4 +94,6 @@ fail against it. The fix is the clamp in `excursions`.
   direct `Option` serialization.
 - The validator pass is sequential, not independent. The human remains the
   final acceptance authority.
-- Finding 38 remains to be validated in #291.
+- The open-entry case is exercised through the analytics input; the shell
+  fixture's open position is not asserted end-to-end.
+- W5 closes findings 35, 37, and 38.
