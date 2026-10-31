@@ -78,7 +78,7 @@ file states what can be built.
 - Missing block means equal weights for every context timeframe.
 - A present block must cover every context timeframe; missing keys are rejected.
 - Weights are normalized in active-ladder order.
-- Missing context defaults to `reject`.
+- `no_trade.missing_context` is required and must be `reject`.
 - Weights are fixed before the run and recorded in provenance.
 - Weights express importance, not calibration.
 

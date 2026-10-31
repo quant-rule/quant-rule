@@ -93,6 +93,10 @@ bracket exit updates the position before the next decision.
 
 ## 7. Compatibility
 
-`quantrule.execution/v2` is retired. It owned the stop/target multiples, which
-now belong to the strategy risk intent. A v2 file is rejected with a migration
-message.
+`quantrule.execution/v2` is the current loader schema. Its fields are the ones
+listed in the current policy and strategy contract; stop and target distances
+now belong to the strategy risk intent.
+
+The v3 schema in this document is the approved target and is not loaded yet. A
+v3 file is rejected by the current loader. The v2-to-v3 migration is a later
+work item.

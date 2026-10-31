@@ -55,6 +55,9 @@ impl StrategyRunConfig {
 /// Parses `strategy.json`.
 pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
+    // Check the schema before the field set so a real v2 file reaches the
+    // migration message instead of failing on its retired fields.
+    require_v3_schema(file, object)?;
     read::check_fields(
         file,
         ROOT,
@@ -63,7 +66,6 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
             "schema", "rule", "thesis", "ladder", "weights", "entry", "exit", "risk", "no_trade",
         ],
     )?;
-    require_v3_schema(file, object)?;
 
     require_code(
         file,
