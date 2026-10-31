@@ -883,19 +883,22 @@ fn excursions(
     if !highest.is_finite() || !lowest.is_finite() {
         return (None, None, None, None);
     }
+    // An execution fill can sit outside the entry bar's range; the excursion
+    // contract fixes MFE as non-negative and MAE as non-positive. Clamp the
+    // excursions while keeping the measured favourable and adverse prices.
     let (favorable_price, adverse_price, mfe, mae) = if trade.side >= 0 {
         (
             highest,
             lowest,
-            highest - trade.entry_price,
-            lowest - trade.entry_price,
+            (highest - trade.entry_price).max(0.0),
+            (lowest - trade.entry_price).min(0.0),
         )
     } else {
         (
             lowest,
             highest,
-            trade.entry_price - lowest,
-            trade.entry_price - highest,
+            (trade.entry_price - lowest).max(0.0),
+            (trade.entry_price - highest).min(0.0),
         )
     };
     (

@@ -166,14 +166,14 @@ fn report_version_status(fixture: &Fixture, versions: Vec<ReportVersion>) -> Che
         .status
 }
 
-fn trade(exit_reason: &str, hold_bars: usize) -> TradeFacts {
+fn trade(exit_reason: &str, hold_bars: usize, entry_price: f64) -> TradeFacts {
     TradeFacts {
         trade_id: 1,
         side: 1,
         quantity: 1.0,
         entry_bar: 10,
         entry_time: 1_735_689_600 + 10 * 300,
-        entry_price: 100.0,
+        entry_price,
         exit_bar: 10 + hold_bars,
         exit_time: 1_735_689_600 + (10 + hold_bars as i64) * 300,
         exit_price: 101.0,
@@ -341,7 +341,7 @@ fn a_zero_trade_exit_reason_has_no_average_hold() {
 fn a_traded_exit_reason_keeps_its_average_hold() {
     let fixture = Fixture::new(80);
     let mut input = fixture.input();
-    input.trades = vec![trade("stop", 4)];
+    input.trades = vec![trade("stop", 4, 100.0)];
     let diagnosis = diagnose(&input);
     let stop = diagnosis
         .strategy
@@ -366,6 +366,47 @@ fn a_traded_exit_reason_keeps_its_average_hold() {
         csv.lines()
             .any(|line| line == "stop,1,1.000000,1.000000,1,4.000000")
     );
+}
+
+#[test]
+fn a_long_fill_above_the_entry_bar_clamps_mfe_to_zero() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    input.trades = vec![trade("stop", 0, 112.0)];
+    let diagnosis = diagnose(&input);
+    let enriched = &diagnosis.trades[0];
+    assert_eq!(enriched.mfe, Some(0.0));
+    assert_eq!(enriched.mae, Some(-3.0));
+    assert_eq!(enriched.max_favorable_price, Some(111.0));
+    assert_eq!(enriched.max_adverse_price, Some(109.0));
+}
+
+#[test]
+fn a_short_fill_below_the_entry_bar_clamps_mfe_to_zero() {
+    let fixture = Fixture::new(80);
+    let mut short = trade("stop", 0, 108.0);
+    short.side = -1;
+    let mut input = fixture.input();
+    input.trades = vec![short];
+    let diagnosis = diagnose(&input);
+    let enriched = &diagnosis.trades[0];
+    assert_eq!(enriched.mfe, Some(0.0));
+    assert_eq!(enriched.mae, Some(-3.0));
+    assert_eq!(enriched.max_favorable_price, Some(109.0));
+    assert_eq!(enriched.max_adverse_price, Some(111.0));
+}
+
+#[test]
+fn an_in_range_fill_keeps_its_measured_excursions() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    input.trades = vec![trade("stop", 0, 110.0)];
+    let diagnosis = diagnose(&input);
+    let enriched = &diagnosis.trades[0];
+    assert_eq!(enriched.mfe, Some(1.0));
+    assert_eq!(enriched.mae, Some(-1.0));
+    assert_eq!(enriched.max_favorable_price, Some(111.0));
+    assert_eq!(enriched.max_adverse_price, Some(109.0));
 }
 
 #[test]
