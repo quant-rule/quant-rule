@@ -1326,6 +1326,20 @@ fn h1_reaches_ema200_with_enough_history() {
 }
 
 #[test]
+fn model_series_prints_h4_from_a_short_source() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["model-series", &path, "--timeframe", "4h", "--bars", "5"]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 1);
+    let value: serde_json::Value = serde_json::from_str(lines[0]).expect("the H4 model bar");
+    assert_eq!(value["timeframe"], "4h");
+    assert_eq!(value["bar"], 0);
+    assert_eq!(value["window_len"], 1);
+}
+
+#[test]
 fn model_series_prints_the_requested_tail() {
     let path = fixture("state_m1.csv");
     let output = run(&["model-series", &path, "--timeframe", "1m", "--bars", "3"]);

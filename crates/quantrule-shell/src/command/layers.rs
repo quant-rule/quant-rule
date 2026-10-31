@@ -27,9 +27,17 @@ pub(crate) fn load_layers_with_window(
     path: &Path,
     window: WindowMode,
 ) -> Result<LayerBuild, RunError> {
+    load_layers_with_window_and_ladder(path, window, &Timeframe::DEFAULT_LADDER)
+}
+
+pub(crate) fn load_layers_with_window_and_ladder(
+    path: &Path,
+    window: WindowMode,
+    ladder: &[Timeframe],
+) -> Result<LayerBuild, RunError> {
     let set = pipeline::load_set(path, window).map_err(RunError::Source)?;
     let m1: Vec<Candle> = set.series(Timeframe::M1).iter().copied().collect();
-    let inputs = ModelInputs::from_set(&set);
+    let inputs = ModelInputs::from_set_with_ladder(&set, ladder);
 
     let layers =
         build_layers(&inputs.as_inputs(), &LayerConfig::default()).map_err(RunError::Layers)?;

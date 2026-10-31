@@ -139,6 +139,28 @@ fn market_chart_reports_the_selected_timeframe_and_count() {
 }
 
 #[test]
+fn market_chart_renders_h4() {
+    let root = artifact_dir("market-chart-h4");
+    let path = fixture("state_m1.csv");
+    let png = format!("{root}/h4.png");
+
+    let output = run(&[
+        "market-chart",
+        &path,
+        "--png",
+        &png,
+        "--timeframe",
+        "4h",
+        "--candles",
+        "1",
+    ]);
+    assert_success(&output);
+    assert_stdout_prefix(&output, &format!("png={png} timeframe=4h candles=1"));
+    let bytes = fs::read(&png).expect("the PNG is readable");
+    assert_eq!(png_info(&bytes), (1_280, 960));
+}
+
+#[test]
 fn interactive_market_chart_matches_non_interactive() {
     let root = artifact_dir("market-chart-interactive");
     let path = fixture("state_m1.csv");

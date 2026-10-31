@@ -19,7 +19,7 @@ timeframes.
   "schema": "quantrule.data/v3",
   "source": {
     "kind": "csv",
-    "path": "../../data/EURUSD_M1_2025-01-01_2025-12-31.csv"
+    "path": "../../../data/EURUSD_M1_2025-01-01_2025-12-31.csv"
   },
   "instrument": "EURUSD",
   "data_version": "dukascopy-bid-eurusd-m1-2025",
@@ -53,7 +53,7 @@ timeframes.
 - `1m` is present because the source is M1.
 - Every active strategy timeframe is in the available list.
 - Every active strategy timeframe is in the policy universe.
-- The source cadence must be one minute. Native M5/M15/H1 files are rejected.
+- The source cadence must be one minute. Native M5/M15/H1/H4 files are rejected.
 - A sparse M1 file is accepted while at least one adjacent pair is one minute
   apart. A single row is accepted because its cadence cannot be measured.
 

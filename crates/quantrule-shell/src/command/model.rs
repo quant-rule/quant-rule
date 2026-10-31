@@ -84,7 +84,7 @@ pub(crate) fn parse_model_arguments(
 pub(crate) fn parse_model_series_arguments(
     arguments: &[String],
 ) -> Result<ModelSeriesArgs, ParseError> {
-    const USAGE: &str = "usage: model-series <csv-path> [--timeframe <1m|5m|15m|1h>] [--bars <1..1000>] [--window full|latest]";
+    const USAGE: &str = "usage: model-series <csv-path> [--timeframe <1m|5m|15m|1h|4h>] [--bars <1..1000>] [--window full|latest]";
     let mut path = None;
     let mut window = WindowMode::Full;
     let mut window_seen = false;
@@ -123,7 +123,7 @@ pub(crate) fn parse_model_series_arguments(
                 })?;
                 timeframe = Some(Timeframe::from_code(value).ok_or_else(|| {
                     ParseError::Window(format!(
-                        "--timeframe expects 1m, 5m, 15m, or 1h, found '{value}'\n{USAGE}"
+                        "--timeframe expects 1m, 5m, 15m, 1h, or 4h, found '{value}'\n{USAGE}"
                     ))
                 })?);
             }
@@ -291,7 +291,7 @@ pub(crate) fn run_model_series(
     args: &ModelSeriesArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let run = load_model_run(&args.path, args.window)?;
+    let run = load_model_run_with_ladder(&args.path, args.window, &Timeframe::ALL)?;
     for timeframe in run.timeframes() {
         if let Some(selected) = args.timeframe
             && timeframe.timeframe_secs() != u64::from(selected.seconds())
@@ -309,9 +309,18 @@ pub(crate) fn run_model_series(
 }
 
 pub(crate) fn load_model_run(path: &Path, window: WindowMode) -> Result<ModelRun, RunError> {
+    load_model_run_with_ladder(path, window, &Timeframe::DEFAULT_LADDER)
+}
+
+fn load_model_run_with_ladder(
+    path: &Path,
+    window: WindowMode,
+    ladder: &[Timeframe],
+) -> Result<ModelRun, RunError> {
     let set = pipeline::load_set(path, window).map_err(RunError::Source)?;
-    Ok(pipeline::model_run_from_set(
+    Ok(pipeline::model_run_from_set_with_ladder(
         &set,
+        ladder,
         &MarketStateConfig::default(),
     ))
 }
