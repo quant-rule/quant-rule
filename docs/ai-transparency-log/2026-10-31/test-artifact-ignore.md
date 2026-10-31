@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash)
 - Work item: none; one-line repository hygiene change
 - Plan: none required; scope and verification are recorded below
-- Status: Authorized by the human on 2026-10-31; commit and pull request in progress
+- Status: Committed as `ffa15f6`; pull request [#265](https://github.com/quant-rule/quant-rule/pull/265) open.
 
 ## Intent and boundary
 
