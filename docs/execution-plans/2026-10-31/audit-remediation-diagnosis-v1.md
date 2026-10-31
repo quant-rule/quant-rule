@@ -184,6 +184,9 @@ Issue: [#280](https://github.com/quant-rule/quant-rule/issues/280) — **Derive 
 - Closure test: a `ModelRun` without 1m gives `unknown` and `value == None`.
 - No Quant Validator record: the check is data quality, not a model or
   strategy measurement.
+- Implementation evidence (#281, PR #296): the optional gap list, the unknown
+  check, and the text/chart/JSON updates are implemented on
+  `fix/281-1m-gap-unknown`; gates pass (1508 tests).
 - Paths: `crates/quantrule-analytics/src/diagnosis/types.rs`,
   `crates/quantrule-analytics/src/diagnosis/compute.rs`,
   `crates/quantrule-analytics/src/diagnosis/text.rs`,
