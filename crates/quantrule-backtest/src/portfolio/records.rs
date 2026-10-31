@@ -82,7 +82,7 @@ pub struct TradeRecord {
     /// The one-based trade identifier.
     pub trade_id: u64,
     /// The position's direction.
-    pub side: crate::strategy::Side,
+    pub side: crate::side::Side,
     /// The quantity traded.
     pub quantity: f64,
     /// The zero-based strategy bar of the entry fill.

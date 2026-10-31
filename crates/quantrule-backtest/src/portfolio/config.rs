@@ -580,7 +580,7 @@ impl PortfolioConfig {
     /// step.
     pub fn size_entry(
         &self,
-        side: crate::strategy::Side,
+        side: crate::side::Side,
         equity: f64,
         price: f64,
     ) -> Result<f64, super::sizing::SizingRejection> {
