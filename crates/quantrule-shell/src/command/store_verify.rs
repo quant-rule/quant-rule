@@ -109,7 +109,7 @@ pub(crate) fn run_store_verify(
     args: &StoreVerifyArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let LayerBuild { layers, m1 } = load_layers(&args.path)?;
+    let LayerBuild { layers, m1, .. } = load_layers(&args.path)?;
     let dataset = DatasetRecord {
         name: args.dataset.clone(),
         data_version: args.data_version.clone(),
