@@ -298,6 +298,28 @@ pub enum SizingRejection {
     Halted,
 }
 
+impl SizingRejection {
+    /// The stable report code for the rejection.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::NonFiniteEquity => "non_finite_equity",
+            Self::NegativeEquity => "negative_equity",
+            Self::NonFinitePrice => "non_finite_price",
+            Self::NonPositivePrice => "non_positive_price",
+            Self::ShortNotAllowed => "short_not_allowed",
+            Self::NonFiniteNotional => "non_finite_notional",
+            Self::NonPositiveNotional => "non_positive_notional",
+            Self::NonFiniteFraction => "non_finite_fraction",
+            Self::FractionOutOfRange => "fraction_out_of_range",
+            Self::NonFiniteStep => "non_finite_step",
+            Self::NonPositiveStep => "non_positive_step",
+            Self::BelowOneStep { .. } => "below_one_step",
+            Self::Halted => "halted",
+        }
+    }
+}
+
 impl fmt::Display for SizingRejection {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

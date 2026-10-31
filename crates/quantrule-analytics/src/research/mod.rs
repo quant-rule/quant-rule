@@ -122,20 +122,36 @@ pub fn render_dataset(
     raw_candles: &[Candle],
     meta: &DatasetMeta,
 ) -> Result<ExportBundle, ExportError> {
-    validate(meta)?;
-
     let higher: Vec<u64> = layers
         .timeframes
         .iter()
         .copied()
         .filter(|timeframe| *timeframe != M1_SECONDS)
         .collect();
+    render_dataset_with_ladder(layers, raw_candles, meta, &higher)
+}
+
+/// Renders the research dataset with an explicit higher-timeframe ladder.
+///
+/// The ladder may include timeframes whose series is empty; their Layer 3
+/// blocks are written as nulls so the schema width is fixed.
+///
+/// # Errors
+///
+/// Returns [`ExportError`] for the same reasons as [`render_dataset`].
+pub fn render_dataset_with_ladder(
+    layers: &LayerSet,
+    raw_candles: &[Candle],
+    meta: &DatasetMeta,
+    higher: &[u64],
+) -> Result<ExportBundle, ExportError> {
+    validate(meta)?;
 
     let raw_contents = metadata::raw_csv(raw_candles);
     let raw = metadata::raw_file(&raw_contents);
     let layer1_contents = render::layer1(layers);
     let layer2_contents = render::layer2(layers);
-    let layer3_contents = render::layer3(layers, &higher);
+    let layer3_contents = render::layer3(layers, higher);
 
     let raw_file = ExportFile {
         name: "m1.csv".to_string(),
@@ -169,10 +185,10 @@ pub fn render_dataset(
     ];
 
     let manifest = metadata::manifest_json(meta, layers, &[raw], &data_files);
-    let dictionary_csv = metadata::dictionary_csv(&higher);
-    let dictionary_md = metadata::dictionary_md(&higher);
+    let dictionary_csv = metadata::dictionary_csv(higher);
+    let dictionary_md = metadata::dictionary_md(higher);
     let codes = metadata::codes_csv();
-    let readme = metadata::readme(meta, layers, raw.rows, &higher);
+    let readme = metadata::readme(meta, layers, raw.rows, higher);
 
     let metadata_files = [
         ExportFile {

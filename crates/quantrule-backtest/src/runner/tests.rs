@@ -14,7 +14,7 @@ use crate::execution::{ExecutionConfig, RejectReason};
 use crate::intent::RiskPolicy;
 use crate::portfolio::{
     CommissionBase, CommissionConfig, CommissionPer, Currency, DrawdownAction, FundingConfig,
-    FundingInterval, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, SizingMode,
+    FundingInterval, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, SizingMode, SizingRejection,
 };
 use crate::strategy::{
     ContextEntryConfig, Decision, EntryConfig, ExecutionEntryConfig, ExitConfig, LadderConfig,
@@ -513,6 +513,25 @@ fn an_invalid_risk_envelope_is_rejected() {
 }
 
 #[test]
+fn a_missing_context_series_produces_a_flat_run() {
+    let candles = candles(150);
+    let run = run_backtest(
+        &[TimeframeInput {
+            timeframe_secs: 900,
+            candles: &candles,
+        }],
+        &config(),
+    )
+    .expect("a missing context series is a missing measurement, not an error");
+    assert!(run.ledger().trades().is_empty());
+    assert!(
+        run.decisions()
+            .iter()
+            .all(|decision| matches!(decision, Decision::Hold))
+    );
+}
+
+#[test]
 fn a_missing_strategy_timeframe_produces_an_empty_run() {
     let candles = candles(1400);
     let run = run_backtest(
@@ -695,5 +714,11 @@ fn a_rejected_short_is_never_an_open_strategy_position() {
             .flat_map(|batch| batch.rejections.iter())
             .any(|rejection| rejection.reason == RejectReason::MissingQuantity),
         "the fixture must exercise the short sizing rejection"
+    );
+    assert!(
+        run.sizing_rejections()
+            .iter()
+            .any(|(_, reason)| *reason == SizingRejection::ShortNotAllowed),
+        "the report must carry the short-disabled sizing cause"
     );
 }

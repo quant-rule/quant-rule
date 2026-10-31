@@ -645,13 +645,6 @@ pub(crate) enum StrategyRunError {
         /// The requested period label.
         period: String,
     },
-    /// The requested period produced no bars for the strategy timeframe.
-    NoTimeframeBars {
-        /// The strategy timeframe in seconds.
-        timeframe_secs: u64,
-        /// The requested period label.
-        period: String,
-    },
     /// The strategy name is not known to the command.
     UnknownStrategy {
         /// The supplied name.
@@ -673,13 +666,6 @@ impl fmt::Display for StrategyRunError {
                     "no M1 candles in the requested period '{period}'"
                 )
             }
-            Self::NoTimeframeBars {
-                timeframe_secs,
-                period,
-            } => write!(
-                formatter,
-                "the requested period '{period}' produced no {timeframe_secs}-second bars"
-            ),
             Self::UnknownStrategy { name } => {
                 write!(formatter, "unknown strategy '{name}'; use ladder-context")
             }

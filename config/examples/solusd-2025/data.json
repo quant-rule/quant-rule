@@ -2,7 +2,7 @@
   "schema": "quantrule.data/v3",
   "source": {
     "kind": "csv",
-    "path": "../../../data/SOLUSD_M1_2025-01-01_2025-12-31.csv"
+    "path": "../../../data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv"
   },
   "data_version": "dukascopy-bid-solusd-m1-2025-01-01_2025-12-31",
   "from": "2025-01-01",

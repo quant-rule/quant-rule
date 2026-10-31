@@ -15,8 +15,8 @@ data version
   records it and never infers it from the path.
 
 lab result folder
-  data/lab-result-YYYY-MM-DDTHH-MM-SSZ in UTC. It holds the five report bundles and the root
-  summary.txt.
+  data/labs/lab-result-YYYY-MM-DDTHH-MM-SSZ in UTC. It holds the five report bundles and the
+  root summary.txt.
 
 available ladder
   The series the data engine can build. data.json lists 1m, 5m, 15m, 1h, and 4h as supported; M1

@@ -79,6 +79,10 @@ not change.
 - A `--strict` diagnosis writes its evidence before returning the integrity failure.
   This is deliberate: the evidence explains why the gate failed. The command still exits
   non-zero.
+- `origin/main` advanced after the branch was created. A merge of `origin/main` resolved
+  a README conflict and updated the lab fixture's config hash to the current example
+  config. The example run was repeated after the merge; its aggregate diagnosis numbers
+  did not change.
 
 ## Limitations
 

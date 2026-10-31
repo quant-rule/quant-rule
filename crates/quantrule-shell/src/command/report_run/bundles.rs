@@ -17,7 +17,7 @@ use quantrule_backtest::execution::{
 };
 use quantrule_backtest::portfolio::{
     EquityPoint, ExitReason, FundingCharge, OpenPosition, PortfolioMetrics, RiskEvent, SizingMode,
-    TradeRecord,
+    SizingRejection, TradeRecord,
 };
 use quantrule_backtest::runner::BacktestRun;
 use quantrule_data::Timeframe;
@@ -43,7 +43,7 @@ pub(crate) fn execution_bundle_from(
     let orders = last_orders(run);
     let fills = paired_fills(run);
     let rejections = all_rejections(run);
-    let summary = execution_summary(&orders, &fills, &rejections);
+    let summary = execution_summary(&orders, &fills, &rejections, run.sizing_rejections());
 
     let orders_csv = orders_csv(&orders);
     let fills_csv = fills_csv(&fills);
@@ -336,6 +336,7 @@ struct ExecutionSummary {
     exits: usize,
     fill_reasons: [usize; 4],
     rejections: Vec<(String, usize)>,
+    sizing_rejections: Vec<(String, usize)>,
     slippage_total: f64,
     slippage_average: Option<f64>,
     fee_total: f64,
@@ -345,6 +346,7 @@ fn execution_summary(
     orders: &[OrderRecord],
     fills: &[(OrderRecord, Fill)],
     rejections: &[Rejection],
+    sizing_rejections: &[(usize, SizingRejection)],
 ) -> ExecutionSummary {
     let mut fill_reasons = [0_usize; 4];
     let mut entries = 0;
@@ -380,6 +382,12 @@ fn execution_summary(
             .entry(reject_reason_code(rejection.reason).to_owned())
             .or_default() += 1;
     }
+    let mut sizing_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for (_, rejection) in sizing_rejections {
+        *sizing_counts
+            .entry(rejection.code().to_owned())
+            .or_default() += 1;
+    }
     let fills_count = fills.len();
     ExecutionSummary {
         orders: orders.len(),
@@ -400,6 +408,7 @@ fn execution_summary(
         exits,
         fill_reasons,
         rejections: counts.into_iter().collect(),
+        sizing_rejections: sizing_counts.into_iter().collect(),
         slippage_total,
         slippage_average: (fills_count > 0).then(|| slippage_total / fills_count as f64),
         fee_total,
@@ -521,6 +530,14 @@ fn execution_text(config: &RunConfig, summary: &ExecutionSummary) -> String {
             let _ = writeln!(out, "  {reason}: {count}");
         }
     }
+    let _ = writeln!(out, "sizing_rejections:");
+    if summary.sizing_rejections.is_empty() {
+        let _ = writeln!(out, "  none");
+    } else {
+        for (reason, count) in &summary.sizing_rejections {
+            let _ = writeln!(out, "  {reason}: {count}");
+        }
+    }
     let _ = writeln!(out, "slippage:");
     let _ = writeln!(out, "  total: {}", summary.slippage_total);
     let _ = writeln!(
@@ -609,6 +626,11 @@ fn execution_json(
         .iter()
         .map(|(reason, count)| (reason.clone(), json!(count)))
         .collect();
+    let sizing_rejection_counts: serde_json::Map<String, Value> = summary
+        .sizing_rejections
+        .iter()
+        .map(|(reason, count)| (reason.clone(), json!(count)))
+        .collect();
     json!({
         "report": "execution",
         "report_version": render_report::REPORT_VERSION,
@@ -639,6 +661,7 @@ fn execution_json(
                 "target": summary.fill_reasons[3],
             },
             "rejections": rejection_counts,
+            "sizing_rejections": sizing_rejection_counts,
             "slippage": {
                 "total": summary.slippage_total,
                 "average": summary.slippage_average,
@@ -1295,8 +1318,25 @@ mod tests {
             FillReason::Entry,
         )
         .expect("the fill is valid");
-        let summary = execution_summary(&[], &[(order, fill)], &[]);
+        let summary = execution_summary(&[], &[(order, fill)], &[], &[]);
         assert!((summary.slippage_total - 2.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn the_execution_summary_carries_sizing_rejections() {
+        let summary = execution_summary(
+            &[],
+            &[],
+            &[],
+            &[(
+                0,
+                quantrule_backtest::portfolio::SizingRejection::ShortNotAllowed,
+            )],
+        );
+        assert_eq!(
+            summary.sizing_rejections,
+            vec![("short_not_allowed".to_owned(), 1)]
+        );
     }
 
     #[test]
@@ -1307,7 +1347,7 @@ mod tests {
             time: 400,
             reason: RejectReason::NoPosition,
         };
-        let summary = execution_summary(&[], &[], &[rejection]);
+        let summary = execution_summary(&[], &[], &[rejection], &[]);
         assert_eq!(summary.rejections, vec![("no_position".to_owned(), 1)]);
         assert_eq!(summary.slippage_average, None);
         assert_eq!(summary.fills, 0);

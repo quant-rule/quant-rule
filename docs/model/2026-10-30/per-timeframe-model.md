@@ -1,7 +1,7 @@
 # Per-Timeframe Model Contract
 
 - Date: 2026-10-30 (UTC)
-- Status: Implemented for per-timeframe readings and reporting-view extraction (#231, #232; Phase 4 PR #241 open); strategy context pending (#233)
+- Status: Implemented for per-timeframe readings, reporting views, and the strategy context (#231, #232, #233, #235; PRs #241, #244)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), sub-issues [#231](https://github.com/quant-rule/quant-rule/issues/231), [#232](https://github.com/quant-rule/quant-rule/issues/232)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)
@@ -125,7 +125,7 @@ per-timeframe outputs and the strategy-owned active ladder and weights.
   extraction: `ModelRun` and `MarketState` no longer publish aggregates;
   reporting calls `quantrule_analytics::cross_timeframe`.
 - [#233](https://github.com/quant-rule/quant-rule/issues/233) — ladder context
-  builder: pending.
+  builder: implemented in `quantrule-backtest::context`.
 
 Until those issues merge, the current model contract remains the implementation
 of record.

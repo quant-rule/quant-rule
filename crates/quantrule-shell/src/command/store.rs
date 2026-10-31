@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use quantrule_model::readings::PivotScale;
 
 use super::layers::{LayerBuild, load_layers};
-use super::store_query;
+use super::store_query::{self, DEFAULT_DATABASE};
 use super::store_verify;
 use super::types::{Command, ParseError, RunError, StoreIngestArgs, StoreRemoveArgs};
 use crate::store::{DatasetRecord, IngestRows, RemoveReport, Store};
@@ -38,7 +38,7 @@ pub(crate) fn parse_store_arguments(arguments: &[String]) -> Result<Option<Comma
 }
 
 fn parse_store_init(arguments: &[String], usage: &str) -> Result<Option<Command>, ParseError> {
-    let mut path = PathBuf::from("data/quantrule.db");
+    let mut path = PathBuf::from(DEFAULT_DATABASE);
     let mut index = 1;
     while index < arguments.len() {
         match arguments[index].as_str() {
@@ -68,7 +68,7 @@ fn parse_store_init(arguments: &[String], usage: &str) -> Result<Option<Command>
 
 fn parse_store_remove(arguments: &[String], usage: &str) -> Result<Option<Command>, ParseError> {
     let mut dataset = None;
-    let mut database = PathBuf::from("data/quantrule.db");
+    let mut database = PathBuf::from(DEFAULT_DATABASE);
     let mut index = 1;
 
     while index < arguments.len() {
@@ -114,7 +114,7 @@ fn parse_store_ingest(arguments: &[String], usage: &str) -> Result<Option<Comman
     let mut path = None;
     let mut dataset = None;
     let mut data_version = None;
-    let mut database = PathBuf::from("data/quantrule.db");
+    let mut database = PathBuf::from(DEFAULT_DATABASE);
     let mut index = 1;
 
     while index < arguments.len() {
@@ -240,7 +240,7 @@ pub(crate) fn run_store_ingest(
     args: &StoreIngestArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let LayerBuild { layers, m1 } = load_layers(&args.path)?;
+    let LayerBuild { layers, m1, .. } = load_layers(&args.path)?;
     let dataset = DatasetRecord {
         name: args.dataset.clone(),
         data_version: args.data_version.clone(),

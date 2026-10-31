@@ -130,6 +130,12 @@ impl PortfolioLedger {
         &self.risk_events
     }
 
+    /// The configured quantity step, used by the risk-cap path.
+    #[must_use]
+    pub const fn quantity_step(&self) -> f64 {
+        self.config.sizing.quantity_step()
+    }
+
     /// Sizes one entry at the current equity and the supplied price.
     ///
     /// # Errors
@@ -536,7 +542,9 @@ impl PortfolioLedger {
                 return_fraction,
             });
 
-            previous = month_last.map(|point| point.equity);
+            if let Some(point) = month_last {
+                previous = Some(point.equity);
+            }
             if (year, month) == (last_year, last_month) {
                 break;
             }

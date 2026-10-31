@@ -165,6 +165,19 @@ fn a_gap_exit_commission_uses_the_prior_mark() {
 }
 
 #[test]
+fn a_monthly_return_survives_an_empty_month() {
+    let mut ledger = ledger();
+    ledger.mark(0, 0, 100.0).expect("the January mark");
+    ledger.mark(1, 89 * 86_400, 100.0).expect("the March mark");
+
+    let returns = ledger.metrics().monthly_returns;
+    assert_eq!(returns.len(), 3);
+    assert_eq!(returns[0].return_fraction, Some(0.0));
+    assert_eq!(returns[1].return_fraction, None);
+    assert_eq!(returns[2].return_fraction, Some(0.0));
+}
+
+#[test]
 fn a_long_trade_charges_commission_on_both_fills() {
     let mut ledger = ledger();
     ledger

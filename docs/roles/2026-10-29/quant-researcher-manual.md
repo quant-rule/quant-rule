@@ -79,8 +79,8 @@ Set the working variables from the repository root:
 
 ```bash
 QR=./target/release/quantrule
-CSV2=data/SOLUSD_M1_2025-01-01_2025-02-28.csv
-CSV=data/SOLUSD_M1_2025-01-01_2025-12-31.csv
+CSV2=data/sources/SOLUSD_M1_2025-01-01_2025-02-28.csv
+CSV=data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv
 DV2=tutorial-solusd-m1-2025-01-01_2025-02-28
 DV=dukascopy-bid-solusd-m1-2025-01-01_2025-12-31
 CFG=config/examples/solusd-2025/run.json
@@ -90,8 +90,8 @@ Inspect the source before choosing the sample:
 
 ```bash
 "$QR" candles-tolerant "$CSV2" > /dev/null
-"$QR" timeframes "$CSV2" > /dev/null 2> data/researcher-timeframes.txt
-grep '^aggregation' data/researcher-timeframes.txt
+"$QR" timeframes "$CSV2" > /dev/null 2> data/scratch/researcher-timeframes.txt
+grep '^aggregation' data/scratch/researcher-timeframes.txt
 ```
 
 Expected from `candles-tolerant` on the two-month slice:
@@ -160,7 +160,7 @@ contains the question, hypothesis, data version, sample, split, metrics, costs,
 pass/fail criterion, every planned variation, and the stop conditions.
 
 ```bash
-cat > data/researcher-protocol.md <<'EOF'
+cat > data/notes/researcher-protocol.md <<'EOF'
 Question: does the ladder-context rule stay active on the full-year example?
 Hypothesis: at least 100 M5 entries, and the portfolio halts at the 20% drawdown limit.
 Data version: dukascopy-bid-solusd-m1-2025-01-01_2025-12-31.
@@ -185,13 +185,13 @@ first.
 The research commands are descriptive. They do not place orders or compute P&L.
 
 ```bash
-"$QR" research summary "$CSV2" > data/researcher-summary.txt
-wc -l < data/researcher-summary.txt
+"$QR" research summary "$CSV2" > data/scratch/researcher-summary.txt
+wc -l < data/scratch/researcher-summary.txt
 "$QR" strategy-run "$CSV2" \
   --strategy ladder-context \
   --data-version "$DV2" \
-  > data/researcher-strategy.ndjson
-wc -l < data/researcher-strategy.ndjson
+  > data/scratch/researcher-strategy.ndjson
+wc -l < data/scratch/researcher-strategy.ndjson
 ```
 
 The research summary has 41 lines (16 axis lines, 24 relation lines, one
@@ -203,7 +203,7 @@ python3 - <<'PY'
 import json
 from collections import Counter
 counts = Counter()
-for line in open("data/researcher-strategy.ndjson"):
+for line in open("data/scratch/researcher-strategy.ndjson"):
     counts[json.loads(line)["type"]] += 1
 print(dict(counts))
 PY
@@ -223,14 +223,14 @@ UTC timestamp for the lab folder; the folder format is
 `YYYY-MM-DDTHH-MM-SSZ` and `--created-utc` uses `YYYY-MM-DDTHH:MM:SSZ`.
 
 ```bash
-lab=data/lab-result-2026-10-30T12-00-00Z
+lab=data/labs/lab-result-2026-10-30T12-00-00Z
 "$QR" backtest --config "$CFG" --out "$lab"
 "$QR" lab summary "$lab" \
   --role researcher \
   --data-version "$DV" \
   --config "$CFG" \
   --created-utc 2026-10-30T12:00:00Z \
-  --notes data/researcher-protocol.md \
+  --notes data/notes/researcher-protocol.md \
   --operator human
 ```
 
@@ -239,17 +239,17 @@ is:
 
 | Field | Value |
 |---|---|
-| `trades` | `48` |
-| `final_equity` | `8016.143910` |
-| `total_return` | `-0.198386` |
-| `max_drawdown` | `0.203150` |
+| `trades` | `100` |
+| `final_equity` | `8010.411285` |
+| `total_return` | `-0.198959` |
+| `max_drawdown` | `0.200542` |
 | `halted` | `true` |
-| `commission` | `885.610499` |
-| `slippage` | `3.994526` |
-| `funding_paid` | `4.003485` |
-| `funding_received` | `1.993983` |
-| `strategy_entries` | `1173` |
-| `strategy_exits` | `1173` |
+| `commission` | `1822.737609` |
+| `slippage` | `364.924990` |
+| `funding_paid` | `1.896360` |
+| `funding_received` | `3.696676` |
+| `strategy_entries` | `298` |
+| `strategy_exits` | `73` |
 
 The example halts at the configured 20% drawdown limit. That is an observed
 result and a risk finding, not evidence that a different configuration would
@@ -282,10 +282,10 @@ the strategy and does not certify the result.
 
 | Artifact | Path | Purpose |
 |---|---|---|
-| Protocol | `data/researcher-protocol.md` | The pre-registered question, metrics, split, costs, and pass/fail criterion. |
-| Research summary | `data/researcher-summary.txt` | Axis counts, ranges, histograms, and relations. |
-| Strategy records | `data/researcher-strategy.ndjson` | Entries and exits; no fills or P&L. |
-| Lab result | `data/lab-result-YYYY-MM-DDTHH-MM-SSZ/` | Five report bundles plus the root summary. |
+| Protocol | `data/notes/researcher-protocol.md` | The pre-registered question, metrics, split, costs, and pass/fail criterion. |
+| Research summary | `data/scratch/researcher-summary.txt` | Axis counts, ranges, histograms, and relations. |
+| Strategy records | `data/scratch/researcher-strategy.ndjson` | Entries and exits; no fills or P&L. |
+| Lab result | `data/labs/lab-result-YYYY-MM-DDTHH-MM-SSZ/` | Five report bundles plus the root summary. |
 | Root summary | `<lab>/summary.txt` | Identity, artifacts, observed result, checks, role notes, limitations, and next. |
 | Handoff packet | In the work item or the packet below | The researcher's decision record for the developer. |
 

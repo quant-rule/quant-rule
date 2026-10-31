@@ -152,16 +152,10 @@ impl TimeframeModel {
             .chain(signal_events.events())
             .copied()
             .collect();
-        events.sort_by_key(|event| {
-            (
-                event.available_bar_index,
-                event.occurred_bar_index,
-                event.event_type.code(),
-                event.event_subtype_code,
-                event.source_code,
-                event.reference_code.unwrap_or(0),
-            )
-        });
+        // Keep the detector append order within one availability/occurrence
+        // bar; the contract fixes the Level reference order and the
+        // Momentum-before-Structure signal order.
+        events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
 
         let events = EventBatch::new(events);
         let event_history = EventHistory::from_batch(&events);

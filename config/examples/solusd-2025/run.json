@@ -8,5 +8,5 @@
   "execution": "execution.json",
   "portfolio": "portfolio.json",
   "analytics": "analytics.json",
-  "output_root": "../../../data/backtest-solusd-2025"
+  "output_root": "../../../data/labs/backtest-solusd-2025"
 }

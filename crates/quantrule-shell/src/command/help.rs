@@ -146,7 +146,7 @@ const REPORT_OUT: OptionHelp = OptionHelp {
 };
 const DB: OptionHelp = OptionHelp {
     flag: "--db <path>",
-    description: "Database path (default data/quantrule.db).",
+    description: "Database path (default data/db/quantrule.db).",
 };
 const TIMEFRAME_FILTER: OptionHelp = OptionHelp {
     flag: "--timeframe <tf>",
@@ -174,7 +174,7 @@ const TO: OptionHelp = OptionHelp {
 };
 const ROOT: OptionHelp = OptionHelp {
     flag: "--root <dir>",
-    description: "Export root (default: data).",
+    description: "Export root (default: data/research).",
 };
 const LAB_ROOT: OptionHelp = OptionHelp {
     flag: "--root <dir>",
@@ -230,7 +230,7 @@ const FETCH_TIMEFRAME: OptionHelp = OptionHelp {
 };
 const CSV: OptionHelp = OptionHelp {
     flag: "--csv <path>",
-    description: "CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).",
+    description: "CSV target (default: data/sources/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).",
 };
 
 const NO_OPTIONS: &[OptionHelp] = &[];

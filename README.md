@@ -49,11 +49,11 @@ works from anywhere. If you would rather not change your shell, call the binary
 by path instead: `./target/release/quantrule`.
 
 **4. Fetch the example data once.** The full-year example reads
-`data/SOLUSD_M1_2025-01-01_2025-12-31.csv`, which is not committed:
+`data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv`, which is not committed:
 
 ```bash
 quantrule fetch sol/usd 2025-01-01 2025-12-31 \
-  --csv data/SOLUSD_M1_2025-01-01_2025-12-31.csv
+  --csv data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv
 ```
 
 It downloads about 31 MB and takes a few minutes.
@@ -61,14 +61,14 @@ It downloads about 31 MB and takes a few minutes.
 **5. Verify with one full run.**
 
 ```bash
-test -f data/SOLUSD_M1_2025-01-01_2025-12-31.csv && echo "data ready"
-lab=data/lab-result-2026-10-29T12-00-00Z
+test -f data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv && echo "data ready"
+lab=data/labs/lab-result-2026-10-31T03-45-00Z
 quantrule backtest --config config/examples/solusd-2025/run.json --out "$lab"
 quantrule lab summary "$lab" \
   --role researcher \
   --data-version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31 \
   --config config/examples/solusd-2025/run.json \
-  --created-utc 2026-10-29T12:00:00Z
+  --created-utc 2026-10-31T03:45:00Z
 ```
 
 The backtest prints five bundle paths under `$lab`; `lab summary` adds
@@ -79,6 +79,11 @@ on a release build. When it does, the machine is set up.
 
 When the code changes, rebuild with `cargo build --release -p quantrule-shell`;
 the `PATH` entry keeps pointing at the new binary.
+
+The local workspace is documented in [`data/README.md`](data/README.md): one
+directory per artifact kind, and only those notes are committed. A plain
+`quantrule fetch` writes to `data/sources/`, `research export` writes to
+`data/research/`, and `store init` writes to `data/db/quantrule.db`.
 
 ## Learn the pipeline
 
@@ -140,33 +145,33 @@ cargo run -p quantrule-shell -- market-state path/to/m1.csv
 cargo run -p quantrule-shell -- market-state path/to/m1.csv --window latest
 cargo run -p quantrule-shell -- market-dashboard path/to/m1.csv
 cargo run -p quantrule-shell -- market-dashboard path/to/m1.csv --window latest --json
-cargo run -p quantrule-shell -- market-chart path/to/m1.csv --png data/market.png --timeframe 1m --candles 1000
+cargo run -p quantrule-shell -- market-chart path/to/m1.csv --png data/charts/market.png --timeframe 1m --candles 1000
 cargo run -p quantrule-shell -- axis path/to/m1.csv direction
 cargo run -p quantrule-shell -- events path/to/m1.csv
 cargo run -p quantrule-shell -- legs path/to/m1.csv
 cargo run -p quantrule-shell -- model-series path/to/m1.csv --timeframe 1m --bars 1000
 cargo run -p quantrule-shell -- research export path/to/m1.csv demo --data-version binance:BTCUSDT:60:1704067200-1710115200
 cargo run -p quantrule-shell -- research summary path/to/m1.csv
-cargo run -p quantrule-shell -- store init --db data/quantrule.db
+cargo run -p quantrule-shell -- store init --db data/db/quantrule.db
 cargo run -p quantrule-shell -- store ingest path/to/m1.csv --dataset demo --data-version binance:BTCUSDT:60:1704067200-1710115200
-cargo run -p quantrule-shell -- store verify path/to/m1.csv --dataset demo --data-version binance:BTCUSDT:60:1704067200-1710115200 --db data/quantrule.db
-cargo run -p quantrule-shell -- store list --db data/quantrule.db
-cargo run -p quantrule-shell -- store show demo bar --timeframe 1m --limit 10 --db data/quantrule.db
-cargo run -p quantrule-shell -- db series demo --timeframe 1m --limit 10 --db data/quantrule.db
-cargo run -p quantrule-shell -- db bars demo --limit 10 --db data/quantrule.db
-cargo run -p quantrule-shell -- db metrics demo --limit 10 --db data/quantrule.db
-cargo run -p quantrule-shell -- db layer3 demo --limit 10 --db data/quantrule.db
-cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --csv data/XAUUSD_M1_2025-01-01_2025-12-31.csv
-cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1h --csv data/EURUSD_H1_2026-01-01_2026-06-30.csv
-cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/xauusd_2025.png
+cargo run -p quantrule-shell -- store verify path/to/m1.csv --dataset demo --data-version binance:BTCUSDT:60:1704067200-1710115200 --db data/db/quantrule.db
+cargo run -p quantrule-shell -- store list --db data/db/quantrule.db
+cargo run -p quantrule-shell -- store show demo bar --timeframe 1m --limit 10 --db data/db/quantrule.db
+cargo run -p quantrule-shell -- db series demo --timeframe 1m --limit 10 --db data/db/quantrule.db
+cargo run -p quantrule-shell -- db bars demo --limit 10 --db data/db/quantrule.db
+cargo run -p quantrule-shell -- db metrics demo --limit 10 --db data/db/quantrule.db
+cargo run -p quantrule-shell -- db layer3 demo --limit 10 --db data/db/quantrule.db
+cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --csv data/sources/XAUUSD_M1_2025-01-01_2025-12-31.csv
+cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1h --csv data/sources/EURUSD_H1_2026-01-01_2026-06-30.csv
+cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/charts/xauusd_2025.png
 ```
 
 A full config-driven run, its five report bundles, and the root lab summary:
 
 ```bash
-cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/lab-result-2026-10-29T12-00-00Z
-cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/portfolio-report
-cargo run -p quantrule-shell -- lab summary data/lab-result-2026-10-29T12-00-00Z --role researcher --data-version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31 --config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z
+cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/labs/lab-result-2026-10-31T03-45-00Z
+cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/reports/portfolio-report
+cargo run -p quantrule-shell -- lab summary data/labs/lab-result-2026-10-31T03-45-00Z --role researcher --data-version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31 --config config/examples/solusd-2025/run.json --created-utc 2026-10-31T03:45:00Z
 ```
 
 ## Commands
@@ -231,7 +236,7 @@ An unknown topic is an error that points to `help all`.
 | Option | Meaning |
 |---|---|
 | `--timeframe <tf>` | Native interval: `1m`, `5m`, `15m`, or `1h` (default `1m`; `M1`, `M5`, `M15`, and `H1` are also accepted) |
-| `--csv <path>` | CSV target (default `data/<SYMBOL>_<M1\|M5\|M15\|H1>_<start>_<end>.csv`) |
+| `--csv <path>` | CSV target (default `data/sources/<SYMBOL>_<M1\|M5\|M15\|H1>_<start>_<end>.csv`) |
 | `--png <path>` | Also write a chart; the PNG is opt-in |
 | `--candles <n>` | Candles in the chart, from the tail of the fetched range (default 1000, max 1000) |
 
@@ -250,7 +255,7 @@ An unknown topic is an error that points to `help all`.
 
 | Option | Meaning |
 |---|---|
-| `--db <path>` | Database path (default `data/quantrule.db`) |
+| `--db <path>` | Database path (default `data/db/quantrule.db`) |
 
 `store init` opens the SQLite store, applies the schema migrations in order, each in one transaction (version 1, then the version 2 event-index migration), and prints the path and the schema version. Reopening an existing store is idempotent, and a version 1 database is migrated in place. A store whose schema is newer than the binary is rejected, and a file that is not a database fails with a clear error. The store is a shell-owned module; the data, model, and analytics crates remain pure.
 
@@ -262,7 +267,7 @@ An unknown topic is an error that points to `help all`.
 |---|---|
 | `--dataset <name>` | Required unique dataset name |
 | `--data-version <id>` | Required identity of the input series: source, timeframe, and coverage |
-| `--db <path>` | Database path (default `data/quantrule.db`) |
+| `--db <path>` | Database path (default `data/db/quantrule.db`) |
 
 `store ingest` reads one M1 CSV, builds M1/M5/M15/H1 in memory, and writes one `dataset` row, one wide `bar` row per Layer 2 row, one `consensus` row per closed bar per timeframe, one `layer3` row per M1 bar, one `pivot` row per pivot occurrence, one `level` row per confirmed level, one `event` row per event record, and one `leg` row per retained progression leg in a single `BEGIN IMMEDIATE` transaction. It writes the candle, the six readings, the four-axis metrics, and the 12 axis-resolution columns for every ladder bar; a missing value is `NULL` with its unavailable-reason code, and a valid zero stays `0`. The resolution columns carry each axis's continuous value, ordinal bucket, and unavailable reason. The consensus row carries the three axis counts and the weakest directional axis code; a missing axis is excluded, and Progression does not vote. The Layer 3 row carries the as-of M5/M15/H1 block columns and the 82 cross-timeframe aggregate columns over the configured ladder; a missing measurement is `NULL`, a count of zero stays `0`, and a list is `;`-separated text with no spaces, with an empty list stored as an empty string rather than `NULL`. A block that has no closed higher bar yet is `NULL` in all its columns; a new dataset is marked `layer3_materialized = 1`. A #68–#72 dataset is not backfilled and stays `0`. A pivot candidate is available on its occurrence bar; a confirmed pivot carries the confirmation bar as its availability bar and is stored once, with `confirmed_code = 1`, rather than duplicated. Every level carries its `1000 + n` reference code and both its occurrence and availability bars. Every event is stored once, on or after its availability bar, and never before it. Coincident Signal threshold crossings are distinct rows because the threshold value is part of their identity; every other event keeps the original occurrence key. Every retained leg carries its origin, target, progress, displacement, and lifecycle codes; a value that is not yet knowable is `NULL`. The M1 `bar` count equals the accepted source rows; the full count covers the whole ladder. The input is capped at 100,000 M1 candles and a count mismatch or over-cap input is rejected before anything is written; a native higher-timeframe file is rejected before the database is opened. Re-running the same name with the same identity is a no-op that prints `unchanged`; a different identity for an existing name is a conflict and changes nothing. Output is one deterministic line: `ingested <name> bars=<n> timeframes=<k>` or `unchanged <name> bars=<n> timeframes=<k>`.
 
@@ -435,38 +440,53 @@ A run is specified by eight files. The command line carries only the config path
 
 The model is computed once per run. The analytical bundle summarizes that model one bar at a time, so no layer set is materialized and the model is not recomputed. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data, period, and default model settings.
 
-A fresh checkout has no source data, because `data/` is not committed. The example run needs its M1 file first:
+A fresh checkout has no source data, because `data/sources/` is not committed. The example run needs its M1 file first:
 
 ```bash
-cargo run -p quantrule-shell -- fetch sol/usd 2025-01-01 2025-12-31 --csv data/SOLUSD_M1_2025-01-01_2025-12-31.csv
-cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/lab-result-2026-10-29T12-00-00Z
+cargo run -p quantrule-shell -- fetch sol/usd 2025-01-01 2025-12-31 --csv data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv
+cargo run -p quantrule-shell -- backtest --config config/examples/solusd-2025/run.json --out data/labs/lab-result-2026-10-31T03-45-00Z
 ```
 
 Without `--json`, the command prints the five bundle paths in contract order:
 
 ```text
-data/lab-result-2026-10-29T12-00-00Z/model
-data/lab-result-2026-10-29T12-00-00Z/strategy
-data/lab-result-2026-10-29T12-00-00Z/execution
-data/lab-result-2026-10-29T12-00-00Z/portfolio
-data/lab-result-2026-10-29T12-00-00Z/analytical
+data/labs/lab-result-2026-10-31T03-45-00Z/model
+data/labs/lab-result-2026-10-31T03-45-00Z/strategy
+data/labs/lab-result-2026-10-31T03-45-00Z/execution
+data/labs/lab-result-2026-10-31T03-45-00Z/portfolio
+data/labs/lab-result-2026-10-31T03-45-00Z/analytical
 ```
+
+The envelope below is historical: it is the retired 15m `axis-agreement` run, not the current 5m `ladder-context` example.
 
 `--json` prints one envelope instead:
 
 ```json
-{"actual_period":{"first_open_time":1735740900,"last_open_time":1767191400},"bundles":{"analytical":"data/lab-result-2026-10-29T12-00-00Z/analytical","execution":"data/lab-result-2026-10-29T12-00-00Z/execution","model":"data/lab-result-2026-10-29T12-00-00Z/model","portfolio":"data/lab-result-2026-10-29T12-00-00Z/portfolio","strategy":"data/lab-result-2026-10-29T12-00-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","diagnosis":null,"diagnosis_artifacts":null,"model_version":"0.3.0","portfolio":{"final_equity":8016.143909900684,"halted":true,"max_drawdown":0.20315025809884202,"net_pnl":-1983.85609009931,"total_return":-0.19838560900993163,"trades":48},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
+{"actual_period":{"first_open_time":1735740300,"last_open_time":1767192600},"bundles":{"analytical":"data/labs/lab-result-2026-10-31T03-45-00Z/analytical","execution":"data/labs/lab-result-2026-10-31T03-45-00Z/execution","model":"data/labs/lab-result-2026-10-31T03-45-00Z/model","portfolio":"data/labs/lab-result-2026-10-31T03-45-00Z/portfolio","strategy":"data/labs/lab-result-2026-10-31T03-45-00Z/strategy"},"data_version":"dukascopy-bid-solusd-m1-2025-01-01_2025-12-31","diagnosis":null,"diagnosis_artifacts":null,"model_version":"0.3.0","portfolio":{"final_equity":8010.411285462277,"halted":true,"max_drawdown":0.2005418002304158,"net_pnl":-1989.5887145376817,"total_return":-0.19895887145377233,"trades":100},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2025-01-01","to":"2025-12-31"}}
 ```
+
+| Field | Meaning |
+|---|---|
+| `data_version` | The input identity declared in `data.json`; never inferred from the path |
+| `requested_period` | The inclusive UTC date range from `data.json` |
+| `actual_period` | First and last open time of the strategy timeframe's bars, in Unix seconds |
+| `bundles` | The five bundle directories that were written |
+| `portfolio` | Final equity, total return, net P&L, maximum drawdown, trade count, and the halt flag |
+| `model_version`, `report_version` | The versions that produced the run |
+
+The values above are the SOLUSD 2025 example run captured on 2026-10-31 with
+`data_version dukascopy-bid-solusd-m1-2025-01-01_2025-12-31`. They describe that
+run; re-run the command to reproduce them.
 
 `first_open_time` and `last_open_time` are the strategy timeframe's first and last open times. The run is deterministic: the same inputs and configuration produce byte-identical bundles and the same envelope, interactively or non-interactively. A single report writes only its own directory:
 
 ```bash
-cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/portfolio-report
+cargo run -p quantrule-shell -- report portfolio --config config/examples/solusd-2025/run.json --out data/reports/portfolio-report
 ```
 
 ### Lab result summary
 
-`lab summary <lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <YYYY-MM-DDTHH:MM:SSZ> [--operator human|agent] [--notes <path>] [--force]` writes one deterministic `summary.txt` at the root of a lab result folder. A lab result folder is `data/lab-result-YYYY-MM-DDTHH-MM-SSZ` in UTC and holds the five report bundles from one `backtest` plus that root summary.
+`lab summary <lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <YYYY-MM-DDTHH:MM:SSZ> [--operator human|agent] [--notes <path>] [--force]` writes one deterministic `summary.txt` at the root of a lab result folder. A lab result folder is `data/labs/lab-result-YYYY-MM-DDTHH-MM-SSZ` in UTC and holds the five report bundles from one `backtest` plus that root summary.
 
 | Option | Meaning |
 |---|---|
@@ -527,7 +547,7 @@ The scorecard counts checks by `pass`, `fail`, and `unknown`; it never combines 
 |---|---|
 | Price side | BID |
 | Date range | Inclusive UTC dates, `YYYY-MM-DD`; the end covers its whole day |
-| Default CSV | `data/<SYMBOL>_<M1\|M5\|M15\|H1>_<start>_<end>.csv`, for example `data/XAUUSD_M1_2025-01-01_2025-12-31.csv` |
+| Default CSV | `data/sources/<SYMBOL>_<M1\|M5\|M15\|H1>_<start>_<end>.csv`, for example `data/sources/XAUUSD_M1_2025-01-01_2025-12-31.csv` |
 | PNG | Written only with `--png <path>`; the chart shows the last `--candles` candles |
 | Chart | Price and volume panels, no moving average, UTC labels |
 | Duplicate cursor row | Dropped at the page boundary |
@@ -540,7 +560,7 @@ A successful fetch prints a fixed summary to stdout:
 symbol=XAU/USD timeframe=1m start=2025-01-01 end=2025-12-31
 rows=354441 accepted=354441 rejected=0 pages=12
 first=2025-01-01T23:00:00Z last=2025-12-31T21:58:00Z
-csv=data/XAUUSD_M1_2025-01-01_2025-12-31.csv
+csv=data/sources/XAUUSD_M1_2025-01-01_2025-12-31.csv
 png=none
 ```
 

@@ -111,6 +111,7 @@ struct PendingOrder {
     intent: Option<TradeIntent>,
     atr14: Option<f64>,
     max_notional: Option<f64>,
+    quantity_step: Option<f64>,
 }
 
 /// A decision refused before an order was accepted.
@@ -276,6 +277,24 @@ impl ExecutionEngine {
         quantity: Option<f64>,
         atr14: Option<f64>,
     ) -> Result<ExecutionBatch, ExecutionError> {
+        self.submit_with_step(intent, quantity, atr14, None)
+    }
+
+    /// Schedules one decision with an explicit quantity step for a risk cap.
+    ///
+    /// The step is used only when a fill notional is capped; the uncapped
+    /// quantity is supplied by the caller exactly as for [`Self::submit`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::submit`].
+    pub fn submit_with_step(
+        &mut self,
+        intent: OrderIntent,
+        quantity: Option<f64>,
+        atr14: Option<f64>,
+        quantity_step: Option<f64>,
+    ) -> Result<ExecutionBatch, ExecutionError> {
         let Some((index, time)) = self.last_bar else {
             return Err(ExecutionError::SubmitBeforeAdvance);
         };
@@ -348,6 +367,7 @@ impl ExecutionEngine {
                                 intent: Some(intent),
                                 atr14,
                                 max_notional,
+                                quantity_step,
                             });
                         }
                     }
@@ -386,6 +406,7 @@ impl ExecutionEngine {
                         intent: None,
                         atr14,
                         max_notional: None,
+                        quantity_step,
                     });
                 }
                 PositionState::Flat | PositionState::Closed => self.reject_decision(
@@ -618,7 +639,19 @@ impl ExecutionEngine {
             }
             let notional = fill.price * fill.quantity;
             if notional > max_notional {
-                let capped = max_notional / fill.price;
+                let mut capped = max_notional / fill.price;
+                if let Some(step) = pending.quantity_step {
+                    if !step.is_finite() || step <= 0.0 {
+                        self.reject_pending(batch, pending, index, time, RejectReason::RiskLimit);
+                        return Ok(());
+                    }
+                    let steps = (capped / step).floor();
+                    if steps < 1.0 {
+                        self.reject_pending(batch, pending, index, time, RejectReason::RiskLimit);
+                        return Ok(());
+                    }
+                    capped = steps * step;
+                }
                 if !capped.is_finite() || capped <= 0.0 {
                     self.reject_pending(batch, pending, index, time, RejectReason::RiskLimit);
                     return Ok(());

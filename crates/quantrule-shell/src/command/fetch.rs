@@ -134,7 +134,7 @@ fn option_value<'a>(
 /// Fetches a Dukascopy range and writes the CSV and optional chart.
 ///
 /// The CSV path defaults to
-/// `data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv`, where `<SYMBOL>` is the
+/// `data/sources/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv`, where `<SYMBOL>` is the
 /// uppercase compact symbol. A PNG is written only when the command supplied a
 /// path.
 ///

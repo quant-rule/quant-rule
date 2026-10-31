@@ -195,15 +195,21 @@ pub(crate) fn run_strategy_run(
     args: &StrategyRunArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let (config, thesis, model_config) = match &args.config {
+    let (config, thesis, model_config, run_bounds) = match &args.config {
         Some(path) => {
             let run = crate::config::RunConfig::load(path).map_err(RunError::Config)?;
-            (run.strategy.engine, run.strategy.thesis, run.model)
+            (
+                run.strategy.engine,
+                run.strategy.thesis,
+                run.model,
+                Some(run.data.bounds),
+            )
         }
         None => (
             StrategyConfig::default(),
             String::new(),
             MarketStateConfig::default(),
+            None,
         ),
     };
     if !is_supported_strategy(&args.strategy) {
@@ -211,7 +217,12 @@ pub(crate) fn run_strategy_run(
             name: args.strategy.clone(),
         }));
     }
-    let set = pipeline::load_extended_set(&args.path, args.bounds).map_err(RunError::Source)?;
+    let bounds = if args.from.is_none() && args.to.is_none() {
+        run_bounds.unwrap_or(args.bounds)
+    } else {
+        args.bounds
+    };
+    let set = pipeline::load_extended_set(&args.path, bounds).map_err(RunError::Source)?;
     if set.series(Timeframe::M1).is_empty() {
         return Err(RunError::StrategyRun(StrategyRunError::EmptyPeriod {
             period: args.requested_period(),
@@ -220,15 +231,6 @@ pub(crate) fn run_strategy_run(
 
     let model_run =
         pipeline::model_run_from_set_with_ladder(&set, &active_timeframes(&config)?, &model_config);
-    for timeframe in active_timeframes(&config)? {
-        let seconds = u64::from(timeframe.seconds());
-        if model_run.timeframe(seconds).is_none() {
-            return Err(RunError::StrategyRun(StrategyRunError::NoTimeframeBars {
-                timeframe_secs: seconds,
-                period: args.requested_period(),
-            }));
-        }
-    }
     let walk = walk_strategy(&model_run, &config).map_err(RunError::Backtest)?;
     let records = collect_records(&walk);
     if args.json {

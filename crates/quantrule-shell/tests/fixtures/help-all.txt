@@ -189,7 +189,7 @@ Write the research dataset: raw M1, three layers, manifest, dictionary, and code
 
 Options
   --data-version <id>          Caller-supplied identity; required.
-  --root <dir>                 Export root (default: data).
+  --root <dir>                 Export root (default: data/research).
 
 Output
   Writes the raw M1 file and the processed layer files; prints row counts and file count.
@@ -367,7 +367,7 @@ store init [--db <path>]
 Create or open the SQLite store and apply the schema migrations.
 
 Options
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   Prints store <path> schema=<n>.
@@ -383,7 +383,7 @@ Ingest one M1 dataset into the SQLite store.
 Options
   --dataset <name>             Dataset name; required.
   --data-version <id>          Caller-supplied identity; required.
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   Prints ingested <name> bars=<n> timeframes=<n>.
@@ -400,7 +400,7 @@ Verify a stored dataset against a fresh build.
 Options
   --dataset <name>             Dataset name; required.
   --data-version <id>          Caller-supplied identity; required.
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   Prints verified <name> bars=<n> tables=7, or the first mismatch.
@@ -414,7 +414,7 @@ store list [--db <path>]
 List the stored datasets as CSV.
 
 Options
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   One CSV row per dataset, sorted by name, with identity, counts, and Layer 3 state.
@@ -430,7 +430,7 @@ Options
   --timeframe <tf>             Timeframe filter: 1m, 5m, 15m, or 1h.
   --bar <n>                    Bar-index filter where the table has one.
   --limit <n>                  Maximum rows, 1..1000 (default 100).
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   CSV rows in DDL order and primary-key order.
@@ -445,7 +445,7 @@ store remove <dataset> [--db <path>]
 Remove one dataset and its cascading records.
 
 Options
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   Prints removed <name> bars=<n>; the database file remains.
@@ -461,7 +461,7 @@ Read stored candles as NDJSON.
 Options
   --timeframe <tf>             Timeframe filter: 1m, 5m, 15m, or 1h.
   --limit <n>                  Maximum rows, 1..1000 (default 100).
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   NDJSON with dataset, timeframe_secs, bar_index, ISO open_time, OHLC, and nullable volume; oldest first.
@@ -477,7 +477,7 @@ Options
   --timeframe <tf>             Timeframe filter: 1m, 5m, 15m, or 1h.
   --bar <n>                    Bar-index filter where the table has one.
   --limit <n>                  Maximum rows, 1..1000 (default 100).
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   CSV with 74 columns.
@@ -493,7 +493,7 @@ Options
   --timeframe <tf>             Timeframe filter: 1m, 5m, 15m, or 1h.
   --bar <n>                    Bar-index filter where the table has one.
   --limit <n>                  Maximum rows, 1..1000 (default 100).
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   CSV with 61 columns: identity, 47 metric columns, and 12 resolution columns.
@@ -508,7 +508,7 @@ Read the materialized Layer 3 rows as CSV.
 Options
   --bar <n>                    Bar-index filter where the table has one.
   --limit <n>                  Maximum rows, 1..1000 (default 100).
-  --db <path>                  Database path (default data/quantrule.db).
+  --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
   CSV with 285 columns.
@@ -525,7 +525,7 @@ Fetch native BID candles; write a CSV and an optional PNG.
 
 Options
   --timeframe <tf>             Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
-  --csv <path>                 CSV target (default: data/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
+  --csv <path>                 CSV target (default: data/sources/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
   --png <path>                 Required PNG target.
   --candles <n>                Last n bars, 1..1000 (default 1000).
 

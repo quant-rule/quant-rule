@@ -600,6 +600,29 @@ fn an_entry_above_the_risk_limit_is_capped_at_the_fill() {
 }
 
 #[test]
+fn a_risk_capped_fill_respects_the_quantity_step() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    assert!(advance(&mut engine, &first).is_empty());
+    engine
+        .submit_with_step(
+            enter_limited(0, 0, Side::Long, 50.0),
+            Some(QUANTITY),
+            Some(1.0),
+            Some(0.1),
+        )
+        .expect("the entry is valid");
+
+    let batch = advance(&mut engine, &second);
+    assert_eq!(batch.fills.len(), 1);
+    let fill = batch.fills[0];
+    assert!(fill.price * fill.quantity <= 50.0 + 1e-9);
+    let steps = fill.quantity / 0.1;
+    assert!((steps - steps.round()).abs() < 1e-9);
+    assert_eq!(batch.orders[0].quantity, Some(fill.quantity));
+}
+
+#[test]
 fn a_zero_volume_next_bar_rejects_the_entry() {
     let mut engine = test_engine();
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));

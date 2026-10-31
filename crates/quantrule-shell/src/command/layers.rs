@@ -16,6 +16,7 @@ use crate::pipeline::{self, ModelInputs};
 pub(crate) struct LayerBuild {
     pub(crate) layers: LayerSet,
     pub(crate) m1: Vec<Candle>,
+    pub(crate) higher: Vec<u64>,
 }
 
 /// Loads an M1 CSV and builds the three layers.
@@ -42,5 +43,10 @@ pub(crate) fn load_layers_with_window_and_ladder(
     let layers =
         build_layers(&inputs.as_inputs(), &LayerConfig::default()).map_err(RunError::Layers)?;
 
-    Ok(LayerBuild { layers, m1 })
+    let higher = ladder
+        .iter()
+        .map(|timeframe| u64::from(timeframe.seconds()))
+        .filter(|seconds| *seconds != u64::from(Timeframe::M1.seconds()))
+        .collect();
+    Ok(LayerBuild { layers, m1, higher })
 }
