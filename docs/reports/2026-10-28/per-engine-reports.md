@@ -69,10 +69,10 @@ Every bundle contains `provenance.json`:
   "report": "portfolio",
   "report_version": "2026-10-28",
   "model_version": "0.3.0",
-  "data_version": "dukascopy-bid-solusd-m1-2025-01-01_2025-12-31",
+  "data_version": "dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31",
   "config_hash": "0123456789abcdef",
-  "requested_period": { "from": "2025-01-01", "to": "2025-12-31" },
-  "actual_period": { "first_open_time": 1735740300, "last_open_time": 1767193080 },
+  "requested_period": { "from": "2024-01-01", "to": "2024-12-31" },
+  "actual_period": { "first_open_time": 1704143700, "last_open_time": 1735656600 },
   "config_files": ["run.json", "policy.json", "data.json", "model.json", "strategy.json", "execution.json", "portfolio.json", "analytics.json"],
   "config": { "...": "bundle-specific resolved values" },
   "artifacts": ["summary.txt", "report.json", "trades.csv", "equity.csv", "equity.png", "drawdown.png", "provenance.json"]

@@ -523,4 +523,4 @@ These are contract decisions within A1's approved scope. The pull request is the
 
 ## 18. Open items
 
-None. The view contract, the artifact set, the chart layout, and the command behavior are fixed above. A2 implements the view; A3 implements the command; A4 verifies the SOLUSD 2025 run.
+None. The view contract, the artifact set, the chart layout, and the command behavior are fixed above. A2 implements the view; A3 implements the command; A4 verifies the example run.
