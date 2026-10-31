@@ -125,6 +125,23 @@ policy. A `quantrule.strategy/v2` file is rejected with a migration message.
 
 `strategy explain --config <run.json>` renders the rule in trader words.
 
+## Portfolio
+
+`portfolio.json` uses `quantrule.portfolio/v1` and owns capital and accounting:
+
+| Field | Rule |
+|---|---|
+| `initial_cash` | Finite, `> 0` |
+| `currency` | `USD` |
+| `sizing` | `fixed_notional` or `equity_fraction`; positive notional/fraction and `quantity_step` |
+| `leverage` | Exactly `1.0` |
+| `max_open_positions` | Exactly `1` |
+| `allow_short` | Boolean |
+| `commission` | `rate >= 0`, `base` `equity`, `per` `operation` |
+| `funding` | `rate` finite, `interval_hours` in the supported set |
+| `max_drawdown` | Optional `(0, 1]` limit; action `halt` |
+| `mark_to_market` | `bar_close` |
+
 ## Execution
 
 `execution.json` no longer owns the bracket. It owns mechanics and costs:

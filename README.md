@@ -455,6 +455,8 @@ data/labs/lab-result-2026-10-31T03-45-00Z/portfolio
 data/labs/lab-result-2026-10-31T03-45-00Z/analytical
 ```
 
+The envelope below is historical: it is the retired 15m `axis-agreement` run, not the current 5m `ladder-context` example.
+
 `--json` prints one envelope instead:
 
 ```json
