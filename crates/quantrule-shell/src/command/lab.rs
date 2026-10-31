@@ -1,8 +1,11 @@
-//! The `lab summary` command.
+//! The `lab` commands.
 //!
-//! The command parses the lab result folder and its identity, then delegates
-//! the bundle reading and summary rendering to [`crate::lab_summary`]. It does
-//! not open a source or compute a model value.
+//! `lab summary` parses the lab result folder and its identity, then delegates
+//! the bundle reading and summary rendering to [`crate::lab_summary`].
+//! `lab diagnose` re-runs the config and delegates the diagnosis to
+//! [`crate::diagnosis`]. `lab list` summarises the lab folders under a root.
+//! The summary and list commands only read published results; diagnose runs the
+//! pipeline, and none of them computes a model value in this module.
 
 use std::fs;
 use std::io::Write;
