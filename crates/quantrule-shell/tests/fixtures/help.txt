@@ -24,6 +24,8 @@ Runs
   report <engine> --config <run>  One config-driven report bundle.
   backtest --config <run>         Five bundles from one full run.
   lab summary <lab-dir>           Root summary.txt for a lab result folder.
+  lab diagnose <lab-dir>          Re-run and write the cross-engine diagnosis.
+  lab list --root <dir>           List lab result folders deterministically.
   policy check --config <run>     Validate the policy and engine configs.
 Store
   store init [--db <path>]        Create or open the SQLite store.

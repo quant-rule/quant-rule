@@ -6,13 +6,15 @@
 //!
 //! The crate currently provides the per-axis resolution in [`resolution`], the
 //! as-of alignment in [`alignment`], the three research layers in [`layers`],
-//! and the chart selector in [`chart`].
+//! the chart selector in [`chart`], and the read-only cross-engine diagnosis in
+//! [`diagnosis`].
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 pub mod alignment;
 pub mod chart;
+pub mod diagnosis;
 pub mod layers;
 pub mod research;
 pub mod resolution;

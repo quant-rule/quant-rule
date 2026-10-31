@@ -10,5 +10,6 @@
     "slippage": {
       "total": 0.0
     }
-  }
+  },
+  "model_version": "0.3.0"
 }

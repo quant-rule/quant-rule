@@ -111,24 +111,42 @@ pub(crate) fn portfolio_bundle_from(
     let equity_csv = equity_csv(ledger.equity_points());
     let summary_text = portfolio_text(config, &metrics);
     let report_json = portfolio_json(config, run, &metrics);
+    let equity_points = ledger
+        .equity_points()
+        .iter()
+        .map(|point| (point.date, point.equity))
+        .collect::<Vec<_>>();
+    let drawdown_points = ledger
+        .equity_points()
+        .iter()
+        .map(|point| (point.date, point.drawdown))
+        .collect::<Vec<_>>();
+    let benchmark = benchmark_series(config, run);
+    let halt = ledger.risk_events().first().copied();
+    let equity_halt = halt.map(|event| (event.time, event.equity));
+    let drawdown_halt = halt.map(|event| (event.time, event.drawdown));
     let equity = chart::render_line_png(
-        &ledger
-            .equity_points()
-            .iter()
-            .map(|point| (point.date, point.equity))
-            .collect::<Vec<_>>(),
+        &equity_points,
+        chart::LineOverlay {
+            benchmark: Some(&benchmark),
+            limit: None,
+            halt: equity_halt,
+        },
         "equity",
         chart::UP,
+        chart::LineUnit::Equity,
     )
     .map_err(RunError::Chart)?;
     let drawdown = chart::render_line_png(
-        &ledger
-            .equity_points()
-            .iter()
-            .map(|point| (point.date, point.drawdown))
-            .collect::<Vec<_>>(),
+        &drawdown_points,
+        chart::LineOverlay {
+            benchmark: None,
+            limit: config.portfolio.max_drawdown.limit(),
+            halt: drawdown_halt,
+        },
         "drawdown",
         chart::DOWN,
+        chart::LineUnit::Fraction,
     )
     .map_err(RunError::Chart)?;
 
@@ -192,6 +210,34 @@ pub(crate) fn portfolio_bundle_from(
         names,
         json,
     })
+}
+
+/// The daily buy-and-hold equity implied by the execution timeframe's closes.
+///
+/// The series is presentation evidence for the equity chart; it is not an
+/// engine output and no report contract reads it.
+fn benchmark_series(config: &RunConfig, run: &BacktestRun) -> Vec<(i64, f64)> {
+    let Some(timeframe) = run
+        .model_run()
+        .timeframe(config.strategy.engine.timeframe_secs())
+    else {
+        return Vec::new();
+    };
+    let Some(first) = timeframe.candle(0) else {
+        return Vec::new();
+    };
+    let mut closes: BTreeMap<i64, f64> = BTreeMap::new();
+    for bar in 0..timeframe.len() {
+        let Some(candle) = timeframe.candle(bar) else {
+            continue;
+        };
+        let date = candle.timestamp().div_euclid(86_400) * 86_400;
+        closes.insert(date, candle.close());
+    }
+    closes
+        .into_iter()
+        .map(|(date, close)| (date, config.portfolio.initial_cash * close / first.close()))
+        .collect()
 }
 
 fn first_open_time(run: &BacktestRun, config: &RunConfig) -> Option<i64> {

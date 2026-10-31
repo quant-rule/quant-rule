@@ -13,6 +13,10 @@ const DATA_VERSION: &str = "test:v1";
 const CREATED: &str = "2026-10-29T12:00:00Z";
 const CONFIG: &str = "config/examples/solusd-2025/run.json";
 
+fn workspace_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
@@ -67,6 +71,7 @@ fn arguments(directory: &Path) -> Vec<String> {
 
 fn run(arguments: &[String]) -> Output {
     Command::new(BIN)
+        .current_dir(workspace_root())
         .args(arguments)
         .output()
         .expect("the quantrule binary runs")
@@ -74,6 +79,7 @@ fn run(arguments: &[String]) -> Output {
 
 fn run_interactive(input: &str) -> Output {
     let mut child = Command::new(BIN)
+        .current_dir(workspace_root())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -227,7 +233,10 @@ fn a_provenance_data_version_mismatch_fails_before_writing() {
 fn insert_config_hash(directory: &Path, bundle: &str, hash: &str) {
     let path = directory.join(bundle).join("provenance.json");
     let text = fs::read_to_string(&path).expect("the provenance is readable");
-    let text = text.replacen('{', &format!("{{\n  \"config_hash\": \"{hash}\","), 1);
+    let mut value: serde_json::Value =
+        serde_json::from_str(&text).expect("the provenance is valid JSON");
+    value["config_hash"] = serde_json::Value::String(hash.to_owned());
+    let text = serde_json::to_string_pretty(&value).expect("the provenance is serializable");
     fs::write(&path, text).expect("the provenance is rewritten");
 }
 
@@ -246,6 +255,60 @@ fn a_config_hash_mismatch_fails_before_writing() {
         stderr(&output)
     );
     assert!(!directory.join("summary.txt").exists());
+}
+
+#[test]
+fn a_model_version_mismatch_fails_before_writing() {
+    let directory = lab_dir("model-version-mismatch");
+    let path = directory.join("portfolio/report.json");
+    let text = fs::read_to_string(&path).expect("the portfolio report is readable");
+    let mut value: serde_json::Value =
+        serde_json::from_str(&text).expect("the portfolio report is valid JSON");
+    value["model_version"] = serde_json::Value::String(String::from("9.9.9"));
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&value).expect("the portfolio report is serializable"),
+    )
+    .expect("the portfolio report is rewritten");
+
+    let output = run(&arguments(&directory));
+
+    assert_failure(&output);
+    assert!(
+        stderr(&output).contains("model_version"),
+        "unexpected stderr: {}",
+        stderr(&output)
+    );
+    assert!(!directory.join("summary.txt").exists());
+}
+
+#[test]
+fn out_of_sample_and_rerun_evidence_are_checked() {
+    let directory = lab_dir("evidence");
+    let oos = directory.join("oos");
+    let rerun = directory.join("rerun");
+    fs::create_dir_all(oos.join("portfolio")).expect("the oos directory is created");
+    fs::create_dir_all(rerun.join("portfolio")).expect("the rerun directory is created");
+    copy_directory(&directory.join("portfolio"), &oos.join("portfolio"));
+    copy_directory(&directory.join("portfolio"), &rerun.join("portfolio"));
+
+    let oos_report = oos.join("portfolio/report.json");
+    let text = fs::read_to_string(&oos_report).expect("the oos report is readable");
+    let mut value: serde_json::Value =
+        serde_json::from_str(&text).expect("the oos report is valid JSON");
+    value["data_version"] = serde_json::Value::String(String::from("oos:v1"));
+    fs::write(
+        &oos_report,
+        serde_json::to_string_pretty(&value).expect("the oos report is serializable"),
+    )
+    .expect("the oos report is rewritten");
+
+    let output = run(&arguments(&directory));
+
+    assert_success(&output);
+    let text = String::from_utf8(summary(&directory)).expect("the summary is UTF-8");
+    assert!(text.contains("[x] out-of-sample evidence (oos/)"));
+    assert!(text.contains("[x] independent rerun (rerun/ matches)"));
 }
 
 #[test]

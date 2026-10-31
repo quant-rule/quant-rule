@@ -10,6 +10,7 @@ mod chart;
 mod command;
 mod config;
 mod csv;
+mod diagnosis;
 mod export;
 mod fetch;
 mod lab_summary;

@@ -37,6 +37,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Policy and strategy blueprints | Current; `run v2`, `policy v1`, `strategy v3`, `execution v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Strategy v2 to v3 migration | Current | `docs/config/2026-10-30/migration-v2-to-v3.md` |
 | Per-engine reports | Approved (#168); implemented by #173–#176; verified by #177 | `docs/reports/2026-10-28/per-engine-reports.md` |
+| Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/reports/2026-10-31/diagnosis-v1.md` |
 | SOLUSD 2025 example run | Verified by #177: five bundles, 29 artifacts, two byte-identical runs | `config/examples/solusd-2025/` |
 
 ### Approved target contracts
@@ -105,6 +106,7 @@ implemented by #230; the remaining target contracts wait for their code phases.
 | MVP pre-release audit closure | All findings `Verified`; AUD-04 validation recorded | `docs/audits/2026-10-30/mvp-pre-release-closure.md` |
 | Unified timeframe ladder | Approved (#228); Phases 1–8 merged; Phase 9 (#237) PR [#246](https://github.com/quant-rule/quant-rule/pull/246) open, CI passed | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 | Unified ladder verification | Complete; no edge; sequential validator record | `docs/experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md` |
+| Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 
@@ -124,6 +126,7 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | Stateless strategy and the position parameter | Accepted 2026-10-30 | `docs/adr/2026-10-30/stateless-strategy-position-parameter.md` |
 | One-way timeframe ladder and trade-intent boundary | Accepted 2026-10-30 (#228) | `docs/adr/2026-10-30/one-way-timeframe-ladder.md` |
 | Retirement of the axis-agreement strategy | Accepted 2026-10-30 (#235) | `docs/adr/2026-10-30/axis-agreement-retirement.md` |
+| Separate cross-engine diagnosis artifact | Accepted 2026-10-31 | `docs/adr/2026-10-31/diagnosis-artifact.md` |
 
 ## Reading a work item
 

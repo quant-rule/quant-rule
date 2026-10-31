@@ -6,7 +6,7 @@
 //! the same PNG bytes.
 
 use quantrule_data::format_utc_timestamp;
-use quantrule_model::report::{ChartReport, ReportChartBar, ReportChartEvent};
+use quantrule_model::report::{ChartReport, ReportChartBar};
 
 use super::{
     BACKGROUND, Canvas, ChartError, DOJI, DOWN, GRID, LEFT, MUTED, PANEL, PLOT_WIDTH, RIGHT, Rgb,
@@ -21,7 +21,7 @@ const PRICE_AXES_HEIGHT: u32 = 960;
 /// The events image width in pixels.
 const EVENTS_WIDTH: u32 = 1_280;
 /// The events image height in pixels.
-const EVENTS_HEIGHT: u32 = 720;
+const EVENTS_HEIGHT: u32 = 760;
 
 /// The top of the price panel in the price-and-axes chart.
 const PRICE_AXES_CANDLE_TOP: i32 = 72;
@@ -43,13 +43,17 @@ const PRICE_AXES_LABEL_Y: i32 = 938;
 /// The top of the price panel in the events chart.
 const EVENTS_PRICE_TOP: i32 = 72;
 /// The bottom of the price panel in the events chart.
-const EVENTS_PRICE_BOTTOM: i32 = 492;
+const EVENTS_PRICE_BOTTOM: i32 = 420;
 /// The top of the volume strip in the events chart.
-const EVENTS_VOLUME_TOP: i32 = 522;
+const EVENTS_VOLUME_TOP: i32 = 440;
 /// The bottom of the volume strip in the events chart.
-const EVENTS_VOLUME_BOTTOM: i32 = 640;
+const EVENTS_VOLUME_BOTTOM: i32 = 520;
+/// The top of the event-density strip.
+const EVENTS_STRIP_TOP: i32 = 542;
+/// The bottom of the event-density strip.
+const EVENTS_STRIP_BOTTOM: i32 = 642;
 /// The baseline of the x-axis labels in the events chart.
-const EVENTS_LABEL_Y: i32 = 652;
+const EVENTS_LABEL_Y: i32 = 656;
 
 /// The number of horizontal price and axis divisions.
 const DIVISIONS: i32 = 4;
@@ -76,8 +80,20 @@ const AXIS_COLORS: [Rgb; 4] = [
     STRUCTURE_COLOR,
     PROGRESSION_COLOR,
 ];
-/// The marker radius in the events chart.
-const MARKER_RADIUS: i32 = 4;
+/// The progression stage ribbon colors, S0 through S5.
+const STAGE_COLORS: [Rgb; 6] = [
+    Rgb::new(84, 110, 122),
+    Rgb::new(66, 165, 245),
+    Rgb::new(38, 166, 154),
+    Rgb::new(102, 187, 106),
+    Rgb::new(255, 167, 38),
+    Rgb::new(239, 83, 80),
+];
+
+/// The stacked event colors: level, divergence, signal.
+const EVENT_COLORS: [Rgb; 3] = [DIRECTION_COLOR, STRUCTURE_COLOR, MOMENTUM_COLOR];
+/// The event-density strip height.
+const EVENTS_STRIP_HEIGHT: i32 = EVENTS_STRIP_BOTTOM - EVENTS_STRIP_TOP;
 
 /// The panel bounds shared by the two charts.
 struct Geometry {
@@ -154,7 +170,7 @@ fn draw_events(canvas: &mut Canvas, report: &ChartReport) -> Result<(), ChartErr
         volume_top: EVENTS_VOLUME_TOP,
         volume_bottom: EVENTS_VOLUME_BOTTOM,
         label_y: EVENTS_LABEL_Y,
-        grid_bottom: EVENTS_VOLUME_BOTTOM,
+        grid_bottom: EVENTS_STRIP_BOTTOM,
     };
 
     draw_header(canvas, report, "market-report events");
@@ -162,10 +178,22 @@ fn draw_events(canvas: &mut Canvas, report: &ChartReport) -> Result<(), ChartErr
     draw_time_grid(canvas, &report.bars, &geometry);
     draw_price_panel(canvas, &report.bars, &geometry);
     draw_volume_panel(canvas, &report.bars, &geometry);
-    draw_borders(canvas, &geometry);
-    draw_event_markers(canvas, report);
+    draw_event_borders(canvas, &geometry);
+    draw_event_strip(canvas, report);
     draw_event_legend(canvas);
     Ok(())
+}
+
+fn draw_event_borders(canvas: &mut Canvas, geometry: &Geometry) {
+    for (top, bottom) in [
+        (geometry.price_top, geometry.price_bottom),
+        (geometry.volume_top, geometry.volume_bottom),
+    ] {
+        canvas.line(LEFT, top, RIGHT, top, GRID);
+        canvas.line(LEFT, bottom, RIGHT, bottom, GRID);
+        canvas.line(LEFT, top, LEFT, bottom, GRID);
+        canvas.line(RIGHT, top, RIGHT, bottom, GRID);
+    }
 }
 
 fn draw_header(canvas: &mut Canvas, report: &ChartReport, title: &str) {
@@ -189,9 +217,10 @@ fn draw_header(canvas: &mut Canvas, report: &ChartReport, title: &str) {
         18,
         44,
         &format!(
-            "{} source bars | {} buckets | {} to {} UTC",
+            "{} source bars | {} buckets | {} events | {} to {} UTC",
             report.source_bars,
             report.bars.len(),
+            report.events.len(),
             first,
             last
         ),
@@ -338,58 +367,66 @@ fn draw_axis_panel(
     canvas.text(LEFT + 4, top + 4, label, color, 1);
 
     if index == 3 {
-        // Progress is unclamped; the panel fixes the domain at -1..+2 and marks
-        // a value outside it. The reference lines are the origin (0) and the
-        // target (1).
-        for division in 0..=3 {
-            let y = top + (height * division) / 3;
+        // Progression is ordinal, so the panel is a six-row ribbon. A bucket
+        // fills the cell of its published stage; a missing stage stays empty.
+        // The codes are never averaged into a line.
+        for (stage, color) in STAGE_COLORS.iter().enumerate() {
+            let y = top + (height * stage as i32) / 6;
             canvas.line(LEFT, y, RIGHT, y, GRID);
-            let value = 2.0 - f64::from(division);
-            text_right(canvas, LEFT - 8, y - 4, &format!("{value:+.1}"), MUTED, 1);
-            if division == 1 || division == 2 {
-                canvas.line(LEFT, y, RIGHT, y, AXIS_ZERO);
+            text_right(canvas, LEFT - 8, y + 2, &format!("S{stage}"), *color, 1);
+        }
+        canvas.line(LEFT, top + height, RIGHT, top + height, GRID);
+        let count = bars.len();
+        let step = f64::from(PLOT_WIDTH) / count.max(1) as f64;
+        let width = ((step * 0.7).floor() as i32).clamp(2, 12);
+        for (bar_index, bar) in bars.iter().enumerate() {
+            let Some(code) = bar.progression_stage_code else {
+                continue;
+            };
+            let Ok(stage) = usize::try_from(code) else {
+                continue;
+            };
+            if stage >= 6 {
+                continue;
             }
+            let x = x_center(bar_index, count);
+            let y = top + (height * stage as i32) / 6;
+            canvas.fill_rect(
+                x - width / 2,
+                y + 2,
+                width,
+                (height / 6 - 3).max(1),
+                STAGE_COLORS[stage],
+            );
         }
-    } else {
-        for division in 0..=DIVISIONS {
-            let ratio = f64::from(division) / f64::from(DIVISIONS);
-            let value = 1.0 - 2.0 * ratio;
-            let y = top + (height * division) / DIVISIONS;
-            canvas.line(LEFT, y, RIGHT, y, GRID);
-            text_right(canvas, LEFT - 8, y - 4, &format!("{value:+.1}"), MUTED, 1);
-        }
-        let zero_y = top + height / 2;
-        canvas.line(LEFT, zero_y, RIGHT, zero_y, AXIS_ZERO);
+        return;
     }
+
+    for division in 0..=DIVISIONS {
+        let ratio = f64::from(division) / f64::from(DIVISIONS);
+        let value = 1.0 - 2.0 * ratio;
+        let y = top + (height * division) / DIVISIONS;
+        canvas.line(LEFT, y, RIGHT, y, GRID);
+        text_right(canvas, LEFT - 8, y - 4, &format!("{value:+.1}"), MUTED, 1);
+    }
+    let zero_y = top + height / 2;
+    canvas.line(LEFT, zero_y, RIGHT, zero_y, AXIS_ZERO);
 
     let count = bars.len();
     let mut previous: Option<(i32, i32)> = None;
     for (bar_index, bar) in bars.iter().enumerate() {
         let x = x_center(bar_index, count);
         let plotted = match index {
-            0 => bar
-                .direction
-                .map(|value| (axis_y(value, top, height), false)),
-            1 => bar
-                .momentum
-                .map(|value| (axis_y(value, top, height), false)),
-            2 => bar
-                .structure
-                .map(|value| (axis_y(value, top, height), false)),
-            _ => bar
-                .progression_progress
-                .map(|value| progress_point(value, top, height)),
+            0 => bar.direction.map(|value| axis_y(value, top, height)),
+            1 => bar.momentum.map(|value| axis_y(value, top, height)),
+            _ => bar.structure.map(|value| axis_y(value, top, height)),
         };
         match plotted {
-            Some((y, clipped)) => {
+            Some(y) => {
                 if let Some((previous_x, previous_y)) = previous {
                     canvas.line(previous_x, previous_y, x, y, color);
                 } else {
                     canvas.fill_rect(x - 1, y - 1, 2, 2, color);
-                }
-                if clipped {
-                    let edge = if y <= top { top } else { top + height - 2 };
-                    canvas.fill_rect(x - 1, edge, 3, 2, color);
                 }
                 previous = Some((x, y));
             }
@@ -422,95 +459,102 @@ fn draw_borders(canvas: &mut Canvas, geometry: &Geometry) {
     }
 }
 
-fn draw_event_markers(canvas: &mut Canvas, report: &ChartReport) {
-    let count = report.bars.len();
-    let geometry = Geometry {
-        price_top: EVENTS_PRICE_TOP,
-        price_bottom: EVENTS_PRICE_BOTTOM,
-        volume_top: EVENTS_VOLUME_TOP,
-        volume_bottom: EVENTS_VOLUME_BOTTOM,
-        label_y: EVENTS_LABEL_Y,
-        grid_bottom: EVENTS_VOLUME_BOTTOM,
-    };
-    let (min_price, max_price) = price_bounds(&report.bars);
+fn draw_event_strip(canvas: &mut Canvas, report: &ChartReport) {
+    canvas.fill_rect(
+        LEFT,
+        EVENTS_STRIP_TOP,
+        PLOT_WIDTH,
+        EVENTS_STRIP_HEIGHT,
+        PANEL,
+    );
+    canvas.line(LEFT, EVENTS_STRIP_BOTTOM, RIGHT, EVENTS_STRIP_BOTTOM, GRID);
+    canvas.line(LEFT, EVENTS_STRIP_TOP, LEFT, EVENTS_STRIP_BOTTOM, GRID);
+    canvas.line(RIGHT, EVENTS_STRIP_TOP, RIGHT, EVENTS_STRIP_BOTTOM, GRID);
+    canvas.text(8, EVENTS_STRIP_TOP - 14, "EVENTS", MUTED, 1);
 
+    let buckets = report.bars.len();
+    if buckets == 0 {
+        return;
+    }
+    let mut counts = vec![[0_usize; 3]; buckets];
     for event in &report.events {
-        let Some(bar) = report.bars.get(event.bucket_index) else {
+        let Some(bucket) = counts.get_mut(event.bucket_index) else {
             continue;
         };
-        let x = x_center(event.bucket_index, count);
-        let y = price_y(bar.close, min_price, max_price, &geometry);
-        let color = direction_color(event);
+        let index = match event.event_type_code {
+            1 => 0,
+            2 => 1,
+            3 => 2,
+            _ => continue,
+        };
+        bucket[index] += 1;
+    }
+    let max = counts
+        .iter()
+        .map(|bucket| bucket.iter().sum::<usize>())
+        .max()
+        .unwrap_or(0);
+    if max == 0 {
+        canvas.text(LEFT + 6, EVENTS_STRIP_TOP + 6, "no event", MUTED, 1);
+        return;
+    }
 
-        match event.event_type_code {
-            1 => fill_circle(canvas, x, y, MARKER_RADIUS, color),
-            2 => fill_triangle(canvas, x, y, MARKER_RADIUS, color),
-            3 => canvas.fill_rect(
-                x - MARKER_RADIUS,
-                y - MARKER_RADIUS,
-                MARKER_RADIUS * 2 + 1,
-                MARKER_RADIUS * 2 + 1,
-                color,
-            ),
-            _ => {}
+    let step = f64::from(PLOT_WIDTH) / buckets as f64;
+    let width = ((step * 0.7).floor() as i32).max(1);
+    let half = width / 2;
+    for (index, bucket) in counts.iter().enumerate() {
+        let total: usize = bucket.iter().sum();
+        if total == 0 {
+            continue;
+        }
+        let x = x_center(index, buckets);
+        let mut base = EVENTS_STRIP_BOTTOM;
+        for (kind, count) in bucket.iter().enumerate() {
+            if *count == 0 {
+                continue;
+            }
+            let height = ((*count as f64 / max as f64) * f64::from(EVENTS_STRIP_HEIGHT))
+                .round()
+                .max(1.0) as i32;
+            base -= height.min(EVENTS_STRIP_HEIGHT);
+            canvas.fill_rect(x - half, base, width, height, EVENT_COLORS[kind]);
         }
     }
+
+    text_right(
+        canvas,
+        LEFT + PLOT_WIDTH - 6,
+        EVENTS_STRIP_TOP + 6,
+        &format!("peak {max} events per bucket"),
+        MUTED,
+        1,
+    );
 }
 
 fn draw_event_legend(canvas: &mut Canvas) {
-    let row_one = 666;
-    let row_two = 686;
+    let row_one = 676;
+    let row_two = 696;
 
     let mut x = LEFT;
-    fill_circle(canvas, x + 4, row_one + 4, 3, TEXT);
+    canvas.fill_rect(x, row_one, 8, 8, EVENT_COLORS[0]);
     x += 14;
     canvas.text(x, row_one, "LEVEL", MUTED, 1);
-    x += 62;
-    fill_triangle(canvas, x + 4, row_one + 4, 3, TEXT);
+    x += 64;
+    canvas.fill_rect(x, row_one, 8, 8, EVENT_COLORS[1]);
     x += 14;
     canvas.text(x, row_one, "DIVERGENCE", MUTED, 1);
-    x += 104;
-    canvas.fill_rect(x, row_one, 7, 7, TEXT);
+    x += 112;
+    canvas.fill_rect(x, row_one, 8, 8, EVENT_COLORS[2]);
     x += 14;
     canvas.text(x, row_one, "SIGNAL", MUTED, 1);
 
-    let mut x = LEFT;
-    canvas.fill_rect(x, row_two, 7, 7, UP);
-    x += 14;
-    canvas.text(x, row_two, "BULLISH", MUTED, 1);
-    x += 76;
-    canvas.fill_rect(x, row_two, 7, 7, DOWN);
-    x += 14;
-    canvas.text(x, row_two, "BEARISH", MUTED, 1);
-    x += 76;
-    canvas.fill_rect(x, row_two, 7, 7, DOJI);
-    x += 14;
-    canvas.text(x, row_two, "NEUTRAL", MUTED, 1);
-}
-
-fn direction_color(event: &ReportChartEvent) -> Rgb {
-    match event.direction_code {
-        code if code > 0 => UP,
-        code if code < 0 => DOWN,
-        _ => DOJI,
-    }
-}
-
-fn fill_circle(canvas: &mut Canvas, center_x: i32, center_y: i32, radius: i32, color: Rgb) {
-    for offset_y in -radius..=radius {
-        for offset_x in -radius..=radius {
-            if offset_x * offset_x + offset_y * offset_y <= radius * radius {
-                canvas.set(center_x + offset_x, center_y + offset_y, color);
-            }
-        }
-    }
-}
-
-fn fill_triangle(canvas: &mut Canvas, center_x: i32, center_y: i32, radius: i32, color: Rgb) {
-    for offset_y in -radius..=radius {
-        let half = (offset_y + radius) / 2;
-        canvas.fill_rect(center_x - half, center_y + offset_y, half * 2 + 1, 1, color);
-    }
+    canvas.text(
+        LEFT,
+        row_two,
+        "Stacked counts per bucket; each underlying event is counted once.",
+        MUTED,
+        1,
+    );
 }
 
 fn x_center(index: usize, count: usize) -> i32 {
@@ -558,20 +602,6 @@ fn axis_y(value: f64, top: i32, height: i32) -> i32 {
     (f64::from(top) + offset).round() as i32
 }
 
-fn progress_y(value: f64, top: i32, height: i32) -> i32 {
-    top + (((2.0 - value) / 3.0) * f64::from(height)).round() as i32
-}
-
-/// The panel position of a progress value and whether it was clipped.
-///
-/// The panel fixes the domain at `-1..+2`; a value outside it is drawn at the
-/// edge and marked, so the marker never implies a value the model did not
-/// publish.
-fn progress_point(value: f64, top: i32, height: i32) -> (i32, bool) {
-    let clamped = value.clamp(-1.0, 2.0);
-    (progress_y(clamped, top, height), clamped != value)
-}
-
 fn candle_color(bar: &ReportChartBar) -> Rgb {
     if bar.close > bar.open {
         UP
@@ -588,7 +618,7 @@ mod tests {
 
     use quantrule_model::report::{ChartReport, ReportChartBar, ReportChartEvent};
 
-    use super::{progress_point, render_report_events_png, render_report_price_axes_png};
+    use super::{render_report_events_png, render_report_price_axes_png};
     use crate::chart::ChartError;
 
     fn bar(index: usize, close: f64) -> ReportChartBar {
@@ -646,16 +676,6 @@ mod tests {
     }
 
     #[test]
-    fn the_progress_panel_maps_the_fixed_domain_and_marks_clipping() {
-        assert_eq!(progress_point(2.0, 0, 300), (0, false));
-        assert_eq!(progress_point(1.0, 0, 300), (100, false));
-        assert_eq!(progress_point(0.0, 0, 300), (200, false));
-        assert_eq!(progress_point(-1.0, 0, 300), (300, false));
-        assert_eq!(progress_point(9.0, 0, 300), (0, true));
-        assert_eq!(progress_point(-9.0, 0, 300), (300, true));
-    }
-
-    #[test]
     fn the_price_axes_chart_has_the_expected_dimensions() {
         let bytes = render_report_price_axes_png(&report()).expect("the chart renders");
         let decoder = png::Decoder::new(Cursor::new(bytes));
@@ -671,8 +691,18 @@ mod tests {
         let decoder = png::Decoder::new(Cursor::new(bytes));
         let reader = decoder.read_info().expect("the PNG header is valid");
         assert_eq!(reader.info().width, 1_280);
-        assert_eq!(reader.info().height, 720);
+        assert_eq!(reader.info().height, 760);
         assert_eq!(reader.info().color_type, png::ColorType::Rgb);
+    }
+
+    #[test]
+    fn more_events_in_a_bucket_change_the_rendered_event_strip() {
+        let mut dense = report();
+        let template = dense.events[0];
+        dense.events = vec![template; 40];
+        let sparse = render_report_events_png(&report()).expect("the sparse chart renders");
+        let dense = render_report_events_png(&dense).expect("the dense chart renders");
+        assert_ne!(sparse, dense);
     }
 
     #[test]

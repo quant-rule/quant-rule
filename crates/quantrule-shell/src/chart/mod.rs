@@ -11,10 +11,12 @@
 //! volume panels share the same x-axis. The market chart adds four aligned axis
 //! panels over the Layer 2 bars; see [`market`].
 
+mod diagnosis;
 mod font;
 mod market;
 mod report;
 
+pub(crate) use diagnosis::render_pages as render_diagnosis_pages;
 pub(crate) use market::render_market_png;
 pub(crate) use report::{render_report_events_png, render_report_price_axes_png};
 
@@ -359,6 +361,7 @@ fn draw_chart(
 
     draw_borders(canvas);
     draw_labels(canvas, first, last, candles.len(), symbol, range, timeframe);
+    draw_marker_legend(canvas);
 
     Ok(())
 }
@@ -501,11 +504,32 @@ fn draw_candles(canvas: &mut Canvas, candles: &[Candle], min_price: f64, max_pri
     }
 }
 
-/// Renders a single-series line chart for a daily equity or drawdown curve.
+/// The unit of a line chart's y-axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LineUnit {
+    /// Quote-currency values.
+    Equity,
+    /// Fractions displayed as percentages.
+    Fraction,
+}
+
+/// Optional overlays for an equity or drawdown line chart.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct LineOverlay<'a> {
+    /// A benchmark series aligned to the same dates, when one exists.
+    pub(crate) benchmark: Option<&'a [(i64, f64)]>,
+    /// A horizontal limit, in the chart's unit.
+    pub(crate) limit: Option<f64>,
+    /// The halt bar's date and the value at the halt, when the halt latched.
+    pub(crate) halt: Option<(i64, f64)>,
+}
+
+/// Renders a daily equity or drawdown line chart with optional overlays.
 ///
 /// The x-axis is the point order, the y-axis the value. A missing date is
 /// absent from the slice, so the line has a gap rather than a zero. The caller
-/// supplies the already-downsampled points.
+/// supplies the already-downsampled points. The benchmark, limit, and halt are
+/// drawn from the caller's values; the renderer computes no curve.
 ///
 /// # Errors
 ///
@@ -513,8 +537,10 @@ fn draw_candles(canvas: &mut Canvas, candles: &[Candle], min_price: f64, max_pri
 /// [`ChartError::Encode`] when the PNG encoder fails.
 pub(crate) fn render_line_png(
     points: &[(i64, f64)],
+    overlay: LineOverlay<'_>,
     title: &str,
     color: Rgb,
+    unit: LineUnit,
 ) -> Result<Vec<u8>, ChartError> {
     if points.is_empty() {
         return Err(ChartError::Empty);
@@ -522,18 +548,30 @@ pub(crate) fn render_line_png(
 
     const LINE_WIDTH: u32 = 1_280;
     const LINE_HEIGHT: u32 = 480;
-    const TOP: i32 = 72;
+    const TOP: i32 = 96;
     const BOTTOM: i32 = 408;
     const DIVISIONS: i32 = 4;
 
     let mut canvas = Canvas::new(LINE_WIDTH, LINE_HEIGHT, BACKGROUND);
     canvas.fill_rect(LEFT, TOP, PLOT_WIDTH, BOTTOM - TOP, PANEL);
-    canvas.text(LEFT, 28, title, TEXT, 2);
+    canvas.text(LEFT, 22, title, TEXT, 2);
 
-    let (mut min, mut max) = points.iter().fold(
-        (f64::INFINITY, f64::NEG_INFINITY),
-        |(min, max), (_, value)| (min.min(*value), max.max(*value)),
-    );
+    let mut min = f64::INFINITY;
+    let mut max = f64::NEG_INFINITY;
+    for (_, value) in points {
+        min = min.min(*value);
+        max = max.max(*value);
+    }
+    if let Some(benchmark) = overlay.benchmark {
+        for (_, value) in benchmark {
+            min = min.min(*value);
+            max = max.max(*value);
+        }
+    }
+    if let Some(limit) = overlay.limit {
+        min = min.min(limit);
+        max = max.max(limit);
+    }
     if !min.is_finite() || !max.is_finite() {
         return Err(ChartError::Empty);
     }
@@ -541,6 +579,9 @@ pub(crate) fn render_line_png(
         min -= 1.0;
         max += 1.0;
     }
+    let padding = (max - min) * 0.04;
+    min -= padding;
+    max += padding;
     let y =
         |value: f64| TOP + (((max - value) / (max - min)) * f64::from(BOTTOM - TOP)).round() as i32;
 
@@ -549,7 +590,10 @@ pub(crate) fn render_line_png(
             + (f64::from(BOTTOM - TOP) * f64::from(division) / f64::from(DIVISIONS)).round() as i32;
         canvas.line(LEFT, grid_y, LEFT + PLOT_WIDTH, grid_y, GRID);
         let value = max - (max - min) * f64::from(division) / f64::from(DIVISIONS);
-        let label = format!("{value:.4}");
+        let label = match unit {
+            LineUnit::Equity => format!("{value:.2}"),
+            LineUnit::Fraction => format!("{:.1}%", value * 100.0),
+        };
         text_right(
             &mut canvas,
             LINE_WIDTH as i32 - 12,
@@ -561,16 +605,49 @@ pub(crate) fn render_line_png(
     }
 
     let step = f64::from(PLOT_WIDTH) / (points.len().max(2) - 1) as f64;
-    let mut previous = None;
-    for (index, (_, value)) in points.iter().enumerate() {
-        let x = LEFT + (index as f64 * step).round() as i32;
-        let point = (x, y(*value));
-        if let Some((previous_x, previous_y)) = previous {
-            canvas.line(previous_x, previous_y, point.0, point.1, color);
-        }
-        previous = Some(point);
+    let x_at = |index: usize| LEFT + (index as f64 * step).round() as i32;
+    if let Some(benchmark) = overlay.benchmark {
+        draw_line_series(&mut canvas, benchmark, x_at, &y, SECONDARY);
+    }
+    draw_line_series(&mut canvas, points, x_at, &y, color);
+
+    if let Some(limit) = overlay.limit {
+        let limit_y = y(limit);
+        canvas.line(LEFT, limit_y, LEFT + PLOT_WIDTH, limit_y, LIMIT);
+        canvas.text(
+            LEFT + 6,
+            limit_y - 12,
+            &match unit {
+                LineUnit::Equity => format!("limit {limit:.2}"),
+                LineUnit::Fraction => format!("limit {:.2}%", limit * 100.0),
+            },
+            LIMIT,
+            1,
+        );
+    }
+    if let Some((halt_time, halt_value)) = overlay.halt {
+        let index = points
+            .iter()
+            .position(|(date, _)| *date >= halt_time.div_euclid(86_400) * 86_400)
+            .unwrap_or(points.len().saturating_sub(1));
+        let x = x_at(index);
+        canvas.line(x, TOP, x, BOTTOM, HALT);
+        canvas.text(
+            (x + 4).min(LEFT + PLOT_WIDTH - 60),
+            TOP + 6,
+            &format!(
+                "HALT {}",
+                match unit {
+                    LineUnit::Equity => format!("{:.2}", halt_value),
+                    LineUnit::Fraction => format!("{:.2}%", halt_value * 100.0),
+                }
+            ),
+            HALT,
+            1,
+        );
     }
 
+    draw_line_legend(&mut canvas, overlay.benchmark.is_some(), color);
     let first = format_utc_timestamp(points[0].0);
     let last = format_utc_timestamp(points[points.len() - 1].0);
     canvas.text(LEFT, BOTTOM + 18, &first[..10], MUTED, 1);
@@ -585,6 +662,43 @@ pub(crate) fn render_line_png(
 
     canvas.encode_png().map_err(ChartError::Encode)
 }
+
+fn draw_line_series(
+    canvas: &mut Canvas,
+    points: &[(i64, f64)],
+    x_at: impl Fn(usize) -> i32,
+    y: &impl Fn(f64) -> i32,
+    color: Rgb,
+) {
+    let mut previous = None;
+    for (index, (_, value)) in points.iter().enumerate() {
+        let point = (x_at(index), y(*value));
+        if let Some((previous_x, previous_y)) = previous {
+            canvas.line(previous_x, previous_y, point.0, point.1, color);
+        }
+        previous = Some(point);
+    }
+}
+
+fn draw_line_legend(canvas: &mut Canvas, benchmark: bool, color: Rgb) {
+    let mut x = LEFT;
+    canvas.fill_rect(x, 66, 8, 8, color);
+    x += 14;
+    canvas.text(x, 66, "SERIES", MUTED, 1);
+    if benchmark {
+        x += 62;
+        canvas.fill_rect(x, 66, 8, 8, SECONDARY);
+        x += 14;
+        canvas.text(x, 66, "BUY & HOLD", MUTED, 1);
+    }
+}
+
+/// The equity chart's benchmark line.
+const SECONDARY: Rgb = Rgb::new(171, 71, 188);
+/// The drawdown limit line.
+const LIMIT: Rgb = Rgb::new(255, 167, 38);
+/// The halt annotation.
+const HALT: Rgb = Rgb::new(239, 83, 80);
 
 fn draw_decision_markers(
     canvas: &mut Canvas,
@@ -601,9 +715,41 @@ fn draw_decision_markers(
         };
         let x = (f64::from(LEFT) + (*index as f64 + 0.5) * step).round() as i32;
         let y = price_y(candle.close(), min_price, max_price);
-        let color = if *is_entry { UP } else { DOWN };
-        canvas.fill_rect(x - 3, y - 3, 7, 7, color);
+        if *is_entry {
+            fill_triangle_up(canvas, x, y - 10, 5, UP);
+        } else {
+            fill_triangle_down(canvas, x, y + 10, 5, DOWN);
+        }
     }
+}
+
+fn fill_triangle_up(canvas: &mut Canvas, center_x: i32, center_y: i32, radius: i32, color: Rgb) {
+    for offset_y in -radius..=radius {
+        let half = (offset_y + radius) / 2;
+        canvas.fill_rect(center_x - half, center_y + offset_y, half * 2 + 1, 1, color);
+    }
+}
+
+fn fill_triangle_down(canvas: &mut Canvas, center_x: i32, center_y: i32, radius: i32, color: Rgb) {
+    for offset_y in -radius..=radius {
+        let half = (radius - offset_y) / 2;
+        canvas.fill_rect(center_x - half, center_y + offset_y, half * 2 + 1, 1, color);
+    }
+}
+
+fn draw_marker_legend(canvas: &mut Canvas) {
+    let y = 682;
+    fill_triangle_up(canvas, LEFT + 6, y - 2, 5, UP);
+    canvas.text(LEFT + 18, y, "ENTRY", MUTED, 1);
+    fill_triangle_down(canvas, LEFT + 86, y + 2, 5, DOWN);
+    canvas.text(LEFT + 98, y, "EXIT", MUTED, 1);
+    canvas.text(
+        LEFT + 160,
+        y,
+        "ENTRY ABOVE CLOSE | EXIT BELOW CLOSE",
+        MUTED,
+        1,
+    );
 }
 
 fn draw_volumes(canvas: &mut Canvas, candles: &[Candle], max_volume: f64) {

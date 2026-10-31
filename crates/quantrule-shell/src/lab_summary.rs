@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use quantrule_data::format_utc_timestamp;
 use serde_json::Value;
 
+use crate::config::{ConfigError, RunConfig};
 use crate::export::{ExportError, write_atomic};
 use crate::labels;
 
@@ -140,7 +141,9 @@ pub(crate) fn write(args: &LabSummaryArgs) -> Result<PathBuf, LabSummaryError> {
         return Err(LabSummaryError::SummaryExists { path: summary_path });
     }
 
-    let bundles = read_bundles(args)?;
+    let config =
+        RunConfig::load(&args.config).map_err(|source| LabSummaryError::Config { source })?;
+    let bundles = read_bundles(args, &config)?;
     let notes = match &args.notes {
         Some(path) => Some(read_notes(path)?),
         None => None,
@@ -154,7 +157,7 @@ pub(crate) fn write(args: &LabSummaryArgs) -> Result<PathBuf, LabSummaryError> {
     Ok(summary_path)
 }
 
-fn read_bundles(args: &LabSummaryArgs) -> Result<Vec<Bundle>, LabSummaryError> {
+fn read_bundles(args: &LabSummaryArgs, config: &RunConfig) -> Result<Vec<Bundle>, LabSummaryError> {
     let mut bundles = Vec::with_capacity(BUNDLES.len());
     let mut config_hash: Option<(String, PathBuf)> = None;
     for name in BUNDLES {
@@ -165,29 +168,50 @@ fn read_bundles(args: &LabSummaryArgs) -> Result<Vec<Bundle>, LabSummaryError> {
         }
         let report = read_json(&report_path)?;
         check_data_version(&report_path, &report, &args.data_version)?;
+        let report_model_version = string_at(&report, &report_path, "model_version")?;
+        if report_model_version != env!("CARGO_PKG_VERSION") {
+            return Err(LabSummaryError::ConfigMismatch {
+                path: report_path,
+                field: String::from("model_version"),
+                expected: env!("CARGO_PKG_VERSION").to_owned(),
+                actual: report_model_version.to_owned(),
+            });
+        }
 
         let provenance_path = directory.join("provenance.json");
         let provenance = if provenance_path.is_file() {
             let provenance = read_json(&provenance_path)?;
             check_data_version(&provenance_path, &provenance, &args.data_version)?;
-            if let Some(hash_value) = provenance.get("config_hash") {
-                let hash = hash_value
-                    .as_str()
-                    .ok_or_else(|| invalid(&provenance_path, "config_hash", "expected a string"))?;
-                match &config_hash {
-                    Some((expected, expected_path)) if hash != expected => {
-                        return Err(invalid(
-                            &provenance_path,
-                            "config_hash",
-                            &format!(
-                                "expected {expected} from {}, found {hash}",
-                                expected_path.display()
-                            ),
-                        ));
-                    }
-                    Some(_) => {}
-                    None => config_hash = Some((hash.to_owned(), provenance_path.clone())),
+            let hash = provenance
+                .get("config_hash")
+                .and_then(Value::as_str)
+                .ok_or_else(|| LabSummaryError::ConfigMismatch {
+                    path: provenance_path.clone(),
+                    field: String::from("config_hash"),
+                    expected: config.config_hash.clone(),
+                    actual: String::from("missing"),
+                })?;
+            if hash != config.config_hash {
+                return Err(LabSummaryError::ConfigMismatch {
+                    path: provenance_path,
+                    field: String::from("config_hash"),
+                    expected: config.config_hash.clone(),
+                    actual: hash.to_owned(),
+                });
+            }
+            match &config_hash {
+                Some((expected, expected_path)) if hash != expected => {
+                    return Err(invalid(
+                        &provenance_path,
+                        "config_hash",
+                        &format!(
+                            "expected {expected} from {}, found {hash}",
+                            expected_path.display()
+                        ),
+                    ));
                 }
+                Some(_) => {}
+                None => config_hash = Some((hash.to_owned(), provenance_path.clone())),
             }
             Some(provenance)
         } else {
@@ -260,15 +284,15 @@ fn render(
     writeln!(out, "  config: {}", args.config.display())?;
     writeln!(out)?;
 
-    write_artifacts(&mut out, bundles)?;
+    write_artifacts(&mut out, bundles, &args.lab_dir)?;
     write_observed(&mut out, portfolio, execution, strategy, analytical, model)?;
-    write_checks(&mut out, bundles)?;
+    write_checks(&mut out, bundles, &args.lab_dir)?;
     write_notes(&mut out, notes)?;
 
     writeln!(out, "Limitations")?;
     writeln!(
         out,
-        "  - In-sample only unless an out-of-sample run is recorded in the role notes."
+        "  - In-sample only unless an out-of-sample lab is recorded under oos/."
     )?;
     writeln!(
         out,
@@ -292,7 +316,11 @@ fn bundle<'a>(bundles: &'a [Bundle], name: &str) -> Result<&'a Bundle, LabSummar
         })
 }
 
-fn write_artifacts(out: &mut Vec<u8>, bundles: &[Bundle]) -> Result<(), LabSummaryError> {
+fn write_artifacts(
+    out: &mut Vec<u8>,
+    bundles: &[Bundle],
+    lab_dir: &Path,
+) -> Result<(), LabSummaryError> {
     writeln!(out, "Artifacts")?;
     for bundle in bundles {
         writeln!(
@@ -311,6 +339,16 @@ fn write_artifacts(out: &mut Vec<u8>, bundles: &[Bundle]) -> Result<(), LabSumma
             format!("{}/provenance.json", bundle.name)
         )?;
     }
+    writeln!(
+        out,
+        "  {:<30} {}",
+        "diagnosis/diagnosis.json",
+        if lab_dir.join("diagnosis").join("diagnosis.json").is_file() {
+            "present"
+        } else {
+            "missing"
+        }
+    )?;
     writeln!(out)?;
     Ok(())
 }
@@ -449,7 +487,11 @@ fn write_observed(
     Ok(())
 }
 
-fn write_checks(out: &mut Vec<u8>, bundles: &[Bundle]) -> Result<(), LabSummaryError> {
+fn write_checks(
+    out: &mut Vec<u8>,
+    bundles: &[Bundle],
+    lab_dir: &Path,
+) -> Result<(), LabSummaryError> {
     let provenance_count = bundles
         .iter()
         .filter(|bundle| bundle.provenance.is_some())
@@ -480,10 +522,66 @@ fn write_checks(out: &mut Vec<u8>, bundles: &[Bundle]) -> Result<(), LabSummaryE
         "  [{}] report versions present ({version_count}/5)",
         check_mark(version_count == 5)
     )?;
-    writeln!(out, "  [ ] out-of-sample evidence")?;
-    writeln!(out, "  [ ] independent rerun")?;
+    match out_of_sample(lab_dir) {
+        Some(true) => writeln!(out, "  [x] out-of-sample evidence (oos/)")?,
+        Some(false) => writeln!(
+            out,
+            "  [ ] out-of-sample evidence (oos/ uses the same data version)"
+        )?,
+        None => writeln!(out, "  [ ] out-of-sample evidence (no oos/ lab)")?,
+    }
+    match rerun(lab_dir) {
+        Some(true) => writeln!(out, "  [x] independent rerun (rerun/ matches)")?,
+        Some(false) => writeln!(out, "  [ ] independent rerun (rerun/ differs)")?,
+        None => writeln!(out, "  [ ] independent rerun (no rerun/ lab)")?,
+    }
     writeln!(out)?;
     Ok(())
+}
+
+fn out_of_sample(lab_dir: &Path) -> Option<bool> {
+    let path = lab_dir.join("oos").join("portfolio").join("report.json");
+    let report = read_json(&path).ok()?;
+    let main = read_json(&lab_dir.join("portfolio").join("report.json")).ok()?;
+    let oos_version = report.get("data_version").and_then(Value::as_str)?;
+    let main_version = main.get("data_version").and_then(Value::as_str)?;
+    Some(oos_version != main_version)
+}
+
+fn rerun(lab_dir: &Path) -> Option<bool> {
+    let rerun = read_json(&lab_dir.join("rerun").join("portfolio").join("report.json")).ok()?;
+    let main = read_json(&lab_dir.join("portfolio").join("report.json")).ok()?;
+    let rerun_hash = read_json(
+        &lab_dir
+            .join("rerun")
+            .join("portfolio")
+            .join("provenance.json"),
+    )
+    .ok()?
+    .get("config_hash")
+    .and_then(Value::as_str)
+    .map(str::to_owned);
+    let main_hash = read_json(&lab_dir.join("portfolio").join("provenance.json"))
+        .ok()?
+        .get("config_hash")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    if rerun_hash != main_hash {
+        return Some(false);
+    }
+    let fields = [
+        "final_equity",
+        "net_pnl",
+        "trades",
+        "max_drawdown",
+        "halted",
+    ];
+    Some(fields.iter().all(|field| {
+        rerun
+            .pointer(&format!("/summary/{field}"))
+            .zip(main.pointer(&format!("/summary/{field}")))
+            .is_some_and(|(left, right)| left == right)
+    }))
 }
 
 fn write_notes(out: &mut Vec<u8>, notes: Option<&str>) -> Result<(), LabSummaryError> {
@@ -688,6 +786,22 @@ pub(crate) enum LabSummaryError {
         /// The notes path.
         path: PathBuf,
     },
+    /// The supplied run configuration could not be loaded.
+    Config {
+        /// The underlying configuration error.
+        source: ConfigError,
+    },
+    /// A bundle disagrees with the supplied configuration.
+    ConfigMismatch {
+        /// The file that disagrees.
+        path: PathBuf,
+        /// The field that disagrees.
+        field: String,
+        /// The value the supplied configuration names.
+        expected: String,
+        /// The value the bundle carries.
+        actual: String,
+    },
     /// The summary could not be rendered.
     Render {
         /// The underlying I/O error.
@@ -747,6 +861,19 @@ impl fmt::Display for LabSummaryError {
                     path.display()
                 )
             }
+            Self::Config { source } => {
+                write!(formatter, "cannot load the lab configuration: {source}")
+            }
+            Self::ConfigMismatch {
+                path,
+                field,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "{}: {field} mismatch: expected {expected} from the supplied config, found {actual}",
+                path.display()
+            ),
             Self::Render { source } => {
                 write!(formatter, "cannot render the lab summary: {source}")
             }
@@ -764,12 +891,14 @@ impl std::error::Error for LabSummaryError {
             Self::Parse { source, .. } => Some(source),
             Self::Render { source } => Some(source),
             Self::Write { source, .. } => Some(source),
+            Self::Config { source } => Some(source),
             Self::NotDirectory { .. }
             | Self::MissingBundle { .. }
             | Self::InvalidReport { .. }
             | Self::DataVersionMismatch { .. }
             | Self::SummaryExists { .. }
-            | Self::NotesNotUtf8 { .. } => None,
+            | Self::NotesNotUtf8 { .. }
+            | Self::ConfigMismatch { .. } => None,
         }
     }
 }
