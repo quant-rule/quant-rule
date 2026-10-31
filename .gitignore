@@ -6,6 +6,10 @@
 /target
 **/*.rs.bk
 
+# The shell's unit tests write small fixtures under a crate-local target
+# directory. Compiled output still uses the root `/target` above.
+/crates/*/target/
+
 # The lock file is deliberately not ignored. QuantRule ships a shell
 # application, so Cargo.lock pins the exact dependencies of the build that is
 # published, and it is committed like any other source file.
