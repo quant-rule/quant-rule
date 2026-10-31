@@ -420,7 +420,7 @@ fn an_empty_period_is_rejected() {
 }
 
 #[test]
-fn a_short_series_has_no_timeframe_bars() {
+fn a_short_series_yields_no_strategy_records() {
     let path = short_series();
     let output = run(&[
         "strategy-run",
@@ -431,12 +431,9 @@ fn a_short_series_has_no_timeframe_bars() {
         DATA_VERSION,
     ]);
 
-    assert_failure(&output);
-    assert!(
-        stderr_text(&output).contains("produced no 900-second bars"),
-        "unexpected stderr: {}",
-        stderr_text(&output)
-    );
+    assert_success(&output);
+    assert_eq!(stdout_text(&output), "");
+    assert_eq!(stderr_text(&output), "");
 }
 
 #[test]

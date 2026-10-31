@@ -220,15 +220,6 @@ pub(crate) fn run_strategy_run(
 
     let model_run =
         pipeline::model_run_from_set_with_ladder(&set, &active_timeframes(&config)?, &model_config);
-    for timeframe in active_timeframes(&config)? {
-        let seconds = u64::from(timeframe.seconds());
-        if model_run.timeframe(seconds).is_none() {
-            return Err(RunError::StrategyRun(StrategyRunError::NoTimeframeBars {
-                timeframe_secs: seconds,
-                period: args.requested_period(),
-            }));
-        }
-    }
     let walk = walk_strategy(&model_run, &config).map_err(RunError::Backtest)?;
     let records = collect_records(&walk);
     if args.json {

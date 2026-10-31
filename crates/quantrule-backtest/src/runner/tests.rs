@@ -513,6 +513,25 @@ fn an_invalid_risk_envelope_is_rejected() {
 }
 
 #[test]
+fn a_missing_context_series_produces_a_flat_run() {
+    let candles = candles(150);
+    let run = run_backtest(
+        &[TimeframeInput {
+            timeframe_secs: 900,
+            candles: &candles,
+        }],
+        &config(),
+    )
+    .expect("a missing context series is a missing measurement, not an error");
+    assert!(run.ledger().trades().is_empty());
+    assert!(
+        run.decisions()
+            .iter()
+            .all(|decision| matches!(decision, Decision::Hold))
+    );
+}
+
+#[test]
 fn a_missing_strategy_timeframe_produces_an_empty_run() {
     let candles = candles(1400);
     let run = run_backtest(
