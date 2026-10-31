@@ -63,7 +63,7 @@ POLICY (human) > STRATEGY (human) > MODEL (measurement) > EXECUTION (fills) > PO
 
 Statistics is confined to evaluation and validation. No regression, correlation, p-value, optimization, fitted coefficient, percentile-driven entry/exit, or machine-learning model is part of the signal path. A model diagnostic may remain outside the signal path only if a boundary test proves the strategy cannot read it.
 
-The analytical model's contract — the four axes, the numeric output fields, the event model, and the aggregation rules — is written down in `docs/model/`; the research output contract is in `docs/analytics/`. The implementation follows both.
+The analytical model's contract — the four axes, the numeric output fields, the event model, and the aggregation rules — is written down in `docs/model/`; the research output contract is in `docs/analytics/`. The system architecture baseline — the product kata, architecture characteristics, and style/quantum — is in `docs/architecture/`. The implementation follows the model and research contracts; the architecture baseline records the drivers behind them.
 
 ## 3. Coding Conventions
 
@@ -138,7 +138,8 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **README** is updated in the same change as any user-facing behavior change.
 - **Command reference.** The command set is documented — the name of each command, its arguments, its output, and a worked example — in the README or under `docs/`. A change to a command's contract updates that reference in the same pull request.
 - **Concise documentation.** A table or a short statement carries the same information more clearly than a paragraph of prose, and prose that repeats a table is noise. Keep the context a reader needs in order to act, and drop the rest.
-- **Repository layout** under `docs/`. The layout is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes first, then the UTC date of the work item, then the file. A kind directory is created when it is first used, not before. `docs/README.md` is the index of the tree and sits outside this layout.
+- **Repository layout** under `docs/`. Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes first, then the UTC date of the work item, then the file. Living system documents sit directly under their kind, as `docs/architecture/<file>.md`. A kind directory is created when it is first used, not before. `docs/README.md` is the index of the tree and sits outside this layout.
+  - `docs/architecture/<file>.md` — the living system documentation: overview, product kata, architecture characteristics, style/quantum, and cross-cutting views. Decisions remain in `docs/adr/`; model, config, and report contracts remain in their own kinds.
   - `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` — approved execution plans, per section 11.
   - `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` — the AI transparency log required by section 6. One file per work item, named to match its execution plan.
   - `docs/model/<YYYY-MM-DD>/<file>.md` — the analytical model's contract: the four axes, the numeric output fields, the event model, and the aggregation rules. The implementation follows it.

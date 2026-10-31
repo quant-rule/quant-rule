@@ -1,6 +1,6 @@
 # QuantRule Documentation
 
-The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes first, then the UTC date of the work item, then the file. A kind directory appears when it is first used.
+Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes first, then the UTC date of the work item, then the file. Living system documents sit directly under their kind, as `docs/architecture/<file>.md`. A kind directory appears when it is first used.
 
 ## Kinds
 
@@ -9,6 +9,7 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Execution plans | The plan for a substantial work item, per `AGENTS.md` section 11. | `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` |
 | AI transparency log | The record of material AI contributions for a work item, per `AGENTS.md` section 6. One file per work item, named to match its execution plan. | `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` |
 | Agent roles | The quant and engineering roles, their handoffs, and when each is required. | `docs/roles/<YYYY-MM-DD>/<file>.md` |
+| Architecture | The living system documentation: overview, product kata, architecture characteristics, style/quantum, and cross-cutting views. | `docs/architecture/<file>.md` |
 | Tutorials | End-to-end procedures that run the product through shell commands, including role labs. | `docs/tutorials/<YYYY-MM-DD>/<file>.md` |
 | Model | The analytical model's contract: the four axes, the numeric output fields, the event model, and the aggregation rules. The implementation follows it. | `docs/model/<YYYY-MM-DD>/<file>.md` |
 | Analytics and research | The research output contract and the dataset definition: layers, columns, null rules, alignment, and export metadata. | `docs/analytics/<YYYY-MM-DD>/<file>.md` |
@@ -19,6 +20,16 @@ The documentation tree is `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes f
 | Audits | Read-only findings, evidence, and remediation options. | `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` |
 | Experiments | Pre-registered experiment records and triage. | `docs/experiments/<YYYY-MM-DD>/<EXP-ID>-<slug>.md` |
 | Governance | The improvement charter, green criteria, autonomy, and stop conditions. | `docs/governance/<YYYY-MM-DD>/<file>.md` |
+
+## Current architecture
+
+| Document | Status | Path |
+|---|---|---|
+| System architecture entry point | Current; approved 2026-10-31 | `docs/architecture/README.md` |
+| The Trustworthy Backtest Kata | Current; approved 2026-10-31 | `docs/architecture/kata.md` |
+| Architecture characteristics | Current; approved 2026-10-31 | `docs/architecture/characteristics.md` |
+
+The baseline decision is listed in the current architecture decisions below.
 
 ## Current model contracts
 
@@ -132,6 +143,7 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | One-way timeframe ladder and trade-intent boundary | Accepted 2026-10-30 (#228) | `docs/adr/2026-10-30/one-way-timeframe-ladder.md` |
 | Retirement of the axis-agreement strategy | Accepted 2026-10-30 (#235) | `docs/adr/2026-10-30/axis-agreement-retirement.md` |
 | Separate cross-engine diagnosis artifact | Accepted 2026-10-31 | `docs/adr/2026-10-31/diagnosis-artifact.md` |
+| Trustworthy backtest kata and architecture characteristics | Accepted 2026-10-31 | `docs/adr/2026-10-31/adopt-architecture-baseline.md` |
 
 ## Reading a work item
 
