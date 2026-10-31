@@ -22,6 +22,7 @@ hypothesis, the model formulas, execution, or portfolio accounting. It does not
 add a dependency or `unsafe` code. The human authorized commits and PRs; the work
 was committed as `4e2b357` and pushed to `fix/250-context-contract`. The
 validator record is `docs/reports/2026-10-31/w4-context-contract-validation.md`.
+The work was opened as PR #260.
 
 ## Implemented
 
@@ -56,6 +57,7 @@ validator record is `docs/reports/2026-10-31/w4-context-contract-validation.md`.
 | `cargo test --workspace` | 45 test-result-ok suites, 0 failures |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` | Passed |
 | `git diff --check` | Clean |
+| Commit and PR | `4e2b357`, `a68ea8c`; PR #260; not merged |
 
 ## Learning and rejected suggestions
 
