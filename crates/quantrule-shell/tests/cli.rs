@@ -2043,3 +2043,38 @@ fn strategy_run_uses_the_config_strategy() {
     assert_success(&output);
     assert_eq!(stderr_text(&output), "");
 }
+
+#[test]
+fn events_keep_the_contract_order_on_one_bar() {
+    let path = fixture("state_m1.csv");
+    let output = run(&["events", &path]);
+    assert_success(&output);
+    let rows: Vec<serde_json::Value> = stdout_text(&output)
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("event JSON"))
+        .collect();
+    let on_bar = |bar: u64| {
+        rows.iter()
+            .filter(|row| row["available_bar"] == bar)
+            .map(|row| {
+                (
+                    row["type_label"].as_str().unwrap_or(""),
+                    row["subtype_label"].as_str().unwrap_or(""),
+                    row["source_label"].as_str().unwrap_or(""),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let bar28 = on_bar(28);
+    assert_eq!(bar28.first(), Some(&("level", "break", "ema20")));
+    let bar37 = on_bar(37);
+    let momentum = bar37
+        .iter()
+        .position(|row| *row == ("signal", "compact_state_change", "momentum_force"))
+        .expect("momentum signal");
+    let structure = bar37
+        .iter()
+        .position(|row| *row == ("signal", "compact_state_change", "structure_relations"))
+        .expect("structure signal");
+    assert!(momentum < structure, "momentum must precede structure");
+}
