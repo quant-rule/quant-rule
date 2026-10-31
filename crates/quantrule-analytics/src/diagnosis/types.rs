@@ -284,8 +284,8 @@ pub struct ExitReasonStats {
     pub net_pnl: f64,
     /// Trades with positive net P&L.
     pub wins: usize,
-    /// Mean hold in strategy bars.
-    pub average_hold_bars: f64,
+    /// Mean hold in strategy bars, when the reason has trades.
+    pub average_hold_bars: Option<f64>,
 }
 
 /// One hold-time bucket.
