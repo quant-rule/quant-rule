@@ -162,10 +162,9 @@ not contend for the same files. Only one work item is `In Progress` at a time.
   a distinct `data_version` gives `pass`; absent and unreadable give `unknown`
   with distinct evidence. Analytics unit tests cover all four states.
 - Validator record: `docs/reports/2026-10-31/w1-oos-evidence-validation.md`.
-- Implementation evidence (#280): `OutOfSampleStatus` and the shared
-  `lab_evidence` comparison are implemented in the working tree; the analytics
-  and shell tests cover the four states. Gates pass (1506 tests). Not committed
-  and no pull request yet.
+- Implementation evidence (#280, PR #294): `OutOfSampleStatus` and the shared
+  `lab_evidence` comparison are implemented on `fix/280-oos-evidence`; the
+  analytics and shell tests cover the four states. Gates pass (1506 tests).
 - Paths: `crates/quantrule-shell/src/diagnosis.rs`,
   `crates/quantrule-shell/src/lab_summary.rs`,
   `crates/quantrule-analytics/src/diagnosis/types.rs`,

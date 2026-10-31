@@ -22,9 +22,9 @@ It wrote one audit document and this log. A sequential Planner pass then
 re-verified every finding against `c8b1dc1`, corrected one closure-test detail,
 and wrote `docs/execution-plans/2026-10-31/audit-remediation-diagnosis-v1.md`.
 The human approved the plan on 2026-10-31 via "proceed", accepting D1–D10 as
-recommended. The Planner then created issues #280–#291 and moved W1 (#280) to
-`In Progress`. The audit did not change model, strategy, execution, portfolio,
-or analytics behavior.
+recommended. The Planner then created issues #280–#291, moved W1 (#280) to
+`In Progress`, and later opened it as PR #294. The audit did not change model,
+strategy, execution, portfolio, or analytics behavior.
 
 The work started in the project root in Plan mode. The audit document could not
 be written there; after the human switched agents and said to proceed, the work
@@ -77,6 +77,9 @@ uncommitted in that worktree.
   `.github/scripts/project-sync.sh`, set W1 to `In Progress`, and set its
   `Start date` to 2026-10-31. No field the project workflow owns was set by
   hand.
+- W1 (#280) was implemented on `fix/280-oos-evidence` and opened as PR #294;
+  its validator record and log are in that branch. The audit document marks
+  finding 31 `Fixed`.
 
 ## Verification and evidence
 
