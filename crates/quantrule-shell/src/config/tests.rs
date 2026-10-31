@@ -305,7 +305,7 @@ fn policy_object() -> Value {
             "max_open_positions": 1
         },
         "universe": {
-            "tickets": ["EURUSD", "SOLUSD"],
+            "tickets": ["EURUSD", "BTCUSD"],
             "timeframes": ["15m"]
         }
     })
@@ -316,7 +316,7 @@ fn policy_matches_the_contract() {
     let valid = policy::parse(&policy_object(), "policy.json").expect("the valid policy loads");
     assert_eq!(valid.account.initial_cash, 10_000.0);
     assert_eq!(valid.objective.evaluation_days, 90);
-    assert_eq!(valid.universe.tickets, ["EURUSD", "SOLUSD"]);
+    assert_eq!(valid.universe.tickets, ["EURUSD", "BTCUSD"]);
 
     for (value, kind, path) in [
         (json!(1), Type, "$"),
@@ -1309,7 +1309,7 @@ fn run_matches_the_contract() {
 }
 
 fn example_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../config/examples/solusd-2025/run.json")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../config/examples/btcusd-2024/run.json")
 }
 
 fn fixtures_path() -> PathBuf {
@@ -1320,13 +1320,13 @@ fn fixtures_path() -> PathBuf {
 fn the_example_config_loads_and_resolves() {
     let config = run::RunConfig::load(&example_path()).expect("the example config is valid");
 
-    assert_eq!(config.name, "solusd-2025");
+    assert_eq!(config.name, "btcusd-2024");
     assert_eq!(
         config.data.data_version,
-        "dukascopy-bid-solusd-m1-2025-01-01_2025-12-31"
+        "dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31"
     );
-    assert_eq!(config.data.from.as_deref(), Some("2025-01-01"));
-    assert_eq!(config.data.to.as_deref(), Some("2025-12-31"));
+    assert_eq!(config.data.from.as_deref(), Some("2024-01-01"));
+    assert_eq!(config.data.to.as_deref(), Some("2024-12-31"));
     assert_eq!(config.data.source_timeframe, Timeframe::M1);
     assert_eq!(config.data.available_timeframes, Timeframe::DEFAULT_LADDER);
     assert_eq!(config.data.max_candles, 600_000);
@@ -1335,18 +1335,18 @@ fn the_example_config_loads_and_resolves() {
             .data
             .source
             .path
-            .ends_with("data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv")
+            .ends_with("data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv")
     );
     assert!(
         config
             .paths
             .data
-            .ends_with("config/examples/solusd-2025/data.json")
+            .ends_with("config/examples/btcusd-2024/data.json")
     );
     assert!(
         config
             .output_root
-            .ends_with("data/labs/backtest-solusd-2025")
+            .ends_with("data/labs/backtest-btcusd-2024")
     );
 
     assert_eq!(config.model.structure_scale, PivotScale::Major);

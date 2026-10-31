@@ -6,7 +6,7 @@ Identity
   role: quant-researcher
   operator: human
   data_version: test:v1
-  config: config/examples/solusd-2025/run.json
+  config: config/examples/btcusd-2024/run.json
 
 Artifacts
   model/report.json              present

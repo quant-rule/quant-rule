@@ -154,8 +154,8 @@ caller-supplied identity; do not derive it from the path. The folder uses
 
 ```bash
 QR=./target/release/quantrule
-CFG=config/examples/solusd-2025/run.json
-DV=dukascopy-bid-solusd-m1-2025-01-01_2025-12-31
+CFG=config/examples/btcusd-2024/run.json
+DV=dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31
 lab_r=data/labs/lab-result-2026-10-30T12-00-00Z
 lab_d=data/labs/lab-result-2026-10-30T12-30-00Z
 
@@ -220,7 +220,7 @@ Protocol: the researcher's protocol is unchanged.
 Gates: cargo fmt, cargo clippy, cargo test, cargo doc.
 Reproducibility: the developer bundles match the researcher bundles byte for byte.
 Deviation: none.
-Observed: 100 trades, final equity 8010.411285, halted true.
+Observed: 117 trades, final equity 8035.586146, halted true.
 EOF
 
 "$QR" lab summary "$lab_d" \

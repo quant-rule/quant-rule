@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.run/v2",
-  "name": "solusd-2025",
+  "name": "btcusd-2024",
   "policy": "policy.json",
   "data": "data.json",
   "model": "model.json",
@@ -8,5 +8,5 @@
   "execution": "execution.json",
   "portfolio": "portfolio.json",
   "analytics": "analytics.json",
-  "output_root": "../../../data/labs/backtest-solusd-2025"
+  "output_root": "../../../data/labs/backtest-btcusd-2024"
 }

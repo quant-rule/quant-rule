@@ -58,7 +58,7 @@ it uses, and what observable result would support or reject the hypothesis.
 - If the question cannot be answered from the model's published outputs, stop
   and narrow it before running anything.
 
-Example activity-and-risk hypothesis: "On the full-year SOLUSD example, the
+Example activity-and-risk hypothesis: "On the full-year BTCUSD example, the
 `ladder-context` rule produces at least 100 M5 entries, and the portfolio halts
 at the configured 20% drawdown limit." This is a testable claim about activity
 and risk control. It is not a claim that the rule is profitable.
@@ -79,11 +79,11 @@ Set the working variables from the repository root:
 
 ```bash
 QR=./target/release/quantrule
-CSV2=data/sources/SOLUSD_M1_2025-01-01_2025-02-28.csv
-CSV=data/sources/SOLUSD_M1_2025-01-01_2025-12-31.csv
-DV2=tutorial-solusd-m1-2025-01-01_2025-02-28
-DV=dukascopy-bid-solusd-m1-2025-01-01_2025-12-31
-CFG=config/examples/solusd-2025/run.json
+CSV2=data/sources/BTCUSD_M1_2024-01-01_2024-02-29.csv
+CSV=data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv
+DV2=tutorial-btcusd-m1-2024-01-01_2024-02-29
+DV=dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31
+CFG=config/examples/btcusd-2024/run.json
 ```
 
 Inspect the source before choosing the sample:
@@ -97,16 +97,17 @@ grep '^aggregation' data/scratch/researcher-timeframes.txt
 Expected from `candles-tolerant` on the two-month slice:
 
 ```text
-quality rows_read=84108 accepted=84108 rejected=0 duplicate=0 out_of_order=0 invalid=0 evicted=83108 retained=1000
+quality rows_read=82969 accepted=82969 rejected=0 duplicate=0 out_of_order=0 invalid=0 evicted=81969 retained=1000
 ```
 
 Expected from the `grep`:
 
 ```text
-aggregation timeframe=1m retained=1000 partial=0 gaps=7
-aggregation timeframe=5m retained=1000 partial=7 gaps=7
-aggregation timeframe=15m retained=1000 partial=8 gaps=7
-aggregation timeframe=1h retained=1000 partial=8 gaps=6
+aggregation timeframe=1m retained=1000 partial=0 gaps=1351
+aggregation timeframe=5m retained=1000 partial=1185 gaps=500
+aggregation timeframe=15m retained=1000 partial=673 gaps=201
+aggregation timeframe=1h retained=1000 partial=278 gaps=67
+aggregation timeframe=4h retained=243 partial=112 gaps=27
 ```
 
 Record the split before running:
@@ -117,7 +118,7 @@ Record the split before running:
 - **No split:** allowed for a descriptive or pipeline exercise, but the result
   cannot support a profitability claim.
 
-The example run uses 2025-01-01..2025-12-31 with no out-of-sample period. That is
+The example run uses 2024-01-01..2024-12-31 with no out-of-sample period. That is
 enough to exercise the pipeline and record an observed result. It is not enough
 to call the strategy promising.
 
@@ -136,8 +137,8 @@ report values; do not invent a metric after seeing the output.
 Record the costs from the configuration, not from memory:
 
 ```bash
-cat config/examples/solusd-2025/execution.json
-cat config/examples/solusd-2025/portfolio.json
+cat config/examples/btcusd-2024/execution.json
+cat config/examples/btcusd-2024/portfolio.json
 ```
 
 For the example configuration:
@@ -163,8 +164,8 @@ pass/fail criterion, every planned variation, and the stop conditions.
 cat > data/notes/researcher-protocol.md <<'EOF'
 Question: does the ladder-context rule stay active on the full-year example?
 Hypothesis: at least 100 M5 entries, and the portfolio halts at the 20% drawdown limit.
-Data version: dukascopy-bid-solusd-m1-2025-01-01_2025-12-31.
-Sample: 2025-01-01..2025-12-31, full-year example.
+Data version: dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31.
+Sample: 2024-01-01..2024-12-31, full-year example.
 Split: in-sample only; no out-of-sample evidence.
 Metrics: strategy_entries, strategy_exits, trades, halted, max_drawdown,
 commission, slippage, funding_paid, funding_received.
@@ -239,17 +240,17 @@ is:
 
 | Field | Value |
 |---|---|
-| `trades` | `100` |
-| `final_equity` | `8010.411285` |
-| `total_return` | `-0.198959` |
-| `max_drawdown` | `0.200542` |
+| `trades` | `117` |
+| `final_equity` | `8035.586146` |
+| `total_return` | `-0.196441` |
+| `max_drawdown` | `0.202180` |
 | `halted` | `true` |
-| `commission` | `1822.737609` |
-| `slippage` | `364.924990` |
-| `funding_paid` | `1.896360` |
-| `funding_received` | `3.696676` |
-| `strategy_entries` | `298` |
-| `strategy_exits` | `73` |
+| `commission` | `2085.464320` |
+| `slippage` | `416.997079` |
+| `funding_paid` | `5.224722` |
+| `funding_received` | `0.810945` |
+| `strategy_entries` | `304` |
+| `strategy_exits` | `91` |
 
 The example halts at the configured 20% drawdown limit. That is an observed
 result and a risk finding, not evidence that a different configuration would

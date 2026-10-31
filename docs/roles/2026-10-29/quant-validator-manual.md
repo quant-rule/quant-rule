@@ -72,8 +72,8 @@ timeframe, and coverage. It must match every report and provenance file.
 
 ```bash
 QR=./target/release/quantrule
-CFG=config/examples/solusd-2025/run.json
-DV=dukascopy-bid-solusd-m1-2025-01-01_2025-12-31
+CFG=config/examples/btcusd-2024/run.json
+DV=dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31
 lab_d=data/labs/lab-result-2026-10-30T12-30-00Z
 lab_v=data/labs/lab-result-2026-10-30T13-00-00Z
 
@@ -151,7 +151,7 @@ cargo test -p quantrule-backtest
 Inspect the event records for availability:
 
 ```bash
-"$QR" events data/sources/SOLUSD_M1_2025-01-01_2025-02-28.csv --window latest \
+"$QR" events data/sources/BTCUSD_M1_2024-01-01_2024-02-29.csv --window latest \
   > data/scratch/validator-events.ndjson
 
 python3 - <<'PY'
@@ -200,8 +200,8 @@ open, not the signal bar's close.
 Read the configuration and the portfolio and execution summaries:
 
 ```bash
-cat config/examples/solusd-2025/execution.json
-cat config/examples/solusd-2025/portfolio.json
+cat config/examples/btcusd-2024/execution.json
+cat config/examples/btcusd-2024/portfolio.json
 cat "$lab_v/execution/summary.txt"
 cat "$lab_v/portfolio/summary.txt"
 grep -E 'final_equity|max_drawdown|trades|halted|commission|slippage|funding' \
@@ -224,17 +224,17 @@ Check:
 The example result is:
 
 ```text
-  final_equity: 8010.411285
-  max_drawdown: 0.200542
-  trades: 100
+  final_equity: 8035.586146
+  max_drawdown: 0.202180
+  trades: 117
   halted: true
-  commission: 1822.737609
-  slippage: 364.924990
-  funding_paid: 1.896360
-  funding_received: 3.696676
+  commission: 2085.464320
+  slippage: 416.997079
+  funding_paid: 5.224722
+  funding_received: 0.810945
 ```
 
-`max_drawdown: 0.200542` exceeds the configured `0.2` limit, so the run halts.
+`max_drawdown: 0.202180` exceeds the configured `0.2` limit, so the run halts.
 The final equity is after the halt, not a full-period result. Commission is the
 largest cost. These are configured assumptions, not live fills.
 
@@ -266,15 +266,15 @@ observed command.
 ```bash
 cat > data/notes/validator-record.md <<'EOF'
 Reproduced: yes. A third run matched the developer bundles byte for byte.
-Data version: dukascopy-bid-solusd-m1-2025-01-01_2025-12-31.
-Config: config/examples/solusd-2025/run.json.
+Data version: dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31.
+Config: config/examples/btcusd-2024/run.json.
 Split: in-sample only; no out-of-sample evidence.
 Look-ahead: causal tests pass; no event before its availability bar in the sample.
 Survivorship: one symbol and one continuous series; no universe selection.
 Data snooping: no unrecorded variation; no threshold change after the run.
 Costs: commission 0.1% of equity per operation, slippage 2 bps, funding 0.0001 per 8h.
 Fills: next-open; ATR stop 2.0 and target 3.0; stop wins on a tie.
-Risk: max_drawdown 0.200542 exceeded the 0.2 limit; the run halted; the result is truncated.
+Risk: max_drawdown 0.202180 exceeded the 0.2 limit; the run halted; the result is truncated.
 Verdict: the evidence supports reproducibility, not a profitability claim.
 Residual risk: in-sample, halt, cost assumptions, same engine and machine.
 EOF

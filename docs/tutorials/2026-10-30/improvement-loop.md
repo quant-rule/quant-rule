@@ -44,7 +44,7 @@ session tricks.
 Validate it with:
 
 ```bash
-quantrule policy check --config config/examples/solusd-2025/run.json
+quantrule policy check --config config/examples/btcusd-2024/run.json
 ```
 
 ## 3. Write the strategy in trader words
@@ -61,7 +61,7 @@ The machine config is the contract; the thesis is the human explanation.
 Render it with:
 
 ```bash
-quantrule strategy explain --config config/examples/solusd-2025/run.json
+quantrule strategy explain --config config/examples/btcusd-2024/run.json
 ```
 
 A valid strategy is deterministic, causal, and free of statistics in its

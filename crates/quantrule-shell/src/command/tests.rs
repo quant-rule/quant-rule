@@ -692,7 +692,7 @@ fn lab_summary_args() -> LabSummaryArgs {
         lab_dir: PathBuf::from("data/labs/lab-result-2026-10-29T12-00-00Z"),
         role: LabRole::Researcher,
         data_version: String::from("test:v1"),
-        config: PathBuf::from("config/examples/solusd-2025/run.json"),
+        config: PathBuf::from("config/examples/btcusd-2024/run.json"),
         created_utc: String::from("2026-10-29T12:00:00Z"),
         operator: LabOperator::Human,
         notes: None,
@@ -706,7 +706,7 @@ fn parses_lab_summary_with_defaults() {
         parse(
             "lab summary data/labs/lab-result-2026-10-29T12-00-00Z \
 --role researcher --data-version test:v1 \
---config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z"
+--config config/examples/btcusd-2024/run.json --created-utc 2026-10-29T12:00:00Z"
         ),
         Ok(Some(Command::LabSummary(lab_summary_args())))
     );
@@ -724,7 +724,7 @@ fn parses_lab_summary_with_every_option() {
         parse(
             "lab summary --force data/labs/lab-result-2026-10-29T12-00-00Z \
 --role validator --data-version test:v1 \
---config config/examples/solusd-2025/run.json --created-utc 2026-10-29T12:00:00Z \
+--config config/examples/btcusd-2024/run.json --created-utc 2026-10-29T12:00:00Z \
 --operator agent --notes data/notes.md"
         ),
         Ok(Some(Command::LabSummary(expected)))

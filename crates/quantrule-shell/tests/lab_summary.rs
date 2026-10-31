@@ -11,7 +11,7 @@ use std::process::{Command, Output, Stdio};
 const BIN: &str = env!("CARGO_BIN_EXE_quantrule");
 const DATA_VERSION: &str = "test:v1";
 const CREATED: &str = "2026-10-29T12:00:00Z";
-const CONFIG: &str = "config/examples/solusd-2025/run.json";
+const CONFIG: &str = "config/examples/btcusd-2024/run.json";
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")

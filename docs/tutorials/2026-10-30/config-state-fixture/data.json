@@ -15,5 +15,5 @@
     "1h"
   ],
   "max_candles": 600000,
-  "instrument": "SOLUSD"
+  "instrument": "BTCUSD"
 }
