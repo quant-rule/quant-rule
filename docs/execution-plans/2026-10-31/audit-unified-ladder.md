@@ -231,6 +231,12 @@ Proposed sub-issues:
 5. **Reconcile capped fill records and sizing reasons**
 6. **Fix slippage total units**
 
+Implementation evidence for W5a (#261): the partial-exit, second-submit,
+equity-state, capped-order, slippage, and gap-commission tests fail before and
+pass after. The validator record is
+`docs/reports/2026-10-31/w5-core-invariants-validation.md`. The step-aware cap
+(AUD-14) and sizing-rejection cause (AUD-26) remain open in W5b.
+
 ### W6 — Model/analytics output contracts
 
 - Preserve the contract event order in `TimeframeModel::events` or narrow the

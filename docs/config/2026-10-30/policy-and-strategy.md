@@ -147,6 +147,14 @@ target specifications live in the intent, not in the execution file or the
 execution config. Execution resolves them against the fill; it never stores or
 chooses a distance.
 
+## Portfolio accounting
+
+Commission is `rate × max(equity_before_operation, 0)`. `equity_before_operation`
+is the last published equity state before the fill: the prior bar's mark when one
+exists, or the state left by the previous fill. A gap exit therefore charges on
+the prior mark, not on the exit fill price. The execution fee is the fill's own
+fee and is never recomputed.
+
 ## Data
 
 `data.json` adds `instrument` and uses schema `quantrule.data/v3`:

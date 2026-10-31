@@ -195,6 +195,23 @@ fn a_intent_does_not_fill_on_its_own_bar() {
 }
 
 #[test]
+fn a_second_pending_order_is_rejected() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Long));
+
+    let error = engine
+        .submit(enter(0, 0, Side::Long), Some(QUANTITY), Some(1.0))
+        .expect_err("a second pending order must be rejected");
+    assert_eq!(error, ExecutionError::PendingOrderExists);
+
+    let batch = step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
+    assert_eq!(batch.fills.len(), 1);
+    assert_eq!(batch.orders.len(), 1);
+    assert_eq!(batch.orders[0].order_id, 0);
+}
+
+#[test]
 fn a_non_contiguous_bar_rejects_a_pending_entry() {
     let mut engine = test_engine();
     let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
@@ -578,6 +595,7 @@ fn an_entry_above_the_risk_limit_is_capped_at_the_fill() {
     let fill = batch.fills[0];
     assert!(fill.price * fill.quantity <= 50.0 + 1e-9);
     assert!(fill.quantity < QUANTITY);
+    assert_eq!(batch.orders[0].quantity, Some(fill.quantity));
     assert!(engine.position().is_open());
 }
 
