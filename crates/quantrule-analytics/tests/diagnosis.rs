@@ -16,27 +16,31 @@ struct Fixture {
 
 impl Fixture {
     fn new(count: usize) -> Self {
-        let candles: Vec<Candle> = (0..count)
-            .map(|index| {
-                let timestamp = 1_735_689_600 + index as i64 * 300;
-                let open = 100.0 + index as f64;
-                Candle::new(
-                    index as u64,
-                    timestamp,
-                    open,
-                    open + 1.0,
-                    open - 1.0,
-                    open + 0.5,
-                    Some(10.0 + index as f64),
-                )
-                .expect("the test candle is valid")
-            })
-            .collect();
+        let candles = candles(count, 300);
         let run = ModelRun::compute(
             &[TimeframeInput {
                 timeframe_secs: 300,
                 candles: &candles,
             }],
+            &MarketStateConfig::default(),
+        );
+        Self { run }
+    }
+
+    fn with_one_minute(count: usize) -> Self {
+        let minute = candles(count, 60);
+        let five_minute = candles(count, 300);
+        let run = ModelRun::compute(
+            &[
+                TimeframeInput {
+                    timeframe_secs: 60,
+                    candles: &minute,
+                },
+                TimeframeInput {
+                    timeframe_secs: 300,
+                    candles: &five_minute,
+                },
+            ],
             &MarketStateConfig::default(),
         );
         Self { run }
@@ -121,6 +125,25 @@ impl Fixture {
     }
 }
 
+fn candles(count: usize, step: i64) -> Vec<Candle> {
+    (0..count)
+        .map(|index| {
+            let timestamp = 1_735_689_600 + index as i64 * step;
+            let open = 100.0 + index as f64;
+            Candle::new(
+                index as u64,
+                timestamp,
+                open,
+                open + 1.0,
+                open - 1.0,
+                open + 0.5,
+                Some(10.0 + index as f64),
+            )
+            .expect("the test candle is valid")
+        })
+        .collect()
+}
+
 #[test]
 fn the_same_input_produces_the_same_diagnosis_and_text() {
     let fixture = Fixture::new(80);
@@ -190,6 +213,40 @@ fn out_of_sample_evidence_requires_a_distinct_data_version() {
         );
         assert_eq!(check.value, None, "{status:?}");
     }
+}
+
+#[test]
+fn a_run_without_1m_reports_the_gap_check_unknown() {
+    let fixture = Fixture::new(80);
+    let diagnosis = diagnose(&fixture.input());
+    let check = diagnosis
+        .checks
+        .iter()
+        .find(|check| check.id == "data.long_gap")
+        .expect("the gap check exists");
+    assert_eq!(check.status, CheckStatus::Unknown);
+    assert_eq!(check.value, None);
+    assert!(check.evidence.contains("no 1m series"));
+    assert!(
+        diagnosis
+            .triage
+            .iter()
+            .any(|action| action.contains("Add a 1m series"))
+    );
+}
+
+#[test]
+fn a_present_1m_series_with_no_gaps_passes_with_zero() {
+    let fixture = Fixture::with_one_minute(80);
+    let diagnosis = diagnose(&fixture.input());
+    let check = diagnosis
+        .checks
+        .iter()
+        .find(|check| check.id == "data.long_gap")
+        .expect("the gap check exists");
+    assert_eq!(check.status, CheckStatus::Pass);
+    assert_eq!(check.value, Some(0.0));
+    assert!(check.evidence.contains("no 1m gap"));
 }
 
 #[test]

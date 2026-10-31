@@ -142,8 +142,8 @@ fn data_quality(run: &ModelRun) -> DataQuality {
     }
     timeframes.sort_by_key(|timeframe| timeframe.timeframe_secs);
 
-    let raw_gaps = run.timeframe(60).map(raw_gaps).unwrap_or_default();
-    let gap_histogram = gap_histogram(&raw_gaps);
+    let raw_gaps = run.timeframe(60).map(raw_gaps);
+    let gap_histogram = gap_histogram(raw_gaps.as_deref().unwrap_or(&[]));
 
     DataQuality {
         timeframes,
@@ -980,34 +980,43 @@ fn checks(
         ),
     });
 
-    let longest_gap = data.raw_gaps.iter().max_by_key(|gap| gap.missing_bars);
-    checks.push(match longest_gap {
-        Some(gap) => check(
-            "data.long_gap",
-            if gap.missing_bars >= 60 {
-                CheckStatus::Fail
-            } else {
-                CheckStatus::Pass
-            },
-            Some(gap.missing_bars as f64),
-            "minutes",
-            Some(String::from("< 60")),
-            format!(
-                "longest 1m gap {} minutes ({} missing bars, {}..{})",
-                gap.missing_bars,
-                gap.missing_bars,
-                quantrule_data::format_utc_timestamp(gap.start),
-                quantrule_data::format_utc_timestamp(gap.end)
-            ),
-        ),
+    checks.push(match data.raw_gaps.as_deref() {
         None => check(
             "data.long_gap",
-            CheckStatus::Pass,
-            Some(0.0),
+            CheckStatus::Unknown,
+            None,
             "minutes",
             Some(String::from("< 60")),
-            String::from("no 1m gap was found"),
+            String::from("no 1m series"),
         ),
+        Some(gaps) => match gaps.iter().max_by_key(|gap| gap.missing_bars) {
+            Some(gap) => check(
+                "data.long_gap",
+                if gap.missing_bars >= 60 {
+                    CheckStatus::Fail
+                } else {
+                    CheckStatus::Pass
+                },
+                Some(gap.missing_bars as f64),
+                "minutes",
+                Some(String::from("< 60")),
+                format!(
+                    "longest 1m gap {} minutes ({} missing bars, {}..{})",
+                    gap.missing_bars,
+                    gap.missing_bars,
+                    quantrule_data::format_utc_timestamp(gap.start),
+                    quantrule_data::format_utc_timestamp(gap.end)
+                ),
+            ),
+            None => check(
+                "data.long_gap",
+                CheckStatus::Pass,
+                Some(0.0),
+                "minutes",
+                Some(String::from("< 60")),
+                String::from("no 1m gap was found"),
+            ),
+        },
     });
 
     let worst_null = model.iter().max_by(|left, right| {
@@ -1368,7 +1377,13 @@ fn triage(checks: &[Check], portfolio: &PortfolioDiagnosis) -> Vec<String> {
             "data.timeframe_coverage" => {
                 "Inspect the source coverage before interpreting any result."
             }
-            "data.long_gap" => "Fill or explicitly exclude the longest gap before the next run.",
+            "data.long_gap" => {
+                if check.status == CheckStatus::Unknown {
+                    "Add a 1m series or record why the run has none."
+                } else {
+                    "Fill or explicitly exclude the longest gap before the next run."
+                }
+            }
             "model.progression_null" => {
                 "Inspect Progression readiness on the worst timeframe; most bars publish no stage."
             }

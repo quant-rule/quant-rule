@@ -145,16 +145,15 @@ fn write_data(out: &mut impl Write, data: &DataQuality) -> io::Result<()> {
             opt_time(timeframe.last_time)
         )?;
     }
-    writeln!(
-        out,
-        "  raw 1m gaps: {}; longest {} minutes",
-        data.raw_gaps.len(),
-        data.raw_gaps
-            .iter()
-            .map(|gap| gap.missing_bars)
-            .max()
-            .unwrap_or(0)
-    )?;
+    match &data.raw_gaps {
+        Some(gaps) => writeln!(
+            out,
+            "  raw 1m gaps: {}; longest {} minutes",
+            gaps.len(),
+            gaps.iter().map(|gap| gap.missing_bars).max().unwrap_or(0)
+        )?,
+        None => writeln!(out, "  raw 1m gaps: unavailable (no 1m series)")?,
+    }
     for bucket in &data.gap_histogram {
         writeln!(out, "  gap {:<8} {}", bucket.label, bucket.count)?;
     }
