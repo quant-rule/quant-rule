@@ -1317,7 +1317,7 @@ fn checks(
         if input.rerun_verified {
             String::from("a rerun reproduced the lab")
         } else {
-            String::from("no independent rerun is recorded")
+            String::from("no independent rerun reproduced the lab")
         },
     ));
     checks.push(check(

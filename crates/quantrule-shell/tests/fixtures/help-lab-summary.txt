@@ -17,6 +17,6 @@ Output
 Notes
   Reads the five report bundles and copies published values; it never recomputes the model.
   The data version, config hash, and model version must match every bundle and the supplied config.
-  Out-of-sample evidence is read from oos/; a rerun is read from rerun/.
+  Out-of-sample evidence is read from oos/; a rerun counts only when its config hash matches and the five summary fields reproduce.
   Never reads the clock; --created-utc is explicit.
   Refuses an existing summary.txt unless --force is given.

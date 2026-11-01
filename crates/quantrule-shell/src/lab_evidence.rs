@@ -1,15 +1,36 @@
 //! The lab evidence shared by `lab summary` and `lab diagnose`.
 //!
-//! Both commands report whether a lab has out-of-sample evidence. The
-//! comparison lives here so the two renderers cannot disagree about what
-//! counts as out of sample: a different `data_version`, not merely an `oos/`
-//! folder.
+//! Both commands report whether a lab has out-of-sample and independent-rerun
+//! evidence. The comparisons live here so the two renderers cannot disagree
+//! about what counts: an `oos/` report needs a different `data_version`, and a
+//! `rerun/` report needs the main lab's `config_hash` plus the five reproduced
+//! summary fields.
 
 use std::fs;
 use std::path::Path;
 
 use quantrule_analytics::diagnosis::types::OutOfSampleStatus;
 use serde_json::Value;
+
+/// The status of a lab's independent-rerun evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RerunStatus {
+    /// No `rerun/portfolio/report.json` exists.
+    Absent,
+    /// A rerun report or provenance is missing, malformed, or lacks a field.
+    Unreadable,
+    /// The rerun exists but its config hash or reproduced fields differ.
+    Differs,
+    /// The rerun has the main config hash and reproduces every summary field.
+    Matches,
+}
+
+impl RerunStatus {
+    /// Whether the rerun is independent matching evidence.
+    pub(crate) const fn is_match(self) -> bool {
+        matches!(self, Self::Matches)
+    }
+}
 
 /// Reads the out-of-sample evidence a lab folder records.
 ///
@@ -38,7 +59,175 @@ pub(crate) fn out_of_sample(lab_dir: &Path) -> OutOfSampleStatus {
     }
 }
 
+/// Reads the independent-rerun evidence a lab folder records.
+///
+/// A rerun counts only when both portfolio reports and both provenance files
+/// are readable, the config hashes match, and the five summary fields match.
+pub(crate) fn rerun(lab_dir: &Path) -> RerunStatus {
+    let rerun_path = lab_dir.join("rerun").join("portfolio").join("report.json");
+    if !rerun_path.is_file() {
+        return RerunStatus::Absent;
+    }
+    let (Some(rerun), Some(main)) = (
+        read_json(&rerun_path),
+        read_json(&lab_dir.join("portfolio").join("report.json")),
+    ) else {
+        return RerunStatus::Unreadable;
+    };
+    let (Some(rerun_hash), Some(main_hash)) = (
+        read_config_hash(
+            &lab_dir
+                .join("rerun")
+                .join("portfolio")
+                .join("provenance.json"),
+        ),
+        read_config_hash(&lab_dir.join("portfolio").join("provenance.json")),
+    ) else {
+        return RerunStatus::Unreadable;
+    };
+    if rerun_hash != main_hash {
+        return RerunStatus::Differs;
+    }
+    for field in [
+        "final_equity",
+        "net_pnl",
+        "trades",
+        "max_drawdown",
+        "halted",
+    ] {
+        let (Some(left), Some(right)) = (
+            rerun.pointer(&format!("/summary/{field}")),
+            main.pointer(&format!("/summary/{field}")),
+        ) else {
+            return RerunStatus::Unreadable;
+        };
+        if left != right {
+            return RerunStatus::Differs;
+        }
+    }
+    RerunStatus::Matches
+}
+
+fn read_config_hash(path: &Path) -> Option<String> {
+    read_json(path)?
+        .get("config_hash")?
+        .as_str()
+        .map(str::to_owned)
+}
+
 fn read_json(path: &Path) -> Option<Value> {
     let bytes = fs::read(path).ok()?;
     serde_json::from_slice(&bytes).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    use serde_json::{Value, json};
+
+    use super::{RerunStatus, rerun};
+
+    fn lab(name: &str) -> PathBuf {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target/test-artifacts/lab-evidence")
+            .join(name);
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).expect("the lab directory is created");
+        path
+    }
+
+    fn write(path: &Path, value: &Value) {
+        fs::create_dir_all(path.parent().expect("the path has a parent"))
+            .expect("the parent directory is created");
+        fs::write(
+            path,
+            serde_json::to_vec_pretty(value).expect("the value is serializable"),
+        )
+        .expect("the value is written");
+    }
+
+    fn report(equity: f64) -> Value {
+        json!({
+            "data_version": "test:v1",
+            "summary": {
+                "final_equity": equity,
+                "net_pnl": 1.0,
+                "trades": 1,
+                "max_drawdown": 0.1,
+                "halted": false
+            }
+        })
+    }
+
+    fn provenance(hash: &str) -> Value {
+        json!({"config_hash": hash})
+    }
+
+    fn main_lab(lab: &Path) -> PathBuf {
+        let portfolio = lab.join("portfolio");
+        write(&portfolio.join("report.json"), &report(100.0));
+        write(
+            &portfolio.join("provenance.json"),
+            &provenance("aaaaaaaaaaaaaaaa"),
+        );
+        portfolio
+    }
+
+    #[test]
+    fn absent_when_there_is_no_rerun_report() {
+        let lab = lab("absent");
+        main_lab(&lab);
+        assert_eq!(rerun(&lab), RerunStatus::Absent);
+    }
+
+    #[test]
+    fn unreadable_when_the_rerun_provenance_is_missing() {
+        let lab = lab("unreadable");
+        main_lab(&lab);
+        let rerun_dir = lab.join("rerun").join("portfolio");
+        write(&rerun_dir.join("report.json"), &report(100.0));
+        assert_eq!(rerun(&lab), RerunStatus::Unreadable);
+    }
+
+    #[test]
+    fn differs_when_the_config_hashes_differ() {
+        let lab = lab("different-config");
+        main_lab(&lab);
+        let rerun_dir = lab.join("rerun").join("portfolio");
+        write(&rerun_dir.join("report.json"), &report(100.0));
+        write(
+            &rerun_dir.join("provenance.json"),
+            &provenance("bbbbbbbbbbbbbbbb"),
+        );
+        assert_eq!(rerun(&lab), RerunStatus::Differs);
+    }
+
+    #[test]
+    fn differs_when_a_summary_field_differs() {
+        let lab = lab("different-result");
+        main_lab(&lab);
+        let rerun_dir = lab.join("rerun").join("portfolio");
+        write(&rerun_dir.join("report.json"), &report(99.0));
+        write(
+            &rerun_dir.join("provenance.json"),
+            &provenance("aaaaaaaaaaaaaaaa"),
+        );
+        assert_eq!(rerun(&lab), RerunStatus::Differs);
+    }
+
+    #[test]
+    fn matches_when_the_config_and_fields_match() {
+        let lab = lab("matching");
+        main_lab(&lab);
+        let rerun_dir = lab.join("rerun").join("portfolio");
+        write(&rerun_dir.join("report.json"), &report(100.0));
+        write(
+            &rerun_dir.join("provenance.json"),
+            &provenance("aaaaaaaaaaaaaaaa"),
+        );
+        assert_eq!(rerun(&lab), RerunStatus::Matches);
+        assert!(rerun(&lab).is_match());
+    }
 }

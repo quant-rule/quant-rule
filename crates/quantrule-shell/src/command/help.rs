@@ -520,7 +520,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "Reads the five report bundles and copies published values; it never recomputes the model.",
             "The data version, config hash, and model version must match every bundle and the supplied config.",
-            "Out-of-sample evidence is read from oos/; a rerun is read from rerun/.",
+            "Out-of-sample evidence is read from oos/; a rerun counts only when its config hash matches and the five summary fields reproduce.",
             "Never reads the clock; --created-utc is explicit.",
             "Refuses an existing summary.txt unless --force is given.",
         ],
@@ -535,7 +535,7 @@ const COMMANDS: &[CommandHelp] = &[
         options: LAB_DIAGNOSE_OPTIONS,
         output: "Writes summary.txt, diagnosis.json, tables, and five PNGs; prints the path, or diagnosis.json with --json.",
         notes: &[
-            "The rerun must reproduce final equity, net P&L, trades, max drawdown, and halt state.",
+            "The rerun must reproduce final equity, net P&L, trades, max drawdown, and halt state, and use the main config hash.",
             "A config-hash, data-version, or model-version mismatch is refused.",
             "--strict fails only on identity or data-integrity checks, never on a bad trading result.",
         ],
@@ -552,6 +552,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "A folder is a lab when portfolio/report.json exists.",
             "The diagnosis column says whether diagnosis/diagnosis.json exists.",
+            "A present config_hash must be 16 hex characters; a missing summary.halted is listed as —/null.",
         ],
         group: Group::Runs,
     },

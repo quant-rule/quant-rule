@@ -505,11 +505,11 @@ cargo run -p quantrule-shell -- report portfolio --config config/examples/btcusd
 | `--notes <path>` | Include the file verbatim under Role notes |
 | `--force` | Overwrite an existing root `summary.txt` |
 
-The summary has seven sections: Identity, Artifacts, Observed result, Checks, Role notes, Limitations, and Next. It copies published values from the five `report.json` files; it does not recompute the model. It refuses a missing bundle, a data-version mismatch, a config-hash mismatch, a model-version mismatch, or an existing summary without `--force`, and writes atomically. Out-of-sample evidence is an `oos/` portfolio report whose `data_version` differs from the main lab's; a same-version or unreadable report is not evidence. A rerun is read from `rerun/`. The same lab and the same arguments produce the same bytes. It prints `wrote <path>`.
+The summary has seven sections: Identity, Artifacts, Observed result, Checks, Role notes, Limitations, and Next. It copies published values from the five `report.json` files; it does not recompute the model. It refuses a missing bundle, a data-version mismatch, a config-hash mismatch, a model-version mismatch, or an existing summary without `--force`, and writes atomically. A rerun is evidence only when its portfolio provenance `config_hash` matches the main lab and its report reproduces final equity, net P&L, trades, max drawdown, and halt state; an absent, unreadable, or differing rerun is not evidence. The same lab and the same arguments produce the same bytes. It prints `wrote <path>`.
 
 ### Cross-engine diagnosis
 
-`backtest --config <run.json> [--out <dir>] --diagnose` writes the five per-engine bundles and a separate `<out>/diagnosis/` artifact from the same completed run. `lab diagnose <lab-dir> --config <run.json> [--out <dir>] [--json] [--strict]` re-runs the config, checks that the rerun reproduces the lab's final equity, net P&L, trades, drawdown, and halt state, and writes the same artifact. A stale lab is refused when its config hash, data version, or model version differs from the supplied config.
+`backtest --config <run.json> [--out <dir>] --diagnose` writes the five per-engine bundles and a separate `<out>/diagnosis/` artifact from the same completed run. `lab diagnose <lab-dir> --config <run.json> [--out <dir>] [--json] [--strict]` re-runs the config, checks that the rerun reproduces the lab's final equity, net P&L, trades, drawdown, and halt state with the same config hash, and writes the same artifact. A stale lab is refused when its config hash, data version, or model version differs from the supplied config.
 
 | Artifact | Contents |
 |---|---|
@@ -525,7 +525,7 @@ The summary has seven sections: Identity, Artifacts, Observed result, Checks, Ro
 
 The scorecard counts checks by `pass`, `fail`, and `unknown`; it never combines them into a score. The thresholds are reporting defaults, not trading rules. The diagnosis is read-only evaluation: no model, strategy, execution, or portfolio engine reads it, and it never enters the signal path. `--strict` fails only on identity and data-integrity checks, never on a bad trading result. The same lab and configuration produce byte-identical text, JSON, CSV, and PNG files. The full contract is [`docs/reports/2026-10-31/diagnosis-v1.md`](docs/reports/2026-10-31/diagnosis-v1.md).
 
-`lab list --root <dir> [--json]` lists the lab result folders under a root in folder-name order. A folder is a lab when `portfolio/report.json` exists; the `diagnosis` column says whether `diagnosis/diagnosis.json` exists. A present `config_hash` must be 16 hex characters; a lab with a malformed hash is rejected.
+`lab list --root <dir> [--json]` lists the lab result folders under a root in folder-name order. A folder is a lab when `portfolio/report.json` exists; the `diagnosis` column says whether `diagnosis/diagnosis.json` exists. A present `config_hash` must be 16 hex characters; a lab with a malformed hash is rejected. A missing `summary.halted` is listed as `—` in the table and `null` in JSON.
 
 ### Strategy-run contract
 

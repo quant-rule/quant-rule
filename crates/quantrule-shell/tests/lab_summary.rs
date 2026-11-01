@@ -323,6 +323,71 @@ fn out_of_sample_and_rerun_evidence_are_checked() {
 }
 
 #[test]
+fn rerun_evidence_requires_the_same_config() {
+    let directory = lab_dir("rerun-config");
+    let rerun = directory.join("rerun");
+    fs::create_dir_all(rerun.join("portfolio")).expect("the rerun directory is created");
+    copy_directory(&directory.join("portfolio"), &rerun.join("portfolio"));
+
+    let provenance = rerun.join("portfolio/provenance.json");
+    let mut value: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(&provenance).expect("the rerun provenance is readable"),
+    )
+    .expect("the rerun provenance is JSON");
+    value["config_hash"] = serde_json::Value::String(String::from("0000000000000000"));
+    fs::write(
+        &provenance,
+        serde_json::to_vec_pretty(&value).expect("the rerun provenance is serializable"),
+    )
+    .expect("the rerun provenance is written");
+
+    let output = run(&arguments(&directory));
+    assert_success(&output);
+    let text = String::from_utf8(summary(&directory)).expect("the summary is UTF-8");
+    assert!(text.contains("[ ] independent rerun (rerun/ differs)"));
+}
+
+#[test]
+fn an_unreadable_rerun_is_not_evidence() {
+    let directory = lab_dir("rerun-unreadable");
+    let rerun = directory.join("rerun");
+    fs::create_dir_all(rerun.join("portfolio")).expect("the rerun directory is created");
+    fs::copy(
+        directory.join("portfolio/report.json"),
+        rerun.join("portfolio/report.json"),
+    )
+    .expect("the rerun report is copied");
+
+    let output = run(&arguments(&directory));
+    assert_success(&output);
+    let text = String::from_utf8(summary(&directory)).expect("the summary is UTF-8");
+    assert!(text.contains("[ ] independent rerun (rerun/ is unreadable)"));
+}
+
+#[test]
+fn a_provenance_model_version_mismatch_is_rejected() {
+    let directory = lab_dir("provenance-model");
+    let provenance = directory.join("model/provenance.json");
+    let mut value: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&provenance).expect("the provenance is readable"))
+            .expect("the provenance is JSON");
+    value["model_version"] = serde_json::Value::String(String::from("9.9.9"));
+    fs::write(
+        &provenance,
+        serde_json::to_vec_pretty(&value).expect("the provenance is serializable"),
+    )
+    .expect("the provenance is written");
+
+    let output = run(&arguments(&directory));
+    assert_failure(&output);
+    assert!(
+        stderr(&output).contains("model_version"),
+        "unexpected stderr: {}",
+        stderr(&output)
+    );
+}
+
+#[test]
 fn notes_are_included_verbatim() {
     let directory = lab_dir("notes");
     let mut arguments = arguments(&directory);

@@ -371,6 +371,28 @@ fn read_lab_identity(lab_dir: &Path) -> Result<LabIdentity, RunError> {
         let provenance = read_json(&provenance_path)?;
         let bundle_data_version = string_at(&report, "data_version")?;
         let bundle_model_version = string_at(&report, "model_version")?;
+        let provenance_data_version =
+            provenance_string_at(&provenance, &provenance_path, "data_version")?;
+        if provenance_data_version != bundle_data_version {
+            return Err(RunError::Diagnosis(format!(
+                "{} data_version is {}, expected {} from {}",
+                provenance_path.display(),
+                provenance_data_version,
+                bundle_data_version,
+                report_path.display()
+            )));
+        }
+        let provenance_model_version =
+            provenance_string_at(&provenance, &provenance_path, "model_version")?;
+        if provenance_model_version != bundle_model_version {
+            return Err(RunError::Diagnosis(format!(
+                "{} model_version is {}, expected {} from {}",
+                provenance_path.display(),
+                provenance_model_version,
+                bundle_model_version,
+                report_path.display()
+            )));
+        }
         let expected_version = if bundle == "model" {
             crate::render_report::VIEW_CONTRACT
         } else {
@@ -389,7 +411,8 @@ fn read_lab_identity(lab_dir: &Path) -> Result<LabIdentity, RunError> {
                 report_path.display()
             )));
         }
-        let bundle_config_hash = string_at(&provenance, "config_hash")?;
+        let bundle_config_hash =
+            provenance_string_at(&provenance, &provenance_path, "config_hash")?;
         set_once(
             &mut data_version,
             bundle_data_version,
@@ -488,6 +511,27 @@ fn lab_config_hash(path: &Path) -> Result<String, RunError> {
         return Err(invalid());
     }
     Ok(hash.to_owned())
+}
+
+fn halted_label(halted: Option<bool>) -> &'static str {
+    match halted {
+        Some(true) => "yes",
+        Some(false) => "no",
+        None => "—",
+    }
+}
+
+fn provenance_string_at<'a>(
+    value: &'a Value,
+    path: &Path,
+    field: &str,
+) -> Result<&'a str, RunError> {
+    value.get(field).and_then(Value::as_str).ok_or_else(|| {
+        RunError::Diagnosis(format!(
+            "{} {field} is missing or not a string",
+            path.display()
+        ))
+    })
 }
 
 fn string_at<'a>(value: &'a Value, field: &str) -> Result<&'a str, RunError> {
@@ -647,8 +691,7 @@ pub(crate) fn run_lab_list(args: &LabListArgs, writer: &mut impl Write) -> Resul
         let trades = u64_at(&portfolio, "summary.trades")?;
         let halted = portfolio
             .pointer("/summary/halted")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
+            .and_then(Value::as_bool);
         let diagnosis = path.join("diagnosis").join("diagnosis.json").is_file();
         labs.push((
             lab,
@@ -736,7 +779,7 @@ pub(crate) fn run_lab_list(args: &LabListArgs, writer: &mut impl Write) -> Resul
                 total_return,
                 net_pnl,
                 trades,
-                halted,
+                halted_label(halted),
                 if diagnosis { "yes" } else { "no" }
             )
             .map_err(RunError::Output)?;
