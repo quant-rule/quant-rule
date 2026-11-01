@@ -697,7 +697,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.level",
+        "",
         "Level subtype 1 events.",
     ),
     c(
@@ -707,7 +707,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.level",
+        "",
         "Level subtype 2 events.",
     ),
     c(
@@ -717,7 +717,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.level",
+        "",
         "Level subtype 3 events.",
     ),
     c(
@@ -727,7 +727,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.divergence",
+        "",
         "Divergence subtype 1 events.",
     ),
     c(
@@ -737,7 +737,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.divergence",
+        "",
         "Divergence subtype 2 events.",
     ),
     c(
@@ -747,7 +747,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.divergence",
+        "",
         "Divergence subtype 3 events.",
     ),
     c(
@@ -757,7 +757,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.divergence",
+        "",
         "Divergence subtype 4 events.",
     ),
     c(
@@ -767,7 +767,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.signal",
+        "",
         "Signal subtype 1 events.",
     ),
     c(
@@ -777,7 +777,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.signal",
+        "",
         "Signal subtype 2 events.",
     ),
     c(
@@ -787,7 +787,7 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         ">= 0",
         false,
         "",
-        "event_subtype.signal",
+        "",
         "Signal subtype 3 events.",
     ),
     c(

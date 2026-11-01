@@ -505,6 +505,7 @@ pub(crate) fn codes_csv() -> String {
 pub(crate) fn manifest_json(
     meta: &DatasetMeta,
     layers: &LayerSet,
+    timeframes: &[u64],
     raw: &[RawFile],
     data_files: &[ExportFile],
 ) -> String {
@@ -523,7 +524,7 @@ pub(crate) fn manifest_json(
     out.push_str("  \"model_contract\": \"2026-10-21\",\n");
     out.push_str("  \"research_contract\": \"2026-10-24\",\n");
     out.push_str("  \"timeframes_secs\": [");
-    for (index, timeframe) in layers.timeframes.iter().enumerate() {
+    for (index, timeframe) in timeframes.iter().enumerate() {
         if index > 0 {
             out.push_str(", ");
         }
@@ -572,6 +573,7 @@ pub(crate) fn readme(
     layers: &LayerSet,
     raw_rows: usize,
     higher: &[u64],
+    timeframes: &[u64],
 ) -> String {
     let mut out = format!("# Research dataset: {}\n\n", meta.dataset);
     let _ = writeln!(out, "- Data version: {}", meta.data_version);
@@ -579,7 +581,7 @@ pub(crate) fn readme(
     out.push_str("- Model contract: 2026-10-21\n");
     out.push_str("- Research contract: 2026-10-24\n");
     out.push_str("- Timeframes (seconds): ");
-    for (index, timeframe) in layers.timeframes.iter().enumerate() {
+    for (index, timeframe) in timeframes.iter().enumerate() {
         if index > 0 {
             out.push_str(", ");
         }
