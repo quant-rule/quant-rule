@@ -184,7 +184,9 @@ pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), ExportError>
 /// The shape is `YYYY-MM-DD HH:MM:SS+00:00`; no local timezone is consulted.
 pub(crate) fn format_timestamp(seconds: i64) -> String {
     let text = format_utc_timestamp(seconds);
-    format!("{} {}+00:00", &text[..10], &text[11..19])
+    let (date, time) = text.split_once('T').unwrap_or((text.as_str(), ""));
+    let time = time.get(..8).unwrap_or(time);
+    format!("{date} {time}+00:00")
 }
 
 /// Formats a finite number the way the existing Python CSV does.

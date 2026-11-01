@@ -17,8 +17,8 @@ use std::fmt;
 
 use crate::bucket::Bucket;
 use crate::{
-    Candle, CandleValues, CandleWindow, RawCandle, Timeframe, WindowError, format_utc_timestamp,
-    parse_utc_timestamp,
+    Candle, CandleError, CandleValues, CandleWindow, RawCandle, Timeframe, TimestampError,
+    WindowError, format_utc_timestamp, is_supported_timestamp, parse_utc_timestamp,
 };
 
 /// A missing run between two consecutive candles in one series.
@@ -166,7 +166,9 @@ impl TimeframeSeries {
             return;
         };
         let step = i64::from(self.timeframe.seconds());
-        let delta = current - previous;
+        let Some(delta) = current.checked_sub(previous) else {
+            return;
+        };
         if delta > step {
             let missing = u64::try_from(delta / step - 1).unwrap_or(u64::MAX);
             self.gaps.push(Gap {
@@ -280,6 +282,11 @@ impl TimeframeSet {
     /// Returns the same errors as [`TimeframeSet::push`].
     pub fn push_values(&mut self, values: CandleValues) -> Result<u64, TimeframeError> {
         self.ensure_active()?;
+        if !is_supported_timestamp(values.timestamp) {
+            return Err(TimeframeError::Window(WindowError::Candle(
+                CandleError::Timestamp(TimestampError::UnsupportedYear),
+            )));
+        }
         check_m1_alignment(values.timestamp)?;
         let candle = self.series_mut(Timeframe::M1).push_values(values)?;
         self.aggregate(candle)?;
@@ -907,6 +914,16 @@ mod tests {
             result,
             Err(TimeframeError::VolumeOverflow { bucket_start: BASE })
         );
+    }
+
+    #[test]
+    fn push_values_rejects_an_out_of_range_timestamp() {
+        let mut set = TimeframeSet::full();
+        let error = set
+            .push_values(values_with(i64::MAX, 1.0, 2.0, 0.5, 1.5, None))
+            .expect_err("an out-of-range timestamp is rejected");
+        assert!(matches!(error, TimeframeError::Window(_)));
+        assert!(set.series(Timeframe::M1).is_empty());
     }
 
     #[test]

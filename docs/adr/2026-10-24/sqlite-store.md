@@ -156,7 +156,8 @@ The primary keys cover the per-dataset reads. Additional indexes:
 
 - `PRAGMA user_version` is the schema version. A fresh database has 0; migration 1 creates the schema and sets 1. Migration 2 replaces the `event` unique index and sets 2.
 - Each migration runs in one transaction. A failed statement rolls the migration back and leaves the previous version.
-- A database whose `user_version` is newer than the binary's fails with a clear error; it is never opened read-write.
+- A database whose `user_version` is newer than the binary's fails with a clear error before any persistent PRAGMA; its journal mode and bytes are unchanged. A non-zero `application_id` that differs from the QuantRule id is refused as not a store, and a version-0 SQLite file with tables is refused instead of migrated.
+- A new store sets `PRAGMA application_id` to the QuantRule id (`QRUL`) in the migration transaction. A legacy store with a zero id adopts it on the next write open.
 - A corrupt database fails on open or on `PRAGMA integrity_check`; the error names the path.
 - PRAGMAs on every connection: `foreign_keys=ON`, `journal_mode=WAL` for a file database, `synchronous=NORMAL`, `busy_timeout=5000`. In-memory databases keep the default journal mode.
 - The schema DDL is versioned, not `IF NOT EXISTS`; the migration runs once.
@@ -182,7 +183,7 @@ The dataset identity is `(name, data_version, model_version, structure_scale_cod
 | `store show <dataset> <table> [filters] [--db <path>]` | Rows from one stored table, bounded by a limit |
 | `store verify <csv-path> --dataset <name> --data-version <id> [--db <path>]` | Rebuild the dataset from source and compare every stored value; report zero mismatches or the first mismatch |
 
-`store show` accepts `bar`, `pivot`, `level`, `event`, `leg`, `consensus`, and `layer3`, with `--timeframe`, `--bar`, and `--limit` filters as applicable. The exact query flags are fixed in [#75](https://github.com/quant-rule/quant-rule/issues/75); every table is reachable. `db series`, `db bars`, `db metrics`, and `db layer3` are per-bar projections over the same read-only query layer.
+`store show` accepts `bar`, `pivot`, `level`, `event`, `leg`, `consensus`, and `layer3`, with `--timeframe`, `--bar`, and `--limit` filters as applicable. The exact query flags are fixed in [#75](https://github.com/quant-rule/quant-rule/issues/75); every table is reachable. The displayed rows omit the internal `dataset_id` and the event row `id`; they are storage identity, not dataset content, and the same logical dataset dumps identically across a remove and re-ingest. `db series`, `db bars`, `db metrics`, and `db layer3` are per-bar projections over the same read-only query layer.
 
 The default database path is `data/quantrule.db`. `--db` overrides it. Tests use a file under `target/` or an in-memory database; no test writes outside the repository.
 
@@ -196,7 +197,7 @@ The default database path is `data/quantrule.db`. `--db` overrides it. Tests use
 | Records | `pivot`, `level`, `event`, `leg`, `consensus` | Stored from the model's batch output |
 | Research CSVs | Not stored | Rendered from the in-memory layers by `research export` |
 
-The store does not store the event, leg, level, or consensus CSV files. The research export remains the file artifact; the store is the queryable record. `store verify` compares the stored values with a fresh build, so the two paths cannot drift silently.
+The store does not store the event, leg, level, or consensus CSV files. The research export remains the file artifact; the store is the queryable record. `store verify` re-reads the source, rebuilds the layers, and compares the stored rows with the expected rows through the same writer parameter functions. It proves writer/reader consistency and catches drift; it is not an independent oracle for the model or the layer computation. A stored dataset is addressed by its name, which uses only letters, digits, `.`, `-`, and `_`, does not start with `-`, and is not `.` or `..`.
 
 ## 9. Determinism
 

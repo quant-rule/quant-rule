@@ -154,12 +154,11 @@ fn store_show_prints_one_row_and_the_full_width() {
     let text = stdout_text(&output);
     let lines = csv_lines(&text);
     assert_eq!(lines.len(), 2);
-    assert_eq!(lines[0].len(), 74);
-    assert_eq!(lines[0][0], "dataset_id");
-    assert_eq!(lines[0][1], "timeframe_secs");
-    assert_eq!(lines[0][2], "bar_index");
-    assert_eq!(lines[1][1], "60");
-    assert_eq!(lines[1][2], "0");
+    assert_eq!(lines[0].len(), 73);
+    assert_eq!(lines[0][0], "timeframe_secs");
+    assert_eq!(lines[0][1], "bar_index");
+    assert_eq!(lines[1][0], "60");
+    assert_eq!(lines[1][1], "0");
 }
 
 #[test]
@@ -167,19 +166,27 @@ fn store_show_reaches_every_table() {
     let root = artifact_dir("store-show-tables");
     let db = ingest(&root);
     for (table, width) in [
-        ("bar", 74),
-        ("consensus", 7),
-        ("layer3", 285),
-        ("pivot", 8),
-        ("level", 8),
-        ("event", 12),
-        ("leg", 19),
+        ("bar", 73),
+        ("consensus", 6),
+        ("layer3", 284),
+        ("pivot", 7),
+        ("level", 7),
+        ("event", 10),
+        ("leg", 18),
     ] {
         let output = run(&["store", "show", "demo", table, "--limit", "1", "--db", &db]);
         assert_success(&output);
         let text = stdout_text(&output);
         let header = text.lines().next().expect("the header exists");
         assert_eq!(header.split(',').count(), width, "the {table} header width");
+        assert!(
+            !header.starts_with("dataset_id,"),
+            "the {table} exposes dataset_id"
+        );
+        assert!(
+            !header.split(',').any(|column| column == "id"),
+            "the {table} exposes id"
+        );
     }
 }
 
@@ -210,7 +217,7 @@ fn db_views_print_the_expected_widths() {
 
     let bars = run(&["db", "bars", "demo", "--limit", "1", "--db", &db]);
     assert_success(&bars);
-    assert_eq!(csv_lines(&stdout_text(&bars))[0].len(), 74);
+    assert_eq!(csv_lines(&stdout_text(&bars))[0].len(), 73);
 
     let metrics = run(&[
         "db",
@@ -228,7 +235,7 @@ fn db_views_print_the_expected_widths() {
 
     let layer3 = run(&["db", "layer3", "demo", "--limit", "1", "--db", &db]);
     assert_success(&layer3);
-    assert_eq!(csv_lines(&stdout_text(&layer3))[0].len(), 285);
+    assert_eq!(csv_lines(&stdout_text(&layer3))[0].len(), 284);
 }
 
 #[test]
@@ -297,4 +304,83 @@ fn interactive_store_list_matches_non_interactive() {
         "interactive and non-interactive output differ"
     );
     assert!(stderr_text(&interactive).contains("quantrule> "));
+}
+
+#[test]
+fn the_same_logical_dump_survives_remove_and_reingest() {
+    let root = artifact_dir("stable-dump");
+    let db = ingest(&root);
+    let first = run(&[
+        "store", "show", "demo", "event", "--limit", "1000", "--db", &db,
+    ]);
+    assert_success(&first);
+
+    let removed = run(&["store", "remove", "demo", "--db", &db]);
+    assert_success(&removed);
+    let reingested = run(&[
+        "store",
+        "ingest",
+        &fixture("state_m1.csv"),
+        "--dataset",
+        "demo",
+        "--data-version",
+        DATA_VERSION,
+        "--db",
+        &db,
+    ]);
+    assert_success(&reingested);
+    let second = run(&[
+        "store", "show", "demo", "event", "--limit", "1000", "--db", &db,
+    ]);
+    assert_success(&second);
+    assert_eq!(
+        stdout_text(&first),
+        stdout_text(&second),
+        "the logical dump changed across a remove and re-ingest"
+    );
+}
+
+#[test]
+fn store_show_rejects_four_hour_as_a_usage_error() {
+    let root = artifact_dir("store-four-hour");
+    let db = ingest(&root);
+    let output = run(&[
+        "store",
+        "show",
+        "demo",
+        "bar",
+        "--timeframe",
+        "4h",
+        "--db",
+        &db,
+    ]);
+    assert_failure(&output);
+    assert!(
+        stderr_text(&output).contains("--timeframe expects 1m, 5m, 15m, or 1h, found '4h'"),
+        "unexpected error: {}",
+        stderr_text(&output)
+    );
+}
+
+#[test]
+fn a_dataset_name_that_cannot_be_addressed_is_rejected_at_ingest() {
+    let root = artifact_dir("unaddressable-name");
+    let db = format!("{root}/store.db");
+    let output = run(&[
+        "store",
+        "ingest",
+        &fixture("state_m1.csv"),
+        "--dataset",
+        "--bad",
+        "--data-version",
+        DATA_VERSION,
+        "--db",
+        &db,
+    ]);
+    assert_failure(&output);
+    assert!(
+        stderr_text(&output).contains("the dataset name must use only letters"),
+        "unexpected error: {}",
+        stderr_text(&output)
+    );
 }

@@ -54,3 +54,19 @@ use self::research::{parse_research_arguments, run_research_export, run_research
 use self::store::{parse_store_arguments, run_store_ingest, run_store_init, run_store_remove};
 use self::store_query::{run_db, run_store_list, run_store_show};
 use self::store_verify::run_store_verify;
+
+/// Resolves the four timeframes the store and fetch commands document.
+///
+/// The data engine also supports H4; the store and fetch command contracts do
+/// not, so H4 must be rejected here rather than in the shared code parser.
+pub(crate) fn parse_native_timeframe(code: &str) -> Option<quantrule_data::Timeframe> {
+    quantrule_data::Timeframe::from_code(code).filter(|timeframe| {
+        matches!(
+            *timeframe,
+            quantrule_data::Timeframe::M1
+                | quantrule_data::Timeframe::M5
+                | quantrule_data::Timeframe::M15
+                | quantrule_data::Timeframe::H1
+        )
+    })
+}

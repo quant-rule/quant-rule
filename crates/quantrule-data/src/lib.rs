@@ -18,7 +18,10 @@ mod window;
 
 pub use candle::{Candle, CandleError, RawCandle};
 pub use source_cadence::SourceCadence;
-pub use time::{TimestampError, format_utc_timestamp, parse_utc_timestamp};
+pub use time::{
+    MAX_TIMESTAMP_MILLISECONDS, MAX_TIMESTAMP_SECONDS, MIN_TIMESTAMP_SECONDS, TimestampError,
+    format_utc_timestamp, is_supported_timestamp, parse_utc_timestamp,
+};
 pub use timeframe::Timeframe;
 pub use timeframe_set::{Gap, PartialBucket, TimeframeError, TimeframeSeries, TimeframeSet};
 pub use window::{

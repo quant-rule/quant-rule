@@ -214,8 +214,8 @@ fn leg_matches(legs: &[LegPoint]) -> u32 {
             {
                 continue;
             }
-            let slower = first.timeframe_secs.max(second.timeframe_secs) as i64;
-            let origin_gap = (first.origin_time_secs - second.origin_time_secs).abs();
+            let slower = first.timeframe_secs.max(second.timeframe_secs);
+            let origin_gap = first.origin_time_secs.abs_diff(second.origin_time_secs);
             let price_gap = (first.origin_price - second.origin_price).abs();
             let tolerance = 0.5 * first.atr.max(second.atr);
             if origin_gap <= slower && price_gap <= tolerance {

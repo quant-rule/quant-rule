@@ -29,6 +29,12 @@ use std::path::{Path, PathBuf};
 
 use schema::{SCHEMA_V1, SCHEMA_V2, SCHEMA_VERSION};
 
+/// The SQLite `application_id` that marks a QuantRule store.
+///
+/// The value is the ASCII bytes `QRUL`. A non-zero id that differs from this
+/// value is not a QuantRule store, even when its `user_version` is zero.
+pub(crate) const APPLICATION_ID: i64 = 0x5152_554C;
+
 /// An open store.
 #[derive(Debug)]
 pub(crate) struct Store {
@@ -59,8 +65,24 @@ impl Store {
             source,
         })?;
         configure(&connection).map_err(|source| map_error(source, path))?;
+
+        // Read the header before any persistent PRAGMA. A newer or unrelated
+        // database must not have its journal mode changed just to be rejected.
+        check_application_id(&connection, path)?;
+        let version = read_version(&connection, Some(path))?;
+        if version > SCHEMA_VERSION {
+            return Err(StoreError::UnsupportedVersion {
+                found: version,
+                supported: SCHEMA_VERSION,
+            });
+        }
+        if version == 0 {
+            ensure_empty_database(&connection, path)?;
+        }
+
         enable_wal(&connection).map_err(|source| map_error(source, path))?;
         init(&mut connection, Some(path))?;
+        ensure_application_id(&connection, path)?;
 
         Ok(Self {
             connection,
@@ -89,6 +111,7 @@ impl Store {
         let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)
             .map_err(|source| map_error(source, path))?;
         configure(&connection).map_err(|source| map_error(source, path))?;
+        check_application_id(&connection, path)?;
         let version = read_version(&connection, Some(path))?;
         if version == 0 {
             return Err(StoreError::Uninitialized {
@@ -129,6 +152,7 @@ impl Store {
         let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|source| map_error(source, path))?;
         configure_read_only(&connection).map_err(|source| map_error(source, path))?;
+        check_application_id(&connection, path)?;
         let version = read_version(&connection, Some(path))?;
         if version == 0 {
             return Err(StoreError::Uninitialized {
@@ -260,6 +284,48 @@ fn read_version(connection: &Connection, path: Option<&Path>) -> Result<i64, Sto
         })
 }
 
+fn read_application_id(connection: &Connection, path: &Path) -> Result<i64, StoreError> {
+    connection
+        .query_row("PRAGMA application_id", [], |row| row.get(0))
+        .map_err(|source| map_error(source, path))
+}
+
+fn check_application_id(connection: &Connection, path: &Path) -> Result<(), StoreError> {
+    let application_id = read_application_id(connection, path)?;
+    if application_id != 0 && application_id != APPLICATION_ID {
+        return Err(StoreError::Uninitialized {
+            path: path.to_path_buf(),
+        });
+    }
+    Ok(())
+}
+
+fn ensure_application_id(connection: &Connection, path: &Path) -> Result<(), StoreError> {
+    if read_application_id(connection, path)? == 0 {
+        connection
+            .pragma_update(None, "application_id", APPLICATION_ID)
+            .map_err(|source| map_error(source, path))?;
+    }
+    Ok(())
+}
+
+fn ensure_empty_database(connection: &Connection, path: &Path) -> Result<(), StoreError> {
+    let objects: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM sqlite_master \
+             WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|source| map_error(source, path))?;
+    if objects > 0 {
+        return Err(StoreError::Uninitialized {
+            path: path.to_path_buf(),
+        });
+    }
+    Ok(())
+}
+
 fn is_corrupt(error: &rusqlite::Error) -> bool {
     matches!(
         error,
@@ -282,6 +348,9 @@ fn migrate(
         .map_err(|source| StoreError::Migrate { source })?;
     transaction
         .pragma_update(None, "user_version", version)
+        .map_err(|source| StoreError::Migrate { source })?;
+    transaction
+        .pragma_update(None, "application_id", APPLICATION_ID)
         .map_err(|source| StoreError::Migrate { source })?;
     transaction
         .commit()

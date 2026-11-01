@@ -171,9 +171,9 @@ pub fn run_backtest(
                 .apply_funding(bar_index, time, candle.open(), candle.volume())
                 .map_err(BacktestError::Ledger)?;
 
-            let contiguous = previous
-                .as_ref()
-                .is_none_or(|previous| previous.candle.timestamp() + execution_secs == time);
+            let contiguous = previous.as_ref().is_none_or(|previous| {
+                previous.candle.timestamp().checked_add(execution_secs) == Some(time)
+            });
 
             let batch = execution
                 .advance(&candle, contiguous)

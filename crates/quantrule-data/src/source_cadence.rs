@@ -38,11 +38,12 @@ impl SourceCadence {
     /// rejected by the candle window with their own errors, and they must not
     /// make a coarser source look M1-spaced before that error is reached.
     pub fn observe(&mut self, timestamp: i64) {
-        if let Some(previous) = self.last_timestamp {
-            let spacing = timestamp - previous;
-            if spacing > 0 && self.minimum_seconds.is_none_or(|minimum| spacing < minimum) {
-                self.minimum_seconds = Some(spacing);
-            }
+        if let Some(previous) = self.last_timestamp
+            && let Some(spacing) = timestamp.checked_sub(previous)
+            && spacing > 0
+            && self.minimum_seconds.is_none_or(|minimum| spacing < minimum)
+        {
+            self.minimum_seconds = Some(spacing);
         }
         self.last_timestamp = Some(timestamp);
     }
@@ -100,6 +101,17 @@ mod tests {
         cadence.observe(BASE);
         assert_eq!(cadence.minimum_seconds(), None);
         assert_eq!(cadence.require_m1(), Ok(()));
+    }
+
+    #[test]
+    fn extreme_timestamps_do_not_overflow() {
+        let mut cadence = SourceCadence::new();
+        cadence.observe(i64::MIN);
+        cadence.observe(i64::MAX);
+        assert_eq!(cadence.minimum_seconds(), None);
+
+        cadence.observe(i64::MIN);
+        assert_eq!(cadence.minimum_seconds(), None);
     }
 
     #[test]

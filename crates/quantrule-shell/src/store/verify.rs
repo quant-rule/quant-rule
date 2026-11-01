@@ -1,13 +1,15 @@
-//! Verification of a stored dataset against a fresh in-memory build.
+//! Writer/reader consistency verification of a stored dataset.
 //!
 //! The command builds the layers from the source, reads every stored table
-//! read-only, and compares the values table by table. It never writes, migrates,
-//! or repairs the database.
+//! read-only, and compares the values table by table through the same writer
+//! parameter functions. It detects drift between the writer and the reader; it
+//! is not an independent oracle for the model or the layer computation. It
+//! never writes, migrates, or repairs the database.
 
 use super::ingest::{DatasetRecord, IngestRows, MODEL_CONTRACT, RESEARCH_CONTRACT, expected_rows};
 use super::{Cell, Store, StoreError, Table};
 
-/// The result of a successful verification.
+/// The result of a successful writer/reader consistency check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct VerifyReport {
     /// The number of expected `bar` rows.
@@ -21,7 +23,9 @@ impl Store {
     ///
     /// The check covers the dataset identity, the foreign-key graph, and the
     /// `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, and `leg`
-    /// tables. The event `id` is a row identifier and is excluded from the
+    /// tables. It uses the writer's parameter functions, so it proves
+    /// writer/reader consistency rather than the correctness of an independent
+    /// computation. The event `id` is a row identifier and is excluded from the
     /// record comparison; every record column is compared exactly.
     ///
     /// # Errors

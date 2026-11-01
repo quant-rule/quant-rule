@@ -417,6 +417,26 @@ fn fetch_with_an_unknown_option_fails_without_stdout() {
 }
 
 #[test]
+fn fetch_with_four_hour_fails_before_any_network_access() {
+    for code in ["4h", "h4"] {
+        let output = run(&[
+            "fetch",
+            "gold",
+            "2025-01-01",
+            "2025-12-31",
+            "--timeframe",
+            code,
+        ]);
+        assert_failure(&output);
+        assert_eq!(
+            stderr_text(&output),
+            format!("error: --timeframe expects 1m, 5m, 15m, or 1h, found '{code}'\n")
+        );
+        assert_eq!(stdout_text(&output), "");
+    }
+}
+
+#[test]
 fn fetch_with_an_unknown_timeframe_fails_before_any_network_access() {
     let output = run(&[
         "fetch",
