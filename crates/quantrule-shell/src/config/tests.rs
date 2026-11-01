@@ -619,6 +619,15 @@ fn strategy_v6_object() -> Value {
     value
 }
 
+fn strategy_v7_object() -> Value {
+    let mut value = strategy_v4_object();
+    value["schema"] = json!("quantrule.strategy/v7");
+    value["rule"] = json!("level-fade");
+    value["thesis"] = json!("Fade a failed test of a confirmed level in either direction.");
+    value["exit"] = json!({"on": ["level_lost"]});
+    value
+}
+
 fn strategy_v5_object() -> Value {
     json!({
         "schema": "quantrule.strategy/v5",
@@ -1752,6 +1761,32 @@ fn strategy_v6_breakout_matches_the_contract() {
     assert!(valid.engine.exit().on_level_lost());
 
     let value = set(strategy_v6_object(), &["rule"], json!("level-retest"));
+    assert_rejected(
+        strategy::parse(&value, "strategy.json"),
+        Unsupported,
+        "$.rule",
+    );
+}
+
+#[test]
+fn strategy_v7_level_fade_matches_the_contract() {
+    let valid = strategy::parse(&strategy_v7_object(), "strategy.json")
+        .expect("the v7 level-fade config loads");
+    assert!(matches!(
+        valid.engine.mode(),
+        quantrule_backtest::strategy::StrategyMode::LevelFade(_)
+    ));
+    assert_eq!(
+        valid
+            .engine
+            .level()
+            .expect("the level config")
+            .max_distance_fraction(),
+        0.02
+    );
+    assert!(valid.engine.exit().on_level_lost());
+
+    let value = set(strategy_v7_object(), &["rule"], json!("breakout"));
     assert_rejected(
         strategy::parse(&value, "strategy.json"),
         Unsupported,

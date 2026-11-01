@@ -9,7 +9,8 @@
 | `ladder-context` | `quantrule.strategy/v3` | 15m / 1h | Direction/Momentum thresholds, Structure shift, higher-timeframe context | Control; not green in prior experiments |
 | `level-retest` | `quantrule.strategy/v4` | 15m / 1h | Retest of a confirmed level with a structural bracket | Experimental; not green |
 | `three-timeframe` | `quantrule.strategy/v5` | 1m / 5m / 15m | 5m/15m priority agreement and a 1m level retest | Experimental; not green |
-| `breakout` | `quantrule.strategy/v6` | 15m / 1h | Close-through of a confirmed level with a structural bracket | Experimental; implemented, not validated |
+| `breakout` | `quantrule.strategy/v6` | 15m / 1h | Close-through of a confirmed level with a structural bracket | Experimental; not green |
+| `level-fade` | `quantrule.strategy/v7` | 15m / 1h | Fade a failed test of a confirmed level with a structural bracket | Experimental; 2024 validation failed |
 
 The candidate registry is not a baseline. The model gate must pass before any
 strategy run is a valid tier result. The run contract is

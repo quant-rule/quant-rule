@@ -356,6 +356,24 @@ impl LadderContextStrategy {
         None
     }
 
+    fn level_fade_entry(
+        &self,
+        _input: &StrategyInput,
+        context: &LadderContext,
+    ) -> Option<TradeIntent> {
+        let level = self.config.level()?;
+        // A failed support test is a long; a failed resistance test is a short.
+        // The rule deliberately does not use the directional context: the edge
+        // hypothesis is the rejection itself, not trend agreement.
+        if context.levels.retest_support {
+            return self.bracket_intent(context, Side::Long, level);
+        }
+        if context.levels.retest_resistance {
+            return self.bracket_intent(context, Side::Short, level);
+        }
+        None
+    }
+
     fn breakout_entry(
         &self,
         input: &StrategyInput,
@@ -544,6 +562,13 @@ impl Strategy for LadderContextStrategy {
                         }),
                         None => Decision::Hold,
                     },
+                    StrategyMode::LevelFade(_) => match self.level_fade_entry(input, context) {
+                        Some(intent) => Decision::Enter(Entry {
+                            bar: *input,
+                            intent,
+                        }),
+                        None => Decision::Hold,
+                    },
                 }
             }
             Some(open) => {
@@ -551,7 +576,8 @@ impl Strategy for LadderContextStrategy {
                     StrategyMode::LadderContext => self.exit_reason(input, context, open),
                     StrategyMode::LevelRetest(_)
                     | StrategyMode::ThreeTimeframe(_)
-                    | StrategyMode::Breakout(_) => self.level_exit_reason(input, context, open),
+                    | StrategyMode::Breakout(_)
+                    | StrategyMode::LevelFade(_) => self.level_exit_reason(input, context, open),
                 };
                 match reason {
                     Some(reason) => Decision::Exit(Exit {

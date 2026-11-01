@@ -210,7 +210,7 @@ const FORCE: OptionHelp = OptionHelp {
 };
 const STRATEGY: OptionHelp = OptionHelp {
     flag: "--strategy <name>",
-    description: "Strategy name; required (ladder-context, level-retest, three-timeframe, or breakout).",
+    description: "Strategy name; required (ladder-context, level-retest, three-timeframe, breakout, or level-fade).",
 };
 const PNG: OptionHelp = OptionHelp {
     flag: "--png <path>",

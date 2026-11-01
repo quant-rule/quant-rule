@@ -37,6 +37,8 @@ pub(crate) const RULE_LEVEL_RETEST: &str = "level-retest";
 pub(crate) const RULE_THREE_TIMEFRAME: &str = "three-timeframe";
 /// The breakout strategy name.
 pub(crate) const RULE_BREAKOUT: &str = "breakout";
+/// The level-fade strategy name.
+pub(crate) const RULE_LEVEL_FADE: &str = "level-fade";
 
 /// Parses the already-split arguments of `strategy-run`.
 ///
@@ -231,6 +233,11 @@ pub(crate) fn run_strategy_run(
         RULE_THREE_TIMEFRAME
     } else if matches!(
         config.mode(),
+        quantrule_backtest::strategy::StrategyMode::LevelFade(_)
+    ) {
+        RULE_LEVEL_FADE
+    } else if matches!(
+        config.mode(),
         quantrule_backtest::strategy::StrategyMode::Breakout(_)
     ) {
         RULE_BREAKOUT
@@ -301,6 +308,7 @@ fn is_supported_strategy(name: &str) -> bool {
         || name == RULE_LEVEL_RETEST
         || name == RULE_THREE_TIMEFRAME
         || name == RULE_BREAKOUT
+        || name == RULE_LEVEL_FADE
 }
 
 fn timeframe_for(seconds: u64) -> Option<Timeframe> {
@@ -501,6 +509,11 @@ pub(super) fn strategy_config_value(config: &StrategyConfig, thesis: &str) -> Va
     } else if let Some(level) = config.level() {
         let name = if matches!(
             config.mode(),
+            quantrule_backtest::strategy::StrategyMode::LevelFade(_)
+        ) {
+            "level-fade"
+        } else if matches!(
+            config.mode(),
             quantrule_backtest::strategy::StrategyMode::Breakout(_)
         ) {
             "breakout"
@@ -583,9 +596,9 @@ fn write_line(value: &Value, writer: &mut impl Write) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        RULE_BREAKOUT, RULE_LADDER_CONTEXT, RULE_LEVEL_RETEST, RULE_THREE_TIMEFRAME,
-        is_supported_strategy, parse_strategy_run_arguments, reason_code, record_value,
-        timeframe_for,
+        RULE_BREAKOUT, RULE_LADDER_CONTEXT, RULE_LEVEL_FADE, RULE_LEVEL_RETEST,
+        RULE_THREE_TIMEFRAME, is_supported_strategy, parse_strategy_run_arguments, reason_code,
+        record_value, timeframe_for,
     };
     use crate::command::types::ParseError;
     use quantrule_backtest::strategy::{ExitReason, Side, StrategyConfig, StrategyInput};
@@ -742,6 +755,7 @@ mod tests {
         assert!(is_supported_strategy(RULE_LEVEL_RETEST));
         assert!(is_supported_strategy(RULE_THREE_TIMEFRAME));
         assert!(is_supported_strategy(RULE_BREAKOUT));
+        assert!(is_supported_strategy(RULE_LEVEL_FADE));
         assert!(!is_supported_strategy("ema-cross"));
     }
 

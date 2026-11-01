@@ -55,6 +55,7 @@ enum Schema {
     V4,
     V5,
     V6,
+    V7,
 }
 
 /// Parses `strategy.json`.
@@ -96,6 +97,12 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
             "$.rule",
             read::field(file, ROOT, object, "rule")?,
             "breakout",
+        )?,
+        Schema::V7 => require_code(
+            file,
+            "$.rule",
+            read::field(file, ROOT, object, "rule")?,
+            "level-fade",
         )?,
     }
     let thesis =
@@ -224,6 +231,38 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
                 require_contiguous_execution,
             )
         }
+        (
+            Schema::V7,
+            Some(level),
+            None,
+            Risk::Level {
+                stop_buffer,
+                min_reward_to_risk,
+            },
+        ) => {
+            let level = LevelRetestConfig::new(
+                level.max_distance_fraction,
+                stop_buffer,
+                min_reward_to_risk,
+                level.scale,
+            )
+            .map_err(|error| {
+                ConfigError::range(
+                    file,
+                    "$.entry.level",
+                    "a valid level-fade configuration",
+                    &error.to_string(),
+                )
+            })?;
+            StrategyConfig::new_level_fade(
+                ladder,
+                weights,
+                entry,
+                exit,
+                level,
+                require_contiguous_execution,
+            )
+        }
         _ => {
             return Err(ConfigError::inconsistent(
                 file,
@@ -261,10 +300,11 @@ fn require_schema(file: &str, object: &Map<String, Value>) -> Result<Schema, Con
         "quantrule.strategy/v4" => Ok(Schema::V4),
         "quantrule.strategy/v5" => Ok(Schema::V5),
         "quantrule.strategy/v6" => Ok(Schema::V6),
+        "quantrule.strategy/v7" => Ok(Schema::V7),
         _ => Err(ConfigError::schema(
             file,
             &path,
-            "quantrule.strategy/v3, v4, v5, or v6",
+            "quantrule.strategy/v3, v4, v5, v6, or v7",
             found,
         )),
     }
@@ -372,7 +412,7 @@ fn parse_entry(
     let entry = read::object(file, path, value)?;
     let fields: &[&str] = match schema {
         Schema::V3 => &["execution", "context"],
-        Schema::V4 | Schema::V6 => &["execution", "context", "level"],
+        Schema::V4 | Schema::V6 | Schema::V7 => &["execution", "context", "level"],
         Schema::V5 => &["execution", "context", "level", "agreement"],
     };
     read::check_fields(file, path, entry, fields)?;
@@ -380,7 +420,7 @@ fn parse_entry(
     let context = parse_context_entry(file, read::field(file, path, entry, "context")?)?;
     let level = match schema {
         Schema::V3 => None,
-        Schema::V4 | Schema::V5 | Schema::V6 => Some(parse_level_entry(
+        Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => Some(parse_level_entry(
             file,
             read::field(file, path, entry, "level")?,
         )?),
@@ -390,7 +430,7 @@ fn parse_entry(
             file,
             read::field(file, path, entry, "agreement")?,
         )?),
-        Schema::V3 | Schema::V4 | Schema::V6 => None,
+        Schema::V3 | Schema::V4 | Schema::V6 | Schema::V7 => None,
     };
     Ok((EntryConfig::new(execution, context), level, min_agreement))
 }
@@ -676,7 +716,10 @@ fn parse_exit(file: &str, value: &Value, schema: Schema) -> Result<ExitConfig, C
                 structure_lost = true;
             }
             "level_lost"
-                if schema == Schema::V4 || schema == Schema::V5 || schema == Schema::V6 =>
+                if schema == Schema::V4
+                    || schema == Schema::V5
+                    || schema == Schema::V6
+                    || schema == Schema::V7 =>
             {
                 if level_lost {
                     return Err(ConfigError::inconsistent(
@@ -691,7 +734,7 @@ fn parse_exit(file: &str, value: &Value, schema: Schema) -> Result<ExitConfig, C
             other => {
                 let expected = match schema {
                     Schema::V3 => "context_lost or structure_lost",
-                    Schema::V4 | Schema::V5 | Schema::V6 => {
+                    Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => {
                         "context_lost, structure_lost, or level_lost"
                     }
                 };
@@ -702,7 +745,7 @@ fn parse_exit(file: &str, value: &Value, schema: Schema) -> Result<ExitConfig, C
 
     let config = match schema {
         Schema::V3 => ExitConfig::new(context_lost, structure_lost),
-        Schema::V4 | Schema::V5 | Schema::V6 => {
+        Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => {
             ExitConfig::new_level(context_lost, structure_lost, level_lost)
         }
     };
@@ -757,7 +800,7 @@ fn parse_risk(file: &str, value: &Value, schema: Schema) -> Result<Risk, ConfigE
                     ConfigError::range(file, path, "a valid risk policy", &error.to_string())
                 })
         }
-        Schema::V4 | Schema::V5 | Schema::V6 => {
+        Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => {
             read::check_fields(file, stop_path, stop, &["kind", "buffer_fraction"])?;
             require_code(
                 file,

@@ -1,0 +1,22 @@
+{
+  "schema": "quantrule.improvement-run/v1",
+  "run_id": "STRATEGY-2026-11-01-13",
+  "tier": "strategy",
+  "hypothesis": "v7 level-fade has a cost-inclusive edge on BTCUSD 2024 validation.",
+  "created_utc": "2026-11-01T23:00:00Z",
+  "changed": "strategy",
+  "frozen": [
+    "model",
+    "portfolio"
+  ],
+  "partition": "strategy_validation",
+  "run_config": "config/strategy-003/btc-v7-15m1h/run.json",
+  "code_commit": "worktree",
+  "seed": 0,
+  "green_criteria": {
+    "mean_return": 0.1,
+    "max_drawdown": 0.2,
+    "min_trades": 30
+  },
+  "holdout_access": "none"
+}

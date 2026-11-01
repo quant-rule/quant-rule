@@ -785,6 +785,42 @@ fn a_confirmed_level_break_closes_a_level_retest_position() {
     assert_eq!(exit.reason, ExitReason::LevelLost);
 }
 
+fn fade_config() -> StrategyConfig {
+    StrategyConfig::new_level_fade(
+        LadderConfig::default(),
+        LadderWeights::equal(1),
+        EntryConfig::default(),
+        ExitConfig::new_level(false, false, true).expect("the exit config is valid"),
+        LevelRetestConfig::new(0.02, 0.002, 2.0, None).expect("the fade config is valid"),
+        true,
+    )
+    .expect("the strategy config is valid")
+}
+
+#[test]
+fn a_failed_support_test_fades_a_bearish_context() {
+    let strategy = LadderContextStrategy::new(fade_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(-0.4), Some(-0.2), Some(-1.0));
+    let mut context = bearish_context();
+    context.levels = level_context().levels;
+    let Decision::Enter(entry) = strategy.decide(&bar, &context, StrategyPosition::flat()) else {
+        panic!("the failed support test must enter long");
+    };
+    assert_eq!(entry.intent.side, Side::Long);
+}
+
+#[test]
+fn a_failed_resistance_test_fades_a_bullish_context() {
+    let strategy = LadderContextStrategy::new(fade_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+    let mut context = bullish_context();
+    context.levels = bearish_level_context().levels;
+    let Decision::Enter(entry) = strategy.decide(&bar, &context, StrategyPosition::flat()) else {
+        panic!("the failed resistance test must enter short");
+    };
+    assert_eq!(entry.intent.side, Side::Short);
+}
+
 #[test]
 fn a_level_retest_does_not_require_a_structure_shift() {
     let strategy = LadderContextStrategy::new(level_config());
