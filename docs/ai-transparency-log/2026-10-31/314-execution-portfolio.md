@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
-- Work item: #314, branch `fix/314-execution-portfolio`
+- Work item: #314, branch `fix/314-execution-portfolio`; PR [#326](https://github.com/quant-rule/quant-rule/pull/326)
 - Plan: `docs/execution-plans/2026-10-31/full-system-audit.md` (W7)
 - Audit: `docs/audits/2026-10-31/full-system-audit.md` (AUD-48, -53, -54, -64, -66)
 - Validator record: `docs/reports/2026-10-31/w7-execution-portfolio-validation.md`
