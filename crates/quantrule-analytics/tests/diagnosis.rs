@@ -459,3 +459,54 @@ fn an_empty_series_is_unknown_not_a_panic() {
     );
     assert!(text::summary(&diagnosis).is_ok());
 }
+
+#[test]
+fn unknown_checks_do_not_assert_a_failure() {
+    let fixture = Fixture::new(40);
+    let mut input = fixture.input();
+    input.metrics.max_drawdown_limit = None;
+    let diagnosis = diagnose(&input);
+    let triage = diagnosis.triage.join("\n");
+
+    assert!(!triage.contains("net expectancy is negative"), "{triage}");
+    assert!(!triage.contains("slippage exceeds"), "{triage}");
+    assert!(!triage.contains("costs dominate"), "{triage}");
+    assert!(!triage.contains("the limit was breached"), "{triage}");
+    assert!(triage.contains("not yet measurable"), "{triage}");
+    assert!(triage.contains("Measure slippage"), "{triage}");
+    assert!(triage.contains("Measure costs"), "{triage}");
+    assert!(triage.contains("Record a drawdown limit"), "{triage}");
+}
+
+#[test]
+fn missing_diagnosis_values_are_empty_csv_cells() {
+    let fixture = Fixture::new(1);
+    let diagnosis = diagnose(&fixture.input());
+
+    let checks = String::from_utf8(text::checks_csv(&diagnosis).expect("checks.csv"))
+        .expect("checks.csv is UTF-8");
+    let row = checks
+        .lines()
+        .find(|line| line.starts_with("strategy.net_expectancy,"))
+        .expect("the net expectancy check is present");
+    let mut fields = row.split(',');
+    assert_eq!(fields.next(), Some("strategy.net_expectancy"));
+    assert_eq!(fields.next(), Some("unknown"));
+    assert_eq!(fields.next(), Some(""));
+
+    let health = String::from_utf8(
+        text::model_health_csv(&diagnosis.model_health).expect("model-health.csv"),
+    )
+    .expect("model-health.csv is UTF-8");
+    let mut checked_null = false;
+    for line in health.lines().skip(1) {
+        let cells: Vec<&str> = line.split(',').collect();
+        if cells.get(3) == Some(&"0") {
+            assert_eq!(cells.get(6), Some(&""));
+            assert_eq!(cells.get(7), Some(&""));
+            assert_eq!(cells.get(8), Some(&""));
+            checked_null = true;
+        }
+    }
+    assert!(checked_null, "expected a null-only axis in {health}");
+}

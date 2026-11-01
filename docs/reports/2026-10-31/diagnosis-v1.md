@@ -66,7 +66,7 @@ The diagnosis binds to:
 | `model_version` | The shell package version |
 | `requested_period` | `data.json` `from` and `to` |
 | `actual_period` | The execution timeframe's first and last open time |
-| `report_versions` | The five bundle contract versions |
+| `report_versions` | The five bundle contract versions, read from the written reports |
 
 `backtest --diagnose` uses the completed run. `lab diagnose` re-runs the configuration
 and compares final equity, net P&L, trade count, maximum drawdown, and halt state with
@@ -90,7 +90,7 @@ never averaged into one number. A missing measurement is `unknown`, never `pass`
 | `data.timeframe_coverage` | The worst timeframe coverage is at least 99% | `>= 0.99` |
 | `data.long_gap` | The longest 1m gap is under 60 minutes | `< 60` |
 | `model.progression_null` | The worst progression null share is at most 50% | `<= 0.50` |
-| `model.axis_correlation` | The largest absolute inter-axis correlation is at most 0.70 | `<= 0.70` |
+| `model.axis_correlation` | The largest absolute of the six pairwise axis correlations is at most 0.70 | `<= 0.70` |
 | `strategy.entry_fill_rate` | Filled entries are at least 90% of entry attempts | `>= 0.90` |
 | `strategy.gross_expectancy` | The 95% normal interval excludes zero on the positive side | `95% CI lower > 0` |
 | `strategy.net_expectancy` | The same, after costs | `95% CI lower > 0` |
@@ -125,8 +125,9 @@ a zero.
 
 Per timeframe: direction, momentum, structure, and progression present/null counts,
 minimum, maximum, and mean; the six progression stage counts; event counts by type;
-event density per 100 bars; and the direction/momentum and direction/structure Pearson
-correlations. The correlations are diagnostics, never signal inputs.
+event density per 100 bars; and all six pairwise Pearson correlations across Direction,
+Momentum, Structure, and Progression. The correlations are diagnostics, never signal
+inputs.
 
 ### Strategy
 
@@ -194,8 +195,9 @@ text and PNG output.
 ## 9. Triage
 
 Triage is an ordered list derived from failed or unknown checks. It names the next
-action, not a trading decision. It never changes a check status and never hides a
-failure.
+action, not a trading decision. Failure wording appears only for a failed check; an
+unknown check asks for the missing measurement or record. It never changes a check
+status and never hides a failure.
 
 ## 10. Determinism
 

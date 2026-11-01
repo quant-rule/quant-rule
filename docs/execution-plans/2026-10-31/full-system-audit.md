@@ -31,9 +31,9 @@ commits, pushes, or pull requests (AGENTS.md section 9).
   `cargo test --workspace` (1,518 passed, 0 failed, 7 ignored; 47 suites),
   rustdoc with warnings denied, and `git diff --check`.
 - The audit, this plan, and the AI transparency log are merged as PR #320.
-- The issue tree is created: W1–W11 are #308–#318. W1 (#308) and W2 (#309)
-  are merged as PRs #319 and #321. W3 (#310) is implemented and opened as
-  PR #322; the issue moves to `Done` on the board. The other leaves are
+- The issue tree is created: W1–W11 are #308–#318. W1–W3 (#308–#310) are
+  merged as PRs #319, #321, and #322. W4 (#311) is implemented and opened as
+  PR #323; the issue moves to `Done` on the board. The other leaves are
   `Todo`.
 
 ### 2.1 Planner verification
@@ -273,6 +273,10 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 - Paths: `crates/quantrule-analytics/src/diagnosis/compute.rs`,
   `src/diagnosis/text.rs`, `crates/quantrule-shell/src/diagnosis.rs`,
   `crates/quantrule-analytics/tests/diagnosis.rs`, shell diagnosis tests.
+- Implementation evidence (#311): the six-pair correlation, status-aware
+  triage, CSV nulls, and observed report versions are implemented on
+  `fix/311-diagnosis-checks`; full gates pass (1,543 tests). PR [#323](https://github.com/quant-rule/quant-rule/pull/323)
+  is open.
 - Issue: [#311](https://github.com/quant-rule/quant-rule/issues/311).
 
 ### W5 — Research export contract (Major/Minor)
@@ -430,13 +434,13 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-41 | W1 | [#308](https://github.com/quant-rule/quant-rule/issues/308) | Colliding output paths rejected before any write; PR [#319](https://github.com/quant-rule/quant-rule/pull/319) | Fixed |
 | AUD-2026-10-31-42 | W2 | [#309](https://github.com/quant-rule/quant-rule/issues/309) | Effective period equals the analyzed range; PR [#321](https://github.com/quant-rule/quant-rule/pull/321) | Fixed |
 | AUD-2026-10-31-43 | W3 | [#310](https://github.com/quant-rule/quant-rule/issues/310) | One rerun state from both commands; PR [#322](https://github.com/quant-rule/quant-rule/pull/322) | Fixed |
-| AUD-2026-10-31-44 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | All six pairs; worst pair named | Planned |
-| AUD-2026-10-31-45 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Unknown text does not assert failure | Planned |
+| AUD-2026-10-31-44 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | All six pairs; worst pair named; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
+| AUD-2026-10-31-45 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Unknown text does not assert failure; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-46 | W5 | [#312](https://github.com/quant-rule/quant-rule/issues/312) | Invalid dataset fails before writing | Planned |
 | AUD-2026-10-31-47 | W6 | [#313](https://github.com/quant-rule/quant-rule/issues/313) | Docs match manifests; graph test passes | Planned |
 | AUD-2026-10-31-48 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Probe stop reference is 100.01 | Planned |
 | AUD-2026-10-31-49 | W2 | [#309](https://github.com/quant-rule/quant-rule/issues/309) | Documented empty result with zero bars, or typed error; PR [#321](https://github.com/quant-rule/quant-rule/pull/321) | Fixed |
-| AUD-2026-10-31-50 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Empty CSV cells for missing numbers | Planned |
+| AUD-2026-10-31-50 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Empty CSV cells for missing numbers; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-51 | W5 | [#312](https://github.com/quant-rule/quant-rule/issues/312) | Manifest lists the configured ladder | Planned |
 | AUD-2026-10-31-52 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Zero ATR → reason 3 | Planned |
 | AUD-2026-10-31-53 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Unavailable progression → Hold | Planned |
@@ -454,7 +458,7 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-65 | W11 | [#318](https://github.com/quant-rule/quant-rule/issues/318) | Fixture has only metric rows; unknown row fails | Planned |
 | AUD-2026-10-31-66 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | No dead public variant | Planned |
 | AUD-2026-10-31-67 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Stable dump, names validated, application id | Planned |
-| AUD-2026-10-31-68 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Observed versions used | Planned |
+| AUD-2026-10-31-68 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Observed versions used; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-69 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Doc greps match code | Planned |
 
 No finding is deferred. No finding is marked `Won't fix`; only the human can

@@ -454,7 +454,7 @@ pub fn checks_csv(diagnosis: &Diagnosis) -> io::Result<Vec<u8>> {
             "{},{},{},{},{},{}",
             csv(&check.id),
             check.status.code(),
-            csv(&opt_number(check.value)),
+            csv(&csv_opt_number(check.value)),
             csv(check.unit),
             csv(check.threshold.as_deref().unwrap_or("")),
             csv(&check.evidence)
@@ -548,9 +548,9 @@ pub fn model_health_csv(health: &[ModelHealth]) -> io::Result<Vec<u8>> {
                 values.present,
                 values.null,
                 format_value(values.null_share),
-                opt_number(values.min),
-                opt_number(values.max),
-                opt_number(values.mean)
+                csv_opt_number(values.min),
+                csv_opt_number(values.max),
+                csv_opt_number(values.mean)
             )?;
         }
     }
@@ -728,6 +728,10 @@ fn opt_i64(value: Option<i64>) -> String {
 
 fn opt_number(value: Option<f64>) -> String {
     value.map_or_else(|| String::from("-"), format_value)
+}
+
+fn csv_opt_number(value: Option<f64>) -> String {
+    value.map_or_else(String::new, format_value)
 }
 
 fn opt_share(value: Option<f64>) -> String {

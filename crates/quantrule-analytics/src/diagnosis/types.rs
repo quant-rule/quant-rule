@@ -267,6 +267,14 @@ pub struct ModelHealth {
     pub direction_momentum_correlation: Option<f64>,
     /// Direction/Structure Pearson correlation, when both have enough values.
     pub direction_structure_correlation: Option<f64>,
+    /// Direction/Progression Pearson correlation, when both have enough values.
+    pub direction_progression_correlation: Option<f64>,
+    /// Momentum/Structure Pearson correlation, when both have enough values.
+    pub momentum_structure_correlation: Option<f64>,
+    /// Momentum/Progression Pearson correlation, when both have enough values.
+    pub momentum_progression_correlation: Option<f64>,
+    /// Structure/Progression Pearson correlation, when both have enough values.
+    pub structure_progression_correlation: Option<f64>,
     /// Events per 100 bars.
     pub event_density_per_100_bars: f64,
 }

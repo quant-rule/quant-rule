@@ -231,6 +231,10 @@ fn timeframe_health(timeframe: &TimeframeModel) -> ModelHealth {
     let mut progression_stage_counts = [0_usize; 6];
     let mut dm = CorrelationAccumulator::default();
     let mut ds = CorrelationAccumulator::default();
+    let mut dp = CorrelationAccumulator::default();
+    let mut ms = CorrelationAccumulator::default();
+    let mut mp = CorrelationAccumulator::default();
+    let mut sp = CorrelationAccumulator::default();
 
     for bar_index in 0..bars {
         let Some(bar) = timeframe.bar(bar_index) else {
@@ -248,6 +252,10 @@ fn timeframe_health(timeframe: &TimeframeModel) -> ModelHealth {
         }
         dm.push(bar.direction.direction, bar.momentum.force);
         ds.push(bar.direction.direction, bar.structure.score);
+        dp.push(bar.direction.direction, bar.progression.progress);
+        ms.push(bar.momentum.force, bar.structure.score);
+        mp.push(bar.momentum.force, bar.progression.progress);
+        sp.push(bar.structure.score, bar.progression.progress);
     }
 
     let mut events = EventCounts {
@@ -281,6 +289,10 @@ fn timeframe_health(timeframe: &TimeframeModel) -> ModelHealth {
         events,
         direction_momentum_correlation: dm.correlation(),
         direction_structure_correlation: ds.correlation(),
+        direction_progression_correlation: dp.correlation(),
+        momentum_structure_correlation: ms.correlation(),
+        momentum_progression_correlation: mp.correlation(),
+        structure_progression_correlation: sp.correlation(),
         event_density_per_100_bars,
     }
 }
@@ -914,6 +926,47 @@ fn excursions(
     )
 }
 
+fn max_axis_correlation(model: &[ModelHealth]) -> Option<(&'static str, f64)> {
+    let mut worst: Option<(&'static str, f64)> = None;
+    for timeframe in model {
+        for (pair, value) in [
+            (
+                "Direction/Momentum",
+                timeframe.direction_momentum_correlation,
+            ),
+            (
+                "Direction/Structure",
+                timeframe.direction_structure_correlation,
+            ),
+            (
+                "Direction/Progression",
+                timeframe.direction_progression_correlation,
+            ),
+            (
+                "Momentum/Structure",
+                timeframe.momentum_structure_correlation,
+            ),
+            (
+                "Momentum/Progression",
+                timeframe.momentum_progression_correlation,
+            ),
+            (
+                "Structure/Progression",
+                timeframe.structure_progression_correlation,
+            ),
+        ] {
+            let Some(value) = value else {
+                continue;
+            };
+            let value = value.abs();
+            if worst.is_none_or(|(_, max)| value > max) {
+                worst = Some((pair, value));
+            }
+        }
+    }
+    worst
+}
+
 fn checks(
     input: &DiagnosisInput<'_>,
     data: &DataQuality,
@@ -1076,21 +1129,8 @@ fn checks(
         ),
     });
 
-    let max_correlation = model
-        .iter()
-        .flat_map(|timeframe| {
-            [
-                timeframe.direction_momentum_correlation,
-                timeframe.direction_structure_correlation,
-            ]
-        })
-        .flatten()
-        .map(f64::abs)
-        .fold(None, |max, value| {
-            Some(max.map_or(value, |max: f64| max.max(value)))
-        });
-    checks.push(match max_correlation {
-        Some(value) => check(
+    checks.push(match max_axis_correlation(model) {
+        Some((pair, value)) => check(
             "model.axis_correlation",
             if value > 0.70 {
                 CheckStatus::Fail
@@ -1100,7 +1140,7 @@ fn checks(
             Some(value),
             "abs r",
             Some(String::from("<= 0.7000")),
-            format!("largest absolute inter-axis correlation {value:.4}"),
+            format!("largest absolute inter-axis correlation {value:.4} ({pair})"),
         ),
         None => check(
             "model.axis_correlation",
@@ -1421,22 +1461,42 @@ fn triage(checks: &[Check], portfolio: &PortfolioDiagnosis) -> Vec<String> {
                 "Collect more trades; gross expectancy is not distinguishable from zero."
             }
             "strategy.net_expectancy" => {
-                "Reduce costs or find a gross edge; net expectancy is negative."
+                if check.status == CheckStatus::Unknown {
+                    "Collect more trades; net expectancy is not yet measurable."
+                } else {
+                    "Reduce costs or find a gross edge; net expectancy is negative."
+                }
             }
             "strategy.trade_sample" => {
                 "Collect at least 30 closed trades before drawing a conclusion."
             }
             "execution.post_halt_rejections" => {
-                "Stop emitting entries after the halt, or re-arm the halt explicitly."
+                if check.status == CheckStatus::Unknown {
+                    "Record a halt and a post-halt window before judging rejections."
+                } else {
+                    "Stop emitting entries after the halt, or re-arm the halt explicitly."
+                }
             }
             "execution.slippage" => {
-                "Review the fill policy; measured slippage exceeds the configured assumption."
+                if check.status == CheckStatus::Unknown {
+                    "Measure slippage with filled entries before judging the fill policy."
+                } else {
+                    "Review the fill policy; measured slippage exceeds the configured assumption."
+                }
             }
             "portfolio.cost_drag" => {
-                "Reduce turnover or commission; costs dominate the gross result."
+                if check.status == CheckStatus::Unknown {
+                    "Measure costs against gross P&L before judging cost drag."
+                } else {
+                    "Reduce turnover or commission; costs dominate the gross result."
+                }
             }
             "portfolio.drawdown_limit" => {
-                "Review the drawdown limit and halt behavior; the limit was breached."
+                if check.status == CheckStatus::Unknown {
+                    "Record a drawdown limit and a completed run before judging the breach."
+                } else {
+                    "Review the drawdown limit and halt behavior; the limit was breached."
+                }
             }
             "evidence.out_of_sample" => {
                 "Record an out-of-sample lab before calling the result promising."
@@ -1445,7 +1505,13 @@ fn triage(checks: &[Check], portfolio: &PortfolioDiagnosis) -> Vec<String> {
             "evidence.instrument_scope" => {
                 "Treat the result as single-instrument evidence until a broader sample exists."
             }
-            _ => "Review the failed check.",
+            _ => {
+                if check.status == CheckStatus::Unknown {
+                    "Record the missing measurement before interpreting the result."
+                } else {
+                    "Review the failed check."
+                }
+            }
         };
         let text = if let Some(halt) = portfolio.halt_time {
             if check.id == "execution.post_halt_rejections" {
@@ -1510,7 +1576,8 @@ fn sum(values: impl Iterator<Item = f64>) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{CorrelationAccumulator, mean_ci, profit_factor};
+    use super::{CorrelationAccumulator, max_axis_correlation, mean_ci, profit_factor};
+    use crate::diagnosis::types::{AxisHealth, EventCounts, ModelHealth};
 
     #[test]
     fn a_perfect_positive_correlation_is_one() {
@@ -1542,5 +1609,57 @@ mod tests {
     fn a_profit_factor_without_losses_is_none() {
         assert!(profit_factor(&[1.0, 2.0]).is_none());
         assert_eq!(profit_factor(&[2.0, -1.0]), Some(2.0));
+    }
+
+    fn empty_axis() -> AxisHealth {
+        AxisHealth {
+            present: 0,
+            null: 0,
+            null_share: 0.0,
+            min: None,
+            max: None,
+            mean: None,
+        }
+    }
+
+    fn health(correlations: [Option<f64>; 6]) -> ModelHealth {
+        ModelHealth {
+            timeframe_secs: 300,
+            bars: 1,
+            direction: empty_axis(),
+            momentum: empty_axis(),
+            structure: empty_axis(),
+            progression: empty_axis(),
+            progression_stage_counts: [0; 6],
+            events: EventCounts {
+                level: 0,
+                divergence: 0,
+                signal: 0,
+                total: 0,
+            },
+            direction_momentum_correlation: correlations[0],
+            direction_structure_correlation: correlations[1],
+            direction_progression_correlation: correlations[2],
+            momentum_structure_correlation: correlations[3],
+            momentum_progression_correlation: correlations[4],
+            structure_progression_correlation: correlations[5],
+            event_density_per_100_bars: 0.0,
+        }
+    }
+
+    #[test]
+    fn axis_correlation_uses_the_worst_of_six_pairs() {
+        let health = health([
+            Some(0.1),
+            Some(0.2),
+            Some(0.3),
+            Some(0.9),
+            Some(0.4),
+            Some(0.5),
+        ]);
+
+        let (pair, value) = max_axis_correlation(&[health]).expect("the pairs are present");
+        assert_eq!(pair, "Momentum/Structure");
+        assert!((value - 0.9).abs() < 1e-12);
     }
 }
