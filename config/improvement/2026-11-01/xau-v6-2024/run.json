@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "xau-v6-2024",
+  "policy": "policy.json",
+  "data": "data.json",
+  "model": "model.json",
+  "strategy": "strategy.json",
+  "execution": "execution.json",
+  "portfolio": "portfolio.json",
+  "analytics": "analytics.json",
+  "output_root": "../../../data/labs/xau-v6-2024"
+}

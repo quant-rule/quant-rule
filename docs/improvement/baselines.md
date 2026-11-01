@@ -12,13 +12,13 @@ by the agent that ran or reviewed the result.
 
 | Tier | Baseline run | Accepted by | Accepted on | Scope | Supersedes | Status |
 |---|---|---|---|---|---|---|
-| Model | — | — | — | — | — | None accepted |
+| Model | `MODEL-2026-11-01-01..04` | Human | 2026-11-01 | Model correctness baseline; C axes are explicit strategy hypotheses only | — | Accepted with signal-usability limitation |
 | Strategy | — | — | — | — | — | None accepted |
 | Portfolio | — | — | — | — | — | None accepted |
 
 ## Rules
 
-- A model baseline is required before a strategy run.
+- A model correctness baseline is required before a strategy run. The baseline records the signal-usability grades; C axes are explicit strategy hypotheses, not validated signals.
 - A strategy baseline is required before a portfolio run.
 - A baseline run must be green for its tier and must not appear in
   [`INVALIDATIONS.md`](INVALIDATIONS.md).

@@ -36,6 +36,23 @@ Structure and Progression are ordinal. They are reported as ordered buckets and
 lifecycle counts; codes are never averaged. A bucket table with no ordering is
 inconclusive, not neutral.
 
+## Correctness baseline vs signal usability
+
+Two questions are separate:
+
+1. **Model correctness:** does the model publish the right numbers, causally,
+   deterministically, with the documented availability and coverage?
+2. **Signal usability:** is an axis or event a standalone predictor at a chosen
+   horizon?
+
+The model correctness baseline is accepted on the first question. The grades
+below answer the second. A C grade does not make the model incorrect; it means
+the axis must be used as an explicit strategy hypothesis, with the limitation
+recorded, and the strategy run must prove the edge. A D grade still blocks.
+
+This separation prevents a measurement layer from being rejected because it is
+not, by itself, a trading signal.
+
 ## Grades
 
 | Grade | Rule | Use |
@@ -45,8 +62,10 @@ inconclusive, not neutral.
 | C | Lower bound ≤ 0.50, unstable, or the primary metric is not computed | Diagnostic only; cannot gate a trade |
 | D | Contract failure, coverage below 80%, or a wrong-sign direction | Blocks promotion |
 
-A model run with any D blocks the strategy tier. A model run with A/B axes may
-promote only those axes; C axes remain diagnostic.
+A model run with any D blocks the strategy tier. An A/B axis may be used as a
+standalone signal; a C axis may be used only as an explicit strategy hypothesis,
+and the strategy run records the grade. The strategy run, not the model run,
+decides whether the C-axis hypothesis has a cost-inclusive OOS edge.
 
 ## Evidence table
 
