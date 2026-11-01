@@ -163,9 +163,16 @@ fn null_is_an_empty_field_and_negative_zero_is_zero() {
 
 #[test]
 fn the_raw_file_keeps_the_source_format_and_an_empty_volume() {
-    let (set, _) = fixture();
     let no_volume =
         vec![Candle::new(0, 0, 1.0, 1.0, 1.0, 1.0, None).expect("the test candle is valid")];
+    let set = build_layers(
+        &[TimeframeInput {
+            timeframe_secs: M1,
+            candles: &no_volume,
+        }],
+        &LayerConfig::default(),
+    )
+    .expect("the one-bar fixture builds");
     let bundle = render_dataset(&set, &no_volume, &meta()).expect("the fixture renders");
     let raw = &file(&bundle, "m1.csv").contents;
     assert!(raw.starts_with("Date,Open,High,Low,Close,Volume\n"));
@@ -304,4 +311,122 @@ fn an_unsafe_dataset_name_or_an_empty_identity_is_rejected() {
         render_dataset(&set, &m1, &invalid),
         Err(ExportError::EmptyRoot)
     );
+}
+
+#[test]
+fn the_manifest_records_a_configured_but_empty_higher_timeframe() {
+    let m1 = candles(5, 0, 60, 0.0);
+    let set = build_layers(
+        &[TimeframeInput {
+            timeframe_secs: M1,
+            candles: &m1,
+        }],
+        &LayerConfig::default(),
+    )
+    .expect("the one-timeframe fixture builds");
+    let bundle = super::render_dataset_with_ladder(&set, &m1, &meta(), &[M5, M15, H1])
+        .expect("the configured ladder renders");
+
+    let manifest = &file(&bundle, "manifest.json").contents;
+    assert!(manifest.contains("\"timeframes_secs\": [60, 300, 900, 3600]"));
+    let layer3 = &file(&bundle, "layer3.csv").contents;
+    assert!(
+        layer3
+            .lines()
+            .next()
+            .expect("a header")
+            .contains("h1_bar_index")
+    );
+    let readme = &file(&bundle, "README.md").contents;
+    assert!(readme.contains("- Timeframes (seconds): 60, 300, 900, 3600"));
+}
+
+#[test]
+fn a_row_count_mismatch_is_rejected() {
+    let (mut set, m1) = fixture();
+    set.layer2.pop();
+    assert!(matches!(
+        render_dataset(&set, &m1, &meta()),
+        Err(ExportError::Validation(_))
+    ));
+}
+
+#[test]
+fn an_out_of_range_resolution_is_rejected() {
+    let (mut set, m1) = fixture();
+    set.layer2[0].resolution.direction = crate::resolution::AxisResolution {
+        continuous: Some(2.0),
+        ordinal: Some(9),
+        reason: None,
+    };
+    assert!(matches!(
+        render_dataset(&set, &m1, &meta()),
+        Err(ExportError::Validation(_))
+    ));
+}
+
+#[test]
+fn an_inconsistent_staleness_is_rejected() {
+    let (mut set, m1) = fixture();
+    set.layer3[4].higher[0].staleness_secs = 999;
+    assert!(matches!(
+        render_dataset(&set, &m1, &meta()),
+        Err(ExportError::Validation(_))
+    ));
+}
+
+#[test]
+fn an_event_available_before_it_occurred_is_rejected() {
+    let (mut set, m1) = fixture();
+    set.events.push(crate::layers::EventRow {
+        timeframe_secs: M5,
+        event_type_code: 1,
+        event_subtype_code: 1,
+        source_code: 1,
+        occurred_bar_index: 2,
+        available_bar_index: 1,
+        direction_code: 0,
+        reference_code: None,
+        primary_value: None,
+        reference_value: None,
+    });
+    assert!(matches!(
+        render_dataset(&set, &m1, &meta()),
+        Err(ExportError::Validation(_))
+    ));
+}
+
+#[test]
+fn a_code_value_outside_the_code_table_is_rejected() {
+    let (mut set, m1) = fixture();
+    set.layer3[4].higher[0].metrics.structure.scale_code = 9;
+    assert!(matches!(
+        render_dataset(&set, &m1, &meta()),
+        Err(ExportError::Validation(_))
+    ));
+}
+
+#[test]
+fn a_non_finite_metric_is_rejected() {
+    let (mut set, m1) = fixture();
+    set.layer1[0].metrics.direction.direction = Some(f64::NAN);
+    set.layer2[0].layer1 = set.layer1[0];
+    set.layer3[0].base = set.layer2[0];
+    assert!(matches!(
+        render_dataset(&set, &m1, &meta()),
+        Err(ExportError::Validation(_))
+    ));
+}
+
+#[test]
+fn the_m1_cap_is_enforced_before_rendering() {
+    let (set, _) = fixture();
+    let raw = vec![
+        Candle::new(0, 0, 1.0, 1.0, 1.0, 1.0, None).expect("the test candle is valid");
+        100_001
+    ];
+    assert!(matches!(
+        render_dataset(&set, &raw, &meta()),
+        Err(ExportError::Validation(_))
+    ));
 }

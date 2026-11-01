@@ -15,6 +15,7 @@ mod metadata;
 mod render;
 #[cfg(test)]
 mod tests;
+mod validate;
 
 use std::fmt;
 
@@ -89,6 +90,8 @@ pub enum ExportError {
     EmptyDataVersion,
     /// The export root is empty.
     EmptyRoot,
+    /// The dataset failed a contract validation.
+    Validation(&'static str),
 }
 
 impl fmt::Display for ExportError {
@@ -100,6 +103,7 @@ impl fmt::Display for ExportError {
             ),
             Self::EmptyDataVersion => formatter.write_str("the data version is empty"),
             Self::EmptyRoot => formatter.write_str("the export root is empty"),
+            Self::Validation(message) => formatter.write_str(message),
         }
     }
 }
@@ -146,12 +150,23 @@ pub fn render_dataset_with_ladder(
     higher: &[u64],
 ) -> Result<ExportBundle, ExportError> {
     validate(meta)?;
+    validate::validate_structure(layers, raw_candles, higher)?;
 
     let raw_contents = metadata::raw_csv(raw_candles);
     let raw = metadata::raw_file(&raw_contents);
     let layer1_contents = render::layer1(layers);
     let layer2_contents = render::layer2(layers);
     let layer3_contents = render::layer3(layers, higher);
+
+    validate::validate_rendered(
+        higher,
+        &[
+            ("m1.csv", &raw_contents),
+            ("layer1.csv", &layer1_contents),
+            ("layer2.csv", &layer2_contents),
+            ("layer3.csv", &layer3_contents),
+        ],
+    )?;
 
     let raw_file = ExportFile {
         name: "m1.csv".to_string(),
@@ -184,11 +199,12 @@ pub fn render_dataset_with_ladder(
         layer3_file.clone(),
     ];
 
-    let manifest = metadata::manifest_json(meta, layers, &[raw], &data_files);
+    let configured = configured_ladder(higher);
+    let manifest = metadata::manifest_json(meta, layers, &configured, &[raw], &data_files);
     let dictionary_csv = metadata::dictionary_csv(higher);
     let dictionary_md = metadata::dictionary_md(higher);
     let codes = metadata::codes_csv();
-    let readme = metadata::readme(meta, layers, raw.rows, higher);
+    let readme = metadata::readme(meta, layers, raw.rows, higher, &configured);
 
     let metadata_files = [
         ExportFile {
@@ -261,4 +277,19 @@ fn validate(meta: &DatasetMeta) -> Result<(), ExportError> {
 
 fn dictionary_csv_row_count(csv: &str) -> usize {
     csv.lines().count().saturating_sub(1)
+}
+
+/// The configured ladder, with M1 first and duplicates removed.
+fn configured_ladder(higher: &[u64]) -> Vec<u64> {
+    let mut ladder = Vec::with_capacity(higher.len() + 1);
+    ladder.push(M1_SECONDS);
+    ladder.extend(
+        higher
+            .iter()
+            .copied()
+            .filter(|timeframe| *timeframe != M1_SECONDS),
+    );
+    ladder.sort_unstable();
+    ladder.dedup();
+    ladder
 }
