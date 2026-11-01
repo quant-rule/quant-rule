@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "btc-v6-5m15m",
+  "policy": "policy.json",
+  "data": "data.json",
+  "model": "model.json",
+  "strategy": "strategy.json",
+  "execution": "execution.json",
+  "portfolio": "portfolio.json",
+  "analytics": "analytics.json",
+  "output_root": "../../../data/labs/btc-v6-5m15m"
+}

@@ -80,6 +80,7 @@ the remaining pending phase.
 | MODEL-2026-11-01-03 | Context-conditioned study; not green; two isolated buckets only | [`docs/improvement/2026-11-01/MODEL-2026-11-01-03-context.md`](improvement/2026-11-01/MODEL-2026-11-01-03-context.md) |
 | MODEL-2026-11-01-04 | Event study; not green; BTCUSD level cells only | [`docs/improvement/2026-11-01/MODEL-2026-11-01-04-events.md`](improvement/2026-11-01/MODEL-2026-11-01-04-events.md) |
 | STRATEGY-001 | First strategy comparison; not green; no strategy baseline | [`docs/improvement/2026-11-01/STRATEGY-001-comparison.md`](improvement/2026-11-01/STRATEGY-001-comparison.md) |
+| STRATEGY-002 | 5m/15m sample-size test; not green; v6 still too selective | [`docs/improvement/2026-11-01/STRATEGY-002-comparison.md`](improvement/2026-11-01/STRATEGY-002-comparison.md) |
 | Workflow-reset audit | Program green; one Major fixed; Minor/Info routed | [`docs/audits/2026-11-01/workflow-reset-audit.md`](audits/2026-11-01/workflow-reset-audit.md) |
 
 The experiment records above are pre-reset evidence. They are not improvement

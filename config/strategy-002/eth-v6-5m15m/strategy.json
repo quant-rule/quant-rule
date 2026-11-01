@@ -1,0 +1,75 @@
+{
+  "schema": "quantrule.strategy/v6",
+  "rule": "breakout",
+  "thesis": "Enter on a confirmed-level breakout in the direction of the higher-timeframe context.",
+  "ladder": [
+    "5m",
+    "15m"
+  ],
+  "weights": {
+    "direction": {
+      "15m": 1.0
+    },
+    "momentum": {
+      "15m": 1.0
+    },
+    "structure": {
+      "15m": 1.0
+    },
+    "progression": {
+      "15m": 1.0
+    }
+  },
+  "entry": {
+    "execution": {
+      "direction_min": 0.1,
+      "momentum_min": 0.1,
+      "structure_min": 0.0,
+      "structure_shift": {
+        "from_max": 0,
+        "to_min": 1
+      }
+    },
+    "context": {
+      "direction": {
+        "kind": "bullish",
+        "share_min": 0.5
+      },
+      "momentum": {
+        "kind": "not_bearish",
+        "bearish_share_max": 0.5
+      },
+      "structure": {
+        "conflict_count_max": 1
+      },
+      "progression": {
+        "direction": "bullish",
+        "late_or_terminal_count_max": 1
+      }
+    },
+    "level": {
+      "max_distance_fraction": 0.02,
+      "scale": "major"
+    }
+  },
+  "exit": {
+    "on": [
+      "context_lost",
+      "level_lost"
+    ]
+  },
+  "risk": {
+    "stop": {
+      "kind": "level",
+      "buffer_fraction": 0.005
+    },
+    "target": {
+      "kind": "next_level",
+      "min_reward_to_risk": 2.0
+    }
+  },
+  "no_trade": {
+    "missing_context": "reject",
+    "require_contiguous_execution": true
+  }
+}

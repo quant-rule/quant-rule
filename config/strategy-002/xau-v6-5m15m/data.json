@@ -1,0 +1,18 @@
+{
+  "schema": "quantrule.data/v3",
+  "source": {
+    "kind": "csv",
+    "path": "../../../data/sources/XAUUSD_M1_2018-01-01_2024-12-31.csv"
+  },
+  "data_version": "dukascopy-bid-xauusd-m1-2024-01-01_2024-12-31",
+  "from": "2024-01-01",
+  "to": "2024-12-31",
+  "source_timeframe": "1m",
+  "available_timeframes": [
+    "1m",
+    "5m",
+    "15m"
+  ],
+  "max_candles": 600000,
+  "instrument": "XAUUSD"
+}
