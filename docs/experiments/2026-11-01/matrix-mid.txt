@@ -1,0 +1,10 @@
+# cell config
+btcusd-mid-2021 docs/experiments/2026-11-01/config/btcusd-mid-2021/run.json
+btcusd-mid-2022 docs/experiments/2026-11-01/config/btcusd-mid-2022/run.json
+btcusd-mid-2024 docs/experiments/2026-11-01/config/btcusd-mid-2024/run.json
+ethusd-mid-2021 docs/experiments/2026-11-01/config/ethusd-mid-2021/run.json
+ethusd-mid-2022 docs/experiments/2026-11-01/config/ethusd-mid-2022/run.json
+ethusd-mid-2024 docs/experiments/2026-11-01/config/ethusd-mid-2024/run.json
+xauusd-mid-2021 docs/experiments/2026-11-01/config/xauusd-mid-2021/run.json
+xauusd-mid-2022 docs/experiments/2026-11-01/config/xauusd-mid-2022/run.json
+xauusd-mid-2024 docs/experiments/2026-11-01/config/xauusd-mid-2024/run.json

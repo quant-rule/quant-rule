@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "btcusd-control-2021",
+  "policy": "../shared/policy-control.json",
+  "data": "data.json",
+  "model": "../shared/model.json",
+  "strategy": "../shared/strategy-control.json",
+  "execution": "../shared/execution-control.json",
+  "portfolio": "../shared/portfolio.json",
+  "analytics": "../shared/analytics-control.json",
+  "output_root": "../../../../../target/experiment-EXP-2026-11-01-03/btcusd-control-2021"
+}

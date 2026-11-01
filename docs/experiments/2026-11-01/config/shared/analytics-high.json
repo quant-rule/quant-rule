@@ -1,0 +1,9 @@
+{
+  "schema": "quantrule.analytics/v1",
+  "structure_scale": "major",
+  "timeframes": [
+    "1h",
+    "4h"
+  ],
+  "relations": true
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "quantrule.data/v3",
+  "source": {
+    "kind": "csv",
+    "path": "../../../../../data/sources/BTCUSD_M1_2018-01-01_2024-12-31.csv"
+  },
+  "instrument": "BTCUSD",
+  "data_version": "dukascopy-bid-btcusd-m1-2023-12-01_2024-12-31",
+  "from": "2023-12-01",
+  "to": "2024-12-31",
+  "source_timeframe": "1m",
+  "available_timeframes": [
+    "1m",
+    "1h",
+    "4h"
+  ],
+  "max_candles": 600000
+}
