@@ -350,6 +350,46 @@ fn an_unavailable_context_share_holds_an_open_position() {
 }
 
 #[test]
+fn an_unavailable_progression_holds_an_open_position() {
+    let strategy = LadderContextStrategy::new(StrategyConfig::default());
+    let input = long_input(1);
+    let mut context = bullish_context();
+    context.progression.direction = AxisContext::unavailable();
+
+    assert_eq!(
+        decide(
+            &strategy,
+            &input,
+            &context,
+            StrategyPosition::opened(Side::Long, 0)
+        ),
+        Decision::Hold
+    );
+}
+
+#[test]
+fn a_measured_mixed_progression_still_exits_on_context_lost() {
+    let strategy = LadderContextStrategy::new(StrategyConfig::default());
+    let input = long_input(1);
+    let mut context = bullish_context();
+    context.progression.direction = axis(0.4, 0.4, AgreementCode::Mixed);
+
+    assert_eq!(
+        decide(
+            &strategy,
+            &input,
+            &context,
+            StrategyPosition::opened(Side::Long, 0)
+        ),
+        Decision::Exit(Exit {
+            side: Side::Long,
+            bar: input,
+            reason: ExitReason::ContextLost,
+        })
+    );
+}
+
+#[test]
 fn a_context_from_another_bar_is_not_used() {
     let strategy = LadderContextStrategy::new(StrategyConfig::default());
     let input = long_input(1);

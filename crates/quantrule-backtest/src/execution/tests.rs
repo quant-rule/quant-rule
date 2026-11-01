@@ -417,21 +417,14 @@ fn position_rejects_invalid_values() {
 }
 
 #[test]
-fn position_state_covers_flat_open_and_closed() {
+fn position_state_covers_flat_and_open() {
     let flat = PositionState::Flat;
     assert!(flat.is_flat());
     assert!(!flat.is_open());
-    assert!(!flat.is_closed());
 
     let open = PositionState::Open(long_position());
     assert!(!open.is_flat());
     assert!(open.is_open());
-    assert!(!open.is_closed());
-
-    let closed = PositionState::Closed;
-    assert!(!closed.is_flat());
-    assert!(!closed.is_open());
-    assert!(closed.is_closed());
 }
 
 #[test]

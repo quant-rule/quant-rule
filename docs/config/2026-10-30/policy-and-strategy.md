@@ -139,7 +139,7 @@ policy. A `quantrule.strategy/v2` file is rejected with a migration message.
 | `allow_short` | Boolean |
 | `commission` | `rate >= 0`, `base` `equity`, `per` `operation` |
 | `funding` | `rate` finite, `interval_hours` in the supported set |
-| `max_drawdown` | Optional `(0, 1]` limit; action `halt` |
+| `max_drawdown` | Optional `(0, 1]` limit; action `halt`; checked after an entry, an exit, a funding charge, and a mark |
 | `mark_to_market` | `bar_close` |
 
 ## Execution

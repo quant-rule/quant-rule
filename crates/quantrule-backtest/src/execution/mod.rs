@@ -23,6 +23,11 @@
 //! | Target, long | the open when it gaps at or above the target, otherwise the target when the bar's high reaches it |
 //! | Target, short | the open when it gaps at or below the target, otherwise the target when the bar's low reaches it |
 //!
+//! The open gap rule applies only after the entry bar. On the entry bar the
+//! position did not exist at the open, so the bracket is evaluated from the
+//! fill and the bar's high and low; a stop or target fills at its level, never
+//! at the pre-entry open.
+//!
 //! A gap at the open resolves first: an open at or beyond the target fills the
 //! target even if the bar later reaches the stop. If the open is between both
 //! levels and the bar reaches both, the stop wins. A fill's
@@ -48,7 +53,8 @@
 //! distance. A missing ATR is required only when the stop is ATR-based; an
 //! absolute stop and an absolute target need no ATR. The bracket is live from
 //! the entry bar onward, so one bar can fill the entry at its open and trigger
-//! the stop or target later in the same bar.
+//! the stop or target later in the same bar; on that bar the fill is the
+//! reference, because the open predates the position.
 //!
 //! The entry is rejected with [`RejectReason::UnsupportedEntryStyle`] for an
 //! entry style execution does not fill, with [`RejectReason::ExpiredIntent`]

@@ -84,6 +84,11 @@ An ATR is required only for an ATR stop. An absolute stop with a
 reward-to-risk target uses the absolute stop distance. The strategy never reads
 ATR; it emits the specification. Execution never chooses a distance.
 
+On the entry bar the bracket is evaluated from the fill and the bar's high and
+low. The open gap rule applies only on later bars, because the position did not
+exist at the entry bar's open; using that open as a reference would let a stop
+tighter than the slippage fill at a pre-entry price.
+
 ## 6. Position state
 
 Execution reports the actual position as a `StrategyPosition` (`side`,

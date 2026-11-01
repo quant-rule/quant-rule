@@ -31,10 +31,10 @@ commits, pushes, or pull requests (AGENTS.md section 9).
   `cargo test --workspace` (1,518 passed, 0 failed, 7 ignored; 47 suites),
   rustdoc with warnings denied, and `git diff --check`.
 - The audit, this plan, and the AI transparency log are merged as PR #320.
-- The issue tree is created: W1–W11 are #308–#318. W1–W5 (#308–#312) are
-  merged as PRs #319, #321, #322, #323, and #324. W6 (#313) is implemented
-  and opened as PR #325; the issue moves to `Done` on the board. The other
-  leaves are `Todo`.
+- The issue tree is created: W1–W11 are #308–#318. W1–W6 (#308–#313) are
+  merged as PRs #319, #321, #322, #323, #324, and #325. W7 (#314) is
+  implemented and opened as PR #326; the issue moves to `Done` on the
+  board. The other leaves are `Todo`.
 
 ### 2.1 Planner verification
 
@@ -332,6 +332,11 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 - Paths: `crates/quantrule-backtest/src/execution/engine.rs`,
   `src/execution/position.rs`, `src/strategy/ladder.rs`, `src/context/mod.rs`,
   `src/portfolio/ledger.rs`, `src/portfolio/records.rs`, the backtest tests.
+- Implementation evidence (#314): the execution, context, risk-cap,
+  drawdown, and lifecycle fixes are implemented on
+  `fix/314-execution-portfolio`; full gates pass (1,563 tests). The
+  validator record is `docs/reports/2026-10-31/w7-execution-portfolio-validation.md`.
+  PR [#326](https://github.com/quant-rule/quant-rule/pull/326) is open.
 - Issue: [#314](https://github.com/quant-rule/quant-rule/issues/314).
 
 ### W8 — Model robustness (Minor)
@@ -444,13 +449,13 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-45 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Unknown text does not assert failure; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-46 | W5 | [#312](https://github.com/quant-rule/quant-rule/issues/312) | Invalid dataset fails before writing; PR [#324](https://github.com/quant-rule/quant-rule/pull/324) | Fixed |
 | AUD-2026-10-31-47 | W6 | [#313](https://github.com/quant-rule/quant-rule/issues/313) | Docs match manifests; graph test passes; PR [#325](https://github.com/quant-rule/quant-rule/pull/325) | Fixed |
-| AUD-2026-10-31-48 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Probe stop reference is 100.01 | Planned |
+| AUD-2026-10-31-48 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Probe stop reference is 100.01; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-49 | W2 | [#309](https://github.com/quant-rule/quant-rule/issues/309) | Documented empty result with zero bars, or typed error; PR [#321](https://github.com/quant-rule/quant-rule/pull/321) | Fixed |
 | AUD-2026-10-31-50 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Empty CSV cells for missing numbers; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-51 | W5 | [#312](https://github.com/quant-rule/quant-rule/issues/312) | Manifest lists the configured ladder; PR [#324](https://github.com/quant-rule/quant-rule/pull/324) | Fixed |
 | AUD-2026-10-31-52 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Zero ATR → reason 3 | Planned |
-| AUD-2026-10-31-53 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Unavailable progression → Hold | Planned |
-| AUD-2026-10-31-54 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Exact cap boundary fits the largest step | Planned |
+| AUD-2026-10-31-53 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Unavailable progression → Hold; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
+| AUD-2026-10-31-54 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Exact cap boundary fits the largest step; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-55 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Extreme timestamps return typed errors | Planned |
 | AUD-2026-10-31-56 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | NaN is excluded, never neutral | Planned |
 | AUD-2026-10-31-57 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Aggregate and report agree on latest | Planned |
@@ -460,9 +465,9 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-61 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Help matches parser | Planned |
 | AUD-2026-10-31-62 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Docs match code; link check clean | Planned |
 | AUD-2026-10-31-63 | W11 | [#318](https://github.com/quant-rule/quant-rule/issues/318) | Named tests and guards exist | Planned |
-| AUD-2026-10-31-64 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Halt and metric observe the same points | Planned |
+| AUD-2026-10-31-64 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Halt and metric observe the same points; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-65 | W11 | [#318](https://github.com/quant-rule/quant-rule/issues/318) | Fixture has only metric rows; unknown row fails | Planned |
-| AUD-2026-10-31-66 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | No dead public variant | Planned |
+| AUD-2026-10-31-66 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | No dead public variant; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-67 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Stable dump, names validated, application id | Planned |
 | AUD-2026-10-31-68 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Observed versions used; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-69 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Doc greps match code | Planned |

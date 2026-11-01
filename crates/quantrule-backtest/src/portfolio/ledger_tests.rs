@@ -516,6 +516,111 @@ fn the_halt_latches_once_and_blocks_entries() {
 }
 
 #[test]
+fn an_entry_cost_breach_halts_and_records_one_risk_event() {
+    let mut config = config();
+    config.max_drawdown = MaxDrawdownConfig::new(Some(0.0005), DrawdownAction::Halt)
+        .expect("the tight drawdown is valid");
+    let mut ledger = PortfolioLedger::new(config).expect("the ledger is valid");
+
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Buy,
+            100.0,
+            100.0,
+            0.0,
+            0,
+            0,
+            FillReason::Entry,
+        ))
+        .expect("the entry is valid");
+
+    assert!(ledger.state().halted);
+    assert_eq!(ledger.risk_events().len(), 1);
+    let event = ledger.risk_events()[0];
+    assert_eq!(event.bar, 0);
+    assert_eq!(event.time, 0);
+    approx(event.drawdown, 0.001);
+    approx(event.equity, 9_990.0);
+    approx(ledger.metrics().max_drawdown, event.drawdown);
+}
+
+#[test]
+fn a_funding_breach_halts_and_records_one_risk_event() {
+    let mut config = config();
+    config.funding = FundingConfig::new(0.01, FundingInterval::H8).expect("the funding is valid");
+    config.max_drawdown = MaxDrawdownConfig::new(Some(0.005), DrawdownAction::Halt)
+        .expect("the tight drawdown is valid");
+    let mut ledger = PortfolioLedger::new(config).expect("the ledger is valid");
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Buy,
+            100.0,
+            100.0,
+            0.0,
+            0,
+            0,
+            FillReason::Entry,
+        ))
+        .expect("the entry is valid");
+    assert!(!ledger.state().halted);
+
+    let charge = ledger
+        .apply_funding(1, 28_800, 100.0, Some(10.0))
+        .expect("the boundary charges")
+        .expect("the charge is due");
+
+    approx(charge.amount, 100.0);
+    assert!(ledger.state().halted);
+    assert_eq!(ledger.risk_events().len(), 1);
+    let event = ledger.risk_events()[0];
+    assert_eq!(event.bar, 1);
+    assert_eq!(event.time, 28_800);
+    approx(event.drawdown, 0.011);
+    approx(event.equity, 9_890.0);
+    approx(ledger.metrics().max_drawdown, event.drawdown);
+}
+
+#[test]
+fn a_closing_loss_breach_halts_and_records_one_risk_event() {
+    let mut config = config();
+    config.max_drawdown = MaxDrawdownConfig::new(Some(0.005), DrawdownAction::Halt)
+        .expect("the tight drawdown is valid");
+    let mut ledger = PortfolioLedger::new(config).expect("the ledger is valid");
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Buy,
+            100.0,
+            100.0,
+            0.0,
+            0,
+            0,
+            FillReason::Entry,
+        ))
+        .expect("the entry is valid");
+    assert!(!ledger.state().halted);
+
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Sell,
+            100.0,
+            99.0,
+            0.0,
+            2,
+            1_800,
+            FillReason::Exit,
+        ))
+        .expect("the exit is valid");
+
+    assert!(ledger.state().halted);
+    assert_eq!(ledger.risk_events().len(), 1);
+    let event = ledger.risk_events()[0];
+    assert_eq!(event.bar, 2);
+    assert_eq!(event.time, 1_800);
+    approx(event.drawdown, 1.0 - 9_880.01 / 10_000.0);
+    approx(ledger.metrics().max_drawdown, event.drawdown);
+}
+
+#[test]
 fn an_empty_run_has_no_trades_and_null_ratios() {
     let ledger = ledger();
     let metrics = ledger.metrics();

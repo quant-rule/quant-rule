@@ -269,7 +269,8 @@ pub struct PortfolioMetrics {
     pub funding_paid: f64,
     /// Funding received at aligned boundaries.
     pub funding_received: f64,
-    /// The maximum drawdown observed at a mark.
+    /// The maximum drawdown observed at any equity refresh: an entry, an exit,
+    /// a funding charge, or a mark.
     pub max_drawdown: f64,
     /// The longest run of marked bars with a positive drawdown.
     pub max_drawdown_duration_bars: usize,

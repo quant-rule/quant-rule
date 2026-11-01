@@ -234,7 +234,7 @@ fn normalize_quantity(quantity: f64, step: f64) -> f64 {
 /// A decimal boundary such as `0.3 / 0.1` can evaluate to `2.999…`. The
 /// tolerance is relative to the ratio and only absorbs representation error;
 /// a ratio genuinely below the boundary still floors down.
-fn floored_steps(raw: f64, step: f64) -> f64 {
+pub(crate) fn floored_steps(raw: f64, step: f64) -> f64 {
     let ratio = raw / step;
     if !ratio.is_finite() {
         return ratio.floor();
