@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-This document defines the research dataset: a deterministic, file-based export of the model's published numbers in three cumulative layers, plus the record files and metadata that make the dataset self-describing.
+This document defines the research dataset: a deterministic, file-based export of the model's published numbers in three cumulative layers, plus the metadata that make the dataset self-describing. The event, leg, level, and consensus records are stored by the store; they are not files in this export.
 
 The dataset is the input to research, not a trading interface. It contains no entries, exits, stops, position sizes, or recommendations, and no field combines the four axes into one score. Every field is a number, a null, a list of numbers, or a record of numbers.
 
@@ -28,10 +28,6 @@ data/
       layer1.csv
       layer2.csv
       layer3.csv
-      events.csv
-      legs.csv
-      levels.csv
-      consensus.csv
       manifest.json
       data_dictionary.csv
       data_dictionary.md
@@ -43,7 +39,7 @@ data/
 
 The raw file of a timeframe is `<lowercase timeframe>.csv`, using the same timeframe names as the model ladder. The processed file set is fixed; a file is always written, even when it has zero data rows, so that the file list in the manifest never depends on the data.
 
-The layer export implemented by #80 writes `m1.csv`, `layer1.csv`, `layer2.csv`, `layer3.csv`, and the metadata. The event, leg, level, and consensus files in this layout are the dataset's record contract; their persistence belongs to the store epic (#64) and they are not written by the layer export.
+The layer export implemented by #80 writes `m1.csv`, `layer1.csv`, `layer2.csv`, `layer3.csv`, and the metadata. The event, leg, level, and consensus records are the dataset's record contract; their persistence belongs to the store epic (#64), and the layer export writes no record files.
 
 ## 3. Common representation
 

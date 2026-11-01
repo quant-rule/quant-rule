@@ -321,7 +321,7 @@ Re-run a lab's config, verify identity, and write <lab-dir>/diagnosis/.
 
 Options
   --config <path>              The run configuration; required.
-  --out <dir>                  Output root override (default: the run config).
+  --out <dir>                  Diagnosis output override (default: <lab-dir>/diagnosis).
   --json                       Print diagnosis.json to stdout.
   --strict                     Fail when an identity or data-integrity check fails.
 
@@ -437,7 +437,7 @@ Options
   --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
-  CSV rows in DDL order and primary-key order.
+  CSV rows in DDL order and the table's fixed query order (bar/consensus/layer3 by timeframe and bar, pivot by timeframe and occurrence, event by semantic key, leg by timeframe and leg_id).
 
 Notes
   Tables: bar, consensus, layer3, pivot, level, event, or leg.
@@ -484,7 +484,7 @@ Options
   --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
-  CSV with 74 columns.
+  CSV with 73 content columns.
 
 Notes
   Read-only; a missing file is an error and is never created.
@@ -515,7 +515,7 @@ Options
   --db <path>                  Database path (default data/db/quantrule.db).
 
 Output
-  CSV with 285 columns.
+  CSV with 284 content columns.
 
 Notes
   Read-only; a missing file is an error and is never created.
@@ -530,7 +530,7 @@ Fetch native BID candles; write a CSV and an optional PNG.
 Options
   --timeframe <tf>             Native timeframe: 1m, 5m, 15m, or 1h (default 1m).
   --csv <path>                 CSV target (default: data/sources/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv).
-  --png <path>                 Required PNG target.
+  --png <path>                 Optional PNG target.
   --candles <n>                Last n bars, 1..1000 (default 1000).
 
 Output

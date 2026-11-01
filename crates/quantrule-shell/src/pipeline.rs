@@ -1,8 +1,8 @@
 //! The shell composition pipeline.
 //!
 //! One module owns the source-to-engine path: read the M1 CSV into the data
-//! engine's timeframe set, copy the four series into the model input shape, and
-//! run either the model or the full backtest. Command families parse arguments
+//! engine's timeframe set, copy the selected ladder's series into the model
+//! input shape, and run either the model or the full backtest. Command families parse arguments
 //! and render the result; they do not rebuild the ladder or the inputs.
 //!
 //! The module performs I/O because the shell owns source access. It does not

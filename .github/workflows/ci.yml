@@ -45,6 +45,9 @@ jobs:
           python3 -m unittest discover -s tools/oracle -p 'test_*.py'
           python3 tools/oracle/progression_replay.py --check
 
+      - name: Documentation links
+        run: python3 tools/check_links.py
+
       - name: Documentation
         run: cargo doc --no-deps
         env:

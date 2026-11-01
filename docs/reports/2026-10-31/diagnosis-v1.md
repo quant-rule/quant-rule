@@ -160,8 +160,9 @@ close. It is presentation evidence, not an engine output.
 
 - MFE and MAE per unit and as a fraction of entry price, the highest favourable and
   lowest adverse price while open, computed over the execution bars from entry through
-  exit. MFE is non-negative and MAE is non-positive, both measured from the entry
-  price in the trade's direction;
+  the exit bar; a strategy exit fills at the next open, so its exit bar is excluded,
+  while a stop or target keeps the bar in which it triggered. MFE is non-negative and
+  MAE is non-positive, both measured from the entry price in the trade's direction;
 - the entry decision's direction, momentum, structure, structure code, progression
   stage, context completeness, agreement codes, structure conflicts, and late/terminal
   progression count.

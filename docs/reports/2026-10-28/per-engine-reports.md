@@ -44,8 +44,8 @@ presence of a directory is therefore the answer to "was this report generated?".
 | `portfolio/` | `summary.txt`, `report.json`, `trades.csv`, `equity.csv`, `equity.png`, `drawdown.png`, `provenance.json` |
 | `analytical/` | `summary.txt`, `report.json`, `axes.csv`, `relations.csv`, `provenance.json` |
 
-The artifact list is also recorded in `provenance.json`. A test asserts the
-directory contents against this table, so an extra file fails the build.
+The artifact list is also recorded in `provenance.json`. A test asserts that
+every listed artifact exists; an extra file in the bundle is not rejected.
 
 ## 3. Availability and failure
 
@@ -131,14 +131,15 @@ Artifacts:
 | `price-decisions.png` | Price with entry and exit markers |
 | `provenance.json` | The run provenance |
 
-Summary fields:
+The strategy `report.json` carries `execution_state` at the top level. Summary
+fields:
 
 ```text
-bars, execution_state, executed_entries, executed_exits,
+bars, executed_entries, executed_exits,
 decisions, entries, exits, long_entries, short_entries,
 exit_reasons { context_lost, structure_lost },
 context { complete_bars, missing_bars, conflict_bars, late_or_terminal_bars },
-open_position_at_end
+open_position
 ```
 
 Each record carries `type`, `side` (`1` or `-1`), `bar`, `datetime`, `direction`,

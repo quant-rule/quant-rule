@@ -95,8 +95,9 @@ impl std::error::Error for JsonpError {}
 /// # Errors
 ///
 /// Returns a [`JsonpError`] when the callback wrapper is missing or malformed,
-/// the enclosed JSON is invalid or not an array, or a row does not have the
-/// expected six numeric fields.
+/// the enclosed JSON is invalid or not an array, or a row does not have at
+/// least five numeric fields (timestamp and OHLC); the sixth volume field is
+/// optional.
 pub(crate) fn parse_jsonp(body: &str) -> Result<Vec<PageRow>, JsonpError> {
     let open = body.find('(').ok_or(JsonpError::MissingCallback)?;
     let close = body.rfind(')').ok_or(JsonpError::MissingCallback)?;

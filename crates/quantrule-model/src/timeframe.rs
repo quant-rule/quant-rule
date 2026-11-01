@@ -345,8 +345,9 @@ impl TimeframeModel {
 
     /// The latest published snapshot.
     ///
-    /// The snapshot carries the full event batch; aggregate consumers should
-    /// use [`Self::snapshot_at`], which keeps only the five-bar window and the
+    /// The snapshot carries the retained event batch, bounded to
+    /// `EVENT_SNAPSHOT_LIMIT` records; aggregate consumers should use
+    /// [`Self::snapshot_at`], which keeps only the five-bar window and the
     /// latest event.
     #[must_use]
     pub const fn snapshot(&self) -> &TimeframeSnapshot {

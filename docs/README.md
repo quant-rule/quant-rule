@@ -53,8 +53,9 @@ The baseline decision is listed in the current architecture decisions below.
 
 ### Approved target contracts
 
-The unified ladder contracts are approved under #228. The data v3 contract is
-implemented by #230; the remaining target contracts wait for their code phases.
+The unified ladder contracts are approved under #228. The table records the
+current implementation phase of each contract; the execution v3 loader schema is
+the remaining pending phase.
 
 | Contract | Status | Path |
 |---|---|---|
