@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.improvement-run/v1",
+  "run_id": "MODEL-2026-11-01-03",
+  "tier": "model",
+  "hypothesis": "Direction and Momentum may carry a forward edge inside the model's own volatility or participation context even when the unconditional hit rate is below 0.50.",
+  "created_utc": "2026-11-01T19:00:00Z",
+  "changed": "model",
+  "frozen": ["strategy", "portfolio"],
+  "partition": "model_validation",
+  "run_config": "config/improvement/2026-11-01/btc-model-2021/run.json",
+  "code_commit": "worktree",
+  "seed": 0,
+  "green_criteria": {
+    "primary_horizons": {"direction": 5, "momentum": 3},
+    "regime_fields": ["atr_ratio", "rvol_ratio", "context_code"],
+    "axes": "A/B required for a strategy gate",
+    "no_post_hoc_bucket": true
+  },
+  "holdout_access": "none"
+}

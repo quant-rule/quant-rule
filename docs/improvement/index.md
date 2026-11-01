@@ -17,8 +17,9 @@ recorded under this contract.
 |---|---|---|---|---|---|---|---|---|---|
 | `MODEL-2026-11-01-01` | 2026-11-01 | model | Model baseline harness pilot | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-01-model-baseline.md) |
 | `MODEL-2026-11-01-02` | 2026-11-01 | model | Multi-horizon axis study | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-02-multi-horizon.md) |
+| `MODEL-2026-11-01-03` | 2026-11-01 | model | Context-conditioned axis study | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-03-context.md) |
 
-Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md) and [`CYCLE-002`](2026-11-01/CYCLE-002.md) — both stopped at the model gate.
+Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-002.md), and [`CYCLE-003`](2026-11-01/CYCLE-003.md) — all stopped at the model gate.
 
 Rows sort by date, then tier (`model`, `strategy`, `portfolio`), then run ID. See
 [`baselines.md`](baselines.md) for accepted baselines and
