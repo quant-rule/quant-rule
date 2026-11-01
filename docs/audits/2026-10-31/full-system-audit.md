@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-full-system
-- Status: Published (PR #320); all 29 findings (41–69) `Verified` by a separate-session Improvement Verifier pass on 2026-11-01 (not an independent model judgment; record: [`docs/reports/2026-11-01/full-system-audit-closure.md`](../../reports/2026-11-01/full-system-audit-closure.md)); issue tree #308–#318 created; W1–W11 merged as PRs #319 and #321–#330
+- Status: Published (PR #320); all 29 findings (41–69) `Verified` by a separate-session Improvement Verifier pass on 2026-11-01 (not an independent model judgment; record: [`docs/reports/2026-11-01/full-system-audit-closure.md`](../../reports/2026-11-01/full-system-audit-closure.md)); issue tree #308–#318 created; W1–W11 merged as PRs #319 and #321–#330; human acceptance recorded 2026-11-01
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `c8b1dc1` (last audited head, merge of PR #279)
 - Head: `main` at `e34693f` (merge of PR #307)

@@ -2,6 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Status: Verified
+- Human acceptance: 2026-11-01 (UTC)
 - Work item: `full-system-audit`
 - Audit: [`docs/audits/2026-10-31/full-system-audit.md`](../../audits/2026-10-31/full-system-audit.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-10-31/full-system-audit.md`](../../ai-transparency-log/2026-10-31/full-system-audit.md)
