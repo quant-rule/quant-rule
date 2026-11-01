@@ -77,6 +77,7 @@ the remaining pending phase.
 | MVP v1 verification | Verified (#177); re-verified on current `main` after #189 and #196; release notes `v0.2.0` | `docs/reports/2026-10-28/mvp-v1-verification.md` |
 | MODEL-2026-11-01-01 | Harness pilot; not green; no model baseline accepted | [`docs/improvement/2026-11-01/MODEL-2026-11-01-01-model-baseline.md`](improvement/2026-11-01/MODEL-2026-11-01-01-model-baseline.md) |
 | MODEL-2026-11-01-02 | Multi-horizon study; not green; horizon rescue rejected | [`docs/improvement/2026-11-01/MODEL-2026-11-01-02-multi-horizon.md`](improvement/2026-11-01/MODEL-2026-11-01-02-multi-horizon.md) |
+| MODEL-2026-11-01-03 | Context-conditioned study; not green; two isolated buckets only | [`docs/improvement/2026-11-01/MODEL-2026-11-01-03-context.md`](improvement/2026-11-01/MODEL-2026-11-01-03-context.md) |
 | Workflow-reset audit | Program green; one Major fixed; Minor/Info routed | [`docs/audits/2026-11-01/workflow-reset-audit.md`](audits/2026-11-01/workflow-reset-audit.md) |
 
 The experiment records above are pre-reset evidence. They are not improvement
