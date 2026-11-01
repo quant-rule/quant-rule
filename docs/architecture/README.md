@@ -30,7 +30,7 @@ INPUT (shell source access)
 
 The shell is the only surface and the only impure layer. It parses a command, calls
 into the pipeline, and renders the result. The engines are pure and depend one way.
-Analytics reads model output for research and diagnosis; it is not a pipeline stage
+Analytics reads candle and model output for research and diagnosis; it is not a pipeline stage
 and never feeds a rule.
 
 ## Crates
@@ -40,7 +40,7 @@ and never feeds a rule.
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, four axes, events. | `quantrule-data` |
 | `quantrule-backtest` | Strategy, execution, portfolio, and the deterministic runner. | `quantrule-data`, `quantrule-model` |
-| `quantrule-analytics` | Research engine: cross-timeframe research and diagnosis. Not a pipeline stage; the shell owns its I/O. | `quantrule-model` |
+| `quantrule-analytics` | Research engine: cross-timeframe research and diagnosis. Not a pipeline stage; the shell owns its I/O. | `quantrule-data`, `quantrule-model` |
 | `quantrule-shell` | The binary and only surface: parse, call, render; configuration load, source fetch, store, file I/O. | all of the above |
 
 ## Documents

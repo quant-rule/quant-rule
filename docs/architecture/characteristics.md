@@ -114,7 +114,7 @@ is a rebuild of the same binary; that is acceptable for a single-user local tool
 ```text
 shell (adapter: parse, fetch, store, render)
  ├─ data → model → backtest (strategy → execution → portfolio)
- └─ analytics (reads model; research and diagnosis, read-only)
+ └─ analytics (reads data and model; research and diagnosis, read-only)
 ```
 
 ### Crate map
@@ -124,7 +124,7 @@ shell (adapter: parse, fetch, store, render)
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, four axes, events. | `quantrule-data` |
 | `quantrule-backtest` | Strategy, execution, portfolio, and the deterministic runner. | `quantrule-data`, `quantrule-model` |
-| `quantrule-analytics` | Research engine: cross-timeframe research and diagnosis. Not a pipeline stage; the shell owns its I/O. | `quantrule-model` |
+| `quantrule-analytics` | Research engine: cross-timeframe research and diagnosis. Not a pipeline stage; the shell owns its I/O. | `quantrule-data`, `quantrule-model` |
 | `quantrule-shell` | The binary and only surface: parse, call, render; configuration load, source fetch, store, file I/O. | all of the above |
 
 ### Structural constraints
