@@ -2,7 +2,7 @@
 
 - Date: 2026-11-01 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
-- Work item: #315, branch `fix/315-model-robustness`
+- Work item: #315, branch `fix/315-model-robustness`; PR [#327](https://github.com/quant-rule/quant-rule/pull/327)
 - Plan: `docs/execution-plans/2026-10-31/full-system-audit.md` (W8)
 - Audit: `docs/audits/2026-10-31/full-system-audit.md` (AUD-52, -56, -57)
 - Validator record: `docs/reports/2026-10-31/w8-model-robustness-validation.md`

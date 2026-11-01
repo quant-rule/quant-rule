@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-full-system
-- Status: Published (PR #320); findings 41–47, 49–51, 53–54, 60, 64, 66, 68 `Fixed`; findings 52, 55–59, 61–63, 65, 67, 69 `Planned`; issue tree #308–#318 created; W1 PR #319 merged; W2 PR #321 merged; W3 PR #322 merged; W4 PR #323 merged; W5 PR #324 merged; W6 PR #325 merged; W7 PR #326 open
+- Status: Published (PR #320); findings 41–47, 49–54, 56–57, 60, 64, 66, 68 `Fixed`; findings 55, 58–59, 61–63, 65, 67, 69 `Planned`; issue tree #308–#318 created; W1 PR #319 merged; W2 PR #321 merged; W3 PR #322 merged; W4 PR #323 merged; W5 PR #324 merged; W6 PR #325 merged; W7 PR #326 merged; W8 PR #327 open
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `c8b1dc1` (last audited head, merge of PR #279)
 - Head: `main` at `e34693f` (merge of PR #307)
@@ -66,12 +66,12 @@ not committed). The commands above are the reproducible evidence.
 | AUD-2026-10-31-49 | Minor | shell/backtest | `strategy-run` returns empty success when an active-ladder timeframe is missing, while README says it fails | `quantrule-backtest/src/runner/mod.rs:280-282`; `command/strategy.rs:226-230`; `tests/strategy_run.rs:423-436`; `README.md:540` | Insufficient data can be mistaken for a valid no-trade result | A update the contract and expose `bars: 0`; B restore a typed error | A | A source with no execution bar reports `bars: 0`; the five-row short series holds with `bars: 1` and no records | Fixed | [#309](https://github.com/quant-rule/quant-rule/issues/309) · [#321](https://github.com/quant-rule/quant-rule/pull/321) |
 | AUD-2026-10-31-50 | Minor | analytics | `checks.csv` and `model-health.csv` render missing numbers as `-`, not an empty cell | `diagnosis/text.rs:457,551-553,729-730`; `docs/reports/2026-10-31/diagnosis-v1.md:54-55` | Machine consumers cannot distinguish missing from a literal `-`; CSV convention is inconsistent | A empty cell in CSV, `-` only in text; B amend the contract | A | Unknown check value and null model-health value produce empty cells | Fixed | [#311](https://github.com/quant-rule/quant-rule/issues/311) · [#323](https://github.com/quant-rule/quant-rule/pull/323) |
 | AUD-2026-10-31-51 | Minor | analytics | `manifest.json` records present timeframes, not the configured ladder | `research/metadata.rs:525-531`; `layers/mod.rs:229-233`; `command/layers.rs:46-50`; `docs/analytics/2026-10-24/research-output.md:514` | A configured higher timeframe with no bars disappears from the reproducibility record | A pass the configured ladder into the manifest; B add `configured_timeframes_secs` | A | Short M1 source with no H1 still lists H1 | Fixed | [#312](https://github.com/quant-rule/quant-rule/issues/312) · [#324](https://github.com/quant-rule/quant-rule/pull/324) |
-| AUD-2026-10-31-52 | Minor | model | A measured zero ATR at a pivot origin is treated as missing | `axes/progression/mod.rs:506-511`; `target.rs:169-179`; `leg.rs:193-203`; `tests/progression_golden.rs:551-563` | A flat-prefix series can publish the wrong target, reason, and lifecycle | A keep `Some(0.0)`, guard displacement, emit reason 3; B amend the contract | A | Flat prefix then pivot → target equals origin, reason 3, invalidation works | Planned | [#315](https://github.com/quant-rule/quant-rule/issues/315) |
+| AUD-2026-10-31-52 | Minor | model | A measured zero ATR at a pivot origin is treated as missing | `axes/progression/mod.rs:506-511`; `target.rs:169-179`; `leg.rs:193-203`; `tests/progression_golden.rs:551-563` | A flat-prefix series can publish the wrong target, reason, and lifecycle | A keep `Some(0.0)`, guard displacement, emit reason 3; B amend the contract | A | Flat prefix then pivot → target equals origin, reason 3, invalidation works | Fixed | [#315](https://github.com/quant-rule/quant-rule/issues/315) · [#327](https://github.com/quant-rule/quant-rule/pull/327) |
 | AUD-2026-10-31-53 | Minor | backtest/strategy | `context_lost` exits on an unavailable Progression context | `strategy/ladder.rs:151-153,277-285`; `context/mod.rs:166-168,739-742`; `docs/config/2026-10-30/strategy-v3.md:149-151` | A missing context closes a position with an incorrect exit reason | A return `None` for unavailable; B make unavailable propagate | A | Complete context with unavailable progression → Hold | Fixed | [#314](https://github.com/quant-rule/quant-rule/issues/314) · [#326](https://github.com/quant-rule/quant-rule/pull/326) |
 | AUD-2026-10-31-54 | Minor | backtest/execution | Risk-cap step flooring has no boundary tolerance | `execution/engine.rs:642-653`; `portfolio/sizing.rs:237-249`; `engine_tests.rs:603-623` | A cap at an exact decimal boundary can reject a valid entry or underfill one step | A reuse `floored_steps`; B add the same relative tolerance | A | Cap 0.7, step 0.1, price 1.0 → 0.7; price 7.0 → 0.1 | Fixed | [#314](https://github.com/quant-rule/quant-rule/issues/314) · [#326](https://github.com/quant-rule/quant-rule/pull/326) |
 | AUD-2026-10-31-55 | Minor | data/model/backtest | Extreme `i64` timestamps can overflow public arithmetic | `data/timeframe_set.rs:164-171`; `data/source_cadence.rs:42`; `model/aggregate/progression.rs:218`; `backtest/context/mod.rs:556,569,592`; `backtest/runner/mod.rs:176`; `data/candle.rs:119-169` | Debug panic or release wrap for public callers; provider path can write malformed dates | A validate the timestamp range at the boundary; B checked arithmetic | A+B | `i64::MIN`/`i64::MAX` tests return typed errors and do not panic | Planned | [#316](https://github.com/quant-rule/quant-rule/issues/316) |
-| AUD-2026-10-31-56 | Minor | model | Non-finite public axis values are counted as neutral or present | `consensus.rs:57-69`; `aggregate/mod.rs:186-198`; `dashboard/assemble/cross_tf.rs:176-182`; `docs/model/2026-10-25/dashboard-state.md:363-364` | Public snapshots can produce NaN means and inflated share denominators | A filter `is_finite`; B validate at construction | A | NaN direction is excluded, never neutral; shares and means are finite | Planned | [#315](https://github.com/quant-rule/quant-rule/issues/315) |
-| AUD-2026-10-31-57 | Minor | model | `EventAggregates` latest-event tie-break disagrees with the report's fixed key | `aggregate/events.rs:186-190`; `report/order.rs:13-23`; `report/assemble.rs:504` | One report can publish two different latest events for the same bar | A use the shared `event_cmp`; B define latest by availability/occurrence only | A | Two same-bar events produce the same latest subtype in aggregate and report | Planned | [#315](https://github.com/quant-rule/quant-rule/issues/315) |
+| AUD-2026-10-31-56 | Minor | model | Non-finite public axis values are counted as neutral or present | `consensus.rs:57-69`; `aggregate/mod.rs:186-198`; `dashboard/assemble/cross_tf.rs:176-182`; `docs/model/2026-10-25/dashboard-state.md:363-364` | Public snapshots can produce NaN means and inflated share denominators | A filter `is_finite`; B validate at construction | A | NaN direction is excluded, never neutral; shares and means are finite | Fixed | [#315](https://github.com/quant-rule/quant-rule/issues/315) · [#327](https://github.com/quant-rule/quant-rule/pull/327) |
+| AUD-2026-10-31-57 | Minor | model | `EventAggregates` latest-event tie-break disagrees with the report's fixed key | `aggregate/events.rs:186-190`; `report/order.rs:13-23`; `report/assemble.rs:504` | One report can publish two different latest events for the same bar | A use the shared `event_cmp`; B define latest by availability/occurrence only | A | Two same-bar events produce the same latest subtype in aggregate and report | Fixed | [#315](https://github.com/quant-rule/quant-rule/issues/315) · [#327](https://github.com/quant-rule/quant-rule/pull/327) |
 | AUD-2026-10-31-58 | Minor | store | A newer-schema database is switched to WAL before the version check | `store/mod.rs:57-63,219-221,234-241`; `docs/adr/2026-10-24/sqlite-store.md:155-161`; `store/tests.rs:107-124` | `store init`/`ingest` mutates a newer database before rejecting it | A read the version before WAL; B check through a read-only connection | A | Newer-version file is byte-unchanged and has no `-wal` after rejection | Planned | [#316](https://github.com/quant-rule/quant-rule/issues/316) |
 | AUD-2026-10-31-59 | Minor | shell/store | Store and fetch accept `4h` although the documented contract lists four timeframes | `data/timeframe.rs:110-111`; `command/store_query.rs:238-245`; `command/fetch.rs:53-57`; `source/dukascopy.rs:83-95`; `README.md:280`; `command/help.rs:151-154` | `store show` prints an empty 4h table; `fetch` fails with a source error instead of a usage error | A whitelist the four documented codes; B support H4 and update docs | A | Both commands reject `4h` as a usage error | Planned | [#316](https://github.com/quant-rule/quant-rule/issues/316) |
 | AUD-2026-10-31-60 | Minor | shell/lab | Lab identity handling defaults a missing halt to `false` and checks different provenance fields | `command/lab.rs:648-651,364-410`; `lab_summary.rs:173-221`; `command/help.rs:519-520` | A malformed lab is listed as not halted; a stale provenance passes one command | A `Option<bool>` and one full provenance check; B narrow the help | A | Missing halted → `—`/null; provenance model mismatch fails both commands | Fixed | [#310](https://github.com/quant-rule/quant-rule/issues/310) · [#322](https://github.com/quant-rule/quant-rule/pull/322) |
@@ -459,8 +459,8 @@ not committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: a flat prefix followed by a confirmed pivot yields a
   degenerate target, reason 3, and an invalidatable leg.
-- Status: `Planned`.
-- Links: [#315](https://github.com/quant-rule/quant-rule/issues/315).
+- Status: `Fixed`.
+- Links: [#315](https://github.com/quant-rule/quant-rule/issues/315) · [#327](https://github.com/quant-rule/quant-rule/pull/327).
 
 ### AUD-2026-10-31-53 — `context_lost` exits on unavailable progression
 
@@ -579,8 +579,8 @@ not committed). The commands above are the reproducible evidence.
   - B. Validate public bars/snapshots at construction and return `Result`.
 - Recommendation: A.
 - Verification: NaN direction → not counted neutral; all means/shares finite.
-- Status: `Planned`.
-- Links: [#315](https://github.com/quant-rule/quant-rule/issues/315).
+- Status: `Fixed`.
+- Links: [#315](https://github.com/quant-rule/quant-rule/issues/315) · [#327](https://github.com/quant-rule/quant-rule/pull/327).
 
 ### AUD-2026-10-31-57 — Latest-event tie-break differs from the report
 
@@ -608,8 +608,8 @@ not committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: two same-bar events yield the same latest type/subtype in the
   aggregate and the report.
-- Status: `Planned`.
-- Links: [#315](https://github.com/quant-rule/quant-rule/issues/315).
+- Status: `Fixed`.
+- Links: [#315](https://github.com/quant-rule/quant-rule/issues/315) · [#327](https://github.com/quant-rule/quant-rule/pull/327).
 
 ### AUD-2026-10-31-58 — Newer-schema database is mutated before rejection
 

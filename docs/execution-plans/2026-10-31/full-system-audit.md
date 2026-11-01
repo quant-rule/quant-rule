@@ -31,9 +31,9 @@ commits, pushes, or pull requests (AGENTS.md section 9).
   `cargo test --workspace` (1,518 passed, 0 failed, 7 ignored; 47 suites),
   rustdoc with warnings denied, and `git diff --check`.
 - The audit, this plan, and the AI transparency log are merged as PR #320.
-- The issue tree is created: W1–W11 are #308–#318. W1–W6 (#308–#313) are
-  merged as PRs #319, #321, #322, #323, #324, and #325. W7 (#314) is
-  implemented and opened as PR #326; the issue moves to `Done` on the
+- The issue tree is created: W1–W11 are #308–#318. W1–W7 (#308–#314) are
+  merged as PRs #319, #321, #322, #323, #324, #325, and #326. W8 (#315) is
+  implemented and opened as PR #327; the issue moves to `Done` on the
   board. The other leaves are `Todo`.
 
 ### 2.1 Planner verification
@@ -353,6 +353,11 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 - Validator record: `docs/reports/2026-10-31/w8-model-robustness-validation.md`.
 - Paths: `crates/quantrule-model/src/axes/progression/`,
   `src/consensus.rs`, `src/aggregate/`, `src/report/order.rs`, the model tests.
+- Implementation evidence (#315): the zero-ATR, non-finite, and event
+  tie-break fixes are implemented on `fix/315-model-robustness`; full gates
+  pass (1,568 tests). The validator record is
+  `docs/reports/2026-10-31/w8-model-robustness-validation.md`. PR [#327](https://github.com/quant-rule/quant-rule/pull/327)
+  is open.
 - Issue: [#315](https://github.com/quant-rule/quant-rule/issues/315).
 
 ### W9 — Data, store, and timestamp bounds (Minor/Info)
@@ -453,12 +458,12 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-49 | W2 | [#309](https://github.com/quant-rule/quant-rule/issues/309) | Documented empty result with zero bars, or typed error; PR [#321](https://github.com/quant-rule/quant-rule/pull/321) | Fixed |
 | AUD-2026-10-31-50 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Empty CSV cells for missing numbers; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-51 | W5 | [#312](https://github.com/quant-rule/quant-rule/issues/312) | Manifest lists the configured ladder; PR [#324](https://github.com/quant-rule/quant-rule/pull/324) | Fixed |
-| AUD-2026-10-31-52 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Zero ATR → reason 3 | Planned |
+| AUD-2026-10-31-52 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Zero ATR → reason 3; PR [#327](https://github.com/quant-rule/quant-rule/pull/327) | Fixed |
 | AUD-2026-10-31-53 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Unavailable progression → Hold; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-54 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Exact cap boundary fits the largest step; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-55 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Extreme timestamps return typed errors | Planned |
-| AUD-2026-10-31-56 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | NaN is excluded, never neutral | Planned |
-| AUD-2026-10-31-57 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Aggregate and report agree on latest | Planned |
+| AUD-2026-10-31-56 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | NaN is excluded, never neutral; PR [#327](https://github.com/quant-rule/quant-rule/pull/327) | Fixed |
+| AUD-2026-10-31-57 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Aggregate and report agree on latest; PR [#327](https://github.com/quant-rule/quant-rule/pull/327) | Fixed |
 | AUD-2026-10-31-58 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Newer DB is byte-unchanged | Planned |
 | AUD-2026-10-31-59 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | `4h` is a usage error | Planned |
 | AUD-2026-10-31-60 | W3 | [#310](https://github.com/quant-rule/quant-rule/issues/310) | Missing halt null; full provenance check; PR [#322](https://github.com/quant-rule/quant-rule/pull/322) | Fixed |
