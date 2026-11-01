@@ -207,7 +207,8 @@ impl PortfolioLedger {
         };
         self.state.cash -= signed;
         let equity = self.state.equity - signed;
-        self.refresh_equity_state(equity);
+        let drawdown = self.refresh_equity_state(equity);
+        self.check_halt(bar, time, equity, drawdown);
         if signed > 0.0 {
             self.funding_paid += signed;
             position.funding_paid += signed;
@@ -233,7 +234,9 @@ impl PortfolioLedger {
     ///
     /// The peak equity, drawdown, maximum drawdown, and the longest underwater
     /// run are updated here. The halt latches once the configured limit is
-    /// reached; it is recorded once and never clears.
+    /// reached; it is recorded once and never clears. The halt is also checked
+    /// after an entry, an exit, and a funding charge, so every equity point the
+    /// maximum drawdown sees is also a halt observation.
     ///
     /// # Errors
     ///
@@ -346,7 +349,9 @@ impl PortfolioLedger {
 
         self.state.cash = cash;
         self.state.position = Some(position);
-        self.refresh_equity_state(cash + position_value);
+        let equity = cash + position_value;
+        let drawdown = self.refresh_equity_state(equity);
+        self.check_halt(fill.bar, fill.time, equity, drawdown);
         self.execution_fees += fill.fee;
         self.commission += commission;
         self.last_price = Some(fill.price);
@@ -422,7 +427,8 @@ impl PortfolioLedger {
         self.hold_bars_total += hold_bars;
         self.state.cash = cash;
         self.state.position = None;
-        self.refresh_equity_state(cash);
+        let drawdown = self.refresh_equity_state(cash);
+        self.check_halt(fill.bar, fill.time, cash, drawdown);
         self.execution_fees += fill.fee;
         self.commission += commission;
         self.last_price = None;

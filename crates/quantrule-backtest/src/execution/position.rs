@@ -133,9 +133,9 @@ impl Position {
 /// The lifecycle state of a position.
 ///
 /// `Flat` is the initial state and the state after a close has been accounted
-/// for. `Open` carries the position. `Closed` is the terminal state for the
-/// position that just ended; the trade record and P&L belong to the portfolio
-/// module.
+/// for; the trade record and P&L belong to the portfolio module. `Open` carries
+/// the position. There is no separate just-closed state: the engine returns to
+/// `Flat` on the bar the position closes.
 ///
 /// # Examples
 ///
@@ -147,7 +147,6 @@ impl Position {
 /// let state = PositionState::Open(position);
 /// assert!(state.is_open());
 /// assert!(PositionState::Flat.is_flat());
-/// assert!(PositionState::Closed.is_closed());
 /// # Ok::<(), quantrule_backtest::execution::PositionError>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -156,8 +155,6 @@ pub enum PositionState {
     Flat,
     /// A position is open.
     Open(Position),
-    /// The position has just closed.
-    Closed,
 }
 
 impl PositionState {
@@ -171,12 +168,6 @@ impl PositionState {
     #[must_use]
     pub const fn is_open(self) -> bool {
         matches!(self, Self::Open(_))
-    }
-
-    /// Whether the position has just closed.
-    #[must_use]
-    pub const fn is_closed(self) -> bool {
-        matches!(self, Self::Closed)
     }
 }
 

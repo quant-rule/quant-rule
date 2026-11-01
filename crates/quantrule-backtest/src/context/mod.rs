@@ -382,11 +382,6 @@ pub enum LadderContextError {
         /// The missing timeframe in seconds.
         timeframe_secs: u64,
     },
-    /// The run does not contain a context timeframe.
-    MissingContextTimeframe {
-        /// The missing timeframe in seconds.
-        timeframe_secs: u64,
-    },
     /// A model bar was missing from a non-empty series.
     MissingBar {
         /// The timeframe in seconds.
@@ -427,10 +422,6 @@ impl fmt::Display for LadderContextError {
             Self::MissingExecutionTimeframe { timeframe_secs } => write!(
                 formatter,
                 "the model run has no execution timeframe {timeframe_secs}s"
-            ),
-            Self::MissingContextTimeframe { timeframe_secs } => write!(
-                formatter,
-                "the model run has no context timeframe {timeframe_secs}s"
             ),
             Self::MissingBar {
                 timeframe_secs,
@@ -486,7 +477,9 @@ impl<'a> LadderContextBuilder<'a> {
     /// # Errors
     ///
     /// Returns [`LadderContextError`] when the weights do not match the context
-    /// list, or when the run does not contain a configured timeframe.
+    /// list, or when the run does not contain the execution timeframe. A context
+    /// timeframe absent from the run is not an error: it contributes no bar and
+    /// is reported in [`LadderContext::missing_timeframes`].
     pub fn new(
         run: &'a ModelRun,
         ladder: &LadderConfig,

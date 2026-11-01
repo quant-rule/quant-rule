@@ -2,7 +2,7 @@
 
 use quantrule_data::Candle;
 
-use crate::intent::{RiskPolicy, TradeIntent};
+use crate::intent::{RiskPolicy, StopSpec, TargetSpec, TradeIntent};
 use crate::side::Side;
 
 use super::*;
@@ -549,6 +549,71 @@ fn an_entry_bar_can_trigger_its_own_stop() {
 }
 
 #[test]
+fn an_entry_bar_stop_uses_the_fill_not_the_pre_entry_open() {
+    let mut engine = test_engine();
+    let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
+    // The stop is 100.01, one cent below the fill, so it is tighter than the
+    // slippage. The pre-entry open is below the stop; only the fill and the
+    // bar's low may decide the exit.
+    let second = candle(1, 900, 100.0, 100.05, 99.99, 100.0, Some(10.0));
+    let intent = TradeIntent {
+        side: Side::Long,
+        entry: crate::intent::EntryStyle::MarketNextOpen,
+        stop: StopSpec::Price { price: 100.01 },
+        target: TargetSpec::Price { price: 100.10 },
+        valid_until: None,
+        max_slippage_bps: None,
+    };
+
+    step(&mut engine, &first, None, enter_with(0, 0, intent, None));
+    let batch = step(&mut engine, &second, None, OrderIntent::Hold);
+    assert_eq!(batch.fills.len(), 2);
+    assert_eq!(batch.fills[0].reason, FillReason::Entry);
+    approx(batch.fills[0].reference_price, 100.0);
+    approx(batch.fills[0].price, 100.02);
+    let exit = batch.fills[1];
+    assert_eq!(exit.reason, FillReason::StopLoss);
+    approx(exit.reference_price, 100.01);
+    assert!(
+        (exit.price - 99.99).abs() < 1e-4,
+        "the stop must fill near 99.99, got {}",
+        exit.price
+    );
+    assert!(engine.position().is_flat());
+}
+
+#[test]
+fn a_short_entry_bar_stop_uses_the_fill_not_the_pre_entry_open() {
+    let mut engine = test_engine();
+    let first = candle(0, 0, 100.0, 101.0, 99.0, 100.0, Some(10.0));
+    let second = candle(1, 900, 100.0, 100.01, 99.95, 100.0, Some(10.0));
+    let intent = TradeIntent {
+        side: Side::Short,
+        entry: crate::intent::EntryStyle::MarketNextOpen,
+        stop: StopSpec::Price { price: 99.99 },
+        target: TargetSpec::Price { price: 99.90 },
+        valid_until: None,
+        max_slippage_bps: None,
+    };
+
+    step(&mut engine, &first, None, enter_with(0, 0, intent, None));
+    let batch = step(&mut engine, &second, None, OrderIntent::Hold);
+    assert_eq!(batch.fills.len(), 2);
+    assert_eq!(batch.fills[0].reason, FillReason::Entry);
+    approx(batch.fills[0].reference_price, 100.0);
+    approx(batch.fills[0].price, 99.98);
+    let exit = batch.fills[1];
+    assert_eq!(exit.reason, FillReason::StopLoss);
+    approx(exit.reference_price, 99.99);
+    assert!(
+        (exit.price - 100.01).abs() < 1e-4,
+        "the stop must fill near 100.01, got {}",
+        exit.price
+    );
+    assert!(engine.position().is_flat());
+}
+
+#[test]
 fn a_missing_or_invalid_atr_rejects_the_entry() {
     for atr in [
         None,
@@ -620,6 +685,62 @@ fn a_risk_capped_fill_respects_the_quantity_step() {
     let steps = fill.quantity / 0.1;
     assert!((steps - steps.round()).abs() < 1e-9);
     assert_eq!(batch.orders[0].quantity, Some(fill.quantity));
+}
+
+#[test]
+fn a_risk_cap_fits_the_exact_step_boundary() {
+    let mut engine =
+        ExecutionEngine::new(ExecutionConfig::new(0.0, 0.0).expect("the zero costs are valid"))
+            .expect("the engine is valid");
+    let first = candle(0, 0, 1.0, 1.0, 1.0, 1.0, Some(10.0));
+    let second = candle(1, 900, 1.0, 1.0, 1.0, 1.0, Some(10.0));
+    assert!(advance(&mut engine, &first).is_empty());
+    engine
+        .submit_with_step(
+            enter_limited(0, 0, Side::Long, 0.7),
+            Some(QUANTITY),
+            Some(0.1),
+            Some(0.1),
+        )
+        .expect("the entry is valid");
+
+    let batch = advance(&mut engine, &second);
+    assert_eq!(batch.fills.len(), 1);
+    let fill = batch.fills[0];
+    approx(fill.price, 1.0);
+    assert!(
+        (fill.quantity - 0.7).abs() < 1e-12,
+        "the cap must fit seven steps, got {}",
+        fill.quantity
+    );
+}
+
+#[test]
+fn a_risk_cap_fits_one_step_when_the_price_is_seven_times_the_cap() {
+    let mut engine =
+        ExecutionEngine::new(ExecutionConfig::new(0.0, 0.0).expect("the zero costs are valid"))
+            .expect("the engine is valid");
+    let first = candle(0, 0, 7.0, 7.0, 7.0, 7.0, Some(10.0));
+    let second = candle(1, 900, 7.0, 7.0, 7.0, 7.0, Some(10.0));
+    assert!(advance(&mut engine, &first).is_empty());
+    engine
+        .submit_with_step(
+            enter_limited(0, 0, Side::Long, 0.7),
+            Some(QUANTITY),
+            Some(0.1),
+            Some(0.1),
+        )
+        .expect("the entry is valid");
+
+    let batch = advance(&mut engine, &second);
+    assert_eq!(batch.fills.len(), 1);
+    let fill = batch.fills[0];
+    approx(fill.price, 7.0);
+    assert!(
+        (fill.quantity - 0.1).abs() < 1e-12,
+        "the cap must fit one step, got {}",
+        fill.quantity
+    );
 }
 
 #[test]

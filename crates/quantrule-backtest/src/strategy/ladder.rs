@@ -274,6 +274,11 @@ fn context_side(context: &LadderContext, side: Side, config: &StrategyConfig) ->
         return Some(false);
     }
 
+    // An unavailable reading has no measured direction to disagree with. Only
+    // a measured non-agreement may trigger context_lost.
+    if context.progression.direction.agreement == AgreementCode::Unavailable {
+        return None;
+    }
     let progression_agrees = match side {
         Side::Long => context.progression.direction.agreement == AgreementCode::Bullish,
         Side::Short => context.progression.direction.agreement == AgreementCode::Bearish,

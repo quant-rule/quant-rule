@@ -49,8 +49,9 @@ pub struct StrategyPosition {
 ```
 
 `StrategyPosition` is the strategy-facing view. Execution's own `PositionState`
-enum remains execution-internal: it tracks flat, open, and just-closed states
-and carries stop and target prices the strategy must not see.
+enum remains execution-internal: it tracks flat and open states and carries stop
+and target prices the strategy must not see. A close returns the engine to
+`Flat` on the same bar; there is no separate just-closed state.
 
 The strategy also has a human-owned `RiskPolicy` (stop ATR multiple and
 reward-to-risk). `RiskPolicy::intent(side)` builds the market-next-open intent

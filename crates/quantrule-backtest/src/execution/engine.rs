@@ -94,6 +94,7 @@
 use quantrule_data::Candle;
 
 use crate::intent::{StrategyPosition, TradeIntent};
+use crate::portfolio::floored_steps;
 use crate::side::Side;
 
 use super::{
@@ -409,7 +410,7 @@ impl ExecutionEngine {
                         quantity_step,
                     });
                 }
-                PositionState::Flat | PositionState::Closed => self.reject_decision(
+                PositionState::Flat => self.reject_decision(
                     &mut batch,
                     RejectedDecision {
                         side: order_side(side).opposite(),
@@ -450,7 +451,7 @@ impl ExecutionEngine {
     pub const fn position_side(&self) -> Option<Side> {
         match self.position {
             PositionState::Open(position) => Some(position.side),
-            PositionState::Flat | PositionState::Closed => None,
+            PositionState::Flat => None,
         }
     }
 
@@ -473,7 +474,7 @@ impl ExecutionEngine {
                     bars_held,
                 }
             }
-            PositionState::Flat | PositionState::Closed => StrategyPosition::flat(),
+            PositionState::Flat => StrategyPosition::flat(),
         }
     }
 
@@ -645,7 +646,7 @@ impl ExecutionEngine {
                         self.reject_pending(batch, pending, index, time, RejectReason::RiskLimit);
                         return Ok(());
                     }
-                    let steps = (capped / step).floor();
+                    let steps = floored_steps(capped, step);
                     if steps < 1.0 {
                         self.reject_pending(batch, pending, index, time, RejectReason::RiskLimit);
                         return Ok(());
@@ -719,74 +720,121 @@ impl ExecutionEngine {
             return Ok(());
         }
 
-        // A gap at the open proves which level was reached first. Resolve it
-        // before the intrabar stop-first tie rule; only an open between both
-        // levels leaves the intrabar order unknowable from OHLC.
-        let (reference, reason, trigger_price, side) = match position.side {
-            Side::Long => {
-                if bar.open() <= position.stop_price {
-                    (
-                        bar.open(),
-                        FillReason::StopLoss,
-                        position.stop_price,
-                        OrderSide::Sell,
-                    )
-                } else if bar.open() >= position.target_price {
-                    (
-                        bar.open(),
-                        FillReason::TakeProfit,
-                        position.target_price,
-                        OrderSide::Sell,
-                    )
-                } else if long_stop_hit(bar, position.stop_price) {
-                    (
-                        long_stop_reference(bar, position.stop_price),
-                        FillReason::StopLoss,
-                        position.stop_price,
-                        OrderSide::Sell,
-                    )
-                } else if long_target_hit(bar, position.target_price) {
-                    (
-                        long_target_reference(bar, position.target_price),
-                        FillReason::TakeProfit,
-                        position.target_price,
-                        OrderSide::Sell,
-                    )
-                } else {
-                    return Ok(());
+        // On the entry bar the position did not exist at the open, so the
+        // open cannot gap through a level. Evaluate the bar's range from the
+        // fill instead; a stop tighter than the slippage otherwise fills at a
+        // pre-entry price and silently worsens the exit.
+        let (reference, reason, trigger_price, side) = if index == position.entry_bar {
+            match position.side {
+                Side::Long => {
+                    if bar.low() <= position.stop_price {
+                        (
+                            position.stop_price,
+                            FillReason::StopLoss,
+                            position.stop_price,
+                            OrderSide::Sell,
+                        )
+                    } else if bar.high() >= position.target_price {
+                        (
+                            position.target_price,
+                            FillReason::TakeProfit,
+                            position.target_price,
+                            OrderSide::Sell,
+                        )
+                    } else {
+                        return Ok(());
+                    }
+                }
+                Side::Short => {
+                    if bar.high() >= position.stop_price {
+                        (
+                            position.stop_price,
+                            FillReason::StopLoss,
+                            position.stop_price,
+                            OrderSide::Buy,
+                        )
+                    } else if bar.low() <= position.target_price {
+                        (
+                            position.target_price,
+                            FillReason::TakeProfit,
+                            position.target_price,
+                            OrderSide::Buy,
+                        )
+                    } else {
+                        return Ok(());
+                    }
                 }
             }
-            Side::Short => {
-                if bar.open() >= position.stop_price {
-                    (
-                        bar.open(),
-                        FillReason::StopLoss,
-                        position.stop_price,
-                        OrderSide::Buy,
-                    )
-                } else if bar.open() <= position.target_price {
-                    (
-                        bar.open(),
-                        FillReason::TakeProfit,
-                        position.target_price,
-                        OrderSide::Buy,
-                    )
-                } else if short_stop_hit(bar, position.stop_price) {
-                    (
-                        short_stop_reference(bar, position.stop_price),
-                        FillReason::StopLoss,
-                        position.stop_price,
-                        OrderSide::Buy,
-                    )
-                } else if short_target_hit(bar, position.target_price) {
-                    (
-                        short_target_reference(bar, position.target_price),
-                        FillReason::TakeProfit,
-                        position.target_price,
-                        OrderSide::Buy,
-                    )
-                } else {
-                    return Ok(());
+        } else {
+            // A gap at the open proves which level was reached first. Resolve
+            // it before the intrabar stop-first tie rule; only an open between
+            // both levels leaves the intrabar order unknowable from OHLC.
+            match position.side {
+                Side::Long => {
+                    if bar.open() <= position.stop_price {
+                        (
+                            bar.open(),
+                            FillReason::StopLoss,
+                            position.stop_price,
+                            OrderSide::Sell,
+                        )
+                    } else if bar.open() >= position.target_price {
+                        (
+                            bar.open(),
+                            FillReason::TakeProfit,
+                            position.target_price,
+                            OrderSide::Sell,
+                        )
+                    } else if long_stop_hit(bar, position.stop_price) {
+                        (
+                            long_stop_reference(bar, position.stop_price),
+                            FillReason::StopLoss,
+                            position.stop_price,
+                            OrderSide::Sell,
+                        )
+                    } else if long_target_hit(bar, position.target_price) {
+                        (
+                            long_target_reference(bar, position.target_price),
+                            FillReason::TakeProfit,
+                            position.target_price,
+                            OrderSide::Sell,
+                        )
+                    } else {
+                        return Ok(());
+                    }
+                }
+                Side::Short => {
+                    if bar.open() >= position.stop_price {
+                        (
+                            bar.open(),
+                            FillReason::StopLoss,
+                            position.stop_price,
+                            OrderSide::Buy,
+                        )
+                    } else if bar.open() <= position.target_price {
+                        (
+                            bar.open(),
+                            FillReason::TakeProfit,
+                            position.target_price,
+                            OrderSide::Buy,
+                        )
+                    } else if short_stop_hit(bar, position.stop_price) {
+                        (
+                            short_stop_reference(bar, position.stop_price),
+                            FillReason::StopLoss,
+                            position.stop_price,
+                            OrderSide::Buy,
+                        )
+                    } else if short_target_hit(bar, position.target_price) {
+                        (
+                            short_target_reference(bar, position.target_price),
+                            FillReason::TakeProfit,
+                            position.target_price,
+                            OrderSide::Buy,
+                        )
+                    } else {
+                        return Ok(());
+                    }
                 }
             }
         };

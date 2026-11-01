@@ -28,5 +28,6 @@ pub use ledger::{PortfolioLedger, PortfolioLedgerError};
 pub use records::{
     EquityPoint, ExitReason, FundingCharge, MonthlyReturn, PortfolioMetrics, RiskEvent, TradeRecord,
 };
+pub(crate) use sizing::floored_steps;
 pub use sizing::{SizingMode, SizingRejection};
 pub use state::{OpenPosition, OpenPositionError, PortfolioState, PortfolioStateError};
