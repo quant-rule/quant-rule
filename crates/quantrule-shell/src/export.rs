@@ -272,8 +272,62 @@ fn ensure_parent(path: &Path) -> Result<(), ExportError> {
 
 fn temp_path(path: &Path) -> PathBuf {
     let mut temp = path.as_os_str().to_os_string();
-    temp.push(".tmp");
+    temp.push(format!(".tmp.{}", std::process::id()));
     PathBuf::from(temp)
+}
+
+/// Whether two output paths would write the same final or temporary file.
+///
+/// The comparison resolves `.`/`..`, a symlinked parent, and an existing
+/// target. It also compares each final path with the other output's temporary
+/// path, because the atomic writers use `<target>.tmp.<pid>`. A hard link or
+/// symlink that makes two existing targets the same file is rejected as well.
+pub(crate) fn outputs_conflict(left: &Path, right: &Path) -> bool {
+    let left = resolved_output(left);
+    let right = resolved_output(right);
+    if left == right {
+        return true;
+    }
+    let left_temp = temp_path(&left);
+    let right_temp = temp_path(&right);
+    if left == right_temp || left_temp == right || left_temp == right_temp {
+        return true;
+    }
+    same_existing_file(&left, &right)
+        || same_existing_file(&left, &right_temp)
+        || same_existing_file(&left_temp, &right)
+}
+
+/// Resolves an output path without requiring the target to exist.
+fn resolved_output(path: &Path) -> PathBuf {
+    let Ok(absolute) = std::path::absolute(path) else {
+        return path.to_path_buf();
+    };
+    if let Ok(canonical) = fs::canonicalize(&absolute) {
+        return canonical;
+    }
+    let Some(parent) = absolute.parent() else {
+        return absolute;
+    };
+    match fs::canonicalize(parent) {
+        Ok(parent) => parent.join(absolute.file_name().unwrap_or_default()),
+        Err(_) => absolute,
+    }
+}
+
+#[cfg(unix)]
+fn same_existing_file(left: &Path, right: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    match (fs::metadata(left), fs::metadata(right)) {
+        (Ok(left), Ok(right)) => left.dev() == right.dev() && left.ino() == right.ino(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn same_existing_file(_left: &Path, _right: &Path) -> bool {
+    false
 }
 
 #[cfg(test)]
@@ -283,7 +337,9 @@ mod tests {
 
     use quantrule_data::Candle;
 
-    use super::{PendingCsv, format_number, format_timestamp, temp_path, write_atomic};
+    use super::{
+        PendingCsv, format_number, format_timestamp, outputs_conflict, temp_path, write_atomic,
+    };
 
     fn artifact_dir() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("target/test-artifacts/export")
@@ -378,6 +434,54 @@ mod tests {
         assert!(!temp_path(&path).exists());
 
         fs::remove_file(path).expect("the artifact is removed");
+    }
+
+    #[test]
+    fn rejects_a_final_path_that_is_another_temporary_path() {
+        let directory = artifact_dir();
+        fs::create_dir_all(&directory).expect("the artifact directory exists");
+        let png = directory.join("collision.png");
+        let csv = temp_path(&png);
+
+        assert!(outputs_conflict(&csv, &png));
+        assert!(outputs_conflict(&png, &csv));
+    }
+
+    #[test]
+    fn rejects_a_dot_alias_of_the_same_output() {
+        let directory = artifact_dir();
+        fs::create_dir_all(&directory).expect("the artifact directory exists");
+        let plain = directory.join("alias.csv");
+        let dotted = directory.join(".").join("alias.csv");
+
+        assert!(outputs_conflict(&plain, &dotted));
+    }
+
+    #[test]
+    fn accepts_distinct_outputs() {
+        let directory = artifact_dir();
+        let csv = directory.join("one.csv");
+        let png = directory.join("two.png");
+
+        assert!(!outputs_conflict(&csv, &png));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_a_hard_link_to_the_same_output() {
+        let directory = artifact_dir();
+        fs::create_dir_all(&directory).expect("the artifact directory exists");
+        let source = directory.join("hard-source.csv");
+        let link = directory.join("hard-link.png");
+        let _ = fs::remove_file(&source);
+        let _ = fs::remove_file(&link);
+        fs::write(&source, b"source").expect("the source is written");
+        fs::hard_link(&source, &link).expect("the hard link is created");
+
+        assert!(outputs_conflict(&source, &link));
+
+        fs::remove_file(&link).expect("the hard link is removed");
+        fs::remove_file(&source).expect("the source is removed");
     }
 
     #[test]

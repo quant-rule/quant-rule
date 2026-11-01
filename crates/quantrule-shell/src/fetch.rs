@@ -124,7 +124,8 @@ impl fmt::Display for FetchRunError {
                 "no candles were produced for {symbol} {start} to {end}"
             ),
             Self::Csv(source) => source.fmt(formatter),
-            Self::PathConflict => formatter.write_str("CSV and PNG paths must be different"),
+            Self::PathConflict => formatter
+                .write_str("CSV and PNG paths must not resolve to the same file or temporary path"),
             Self::ChartAfterCsv { csv_path, source } => write!(
                 formatter,
                 "CSV was written to {}; cannot render chart: {source}",
@@ -171,7 +172,9 @@ pub(crate) fn run_fetch(
     request: &FetchRequest,
     options: &FetchOptions,
 ) -> Result<FetchOutcome, FetchRunError> {
-    if options.png_path.as_ref() == Some(&options.csv_path) {
+    if let Some(png_path) = &options.png_path
+        && export::outputs_conflict(&options.csv_path, png_path)
+    {
         return Err(FetchRunError::PathConflict);
     }
 
@@ -395,7 +398,7 @@ mod tests {
 
     fn temp_path(path: &Path) -> PathBuf {
         let mut temp = path.as_os_str().to_os_string();
-        temp.push(".tmp");
+        temp.push(format!(".tmp.{}", std::process::id()));
         PathBuf::from(temp)
     }
 
@@ -602,6 +605,23 @@ mod tests {
         assert_eq!(transport.request_count(), 0);
         assert!(!path.exists());
         assert!(!temp_path(&path).exists());
+    }
+
+    #[test]
+    fn refuses_a_temporary_path_collision_before_fetching() {
+        let png = artifact("temp_collision.png");
+        let csv = temp_path(&png);
+        let mut options = options(csv.clone());
+        options.png_path = Some(png.clone());
+        let transport = ScriptedTransport::new(Vec::new());
+
+        let error = run_fetch(&transport, &request(), &options)
+            .expect_err("the CSV target is the PNG temporary path");
+
+        assert!(matches!(error, FetchRunError::PathConflict));
+        assert_eq!(transport.request_count(), 0);
+        assert!(!csv.exists());
+        assert!(!png.exists());
     }
 
     #[test]
