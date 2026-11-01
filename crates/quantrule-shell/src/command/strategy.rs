@@ -29,8 +29,14 @@ use crate::labels;
 use crate::pipeline;
 use crate::source::DateBounds;
 
-/// The strategy name the command accepts.
+/// The ladder-context strategy name.
 pub(crate) const RULE_LADDER_CONTEXT: &str = "ladder-context";
+/// The level-retest strategy name.
+pub(crate) const RULE_LEVEL_RETEST: &str = "level-retest";
+/// The three-timeframe strategy name.
+pub(crate) const RULE_THREE_TIMEFRAME: &str = "three-timeframe";
+/// The breakout strategy name.
+pub(crate) const RULE_BREAKOUT: &str = "breakout";
 
 /// Parses the already-split arguments of `strategy-run`.
 ///
@@ -88,7 +94,7 @@ pub(crate) fn parse_strategy_run_arguments(
                     })?;
                 if !is_supported_strategy(value) {
                     return Err(ParseError::StrategyRun(format!(
-                        "unknown strategy '{value}'; use {RULE_LADDER_CONTEXT}\n{USAGE}"
+                        "unknown strategy '{value}'; use {RULE_LADDER_CONTEXT}, {RULE_LEVEL_RETEST}, {RULE_THREE_TIMEFRAME}, or {RULE_BREAKOUT}\n{USAGE}"
                     )));
                 }
                 strategy = Some(value.clone());
@@ -221,6 +227,24 @@ pub(crate) fn run_strategy_run(
             name: args.strategy.clone(),
         }));
     }
+    let expected = if config.three_timeframe().is_some() {
+        RULE_THREE_TIMEFRAME
+    } else if matches!(
+        config.mode(),
+        quantrule_backtest::strategy::StrategyMode::Breakout(_)
+    ) {
+        RULE_BREAKOUT
+    } else if config.level().is_some() {
+        RULE_LEVEL_RETEST
+    } else {
+        RULE_LADDER_CONTEXT
+    };
+    if args.strategy != expected {
+        return Err(RunError::StrategyRun(StrategyRunError::ConfigMismatch {
+            name: args.strategy.clone(),
+            expected: expected.to_owned(),
+        }));
+    }
     let bounds = if args.from.is_none() && args.to.is_none() {
         run_bounds.unwrap_or(args.bounds)
     } else {
@@ -244,7 +268,7 @@ pub(crate) fn run_strategy_run(
     let model_run =
         pipeline::model_run_from_set_with_ladder(&set, &active_timeframes(&config)?, &model_config);
     let walk = walk_strategy(&model_run, &config).map_err(RunError::Backtest)?;
-    let records = collect_records(&walk);
+    let records = collect_records(&walk, &args.strategy);
     let period = PeriodReport {
         effective_from,
         effective_to,
@@ -274,6 +298,9 @@ pub(crate) fn run_strategy_run(
 
 fn is_supported_strategy(name: &str) -> bool {
     name == RULE_LADDER_CONTEXT
+        || name == RULE_LEVEL_RETEST
+        || name == RULE_THREE_TIMEFRAME
+        || name == RULE_BREAKOUT
 }
 
 fn timeframe_for(seconds: u64) -> Option<Timeframe> {
@@ -298,16 +325,22 @@ fn active_timeframes(config: &StrategyConfig) -> Result<Vec<Timeframe>, RunError
         .collect()
 }
 
-fn collect_records(walk: &StrategyWalk) -> Vec<Value> {
+fn collect_records(walk: &StrategyWalk, name: &str) -> Vec<Value> {
     let mut records = Vec::new();
     for (input, decision) in walk.inputs().iter().zip(walk.decisions()) {
         match decision {
             Decision::Hold => {}
             Decision::Enter(entry) => {
-                records.push(record_value("entry", entry.intent.side, None, input));
+                records.push(record_value("entry", name, entry.intent.side, None, input));
             }
             Decision::Exit(exit) => {
-                records.push(record_value("exit", exit.side, Some(exit.reason), input));
+                records.push(record_value(
+                    "exit",
+                    name,
+                    exit.side,
+                    Some(exit.reason),
+                    input,
+                ));
             }
         }
     }
@@ -316,13 +349,14 @@ fn collect_records(walk: &StrategyWalk) -> Vec<Value> {
 
 fn record_value(
     kind: &'static str,
+    name: &str,
     side: Side,
     reason: Option<ExitReason>,
     bar: &StrategyInput,
 ) -> Value {
     let mut value = json!({
         "type": kind,
-        "strategy": RULE_LADDER_CONTEXT,
+        "strategy": name,
         "timeframe": labels::timeframe_label(bar.timeframe_secs),
         "timeframe_secs": bar.timeframe_secs,
         "bar": bar.bar_index,
@@ -385,7 +419,6 @@ pub(super) fn strategy_config_value(config: &StrategyConfig, thesis: &str) -> Va
     let execution = entry.execution();
     let context_entry = entry.context();
     let exit = config.exit();
-    let risk = config.risk();
     let mut exit_on = Vec::new();
     if exit.on_context_lost() {
         exit_on.push("context_lost");
@@ -393,9 +426,103 @@ pub(super) fn strategy_config_value(config: &StrategyConfig, thesis: &str) -> Va
     if exit.on_structure_lost() {
         exit_on.push("structure_lost");
     }
+    if exit.on_level_lost() {
+        exit_on.push("level_lost");
+    }
+
+    let mut entry_value = json!({
+        "execution": {
+            "direction_min": execution.direction_min(),
+            "momentum_min": execution.momentum_min(),
+            "structure_min": execution.structure_min(),
+            "structure_shift": {
+                "from_max": execution.structure_shift_from_max(),
+                "to_min": execution.structure_shift_to_min(),
+            },
+        },
+        "context": {
+            "direction": {
+                "kind": "bullish",
+                "share_min": context_entry.direction_share_min(),
+            },
+            "momentum": {
+                "kind": "not_bearish",
+                "bearish_share_max": context_entry.momentum_bearish_share_max(),
+            },
+            "structure": {
+                "conflict_count_max": context_entry.structure_conflict_count_max(),
+            },
+            "progression": {
+                "direction": "bullish",
+                "late_or_terminal_count_max": context_entry
+                    .progression_late_or_terminal_count_max(),
+            },
+        },
+    });
+    if let Some(level) = config.level() {
+        entry_value["level"] = json!({
+            "max_distance_fraction": level.max_distance_fraction(),
+            "scale": level.scale().map_or("both", |scale| match scale {
+                quantrule_model::readings::PivotScale::Minor => "minor",
+                quantrule_model::readings::PivotScale::Major => "major",
+            }),
+        });
+    }
+    if let Some(three) = config.three_timeframe() {
+        entry_value["agreement"] = json!({
+            "min_bars": three.min_agreement_bars(),
+        });
+    }
+
+    let (name, risk_value) = if let Some(three) = config.three_timeframe() {
+        let level = three.level();
+        (
+            "three-timeframe",
+            json!({
+                "stop": {"kind": "level", "buffer_fraction": level.stop_buffer_fraction()},
+                "target": {
+                    "kind": "next_level",
+                    "min_reward_to_risk": level.min_reward_to_risk(),
+                },
+                "agreement": {"min_bars": three.min_agreement_bars()},
+            }),
+        )
+    } else if let Some(risk) = config.risk() {
+        (
+            "ladder-context",
+            json!({
+                "stop": {"kind": "atr", "multiple": risk.stop_atr_multiple()},
+                "target": {
+                    "kind": "reward_to_risk",
+                    "multiple": risk.reward_to_risk(),
+                },
+            }),
+        )
+    } else if let Some(level) = config.level() {
+        let name = if matches!(
+            config.mode(),
+            quantrule_backtest::strategy::StrategyMode::Breakout(_)
+        ) {
+            "breakout"
+        } else {
+            "level-retest"
+        };
+        (
+            name,
+            json!({
+                "stop": {"kind": "level", "buffer_fraction": level.stop_buffer_fraction()},
+                "target": {
+                    "kind": "next_level",
+                    "min_reward_to_risk": level.min_reward_to_risk(),
+                },
+            }),
+        )
+    } else {
+        ("ladder-context", Value::Null)
+    };
 
     json!({
-        "name": "ladder-context",
+        "name": name,
         "thesis": thesis,
         "timeframe_secs": config.timeframe_secs(),
         "ladder": ladder_labels(config),
@@ -405,43 +532,9 @@ pub(super) fn strategy_config_value(config: &StrategyConfig, thesis: &str) -> Va
             "structure": weight_map(context, config.weights().structure()),
             "progression": weight_map(context, config.weights().progression()),
         },
-        "entry": {
-            "execution": {
-                "direction_min": execution.direction_min(),
-                "momentum_min": execution.momentum_min(),
-                "structure_min": execution.structure_min(),
-                "structure_shift": {
-                    "from_max": execution.structure_shift_from_max(),
-                    "to_min": execution.structure_shift_to_min(),
-                },
-            },
-            "context": {
-                "direction": {
-                    "kind": "bullish",
-                    "share_min": context_entry.direction_share_min(),
-                },
-                "momentum": {
-                    "kind": "not_bearish",
-                    "bearish_share_max": context_entry.momentum_bearish_share_max(),
-                },
-                "structure": {
-                    "conflict_count_max": context_entry.structure_conflict_count_max(),
-                },
-                "progression": {
-                    "direction": "bullish",
-                    "late_or_terminal_count_max": context_entry
-                        .progression_late_or_terminal_count_max(),
-                },
-            },
-        },
+        "entry": entry_value,
         "exit": {"on": exit_on},
-        "risk": {
-            "stop": {"kind": "atr", "multiple": risk.stop_atr_multiple()},
-            "target": {
-                "kind": "reward_to_risk",
-                "multiple": risk.reward_to_risk(),
-            },
-        },
+        "risk": risk_value,
         "no_trade": {
             "missing_context": "reject",
             "require_contiguous_execution": config.require_contiguous_execution(),
@@ -477,6 +570,7 @@ fn reason_code(reason: ExitReason) -> &'static str {
     match reason {
         ExitReason::ContextLost => "context_lost",
         ExitReason::StructureLost => "structure_lost",
+        ExitReason::LevelLost => "level_lost",
     }
 }
 
@@ -489,8 +583,9 @@ fn write_line(value: &Value, writer: &mut impl Write) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        RULE_LADDER_CONTEXT, is_supported_strategy, parse_strategy_run_arguments, reason_code,
-        record_value, timeframe_for,
+        RULE_BREAKOUT, RULE_LADDER_CONTEXT, RULE_LEVEL_RETEST, RULE_THREE_TIMEFRAME,
+        is_supported_strategy, parse_strategy_run_arguments, reason_code, record_value,
+        timeframe_for,
     };
     use crate::command::types::ParseError;
     use quantrule_backtest::strategy::{ExitReason, Side, StrategyConfig, StrategyInput};
@@ -644,13 +739,16 @@ mod tests {
         assert_eq!(config.timeframe_secs(), 300);
         assert_eq!(timeframe_for(config.timeframe_secs()), Some(Timeframe::M5));
         assert!(is_supported_strategy(RULE_LADDER_CONTEXT));
+        assert!(is_supported_strategy(RULE_LEVEL_RETEST));
+        assert!(is_supported_strategy(RULE_THREE_TIMEFRAME));
+        assert!(is_supported_strategy(RULE_BREAKOUT));
         assert!(!is_supported_strategy("ema-cross"));
     }
 
     #[test]
     fn an_entry_record_carries_readings_and_no_fill_fields() {
         let bar = StrategyInput::new(300, 7, 1_700_000_000, Some(0.2), Some(0.5), Some(1.0));
-        let value = record_value("entry", Side::Long, None, &bar);
+        let value = record_value("entry", RULE_LADDER_CONTEXT, Side::Long, None, &bar);
 
         assert_eq!(value["type"], "entry");
         assert_eq!(value["strategy"], RULE_LADDER_CONTEXT);
@@ -671,7 +769,13 @@ mod tests {
     #[test]
     fn an_exit_record_carries_its_reason() {
         let bar = StrategyInput::new(900, 8, 1_700_000_900, Some(0.0), Some(0.0), Some(0.0));
-        let value = record_value("exit", Side::Short, Some(ExitReason::ContextLost), &bar);
+        let value = record_value(
+            "exit",
+            RULE_LADDER_CONTEXT,
+            Side::Short,
+            Some(ExitReason::ContextLost),
+            &bar,
+        );
 
         assert_eq!(value["type"], "exit");
         assert_eq!(value["side"], -1);

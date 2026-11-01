@@ -166,6 +166,67 @@ fn structure_conflicts_and_progression_stages_are_counted() {
 }
 
 #[test]
+fn level_context_uses_a_confirmed_level_at_or_before_the_execution_bar() {
+    let execution: Vec<Candle> = (0..46)
+        .map(|index| {
+            let timestamp = index as i64 * 300;
+            if index == 45 {
+                Candle::new(
+                    timestamp as u64,
+                    timestamp,
+                    91.5,
+                    93.0,
+                    89.5,
+                    91.5,
+                    Some(10.0),
+                )
+                .expect("the execution candle is valid")
+            } else {
+                candle(timestamp, 92.5)
+            }
+        })
+        .collect();
+    let closes = [
+        100.0, 99.0, 98.0, 97.0, 96.0, 95.0, 94.0, 93.0, 92.0, 91.0, 92.0, 93.0, 94.0, 95.0, 96.0,
+        97.0, 98.0, 99.0, 100.0, 101.0,
+    ];
+    let context: Vec<Candle> = closes
+        .iter()
+        .enumerate()
+        .map(|(index, close)| candle(index as i64 * 900, *close))
+        .collect();
+    let run = ModelRun::compute(
+        &[
+            TimeframeInput {
+                timeframe_secs: 300,
+                candles: &execution,
+            },
+            TimeframeInput {
+                timeframe_secs: 900,
+                candles: &context,
+            },
+        ],
+        &MarketStateConfig::default(),
+    );
+    let context_model = run.timeframe(900).expect("the context timeframe exists");
+    assert!(
+        !context_model.levels().is_empty(),
+        "the V-shaped context must confirm at least one pivot"
+    );
+
+    let ladder = LadderConfig::new(300, vec![900]).expect("the ladder is valid");
+    let contexts = build(&run, &ladder, &LadderWeights::equal(1)).expect("context builds");
+    let level = contexts[45]
+        .levels
+        .support
+        .expect("the confirmed low is a support");
+    assert!((level.price - 90.0).abs() < 1e-12);
+    assert!(level.available_at <= 14);
+    assert!(contexts[45].levels.retest_support);
+    assert!(contexts[45].levels.support_distance_fraction.is_some());
+}
+
+#[test]
 fn two_context_timeframes_use_their_own_weights_and_order() {
     let run = make_run(300, 2, 900, 1);
     let base = run

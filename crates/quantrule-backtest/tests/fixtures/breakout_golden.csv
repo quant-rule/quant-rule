@@ -1,0 +1,7 @@
+case,side,direction,momentum,structure,support,resistance,reference,broken_support,broken_resistance,position,expected_decision,expected_side,expected_stop,expected_target
+long_breakout,long,0.4,0.2,1.0,99,106,102,,101,flat,enter,long,100.798,106
+long_no_cross,long,0.4,0.2,1.0,99,106,102,,,flat,hold,,,
+long_thin,long,0.4,0.2,1.0,99,103,102,,101,flat,hold,,,
+long_level_lost,long,0.2,0.1,0.5,99,106,102,99,,long,exit,long,,
+short_breakout,short,-0.4,-0.2,-1.0,94,101,98,99,,flat,enter,short,99.198,94
+short_no_cross,short,-0.4,-0.2,-1.0,94,101,98,,,flat,hold,,,

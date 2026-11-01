@@ -564,6 +564,107 @@ fn strategy_object() -> Value {
     })
 }
 
+fn strategy_v4_object() -> Value {
+    json!({
+        "schema": "quantrule.strategy/v4",
+        "rule": "level-retest",
+        "thesis": "Enter on a retest of a confirmed level in the direction of the higher-timeframe context.",
+        "ladder": ["5m", "15m"],
+        "weights": {
+            "direction": {"15m": 1.0},
+            "momentum": {"15m": 1.0},
+            "structure": {"15m": 1.0},
+            "progression": {"15m": 1.0}
+        },
+        "entry": {
+            "execution": {
+                "direction_min": 0.1,
+                "momentum_min": 0.1,
+                "structure_min": 0.0,
+                "structure_shift": {"from_max": 0, "to_min": 1}
+            },
+            "context": {
+                "direction": {"kind": "bullish", "share_min": 0.5},
+                "momentum": {"kind": "not_bearish", "bearish_share_max": 0.5},
+                "structure": {"conflict_count_max": 0},
+                "progression": {
+                    "direction": "bullish",
+                    "late_or_terminal_count_max": 0
+                }
+            },
+            "level": {
+                "max_distance_fraction": 0.02,
+                "scale": "major"
+            }
+        },
+        "exit": {"on": ["context_lost", "level_lost"]},
+        "risk": {
+            "stop": {"kind": "level", "buffer_fraction": 0.002},
+            "target": {"kind": "next_level", "min_reward_to_risk": 2.0}
+        },
+        "no_trade": {
+            "missing_context": "reject",
+            "require_contiguous_execution": true
+        }
+    })
+}
+
+fn strategy_v6_object() -> Value {
+    let mut value = strategy_v4_object();
+    value["schema"] = json!("quantrule.strategy/v6");
+    value["rule"] = json!("breakout");
+    value["thesis"] = json!(
+        "Enter on a confirmed-level breakout in the direction of the higher-timeframe context."
+    );
+    value
+}
+
+fn strategy_v5_object() -> Value {
+    json!({
+        "schema": "quantrule.strategy/v5",
+        "rule": "three-timeframe",
+        "thesis": "Enter a 1m reversal in the direction of a 5m and 15m priority agreement.",
+        "ladder": ["1m", "5m", "15m"],
+        "weights": {
+            "direction": {"5m": 1.0, "15m": 1.0},
+            "momentum": {"5m": 1.0, "15m": 1.0},
+            "structure": {"5m": 1.0, "15m": 1.0},
+            "progression": {"5m": 1.0, "15m": 1.0}
+        },
+        "entry": {
+            "execution": {
+                "direction_min": 0.1,
+                "momentum_min": 0.1,
+                "structure_min": 0.0,
+                "structure_shift": {"from_max": 0, "to_min": 1}
+            },
+            "context": {
+                "direction": {"kind": "bullish", "share_min": 0.5},
+                "momentum": {"kind": "not_bearish", "bearish_share_max": 0.5},
+                "structure": {"conflict_count_max": 0},
+                "progression": {
+                    "direction": "bullish",
+                    "late_or_terminal_count_max": 0
+                }
+            },
+            "level": {
+                "max_distance_fraction": 0.01,
+                "scale": "major"
+            },
+            "agreement": {"min_bars": 15}
+        },
+        "exit": {"on": ["context_lost", "level_lost"]},
+        "risk": {
+            "stop": {"kind": "level", "buffer_fraction": 0.005},
+            "target": {"kind": "next_level", "min_reward_to_risk": 2.0}
+        },
+        "no_trade": {
+            "missing_context": "reject",
+            "require_contiguous_execution": true
+        }
+    })
+}
+
 #[test]
 fn strategy_matches_the_contract() {
     let valid =
@@ -572,10 +673,22 @@ fn strategy_matches_the_contract() {
     assert_eq!(valid.engine.ladder().context_timeframes(), &[900]);
     assert_eq!(valid.engine.weights().direction(), &[1.0]);
     assert_eq!(valid.engine.entry().execution().direction_min(), 0.1);
-    assert_eq!(valid.engine.risk().stop_atr_multiple(), 2.0);
-    assert_eq!(valid.engine.risk().reward_to_risk(), 1.5);
-    assert_eq!(valid.stop_atr_multiple(), 2.0);
-    assert_eq!(valid.reward_to_risk(), 1.5);
+    assert_eq!(
+        valid
+            .engine
+            .risk()
+            .expect("the control has a risk policy")
+            .stop_atr_multiple(),
+        2.0
+    );
+    assert_eq!(
+        valid
+            .engine
+            .risk()
+            .expect("the control has a risk policy")
+            .reward_to_risk(),
+        1.5
+    );
 
     for (value, kind, path) in [
         (json!(1), Type, "$"),
@@ -594,8 +707,8 @@ fn strategy_matches_the_contract() {
                 &["schema"],
                 json!("quantrule.strategy/v4"),
             ),
-            Schema,
-            "$.schema",
+            Unsupported,
+            "$.rule",
         ),
         (
             set(strategy_object(), &["extra"], json!(1)),
@@ -770,6 +883,113 @@ fn strategy_matches_the_contract() {
             ),
             Range,
             "$.no_trade.require_contiguous_execution",
+        ),
+    ] {
+        assert_rejected(strategy::parse(&value, "strategy.json"), kind, path);
+    }
+}
+
+#[test]
+fn strategy_v4_level_retest_matches_the_contract() {
+    let valid = strategy::parse(&strategy_v4_object(), "strategy.json")
+        .expect("the v4 level-retest config loads");
+    assert!(valid.engine.risk().is_none());
+    let level = valid.engine.level().expect("the level config is present");
+    assert_eq!(level.max_distance_fraction(), 0.02);
+    assert_eq!(level.stop_buffer_fraction(), 0.002);
+    assert_eq!(level.min_reward_to_risk(), 2.0);
+    assert_eq!(level.scale(), Some(PivotScale::Major));
+    assert!(valid.engine.exit().on_level_lost());
+    assert!(!valid.engine.exit().on_structure_lost());
+
+    let no_scale = set(
+        strategy_v4_object(),
+        &["entry", "level", "scale"],
+        json!("both"),
+    );
+    let no_scale = strategy::parse(&no_scale, "strategy.json").expect("both scales load");
+    assert_eq!(
+        no_scale
+            .engine
+            .level()
+            .expect("the level config is present")
+            .scale(),
+        None
+    );
+
+    for (value, kind, path) in [
+        (
+            set(
+                strategy_v4_object(),
+                &["entry", "level", "scale"],
+                json!("session"),
+            ),
+            Unsupported,
+            "$.entry.level.scale",
+        ),
+        (
+            set(
+                strategy_v4_object(),
+                &["risk", "stop", "kind"],
+                json!("atr"),
+            ),
+            Unsupported,
+            "$.risk.stop.kind",
+        ),
+        (
+            set(
+                strategy_v4_object(),
+                &["exit", "on"],
+                json!(["context_lost", "level_lost", "level_lost"]),
+            ),
+            Inconsistent,
+            "$.exit.on[2]",
+        ),
+    ] {
+        assert_rejected(strategy::parse(&value, "strategy.json"), kind, path);
+    }
+}
+
+#[test]
+fn strategy_v5_three_timeframe_matches_the_contract() {
+    let valid = strategy::parse(&strategy_v5_object(), "strategy.json")
+        .expect("the v5 three-timeframe config loads");
+    assert!(valid.engine.risk().is_none());
+    let three = valid
+        .engine
+        .three_timeframe()
+        .expect("the three-timeframe config is present");
+    assert_eq!(three.min_agreement_bars(), 15);
+    assert_eq!(three.level().max_distance_fraction(), 0.01);
+    assert_eq!(three.level().stop_buffer_fraction(), 0.005);
+    assert_eq!(three.level().min_reward_to_risk(), 2.0);
+    assert_eq!(three.level().scale(), Some(PivotScale::Major));
+    assert!(valid.engine.exit().on_level_lost());
+
+    for (value, kind, path) in [
+        (
+            remove(strategy_v5_object(), &["entry", "agreement"]),
+            MissingField,
+            "$.entry.agreement",
+        ),
+        (
+            set(
+                strategy_v5_object(),
+                &["entry", "agreement", "min_bars"],
+                json!(0),
+            ),
+            Range,
+            "$.entry.agreement.min_bars",
+        ),
+        (
+            set(strategy_v5_object(), &["rule"], json!("level-retest")),
+            Unsupported,
+            "$.rule",
+        ),
+        (
+            set(strategy_v5_object(), &["ladder"], json!(["15m", "1m"])),
+            Range,
+            "$.ladder",
         ),
     ] {
         assert_rejected(strategy::parse(&value, "strategy.json"), kind, path);
@@ -1356,9 +1576,24 @@ fn the_example_config_loads_and_resolves() {
         config.strategy.engine.entry().execution().direction_min(),
         0.1
     );
-    assert_eq!(config.strategy.stop_atr_multiple(), 2.0);
-    assert_eq!(config.strategy.reward_to_risk(), 1.5);
-    assert_eq!(config.strategy.engine.risk().stop_atr_multiple(), 2.0);
+    assert_eq!(
+        config
+            .strategy
+            .engine
+            .risk()
+            .expect("the control has a risk policy")
+            .stop_atr_multiple(),
+        2.0
+    );
+    assert_eq!(
+        config
+            .strategy
+            .engine
+            .risk()
+            .expect("the control has a risk policy")
+            .reward_to_risk(),
+        1.5
+    );
 
     assert_eq!(config.execution.fill_timeframe, Timeframe::M5);
     assert_eq!(config.execution.engine.fee_rate(), 0.0);
@@ -1495,5 +1730,31 @@ fn the_error_format_names_the_file_path_and_values() {
     assert_eq!(
         error.to_string(),
         "config error: data.json: $.max_candles: expected a required field, found missing"
+    );
+}
+
+#[test]
+fn strategy_v6_breakout_matches_the_contract() {
+    let valid = strategy::parse(&strategy_v6_object(), "strategy.json")
+        .expect("the v6 breakout config loads");
+    assert!(matches!(
+        valid.engine.mode(),
+        quantrule_backtest::strategy::StrategyMode::Breakout(_)
+    ));
+    assert_eq!(
+        valid
+            .engine
+            .level()
+            .expect("the level config")
+            .max_distance_fraction(),
+        0.02
+    );
+    assert!(valid.engine.exit().on_level_lost());
+
+    let value = set(strategy_v6_object(), &["rule"], json!("level-retest"));
+    assert_rejected(
+        strategy::parse(&value, "strategy.json"),
+        Unsupported,
+        "$.rule",
     );
 }

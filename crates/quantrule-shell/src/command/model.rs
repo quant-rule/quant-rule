@@ -8,6 +8,13 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use quantrule_data::{DEFAULT_WINDOW, Timeframe};
+
+/// The largest `model-series` tail accepted by the command.
+///
+/// The default remains the 1,000-bar inspection window; the evidence harness
+/// needs the full retained series for a timeframe. The data engine still caps
+/// the input at `MAX_SERIES`.
+const MAX_MODEL_SERIES_BARS: usize = quantrule_data::MAX_SERIES;
 use quantrule_model::input::MarketStateConfig;
 use quantrule_model::run::ModelRun;
 use quantrule_model::state::MarketState;
@@ -80,11 +87,11 @@ pub(crate) fn parse_model_arguments(
 /// # Errors
 ///
 /// Returns a parse error for a missing path, a repeated or unknown option, an
-/// invalid timeframe, or a bar count outside `1..=1000`.
+/// invalid timeframe, or a bar count outside `1..=100000`.
 pub(crate) fn parse_model_series_arguments(
     arguments: &[String],
 ) -> Result<ModelSeriesArgs, ParseError> {
-    const USAGE: &str = "usage: model-series <csv-path> [--timeframe <1m|5m|15m|1h|4h>] [--bars <1..1000>] [--window full|latest]";
+    const USAGE: &str = "usage: model-series <csv-path> [--timeframe <1m|5m|15m|1h|4h>] [--bars <1..100000>] [--window full|latest]";
     let mut path = None;
     let mut window = WindowMode::Full;
     let mut window_seen = false;
@@ -143,9 +150,9 @@ pub(crate) fn parse_model_series_arguments(
                         "--bars expects a positive integer, found '{value}'\n{USAGE}"
                     ))
                 })?;
-                if count == 0 || count > DEFAULT_WINDOW {
+                if count == 0 || count > MAX_MODEL_SERIES_BARS {
                     return Err(ParseError::Window(format!(
-                        "--bars must be between 1 and {DEFAULT_WINDOW}\n{USAGE}"
+                        "--bars must be between 1 and {MAX_MODEL_SERIES_BARS}\n{USAGE}"
                     )));
                 }
                 bars = count;
@@ -298,7 +305,7 @@ pub(crate) fn run_model_series(
     args: &ModelSeriesArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let run = load_model_run_with_ladder(&args.path, args.window, &Timeframe::ALL)?;
+    let run = load_model_run_extended(&args.path, args.window, &Timeframe::ALL)?;
     for timeframe in run.timeframes() {
         if let Some(selected) = args.timeframe
             && timeframe.timeframe_secs() != u64::from(selected.seconds())
@@ -325,6 +332,30 @@ fn load_model_run_with_ladder(
     ladder: &[Timeframe],
 ) -> Result<ModelRun, RunError> {
     let set = pipeline::load_set(path, window).map_err(RunError::Source)?;
+    Ok(pipeline::model_run_from_set_with_ladder(
+        &set,
+        ladder,
+        &MarketStateConfig::default(),
+    ))
+}
+
+/// Loads the extended range for `model-series`.
+///
+/// The evidence harness needs the full retained series, not the 1,000-bar
+/// inspection tail. The extended cap is the same one `strategy-run` and
+/// `market-report` use.
+fn load_model_run_extended(
+    path: &Path,
+    window: WindowMode,
+    ladder: &[Timeframe],
+) -> Result<ModelRun, RunError> {
+    let set = match window {
+        WindowMode::Full => {
+            pipeline::load_extended_set(path, crate::source::DateBounds::unbounded())
+                .map_err(RunError::Source)?
+        }
+        WindowMode::Latest => pipeline::load_set(path, window).map_err(RunError::Source)?,
+    };
     Ok(pipeline::model_run_from_set_with_ladder(
         &set,
         ladder,

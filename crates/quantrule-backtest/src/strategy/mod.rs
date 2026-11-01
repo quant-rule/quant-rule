@@ -24,7 +24,7 @@ mod walk;
 
 pub use crate::context::{
     AgreementCode, AxisContext, ContextTimeframe, LadderConfig, LadderContext, LadderWeights,
-    ProgressionContext, StructureContext,
+    LevelContext, LevelView, ProgressionContext, StructureContext,
 };
 pub use crate::intent::{
     EntryStyle, RiskPolicy, RiskPolicyError, StopSpec, StrategyPosition, TargetSpec, TradeIntent,
@@ -34,7 +34,8 @@ pub use config::{
     ContextEntryConfig, DEFAULT_CONFLICT_COUNT_MAX, DEFAULT_DIRECTION_MIN,
     DEFAULT_DIRECTION_SHARE_MIN, DEFAULT_LATE_OR_TERMINAL_COUNT_MAX,
     DEFAULT_MOMENTUM_BEARISH_SHARE_MAX, DEFAULT_MOMENTUM_MIN, DEFAULT_STRUCTURE_MIN, EntryConfig,
-    ExecutionEntryConfig, ExitConfig, StrategyConfig, StrategyConfigError,
+    ExecutionEntryConfig, ExitConfig, LevelRetestConfig, StrategyConfig, StrategyConfigError,
+    StrategyMode, ThreeTimeframeConfig,
 };
 pub use decision::{Decision, Entry, Exit, ExitReason, Strategy};
 pub use input::StrategyInput;

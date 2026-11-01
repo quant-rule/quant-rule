@@ -7,6 +7,8 @@
 
 use std::fmt;
 
+use quantrule_model::readings::PivotScale;
+
 use crate::context::{LadderConfig, LadderWeights};
 use crate::intent::RiskPolicy;
 
@@ -235,6 +237,7 @@ impl EntryConfig {
 pub struct ExitConfig {
     context_lost: bool,
     structure_lost: bool,
+    level_lost: bool,
 }
 
 impl ExitConfig {
@@ -245,21 +248,37 @@ impl ExitConfig {
     /// Returns [`StrategyConfigError::EmptyExitReasons`] when both reasons are
     /// disabled, because the rule would then have no strategy exit.
     pub fn new(context_lost: bool, structure_lost: bool) -> Result<Self, StrategyConfigError> {
-        if !context_lost && !structure_lost {
+        Self::new_level(context_lost, structure_lost, false)
+    }
+
+    /// Builds an exit configuration that may include the structural level loss.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyConfigError::EmptyExitReasons`] when every reason is
+    /// disabled.
+    pub fn new_level(
+        context_lost: bool,
+        structure_lost: bool,
+        level_lost: bool,
+    ) -> Result<Self, StrategyConfigError> {
+        if !context_lost && !structure_lost && !level_lost {
             return Err(StrategyConfigError::EmptyExitReasons);
         }
         Ok(Self {
             context_lost,
             structure_lost,
+            level_lost,
         })
     }
 
-    /// Builds the control exit configuration: both reasons enabled.
+    /// Builds the control exit configuration: both legacy reasons enabled.
     #[must_use]
     pub const fn both() -> Self {
         Self {
             context_lost: true,
             structure_lost: true,
+            level_lost: false,
         }
     }
 
@@ -275,12 +294,149 @@ impl ExitConfig {
     pub const fn on_structure_lost(&self) -> bool {
         self.structure_lost
     }
+
+    /// Whether the rule exits when the nearest structural level is lost.
+    #[must_use]
+    pub const fn on_level_lost(&self) -> bool {
+        self.level_lost
+    }
 }
 
 impl Default for ExitConfig {
     fn default() -> Self {
         Self::both()
     }
+}
+
+/// The level-retest entry and risk intent.
+///
+/// The rule enters when the execution bar retests a confirmed support or
+/// resistance, stops just beyond the level, and targets the next confirmed
+/// level. The values are fractions of price, not ATR multiples.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LevelRetestConfig {
+    max_distance_fraction: f64,
+    stop_buffer_fraction: f64,
+    min_reward_to_risk: f64,
+    scale: Option<PivotScale>,
+}
+
+impl LevelRetestConfig {
+    /// Builds a level-retest configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`StrategyConfigError`] when a fraction is outside `(0, 1)` or
+    /// the minimum reward-to-risk is not finite and positive.
+    pub fn new(
+        max_distance_fraction: f64,
+        stop_buffer_fraction: f64,
+        min_reward_to_risk: f64,
+        scale: Option<PivotScale>,
+    ) -> Result<Self, StrategyConfigError> {
+        if !max_distance_fraction.is_finite()
+            || max_distance_fraction <= 0.0
+            || max_distance_fraction >= 1.0
+        {
+            return Err(StrategyConfigError::LevelMaxDistance);
+        }
+        if !stop_buffer_fraction.is_finite()
+            || stop_buffer_fraction <= 0.0
+            || stop_buffer_fraction >= 1.0
+        {
+            return Err(StrategyConfigError::LevelStopBuffer);
+        }
+        if !min_reward_to_risk.is_finite() || min_reward_to_risk <= 0.0 {
+            return Err(StrategyConfigError::LevelRewardToRisk);
+        }
+        Ok(Self {
+            max_distance_fraction,
+            stop_buffer_fraction,
+            min_reward_to_risk,
+            scale,
+        })
+    }
+
+    /// The maximum support/resistance distance from the execution close.
+    #[must_use]
+    pub const fn max_distance_fraction(self) -> f64 {
+        self.max_distance_fraction
+    }
+
+    /// The stop buffer beyond the structural level.
+    #[must_use]
+    pub const fn stop_buffer_fraction(self) -> f64 {
+        self.stop_buffer_fraction
+    }
+
+    /// The minimum reward-to-risk required at the execution close.
+    #[must_use]
+    pub const fn min_reward_to_risk(self) -> f64 {
+        self.min_reward_to_risk
+    }
+
+    /// The confirmed-pivot scale filter, or `None` for both scales.
+    #[must_use]
+    pub const fn scale(self) -> Option<PivotScale> {
+        self.scale
+    }
+}
+
+/// The three-timeframe reversal and risk intent.
+///
+/// The rule uses the v4 level context for the structural stop and target and
+/// adds a priority agreement across the two higher timeframes plus a minimum
+/// agreement age on the execution timeframe.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ThreeTimeframeConfig {
+    level: LevelRetestConfig,
+    min_agreement_bars: u64,
+}
+
+impl ThreeTimeframeConfig {
+    /// Builds a three-timeframe configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyConfigError::MinAgreementBars`] when the minimum age is
+    /// zero.
+    pub fn new(
+        level: LevelRetestConfig,
+        min_agreement_bars: u64,
+    ) -> Result<Self, StrategyConfigError> {
+        if min_agreement_bars == 0 {
+            return Err(StrategyConfigError::MinAgreementBars);
+        }
+        Ok(Self {
+            level,
+            min_agreement_bars,
+        })
+    }
+
+    /// The level-retest bracket configuration.
+    #[must_use]
+    pub const fn level(self) -> LevelRetestConfig {
+        self.level
+    }
+
+    /// The minimum consecutive execution bars the agreement must hold.
+    #[must_use]
+    pub const fn min_agreement_bars(self) -> u64 {
+        self.min_agreement_bars
+    }
+}
+
+/// The rule the strategy implements.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum StrategyMode {
+    /// The v3 structure-shift rule with an ATR/R bracket.
+    LadderContext,
+    /// The v4 level-retest rule with a structural price bracket.
+    LevelRetest(LevelRetestConfig),
+    /// The v5 three-timeframe agreement and 1m reversal rule.
+    ThreeTimeframe(ThreeTimeframeConfig),
+    /// The v6 confirmed-level breakout rule.
+    Breakout(LevelRetestConfig),
 }
 
 /// The complete unified ladder strategy configuration.
@@ -293,7 +449,7 @@ impl Default for ExitConfig {
 /// let config = StrategyConfig::default();
 /// assert_eq!(config.timeframe_secs(), 300);
 /// assert_eq!(config.ladder().context_timeframes(), &[900]);
-/// assert_eq!(config.risk().stop_atr_multiple(), 2.0);
+/// assert_eq!(config.risk().expect("the control has an ATR policy").stop_atr_multiple(), 2.0);
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StrategyConfig {
@@ -301,7 +457,8 @@ pub struct StrategyConfig {
     weights: LadderWeights,
     entry: EntryConfig,
     exit: ExitConfig,
-    risk: RiskPolicy,
+    risk: Option<RiskPolicy>,
+    mode: StrategyMode,
     require_contiguous_execution: bool,
 }
 
@@ -332,7 +489,101 @@ impl StrategyConfig {
             weights,
             entry,
             exit,
-            risk,
+            risk: Some(risk),
+            mode: StrategyMode::LadderContext,
+            require_contiguous_execution,
+        })
+    }
+
+    /// Builds a level-retest strategy configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyConfigError::WeightsLength`] when the weight set does
+    /// not match the context timeframes.
+    pub fn new_level_retest(
+        ladder: LadderConfig,
+        weights: LadderWeights,
+        entry: EntryConfig,
+        exit: ExitConfig,
+        level: LevelRetestConfig,
+        require_contiguous_execution: bool,
+    ) -> Result<Self, StrategyConfigError> {
+        if weights.len() != ladder.context_timeframes().len() {
+            return Err(StrategyConfigError::WeightsLength {
+                expected: ladder.context_timeframes().len(),
+                actual: weights.len(),
+            });
+        }
+        Ok(Self {
+            ladder,
+            weights,
+            entry,
+            exit,
+            risk: None,
+            mode: StrategyMode::LevelRetest(level),
+            require_contiguous_execution,
+        })
+    }
+
+    /// Builds a three-timeframe agreement configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyConfigError::WeightsLength`] when the weight set does
+    /// not match the context timeframes.
+    pub fn new_three_timeframe(
+        ladder: LadderConfig,
+        weights: LadderWeights,
+        entry: EntryConfig,
+        exit: ExitConfig,
+        three: ThreeTimeframeConfig,
+        require_contiguous_execution: bool,
+    ) -> Result<Self, StrategyConfigError> {
+        if weights.len() != ladder.context_timeframes().len() {
+            return Err(StrategyConfigError::WeightsLength {
+                expected: ladder.context_timeframes().len(),
+                actual: weights.len(),
+            });
+        }
+        Ok(Self {
+            ladder,
+            weights,
+            entry,
+            exit,
+            risk: None,
+            mode: StrategyMode::ThreeTimeframe(three),
+            require_contiguous_execution,
+        })
+    }
+
+    /// Builds a confirmed-level breakout configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyConfigError::WeightsLength`] when the weight set does
+    /// not match the context timeframes.
+    pub fn new_breakout(
+        ladder: LadderConfig,
+        weights: LadderWeights,
+        entry: EntryConfig,
+        exit: ExitConfig,
+        breakout: LevelRetestConfig,
+        require_contiguous_execution: bool,
+    ) -> Result<Self, StrategyConfigError> {
+        if weights.len() != ladder.context_timeframes().len() {
+            return Err(StrategyConfigError::WeightsLength {
+                expected: ladder.context_timeframes().len(),
+                actual: weights.len(),
+            });
+        }
+        Ok(Self {
+            ladder,
+            weights,
+            entry,
+            exit,
+            risk: None,
+            mode: StrategyMode::Breakout(breakout),
             require_contiguous_execution,
         })
     }
@@ -367,10 +618,44 @@ impl StrategyConfig {
         self.exit
     }
 
-    /// The risk intent attached to each entry.
+    /// The risk intent attached to each entry, when the rule uses an ATR/R
+    /// bracket.
     #[must_use]
-    pub const fn risk(&self) -> RiskPolicy {
+    pub const fn risk(&self) -> Option<RiskPolicy> {
         self.risk
+    }
+
+    /// The rule the strategy implements.
+    #[must_use]
+    pub const fn mode(&self) -> StrategyMode {
+        self.mode
+    }
+
+    /// The level-retest configuration, when the rule is level-retest or
+    /// three-timeframe.
+    #[must_use]
+    pub const fn level(&self) -> Option<LevelRetestConfig> {
+        match self.mode {
+            StrategyMode::LevelRetest(level) => Some(level),
+            StrategyMode::ThreeTimeframe(three) => Some(three.level),
+            StrategyMode::Breakout(breakout) => Some(breakout),
+            StrategyMode::LadderContext => None,
+        }
+    }
+
+    /// The three-timeframe configuration, when the rule is three-timeframe.
+    #[must_use]
+    pub const fn three_timeframe(&self) -> Option<ThreeTimeframeConfig> {
+        match self.mode {
+            StrategyMode::ThreeTimeframe(three) => Some(three),
+            _ => None,
+        }
+    }
+
+    /// The confirmed-pivot scale filter, when the rule is level-retest.
+    #[must_use]
+    pub fn level_scale(&self) -> Option<PivotScale> {
+        self.level().and_then(LevelRetestConfig::scale)
     }
 
     /// Whether a non-contiguous execution bar blocks a new entry.
@@ -387,7 +672,8 @@ impl Default for StrategyConfig {
             weights: LadderWeights::equal(1),
             entry: EntryConfig::default(),
             exit: ExitConfig::default(),
-            risk: RiskPolicy::default(),
+            risk: Some(RiskPolicy::default()),
+            mode: StrategyMode::LadderContext,
             require_contiguous_execution: true,
         }
     }
@@ -419,6 +705,14 @@ pub enum StrategyConfigError {
     MomentumBearishShareMax,
     /// Both configured exit reasons are disabled.
     EmptyExitReasons,
+    /// The level-retest maximum distance is outside `(0, 1)`.
+    LevelMaxDistance,
+    /// The level-retest stop buffer is outside `(0, 1)`.
+    LevelStopBuffer,
+    /// The level-retest minimum reward-to-risk is not finite and positive.
+    LevelRewardToRisk,
+    /// The three-timeframe minimum agreement age is zero.
+    MinAgreementBars,
 }
 
 impl fmt::Display for StrategyConfigError {
@@ -453,6 +747,24 @@ impl fmt::Display for StrategyConfigError {
             ),
             Self::EmptyExitReasons => {
                 write!(formatter, "at least one exit reason must be configured")
+            }
+            Self::LevelMaxDistance => write!(
+                formatter,
+                "the level maximum distance must be a fraction in (0, 1)"
+            ),
+            Self::LevelStopBuffer => write!(
+                formatter,
+                "the level stop buffer must be a fraction in (0, 1)"
+            ),
+            Self::LevelRewardToRisk => write!(
+                formatter,
+                "the level minimum reward-to-risk must be finite and positive"
+            ),
+            Self::MinAgreementBars => {
+                write!(
+                    formatter,
+                    "the minimum agreement age must be at least one bar"
+                )
             }
         }
     }

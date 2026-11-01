@@ -11,17 +11,33 @@
 use quantrule_backtest::context::{LadderConfig, LadderWeights};
 use quantrule_backtest::intent::RiskPolicy;
 use quantrule_backtest::strategy::{
-    ContextEntryConfig, EntryConfig, ExecutionEntryConfig, ExitConfig, StrategyConfig,
+    ContextEntryConfig, EntryConfig, ExecutionEntryConfig, ExitConfig, LevelRetestConfig,
+    StrategyConfig, ThreeTimeframeConfig,
 };
 use quantrule_data::Timeframe;
+use quantrule_model::readings::PivotScale;
 use serde_json::{Map, Value};
 
 use super::data::timeframe;
 use super::error::ConfigError;
 use super::read::{self, ROOT};
 
-/// The only rule name accepted in v3.
-const RULE: &str = "ladder-context";
+/// The v4 level-retest entry fields that do not belong to the common entry.
+#[derive(Debug, Clone, Copy)]
+struct LevelEntry {
+    max_distance_fraction: f64,
+    scale: Option<PivotScale>,
+}
+
+/// The parsed risk shape.
+#[derive(Debug, Clone, Copy)]
+enum Risk {
+    Atr(RiskPolicy),
+    Level {
+        stop_buffer: f64,
+        min_reward_to_risk: f64,
+    },
+}
 
 /// The resolved strategy blueprint.
 #[derive(Debug, Clone, PartialEq)]
@@ -32,24 +48,13 @@ pub(crate) struct StrategyRunConfig {
     pub(crate) thesis: String,
 }
 
-impl StrategyRunConfig {
-    /// The stop distance in ATR units.
-    #[must_use]
-    pub(crate) const fn stop_atr_multiple(&self) -> f64 {
-        self.engine.risk().stop_atr_multiple()
-    }
-
-    /// The target distance as a multiple of the stop distance.
-    #[must_use]
-    pub(crate) const fn reward_to_risk(&self) -> f64 {
-        self.engine.risk().reward_to_risk()
-    }
-
-    /// The target distance in ATR units: `stop × reward_to_risk`.
-    #[must_use]
-    pub(crate) fn target_atr_multiple(&self) -> f64 {
-        self.engine.risk().stop_atr_multiple() * self.engine.risk().reward_to_risk()
-    }
+/// The accepted strategy schema versions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Schema {
+    V3,
+    V4,
+    V5,
+    V6,
 }
 
 /// Parses `strategy.json`.
@@ -57,7 +62,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
     let object = read::object(file, ROOT, value)?;
     // Check the schema before the field set so a real v2 file reaches the
     // migration message instead of failing on its retired fields.
-    require_v3_schema(file, object)?;
+    let schema = require_schema(file, object)?;
     read::check_fields(
         file,
         ROOT,
@@ -67,37 +72,172 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
         ],
     )?;
 
-    require_code(
-        file,
-        "$.rule",
-        read::field(file, ROOT, object, "rule")?,
-        RULE,
-    )?;
+    match schema {
+        Schema::V3 => require_code(
+            file,
+            "$.rule",
+            read::field(file, ROOT, object, "rule")?,
+            "ladder-context",
+        )?,
+        Schema::V4 => require_code(
+            file,
+            "$.rule",
+            read::field(file, ROOT, object, "rule")?,
+            "level-retest",
+        )?,
+        Schema::V5 => require_code(
+            file,
+            "$.rule",
+            read::field(file, ROOT, object, "rule")?,
+            "three-timeframe",
+        )?,
+        Schema::V6 => require_code(
+            file,
+            "$.rule",
+            read::field(file, ROOT, object, "rule")?,
+            "breakout",
+        )?,
+    }
     let thesis =
         read::non_empty_string(file, "$.thesis", read::field(file, ROOT, object, "thesis")?)?
             .to_owned();
 
     let (ladder, context_codes) = parse_ladder(file, read::field(file, ROOT, object, "ladder")?)?;
     let weights = parse_weights(file, object, &context_codes)?;
-    let entry = parse_entry(file, read::field(file, ROOT, object, "entry")?)?;
-    let exit = parse_exit(file, read::field(file, ROOT, object, "exit")?)?;
-    let risk = parse_risk(file, read::field(file, ROOT, object, "risk")?)?;
+    let (entry, level, min_agreement) =
+        parse_entry(file, read::field(file, ROOT, object, "entry")?, schema)?;
+    let exit = parse_exit(file, read::field(file, ROOT, object, "exit")?, schema)?;
+    let risk = parse_risk(file, read::field(file, ROOT, object, "risk")?, schema)?;
     let require_contiguous_execution =
         parse_no_trade(file, read::field(file, ROOT, object, "no_trade")?)?;
 
-    let engine = StrategyConfig::new(
-        ladder,
-        weights,
-        entry,
-        exit,
-        risk,
-        require_contiguous_execution,
-    )
+    let engine = match (schema, level, min_agreement, risk) {
+        (Schema::V3, None, None, Risk::Atr(risk)) => StrategyConfig::new(
+            ladder,
+            weights,
+            entry,
+            exit,
+            risk,
+            require_contiguous_execution,
+        ),
+        (
+            Schema::V4,
+            Some(level),
+            None,
+            Risk::Level {
+                stop_buffer,
+                min_reward_to_risk,
+            },
+        ) => {
+            let level = LevelRetestConfig::new(
+                level.max_distance_fraction,
+                stop_buffer,
+                min_reward_to_risk,
+                level.scale,
+            )
+            .map_err(|error| {
+                ConfigError::range(
+                    file,
+                    "$.entry.level",
+                    "a valid level-retest configuration",
+                    &error.to_string(),
+                )
+            })?;
+            StrategyConfig::new_level_retest(
+                ladder,
+                weights,
+                entry,
+                exit,
+                level,
+                require_contiguous_execution,
+            )
+        }
+        (
+            Schema::V5,
+            Some(level),
+            Some(min_agreement),
+            Risk::Level {
+                stop_buffer,
+                min_reward_to_risk,
+            },
+        ) => {
+            let level = LevelRetestConfig::new(
+                level.max_distance_fraction,
+                stop_buffer,
+                min_reward_to_risk,
+                level.scale,
+            )
+            .map_err(|error| {
+                ConfigError::range(
+                    file,
+                    "$.entry.level",
+                    "a valid level-retest configuration",
+                    &error.to_string(),
+                )
+            })?;
+            let three = ThreeTimeframeConfig::new(level, min_agreement).map_err(|error| {
+                ConfigError::range(
+                    file,
+                    "$.entry.agreement",
+                    "a valid agreement configuration",
+                    &error.to_string(),
+                )
+            })?;
+            StrategyConfig::new_three_timeframe(
+                ladder,
+                weights,
+                entry,
+                exit,
+                three,
+                require_contiguous_execution,
+            )
+        }
+        (
+            Schema::V6,
+            Some(level),
+            None,
+            Risk::Level {
+                stop_buffer,
+                min_reward_to_risk,
+            },
+        ) => {
+            let level = LevelRetestConfig::new(
+                level.max_distance_fraction,
+                stop_buffer,
+                min_reward_to_risk,
+                level.scale,
+            )
+            .map_err(|error| {
+                ConfigError::range(
+                    file,
+                    "$.entry.level",
+                    "a valid breakout configuration",
+                    &error.to_string(),
+                )
+            })?;
+            StrategyConfig::new_breakout(
+                ladder,
+                weights,
+                entry,
+                exit,
+                level,
+                require_contiguous_execution,
+            )
+        }
+        _ => {
+            return Err(ConfigError::inconsistent(
+                file,
+                "$.schema",
+                "a supported strategy shape",
+                "the parsed shape",
+            ));
+        }
+    }
     .map_err(|error| {
         ConfigError::range(
             file,
             "$",
-            "a valid ladder-context strategy configuration",
+            "a valid strategy configuration",
             &error.to_string(),
         )
     })?;
@@ -105,26 +245,29 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
     Ok(StrategyRunConfig { engine, thesis })
 }
 
-fn require_v3_schema(file: &str, object: &Map<String, Value>) -> Result<(), ConfigError> {
+fn require_schema(file: &str, object: &Map<String, Value>) -> Result<Schema, ConfigError> {
     let path = read::child(ROOT, "schema");
     let found = read::string(file, &path, read::field(file, ROOT, object, "schema")?)?;
     if found == "quantrule.strategy/v2" {
         return Err(ConfigError::range(
             file,
             &path,
-            "quantrule.strategy/v2 is retired; use quantrule.strategy/v3 with rule \"ladder-context\"",
+            "quantrule.strategy/v2 is retired; use quantrule.strategy/v3 with rule \"ladder-context\" or v4 with rule \"level-retest\"",
             found,
         ));
     }
-    if found != "quantrule.strategy/v3" {
-        return Err(ConfigError::schema(
+    match found {
+        "quantrule.strategy/v3" => Ok(Schema::V3),
+        "quantrule.strategy/v4" => Ok(Schema::V4),
+        "quantrule.strategy/v5" => Ok(Schema::V5),
+        "quantrule.strategy/v6" => Ok(Schema::V6),
+        _ => Err(ConfigError::schema(
             file,
             &path,
-            "quantrule.strategy/v3",
+            "quantrule.strategy/v3, v4, v5, or v6",
             found,
-        ));
+        )),
     }
-    Ok(())
 }
 
 fn parse_ladder(
@@ -220,13 +363,89 @@ fn weights_block(
     Ok(values)
 }
 
-fn parse_entry(file: &str, value: &Value) -> Result<EntryConfig, ConfigError> {
+fn parse_entry(
+    file: &str,
+    value: &Value,
+    schema: Schema,
+) -> Result<(EntryConfig, Option<LevelEntry>, Option<u64>), ConfigError> {
     let path = "$.entry";
     let entry = read::object(file, path, value)?;
-    read::check_fields(file, path, entry, &["execution", "context"])?;
+    let fields: &[&str] = match schema {
+        Schema::V3 => &["execution", "context"],
+        Schema::V4 | Schema::V6 => &["execution", "context", "level"],
+        Schema::V5 => &["execution", "context", "level", "agreement"],
+    };
+    read::check_fields(file, path, entry, fields)?;
     let execution = parse_execution_entry(file, read::field(file, path, entry, "execution")?)?;
     let context = parse_context_entry(file, read::field(file, path, entry, "context")?)?;
-    Ok(EntryConfig::new(execution, context))
+    let level = match schema {
+        Schema::V3 => None,
+        Schema::V4 | Schema::V5 | Schema::V6 => Some(parse_level_entry(
+            file,
+            read::field(file, path, entry, "level")?,
+        )?),
+    };
+    let min_agreement = match schema {
+        Schema::V5 => Some(parse_agreement_entry(
+            file,
+            read::field(file, path, entry, "agreement")?,
+        )?),
+        Schema::V3 | Schema::V4 | Schema::V6 => None,
+    };
+    Ok((EntryConfig::new(execution, context), level, min_agreement))
+}
+
+fn parse_agreement_entry(file: &str, value: &Value) -> Result<u64, ConfigError> {
+    let path = "$.entry.agreement";
+    let object = read::object(file, path, value)?;
+    read::check_fields(file, path, object, &["min_bars"])?;
+    let min_bars = read::u64(
+        file,
+        "$.entry.agreement.min_bars",
+        read::field(file, path, object, "min_bars")?,
+    )?;
+    if min_bars == 0 {
+        return Err(ConfigError::range(
+            file,
+            "$.entry.agreement.min_bars",
+            "at least one bar",
+            "0",
+        ));
+    }
+    Ok(min_bars)
+}
+
+fn parse_level_entry(file: &str, value: &Value) -> Result<LevelEntry, ConfigError> {
+    let path = "$.entry.level";
+    let object = read::object(file, path, value)?;
+    read::check_fields(file, path, object, &["max_distance_fraction", "scale"])?;
+    let max_distance_fraction = read::number(
+        file,
+        "$.entry.level.max_distance_fraction",
+        read::field(file, path, object, "max_distance_fraction")?,
+    )?;
+    let scale = read::string(
+        file,
+        "$.entry.level.scale",
+        read::field(file, path, object, "scale")?,
+    )?;
+    let scale = match scale {
+        "both" => None,
+        "minor" => Some(PivotScale::Minor),
+        "major" => Some(PivotScale::Major),
+        other => {
+            return Err(ConfigError::unsupported(
+                file,
+                "$.entry.level.scale",
+                "both, minor, or major",
+                other,
+            ));
+        }
+    };
+    Ok(LevelEntry {
+        max_distance_fraction,
+        scale,
+    })
 }
 
 fn parse_execution_entry(file: &str, value: &Value) -> Result<ExecutionEntryConfig, ConfigError> {
@@ -413,7 +632,7 @@ fn parse_context_entry(file: &str, value: &Value) -> Result<ContextEntryConfig, 
     })
 }
 
-fn parse_exit(file: &str, value: &Value) -> Result<ExitConfig, ConfigError> {
+fn parse_exit(file: &str, value: &Value, schema: Schema) -> Result<ExitConfig, ConfigError> {
     let path = "$.exit";
     let object = read::object(file, path, value)?;
     read::check_fields(file, path, object, &["on"])?;
@@ -429,6 +648,7 @@ fn parse_exit(file: &str, value: &Value) -> Result<ExitConfig, ConfigError> {
 
     let mut context_lost = false;
     let mut structure_lost = false;
+    let mut level_lost = false;
     for (index, item) in array.iter().enumerate() {
         let item_path = read::index("$.exit.on", index);
         let reason = read::string(file, &item_path, item)?;
@@ -455,63 +675,119 @@ fn parse_exit(file: &str, value: &Value) -> Result<ExitConfig, ConfigError> {
                 }
                 structure_lost = true;
             }
+            "level_lost"
+                if schema == Schema::V4 || schema == Schema::V5 || schema == Schema::V6 =>
+            {
+                if level_lost {
+                    return Err(ConfigError::inconsistent(
+                        file,
+                        &item_path,
+                        "a unique exit reason",
+                        reason,
+                    ));
+                }
+                level_lost = true;
+            }
             other => {
-                return Err(ConfigError::unsupported(
-                    file,
-                    &item_path,
-                    "context_lost or structure_lost",
-                    other,
-                ));
+                let expected = match schema {
+                    Schema::V3 => "context_lost or structure_lost",
+                    Schema::V4 | Schema::V5 | Schema::V6 => {
+                        "context_lost, structure_lost, or level_lost"
+                    }
+                };
+                return Err(ConfigError::unsupported(file, &item_path, expected, other));
             }
         }
     }
 
-    ExitConfig::new(context_lost, structure_lost).map_err(|error| {
+    let config = match schema {
+        Schema::V3 => ExitConfig::new(context_lost, structure_lost),
+        Schema::V4 | Schema::V5 | Schema::V6 => {
+            ExitConfig::new_level(context_lost, structure_lost, level_lost)
+        }
+    };
+    config.map_err(|error| {
         ConfigError::range(file, path, "a valid exit configuration", &error.to_string())
     })
 }
 
-fn parse_risk(file: &str, value: &Value) -> Result<RiskPolicy, ConfigError> {
+fn parse_risk(file: &str, value: &Value, schema: Schema) -> Result<Risk, ConfigError> {
     let path = "$.risk";
     let object = read::object(file, path, value)?;
     read::check_fields(file, path, object, &["stop", "target"])?;
 
     let stop_path = "$.risk.stop";
     let stop = read::object(file, stop_path, read::field(file, path, object, "stop")?)?;
-    read::check_fields(file, stop_path, stop, &["kind", "multiple"])?;
-    require_code(
-        file,
-        "$.risk.stop.kind",
-        read::field(file, stop_path, stop, "kind")?,
-        "atr",
-    )?;
-    let stop_multiple = read::number(
-        file,
-        "$.risk.stop.multiple",
-        read::field(file, stop_path, stop, "multiple")?,
-    )?;
-
     let target_path = "$.risk.target";
     let target = read::object(
         file,
         target_path,
         read::field(file, path, object, "target")?,
     )?;
-    read::check_fields(file, target_path, target, &["kind", "multiple"])?;
-    require_code(
-        file,
-        "$.risk.target.kind",
-        read::field(file, target_path, target, "kind")?,
-        "reward_to_risk",
-    )?;
-    let reward_to_risk = read::number(
-        file,
-        "$.risk.target.multiple",
-        read::field(file, target_path, target, "multiple")?,
-    )?;
 
-    RiskPolicy::new(stop_multiple, reward_to_risk)
-        .map_err(|error| ConfigError::range(file, path, "a valid risk policy", &error.to_string()))
+    match schema {
+        Schema::V3 => {
+            read::check_fields(file, stop_path, stop, &["kind", "multiple"])?;
+            require_code(
+                file,
+                "$.risk.stop.kind",
+                read::field(file, stop_path, stop, "kind")?,
+                "atr",
+            )?;
+            let stop_multiple = read::number(
+                file,
+                "$.risk.stop.multiple",
+                read::field(file, stop_path, stop, "multiple")?,
+            )?;
+            read::check_fields(file, target_path, target, &["kind", "multiple"])?;
+            require_code(
+                file,
+                "$.risk.target.kind",
+                read::field(file, target_path, target, "kind")?,
+                "reward_to_risk",
+            )?;
+            let reward_to_risk = read::number(
+                file,
+                "$.risk.target.multiple",
+                read::field(file, target_path, target, "multiple")?,
+            )?;
+            RiskPolicy::new(stop_multiple, reward_to_risk)
+                .map(Risk::Atr)
+                .map_err(|error| {
+                    ConfigError::range(file, path, "a valid risk policy", &error.to_string())
+                })
+        }
+        Schema::V4 | Schema::V5 | Schema::V6 => {
+            read::check_fields(file, stop_path, stop, &["kind", "buffer_fraction"])?;
+            require_code(
+                file,
+                "$.risk.stop.kind",
+                read::field(file, stop_path, stop, "kind")?,
+                "level",
+            )?;
+            let stop_buffer = read::number(
+                file,
+                "$.risk.stop.buffer_fraction",
+                read::field(file, stop_path, stop, "buffer_fraction")?,
+            )?;
+            read::check_fields(file, target_path, target, &["kind", "min_reward_to_risk"])?;
+            require_code(
+                file,
+                "$.risk.target.kind",
+                read::field(file, target_path, target, "kind")?,
+                "next_level",
+            )?;
+            let min_reward_to_risk = read::number(
+                file,
+                "$.risk.target.min_reward_to_risk",
+                read::field(file, target_path, target, "min_reward_to_risk")?,
+            )?;
+            Ok(Risk::Level {
+                stop_buffer,
+                min_reward_to_risk,
+            })
+        }
+    }
 }
 
 fn parse_no_trade(file: &str, value: &Value) -> Result<bool, ConfigError> {

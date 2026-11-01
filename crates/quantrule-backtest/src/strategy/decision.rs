@@ -80,6 +80,8 @@ pub enum ExitReason {
     ContextLost,
     /// The execution Structure state flipped against the position.
     StructureLost,
+    /// The nearest confirmed structural level was lost.
+    LevelLost,
 }
 
 /// The decision a strategy makes for one closed bar.
@@ -138,6 +140,8 @@ pub enum Decision {
 ///     momentum: quantrule_backtest::context::AxisContext::unavailable(),
 ///     structure: quantrule_backtest::context::StructureContext::unavailable(),
 ///     progression: quantrule_backtest::context::ProgressionContext::unavailable(),
+///     levels: quantrule_backtest::context::LevelContext::unavailable(),
+///     agreement: quantrule_backtest::context::AgreementContext::unavailable(),
 /// };
 /// assert_eq!(
 ///     strategy.decide(&bar, &context, StrategyPosition::flat()),

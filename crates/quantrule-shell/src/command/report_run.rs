@@ -374,6 +374,7 @@ struct StrategySummary {
     progression_late: usize,
     exit_context_lost: usize,
     exit_structure_lost: usize,
+    exit_level_lost: usize,
     open_position: Option<Side>,
     execution_state: Option<StrategyExecutionState>,
     executed_entries: Option<usize>,
@@ -423,6 +424,7 @@ fn summarize_walk(
                 match exit.reason {
                     ExitReason::ContextLost => summary.exit_context_lost += 1,
                     ExitReason::StructureLost => summary.exit_structure_lost += 1,
+                    ExitReason::LevelLost => summary.exit_level_lost += 1,
                 }
             }
             Decision::Hold => {}
@@ -491,6 +493,14 @@ fn strategy_json(
         })
         .collect();
 
+    let mut exit_reasons = json!({
+        "context_lost": summary.exit_context_lost,
+        "structure_lost": summary.exit_structure_lost,
+    });
+    if config.strategy.engine.level().is_some() {
+        exit_reasons["level_lost"] = json!(summary.exit_level_lost);
+    }
+
     json!({
         "report": "strategy",
         "report_version": render_report::REPORT_VERSION,
@@ -516,10 +526,7 @@ fn strategy_json(
             "exits": summary.exits,
             "long_entries": summary.long_entries,
             "short_entries": summary.short_entries,
-            "exit_reasons": {
-                "context_lost": summary.exit_context_lost,
-                "structure_lost": summary.exit_structure_lost,
-            },
+            "exit_reasons": exit_reasons,
             "context": {
                 "complete_bars": summary.context_complete,
                 "missing_bars": summary.context_missing,
@@ -575,6 +582,9 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
     let _ = writeln!(out, "exit_reasons:");
     let _ = writeln!(out, "  context_lost: {}", summary.exit_context_lost);
     let _ = writeln!(out, "  structure_lost: {}", summary.exit_structure_lost);
+    if config.strategy.engine.level().is_some() {
+        let _ = writeln!(out, "  level_lost: {}", summary.exit_level_lost);
+    }
     let _ = writeln!(out, "context:");
     let _ = writeln!(out, "  complete_bars: {}", summary.context_complete);
     let _ = writeln!(out, "  missing_bars: {}", summary.context_missing);
@@ -772,6 +782,7 @@ fn exit_reason_code(reason: ExitReason) -> &'static str {
     match reason {
         ExitReason::ContextLost => "context_lost",
         ExitReason::StructureLost => "structure_lost",
+        ExitReason::LevelLost => "level_lost",
     }
 }
 

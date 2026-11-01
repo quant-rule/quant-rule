@@ -1,7 +1,8 @@
 //! Tests for the unified ladder-context strategy and its configuration.
 
 use crate::context::{
-    AgreementCode, AxisContext, LadderContext, ProgressionContext, StructureContext,
+    AgreementCode, AgreementContext, AxisContext, LadderContext, LevelContext, LevelView,
+    ProgressionContext, StructureContext,
 };
 use crate::intent::StrategyPosition;
 use crate::side::Side;
@@ -60,6 +61,8 @@ fn context(
             stage_histogram: [0.0; 6],
             late_or_terminal_count,
         },
+        levels: LevelContext::unavailable(),
+        agreement: AgreementContext::unavailable(),
     }
 }
 
@@ -132,7 +135,13 @@ fn the_control_config_is_the_default_ladder() {
     assert_eq!(config.entry().context().direction_share_min(), 0.5);
     assert!(config.exit().on_context_lost());
     assert!(config.exit().on_structure_lost());
-    assert_eq!(config.risk().stop_atr_multiple(), 2.0);
+    assert_eq!(
+        config
+            .risk()
+            .expect("the control has a risk policy")
+            .stop_atr_multiple(),
+        2.0
+    );
     assert!(config.require_contiguous_execution());
 }
 
@@ -615,6 +624,406 @@ fn the_configuration_carries_an_explicit_risk_policy() {
     .expect("the config is valid");
     let strategy = LadderContextStrategy::new(config);
 
-    assert_eq!(strategy.config().risk().stop_atr_multiple(), 3.0);
-    assert_eq!(strategy.config().risk().reward_to_risk(), 2.0);
+    assert_eq!(
+        strategy
+            .config()
+            .risk()
+            .expect("the custom config has a risk policy")
+            .stop_atr_multiple(),
+        3.0
+    );
+    assert_eq!(
+        strategy
+            .config()
+            .risk()
+            .expect("the custom config has a risk policy")
+            .reward_to_risk(),
+        2.0
+    );
+}
+
+fn level_context() -> LadderContext {
+    let mut context = bullish_context();
+    context.levels = LevelContext {
+        reference_price: Some(100.0),
+        support: Some(LevelView {
+            timeframe_secs: 900,
+            price: 99.0,
+            occurred_at: 0,
+            available_at: 0,
+            scale_code: 2,
+            kind_code: -1,
+        }),
+        resistance: Some(LevelView {
+            timeframe_secs: 900,
+            price: 104.0,
+            occurred_at: 0,
+            available_at: 0,
+            scale_code: 2,
+            kind_code: 1,
+        }),
+        support_distance_fraction: Some(0.01),
+        resistance_distance_fraction: Some(0.04),
+        retest_support: true,
+        retest_resistance: false,
+        support_broken: false,
+        resistance_broken: false,
+        ..LevelContext::unavailable()
+    };
+    context
+}
+
+fn level_config() -> StrategyConfig {
+    StrategyConfig::new_level_retest(
+        LadderConfig::default(),
+        LadderWeights::equal(1),
+        EntryConfig::default(),
+        ExitConfig::new_level(true, false, true).expect("the exit config is valid"),
+        LevelRetestConfig::new(0.02, 0.002, 2.0, None).expect("the level config is valid"),
+        true,
+    )
+    .expect("the strategy config is valid")
+}
+
+#[test]
+fn a_level_retest_enters_with_a_structural_bracket() {
+    let strategy = LadderContextStrategy::new(level_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+    let decision = strategy.decide(&bar, &level_context(), StrategyPosition::flat());
+    let Decision::Enter(entry) = decision else {
+        panic!("the retest must enter");
+    };
+    assert_eq!(entry.intent.side, Side::Long);
+    match entry.intent.stop {
+        StopSpec::Price { price } => assert!((price - 98.802).abs() < 1e-12),
+        other => panic!("expected a price stop, got {other:?}"),
+    }
+    match entry.intent.target {
+        TargetSpec::Price { price } => assert!((price - 104.0).abs() < 1e-12),
+        other => panic!("expected a price target, got {other:?}"),
+    }
+}
+
+fn breakout_context() -> LadderContext {
+    let mut context = level_context();
+    context.levels.reference_price = Some(102.0);
+    context.levels.resistance = Some(LevelView {
+        timeframe_secs: 900,
+        price: 106.0,
+        occurred_at: 0,
+        available_at: 0,
+        scale_code: 2,
+        kind_code: 1,
+    });
+    context.levels.broken_resistance = Some(LevelView {
+        timeframe_secs: 900,
+        price: 101.0,
+        occurred_at: 0,
+        available_at: 0,
+        scale_code: 2,
+        kind_code: 1,
+    });
+    context.levels.resistance_distance_fraction = Some(4.0 / 102.0);
+    context
+}
+
+fn breakout_config() -> StrategyConfig {
+    StrategyConfig::new_breakout(
+        LadderConfig::default(),
+        LadderWeights::equal(1),
+        EntryConfig::default(),
+        ExitConfig::new_level(true, false, true).expect("the exit config is valid"),
+        LevelRetestConfig::new(0.02, 0.002, 1.5, None).expect("the breakout config is valid"),
+        true,
+    )
+    .expect("the strategy config is valid")
+}
+
+#[test]
+fn a_confirmed_level_breakout_enters_with_a_structural_bracket() {
+    let strategy = LadderContextStrategy::new(breakout_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+    let Decision::Enter(entry) =
+        strategy.decide(&bar, &breakout_context(), StrategyPosition::flat())
+    else {
+        panic!("the breakout must enter");
+    };
+    assert_eq!(entry.intent.side, Side::Long);
+    match entry.intent.stop {
+        StopSpec::Price { price } => assert!((price - 100.798).abs() < 1e-12),
+        other => panic!("expected a price stop, got {other:?}"),
+    }
+    match entry.intent.target {
+        TargetSpec::Price { price } => assert!((price - 106.0).abs() < 1e-12),
+        other => panic!("expected a price target, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_breakout_without_a_crossed_level_holds() {
+    let strategy = LadderContextStrategy::new(breakout_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+    let mut context = breakout_context();
+    context.levels.broken_resistance = None;
+    assert_eq!(
+        strategy.decide(&bar, &context, StrategyPosition::flat()),
+        Decision::Hold
+    );
+}
+
+#[test]
+fn a_confirmed_level_break_closes_a_level_retest_position() {
+    let strategy = LadderContextStrategy::new(level_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+    let mut context = level_context();
+    context.levels.broken_support = context.levels.support;
+    let Decision::Exit(exit) =
+        strategy.decide(&bar, &context, StrategyPosition::with_side(Side::Long))
+    else {
+        panic!("the broken support must exit");
+    };
+    assert_eq!(exit.reason, ExitReason::LevelLost);
+}
+
+#[test]
+fn a_level_retest_does_not_require_a_structure_shift() {
+    let strategy = LadderContextStrategy::new(level_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0))
+        .with_structure(Some(1), Some(1));
+    assert!(matches!(
+        strategy.decide(&bar, &level_context(), StrategyPosition::flat()),
+        Decision::Enter(_)
+    ));
+}
+
+fn bearish_level_context() -> LadderContext {
+    let mut context = bearish_context();
+    context.levels = LevelContext {
+        reference_price: Some(100.0),
+        support: Some(LevelView {
+            timeframe_secs: 900,
+            price: 96.0,
+            occurred_at: 0,
+            available_at: 0,
+            scale_code: 2,
+            kind_code: -1,
+        }),
+        resistance: Some(LevelView {
+            timeframe_secs: 900,
+            price: 101.0,
+            occurred_at: 0,
+            available_at: 0,
+            scale_code: 2,
+            kind_code: 1,
+        }),
+        support_distance_fraction: Some(0.04),
+        resistance_distance_fraction: Some(0.01),
+        retest_support: false,
+        retest_resistance: true,
+        support_broken: false,
+        resistance_broken: false,
+        ..LevelContext::unavailable()
+    };
+    context
+}
+
+#[test]
+fn a_short_level_retest_mirrors_the_long_bracket() {
+    let strategy = LadderContextStrategy::new(level_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(-0.4), Some(-0.2), Some(-1.0));
+    let Decision::Enter(entry) =
+        strategy.decide(&bar, &bearish_level_context(), StrategyPosition::flat())
+    else {
+        panic!("the short retest must enter");
+    };
+    assert_eq!(entry.intent.side, Side::Short);
+    match entry.intent.stop {
+        StopSpec::Price { price } => assert!((price - 101.202).abs() < 1e-12),
+        other => panic!("expected a price stop, got {other:?}"),
+    }
+    match entry.intent.target {
+        TargetSpec::Price { price } => assert!((price - 96.0).abs() < 1e-12),
+        other => panic!("expected a price target, got {other:?}"),
+    }
+}
+
+#[test]
+fn an_exact_touch_is_a_valid_retest_but_a_missing_level_is_not() {
+    let strategy = LadderContextStrategy::new(level_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+
+    let mut exact = level_context();
+    exact.levels.support = Some(LevelView {
+        timeframe_secs: 900,
+        price: 100.0,
+        occurred_at: 0,
+        available_at: 0,
+        scale_code: 2,
+        kind_code: -1,
+    });
+    exact.levels.support_distance_fraction = Some(0.0);
+    exact.levels.retest_support = true;
+    assert!(matches!(
+        strategy.decide(&bar, &exact, StrategyPosition::flat()),
+        Decision::Enter(_)
+    ));
+
+    let mut missing = level_context();
+    missing.levels = LevelContext::unavailable();
+    assert_eq!(
+        strategy.decide(&bar, &missing, StrategyPosition::flat()),
+        Decision::Hold
+    );
+}
+
+#[test]
+fn a_failed_retest_or_a_thin_reward_does_not_enter() {
+    let strategy = LadderContextStrategy::new(level_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+
+    let mut no_retest = level_context();
+    no_retest.levels.retest_support = false;
+    assert_eq!(
+        strategy.decide(&bar, &no_retest, StrategyPosition::flat()),
+        Decision::Hold
+    );
+
+    let mut thin = level_context();
+    thin.levels.resistance = Some(LevelView {
+        timeframe_secs: 900,
+        price: 100.5,
+        occurred_at: 0,
+        available_at: 0,
+        scale_code: 2,
+        kind_code: 1,
+    });
+    thin.levels.resistance_distance_fraction = Some(0.005);
+    assert_eq!(
+        strategy.decide(&bar, &thin, StrategyPosition::flat()),
+        Decision::Hold
+    );
+}
+
+#[test]
+fn a_broken_level_exits_a_long_position() {
+    let strategy = LadderContextStrategy::new(level_config());
+    let bar = StrategyInput::new(300, 0, 0, Some(0.2), Some(0.1), Some(0.0));
+    let mut context = level_context();
+    context.levels.support_broken = true;
+    let decision = strategy.decide(&bar, &context, StrategyPosition::opened(Side::Long, 0));
+    assert_eq!(
+        decision,
+        Decision::Exit(Exit {
+            side: Side::Long,
+            bar,
+            reason: ExitReason::LevelLost,
+        })
+    );
+}
+
+fn three_timeframe_config() -> StrategyConfig {
+    StrategyConfig::new_three_timeframe(
+        LadderConfig::new(60, vec![300, 900]).expect("the ladder is valid"),
+        LadderWeights::equal(2),
+        EntryConfig::default(),
+        ExitConfig::new_level(true, false, true).expect("the exit config is valid"),
+        ThreeTimeframeConfig::new(
+            LevelRetestConfig::new(
+                0.01,
+                0.005,
+                2.0,
+                Some(quantrule_model::readings::PivotScale::Major),
+            )
+            .expect("the level config is valid"),
+            15,
+        )
+        .expect("the agreement config is valid"),
+        true,
+    )
+    .expect("the strategy config is valid")
+}
+
+fn three_timeframe_context(side: Side, age: u64) -> LadderContext {
+    let mut context = if side == Side::Long {
+        level_context()
+    } else {
+        bearish_level_context()
+    };
+    context.execution_timeframe_secs = 60;
+    context.execution_close_time = 60;
+    context.agreement = AgreementContext {
+        long: side == Side::Long,
+        short: side == Side::Short,
+        long_bars: if side == Side::Long { age } else { 0 },
+        short_bars: if side == Side::Short { age } else { 0 },
+    };
+    context
+}
+
+#[test]
+fn a_three_timeframe_long_enters_after_the_agreement_age() {
+    let strategy = LadderContextStrategy::new(three_timeframe_config());
+    let bar = StrategyInput::new(60, 0, 0, Some(0.4), Some(0.2), Some(1.0))
+        .with_structure(Some(1), Some(0));
+    let Decision::Enter(entry) = strategy.decide(
+        &bar,
+        &three_timeframe_context(Side::Long, 15),
+        StrategyPosition::flat(),
+    ) else {
+        panic!("the agreement and 1m shift must enter");
+    };
+    assert_eq!(entry.intent.side, Side::Long);
+    match entry.intent.stop {
+        StopSpec::Price { price } => assert!((price - 98.505).abs() < 1e-12),
+        other => panic!("expected a price stop, got {other:?}"),
+    }
+    match entry.intent.target {
+        TargetSpec::Price { price } => assert!((price - 104.0).abs() < 1e-12),
+        other => panic!("expected a price target, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_three_timeframe_entry_waits_for_the_age_and_the_retest() {
+    let strategy = LadderContextStrategy::new(three_timeframe_config());
+    let bar = StrategyInput::new(60, 0, 0, Some(0.4), Some(0.2), Some(1.0))
+        .with_structure(Some(1), Some(0));
+    assert_eq!(
+        strategy.decide(
+            &bar,
+            &three_timeframe_context(Side::Long, 14),
+            StrategyPosition::flat(),
+        ),
+        Decision::Hold
+    );
+    let no_retest_input = StrategyInput::new(60, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+    let mut no_retest = three_timeframe_context(Side::Long, 15);
+    no_retest.levels.retest_support = false;
+    assert_eq!(
+        strategy.decide(&no_retest_input, &no_retest, StrategyPosition::flat(),),
+        Decision::Hold
+    );
+}
+
+#[test]
+fn a_three_timeframe_short_mirrors_the_long() {
+    let strategy = LadderContextStrategy::new(three_timeframe_config());
+    let bar = StrategyInput::new(60, 0, 0, Some(-0.4), Some(-0.2), Some(-1.0))
+        .with_structure(Some(-1), Some(0));
+    let Decision::Enter(entry) = strategy.decide(
+        &bar,
+        &three_timeframe_context(Side::Short, 15),
+        StrategyPosition::flat(),
+    ) else {
+        panic!("the short agreement and 1m shift must enter");
+    };
+    assert_eq!(entry.intent.side, Side::Short);
+    match entry.intent.stop {
+        StopSpec::Price { price } => assert!((price - 101.505).abs() < 1e-12),
+        other => panic!("expected a price stop, got {other:?}"),
+    }
+    match entry.intent.target {
+        TargetSpec::Price { price } => assert!((price - 96.0).abs() < 1e-12),
+        other => panic!("expected a price target, got {other:?}"),
+    }
 }

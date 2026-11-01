@@ -1,0 +1,83 @@
+{
+  "schema": "quantrule.strategy/v5",
+  "rule": "three-timeframe",
+  "thesis": "Trade a 1m reversal in the direction of a 5m and 15m priority agreement, with a 5m/15m structural stop and the next confirmed level as the target.",
+  "ladder": [
+    "1m",
+    "5m",
+    "15m"
+  ],
+  "weights": {
+    "direction": {
+      "5m": 1.0,
+      "15m": 2.0
+    },
+    "momentum": {
+      "5m": 1.5,
+      "15m": 1.0
+    },
+    "structure": {
+      "5m": 1.5,
+      "15m": 1.0
+    },
+    "progression": {
+      "5m": 1.0,
+      "15m": 2.0
+    }
+  },
+  "entry": {
+    "execution": {
+      "direction_min": 0.1,
+      "momentum_min": 0.1,
+      "structure_min": 0.0,
+      "structure_shift": {
+        "from_max": 0,
+        "to_min": 1
+      }
+    },
+    "context": {
+      "direction": {
+        "kind": "bullish",
+        "share_min": 0.5
+      },
+      "momentum": {
+        "kind": "not_bearish",
+        "bearish_share_max": 0.5
+      },
+      "structure": {
+        "conflict_count_max": 0
+      },
+      "progression": {
+        "direction": "bullish",
+        "late_or_terminal_count_max": 0
+      }
+    },
+    "level": {
+      "max_distance_fraction": 0.02,
+      "scale": "both"
+    },
+    "agreement": {
+      "min_bars": 5
+    }
+  },
+  "exit": {
+    "on": [
+      "context_lost",
+      "level_lost"
+    ]
+  },
+  "risk": {
+    "stop": {
+      "kind": "level",
+      "buffer_fraction": 0.005
+    },
+    "target": {
+      "kind": "next_level",
+      "min_reward_to_risk": 1.5
+    }
+  },
+  "no_trade": {
+    "missing_context": "reject",
+    "require_contiguous_execution": true
+  }
+}
