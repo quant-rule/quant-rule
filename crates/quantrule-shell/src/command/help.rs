@@ -140,6 +140,10 @@ const BUNDLE_OUT: OptionHelp = OptionHelp {
     flag: "--out <dir>",
     description: "Output root override (default: the run config).",
 };
+const LAB_DIAGNOSE_OUT: OptionHelp = OptionHelp {
+    flag: "--out <dir>",
+    description: "Diagnosis output override (default: <lab-dir>/diagnosis).",
+};
 const REPORT_OUT: OptionHelp = OptionHelp {
     flag: "--out <dir>",
     description: "New or empty output directory; required.",
@@ -212,6 +216,10 @@ const PNG: OptionHelp = OptionHelp {
     flag: "--png <path>",
     description: "Required PNG target.",
 };
+const FETCH_PNG: OptionHelp = OptionHelp {
+    flag: "--png <path>",
+    description: "Optional PNG target.",
+};
 const CHART_TIMEFRAME: OptionHelp = OptionHelp {
     flag: "--timeframe <tf>",
     description: "Chart timeframe: 1m, 5m, 15m, 1h, or 4h (default 1m).",
@@ -252,7 +260,7 @@ const REPORT_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BUNDLE];
 const BACKTEST_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BACKTEST, DIAGNOSE];
 const LAB_SUMMARY_OPTIONS: &[OptionHelp] =
     &[ROLE, DATA_VERSION, CONFIG, CREATED, OPERATOR, NOTES, FORCE];
-const LAB_DIAGNOSE_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_DIAGNOSIS, STRICT];
+const LAB_DIAGNOSE_OPTIONS: &[OptionHelp] = &[CONFIG, LAB_DIAGNOSE_OUT, JSON_DIAGNOSIS, STRICT];
 const LAB_LIST_OPTIONS: &[OptionHelp] = &[LAB_ROOT, JSON_LIST];
 const STORE_INIT_OPTIONS: &[OptionHelp] = &[DB];
 const STORE_INGEST_OPTIONS: &[OptionHelp] = &[DATASET, DATA_VERSION, DB];
@@ -264,7 +272,7 @@ const DB_SERIES_OPTIONS: &[OptionHelp] = &[TIMEFRAME_FILTER, LIMIT, DB];
 const DB_BARS_OPTIONS: &[OptionHelp] = &[TIMEFRAME_FILTER, BAR, LIMIT, DB];
 const DB_METRICS_OPTIONS: &[OptionHelp] = &[TIMEFRAME_FILTER, BAR, LIMIT, DB];
 const DB_LAYER3_OPTIONS: &[OptionHelp] = &[BAR, LIMIT, DB];
-const FETCH_OPTIONS: &[OptionHelp] = &[FETCH_TIMEFRAME, CSV, PNG, CANDLES];
+const FETCH_OPTIONS: &[OptionHelp] = &[FETCH_TIMEFRAME, CSV, FETCH_PNG, CANDLES];
 
 /// Every command and its contract, in reference order.
 const COMMANDS: &[CommandHelp] = &[
@@ -645,7 +653,7 @@ const COMMANDS: &[CommandHelp] = &[
         usage: "store show <dataset> <table> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]",
         summary: "Show one stored table as CSV.",
         options: STORE_SHOW_OPTIONS,
-        output: "CSV rows in DDL order and primary-key order.",
+        output: "CSV rows in DDL order and the table's fixed query order (bar/consensus/layer3 by timeframe and bar, pivot by timeframe and occurrence, event by semantic key, leg by timeframe and leg_id).",
         notes: &[
             "Tables: bar, consensus, layer3, pivot, level, event, or leg.",
             "event.reference_code = 0 is rendered as NULL.",
@@ -685,7 +693,7 @@ const COMMANDS: &[CommandHelp] = &[
         usage: "db bars <dataset> [--timeframe <tf>] [--bar <n>] [--limit <n>] [--db <path>]",
         summary: "Read the full stored bar table as CSV.",
         options: DB_BARS_OPTIONS,
-        output: "CSV with 74 columns.",
+        output: "CSV with 73 content columns.",
         notes: &["Read-only; a missing file is an error and is never created."],
         group: Group::Store,
     },
@@ -707,7 +715,7 @@ const COMMANDS: &[CommandHelp] = &[
         usage: "db layer3 <dataset> [--bar <n>] [--limit <n>] [--db <path>]",
         summary: "Read the materialized Layer 3 rows as CSV.",
         options: DB_LAYER3_OPTIONS,
-        output: "CSV with 285 columns.",
+        output: "CSV with 284 content columns.",
         notes: &["Read-only; a missing file is an error and is never created."],
         group: Group::Store,
     },

@@ -247,7 +247,7 @@ An unknown topic is an error that points to `help all`.
 | Option | Meaning |
 |---|---|
 | `--data-version <id>` | Required identity of the input series: source, timeframe, and coverage |
-| `--root <dir>` | Export root (default `data`) |
+| `--root <dir>` | Export root (default `data/research`) |
 
 `research export` reads an M1 CSV, builds M1/M5/M15/H1, and writes `<root>/raw/<dataset>/m1.csv` and `<root>/processed/<dataset>/` with `layer1.csv`, `layer2.csv`, `layer3.csv`, `manifest.json`, `data_dictionary.csv`, `data_dictionary.md`, `codes.csv`, and `README.md`. A native higher-timeframe file is rejected before any file is written. The manifest records the data version, the model and contract versions, the configuration, the row counts, and the data file list. The export is deterministic: the same input and configuration produce byte-identical files. The input is capped at 100,000 M1 candles; an over-cap input fails rather than being truncated.
 
@@ -283,11 +283,11 @@ The query commands open an existing database read-only. A missing file is an err
 |---|---|
 | `store remove <dataset>` | Removes the dataset and every row that references it; prints `removed <name> bars=<n>`; the database file is kept |
 | `store list` | One CSV row per dataset, sorted by name: identity, `m1_bars`, `layer3_materialized`, and `bar`/`consensus`/`layer3`/`pivot`/`level`/`event`/`leg` counts |
-| `store show <dataset> <table>` | The content columns of `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, or `leg`, in DDL order and primary-key order, without the internal `dataset_id` or event row `id`. `event.reference_code = 0` is rendered as `NULL`. A dataset name uses only letters, digits, `.`, `-`, and `_`, does not start with `-`, and is not `.` or `..`. |
+| `store show <dataset> <table>` | The content columns of `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, or `leg`, in DDL order and the table's fixed query order (bar, consensus, and layer3 by timeframe and bar; pivot by timeframe and occurrence; event by semantic key; leg by timeframe and leg_id), without the internal `dataset_id` or event row `id`. `event.reference_code = 0` is rendered as `NULL`. A dataset name uses only letters, digits, `.`, `-`, and `_`, does not start with `-`, and is not `.` or `..`. |
 | `db series <dataset>` | NDJSON with `dataset`, `timeframe_secs`, `bar_index`, ISO `open_time`, OHLC, and nullable volume; oldest first |
-| `db bars <dataset>` | The full `bar` table as CSV (74 columns) |
+| `db bars <dataset>` | The content `bar` columns as CSV (73 columns) |
 | `db metrics <dataset>` | `timeframe_secs`, `bar_index`, the 47 metric columns, and the 12 resolution columns as CSV (61 columns) |
-| `db layer3 <dataset>` | The materialized `layer3` table as CSV (285 columns) |
+| `db layer3 <dataset>` | The materialized `layer3` content columns as CSV (284 columns) |
 
 `candles` reads the file one row at a time. A missing file, bad header, malformed row, invalid OHLC, duplicate timestamp, or out-of-order timestamp aborts the command. The shell builds the window before writing, so a late error produces no partial NDJSON.
 

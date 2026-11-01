@@ -1154,9 +1154,9 @@ the same configuration produced all three runs.
 | `store show` | 8 | Show one stored table. | CSV |
 | `store remove` | 8 | Remove one dataset and its rows. | `removed ...`; the file remains |
 | `db series` | 8 | Read stored candles. | NDJSON |
-| `db bars` | 8 | Read the full bar table. | CSV, 74 columns |
+| `db bars` | 8 | Read the content bar columns. | CSV, 73 columns |
 | `db metrics` | 8 | Read metrics and resolutions. | CSV, 61 columns |
-| `db layer3` | 8 | Read the materialized Layer 3 rows. | CSV, 285 columns |
+| `db layer3` | 8 | Read the materialized Layer 3 content columns. | CSV, 284 columns |
 | `quit` | 2 | Exit the interactive shell with status 0. | None |
 
 The complete option reference is in the repository

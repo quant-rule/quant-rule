@@ -83,7 +83,7 @@ ReportPeriod
   last_open_time: Option<i64>            // latest last bar across present timeframes
 ```
 
-`MarketReport::compute(run: &ModelRun, ladder: &[u64]) -> MarketReport` is the only constructor. `ladder` is the configured timeframe ladder in seconds; the shell passes the four supported timeframes. The constructor sorts it ascending and removes duplicates, so the input order cannot change the output. A ladder entry with no series in `run` produces a zero-bar `TimeframeReport`; it is absent, not neutral. The constructor never fails: an empty ladder produces `ladder = []`, `timeframes = []`, null period bounds, zero event counts, and empty charts. The command layer decides whether an empty report is renderable; see §13.
+`MarketReport::compute(run: &ModelRun, ladder: &[u64], aggregates: &CrossTimeframeAggregates) -> MarketReport` is the only constructor. `ladder` is the configured timeframe ladder in seconds; the shell passes the four supported timeframes. `aggregates` is the existing cross-timeframe aggregate over the same run and ladder. The constructor sorts the ladder ascending and removes duplicates, so the input order cannot change the output. A ladder entry with no series in `run` produces a zero-bar `TimeframeReport`; it is absent, not neutral. The constructor never fails: an empty ladder produces `ladder = []`, `timeframes = []`, null period bounds, zero event counts, and empty charts. The command layer decides whether an empty report is renderable; see §13.
 
 ## 6. Per-timeframe coverage
 
@@ -251,8 +251,8 @@ ReportConsensus
 ```
 
 - `readiness_code` is the model's `Readiness::code()`: 0 unavailable, 1 provisional, 2 ready. It is mechanical completeness, never confidence.
-- `reason_code` is the model's `UnavailableReason::code()`: 1 insufficient bars, 2 insufficient confirmed pivots, 3 invalid denominator, 4 no target, 5 target unstable, 6 origin unconfirmed. It is `null` when the axis is available.
-- `ReportLeg` is `ProgressionBar::published_leg()`, the more recently created of the two retained scale legs. The minor and major records are not both published in the report; the per-scale records remain available through the existing `legs` command.
+- `reason_code` is the model's `UnavailableReason::code()`: 1 insufficient bars, 2 insufficient confirmed pivots, 3 invalid denominator, 4 no target, 5 target unstable, 6 origin unconfirmed. Reason 5 is a dashboard-derived reason; the report copies the axis reason, so a null stage caused by an unstable target leaves `reason_code` null. A report reason is `null` when the axis is available.
+- `ReportLeg` is `ProgressionBar::published_leg()`, the newest confirmed leg across both scales, as the base model contract defines it. The minor and major records are not both published in the report; the per-scale records remain available through the existing `legs` command.
 - `state_age_bars` and `state_changes_50` are the model's published counters, not view-only measurements.
 - `ReportConsensus` is the existing per-timeframe `TimeframeConsensus`: Direction, Momentum, and Structure vote; Progression is excluded; a missing value is not counted as neutral.
 

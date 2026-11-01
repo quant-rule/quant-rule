@@ -37,8 +37,9 @@ pub(crate) fn write_ndjson(window: &CandleWindow, writer: &mut impl Write) -> io
 
 /// Writes every retained series as NDJSON, grouped by timeframe.
 ///
-/// The order is M1, M5, M15, H1; within a series the oldest candle is first.
-/// Each line carries the timeframe code so one stream can hold all four series.
+/// The order is M1, M5, M15, H1, H4; within a series the oldest candle is
+/// first. Each line carries the timeframe code so one stream can hold all five
+/// series.
 ///
 /// # Errors
 ///

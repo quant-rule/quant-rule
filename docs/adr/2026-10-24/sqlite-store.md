@@ -185,7 +185,7 @@ The dataset identity is `(name, data_version, model_version, structure_scale_cod
 
 `store show` accepts `bar`, `pivot`, `level`, `event`, `leg`, `consensus`, and `layer3`, with `--timeframe`, `--bar`, and `--limit` filters as applicable. The exact query flags are fixed in [#75](https://github.com/quant-rule/quant-rule/issues/75); every table is reachable. The displayed rows omit the internal `dataset_id` and the event row `id`; they are storage identity, not dataset content, and the same logical dataset dumps identically across a remove and re-ingest. `db series`, `db bars`, `db metrics`, and `db layer3` are per-bar projections over the same read-only query layer.
 
-The default database path is `data/quantrule.db`. `--db` overrides it. Tests use a file under `target/` or an in-memory database; no test writes outside the repository.
+The default database path is `data/db/quantrule.db`. `--db` overrides it. Tests use a file under `target/` or an in-memory database; no test writes outside the repository.
 
 ## 8. What is stored and what is derived
 
