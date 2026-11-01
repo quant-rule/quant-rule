@@ -127,7 +127,9 @@ mod tests {
 
     use serde_json::{Value, json};
 
-    use super::{RerunStatus, rerun};
+    use quantrule_analytics::diagnosis::types::OutOfSampleStatus;
+
+    use super::{RerunStatus, out_of_sample, rerun};
 
     fn lab(name: &str) -> PathBuf {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -173,6 +175,52 @@ mod tests {
             &provenance("aaaaaaaaaaaaaaaa"),
         );
         portfolio
+    }
+
+    #[test]
+    fn out_of_sample_is_absent_without_an_oos_report() {
+        let lab = lab("oos-absent");
+        main_lab(&lab);
+        assert_eq!(out_of_sample(&lab), OutOfSampleStatus::Absent);
+    }
+
+    #[test]
+    fn out_of_sample_is_unreadable_when_either_report_is_malformed() {
+        let lab = lab("oos-unreadable");
+        main_lab(&lab);
+        let oos = lab.join("oos").join("portfolio");
+        fs::create_dir_all(&oos).expect("the oos directory is created");
+        fs::write(oos.join("report.json"), b"not json").expect("the malformed report is written");
+        assert_eq!(out_of_sample(&lab), OutOfSampleStatus::Unreadable);
+    }
+
+    #[test]
+    fn out_of_sample_compares_the_data_versions() {
+        let lab = lab("oos-versions");
+        main_lab(&lab);
+        let oos = lab.join("oos").join("portfolio");
+        write(&oos.join("report.json"), &report(100.0));
+        assert_eq!(out_of_sample(&lab), OutOfSampleStatus::SameDataVersion);
+
+        let mut distinct = report(100.0);
+        distinct["data_version"] = json!("test:v2");
+        write(&oos.join("report.json"), &distinct);
+        assert_eq!(out_of_sample(&lab), OutOfSampleStatus::DistinctDataVersion);
+    }
+
+    #[test]
+    fn rerun_is_unreadable_when_its_report_is_malformed() {
+        let lab = lab("rerun-malformed");
+        main_lab(&lab);
+        let rerun_dir = lab.join("rerun").join("portfolio");
+        fs::create_dir_all(&rerun_dir).expect("the rerun directory is created");
+        fs::write(rerun_dir.join("report.json"), b"not json")
+            .expect("the malformed report is written");
+        write(
+            &rerun_dir.join("provenance.json"),
+            &provenance("aaaaaaaaaaaaaaaa"),
+        );
+        assert_eq!(rerun(&lab), RerunStatus::Unreadable);
     }
 
     #[test]

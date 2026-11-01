@@ -130,6 +130,59 @@ fn a_fill_updates_peak_equity_and_drawdown() {
 }
 
 #[test]
+fn a_trade_with_fill_fees_and_negative_funding_is_accounted() {
+    let mut config = config();
+    config.funding =
+        FundingConfig::new(-0.0001, FundingInterval::H8).expect("the funding is valid");
+    let mut ledger = PortfolioLedger::new(config).expect("the ledger is valid");
+
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Buy,
+            100.0,
+            100.0,
+            5.0,
+            0,
+            0,
+            FillReason::Entry,
+        ))
+        .expect("the entry is valid");
+    approx(ledger.state().equity, 9_985.0);
+    approx(ledger.metrics().execution_fees, 5.0);
+    approx(ledger.metrics().commission, 10.0);
+
+    ledger.mark(0, 900, 100.0).expect("the mark is valid");
+    let charge = ledger
+        .apply_funding(0, 28_800, 100.0, Some(10.0))
+        .expect("the boundary charges")
+        .expect("the charge is due");
+    approx(charge.amount, -1.0);
+    approx(ledger.state().equity, 9_986.0);
+    approx(ledger.metrics().funding_received, 1.0);
+
+    ledger
+        .apply_fill(&fill(
+            OrderSide::Sell,
+            100.0,
+            100.0,
+            5.0,
+            1,
+            28_800,
+            FillReason::Exit,
+        ))
+        .expect("the exit is valid");
+
+    let trade = ledger.trades()[0];
+    approx(trade.gross_pnl, 0.0);
+    approx(trade.execution_fees, 10.0);
+    approx(trade.commission, 19.986);
+    approx(trade.funding, -1.0);
+    approx(trade.net_pnl, -28.986);
+    approx(ledger.metrics().execution_fees, 10.0);
+    approx(ledger.metrics().funding_received, 1.0);
+}
+
+#[test]
 fn a_gap_exit_commission_uses_the_prior_mark() {
     let mut ledger = ledger();
     ledger

@@ -56,7 +56,9 @@ pub(crate) fn parse_store_show(arguments: &[String], usage: &str) -> Result<Comm
     let mut timeframe = None;
     let mut bar = None;
     let mut limit = DEFAULT_LIMIT;
+    let mut limit_seen = false;
     let mut database = PathBuf::from(DEFAULT_DATABASE);
+    let mut database_seen = false;
     let mut index = 1;
 
     while index < arguments.len() {
@@ -80,11 +82,23 @@ pub(crate) fn parse_store_show(arguments: &[String], usage: &str) -> Result<Comm
                 bar = Some(parse_bar(text, usage)?);
             }
             "--limit" => {
+                if limit_seen {
+                    return Err(ParseError::Store(format!(
+                        "--limit was supplied twice\n{usage}"
+                    )));
+                }
                 limit = parse_limit(arguments, &mut index, usage)?;
+                limit_seen = true;
             }
             "--db" => {
+                if database_seen {
+                    return Err(ParseError::Store(format!(
+                        "--db was supplied twice\n{usage}"
+                    )));
+                }
                 let text = value(arguments, &mut index, "--db", usage)?;
                 database = PathBuf::from(text);
+                database_seen = true;
             }
             option if option.starts_with("--") => {
                 return Err(ParseError::Store(format!(

@@ -90,6 +90,7 @@ pub(crate) fn parse_model_series_arguments(
     let mut window_seen = false;
     let mut timeframe = None;
     let mut bars = DEFAULT_WINDOW;
+    let mut bars_seen = false;
     let mut index = 0;
 
     while index < arguments.len() {
@@ -128,6 +129,11 @@ pub(crate) fn parse_model_series_arguments(
                 })?);
             }
             "--bars" => {
+                if bars_seen {
+                    return Err(ParseError::Window(format!(
+                        "--bars was supplied twice\n{USAGE}"
+                    )));
+                }
                 index += 1;
                 let value = arguments.get(index).ok_or_else(|| {
                     ParseError::Window(format!("--bars requires a value\n{USAGE}"))
@@ -143,6 +149,7 @@ pub(crate) fn parse_model_series_arguments(
                     )));
                 }
                 bars = count;
+                bars_seen = true;
             }
             option if option.starts_with("--") => {
                 return Err(ParseError::Window(format!(

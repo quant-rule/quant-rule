@@ -30,6 +30,7 @@ pub(crate) fn parse_market_chart_arguments(
     let mut png = None;
     let mut timeframe = None;
     let mut candles = DEFAULT_CHART_CANDLES;
+    let mut candles_seen = false;
     let mut window = WindowMode::Full;
     let mut window_seen = false;
     let mut index = 0;
@@ -59,6 +60,11 @@ pub(crate) fn parse_market_chart_arguments(
                 })?);
             }
             "--candles" => {
+                if candles_seen {
+                    return Err(ParseError::MarketChart(format!(
+                        "--candles was supplied twice\n{USAGE}"
+                    )));
+                }
                 let value = market_chart_value(arguments, &mut index, "--candles", USAGE)?;
                 let count = value.parse::<usize>().map_err(|_| {
                     ParseError::MarketChart(format!(
@@ -71,6 +77,7 @@ pub(crate) fn parse_market_chart_arguments(
                     )));
                 }
                 candles = count;
+                candles_seen = true;
             }
             "--window" => {
                 if window_seen {

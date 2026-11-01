@@ -510,3 +510,117 @@ fn missing_diagnosis_values_are_empty_csv_cells() {
     }
     assert!(checked_null, "expected a null-only axis in {health}");
 }
+
+fn status_of(input: &DiagnosisInput<'_>, id: &str) -> CheckStatus {
+    diagnose(input)
+        .checks
+        .into_iter()
+        .find(|check| check.id == id)
+        .unwrap_or_else(|| panic!("check {id} is missing"))
+        .status
+}
+
+#[test]
+fn net_expectancy_check_covers_pass_fail_and_unknown() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    input.trades = vec![trade("strategy", 0, 100.0); 30];
+    assert_eq!(
+        status_of(&input, "strategy.net_expectancy"),
+        CheckStatus::Pass
+    );
+
+    let mut losing = trade("strategy", 0, 100.0);
+    losing.gross_pnl = -1.0;
+    losing.net_pnl = -1.0;
+    input.trades = vec![losing; 30];
+    assert_eq!(
+        status_of(&input, "strategy.net_expectancy"),
+        CheckStatus::Fail
+    );
+
+    let mut first = trade("strategy", 0, 100.0);
+    first.gross_pnl = 1.0;
+    first.net_pnl = 1.0;
+    let mut second = first.clone();
+    second.gross_pnl = -1.0;
+    second.net_pnl = -1.0;
+    input.trades = vec![first, second];
+    assert_eq!(
+        status_of(&input, "strategy.net_expectancy"),
+        CheckStatus::Unknown
+    );
+}
+
+#[test]
+fn slippage_check_covers_pass_fail_and_unknown() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    input.metrics.configured_slippage_bps = 2.0;
+    input.fills = vec![fill(0, "entry"), fill(900, "exit")];
+    assert_eq!(status_of(&input, "execution.slippage"), CheckStatus::Pass);
+
+    for fill in &mut input.fills {
+        fill.slippage = 1.0;
+    }
+    assert_eq!(status_of(&input, "execution.slippage"), CheckStatus::Fail);
+
+    input.fills.clear();
+    assert_eq!(
+        status_of(&input, "execution.slippage"),
+        CheckStatus::Unknown
+    );
+}
+
+#[test]
+fn cost_drag_check_covers_pass_fail_and_unknown() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    input.metrics.gross_pnl = 10.0;
+    input.metrics.commission = 1.0;
+    assert_eq!(status_of(&input, "portfolio.cost_drag"), CheckStatus::Pass);
+
+    input.metrics.commission = 6.0;
+    assert_eq!(status_of(&input, "portfolio.cost_drag"), CheckStatus::Fail);
+
+    input.metrics.gross_pnl = 0.0;
+    assert_eq!(
+        status_of(&input, "portfolio.cost_drag"),
+        CheckStatus::Unknown
+    );
+}
+
+#[test]
+fn drawdown_limit_check_covers_pass_fail_and_unknown() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    input.metrics.max_drawdown_limit = Some(0.2);
+    input.metrics.max_drawdown = 0.1;
+    assert_eq!(
+        status_of(&input, "portfolio.drawdown_limit"),
+        CheckStatus::Pass
+    );
+
+    input.metrics.max_drawdown = 0.3;
+    assert_eq!(
+        status_of(&input, "portfolio.drawdown_limit"),
+        CheckStatus::Fail
+    );
+
+    input.metrics.max_drawdown_limit = None;
+    assert_eq!(
+        status_of(&input, "portfolio.drawdown_limit"),
+        CheckStatus::Unknown
+    );
+}
+
+#[test]
+fn rerun_check_covers_pass_and_unknown() {
+    let fixture = Fixture::new(80);
+    let mut input = fixture.input();
+    input.rerun_verified = true;
+    assert_eq!(status_of(&input, "evidence.rerun"), CheckStatus::Pass);
+
+    input.rerun_verified = false;
+    assert_eq!(status_of(&input, "evidence.rerun"), CheckStatus::Unknown);
+}

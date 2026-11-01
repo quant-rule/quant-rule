@@ -41,6 +41,7 @@ pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, P
     let mut csv = None;
     let mut png = None;
     let mut candles = DEFAULT_CHART_CANDLES;
+    let mut candles_seen = false;
     let mut index = 3;
 
     while index < arguments.len() {
@@ -73,6 +74,11 @@ pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, P
                 png = Some(PathBuf::from(value));
             }
             "--candles" => {
+                if candles_seen {
+                    return Err(ParseError::Fetch(String::from(
+                        "--candles was supplied twice",
+                    )));
+                }
                 let value = option_value(arguments, &mut index, "--candles")?;
                 let count = value.parse::<usize>().map_err(|_| {
                     ParseError::Fetch(format!(
@@ -85,6 +91,7 @@ pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, P
                     )));
                 }
                 candles = count;
+                candles_seen = true;
             }
             option if option.starts_with("--") => {
                 return Err(ParseError::Fetch(format!("unknown option '{option}'")));

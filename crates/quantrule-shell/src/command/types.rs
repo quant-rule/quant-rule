@@ -744,6 +744,17 @@ impl fmt::Display for RunError {
     }
 }
 
+impl From<crate::diagnosis::DiagnosisError> for RunError {
+    fn from(source: crate::diagnosis::DiagnosisError) -> Self {
+        match source {
+            crate::diagnosis::DiagnosisError::Diagnosis(message) => Self::Diagnosis(message),
+            crate::diagnosis::DiagnosisError::Chart(source) => Self::Chart(source),
+            crate::diagnosis::DiagnosisError::Bundle(source) => Self::Bundle(source),
+            crate::diagnosis::DiagnosisError::Output(source) => Self::Output(source),
+        }
+    }
+}
+
 impl std::error::Error for RunError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
