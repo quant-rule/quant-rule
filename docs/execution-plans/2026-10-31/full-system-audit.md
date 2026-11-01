@@ -375,6 +375,9 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 - Paths: `crates/quantrule-data/src/`, `crates/quantrule-backtest/src/context/`,
   `src/runner/`, `crates/quantrule-shell/src/store/`,
   `src/command/store*.rs`, `src/command/fetch.rs`, `src/source/`.
+- Implementation evidence (#316): the timestamp, store-open, 4h, and
+  identity fixes are implemented on `fix/316-store-timestamps-boundaries`;
+  full gates pass (1,580 tests). PR [#328](https://github.com/quant-rule/quant-rule/pull/328) is open.
 - Issue: [#316](https://github.com/quant-rule/quant-rule/issues/316).
 
 ### W10 — Documentation sweep (Minor/Info)
@@ -461,11 +464,11 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-52 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Zero ATR → reason 3; PR [#327](https://github.com/quant-rule/quant-rule/pull/327) | Fixed |
 | AUD-2026-10-31-53 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Unavailable progression → Hold; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-54 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Exact cap boundary fits the largest step; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
-| AUD-2026-10-31-55 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Extreme timestamps return typed errors | Planned |
+| AUD-2026-10-31-55 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Extreme timestamps return typed errors; PR [#328](https://github.com/quant-rule/quant-rule/pull/328) | Fixed |
 | AUD-2026-10-31-56 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | NaN is excluded, never neutral; PR [#327](https://github.com/quant-rule/quant-rule/pull/327) | Fixed |
 | AUD-2026-10-31-57 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Aggregate and report agree on latest; PR [#327](https://github.com/quant-rule/quant-rule/pull/327) | Fixed |
-| AUD-2026-10-31-58 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Newer DB is byte-unchanged | Planned |
-| AUD-2026-10-31-59 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | `4h` is a usage error | Planned |
+| AUD-2026-10-31-58 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Newer DB is byte-unchanged; PR [#328](https://github.com/quant-rule/quant-rule/pull/328) | Fixed |
+| AUD-2026-10-31-59 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | `4h` is a usage error; PR [#328](https://github.com/quant-rule/quant-rule/pull/328) | Fixed |
 | AUD-2026-10-31-60 | W3 | [#310](https://github.com/quant-rule/quant-rule/issues/310) | Missing halt null; full provenance check; PR [#322](https://github.com/quant-rule/quant-rule/pull/322) | Fixed |
 | AUD-2026-10-31-61 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Help matches parser | Planned |
 | AUD-2026-10-31-62 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Docs match code; link check clean | Planned |
@@ -473,7 +476,7 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-64 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Halt and metric observe the same points; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-65 | W11 | [#318](https://github.com/quant-rule/quant-rule/issues/318) | Fixture has only metric rows; unknown row fails | Planned |
 | AUD-2026-10-31-66 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | No dead public variant; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
-| AUD-2026-10-31-67 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Stable dump, names validated, application id | Planned |
+| AUD-2026-10-31-67 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Stable dump, names validated, application id; PR [#328](https://github.com/quant-rule/quant-rule/pull/328) | Fixed |
 | AUD-2026-10-31-68 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Observed versions used; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-69 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Doc greps match code | Planned |
 

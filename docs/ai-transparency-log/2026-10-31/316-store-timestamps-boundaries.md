@@ -2,7 +2,7 @@
 
 - Date: 2026-11-01 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
-- Work item: #316, branch `fix/316-store-timestamps-boundaries`
+- Work item: #316, branch `fix/316-store-timestamps-boundaries`; PR [#328](https://github.com/quant-rule/quant-rule/pull/328)
 - Plan: `docs/execution-plans/2026-10-31/full-system-audit.md` (W9)
 - Audit: `docs/audits/2026-10-31/full-system-audit.md` (AUD-55, -58, -59, -67)
 
