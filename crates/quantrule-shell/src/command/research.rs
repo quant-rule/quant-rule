@@ -46,23 +46,37 @@ pub(crate) fn parse_research_arguments(
     let mut dataset = None;
     let mut data_version = None;
     let mut root = PathBuf::from("data/research");
+    let mut data_version_seen = false;
+    let mut root_seen = false;
     let mut index = 1;
 
     while index < arguments.len() {
         match arguments[index].as_str() {
             "--data-version" => {
+                if data_version_seen {
+                    return Err(ParseError::Research(format!(
+                        "--data-version was supplied twice\n{USAGE}"
+                    )));
+                }
                 index += 1;
                 let value = arguments.get(index).ok_or_else(|| {
                     ParseError::Research(format!("--data-version needs a value\n{USAGE}"))
                 })?;
                 data_version = Some(value.clone());
+                data_version_seen = true;
             }
             "--root" => {
+                if root_seen {
+                    return Err(ParseError::Research(format!(
+                        "--root was supplied twice\n{USAGE}"
+                    )));
+                }
                 index += 1;
                 let value = arguments.get(index).ok_or_else(|| {
                     ParseError::Research(format!("--root needs a value\n{USAGE}"))
                 })?;
                 root = PathBuf::from(value);
+                root_seen = true;
             }
             option if option.starts_with("--") => {
                 return Err(ParseError::Research(format!(

@@ -676,13 +676,17 @@ mod tests {
     #[test]
     fn the_detector_changes_no_axis_value() {
         let candles = candles(&regular_bullish_series());
-        let rsi = vec![Some(30.0); candles.len()];
-        let readings = readings(&candles, rsi, atr_values(candles.len(), 8, 2.0));
+        let readings = readings(
+            &candles,
+            regular_bullish_rsi(),
+            atr_values(candles.len(), 8, 2.0),
+        );
         let direction_before = DirectionSeries::compute(&readings);
         let momentum_before = MomentumSeries::compute(&readings);
         let structure_before = StructureSeries::compute(&candles, &readings);
 
-        let _ = DivergenceEventSeries::compute(&readings, &config());
+        let events = DivergenceEventSeries::compute(&readings, &config());
+        assert!(!events.is_empty(), "the fixture must produce an event");
 
         assert_eq!(direction_before, DirectionSeries::compute(&readings));
         assert_eq!(momentum_before, MomentumSeries::compute(&readings));

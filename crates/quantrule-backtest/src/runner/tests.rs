@@ -6,6 +6,8 @@
 //! decisions, the closed trades, and the summary metrics; orders, fills, and
 //! equity are asserted from the same run.
 
+use std::collections::BTreeMap;
+
 use quantrule_data::Candle;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::readings::PivotScale;
@@ -185,26 +187,88 @@ fn number(field: &str) -> f64 {
         .unwrap_or_else(|error| panic!("invalid fixture number {field:?}: {error}"))
 }
 
-fn metric(name: &str) -> Option<f64> {
-    let mut lines = METRICS.lines();
+/// Every metric the golden fixture must contain, in any order.
+const METRIC_NAMES: [&str; 18] = [
+    "final_equity",
+    "total_return",
+    "realized_pnl",
+    "unrealized_pnl",
+    "gross_pnl",
+    "net_pnl",
+    "commission",
+    "max_drawdown",
+    "max_drawdown_duration_bars",
+    "trades",
+    "wins",
+    "losses",
+    "win_rate",
+    "profit_factor",
+    "average_trade",
+    "average_hold_bars",
+    "exposure",
+    "halted",
+];
+
+/// Parses the golden metrics strictly: one header, one row per known metric,
+/// no duplicate, and no unknown row. Numeric parsing happens when a metric is
+/// requested, because `halted` is a boolean.
+fn parse_metrics(text: &str) -> BTreeMap<&str, &str> {
+    let mut lines = text.lines();
     assert_eq!(
         lines.next(),
         Some("name,value"),
         "metrics fixture header changed"
     );
+    let mut metrics = BTreeMap::new();
     for line in lines {
         let (field, value) = line
             .split_once(',')
             .unwrap_or_else(|| panic!("invalid metrics row {line:?}"));
-        if field == name {
-            return if value.is_empty() {
-                None
-            } else {
-                Some(number(value))
-            };
-        }
+        assert!(
+            METRIC_NAMES.contains(&field),
+            "unknown metrics fixture row {field:?}"
+        );
+        assert!(
+            metrics.insert(field, value).is_none(),
+            "duplicate metrics fixture row {field:?}"
+        );
     }
-    panic!("metric {name} is missing");
+    assert_eq!(
+        metrics.len(),
+        METRIC_NAMES.len(),
+        "the metrics fixture must contain every known metric"
+    );
+    metrics
+}
+
+fn metric(name: &str) -> Option<f64> {
+    let value = parse_metrics(METRICS)
+        .remove(name)
+        .unwrap_or_else(|| panic!("metric {name} is missing"));
+    if value.is_empty() {
+        None
+    } else {
+        Some(number(value))
+    }
+}
+
+#[test]
+fn the_metrics_fixture_rejects_unknown_duplicate_and_missing_rows() {
+    let header = "name,value\n";
+    let unknown = format!("{header}final_equity,1\nnot_a_metric,2\n");
+    assert!(std::panic::catch_unwind(|| parse_metrics(&unknown)).is_err());
+
+    let duplicate = format!(
+        "{header}final_equity,1\nfinal_equity,2\n{}",
+        METRIC_NAMES[1..]
+            .iter()
+            .map(|name| format!("{name},0\n"))
+            .collect::<String>()
+    );
+    assert!(std::panic::catch_unwind(|| parse_metrics(&duplicate)).is_err());
+
+    let missing = format!("{header}final_equity,1\n");
+    assert!(std::panic::catch_unwind(|| parse_metrics(&missing)).is_err());
 }
 
 fn metric_value(name: &str) -> f64 {
@@ -227,6 +291,23 @@ fn last_orders(run: &BacktestRun) -> Vec<crate::execution::OrderRecord> {
         }
     }
     orders
+}
+
+#[test]
+fn nonzero_execution_fees_and_funding_reach_the_portfolio() {
+    let mut config = config();
+    config.execution = ExecutionConfig::new(0.001, 2.0).expect("the execution fees are valid");
+    config.portfolio.funding =
+        FundingConfig::new(0.0001, FundingInterval::H1).expect("the funding is valid");
+
+    let run = run(&candles(1400), &config);
+    let metrics = run.metrics();
+    assert!(metrics.execution_fees > 0.0, "fill fees were not recorded");
+    assert!(metrics.commission > 0.0, "commission was not recorded");
+    assert!(
+        metrics.funding_paid + metrics.funding_received > 0.0,
+        "funding was not recorded"
+    );
 }
 
 #[test]

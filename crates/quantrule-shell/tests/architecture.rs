@@ -44,11 +44,30 @@ fn collect(path: &Path, files: &mut Vec<(PathBuf, String)>) {
 
 #[test]
 fn renderers_do_not_depend_on_the_command_module() {
-    for file in ["lab_summary.rs", "render_state.rs"] {
-        let text = source(file);
+    let mut files: Vec<(String, String)> = [
+        "diagnosis.rs",
+        "lab_summary.rs",
+        "render.rs",
+        "render_series.rs",
+        "render_state.rs",
+    ]
+    .into_iter()
+    .map(|file| (file.to_owned(), source(file)))
+    .collect();
+    files.extend(
+        sources("render_dashboard")
+            .into_iter()
+            .map(|(path, text)| (path.display().to_string(), text)),
+    );
+    files.extend(
+        sources("render_report")
+            .into_iter()
+            .map(|(path, text)| (path.display().to_string(), text)),
+    );
+    for (name, text) in files {
         assert!(
             !text.contains("use crate::command"),
-            "{file} must not import command; the command module calls the renderer"
+            "{name} must not import command; the command module calls the renderer"
         );
     }
 }

@@ -17,4 +17,3 @@ average_trade,-98.34005550412631
 average_hold_bars,7.5
 exposure,-0.0009045643844313999
 halted,false
-test runner::tests::dump_goldens_for_regeneration ... ok

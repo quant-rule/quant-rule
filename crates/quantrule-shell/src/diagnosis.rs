@@ -6,8 +6,9 @@
 //! diagnosis vocabulary, serializes the result, and writes the artifact.
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::fs;
-use std::io::Write as _;
+use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
 
 use quantrule_analytics::diagnosis::text;
@@ -25,11 +26,46 @@ use quantrule_backtest::strategy::{Decision, Side};
 use quantrule_data::format_utc_timestamp;
 use serde_json::{Value, json};
 
-use crate::command::RunError;
+use crate::chart::ChartError;
 use crate::config::RunConfig;
 use crate::export::write_atomic;
 use crate::lab_evidence;
-use crate::render_report;
+use crate::render_report::{self, BundleError};
+
+/// The diagnosis writer's errors.
+#[derive(Debug)]
+pub(crate) enum DiagnosisError {
+    /// A diagnosis value or artifact could not be produced.
+    Diagnosis(String),
+    /// A diagnosis page could not be rendered.
+    Chart(ChartError),
+    /// The output bundle could not be prepared.
+    Bundle(BundleError),
+    /// A diagnosis text stream could not be written.
+    Output(io::Error),
+}
+
+impl fmt::Display for DiagnosisError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Diagnosis(message) => formatter.write_str(message),
+            Self::Chart(source) => write!(formatter, "cannot render the market chart: {source}"),
+            Self::Bundle(source) => source.fmt(formatter),
+            Self::Output(source) => write!(formatter, "cannot write output: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for DiagnosisError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Diagnosis(_) => None,
+            Self::Chart(source) => Some(source),
+            Self::Bundle(source) => Some(source),
+            Self::Output(source) => Some(source),
+        }
+    }
+}
 
 /// The diagnosis artifact names, in contract order.
 pub(crate) const ARTIFACTS: [&str; 17] = [
@@ -68,28 +104,33 @@ pub(crate) struct DiagnosisOutput {
 ///
 /// # Errors
 ///
-/// Returns [`RunError`] when a record cannot be projected, a page cannot be
+/// Returns [`DiagnosisError`] when a record cannot be projected, a page cannot be
 /// rendered, or an artifact cannot be written.
 pub(crate) fn write(
     config: &RunConfig,
     run: &BacktestRun,
     out: &Path,
     lab_dir: Option<&Path>,
-) -> Result<DiagnosisOutput, RunError> {
+) -> Result<DiagnosisOutput, DiagnosisError> {
     let input = project(config, run, lab_dir)?;
     let diagnosis = quantrule_analytics::diagnosis::diagnose(&input);
-    let summary = text::summary(&diagnosis).map_err(RunError::Output)?;
-    let checks = text::checks_csv(&diagnosis).map_err(RunError::Output)?;
-    let funnel = text::funnel_csv(&diagnosis).map_err(RunError::Output)?;
-    let data_quality = text::data_quality_csv(&diagnosis.data_quality).map_err(RunError::Output)?;
-    let model_health = text::model_health_csv(&diagnosis.model_health).map_err(RunError::Output)?;
+    let summary = text::summary(&diagnosis).map_err(DiagnosisError::Output)?;
+    let checks = text::checks_csv(&diagnosis).map_err(DiagnosisError::Output)?;
+    let funnel = text::funnel_csv(&diagnosis).map_err(DiagnosisError::Output)?;
+    let data_quality =
+        text::data_quality_csv(&diagnosis.data_quality).map_err(DiagnosisError::Output)?;
+    let model_health =
+        text::model_health_csv(&diagnosis.model_health).map_err(DiagnosisError::Output)?;
     let strategy_funnel =
-        text::strategy_funnel_csv(&diagnosis.strategy).map_err(RunError::Output)?;
-    let exit_reasons = text::exit_reasons_csv(&diagnosis.strategy).map_err(RunError::Output)?;
-    let rejections = text::rejection_reasons_csv(&diagnosis.execution).map_err(RunError::Output)?;
-    let monthly = text::monthly_returns_csv(&diagnosis.portfolio).map_err(RunError::Output)?;
-    let trades = text::trades_csv(&diagnosis).map_err(RunError::Output)?;
-    let pages = crate::chart::render_diagnosis_pages(&diagnosis).map_err(RunError::Chart)?;
+        text::strategy_funnel_csv(&diagnosis.strategy).map_err(DiagnosisError::Output)?;
+    let exit_reasons =
+        text::exit_reasons_csv(&diagnosis.strategy).map_err(DiagnosisError::Output)?;
+    let rejections =
+        text::rejection_reasons_csv(&diagnosis.execution).map_err(DiagnosisError::Output)?;
+    let monthly =
+        text::monthly_returns_csv(&diagnosis.portfolio).map_err(DiagnosisError::Output)?;
+    let trades = text::trades_csv(&diagnosis).map_err(DiagnosisError::Output)?;
+    let pages = crate::chart::render_diagnosis_pages(&diagnosis).map_err(DiagnosisError::Chart)?;
     let json = diagnosis_json(&diagnosis)?;
 
     let mut artifacts: Vec<(&'static str, Vec<u8>)> = vec![
@@ -122,12 +163,11 @@ fn project<'a>(
     config: &RunConfig,
     run: &'a BacktestRun,
     lab_dir: Option<&Path>,
-) -> Result<DiagnosisInput<'a>, RunError> {
+) -> Result<DiagnosisInput<'a>, DiagnosisError> {
     let timeframe_secs = config.strategy.engine.timeframe_secs();
-    let timeframe = run
-        .model_run()
-        .timeframe(timeframe_secs)
-        .ok_or_else(|| RunError::Diagnosis(format!("no {timeframe_secs}s strategy timeframe")))?;
+    let timeframe = run.model_run().timeframe(timeframe_secs).ok_or_else(|| {
+        DiagnosisError::Diagnosis(format!("no {timeframe_secs}s strategy timeframe"))
+    })?;
     let first = timeframe.candle(0).map(|candle| candle.timestamp());
     let last = timeframe
         .candle(timeframe.len().saturating_sub(1))
@@ -208,7 +248,7 @@ fn requested_period(config: &RunConfig) -> Option<String> {
 
 const REPORT_BUNDLES: [&str; 5] = ["model", "strategy", "execution", "portfolio", "analytical"];
 
-fn report_versions(root: Option<&Path>) -> Result<Vec<ReportVersion>, RunError> {
+fn report_versions(root: Option<&Path>) -> Result<Vec<ReportVersion>, DiagnosisError> {
     let Some(root) = root else {
         return Ok(constant_report_versions());
     };
@@ -216,13 +256,13 @@ fn report_versions(root: Option<&Path>) -> Result<Vec<ReportVersion>, RunError> 
     for bundle in REPORT_BUNDLES {
         let path = root.join(bundle).join("report.json");
         let bytes = fs::read(&path).map_err(|source| {
-            RunError::Diagnosis(format!(
+            DiagnosisError::Diagnosis(format!(
                 "cannot read {} for the report versions: {source}",
                 path.display()
             ))
         })?;
         let value: Value = serde_json::from_slice(&bytes).map_err(|source| {
-            RunError::Diagnosis(format!(
+            DiagnosisError::Diagnosis(format!(
                 "cannot parse {} for the report versions: {source}",
                 path.display()
             ))
@@ -232,7 +272,7 @@ fn report_versions(root: Option<&Path>) -> Result<Vec<ReportVersion>, RunError> 
             .or_else(|| value.get("view_contract"))
             .and_then(Value::as_str)
             .ok_or_else(|| {
-                RunError::Diagnosis(format!("{} has no report version", path.display()))
+                DiagnosisError::Diagnosis(format!("{} has no report version", path.display()))
             })?;
         versions.push(ReportVersion {
             bundle: bundle.to_owned(),
@@ -579,10 +619,10 @@ fn reject_reason_code(reason: RejectReason) -> &'static str {
     }
 }
 
-fn diagnosis_json(diagnosis: &Diagnosis) -> Result<Vec<u8>, RunError> {
+fn diagnosis_json(diagnosis: &Diagnosis) -> Result<Vec<u8>, DiagnosisError> {
     let value = diagnosis_value(diagnosis);
     let text = serde_json::to_string_pretty(&value).map_err(|error| {
-        RunError::Diagnosis(format!("cannot serialize diagnosis.json: {error}"))
+        DiagnosisError::Diagnosis(format!("cannot serialize diagnosis.json: {error}"))
     })?;
     Ok(format!("{text}\n").into_bytes())
 }
@@ -921,12 +961,15 @@ fn manifest_with_len(
     out
 }
 
-fn write_artifacts(out: &Path, artifacts: &[(&'static str, Vec<u8>)]) -> Result<(), RunError> {
-    render_report::ensure_available(out).map_err(RunError::Bundle)?;
+fn write_artifacts(
+    out: &Path,
+    artifacts: &[(&'static str, Vec<u8>)],
+) -> Result<(), DiagnosisError> {
+    render_report::ensure_available(out).map_err(DiagnosisError::Bundle)?;
     let created = !out.exists();
     if created {
         fs::create_dir_all(out).map_err(|source| {
-            RunError::Diagnosis(format!("cannot create {}: {source}", out.display()))
+            DiagnosisError::Diagnosis(format!("cannot create {}: {source}", out.display()))
         })?;
     }
     let mut written = Vec::new();
@@ -937,14 +980,14 @@ fn write_artifacts(out: &Path, artifacts: &[(&'static str, Vec<u8>)]) -> Result<
         {
             let path = out.join(name);
             write_atomic(&path, bytes).map_err(|source| {
-                RunError::Diagnosis(format!("cannot write {}: {source}", path.display()))
+                DiagnosisError::Diagnosis(format!("cannot write {}: {source}", path.display()))
             })?;
             written.push(path);
         }
         if let Some((_, bytes)) = artifacts.iter().find(|(name, _)| *name == "diagnosis.json") {
             let path = out.join("diagnosis.json");
             write_atomic(&path, bytes).map_err(|source| {
-                RunError::Diagnosis(format!("cannot write {}: {source}", path.display()))
+                DiagnosisError::Diagnosis(format!("cannot write {}: {source}", path.display()))
             })?;
             written.push(path);
         }

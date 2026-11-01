@@ -923,13 +923,14 @@ mod tests {
         let momentum_before = MomentumSeries::compute(&readings);
         let structure_before = StructureSeries::compute(&candles, &readings);
 
-        let _ = SignalEventSeries::compute(
+        let events = SignalEventSeries::compute(
             &readings,
             &direction_before,
             &momentum_before,
             &structure_before,
             &config(),
         );
+        assert!(!events.is_empty(), "the fixture must produce an event");
 
         assert_eq!(direction_before, DirectionSeries::compute(&readings));
         assert_eq!(momentum_before, MomentumSeries::compute(&readings));

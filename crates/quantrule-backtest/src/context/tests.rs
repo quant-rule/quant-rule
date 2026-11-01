@@ -166,6 +166,83 @@ fn structure_conflicts_and_progression_stages_are_counted() {
 }
 
 #[test]
+fn two_context_timeframes_use_their_own_weights_and_order() {
+    let run = make_run(300, 2, 900, 1);
+    let base = run
+        .timeframe(900)
+        .expect("the context timeframe exists")
+        .bar(0)
+        .expect("the context bar exists");
+
+    let mut fast = base;
+    fast.timeframe_secs = 900;
+    fast.direction.direction = Some(0.8);
+    fast.momentum.force = Some(0.4);
+    fast.structure.score = Some(0.2);
+    fast.structure.high_relation_code = None;
+    fast.structure.low_relation_code = None;
+    fast.progression.leg_direction = Some(1);
+    fast.progression.stage_code = Some(1);
+
+    let mut slow = base;
+    slow.timeframe_secs = 3_600;
+    slow.direction.direction = Some(-0.2);
+    slow.momentum.force = Some(0.6);
+    slow.structure.score = Some(0.6);
+    slow.structure.high_relation_code = None;
+    slow.structure.low_relation_code = None;
+    slow.progression.leg_direction = Some(-1);
+    slow.progression.stage_code = Some(4);
+
+    let selected = vec![
+        (
+            ContextTimeframe {
+                timeframe_secs: 900,
+                bar_index: 0,
+                open_time: 0,
+                close_time: 900,
+            },
+            fast,
+        ),
+        (
+            ContextTimeframe {
+                timeframe_secs: 3_600,
+                bar_index: 0,
+                open_time: 0,
+                close_time: 3_600,
+            },
+            slow,
+        ),
+    ];
+    let weights = LadderWeights::new(
+        vec![3.0, 1.0],
+        vec![1.0, 3.0],
+        vec![1.0, 1.0],
+        vec![2.0, 1.0],
+    )
+    .expect("the weights are valid");
+
+    let (direction, momentum, structure, progression) = compute_axes(&selected, &weights);
+
+    assert_eq!(direction.timeframes, vec![900, 3_600]);
+    assert!((direction.weighted_value.expect("direction") - 0.55).abs() < 1e-12);
+    assert_eq!(direction.bullish_share, Some(0.75));
+    assert_eq!(direction.bearish_share, Some(0.25));
+
+    assert!((momentum.weighted_value.expect("momentum") - 0.55).abs() < 1e-12);
+    assert_eq!(momentum.bullish_count, 2);
+    assert_eq!(momentum.neutral_count, 0);
+
+    assert!((structure.score.weighted_value.expect("structure") - 0.4).abs() < 1e-12);
+    assert_eq!(structure.conflict_count, 0);
+
+    assert!(progression.direction.weighted_value.expect("progression") > 0.0);
+    assert_eq!(progression.stage_histogram[1], 2.0 / 3.0);
+    assert_eq!(progression.stage_histogram[4], 1.0 / 3.0);
+    assert_eq!(progression.late_or_terminal_count, 1);
+}
+
+#[test]
 fn a_missing_context_timeframe_rejects_the_axis_context() {
     let run = make_run(300, 1, 900, 1);
     let ladder = LadderConfig::new(300, vec![900]).expect("the ladder is valid");

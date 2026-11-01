@@ -492,12 +492,57 @@ fn a_prefix_report_reads_only_bars_at_or_before_its_last_bar() {
         )
         .expect("a valid altered future candle");
     }
-    let altered_prefix = build_run(&altered[..=199], &[300]);
+    // The altered future is part of the full run. Bar 199 must still match the
+    // prefix report; trimming the altered series back to 199 would make the
+    // test vacuous.
+    let altered_run = build_run(&altered, &[300]);
+    let altered_bar = altered_run
+        .timeframe(300)
+        .expect("the altered timeframe is present")
+        .bar(199)
+        .expect("altered bar 199");
+    assert_eq!(latest.direction.direction, altered_bar.direction.direction);
+    assert_eq!(latest.momentum.force, altered_bar.momentum.force);
+    assert_eq!(latest.structure.score, altered_bar.structure.score);
     assert_eq!(
-        prefix_report,
-        build_report(&altered_prefix, &[300]),
-        "changing later bars must not change the prefix report"
+        latest.progression.progress,
+        altered_bar.progression.progress
     );
+    assert_eq!(
+        latest.context.context_code,
+        altered_bar.context.context_code
+    );
+    assert_eq!(
+        latest.consensus.bullish_axis_count,
+        altered_bar.consensus.bullish_axis_count
+    );
+    assert_eq!(
+        latest.consensus.bearish_axis_count,
+        altered_bar.consensus.bearish_axis_count
+    );
+    assert_eq!(
+        latest.consensus.neutral_axis_count,
+        altered_bar.consensus.neutral_axis_count
+    );
+}
+
+#[test]
+fn events_are_published_separately_from_axis_values() {
+    let candles = fixture_candles();
+    let run = build_run(&candles, &[300]);
+    let snapshots = run.snapshots();
+    let snapshot = snapshots.first().expect("a snapshot exists");
+    assert!(
+        !snapshot.events.is_empty(),
+        "the fixture must produce an event record"
+    );
+
+    let mut without_events = snapshot.clone();
+    without_events.events.clear();
+    assert_eq!(snapshot.direction, without_events.direction);
+    assert_eq!(snapshot.momentum, without_events.momentum);
+    assert_eq!(snapshot.structure, without_events.structure);
+    assert_eq!(snapshot.progression, without_events.progression);
 }
 
 #[test]

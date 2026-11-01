@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-full-system
-- Status: Published (PR #320); findings 41–47, 49–62, 64–69 `Fixed`; findings 63, 65 `Planned`; issue tree #308–#318 created; W1 PR #319 merged; W2 PR #321 merged; W3 PR #322 merged; W4 PR #323 merged; W5 PR #324 merged; W6 PR #325 merged; W7 PR #326 merged; W8 PR #327 merged; W9 PR #328 merged; W10 PR #329 open
+- Status: Published (PR #320); findings 41–69 `Fixed`; independent verification pending; issue tree #308–#318 created; W1 PR #319 merged; W2 PR #321 merged; W3 PR #322 merged; W4 PR #323 merged; W5 PR #324 merged; W6 PR #325 merged; W7 PR #326 merged; W8 PR #327 merged; W9 PR #328 merged; W10 PR #329 merged; W11 PR #330 open
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `c8b1dc1` (last audited head, merge of PR #279)
 - Head: `main` at `e34693f` (merge of PR #307)
@@ -77,9 +77,9 @@ not committed). The commands above are the reproducible evidence.
 | AUD-2026-10-31-60 | Minor | shell/lab | Lab identity handling defaults a missing halt to `false` and checks different provenance fields | `command/lab.rs:648-651,364-410`; `lab_summary.rs:173-221`; `command/help.rs:519-520` | A malformed lab is listed as not halted; a stale provenance passes one command | A `Option<bool>` and one full provenance check; B narrow the help | A | Missing halted → `—`/null; provenance model mismatch fails both commands | Fixed | [#310](https://github.com/quant-rule/quant-rule/issues/310) · [#322](https://github.com/quant-rule/quant-rule/pull/322) |
 | AUD-2026-10-31-61 | Minor | shell/help | Help metadata is wrong for `lab diagnose --out` and `fetch --png` | `command/help.rs:255,139-142`; `command/lab.rs:580-583`; `command/help.rs:267,211-214`; `command/fetch.rs:66-72,150-154`; `tests/fixtures/help-all.txt:321,529` | Users expect the wrong output root or believe a PNG is required | A dedicated option descriptions and fixture update; B change behavior | A | `help all` names the default `<lab>/diagnosis` and calls PNG optional | Fixed | [#317](https://github.com/quant-rule/quant-rule/issues/317) · [#329](https://github.com/quant-rule/quant-rule/pull/329) |
 | AUD-2026-10-31-62 | Minor | docs | User-facing docs drift from code in eight places | See the detail block | Users and consumers are misled; four release links are broken | A update docs to code and add a link check; B change code where the doc is authoritative | A | Link check finds zero broken links; each item matches code | Fixed | [#317](https://github.com/quant-rule/quant-rule/issues/317) · [#329](https://github.com/quant-rule/quant-rule/pull/329) |
-| AUD-2026-10-31-63 | Minor | tests | Test and guard coverage gaps hide the defects above | See the detail block | Regressions in multi-context weights, costs, diagnosis checks, lab evidence, and architecture guards pass CI | A table-driven tests and guard expansion; B document the gaps | A | Each named test fails before the fix and passes after it | Planned | [#318](https://github.com/quant-rule/quant-rule/issues/318) |
+| AUD-2026-10-31-63 | Minor | tests | Test and guard coverage gaps hide the defects above | See the detail block | Regressions in multi-context weights, costs, diagnosis checks, lab evidence, and architecture guards pass CI | A table-driven tests and guard expansion; B document the gaps | A | Each named test fails before the fix and passes after it | Fixed | [#318](https://github.com/quant-rule/quant-rule/issues/318) · [#330](https://github.com/quant-rule/quant-rule/pull/330) |
 | AUD-2026-10-31-64 | Minor | portfolio | `max_drawdown` includes fill/funding equity, but halt checks only marks | `portfolio/ledger.rs:210,249,349,425,437-447,456-475`; `portfolio/records.rs:272` | A report can show a drawdown above the limit with `halted=false` and no risk event | A check the halt after open/close/funding; B document mark-only and stop updating the metric at fills | A or B | A fill/funding breach latches the halt and records a risk event, or the contract says mark-only | Fixed | [#314](https://github.com/quant-rule/quant-rule/issues/314) · [#326](https://github.com/quant-rule/quant-rule/pull/326) |
-| AUD-2026-10-31-65 | Minor | tests | `runner_metrics_golden.csv` contains a stray test-runner line and the parser ignores it | `tests/fixtures/runner_metrics_golden.csv:20`; `src/runner/tests.rs:188-208` | A corrupted or extended fixture can pass; the golden claim is weakened | A remove the line and parse strictly; B parse to a map and assert names/count | A | Fixture contains exactly the expected metric rows; an unknown row fails | Planned | [#318](https://github.com/quant-rule/quant-rule/issues/318) |
+| AUD-2026-10-31-65 | Minor | tests | `runner_metrics_golden.csv` contains a stray test-runner line and the parser ignores it | `tests/fixtures/runner_metrics_golden.csv:20`; `src/runner/tests.rs:188-208` | A corrupted or extended fixture can pass; the golden claim is weakened | A remove the line and parse strictly; B parse to a map and assert names/count | A | Fixture contains exactly the expected metric rows; an unknown row fails | Fixed | [#318](https://github.com/quant-rule/quant-rule/issues/318) · [#330](https://github.com/quant-rule/quant-rule/pull/330) |
 | AUD-2026-10-31-66 | Info | backtest | `PositionState::Closed` and `MissingContextTimeframe` are unreachable public API | `execution/position.rs:159-160,176-180`; `execution/engine.rs:594,819`; `context/mod.rs:385-389,488-489,512-516`; `docs/config/2026-10-30/trade-intent.md:51-53` | Dead variants; the contract says a just-closed state is tracked | A implement the transition; B remove the variants and correct the docs | B | No `Closed`/`MissingContextTimeframe` remains, or a test reaches them | Fixed | [#314](https://github.com/quant-rule/quant-rule/issues/314) · [#326](https://github.com/quant-rule/quant-rule/pull/326) |
 | AUD-2026-10-31-67 | Info | store | Store identity and addressing edge cases; `store verify` is not an independent oracle | `store/schema.rs:18-28,134-147`; `store/lifecycle.rs:41-43`; `store/verify.rs:49-54`; `command/store.rs:122-137,88-91`; `command/store_query.rs:87-90`; `store/mod.rs:242-243`; `store/ingest/validate.rs:1-6`; `docs/adr/2026-10-24/sqlite-store.md:199` | Internal ids vary across histories; `--`-prefixed datasets are unaddressable; any version-0 SQLite file is migrated; verify catches drift, not an independent bug | A omit internal ids, validate names, set `application_id`, document verify; B contract changes | A | Same logical dump is stable; `--` name rejected; unrelated DB refused; verify scope documented | Fixed | [#316](https://github.com/quant-rule/quant-rule/issues/316) · [#328](https://github.com/quant-rule/quant-rule/pull/328) |
 | AUD-2026-10-31-68 | Info | analytics | `backtest --diagnose` synthesizes `report_versions` from constants | `src/diagnosis.rs:209-231`; `crates/quantrule-analytics/src/diagnosis/compute.rs:928-961`; `docs/reports/2026-10-31/diagnosis-v1.md:69` | The check records the binary's constants, not the five bundles, on the `backtest --diagnose` path | A read the five bundle versions; B document the constants and rely on `lab diagnose` | A | Removing a bundle version changes `backtest --diagnose` to `fail` | Fixed | [#311](https://github.com/quant-rule/quant-rule/issues/311) · [#323](https://github.com/quant-rule/quant-rule/pull/323) |
@@ -809,8 +809,8 @@ not committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: each named test fails before the corresponding fix and passes
   after it, or has a written reason a fail-before test is impossible.
-- Status: `Planned`.
-- Links: [#318](https://github.com/quant-rule/quant-rule/issues/318).
+- Status: `Fixed`.
+- Links: [#318](https://github.com/quant-rule/quant-rule/issues/318) · [#330](https://github.com/quant-rule/quant-rule/pull/330).
 
 ### AUD-2026-10-31-64 — Drawdown metric and halt observe different points
 
@@ -865,8 +865,8 @@ not committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: the fixture has exactly the expected metric rows; an unknown
   row fails.
-- Status: `Planned`.
-- Links: [#318](https://github.com/quant-rule/quant-rule/issues/318).
+- Status: `Fixed`.
+- Links: [#318](https://github.com/quant-rule/quant-rule/issues/318) · [#330](https://github.com/quant-rule/quant-rule/pull/330).
 
 ### AUD-2026-10-31-66 — Unreachable public lifecycle and error variants
 

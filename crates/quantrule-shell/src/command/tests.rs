@@ -908,3 +908,28 @@ fn lab_list_requires_a_root() {
         Err(ParseError::Lab(_))
     ));
 }
+
+#[test]
+fn every_parser_rejects_a_duplicate_option() {
+    for line in [
+        "fetch gold 2025-01-01 2025-12-31 --candles 10 --candles 20",
+        "market-chart data/m1.csv --png out.png --candles 10 --candles 20",
+        "research export data/m1.csv demo --data-version a --data-version b",
+        "research export data/m1.csv demo --data-version a --root x --root y",
+        "store show demo bar --limit 1 --limit 2",
+        "store show demo bar --db a --db b",
+        "model-series data/m1.csv --bars 1 --bars 2",
+    ] {
+        assert!(
+            matches!(
+                parse(line),
+                Err(ParseError::Fetch(_))
+                    | Err(ParseError::MarketChart(_))
+                    | Err(ParseError::Research(_))
+                    | Err(ParseError::Store(_))
+                    | Err(ParseError::Window(_))
+            ),
+            "{line} was accepted"
+        );
+    }
+}

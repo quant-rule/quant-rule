@@ -39,7 +39,7 @@ pub(crate) use self::report::{parse_market_report_arguments, run_market_report};
 pub(crate) use self::report_run::{parse_report_arguments, run_report};
 pub(crate) use self::strategy::{parse_strategy_run_arguments, run_strategy_run};
 pub(crate) use self::strategy_explain::{parse_strategy_explain_arguments, run_strategy_explain};
-pub(crate) use self::types::{Command, ParseError, RunError};
+pub(crate) use self::types::{Command, ParseError};
 
 use self::chart::{parse_market_chart_arguments, run_market_chart};
 use self::data::{run_candles, run_candles_tolerant, run_timeframes};

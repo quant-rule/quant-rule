@@ -926,6 +926,31 @@ fn excursions(
     )
 }
 
+fn axis_correlation_check(model: &[ModelHealth]) -> Check {
+    match max_axis_correlation(model) {
+        Some((pair, value)) => check(
+            "model.axis_correlation",
+            if value > 0.70 {
+                CheckStatus::Fail
+            } else {
+                CheckStatus::Pass
+            },
+            Some(value),
+            "abs r",
+            Some(String::from("<= 0.7000")),
+            format!("largest absolute inter-axis correlation {value:.4} ({pair})"),
+        ),
+        None => check(
+            "model.axis_correlation",
+            CheckStatus::Unknown,
+            None,
+            "abs r",
+            Some(String::from("<= 0.7000")),
+            String::from("fewer than two paired axis values"),
+        ),
+    }
+}
+
 fn max_axis_correlation(model: &[ModelHealth]) -> Option<(&'static str, f64)> {
     let mut worst: Option<(&'static str, f64)> = None;
     for timeframe in model {
@@ -1129,28 +1154,7 @@ fn checks(
         ),
     });
 
-    checks.push(match max_axis_correlation(model) {
-        Some((pair, value)) => check(
-            "model.axis_correlation",
-            if value > 0.70 {
-                CheckStatus::Fail
-            } else {
-                CheckStatus::Pass
-            },
-            Some(value),
-            "abs r",
-            Some(String::from("<= 0.7000")),
-            format!("largest absolute inter-axis correlation {value:.4} ({pair})"),
-        ),
-        None => check(
-            "model.axis_correlation",
-            CheckStatus::Unknown,
-            None,
-            "abs r",
-            Some(String::from("<= 0.7000")),
-            String::from("fewer than two paired axis values"),
-        ),
-    });
+    checks.push(axis_correlation_check(model));
 
     let entry_fill_rate = if strategy.entry_attempts > 0 {
         Some(strategy.executed_entries as f64 / strategy.entry_attempts as f64)
@@ -1576,8 +1580,11 @@ fn sum(values: impl Iterator<Item = f64>) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{CorrelationAccumulator, max_axis_correlation, mean_ci, profit_factor};
-    use crate::diagnosis::types::{AxisHealth, EventCounts, ModelHealth};
+    use super::{
+        CorrelationAccumulator, axis_correlation_check, max_axis_correlation, mean_ci,
+        profit_factor,
+    };
+    use crate::diagnosis::types::{AxisHealth, CheckStatus, EventCounts, ModelHealth};
 
     #[test]
     fn a_perfect_positive_correlation_is_one() {
@@ -1645,6 +1652,18 @@ mod tests {
             structure_progression_correlation: correlations[5],
             event_density_per_100_bars: 0.0,
         }
+    }
+
+    #[test]
+    fn axis_correlation_check_uses_the_0_70_boundary() {
+        let pass = axis_correlation_check(&[health([Some(0.5), None, None, None, None, None])]);
+        assert_eq!(pass.status, CheckStatus::Pass);
+
+        let fail = axis_correlation_check(&[health([Some(0.71), None, None, None, None, None])]);
+        assert_eq!(fail.status, CheckStatus::Fail);
+
+        let unknown = axis_correlation_check(&[health([None; 6])]);
+        assert_eq!(unknown.status, CheckStatus::Unknown);
     }
 
     #[test]
