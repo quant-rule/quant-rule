@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-full-system
-- Status: Published (PR #320); finding 41 `Fixed`; findings 42–69 `Planned`; issue tree #308–#318 created; W1 PR #319 open
+- Status: Published (PR #320); findings 41, 42, 49 `Fixed`; findings 43–48, 50–69 `Planned`; issue tree #308–#318 created; W1 PR #319 merged; W2 PR #321 open
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `c8b1dc1` (last audited head, merge of PR #279)
 - Head: `main` at `e34693f` (merge of PR #307)
@@ -56,14 +56,14 @@ not committed). The commands above are the reproducible evidence.
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
 | AUD-2026-10-31-41 | Major | shell | Output-path collision can overwrite the CSV or the input source | `crates/quantrule-shell/src/command/fetch.rs:99-105,174-176,261`; `src/export.rs:149-177,273-277`; `command/chart.rs:109-113,155-160` | Silent loss of a fetched CSV or a source CSV; the command reports both outputs as written | A compare resolved final and temp paths; B unique temp names plus file identity | A+B | A CSV equal to the PNG's declared temp path and a `market-chart ./data.csv` test reject before writing | Fixed | [#308](https://github.com/quant-rule/quant-rule/issues/308) · [#319](https://github.com/quant-rule/quant-rule/pull/319) |
-| AUD-2026-10-31-42 | Major | shell/backtest | `strategy-run --config` analyzes the run's date bounds but records only CLI dates | `command/strategy.rs:198-207,220-224,326-328`; `tests/strategy_run.rs:331-332` | The reproducibility envelope misstates the analyzed period; a replay differs | A record an `effective_period`; B ignore config bounds | A | One-day config over a multi-day source records the one-day effective period | Planned | [#309](https://github.com/quant-rule/quant-rule/issues/309) |
+| AUD-2026-10-31-42 | Major | shell/backtest | `strategy-run --config` analyzes the run's date bounds but records only CLI dates | `command/strategy.rs:198-207,220-224,326-328`; `tests/strategy_run.rs:331-332` | The reproducibility envelope misstates the analyzed period; a replay differs | A record an `effective_period`; B ignore config bounds | A | One-day config over a multi-day source records the one-day effective period | Fixed | [#309](https://github.com/quant-rule/quant-rule/issues/309) · [#321](https://github.com/quant-rule/quant-rule/pull/321) |
 | AUD-2026-10-31-43 | Major | shell/analytics | `evidence.rerun` accepts a copied rerun and disagrees with `lab summary` | `src/diagnosis.rs:546-571`; `src/lab_summary.rs:552-586`; `quantrule-analytics/src/diagnosis/compute.rs:1307-1320` | A false independent-rerun pass; two commands contradict each other | A one shared rerun-state comparison; B rename and document metrics-only | A | Copied report and different-config rerun both `unknown`; matching config `pass` | Planned | [#310](https://github.com/quant-rule/quant-rule/issues/310) |
 | AUD-2026-10-31-44 | Major | analytics | `model.axis_correlation` tests two of the six axis pairs | `diagnosis/compute.rs:232-233,282-283,1080-1104`; `docs/reports/2026-10-31/diagnosis-v1.md:93`; `src/summary.rs:18-19` | A Momentum/Structure correlation above 0.70 can pass a check that claims the largest pair | A compute all six pairs; B narrow the check and its evidence | A | Synthetic data with a 0.9 Momentum/Structure correlation fails | Planned | [#311](https://github.com/quant-rule/quant-rule/issues/311) |
 | AUD-2026-10-31-45 | Major | analytics | Unknown checks receive failure-specific triage text | `diagnosis/compute.rs:1390-1392,1423-1439`; `1377-1383,1218-1225,1245-1252,1271-1278` | A no-trade run says net expectancy is negative; a no-fill run says slippage exceeds; a no-limit run says the limit was breached | A status-aware triage text; B omit Unknown checks | A | Unknown checks say record/measure; failure text only on `Fail` | Planned | [#311](https://github.com/quant-rule/quant-rule/issues/311) |
 | AUD-2026-10-31-46 | Major | analytics | Research export does not run the contract's validation table | `quantrule-analytics/src/research/mod.rs:148,239-259`; `research/render.rs:83-88`; `docs/analytics/2026-10-24/research-output.md:591-604` | Invalid or non-finite public `LayerSet` values are written as a valid-looking dataset | A implement pre-render validation; B narrow the contract | A | Non-finite, out-of-range, duplicate-identity and row-count fixtures fail before writing | Planned | [#312](https://github.com/quant-rule/quant-rule/issues/312) |
 | AUD-2026-10-31-47 | Major | architecture | Baseline and `AGENTS.md` omit the analytics→data dependency; no crate-graph guard | `AGENTS.md:48`; `docs/architecture/README.md:43`; `docs/architecture/characteristics.md:127`; `crates/quantrule-analytics/Cargo.toml:8`; `src/research/mod.rs:21`; `src/layers/mod.rs:36` | The living architecture baseline is false; an unrecorded edge can grow unnoticed | A document the dependency and add a crate-graph test; B remove the dependency | A | Test parses every `Cargo.toml` and asserts the allowed edges | Planned | [#313](https://github.com/quant-rule/quant-rule/issues/313) |
 | AUD-2026-10-31-48 | Minor | backtest | Entry-bar stop uses the pre-entry open as its reference when the stop is tighter than slippage | `execution/engine.rs:242-243,727-733,832-848`; probe `/tmp/opencode/execution-probe` | The stop fill is worse than the stop price by up to the slippage; small silent P&L error | A evaluate the entry bar from the fill; B reject a stop distance at or below slippage | A | Probe: entry 100.02, stop 100.01, open 100.0, low 99.99 → reference 100.01, price 99.99 | Planned | [#314](https://github.com/quant-rule/quant-rule/issues/314) |
-| AUD-2026-10-31-49 | Minor | shell/backtest | `strategy-run` returns empty success when an active-ladder timeframe is missing, while README says it fails | `quantrule-backtest/src/runner/mod.rs:280-282`; `command/strategy.rs:226-230`; `tests/strategy_run.rs:423-436`; `README.md:540` | Insufficient data can be mistaken for a valid no-trade result | A update the contract and expose `bars: 0`; B restore a typed error | A | Short-series test matches the documented empty-result contract and reports zero bars | Planned | [#309](https://github.com/quant-rule/quant-rule/issues/309) |
+| AUD-2026-10-31-49 | Minor | shell/backtest | `strategy-run` returns empty success when an active-ladder timeframe is missing, while README says it fails | `quantrule-backtest/src/runner/mod.rs:280-282`; `command/strategy.rs:226-230`; `tests/strategy_run.rs:423-436`; `README.md:540` | Insufficient data can be mistaken for a valid no-trade result | A update the contract and expose `bars: 0`; B restore a typed error | A | A source with no execution bar reports `bars: 0`; the five-row short series holds with `bars: 1` and no records | Fixed | [#309](https://github.com/quant-rule/quant-rule/issues/309) · [#321](https://github.com/quant-rule/quant-rule/pull/321) |
 | AUD-2026-10-31-50 | Minor | analytics | `checks.csv` and `model-health.csv` render missing numbers as `-`, not an empty cell | `diagnosis/text.rs:457,551-553,729-730`; `docs/reports/2026-10-31/diagnosis-v1.md:54-55` | Machine consumers cannot distinguish missing from a literal `-`; CSV convention is inconsistent | A empty cell in CSV, `-` only in text; B amend the contract | A | Unknown check value and null model-health value produce empty cells | Planned | [#311](https://github.com/quant-rule/quant-rule/issues/311) |
 | AUD-2026-10-31-51 | Minor | analytics | `manifest.json` records present timeframes, not the configured ladder | `research/metadata.rs:525-531`; `layers/mod.rs:229-233`; `command/layers.rs:46-50`; `docs/analytics/2026-10-24/research-output.md:514` | A configured higher timeframe with no bars disappears from the reproducibility record | A pass the configured ladder into the manifest; B add `configured_timeframes_secs` | A | Short M1 source with no H1 still lists H1 | Planned | [#312](https://github.com/quant-rule/quant-rule/issues/312) |
 | AUD-2026-10-31-52 | Minor | model | A measured zero ATR at a pivot origin is treated as missing | `axes/progression/mod.rs:506-511`; `target.rs:169-179`; `leg.rs:193-203`; `tests/progression_golden.rs:551-563` | A flat-prefix series can publish the wrong target, reason, and lifecycle | A keep `Some(0.0)`, guard displacement, emit reason 3; B amend the contract | A | Flat prefix then pivot → target equals origin, reason 3, invalidation works | Planned | [#315](https://github.com/quant-rule/quant-rule/issues/315) |
@@ -152,8 +152,8 @@ not committed). The commands above are the reproducible evidence.
 - Recommendation: A.
 - Verification: one-day config over a multi-day source records the one-day
   effective period and its records match that range.
-- Status: `Planned`.
-- Links: [#309](https://github.com/quant-rule/quant-rule/issues/309).
+- Status: `Fixed`.
+- Links: [#309](https://github.com/quant-rule/quant-rule/issues/309) · [#321](https://github.com/quant-rule/quant-rule/pull/321).
 
 ### AUD-2026-10-31-43 — Two definitions of an independent rerun
 
@@ -373,10 +373,10 @@ not committed). The commands above are the reproducible evidence.
   - B. Restore a typed error when an active-ladder timeframe is absent.
 - Recommendation: A, because the behavior was intentionally validated; the
   contract must say so.
-- Verification: the short-series test asserts the documented empty result and
-  the envelope reports `bars: 0`.
-- Status: `Planned`.
-- Links: [#309](https://github.com/quant-rule/quant-rule/issues/309).
+- Verification: a source with no execution bar reports `bars: 0`; the five-row
+  short series holds with `bars: 1` and no records. The README/help match.
+- Status: `Fixed`.
+- Links: [#309](https://github.com/quant-rule/quant-rule/issues/309) · [#321](https://github.com/quant-rule/quant-rule/pull/321).
 
 ### AUD-2026-10-31-50 — Diagnosis CSV nulls are `-`
 
