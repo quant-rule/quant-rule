@@ -29,14 +29,15 @@ and compares key results before writing the same artifact.
 | Add cross-engine fields to the model or analytical bundle | Violates the no-P&L boundary and makes one bundle depend on downstream records |
 | Add cross-engine fields to the portfolio bundle | Makes the portfolio bundle depend on model readings and strategy context |
 | Compute the diagnosis in the shell | Moves statistics and aggregation out of analytics and breaks the shell's "parse, call, render" role |
-| Put the diagnosis in a new crate | Adds a crate for one artifact; `quantrule-analytics` already owns cross-timeframe research and depends only on the model |
+| Put the diagnosis in a new crate | Adds a crate for one artifact; `quantrule-analytics` already owns cross-timeframe research and depends on the model and data engines |
 | Make the diagnosis part of the signal path | Contradicts the read-only evaluation boundary and the no-statistics-in-signals rule |
 
 ## Consequences
 
 - The five bundles stay pure and unchanged.
-- `quantrule-analytics` keeps its one-way dependency on `quantrule-model`; it receives
-  plain facts instead of depending on `quantrule-backtest`.
+- `quantrule-analytics` keeps its one-way dependencies on `quantrule-model` and
+  `quantrule-data`; it receives plain facts instead of depending on
+  `quantrule-backtest`.
 - The artifact can be reproduced without a second pipeline run.
 - A stale lab is detectable because the identity is explicit.
 - The diagnosis adds a new file set to a full run. It is derived output and can be
