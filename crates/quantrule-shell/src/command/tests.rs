@@ -496,6 +496,23 @@ fn rejects_the_same_csv_and_png_path() {
 }
 
 #[test]
+fn rejects_a_csv_that_is_the_png_temporary_path() {
+    let command = format!(
+        "fetch gold 2025-01-01 2025-12-31 --csv out.png.tmp.{} --png out.png",
+        std::process::id()
+    );
+    assert!(matches!(parse(&command), Err(ParseError::Fetch(_))));
+}
+
+#[test]
+fn rejects_a_market_chart_png_that_aliases_the_csv() {
+    assert!(matches!(
+        parse("market-chart data/m1.csv --png ./data/m1.csv"),
+        Err(ParseError::MarketChart(_))
+    ));
+}
+
+#[test]
 fn rejects_an_unterminated_quote() {
     assert!(matches!(
         parse("fetch gold 2025-01-01 2025-12-31 --csv \"out.csv"),

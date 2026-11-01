@@ -106,9 +106,9 @@ pub(crate) fn parse_market_chart_arguments(
 
     let path = path.ok_or_else(|| ParseError::MarketChart(format!("missing CSV path\n{USAGE}")))?;
     let png = png.ok_or_else(|| ParseError::MarketChart(format!("missing --png\n{USAGE}")))?;
-    if png == path {
+    if export::outputs_conflict(&path, &png) {
         return Err(ParseError::MarketChart(format!(
-            "--png must be different from the CSV path\n{USAGE}"
+            "--png must not resolve to the same file or temporary path as the CSV\n{USAGE}"
         )));
     }
 

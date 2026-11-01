@@ -97,10 +97,10 @@ pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, P
     }
 
     if let (Some(csv_path), Some(png_path)) = (&csv, &png)
-        && csv_path == png_path
+        && crate::export::outputs_conflict(csv_path, png_path)
     {
         return Err(ParseError::Fetch(String::from(
-            "--csv and --png must be different paths",
+            "--csv and --png must not resolve to the same file or temporary path",
         )));
     }
 
