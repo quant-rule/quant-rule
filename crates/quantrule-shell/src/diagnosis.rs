@@ -145,7 +145,7 @@ fn project<'a>(
                 format_utc_timestamp(last)
             )
         }),
-        report_versions: report_versions(config),
+        report_versions: report_versions(lab_dir)?,
         created_utc: None,
         role: None,
         operator: None,
@@ -206,7 +206,43 @@ fn requested_period(config: &RunConfig) -> Option<String> {
     }
 }
 
-fn report_versions(_config: &RunConfig) -> Vec<ReportVersion> {
+const REPORT_BUNDLES: [&str; 5] = ["model", "strategy", "execution", "portfolio", "analytical"];
+
+fn report_versions(root: Option<&Path>) -> Result<Vec<ReportVersion>, RunError> {
+    let Some(root) = root else {
+        return Ok(constant_report_versions());
+    };
+    let mut versions = Vec::with_capacity(REPORT_BUNDLES.len());
+    for bundle in REPORT_BUNDLES {
+        let path = root.join(bundle).join("report.json");
+        let bytes = fs::read(&path).map_err(|source| {
+            RunError::Diagnosis(format!(
+                "cannot read {} for the report versions: {source}",
+                path.display()
+            ))
+        })?;
+        let value: Value = serde_json::from_slice(&bytes).map_err(|source| {
+            RunError::Diagnosis(format!(
+                "cannot parse {} for the report versions: {source}",
+                path.display()
+            ))
+        })?;
+        let version = value
+            .get("report_version")
+            .or_else(|| value.get("view_contract"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RunError::Diagnosis(format!("{} has no report version", path.display()))
+            })?;
+        versions.push(ReportVersion {
+            bundle: bundle.to_owned(),
+            version: version.to_owned(),
+        });
+    }
+    Ok(versions)
+}
+
+fn constant_report_versions() -> Vec<ReportVersion> {
     vec![
         ReportVersion {
             bundle: String::from("model"),
@@ -662,6 +698,10 @@ fn model_value(timeframe: &quantrule_analytics::diagnosis::types::ModelHealth) -
         },
         "direction_momentum_correlation": timeframe.direction_momentum_correlation,
         "direction_structure_correlation": timeframe.direction_structure_correlation,
+        "direction_progression_correlation": timeframe.direction_progression_correlation,
+        "momentum_structure_correlation": timeframe.momentum_structure_correlation,
+        "momentum_progression_correlation": timeframe.momentum_progression_correlation,
+        "structure_progression_correlation": timeframe.structure_progression_correlation,
         "event_density_per_100_bars": timeframe.event_density_per_100_bars,
     })
 }
@@ -919,4 +959,44 @@ fn write_artifacts(out: &Path, artifacts: &[(&'static str, Vec<u8>)]) -> Result<
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::Path;
+
+    use serde_json::json;
+
+    use super::report_versions;
+
+    #[test]
+    fn report_versions_are_read_from_the_bundle_files() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target/test-artifacts/diagnosis-report-versions");
+        let _ = fs::remove_dir_all(&root);
+        let expected = [
+            ("model", "view_contract", "model-2099"),
+            ("strategy", "report_version", "strategy-2099"),
+            ("execution", "report_version", "execution-2099"),
+            ("portfolio", "report_version", "portfolio-2099"),
+            ("analytical", "report_version", "analytical-2099"),
+        ];
+        for (bundle, field, version) in expected {
+            let directory = root.join(bundle);
+            fs::create_dir_all(&directory).expect("the bundle directory is created");
+            fs::write(
+                directory.join("report.json"),
+                serde_json::to_vec(&json!({field: version})).expect("the report is serializable"),
+            )
+            .expect("the report is written");
+        }
+
+        let versions = report_versions(Some(&root)).expect("the versions are read");
+        assert_eq!(versions.len(), expected.len());
+        for ((bundle, _, version), actual) in expected.iter().zip(versions) {
+            assert_eq!(actual.bundle, *bundle);
+            assert_eq!(actual.version, *version);
+        }
+    }
 }
