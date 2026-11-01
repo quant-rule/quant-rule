@@ -48,6 +48,12 @@ jobs:
       - name: Documentation links
         run: python3 tools/check_links.py
 
+      - name: Workflow terms
+        run: python3 tools/check_terms.py
+
+      - name: Improvement tooling
+        run: python3 -m py_compile tools/improvement/*.py tools/check_terms.py
+
       - name: Documentation
         run: cargo doc --no-deps
         env:

@@ -18,8 +18,9 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | Releases | The notes for a tagged release: commands, configuration, reports, accounting rules, and evidence. | `docs/releases/<YYYY-MM-DD>/<file>.md` |
 | Architecture decision records | A decision, the alternatives considered, and the consequences. | `docs/adr/<YYYY-MM-DD>/<file>.md` |
 | Audits | Read-only findings, evidence, and remediation options. | `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` |
-| Experiments | Pre-registered experiment records and triage. | `docs/experiments/<YYYY-MM-DD>/<EXP-ID>-<slug>.md` |
 | Governance | The improvement charter, green criteria, autonomy, and stop conditions. | `docs/governance/<YYYY-MM-DD>/<file>.md` |
+| Workflows | The living Audit Workflow, Improvement Workflow, and run contract. | `docs/workflows/<file>.md` |
+| Improvement registry | The committed run index, baselines, invalidation tombstones, and run record template. | `docs/improvement/<file>.md` |
 
 ## Current architecture
 
@@ -39,6 +40,7 @@ The baseline decision is listed in the current architecture decisions below.
 | Per-timeframe model | Approved (#228); readings and reporting-view extraction implemented (#231, #232) | `docs/model/2026-10-30/per-timeframe-model.md` |
 | DashboardState four-axis CLI view | Approved (#123) | `docs/model/2026-10-25/dashboard-state.md` |
 | MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified (#152) | `docs/model/2026-10-27/market-report.md` |
+| Model evidence protocol | Current for improvement runs; evaluation only | `docs/model/2026-11-01/model-evidence-protocol.md` |
 
 ## Current run contracts
 
@@ -50,6 +52,9 @@ The baseline decision is listed in the current architecture decisions below.
 | Per-engine reports | Approved (#168); implemented by #173–#176; verified by #177 | `docs/reports/2026-10-28/per-engine-reports.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/reports/2026-10-31/diagnosis-v1.md` |
 | BTCUSD 2024 example run | Current example: five bundles, 29 artifacts, byte-identical rerun; captured on 2026-10-31 | `config/examples/btcusd-2024/` |
+| Improvement run contract | Current; schema `quantrule.improvement-run/v1` implemented by `tools/improvement/` | `docs/workflows/run-contract.md` |
+| Strategy candidates v3–v6 | Current registry; none is a validated baseline | `docs/config/2026-11-01/strategy-candidates.md` |
+| Strategy v6 breakout | Experimental candidate; implemented; not yet validated | `docs/config/2026-11-01/strategy-v6.md` |
 
 ### Approved target contracts
 
@@ -70,15 +75,27 @@ the remaining pending phase.
 | Evidence | Status | Path |
 |---|---|---|
 | MVP v1 verification | Verified (#177); re-verified on current `main` after #189 and #196; release notes `v0.2.0` | `docs/reports/2026-10-28/mvp-v1-verification.md` |
-| High-timeframe trend experiment | Stopped; not green; 1h/4h sample below the 30-trade floor; BTCUSD/ETHUSD 2023 data blocker | [`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`](experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md) |
-| Mid-timeframe cost/sample experiment | Stopped; not green; 2024 OOS negative on all three instruments; no edge for the tested rule | [`docs/experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md`](experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md) |
+| MODEL-2026-11-01-01 | Harness pilot; not green; no model baseline accepted | [`docs/improvement/2026-11-01/MODEL-2026-11-01-01-model-baseline.md`](improvement/2026-11-01/MODEL-2026-11-01-01-model-baseline.md) |
+| Workflow-reset audit | Program green; one Major fixed; Minor/Info routed | [`docs/audits/2026-11-01/workflow-reset-audit.md`](audits/2026-11-01/workflow-reset-audit.md) |
+
+The experiment records above are pre-reset evidence. They are not improvement
+runs under the run contract and are not imported as baselines.
+
+## Current workflows
+
+| Workflow | Status | Path |
+|---|---|---|
+| Audit Workflow | Current; approved 2026-11-01 | `docs/workflows/audit-workflow.md` |
+| Improvement Workflow | Current; approved 2026-11-01 | `docs/workflows/improvement-workflow.md` |
+| Improvement run contract | Current; schema `quantrule.improvement-run/v1` | `docs/workflows/run-contract.md` |
+| Improvement registry | Current; no baseline accepted; one model harness pilot; invalidations recorded | `docs/improvement/README.md` |
 
 ## Current tutorials
 
 | Tutorial | Status | Path |
 |---|---|---|
 | Run the unified ladder end to end | Current; verified 2026-10-30 | [`docs/tutorials/2026-10-30/unified-ladder.md`](tutorials/2026-10-30/unified-ladder.md) |
-| The human improvement loop | Current; policy → strategy → experiment → triage | [`docs/tutorials/2026-10-30/improvement-loop.md`](tutorials/2026-10-30/improvement-loop.md) |
+| The Improvement Workflow | Current; updated for the 2026-11-01 reset | [`docs/tutorials/2026-10-30/improvement-workflow.md`](tutorials/2026-10-30/improvement-workflow.md) |
 
 ## Current roles
 
@@ -88,8 +105,8 @@ the remaining pending phase.
 | Quant Developer | [Quant Developer Manual](roles/2026-10-29/quant-developer-manual.md) | Current; normative in `AGENTS.md` section 10 |
 | Quant Validator | [Quant Validator Manual](roles/2026-10-29/quant-validator-manual.md) | Current; normative in `AGENTS.md` section 10 |
 | All three | [Quant roles overview](roles/2026-10-29/quant-roles.md) | Current; role table and handoff chain |
-| Governing Swarm | [Governing Swarm](roles/2026-10-30/governing-swarm.md) | Current; Loop Governor, Result Analyst, Triage Officer |
-| Continuous Improvement | [Continuous Improvement roles](roles/2026-10-30/continuous-improvement-roles.md) | Current; Audit, Planner, Improvement Verifier |
+| Improvement Workflow | [Improvement Workflow roles](roles/2026-10-30/improvement-workflow-roles.md) | Current; Loop Governor, Result Analyst, Triage Officer |
+| Audit Workflow | [Audit Workflow roles](roles/2026-10-30/audit-workflow-roles.md) | Current; Audit, Planner, Improvement Verifier |
 
 ## Local workspace
 
@@ -103,11 +120,13 @@ committed, and the candles, charts, reports, and databases stay local.
 |---|---|---|
 | Progression replay oracle | Regenerates and checks the Progression golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
 | Experiment matrix runner | Runs one isolated `backtest` per manifest cell in deterministic order. | [`tools/experiment/README.md`](../tools/experiment/README.md) |
+| Improvement run store | Manifest validation, run execution, evidence extraction, and deterministic index (Python). Baselines and invalidations are recorded in `docs/improvement/`. | `tools/improvement/` |
 
 ## Releases
 
 | Release | Tag | Notes |
 |---|---|---|
+| Workflow reset baseline | `v0.5.0` | [`docs/releases/2026-11-01/v0.5.0.md`](releases/2026-11-01/v0.5.0.md) |
 | Lab Summary and Help | `v0.3.0` | `docs/releases/2026-10-30/v0.3.0.md` |
 | MVP v1 | `v0.2.0` | `docs/releases/2026-10-28/v0.2.0.md` |
 
@@ -118,13 +137,13 @@ committed, and the candles, charts, reports, and databases stay local.
 | Help, tutorial, and quant role manuals | Delivered (#208); tagged `v0.3.0` | `docs/execution-plans/2026-10-29/208-help-tutorial-role-manuals.md` |
 | MVP v1: config-driven engines, five reports, and the full-execution 2025 example run | Delivered (#141); tagged `v0.2.0` | `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md` |
 | Market analysis and full-execution backtest | Superseded for MVP v1 closeout by the 2026-10-28 plan; history preserved | `docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md` |
-| Audit and continuous-improvement workflow | In progress; policy/strategy v2 and swarm model | `docs/execution-plans/2026-10-30/audit-improvement-workflow.md` |
+| Audit and improvement workflow (pre-reset) | Superseded by the 2026-11-01 workflow reset; retained as history | `docs/execution-plans/2026-10-30/audit-improvement-workflow.md` |
+| Workflow reset: Audit Workflow, Improvement Workflow, and run contract | Program green; first model run not green | `docs/execution-plans/2026-11-01/workflow-reset.md` |
+| Workflow-reset cleanup | Partially verified; pre-reset experiment and audit directories removed; lab path references remain | `docs/execution-plans/2026-11-01/workflow-reset-cleanup.md` |
 | AUD-2026-10-30-01: reject non-M1 ladder inputs | Merged as `98cf9d5` in [#221](https://github.com/quant-rule/quant-rule/pull/221); finding `Verified` | `docs/execution-plans/2026-10-30/AUD-2026-10-30-01-m1-source-validation.md` |
 | Remaining MVP audit remediation (AUD-02…11) | Merged; all findings `Verified` | `docs/execution-plans/2026-10-30/audit-remaining-mvp-remediation.md` |
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
-| MVP pre-release audit closure | All findings `Verified`; AUD-04 validation recorded | `docs/audits/2026-10-30/mvp-pre-release-closure.md` |
 | Unified timeframe ladder | Complete; Phases 1–9 merged through PRs #238–#246; #246 merged as `7c865de` | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
-| Unified ladder verification | Complete; no edge; sequential validator record | `docs/experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
@@ -140,7 +159,8 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 | Extended-range M1 window | Accepted (#144) | `docs/adr/2026-10-27/extended-range-window.md` |
 | Config-driven engines and per-engine reports | Accepted (#168) | `docs/adr/2026-10-28/config-driven-engines-and-reports.md` |
 | Abstraction levels and engine boundaries | Accepted 2026-10-30 | `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md` |
-| Governing swarm and improvement loop | Accepted 2026-10-30 | `docs/adr/2026-10-30/governing-swarm-and-improvement-loop.md` |
+| Improvement and audit workflow (historical) | Superseded 2026-11-01 by the workflow reset | `docs/adr/2026-10-30/governing-swarm-and-improvement-loop.md` |
+| Workflow reset: Audit Workflow and Improvement Workflow | Accepted 2026-11-01 | `docs/adr/2026-11-01/workflow-reset.md` |
 | Rule purity and statistics boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/rule-purity-and-statistics-boundary.md` |
 | Stateless strategy and the position parameter | Accepted 2026-10-30 | `docs/adr/2026-10-30/stateless-strategy-position-parameter.md` |
 | One-way timeframe ladder and trade-intent boundary | Accepted 2026-10-30 (#228) | `docs/adr/2026-10-30/one-way-timeframe-ladder.md` |

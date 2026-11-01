@@ -1,10 +1,10 @@
-# Execution Plan: Continuous Improvement Cycle — High-Timeframe Trend
+# Execution Plan: Improvement Workflow Cycle — High-Timeframe Trend (Pre-Reset)
 
 - Date: 2026-11-01 (UTC)
-- Status: Verified — experiment stopped, not green (data and sample-size blockers)
+- Status: Verified — experiment stopped, not green (data and sample-size blockers); pre-reset record
 - Work item: `improvement-cycle-2026-11-01`
-- Owner: Orchestrator (sequential Governing, Quant, and Verification passes)
-- Experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`](../../experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md)
+- Owner: Orchestrator (sequential Improvement Workflow, Quant, and Verification passes)
+- Experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`](../../improvement/INVALIDATIONS.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-11-01/improvement-cycle-2026-11-01.md`](../../ai-transparency-log/2026-11-01/improvement-cycle-2026-11-01.md)
 
 ## 1. Intent
@@ -163,4 +163,4 @@ cycle requires a BTCUSD/ETHUSD 2023 data audit/fix and a new pre-registration.
 The audit is [`docs/audits/2026-11-01/crypto-2023-data-audit.md`](../../audits/2026-11-01/crypto-2023-data-audit.md);
 a fresh provider fetch reproduces the 1,260-minute gap, so the next choice is a
 dense second source or a 2021/2024-only sample with the limitation recorded.
-Full result: [`docs/experiments/2026-11-01/results.txt`](../../experiments/2026-11-01/results.txt).
+Full result: [`docs/experiments/2026-11-01/results.txt`](../../improvement/INVALIDATIONS.md).

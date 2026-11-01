@@ -210,7 +210,7 @@ const FORCE: OptionHelp = OptionHelp {
 };
 const STRATEGY: OptionHelp = OptionHelp {
     flag: "--strategy <name>",
-    description: "Strategy name; required (ladder-context).",
+    description: "Strategy name; required (ladder-context, level-retest, three-timeframe, or breakout).",
 };
 const PNG: OptionHelp = OptionHelp {
     flag: "--png <path>",
@@ -230,7 +230,7 @@ const MODEL_TIMEFRAME: OptionHelp = OptionHelp {
 };
 const BARS: OptionHelp = OptionHelp {
     flag: "--bars <n>",
-    description: "Bars per timeframe, 1..1000 (default 1000).",
+    description: "Bars per timeframe, 1..100000 (default 1000).",
 };
 const FETCH_TIMEFRAME: OptionHelp = OptionHelp {
     flag: "--timeframe <tf>",

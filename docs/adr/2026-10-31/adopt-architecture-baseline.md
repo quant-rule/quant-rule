@@ -44,7 +44,7 @@ discoverable.
 |---|---|
 | Put the kata and characteristics inside this ADR | An ADR records one decision and should link supporting material; embedding both makes it a long hybrid document that will drift. |
 | Keep only ADRs and no architecture baseline | ADRs record decisions, not the product definition or the character of the system; readers would have to reconstruct the baseline from many records. |
-| Put the documents under `docs/governance/` | Governance owns the improvement loop, autonomy, and stop conditions, not the product and architecture baseline. |
+| Put the documents under `docs/governance/` | Governance owns the improvement workflow, autonomy, and stop conditions, not the product and architecture baseline. |
 | Create `docs/system/` instead of `docs/architecture/` | `system` is broader and would overlap with the existing configuration, report, and tutorial kinds; `architecture` is the missing kind. |
 | Use a dated `docs/architecture/<YYYY-MM-DD>/` folder | A living baseline is not a work-item snapshot; dating it would fragment the document and invite stale copies. The ADR remains dated. |
 

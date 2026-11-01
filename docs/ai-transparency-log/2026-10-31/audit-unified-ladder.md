@@ -4,7 +4,7 @@
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
 - Work item: `audit-unified-ladder`
 - Plan: [`docs/execution-plans/2026-10-31/audit-unified-ladder.md`](../../execution-plans/2026-10-31/audit-unified-ladder.md)
-- Audit: [`docs/audits/2026-10-31/unified-ladder-audit.md`](../../audits/2026-10-31/unified-ladder-audit.md)
+- Audit: [`docs/audits/2026-10-31/unified-ladder-audit.md`](../../improvement/INVALIDATIONS.md)
 
 ## Intent and boundary
 

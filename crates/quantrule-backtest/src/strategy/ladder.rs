@@ -12,10 +12,10 @@
 //! position.
 
 use crate::context::{AgreementCode, AxisContext, LadderContext};
-use crate::intent::StrategyPosition;
+use crate::intent::{EntryStyle, StopSpec, StrategyPosition, TargetSpec, TradeIntent};
 use crate::side::Side;
 
-use super::config::StrategyConfig;
+use super::config::{LevelRetestConfig, StrategyConfig, StrategyMode};
 use super::decision::{Decision, Entry, Exit, ExitReason, Strategy};
 use super::input::StrategyInput;
 
@@ -25,7 +25,8 @@ use super::input::StrategyInput;
 ///
 /// ```
 /// use quantrule_backtest::context::{
-///     AgreementCode, AxisContext, LadderContext, ProgressionContext, StructureContext,
+///     AgreementCode, AgreementContext, AxisContext, LadderContext, LevelContext,
+///     ProgressionContext, StructureContext,
 /// };
 /// use quantrule_backtest::intent::StrategyPosition;
 /// use quantrule_backtest::strategy::{
@@ -83,6 +84,8 @@ use super::input::StrategyInput;
 ///         stage_histogram: [0.0; 6],
 ///         late_or_terminal_count: 0,
 ///     },
+///     levels: LevelContext::unavailable(),
+///     agreement: AgreementContext::unavailable(),
 /// };
 ///
 /// assert!(matches!(
@@ -117,27 +120,35 @@ impl LadderContextStrategy {
     }
 
     fn execution_long(&self, input: &StrategyInput) -> bool {
-        let entry = self.config.entry().execution();
-        finite(input.direction).is_some_and(|value| value > entry.direction_min())
-            && finite(input.momentum_force).is_some_and(|value| value > entry.momentum_min())
-            && finite(input.structure_score).is_some_and(|value| value >= entry.structure_min())
+        self.execution_long_values(input)
             && shift_long(
                 input,
-                entry.structure_shift_from_max(),
-                entry.structure_shift_to_min(),
+                self.config.entry().execution().structure_shift_from_max(),
+                self.config.entry().execution().structure_shift_to_min(),
             )
     }
 
     fn execution_short(&self, input: &StrategyInput) -> bool {
+        self.execution_short_values(input)
+            && shift_short(
+                input,
+                self.config.entry().execution().structure_shift_from_max(),
+                self.config.entry().execution().structure_shift_to_min(),
+            )
+    }
+
+    fn execution_long_values(&self, input: &StrategyInput) -> bool {
+        let entry = self.config.entry().execution();
+        finite(input.direction).is_some_and(|value| value > entry.direction_min())
+            && finite(input.momentum_force).is_some_and(|value| value > entry.momentum_min())
+            && finite(input.structure_score).is_some_and(|value| value >= entry.structure_min())
+    }
+
+    fn execution_short_values(&self, input: &StrategyInput) -> bool {
         let entry = self.config.entry().execution();
         finite(input.direction).is_some_and(|value| value < -entry.direction_min())
             && finite(input.momentum_force).is_some_and(|value| value < -entry.momentum_min())
             && finite(input.structure_score).is_some_and(|value| value <= -entry.structure_min())
-            && shift_short(
-                input,
-                entry.structure_shift_from_max(),
-                entry.structure_shift_to_min(),
-            )
     }
 
     fn long_context(&self, context: &LadderContext) -> bool {
@@ -157,6 +168,295 @@ impl LadderContextStrategy {
             (Side::Long, Some(code)) => code < 0,
             (Side::Short, Some(code)) => code > 0,
             _ => false,
+        }
+    }
+
+    fn level_lost(&self, context: &LadderContext, side: Side) -> bool {
+        match side {
+            Side::Long => context.levels.support_broken || context.levels.broken_support.is_some(),
+            Side::Short => {
+                context.levels.resistance_broken || context.levels.broken_resistance.is_some()
+            }
+        }
+    }
+
+    fn level_entry(&self, input: &StrategyInput, context: &LadderContext) -> Option<TradeIntent> {
+        let level = self.config.level()?;
+        if self.long_context(context) && self.execution_long_values(input) {
+            return self.level_intent(context, Side::Long, level);
+        }
+        if self.short_context(context) && self.execution_short_values(input) {
+            return self.level_intent(context, Side::Short, level);
+        }
+        None
+    }
+
+    fn level_intent(
+        &self,
+        context: &LadderContext,
+        side: Side,
+        level: LevelRetestConfig,
+    ) -> Option<TradeIntent> {
+        let retested = match side {
+            Side::Long => context.levels.retest_support,
+            Side::Short => context.levels.retest_resistance,
+        };
+        if !retested {
+            return None;
+        }
+        self.bracket_intent(context, side, level)
+    }
+
+    fn bracket_intent(
+        &self,
+        context: &LadderContext,
+        side: Side,
+        level: LevelRetestConfig,
+    ) -> Option<TradeIntent> {
+        let levels = &context.levels;
+        let reference = levels.reference_price?;
+        let support = levels.support?;
+        let resistance = levels.resistance?;
+        let distance = match side {
+            Side::Long => levels.support_distance_fraction?,
+            Side::Short => levels.resistance_distance_fraction?,
+        };
+        if !distance.is_finite() || distance > level.max_distance_fraction() {
+            return None;
+        }
+        let (stop, target) = match side {
+            Side::Long => (
+                support.price * (1.0 - level.stop_buffer_fraction()),
+                resistance.price,
+            ),
+            Side::Short => (
+                resistance.price * (1.0 + level.stop_buffer_fraction()),
+                support.price,
+            ),
+        };
+        let (risk, reward) = match side {
+            Side::Long => (reference - stop, target - reference),
+            Side::Short => (stop - reference, reference - target),
+        };
+        if !risk.is_finite() || risk <= 0.0 || !reward.is_finite() || reward <= 0.0 {
+            return None;
+        }
+        if reward / risk < level.min_reward_to_risk() {
+            return None;
+        }
+        let intent = TradeIntent {
+            side,
+            entry: EntryStyle::MarketNextOpen,
+            stop: StopSpec::Price { price: stop },
+            target: TargetSpec::Price { price: target },
+            valid_until: None,
+            max_slippage_bps: None,
+        };
+        if !intent.stop.is_valid() || !intent.target.is_valid() {
+            return None;
+        }
+        Some(intent)
+    }
+
+    fn trend_level_intent(
+        &self,
+        context: &LadderContext,
+        side: Side,
+        level: LevelRetestConfig,
+    ) -> Option<TradeIntent> {
+        let retested = match side {
+            Side::Long => context.levels.retest_support,
+            Side::Short => context.levels.retest_resistance,
+        };
+        if !retested {
+            return None;
+        }
+        self.trend_bracket_intent(context, side, level)
+    }
+
+    fn trend_bracket_intent(
+        &self,
+        context: &LadderContext,
+        side: Side,
+        level: LevelRetestConfig,
+    ) -> Option<TradeIntent> {
+        let levels = &context.levels;
+        let reference = levels.reference_price?;
+        let (stop_level, stop_distance) = match side {
+            Side::Long => (levels.support?, levels.support_distance_fraction?),
+            Side::Short => (levels.resistance?, levels.resistance_distance_fraction?),
+        };
+        if !stop_distance.is_finite() || stop_distance > level.max_distance_fraction() {
+            return None;
+        }
+        let stop = match side {
+            Side::Long => stop_level.price * (1.0 - level.stop_buffer_fraction()),
+            Side::Short => stop_level.price * (1.0 + level.stop_buffer_fraction()),
+        };
+        let risk = match side {
+            Side::Long => reference - stop,
+            Side::Short => stop - reference,
+        };
+        if !risk.is_finite() || risk <= 0.0 {
+            return None;
+        }
+        let target = match side {
+            Side::Long => levels
+                .resistance
+                .map(|level| TargetSpec::Price { price: level.price }),
+            Side::Short => levels
+                .support
+                .map(|level| TargetSpec::Price { price: level.price }),
+        }
+        .unwrap_or(TargetSpec::RewardToRisk {
+            multiple: level.min_reward_to_risk(),
+        });
+        if let TargetSpec::Price { price } = target {
+            let reward = match side {
+                Side::Long => price - reference,
+                Side::Short => reference - price,
+            };
+            if !reward.is_finite() || reward <= 0.0 || reward / risk < level.min_reward_to_risk() {
+                return None;
+            }
+        }
+        let intent = TradeIntent {
+            side,
+            entry: EntryStyle::MarketNextOpen,
+            stop: StopSpec::Price { price: stop },
+            target,
+            valid_until: None,
+            max_slippage_bps: None,
+        };
+        if !intent.stop.is_valid() || !intent.target.is_valid() {
+            return None;
+        }
+        Some(intent)
+    }
+
+    fn three_timeframe_entry(
+        &self,
+        _input: &StrategyInput,
+        context: &LadderContext,
+    ) -> Option<TradeIntent> {
+        let three = self.config.three_timeframe()?;
+        let level = three.level();
+        if context.agreement.long
+            && context.agreement.long_bars >= three.min_agreement_bars()
+            && let Some(intent) = self.trend_level_intent(context, Side::Long, level)
+        {
+            return Some(intent);
+        }
+        if context.agreement.short
+            && context.agreement.short_bars >= three.min_agreement_bars()
+            && let Some(intent) = self.trend_level_intent(context, Side::Short, level)
+        {
+            return Some(intent);
+        }
+        None
+    }
+
+    fn breakout_entry(
+        &self,
+        input: &StrategyInput,
+        context: &LadderContext,
+    ) -> Option<TradeIntent> {
+        let breakout = self.config.level()?;
+        if self.long_context(context) && self.execution_long_values(input) {
+            return self.breakout_intent(context, Side::Long, breakout);
+        }
+        if self.short_context(context) && self.execution_short_values(input) {
+            return self.breakout_intent(context, Side::Short, breakout);
+        }
+        None
+    }
+
+    fn breakout_intent(
+        &self,
+        context: &LadderContext,
+        side: Side,
+        breakout: LevelRetestConfig,
+    ) -> Option<TradeIntent> {
+        let levels = &context.levels;
+        let reference = levels.reference_price?;
+        if !reference.is_finite() || reference <= 0.0 {
+            return None;
+        }
+        let broken = match side {
+            Side::Long => levels.broken_resistance?,
+            Side::Short => levels.broken_support?,
+        };
+        let distance = match side {
+            Side::Long => (reference - broken.price) / reference,
+            Side::Short => (broken.price - reference) / reference,
+        };
+        if !distance.is_finite()
+            || distance < breakout.stop_buffer_fraction()
+            || distance > breakout.max_distance_fraction()
+        {
+            return None;
+        }
+        let stop = match side {
+            Side::Long => broken.price * (1.0 - breakout.stop_buffer_fraction()),
+            Side::Short => broken.price * (1.0 + breakout.stop_buffer_fraction()),
+        };
+        let risk = match side {
+            Side::Long => reference - stop,
+            Side::Short => stop - reference,
+        };
+        if !risk.is_finite() || risk <= 0.0 {
+            return None;
+        }
+        let target = match side {
+            Side::Long => levels
+                .resistance
+                .map(|level| TargetSpec::Price { price: level.price }),
+            Side::Short => levels
+                .support
+                .map(|level| TargetSpec::Price { price: level.price }),
+        }
+        .unwrap_or(TargetSpec::RewardToRisk {
+            multiple: breakout.min_reward_to_risk(),
+        });
+        if let TargetSpec::Price { price } = target {
+            let reward = match side {
+                Side::Long => price - reference,
+                Side::Short => reference - price,
+            };
+            if !reward.is_finite() || reward <= 0.0 || reward / risk < breakout.min_reward_to_risk()
+            {
+                return None;
+            }
+        }
+        let intent = TradeIntent {
+            side,
+            entry: EntryStyle::MarketNextOpen,
+            stop: StopSpec::Price { price: stop },
+            target,
+            valid_until: None,
+            max_slippage_bps: None,
+        };
+        if !intent.stop.is_valid() || !intent.target.is_valid() {
+            return None;
+        }
+        Some(intent)
+    }
+
+    fn level_exit_reason(
+        &self,
+        input: &StrategyInput,
+        context: &LadderContext,
+        side: Side,
+    ) -> Option<ExitReason> {
+        let exit = self.config.exit();
+        if exit.on_context_lost() && self.context_lost(context, side) {
+            Some(ExitReason::ContextLost)
+        } else if exit.on_level_lost() && self.level_lost(context, side) {
+            Some(ExitReason::LevelLost)
+        } else if exit.on_structure_lost() && self.structure_lost(input, side) {
+            Some(ExitReason::StructureLost)
+        } else {
+            None
         }
     }
 
@@ -202,28 +502,66 @@ impl Strategy for LadderContextStrategy {
                 if !context.context_complete() {
                     return Decision::Hold;
                 }
-                if self.long_entry(input, context) {
-                    Decision::Enter(Entry {
-                        bar: *input,
-                        intent: self.config.risk().intent(Side::Long),
-                    })
-                } else if self.short_entry(input, context) {
-                    Decision::Enter(Entry {
-                        bar: *input,
-                        intent: self.config.risk().intent(Side::Short),
-                    })
-                } else {
-                    Decision::Hold
+                match self.config.mode() {
+                    StrategyMode::LadderContext => {
+                        let Some(risk) = self.config.risk() else {
+                            return Decision::Hold;
+                        };
+                        if self.long_entry(input, context) {
+                            Decision::Enter(Entry {
+                                bar: *input,
+                                intent: risk.intent(Side::Long),
+                            })
+                        } else if self.short_entry(input, context) {
+                            Decision::Enter(Entry {
+                                bar: *input,
+                                intent: risk.intent(Side::Short),
+                            })
+                        } else {
+                            Decision::Hold
+                        }
+                    }
+                    StrategyMode::LevelRetest(_) => match self.level_entry(input, context) {
+                        Some(intent) => Decision::Enter(Entry {
+                            bar: *input,
+                            intent,
+                        }),
+                        None => Decision::Hold,
+                    },
+                    StrategyMode::ThreeTimeframe(_) => {
+                        match self.three_timeframe_entry(input, context) {
+                            Some(intent) => Decision::Enter(Entry {
+                                bar: *input,
+                                intent,
+                            }),
+                            None => Decision::Hold,
+                        }
+                    }
+                    StrategyMode::Breakout(_) => match self.breakout_entry(input, context) {
+                        Some(intent) => Decision::Enter(Entry {
+                            bar: *input,
+                            intent,
+                        }),
+                        None => Decision::Hold,
+                    },
                 }
             }
-            Some(open) => match self.exit_reason(input, context, open) {
-                Some(reason) => Decision::Exit(Exit {
-                    side: open,
-                    bar: *input,
-                    reason,
-                }),
-                None => Decision::Hold,
-            },
+            Some(open) => {
+                let reason = match self.config.mode() {
+                    StrategyMode::LadderContext => self.exit_reason(input, context, open),
+                    StrategyMode::LevelRetest(_)
+                    | StrategyMode::ThreeTimeframe(_)
+                    | StrategyMode::Breakout(_) => self.level_exit_reason(input, context, open),
+                };
+                match reason {
+                    Some(reason) => Decision::Exit(Exit {
+                        side: open,
+                        bar: *input,
+                        reason,
+                    }),
+                    None => Decision::Hold,
+                }
+            }
         }
     }
 }

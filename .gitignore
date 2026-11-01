@@ -37,3 +37,4 @@ Thumbs.db
 /data/**
 !/data/**/
 !/data/**/README.md
+!/data/partitions.json

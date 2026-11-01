@@ -13,8 +13,15 @@
 use std::fmt;
 
 use quantrule_model::kernel::COMPACT_STATE_THRESHOLD;
+use quantrule_model::readings::PivotScale;
 use quantrule_model::run::ModelRun;
 use quantrule_model::timeframe::{ModelBar, TimeframeModel};
+
+mod agreement;
+mod levels;
+
+pub use agreement::AgreementContext;
+pub use levels::{LevelContext, LevelView};
 
 /// One higher-timeframe bar selected for an execution bar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -158,6 +165,10 @@ pub struct LadderContext {
     pub structure: StructureContext,
     /// Progression context.
     pub progression: ProgressionContext,
+    /// The nearest confirmed support and resistance, as of this bar.
+    pub levels: LevelContext,
+    /// The priority agreement across the higher-timeframe context.
+    pub agreement: AgreementContext,
 }
 
 impl LadderContext {
@@ -480,6 +491,9 @@ pub struct LadderContextBuilder<'a> {
     pointers: Vec<Option<usize>>,
     next: Vec<usize>,
     bar_index: usize,
+    level_scale: Option<PivotScale>,
+    long_agreement_bars: u64,
+    short_agreement_bars: u64,
 }
 
 impl<'a> LadderContextBuilder<'a> {
@@ -528,7 +542,17 @@ impl<'a> LadderContextBuilder<'a> {
             pointers: vec![None; ladder.context_timeframes().len()],
             next: vec![0; ladder.context_timeframes().len()],
             bar_index: 0,
+            level_scale: None,
+            long_agreement_bars: 0,
+            short_agreement_bars: 0,
         })
+    }
+
+    /// Restricts the level view to one confirmed-pivot scale.
+    #[must_use]
+    pub fn with_level_scale(mut self, scale: Option<PivotScale>) -> Self {
+        self.level_scale = scale;
+        self
     }
 
     /// The number of execution bars the builder will yield.
@@ -622,6 +646,45 @@ impl<'a> LadderContextBuilder<'a> {
                 ProgressionContext::unavailable(),
             )
         };
+        let levels = if missing.is_empty() {
+            let previous_close = bar_index
+                .checked_sub(1)
+                .and_then(|index| self.execution.bar(index))
+                .map(|previous| previous.candle.close());
+            levels::compute(
+                &self.context_models,
+                &self.pointers,
+                bar.candle,
+                previous_close,
+                self.level_scale,
+            )
+        } else {
+            LevelContext::unavailable()
+        };
+        let agreement = if missing.is_empty() {
+            let (long, short) =
+                agreement::priority_sides(&direction, &momentum, &structure, &progression);
+            self.long_agreement_bars = if long {
+                self.long_agreement_bars + 1
+            } else {
+                0
+            };
+            self.short_agreement_bars = if short {
+                self.short_agreement_bars + 1
+            } else {
+                0
+            };
+            AgreementContext {
+                long,
+                short,
+                long_bars: self.long_agreement_bars,
+                short_bars: self.short_agreement_bars,
+            }
+        } else {
+            self.long_agreement_bars = 0;
+            self.short_agreement_bars = 0;
+            AgreementContext::unavailable()
+        };
 
         Ok(Some(LadderContext {
             execution_timeframe_secs: self.execution.timeframe_secs(),
@@ -634,6 +697,8 @@ impl<'a> LadderContextBuilder<'a> {
             momentum,
             structure,
             progression,
+            levels,
+            agreement,
         }))
     }
 }

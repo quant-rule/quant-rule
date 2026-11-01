@@ -5,7 +5,7 @@
 - Normative source: [`AGENTS.md` section 10](../../../AGENTS.md#10-agentic-engineering-and-role-definitions)
 - Scope: candles-only, rule-based signals
 
-The governing and continuous-improvement roles are separate, cross-cutting
+The Improvement Workflow and Audit Workflow roles are separate, cross-cutting
 functions; see [`docs/roles/2026-10-30/`](../2026-10-30/) for those manuals.
 
 This page explains the three quant roles in plain language. `AGENTS.md` is the

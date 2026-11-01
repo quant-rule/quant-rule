@@ -88,9 +88,47 @@ pub(crate) fn run_policy_check(
         .collect::<Vec<_>>()
         .join(",");
     let tickets = config.policy.universe.tickets.join(",");
+    let (strategy_name, risk) = match config.strategy.engine.mode() {
+        quantrule_backtest::strategy::StrategyMode::ThreeTimeframe(three) => (
+            "three-timeframe",
+            format!(
+                "stop_level_buffer={} target_next_level min_reward_to_risk={} agreement_bars={}",
+                three.level().stop_buffer_fraction(),
+                three.level().min_reward_to_risk(),
+                three.min_agreement_bars()
+            ),
+        ),
+        quantrule_backtest::strategy::StrategyMode::Breakout(breakout) => (
+            "breakout",
+            format!(
+                "stop_level_buffer={} target_next_level min_reward_to_risk={}",
+                breakout.stop_buffer_fraction(),
+                breakout.min_reward_to_risk()
+            ),
+        ),
+        quantrule_backtest::strategy::StrategyMode::LevelRetest(level) => (
+            "level-retest",
+            format!(
+                "stop_level_buffer={} target_next_level min_reward_to_risk={}",
+                level.stop_buffer_fraction(),
+                level.min_reward_to_risk()
+            ),
+        ),
+        quantrule_backtest::strategy::StrategyMode::LadderContext => {
+            let risk = config.strategy.engine.risk().unwrap_or_default();
+            (
+                "ladder-context",
+                format!(
+                    "stop_atr={} reward_to_risk={}",
+                    risk.stop_atr_multiple(),
+                    risk.reward_to_risk()
+                ),
+            )
+        }
+    };
     writeln!(
         writer,
-        "policy ok run={} account={} {} target={} {}d max_drawdown={} risk={} leverage={} positions={} tickets={} timeframes={} strategy=ladder-context execution={} ladder={} stop_atr={} reward_to_risk={}",
+        "policy ok run={} account={} {} target={} {}d max_drawdown={} risk={} leverage={} positions={} tickets={} timeframes={} strategy={} execution={} ladder={} {}",
         config.name,
         config.policy.account.currency,
         config.policy.account.initial_cash,
@@ -102,10 +140,10 @@ pub(crate) fn run_policy_check(
         config.policy.risk.max_open_positions,
         tickets,
         timeframes,
+        strategy_name,
         labels::timeframe_label(config.strategy.engine.timeframe_secs()),
         ladder_label(&config),
-        config.strategy.stop_atr_multiple(),
-        config.strategy.reward_to_risk(),
+        risk,
     )
     .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)

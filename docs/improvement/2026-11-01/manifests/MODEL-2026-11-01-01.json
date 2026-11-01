@@ -1,0 +1,21 @@
+{
+  "schema": "quantrule.improvement-run/v1",
+  "created_utc": "2026-11-01T00:00:00Z",
+  "code_commit": "worktree",
+  "seed": 0,
+  "run_id": "MODEL-2026-11-01-01",
+  "tier": "model",
+  "hypothesis": "Model baseline validation on the 2021 model-validation window.",
+  "changed": "model",
+  "frozen": [
+    "strategy",
+    "portfolio"
+  ],
+  "partition": "model_validation",
+  "run_config": "config/improvement/2026-11-01/btc-model-2021/run.json",
+  "green_criteria": {
+    "axes": "A/B required",
+    "max_drawdown": 0.2
+  },
+  "holdout_access": "none"
+}

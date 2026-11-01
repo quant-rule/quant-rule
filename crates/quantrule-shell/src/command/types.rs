@@ -650,6 +650,13 @@ pub(crate) enum StrategyRunError {
         /// The supplied name.
         name: String,
     },
+    /// The supplied name does not match the loaded config.
+    ConfigMismatch {
+        /// The supplied name.
+        name: String,
+        /// The name the config implements.
+        expected: String,
+    },
     /// The strategy timeframe is not one the data engine builds.
     UnsupportedTimeframe {
         /// The strategy timeframe in seconds.
@@ -667,8 +674,15 @@ impl fmt::Display for StrategyRunError {
                 )
             }
             Self::UnknownStrategy { name } => {
-                write!(formatter, "unknown strategy '{name}'; use ladder-context")
+                write!(
+                    formatter,
+                    "unknown strategy '{name}'; use ladder-context, level-retest, three-timeframe, or breakout"
+                )
             }
+            Self::ConfigMismatch { name, expected } => write!(
+                formatter,
+                "the strategy name '{name}' does not match the config; the config is {expected}"
+            ),
             Self::UnsupportedTimeframe { timeframe_secs } => write!(
                 formatter,
                 "the strategy timeframe {timeframe_secs} is not built by the data engine"

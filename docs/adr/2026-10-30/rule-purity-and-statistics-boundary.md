@@ -37,7 +37,7 @@ to be explicit and testable.
    change removes them.
 2. **Allow statistical filters as long as they are documented.** Rejected:
    statistical, ML, and neural-network signal generation are out of scope.
-3. **Let the Governing Swarm optimize thresholds automatically.** Rejected:
+3. **Let the Improvement Workflow optimize thresholds automatically.** Rejected:
    post-hoc tuning is data snooping. The swarm recommends; the human approves a
    pre-registered hypothesis.
 

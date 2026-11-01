@@ -1,15 +1,19 @@
-# Audit and Continuous Improvement Workflow
+# Audit and Improvement Workflow (Pre-Reset)
 
-- Status: Approved
+- Status: Superseded by the 2026-11-01 workflow reset; retained as history
 - Date: 2026-10-30 (UTC)
 - Work item: `audit-improvement-workflow`
 - Branch: `feat/audit-improvement-workflow`
 - Base: `main` at `2739a67`
 - Human approval: the human approved the architecture and the full plan in the working session on 2026-10-30.
 
+> This plan predates the 2026-11-01 reset. Terminology is updated for navigation;
+> the current workflows are [`docs/workflows/audit-workflow.md`](../../workflows/audit-workflow.md)
+> and [`docs/workflows/improvement-workflow.md`](../../workflows/improvement-workflow.md).
+
 ## Intent
 
-Make QuantRule improve through an explicit closed loop: the human sets a policy and an explainable strategy, the system measures, the Governing Swarm runs experiments and triages results, the Continuous Improvement Swarm audits and plans program fixes, the Engineering Swarm implements them, and the Quant Swarm validates trading/model changes. The program must remain deterministic, rule-based, and free of statistics in the signal path.
+Make QuantRule improve through an explicit workflow: the human sets a policy and an explainable strategy, the system measures, the Improvement Workflow runs experiments and triages results, the Audit Workflow audits and plans program fixes, the Engineering Swarm implements them, and the Quant Swarm validates trading/model changes. The program must remain deterministic, rule-based, and free of statistics in the signal path.
 
 The work also makes the abstraction levels explicit:
 
@@ -37,10 +41,10 @@ Included:
 - Policy blueprint schema, loader, validation, and `policy check`.
 - Strategy blueprint schema, risk/reward move, `strategy explain`, and strategy-run config use.
 - Model/strategy boundary tests and a no-statistics-in-signal-path guard.
-- Governing/Experiment Control, Continuous Improvement, Engineering, and Quant role definitions.
+- Improvement Workflow, Audit Workflow, Engineering, and Quant role definitions.
 - Audit, experiment, plan, traceability, and closure documents/templates.
 - Human improvement guide.
-- ADRs for abstraction levels, the governing loop, and rule purity.
+- ADRs for abstraction levels, the improvement workflow, and rule purity.
 - AGENTS.md, README, docs index, PR/issue templates, and examples.
 - Dry-run acceptance.
 
@@ -49,7 +53,7 @@ Excluded:
 - Live trading, broker connectivity, or deployment.
 - Statistical, machine-learning, or neural-network signal generation.
 - Automatic tuning of model/strategy thresholds from backtest results.
-- A combined multi-instrument portfolio. Each run is one ticket; the Governing Swarm compares independent runs.
+- A combined multi-instrument portfolio. Each run is one ticket; the Improvement Workflow compares independent runs.
 - News, weekend, or session filters.
 - Any change to the four-axis model formulas beyond isolation/validation work.
 
@@ -67,8 +71,8 @@ Excluded:
 2. **Strategy owns entry/exit and risk/reward.** `execution.json` keeps fill mechanics and costs. The execution engine still receives bracket multiples, but they are derived from the strategy risk block.
 3. **Strategy is explainable.** `strategy.json` carries a human thesis and structured entry/exit/risk; `strategy explain` renders the human-readable contract.
 4. **Statistics are banned from the signal path.** The model and strategy use deterministic arithmetic; analytics and validation own statistics.
-5. **The Governing Swarm is a thin control layer.** It runs experiments and recommends; it cannot merge, accept a trading change, or release.
-6. **Continuous Improvement is cross-cutting oversight.** It audits/plans/verifies and cannot implement or approve model/strategy behavior.
+5. **The Improvement Workflow is a thin control layer.** It runs experiments and recommends; it cannot merge, accept a trading change, or release.
+6. **The Audit Workflow is cross-cutting oversight.** It audits/plans/verifies and cannot implement or approve model/strategy behavior.
 7. **The human remains the final authority.** Material policy/strategy/config changes and releases require approval.
 8. **Backward compatibility:** the run schema becomes `quantrule.run/v2`. Existing examples are migrated; old configs fail with a clear schema error rather than silently defaulting.
 
@@ -120,8 +124,8 @@ Dependencies: 1 → 2 → 3 → 4 → 5 → 8; 6 and 7 may proceed in parallel w
 - **Config migration:** v1 configs fail. Recovery: migrate all examples and fixtures in the same change; document the error.
 - **Risk/reward move:** golden fixtures change if values differ. Recovery: keep 2.0/3.0; verify trade parity and review the diff.
 - **Statistics boundary:** if a statistical field feeds a decision, stop and ask before changing model behavior. Recovery: isolate diagnostics in analytics or remove them.
-- **Role proliferation:** keep Governing and Continuous Improvement thin and read-only by default.
-- **Overfitting:** experiments pre-register criteria; the loop may conclude “no edge”.
+- **Role proliferation:** keep the Improvement Workflow and Audit Workflow thin and read-only by default.
+- **Overfitting:** experiments pre-register criteria; the improvement workflow may conclude “no edge”.
 - **Multi-ticket scope:** independent runs only; a combined portfolio needs a new approved plan.
 
 ## Stop conditions

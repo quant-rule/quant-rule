@@ -151,7 +151,8 @@ pub fn run_backtest(
         let execution_secs = i64::from(timeframe.timeframe_secs() as u32);
         let mut context_builder =
             LadderContextBuilder::new(&model, config.strategy.ladder(), config.strategy.weights())
-                .map_err(BacktestError::Context)?;
+                .map_err(BacktestError::Context)?
+                .with_level_scale(config.strategy.level_scale());
         inputs_seen.reserve(timeframe.len());
         contexts.reserve(timeframe.len());
         decisions.reserve(timeframe.len());
@@ -283,7 +284,8 @@ pub fn walk_strategy(
     let strategy = LadderContextStrategy::new(config.clone());
     let execution_secs = i64::from(timeframe.timeframe_secs() as u32);
     let mut context_builder = LadderContextBuilder::new(run, config.ladder(), config.weights())
-        .map_err(BacktestError::Context)?;
+        .map_err(BacktestError::Context)?
+        .with_level_scale(config.level_scale());
     let mut position = StrategyPosition::flat();
     let mut inputs = Vec::with_capacity(timeframe.len());
     let mut contexts = Vec::with_capacity(timeframe.len());

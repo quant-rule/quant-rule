@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "btc-v5-2024",
+  "policy": "../shared/policy-three.json",
+  "data": "data.json",
+  "model": "../shared/model.json",
+  "strategy": "../shared/strategy-three.json",
+  "execution": "../shared/execution-three.json",
+  "portfolio": "../shared/portfolio.json",
+  "analytics": "../shared/analytics-three.json",
+  "output_root": "../../../data/labs/btc-v5-2024"
+}

@@ -3,7 +3,7 @@
 - Date: 2026-10-31 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
 - Work item: `full-system-audit`
-- Audit: [`docs/audits/2026-10-31/full-system-audit.md`](../../audits/2026-10-31/full-system-audit.md)
+- Audit: [`docs/audits/2026-10-31/full-system-audit.md`](../../improvement/INVALIDATIONS.md)
 - Plan: [`docs/execution-plans/2026-10-31/full-system-audit.md`](../../execution-plans/2026-10-31/full-system-audit.md)
 - Branch: `docs/full-audit-2026-10-31`
 - Baseline: last audited head `c8b1dc1`; head `e34693f`

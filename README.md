@@ -94,10 +94,23 @@ the current strategy, policy check, strategy walk, five-bundle backtest, and
 strategy report through shell commands. The dated 2026-10-29 full-pipeline
 tutorial is preserved for the retired rule.
 
+The current improvement process is split into two workflows:
+
+- [Audit Workflow](docs/workflows/audit-workflow.md) — audit, remediation plan,
+  execution, verification.
+- [Improvement Workflow](docs/workflows/improvement-workflow.md) — model run,
+  strategy run, portfolio run, review, new hypothesis.
+- [Run contract](docs/workflows/run-contract.md) — manifests, run folders,
+  baselines, and invalidations.
+
+The improvement tooling lives in [`tools/improvement/`](tools/improvement/README.md).
+It records evidence; it does not tune a strategy or accept a baseline.
+
 ## Releases
 
 | Tag | Title | Notes |
 |---|---|---|
+| `v0.5.0` | Workflow reset baseline | [`docs/releases/2026-11-01/v0.5.0.md`](docs/releases/2026-11-01/v0.5.0.md) |
 | `v0.3.0` | Lab Summary and Help | [`docs/releases/2026-10-30/v0.3.0.md`](docs/releases/2026-10-30/v0.3.0.md) |
 | `v0.2.0` | MVP v1 | [`docs/releases/2026-10-28/v0.2.0.md`](docs/releases/2026-10-28/v0.2.0.md) |
 
@@ -118,12 +131,18 @@ cargo run -p quantrule-shell -- policy check --config config/examples/btcusd-202
 cargo run -p quantrule-shell -- strategy explain --config config/examples/btcusd-2024/run.json
 ```
 
-The improvement loop is documented in
-[`docs/tutorials/2026-10-30/improvement-loop.md`](docs/tutorials/2026-10-30/improvement-loop.md),
-the charter in [`docs/governance/2026-10-30/improvement-charter.md`](docs/governance/2026-10-30/improvement-charter.md),
-and the finding and experiment formats in
+The improvement workflow is documented in
+[`docs/workflows/improvement-workflow.md`](docs/workflows/improvement-workflow.md),
+the audit workflow in
+[`docs/workflows/audit-workflow.md`](docs/workflows/audit-workflow.md), the run
+contract in [`docs/workflows/run-contract.md`](docs/workflows/run-contract.md),
+and the human walkthrough in
+[`docs/tutorials/2026-10-30/improvement-workflow.md`](docs/tutorials/2026-10-30/improvement-workflow.md).
+The charter is in
+[`docs/governance/2026-10-30/improvement-charter.md`](docs/governance/2026-10-30/improvement-charter.md),
+and the finding and run formats in
 [`docs/audits/README.md`](docs/audits/README.md) and
-[`docs/experiments/README.md`](docs/experiments/README.md).
+[`docs/improvement/README.md`](docs/improvement/README.md).
 
 ## Build and run
 
@@ -359,7 +378,7 @@ gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=
 
 `legs` prints two NDJSON lines per timeframe, one for each pivot scale. Each line carries the published leg or `null`, its origin and availability bars, target basis and version, progress, displacement, lifecycle, stage, and target-reached code, with the lifecycle, stage, direction, scale, and target-basis labels.
 
-`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, window start and length, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=1000` and defaults to 1000; `--timeframe` defaults to the whole ladder and accepts `1m`, `5m`, `15m`, `1h`, or `4h`. Events remain a separate command because a bar can have several events. The default input window is the full series up to 100,000 M1 candles; `--window latest` streams the file without the full-series cap and uses the last 1,000 candles per timeframe.
+`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, window start and length, candle, six readings, the four axes with their diagnostics, context, and consensus. `--bars` is `1..=100000` and defaults to 1000; `--timeframe` defaults to the whole ladder and accepts `1m`, `5m`, `15m`, `1h`, or `4h`. Events remain a separate command because a bar can have several events. The default input window is the full series up to 600,000 M1 candles; `--window latest` streams the file without the full-series cap and uses the last 1,000 candles per timeframe.
 
 ### Market-dashboard contract
 
@@ -404,7 +423,7 @@ The output is deterministic: the same input and configuration produce the same b
 
 The report publishes coverage, axis statistics and ordinal histograms, full-period event counts, the latest published state, cross-timeframe aggregates, and chart buckets. It contains no order, fill, position, trade, equity, drawdown, or P&L field, and it applies no strategy. A range with no M1 candles fails and writes no artifacts. The JSON envelope carries `model_version`, `view_contract`, `data_version`, `requested_period`, and `market_report`; object keys have a fixed order, numbers keep full precision, and a missing value is `null`.
 
-The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles. `market-state`, `market-dashboard`, `market-chart`, `axis`, `events`, `legs`, `model-series`, the store, and research accept up to 100,000 M1 candles on the full-window path; `--window latest` streams the file without that cap and keeps the last 1,000 candles per timeframe. `market-report` and `strategy-run` accept up to 600,000; `report` and `backtest` take their cap from `data.json.max_candles`, at most 600,000.
+The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles. `market-state`, `market-dashboard`, `market-chart`, `axis`, `events`, `legs`, the store, and research accept up to 100,000 M1 candles on the full-window path; `model-series` accepts up to 600,000; `--window latest` streams the file without that cap and keeps the last 1,000 candles per timeframe. `market-report` and `strategy-run` accept up to 600,000; `report` and `backtest` take their cap from `data.json.max_candles`, at most 600,000.
 
 ### Report bundles and backtest
 
@@ -529,12 +548,15 @@ The scorecard counts checks by `pass`, `fail`, and `unknown`; it never combines 
 
 ### Strategy-run contract
 
-`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs the unified `ladder-context` strategy over its active ladder and prints its entries and exits. The built-in default is 5m execution with 15m context. It requires a one-minute-spaced source and rejects a native higher-timeframe file before printing. With `--config`, it uses the run's strategy and model configuration. The JSON envelope marks `execution_state` as `virtual`: the diagnostic walk assumes every decision fills immediately. The standalone `report strategy` is also virtual; only the `strategy` bundle written by `backtest` reads the executed walk. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
+`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs one of the implemented strategies over its active ladder and prints its entries and exits: `ladder-context` (v3), `level-retest` (v4), `three-timeframe` (v5), or `breakout` (v6). The built-in default is 5m execution with 15m context. It requires a one-minute-spaced source and rejects a native higher-timeframe file before printing. With `--config`, it uses the run's strategy and model configuration. The JSON envelope marks `execution_state` as `virtual`: the diagnostic walk assumes every decision fills immediately. The standalone `report strategy` is also virtual; only the `strategy` bundle written by `backtest` reads the executed walk. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
 
 - `ladder-context` enters long when the execution Direction and Momentum are positive, Structure turns up, and the weighted context is bullish without conflicts or late/terminal legs. It enters short on the mirrored conditions. It exits on `context_lost`, `structure_lost`, or an execution bracket. It never reverses on the same bar and never exits at the end of the data.
+- `level-retest` enters when the execution bar retests a confirmed higher-timeframe level in the direction of the context and closes back on the correct side. It uses a structural price stop and the next confirmed level as the target.
+- `three-timeframe` requires a 5m/15m priority agreement and enters on a 1m confirmed-level retest; the stop and target are structural.
+- `breakout` enters when the execution close crosses a confirmed level by the configured buffer in the direction of the context. The stop is beyond the broken level and the target is the next confirmed level, or the configured reward-to-risk fallback.
 - `--data-version <id>` is the caller-supplied identity of the input series; the envelope records it and never infers it from the path.
 - `--from` and `--to` are inclusive UTC `YYYY-MM-DD` dates applied to the M1 source before the ladder is built. No pre-range warm-up is used.
-- Without `--json`, the command prints one NDJSON line per entry or exit, oldest first. Each record carries `type`, `strategy`, `timeframe`, `timeframe_secs`, `bar`, `datetime`, `side`, `side_label`, `direction`, `momentum_force`, and `structure_score`; an exit also carries `reason` (`context_lost` or `structure_lost`). Model Signal events remain a separate event type and are never relabelled as strategy entries or exits.
+- Without `--json`, the command prints one NDJSON line per entry or exit, oldest first. Each record carries `type`, `strategy`, `timeframe`, `timeframe_secs`, `bar`, `datetime`, `side`, `side_label`, `direction`, `momentum_force`, and `structure_score`; an exit also carries `reason` (`context_lost`, `structure_lost`, or `level_lost`). Model Signal events remain a separate event type and are never relabelled as strategy entries or exits.
 - With `--json`, the command prints one envelope with `model_version`, `strategy`, `strategy_config`, `data_version`, `requested_period`, `effective_period`, `actual_period`, `bars`, `timeframe_secs`, and `records`; `records` carries the same records as the bare NDJSON output.
   - `requested_period` is the CLI `--from`/`--to` exactly; it is null when omitted.
   - `effective_period` is the range actually applied: the CLI dates when either is supplied, otherwise the run configuration's `data.from`/`data.to`; a null endpoint means the full file.

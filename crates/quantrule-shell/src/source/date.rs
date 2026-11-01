@@ -94,6 +94,15 @@ pub(crate) struct DateBounds {
 }
 
 impl DateBounds {
+    /// No bounds: the whole source is eligible.
+    #[must_use]
+    pub(crate) const fn unbounded() -> Self {
+        Self {
+            start_seconds: None,
+            end_exclusive_seconds: None,
+        }
+    }
+
     /// Parses optional `YYYY-MM-DD` bounds.
     ///
     /// # Errors

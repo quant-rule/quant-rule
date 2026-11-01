@@ -79,4 +79,4 @@ hypothesis, revise it through a pre-registered experiment, or stop with "no edge
 - Every command, argument, and output shape is discoverable from help.
 - Every axis and rule has causal, deterministic, fixed-expected-value, and
   edge-case evidence.
-- A negative result can be recorded and the improvement loop can stop.
+- A negative result can be recorded and the improvement workflow can stop.

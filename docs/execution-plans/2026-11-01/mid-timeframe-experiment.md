@@ -4,8 +4,8 @@
 - Status: Verified — experiment stopped, not green; no edge on the tested sample
 - Work item: `mid-timeframe-experiment`
 - Owner: Orchestrator (sequential Quant and Verification passes)
-- Experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md`](../../experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md)
-- Prior experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`](../../experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md)
+- Experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md`](../../improvement/INVALIDATIONS.md)
+- Prior experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`](../../improvement/INVALIDATIONS.md)
 - Data audit: [`docs/audits/2026-11-01/crypto-2023-data-audit.md`](../../audits/2026-11-01/crypto-2023-data-audit.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-11-01/mid-timeframe-experiment.md`](../../ai-transparency-log/2026-11-01/mid-timeframe-experiment.md)
 
@@ -148,4 +148,4 @@ This is a clean **no-edge** result for the `ladder-context` rule on the tested
 sample, not a data-blocked one. The experiment is stopped without a threshold,
 cost, split, or sample change. The data audit `AUD-2026-11-01-70` remains Open
 for any future 2023 work. Full result:
-[`docs/experiments/2026-11-01/results-mid.txt`](../../experiments/2026-11-01/results-mid.txt).
+[`docs/experiments/2026-11-01/results-mid.txt`](../../improvement/INVALIDATIONS.md).

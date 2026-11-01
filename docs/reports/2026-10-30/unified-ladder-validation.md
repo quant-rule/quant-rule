@@ -4,7 +4,7 @@
 - Status: Sequential validation pass complete; independent verifier unavailable
 - Issue: [#237](https://github.com/quant-rule/quant-rule/issues/237)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Experiment: [`docs/experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md`](../../experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md)
+- Experiment: [`docs/experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md`](../../improvement/INVALIDATIONS.md)
 - Claim type: implementation validation; no edge claim
 
 ## 1. Scope

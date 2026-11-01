@@ -3,7 +3,7 @@
 - Date: 2026-10-31 (UTC)
 - Status: Verified (sequential Improvement Verifier pass, 2026-10-31; not independent)
 - Work item: `audit-unified-ladder`
-- Audit: [`docs/audits/2026-10-31/unified-ladder-audit.md`](../../audits/2026-10-31/unified-ladder-audit.md)
+- Audit: [`docs/audits/2026-10-31/unified-ladder-audit.md`](../../improvement/INVALIDATIONS.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-10-31/audit-unified-ladder.md`](../../ai-transparency-log/2026-10-31/audit-unified-ladder.md)
 - Baseline: `main` at `7c865de`
 - Human approval: approved on 2026-10-31 (UTC); decisions D1–D12 accepted as recommended

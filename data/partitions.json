@@ -1,0 +1,91 @@
+{
+  "schema": "quantrule.partitions/v1",
+  "timezone": "UTC",
+  "instruments": [
+    "BTCUSD",
+    "ETHUSD",
+    "XAUUSD"
+  ],
+  "excluded_windows": [
+    {
+      "from": "2023-01-01",
+      "to": "2023-12-31",
+      "reason": "Excluded from every partition by the 2026-11-01 workflow reset"
+    }
+  ],
+  "partitions": {
+    "model_dev": {
+      "window": {
+        "from": "2018-01-01",
+        "to": "2020-12-31"
+      },
+      "use": "Model development",
+      "instruments": [
+        "BTCUSD",
+        "ETHUSD",
+        "XAUUSD"
+      ]
+    },
+    "model_validation": {
+      "window": {
+        "from": "2021-01-01",
+        "to": "2022-12-31"
+      },
+      "use": "Model confidence",
+      "instruments": [
+        "BTCUSD",
+        "ETHUSD",
+        "XAUUSD"
+      ]
+    },
+    "strategy_dev": {
+      "window": {
+        "from": "2018-01-01",
+        "to": "2022-12-31"
+      },
+      "use": "Strategy candidates",
+      "instruments": [
+        "BTCUSD",
+        "ETHUSD",
+        "XAUUSD"
+      ]
+    },
+    "strategy_validation": {
+      "window": {
+        "from": "2024-01-01",
+        "to": "2024-12-31"
+      },
+      "use": "One-shot strategy out-of-sample",
+      "instruments": [
+        "BTCUSD",
+        "ETHUSD",
+        "XAUUSD"
+      ]
+    },
+    "portfolio_dev": {
+      "window": {
+        "from": "2024-01-01",
+        "to": "2024-12-31"
+      },
+      "use": "Portfolio variants",
+      "instruments": [
+        "BTCUSD",
+        "ETHUSD",
+        "XAUUSD"
+      ]
+    },
+    "portfolio_holdout": {
+      "window": {
+        "from": "2025-01-01",
+        "to": "2025-12-31"
+      },
+      "use": "Final portfolio holdout",
+      "instruments": [
+        "BTCUSD",
+        "ETHUSD",
+        "XAUUSD"
+      ],
+      "holdout": true
+    }
+  }
+}
