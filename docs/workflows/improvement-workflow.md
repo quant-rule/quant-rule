@@ -38,7 +38,7 @@ not start while an earlier tier has no accepted baseline.
 
 | Tier | Question | Changed | Frozen | Development data | Validation data | Promotion gate |
 |---|---|---|---|---|---|---|
-| Model Run | Does the measurement improve without breaking causality or determinism? | Model implementation and model configuration | Data, policy, strategy, execution, portfolio, analytics | `model_dev` | `model_validation` | Axis grades A/B on every axis a strategy will read; no D; C diagnostic only; human accepts the model baseline |
+| Model Run | Does the measurement improve without breaking causality or determinism? | Model implementation and model configuration | Data, policy, strategy, execution, portfolio, analytics | `model_dev` | `model_validation` | Contract, causality, determinism, availability, coverage, and descriptive review pass; no D; grades recorded. A/B may be standalone signals; C must be an explicit strategy hypothesis. Human accepts the model baseline |
 | Strategy Run | Does the rule produce a cost-inclusive edge from the accepted model? | Strategy rule, strategy configuration, and strategy thesis | Data, policy, accepted model baseline, execution, portfolio, analytics | `strategy_dev` | `strategy_validation` | Pre-registered green criteria met on the one-shot validation; Quant Validator record; human accepts the strategy baseline |
 | Portfolio Run | Do execution and portfolio mechanics improve the account outcome from the accepted strategy? | Execution and portfolio configuration | Data, policy, accepted model baseline, accepted strategy baseline, analytics | `portfolio_dev` | `portfolio_holdout` | Pre-registered green criteria met on the one-shot holdout; Quant Validator record; human accepts the portfolio baseline |
 

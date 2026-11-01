@@ -1,0 +1,27 @@
+{
+  "schema": "quantrule.policy/v1",
+  "account": {
+    "currency": "USD",
+    "initial_cash": 10000.0
+  },
+  "objective": {
+    "performance_target": 0.1,
+    "evaluation_days": 365,
+    "max_drawdown": 0.2
+  },
+  "risk": {
+    "max_position_fraction": 1.0,
+    "max_leverage": 1.0,
+    "max_open_positions": 1
+  },
+  "universe": {
+    "tickets": [
+      "ETHUSD"
+    ],
+    "timeframes": [
+      "5m",
+      "15m",
+      "1h"
+    ]
+  }
+}
