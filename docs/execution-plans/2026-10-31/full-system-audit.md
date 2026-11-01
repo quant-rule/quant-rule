@@ -31,10 +31,10 @@ commits, pushes, or pull requests (AGENTS.md section 9).
   `cargo test --workspace` (1,518 passed, 0 failed, 7 ignored; 47 suites),
   rustdoc with warnings denied, and `git diff --check`.
 - The audit, this plan, and the AI transparency log are merged as PR #320.
-- The issue tree is created: W1–W11 are #308–#318. W1–W7 (#308–#314) are
-  merged as PRs #319, #321, #322, #323, #324, #325, and #326. W8 (#315) is
-  implemented and opened as PR #327; the issue moves to `Done` on the
-  board. The other leaves are `Todo`.
+- The issue tree is created: W1–W11 are #308–#318. W1–W9 (#308–#316) are
+  merged as PRs #319, #321, #322, #323, #324, #325, #326, #327, and #328.
+  W10 (#317) is implemented and opened as PR #329; the issue moves to `Done`
+  on the board. W11 remains `Todo`.
 
 ### 2.1 Planner verification
 
@@ -397,6 +397,10 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
   `crates/quantrule-shell/src/command/help.rs`,
   `src/source/jsonp.rs`, `src/render.rs`, `crates/quantrule-model/src/`
   docs, and `.github/workflows/ci.yml` for the link check.
+- Implementation evidence (#317): the help, documentation, stale-text,
+  and link-check fixes are implemented on `docs/317-help-docs-drift`;
+  full gates pass (1,580 tests) and the link check reports zero. PR
+  [#329](https://github.com/quant-rule/quant-rule/pull/329) is open.
 - Issue: [#317](https://github.com/quant-rule/quant-rule/issues/317).
 
 ### W11 — Test integrity and guards (Minor)
@@ -470,15 +474,15 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-58 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Newer DB is byte-unchanged; PR [#328](https://github.com/quant-rule/quant-rule/pull/328) | Fixed |
 | AUD-2026-10-31-59 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | `4h` is a usage error; PR [#328](https://github.com/quant-rule/quant-rule/pull/328) | Fixed |
 | AUD-2026-10-31-60 | W3 | [#310](https://github.com/quant-rule/quant-rule/issues/310) | Missing halt null; full provenance check; PR [#322](https://github.com/quant-rule/quant-rule/pull/322) | Fixed |
-| AUD-2026-10-31-61 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Help matches parser | Planned |
-| AUD-2026-10-31-62 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Docs match code; link check clean | Planned |
+| AUD-2026-10-31-61 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Help matches parser; PR [#329](https://github.com/quant-rule/quant-rule/pull/329) | Fixed |
+| AUD-2026-10-31-62 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Docs match code; link check clean; PR [#329](https://github.com/quant-rule/quant-rule/pull/329) | Fixed |
 | AUD-2026-10-31-63 | W11 | [#318](https://github.com/quant-rule/quant-rule/issues/318) | Named tests and guards exist | Planned |
 | AUD-2026-10-31-64 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Halt and metric observe the same points; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-65 | W11 | [#318](https://github.com/quant-rule/quant-rule/issues/318) | Fixture has only metric rows; unknown row fails | Planned |
 | AUD-2026-10-31-66 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | No dead public variant; PR [#326](https://github.com/quant-rule/quant-rule/pull/326) | Fixed |
 | AUD-2026-10-31-67 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Stable dump, names validated, application id; PR [#328](https://github.com/quant-rule/quant-rule/pull/328) | Fixed |
 | AUD-2026-10-31-68 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Observed versions used; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
-| AUD-2026-10-31-69 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Doc greps match code | Planned |
+| AUD-2026-10-31-69 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Doc greps match code; PR [#329](https://github.com/quant-rule/quant-rule/pull/329) | Fixed |
 
 No finding is deferred. No finding is marked `Won't fix`; only the human can
 decide that.

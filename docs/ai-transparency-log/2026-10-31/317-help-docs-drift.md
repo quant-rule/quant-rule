@@ -2,7 +2,7 @@
 
 - Date: 2026-11-01 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
-- Work item: #317, branch `docs/317-help-docs-drift`
+- Work item: #317, branch `docs/317-help-docs-drift`; PR [#329](https://github.com/quant-rule/quant-rule/pull/329)
 - Plan: `docs/execution-plans/2026-10-31/full-system-audit.md` (W10)
 - Audit: `docs/audits/2026-10-31/full-system-audit.md` (AUD-61, -62, -69)
 
