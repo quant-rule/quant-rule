@@ -331,6 +331,150 @@ fn lab_list_validates_a_present_config_hash() {
 }
 
 #[test]
+fn lab_diagnose_and_summary_agree_on_a_different_config_rerun() {
+    let lab = run_diagnose("diagnosis-rerun-config");
+    let rerun = lab.join("rerun/portfolio");
+    fs::create_dir_all(&rerun).expect("the rerun directory is created");
+    fs::copy(lab.join("portfolio/report.json"), rerun.join("report.json"))
+        .expect("the rerun report is copied");
+    fs::copy(
+        lab.join("portfolio/provenance.json"),
+        rerun.join("provenance.json"),
+    )
+    .expect("the rerun provenance is copied");
+
+    let matching = run_lab_diagnose(&lab, "diagnosis-rerun-config-match");
+    assert_eq!(check_status(&matching, "evidence.rerun"), "pass");
+
+    let provenance = rerun.join("provenance.json");
+    let mut value: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(&provenance).expect("the rerun provenance is readable"),
+    )
+    .expect("the rerun provenance is JSON");
+    value["config_hash"] = serde_json::Value::String(String::from("0000000000000000"));
+    fs::write(
+        &provenance,
+        serde_json::to_vec_pretty(&value).expect("the rerun provenance is serializable"),
+    )
+    .expect("the rerun provenance is written");
+
+    let differing = run_lab_diagnose(&lab, "diagnosis-rerun-config-differs");
+    assert_eq!(check_status(&differing, "evidence.rerun"), "unknown");
+
+    let config = fixture("config-run/run.json");
+    let output = run(&[
+        "lab",
+        "summary",
+        lab.to_str().expect("the lab path is UTF-8"),
+        "--role",
+        "validator",
+        "--data-version",
+        "test:v1",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--created-utc",
+        "2026-10-31T00:00:00Z",
+        "--force",
+    ]);
+    assert_success(&output);
+    let summary = fs::read_to_string(lab.join("summary.txt")).expect("the summary is readable");
+    assert!(summary.contains("[ ] independent rerun (rerun/ differs)"));
+}
+
+#[test]
+fn lab_diagnose_rejects_a_provenance_model_version_mismatch() {
+    let lab = run_diagnose("diagnosis-provenance-model");
+    let provenance = lab.join("model/provenance.json");
+    let mut value: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&provenance).expect("the provenance is readable"))
+            .expect("the provenance is JSON");
+    value["model_version"] = serde_json::Value::String(String::from("9.9.9"));
+    fs::write(
+        &provenance,
+        serde_json::to_vec_pretty(&value).expect("the provenance is serializable"),
+    )
+    .expect("the provenance is written");
+
+    let out = output_dir("diagnosis-provenance-model-out");
+    let config = fixture("config-run/run.json");
+    let output = run(&[
+        "lab",
+        "diagnose",
+        lab.to_str().expect("the lab path is UTF-8"),
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("model_version"),
+        "unexpected stderr: {stderr}"
+    );
+}
+
+#[test]
+fn lab_list_reports_a_missing_halt_as_unavailable() {
+    let lab = run_diagnose("lab-list-halt");
+    let root = output_dir("lab-list-halt-root");
+    let target = root.join("missing-halt");
+    fs::create_dir_all(target.join("portfolio")).expect("the lab portfolio is created");
+    fs::copy(
+        lab.join("portfolio/report.json"),
+        target.join("portfolio/report.json"),
+    )
+    .expect("the report is copied");
+    fs::copy(
+        lab.join("portfolio/provenance.json"),
+        target.join("portfolio/provenance.json"),
+    )
+    .expect("the provenance is copied");
+    let report_path = target.join("portfolio/report.json");
+    let mut report: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&report_path).expect("the report is readable"))
+            .expect("the report is JSON");
+    report["summary"]["halted"] = serde_json::Value::Null;
+    fs::write(
+        &report_path,
+        serde_json::to_vec_pretty(&report).expect("the report is serializable"),
+    )
+    .expect("the report is written");
+
+    let output = run(&[
+        "lab",
+        "list",
+        "--root",
+        root.to_str().expect("the root path is UTF-8"),
+        "--json",
+    ]);
+    assert_success(&output);
+    let listed: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("the lab list is valid JSON");
+    let entry = listed
+        .as_array()
+        .expect("the lab list is an array")
+        .iter()
+        .find(|entry| entry["lab"] == "missing-halt")
+        .expect("the crafted lab is listed");
+    assert_eq!(entry["halted"], serde_json::Value::Null);
+
+    let output = run(&[
+        "lab",
+        "list",
+        "--root",
+        root.to_str().expect("the root path is UTF-8"),
+    ]);
+    assert_success(&output);
+    let text = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        text.lines()
+            .any(|line| line.contains("missing-halt") && line.contains("—")),
+        "missing unavailable halt in: {text}"
+    );
+}
+
+#[test]
 fn lab_diagnose_reproduces_the_backtest_diagnosis() {
     let lab = run_diagnose("diagnosis-command-lab");
     let out = output_dir("diagnosis-command-lab-diagnose");

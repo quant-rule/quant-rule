@@ -31,9 +31,10 @@ commits, pushes, or pull requests (AGENTS.md section 9).
   `cargo test --workspace` (1,518 passed, 0 failed, 7 ignored; 47 suites),
   rustdoc with warnings denied, and `git diff --check`.
 - The audit, this plan, and the AI transparency log are merged as PR #320.
-- The issue tree is created: W1–W11 are #308–#318. W1 (#308) is merged as
-  PR #319. W2 (#309) is implemented and opened as PR #321; the issue
-  moves to `Done` on the board. The other leaves are `Todo`.
+- The issue tree is created: W1–W11 are #308–#318. W1 (#308) and W2 (#309)
+  are merged as PRs #319 and #321. W3 (#310) is implemented and opened as
+  PR #322; the issue moves to `Done` on the board. The other leaves are
+  `Todo`.
 
 ### 2.1 Planner verification
 
@@ -249,6 +250,10 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
   both; a lab without `halted` renders unavailable.
 - Paths: `crates/quantrule-shell/src/lab_evidence.rs`, `src/lab_summary.rs`,
   `src/diagnosis.rs`, `src/command/lab.rs`, the shell diagnosis/lab tests.
+- Implementation evidence (#310): the shared rerun status, provenance
+  identity checks, and nullable halt are implemented on
+  `fix/310-lab-evidence-identity`; full gates pass (1,539 tests). PR [#322](https://github.com/quant-rule/quant-rule/pull/322)
+  is open.
 - Issue: [#310](https://github.com/quant-rule/quant-rule/issues/310).
 
 ### W4 — Diagnosis checks, triage, CSV nulls, observed versions (Major/Major/Minor/Info)
@@ -424,7 +429,7 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 |---|---|---|---|---|
 | AUD-2026-10-31-41 | W1 | [#308](https://github.com/quant-rule/quant-rule/issues/308) | Colliding output paths rejected before any write; PR [#319](https://github.com/quant-rule/quant-rule/pull/319) | Fixed |
 | AUD-2026-10-31-42 | W2 | [#309](https://github.com/quant-rule/quant-rule/issues/309) | Effective period equals the analyzed range; PR [#321](https://github.com/quant-rule/quant-rule/pull/321) | Fixed |
-| AUD-2026-10-31-43 | W3 | [#310](https://github.com/quant-rule/quant-rule/issues/310) | One rerun state from both commands | Planned |
+| AUD-2026-10-31-43 | W3 | [#310](https://github.com/quant-rule/quant-rule/issues/310) | One rerun state from both commands; PR [#322](https://github.com/quant-rule/quant-rule/pull/322) | Fixed |
 | AUD-2026-10-31-44 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | All six pairs; worst pair named | Planned |
 | AUD-2026-10-31-45 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Unknown text does not assert failure | Planned |
 | AUD-2026-10-31-46 | W5 | [#312](https://github.com/quant-rule/quant-rule/issues/312) | Invalid dataset fails before writing | Planned |
@@ -441,7 +446,7 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-57 | W8 | [#315](https://github.com/quant-rule/quant-rule/issues/315) | Aggregate and report agree on latest | Planned |
 | AUD-2026-10-31-58 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | Newer DB is byte-unchanged | Planned |
 | AUD-2026-10-31-59 | W9 | [#316](https://github.com/quant-rule/quant-rule/issues/316) | `4h` is a usage error | Planned |
-| AUD-2026-10-31-60 | W3 | [#310](https://github.com/quant-rule/quant-rule/issues/310) | Missing halt null; full provenance check | Planned |
+| AUD-2026-10-31-60 | W3 | [#310](https://github.com/quant-rule/quant-rule/issues/310) | Missing halt null; full provenance check; PR [#322](https://github.com/quant-rule/quant-rule/pull/322) | Fixed |
 | AUD-2026-10-31-61 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Help matches parser | Planned |
 | AUD-2026-10-31-62 | W10 | [#317](https://github.com/quant-rule/quant-rule/issues/317) | Docs match code; link check clean | Planned |
 | AUD-2026-10-31-63 | W11 | [#318](https://github.com/quant-rule/quant-rule/issues/318) | Named tests and guards exist | Planned |

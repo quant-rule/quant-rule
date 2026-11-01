@@ -100,7 +100,7 @@ never averaged into one number. A missing measurement is `unknown`, never `pass`
 | `portfolio.cost_drag` | Costs are at most half of absolute gross P&L | `<= 0.50` |
 | `portfolio.drawdown_limit` | Maximum drawdown is within the configured limit | `<= limit` |
 | `evidence.out_of_sample` | An `oos/` lab with a different data version exists | recorded |
-| `evidence.rerun` | A `rerun/` portfolio matches the main result | recorded |
+| `evidence.rerun` | A `rerun/` portfolio matches the main result and its `config_hash` equals the main lab's | recorded |
 | `evidence.instrument_scope` | Always `unknown`; records the instrument count | scope only |
 
 The thresholds are reporting defaults, not trading rules. They are not tuned to make

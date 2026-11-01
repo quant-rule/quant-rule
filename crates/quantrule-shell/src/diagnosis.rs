@@ -174,7 +174,7 @@ fn project<'a>(
         )
         .collect();
     let out_of_sample = lab_dir.map_or(OutOfSampleStatus::Absent, lab_evidence::out_of_sample);
-    let rerun_verified = lab_dir.is_some_and(rerun_matches);
+    let rerun_verified = lab_dir.is_some_and(|lab| lab_evidence::rerun(lab).is_match());
 
     Ok(DiagnosisInput {
         identity,
@@ -541,33 +541,6 @@ fn reject_reason_code(reason: RejectReason) -> &'static str {
         RejectReason::NonPositiveQuantity => "non_positive_quantity",
         RejectReason::RiskLimit => "risk_limit",
     }
-}
-
-fn rerun_matches(lab_dir: &Path) -> bool {
-    let rerun = lab_dir.join("rerun").join("portfolio").join("report.json");
-    let main = lab_dir.join("portfolio").join("report.json");
-    let (Ok(rerun), Ok(main)) = (fs::read(rerun), fs::read(main)) else {
-        return false;
-    };
-    let (Ok(rerun), Ok(main)) = (
-        serde_json::from_slice::<Value>(&rerun),
-        serde_json::from_slice::<Value>(&main),
-    ) else {
-        return false;
-    };
-    let fields = [
-        "final_equity",
-        "net_pnl",
-        "trades",
-        "max_drawdown",
-        "halted",
-    ];
-    fields.iter().all(|field| {
-        rerun
-            .pointer(&format!("/summary/{field}"))
-            .zip(main.pointer(&format!("/summary/{field}")))
-            .is_some_and(|(left, right)| left == right)
-    })
 }
 
 fn diagnosis_json(diagnosis: &Diagnosis) -> Result<Vec<u8>, RunError> {

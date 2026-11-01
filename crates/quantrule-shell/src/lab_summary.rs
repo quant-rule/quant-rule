@@ -17,7 +17,7 @@ use serde_json::Value;
 
 use crate::config::{ConfigError, RunConfig};
 use crate::export::{ExportError, write_atomic};
-use crate::lab_evidence;
+use crate::lab_evidence::{self, RerunStatus};
 use crate::labels;
 
 /// The five report bundles, in contract order.
@@ -170,6 +170,7 @@ fn read_bundles(args: &LabSummaryArgs, config: &RunConfig) -> Result<Vec<Bundle>
         }
         let report = read_json(&report_path)?;
         check_data_version(&report_path, &report, &args.data_version)?;
+        let report_data_version = string_at(&report, &report_path, "data_version")?;
         let report_model_version = string_at(&report, &report_path, "model_version")?;
         if report_model_version != env!("CARGO_PKG_VERSION") {
             return Err(LabSummaryError::ConfigMismatch {
@@ -184,6 +185,25 @@ fn read_bundles(args: &LabSummaryArgs, config: &RunConfig) -> Result<Vec<Bundle>
         let provenance = if provenance_path.is_file() {
             let provenance = read_json(&provenance_path)?;
             check_data_version(&provenance_path, &provenance, &args.data_version)?;
+            let provenance_data_version = string_at(&provenance, &provenance_path, "data_version")?;
+            if provenance_data_version != report_data_version {
+                return Err(LabSummaryError::IdentityMismatch {
+                    path: provenance_path.clone(),
+                    field: String::from("data_version"),
+                    expected: report_data_version.to_owned(),
+                    actual: provenance_data_version.to_owned(),
+                });
+            }
+            let provenance_model_version =
+                string_at(&provenance, &provenance_path, "model_version")?;
+            if provenance_model_version != report_model_version {
+                return Err(LabSummaryError::IdentityMismatch {
+                    path: provenance_path.clone(),
+                    field: String::from("model_version"),
+                    expected: report_model_version.to_owned(),
+                    actual: provenance_model_version.to_owned(),
+                });
+            }
             let hash = provenance
                 .get("config_hash")
                 .and_then(Value::as_str)
@@ -540,49 +560,14 @@ fn write_checks(
             writeln!(out, "  [ ] out-of-sample evidence (no oos/ lab)")?;
         }
     }
-    match rerun(lab_dir) {
-        Some(true) => writeln!(out, "  [x] independent rerun (rerun/ matches)")?,
-        Some(false) => writeln!(out, "  [ ] independent rerun (rerun/ differs)")?,
-        None => writeln!(out, "  [ ] independent rerun (no rerun/ lab)")?,
+    match lab_evidence::rerun(lab_dir) {
+        RerunStatus::Matches => writeln!(out, "  [x] independent rerun (rerun/ matches)")?,
+        RerunStatus::Differs => writeln!(out, "  [ ] independent rerun (rerun/ differs)")?,
+        RerunStatus::Unreadable => writeln!(out, "  [ ] independent rerun (rerun/ is unreadable)")?,
+        RerunStatus::Absent => writeln!(out, "  [ ] independent rerun (no rerun/ lab)")?,
     }
     writeln!(out)?;
     Ok(())
-}
-
-fn rerun(lab_dir: &Path) -> Option<bool> {
-    let rerun = read_json(&lab_dir.join("rerun").join("portfolio").join("report.json")).ok()?;
-    let main = read_json(&lab_dir.join("portfolio").join("report.json")).ok()?;
-    let rerun_hash = read_json(
-        &lab_dir
-            .join("rerun")
-            .join("portfolio")
-            .join("provenance.json"),
-    )
-    .ok()?
-    .get("config_hash")
-    .and_then(Value::as_str)
-    .map(str::to_owned);
-    let main_hash = read_json(&lab_dir.join("portfolio").join("provenance.json"))
-        .ok()?
-        .get("config_hash")
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    if rerun_hash != main_hash {
-        return Some(false);
-    }
-    let fields = [
-        "final_equity",
-        "net_pnl",
-        "trades",
-        "max_drawdown",
-        "halted",
-    ];
-    Some(fields.iter().all(|field| {
-        rerun
-            .pointer(&format!("/summary/{field}"))
-            .zip(main.pointer(&format!("/summary/{field}")))
-            .is_some_and(|(left, right)| left == right)
-    }))
 }
 
 fn write_notes(out: &mut Vec<u8>, notes: Option<&str>) -> Result<(), LabSummaryError> {
@@ -777,6 +762,17 @@ pub(crate) enum LabSummaryError {
         /// The version found in the file.
         actual: String,
     },
+    /// A provenance identity field disagrees with its report.
+    IdentityMismatch {
+        /// The provenance path.
+        path: PathBuf,
+        /// The field that disagrees.
+        field: String,
+        /// The value the report carries.
+        expected: String,
+        /// The value the provenance carries.
+        actual: String,
+    },
     /// A summary already exists and `--force` was not supplied.
     SummaryExists {
         /// The existing summary path.
@@ -850,6 +846,16 @@ impl fmt::Display for LabSummaryError {
                 "{}: data version mismatch: expected {expected}, found {actual}",
                 path.display()
             ),
+            Self::IdentityMismatch {
+                path,
+                field,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "{}: {field} mismatch: report says {expected}, provenance says {actual}",
+                path.display()
+            ),
             Self::SummaryExists { path } => write!(
                 formatter,
                 "{} already exists; use --force to overwrite it",
@@ -897,6 +903,7 @@ impl std::error::Error for LabSummaryError {
             | Self::MissingBundle { .. }
             | Self::InvalidReport { .. }
             | Self::DataVersionMismatch { .. }
+            | Self::IdentityMismatch { .. }
             | Self::SummaryExists { .. }
             | Self::NotesNotUtf8 { .. }
             | Self::ConfigMismatch { .. } => None,
