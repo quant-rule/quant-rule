@@ -1,0 +1,22 @@
+{
+  "schema": "quantrule.improvement-run/v1",
+  "run_id": "STRATEGY-2026-11-01-10",
+  "tier": "strategy",
+  "hypothesis": "v6 5m/15m on ETHUSD 2024 tests whether the 5m/15m ladder produces a larger sample and a cost-inclusive edge.",
+  "created_utc": "2026-11-01T22:00:00Z",
+  "changed": "strategy",
+  "frozen": [
+    "model",
+    "portfolio"
+  ],
+  "partition": "strategy_validation",
+  "run_config": "config/strategy-002/eth-v6-5m15m/run.json",
+  "code_commit": "worktree",
+  "seed": 0,
+  "green_criteria": {
+    "mean_return": 0.1,
+    "max_drawdown": 0.2,
+    "min_trades": 30
+  },
+  "holdout_access": "none"
+}

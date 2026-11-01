@@ -25,11 +25,18 @@ recorded under this contract.
 | `STRATEGY-2026-11-01-04` | 2026-11-01 | strategy | v6 breakout on BTCUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-001-comparison.md) |
 | `STRATEGY-2026-11-01-05` | 2026-11-01 | strategy | v6 breakout on ETHUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-001-comparison.md) |
 | `STRATEGY-2026-11-01-06` | 2026-11-01 | strategy | v6 breakout on XAUUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-001-comparison.md) |
+| `STRATEGY-2026-11-01-07` | 2026-11-01 | strategy | v3 5m/15m control BTCUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
+| `STRATEGY-2026-11-01-08` | 2026-11-01 | strategy | v6 5m/15m BTCUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
+| `STRATEGY-2026-11-01-09` | 2026-11-01 | strategy | v3 5m/15m control ETHUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
+| `STRATEGY-2026-11-01-10` | 2026-11-01 | strategy | v6 5m/15m ETHUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
+| `STRATEGY-2026-11-01-11` | 2026-11-01 | strategy | v3 5m/15m control XAUUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
+| `STRATEGY-2026-11-01-12` | 2026-11-01 | strategy | v6 5m/15m XAUUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
+
 
 
 The model runs are not green as standalone predictors; the model correctness baseline is accepted with the C-axis limitation in `baselines.md`.
 
-Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-002.md), [`CYCLE-003`](2026-11-01/CYCLE-003.md), [`CYCLE-004`](2026-11-01/CYCLE-004.md), and [`CYCLE-005`](2026-11-01/CYCLE-005.md) — model gate separated; no strategy baseline.
+Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-002.md), [`CYCLE-003`](2026-11-01/CYCLE-003.md), [`CYCLE-004`](2026-11-01/CYCLE-004.md), [`CYCLE-005`](2026-11-01/CYCLE-005.md), and [`CYCLE-006`](2026-11-01/CYCLE-006.md) — model gate separated; no strategy baseline.
 
 Rows sort by date, then tier (`model`, `strategy`, `portfolio`), then run ID. See
 [`baselines.md`](baselines.md) for accepted baselines and
