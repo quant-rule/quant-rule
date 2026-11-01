@@ -535,9 +535,13 @@ The scorecard counts checks by `pass`, `fail`, and `unknown`; it never combines 
 - `--data-version <id>` is the caller-supplied identity of the input series; the envelope records it and never infers it from the path.
 - `--from` and `--to` are inclusive UTC `YYYY-MM-DD` dates applied to the M1 source before the ladder is built. No pre-range warm-up is used.
 - Without `--json`, the command prints one NDJSON line per entry or exit, oldest first. Each record carries `type`, `strategy`, `timeframe`, `timeframe_secs`, `bar`, `datetime`, `side`, `side_label`, `direction`, `momentum_force`, and `structure_score`; an exit also carries `reason` (`context_lost` or `structure_lost`). Model Signal events remain a separate event type and are never relabelled as strategy entries or exits.
-- With `--json`, the command prints one envelope with `model_version`, `strategy`, `strategy_config`, `data_version`, `requested_period`, `timeframe_secs`, and `records`; `records` carries the same records as the bare NDJSON output.
+- With `--json`, the command prints one envelope with `model_version`, `strategy`, `strategy_config`, `data_version`, `requested_period`, `effective_period`, `actual_period`, `bars`, `timeframe_secs`, and `records`; `records` carries the same records as the bare NDJSON output.
+  - `requested_period` is the CLI `--from`/`--to` exactly; it is null when omitted.
+  - `effective_period` is the range actually applied: the CLI dates when either is supplied, otherwise the run configuration's `data.from`/`data.to`; a null endpoint means the full file.
+  - `actual_period` is the first and last analyzed execution bar, or null when the execution timeframe has no bar.
+  - `bars` is the number of execution bars analyzed; `bars: 0` means the execution timeframe could not be built, and the bare output is empty.
 
-`--config` uses the strategy blueprint from the run configuration; without it the built-in defaults are used. The strategy reads only the configured timeframe, uses the extended range up to 600,000 M1 candles, and fails with a message rather than printing an empty result when the requested period has no M1 candles or an active-ladder timeframe cannot be built. The output is deterministic: the same input, range, data version, and configuration produce the same bytes, interactively or non-interactively.
+`--config` uses the strategy blueprint from the run configuration; without it the built-in defaults are used. With `--config` and no `--from`/`--to`, the run's `data.from`/`data.to` bounds are applied to the M1 source. The strategy reads only the configured timeframe, uses the extended range up to 600,000 M1 candles, and fails with a message when the requested period has no M1 candles. When an execution bar exists but a context timeframe has no closed bar, the strategy holds; the run can have no records. When the execution timeframe itself has no bar, the command exits 0 with no bare records and reports `bars: 0` in the JSON envelope. The output is deterministic: the same input, range, data version, and configuration produce the same bytes, interactively or non-interactively.
 
 ### Fetch contract
 

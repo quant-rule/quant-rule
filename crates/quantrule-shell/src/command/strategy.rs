@@ -195,7 +195,7 @@ pub(crate) fn run_strategy_run(
     args: &StrategyRunArgs,
     writer: &mut impl Write,
 ) -> Result<(), RunError> {
-    let (config, thesis, model_config, run_bounds) = match &args.config {
+    let (config, thesis, model_config, run_bounds, run_from, run_to) = match &args.config {
         Some(path) => {
             let run = crate::config::RunConfig::load(path).map_err(RunError::Config)?;
             (
@@ -203,12 +203,16 @@ pub(crate) fn run_strategy_run(
                 run.strategy.thesis,
                 run.model,
                 Some(run.data.bounds),
+                run.data.from,
+                run.data.to,
             )
         }
         None => (
             StrategyConfig::default(),
             String::new(),
             MarketStateConfig::default(),
+            None,
+            None,
             None,
         ),
     };
@@ -222,6 +226,14 @@ pub(crate) fn run_strategy_run(
     } else {
         args.bounds
     };
+    // `requested_period` stays the CLI request. This is the range actually
+    // applied: CLI dates when either is supplied, otherwise the run's data
+    // bounds, otherwise the full file.
+    let (effective_from, effective_to) = if args.from.is_some() || args.to.is_some() {
+        (args.from.clone(), args.to.clone())
+    } else {
+        (run_from, run_to)
+    };
     let set = pipeline::load_extended_set(&args.path, bounds).map_err(RunError::Source)?;
     if set.series(Timeframe::M1).is_empty() {
         return Err(RunError::StrategyRun(StrategyRunError::EmptyPeriod {
@@ -233,9 +245,25 @@ pub(crate) fn run_strategy_run(
         pipeline::model_run_from_set_with_ladder(&set, &active_timeframes(&config)?, &model_config);
     let walk = walk_strategy(&model_run, &config).map_err(RunError::Backtest)?;
     let records = collect_records(&walk);
+    let period = PeriodReport {
+        effective_from,
+        effective_to,
+        actual_first: walk
+            .inputs()
+            .first()
+            .map(|input| format_utc_timestamp(input.open_time)),
+        actual_last: walk
+            .inputs()
+            .last()
+            .map(|input| format_utc_timestamp(input.open_time)),
+        bars: walk.inputs().len(),
+    };
     if args.json {
-        write_line(&envelope_value(args, &config, &thesis, &records), writer)
-            .map_err(RunError::Output)?;
+        write_line(
+            &envelope_value(args, &config, &thesis, &records, &period),
+            writer,
+        )
+        .map_err(RunError::Output)?;
     } else {
         for record in &records {
             write_line(record, writer).map_err(RunError::Output)?;
@@ -311,11 +339,21 @@ fn record_value(
     value
 }
 
+/// The range and bar count the envelope records after the walk.
+struct PeriodReport {
+    effective_from: Option<String>,
+    effective_to: Option<String>,
+    actual_first: Option<String>,
+    actual_last: Option<String>,
+    bars: usize,
+}
+
 fn envelope_value(
     args: &StrategyRunArgs,
     config: &StrategyConfig,
     thesis: &str,
     records: &[Value],
+    period: &PeriodReport,
 ) -> Value {
     json!({
         "model_version": env!("CARGO_PKG_VERSION"),
@@ -327,6 +365,15 @@ fn envelope_value(
             "from": args.from.as_deref(),
             "to": args.to.as_deref(),
         },
+        "effective_period": {
+            "from": period.effective_from.as_deref(),
+            "to": period.effective_to.as_deref(),
+        },
+        "actual_period": {
+            "first_open_time": period.actual_first.as_deref(),
+            "last_open_time": period.actual_last.as_deref(),
+        },
+        "bars": period.bars,
         "timeframe_secs": config.timeframe_secs(),
         "records": records,
     })

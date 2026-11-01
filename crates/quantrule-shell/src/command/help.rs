@@ -470,7 +470,10 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "Input cap: 600000 M1 candles; computes the active ladder and walks the execution timeframe.",
             "With --config, uses the active ladder, strategy, and model configuration from the run.",
+            "With --config and no --from/--to, applies the run's data bounds.",
+            "The JSON envelope records requested, effective, and actual periods plus bars.",
             "The JSON envelope marks execution_state as virtual; each decision is assumed to fill immediately.",
+            "An empty execution timeframe is an empty success with bars 0, not an error.",
             "Stops at the decision: no order, fill, position, equity, trade, or P&L.",
             "Model Signal events are not strategy entries or exits.",
         ],
