@@ -8,6 +8,7 @@
 - Head: `main` at `fdf2580` (merge of PR #331), equal to `origin/main`
 - Toolchain: `rustc 1.99.1 (58cf8f9c3 2026-10-13)`; `cargo 1.99.1 (5f94df478 2026-08-27)`; `Python 3.14.8`
 - Claim type: audit closure; no strategy edge claim
+- Human acceptance: recorded 2026-11-01 (UTC) from the human's approval
 - Limitations: single-agent sequential pass, not an independent model judgment; fail-before behaviour was read from the W4/W7/W8 validator records and the committed test code, not re-run by reverting the tree (this pass is read-only)
 
 ## Scope and method
@@ -139,4 +140,5 @@ None. Every one of the 29 findings passed closure verification at `fdf2580`.
 Pass. All eleven work items and all 29 findings (AUD-2026-10-31-41 through
 -69) are closed, each with an existing fix, a merged PR, and a regression guard
 that exercises the claimed behavior. The global gates pass at `fdf2580`. The
-audit findings are moved to `Verified`; final acceptance remains with the human.
+audit findings are moved to `Verified`; the human recorded final acceptance on
+2026-11-01.
