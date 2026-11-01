@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
-- Work item: #310, branch `fix/310-lab-evidence-identity`
+- Work item: #310, branch `fix/310-lab-evidence-identity`; PR [#322](https://github.com/quant-rule/quant-rule/pull/322)
 - Plan: `docs/execution-plans/2026-10-31/full-system-audit.md` (W3)
 - Audit: `docs/audits/2026-10-31/full-system-audit.md` (AUD-2026-10-31-43, -60)
 
