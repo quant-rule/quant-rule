@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
-- Work item: #311, branch `fix/311-diagnosis-checks`
+- Work item: #311, branch `fix/311-diagnosis-checks`; PR [#323](https://github.com/quant-rule/quant-rule/pull/323)
 - Plan: `docs/execution-plans/2026-10-31/full-system-audit.md` (W4)
 - Audit: `docs/audits/2026-10-31/full-system-audit.md` (AUD-2026-10-31-44, -45, -50, -68)
 
