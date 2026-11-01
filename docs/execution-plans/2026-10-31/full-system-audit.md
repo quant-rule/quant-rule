@@ -31,9 +31,9 @@ commits, pushes, or pull requests (AGENTS.md section 9).
   `cargo test --workspace` (1,518 passed, 0 failed, 7 ignored; 47 suites),
   rustdoc with warnings denied, and `git diff --check`.
 - The audit, this plan, and the AI transparency log are merged as PR #320.
-- The issue tree is created: W1–W11 are #308–#318. W1–W4 (#308–#311) are
-  merged as PRs #319, #321, #322, and #323. W5 (#312) is implemented and
-  opened as PR #324; the issue moves to `Done` on the board. The other
+- The issue tree is created: W1–W11 are #308–#318. W1–W5 (#308–#312) are
+  merged as PRs #319, #321, #322, #323, and #324. W6 (#313) is implemented
+  and opened as PR #325; the issue moves to `Done` on the board. The other
   leaves are `Todo`.
 
 ### 2.1 Planner verification
@@ -308,6 +308,9 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 - Closure test: the current graph passes; a synthetic forbidden edge fails.
 - Paths: `AGENTS.md`, `docs/architecture/`, `docs/adr/2026-10-31/`,
   `crates/quantrule-shell/tests/architecture.rs` or a workspace test.
+- Implementation evidence (#313): the baseline matches the manifests and
+  the shell crate-graph guard is implemented on
+  `arch/313-architecture-baseline`; full gates pass. PR [#325](https://github.com/quant-rule/quant-rule/pull/325) is open.
 - Issue: [#313](https://github.com/quant-rule/quant-rule/issues/313).
 
 ### W7 — Execution, context, risk cap, drawdown, lifecycle (Minor)
@@ -440,7 +443,7 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
 | AUD-2026-10-31-44 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | All six pairs; worst pair named; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-45 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Unknown text does not assert failure; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |
 | AUD-2026-10-31-46 | W5 | [#312](https://github.com/quant-rule/quant-rule/issues/312) | Invalid dataset fails before writing; PR [#324](https://github.com/quant-rule/quant-rule/pull/324) | Fixed |
-| AUD-2026-10-31-47 | W6 | [#313](https://github.com/quant-rule/quant-rule/issues/313) | Docs match manifests; graph test passes | Planned |
+| AUD-2026-10-31-47 | W6 | [#313](https://github.com/quant-rule/quant-rule/issues/313) | Docs match manifests; graph test passes; PR [#325](https://github.com/quant-rule/quant-rule/pull/325) | Fixed |
 | AUD-2026-10-31-48 | W7 | [#314](https://github.com/quant-rule/quant-rule/issues/314) | Probe stop reference is 100.01 | Planned |
 | AUD-2026-10-31-49 | W2 | [#309](https://github.com/quant-rule/quant-rule/issues/309) | Documented empty result with zero bars, or typed error; PR [#321](https://github.com/quant-rule/quant-rule/pull/321) | Fixed |
 | AUD-2026-10-31-50 | W4 | [#311](https://github.com/quant-rule/quant-rule/issues/311) | Empty CSV cells for missing numbers; PR [#323](https://github.com/quant-rule/quant-rule/pull/323) | Fixed |

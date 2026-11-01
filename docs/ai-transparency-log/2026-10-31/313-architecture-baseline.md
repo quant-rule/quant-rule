@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
-- Work item: #313, branch `arch/313-architecture-baseline`
+- Work item: #313, branch `arch/313-architecture-baseline`; PR [#325](https://github.com/quant-rule/quant-rule/pull/325)
 - Plan: `docs/execution-plans/2026-10-31/full-system-audit.md` (W6)
 - Audit: `docs/audits/2026-10-31/full-system-audit.md` (AUD-2026-10-31-47)
 
