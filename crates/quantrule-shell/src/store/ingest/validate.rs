@@ -27,9 +27,11 @@ const SIGNAL_EVENT_TYPE: u8 = 3;
 const THRESHOLD_CROSSING_SUBTYPE: u8 = 1;
 
 pub(super) fn validate(dataset: &DatasetRecord, rows: &IngestRows<'_>) -> Result<(), StoreError> {
-    if dataset.name.is_empty() {
+    if !valid_dataset_name(&dataset.name) {
         return Err(StoreError::InvalidDataset {
-            detail: "the dataset name is empty".to_string(),
+            detail: "the dataset name must use only letters, digits, '.', '-', and '_', \
+                     must not start with '-', and must not be '.' or '..'"
+                .to_string(),
         });
     }
     if dataset.data_version.is_empty() {
@@ -70,6 +72,16 @@ pub(super) fn validate(dataset: &DatasetRecord, rows: &IngestRows<'_>) -> Result
     validate_consensus(rows.consensus, rows.bars, &bar_counts)?;
     validate_layer3(rows.layer3, rows.bars, dataset.m1_bars)?;
     Ok(())
+}
+
+fn valid_dataset_name(name: &str) -> bool {
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.starts_with('-')
+        && name.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_')
+        })
 }
 
 fn validate_pivots(rows: &[PivotRow], bar_counts: &BTreeMap<u64, usize>) -> Result<(), StoreError> {

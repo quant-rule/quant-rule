@@ -389,6 +389,13 @@ pub enum LadderContextError {
         /// The missing bar index.
         bar: usize,
     },
+    /// A bar close time overflowed the supported arithmetic.
+    TimestampOverflow {
+        /// The bar open time as UTC Unix seconds.
+        timestamp: i64,
+        /// The timeframe in seconds that was added.
+        seconds: i64,
+    },
 }
 
 impl fmt::Display for LadderContextError {
@@ -429,6 +436,10 @@ impl fmt::Display for LadderContextError {
             } => write!(
                 formatter,
                 "the model run has no bar {bar} for timeframe {timeframe_secs}s"
+            ),
+            Self::TimestampOverflow { timestamp, seconds } => write!(
+                formatter,
+                "adding {seconds}s to timestamp {timestamp} overflows the supported range"
             ),
         }
     }
@@ -546,7 +557,12 @@ impl<'a> LadderContextBuilder<'a> {
                 bar: bar_index,
             })?;
         let execution_open_time = bar.candle.timestamp();
-        let execution_close_time = execution_open_time + self.execution_secs;
+        let execution_close_time = execution_open_time.checked_add(self.execution_secs).ok_or(
+            LadderContextError::TimestampOverflow {
+                timestamp: execution_open_time,
+                seconds: self.execution_secs,
+            },
+        )?;
         let mut selected = Vec::with_capacity(self.context_models.len());
         let mut missing = Vec::new();
 
@@ -559,7 +575,9 @@ impl<'a> LadderContextBuilder<'a> {
             let open_times = model.open_times();
             let context_secs = self.context_secs[context_index];
             while self.next[context_index] < open_times.len()
-                && open_times[self.next[context_index]] + context_secs <= execution_close_time
+                && open_times[self.next[context_index]]
+                    .checked_add(context_secs)
+                    .is_some_and(|close_time| close_time <= execution_close_time)
             {
                 self.pointers[context_index] = Some(self.next[context_index]);
                 self.next[context_index] += 1;
@@ -577,12 +595,18 @@ impl<'a> LadderContextBuilder<'a> {
                         bar: context_bar_index,
                     })?;
             let open_time = context_bar.candle.timestamp();
+            let close_time = open_time.checked_add(context_secs).ok_or(
+                LadderContextError::TimestampOverflow {
+                    timestamp: open_time,
+                    seconds: context_secs,
+                },
+            )?;
             selected.push((
                 ContextTimeframe {
                     timeframe_secs,
                     bar_index: context_bar_index,
                     open_time,
-                    close_time: open_time + context_secs,
+                    close_time,
                 },
                 context_bar,
             ));

@@ -56,6 +56,9 @@ timeframes.
 - The source cadence must be one minute. Native M5/M15/H1/H4 files are rejected.
 - A sparse M1 file is accepted while at least one adjacent pair is one minute
   apart. A single row is accepted because its cadence cannot be measured.
+- A candle timestamp is a UTC Unix second in 1970-01-01T00:00:00Z through
+  9999-12-31T23:59:59Z. The data engine rejects a value outside that range, so
+  downstream bucket, context, and runner arithmetic is bounded.
 
 ## 5. 4h construction
 

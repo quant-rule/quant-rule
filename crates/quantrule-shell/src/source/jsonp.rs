@@ -125,7 +125,7 @@ pub(crate) fn parse_jsonp(body: &str) -> Result<Vec<PageRow>, JsonpError> {
             index,
             field: "timestamp",
         })?;
-        if milliseconds < 0 {
+        if !(0..=quantrule_data::MAX_TIMESTAMP_MILLISECONDS).contains(&milliseconds) {
             return Err(JsonpError::RowField {
                 index,
                 field: "timestamp",
@@ -275,6 +275,21 @@ mod tests {
     fn rejects_a_negative_timestamp() {
         assert!(matches!(
             parse_jsonp("qr([[-1,1,2,0.5,1.5,0]])"),
+            Err(JsonpError::RowField {
+                index: 0,
+                field: "timestamp"
+            })
+        ));
+    }
+
+    #[test]
+    fn rejects_a_timestamp_above_the_supported_range() {
+        let body = format!(
+            "qr([[{},1,2,0.5,1.5,0]])",
+            quantrule_data::MAX_TIMESTAMP_MILLISECONDS + 1
+        );
+        assert!(matches!(
+            parse_jsonp(&body),
             Err(JsonpError::RowField {
                 index: 0,
                 field: "timestamp"

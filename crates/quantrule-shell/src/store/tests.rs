@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::{Connection, params};
 
 use super::schema::{SCHEMA_V1, SCHEMA_VERSION};
-use super::{Store, StoreError, migrate};
+use super::{APPLICATION_ID, Store, StoreError, migrate};
 
 fn database(name: &str) -> PathBuf {
     let directory = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -105,14 +105,18 @@ fn a_file_database_reopens_idempotently() {
 }
 
 #[test]
-fn a_newer_schema_is_rejected() {
+fn a_newer_schema_is_rejected_without_mutating_the_file() {
     let path = database("newer");
     {
         let connection = Connection::open(&path).expect("the raw connection");
         connection
             .pragma_update(None, "user_version", 3)
             .expect("the version write");
+        connection
+            .pragma_update(None, "application_id", APPLICATION_ID)
+            .expect("the application id write");
     }
+    let before = fs::read(&path).expect("the database bytes");
     let error = Store::open(&path).expect_err("the newer schema is rejected");
     assert!(matches!(
         error,
@@ -121,6 +125,53 @@ fn a_newer_schema_is_rejected() {
             supported: SCHEMA_VERSION
         }
     ));
+    assert_eq!(fs::read(&path).expect("the database bytes"), before);
+    assert!(
+        !PathBuf::from(format!("{}-wal", path.display())).exists(),
+        "the rejected database gained a WAL file"
+    );
+}
+
+#[test]
+fn an_unrelated_version_zero_database_is_rejected() {
+    let path = database("unrelated");
+    {
+        let connection = Connection::open(&path).expect("the raw connection");
+        connection
+            .execute_batch("CREATE TABLE other (id INTEGER PRIMARY KEY);")
+            .expect("the unrelated table");
+    }
+    let before = fs::read(&path).expect("the database bytes");
+    let error = Store::open(&path).expect_err("the unrelated database is rejected");
+    assert!(matches!(error, StoreError::Uninitialized { .. }));
+    assert_eq!(fs::read(&path).expect("the database bytes"), before);
+}
+
+#[test]
+fn a_store_records_the_application_id() {
+    let path = database("application-id");
+    let store = Store::open(&path).expect("the store opens");
+    let application_id: i64 = store
+        .connection()
+        .query_row("PRAGMA application_id", [], |row| row.get(0))
+        .expect("the application id");
+    assert_eq!(application_id, APPLICATION_ID);
+}
+
+#[test]
+fn a_foreign_application_id_is_rejected() {
+    let path = database("foreign-application");
+    {
+        let connection = Connection::open(&path).expect("the raw connection");
+        connection
+            .pragma_update(None, "user_version", 2)
+            .expect("the version write");
+        connection
+            .pragma_update(None, "application_id", 42)
+            .expect("the application id write");
+    }
+    let error = Store::open(&path).expect_err("the foreign database is rejected");
+    assert!(matches!(error, StoreError::Uninitialized { .. }));
 }
 
 #[test]
@@ -165,6 +216,11 @@ fn a_version_one_database_is_migrated_to_version_two() {
 
     let store = Store::open(&path).expect("the version 1 database opens");
     assert_eq!(store.schema_version().expect("the version"), SCHEMA_VERSION);
+    let application_id: i64 = store
+        .connection()
+        .query_row("PRAGMA application_id", [], |row| row.get(0))
+        .expect("the application id");
+    assert_eq!(application_id, APPLICATION_ID);
 
     let event_key: String = store
         .connection()

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use crate::time::{TimestampError, parse_utc_timestamp};
+use crate::time::{TimestampError, is_supported_timestamp, parse_utc_timestamp};
 
 /// A validated OHLCV candle.
 ///
@@ -113,9 +113,10 @@ impl Candle {
     ///
     /// # Errors
     ///
-    /// Returns an error when a price or the volume is not finite, when the
-    /// OHLC values are inconsistent, when any OHLC price is zero or negative,
-    /// or when the volume is negative.
+    /// Returns an error when the timestamp is outside the supported UTC range
+    /// (1970-01-01 through 9999-12-31), when a price or the volume is not
+    /// finite, when the OHLC values are inconsistent, when any OHLC price is
+    /// zero or negative, or when the volume is negative.
     pub fn new(
         series_index: u64,
         timestamp: i64,
@@ -125,6 +126,9 @@ impl Candle {
         close: f64,
         volume: Option<f64>,
     ) -> Result<Self, CandleError> {
+        if !is_supported_timestamp(timestamp) {
+            return Err(CandleError::Timestamp(TimestampError::UnsupportedYear));
+        }
         check_finite("open", open)?;
         check_finite("high", high)?;
         check_finite("low", low)?;
@@ -257,6 +261,7 @@ fn check_positive(field: &'static str, value: f64) -> Result<(), CandleError> {
 #[cfg(test)]
 mod tests {
     use super::{Candle, CandleError, RawCandle};
+    use crate::TimestampError;
 
     fn valid_raw() -> RawCandle<'static> {
         RawCandle {
@@ -316,6 +321,18 @@ mod tests {
         let candle = Candle::parse(0, raw).expect("zero volume is a value");
 
         assert_eq!(candle.volume(), Some(0.0));
+    }
+
+    #[test]
+    fn rejects_a_timestamp_outside_the_supported_range() {
+        for timestamp in [i64::MIN, -1, 253_402_300_800, i64::MAX] {
+            let result = Candle::new(0, timestamp, 1.0, 1.0, 1.0, 1.0, None);
+            assert_eq!(
+                result,
+                Err(CandleError::Timestamp(TimestampError::UnsupportedYear)),
+                "timestamp {timestamp} was accepted"
+            );
+        }
     }
 
     #[test]

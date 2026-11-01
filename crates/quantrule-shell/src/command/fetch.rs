@@ -9,6 +9,8 @@ use std::path::PathBuf;
 
 use quantrule_data::{DEFAULT_WINDOW, EXTENDED_SERIES, MAX_SERIES, Timeframe};
 
+use super::parse_native_timeframe;
+
 use super::types::{FetchArgs, ParseError, RunError};
 use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
@@ -50,7 +52,7 @@ pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, P
                         "--timeframe was supplied twice",
                     )));
                 }
-                timeframe = Some(Timeframe::from_code(value).ok_or_else(|| {
+                timeframe = Some(parse_native_timeframe(value).ok_or_else(|| {
                     ParseError::Fetch(format!(
                         "--timeframe expects 1m, 5m, 15m, or 1h, found '{value}'"
                     ))

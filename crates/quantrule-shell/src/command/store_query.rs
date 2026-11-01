@@ -8,7 +8,9 @@ use std::fmt::Write as _;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
-use quantrule_data::{Timeframe, format_utc_timestamp};
+use quantrule_data::format_utc_timestamp;
+
+use super::parse_native_timeframe;
 
 use super::types::{Command, DbArgs, DbKind, ParseError, RunError, StoreListArgs, StoreShowArgs};
 use crate::store::{Cell, DatasetSummary, SeriesRow, Store, Table, TableRows};
@@ -236,7 +238,7 @@ fn value<'a>(
 }
 
 fn parse_timeframe(text: &str, usage: &str) -> Result<u64, ParseError> {
-    let timeframe = Timeframe::from_code(text).ok_or_else(|| {
+    let timeframe = parse_native_timeframe(text).ok_or_else(|| {
         ParseError::Store(format!(
             "--timeframe expects 1m, 5m, 15m, or 1h, found '{text}'\n{usage}"
         ))

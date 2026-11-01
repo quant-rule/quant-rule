@@ -11,6 +11,21 @@ const SECONDS_PER_HOUR: i64 = 3_600;
 const SECONDS_PER_MINUTE: i64 = 60;
 const SOURCE_TIMESTAMP_LEN: usize = 25;
 
+/// The earliest supported UTC timestamp: 1970-01-01T00:00:00Z.
+pub const MIN_TIMESTAMP_SECONDS: i64 = 0;
+
+/// The latest supported UTC timestamp: 9999-12-31T23:59:59Z.
+pub const MAX_TIMESTAMP_SECONDS: i64 = 253_402_300_799;
+
+/// The latest supported timestamp in Unix milliseconds.
+pub const MAX_TIMESTAMP_MILLISECONDS: i64 = MAX_TIMESTAMP_SECONDS * 1_000;
+
+/// Whether `seconds` is in the supported UTC range.
+#[must_use]
+pub const fn is_supported_timestamp(seconds: i64) -> bool {
+    seconds >= MIN_TIMESTAMP_SECONDS && seconds <= MAX_TIMESTAMP_SECONDS
+}
+
 /// A timestamp could not be parsed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimestampError {
@@ -191,11 +206,31 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
 
 #[cfg(test)]
 mod tests {
-    use super::{TimestampError, format_utc_timestamp, parse_utc_timestamp};
+    use super::{
+        MAX_TIMESTAMP_SECONDS, MIN_TIMESTAMP_SECONDS, TimestampError, format_utc_timestamp,
+        is_supported_timestamp, parse_utc_timestamp,
+    };
 
     #[test]
     fn parses_the_epoch() {
         assert_eq!(parse_utc_timestamp("1970-01-01 00:00:00+00:00"), Ok(0));
+    }
+
+    #[test]
+    fn the_supported_range_matches_the_parser() {
+        assert_eq!(MIN_TIMESTAMP_SECONDS, 0);
+        assert_eq!(
+            parse_utc_timestamp("1970-01-01 00:00:00+00:00"),
+            Ok(MIN_TIMESTAMP_SECONDS)
+        );
+        assert_eq!(
+            parse_utc_timestamp("9999-12-31 23:59:59+00:00"),
+            Ok(MAX_TIMESTAMP_SECONDS)
+        );
+        assert!(is_supported_timestamp(MIN_TIMESTAMP_SECONDS));
+        assert!(is_supported_timestamp(MAX_TIMESTAMP_SECONDS));
+        assert!(!is_supported_timestamp(MIN_TIMESTAMP_SECONDS - 1));
+        assert!(!is_supported_timestamp(MAX_TIMESTAMP_SECONDS + 1));
     }
 
     #[test]

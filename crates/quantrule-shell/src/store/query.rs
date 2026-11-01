@@ -12,6 +12,25 @@ use rusqlite::types::Value;
 
 use super::{Store, StoreError};
 
+fn strip_internal_columns(rows: &mut TableRows) {
+    let mut hidden: Vec<usize> = rows
+        .columns
+        .iter()
+        .enumerate()
+        .filter(|(_, name)| matches!(name.as_str(), "dataset_id" | "id"))
+        .map(|(index, _)| index)
+        .collect();
+    hidden.sort_unstable_by(|left, right| right.cmp(left));
+    for index in hidden {
+        rows.columns.remove(index);
+        for row in &mut rows.rows {
+            if index < row.len() {
+                row.remove(index);
+            }
+        }
+    }
+}
+
 /// A stored table that can be shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Table {
@@ -337,6 +356,10 @@ impl Store {
 
     /// Shows a stored table for one dataset.
     ///
+    /// The database's internal `dataset_id` and the event row `id` are omitted
+    /// from the displayed columns: they are storage identity, not dataset
+    /// content, and they change across database histories.
+    ///
     /// # Errors
     ///
     /// Returns [`StoreError::DatasetNotFound`] when the dataset does not exist,
@@ -378,6 +401,7 @@ impl Store {
         values.push(Value::from(limit as i64));
 
         let mut rows = self.query_rows(&sql, values)?;
+        strip_internal_columns(&mut rows);
         if table == Table::Event
             && let Some(index) = rows
                 .columns
@@ -592,14 +616,14 @@ mod tests {
             .show_table("demo", Table::Bar, Some(60), None, 10)
             .expect("the bars are read");
         assert_eq!(rows.rows.len(), 2);
-        assert_eq!(rows.rows[0][2], Cell::Integer(0));
-        assert_eq!(rows.rows[1][2], Cell::Integer(1));
+        assert_eq!(rows.rows[0][1], Cell::Integer(0));
+        assert_eq!(rows.rows[1][1], Cell::Integer(1));
 
         let one = store
             .show_table("demo", Table::Bar, Some(60), Some(1), 10)
             .expect("the bar is read");
         assert_eq!(one.rows.len(), 1);
-        assert_eq!(one.rows[0][2], Cell::Integer(1));
+        assert_eq!(one.rows[0][1], Cell::Integer(1));
 
         let limited = store
             .show_table("demo", Table::Bar, None, None, 1)
