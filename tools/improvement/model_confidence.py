@@ -4,9 +4,11 @@
 The command runs ``model-series`` over the full window, joins each bar with the
 bar ``h`` places later in the same series, and reports:
 
-* direction and momentum hit rate (sign of the axis against sign of the forward
-  return) with coverage and a 95% normal-approximation lower bound;
-* ordered structure-code and progression-stage buckets with counts and means.
+* direction and momentum hit rate at a pre-registered horizon grid (sign of the
+  axis against sign of the forward return), with coverage and a 95%
+  normal-approximation lower bound;
+* ordered structure-code and progression-stage buckets with counts, means, and
+  rank monotonicity at the same horizons.
 
 No random split, bootstrap, or fitted threshold is used. A gap in the series is
 skipped rather than joined across.
@@ -34,12 +36,14 @@ from common import (
 
 Z_95 = 1.959963984540054
 
-HORIZONS = {
+DEFAULT_HORIZONS = (1, 3, 5, 10, 20)
+PRIMARY_HORIZONS = {
     "direction": 5,
     "momentum": 3,
     "structure": 5,
     "progression": 5,
 }
+HORIZONS = PRIMARY_HORIZONS
 AXIS_PATHS = {
     "direction": ("direction", "value"),
     "momentum": ("momentum", "force"),
@@ -74,8 +78,8 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
         prog="model_confidence.py",
         description=(
             "Run model-series on a CSV source and compute directional hit rates "
-            "for direction (5-bar) and momentum (3-bar), plus ordered bucket "
-            "means for structure and progression."
+            "for direction and momentum across a horizon grid, plus ordered "
+            "bucket means and monotonicity for structure and progression."
         ),
         epilog=(
             "Example: python3 tools/improvement/model_confidence.py "
@@ -100,7 +104,31 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
         default="json",
         help="stdout format (default: json)",
     )
+    parser.add_argument(
+        "--horizons",
+        default="1,3,5,10,20",
+        help="comma-separated forward horizons in bars (default: 1,3,5,10,20)",
+    )
     return parser.parse_args(argv)
+
+
+def parse_horizons(value: str) -> tuple[int, ...]:
+    horizons: list[int] = []
+    for field in value.split(","):
+        field = field.strip()
+        if not field:
+            raise ToolError("horizons must be a comma-separated list of positive integers")
+        try:
+            horizon = int(field)
+        except ValueError:
+            raise ToolError(f"invalid horizon {field!r}; expected a positive integer") from None
+        if horizon <= 0:
+            raise ToolError(f"invalid horizon {field!r}; expected a positive integer")
+        if horizon not in horizons:
+            horizons.append(horizon)
+    if not horizons:
+        raise ToolError("at least one horizon is required")
+    return tuple(sorted(horizons))
 
 
 def nested(record: dict[str, Any], path: Iterable[str]) -> Any:
@@ -217,11 +245,62 @@ def lower_bound(rate: float | None, count: int) -> float | None:
     return max(0.0, rate - margin)
 
 
-def hit_rate_axis(
-    indexed: list[dict[str, Any]], axis: str
+def average_ranks(values: list[float]) -> list[float]:
+    """Return average ranks, with ties sharing the mean rank."""
+    order = sorted(range(len(values)), key=lambda index: values[index])
+    ranks = [0.0] * len(values)
+    index = 0
+    while index < len(order):
+        end = index + 1
+        while end < len(order) and values[order[end]] == values[order[index]]:
+            end += 1
+        rank = (index + 1 + end) / 2.0
+        for position in order[index:end]:
+            ranks[position] = rank
+        index = end
+    return ranks
+
+
+def spearman(xs: list[float], ys: list[float]) -> float | None:
+    """Spearman rank correlation without a dependency."""
+    if len(xs) != len(ys) or len(xs) < 3:
+        return None
+    rx = average_ranks(xs)
+    ry = average_ranks(ys)
+    mean_x = mean(rx)
+    mean_y = mean(ry)
+    if mean_x is None or mean_y is None:
+        return None
+    numerator = sum((x - mean_x) * (y - mean_y) for x, y in zip(rx, ry))
+    denominator = math.sqrt(
+        sum((x - mean_x) ** 2 for x in rx) * sum((y - mean_y) ** 2 for y in ry)
+    )
+    if denominator == 0.0:
+        return None
+    value = numerator / denominator
+    return value if math.isfinite(value) else None
+
+
+def bucket_monotonicity(buckets: list[dict[str, Any]], name: str) -> tuple[float | None, bool, bool]:
+    ordered = [
+        bucket
+        for bucket in buckets
+        if bucket.get("mean_forward_return") is not None
+    ]
+    if len(ordered) < 3:
+        return None, False, False
+    keys = [float(bucket[name]) for bucket in ordered]
+    returns = [float(bucket["mean_forward_return"]) for bucket in ordered]
+    correlation = spearman(keys, returns)
+    nondecreasing = all(a <= b for a, b in zip(returns, returns[1:]))
+    nonincreasing = all(a >= b for a, b in zip(returns, returns[1:]))
+    return correlation, nondecreasing, nonincreasing
+
+
+def hit_rate_at(
+    indexed: list[dict[str, Any]], axis: str, horizon: int
 ) -> tuple[dict[str, Any], list[str]]:
     notes: list[str] = []
-    horizon = HORIZONS[axis]
     pairs, skipped = forward_pairs(indexed, horizon)
     evaluated = [
         (numeric_axis(item["record"], AXIS_PATHS[axis]), forward)
@@ -245,9 +324,28 @@ def hit_rate_axis(
     return data, notes
 
 
-def bucket_axis(indexed: list[dict[str, Any]], axis: str) -> tuple[dict[str, Any], list[str]]:
+def hit_rate_axis(
+    indexed: list[dict[str, Any]], axis: str, horizons: tuple[int, ...]
+) -> tuple[dict[str, Any], list[str]]:
     notes: list[str] = []
-    horizon = HORIZONS[axis]
+    by_horizon: list[dict[str, Any]] = []
+    for horizon in horizons:
+        data, axis_notes = hit_rate_at(indexed, axis, horizon)
+        by_horizon.append(data)
+        notes.extend(axis_notes)
+    primary = next(
+        data for data in by_horizon if data["horizon"] == PRIMARY_HORIZONS[axis]
+    )
+    data = dict(primary)
+    data["primary_horizon"] = PRIMARY_HORIZONS[axis]
+    data["by_horizon"] = by_horizon
+    return data, notes
+
+
+def bucket_at(
+    indexed: list[dict[str, Any]], axis: str, horizon: int
+) -> tuple[dict[str, Any], list[str]]:
+    notes: list[str] = []
     pairs, skipped = forward_pairs(indexed, horizon)
     forward_by_index = {item["series_index"]: forward for item, forward in pairs}
     bucket_path = BUCKET_PATHS[axis]
@@ -292,30 +390,55 @@ def bucket_axis(indexed: list[dict[str, Any]], axis: str) -> tuple[dict[str, Any
             f"{axis}: {non_numeric} record(s) have a null or non-numeric "
             f"{'.'.join(bucket_path)} and were left out of the buckets"
         )
+    correlation, nondecreasing, nonincreasing = bucket_monotonicity(rows, name)
     data = {
         "horizon": horizon,
         "coverage": coverage(indexed, axis),
         "unpaired": skipped,
         "bucket_field": ".".join(bucket_path),
+        "spearman": correlation,
+        "monotonic_nondecreasing": nondecreasing,
+        "monotonic_nonincreasing": nonincreasing,
         "buckets": rows,
     }
     return data, notes
 
 
-def build_report(indexed: list[dict[str, Any]], notes: list[str]) -> dict[str, Any]:
+def bucket_axis(
+    indexed: list[dict[str, Any]], axis: str, horizons: tuple[int, ...]
+) -> tuple[dict[str, Any], list[str]]:
+    notes: list[str] = []
+    by_horizon: list[dict[str, Any]] = []
+    for horizon in horizons:
+        data, axis_notes = bucket_at(indexed, axis, horizon)
+        by_horizon.append(data)
+        notes.extend(axis_notes)
+    primary = next(
+        data for data in by_horizon if data["horizon"] == PRIMARY_HORIZONS[axis]
+    )
+    data = dict(primary)
+    data["primary_horizon"] = PRIMARY_HORIZONS[axis]
+    data["by_horizon"] = by_horizon
+    return data, notes
+
+
+def build_report(
+    indexed: list[dict[str, Any]], notes: list[str], horizons: tuple[int, ...]
+) -> dict[str, Any]:
     axes: dict[str, Any] = {}
     for axis in ("direction", "momentum"):
-        data, axis_notes = hit_rate_axis(indexed, axis)
+        data, axis_notes = hit_rate_axis(indexed, axis, horizons)
         axes[axis] = data
         notes.extend(axis_notes)
     for axis in ("structure", "progression"):
-        data, axis_notes = bucket_axis(indexed, axis)
+        data, axis_notes = bucket_axis(indexed, axis, horizons)
         axes[axis] = data
         notes.extend(axis_notes)
     return {
         "schema": "quantrule.model-confidence/v1",
         "bars": len(indexed),
         "horizons": HORIZONS,
+        "horizon_grid": list(horizons),
         "lower_bound_method": "p - 1.96 * sqrt(p * (1 - p) / n)",
         "axes": axes,
         "notes": notes,
@@ -376,6 +499,11 @@ def write_csv(report: dict[str, Any]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_arguments(argv)
+    try:
+        horizons = parse_horizons(args.horizons)
+    except ToolError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     source = Path(args.source).expanduser()
     if not source.is_file():
         print(f"error: source not found: {source}", file=sys.stderr)
@@ -416,7 +544,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
-    report = build_report(indexed, notes)
+    report = build_report(indexed, notes, horizons)
     report = {
         "schema": report["schema"],
         "source": args.source,
@@ -424,6 +552,7 @@ def main(argv: list[str] | None = None) -> int:
         "command": [args.qr, "model-series", args.source, "--timeframe", args.timeframe, "--window", "full"],
         "bars": report["bars"],
         "horizons": report["horizons"],
+        "horizon_grid": report["horizon_grid"],
         "lower_bound_method": report["lower_bound_method"],
         "axes": report["axes"],
         "notes": report["notes"],
