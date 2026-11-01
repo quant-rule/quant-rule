@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-full-system
-- Status: Published (PR #320); findings 41–69 `Fixed`; independent verification pending; issue tree #308–#318 created; W1 PR #319 merged; W2 PR #321 merged; W3 PR #322 merged; W4 PR #323 merged; W5 PR #324 merged; W6 PR #325 merged; W7 PR #326 merged; W8 PR #327 merged; W9 PR #328 merged; W10 PR #329 merged; W11 PR #330 open
+- Status: Published (PR #320); findings 41–69 `Fixed`; independent verification pending; issue tree #308–#318 created; W1–W11 merged as PRs #319 and #321–#330
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `c8b1dc1` (last audited head, merge of PR #279)
 - Head: `main` at `e34693f` (merge of PR #307)
@@ -1099,7 +1099,8 @@ by that remediation and are reported here: rerun evidence (43) and the
 
 The Planner pass is written as
 [`docs/execution-plans/2026-10-31/full-system-audit.md`](../../execution-plans/2026-10-31/full-system-audit.md)
-and is `Approved`. It groups the 29 findings into eleven work items; D1–D17 are
-approved. The issue tree is created: W1–W11 are #308–#318. W1 (#308) is
-implemented in PR #319; the audit and plan are in PR #320. The audit pass
-changed no code or test.
+and is `Verified`. It groups the 29 findings into eleven work items; D1–D17 are
+approved. The issue tree is created: W1–W11 are #308–#318. Every work item is
+merged: W1–W11 are PRs #319 and #321–#330. All 29 findings are `Fixed`; the
+Improvement Verifier and the human remain responsible for independent closure
+and final acceptance. The audit pass changed no code or test.
