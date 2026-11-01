@@ -2,11 +2,13 @@
 //!
 //! Per timeframe, the aggregator counts the events that became knowable in the
 //! most recent five closed bars, by type and subtype, and records the latest
-//! event and its age. Across timeframes it sums those counts and reports the
-//! divergence direction agreement. Event codes are counted, never averaged.
+//! event by the shared event key and its age. Across timeframes it sums those
+//! counts and reports the divergence direction agreement. Event codes are
+//! counted, never averaged.
 
 use super::TimeframeSnapshot;
 use crate::events::EventRecord;
+use crate::events::order::event_cmp;
 
 /// The number of closed bars in the published event window.
 pub const EVENT_WINDOW_BARS: usize = 5;
@@ -187,7 +189,7 @@ fn summarize(snapshot: &TimeframeSnapshot) -> TimeframeEventSummary {
         .events
         .iter()
         .filter(|event| event.available_bar_index <= latest)
-        .max_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
+        .max_by(|left, right| event_cmp(left, right));
 
     TimeframeEventSummary {
         timeframe_secs: snapshot.timeframe_secs,
@@ -226,6 +228,6 @@ fn latest_divergence_direction(snapshot: &TimeframeSnapshot) -> Option<i8> {
                 && event.available_bar_index >= window_start
                 && event.available_bar_index <= latest
         })
-        .max_by_key(|event| (event.available_bar_index, event.occurred_bar_index))
+        .max_by(|left, right| event_cmp(left, right))
         .map(|event| event.direction_code)
 }

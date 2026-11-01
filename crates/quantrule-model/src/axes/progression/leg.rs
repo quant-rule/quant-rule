@@ -189,7 +189,8 @@ impl Leg {
     /// Whether `close` is beyond the origin against the leg by more than
     /// `0.2 * ATR_at_origin`.
     ///
-    /// A leg without a usable ATR can never be invalidated on this rule.
+    /// A leg without a finite ATR can never be invalidated on this rule. A
+    /// measured zero is finite, so any move beyond the origin invalidates it.
     pub(crate) fn breach(&self, close: f64) -> bool {
         let Some(atr) = self.atr_at_origin else {
             return false;
@@ -304,7 +305,9 @@ impl Leg {
         self.displacement_price = Some(close - self.origin_price);
         self.displacement_atr = self
             .atr_at_origin
-            .map(|atr| (close - self.origin_price) / atr);
+            .filter(|atr| *atr > 0.0)
+            .map(|atr| (close - self.origin_price) / atr)
+            .filter(|value| value.is_finite());
 
         let Some(target) = self.target else {
             self.progress = None;
@@ -375,7 +378,7 @@ fn stage_for(progress: f64) -> i8 {
 #[cfg(test)]
 mod tests {
     use super::{Leg, Lifecycle, stage_for};
-    use crate::axes::progression::target::Target;
+    use crate::axes::progression::target::{ATR_FALLBACK_BASIS, Target};
     use crate::axes::structure::registry::ConfirmedLevelRegistry;
     use crate::kernel::UnavailableReason;
     use crate::readings::{PivotCandidate, PivotKind, PivotScale, PivotSeries};
@@ -644,6 +647,35 @@ mod tests {
             leg.unavailable_reason(),
             Some(UnavailableReason::OriginUnconfirmed)
         );
+    }
+
+    #[test]
+    fn a_zero_atr_fallback_degenerates_and_can_be_invalidated() {
+        // A strict pivot cannot occur on a fully flat prefix, so the zero-ATR
+        // leg is built directly. The contract still defines what a zero
+        // denominator means when the measurement is present.
+        let registry = empty_registry();
+        let mut index = super::target::LevelIndex::new(&registry);
+        index.advance(4);
+        let mut leg = Leg::new(1, candidate(PivotKind::Low, 100.0, 4), &index, Some(0.0));
+
+        assert_eq!(
+            leg.target,
+            Some(Target {
+                price: 100.0,
+                basis_code: ATR_FALLBACK_BASIS,
+            })
+        );
+        leg.confirm(6);
+        leg.update(Some(100.5), 7);
+        assert_eq!(leg.progress, None);
+        assert_eq!(leg.displacement_atr, None);
+        assert_eq!(
+            leg.unavailable_reason(),
+            Some(UnavailableReason::InvalidDenominator)
+        );
+        assert!(!leg.breach(100.0));
+        assert!(leg.breach(99.9));
     }
 
     #[test]

@@ -15,12 +15,12 @@ use crate::readings::roles::AxisCode;
 use crate::run::ModelRun;
 use crate::timeframe::{ModelBar, TimeframeModel};
 
-use super::order::event_cmp;
 use super::{
     AxisReport, ChartReport, EventReport, EventTypeCounts, LatestEvent, LatestState, MarketReport,
     ReportConsensus, ReportContext, ReportDirection, ReportLeg, ReportMomentum, ReportPeriod,
     ReportProgression, ReportReadings, ReportStructure, TimeframeEventReport, TimeframeReport,
 };
+use crate::events::order::event_cmp;
 
 impl MarketReport {
     /// Projects a completed model run onto the full-period report.

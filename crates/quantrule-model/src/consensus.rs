@@ -44,9 +44,9 @@ impl TimeframeConsensus {
     /// Builds the consensus for one closed bar from its three voting bars.
     ///
     /// Direction, Momentum, and Structure vote; Progression is excluded. A
-    /// missing value is not counted as neutral. The weakest directional axis is
-    /// the lowest valid size percentile, with the lower axis code breaking a
-    /// tie.
+    /// missing or non-finite value is not counted as neutral. The weakest
+    /// directional axis is the lowest valid finite size percentile, with the
+    /// lower axis code breaking a tie.
     #[must_use]
     pub fn from_bars(
         timeframe_secs: u64,
@@ -58,7 +58,11 @@ impl TimeframeConsensus {
         let mut bullish = 0_u8;
         let mut bearish = 0_u8;
         let mut neutral = 0_u8;
-        for value in values.into_iter().flatten() {
+        for value in values
+            .into_iter()
+            .flatten()
+            .filter(|value| value.is_finite())
+        {
             if value > 0.1 {
                 bullish += 1;
             } else if value < -0.1 {
@@ -75,7 +79,7 @@ impl TimeframeConsensus {
         ];
         let mut weakest: Option<(u8, f64)> = None;
         for (code, percentile) in candidates {
-            let Some(percentile) = percentile else {
+            let Some(percentile) = percentile.filter(|value| value.is_finite()) else {
                 continue;
             };
             if weakest.is_none_or(|(weakest_code, weakest_percentile)| {

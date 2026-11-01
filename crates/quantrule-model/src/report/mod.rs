@@ -33,7 +33,6 @@
 
 mod assemble;
 mod chart;
-mod order;
 #[cfg(test)]
 mod tests;
 

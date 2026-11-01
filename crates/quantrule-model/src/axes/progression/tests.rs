@@ -893,7 +893,7 @@ fn ready_requires_a_stable_target() {
 }
 
 #[test]
-fn a_zero_atr_is_not_a_usable_origin_distance() {
+fn a_zero_atr_is_a_valid_origin_distance() {
     let candles: Vec<Candle> = (0..40)
         .map(|bar| {
             Candle::new(bar, bar as i64, 100.0, 100.0, 100.0, 100.0, Some(0.0))
@@ -903,7 +903,7 @@ fn a_zero_atr_is_not_a_usable_origin_distance() {
     let readings = Readings::compute(&candles);
 
     assert_eq!(readings.atr14.get(20), Some(0.0));
-    assert_eq!(super::usable_atr(&readings, 20), None);
+    assert_eq!(super::usable_atr(&readings, 20), Some(0.0));
 }
 
 #[test]
