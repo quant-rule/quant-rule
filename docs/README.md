@@ -70,6 +70,8 @@ the remaining pending phase.
 | Evidence | Status | Path |
 |---|---|---|
 | MVP v1 verification | Verified (#177); re-verified on current `main` after #189 and #196; release notes `v0.2.0` | `docs/reports/2026-10-28/mvp-v1-verification.md` |
+| High-timeframe trend experiment | Stopped; not green; 1h/4h sample below the 30-trade floor; BTCUSD/ETHUSD 2023 data blocker | [`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`](experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md) |
+| Mid-timeframe cost/sample experiment | Stopped; not green; 2024 OOS negative on all three instruments; no edge for the tested rule | [`docs/experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md`](experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md) |
 
 ## Current tutorials
 

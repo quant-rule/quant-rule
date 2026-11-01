@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "btcusd-t2-2021",
+  "policy": "../shared/policy-high.json",
+  "data": "data.json",
+  "model": "../shared/model.json",
+  "strategy": "../shared/strategy-t2.json",
+  "execution": "../shared/execution-high.json",
+  "portfolio": "../shared/portfolio.json",
+  "analytics": "../shared/analytics-high.json",
+  "output_root": "../../../../../target/experiment-EXP-2026-11-01-03/btcusd-t2-2021"
+}
