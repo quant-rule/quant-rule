@@ -30,8 +30,7 @@ commits, pushes, or pull requests (AGENTS.md section 9).
 - Global gates pass at the head: fmt, clippy with warnings denied,
   `cargo test --workspace` (1,518 passed, 0 failed, 7 ignored; 47 suites),
   rustdoc with warnings denied, and `git diff --check`.
-- The audit, this plan, and the AI transparency log are written but uncommitted
-  in the worktree `quant-rule--full-audit-2026-10-31`.
+- The audit, this plan, and the AI transparency log are opened as PR #320.
 - The issue tree is created: W1–W11 are #308–#318. W1 (#308) is implemented and
   opened as PR #319; the issue moves to `Done` on the board. The other leaves
   are `Todo`.

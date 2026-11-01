@@ -2,7 +2,7 @@
 
 - Date: 2026-10-31 (UTC)
 - Audit ID: AUDIT-2026-10-31-full-system
-- Status: Drafted (uncommitted); finding 41 `Fixed`; findings 42–69 `Planned`; issue tree #308–#318 created; W1 PR #319 open
+- Status: Published (PR #320); finding 41 `Fixed`; findings 42–69 `Planned`; issue tree #308–#318 created; W1 PR #319 open
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `c8b1dc1` (last audited head, merge of PR #279)
 - Head: `main` at `e34693f` (merge of PR #307)
@@ -1100,6 +1100,6 @@ by that remediation and are reported here: rerun evidence (43) and the
 The Planner pass is written as
 [`docs/execution-plans/2026-10-31/full-system-audit.md`](../../execution-plans/2026-10-31/full-system-audit.md)
 and is `Approved`. It groups the 29 findings into eleven work items; D1–D17 are
-approved. The issue tree is created: W1–W11 are #308–#318, and W1 (#308) is
-`In Progress`. No code or test was changed, and no commit or pull request was
-made by this audit.
+approved. The issue tree is created: W1–W11 are #308–#318. W1 (#308) is
+implemented in PR #319; the audit and plan are in PR #320. The audit pass
+changed no code or test.

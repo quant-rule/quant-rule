@@ -129,7 +129,8 @@ judgment.
 No live provider request, full-year data reproduction, adversarial store
 migration, pixel-level chart review, or performance benchmark was performed.
 The board was read back after the issue tree was created. The audit and plan are
-uncommitted in the task worktree; no Git operation was authorized or performed.
+committed on `docs/full-audit-2026-10-31` and opened as PR #320; W1 is
+`fix/308-output-path-collision`, PR #319.
 
 ## Approval and issue tree
 
