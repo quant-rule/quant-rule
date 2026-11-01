@@ -8,7 +8,7 @@
 - Work item: `AUD-2026-10-30-01`
 - Issue: [#220](https://github.com/quant-rule/quant-rule/issues/220)
 - PR: [#221](https://github.com/quant-rule/quant-rule/pull/221)
-- Audit: [`docs/audits/2026-10-30/mvp-pre-release-audit.md`](../../audits/2026-10-30/mvp-pre-release-audit.md)
+- Audit: [`docs/audits/2026-10-30/mvp-pre-release-audit.md`](../../improvement/INVALIDATIONS.md)
 - Branch: `fix/aud-2026-10-30-01-m1-source-validation`
 
 ## Intent

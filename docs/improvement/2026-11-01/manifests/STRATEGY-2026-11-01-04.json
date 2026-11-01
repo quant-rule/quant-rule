@@ -1,0 +1,22 @@
+{
+  "schema": "quantrule.improvement-run/v1",
+  "created_utc": "2026-11-01T00:00:00Z",
+  "code_commit": "worktree",
+  "seed": 0,
+  "run_id": "STRATEGY-2026-11-01-04",
+  "tier": "strategy",
+  "hypothesis": "The v6 breakout candidate is a cost-inclusive candidate on the accepted model baseline.",
+  "changed": "strategy",
+  "frozen": [
+    "model",
+    "portfolio"
+  ],
+  "partition": "strategy_validation",
+  "run_config": "config/improvement/2026-11-01/btc-v6-2024/run.json",
+  "green_criteria": {
+    "mean_return": 0.1,
+    "max_drawdown": 0.2,
+    "min_trades": 30
+  },
+  "holdout_access": "none"
+}

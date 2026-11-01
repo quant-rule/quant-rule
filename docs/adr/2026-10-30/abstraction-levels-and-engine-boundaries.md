@@ -21,7 +21,7 @@ The system uses five explicit levels.
 | Strategy | Human | `strategy.json` (with the human thesis) | Thesis, entry, exit, risk/reward |
 | Engine contracts | Engineering/Quant | `model.json`, `execution.json`, `portfolio.json`, `analytics.json` | Measurement, fill mechanics, accounting, evaluation |
 | Implementation and runs | Engineering | Rust code, labs, reports | Deterministic execution and evidence |
-| Improvement | Governing/CI | Audits, experiments, plans | Decide what to change, verify closure |
+| Improvement | Improvement / Audit | Audits, experiments, plans | Decide what to change, verify closure |
 
 The boundaries are one-way:
 

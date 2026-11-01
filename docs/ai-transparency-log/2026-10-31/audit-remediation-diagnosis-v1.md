@@ -3,7 +3,7 @@
 - Date: 2026-10-31 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
 - Work item: `audit-remediation-diagnosis-v1`
-- Audit: [`docs/audits/2026-10-31/remediation-and-diagnosis-v1-audit.md`](../../audits/2026-10-31/remediation-and-diagnosis-v1-audit.md)
+- Audit: [`docs/audits/2026-10-31/remediation-and-diagnosis-v1-audit.md`](../../improvement/INVALIDATIONS.md)
 - Plan: [`docs/execution-plans/2026-10-31/audit-remediation-diagnosis-v1.md`](../../execution-plans/2026-10-31/audit-remediation-diagnosis-v1.md)
 - Branch: `docs/audit-remediation-diagnosis-v1`
 - Baseline: `main` at `7c865de` (merge of PR #246)

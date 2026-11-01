@@ -914,7 +914,7 @@ stateless strategy contract.
 
 **Status:** Implemented in PR [#246](https://github.com/quant-rule/quant-rule/pull/246); CI passed.
 
-- Experiment: [`docs/experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md`](../../experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md)
+- Experiment: [`docs/experiments/2026-10-30/EXP-2026-10-30-02-unified-ladder.md`](../../improvement/INVALIDATIONS.md)
 - Quant Validator: [`docs/reports/2026-10-30/unified-ladder-validation.md`](../../reports/2026-10-30/unified-ladder-validation.md)
 
 **Work:**
@@ -1034,7 +1034,7 @@ No profitability claim from a single backtest.
 ### Audit status
 
 AUD-2026-10-30-01 through -11 are `Verified` in
-[`docs/audits/2026-10-30/mvp-pre-release-closure.md`](../../audits/2026-10-30/mvp-pre-release-closure.md).
+[`docs/audits/2026-10-30/mvp-pre-release-closure.md`](../../improvement/INVALIDATIONS.md).
 The previous audit blocking table is no longer applicable. Residual limitations
 recorded in the closure (sequential AUD-04 validation and non-independent
 verifier family) still apply to the evidence.

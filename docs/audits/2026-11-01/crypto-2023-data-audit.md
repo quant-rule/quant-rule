@@ -115,7 +115,7 @@ result; it prevents the stronger claim that the rule has no edge.
 **Affected contracts/docs.** `docs/config/2026-10-30/data-v3.md` (derived
 timeframes and the M1 source), `docs/model/2026-10-30/per-timeframe-model.md`
 (the model consumes the published series), and the experiment record
-`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`.
+the pre-reset experiment record, now removed; see `docs/improvement/INVALIDATIONS.md`.
 
 **Options.**
 

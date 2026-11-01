@@ -2,7 +2,8 @@
 
 An audit is a read-only record of what is wrong, why it matters, and the
 remediation options. It is not a plan and it is not an issue. The Planner turns
-accepted findings into an execution plan and a fix issue/sub-issue tree.
+accepted findings into an execution plan and a fix issue/sub-issue tree. See the
+[Audit Workflow](../workflows/audit-workflow.md).
 
 ## Location
 

@@ -1,5 +1,10 @@
 # AI Transparency Log — Audit and Improvement Workflow
 
+> **Historical record (pre-reset).** This log predates the 2026-11-01 workflow
+> reset and uses the retired workflow names. The current workflows are
+> [`docs/workflows/audit-workflow.md`](../../workflows/audit-workflow.md) and
+> [`docs/workflows/improvement-workflow.md`](../../workflows/improvement-workflow.md).
+
 - Date: 2026-10-30 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential role passes
 - Work item: `audit-improvement-workflow`

@@ -1,0 +1,21 @@
+{
+  "schema": "quantrule.improvement-run/v1",
+  "created_utc": "2026-11-01T00:00:00Z",
+  "code_commit": "worktree",
+  "seed": 0,
+  "run_id": "PORTFOLIO-2026-11-01-01",
+  "tier": "portfolio",
+  "hypothesis": "Harness dry run: the current portfolio baseline on the v6 candidate; no strategy baseline is accepted.",
+  "changed": "portfolio",
+  "frozen": [
+    "model",
+    "strategy"
+  ],
+  "partition": "portfolio_dev",
+  "run_config": "config/improvement/2026-11-01/btc-v6-2024/run.json",
+  "green_criteria": {
+    "max_drawdown": 0.2,
+    "halted": false
+  },
+  "holdout_access": "none"
+}

@@ -3,7 +3,7 @@
 - Date: 2026-10-31 (UTC)
 - Status: Verified
 - Work item: `audit-remediation-diagnosis-v1`
-- Audit: [`docs/audits/2026-10-31/remediation-and-diagnosis-v1-audit.md`](../../audits/2026-10-31/remediation-and-diagnosis-v1-audit.md)
+- Audit: [`docs/audits/2026-10-31/remediation-and-diagnosis-v1-audit.md`](../../improvement/INVALIDATIONS.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-10-31/audit-remediation-diagnosis-v1.md`](../../ai-transparency-log/2026-10-31/audit-remediation-diagnosis-v1.md)
 - Baseline: `main` at `c8b1dc1` (merge of PR #279)
 - Human approval: approved on 2026-10-31 (UTC) via "proceed"; decisions D1–D10 accepted as recommended

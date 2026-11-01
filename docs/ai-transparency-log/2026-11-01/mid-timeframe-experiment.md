@@ -1,12 +1,17 @@
 # AI Transparency Log — Mid-Timeframe Experiment
 
+> **Historical record (pre-reset).** This log predates the 2026-11-01 workflow
+> reset and uses the retired workflow names. The current workflows are
+> [`docs/workflows/audit-workflow.md`](../../workflows/audit-workflow.md) and
+> [`docs/workflows/improvement-workflow.md`](../../workflows/improvement-workflow.md).
+
 - Date: 2026-11-01 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential Orchestrator,
   Quant Researcher, Quant Developer, Result Analyst, Triage Officer, and
   verification passes
 - Work item: `mid-timeframe-experiment`
 - Plan: [`docs/execution-plans/2026-11-01/mid-timeframe-experiment.md`](../../execution-plans/2026-11-01/mid-timeframe-experiment.md)
-- Experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md`](../../experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md)
+- Experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-04-mid-timeframe.md`](../../improvement/INVALIDATIONS.md)
 - Claim type: experiment result; no edge or profitability claim
 
 ## Intent and boundary

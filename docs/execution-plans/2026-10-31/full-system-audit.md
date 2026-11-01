@@ -4,11 +4,11 @@
 - Status: Verified
 - Human acceptance: 2026-11-01 (UTC)
 - Work item: `full-system-audit`
-- Audit: [`docs/audits/2026-10-31/full-system-audit.md`](../../audits/2026-10-31/full-system-audit.md)
+- Audit: [`docs/audits/2026-10-31/full-system-audit.md`](../../improvement/INVALIDATIONS.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-10-31/full-system-audit.md`](../../ai-transparency-log/2026-10-31/full-system-audit.md)
 - Baseline: last audited head `c8b1dc1`; head `e34693f`
 - Human approval: approved on 2026-10-31 (UTC) via "continue"; D1–D17 accepted as recommended
-- Verification: 2026-11-01, separate-session Improvement Verifier pass (not an independent model judgment); all 29 findings `Verified`; record: [`docs/reports/2026-11-01/full-system-audit-closure.md`](../../reports/2026-11-01/full-system-audit-closure.md)
+- Verification: 2026-11-01, separate-session Improvement Verifier pass (not an independent model judgment); all 29 findings `Verified`; record: [`docs/reports/2026-11-01/full-system-audit-closure.md`](../../improvement/INVALIDATIONS.md)
 - Claim type: program remediation plan; no strategy edge claim
 
 ## 1. Intent

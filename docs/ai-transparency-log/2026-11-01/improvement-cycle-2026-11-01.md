@@ -1,12 +1,17 @@
 # AI Transparency Log — Continuous Improvement Cycle (High-Timeframe Trend)
 
+> **Historical record (pre-reset).** This log predates the 2026-11-01 workflow
+> reset and uses the retired workflow names. The current workflows are
+> [`docs/workflows/audit-workflow.md`](../../workflows/audit-workflow.md) and
+> [`docs/workflows/improvement-workflow.md`](../../workflows/improvement-workflow.md).
+
 - Date: 2026-11-01 (UTC)
 - Tool: OpenCode coding agent (DeepSeek V4.1 Flash), sequential Orchestrator,
   Quant Researcher, Quant Developer, Result Analyst, Triage Officer, and
   verification passes
 - Work item: `improvement-cycle-2026-11-01`
 - Plan: [`docs/execution-plans/2026-11-01/improvement-cycle-2026-11-01.md`](../../execution-plans/2026-11-01/improvement-cycle-2026-11-01.md)
-- Experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`](../../experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md)
+- Experiment: [`docs/experiments/2026-11-01/EXP-2026-11-01-03-high-timeframe-trend.md`](../../improvement/INVALIDATIONS.md)
 - Claim type: experiment result; no edge or profitability claim
 
 ## Intent and boundary
