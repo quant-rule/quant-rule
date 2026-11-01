@@ -330,10 +330,114 @@ fn json_envelope_carries_provenance_and_the_same_records() {
     assert_eq!(value["strategy_config"]["risk"]["stop"]["multiple"], 2.0);
     assert_eq!(value["requested_period"]["from"], Value::Null);
     assert_eq!(value["requested_period"]["to"], Value::Null);
+    assert_eq!(value["effective_period"]["from"], Value::Null);
+    assert_eq!(value["effective_period"]["to"], Value::Null);
+    assert_eq!(value["bars"], 1_600);
+    assert_eq!(
+        value["actual_period"]["first_open_time"],
+        "2025-01-01T00:00:00Z"
+    );
+    assert!(
+        value["actual_period"]["last_open_time"]
+            .as_str()
+            .expect("the last open time is a string")
+            .starts_with("2025-01-06T")
+    );
     assert_eq!(
         value["records"],
         Value::Array(parse_ndjson(&stdout_text(&plain)))
     );
+}
+
+#[test]
+fn config_bounds_are_recorded_as_the_effective_period() {
+    let path = long_series();
+    let config = bounded_config();
+    let output = run(&[
+        "strategy-run",
+        path,
+        "--strategy",
+        STRATEGY,
+        "--data-version",
+        DATA_VERSION,
+        "--config",
+        &config,
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let value: Value = serde_json::from_str(&stdout_text(&output)).expect("the envelope is JSON");
+    assert_eq!(value["requested_period"]["from"], Value::Null);
+    assert_eq!(value["requested_period"]["to"], Value::Null);
+    assert_eq!(value["effective_period"]["from"], "2025-01-01");
+    assert_eq!(value["effective_period"]["to"], "2025-01-01");
+    assert_eq!(value["bars"], 288);
+    let first = value["actual_period"]["first_open_time"]
+        .as_str()
+        .expect("the first open time is a string");
+    let last = value["actual_period"]["last_open_time"]
+        .as_str()
+        .expect("the last open time is a string");
+    assert!(first.starts_with("2025-01-01T"));
+    assert!(last.starts_with("2025-01-01T"));
+}
+
+#[test]
+fn cli_dates_are_recorded_as_the_effective_period() {
+    let path = long_series();
+    let output = run(&[
+        "strategy-run",
+        path,
+        "--strategy",
+        STRATEGY,
+        "--data-version",
+        DATA_VERSION,
+        "--from",
+        "2025-01-03",
+        "--to",
+        "2025-01-06",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let value: Value = serde_json::from_str(&stdout_text(&output)).expect("the envelope is JSON");
+    assert_eq!(value["requested_period"]["from"], "2025-01-03");
+    assert_eq!(value["requested_period"]["to"], "2025-01-06");
+    assert_eq!(value["effective_period"]["from"], "2025-01-03");
+    assert_eq!(value["effective_period"]["to"], "2025-01-06");
+    assert!(
+        value["bars"].as_u64().expect("bars is a number") > 0,
+        "the range must contain execution bars"
+    );
+    assert!(
+        value["actual_period"]["first_open_time"]
+            .as_str()
+            .expect("the first open time is a string")
+            .starts_with("2025-01-03T")
+    );
+}
+
+#[test]
+fn a_missing_execution_timeframe_reports_zero_bars() {
+    let path = synthetic_csv("strategy_one", 1);
+    let output = run(&[
+        "strategy-run",
+        &path,
+        "--strategy",
+        STRATEGY,
+        "--data-version",
+        DATA_VERSION,
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let value: Value = serde_json::from_str(&stdout_text(&output)).expect("the envelope is JSON");
+    assert_eq!(value["bars"], 0);
+    assert_eq!(value["records"], Value::Array(Vec::new()));
+    assert_eq!(value["actual_period"]["first_open_time"], Value::Null);
+    assert_eq!(value["actual_period"]["last_open_time"], Value::Null);
+    assert_eq!(value["effective_period"]["from"], Value::Null);
+    assert_eq!(value["effective_period"]["to"], Value::Null);
 }
 
 #[test]
@@ -472,9 +576,9 @@ fn a_missing_data_version_is_rejected() {
     );
 }
 
-/// Copies the example run configuration and points it at `source`.
-fn run_config_with(source: &str, structure_scale: &str) -> PathBuf {
-    let target = evidence_dir(&format!("config-{structure_scale}"));
+/// Copies the example run configuration into `name` and points it at `source`.
+fn run_config_in(source: &str, structure_scale: &str, name: &str) -> PathBuf {
+    let target = evidence_dir(name);
     if target.exists() {
         fs::remove_dir_all(&target).expect("the old config copy is removed");
     }
@@ -527,6 +631,43 @@ fn run_config_with(source: &str, structure_scale: &str) -> PathBuf {
     .expect("analytics.json is written");
 
     target.join("run.json")
+}
+
+/// The default per-scale copy used by the existing tests.
+fn run_config_with(source: &str, structure_scale: &str) -> PathBuf {
+    run_config_in(
+        source,
+        structure_scale,
+        &format!("config-{structure_scale}"),
+    )
+}
+
+/// A run configuration whose data bounds restrict the source to one day.
+fn bounded_config() -> String {
+    static CONFIG: OnceLock<String> = OnceLock::new();
+    CONFIG
+        .get_or_init(|| {
+            let config = run_config_in(long_series(), "major", "config-bounded");
+            let data_path = config
+                .parent()
+                .expect("the config has a parent")
+                .join("data.json");
+            let mut data: Value =
+                serde_json::from_str(&fs::read_to_string(&data_path).expect("data.json is read"))
+                    .expect("data.json is JSON");
+            data["from"] = Value::String(String::from("2025-01-01"));
+            data["to"] = Value::String(String::from("2025-01-01"));
+            fs::write(
+                &data_path,
+                serde_json::to_vec_pretty(&data).expect("data.json is written"),
+            )
+            .expect("data.json is written");
+            config
+                .to_str()
+                .expect("the config path is valid UTF-8")
+                .to_owned()
+        })
+        .clone()
 }
 
 #[test]

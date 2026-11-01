@@ -224,8 +224,8 @@ the review bounded. W7 and W8 touch backtest and model; W7 runs first.
   restore the typed error. Under the recommended A, add `bars` and
   `actual_period` so zero bars are explicit, and update the README.
 - Closure tests: one-day config over a multi-day source records the one-day
-  effective period; a short series matches the documented empty result and
-  reports `bars: 0`.
+  effective period; a source with no execution bar reports `bars: 0`. The
+  five-row short series remains the context-missing case: `bars: 1`, no records.
 - Paths: `crates/quantrule-shell/src/command/strategy.rs`,
   `crates/quantrule-shell/tests/strategy_run.rs`, `README.md`,
   `crates/quantrule-shell/src/command/help.rs`.
