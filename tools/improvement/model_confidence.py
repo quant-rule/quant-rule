@@ -56,6 +56,31 @@ BUCKET_PATHS = {
 }
 BUCKET_NAMES = {"structure": "code", "progression": "stage"}
 
+REGIME_FIELDS = {
+    "atr_ratio": ("context", "atr_ratio"),
+    "rvol_ratio": ("context", "rvol_ratio"),
+    "context_code": ("context", "code"),
+}
+
+
+def regime_bucket(field: str, value: float) -> str | None:
+    """Map one published context value to a pre-registered bucket."""
+    if field == "atr_ratio":
+        if value < 0.8:
+            return "atr<0.8"
+        if value <= 1.2:
+            return "atr0.8-1.2"
+        return "atr>1.2"
+    if field == "rvol_ratio":
+        if value < 1.0:
+            return "rvol<1.0"
+        if value <= 2.0:
+            return "rvol1.0-2.0"
+        return "rvol>2.0"
+    if field == "context_code":
+        return f"code={int(value)}"
+    return None
+
 CSV_HEADER = (
     "axis",
     "kind",
@@ -324,6 +349,41 @@ def hit_rate_at(
     return data, notes
 
 
+def regime_hit_rate(
+    indexed: list[dict[str, Any]], axis: str, horizon: int, field: str
+) -> list[dict[str, Any]]:
+    """Hit rate by one pre-registered context bucket at one horizon."""
+    pairs, _ = forward_pairs(indexed, horizon)
+    path = REGIME_FIELDS[field]
+    buckets: dict[str, list[tuple[float, float]]] = {}
+    for item, forward in pairs:
+        axis_value = numeric_axis(item["record"], AXIS_PATHS[axis])
+        raw_regime = nested(item["record"], path)
+        if axis_value is None or not is_number(raw_regime):
+            continue
+        label = regime_bucket(field, float(raw_regime))
+        if label is None:
+            continue
+        buckets.setdefault(label, []).append((axis_value, forward))
+    rows = []
+    for label in sorted(buckets):
+        values = buckets[label]
+        hits = sum(1 for value, forward in values if sign(value) == sign(forward))
+        count = len(values)
+        rate = hits / count if count else None
+        rows.append(
+            {
+                "field": field,
+                "bucket": label,
+                "evaluated": count,
+                "hits": hits,
+                "hit_rate": rate,
+                "lower_bound_95": lower_bound(rate, count),
+            }
+        )
+    return rows
+
+
 def hit_rate_axis(
     indexed: list[dict[str, Any]], axis: str, horizons: tuple[int, ...]
 ) -> tuple[dict[str, Any], list[str]]:
@@ -339,6 +399,10 @@ def hit_rate_axis(
     data = dict(primary)
     data["primary_horizon"] = PRIMARY_HORIZONS[axis]
     data["by_horizon"] = by_horizon
+    data["by_regime"] = {
+        field: regime_hit_rate(indexed, axis, PRIMARY_HORIZONS[axis], field)
+        for field in REGIME_FIELDS
+    }
     return data, notes
 
 

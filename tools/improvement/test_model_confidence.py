@@ -57,6 +57,15 @@ class ModelConfidenceMath(unittest.TestCase):
         self.assertTrue(up)
         self.assertFalse(down)
 
+    def test_regime_buckets_are_pre_registered(self) -> None:
+        self.assertEqual(confidence.regime_bucket("atr_ratio", 0.7), "atr<0.8")
+        self.assertEqual(confidence.regime_bucket("atr_ratio", 0.8), "atr0.8-1.2")
+        self.assertEqual(confidence.regime_bucket("atr_ratio", 1.3), "atr>1.2")
+        self.assertEqual(confidence.regime_bucket("rvol_ratio", 0.5), "rvol<1.0")
+        self.assertEqual(confidence.regime_bucket("rvol_ratio", 1.5), "rvol1.0-2.0")
+        self.assertEqual(confidence.regime_bucket("rvol_ratio", 2.5), "rvol>2.0")
+        self.assertEqual(confidence.regime_bucket("context_code", 3.0), "code=3")
+
     def test_hit_rate_at_a_horizon(self) -> None:
         indexed = [
             item(0, 100.0, 1.0),
