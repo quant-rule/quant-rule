@@ -54,7 +54,7 @@ jobs:
       - name: Improvement tooling
         run: |
           python3 -m py_compile tools/improvement/*.py tools/check_terms.py
-          python3 -m unittest discover -s tools/improvement -p 'test_*.py
+          python3 -m unittest discover -s tools/improvement -p 'test_*.py'
 
       - name: Documentation
         run: cargo doc --no-deps
