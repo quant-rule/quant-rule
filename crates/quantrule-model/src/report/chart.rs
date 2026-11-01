@@ -12,11 +12,11 @@
 use crate::run::ModelRun;
 use crate::timeframe::TimeframeModel;
 
-use super::order::event_cmp;
 use super::{
     CHART_BUCKET_LIMIT, CHART_TIMEFRAME_SECS, ChartReport, ReportChartBar, ReportChartEvent,
     TimeframeReport,
 };
+use crate::events::order::event_cmp;
 
 impl ChartReport {
     /// Projects the selected series onto the report's chart buckets.

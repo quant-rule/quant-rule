@@ -1,15 +1,16 @@
-//! Deterministic ordering for the report's event records.
+//! Deterministic ordering for event records.
 //!
-//! The report fixes one event key. The model's batch is already in availability
-//! order, but the report sorts explicitly so a future detector or retention
-//! change cannot make the published order depend on insertion order. The two
-//! optional numbers use [`f64::total_cmp`], with `None` ordered before `Some`.
+//! The aggregate's latest event and the report's latest event and event order
+//! share one key. The model's batch is already in availability order, but a
+//! consumer sorts explicitly so a future detector or retention change cannot
+//! make the published order depend on insertion order. The two optional numbers
+//! use [`f64::total_cmp`], with `None` ordered before `Some`.
 
 use std::cmp::Ordering;
 
 use crate::events::EventRecord;
 
-/// Orders two events by the report's fixed key.
+/// Orders two events by the shared fixed key.
 pub(crate) fn event_cmp(left: &EventRecord, right: &EventRecord) -> Ordering {
     left.available_bar_index
         .cmp(&right.available_bar_index)

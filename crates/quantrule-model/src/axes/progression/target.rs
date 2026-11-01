@@ -146,9 +146,9 @@ fn insert_sorted(levels: &mut Vec<ConfirmedLevel>, level: ConfirmedLevel) {
 /// structural candidates are the confirmed levels of `scale` available in the
 /// index: highs strictly above the origin for an upward leg, lows strictly
 /// below it for a downward leg. An exact price tie is represented by the same
-/// price, so the returned target is unambiguous. The fallback requires a usable
-/// `atr_at_origin`; without one, and without a structural level, the leg has no
-/// target.
+/// price, so the returned target is unambiguous. The fallback requires a finite
+/// `atr_at_origin`; a measured zero produces a degenerate target at the origin.
+/// Without a finite ATR, and without a structural level, the leg has no target.
 pub(crate) fn select_index(
     index: &LevelIndex,
     scale: PivotScale,

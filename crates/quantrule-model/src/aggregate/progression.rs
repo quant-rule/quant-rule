@@ -119,7 +119,7 @@ pub(crate) fn aggregate(ordered: &[&TimeframeSnapshot]) -> ProgressionAggregates
             if leg.lifecycle_code != 1 || !matches!(leg.direction_code, -1 | 1) {
                 continue;
             }
-            if let Some(atr) = snapshot.atr.filter(|atr| *atr > 0.0) {
+            if let Some(atr) = snapshot.atr.filter(|atr| atr.is_finite() && *atr > 0.0) {
                 legs.push(LegPoint {
                     scale_code: leg.scale_code,
                     direction_code: leg.direction_code,

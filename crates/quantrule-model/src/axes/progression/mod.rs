@@ -502,12 +502,12 @@ const fn direction_for(kind: PivotKind) -> i8 {
     }
 }
 
-/// The ATR 14 at `bar`, when it is a usable distance.
+/// The ATR 14 at `bar`, when it is a finite measurement.
+///
+/// A zero is a valid measurement. It makes the fallback target degenerate and
+/// disables only the ATR displacement, not the target or breach rules.
 fn usable_atr(readings: &Readings, bar: usize) -> Option<f64> {
-    readings
-        .atr14
-        .get(bar)
-        .filter(|value| value.is_finite() && *value > 0.0)
+    readings.atr14.get(bar).filter(|value| value.is_finite())
 }
 
 /// The contract's mechanical completeness for one bar.

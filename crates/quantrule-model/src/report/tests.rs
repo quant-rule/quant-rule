@@ -3,8 +3,8 @@
 use quantrule_data::Candle;
 
 use super::MarketReport;
-use super::order::event_cmp;
 use crate::aggregate::CrossTimeframeAggregates;
+use crate::events::order::event_cmp;
 use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::readings::roles::AxisCode;
 use crate::run::ModelRun;

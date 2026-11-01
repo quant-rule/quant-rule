@@ -7,6 +7,7 @@ use crate::axes::momentum::MomentumBar;
 use crate::axes::progression::{ProgressionBar, ProgressionLeg};
 use crate::axes::structure::StructureBar;
 use crate::context::ContextBar;
+use crate::events::order::event_cmp;
 use crate::events::{EventRecord, EventType};
 use crate::kernel::{Readiness, UnavailableReason};
 
@@ -220,6 +221,39 @@ fn a_missing_direction_is_not_counted_as_neutral() {
 }
 
 #[test]
+fn non_finite_axis_values_are_excluded_from_means_and_shares() {
+    let mut fast = snapshot(300);
+    fast.direction.direction = Some(f64::NAN);
+    fast.momentum.force = Some(f64::INFINITY);
+    fast.momentum.acceleration = Some(f64::NAN);
+    fast.structure.score = Some(f64::NEG_INFINITY);
+    let mut slow = snapshot(900);
+    slow.direction.direction = Some(0.2);
+    slow.momentum.force = Some(0.4);
+    slow.momentum.acceleration = Some(0.1);
+    slow.structure.score = Some(0.6);
+
+    let aggregates = CrossTimeframeAggregates::compute(&[fast, slow]);
+
+    assert_eq!(aggregates.direction.timeframes, [900]);
+    assert_eq!(aggregates.direction.direction_mean, Some(0.2));
+    assert_eq!(aggregates.direction.direction_bullish_share, Some(1.0));
+    assert_eq!(aggregates.direction.direction_neutral_share, Some(0.0));
+    assert_eq!(aggregates.direction.direction_gradient, None);
+
+    assert_eq!(aggregates.momentum.timeframes, [900]);
+    assert_eq!(aggregates.momentum.momentum_force_mean, Some(0.4));
+    assert_eq!(aggregates.momentum.momentum_acceleration_mean, Some(0.1));
+    assert_eq!(aggregates.momentum.momentum_positive_share, Some(1.0));
+    assert_eq!(aggregates.momentum.momentum_force_fast_slow_gap, None);
+
+    assert_eq!(aggregates.structure.timeframes, [900]);
+    assert_eq!(aggregates.structure.structure_bullish_share, Some(1.0));
+    assert_eq!(aggregates.structure.structure_neutral_share, Some(0.0));
+    assert_eq!(aggregates.structure.structure_gradient, None);
+}
+
+#[test]
 fn momentum_aggregates_report_means_shares_and_gaps() {
     let mut fast = snapshot(60);
     fast.momentum = momentum(Some(-0.5), Some(-0.2), Readiness::Ready);
@@ -383,6 +417,47 @@ fn event_counts_use_the_five_bar_window() {
     assert_eq!(summary.latest_event_type_code, Some(3));
     assert_eq!(summary.latest_available_bar_index, Some(100));
     assert_eq!(summary.latest_event_age_bars, Some(0));
+}
+
+#[test]
+fn a_same_bar_latest_event_tie_uses_the_shared_key() {
+    let mut first = snapshot(300);
+    // The higher subtype is first, so a last-max tie-break would pick subtype 1.
+    first.events = vec![
+        event(EventType::Level, 3, 1, 100, 100),
+        event(EventType::Level, 1, -1, 100, 100),
+    ];
+    let expected = first
+        .events
+        .iter()
+        .max_by(|left, right| event_cmp(left, right))
+        .expect("an event")
+        .event_subtype_code;
+
+    let aggregates = CrossTimeframeAggregates::compute(&[first]);
+    let summary = &aggregates.events.per_timeframe[0];
+    assert_eq!(summary.latest_event_subtype_code, Some(expected));
+    assert_eq!(summary.latest_event_subtype_code, Some(3));
+}
+
+#[test]
+fn a_same_bar_divergence_tie_uses_the_shared_key() {
+    let mut first = snapshot(300);
+    first.events = vec![
+        event(EventType::Divergence, 2, -1, 100, 100),
+        event(EventType::Divergence, 1, 1, 100, 100),
+    ];
+    let mut second = snapshot(900);
+    second.events = vec![
+        event(EventType::Divergence, 1, 1, 100, 100),
+        event(EventType::Divergence, 2, -1, 100, 100),
+    ];
+
+    let aggregates = CrossTimeframeAggregates::compute(&[first, second]);
+    assert_eq!(
+        aggregates.events.divergence_direction_agreement_share,
+        Some(1.0)
+    );
 }
 
 #[test]

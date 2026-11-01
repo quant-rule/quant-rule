@@ -13,6 +13,7 @@
 
 pub mod divergence;
 pub mod level;
+pub(crate) mod order;
 pub mod signal;
 
 /// The contract's event-type codes.

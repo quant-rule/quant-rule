@@ -4,7 +4,9 @@
 //! fastest-to-slowest ladder. Each axis uses a method that suits it: means and
 //! shares for Direction and Momentum, histograms and spans for Structure and
 //! Progression, and counts for events. Ordinal codes are counted, never
-//! averaged, and every aggregate names the timeframes it came from.
+//! averaged, and every aggregate names the timeframes it came from. A
+//! non-finite public value is excluded from every mean, share, and gradient; a
+//! gradient is null unless both endpoints are valid.
 //!
 //! The aggregator is pure: it reads only the snapshots it is given. It performs
 //! no I/O, reads no clock, and uses no randomness.
@@ -186,10 +188,11 @@ fn direction_aggregates(ordered: &[&TimeframeSnapshot]) -> DirectionAggregates {
     let valid: Vec<(u64, f64)> = ordered
         .iter()
         .filter_map(|snapshot| {
-            snapshot
+            let value = snapshot
                 .direction
                 .direction
-                .map(|value| (snapshot.timeframe_secs, value))
+                .filter(|value| value.is_finite())?;
+            Some((snapshot.timeframe_secs, value))
         })
         .collect();
     let values: Vec<f64> = valid.iter().map(|(_, value)| *value).collect();
@@ -217,16 +220,19 @@ fn momentum_aggregates(ordered: &[&TimeframeSnapshot]) -> MomentumAggregates {
     let forces: Vec<(u64, f64)> = ordered
         .iter()
         .filter_map(|snapshot| {
-            snapshot
-                .momentum
-                .force
-                .map(|value| (snapshot.timeframe_secs, value))
+            let value = snapshot.momentum.force.filter(|value| value.is_finite())?;
+            Some((snapshot.timeframe_secs, value))
         })
         .collect();
     let force_values: Vec<f64> = forces.iter().map(|(_, value)| *value).collect();
     let accelerations: Vec<f64> = ordered
         .iter()
-        .filter_map(|snapshot| snapshot.momentum.acceleration)
+        .filter_map(|snapshot| {
+            snapshot
+                .momentum
+                .acceleration
+                .filter(|value| value.is_finite())
+        })
         .collect();
     let positive = force_values.iter().filter(|value| **value > 0.1).count();
     let negative = force_values.iter().filter(|value| **value < -0.1).count();
@@ -258,10 +264,8 @@ fn structure_aggregates(
     let valid: Vec<(u64, f64)> = ordered
         .iter()
         .filter_map(|snapshot| {
-            snapshot
-                .structure
-                .score
-                .map(|value| (snapshot.timeframe_secs, value))
+            let value = snapshot.structure.score.filter(|value| value.is_finite())?;
+            Some((snapshot.timeframe_secs, value))
         })
         .collect();
     let values: Vec<f64> = valid.iter().map(|(_, value)| *value).collect();
@@ -314,12 +318,13 @@ fn structure_aggregates(
 }
 
 fn mean(values: &[f64]) -> Option<f64> {
-    if values.is_empty() {
-        None
-    } else {
-        let sum: f64 = values.iter().sum();
-        Some(sum / values.len() as f64)
+    let mut sum = 0.0;
+    let mut count = 0_usize;
+    for value in values.iter().filter(|value| value.is_finite()) {
+        sum += value;
+        count += 1;
     }
+    (count > 0).then(|| sum / count as f64)
 }
 
 fn share(count: usize, total: usize) -> Option<f64> {
@@ -334,8 +339,8 @@ fn gradient(
     ordered: &[&TimeframeSnapshot],
     value: impl Fn(&TimeframeSnapshot) -> Option<f64>,
 ) -> Option<f64> {
-    let fastest = value(ordered.first()?)?;
-    let slowest = value(ordered.last()?)?;
+    let fastest = value(ordered.first()?).filter(|value| value.is_finite())?;
+    let slowest = value(ordered.last()?).filter(|value| value.is_finite())?;
     Some(slowest - fastest)
 }
 
@@ -343,8 +348,8 @@ fn endpoint_gap(
     ordered: &[&TimeframeSnapshot],
     value: impl Fn(&TimeframeSnapshot) -> Option<f64>,
 ) -> Option<f64> {
-    let fastest = value(ordered.first()?)?;
-    let slowest = value(ordered.last()?)?;
+    let fastest = value(ordered.first()?).filter(|value| value.is_finite())?;
+    let slowest = value(ordered.last()?).filter(|value| value.is_finite())?;
     Some(fastest - slowest)
 }
 

@@ -548,7 +548,7 @@ fn equal_highs_and_equal_lows_create_no_pivot() {
 }
 
 #[test]
-fn a_zero_atr_leaves_the_leg_without_a_fallback_target() {
+fn a_flat_series_produces_no_legs_even_though_the_atr_is_zero() {
     let candles: Vec<Candle> = (0..40)
         .map(|bar| {
             Candle::new(bar, bar as i64, 100.0, 100.0, 100.0, 100.0, Some(0.0))
@@ -558,8 +558,10 @@ fn a_zero_atr_leaves_the_leg_without_a_fallback_target() {
     let readings = Readings::compute(&candles);
     let series = ProgressionSeries::compute(&candles, &readings);
 
-    // The flat series produces no candidates and no legs; the ATR is a
-    // measured zero, which is never used as a fallback distance.
+    // A strict pivot cannot occur on a flat series, so there is no leg to
+    // exercise. The zero ATR is still a valid measurement; the direct leg
+    // test in `axes::progression::leg` covers its degenerate target.
+    assert_eq!(readings.atr14.get(20), Some(0.0));
     assert!(series.legs().is_empty());
 }
 

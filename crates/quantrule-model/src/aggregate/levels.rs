@@ -97,7 +97,7 @@ struct LevelPoint {
 pub(crate) fn cluster(ordered: &[&TimeframeSnapshot]) -> LevelClusterAggregates {
     let mut points = Vec::new();
     for (timeframe_index, snapshot) in ordered.iter().enumerate() {
-        let Some(atr) = snapshot.atr.filter(|atr| *atr > 0.0) else {
+        let Some(atr) = snapshot.atr.filter(|atr| atr.is_finite() && *atr > 0.0) else {
             continue;
         };
         for price in snapshot.references.prices() {

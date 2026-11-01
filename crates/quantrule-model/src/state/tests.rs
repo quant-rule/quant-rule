@@ -365,6 +365,28 @@ fn consensus_counts_only_present_axes_and_uses_the_lowest_percentile() {
 }
 
 #[test]
+fn non_finite_consensus_inputs_are_excluded_not_counted() {
+    let consensus = TimeframeConsensus::compute(&snapshot(
+        60,
+        Some(f64::NAN),
+        Some(f64::INFINITY),
+        Some(0.5),
+        Some(f64::NAN),
+        Some(f64::INFINITY),
+        Some(30.0),
+    ));
+    assert_eq!(
+        (
+            consensus.bullish_axis_count,
+            consensus.bearish_axis_count,
+            consensus.neutral_axis_count
+        ),
+        (1, 0, 0)
+    );
+    assert_eq!(consensus.weakest_directional_axis_code, Some(3));
+}
+
+#[test]
 fn the_snapshot_consensus_delegates_to_from_bars() {
     let snapshot = snapshot(
         60,
