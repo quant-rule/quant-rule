@@ -106,6 +106,14 @@ pub(crate) fn run_policy_check(
                 breakout.min_reward_to_risk()
             ),
         ),
+        quantrule_backtest::strategy::StrategyMode::LevelFade(fade) => (
+            "level-fade",
+            format!(
+                "stop_level_buffer={} target_next_level min_reward_to_risk={}",
+                fade.stop_buffer_fraction(),
+                fade.min_reward_to_risk()
+            ),
+        ),
         quantrule_backtest::strategy::StrategyMode::LevelRetest(level) => (
             "level-retest",
             format!(

@@ -31,12 +31,16 @@ recorded under this contract.
 | `STRATEGY-2026-11-01-10` | 2026-11-01 | strategy | v6 5m/15m ETHUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
 | `STRATEGY-2026-11-01-11` | 2026-11-01 | strategy | v3 5m/15m control XAUUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
 | `STRATEGY-2026-11-01-12` | 2026-11-01 | strategy | v6 5m/15m XAUUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-002-comparison.md) |
+| `STRATEGY-2026-11-01-13` | 2026-11-01 | strategy | v7 level-fade BTCUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-003-comparison.md) |
+| `STRATEGY-2026-11-01-14` | 2026-11-01 | strategy | v7 level-fade ETHUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-003-comparison.md) |
+| `STRATEGY-2026-11-01-15` | 2026-11-01 | strategy | v7 level-fade XAUUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-003-comparison.md) |
+
 
 
 
 The model runs are not green as standalone predictors; the model correctness baseline is accepted with the C-axis limitation in `baselines.md`.
 
-Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-002.md), [`CYCLE-003`](2026-11-01/CYCLE-003.md), [`CYCLE-004`](2026-11-01/CYCLE-004.md), [`CYCLE-005`](2026-11-01/CYCLE-005.md), and [`CYCLE-006`](2026-11-01/CYCLE-006.md) — model gate separated; no strategy baseline.
+Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-002.md), [`CYCLE-003`](2026-11-01/CYCLE-003.md), [`CYCLE-004`](2026-11-01/CYCLE-004.md), [`CYCLE-005`](2026-11-01/CYCLE-005.md), [`CYCLE-006`](2026-11-01/CYCLE-006.md), and [`CYCLE-007`](2026-11-01/CYCLE-007.md) — no strategy baseline.
 
 Rows sort by date, then tier (`model`, `strategy`, `portfolio`), then run ID. See
 [`baselines.md`](baselines.md) for accepted baselines and

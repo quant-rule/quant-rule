@@ -111,6 +111,7 @@ pub(crate) fn run_strategy_explain(
             }
             StrategyMode::LevelRetest(_) => ("level-retest", None),
             StrategyMode::Breakout(_) => ("breakout", None),
+            StrategyMode::LevelFade(_) => ("level-fade", None),
             StrategyMode::LadderContext => ("ladder-context", None),
         };
         return write_level_explain(

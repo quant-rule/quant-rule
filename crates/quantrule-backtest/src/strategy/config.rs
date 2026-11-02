@@ -437,6 +437,8 @@ pub enum StrategyMode {
     ThreeTimeframe(ThreeTimeframeConfig),
     /// The v6 confirmed-level breakout rule.
     Breakout(LevelRetestConfig),
+    /// The v7 failed-level-test fade rule.
+    LevelFade(LevelRetestConfig),
 }
 
 /// The complete unified ladder strategy configuration.
@@ -588,6 +590,37 @@ impl StrategyConfig {
         })
     }
 
+    /// Builds a failed-level-test fade configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyConfigError::WeightsLength`] when the weight set does
+    /// not match the context timeframes.
+    pub fn new_level_fade(
+        ladder: LadderConfig,
+        weights: LadderWeights,
+        entry: EntryConfig,
+        exit: ExitConfig,
+        fade: LevelRetestConfig,
+        require_contiguous_execution: bool,
+    ) -> Result<Self, StrategyConfigError> {
+        if weights.len() != ladder.context_timeframes().len() {
+            return Err(StrategyConfigError::WeightsLength {
+                expected: ladder.context_timeframes().len(),
+                actual: weights.len(),
+            });
+        }
+        Ok(Self {
+            ladder,
+            weights,
+            entry,
+            exit,
+            risk: None,
+            mode: StrategyMode::LevelFade(fade),
+            require_contiguous_execution,
+        })
+    }
+
     /// The active ladder. `ladder[0]` is the execution timeframe.
     #[must_use]
     pub const fn ladder(&self) -> &LadderConfig {
@@ -639,6 +672,7 @@ impl StrategyConfig {
             StrategyMode::LevelRetest(level) => Some(level),
             StrategyMode::ThreeTimeframe(three) => Some(three.level),
             StrategyMode::Breakout(breakout) => Some(breakout),
+            StrategyMode::LevelFade(fade) => Some(fade),
             StrategyMode::LadderContext => None,
         }
     }
