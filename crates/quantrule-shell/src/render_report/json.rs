@@ -12,10 +12,11 @@ use quantrule_model::aggregate::{
     CrossTimeframeAggregates, EventSubtypeCounts, ScaleStageAggregates, TimeframeEventSummary,
 };
 use quantrule_model::report::{
-    AxisReport, ChartReport, EventReport, EventTypeCounts, LatestEvent, LatestState, MarketReport,
-    ReportChartBar, ReportChartEvent, ReportConsensus, ReportContext, ReportDirection, ReportLeg,
-    ReportMomentum, ReportProgression, ReportReadings, ReportStructure, TimeframeEventReport,
-    TimeframeReport,
+    AxisReport, ChartReport, EventReport, EventTypeCounts, FlatContext, FlatEvent, FlatEventSeries,
+    FlatLeg, FlatLevel, FlatProgression, FlatReport, FlatTimeframe, LatestEvent, LatestState,
+    MarketReport, ReportChartBar, ReportChartEvent, ReportConsensus, ReportContext,
+    ReportDirection, ReportLeg, ReportMomentum, ReportProgression, ReportReadings, ReportStructure,
+    TimeframeEventReport, TimeframeReport,
 };
 use serde_json::{Value, json};
 
@@ -61,6 +62,131 @@ fn report_value(report: &MarketReport) -> Value {
         "cross_timeframe": cross_timeframe_value(&report.cross_timeframe),
         "events": event_report_value(&report.events),
         "charts": chart_value(&report.charts),
+        "flat": flat_value(&report.flat),
+    })
+}
+
+fn flat_value(flat: &FlatReport) -> Value {
+    json!({
+        "timeframes": flat.timeframes.iter().map(flat_timeframe_value).collect::<Vec<_>>(),
+    })
+}
+
+fn flat_timeframe_value(timeframe: &FlatTimeframe) -> Value {
+    json!({
+        "timeframe_secs": timeframe.timeframe_secs,
+        "bars": timeframe.bars,
+        "expected_bars": timeframe.expected_bars,
+        "missing_bars": timeframe.missing_bars,
+        "coverage_share": timeframe.coverage_share,
+        "first_open_time": timeframe.first_open_time,
+        "last_open_time": timeframe.last_open_time,
+        "latest": timeframe.latest.as_ref().map(|latest| json!({
+            "bar_index": latest.bar_index,
+            "open_time": latest.open_time,
+            "readings": {
+                "ema_fast": latest.readings.ema_fast,
+                "ema_mid": latest.readings.ema_mid,
+                "ema_slow": latest.readings.ema_slow,
+                "rsi": latest.readings.rsi,
+                "atr": latest.readings.atr,
+                "rvol": latest.readings.rvol,
+            },
+            "states": {
+                "ema_stack": latest.states.ema_stack,
+                "rsi_zone": latest.states.rsi_zone,
+            },
+            "context": flat_context_value(&latest.context),
+        })),
+        "levels": timeframe.levels.iter().map(flat_level_value).collect::<Vec<_>>(),
+        "events": flat_events_value(&timeframe.events),
+        "progression": timeframe.progression.as_ref().map(flat_progression_value),
+    })
+}
+
+fn flat_context_value(context: &FlatContext) -> Value {
+    json!({
+        "atr_ratio": context.atr_ratio,
+        "rvol_ratio": context.rvol_ratio,
+        "context_code": context.context_code,
+    })
+}
+
+fn flat_level_value(level: &FlatLevel) -> Value {
+    json!({
+        "reference_code": level.reference_code,
+        "scale_code": level.scale_code,
+        "kind_code": level.kind_code,
+        "price": level.price,
+        "occurred_bar_index": level.occurred_bar_index,
+        "available_bar_index": level.available_bar_index,
+        "distance_atr": level.distance_atr,
+    })
+}
+
+fn flat_events_value(events: &FlatEventSeries) -> Value {
+    json!({
+        "total": events.total,
+        "by_type": events.by_type,
+        "by_subtype": {
+            "level": events.by_subtype.level,
+            "divergence": events.by_subtype.divergence,
+            "signal": events.by_subtype.signal,
+            "other": events.by_subtype.other,
+        },
+        "latest": events.latest.iter().map(flat_event_value).collect::<Vec<_>>(),
+        "recent": events.recent.iter().map(flat_event_value).collect::<Vec<_>>(),
+    })
+}
+
+fn flat_event_value(event: &FlatEvent) -> Value {
+    json!({
+        "event_type_code": event.event_type_code,
+        "subtype_code": event.subtype_code,
+        "source_code": event.source_code,
+        "timeframe_secs": event.timeframe_secs,
+        "occurred_bar_index": event.occurred_bar_index,
+        "available_bar_index": event.available_bar_index,
+        "direction_code": event.direction_code,
+        "reference_code": event.reference_code,
+        "primary_value": event.primary_value,
+        "reference_value": event.reference_value,
+        "data_completeness": event.data_completeness,
+    })
+}
+
+fn flat_progression_value(progression: &FlatProgression) -> Value {
+    json!({
+        "progress": progression.progress,
+        "stage_code": progression.stage_code,
+        "leg_direction": progression.leg_direction,
+        "leg_scale_code": progression.leg_scale_code,
+        "published": progression.published.as_ref().map(flat_leg_value),
+        "minor": progression.minor.as_ref().map(flat_leg_value),
+        "major": progression.major.as_ref().map(flat_leg_value),
+    })
+}
+
+fn flat_leg_value(leg: &FlatLeg) -> Value {
+    json!({
+        "leg_id": leg.leg_id,
+        "timeframe_secs": leg.timeframe_secs,
+        "scale_code": leg.scale_code,
+        "origin_price": leg.origin_price,
+        "origin_occurred_at": leg.origin_occurred_at,
+        "origin_available_at": leg.origin_available_at,
+        "origin_confirmed_code": leg.origin_confirmed_code,
+        "direction_code": leg.direction_code,
+        "target_price": leg.target_price,
+        "target_basis_code": leg.target_basis_code,
+        "target_version": leg.target_version,
+        "target_stable_code": leg.target_stable_code,
+        "progress": leg.progress,
+        "displacement_price": leg.displacement_price,
+        "displacement_atr": leg.displacement_atr,
+        "lifecycle_code": leg.lifecycle_code,
+        "stage_code": leg.stage_code,
+        "target_reached_code": leg.target_reached_code,
     })
 }
 
@@ -449,6 +575,16 @@ mod tests {
             Value::Array(Vec::new())
         );
         assert!(value["market_report"]["events"]["total"].is_number());
+        assert_eq!(
+            value["market_report"]["flat"]["timeframes"]
+                .as_array()
+                .map(Vec::len),
+            Some(4)
+        );
+        assert_eq!(
+            value["market_report"]["flat"]["timeframes"][0]["events"]["total"],
+            0
+        );
     }
 
     #[test]

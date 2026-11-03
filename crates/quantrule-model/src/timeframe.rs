@@ -222,6 +222,14 @@ impl TimeframeModel {
         self.candles.get(bar).copied()
     }
 
+    /// The scalar readings computed for this timeframe.
+    ///
+    /// The flat report reads the published series; it never recomputes them.
+    #[must_use]
+    pub const fn readings(&self) -> &Readings {
+        &self.readings
+    }
+
     /// The pivot series computed for this timeframe.
     #[must_use]
     pub fn pivots(&self) -> &PivotSeries {

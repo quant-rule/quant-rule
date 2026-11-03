@@ -68,6 +68,7 @@ impl MarketReport {
         };
         let events = EventReport::compute(run, &ladder);
         let charts = ChartReport::compute(run, &timeframes);
+        let flat = super::FlatReport::compute(run, &ladder);
 
         Self {
             period,
@@ -76,6 +77,7 @@ impl MarketReport {
             cross_timeframe,
             events,
             charts,
+            flat,
         }
     }
 }
@@ -149,7 +151,7 @@ impl TimeframeReport {
 /// exceeds `expected_bars`. The ratio is clamped to `0..=1` and the missing
 /// count saturates rather than panicking on a malformed series; the published
 /// bar and expected counts still expose the defect.
-fn coverage(
+pub(super) fn coverage(
     bars: usize,
     first_open_time: Option<i64>,
     last_open_time: Option<i64>,

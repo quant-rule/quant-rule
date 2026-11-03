@@ -33,8 +33,14 @@
 
 mod assemble;
 mod chart;
+mod flat;
 #[cfg(test)]
 mod tests;
+
+pub use flat::{
+    FlatContext, FlatEvent, FlatEventSeries, FlatLatest, FlatLeg, FlatLevel, FlatProgression,
+    FlatReadings, FlatReport, FlatStates, FlatSubtypeCounts, FlatTimeframe,
+};
 
 use crate::aggregate::{CrossTimeframeAggregates, EventSubtypeCounts};
 use crate::readings::roles::AxisCode;
@@ -64,6 +70,8 @@ pub struct MarketReport {
     pub events: EventReport,
     /// The deterministic chart projection.
     pub charts: ChartReport,
+    /// The flat per-timeframe indicator/event report.
+    pub flat: FlatReport,
 }
 
 /// The actual coverage bounds of the report.

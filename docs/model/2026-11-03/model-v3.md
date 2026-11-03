@@ -391,9 +391,18 @@ The report also carries the effective per-timeframe config and the data version.
 The model publishes no axis values, no axis consensus, no cross-timeframe
 agreement, no percentile, no readiness score, and no state label.
 
+The model report's `flat` section is the v3 projection. It carries one entry per
+ladder timeframe with coverage, the latest readings and states, every confirmed
+level, event counts plus the latest and most recent records, and the latest
+progression leg at each scale. It carries no axis value and no consensus.
+
 Full per-bar series are written as CSV artifacts by the shell:
 `readings.csv`, `states.csv`, `levels.csv`, and `events.csv`. The JSON report is
 the summary and the latest snapshot; the CSV files are the exhaustive record.
+
+The legacy `axes` section of the market report is retained only while the old
+report command and the retired v3–v7 strategies are removed. It is not part of
+the v3 contract and no v8 strategy may read it.
 
 ## 8. Availability and causality
 
