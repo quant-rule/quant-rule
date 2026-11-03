@@ -13,7 +13,7 @@
 | `atr` | 3 | volatility | context | active | ATR and ATR ratio describe volatility context; they do not predict direction. |
 | `rvol` | 4 | volatility | context | active | Relative volume describes participation; it does not predict direction. |
 | `macd` | 5 | trend | signal | active | MACD line/signal and histogram changes mark trend and momentum shifts; forward outcomes differ from the base rate. |
-| `pivots` | 6 | structure | signal | active | Confirmed pivots define price levels; a level test is followed by a bounce or break more often than a placebo level. |
+| `pivots` | 6 | structure | signal | active | Confirmed pivots define price levels; a level test is followed by a path reaction more often than a matched barrier baseline. |
 | `context` | 7 | volatility | context | active | ATR ratio and RVOL ratio define a regime; they condition other signals but do not predict direction alone. |
 | `progression` | 8 | progression | context | active | A leg's stage describes how far a move has travelled; target-hit-before-invalidation differs from the base rate. |
 
@@ -21,9 +21,9 @@
 
 | ID | Type | Subtype | Sources | Indicator | Role | Status | Claim |
 |---|---:|---:|---|---|---|---|---|
-| `level.test` | 1 | 1 | 1/2/3/7/8 | pivots | signal | active | A bar range intersects a confirmed or dynamic level; the touch is followed by a reaction more often than a placebo level. |
-| `level.cross` | 1 | 2 | 1/2/3/7/8 | pivots | signal | active | The close crosses a level; the forward outcome differs from the base rate. |
-| `level.break` | 1 | 3 | 1/2/3/7/8 | pivots | signal | active | The close crosses a level and finishes beyond it; the break is followed by continuation more often than the base rate. |
+| `level.test` | 1 | 1 | 1/2/3/7/8 | pivots | signal | active | A bar range intersects a confirmed or dynamic level; the touch is followed by a path reaction — the target is reached before the stop — more often than a matched barrier baseline. |
+| `level.cross` | 1 | 2 | 1/2/3/7/8 | pivots | signal | active | A close crosses a level; the cross is followed by a path continuation — the target is reached before the stop — more often than a matched barrier baseline. |
+| `level.break` | 1 | 3 | 1/2/3/7/8 | pivots | signal | active | A close crosses a level and finishes beyond it; the break is followed by a path continuation — the continuation target is reached before the reversal stop — more often than a matched barrier baseline. |
 | `divergence.rsi_regular_bullish` | 2 | 1 | 4 | rsi | signal | active | A lower price low with a higher RSI low is followed by a reversal more often than the base rate. |
 | `divergence.rsi_regular_bearish` | 2 | 2 | 4 | rsi | signal | active | A higher price high with a lower RSI high is followed by a reversal more often than the base rate. |
 | `divergence.rsi_hidden_bullish` | 2 | 3 | 4 | rsi | signal | active | A higher price low with a lower RSI low is followed by continuation more often than the base rate. |
