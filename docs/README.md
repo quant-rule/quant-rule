@@ -36,7 +36,7 @@ The baseline decision is listed in the current architecture decisions below.
 
 | Contract | Status | Path |
 |---|---|---|
-| Model v3 flat indicator/event model | Approved 2026-11-03; flat report, MACD, registry, and claim gate implemented; gate no edge | `docs/model/2026-11-03/model-v3.md` |
+| Model v3 flat indicator/event model | Approved 2026-11-03; flat report, MACD, v3 config, ADX/DI, registry, and claim gate implemented; gate no edge | `docs/model/2026-11-03/model-v3.md` |
 | Four-axis analytical model | Superseded for axes by model v3; retained as history | `docs/model/2026-10-21/four-axis-analytical-model.md` |
 | Per-timeframe model | Superseded for axes by model v3; the per-timeframe boundary remains | `docs/model/2026-10-30/per-timeframe-model.md` |
 | DashboardState four-axis CLI view | Historical; the axis view is retired with model v3 | `docs/model/2026-10-25/dashboard-state.md` |
