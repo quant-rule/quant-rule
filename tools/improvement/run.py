@@ -59,6 +59,12 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_SHELL,
         help=f"shell binary (default: {DEFAULT_SHELL})",
     )
+    parser.add_argument(
+        "--command",
+        choices=("backtest", "claim-validation"),
+        default="backtest",
+        help="run command (default: backtest)",
+    )
     return parser.parse_args(argv)
 
 
@@ -244,8 +250,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = load_manifest(manifest_path)
         root = output_root(manifest)
         ensure_empty_root(root)
-        shell = resolve_shell(args.qr)
         config_path = resolve_run_config(manifest_path, manifest["run_config"])
+        shell = resolve_shell(args.qr) if args.command == "backtest" else None
     except ToolError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
@@ -261,15 +267,27 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: cannot prepare run root {root}: {error}", file=sys.stderr)
         return 1
 
-    command = [
-        str(shell),
-        "backtest",
-        "--config",
-        str(config_path),
-        "--out",
-        str(root / "artifacts"),
-        "--json",
-    ]
+    if args.command == "backtest":
+        command = [
+            str(shell),
+            "backtest",
+            "--config",
+            str(config_path),
+            "--out",
+            str(root / "artifacts"),
+            "--json",
+        ]
+    else:
+        command = [
+            "python3",
+            str(REPO_ROOT / "tools/improvement/claim_validation.py"),
+            "--cells",
+            str(config_path),
+            "--out",
+            str(root / "artifacts"),
+            "--timeframes",
+            "5m,15m,1h",
+        ]
     try:
         process = run_process(command, REPO_ROOT)
     except ToolError as error:

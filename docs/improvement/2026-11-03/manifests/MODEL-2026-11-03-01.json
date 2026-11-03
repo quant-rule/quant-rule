@@ -1,0 +1,25 @@
+{
+  "schema": "quantrule.improvement-run/v1",
+  "run_id": "MODEL-2026-11-03-01",
+  "tier": "model",
+  "hypothesis": "At least one signal-role model state or event has a stable forward edge on the model_dev partition.",
+  "created_utc": "2026-11-03T12:00:00Z",
+  "changed": "model",
+  "frozen": [
+    "strategy",
+    "portfolio"
+  ],
+  "partition": "model_dev",
+  "run_config": "config/model-gate/dev/cells.json",
+  "code_commit": "f5610ca12908a6fc5ae5f205f2c2cce2b3f26104",
+  "seed": 0,
+  "green_criteria": {
+    "primary_grade": "A or B on at least one signal-role state or event",
+    "coverage_min": 0.9,
+    "replication_min": 2,
+    "min_lift": 0.01,
+    "multiple_testing": "Bonferroni over primary cells",
+    "rule": "a primary family reaches A or B; no post-hoc tuning"
+  },
+  "holdout_access": "none"
+}

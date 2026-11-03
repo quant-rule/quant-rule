@@ -180,7 +180,13 @@ record is not valid evidence if the freeze cannot be traced.
 
 ## Run execution
 
-`run.py` is the only command that creates a run folder. It:
+`run.py` is the only command that creates a run folder. Its default
+`--command backtest` invokes the shell once. `--command claim-validation` runs the
+model claim-validation harness with the cells JSON named by `run_config`; this is
+the model-gate evidence path. The manifest, folder layout, results envelope, and
+artifact digests are the same.
+
+It:
 
 1. validates the manifest;
 2. refuses a non-empty output root;
@@ -351,6 +357,8 @@ backtest, and the tooling records, validates, and indexes the evidence.
 |---|---|
 | `validate.py <manifest>` | Validate the schema, run ID, tier, changed/frozen split, partition, UTC timestamp, seed, green criteria, and holdout declaration; reject an invalid manifest |
 | `run.py <manifest> [--qr PATH]` | Validate, create the run folder, copy provenance, invoke the shell, write `results.json`, and refresh the index |
+| `claim_validation.py --cells <json> --out <dir>` | Grade states and events with forward outcomes, base rates, and corrected bounds |
+| `gate_compare.py --dev <json> --validation <json> --out <dir>` | Combine two partition results; a validation-only cell does not pass |
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the published report |
 | `index.py --root data/improvement` | Rebuild `index.json` and `index.md` in deterministic order |
 | `model_confidence.py` | Axis hit rates and ordered buckets from `model-series` |

@@ -36,7 +36,7 @@ The baseline decision is listed in the current architecture decisions below.
 
 | Contract | Status | Path |
 |---|---|---|
-| Model v3 flat indicator/event model | Approved 2026-11-03; flat report and MACD implemented; v3 config/active flags and axis removal pending | `docs/model/2026-11-03/model-v3.md` |
+| Model v3 flat indicator/event model | Approved 2026-11-03; flat report, MACD, registry, and claim gate implemented; gate no edge | `docs/model/2026-11-03/model-v3.md` |
 | Four-axis analytical model | Superseded for axes by model v3; retained as history | `docs/model/2026-10-21/four-axis-analytical-model.md` |
 | Per-timeframe model | Superseded for axes by model v3; the per-timeframe boundary remains | `docs/model/2026-10-30/per-timeframe-model.md` |
 | DashboardState four-axis CLI view | Historical; the axis view is retired with model v3 | `docs/model/2026-10-25/dashboard-state.md` |
@@ -84,6 +84,8 @@ the remaining pending phase.
 | MODEL-2026-11-01-02 | Multi-horizon study; not green; horizon rescue rejected | [`docs/improvement/2026-11-01/MODEL-2026-11-01-02-multi-horizon.md`](improvement/2026-11-01/MODEL-2026-11-01-02-multi-horizon.md) |
 | MODEL-2026-11-01-03 | Context-conditioned study; not green; two isolated buckets only | [`docs/improvement/2026-11-01/MODEL-2026-11-01-03-context.md`](improvement/2026-11-01/MODEL-2026-11-01-03-context.md) |
 | MODEL-2026-11-01-04 | Event study; not green; BTCUSD level cells only | [`docs/improvement/2026-11-01/MODEL-2026-11-01-04-events.md`](improvement/2026-11-01/MODEL-2026-11-01-04-events.md) |
+| MODEL-2026-11-03-01 | v3 model gate, development; all 48 primary cells C; no edge | [`docs/improvement/2026-11-03/MODEL-2026-11-03-01-model-gate-dev.md`](improvement/2026-11-03/MODEL-2026-11-03-01-model-gate-dev.md) |
+| MODEL-2026-11-03-02 | v3 model gate, validation; one B cell, not replicated; no edge | [`docs/improvement/2026-11-03/MODEL-2026-11-03-02-model-gate-validation.md`](improvement/2026-11-03/MODEL-2026-11-03-02-model-gate-validation.md) |
 | STRATEGY-001 | First strategy comparison; not green; no strategy baseline | [`docs/improvement/2026-11-01/STRATEGY-001-comparison.md`](improvement/2026-11-01/STRATEGY-001-comparison.md) |
 | STRATEGY-002 | 5m/15m sample-size test; not green; v6 still too selective | [`docs/improvement/2026-11-01/STRATEGY-002-comparison.md`](improvement/2026-11-01/STRATEGY-002-comparison.md) |
 | STRATEGY-003 | Level-fade v7 validation; not green; new rule family rejected | [`docs/improvement/2026-11-01/STRATEGY-003-comparison.md`](improvement/2026-11-01/STRATEGY-003-comparison.md) |
