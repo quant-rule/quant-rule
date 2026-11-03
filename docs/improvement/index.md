@@ -39,7 +39,7 @@ overwritten and is a defect.
 
 The model runs are not green as standalone predictors; the model correctness baseline is accepted with the C-axis limitation in `baselines.md`.
 
-Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-002.md), [`CYCLE-003`](2026-11-01/CYCLE-003.md), [`CYCLE-004`](2026-11-01/CYCLE-004.md), [`CYCLE-005`](2026-11-01/CYCLE-005.md), [`CYCLE-006`](2026-11-01/CYCLE-006.md), [`CYCLE-007`](2026-11-01/CYCLE-007.md), and [`CYCLE-008`](2026-11-03/CYCLE-008.md) — no model, strategy, or portfolio baseline.
+Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-002.md), [`CYCLE-003`](2026-11-01/CYCLE-003.md), [`CYCLE-004`](2026-11-01/CYCLE-004.md), [`CYCLE-005`](2026-11-01/CYCLE-005.md), [`CYCLE-006`](2026-11-01/CYCLE-006.md), [`CYCLE-007`](2026-11-01/CYCLE-007.md), [`CYCLE-008`](2026-11-03/CYCLE-008.md), and [`CYCLE-009`](2026-11-03/CYCLE-009.md) — no model, strategy, or portfolio baseline.
 
 Rows sort by date, then tier (`model`, `strategy`, `portfolio`), then run ID. See
 [`baselines.md`](baselines.md) for accepted baselines and
