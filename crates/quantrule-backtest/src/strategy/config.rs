@@ -439,6 +439,8 @@ pub enum StrategyMode {
     Breakout(LevelRetestConfig),
     /// The v7 failed-level-test fade rule.
     LevelFade(LevelRetestConfig),
+    /// The v8 bounded event-composite rule.
+    EventComposite(super::event::EventCompositeConfig),
 }
 
 /// The complete unified ladder strategy configuration.
@@ -621,6 +623,30 @@ impl StrategyConfig {
         })
     }
 
+    /// Builds a v8 event-composite configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyConfigError::WeightsLength`] when the equal-weight
+    /// context does not match the ladder.
+    pub fn new_event_composite(
+        ladder: LadderConfig,
+        events: super::event::EventCompositeConfig,
+        risk: RiskPolicy,
+        require_contiguous_execution: bool,
+    ) -> Result<Self, StrategyConfigError> {
+        let weights = LadderWeights::equal(ladder.context_timeframes().len());
+        Ok(Self {
+            ladder,
+            weights,
+            entry: EntryConfig::default(),
+            exit: ExitConfig::default(),
+            risk: Some(risk),
+            mode: StrategyMode::EventComposite(events),
+            require_contiguous_execution,
+        })
+    }
+
     /// The active ladder. `ladder[0]` is the execution timeframe.
     #[must_use]
     pub const fn ladder(&self) -> &LadderConfig {
@@ -673,7 +699,16 @@ impl StrategyConfig {
             StrategyMode::ThreeTimeframe(three) => Some(three.level),
             StrategyMode::Breakout(breakout) => Some(breakout),
             StrategyMode::LevelFade(fade) => Some(fade),
-            StrategyMode::LadderContext => None,
+            StrategyMode::LadderContext | StrategyMode::EventComposite(_) => None,
+        }
+    }
+
+    /// The v8 event-composite configuration, when that is the active rule.
+    #[must_use]
+    pub fn event_composite(&self) -> Option<super::event::EventCompositeConfig> {
+        match self.mode {
+            StrategyMode::EventComposite(events) => Some(events),
+            _ => None,
         }
     }
 
@@ -747,6 +782,30 @@ pub enum StrategyConfigError {
     LevelRewardToRisk,
     /// The three-timeframe minimum agreement age is zero.
     MinAgreementBars,
+    /// The event window is zero.
+    EventWindowBars,
+    /// The entry condition list is empty.
+    EventEmptyEntry,
+    /// A condition list exceeds the fixed bound.
+    EventTooManyConditions,
+    /// A condition is duplicated.
+    EventDuplicateCondition,
+    /// The entry has no directional event.
+    EventEntryDirection,
+    /// Entry events disagree on direction.
+    EventDirectionConflict,
+    /// The condition timeframe is zero.
+    EventTimeframe,
+    /// The event type code is outside 1..3.
+    EventType,
+    /// The event subtype code is outside 1..6.
+    EventSubtype,
+    /// The event source code is outside 1..18.
+    EventSource,
+    /// The event direction is outside -1..1.
+    EventDirection,
+    /// A state value is outside its field's range.
+    EventStateValue,
 }
 
 impl fmt::Display for StrategyConfigError {
@@ -800,6 +859,26 @@ impl fmt::Display for StrategyConfigError {
                     "the minimum agreement age must be at least one bar"
                 )
             }
+            Self::EventWindowBars => write!(formatter, "the event window must be at least one bar"),
+            Self::EventEmptyEntry => write!(formatter, "the entry condition list is empty"),
+            Self::EventTooManyConditions => write!(
+                formatter,
+                "an event condition list exceeds {MAX_EVENT_CONDITIONS} entries",
+                MAX_EVENT_CONDITIONS = super::event::MAX_CONDITIONS
+            ),
+            Self::EventDuplicateCondition => write!(formatter, "an event condition is duplicated"),
+            Self::EventEntryDirection => {
+                write!(formatter, "the entry needs at least one directional event")
+            }
+            Self::EventDirectionConflict => {
+                write!(formatter, "entry events disagree on direction")
+            }
+            Self::EventTimeframe => write!(formatter, "a condition timeframe must be positive"),
+            Self::EventType => write!(formatter, "an event type must be in 1..3"),
+            Self::EventSubtype => write!(formatter, "an event subtype must be in 1..6"),
+            Self::EventSource => write!(formatter, "an event source must be in 1..18"),
+            Self::EventDirection => write!(formatter, "an event direction must be in -1..1"),
+            Self::EventStateValue => write!(formatter, "a state value is outside its field range"),
         }
     }
 }

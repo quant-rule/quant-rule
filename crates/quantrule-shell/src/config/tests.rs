@@ -703,6 +703,35 @@ fn strategy_v7_object() -> Value {
     value
 }
 
+fn strategy_v8_object() -> Value {
+    json!({
+        "schema": "quantrule.strategy/v8",
+        "rule": "event-composite",
+        "thesis": "Trade a DI cross when the execution EMA stack agrees.",
+        "ladder": ["15m", "1h"],
+        "window_bars": 2,
+        "entry": {
+            "all": [
+                {"kind": "event", "timeframe": "15m", "event_type": 3, "subtype": 2, "source": 17, "direction": 1},
+                {"kind": "state", "timeframe": "15m", "field": "ema_stack", "value": 1}
+            ]
+        },
+        "exit": {
+            "any": [
+                {"kind": "state", "timeframe": "15m", "field": "ema_stack", "value": -1}
+            ]
+        },
+        "risk": {
+            "stop": {"kind": "atr", "multiple": 2.0},
+            "target": {"kind": "reward_to_risk", "multiple": 1.5}
+        },
+        "no_trade": {
+            "missing_context": "reject",
+            "require_contiguous_execution": true
+        }
+    })
+}
+
 fn strategy_v5_object() -> Value {
     json!({
         "schema": "quantrule.strategy/v5",
@@ -1840,6 +1869,30 @@ fn strategy_v6_breakout_matches_the_contract() {
         strategy::parse(&value, "strategy.json"),
         Unsupported,
         "$.rule",
+    );
+}
+
+#[test]
+fn strategy_v8_event_composite_matches_the_contract() {
+    let valid = strategy::parse(&strategy_v8_object(), "strategy.json")
+        .expect("the v8 event-composite config loads");
+    let events = valid
+        .engine
+        .event_composite()
+        .expect("the v8 configuration");
+    assert_eq!(events.window_bars(), 2);
+    assert_eq!(events.entry_conditions().len(), 2);
+    assert_eq!(events.exit_conditions().len(), 1);
+
+    let mut conflicting = strategy_v8_object();
+    conflicting["entry"]["all"] = json!([
+        {"kind": "event", "timeframe": "15m", "event_type": 3, "subtype": 2, "source": 17, "direction": 1},
+        {"kind": "event", "timeframe": "15m", "event_type": 3, "subtype": 2, "source": 17, "direction": -1}
+    ]);
+    assert_rejected(
+        strategy::parse(&conflicting, "strategy.json"),
+        Range,
+        "$.entry",
     );
 }
 

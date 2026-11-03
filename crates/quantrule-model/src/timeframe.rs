@@ -69,6 +69,28 @@ impl ModelReadings {
     }
 }
 
+/// The v3 discrete indicator states for one closed bar.
+///
+/// The states are derived from the published readings, never from the legacy
+/// axes. A strategy may read them; it never recomputes an indicator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ModelStates {
+    /// +1 fast > mid > slow, -1 fast < mid < slow, 0 otherwise.
+    pub ema_stack: Option<i8>,
+    /// -1 rsi < 30, +1 rsi > 70, 0 otherwise.
+    pub rsi_zone: Option<i8>,
+    /// +1 line > signal, -1 line < signal, 0 equal.
+    pub macd_state: Option<i8>,
+    /// +1 histogram > 0, -1 histogram < 0, 0 equal.
+    pub macd_histogram_state: Option<i8>,
+    /// 1 ADX at or above its threshold, 0 below.
+    pub adx_regime: Option<i8>,
+    /// Sign of the ADX change over the configured lookback.
+    pub adx_slope: Option<i8>,
+    /// Sign of `+DI - -DI`.
+    pub di_state: Option<i8>,
+}
+
 /// The complete published model state for one closed bar.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ModelBar {
@@ -80,6 +102,8 @@ pub struct ModelBar {
     pub candle: Candle,
     /// The six scalar readings.
     pub readings: ModelReadings,
+    /// The v3 discrete indicator states.
+    pub states: ModelStates,
     /// Direction.
     pub direction: DirectionBar,
     /// Momentum.
@@ -373,6 +397,14 @@ impl TimeframeModel {
             bar_index: bar,
             candle,
             readings: ModelReadings::at(&self.readings, &self.adx, bar),
+            states: model_states(
+                &self.readings,
+                &self.macd,
+                &self.adx,
+                bar,
+                self.adx_threshold,
+                self.adx_slope_bars,
+            ),
             direction,
             momentum,
             structure,
@@ -459,6 +491,72 @@ impl TimeframeModel {
         (start..self.len())
             .filter_map(|bar| self.bar(bar))
             .collect()
+    }
+}
+
+fn model_states(
+    readings: &Readings,
+    macd: &MacdSeries,
+    adx: &AdxSeries,
+    bar: usize,
+    adx_threshold: f64,
+    adx_slope_bars: usize,
+) -> ModelStates {
+    let ema_stack = ema_stack(
+        readings.ema20.get(bar),
+        readings.ema50.get(bar),
+        readings.ema200.get(bar),
+    );
+    let rsi_zone = readings.rsi14.get(bar).map(|rsi| {
+        if rsi < 30.0 {
+            -1
+        } else if rsi > 70.0 {
+            1
+        } else {
+            0
+        }
+    });
+    let adx_state = adx.state(bar, adx_threshold, adx_slope_bars);
+    ModelStates {
+        ema_stack,
+        rsi_zone,
+        macd_state: macd_state(macd.line.get(bar), macd.signal.get(bar)),
+        macd_histogram_state: macd.histogram.get(bar).map(sign_state),
+        adx_regime: adx_state.adx_regime,
+        adx_slope: adx_state.adx_slope,
+        di_state: adx_state.di_state,
+    }
+}
+
+fn ema_stack(fast: Option<f64>, mid: Option<f64>, slow: Option<f64>) -> Option<i8> {
+    let (fast, mid, slow) = (fast?, mid?, slow?);
+    if fast > mid && mid > slow {
+        Some(1)
+    } else if fast < mid && mid < slow {
+        Some(-1)
+    } else {
+        Some(0)
+    }
+}
+
+fn macd_state(line: Option<f64>, signal: Option<f64>) -> Option<i8> {
+    let (line, signal) = (line?, signal?);
+    if line > signal {
+        Some(1)
+    } else if line < signal {
+        Some(-1)
+    } else {
+        Some(0)
+    }
+}
+
+fn sign_state(value: f64) -> i8 {
+    if value > 0.0 {
+        1
+    } else if value < 0.0 {
+        -1
+    } else {
+        0
     }
 }
 

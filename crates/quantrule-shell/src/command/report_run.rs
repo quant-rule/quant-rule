@@ -385,6 +385,7 @@ struct StrategySummary {
     exit_context_lost: usize,
     exit_structure_lost: usize,
     exit_level_lost: usize,
+    exit_event_condition: usize,
     open_position: Option<Side>,
     execution_state: Option<StrategyExecutionState>,
     executed_entries: Option<usize>,
@@ -435,6 +436,7 @@ fn summarize_walk(
                     ExitReason::ContextLost => summary.exit_context_lost += 1,
                     ExitReason::StructureLost => summary.exit_structure_lost += 1,
                     ExitReason::LevelLost => summary.exit_level_lost += 1,
+                    ExitReason::EventCondition => summary.exit_event_condition += 1,
                 }
             }
             Decision::Hold => {}
@@ -594,6 +596,7 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
     let _ = writeln!(out, "  structure_lost: {}", summary.exit_structure_lost);
     if config.strategy.engine.level().is_some() {
         let _ = writeln!(out, "  level_lost: {}", summary.exit_level_lost);
+        let _ = writeln!(out, "  event_condition: {}", summary.exit_event_condition);
     }
     let _ = writeln!(out, "context:");
     let _ = writeln!(out, "  complete_bars: {}", summary.context_complete);
@@ -793,6 +796,7 @@ fn exit_reason_code(reason: ExitReason) -> &'static str {
         ExitReason::ContextLost => "context_lost",
         ExitReason::StructureLost => "structure_lost",
         ExitReason::LevelLost => "level_lost",
+        ExitReason::EventCondition => "event_condition",
     }
 }
 

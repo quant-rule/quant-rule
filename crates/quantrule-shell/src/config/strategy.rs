@@ -11,8 +11,9 @@
 use quantrule_backtest::context::{LadderConfig, LadderWeights};
 use quantrule_backtest::intent::RiskPolicy;
 use quantrule_backtest::strategy::{
-    ContextEntryConfig, EntryConfig, ExecutionEntryConfig, ExitConfig, LevelRetestConfig,
-    StrategyConfig, ThreeTimeframeConfig,
+    Condition, ContextEntryConfig, EntryConfig, EventCompositeConfig, ExecutionEntryConfig,
+    ExitConfig, LevelRetestConfig, MAX_CONDITIONS, StateField, StrategyConfig,
+    ThreeTimeframeConfig,
 };
 use quantrule_data::Timeframe;
 use quantrule_model::readings::PivotScale;
@@ -56,6 +57,7 @@ enum Schema {
     V5,
     V6,
     V7,
+    V8,
 }
 
 /// Parses `strategy.json`.
@@ -69,9 +71,25 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
         ROOT,
         object,
         &[
-            "schema", "rule", "thesis", "ladder", "weights", "entry", "exit", "risk", "no_trade",
+            "schema",
+            "rule",
+            "thesis",
+            "ladder",
+            "weights",
+            "entry",
+            "exit",
+            "risk",
+            "no_trade",
+            "window_bars",
         ],
     )?;
+    if schema != Schema::V8 && object.contains_key("window_bars") {
+        return Err(ConfigError::unknown_field(
+            file,
+            "$.window_bars",
+            "window_bars",
+        ));
+    }
 
     match schema {
         Schema::V3 => require_code(
@@ -104,19 +122,92 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
             read::field(file, ROOT, object, "rule")?,
             "level-fade",
         )?,
+        Schema::V8 => require_code(
+            file,
+            "$.rule",
+            read::field(file, ROOT, object, "rule")?,
+            "event-composite",
+        )?,
     }
     let thesis =
         read::non_empty_string(file, "$.thesis", read::field(file, ROOT, object, "thesis")?)?
             .to_owned();
 
     let (ladder, context_codes) = parse_ladder(file, read::field(file, ROOT, object, "ladder")?)?;
+    let require_contiguous_execution =
+        parse_no_trade(file, read::field(file, ROOT, object, "no_trade")?)?;
+    if schema == Schema::V8 {
+        let window_bars = read::u64(
+            file,
+            "$.window_bars",
+            read::field(file, ROOT, object, "window_bars")?,
+        )?;
+        let window_bars = usize::try_from(window_bars).map_err(|_| {
+            ConfigError::range(
+                file,
+                "$.window_bars",
+                "a representable bar count",
+                &window_bars.to_string(),
+            )
+        })?;
+        let entry = parse_event_conditions(
+            file,
+            "$.entry.all",
+            read::field(
+                file,
+                "$.entry",
+                read::object(file, "$.entry", read::field(file, ROOT, object, "entry")?)?,
+                "all",
+            )?,
+            false,
+        )?;
+        let exit = parse_event_conditions(
+            file,
+            "$.exit.any",
+            read::field(
+                file,
+                "$.exit",
+                read::object(file, "$.exit", read::field(file, ROOT, object, "exit")?)?,
+                "any",
+            )?,
+            true,
+        )?;
+        let events = EventCompositeConfig::new(window_bars, &entry, &exit).map_err(|error| {
+            ConfigError::range(
+                file,
+                "$.entry",
+                "a valid event-composite configuration",
+                &error.to_string(),
+            )
+        })?;
+        let risk = match parse_risk(file, read::field(file, ROOT, object, "risk")?, schema)? {
+            Risk::Atr(risk) => risk,
+            Risk::Level { .. } => {
+                return Err(ConfigError::range(
+                    file,
+                    "$.risk",
+                    "an ATR/reward-to-risk policy",
+                    "a level bracket",
+                ));
+            }
+        };
+        let engine =
+            StrategyConfig::new_event_composite(ladder, events, risk, require_contiguous_execution)
+                .map_err(|error| {
+                    ConfigError::range(
+                        file,
+                        "$.entry",
+                        "a valid event-composite configuration",
+                        &error.to_string(),
+                    )
+                })?;
+        return Ok(StrategyRunConfig { engine, thesis });
+    }
     let weights = parse_weights(file, object, &context_codes)?;
     let (entry, level, min_agreement) =
         parse_entry(file, read::field(file, ROOT, object, "entry")?, schema)?;
     let exit = parse_exit(file, read::field(file, ROOT, object, "exit")?, schema)?;
     let risk = parse_risk(file, read::field(file, ROOT, object, "risk")?, schema)?;
-    let require_contiguous_execution =
-        parse_no_trade(file, read::field(file, ROOT, object, "no_trade")?)?;
 
     let engine = match (schema, level, min_agreement, risk) {
         (Schema::V3, None, None, Risk::Atr(risk)) => StrategyConfig::new(
@@ -301,10 +392,11 @@ fn require_schema(file: &str, object: &Map<String, Value>) -> Result<Schema, Con
         "quantrule.strategy/v5" => Ok(Schema::V5),
         "quantrule.strategy/v6" => Ok(Schema::V6),
         "quantrule.strategy/v7" => Ok(Schema::V7),
+        "quantrule.strategy/v8" => Ok(Schema::V8),
         _ => Err(ConfigError::schema(
             file,
             &path,
-            "quantrule.strategy/v3, v4, v5, v6, or v7",
+            "quantrule.strategy/v3, v4, v5, v6, v7, or v8",
             found,
         )),
     }
@@ -414,12 +506,13 @@ fn parse_entry(
         Schema::V3 => &["execution", "context"],
         Schema::V4 | Schema::V6 | Schema::V7 => &["execution", "context", "level"],
         Schema::V5 => &["execution", "context", "level", "agreement"],
+        Schema::V8 => &[],
     };
     read::check_fields(file, path, entry, fields)?;
     let execution = parse_execution_entry(file, read::field(file, path, entry, "execution")?)?;
     let context = parse_context_entry(file, read::field(file, path, entry, "context")?)?;
     let level = match schema {
-        Schema::V3 => None,
+        Schema::V3 | Schema::V8 => None,
         Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => Some(parse_level_entry(
             file,
             read::field(file, path, entry, "level")?,
@@ -430,7 +523,7 @@ fn parse_entry(
             file,
             read::field(file, path, entry, "agreement")?,
         )?),
-        Schema::V3 | Schema::V4 | Schema::V6 | Schema::V7 => None,
+        Schema::V3 | Schema::V4 | Schema::V6 | Schema::V7 | Schema::V8 => None,
     };
     Ok((EntryConfig::new(execution, context), level, min_agreement))
 }
@@ -737,6 +830,7 @@ fn parse_exit(file: &str, value: &Value, schema: Schema) -> Result<ExitConfig, C
                     Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => {
                         "context_lost, structure_lost, or level_lost"
                     }
+                    Schema::V8 => "event-composite uses an explicit condition list",
                 };
                 return Err(ConfigError::unsupported(file, &item_path, expected, other));
             }
@@ -748,9 +842,162 @@ fn parse_exit(file: &str, value: &Value, schema: Schema) -> Result<ExitConfig, C
         Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => {
             ExitConfig::new_level(context_lost, structure_lost, level_lost)
         }
+        Schema::V8 => ExitConfig::new(context_lost, structure_lost),
     };
     config.map_err(|error| {
         ConfigError::range(file, path, "a valid exit configuration", &error.to_string())
+    })
+}
+
+fn parse_event_conditions(
+    file: &str,
+    path: &str,
+    value: &Value,
+    allow_empty: bool,
+) -> Result<Vec<Condition>, ConfigError> {
+    let array = read::array(file, path, value)?;
+    if array.is_empty() && !allow_empty {
+        return Err(ConfigError::range(
+            file,
+            path,
+            "at least one condition",
+            "empty",
+        ));
+    }
+    if array.len() > MAX_CONDITIONS {
+        return Err(ConfigError::range(
+            file,
+            path,
+            "at most six conditions",
+            &array.len().to_string(),
+        ));
+    }
+    let mut conditions = Vec::with_capacity(array.len());
+    for (index, item) in array.iter().enumerate() {
+        let item_path = read::index(path, index);
+        let object = read::object(file, &item_path, item)?;
+        read::check_fields(
+            file,
+            &item_path,
+            object,
+            &[
+                "kind",
+                "timeframe",
+                "event_type",
+                "subtype",
+                "source",
+                "direction",
+                "field",
+                "value",
+            ],
+        )?;
+        let kind = read::string(
+            file,
+            &read::child(&item_path, "kind"),
+            read::field(file, &item_path, object, "kind")?,
+        )?;
+        let timeframe = timeframe(
+            file,
+            &read::child(&item_path, "timeframe"),
+            read::field(file, &item_path, object, "timeframe")?,
+        )?;
+        let timeframe_secs = u32::try_from(u64::from(timeframe.seconds())).map_err(|_| {
+            ConfigError::range(
+                file,
+                &read::child(&item_path, "timeframe"),
+                "a timeframe that fits in 32 bits",
+                &timeframe.seconds().to_string(),
+            )
+        })?;
+        match kind {
+            "event" => {
+                let event_type = u8(
+                    file,
+                    &read::child(&item_path, "event_type"),
+                    read::field(file, &item_path, object, "event_type")?,
+                )?;
+                let subtype = u8(
+                    file,
+                    &read::child(&item_path, "subtype"),
+                    read::field(file, &item_path, object, "subtype")?,
+                )?;
+                let source = u8(
+                    file,
+                    &read::child(&item_path, "source"),
+                    read::field(file, &item_path, object, "source")?,
+                )?;
+                let direction = i8(
+                    file,
+                    &read::child(&item_path, "direction"),
+                    read::field(file, &item_path, object, "direction")?,
+                )?;
+                conditions.push(Condition::Event {
+                    timeframe_secs,
+                    event_type,
+                    subtype,
+                    source,
+                    direction,
+                });
+            }
+            "state" => {
+                let field = read::string(
+                    file,
+                    &read::child(&item_path, "field"),
+                    read::field(file, &item_path, object, "field")?,
+                )?;
+                let field = StateField::from_code(field).ok_or_else(|| {
+                    ConfigError::range(
+                        file,
+                        &read::child(&item_path, "field"),
+                        "a registered v3 state field",
+                        field,
+                    )
+                })?;
+                let value = i8(
+                    file,
+                    &read::child(&item_path, "value"),
+                    read::field(file, &item_path, object, "value")?,
+                )?;
+                conditions.push(Condition::State {
+                    timeframe_secs,
+                    field,
+                    value,
+                });
+            }
+            other => {
+                return Err(ConfigError::unsupported(
+                    file,
+                    &read::child(&item_path, "kind"),
+                    "event or state",
+                    other,
+                ));
+            }
+        }
+    }
+    Ok(conditions)
+}
+
+fn u8(file: &str, path: &str, value: &Value) -> Result<u8, ConfigError> {
+    let number = integer(file, path, value)?;
+    u8::try_from(number).map_err(|_| {
+        ConfigError::range(
+            file,
+            path,
+            "an integer that fits in 8 bits",
+            &number.to_string(),
+        )
+    })
+}
+
+fn i8(file: &str, path: &str, value: &Value) -> Result<i8, ConfigError> {
+    let number = integer(file, path, value)?;
+    i8::try_from(number).map_err(|_| {
+        ConfigError::range(
+            file,
+            path,
+            "an integer that fits in 8 bits",
+            &number.to_string(),
+        )
     })
 }
 
@@ -769,7 +1016,7 @@ fn parse_risk(file: &str, value: &Value, schema: Schema) -> Result<Risk, ConfigE
     )?;
 
     match schema {
-        Schema::V3 => {
+        Schema::V3 | Schema::V8 => {
             read::check_fields(file, stop_path, stop, &["kind", "multiple"])?;
             require_code(
                 file,

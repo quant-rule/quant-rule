@@ -82,6 +82,8 @@ pub enum ExitReason {
     StructureLost,
     /// The nearest confirmed structural level was lost.
     LevelLost,
+    /// A v8 event or state condition fired.
+    EventCondition,
 }
 
 /// The decision a strategy makes for one closed bar.

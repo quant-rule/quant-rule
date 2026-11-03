@@ -19,8 +19,9 @@ use crate::portfolio::{
     FundingInterval, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, SizingMode, SizingRejection,
 };
 use crate::strategy::{
-    ContextEntryConfig, Decision, EntryConfig, ExecutionEntryConfig, ExitConfig, LadderConfig,
-    LadderWeights, Side, StrategyConfig,
+    Condition, ContextEntryConfig, Decision, EntryConfig, EventCompositeConfig,
+    ExecutionEntryConfig, ExitConfig, LadderConfig, LadderWeights, Side, StateField,
+    StrategyConfig,
 };
 
 use super::{BacktestConfig, BacktestError, BacktestRun, run_backtest};
@@ -116,6 +117,39 @@ fn strategy_config(risk: RiskPolicy) -> StrategyConfig {
         true,
     )
     .expect("the strategy config is valid")
+}
+
+fn event_strategy_config() -> StrategyConfig {
+    let events = EventCompositeConfig::new(
+        3,
+        &[
+            Condition::Event {
+                timeframe_secs: 900,
+                event_type: 1,
+                subtype: 1,
+                source: 1,
+                direction: 1,
+            },
+            Condition::State {
+                timeframe_secs: 900,
+                field: StateField::EmaStack,
+                value: 1,
+            },
+        ],
+        &[Condition::State {
+            timeframe_secs: 900,
+            field: StateField::EmaStack,
+            value: -1,
+        }],
+    )
+    .expect("the event config is valid");
+    StrategyConfig::new_event_composite(
+        LadderConfig::new(900, vec![3_600]).expect("the ladder is valid"),
+        events,
+        RiskPolicy::default(),
+        true,
+    )
+    .expect("the v8 strategy config is valid")
 }
 
 fn config() -> BacktestConfig {
@@ -609,6 +643,21 @@ fn a_missing_context_series_produces_a_flat_run() {
         run.decisions()
             .iter()
             .all(|decision| matches!(decision, Decision::Hold))
+    );
+}
+
+#[test]
+fn the_event_composite_runner_reaches_the_strategy() {
+    let mut config = config();
+    config.strategy = event_strategy_config();
+    let candles = series(360, false);
+    let inputs = [TimeframeInput::new(900, &candles)];
+    let run = run_backtest(&inputs, &config).expect("the v8 run succeeds");
+    assert!(
+        run.decisions()
+            .iter()
+            .any(|decision| matches!(decision, Decision::Enter(_))),
+        "the v8 strategy must reach the model events"
     );
 }
 

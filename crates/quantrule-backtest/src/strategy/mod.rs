@@ -16,6 +16,8 @@
 
 mod config;
 mod decision;
+mod event;
+mod event_input;
 mod input;
 mod ladder;
 #[cfg(test)]
@@ -38,6 +40,10 @@ pub use config::{
     StrategyMode, ThreeTimeframeConfig,
 };
 pub use decision::{Decision, Entry, Exit, ExitReason, Strategy};
+pub use event::{
+    Condition, EventCompositeConfig, EventCompositeStrategy, MAX_CONDITIONS, StateField,
+};
+pub use event_input::{EventStrategyInput, EventTimeframeView, EventView};
 pub use input::StrategyInput;
 pub use ladder::LadderContextStrategy;
 pub use walk::StrategyWalk;
