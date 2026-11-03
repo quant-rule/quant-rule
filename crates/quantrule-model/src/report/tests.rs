@@ -57,6 +57,19 @@ fn build_run(candles: &[Candle], timeframes: &[u64]) -> ModelRun {
     ModelRun::compute(&inputs, &MarketStateConfig::default())
 }
 
+fn build_run_with_macd(candles: &[Candle], timeframes: &[u64]) -> ModelRun {
+    let inputs: Vec<TimeframeInput<'_>> = timeframes
+        .iter()
+        .map(|&timeframe_secs| TimeframeInput {
+            timeframe_secs,
+            candles,
+        })
+        .collect();
+    let mut config = MarketStateConfig::default();
+    config.set_macd_default(true);
+    ModelRun::compute(&inputs, &config)
+}
+
 fn run_inputs(inputs: &[(u64, &[Candle])]) -> ModelRun {
     let inputs: Vec<TimeframeInput<'_>> = inputs
         .iter()
@@ -117,7 +130,7 @@ fn coverage_period_and_absent_timeframes_are_reported() {
 #[test]
 fn flat_report_exposes_readings_levels_and_events() {
     let candles = fixture_candles();
-    let run = build_run(&candles, &[300]);
+    let run = build_run_with_macd(&candles, &[300]);
     let report = build_report(&run, &[60, 300]);
 
     assert_eq!(report.flat.timeframes.len(), 2);

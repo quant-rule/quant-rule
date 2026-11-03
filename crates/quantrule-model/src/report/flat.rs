@@ -77,6 +77,12 @@ pub struct FlatReadings {
     pub atr: Option<f64>,
     /// The relative volume.
     pub rvol: Option<f64>,
+    /// The MACD line.
+    pub macd_line: Option<f64>,
+    /// The MACD signal.
+    pub macd_signal: Option<f64>,
+    /// The MACD histogram.
+    pub macd_histogram: Option<f64>,
 }
 
 /// The discrete indicator states at the latest bar.
@@ -86,6 +92,10 @@ pub struct FlatStates {
     pub ema_stack: Option<i8>,
     /// -1 rsi < 30, +1 rsi > 70, 0 otherwise.
     pub rsi_zone: Option<i8>,
+    /// +1 line > signal, -1 line < signal, 0 equal.
+    pub macd_state: Option<i8>,
+    /// +1 histogram > 0, -1 histogram < 0, 0 equal.
+    pub macd_histogram_state: Option<i8>,
 }
 
 /// The volatility and participation context.
@@ -140,8 +150,8 @@ pub struct FlatSubtypeCounts {
     pub level: [usize; 3],
     /// Divergence subtypes 1..4.
     pub divergence: [usize; 4],
-    /// Signal subtypes 1..3: threshold, series, state.
-    pub signal: [usize; 3],
+    /// Signal subtypes 1..5: threshold, series, state, histogram flip, zero cross.
+    pub signal: [usize; 5],
     /// A record with an unknown subtype.
     pub other: usize,
 }
@@ -273,6 +283,7 @@ impl FlatTimeframe {
             let candle = timeframe.candle(bar)?;
             let readings = timeframe.readings();
             let context = timeframe.context().get(bar)?;
+            let macd = timeframe.macd();
             Some(FlatLatest {
                 bar_index: bar,
                 open_time: candle.timestamp(),
@@ -283,6 +294,9 @@ impl FlatTimeframe {
                     rsi: readings.rsi14.get(bar),
                     atr: readings.atr14.get(bar),
                     rvol: readings.rvol20.get(bar),
+                    macd_line: macd.line.get(bar),
+                    macd_signal: macd.signal.get(bar),
+                    macd_histogram: macd.histogram.get(bar),
                 },
                 states: FlatStates {
                     ema_stack: ema_stack(
@@ -291,6 +305,8 @@ impl FlatTimeframe {
                         readings.ema200.get(bar),
                     ),
                     rsi_zone: readings.rsi14.get(bar).map(rsi_zone),
+                    macd_state: macd_stack(macd.line.get(bar), macd.signal.get(bar)),
+                    macd_histogram_state: macd.histogram.get(bar).map(sign_state),
                 },
                 context: FlatContext {
                     atr_ratio: context.atr_ratio,
@@ -377,7 +393,7 @@ impl FlatEventSeries {
         let mut by_subtype = FlatSubtypeCounts {
             level: [0; 3],
             divergence: [0; 4],
-            signal: [0; 3],
+            signal: [0; 5],
             other: 0,
         };
         let mut latest: std::collections::BTreeMap<(u8, u8), FlatEvent> =
@@ -439,7 +455,7 @@ impl FlatEventSeries {
             by_subtype: FlatSubtypeCounts {
                 level: [0; 3],
                 divergence: [0; 4],
-                signal: [0; 3],
+                signal: [0; 5],
                 other: 0,
             },
             latest: Vec::new(),
@@ -519,6 +535,27 @@ fn ema_stack(fast: Option<f64>, mid: Option<f64>, slow: Option<f64>) -> Option<i
         Some(-1)
     } else {
         Some(0)
+    }
+}
+
+fn macd_stack(line: Option<f64>, signal: Option<f64>) -> Option<i8> {
+    let (line, signal) = (line?, signal?);
+    if line > signal {
+        Some(1)
+    } else if line < signal {
+        Some(-1)
+    } else {
+        Some(0)
+    }
+}
+
+fn sign_state(value: f64) -> i8 {
+    if value > 0.0 {
+        1
+    } else if value < 0.0 {
+        -1
+    } else {
+        0
     }
 }
 

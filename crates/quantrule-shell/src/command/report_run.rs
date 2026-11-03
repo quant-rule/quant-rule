@@ -20,6 +20,7 @@ use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
 pub(super) mod bundles;
+mod model_artifacts;
 
 use super::types::{ParseError, ReportArgs, ReportEngine, ReportError, RunError};
 use crate::chart;
@@ -183,11 +184,8 @@ pub(super) fn model_bundle_from(
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
     let aggregates = quantrule_analytics::cross_timeframe(model_run);
-    let report = MarketReport::compute(
-        model_run,
-        &pipeline::ladder_secs_for(&config.data.available_timeframes),
-        &aggregates,
-    );
+    let ladder = pipeline::ladder_secs_for(&config.data.available_timeframes);
+    let report = MarketReport::compute(model_run, &ladder, &aggregates);
     if report.charts.bars.is_empty() {
         return Err(RunError::Report(ReportError::EmptyChart {
             period: period_label(config),
@@ -206,12 +204,20 @@ pub(super) fn model_bundle_from(
     .map_err(RunError::Output)?;
     let price = chart::render_report_price_axes_png(&report.charts).map_err(RunError::Chart)?;
     let events = chart::render_report_events_png(&report.charts).map_err(RunError::Chart)?;
+    let readings_csv = model_artifacts::readings_csv(model_run, &ladder);
+    let events_csv = model_artifacts::events_csv(model_run, &ladder);
+    let levels_csv = model_artifacts::levels_csv(model_run, &ladder);
+    let legs_csv = model_artifacts::legs_csv(model_run, &ladder);
 
     let names = artifact_names(&[
         "summary.txt",
         "report.json",
         "price-axes.png",
         "events.png",
+        "readings.csv",
+        "events.csv",
+        "levels.csv",
+        "legs.csv",
         "provenance.json",
     ]);
     let files = config_files(config);
@@ -239,6 +245,10 @@ pub(super) fn model_bundle_from(
         ("report.json", json.clone()),
         ("price-axes.png", price),
         ("events.png", events),
+        ("readings.csv", readings_csv.into_bytes()),
+        ("events.csv", events_csv.into_bytes()),
+        ("levels.csv", levels_csv.into_bytes()),
+        ("legs.csv", legs_csv.into_bytes()),
     ];
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
     Ok(BundleOutput {

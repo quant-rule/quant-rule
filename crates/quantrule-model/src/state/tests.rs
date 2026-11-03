@@ -230,6 +230,7 @@ fn the_market_state_assembles_the_latest_readings_and_events() {
     );
     let signal = SignalEventSeries::compute(
         &readings,
+        &crate::readings::MacdSeries::empty(readings.len()),
         &DirectionSeries::compute(&readings),
         &MomentumSeries::compute(&readings),
         &StructureSeries::compute(&candles, &readings),

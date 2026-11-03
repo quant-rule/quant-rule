@@ -17,7 +17,8 @@ use crate::axes::progression::ProgressionBar;
 use crate::events::EventRecord;
 use crate::events::EventType;
 use crate::events::signal::{
-    DIRECTION_SOURCE_CODE, MOMENTUM_SOURCE_CODE, STRUCTURE_SOURCE_CODE, SignalSubtype,
+    DIRECTION_SOURCE_CODE, MACD_LINE_SOURCE_CODE, MOMENTUM_SOURCE_CODE, STRUCTURE_SOURCE_CODE,
+    SignalSubtype,
 };
 use crate::readings::roles::AxisCode;
 
@@ -104,7 +105,13 @@ fn event_axis(event: &EventRecord) -> Option<AxisCode> {
         EventType::Level | EventType::Divergence => Some(AxisCode::Structure),
         EventType::Signal => match SignalSubtype::from_code(event.event_subtype_code)? {
             SignalSubtype::ThresholdCrossing => Some(AxisCode::Momentum),
-            SignalSubtype::SeriesCrossover => Some(AxisCode::Structure),
+            SignalSubtype::SeriesCrossover => match event.source_code {
+                MACD_LINE_SOURCE_CODE => Some(AxisCode::Momentum),
+                _ => Some(AxisCode::Structure),
+            },
+            SignalSubtype::HistogramSlopeFlip | SignalSubtype::ZeroCross => {
+                Some(AxisCode::Momentum)
+            }
             SignalSubtype::CompactStateChange => match event.source_code {
                 DIRECTION_SOURCE_CODE => Some(AxisCode::Direction),
                 MOMENTUM_SOURCE_CODE => Some(AxisCode::Momentum),

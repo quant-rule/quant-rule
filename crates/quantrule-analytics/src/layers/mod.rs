@@ -57,7 +57,7 @@ pub const LAYER2_COLUMNS: usize = 73;
 pub const HIGHER_BLOCK_COLUMNS: usize = 67;
 
 /// The number of aggregate columns in `layer3.csv`.
-pub const AGGREGATE_COLUMNS: usize = 82;
+pub const AGGREGATE_COLUMNS: usize = 84;
 
 /// The number of columns in `layer3.csv` for a number of higher timeframes.
 #[must_use]

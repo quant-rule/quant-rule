@@ -406,7 +406,7 @@ fn event_counts_use_the_five_bar_window() {
     assert_eq!(events.event_count_by_type, [1, 2, 1]);
     assert_eq!(events.event_count_by_subtype.level, [0, 0, 1]);
     assert_eq!(events.event_count_by_subtype.divergence, [1, 1, 0, 0]);
-    assert_eq!(events.event_count_by_subtype.signal, [1, 0, 0]);
+    assert_eq!(events.event_count_by_subtype.signal, [1, 0, 0, 0, 0]);
     assert_eq!(events.divergence_timeframe_count, 2);
     assert_eq!(events.divergence_direction_agreement_share, Some(0.5));
     assert_eq!(events.level_event_timeframe_count, 1);
@@ -623,11 +623,11 @@ fn event_subtype_counts_are_separate_by_family() {
     let counts = EventSubtypeCounts {
         level: [1, 2, 3],
         divergence: [4, 5, 6, 7],
-        signal: [8, 9, 10],
+        signal: [8, 9, 10, 0, 0],
     };
     assert_eq!(counts.level, [1, 2, 3]);
     assert_eq!(counts.divergence, [4, 5, 6, 7]);
-    assert_eq!(counts.signal, [8, 9, 10]);
+    assert_eq!(counts.signal, [8, 9, 10, 0, 0]);
     let _ = ProgressionAggregates {
         timeframes: Vec::new(),
         progression_timeframe_count: 0,

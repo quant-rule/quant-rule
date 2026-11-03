@@ -8,8 +8,8 @@ pub fn aggregate_names() -> Vec<&'static str> {
     AGGREGATES.iter().map(|column| column.name).collect()
 }
 
-/// The 82 cross-timeframe aggregate columns, in file order.
-pub(crate) const AGGREGATES: [Column; 82] = [
+/// The 84 cross-timeframe aggregate columns, in file order.
+pub(crate) const AGGREGATES: [Column; 84] = [
     c(
         "agg_ladder",
         "aggregate",
@@ -789,6 +789,26 @@ pub(crate) const AGGREGATES: [Column; 82] = [
         "",
         "",
         "Signal subtype 3 events.",
+    ),
+    c(
+        "agg_event_count_signal_histogram_slope_flip",
+        "event",
+        "int",
+        ">= 0",
+        false,
+        "",
+        "",
+        "Signal subtype 4 events.",
+    ),
+    c(
+        "agg_event_count_signal_zero_cross",
+        "event",
+        "int",
+        ">= 0",
+        false,
+        "",
+        "",
+        "Signal subtype 5 events.",
     ),
     c(
         "agg_divergence_timeframe_count",

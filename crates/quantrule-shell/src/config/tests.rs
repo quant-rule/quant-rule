@@ -365,7 +365,8 @@ fn model_v2_object() -> Value {
             "ema": [20, 50, 200],
             "rsi": 14,
             "atr": 14,
-            "rvol": 20
+            "rvol": 20,
+            "macd": {"fast": 12, "slow": 26, "signal": 9}
         },
         "timeframes": {},
         "structure": {"scale": "major"}
@@ -456,6 +457,43 @@ fn model_matches_the_contract() {
     ] {
         assert_rejected(model::parse(&value, "model.json"), kind, path);
     }
+}
+
+#[test]
+fn model_v2_reads_macd_overrides_and_rejects_invalid_periods() {
+    let overridden = set(
+        model_v2_object(),
+        &["timeframes"],
+        json!({"1m": {"macd": {"fast": 5, "slow": 10, "signal": 3}}}),
+    );
+    let config = model::parse(&overridden, "model.json").expect("the override loads");
+    let m1 = config.readings_for(u64::from(Timeframe::M1.seconds()));
+    assert_eq!(m1.macd_fast, 5);
+    assert_eq!(m1.macd_slow, 10);
+    assert_eq!(m1.macd_signal, 3);
+    assert!(config.macd_enabled_for(u64::from(Timeframe::M1.seconds())));
+
+    let disabled = set(
+        model_v2_object(),
+        &["defaults", "macd", "active"],
+        json!(false),
+    );
+    let config = model::parse(&disabled, "model.json").expect("the disabled config loads");
+    assert!(!config.macd_enabled_for(u64::from(Timeframe::M1.seconds())));
+
+    let invalid = set(
+        model_v2_object(),
+        &["defaults", "macd"],
+        json!({"fast": 26, "slow": 12, "signal": 9}),
+    );
+    assert_rejected(model::parse(&invalid, "model.json"), Range, "$.defaults");
+
+    let zero = set(model_v2_object(), &["defaults", "macd", "signal"], json!(0));
+    assert_rejected(
+        model::parse(&zero, "model.json"),
+        Range,
+        "$.defaults.macd.signal",
+    );
 }
 
 #[test]
