@@ -172,7 +172,7 @@
       "name": "Confirmed swing pivots",
       "taxonomy": "structure",
       "role": "signal",
-      "claim": "Confirmed pivots define price levels; a level test is followed by a bounce or break more often than a placebo level.",
+      "claim": "Confirmed pivots define price levels; a level test is followed by a path reaction more often than a matched barrier baseline.",
       "formula": "strict local extreme over k bars each side; confirmed at i+k",
       "inputs": [
         "high",
@@ -284,7 +284,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "A bar range intersects a confirmed or dynamic level; the touch is followed by a reaction more often than a placebo level.",
+      "claim": "A bar range intersects a confirmed or dynamic level; the touch is followed by a path reaction \u2014 the target is reached before the stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
         "model.level.test_atr"
       ],
@@ -309,7 +309,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "The close crosses a level; the forward outcome differs from the base rate.",
+      "claim": "A close crosses a level; the cross is followed by a path continuation \u2014 the target is reached before the stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
         "model.level.test_atr"
       ],
@@ -334,7 +334,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "The close crosses a level and finishes beyond it; the break is followed by continuation more often than the base rate.",
+      "claim": "A close crosses a level and finishes beyond it; the break is followed by a path continuation \u2014 the continuation target is reached before the reversal stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
         "model.level.break_atr"
       ],

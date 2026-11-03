@@ -17,27 +17,33 @@ execution, or portfolio. No new indicator, threshold, or signal-path change.
 
 ## Status
 
-The human approved the path-based thesis and the exact protocol, estimator, and
-pass rule. Implementation begins under the approved plan. No model bundle,
-harness result, or validation result has been produced yet.
+Implementation completed under the approved plan. The pilot stopped: the primary
+path lift is negative on both partitions. No replication, strategy, or further
+tuning was run.
 
-## Planned work
+## Work
 
-- Update the model contract's validation boundary and the registry claim wording
-  to the path outcome.
-- Add the path-validation protocol.
-- Create five COPPERCMD 1h one-year configs.
-- Generate the five model bundles.
-- Add a path harness with unit tests for target, stop, timeout, same-bar tie,
-  ATR null/zero, short history, gaps, cluster formation, and the decision rule.
-- Run the development result, then the one-shot validation result.
-- Record the decision as stop, inconclusive, development-only, or replication.
+- Updated the model contract's validation boundary, the path-validation protocol,
+  and the registry claim wording to the path outcome.
+- Created five COPPERCMD 1h one-year configs and generated the five model bundles.
+- Added a path harness with tests for target, stop, timeout, same-bar tie, ATR
+  null/zero, short history, gaps, cluster formation, and the decision rule.
+- Ran the development result and the one-shot validation result.
+- Recorded the stop in `PATH-PILOT-COPPER` and `CYCLE-012`.
 
 ## Verification and evidence
 
-No result is claimed before it is run. The plan fixes the verification commands
-and the independent one-year check. The pull request will report the actual
-commands and observed output.
+- Development: raw 2,927, fresh 1,982, prepared 1,549, valid n 1,539, clusters
+  20, hit 0.4847, base 0.4989, lift -0.0141, cluster SE 0.0156, lift LCB -0.0447.
+- Validation: raw 3,922, fresh 2,578, prepared 1,979, valid n 1,964, clusters
+  33, hit 0.4659, base 0.4962, lift -0.0303, cluster SE 0.0118, lift LCB -0.0533.
+- Decision: stop. The secondary cross has a positive point lift on both
+  partitions but a negative lift LCB on both; it is not promoted.
+- An independent 2018 calculation matches the harness exactly: raw 1,163, fresh
+  790, prepared 621, valid n 617, hits 318, hit 0.5154, base 0.4970, lift
+  +0.0184, clusters 5, cluster SE 0.0238, lift LCB -0.0282.
+- `python3 -m unittest discover -s tools/improvement`: 64 tests pass.
+- `cargo fmt`, `clippy`, `test`, and `doc` pass; registry, links, and terms pass.
 
 ## Learning
 
@@ -45,6 +51,13 @@ commands and observed output.
   divergence, and progression claims; the gate's sign protocol was the gap.
 - A path test needs a different sample-size treatment: overlapping 20-bar paths
   are not independent observations, so the bound must be cluster-robust.
+- The first harness run pooled event bar indices across one-year bundles. Bar
+  indices restart at zero each year, so the cluster boundaries were wrong and the
+  result was an invalid `inconclusive`. The harness now clusters per bundle. The
+  corrected run is the evidence and the first run was discarded.
+- The corrected development cluster count is exactly the pre-registered minimum
+  of 20. The cluster-robust bound is retained, and the point estimate is
+  negative; the stop does not depend on a borderline bound.
 - A pass is not a strategy go. A single fresh asset is a candidate for
   replication, not an edge claim.
 
@@ -64,4 +77,6 @@ commands and observed output.
   costs.
 - Gaps are part of the 20-bar path.
 - The base rate is a matched barrier baseline, not a matched price level.
+- The development cluster count is at the minimum of 20; the bound is reported,
+  but a larger sample would estimate it more precisely.
 - Same-session analysis, not an independent Quant Validator record.

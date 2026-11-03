@@ -1,7 +1,7 @@
 # Execution Plan: Path-Based Model Validation Pilot
 
 - Date: 2026-11-03 (UTC)
-- Status: **Approved** — the human approved the path-based thesis and the exact protocol/pass rule.
+- Status: **Stopped after the primary path step** — the primary path lift is negative on both partitions; replication and strategy were not run.
 - Issue: [#365](https://github.com/quant-rule/quant-rule/issues/365)
 - Prior evidence: [`MODEL-GATE`](../../improvement/2026-11-03/MODEL-GATE.md),
   [`STRUCTURE-PILOT-SPX`](../../improvement/2026-11-03/STRUCTURE-PILOT-SPX.md)
@@ -164,9 +164,10 @@ sensitivity.
 ### 6.4 Estimator
 
 - `p = hits / n`.
-- Sort valid events by event bar. Start a new cluster when the event bar is more
-  than 20 bars after the previous event bar; events whose 20-bar paths can
-  overlap stay in the same cluster.
+- Sort valid events by event bar within each one-year bundle. Start a new
+  cluster when the event bar is at least 20 bars after the previous event bar;
+  events whose 20-bar paths can overlap stay in the same cluster. Clusters never
+  span bundles because bar indices restart at zero each year.
 - Let `J` be the number of clusters, with `n_j` events and `h_j` hits in cluster
   `j`.
 - Cluster-robust variance:

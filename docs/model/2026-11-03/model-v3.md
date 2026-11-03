@@ -503,11 +503,19 @@ outcome its claim names:
 |---|---|
 | Directional trend state | Sign of forward return |
 | Momentum force or acceleration | Forward change in force or acceleration |
-| Structure | Swing continuation or reversal, and level reaction |
+| Structure | Path reaction or continuation versus a matched barrier baseline |
 | Progression | Target hit before invalidation |
-| Level | Touch, bounce, or break versus a matched placebo level |
-| Divergence | Reversal after confirmation versus the base rate |
-| Signal | Forward return or volatility versus the base rate |
+| Level | Path reaction or break versus a matched barrier baseline |
+| Divergence | Path reversal after confirmation versus a matched barrier baseline |
+| Signal | Path directional move or volatility versus a matched barrier baseline |
+
+The path outcome is defined in
+[`path-validation.md`](path-validation.md): entry at the event close, an
+ATR-scaled target and stop, a fixed bar horizon, and a stop-first tie-break. The
+fixed-horizon sign is a screening metric, not the claim test for an event family
+whose claim names a reaction, continuation, reversal, or target. A path outcome
+that overlaps other events is evaluated with a cluster-robust bound; the event
+count alone is not the effective sample size.
 
 A hit rate is reported with its sample size, coverage, and a 95% lower bound. A
 single cell is not a model baseline. Validation uses statistics; the model and
