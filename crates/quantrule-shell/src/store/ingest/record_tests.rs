@@ -362,7 +362,7 @@ fn invalid_event_and_leg_records_are_rejected_before_writing() {
         ),
         (
             vec![EventRow {
-                source_code: 13,
+                source_code: 19,
                 ..base_event()
             }],
             Vec::new(),
@@ -406,7 +406,7 @@ fn invalid_event_and_leg_records_are_rejected_before_writing() {
         ),
         (
             vec![EventRow {
-                reference_code: Some(4),
+                reference_code: Some(19),
                 ..base_event()
             }],
             Vec::new(),

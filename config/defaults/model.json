@@ -1,14 +1,36 @@
 {
-  "schema": "quantrule.model/v2",
+  "schema": "quantrule.model/v3",
   "defaults": {
-    "ema": [20, 50, 200],
-    "rsi": 14,
-    "atr": 14,
-    "rvol": 20,
+    "ema": {
+      "periods": [
+        20,
+        50,
+        200
+      ],
+      "active": true
+    },
+    "rsi": {
+      "period": 14,
+      "active": true
+    },
+    "atr": {
+      "period": 14,
+      "active": true
+    },
+    "rvol": {
+      "period": 20,
+      "active": true
+    },
     "macd": {
       "fast": 12,
       "slow": 26,
       "signal": 9,
+      "active": true
+    },
+    "adx": {
+      "period": 14,
+      "threshold": 25.0,
+      "slope_bars": 3,
       "active": true
     }
   },

@@ -65,16 +65,19 @@ pub enum SignalSubtype {
     HistogramSlopeFlip = 4,
     /// Code 5: a series crossed zero.
     ZeroCross = 5,
+    /// Code 6: a registered trend-continuation conjunction fired.
+    TrendContinuation = 6,
 }
 
 impl SignalSubtype {
     /// Every subtype, in contract code order.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::ThresholdCrossing,
         Self::SeriesCrossover,
         Self::CompactStateChange,
         Self::HistogramSlopeFlip,
         Self::ZeroCross,
+        Self::TrendContinuation,
     ];
 
     /// The contract's numeric code.
@@ -92,6 +95,7 @@ impl SignalSubtype {
             3 => Some(Self::CompactStateChange),
             4 => Some(Self::HistogramSlopeFlip),
             5 => Some(Self::ZeroCross),
+            6 => Some(Self::TrendContinuation),
             _ => None,
         }
     }
@@ -1104,6 +1108,7 @@ mod tests {
         assert_eq!(SignalSubtype::ThresholdCrossing.code(), 1);
         assert_eq!(SignalSubtype::SeriesCrossover.code(), 2);
         assert_eq!(SignalSubtype::CompactStateChange.code(), 3);
+        assert_eq!(SignalSubtype::TrendContinuation.code(), 6);
         assert_eq!(super::RSI_THRESHOLDS, [30.0, 50.0, 70.0]);
         assert_eq!(super::EMA_PAIRS.len(), 3);
     }

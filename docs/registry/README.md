@@ -27,6 +27,7 @@ docs/registry/
   README.md          this guide
   schema.json        JSON Schema for the registry file
   indicators.json    indicators, events, parameters, and codes
+  validation.json    one validation claim per active indicator and event
   indicators.md      generated human-readable table
 ```
 
@@ -139,6 +140,8 @@ in the registry.
 4. Add golden, causality, determinism, and edge-case tests.
 5. Add the validation plan and the pre-registered outcome.
 6. Run `python3 tools/check_registry.py`.
-7. Update the generated Markdown.
+7. Add the construct tests and the validation claim in `validation.json`.
+8. Run `python3 tools/check_validation.py`.
+9. Update the generated Markdown.
 
 An indicator without a claim is `diagnostic` and cannot enter a strategy.

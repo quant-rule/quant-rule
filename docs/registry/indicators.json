@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-03.1",
+  "version": "2026-11-03.2",
   "indicators": [
     {
       "id": "ema",
@@ -267,6 +267,75 @@
       ],
       "availability": "origin confirmation and target stability",
       "events": [],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "adx",
+      "code": 9,
+      "name": "Average Directional Index",
+      "taxonomy": "trend",
+      "role": "context",
+      "claim": "ADX measures trend strength; a high and rising ADX is a condition for trend continuation, not a directional signal by itself.",
+      "formula": "TR, +DM, -DM; Wilder-smoothed; +DI=100*+DM/TR; -DI=100*-DM/TR; DX=100*|+DI--DI|/(+DI+-DI); ADX=Wilder(DX,n)",
+      "inputs": [
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.adx.period",
+        "model.adx.threshold",
+        "model.adx.slope_bars",
+        "model.adx.active"
+      ],
+      "outputs": [
+        "adx",
+        "adx_regime",
+        "adx_slope"
+      ],
+      "availability": "2*n-1 closed bars",
+      "events": [],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases",
+        "property"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "dmi",
+      "code": 10,
+      "name": "Directional Movement Index",
+      "taxonomy": "trend",
+      "role": "signal",
+      "claim": "The sign and crossing of +DI and -DI describe directional movement; a DI cross is followed by a directional path more often than the base rate.",
+      "formula": "+DI=100*Wilder(+DM)/Wilder(TR); -DI=100*Wilder(-DM)/Wilder(TR); DI state=sign(+DI--DI)",
+      "inputs": [
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.adx.period",
+        "model.adx.active"
+      ],
+      "outputs": [
+        "di_plus",
+        "di_minus",
+        "di_state"
+      ],
+      "availability": "n closed bars",
+      "events": [
+        "signal.di_cross"
+      ],
       "tests": [
         "golden",
         "causality",
@@ -568,12 +637,58 @@
         "determinism"
       ],
       "status": "active"
+    },
+    {
+      "id": "signal.di_cross",
+      "event_type": 3,
+      "subtype": 2,
+      "source": 17,
+      "sources": [
+        17,
+        18
+      ],
+      "indicator": "dmi",
+      "role": "signal",
+      "claim": "A DI crossover is followed by a path in the cross direction more often than a matched barrier baseline.",
+      "parameters": [
+        "model.adx.period"
+      ],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases",
+        "event"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.trend_continuation",
+      "event_type": 3,
+      "subtype": 6,
+      "source": 16,
+      "indicator": "adx",
+      "role": "signal",
+      "claim": "When ADX is at or above its threshold and rising, DI direction, the EMA stack, and the MACD state agree; the next path reaches +1 ATR before -1 ATR more often than the matched barrier baseline.",
+      "parameters": [
+        "model.adx.threshold",
+        "model.adx.slope_bars",
+        "model.adx.period"
+      ],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases",
+        "event"
+      ],
+      "status": "active"
     }
   ],
   "parameters": [
     {
       "id": "model.ema.periods",
-      "path": "defaults.ema",
+      "path": "defaults.ema.periods",
       "type": "array<integer>",
       "default": [
         20,
@@ -591,7 +706,7 @@
     },
     {
       "id": "model.rsi.period",
-      "path": "defaults.rsi",
+      "path": "defaults.rsi.period",
       "type": "integer",
       "default": 14,
       "unit": "bars",
@@ -605,7 +720,7 @@
     },
     {
       "id": "model.atr.period",
-      "path": "defaults.atr",
+      "path": "defaults.atr.period",
       "type": "integer",
       "default": 14,
       "unit": "bars",
@@ -619,7 +734,7 @@
     },
     {
       "id": "model.rvol.period",
-      "path": "defaults.rvol",
+      "path": "defaults.rvol.period",
       "type": "integer",
       "default": 20,
       "unit": "bars",
@@ -1265,6 +1380,57 @@
       ],
       "status": "active",
       "min": 1
+    },
+    {
+      "id": "model.adx.period",
+      "path": "defaults.adx.period",
+      "type": "integer",
+      "default": 14,
+      "min": 1,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.adx.threshold",
+      "path": "defaults.adx.threshold",
+      "type": "number",
+      "default": 25.0,
+      "min": 0.0,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.adx.slope_bars",
+      "path": "defaults.adx.slope_bars",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.adx.active",
+      "path": "defaults.adx.active",
+      "type": "boolean",
+      "default": true,
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "unit": "none"
     }
   ],
   "codes": {
@@ -1289,7 +1455,8 @@
       "2": "series crossover",
       "3": "compact state change",
       "4": "histogram slope flip",
-      "5": "zero cross"
+      "5": "zero cross",
+      "6": "trend continuation"
     },
     "sources": {
       "1": "EMA fast",
@@ -1306,7 +1473,10 @@
       "12": "progression",
       "13": "MACD line",
       "14": "MACD signal",
-      "15": "MACD histogram"
+      "15": "MACD histogram",
+      "16": "ADX",
+      "17": "+DI",
+      "18": "-DI"
     },
     "roles": {
       "1": "signal",

@@ -500,7 +500,7 @@ fn count_events(
     let mut by_subtype = EventSubtypeCounts::default();
     let mut latest: Option<&EventRecord> = None;
 
-    for event in events {
+    for event in events.iter().filter(|event| is_legacy_event(event)) {
         by_type.add_code(event.event_type.code());
         by_subtype.add_event(event);
         if latest.is_none_or(|current| event_cmp(event, current).is_gt()) {
@@ -509,6 +509,15 @@ fn count_events(
     }
 
     (by_type, by_subtype, latest.map(latest_event))
+}
+
+/// Whether an event belongs to the legacy axis report.
+///
+/// The v3-only ADX/DI and trend-continuation families are published in the flat
+/// report and the CSV artifacts. The legacy axis report keeps its historical
+/// event domain so its independent fixture remains a stable regression guard.
+pub(super) fn is_legacy_event(event: &EventRecord) -> bool {
+    crate::events::is_legacy_axis_event(event)
 }
 
 /// Maps one event onto the latest-event type.

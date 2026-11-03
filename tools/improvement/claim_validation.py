@@ -40,22 +40,10 @@ STATE_COLUMNS = [
     ("rsi_zone", "RSI zone"),
     ("macd_state", "MACD state"),
     ("macd_histogram_state", "MACD histogram sign"),
+    ("di_state", "DI state"),
     ("progression_leg_direction", "Progression leg direction"),
 ]
-EVENT_NAMES = {
-    (1, 1): "level.test",
-    (1, 2): "level.cross",
-    (1, 3): "level.break",
-    (2, 1): "divergence.regular_bullish",
-    (2, 2): "divergence.regular_bearish",
-    (2, 3): "divergence.hidden_bullish",
-    (2, 4): "divergence.hidden_bearish",
-    (3, 1): "signal.rsi_threshold",
-    (3, 2): "signal.series_crossover",
-    (3, 3): "signal.state_change",
-    (3, 4): "signal.histogram_slope_flip",
-    (3, 5): "signal.zero_cross",
-}
+REGISTRY = Path(__file__).resolve().parent.parent.parent / "docs/registry/indicators.json"
 
 
 def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
@@ -74,6 +62,26 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
         help="restrict the cells to one partition (default: all)",
     )
     return parser.parse_args(argv)
+
+
+def event_names() -> dict[tuple[int, int], str]:
+    """Map event codes to registry IDs, preferring a source-qualified Signal key."""
+    try:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(f"error: cannot read {REGISTRY}: {error}") from None
+    names: dict[tuple[int, int], str] = {}
+    for event in registry.get("events", []):
+        if event.get("status") != "active":
+            continue
+        event_type = int(event["event_type"])
+        subtype = int(event["subtype"])
+        sources = event.get("sources", [event.get("source")])
+        if event_type == 3 and sources:
+            for source in sources:
+                names.setdefault((event_type, subtype, int(source)), str(event["id"]))
+        names.setdefault((event_type, subtype), str(event["id"]))
+    return names
 
 
 def read_json(path: Path) -> Any:
@@ -103,6 +111,7 @@ def read_readings(path: Path) -> dict[int, list[dict[str, Any]]]:
                 "rsi_zone": integer(row.get("rsi_zone")),
                 "macd_state": integer(row.get("macd_state")),
                 "macd_histogram_state": integer(row.get("macd_histogram_state")),
+                "di_state": integer(row.get("di_state")),
                 "progression_leg_direction": integer(row.get("progression_leg_direction")),
             }
             series[timeframe].append(parsed)
@@ -305,6 +314,7 @@ def summarize(cells: dict[tuple[str, str, str, int], dict[str, Any]]) -> list[di
 
 
 def validate(cells_document: list[dict[str, Any]], timeframes: set[int]) -> dict[str, Any]:
+    names = event_names()
     cells: dict[tuple[str, str, str, int], dict[str, Any]] = {}
     for entry in cells_document:
         run = Path(entry["run"]).expanduser()
@@ -351,8 +361,8 @@ def validate(cells_document: list[dict[str, Any]], timeframes: set[int]) -> dict
             for event in events.get(timeframe, []):
                 if event["direction"] == 0:
                     continue
-                key = (event["event_type"], event["subtype"])
-                name = EVENT_NAMES.get(key)
+                key = (event["event_type"], event["subtype"], event["source"])
+                name = names.get(key) or names.get((event["event_type"], event["subtype"]))
                 if name is None:
                     continue
                 index = event["available"]
@@ -388,7 +398,7 @@ def validate(cells_document: list[dict[str, Any]], timeframes: set[int]) -> dict
     gate = "pass" if passing else ("insufficient" if not primary else "no_edge")
     return {
         "schema": "quantrule.claim-validation/v1",
-        "version": "2026-11-03",
+        "version": "2026-11-03.2",
         "cells": summary,
         "primary": primary,
         "grades": grades,
@@ -400,6 +410,7 @@ def validate(cells_document: list[dict[str, Any]], timeframes: set[int]) -> dict
             "progression_primary_horizon": PRIMARY_PROGRESSION_HORIZON,
             "confidence": "normal approximation, one-sided lower bound",
             "multiple_testing": "Bonferroni over primary cells",
+            "event_universe": "active registry events; Signal events keyed by source",
             "replication": "instrument with n>=30 and hit rate > 0.50",
             "minimum_lift": {"A": 0.02, "B": 0.01},
         },

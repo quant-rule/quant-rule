@@ -107,6 +107,8 @@ fn event_axis(event: &EventRecord) -> Option<AxisCode> {
             SignalSubtype::ThresholdCrossing => Some(AxisCode::Momentum),
             SignalSubtype::SeriesCrossover => match event.source_code {
                 MACD_LINE_SOURCE_CODE => Some(AxisCode::Momentum),
+                crate::events::dmi::DI_PLUS_SOURCE_CODE
+                | crate::events::dmi::DI_MINUS_SOURCE_CODE => None,
                 _ => Some(AxisCode::Structure),
             },
             SignalSubtype::HistogramSlopeFlip | SignalSubtype::ZeroCross => {
@@ -118,6 +120,7 @@ fn event_axis(event: &EventRecord) -> Option<AxisCode> {
                 STRUCTURE_SOURCE_CODE => Some(AxisCode::Structure),
                 _ => None,
             },
+            SignalSubtype::TrendContinuation => None,
         },
     }
 }

@@ -43,7 +43,12 @@ impl ChartReport {
             start = end;
         }
 
-        let mut records = timeframe.events().to_vec();
+        let mut records: Vec<_> = timeframe
+            .events()
+            .iter()
+            .filter(|event| super::assemble::is_legacy_event(event))
+            .copied()
+            .collect();
         records.sort_by(event_cmp);
         let events = records
             .iter()

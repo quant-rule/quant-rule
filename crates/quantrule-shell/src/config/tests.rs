@@ -358,6 +358,21 @@ fn model_object() -> Value {
     json!({"schema": "quantrule.model/v1", "structure_scale": "major"})
 }
 
+fn model_v3_object() -> Value {
+    json!({
+        "schema": "quantrule.model/v3",
+        "defaults": {
+            "ema": {"periods": [20, 50, 200], "active": true},
+            "rsi": {"period": 14, "active": true},
+            "atr": {"period": 14, "active": true},
+            "rvol": {"period": 20, "active": true},
+            "macd": {"fast": 12, "slow": 26, "signal": 9, "active": true},
+            "adx": {"period": 14, "threshold": 25.0, "slope_bars": 3, "active": true}
+        },
+        "timeframes": {}
+    })
+}
+
 fn model_v2_object() -> Value {
     json!({
         "schema": "quantrule.model/v2",
@@ -371,6 +386,28 @@ fn model_v2_object() -> Value {
         "timeframes": {},
         "structure": {"scale": "major"}
     })
+}
+
+#[test]
+fn model_v3_reads_adx_and_timeframe_overrides() {
+    let defaults = model::parse(&model_v3_object(), "model.json").expect("the v3 config loads");
+    let m1 = defaults.readings_for(u64::from(Timeframe::M1.seconds()));
+    assert_eq!(m1.adx, 14);
+    assert_eq!(m1.adx_threshold, 25.0);
+    assert_eq!(m1.adx_slope_bars, 3);
+    assert!(m1.adx_active);
+
+    let overridden = set(
+        model_v3_object(),
+        &["timeframes"],
+        json!({"5m": {"adx": {"period": 21, "threshold": 20.0, "slope_bars": 5, "active": false}}}),
+    );
+    let config = model::parse(&overridden, "model.json").expect("the override loads");
+    let m5 = config.readings_for(u64::from(Timeframe::M5.seconds()));
+    assert_eq!(m5.adx, 21);
+    assert_eq!(m5.adx_threshold, 20.0);
+    assert_eq!(m5.adx_slope_bars, 5);
+    assert!(!m5.adx_active);
 }
 
 #[test]
@@ -425,7 +462,7 @@ fn model_matches_the_contract() {
     for (value, kind, path) in [
         (json!(1), Type, "$"),
         (
-            set(model_object(), &["schema"], json!("quantrule.model/v3")),
+            set(model_object(), &["schema"], json!("quantrule.model/v4")),
             Unsupported,
             "$.schema",
         ),

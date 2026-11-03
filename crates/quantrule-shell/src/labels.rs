@@ -117,6 +117,9 @@ pub(crate) fn event_subtype_label(type_code: u8, subtype_code: u8) -> &'static s
         (3, 1) => "threshold_crossing",
         (3, 2) => "series_crossover",
         (3, 3) => "compact_state_change",
+        (3, 4) => "histogram_slope_flip",
+        (3, 5) => "zero_cross",
+        (3, 6) => "trend_continuation",
         _ => "unknown",
     }
 }
@@ -135,6 +138,12 @@ pub(crate) fn source_label(code: u16) -> &'static str {
         10 => "structure_relations",
         11 => "momentum_force",
         12 => "leg_progression",
+        13 => "macd_line",
+        14 => "macd_signal",
+        15 => "macd_histogram",
+        16 => "adx",
+        17 => "di_plus",
+        18 => "di_minus",
         _ => "unknown",
     }
 }

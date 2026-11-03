@@ -14,7 +14,7 @@ use quantrule_model::run::ModelRun;
 /// The per-bar readings and states for every ladder timeframe.
 pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
     let mut csv = String::from(
-        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,ema_stack,rsi_zone,macd_state,progression_stage_code,progression_leg_direction\n",
+        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction\n",
     );
     for &timeframe_secs in ladder {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
@@ -22,6 +22,7 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
         };
         let readings = timeframe.readings();
         let macd = timeframe.macd();
+        let adx = timeframe.adx();
         for bar in 0..timeframe.len() {
             let Some(candle) = timeframe.candle(bar) else {
                 continue;
@@ -33,9 +34,10 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
             let macd_line = macd.line.get(bar);
             let macd_signal = macd.signal.get(bar);
             let progression = timeframe.progression().get(bar);
+            let adx_state = timeframe.adx_state(bar);
             let _ = writeln!(
                 csv,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
                 timeframe_secs,
                 bar,
                 candle.timestamp(),
@@ -53,9 +55,15 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
                 optional(macd_line),
                 optional(macd_signal),
                 optional(macd.histogram.get(bar)),
+                optional(adx.adx.get(bar)),
+                optional(adx.di_plus.get(bar)),
+                optional(adx.di_minus.get(bar)),
                 optional(ema_stack(ema_fast, ema_mid, ema_slow).map(f64::from)),
                 optional(rsi.map(rsi_zone).map(f64::from)),
                 optional(macd_state(macd_line, macd_signal).map(f64::from)),
+                optional(adx_state.adx_regime.map(f64::from)),
+                optional(adx_state.adx_slope.map(f64::from)),
+                optional(adx_state.di_state.map(f64::from)),
                 optional(progression.and_then(|bar| bar.stage_code).map(f64::from)),
                 optional(progression.and_then(|bar| bar.leg_direction).map(f64::from)),
             );

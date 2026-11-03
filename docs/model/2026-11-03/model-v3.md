@@ -1,7 +1,7 @@
 # Model v3 — Flat Indicator and Event Contract
 
 - Date: 2026-11-03 (UTC)
-- Status: **Approved**; flat report and MACD implemented (#346, #347); v3 config and axis removal pending.
+- Status: **Approved**; flat report, MACD, v3 config, and ADX/DI implemented; axis removal deferred.
 - Issue: [#343](https://github.com/quant-rule/quant-rule/issues/343)
 - Epic: [#342](https://github.com/quant-rule/quant-rule/issues/342)
 - Plan: [`docs/execution-plans/2026-11-03/342-model-v3.md`](../../execution-plans/2026-11-03/342-model-v3.md)
@@ -59,6 +59,7 @@ with `active: false` is not computed and is not published for that timeframe.
     "atr": { "period": 14, "active": true },
     "rvol": { "period": 20, "active": true },
     "macd": { "fast": 12, "slow": 26, "signal": 9, "active": true },
+    "adx": { "period": 14, "threshold": 25.0, "slope_bars": 3, "active": true },
     "pivots": { "minor": 2, "major": 5, "active": true },
     "events": {
       "level": {
@@ -193,6 +194,33 @@ bars to its right have closed and the strict condition still holds.
 
 Published record: the latest confirmed minor high, minor low, major high, and
 major low, each with price, occurrence bar, availability bar, and scale.
+
+### 4.7 ADX and DI
+
+ADX measures trend strength and is context; `+DI` and `-DI` carry direction.
+The family uses Wilder smoothing with period `n`:
+
+```
++DM_t = high_t - high_(t-1)  when positive and greater than low_(t-1) - low_t
+-DM_t = low_(t-1) - low_t    when positive and greater than high_t - high_(t-1)
+TR_t  = max(high-low, |high-prev_close|, |low-prev_close|)
++DI   = 100 * Wilder(+DM, n) / Wilder(TR, n)
+-DI   = 100 * Wilder(-DM, n) / Wilder(TR, n)
+DX    = 100 * |+DI - -DI| / (+DI + -DI)
+ADX   = Wilder(DX, n)
+```
+
+The first DI and DX are at bar `n`; the first ADX is at bar `2*n - 1`.
+A zero smoothed true range produces null DI. A zero DI sum produces null DX.
+A null DX resets the ADX seed window; ADX is never replaced by zero.
+
+Published readings: `adx`, `di_plus`, `di_minus`.
+Published states: `adx_regime` = 1 at or above `threshold`, 0 below, null when
+ADX is null; `adx_slope` = sign of `ADX(t) - ADX(t-slope_bars)`; `di_state` =
+sign of `+DI - -DI`.
+Published event: `signal.di_cross` (series crossover, source `+DI`, reference
+`-DI`). ADX itself emits no directional event.
+
 
 ## 5. Events
 
@@ -479,12 +507,12 @@ is a reporting view and the strategy cannot read it.
 
 | Registry | Codes |
 |---|---|
-| Indicator | 1 EMA, 2 RSI, 3 ATR, 4 RVOL, 5 MACD, 6 pivots |
+| Indicator | 1 EMA, 2 RSI, 3 ATR, 4 RVOL, 5 MACD, 6 pivots, 9 ADX, 10 DMI |
 | Event type | 1 Level, 2 Divergence, 3 Signal |
 | Level subtype | 1 test/retest, 2 cross, 3 break |
 | Divergence subtype | 1 regular bullish, 2 regular bearish, 3 hidden bullish, 4 hidden bearish |
-| Signal subtype | 1 threshold crossing, 2 series crossover, 3 state change, 4 histogram slope flip, 5 zero cross |
-| Source | 1 EMA fast, 2 EMA mid, 3 EMA slow, 4 RSI, 5 ATR, 6 RVOL, 7 minor pivots, 8 major pivots, 9 Direction (legacy), 10 Structure (legacy), 11 Momentum (legacy), 12 progression, 13 MACD line, 14 MACD signal, 15 MACD histogram |
+| Signal subtype | 1 threshold crossing, 2 series crossover, 3 state change, 4 histogram slope flip, 5 zero cross, 6 trend continuation |
+| Source | 1 EMA fast, 2 EMA mid, 3 EMA slow, 4 RSI, 5 ATR, 6 RVOL, 7 minor pivots, 8 major pivots, 9 Direction (legacy), 10 Structure (legacy), 11 Momentum (legacy), 12 progression, 13 MACD line, 14 MACD signal, 15 MACD histogram, 16 ADX, 17 +DI, 18 -DI |
 | Role | 1 signal, 2 context, 3 diagnostic |
 | Scale | 1 minor, 2 major |
 | Target basis | 1 confirmed structural level, 2 ATR fallback |
@@ -508,6 +536,8 @@ outcome its claim names:
 | Level | Path reaction or break versus a matched barrier baseline |
 | Divergence | Path reversal after confirmation versus a matched barrier baseline |
 | Signal | Path directional move or volatility versus a matched barrier baseline |
+| ADX trend strength | Forward range expansion or trend persistence; not direction |
+| DI cross / trend continuation | Path directional move versus a matched barrier baseline |
 
 The path outcome is defined in
 [`path-validation.md`](path-validation.md): entry at the event close, an

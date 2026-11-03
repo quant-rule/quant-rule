@@ -708,14 +708,14 @@ fn event_and_leg_records_are_ordered_and_valid() {
         let max_subtype = match row.event_type_code {
             1 => 3,
             2 => 4,
-            _ => 5,
+            _ => 6,
         };
         assert!((1..=max_subtype).contains(&row.event_subtype_code));
-        assert!((1..=15).contains(&row.source_code));
+        assert!((1..=18).contains(&row.source_code));
         assert!((-1..=1).contains(&row.direction_code));
         if let Some(reference) = row.reference_code {
             assert!(
-                (1..=15).contains(&reference) || reference >= 1001,
+                (1..=18).contains(&reference) || reference >= 1001,
                 "reference code {reference} is outside the contract domain"
             );
         }

@@ -12,9 +12,11 @@
 //! use no randomness.
 
 pub mod divergence;
+pub mod dmi;
 pub mod level;
 pub(crate) mod order;
 pub mod signal;
+pub mod trend;
 
 /// The contract's event-type codes.
 ///
@@ -81,4 +83,18 @@ pub struct EventRecord {
     pub primary_value: Option<f64>,
     /// The compared level or value, when applicable.
     pub reference_value: Option<f64>,
+}
+
+/// Whether an event belongs to the legacy axis-report domain.
+///
+/// The v3-only ADX/DI and trend-continuation families are published in the flat
+/// report and the CSV artifacts. The legacy axis report, dashboard, and
+/// cross-timeframe event aggregates keep their historical domain so their
+/// independent fixtures remain stable regression guards.
+#[must_use]
+pub(crate) fn is_legacy_axis_event(event: &EventRecord) -> bool {
+    !(event.event_type == EventType::Signal
+        && (event.event_subtype_code == 6
+            || event.source_code == crate::events::dmi::DI_PLUS_SOURCE_CODE
+            || event.source_code == crate::events::dmi::DI_MINUS_SOURCE_CODE))
 }
