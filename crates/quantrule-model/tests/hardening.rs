@@ -159,6 +159,7 @@ fn every_event_is_available_no_earlier_than_it_occurs() {
     );
     let signal = SignalEventSeries::compute(
         &readings,
+        &quantrule_model::readings::MacdSeries::empty(readings.len()),
         &DirectionSeries::compute(&readings),
         &MomentumSeries::compute(&readings),
         &StructureSeries::compute(&candles, &readings),
@@ -234,6 +235,7 @@ fn event_detection_changes_no_axis_value() {
     );
     let _ = SignalEventSeries::compute(
         &readings,
+        &quantrule_model::readings::MacdSeries::empty(readings.len()),
         &direction_before,
         &momentum_before,
         &structure_before,

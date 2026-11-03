@@ -105,9 +105,9 @@ fn the_contract_column_widths_are_fixed() {
     assert_eq!(LAYER1_COLUMNS, 61);
     assert_eq!(LAYER2_COLUMNS, 73);
     assert_eq!(HIGHER_BLOCK_COLUMNS, 67);
-    assert_eq!(AGGREGATE_COLUMNS, 82);
-    assert_eq!(layer3_columns(0), 155);
-    assert_eq!(layer3_columns(3), 356);
+    assert_eq!(AGGREGATE_COLUMNS, 84);
+    assert_eq!(layer3_columns(0), 157);
+    assert_eq!(layer3_columns(3), 358);
 }
 
 #[test]
@@ -534,6 +534,7 @@ fn model_events(candles: &[Candle], timeframe_secs: u64, config: &LayerConfig) -
     );
     let signal = SignalEventSeries::compute(
         &readings,
+        &quantrule_model::readings::MacdSeries::empty(readings.len()),
         &direction,
         &momentum,
         &structure,
@@ -707,14 +708,14 @@ fn event_and_leg_records_are_ordered_and_valid() {
         let max_subtype = match row.event_type_code {
             1 => 3,
             2 => 4,
-            _ => 3,
+            _ => 5,
         };
         assert!((1..=max_subtype).contains(&row.event_subtype_code));
-        assert!((1..=12).contains(&row.source_code));
+        assert!((1..=15).contains(&row.source_code));
         assert!((-1..=1).contains(&row.direction_code));
         if let Some(reference) = row.reference_code {
             assert!(
-                (1..=3).contains(&reference) || reference >= 1001,
+                (1..=15).contains(&reference) || reference >= 1001,
                 "reference code {reference} is outside the contract domain"
             );
         }

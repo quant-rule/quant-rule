@@ -18,6 +18,7 @@ pub struct MarketStateConfig {
     pub structure_scale: PivotScale,
     readings: [ReadingsConfig; Timeframe::ALL.len()],
     overridden: [bool; Timeframe::ALL.len()],
+    macd_enabled: [bool; Timeframe::ALL.len()],
 }
 
 impl MarketStateConfig {
@@ -28,6 +29,7 @@ impl MarketStateConfig {
             structure_scale,
             readings: [ReadingsConfig::DEFAULT; Timeframe::ALL.len()],
             overridden: [false; Timeframe::ALL.len()],
+            macd_enabled: [false; Timeframe::ALL.len()],
         }
     }
 
@@ -54,6 +56,30 @@ impl MarketStateConfig {
         }
     }
 
+    /// Enables or disables MACD on every timeframe.
+    pub fn set_macd_default(&mut self, enabled: bool) {
+        self.macd_enabled = [enabled; Timeframe::ALL.len()];
+    }
+
+    /// Enables or disables MACD on one timeframe.
+    pub fn set_macd_enabled(&mut self, timeframe: Timeframe, enabled: bool) {
+        if let Some(index) = Timeframe::ALL
+            .iter()
+            .position(|candidate| *candidate == timeframe)
+        {
+            self.macd_enabled[index] = enabled;
+        }
+    }
+
+    /// Whether MACD is enabled for one timeframe.
+    #[must_use]
+    pub fn macd_enabled_for(&self, timeframe_secs: u64) -> bool {
+        Timeframe::ALL
+            .iter()
+            .position(|timeframe| u64::from(timeframe.seconds()) == timeframe_secs)
+            .is_some_and(|index| self.macd_enabled[index])
+    }
+
     /// Whether the timeframe's readings were explicitly overridden.
     #[must_use]
     pub fn is_overridden(&self, timeframe: Timeframe) -> bool {
@@ -77,4 +103,15 @@ pub struct TimeframeInput<'a> {
     pub timeframe_secs: u64,
     /// The closed candles for this timeframe.
     pub candles: &'a [Candle],
+}
+
+impl<'a> TimeframeInput<'a> {
+    /// Pairs one timeframe with its closed candles.
+    #[must_use]
+    pub const fn new(timeframe_secs: u64, candles: &'a [Candle]) -> Self {
+        Self {
+            timeframe_secs,
+            candles,
+        }
+    }
 }

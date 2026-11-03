@@ -18,6 +18,7 @@
 
 mod atr;
 mod ema;
+mod macd;
 mod pivots;
 mod rsi;
 mod rvol;
@@ -27,6 +28,7 @@ pub mod roles;
 
 pub use atr::atr;
 pub use ema::ema;
+pub use macd::MacdSeries;
 pub use pivots::{Pivot, PivotCandidate, PivotKind, PivotScale, PivotSeries};
 pub use rsi::rsi;
 pub use rvol::rvol;
@@ -55,6 +57,12 @@ pub struct ReadingsConfig {
     pub atr: usize,
     /// The relative-volume baseline period.
     pub rvol: usize,
+    /// The MACD fast period.
+    pub macd_fast: usize,
+    /// The MACD slow period.
+    pub macd_slow: usize,
+    /// The MACD signal period.
+    pub macd_signal: usize,
 }
 
 impl ReadingsConfig {
@@ -66,6 +74,9 @@ impl ReadingsConfig {
         rsi: 14,
         atr: 14,
         rvol: 20,
+        macd_fast: 12,
+        macd_slow: 26,
+        macd_signal: 9,
     };
 
     /// Builds a reading configuration.
@@ -88,7 +99,19 @@ impl ReadingsConfig {
             rsi,
             atr,
             rvol,
+            macd_fast: 12,
+            macd_slow: 26,
+            macd_signal: 9,
         }
+    }
+
+    /// Sets the MACD periods.
+    #[must_use]
+    pub const fn with_macd(mut self, fast: usize, slow: usize, signal: usize) -> Self {
+        self.macd_fast = fast;
+        self.macd_slow = slow;
+        self.macd_signal = signal;
+        self
     }
 
     /// Whether the periods are positive and the EMA periods are strictly
@@ -101,6 +124,9 @@ impl ReadingsConfig {
             && self.rsi > 0
             && self.atr > 0
             && self.rvol > 0
+            && self.macd_fast > 0
+            && self.macd_fast < self.macd_slow
+            && self.macd_signal > 0
     }
 }
 

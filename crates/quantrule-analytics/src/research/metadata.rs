@@ -184,6 +184,18 @@ pub(crate) fn codes_csv() -> String {
         "compact state change",
         "A compact axis state changed.",
     );
+    push(
+        "event_subtype.signal",
+        "4",
+        "histogram slope flip",
+        "The MACD histogram's slope changed sign.",
+    );
+    push(
+        "event_subtype.signal",
+        "5",
+        "zero cross",
+        "A series crossed zero.",
+    );
 
     push(
         "source",
@@ -251,6 +263,24 @@ pub(crate) fn codes_csv() -> String {
         "12",
         "leg progression",
         "The Progression axis's published leg.",
+    );
+    push(
+        "source",
+        "13",
+        "MACD line",
+        "The MACD fast-minus-slow line.",
+    );
+    push(
+        "source",
+        "14",
+        "MACD signal",
+        "The signal EMA of the MACD line.",
+    );
+    push(
+        "source",
+        "15",
+        "MACD histogram",
+        "The MACD line minus its signal.",
     );
 
     push(

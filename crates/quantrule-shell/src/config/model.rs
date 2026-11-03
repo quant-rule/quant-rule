@@ -59,7 +59,7 @@ fn parse_v2(
         file,
         "$.defaults",
         defaults_object,
-        &["ema", "rsi", "atr", "rvol"],
+        &["ema", "rsi", "atr", "rvol", "macd"],
     )?;
     for field in ["ema", "rsi", "atr", "rvol"] {
         read::field(file, "$.defaults", defaults_object, field)?;
@@ -81,6 +81,9 @@ fn parse_v2(
     )?;
 
     let mut config = MarketStateConfig::new(scale);
+    if let Some(active) = macd_active(file, "$.defaults", defaults_object)? {
+        config.set_macd_default(active);
+    }
     // The v2 contract makes the override map optional; an absent map means
     // every timeframe inherits the defaults.
     if let Some(timeframes_value) = object.get("timeframes") {
@@ -91,9 +94,17 @@ fn parse_v2(
                 .filter(|timeframe| timeframe.code() == code)
                 .ok_or_else(|| ConfigError::range(file, &path, "a supported timeframe", code))?;
             let override_object = read::object(file, &path, value)?;
-            read::check_fields(file, &path, override_object, &["ema", "rsi", "atr", "rvol"])?;
+            read::check_fields(
+                file,
+                &path,
+                override_object,
+                &["ema", "rsi", "atr", "rvol", "macd"],
+            )?;
             let override_readings = readings(file, &path, override_object, defaults)?;
             config.set_readings(timeframe, override_readings);
+            if let Some(active) = macd_active(file, &path, override_object)? {
+                config.set_macd_enabled(timeframe, active);
+            }
         }
     }
 
@@ -149,24 +160,58 @@ fn readings(
         config.rvol = positive_period(file, path, object, "rvol")?;
     }
 
+    if object.contains_key("macd") {
+        let macd_path = format!("{path}.macd");
+        let macd = read::object(file, &macd_path, read::field(file, path, object, "macd")?)?;
+        read::check_fields(
+            file,
+            &macd_path,
+            macd,
+            &["fast", "slow", "signal", "active"],
+        )?;
+        let fast = positive_period(file, &macd_path, macd, "fast")?;
+        let slow = positive_period(file, &macd_path, macd, "slow")?;
+        let signal = positive_period(file, &macd_path, macd, "signal")?;
+        config = config.with_macd(fast, slow, signal);
+    }
+
     if !config.is_valid() {
         return Err(ConfigError::range(
             file,
             path,
             "positive periods with strictly increasing EMA periods",
             &format!(
-                "ema=[{},{},{}], rsi={}, atr={}, rvol={}",
+                "ema=[{},{},{}], rsi={}, atr={}, rvol={}, macd={}/{}/{}",
                 config.ema_fast,
                 config.ema_mid,
                 config.ema_slow,
                 config.rsi,
                 config.atr,
-                config.rvol
+                config.rvol,
+                config.macd_fast,
+                config.macd_slow,
+                config.macd_signal
             ),
         ));
     }
 
     Ok(config)
+}
+
+fn macd_active(
+    file: &str,
+    path: &str,
+    object: &serde_json::Map<String, Value>,
+) -> Result<Option<bool>, ConfigError> {
+    let Some(macd_value) = object.get("macd") else {
+        return Ok(None);
+    };
+    let macd_path = format!("{path}.macd");
+    let macd = read::object(file, &macd_path, macd_value)?;
+    let Some(active) = macd.get("active") else {
+        return Ok(Some(true));
+    };
+    read::boolean(file, &format!("{macd_path}.active"), active).map(Some)
 }
 
 fn positive_period(

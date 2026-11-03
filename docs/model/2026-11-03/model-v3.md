@@ -1,7 +1,7 @@
 # Model v3 — Flat Indicator and Event Contract
 
 - Date: 2026-11-03 (UTC)
-- Status: **Approved**; implementation in progress (#346–#348).
+- Status: **Approved**; flat report and MACD implemented (#346, #347); v3 config and axis removal pending.
 - Issue: [#343](https://github.com/quant-rule/quant-rule/issues/343)
 - Epic: [#342](https://github.com/quant-rule/quant-rule/issues/342)
 - Plan: [`docs/execution-plans/2026-11-03/342-model-v3.md`](../../execution-plans/2026-11-03/342-model-v3.md)
@@ -484,7 +484,7 @@ is a reporting view and the strategy cannot read it.
 | Level subtype | 1 test/retest, 2 cross, 3 break |
 | Divergence subtype | 1 regular bullish, 2 regular bearish, 3 hidden bullish, 4 hidden bearish |
 | Signal subtype | 1 threshold crossing, 2 series crossover, 3 state change, 4 histogram slope flip, 5 zero cross |
-| Source | 1 EMA fast, 2 EMA mid, 3 EMA slow, 4 RSI, 5 ATR, 6 RVOL, 7 minor pivots, 8 major pivots, 9 MACD line, 10 MACD signal, 11 MACD histogram, 12 progression |
+| Source | 1 EMA fast, 2 EMA mid, 3 EMA slow, 4 RSI, 5 ATR, 6 RVOL, 7 minor pivots, 8 major pivots, 9 Direction (legacy), 10 Structure (legacy), 11 Momentum (legacy), 12 progression, 13 MACD line, 14 MACD signal, 15 MACD histogram |
 | Role | 1 signal, 2 context, 3 diagnostic |
 | Scale | 1 minor, 2 major |
 | Target basis | 1 confirmed structural level, 2 ATR fallback |

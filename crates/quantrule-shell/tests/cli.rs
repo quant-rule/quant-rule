@@ -1481,7 +1481,7 @@ fn research_export_writes_the_dataset_and_repeats_byte_for_byte() {
         .expect("the layer 3 file");
     let mut lines = layer3.lines();
     let header = lines.next().expect("a header");
-    assert_eq!(header.split(',').count(), 356);
+    assert_eq!(header.split(',').count(), 358);
     assert_eq!(lines.count(), 260);
 
     let manifest = fs::read_to_string(Path::new(&first).join("processed/demo/manifest.json"))

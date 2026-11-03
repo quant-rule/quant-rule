@@ -15,10 +15,16 @@ use crate::axes::direction::DirectionSeries;
 use crate::axes::momentum::MomentumSeries;
 use crate::axes::structure::StructureSeries;
 use crate::events::{EventRecord, EventType};
-use crate::readings::Readings;
+use crate::readings::{MacdSeries, Readings};
 
 /// The contract's source code for RSI 14.
 pub const RSI_SOURCE_CODE: u16 = 4;
+/// The contract's source code for the MACD line.
+pub const MACD_LINE_SOURCE_CODE: u16 = 13;
+/// The contract's source code for the MACD signal.
+pub const MACD_SIGNAL_SOURCE_CODE: u16 = 14;
+/// The contract's source code for the MACD histogram.
+pub const MACD_HISTOGRAM_SOURCE_CODE: u16 = 15;
 /// The contract's source code for EMA 20.
 pub const EMA20_SOURCE_CODE: u16 = 1;
 /// The contract's source code for EMA 50.
@@ -55,14 +61,20 @@ pub enum SignalSubtype {
     SeriesCrossover = 2,
     /// Code 3: a published compact state code changed.
     CompactStateChange = 3,
+    /// Code 4: the MACD histogram's slope changed sign.
+    HistogramSlopeFlip = 4,
+    /// Code 5: a series crossed zero.
+    ZeroCross = 5,
 }
 
 impl SignalSubtype {
     /// Every subtype, in contract code order.
-    pub const ALL: [Self; 3] = [
+    pub const ALL: [Self; 5] = [
         Self::ThresholdCrossing,
         Self::SeriesCrossover,
         Self::CompactStateChange,
+        Self::HistogramSlopeFlip,
+        Self::ZeroCross,
     ];
 
     /// The contract's numeric code.
@@ -78,6 +90,8 @@ impl SignalSubtype {
             1 => Some(Self::ThresholdCrossing),
             2 => Some(Self::SeriesCrossover),
             3 => Some(Self::CompactStateChange),
+            4 => Some(Self::HistogramSlopeFlip),
+            5 => Some(Self::ZeroCross),
             _ => None,
         }
     }
@@ -132,18 +146,20 @@ impl SignalConfig {
 /// use quantrule_model::axes::momentum::MomentumSeries;
 /// use quantrule_model::axes::structure::StructureSeries;
 /// use quantrule_model::events::signal::{SignalConfig, SignalEventSeries};
-/// use quantrule_model::readings::Readings;
+/// use quantrule_model::readings::{MacdSeries, Readings};
 ///
 /// let candle = Candle::new(0, 0, 1.0, 1.0, 1.0, 1.0, Some(10.0))
 ///     .expect("the example candle is valid");
 /// let candles = [candle];
 /// let readings = Readings::compute(&candles);
+/// let macd = MacdSeries::compute(&candles, 12, 26, 9);
 /// let direction = DirectionSeries::compute(&readings);
 /// let momentum = MomentumSeries::compute(&readings);
 /// let structure = StructureSeries::compute(&candles, &readings);
 /// let config = SignalConfig::new(NonZeroU64::new(300).expect("a non-zero timeframe"));
 /// let events = SignalEventSeries::compute(
 ///     &readings,
+///     &macd,
 ///     &direction,
 ///     &momentum,
 ///     &structure,
@@ -165,6 +181,7 @@ impl SignalEventSeries {
     #[must_use]
     pub fn compute(
         readings: &Readings,
+        macd: &MacdSeries,
         direction: &DirectionSeries,
         momentum: &MomentumSeries,
         structure: &StructureSeries,
@@ -172,6 +189,7 @@ impl SignalEventSeries {
     ) -> Self {
         let len = readings
             .len()
+            .min(macd.len())
             .min(direction.len())
             .min(momentum.len())
             .min(structure.len());
@@ -180,6 +198,7 @@ impl SignalEventSeries {
         for bar in 1..len {
             threshold_events(readings, bar, config, &mut events);
             ema_events(readings, bar, config, &mut events);
+            macd_events(macd, bar, config, &mut events);
             state_events(direction, momentum, structure, bar, config, &mut events);
         }
 
@@ -280,6 +299,86 @@ fn ema_events(
             Some(current_fast),
             Some(current_slow),
             direction,
+            bar,
+            config,
+        ));
+    }
+}
+
+fn macd_events(
+    macd: &MacdSeries,
+    bar: usize,
+    config: &SignalConfig,
+    events: &mut Vec<EventRecord>,
+) {
+    let (Some(previous_line), Some(current_line)) = (macd.line.get(bar - 1), macd.line.get(bar))
+    else {
+        return;
+    };
+    let (Some(previous_signal), Some(current_signal)) =
+        (macd.signal.get(bar - 1), macd.signal.get(bar))
+    else {
+        return;
+    };
+    let cross = if previous_line <= previous_signal && current_line > current_signal {
+        1
+    } else if previous_line >= previous_signal && current_line < current_signal {
+        -1
+    } else {
+        0
+    };
+    if cross != 0 {
+        events.push(signal_event(
+            SignalSubtype::SeriesCrossover,
+            MACD_LINE_SOURCE_CODE,
+            Some(u32::from(MACD_SIGNAL_SOURCE_CODE)),
+            Some(current_line),
+            Some(current_signal),
+            cross,
+            bar,
+            config,
+        ));
+    }
+    let zero_cross = if previous_line <= 0.0 && current_line > 0.0 {
+        1
+    } else if previous_line >= 0.0 && current_line < 0.0 {
+        -1
+    } else {
+        0
+    };
+    if zero_cross != 0 {
+        events.push(signal_event(
+            SignalSubtype::ZeroCross,
+            MACD_LINE_SOURCE_CODE,
+            None,
+            Some(current_line),
+            Some(0.0),
+            zero_cross,
+            bar,
+            config,
+        ));
+    }
+
+    let (Some(two_back), Some(previous), Some(current)) = (
+        macd.histogram.get(bar - 2),
+        macd.histogram.get(bar - 1),
+        macd.histogram.get(bar),
+    ) else {
+        return;
+    };
+    let previous_slope = previous - two_back;
+    let current_slope = current - previous;
+    if previous_slope == 0.0 || current_slope == 0.0 {
+        return;
+    }
+    if previous_slope.signum() != current_slope.signum() {
+        events.push(signal_event(
+            SignalSubtype::HistogramSlopeFlip,
+            MACD_HISTOGRAM_SOURCE_CODE,
+            None,
+            Some(current_slope),
+            Some(previous_slope),
+            if current_slope > 0.0 { 1 } else { -1 },
             bar,
             config,
         ));
@@ -507,7 +606,14 @@ mod tests {
         let direction = DirectionSeries::compute(readings);
         let momentum = MomentumSeries::compute(readings);
         let structure = StructureSeries::compute(candles, readings);
-        SignalEventSeries::compute(readings, &direction, &momentum, &structure, &config())
+        SignalEventSeries::compute(
+            readings,
+            &crate::readings::MacdSeries::empty(readings.len()),
+            &direction,
+            &momentum,
+            &structure,
+            &config(),
+        )
     }
 
     fn events_of(
@@ -522,6 +628,58 @@ mod tests {
                 event.event_subtype_code == subtype.code() && event.source_code == source_code
             })
             .collect()
+    }
+
+    #[test]
+    fn macd_cross_zero_cross_and_histogram_flip_are_distinct() {
+        use crate::readings::{MacdSeries, ReadingSeries};
+
+        let candles = candles(&[100.0; 5]);
+        let readings = readings_with(
+            &candles,
+            flat(5, 100.0),
+            flat(5, 100.0),
+            flat(5, 100.0),
+            flat(5, 50.0),
+            flat(5, 10.0),
+        );
+        let macd = MacdSeries {
+            line: ReadingSeries::new(vec![None, Some(-0.2), Some(-0.1), Some(0.1), Some(0.15)]),
+            signal: ReadingSeries::new(vec![None, Some(-0.1), Some(-0.1), Some(0.0), Some(0.1)]),
+            histogram: ReadingSeries::new(vec![None, Some(-0.1), Some(0.0), Some(0.1), Some(0.05)]),
+        };
+        let direction = DirectionSeries::compute(&readings);
+        let momentum = MomentumSeries::compute(&readings);
+        let structure = StructureSeries::compute(&candles, &readings);
+        let series = SignalEventSeries::compute(
+            &readings,
+            &macd,
+            &direction,
+            &momentum,
+            &structure,
+            &config(),
+        );
+
+        assert!(
+            series.events().iter().any(|event| {
+                event.event_subtype_code == SignalSubtype::SeriesCrossover.code()
+                    && event.source_code == super::MACD_LINE_SOURCE_CODE
+            }),
+            "the line/signal cross must be emitted"
+        );
+        let zero: Vec<_> = series
+            .events()
+            .iter()
+            .filter(|event| event.event_subtype_code == SignalSubtype::ZeroCross.code())
+            .collect();
+        assert_eq!(zero.len(), 1);
+        let flips: Vec<_> = series
+            .events()
+            .iter()
+            .filter(|event| event.event_subtype_code == SignalSubtype::HistogramSlopeFlip.code())
+            .collect();
+        assert_eq!(flips.len(), 1);
+        assert_eq!(flips[0].direction_code, -1);
     }
 
     #[test]
@@ -925,6 +1083,7 @@ mod tests {
 
         let events = SignalEventSeries::compute(
             &readings,
+            &crate::readings::MacdSeries::empty(readings.len()),
             &direction_before,
             &momentum_before,
             &structure_before,

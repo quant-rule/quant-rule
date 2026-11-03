@@ -123,7 +123,14 @@ fn compute(candles: &[Candle]) -> SignalEventSeries {
     let direction = DirectionSeries::compute(&readings);
     let momentum = MomentumSeries::compute(&readings);
     let structure = StructureSeries::compute(candles, &readings);
-    SignalEventSeries::compute(&readings, &direction, &momentum, &structure, &config())
+    SignalEventSeries::compute(
+        &readings,
+        &quantrule_model::readings::MacdSeries::empty(readings.len()),
+        &direction,
+        &momentum,
+        &structure,
+        &config(),
+    )
 }
 
 fn assert_close(actual: f64, expected: f64, context: &str) {

@@ -91,7 +91,7 @@ fn two_renders_are_byte_identical() {
 #[test]
 fn the_layer_widths_match_the_contract() {
     let bundle = bundle();
-    for (name, width) in [("layer1.csv", 61), ("layer2.csv", 73), ("layer3.csv", 356)] {
+    for (name, width) in [("layer1.csv", 61), ("layer2.csv", 73), ("layer3.csv", 358)] {
         let text = &file(&bundle, name).contents;
         let mut lines = text.lines();
         let header = lines.next().expect("a header");
@@ -218,7 +218,7 @@ fn the_dictionary_documents_every_column() {
     assert_eq!(count("m1.csv"), 6);
     assert_eq!(count("layer1.csv"), 61);
     assert_eq!(count("layer2.csv"), 73);
-    assert_eq!(count("layer3.csv"), 356);
+    assert_eq!(count("layer3.csv"), 358);
 
     let layer3 = &file(&bundle, "layer3.csv").contents;
     let header = layer3.lines().next().expect("a header");

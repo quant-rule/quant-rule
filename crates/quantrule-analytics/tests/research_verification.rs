@@ -207,7 +207,7 @@ fn the_export_is_byte_identical_and_complete() {
     let second = render_dataset(&dataset.layers, &dataset.m1, &meta()).expect("the second render");
     assert_eq!(first, second);
 
-    for (name, width) in [("layer1.csv", 61), ("layer2.csv", 73), ("layer3.csv", 356)] {
+    for (name, width) in [("layer1.csv", 61), ("layer2.csv", 73), ("layer3.csv", 358)] {
         let text = &file(&first, name).contents;
         for line in text.lines() {
             assert_eq!(line.split(',').count(), width, "{name}: {line}");
@@ -226,7 +226,7 @@ fn the_export_is_byte_identical_and_complete() {
     assert_eq!(count("m1.csv"), 6);
     assert_eq!(count("layer1.csv"), 61);
     assert_eq!(count("layer2.csv"), 73);
-    assert_eq!(count("layer3.csv"), 356);
+    assert_eq!(count("layer3.csv"), 358);
 
     let codes = &file(&first, "codes.csv").contents;
     assert!(codes.contains("resolution_bucket,0,"));

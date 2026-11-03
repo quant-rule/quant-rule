@@ -26,7 +26,7 @@ context atr_ratio=0.980482452 rvol_ratio=0.996056985 code=2
 consensus bullish=1 bearish=1 neutral=1 weakest=1
 events total=553
 events_type level=438 divergence=6 signal=109
-events_subtype level=334/43/61 divergence=0/2/0/4 signal=38/2/69
+events_subtype level=334/43/61 divergence=0/2/0/4 signal=38/2/69/0/0
 events_tf 300 total=553 level=438 divergence=6 signal=109 latest=1:1:259:259:8:0:1064:96.550000000:96.550000000
 chart timeframe=300 source_bars=260 bucket_size=2
 chart_bar index=0 first=0 last=1 open_time=1700000000 last_open_time=1700000300 open=99.810000000 high=100.300000000 low=99.520000000 close=100.160000000 volume=7013.000000000 direction=- momentum=- structure=- stage=-

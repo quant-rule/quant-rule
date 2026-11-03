@@ -25,7 +25,7 @@ use crate::events::divergence::{DivergenceConfig, DivergenceEventSeries};
 use crate::events::level::{LevelEventConfig, LevelEventSeries};
 use crate::events::signal::{SignalConfig, SignalEventSeries};
 use crate::input::{MarketStateConfig, TimeframeInput};
-use crate::readings::{PivotKind, PivotScale, PivotSeries, Readings};
+use crate::readings::{MacdSeries, PivotKind, PivotScale, PivotSeries, Readings};
 use crate::retention::{EventBatch, EventHistory};
 
 /// The six scalar readings for one closed bar.
@@ -90,6 +90,7 @@ pub struct TimeframeModel {
     candles: Vec<Candle>,
     open_times: Vec<i64>,
     readings: Readings,
+    macd: MacdSeries,
     direction: DirectionSeries,
     momentum: MomentumSeries,
     structure: StructureSeries,
@@ -114,6 +115,16 @@ impl TimeframeModel {
 
         let readings_config = config.readings_for(input.timeframe_secs);
         let readings = Readings::compute_with_config(input.candles, &readings_config);
+        let macd = if config.macd_enabled_for(input.timeframe_secs) {
+            MacdSeries::compute(
+                input.candles,
+                readings_config.macd_fast,
+                readings_config.macd_slow,
+                readings_config.macd_signal,
+            )
+        } else {
+            MacdSeries::empty(input.candles.len())
+        };
         let direction = DirectionSeries::compute(&readings);
         let momentum = MomentumSeries::compute(&readings);
         let structure = StructureSeries::compute_with_config(
@@ -139,6 +150,7 @@ impl TimeframeModel {
         );
         let signal_events = SignalEventSeries::compute(
             &readings,
+            &macd,
             &direction,
             &momentum,
             &structure,
@@ -186,6 +198,7 @@ impl TimeframeModel {
             candles: input.candles.to_vec(),
             open_times,
             readings,
+            macd,
             direction,
             momentum,
             structure,
@@ -228,6 +241,12 @@ impl TimeframeModel {
     #[must_use]
     pub const fn readings(&self) -> &Readings {
         &self.readings
+    }
+
+    /// The MACD series computed for this timeframe.
+    #[must_use]
+    pub const fn macd(&self) -> &MacdSeries {
+        &self.macd
     }
 
     /// The pivot series computed for this timeframe.

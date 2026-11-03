@@ -20,8 +20,8 @@ pub struct EventSubtypeCounts {
     pub level: [u32; 3],
     /// Divergence subtypes 1..4.
     pub divergence: [u32; 4],
-    /// Signal subtypes 1..3.
-    pub signal: [u32; 3],
+    /// Signal subtypes 1..5.
+    pub signal: [u32; 5],
 }
 
 impl EventSubtypeCounts {
