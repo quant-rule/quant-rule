@@ -158,7 +158,7 @@ committed, and the candles, charts, reports, and databases stay local.
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | Unified timeframe ladder | Complete; Phases 1–9 merged through PRs #238–#246; #246 merged as `7c865de` | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
-| Model v3: flat indicator/event model, validation gate, and benchmarks | Approved 2026-11-03; implementation in progress | `docs/execution-plans/2026-11-03/342-model-v3.md` |
+| Model v3: flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; strategy v8 blocked | `docs/execution-plans/2026-11-03/342-model-v3.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 
