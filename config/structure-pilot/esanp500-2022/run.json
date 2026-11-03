@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "esanp500-2022",
+  "policy": "../shared/policy.json",
+  "data": "data.json",
+  "model": "../shared/model.json",
+  "strategy": "../shared/strategy.json",
+  "execution": "../shared/execution.json",
+  "portfolio": "../shared/portfolio.json",
+  "analytics": "../shared/analytics.json",
+  "output_root": "../../../data/structure-pilot/esanp500-2022"
+}
