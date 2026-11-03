@@ -204,9 +204,12 @@ not refreshed. A failure is not a partially successful run.
 
 `evidence.py <run-dir>` then writes `artifacts/evidence.json` from the published
 report. Strategy and portfolio runs extract `return` (`summary.total_return`),
-`max_drawdown`, `trades`, `profit_factor`, `win_rate`, `halted`, and
-`final_equity`. A model run records the model version, view contract, data
-version, requested period, ladder, and per-timeframe coverage. A missing report
+`max_drawdown`, `trades`, `profit_factor`, `win_rate`, `halted`, `final_equity`,
+`time_to_target_days`, `target_reached`, `max_drawdown_peak_to_trough_days`,
+`max_drawdown_recovery_days`, `longest_underwater_days`,
+`benchmark_buy_and_hold_return`, `benchmark_random_median_return`, and
+`strategy_percentile_vs_random`. A model run records the model version, view
+contract, data version, requested period, ladder, and per-timeframe coverage. A missing report
 leaves the field null and adds a note; it is never replaced by zero.
 
 ## Index

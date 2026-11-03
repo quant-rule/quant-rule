@@ -203,3 +203,15 @@ independent, until an independent record exists.
 
 Updated as the phases complete. The plan is marked `Verified` only when every
 acceptance criterion has been evaluated against observed evidence.
+
+| Phase | Evidence | Status |
+|---|---|---|
+| 0 (#343) | Model v3 contract, ADR, registry schema, superseded notices; PR #352 | Merged |
+| 1 (#344) | Registry population and CI check | Pending |
+| 2 (#345) | Buy-and-hold, random-timing replay, time metrics, defaults; PR open | Implemented |
+| 3 (#346) | Model v3 config and flat output | Pending |
+| 4 (#347) | MACD, exhaustive artifacts, trace | Pending |
+| 5 (#348) | Claim-specific validation and model run | Pending |
+| 6 | Gate decision | Pending |
+| 7 (#349) | Strategy v8 | Pending |
+| 8 (#350) | Docs/data consolidation and tombstones | Pending |

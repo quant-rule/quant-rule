@@ -5,6 +5,7 @@
 //! or model logic.
 
 #![forbid(unsafe_code)]
+#![recursion_limit = "512"]
 
 mod chart;
 mod command;

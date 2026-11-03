@@ -513,11 +513,24 @@ pub(crate) enum LineUnit {
     Fraction,
 }
 
+/// A random-trading envelope aligned to the chart's dates.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct RandomBand {
+    /// The fifth-percentile equity at each date.
+    pub(crate) p05: Vec<(i64, f64)>,
+    /// The median equity at each date.
+    pub(crate) p50: Vec<(i64, f64)>,
+    /// The ninety-fifth-percentile equity at each date.
+    pub(crate) p95: Vec<(i64, f64)>,
+}
+
 /// Optional overlays for an equity or drawdown line chart.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct LineOverlay<'a> {
     /// A benchmark series aligned to the same dates, when one exists.
     pub(crate) benchmark: Option<&'a [(i64, f64)]>,
+    /// A random-trading envelope aligned to the same dates.
+    pub(crate) random: Option<&'a RandomBand>,
     /// A horizontal limit, in the chart's unit.
     pub(crate) limit: Option<f64>,
     /// The halt bar's date and the value at the halt, when the halt latched.
@@ -568,6 +581,12 @@ pub(crate) fn render_line_png(
             max = max.max(*value);
         }
     }
+    if let Some(random) = overlay.random {
+        for (_, value) in random.p05.iter().chain(&random.p95) {
+            min = min.min(*value);
+            max = max.max(*value);
+        }
+    }
     if let Some(limit) = overlay.limit {
         min = min.min(limit);
         max = max.max(limit);
@@ -606,6 +625,19 @@ pub(crate) fn render_line_png(
 
     let step = f64::from(PLOT_WIDTH) / (points.len().max(2) - 1) as f64;
     let x_at = |index: usize| LEFT + (index as f64 * step).round() as i32;
+    if let Some(random) = overlay.random {
+        for index in 0..points.len() {
+            let Some((_, low)) = random.p05.get(index) else {
+                continue;
+            };
+            let Some((_, high)) = random.p95.get(index) else {
+                continue;
+            };
+            let x = x_at(index);
+            canvas.line(x, y(*high), x, y(*low), RANDOM_BAND);
+        }
+        draw_line_series(&mut canvas, &random.p50, x_at, &y, RANDOM_MEDIAN);
+    }
     if let Some(benchmark) = overlay.benchmark {
         draw_line_series(&mut canvas, benchmark, x_at, &y, SECONDARY);
     }
@@ -647,7 +679,12 @@ pub(crate) fn render_line_png(
         );
     }
 
-    draw_line_legend(&mut canvas, overlay.benchmark.is_some(), color);
+    draw_line_legend(
+        &mut canvas,
+        overlay.benchmark.is_some(),
+        overlay.random.is_some(),
+        color,
+    );
     let first = format_utc_timestamp(points[0].0);
     let last = format_utc_timestamp(points[points.len() - 1].0);
     canvas.text(LEFT, BOTTOM + 18, &first[..10], MUTED, 1);
@@ -680,21 +717,34 @@ fn draw_line_series(
     }
 }
 
-fn draw_line_legend(canvas: &mut Canvas, benchmark: bool, color: Rgb) {
+fn draw_line_legend(canvas: &mut Canvas, benchmark: bool, random: bool, color: Rgb) {
     let mut x = LEFT;
     canvas.fill_rect(x, 66, 8, 8, color);
     x += 14;
     canvas.text(x, 66, "SERIES", MUTED, 1);
     if benchmark {
-        x += 62;
+        x += 72;
         canvas.fill_rect(x, 66, 8, 8, SECONDARY);
         x += 14;
         canvas.text(x, 66, "BUY & HOLD", MUTED, 1);
+        x += 100;
+    }
+    if random {
+        if !benchmark {
+            x += 72;
+        }
+        canvas.fill_rect(x, 66, 8, 8, RANDOM_MEDIAN);
+        x += 14;
+        canvas.text(x, 66, "RANDOM 5-95", MUTED, 1);
     }
 }
 
 /// The equity chart's benchmark line.
 const SECONDARY: Rgb = Rgb::new(171, 71, 188);
+/// The random envelope band.
+const RANDOM_BAND: Rgb = Rgb::new(38, 50, 56);
+/// The random median line.
+const RANDOM_MEDIAN: Rgb = Rgb::new(144, 164, 174);
 /// The drawdown limit line.
 const LIMIT: Rgb = Rgb::new(255, 167, 38);
 /// The halt annotation.

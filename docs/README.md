@@ -67,6 +67,7 @@ the remaining pending phase.
 |---|---|---|
 | Available timeframes | `quantrule.data/v3`; implemented by #230 | `docs/config/2026-10-30/data-v3.md` |
 | Model v3 flat indicator/event | `quantrule.model/v3`; schema approved 2026-11-03; parser in #346 | `docs/model/2026-11-03/model-v3.md` |
+| Portfolio benchmarks and time metrics | Implemented 2026-11-03 (#345) | `docs/config/2026-11-03/portfolio-benchmarks.md` |
 | Per-timeframe model | `quantrule.model/v2`; superseded by v3; v2 parser retired in #346 | `docs/config/2026-10-30/model-v2.md` |
 | Active ladder and context | Implemented (#233, #235); `ladder-context` is live | `docs/config/2026-10-30/strategy-v3.md` |
 | Fill mechanics | `quantrule.execution/v3`; bracket resolution and risk-free config implemented (#234), v3 schema pending | `docs/config/2026-10-30/execution-v3.md` |
