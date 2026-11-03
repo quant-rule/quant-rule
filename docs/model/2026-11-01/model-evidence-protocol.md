@@ -1,7 +1,7 @@
 # Model Evidence Protocol
 
 - Date: 2026-11-01 (UTC)
-- Status: Current for improvement runs
+- Status: Superseded by the model v3 validation boundary ([model v3](../2026-11-03/model-v3.md) §14). Retained as history of the axis harness.
 - Scope: model-tier evidence; evaluation only, never the signal path
 - Tooling: `tools/improvement/model_confidence.py`
 

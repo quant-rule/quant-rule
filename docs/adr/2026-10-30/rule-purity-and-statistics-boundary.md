@@ -1,7 +1,7 @@
 # ADR: Rule Purity and the Statistics Boundary
 
 - Date: 2026-10-30
-- Status: Accepted
+- Status: Superseded in part by [ADR 2026-11-03](../2026-11-03/flat-indicator-event-model.md): the strategy now reads events and states, not axis values. The statistics boundary below remains in force.
 - Work item: `audit-improvement-workflow`
 
 ## Context

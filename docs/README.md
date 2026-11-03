@@ -11,7 +11,7 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | Agent roles | The quant and engineering roles, their handoffs, and when each is required. | `docs/roles/<YYYY-MM-DD>/<file>.md` |
 | Architecture | The living system documentation: overview, product kata, architecture characteristics, style/quantum, and cross-cutting views. | `docs/architecture/<file>.md` |
 | Tutorials | End-to-end procedures that run the product through shell commands, including role labs. | `docs/tutorials/<YYYY-MM-DD>/<file>.md` |
-| Model | The analytical model's contract: the four axes, the numeric output fields, the event model, and the aggregation rules. The implementation follows it. | `docs/model/<YYYY-MM-DD>/<file>.md` |
+| Model | The analytical model's contract: the indicator and event definitions, the numeric output fields, the progression rules, and the validation boundary. The implementation follows it. | `docs/model/<YYYY-MM-DD>/<file>.md` |
 | Analytics and research | The research output contract and the dataset definition: layers, columns, null rules, alignment, and export metadata. | `docs/analytics/<YYYY-MM-DD>/<file>.md` |
 | Configuration | The per-engine JSON configuration: files, fields, validation, and cross-config rules. | `docs/config/<YYYY-MM-DD>/<file>.md` |
 | Reports | The per-engine report bundles: artifacts, JSON and CSV schemas, boundaries, and availability. | `docs/reports/<YYYY-MM-DD>/<file>.md` |
@@ -36,11 +36,12 @@ The baseline decision is listed in the current architecture decisions below.
 
 | Contract | Status | Path |
 |---|---|---|
-| Four-axis analytical model | Contract | `docs/model/2026-10-21/four-axis-analytical-model.md` |
-| Per-timeframe model | Approved (#228); readings and reporting-view extraction implemented (#231, #232) | `docs/model/2026-10-30/per-timeframe-model.md` |
-| DashboardState four-axis CLI view | Approved (#123) | `docs/model/2026-10-25/dashboard-state.md` |
-| MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified (#152) | `docs/model/2026-10-27/market-report.md` |
-| Model evidence protocol | Current for improvement runs; evaluation only | `docs/model/2026-11-01/model-evidence-protocol.md` |
+| Model v3 flat indicator/event model | Approved 2026-11-03; implementation in progress (#346–#348) | `docs/model/2026-11-03/model-v3.md` |
+| Four-axis analytical model | Superseded for axes by model v3; retained as history | `docs/model/2026-10-21/four-axis-analytical-model.md` |
+| Per-timeframe model | Superseded for axes by model v3; the per-timeframe boundary remains | `docs/model/2026-10-30/per-timeframe-model.md` |
+| DashboardState four-axis CLI view | Historical; the axis view is retired with model v3 | `docs/model/2026-10-25/dashboard-state.md` |
+| MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified (#152); axis view retired with model v3 | `docs/model/2026-10-27/market-report.md` |
+| Model evidence protocol | Superseded by the model v3 validation boundary; retained as history | `docs/model/2026-11-01/model-evidence-protocol.md` |
 
 ## Current run contracts
 
@@ -53,8 +54,8 @@ The baseline decision is listed in the current architecture decisions below.
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/reports/2026-10-31/diagnosis-v1.md` |
 | BTCUSD 2024 example run | Current example: five bundles, 29 artifacts, byte-identical rerun; captured on 2026-10-31 | `config/examples/btcusd-2024/` |
 | Improvement run contract | Current; schema `quantrule.improvement-run/v1` implemented by `tools/improvement/` | `docs/workflows/run-contract.md` |
-| Strategy candidates v3–v6 | Current registry; none is a validated baseline | `docs/config/2026-11-01/strategy-candidates.md` |
-| Strategy v6 breakout | Experimental candidate; implemented; not yet validated | `docs/config/2026-11-01/strategy-v6.md` |
+| Strategy candidates v3–v7 | Retired by model v3; retained as history; none is a validated baseline | `docs/config/2026-11-01/strategy-candidates.md` |
+| Strategy v6 breakout | Retired by model v3; retained as history | `docs/config/2026-11-01/strategy-v6.md` |
 
 ### Approved target contracts
 
@@ -65,7 +66,8 @@ the remaining pending phase.
 | Contract | Status | Path |
 |---|---|---|
 | Available timeframes | `quantrule.data/v3`; implemented by #230 | `docs/config/2026-10-30/data-v3.md` |
-| Per-timeframe model | `quantrule.model/v2`; readings implemented (#231) | `docs/config/2026-10-30/model-v2.md` |
+| Model v3 flat indicator/event | `quantrule.model/v3`; schema approved 2026-11-03; parser in #346 | `docs/model/2026-11-03/model-v3.md` |
+| Per-timeframe model | `quantrule.model/v2`; superseded by v3; v2 parser retired in #346 | `docs/config/2026-10-30/model-v2.md` |
 | Active ladder and context | Implemented (#233, #235); `ladder-context` is live | `docs/config/2026-10-30/strategy-v3.md` |
 | Fill mechanics | `quantrule.execution/v3`; bracket resolution and risk-free config implemented (#234), v3 schema pending | `docs/config/2026-10-30/execution-v3.md` |
 | Strategy/execution boundary | `TradeIntent`; implemented (#234) and wired into the unified rule (#235) | `docs/config/2026-10-30/trade-intent.md` |
@@ -159,7 +161,8 @@ Execution plans are repository documents. An external draft is a scratch copy; s
 
 | Decision | Status | Path |
 |---|---|---|
-| Four-axis analytical model | Accepted | `docs/adr/2026-10-21/four-axis-analytical-model.md` |
+| Flat indicator/event model; axes removed from decisions | Accepted 2026-11-03 | `docs/adr/2026-11-03/flat-indicator-event-model.md` |
+| Four-axis analytical model | Superseded for axes 2026-11-03; retained as history | `docs/adr/2026-10-21/four-axis-analytical-model.md` |
 | SQLite per-bar store and research schema | Accepted | `docs/adr/2026-10-24/sqlite-store.md` |
 | History, retention, and display policy | Accepted | `docs/adr/2026-10-25/history-retention-and-display-policy.md` |
 | Market analysis and full-execution backtest boundaries | Accepted (#145); superseded in part by the 2026-10-28 decision | `docs/adr/2026-10-27/analysis-and-backtest-boundaries.md` |

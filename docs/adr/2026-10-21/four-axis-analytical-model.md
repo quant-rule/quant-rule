@@ -1,7 +1,7 @@
 # ADR: The Four-Axis Analytical Model
 
 - Date: 2026-10-21 (UTC)
-- Status: Accepted — confirmed by the human on 2026-10-21 (issue [#44](https://github.com/quant-rule/quant-rule/issues/44))
+- Status: Superseded for axes by [ADR 2026-11-03](../2026-11-03/flat-indicator-event-model.md). Accepted 2026-10-21 (issue [#44](https://github.com/quant-rule/quant-rule/issues/44)); retained as history.
 - Issue: [#14](https://github.com/quant-rule/quant-rule/issues/14) — feat: model engine, contract and implementation breakdown
 - Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
 - Plan: [`docs/execution-plans/2026-10-21/14-model-engine.md`](../../execution-plans/2026-10-21/14-model-engine.md)
