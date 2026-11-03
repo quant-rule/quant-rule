@@ -1,7 +1,7 @@
 # Indicator and Parameter Registry
 
 - Date: 2026-11-03 (UTC)
-- Status: Schema defined; population in [#344](https://github.com/quant-rule/quant-rule/issues/344)
+- Status: Populated 2026-11-03; CI check in `tools/check_registry.py`
 - Contract: [`docs/model/2026-11-03/model-v3.md`](../model/2026-11-03/model-v3.md)
 - ADR: [`docs/adr/2026-11-03/flat-indicator-event-model.md`](../adr/2026-11-03/flat-indicator-event-model.md)
 
@@ -26,8 +26,8 @@ documented contract.
 docs/registry/
   README.md          this guide
   schema.json        JSON Schema for the registry file
-  indicators.json    indicators, events, parameters, and codes (populated in #344)
-  indicators.md      generated human-readable table (populated in #344)
+  indicators.json    indicators, events, parameters, and codes
+  indicators.md      generated human-readable table
 ```
 
 `indicators.json` is the source of truth. `indicators.md` is generated from it
