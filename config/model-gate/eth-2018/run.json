@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "eth-2018",
+  "policy": "../shared/policy-ETHUSD.json",
+  "data": "data.json",
+  "model": "../shared/model.json",
+  "strategy": "../shared/strategy.json",
+  "execution": "../shared/execution.json",
+  "portfolio": "../shared/portfolio.json",
+  "analytics": "../shared/analytics.json",
+  "output_root": "../../../data/model-gate/eth-2018"
+}
