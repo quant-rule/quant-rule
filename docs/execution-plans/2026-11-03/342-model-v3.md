@@ -207,7 +207,7 @@ acceptance criterion has been evaluated against observed evidence.
 | Phase | Evidence | Status |
 |---|---|---|
 | 0 (#343) | Model v3 contract, ADR, registry schema, superseded notices; PR #352 | Merged |
-| 1 (#344) | Registry population and CI check | Pending |
+| 1 (#344) | Registry populated with 8 indicators, 14 events, 51 parameters; CI check added | Implemented |
 | 2 (#345) | Buy-and-hold, random-timing replay, time metrics, defaults; PR open | Implemented |
 | 3 (#346) | Flat report section with readings, states, levels, events, progression; legacy axis view remains | Implemented; v3 config/active flags and final axis removal pending |
 | 4 (#347) | MACD, full readings/events/levels/legs CSV artifacts; source codes 13–15 | Implemented |

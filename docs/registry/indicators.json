@@ -1,0 +1,1348 @@
+{
+  "schema": "quantrule.registry/v1",
+  "version": "2026-11-03.1",
+  "indicators": [
+    {
+      "id": "ema",
+      "code": 1,
+      "name": "Exponential moving average",
+      "taxonomy": "trend",
+      "role": "signal",
+      "claim": "The relative position of the fast, middle, and slow EMA describes directional alignment; a stack state is followed by a directional move more often than the base rate.",
+      "formula": "seed = SMA(first n closes); alpha = 2/(n+1); ema_t = alpha*close_t + (1-alpha)*ema_(t-1)",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.ema.periods"
+      ],
+      "outputs": [
+        "ema_fast",
+        "ema_mid",
+        "ema_slow",
+        "ema_stack_state"
+      ],
+      "availability": "n closed bars",
+      "events": [
+        "signal.ema_pair_cross",
+        "signal.ema_stack_change"
+      ],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "rsi",
+      "code": 2,
+      "name": "Relative strength index",
+      "taxonomy": "momentum",
+      "role": "signal",
+      "claim": "RSI threshold crossings mark momentum shifts; the forward return after a crossing differs from the base rate.",
+      "formula": "Wilder average gain/loss; rsi = 100 - 100/(1 + avg_gain/avg_loss)",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.rsi.period",
+        "model.signal.rsi_levels"
+      ],
+      "outputs": [
+        "rsi",
+        "rsi_zone"
+      ],
+      "availability": "n+1 closed bars",
+      "events": [
+        "signal.rsi_threshold",
+        "signal.rsi_zone_change",
+        "divergence.rsi_regular_bullish",
+        "divergence.rsi_regular_bearish",
+        "divergence.rsi_hidden_bullish",
+        "divergence.rsi_hidden_bearish"
+      ],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "atr",
+      "code": 3,
+      "name": "Average true range",
+      "taxonomy": "volatility",
+      "role": "context",
+      "claim": "ATR and ATR ratio describe volatility context; they do not predict direction.",
+      "formula": "TR = max(high-low, |high-prev_close|, |low-prev_close|); Wilder mean",
+      "inputs": [
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.atr.period"
+      ],
+      "outputs": [
+        "atr",
+        "atr_ratio"
+      ],
+      "availability": "n+1 closed bars",
+      "events": [],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "rvol",
+      "code": 4,
+      "name": "Relative volume",
+      "taxonomy": "volatility",
+      "role": "context",
+      "claim": "Relative volume describes participation; it does not predict direction.",
+      "formula": "volume / SMA(volume, n)",
+      "inputs": [
+        "volume"
+      ],
+      "parameters": [
+        "model.rvol.period"
+      ],
+      "outputs": [
+        "rvol"
+      ],
+      "availability": "n closed bars with volume",
+      "events": [],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "macd",
+      "code": 5,
+      "name": "Moving Average Convergence Divergence",
+      "taxonomy": "trend",
+      "role": "signal",
+      "claim": "MACD line/signal and histogram changes mark trend and momentum shifts; forward outcomes differ from the base rate.",
+      "formula": "line = EMA(close,fast) - EMA(close,slow); signal = EMA(line,signal); histogram = line - signal",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.macd.fast",
+        "model.macd.slow",
+        "model.macd.signal",
+        "model.macd.active"
+      ],
+      "outputs": [
+        "macd_line",
+        "macd_signal",
+        "macd_histogram",
+        "macd_state",
+        "macd_histogram_state"
+      ],
+      "availability": "slow bars for the line; slow+signal-1 for the signal",
+      "events": [
+        "signal.macd_line_signal_cross",
+        "signal.macd_histogram_slope_flip",
+        "signal.macd_zero_cross"
+      ],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "pivots",
+      "code": 6,
+      "name": "Confirmed swing pivots",
+      "taxonomy": "structure",
+      "role": "signal",
+      "claim": "Confirmed pivots define price levels; a level test is followed by a bounce or break more often than a placebo level.",
+      "formula": "strict local extreme over k bars each side; confirmed at i+k",
+      "inputs": [
+        "high",
+        "low"
+      ],
+      "parameters": [
+        "model.pivots.minor",
+        "model.pivots.major"
+      ],
+      "outputs": [
+        "minor_high",
+        "minor_low",
+        "major_high",
+        "major_low",
+        "confirmed_levels"
+      ],
+      "availability": "k bars after the pivot",
+      "events": [
+        "level.test",
+        "level.cross",
+        "level.break",
+        "divergence.rsi_regular_bullish",
+        "divergence.rsi_regular_bearish",
+        "divergence.rsi_hidden_bullish",
+        "divergence.rsi_hidden_bearish"
+      ],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "context",
+      "code": 7,
+      "name": "Volatility and participation regime",
+      "taxonomy": "volatility",
+      "role": "context",
+      "claim": "ATR ratio and RVOL ratio define a regime; they condition other signals but do not predict direction alone.",
+      "formula": "atr_ratio = ATR/SMA(ATR,20); rvol_ratio = volume/SMA(volume,20); bucket by 1.0 thresholds",
+      "inputs": [
+        "atr",
+        "rvol"
+      ],
+      "parameters": [
+        "model.context.atr_ratio_period",
+        "model.context.rvol_period",
+        "model.context.threshold"
+      ],
+      "outputs": [
+        "atr_ratio",
+        "rvol_ratio",
+        "context_code"
+      ],
+      "availability": "after both ratios are available",
+      "events": [],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "progression",
+      "code": 8,
+      "name": "Structural leg progression",
+      "taxonomy": "progression",
+      "role": "context",
+      "claim": "A leg's stage describes how far a move has travelled; target-hit-before-invalidation differs from the base rate.",
+      "formula": "progress = (close-origin)/(target-origin); stage 0..5 from progress and lifecycle",
+      "inputs": [
+        "close",
+        "atr",
+        "pivots"
+      ],
+      "parameters": [
+        "model.progression.target_atr",
+        "model.progression.stability_bars",
+        "model.progression.invalidation_atr",
+        "model.progression.min_target_atr"
+      ],
+      "outputs": [
+        "published_leg",
+        "minor_leg",
+        "major_leg",
+        "progression_stage_code",
+        "progress"
+      ],
+      "availability": "origin confirmation and target stability",
+      "events": [],
+      "tests": [
+        "golden",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    }
+  ],
+  "events": [
+    {
+      "id": "level.test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 1,
+      "indicator": "pivots",
+      "role": "signal",
+      "claim": "A bar range intersects a confirmed or dynamic level; the touch is followed by a reaction more often than a placebo level.",
+      "parameters": [
+        "model.level.test_atr"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        1,
+        2,
+        3,
+        7,
+        8
+      ]
+    },
+    {
+      "id": "level.cross",
+      "event_type": 1,
+      "subtype": 2,
+      "source": 1,
+      "indicator": "pivots",
+      "role": "signal",
+      "claim": "The close crosses a level; the forward outcome differs from the base rate.",
+      "parameters": [
+        "model.level.test_atr"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        1,
+        2,
+        3,
+        7,
+        8
+      ]
+    },
+    {
+      "id": "level.break",
+      "event_type": 1,
+      "subtype": 3,
+      "source": 1,
+      "indicator": "pivots",
+      "role": "signal",
+      "claim": "The close crosses a level and finishes beyond it; the break is followed by continuation more often than the base rate.",
+      "parameters": [
+        "model.level.break_atr"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        1,
+        2,
+        3,
+        7,
+        8
+      ]
+    },
+    {
+      "id": "divergence.rsi_regular_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 4,
+      "indicator": "rsi",
+      "role": "signal",
+      "claim": "A lower price low with a higher RSI low is followed by a reversal more often than the base rate.",
+      "parameters": [
+        "model.divergence.window",
+        "model.divergence.pivot_scale"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.rsi_regular_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 4,
+      "indicator": "rsi",
+      "role": "signal",
+      "claim": "A higher price high with a lower RSI high is followed by a reversal more often than the base rate.",
+      "parameters": [
+        "model.divergence.window",
+        "model.divergence.pivot_scale"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.rsi_hidden_bullish",
+      "event_type": 2,
+      "subtype": 3,
+      "source": 4,
+      "indicator": "rsi",
+      "role": "signal",
+      "claim": "A higher price low with a lower RSI low is followed by continuation more often than the base rate.",
+      "parameters": [
+        "model.divergence.window",
+        "model.divergence.pivot_scale"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.rsi_hidden_bearish",
+      "event_type": 2,
+      "subtype": 4,
+      "source": 4,
+      "indicator": "rsi",
+      "role": "signal",
+      "claim": "A lower price high with a higher RSI high is followed by continuation more often than the base rate.",
+      "parameters": [
+        "model.divergence.window",
+        "model.divergence.pivot_scale"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.rsi_threshold",
+      "event_type": 3,
+      "subtype": 1,
+      "source": 4,
+      "indicator": "rsi",
+      "role": "signal",
+      "claim": "An RSI threshold crossing is followed by a directional move more often than the base rate.",
+      "parameters": [
+        "model.signal.rsi_levels"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.ema_pair_cross",
+      "event_type": 3,
+      "subtype": 2,
+      "source": 1,
+      "indicator": "ema",
+      "role": "signal",
+      "claim": "A faster EMA crossing a slower EMA is followed by a directional move more often than the base rate.",
+      "parameters": [
+        "model.signal.ema_pairs"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "signal.ema_stack_change",
+      "event_type": 3,
+      "subtype": 3,
+      "source": 1,
+      "indicator": "ema",
+      "role": "signal",
+      "claim": "An EMA stack state change is followed by a directional move more often than the base rate.",
+      "parameters": [
+        "model.ema.periods"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.rsi_zone_change",
+      "event_type": 3,
+      "subtype": 3,
+      "source": 4,
+      "indicator": "rsi",
+      "role": "signal",
+      "claim": "An RSI zone change is followed by a momentum shift more often than the base rate.",
+      "parameters": [
+        "model.signal.rsi_levels"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "experimental"
+    },
+    {
+      "id": "signal.macd_line_signal_cross",
+      "event_type": 3,
+      "subtype": 2,
+      "source": 13,
+      "indicator": "macd",
+      "role": "signal",
+      "claim": "The MACD line crossing its signal is followed by a directional move more often than the base rate.",
+      "parameters": [
+        "model.macd.fast",
+        "model.macd.slow",
+        "model.macd.signal"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        13,
+        14
+      ]
+    },
+    {
+      "id": "signal.macd_histogram_slope_flip",
+      "event_type": 3,
+      "subtype": 4,
+      "source": 15,
+      "indicator": "macd",
+      "role": "signal",
+      "claim": "A MACD histogram slope flip is followed by an acceleration or fade more often than the base rate.",
+      "parameters": [
+        "model.macd.fast",
+        "model.macd.slow",
+        "model.macd.signal"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.macd_zero_cross",
+      "event_type": 3,
+      "subtype": 5,
+      "source": 13,
+      "indicator": "macd",
+      "role": "signal",
+      "claim": "The MACD line crossing zero is followed by a trend continuation more often than the base rate.",
+      "parameters": [
+        "model.macd.fast",
+        "model.macd.slow",
+        "model.macd.signal"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "model.ema.periods",
+      "path": "defaults.ema",
+      "type": "array<integer>",
+      "default": [
+        20,
+        50,
+        200
+      ],
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "min": 2,
+      "max": 10000
+    },
+    {
+      "id": "model.rsi.period",
+      "path": "defaults.rsi",
+      "type": "integer",
+      "default": 14,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "min": 1,
+      "max": 10000
+    },
+    {
+      "id": "model.atr.period",
+      "path": "defaults.atr",
+      "type": "integer",
+      "default": 14,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "min": 1,
+      "max": 10000
+    },
+    {
+      "id": "model.rvol.period",
+      "path": "defaults.rvol",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "min": 1,
+      "max": 10000
+    },
+    {
+      "id": "model.macd.fast",
+      "path": "defaults.macd.fast",
+      "type": "integer",
+      "default": 12,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "min": 1,
+      "max": 10000
+    },
+    {
+      "id": "model.macd.slow",
+      "path": "defaults.macd.slow",
+      "type": "integer",
+      "default": 26,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "min": 2,
+      "max": 10000
+    },
+    {
+      "id": "model.macd.signal",
+      "path": "defaults.macd.signal",
+      "type": "integer",
+      "default": 9,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "min": 1,
+      "max": 10000
+    },
+    {
+      "id": "model.macd.active",
+      "path": "defaults.macd.active",
+      "type": "boolean",
+      "default": true,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.structure.scale",
+      "path": "structure.scale",
+      "type": "string",
+      "default": "major",
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "enum": [
+        "minor",
+        "major"
+      ]
+    },
+    {
+      "id": "model.level.test_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.2,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.level.break_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.2,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.divergence.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 2,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.divergence.pivot_scale",
+      "path": "fixed",
+      "type": "string",
+      "default": "major",
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "enum": [
+        "minor",
+        "major"
+      ]
+    },
+    {
+      "id": "model.signal.rsi_levels",
+      "path": "fixed",
+      "type": "array<number>",
+      "default": [
+        30,
+        50,
+        70
+      ],
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.ema_pairs",
+      "path": "fixed",
+      "type": "array<array<integer>>",
+      "default": [
+        [
+          20,
+          50
+        ],
+        [
+          50,
+          200
+        ],
+        [
+          20,
+          200
+        ]
+      ],
+      "unit": "period",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.pivots.minor",
+      "path": "fixed",
+      "type": "integer",
+      "default": 2,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.pivots.major",
+      "path": "fixed",
+      "type": "integer",
+      "default": 5,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.progression.target_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 2.0,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.progression.stability_bars",
+      "path": "fixed",
+      "type": "integer",
+      "default": 3,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.progression.invalidation_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.2,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.progression.min_target_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.2,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.context.atr_ratio_period",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.context.rvol_period",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.context.threshold",
+      "path": "fixed",
+      "type": "number",
+      "default": 1.0,
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.event.retention",
+      "path": "fixed",
+      "type": "integer",
+      "default": 1024,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.event.window_bars",
+      "path": "fixed",
+      "type": "integer",
+      "default": 5,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "strategy.weights",
+      "path": "weights",
+      "type": "object",
+      "default": 1.0,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "strategy"
+      ],
+      "status": "experimental"
+    },
+    {
+      "id": "strategy.direction_min",
+      "path": "entry.execution.direction_min",
+      "type": "number",
+      "default": 0.1,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "strategy"
+      ],
+      "status": "experimental",
+      "min": -1.0,
+      "max": 1.0
+    },
+    {
+      "id": "strategy.momentum_min",
+      "path": "entry.execution.momentum_min",
+      "type": "number",
+      "default": 0.1,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "strategy"
+      ],
+      "status": "experimental",
+      "min": -1.0,
+      "max": 1.0
+    },
+    {
+      "id": "strategy.structure_min",
+      "path": "entry.execution.structure_min",
+      "type": "number",
+      "default": 0.0,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "strategy"
+      ],
+      "status": "experimental",
+      "min": -1.0,
+      "max": 1.0
+    },
+    {
+      "id": "strategy.context.share_min",
+      "path": "entry.context.direction.share_min",
+      "type": "number",
+      "default": 0.5,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "strategy"
+      ],
+      "status": "experimental",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "strategy.level.max_distance_fraction",
+      "path": "entry.level.max_distance_fraction",
+      "type": "number",
+      "default": 0.02,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "strategy"
+      ],
+      "status": "experimental",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "strategy.risk.stop_buffer_fraction",
+      "path": "risk.stop.buffer_fraction",
+      "type": "number",
+      "default": 0.005,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "strategy"
+      ],
+      "status": "experimental",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "strategy.risk.min_reward_to_risk",
+      "path": "risk.target.min_reward_to_risk",
+      "type": "number",
+      "default": 2.0,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "strategy"
+      ],
+      "status": "experimental",
+      "min": 0.1,
+      "max": 100.0
+    },
+    {
+      "id": "policy.performance_target",
+      "path": "objective.performance_target",
+      "type": "number",
+      "default": 0.1,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "policy"
+      ],
+      "status": "active",
+      "min": 0.0,
+      "max": 10.0
+    },
+    {
+      "id": "policy.evaluation_days",
+      "path": "objective.evaluation_days",
+      "type": "integer",
+      "default": 365,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "policy"
+      ],
+      "status": "active",
+      "min": 1,
+      "max": 3650
+    },
+    {
+      "id": "policy.max_drawdown",
+      "path": "objective.max_drawdown",
+      "type": "number",
+      "default": 0.1,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "policy"
+      ],
+      "status": "active",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "policy.max_position_fraction",
+      "path": "risk.max_position_fraction",
+      "type": "number",
+      "default": 1.0,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "policy"
+      ],
+      "status": "active",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "policy.max_leverage",
+      "path": "risk.max_leverage",
+      "type": "number",
+      "default": 1.0,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "policy"
+      ],
+      "status": "active",
+      "min": 1.0,
+      "max": 1.0
+    },
+    {
+      "id": "policy.max_open_positions",
+      "path": "risk.max_open_positions",
+      "type": "integer",
+      "default": 1,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "policy"
+      ],
+      "status": "active",
+      "min": 1,
+      "max": 1
+    },
+    {
+      "id": "portfolio.initial_cash",
+      "path": "initial_cash",
+      "type": "number",
+      "default": 10000.0,
+      "unit": "currency",
+      "configurable": true,
+      "affects": [
+        "portfolio"
+      ],
+      "status": "active",
+      "min": 1.0
+    },
+    {
+      "id": "portfolio.sizing.notional",
+      "path": "sizing.notional",
+      "type": "number",
+      "default": 10000.0,
+      "unit": "currency",
+      "configurable": true,
+      "affects": [
+        "portfolio"
+      ],
+      "status": "active",
+      "min": 1.0
+    },
+    {
+      "id": "portfolio.commission.rate",
+      "path": "commission.rate",
+      "type": "number",
+      "default": 0.001,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "portfolio"
+      ],
+      "status": "active",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "portfolio.funding.rate",
+      "path": "funding.rate",
+      "type": "number",
+      "default": 0.0001,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "portfolio"
+      ],
+      "status": "active",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "portfolio.funding.interval_hours",
+      "path": "funding.interval_hours",
+      "type": "integer",
+      "default": 8,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "portfolio"
+      ],
+      "status": "active",
+      "min": 1,
+      "max": 24
+    },
+    {
+      "id": "portfolio.max_drawdown.limit",
+      "path": "max_drawdown.limit",
+      "type": "number",
+      "default": 0.1,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "portfolio"
+      ],
+      "status": "active",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "execution.fee_rate",
+      "path": "fee_rate",
+      "type": "number",
+      "default": 0.0,
+      "unit": "fraction",
+      "configurable": true,
+      "affects": [
+        "execution"
+      ],
+      "status": "active",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "execution.slippage_bps",
+      "path": "slippage_bps",
+      "type": "number",
+      "default": 2.0,
+      "unit": "bps",
+      "configurable": true,
+      "affects": [
+        "execution"
+      ],
+      "status": "active",
+      "min": 0.0
+    },
+    {
+      "id": "analytics.relations",
+      "path": "relations",
+      "type": "boolean",
+      "default": true,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "analytics"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "benchmark.seed",
+      "path": "benchmark.seed",
+      "type": "integer",
+      "default": 0,
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "analytics"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "benchmark.paths",
+      "path": "benchmark.paths",
+      "type": "integer",
+      "default": 1000,
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "analytics"
+      ],
+      "status": "active",
+      "min": 1
+    }
+  ],
+  "codes": {
+    "event_types": {
+      "1": "Level",
+      "2": "Divergence",
+      "3": "Signal"
+    },
+    "level_subtypes": {
+      "1": "test/retest",
+      "2": "cross",
+      "3": "break"
+    },
+    "divergence_subtypes": {
+      "1": "regular bullish",
+      "2": "regular bearish",
+      "3": "hidden bullish",
+      "4": "hidden bearish"
+    },
+    "signal_subtypes": {
+      "1": "threshold crossing",
+      "2": "series crossover",
+      "3": "compact state change",
+      "4": "histogram slope flip",
+      "5": "zero cross"
+    },
+    "sources": {
+      "1": "EMA fast",
+      "2": "EMA mid",
+      "3": "EMA slow",
+      "4": "RSI",
+      "5": "ATR",
+      "6": "RVOL",
+      "7": "minor pivots",
+      "8": "major pivots",
+      "9": "Direction (legacy)",
+      "10": "Structure (legacy)",
+      "11": "Momentum (legacy)",
+      "12": "progression",
+      "13": "MACD line",
+      "14": "MACD signal",
+      "15": "MACD histogram"
+    },
+    "roles": {
+      "1": "signal",
+      "2": "context",
+      "3": "diagnostic"
+    },
+    "scales": {
+      "1": "minor",
+      "2": "major"
+    },
+    "target_bases": {
+      "1": "confirmed structural level",
+      "2": "ATR fallback"
+    },
+    "lifecycles": {
+      "0": "forming",
+      "1": "active",
+      "2": "completed",
+      "3": "invalidated",
+      "4": "superseded"
+    },
+    "stages": {
+      "0": "against",
+      "1": "0-25%",
+      "2": "25-50%",
+      "3": "50-75%",
+      "4": "late",
+      "5": "terminal"
+    },
+    "unavailable_reasons": {
+      "1": "insufficient bars",
+      "2": "insufficient confirmed pivots",
+      "3": "invalid denominator",
+      "4": "no target",
+      "5": "target unstable",
+      "6": "origin unconfirmed"
+    }
+  }
+}
