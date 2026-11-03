@@ -12,6 +12,9 @@ use std::path::Path;
 
 use quantrule_analytics::layers::summarize_model_run;
 use quantrule_analytics::summary::{AxisSummary, DatasetSummary, RelationSummary};
+use quantrule_backtest::benchmark::{
+    self, BuyAndHold, Distribution, EquityMetrics, RandomBenchmark,
+};
 use quantrule_backtest::execution::{
     Fill, FillReason, OrderRecord, OrderState, RejectReason, Rejection, Trigger,
 };
@@ -20,7 +23,7 @@ use quantrule_backtest::portfolio::{
     SizingRejection, TradeRecord,
 };
 use quantrule_backtest::runner::BacktestRun;
-use quantrule_data::Timeframe;
+use quantrule_data::{Candle, Timeframe};
 use quantrule_model::run::ModelRun;
 use serde_json::{Value, json};
 
@@ -31,6 +34,8 @@ use super::{
 use crate::chart;
 use crate::config::RunConfig;
 use crate::render_report::{self, Provenance};
+
+const SECONDS_PER_DAY: f64 = 86_400.0;
 
 pub(crate) fn execution_bundle_from(
     config: &RunConfig,
@@ -109,8 +114,6 @@ pub(crate) fn portfolio_bundle_from(
 
     let trades_csv = trades_csv(ledger.trades());
     let equity_csv = equity_csv(ledger.equity_points());
-    let summary_text = portfolio_text(config, &metrics);
-    let report_json = portfolio_json(config, run, &metrics);
     let equity_points = ledger
         .equity_points()
         .iter()
@@ -121,14 +124,70 @@ pub(crate) fn portfolio_bundle_from(
         .iter()
         .map(|point| (point.date, point.drawdown))
         .collect::<Vec<_>>();
-    let benchmark = benchmark_series(config, run);
+
+    let target = config.policy.objective.performance_target;
+    let evaluation_days = config.policy.objective.evaluation_days;
+    let initial_cash = config.portfolio.initial_cash;
+    let commission_rate = config.portfolio.commission.rate();
+    let strategy_metrics =
+        benchmark::equity_metrics(&equity_points, initial_cash, target, evaluation_days);
+    let candles = execution_candles(config, run);
+    let buy_and_hold = candles.as_deref().and_then(|candles| {
+        benchmark::buy_and_hold(
+            candles,
+            initial_cash,
+            commission_rate,
+            target,
+            evaluation_days,
+        )
+    });
+    let random = candles.as_deref().and_then(|candles| {
+        benchmark::random_trade_paths(
+            ledger.trades(),
+            candles,
+            &benchmark::RandomBenchmarkConfig {
+                initial_cash,
+                commission_rate,
+                max_drawdown_limit: config.portfolio.max_drawdown.limit(),
+                seed: benchmark::DEFAULT_SEED,
+                paths: benchmark::DEFAULT_PATHS,
+                target,
+                evaluation_days,
+                strategy_return: metrics.total_return,
+            },
+        )
+    });
+    let random_band = random
+        .as_ref()
+        .and_then(|random| random_band(&random.raw_paths, ledger.equity_points(), initial_cash));
+    let buy_and_hold_band = buy_and_hold
+        .as_ref()
+        .map(|benchmark| align_benchmark(&equity_points, &benchmark.points));
+
+    let summary_text = portfolio_text(
+        config,
+        &metrics,
+        strategy_metrics.as_ref(),
+        buy_and_hold.as_ref(),
+        random.as_ref(),
+    );
+    let report_json = portfolio_json(
+        config,
+        run,
+        &metrics,
+        strategy_metrics.as_ref(),
+        buy_and_hold.as_ref(),
+        random.as_ref(),
+        random_band.as_ref(),
+    );
     let halt = ledger.risk_events().first().copied();
     let equity_halt = halt.map(|event| (event.time, event.equity));
     let drawdown_halt = halt.map(|event| (event.time, event.drawdown));
     let equity = chart::render_line_png(
         &equity_points,
         chart::LineOverlay {
-            benchmark: Some(&benchmark),
+            benchmark: buy_and_hold_band.as_deref(),
+            random: random_band.as_ref(),
             limit: None,
             halt: equity_halt,
         },
@@ -141,6 +200,7 @@ pub(crate) fn portfolio_bundle_from(
         &drawdown_points,
         chart::LineOverlay {
             benchmark: None,
+            random: None,
             limit: config.portfolio.max_drawdown.limit(),
             halt: drawdown_halt,
         },
@@ -212,32 +272,68 @@ pub(crate) fn portfolio_bundle_from(
     })
 }
 
-/// The daily buy-and-hold equity implied by the execution timeframe's closes.
-///
-/// The series is presentation evidence for the equity chart; it is not an
-/// engine output and no report contract reads it.
-fn benchmark_series(config: &RunConfig, run: &BacktestRun) -> Vec<(i64, f64)> {
-    let Some(timeframe) = run
+/// The execution timeframe's closed candles.
+fn execution_candles(config: &RunConfig, run: &BacktestRun) -> Option<Vec<Candle>> {
+    let timeframe = run
         .model_run()
-        .timeframe(config.strategy.engine.timeframe_secs())
-    else {
-        return Vec::new();
-    };
-    let Some(first) = timeframe.candle(0) else {
-        return Vec::new();
-    };
-    let mut closes: BTreeMap<i64, f64> = BTreeMap::new();
+        .timeframe(config.strategy.engine.timeframe_secs())?;
+    let mut candles = Vec::with_capacity(timeframe.len());
     for bar in 0..timeframe.len() {
-        let Some(candle) = timeframe.candle(bar) else {
-            continue;
-        };
-        let date = candle.timestamp().div_euclid(86_400) * 86_400;
-        closes.insert(date, candle.close());
+        candles.push(timeframe.candle(bar)?);
     }
-    closes
-        .into_iter()
-        .map(|(date, close)| (date, config.portfolio.initial_cash * close / first.close()))
-        .collect()
+    Some(candles)
+}
+
+/// Aligns a benchmark series to the strategy's daily equity dates.
+fn align_benchmark(points: &[(i64, f64)], benchmark: &[(i64, f64)]) -> Vec<(i64, f64)> {
+    let mut aligned = Vec::with_capacity(points.len());
+    let mut index = 0_usize;
+    let mut last = benchmark.first().map_or(0.0, |(_, value)| *value);
+    for (date, _) in points {
+        let end_of_day = date.saturating_add(86_399);
+        while index < benchmark.len() && benchmark[index].0 <= end_of_day {
+            last = benchmark[index].1;
+            index += 1;
+        }
+        aligned.push((*date, last));
+    }
+    aligned
+}
+
+/// Aligns the random paths to the strategy's daily equity dates and reduces
+/// them to a 5th/50th/95th percentile envelope.
+fn random_band(
+    paths: &[Vec<(i64, f64)>],
+    points: &[EquityPoint],
+    initial_cash: f64,
+) -> Option<chart::RandomBand> {
+    if paths.is_empty() || points.is_empty() {
+        return None;
+    }
+    let mut values: Vec<Vec<f64>> = vec![Vec::with_capacity(paths.len()); points.len()];
+    for path in paths {
+        let mut index = 0_usize;
+        let mut last = initial_cash;
+        for (position, point) in points.iter().enumerate() {
+            let end_of_day = point.date.saturating_add(86_399);
+            while index < path.len() && path[index].0 <= end_of_day {
+                last = path[index].1;
+                index += 1;
+            }
+            values[position].push(last);
+        }
+    }
+    let mut p05 = Vec::with_capacity(points.len());
+    let mut p50 = Vec::with_capacity(points.len());
+    let mut p95 = Vec::with_capacity(points.len());
+    for (position, point) in points.iter().enumerate() {
+        let mut sample = std::mem::take(&mut values[position]);
+        let distribution = Distribution::from_values(&mut sample)?;
+        p05.push((point.date, distribution.p05));
+        p50.push((point.date, distribution.median));
+        p95.push((point.date, distribution.p95));
+    }
+    Some(chart::RandomBand { p05, p50, p95 })
 }
 
 fn first_open_time(run: &BacktestRun, config: &RunConfig) -> Option<i64> {
@@ -723,7 +819,13 @@ fn equity_csv(points: &[EquityPoint]) -> String {
     csv
 }
 
-fn portfolio_text(config: &RunConfig, metrics: &PortfolioMetrics) -> String {
+fn portfolio_text(
+    config: &RunConfig,
+    metrics: &PortfolioMetrics,
+    strategy: Option<&EquityMetrics>,
+    buy_and_hold: Option<&BuyAndHold>,
+    random: Option<&RandomBenchmark>,
+) -> String {
     let mut out = String::new();
     let _ = writeln!(out, "QuantRule portfolio report");
     let _ = writeln!(out, "data_version: {}", config.data.data_version);
@@ -744,6 +846,49 @@ fn portfolio_text(config: &RunConfig, metrics: &PortfolioMetrics) -> String {
         out,
         "max_drawdown_duration_bars: {}",
         metrics.max_drawdown_duration_bars
+    );
+    let _ = writeln!(
+        out,
+        "time_to_target_days: {}",
+        optional(strategy.and_then(|metrics| days(metrics.time_to_target_secs)))
+    );
+    let _ = writeln!(
+        out,
+        "target_reached: {}",
+        strategy.is_some_and(|metrics| metrics.target_reached)
+    );
+    let _ =
+        writeln!(
+            out,
+            "max_drawdown_peak_to_trough_days: {}",
+            optional(strategy.map(|metrics| {
+                metrics.max_drawdown_peak_to_trough_secs as f64 / SECONDS_PER_DAY
+            }))
+        );
+    let _ = writeln!(
+        out,
+        "max_drawdown_recovery_days: {}",
+        optional(strategy.and_then(|metrics| days(metrics.max_drawdown_recovery_secs)))
+    );
+    let _ = writeln!(
+        out,
+        "longest_underwater_days: {}",
+        optional(strategy.map(|metrics| metrics.longest_underwater_secs as f64 / SECONDS_PER_DAY))
+    );
+    let _ = writeln!(
+        out,
+        "benchmark_buy_and_hold_return: {}",
+        optional(buy_and_hold.map(|benchmark| benchmark.metrics.total_return))
+    );
+    let _ = writeln!(
+        out,
+        "benchmark_random_median_return: {}",
+        optional(random.map(|random| random.return_distribution.median))
+    );
+    let _ = writeln!(
+        out,
+        "strategy_percentile_vs_random: {}",
+        optional(random.map(|random| random.strategy_percentile))
     );
     let _ = writeln!(out, "trades: {}", metrics.trades);
     let _ = writeln!(out, "wins: {}", metrics.wins);
@@ -770,7 +915,15 @@ fn portfolio_text(config: &RunConfig, metrics: &PortfolioMetrics) -> String {
     out
 }
 
-fn portfolio_json(config: &RunConfig, run: &BacktestRun, metrics: &PortfolioMetrics) -> Value {
+fn portfolio_json(
+    config: &RunConfig,
+    run: &BacktestRun,
+    metrics: &PortfolioMetrics,
+    strategy: Option<&EquityMetrics>,
+    buy_and_hold: Option<&BuyAndHold>,
+    random: Option<&RandomBenchmark>,
+    random_band: Option<&chart::RandomBand>,
+) -> Value {
     let ledger = run.ledger();
     let trades: Vec<Value> = ledger
         .trades()
@@ -859,6 +1012,20 @@ fn portfolio_json(config: &RunConfig, run: &BacktestRun, metrics: &PortfolioMetr
             "funding_received": metrics.funding_received,
             "max_drawdown": metrics.max_drawdown,
             "max_drawdown_duration_bars": metrics.max_drawdown_duration_bars,
+            "time_to_target_days": strategy.and_then(|metrics| days(metrics.time_to_target_secs)),
+            "target_reached": strategy.map(|metrics| metrics.target_reached),
+            "max_drawdown_peak_to_trough_days": strategy.map(|metrics| {
+                metrics.max_drawdown_peak_to_trough_secs as f64 / SECONDS_PER_DAY
+            }),
+            "max_drawdown_recovery_days": strategy
+                .and_then(|metrics| days(metrics.max_drawdown_recovery_secs)),
+            "longest_underwater_days": strategy
+                .map(|metrics| metrics.longest_underwater_secs as f64 / SECONDS_PER_DAY),
+            "benchmark_buy_and_hold_return": buy_and_hold
+                .map(|benchmark| benchmark.metrics.total_return),
+            "benchmark_random_median_return": random
+                .map(|random| random.return_distribution.median),
+            "strategy_percentile_vs_random": random.map(|random| random.strategy_percentile),
             "trades": metrics.trades,
             "wins": metrics.wins,
             "losses": metrics.losses,
@@ -874,12 +1041,82 @@ fn portfolio_json(config: &RunConfig, run: &BacktestRun, metrics: &PortfolioMetr
                 .map(|(month, value)| json!({"month": month, "return": value}))
                 .collect::<Vec<_>>(),
         },
+        "benchmarks": {
+            "buy_and_hold": buy_and_hold.map(buy_and_hold_value),
+            "random": random.map(|random| random_value(random, random_band)),
+        },
         "records": {
             "trades": trades,
             "equity_curve": equity_curve,
             "funding": funding,
             "risk_events": risk_events,
         },
+    })
+}
+
+fn days(seconds: Option<i64>) -> Option<f64> {
+    seconds.map(|seconds| seconds as f64 / SECONDS_PER_DAY)
+}
+
+fn equity_metrics_value(metrics: &EquityMetrics) -> Value {
+    json!({
+        "final_equity": metrics.final_equity,
+        "total_return": metrics.total_return,
+        "max_drawdown": metrics.max_drawdown,
+        "max_drawdown_peak_time": metrics.max_drawdown_peak_time,
+        "max_drawdown_trough_time": metrics.max_drawdown_trough_time,
+        "max_drawdown_peak_to_trough_days": metrics.max_drawdown_peak_to_trough_secs as f64
+            / SECONDS_PER_DAY,
+        "max_drawdown_recovery_days": days(metrics.max_drawdown_recovery_secs),
+        "longest_underwater_days": metrics.longest_underwater_secs as f64 / SECONDS_PER_DAY,
+        "time_to_target_days": days(metrics.time_to_target_secs),
+        "target_reached": metrics.target_reached,
+    })
+}
+
+fn buy_and_hold_value(benchmark: &BuyAndHold) -> Value {
+    json!({
+        "entry_price": benchmark.entry_price,
+        "quantity": benchmark.quantity,
+        "metrics": equity_metrics_value(&benchmark.metrics),
+        "equity_curve": benchmark
+            .points
+            .iter()
+            .map(|(time, equity)| json!({"time": time, "equity": equity}))
+            .collect::<Vec<_>>(),
+    })
+}
+
+fn distribution_value(distribution: &Distribution) -> Value {
+    json!({
+        "mean": distribution.mean,
+        "median": distribution.median,
+        "p05": distribution.p05,
+        "p95": distribution.p95,
+        "min": distribution.min,
+        "max": distribution.max,
+    })
+}
+
+fn random_value(random: &RandomBenchmark, band: Option<&chart::RandomBand>) -> Value {
+    json!({
+        "method": random.method,
+        "seed": random.seed,
+        "paths": random.paths,
+        "return": distribution_value(&random.return_distribution),
+        "max_drawdown": distribution_value(&random.max_drawdown_distribution),
+        "time_to_target_days": random
+            .time_to_target_distribution
+            .as_ref()
+            .map(distribution_value),
+        "time_to_target_reached_share": random.time_to_target_reached_share,
+        "strategy_percentile": random.strategy_percentile,
+        "probability_random_beats_strategy": random.probability_random_beats_strategy,
+        "equity_envelope": band.map(|band| json!({
+            "p05": band.p05.iter().map(|(time, equity)| json!({"time": time, "equity": equity})).collect::<Vec<_>>(),
+            "p50": band.p50.iter().map(|(time, equity)| json!({"time": time, "equity": equity})).collect::<Vec<_>>(),
+            "p95": band.p95.iter().map(|(time, equity)| json!({"time": time, "equity": equity})).collect::<Vec<_>>(),
+        })),
     })
 }
 

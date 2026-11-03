@@ -51,6 +51,14 @@ def empty_portfolio_summary() -> dict[str, Any]:
         "win_rate": None,
         "halted": None,
         "final_equity": None,
+        "time_to_target_days": None,
+        "target_reached": None,
+        "max_drawdown_peak_to_trough_days": None,
+        "max_drawdown_recovery_days": None,
+        "longest_underwater_days": None,
+        "benchmark_buy_and_hold_return": None,
+        "benchmark_random_median_return": None,
+        "strategy_percentile_vs_random": None,
     }
 
 

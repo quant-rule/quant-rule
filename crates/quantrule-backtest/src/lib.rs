@@ -20,6 +20,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod benchmark;
 pub mod context;
 pub mod execution;
 pub mod intent;

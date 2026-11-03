@@ -468,6 +468,14 @@ def portfolio_metrics(report: Any) -> tuple[dict[str, Any], list[str]]:
         "win_rate",
         "halted",
         "final_equity",
+        "time_to_target_days",
+        "target_reached",
+        "max_drawdown_peak_to_trough_days",
+        "max_drawdown_recovery_days",
+        "longest_underwater_days",
+        "benchmark_buy_and_hold_return",
+        "benchmark_random_median_return",
+        "strategy_percentile_vs_random",
     )
     values: dict[str, Any] = {field: None for field in fields}
     notes: list[str] = []
@@ -485,19 +493,32 @@ def portfolio_metrics(report: Any) -> tuple[dict[str, Any], list[str]]:
         "win_rate": "win_rate",
         "halted": "halted",
         "final_equity": "final_equity",
+        "time_to_target_days": "time_to_target_days",
+        "target_reached": "target_reached",
+        "max_drawdown_peak_to_trough_days": "max_drawdown_peak_to_trough_days",
+        "max_drawdown_recovery_days": "max_drawdown_recovery_days",
+        "longest_underwater_days": "longest_underwater_days",
+        "benchmark_buy_and_hold_return": "benchmark_buy_and_hold_return",
+        "benchmark_random_median_return": "benchmark_random_median_return",
+        "strategy_percentile_vs_random": "strategy_percentile_vs_random",
     }
     for field, key in sources.items():
         if key not in summary:
             notes.append(f"summary.{key} is missing")
             continue
         value = summary[key]
-        if field == "halted":
-            if isinstance(value, bool):
+        if field in ("halted", "target_reached"):
+            if isinstance(value, bool) or value is None:
                 values[field] = value
             else:
                 notes.append(f"summary.{key} is not a boolean")
         elif is_number(value):
             values[field] = value
+        elif value is None and field in (
+            "time_to_target_days",
+            "max_drawdown_recovery_days",
+        ):
+            values[field] = None
         else:
             notes.append(f"summary.{key} is not a finite number")
     return values, notes
