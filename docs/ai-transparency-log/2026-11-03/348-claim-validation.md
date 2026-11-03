@@ -33,14 +33,23 @@ The model and strategy are unchanged during the run.
 ## Verification and evidence
 
 - The 15 model bundles are under `data/model-gate/`.
-- The preliminary combined harness output is under
-  `data/improvement/2026-11-03/MODEL-GATE/`.
-- The final run records and exact commands are written by `run.py`; the results
-  are recorded in the run folders and the committed summaries.
-- No test result is claimed before it is run.
+- `MODEL-2026-11-03-01` (development): 48 primary cells, all grade C.
+- `MODEL-2026-11-03-02` (validation): 47 C and one B,
+  `divergence.regular_bullish` 5m (hit 0.5324, base 0.5007, corrected LCB
+  0.5027, replication 3).
+- The same validation cell was C on development (hit 0.5197, corrected LCB
+  0.4991). The combined gate is **no edge**.
+- The combined gate comparison is in
+  `data/improvement/2026-11-03/MODEL-GATE/gate.json`; the committed summary is
+  `docs/improvement/2026-11-03/MODEL-GATE.md`.
+- The run store records the commands, exit codes, and artifact digests in each
+  run's `results.json`.
 
 ## Learning
 
+- The validation partition produced exactly one B cell, and it did not replicate
+  the development result. A one-shot validation is working as intended when it
+  rejects that cell instead of promoting it.
 - The model bundle is large: one year of 5m/15m/1h readings and events is about
   200 MB. The gate uses the CSV artifacts, not a re-run of the model for every
   analysis.

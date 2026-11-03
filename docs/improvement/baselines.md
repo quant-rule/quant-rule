@@ -1,7 +1,7 @@
 # Baselines
 
-- Date: 2026-11-01 (UTC)
-- Status: Initial registry; no baseline accepted yet
+- Date: 2026-11-03 (UTC)
+- Status: Model correctness baseline superseded; model v3 gate no edge; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -12,13 +12,14 @@ by the agent that ran or reviewed the result.
 
 | Tier | Baseline run | Accepted by | Accepted on | Scope | Supersedes | Status |
 |---|---|---|---|---|---|---|
-| Model | `MODEL-2026-11-01-01..04` | Human | 2026-11-01 | Model correctness baseline; C axes are explicit strategy hypotheses only | — | Accepted with signal-usability limitation |
+| Model | `MODEL-2026-11-01-01..04` | Human | 2026-11-01 | Model correctness baseline; C axes are explicit strategy hypotheses only | — | Superseded by the model v3 gate; retained as history |
+| Model | `MODEL-2026-11-03-01..02` | — | 2026-11-03 | v3 claim gate; no signal-role family passed both partitions | `MODEL-2026-11-01-01..04` | Not accepted — no edge |
 | Strategy | — | — | — | — | — | None accepted |
 | Portfolio | — | — | — | — | — | None accepted |
 
 ## Rules
 
-- A model correctness baseline is required before a strategy run. The baseline records the signal-usability grades; C axes are explicit strategy hypotheses, not validated signals.
+- A model correctness baseline is required before a strategy run. The v3 gate records the signal-usability grades; C measurements are diagnostic only, and a no-edge gate stops the strategy tier. The retired axis baseline is history, not a v3 baseline.
 - A strategy baseline is required before a portfolio run.
 - A baseline run must be green for its tier and must not appear in
   [`INVALIDATIONS.md`](INVALIDATIONS.md).

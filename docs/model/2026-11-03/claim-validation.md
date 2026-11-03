@@ -1,7 +1,7 @@
 # Claim Validation Protocol (Model Gate)
 
 - Date: 2026-11-03 (UTC)
-- Status: Pre-registered for `MODEL-2026-11-03-01..02`
+- Status: Pre-registered and executed for `MODEL-2026-11-03-01..02`; result **no edge**
 - Issue: [#348](https://github.com/quant-rule/quant-rule/issues/348)
 - Harness: `tools/improvement/claim_validation.py`
 - Contract: [`docs/model/2026-11-03/model-v3.md`](model-v3.md)
@@ -84,7 +84,14 @@ fails on validation is rejected.
 If no family passes, the model is descriptive. The next step is a new thesis or
 a stop, not a threshold change.
 
-## 7. Limitations
+## 7. Result (2026-11-03)
+
+- Development: 48 primary cells, all grade C.
+- Validation: 47 grade C and one B, `divergence.regular_bullish` 5m.
+- The B cell did not replicate on development, which was C for the same cell.
+- Combined gate: **no edge**. No signal-role family passed both partitions.
+
+## 8. Limitations
 
 - The model bundle's `readings.csv` includes the readings and states; the event
   batch is in `events.csv`.

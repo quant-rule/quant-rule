@@ -358,6 +358,7 @@ backtest, and the tooling records, validates, and indexes the evidence.
 | `validate.py <manifest>` | Validate the schema, run ID, tier, changed/frozen split, partition, UTC timestamp, seed, green criteria, and holdout declaration; reject an invalid manifest |
 | `run.py <manifest> [--qr PATH]` | Validate, create the run folder, copy provenance, invoke the shell, write `results.json`, and refresh the index |
 | `claim_validation.py --cells <json> --out <dir>` | Grade states and events with forward outcomes, base rates, and corrected bounds |
+| `gate_compare.py --dev <json> --validation <json> --out <dir>` | Combine two partition results; a validation-only cell does not pass |
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the published report |
 | `index.py --root data/improvement` | Rebuild `index.json` and `index.md` in deterministic order |
 | `model_confidence.py` | Axis hit rates and ordered buckets from `model-series` |

@@ -211,7 +211,7 @@ acceptance criterion has been evaluated against observed evidence.
 | 2 (#345) | Buy-and-hold, random-timing replay, time metrics, defaults; PR open | Implemented |
 | 3 (#346) | Flat report section with readings, states, levels, events, progression; legacy axis view remains | Implemented; v3 config/active flags and final axis removal pending |
 | 4 (#347) | MACD, full readings/events/levels/legs CSV artifacts; source codes 13–15 | Implemented |
-| 5 (#348) | Claim-specific validation and model run | Pending |
-| 6 | Gate decision | Pending |
-| 7 (#349) | Strategy v8 | Pending |
+| 5 (#348) | Claim-specific harness and two model runs | Implemented; gate no edge |
+| 6 | Gate decision: no A/B family on both partitions | **No edge; strategy v8 not authorised** |
+| 7 (#349) | Strategy v8 | Blocked by the no-edge gate |
 | 8 (#350) | Docs/data consolidation and tombstones | Pending |
