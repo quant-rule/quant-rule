@@ -1,8 +1,9 @@
 # Execution Plan: Model v3, Validation Gate, and Benchmarks
 
 - Date: 2026-11-03 (UTC)
-- Status: **Approved** — the human approved the five decisions and the full
-  implementation.
+- Status: **Stopped at the phase 6 gate** — the model gate returned no edge on
+  2026-11-03. Phases 0–5 are implemented; phase 7 (strategy v8) is not authorised;
+  the remaining axis removal and v3 config are deferred.
 - Epic: [#342](https://github.com/quant-rule/quant-rule/issues/342)
 - Sub-issues: [#343](https://github.com/quant-rule/quant-rule/issues/343),
   [#344](https://github.com/quant-rule/quant-rule/issues/344),
@@ -214,4 +215,4 @@ acceptance criterion has been evaluated against observed evidence.
 | 5 (#348) | Claim-specific harness and two model runs | Implemented; gate no edge |
 | 6 | Gate decision: no A/B family on both partitions | **No edge; strategy v8 not authorised** |
 | 7 (#349) | Strategy v8 | Blocked by the no-edge gate |
-| 8 (#350) | Docs/data consolidation and tombstones | Pending |
+| 8 (#350) | Docs/data consolidation; 2026-11-01 axis runs tombstoned and local artifacts removed | Implemented |
