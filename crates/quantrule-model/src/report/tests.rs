@@ -115,6 +115,43 @@ fn coverage_period_and_absent_timeframes_are_reported() {
 }
 
 #[test]
+fn flat_report_exposes_readings_levels_and_events() {
+    let candles = fixture_candles();
+    let run = build_run(&candles, &[300]);
+    let report = build_report(&run, &[60, 300]);
+
+    assert_eq!(report.flat.timeframes.len(), 2);
+    let absent = &report.flat.timeframes[0];
+    assert_eq!(absent.timeframe_secs, 60);
+    assert_eq!(absent.bars, 0);
+    assert!(absent.latest.is_none());
+    assert!(absent.levels.is_empty());
+    assert_eq!(absent.events.total, 0);
+
+    let present = &report.flat.timeframes[1];
+    assert_eq!(present.timeframe_secs, 300);
+    assert_eq!(present.bars, 260);
+    assert!(present.latest.is_some());
+    let latest = present.latest.as_ref().expect("the latest flat state");
+    let axis_readings = report.timeframes[1]
+        .latest
+        .as_ref()
+        .expect("the latest axis state")
+        .readings;
+    assert_eq!(latest.readings.ema_fast, axis_readings.ema20);
+    assert_eq!(latest.readings.rsi, axis_readings.rsi14);
+    assert_eq!(latest.readings.atr, axis_readings.atr14);
+    assert_eq!(
+        present.events.by_type.iter().sum::<usize>(),
+        present.events.total
+    );
+    assert_eq!(
+        present.levels.len(),
+        run.timeframe(300).expect("the timeframe").levels().len()
+    );
+}
+
+#[test]
 fn axis_reports_have_the_fixed_shape_and_consistent_counts() {
     let candles = fixture_candles();
     let run = build_run(&candles, &[60, 300]);
