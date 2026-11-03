@@ -88,6 +88,7 @@ the remaining pending phase.
 | MODEL-2026-11-03-02 | v3 model gate, validation; one B cell, not replicated; no edge | [`docs/improvement/2026-11-03/MODEL-2026-11-03-02-model-gate-validation.md`](improvement/2026-11-03/MODEL-2026-11-03-02-model-gate-validation.md) |
 | PREDICTION-PILOT-RSI | EURUSD 1h RSI 30/70 reversion; primary failed development and validation; stop | [`docs/improvement/2026-11-03/PREDICTION-PILOT-RSI.md`](improvement/2026-11-03/PREDICTION-PILOT-RSI.md) |
 | MACD-PILOT-XAG | XAGUSD 1h MACD line/signal cross; primary failed development and validation; stop | [`docs/improvement/2026-11-03/MACD-PILOT-XAG.md`](improvement/2026-11-03/MACD-PILOT-XAG.md) |
+| STRUCTURE-PILOT-SPX | ESANDP500 1h confirmed pivot Level test; primary failed development and validation; stop | [`docs/improvement/2026-11-03/STRUCTURE-PILOT-SPX.md`](improvement/2026-11-03/STRUCTURE-PILOT-SPX.md) |
 | STRATEGY-001 | First strategy comparison; not green; no strategy baseline | [`docs/improvement/2026-11-01/STRATEGY-001-comparison.md`](improvement/2026-11-01/STRATEGY-001-comparison.md) |
 | STRATEGY-002 | 5m/15m sample-size test; not green; v6 still too selective | [`docs/improvement/2026-11-01/STRATEGY-002-comparison.md`](improvement/2026-11-01/STRATEGY-002-comparison.md) |
 | STRATEGY-003 | Level-fade v7 validation; not green; new rule family rejected | [`docs/improvement/2026-11-01/STRATEGY-003-comparison.md`](improvement/2026-11-01/STRATEGY-003-comparison.md) |
