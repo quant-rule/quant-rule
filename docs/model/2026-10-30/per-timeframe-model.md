@@ -1,7 +1,7 @@
 # Per-Timeframe Model Contract
 
 - Date: 2026-10-30 (UTC)
-- Status: Implemented for per-timeframe readings, reporting views, and the strategy context (#231, #232, #233, #235; PRs #241, #244)
+- Status: Superseded for axes by [model v3](../2026-11-03/model-v3.md) (2026-11-03). The per-timeframe boundary remains; the axis and consensus sections are history.
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), sub-issues [#231](https://github.com/quant-rule/quant-rule/issues/231), [#232](https://github.com/quant-rule/quant-rule/issues/232)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
 - ADR: [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)
