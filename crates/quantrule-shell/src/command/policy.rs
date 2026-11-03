@@ -122,10 +122,18 @@ pub(crate) fn run_policy_check(
                 level.min_reward_to_risk()
             ),
         ),
-        quantrule_backtest::strategy::StrategyMode::LadderContext => {
+        quantrule_backtest::strategy::StrategyMode::LadderContext
+        | quantrule_backtest::strategy::StrategyMode::EventComposite(_) => {
             let risk = config.strategy.engine.risk().unwrap_or_default();
             (
-                "ladder-context",
+                if matches!(
+                    config.strategy.engine.mode(),
+                    quantrule_backtest::strategy::StrategyMode::EventComposite(_)
+                ) {
+                    "event-composite"
+                } else {
+                    "ladder-context"
+                },
                 format!(
                     "stop_atr={} reward_to_risk={}",
                     risk.stop_atr_multiple(),

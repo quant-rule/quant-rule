@@ -9,7 +9,8 @@ use std::io::Write;
 use std::path::Path;
 
 use quantrule_backtest::strategy::{
-    ContextEntryConfig, ExecutionEntryConfig, LevelRetestConfig, StrategyMode,
+    Condition, ContextEntryConfig, ExecutionEntryConfig, LevelRetestConfig, StateField,
+    StrategyMode,
 };
 
 use crate::config::RunConfig;
@@ -94,6 +95,44 @@ pub(crate) fn run_strategy_explain(
     let entry = engine.entry();
     let execution_entry = entry.execution();
     let context_entry = entry.context();
+    if let Some(events) = engine.event_composite() {
+        writeln!(writer, "strategy event-composite").map_err(RunError::Output)?;
+        writeln!(writer, "execution {execution}").map_err(RunError::Output)?;
+        writeln!(writer, "context {context}").map_err(RunError::Output)?;
+        writeln!(writer, "thesis {}", strategy.thesis).map_err(RunError::Output)?;
+        writeln!(writer, "window_bars {}", events.window_bars()).map_err(RunError::Output)?;
+        writeln!(
+            writer,
+            "entry-all {}",
+            events
+                .entry_conditions()
+                .iter()
+                .map(|condition| format_condition(*condition))
+                .collect::<Vec<_>>()
+                .join(" AND ")
+        )
+        .map_err(RunError::Output)?;
+        writeln!(
+            writer,
+            "exit-any {}",
+            events
+                .exit_conditions()
+                .iter()
+                .map(|condition| format_condition(*condition))
+                .collect::<Vec<_>>()
+                .join(" OR ")
+        )
+        .map_err(RunError::Output)?;
+        let risk = engine.risk().unwrap_or_default();
+        writeln!(
+            writer,
+            "risk stop_atr={} reward_to_risk={}",
+            risk.stop_atr_multiple(),
+            risk.reward_to_risk()
+        )
+        .map_err(RunError::Output)?;
+        return Ok(());
+    }
     if let Some(level) = engine.level() {
         let mut exits = Vec::new();
         if engine.exit().on_context_lost() {
@@ -113,6 +152,7 @@ pub(crate) fn run_strategy_explain(
             StrategyMode::Breakout(_) => ("breakout", None),
             StrategyMode::LevelFade(_) => ("level-fade", None),
             StrategyMode::LadderContext => ("ladder-context", None),
+            StrategyMode::EventComposite(_) => ("event-composite", None),
         };
         return write_level_explain(
             writer,
@@ -310,6 +350,42 @@ fn write_level_explain(writer: &mut impl Write, explain: LevelExplain<'_>) -> Re
     )
     .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
+}
+
+fn format_condition(condition: Condition) -> String {
+    match condition {
+        Condition::Event {
+            timeframe_secs,
+            event_type,
+            subtype,
+            source,
+            direction,
+        } => format!(
+            "event tf={timeframe_secs} type={event_type} subtype={subtype} source={source} direction={direction}"
+        ),
+        Condition::State {
+            timeframe_secs,
+            field,
+            value,
+        } => format!(
+            "state tf={timeframe_secs} field={} value={value}",
+            state_field_code(field)
+        ),
+    }
+}
+
+fn state_field_code(field: StateField) -> &'static str {
+    match field {
+        StateField::EmaStack => "ema_stack",
+        StateField::RsiZone => "rsi_zone",
+        StateField::MacdState => "macd_state",
+        StateField::MacdHistogramState => "macd_histogram_state",
+        StateField::AdxRegime => "adx_regime",
+        StateField::AdxSlope => "adx_slope",
+        StateField::DiState => "di_state",
+        StateField::ProgressionStage => "progression_stage",
+        StateField::ProgressionLegDirection => "progression_leg_direction",
+    }
 }
 
 #[cfg(test)]

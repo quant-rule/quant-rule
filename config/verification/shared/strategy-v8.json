@@ -1,0 +1,26 @@
+{
+  "schema": "quantrule.strategy/v8",
+  "rule": "event-composite",
+  "thesis": "Trade when ADX-confirmed trend continuation on the higher timeframe agrees with the execution EMA stack.",
+  "ladder": ["15m", "1h"],
+  "window_bars": 3,
+  "entry": {
+    "all": [
+      { "kind": "event", "timeframe": "1h", "event_type": 3, "subtype": 6, "source": 16, "direction": 1 },
+      { "kind": "state", "timeframe": "15m", "field": "ema_stack", "value": 1 }
+    ]
+  },
+  "exit": {
+    "any": [
+      { "kind": "state", "timeframe": "15m", "field": "ema_stack", "value": -1 }
+    ]
+  },
+  "risk": {
+    "stop": { "kind": "atr", "multiple": 2.0 },
+    "target": { "kind": "reward_to_risk", "multiple": 1.5 }
+  },
+  "no_trade": {
+    "missing_context": "reject",
+    "require_contiguous_execution": true
+  }
+}

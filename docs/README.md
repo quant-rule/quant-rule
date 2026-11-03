@@ -56,6 +56,7 @@ The baseline decision is listed in the current architecture decisions below.
 | Improvement run contract | Current; schema `quantrule.improvement-run/v1` implemented by `tools/improvement/` | `docs/workflows/run-contract.md` |
 | Strategy candidates v3–v7 | Retired by model v3; retained as history; none is a validated baseline | `docs/config/2026-11-01/strategy-candidates.md` |
 | Strategy v6 breakout | Retired by model v3; retained as history | `docs/config/2026-11-01/strategy-v6.md` |
+| Strategy v8 event composite | Implemented; validation pending | `docs/config/2026-11-03/strategy-v8.md` |
 
 ### Approved target contracts
 
@@ -162,7 +163,7 @@ committed, and the candles, charts, reports, and databases stay local.
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | Unified timeframe ladder | Complete; Phases 1–9 merged through PRs #238–#246; #246 merged as `7c865de` | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
-| Model v3: flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; strategy v8 blocked | `docs/execution-plans/2026-11-03/342-model-v3.md` |
+| Model v3: flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; v8 implementation proceeds separately | `docs/execution-plans/2026-11-03/342-model-v3.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

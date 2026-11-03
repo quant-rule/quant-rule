@@ -31,7 +31,8 @@ use crate::portfolio::{
     PortfolioConfig, PortfolioLedger, PortfolioLedgerError, PortfolioMetrics, SizingRejection,
 };
 use crate::strategy::{
-    Decision, LadderContextStrategy, Strategy, StrategyConfig, StrategyInput, StrategyWalk,
+    Decision, EventCompositeStrategy, EventStrategyInput, LadderContextStrategy, Strategy,
+    StrategyConfig, StrategyInput, StrategyWalk,
 };
 
 /// The configuration of one full run.
@@ -139,6 +140,13 @@ pub fn run_backtest(
     let mut execution = ExecutionEngine::new(config.execution).map_err(BacktestError::Execution)?;
     let mut ledger = PortfolioLedger::new(config.portfolio).map_err(BacktestError::Ledger)?;
     let strategy = LadderContextStrategy::new(config.strategy.clone());
+    let event_strategy = config.strategy.event_composite().map(|events| {
+        EventCompositeStrategy::new(
+            events,
+            config.strategy.risk().unwrap_or_default(),
+            config.strategy.require_contiguous_execution(),
+        )
+    });
     let mut inputs_seen = Vec::new();
     let mut contexts: Vec<LadderContext> = Vec::new();
     let mut decisions = Vec::new();
@@ -190,7 +198,20 @@ pub fn run_backtest(
 
             let input = StrategyInput::from_model_bar(&bar, previous.as_ref(), contiguous);
             let position = execution.position_view();
-            let decision = strategy.decide(&input, &context, position);
+            let decision = match &event_strategy {
+                Some(event_strategy) => {
+                    let event_input = EventStrategyInput::from_model_run(
+                        &model,
+                        config.strategy.timeframe_secs(),
+                        bar_index,
+                        &context,
+                        event_strategy.config().window_bars(),
+                    )
+                    .with_contiguous(contiguous);
+                    event_strategy.decide(&event_input, position)
+                }
+                None => strategy.decide(&input, &context, position),
+            };
             inputs_seen.push(input);
             contexts.push(context);
             decisions.push(decision);
@@ -282,6 +303,13 @@ pub fn walk_strategy(
         return Ok(StrategyWalk::default());
     };
     let strategy = LadderContextStrategy::new(config.clone());
+    let event_strategy = config.event_composite().map(|events| {
+        EventCompositeStrategy::new(
+            events,
+            config.risk().unwrap_or_default(),
+            config.require_contiguous_execution(),
+        )
+    });
     let execution_secs = i64::from(timeframe.timeframe_secs() as u32);
     let mut context_builder = LadderContextBuilder::new(run, config.ladder(), config.weights())
         .map_err(BacktestError::Context)?
@@ -309,7 +337,20 @@ pub fn walk_strategy(
         if position.is_open() {
             position.bars_held += 1;
         }
-        let decision = strategy.decide(&input, &context, position);
+        let decision = match &event_strategy {
+            Some(event_strategy) => {
+                let event_input = EventStrategyInput::from_model_run(
+                    run,
+                    config.timeframe_secs(),
+                    bar_index,
+                    &context,
+                    event_strategy.config().window_bars(),
+                )
+                .with_contiguous(contiguous);
+                event_strategy.decide(&event_input, position)
+            }
+            None => strategy.decide(&input, &context, position),
+        };
         positions.push(position);
         match decision {
             Decision::Enter(entry) => {
