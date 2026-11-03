@@ -83,6 +83,12 @@ pub struct FlatReadings {
     pub macd_signal: Option<f64>,
     /// The MACD histogram.
     pub macd_histogram: Option<f64>,
+    /// Average Directional Index.
+    pub adx: Option<f64>,
+    /// Positive directional indicator.
+    pub di_plus: Option<f64>,
+    /// Negative directional indicator.
+    pub di_minus: Option<f64>,
 }
 
 /// The discrete indicator states at the latest bar.
@@ -96,6 +102,12 @@ pub struct FlatStates {
     pub macd_state: Option<i8>,
     /// +1 histogram > 0, -1 histogram < 0, 0 equal.
     pub macd_histogram_state: Option<i8>,
+    /// 1 ADX at or above its threshold, 0 below, null unavailable.
+    pub adx_regime: Option<i8>,
+    /// Sign of the ADX change over the configured lookback.
+    pub adx_slope: Option<i8>,
+    /// Sign of `+DI - -DI`.
+    pub di_state: Option<i8>,
 }
 
 /// The volatility and participation context.
@@ -284,6 +296,8 @@ impl FlatTimeframe {
             let readings = timeframe.readings();
             let context = timeframe.context().get(bar)?;
             let macd = timeframe.macd();
+            let adx = timeframe.adx();
+            let adx_state = timeframe.adx_state(bar);
             Some(FlatLatest {
                 bar_index: bar,
                 open_time: candle.timestamp(),
@@ -297,6 +311,9 @@ impl FlatTimeframe {
                     macd_line: macd.line.get(bar),
                     macd_signal: macd.signal.get(bar),
                     macd_histogram: macd.histogram.get(bar),
+                    adx: adx.adx.get(bar),
+                    di_plus: adx.di_plus.get(bar),
+                    di_minus: adx.di_minus.get(bar),
                 },
                 states: FlatStates {
                     ema_stack: ema_stack(
@@ -307,6 +324,9 @@ impl FlatTimeframe {
                     rsi_zone: readings.rsi14.get(bar).map(rsi_zone),
                     macd_state: macd_stack(macd.line.get(bar), macd.signal.get(bar)),
                     macd_histogram_state: macd.histogram.get(bar).map(sign_state),
+                    adx_regime: adx_state.adx_regime,
+                    adx_slope: adx_state.adx_slope,
+                    di_state: adx_state.di_state,
                 },
                 context: FlatContext {
                     atr_ratio: context.atr_ratio,

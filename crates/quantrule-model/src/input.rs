@@ -12,7 +12,7 @@ use crate::readings::{PivotScale, ReadingsConfig};
 ///
 /// The readings are indexed by [`Timeframe::ALL`] order. A timeframe without an
 /// explicit override uses the default reading configuration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MarketStateConfig {
     /// The pivot scale used by Structure and Divergence.
     pub structure_scale: PivotScale,
@@ -40,6 +40,11 @@ impl MarketStateConfig {
             .iter()
             .position(|timeframe| u64::from(timeframe.seconds()) == timeframe_secs)
             .map_or_else(ReadingsConfig::default, |index| self.readings[index])
+    }
+
+    /// Sets the default readings for every timeframe.
+    pub fn set_readings_default(&mut self, readings: ReadingsConfig) {
+        self.readings = [readings; Timeframe::ALL.len()];
     }
 
     /// Sets one timeframe's readings and marks them as an explicit override.

@@ -16,6 +16,7 @@
 //! axis and event calculations live in their own modules. This module performs
 //! no I/O, reads no clock, and uses no randomness.
 
+mod adx;
 mod atr;
 mod ema;
 mod macd;
@@ -26,6 +27,7 @@ mod series;
 
 pub mod roles;
 
+pub use adx::{AdxSeries, AdxState};
 pub use atr::atr;
 pub use ema::ema;
 pub use macd::MacdSeries;
@@ -43,7 +45,7 @@ use quantrule_data::Candle;
 /// `atr14`, and `rvol20` are the RSI, ATR, and relative-volume roles. The
 /// configured period may differ from the role label; the model config records
 /// the period that produced the value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ReadingsConfig {
     /// The fast EMA period.
     pub ema_fast: usize,
@@ -63,6 +65,22 @@ pub struct ReadingsConfig {
     pub macd_slow: usize,
     /// The MACD signal period.
     pub macd_signal: usize,
+    /// The ADX period.
+    pub adx: usize,
+    /// The ADX trend-strength threshold.
+    pub adx_threshold: f64,
+    /// The ADX slope lookback in bars.
+    pub adx_slope_bars: usize,
+    /// Whether the ADX/DI family is active for this timeframe.
+    pub adx_active: bool,
+    /// Whether the EMA family is active.
+    pub ema_active: bool,
+    /// Whether RSI is active.
+    pub rsi_active: bool,
+    /// Whether ATR is active.
+    pub atr_active: bool,
+    /// Whether RVOL is active.
+    pub rvol_active: bool,
 }
 
 impl ReadingsConfig {
@@ -77,6 +95,14 @@ impl ReadingsConfig {
         macd_fast: 12,
         macd_slow: 26,
         macd_signal: 9,
+        adx: 14,
+        adx_threshold: 25.0,
+        adx_slope_bars: 3,
+        adx_active: true,
+        ema_active: true,
+        rsi_active: true,
+        atr_active: true,
+        rvol_active: true,
     };
 
     /// Builds a reading configuration.
@@ -102,7 +128,31 @@ impl ReadingsConfig {
             macd_fast: 12,
             macd_slow: 26,
             macd_signal: 9,
+            adx: 14,
+            adx_threshold: 25.0,
+            adx_slope_bars: 3,
+            adx_active: true,
+            ema_active: true,
+            rsi_active: true,
+            atr_active: true,
+            rvol_active: true,
         }
+    }
+
+    /// Sets the ADX parameters.
+    #[must_use]
+    pub const fn with_adx(mut self, period: usize, threshold: f64, slope_bars: usize) -> Self {
+        self.adx = period;
+        self.adx_threshold = threshold;
+        self.adx_slope_bars = slope_bars;
+        self
+    }
+
+    /// Enables or disables the ADX/DI family.
+    #[must_use]
+    pub const fn with_adx_active(mut self, active: bool) -> Self {
+        self.adx_active = active;
+        self
     }
 
     /// Sets the MACD periods.
@@ -127,6 +177,9 @@ impl ReadingsConfig {
             && self.macd_fast > 0
             && self.macd_fast < self.macd_slow
             && self.macd_signal > 0
+            && self.adx > 0
+            && self.adx_threshold > 0.0
+            && self.adx_slope_bars > 0
     }
 }
 
@@ -189,13 +242,38 @@ impl Readings {
     /// every scalar series and for the candidate series.
     #[must_use]
     pub fn compute_with_config(candles: &[Candle], config: &ReadingsConfig) -> Self {
+        let empty = || ReadingSeries::new(vec![None; candles.len()]);
         Self {
-            ema20: ema(candles, config.ema_fast),
-            ema50: ema(candles, config.ema_mid),
-            ema200: ema(candles, config.ema_slow),
-            rsi14: rsi(candles, config.rsi),
-            atr14: atr(candles, config.atr),
-            rvol20: rvol(candles, config.rvol),
+            ema20: if config.ema_active {
+                ema(candles, config.ema_fast)
+            } else {
+                empty()
+            },
+            ema50: if config.ema_active {
+                ema(candles, config.ema_mid)
+            } else {
+                empty()
+            },
+            ema200: if config.ema_active {
+                ema(candles, config.ema_slow)
+            } else {
+                empty()
+            },
+            rsi14: if config.rsi_active {
+                rsi(candles, config.rsi)
+            } else {
+                empty()
+            },
+            atr14: if config.atr_active {
+                atr(candles, config.atr)
+            } else {
+                empty()
+            },
+            rvol20: if config.rvol_active {
+                rvol(candles, config.rvol)
+            } else {
+                empty()
+            },
             pivots: PivotSeries::compute(candles),
         }
     }

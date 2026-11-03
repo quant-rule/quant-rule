@@ -1,9 +1,10 @@
 //! `model.json`: the per-timeframe reading configuration.
 //!
 //! The model's axis formulas, event rules, and aggregation rules remain fixed
-//! by the model contract. Version 2 exposes the scalar reading periods:
-//! defaults for every timeframe plus optional per-timeframe overrides. Version
-//! 1 remains accepted for the historical `structure_scale`-only shape.
+//! by the model contract. Version 3 exposes scalar reading periods, active
+//! flags, ADX parameters, and optional per-timeframe overrides. Version 2
+//! remains accepted for the historical flat-period shape, and version 1 for the
+//! `structure_scale`-only shape.
 
 use quantrule_data::Timeframe;
 use quantrule_model::input::MarketStateConfig;
@@ -20,10 +21,11 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<MarketStateConfig, Conf
     match schema {
         "quantrule.model/v1" => parse_v1(file, object),
         "quantrule.model/v2" => parse_v2(file, object),
+        "quantrule.model/v3" => parse_v3(file, object),
         _ => Err(ConfigError::unsupported(
             file,
             "$.schema",
-            "quantrule.model/v1 or quantrule.model/v2",
+            "quantrule.model/v1, quantrule.model/v2, or quantrule.model/v3",
             schema,
         )),
     }
@@ -109,6 +111,260 @@ fn parse_v2(
     }
 
     Ok(config)
+}
+
+fn parse_v3(
+    file: &str,
+    object: &serde_json::Map<String, Value>,
+) -> Result<MarketStateConfig, ConfigError> {
+    read::check_fields(
+        file,
+        ROOT,
+        object,
+        &["schema", "defaults", "timeframes", "structure"],
+    )?;
+
+    let defaults_value = read::field(file, ROOT, object, "defaults")?;
+    let defaults_object = read::object(file, "$.defaults", defaults_value)?;
+    read::check_fields(
+        file,
+        "$.defaults",
+        defaults_object,
+        &["ema", "rsi", "atr", "rvol", "macd", "adx"],
+    )?;
+    let (defaults, macd_default) = v3_readings(
+        file,
+        "$.defaults",
+        defaults_object,
+        ReadingsConfig::default(),
+    )?;
+
+    let scale = if let Some(structure_value) = object.get("structure") {
+        let structure = read::object(file, "$.structure", structure_value)?;
+        read::check_fields(file, "$.structure", structure, &["scale"])?;
+        structure_scale(
+            file,
+            "$.structure.scale",
+            read::field(file, "$.structure", structure, "scale")?,
+        )?
+    } else {
+        PivotScale::Major
+    };
+
+    let mut config = MarketStateConfig::new(scale);
+    config.set_readings_default(defaults);
+    if let Some(active) = macd_default {
+        config.set_macd_default(active);
+    }
+
+    if let Some(timeframes_value) = object.get("timeframes") {
+        let timeframes_object = read::object(file, "$.timeframes", timeframes_value)?;
+        for (code, value) in timeframes_object {
+            let path = format!("$.timeframes.{code}");
+            let timeframe = Timeframe::from_code(code)
+                .filter(|timeframe| timeframe.code() == code)
+                .ok_or_else(|| ConfigError::range(file, &path, "a supported timeframe", code))?;
+            let override_object = read::object(file, &path, value)?;
+            read::check_fields(
+                file,
+                &path,
+                override_object,
+                &["ema", "rsi", "atr", "rvol", "macd", "adx"],
+            )?;
+            let (override_readings, macd_active) =
+                v3_readings(file, &path, override_object, defaults)?;
+            config.set_readings(timeframe, override_readings);
+            if let Some(active) = macd_active {
+                config.set_macd_enabled(timeframe, active);
+            }
+        }
+    }
+
+    Ok(config)
+}
+
+/// Parses the v3 indicator block. The caller owns the schema-version switch.
+fn v3_readings(
+    file: &str,
+    path: &str,
+    object: &serde_json::Map<String, Value>,
+    inherited: ReadingsConfig,
+) -> Result<(ReadingsConfig, Option<bool>), ConfigError> {
+    let mut config = inherited;
+    let mut macd_active = None;
+
+    if let Some(ema_value) = object.get("ema") {
+        let ema_path = format!("{path}.ema");
+        let ema = read::object(file, &ema_path, ema_value)?;
+        read::check_fields(file, &ema_path, ema, &["periods", "active"])?;
+        let values = read::array(
+            file,
+            &format!("{ema_path}.periods"),
+            read::field(file, &ema_path, ema, "periods")?,
+        )?;
+        if values.len() != 3 {
+            return Err(ConfigError::range(
+                file,
+                &format!("{ema_path}.periods"),
+                "exactly three periods",
+                &read::observed(read::field(file, &ema_path, ema, "periods")?),
+            ));
+        }
+        let mut periods = [0usize; 3];
+        for (index, value) in values.iter().enumerate() {
+            let period = read::u64(
+                file,
+                &read::index(&format!("{ema_path}.periods"), index),
+                value,
+            )?;
+            periods[index] = usize::try_from(period).map_err(|_| {
+                ConfigError::range(
+                    file,
+                    &read::index(&format!("{ema_path}.periods"), index),
+                    "a representable period",
+                    &period.to_string(),
+                )
+            })?;
+        }
+        config.ema_fast = periods[0];
+        config.ema_mid = periods[1];
+        config.ema_slow = periods[2];
+        config.ema_active = v3_active(file, &ema_path, ema)?;
+    }
+
+    if object.contains_key("rsi") {
+        let path = format!("{path}.rsi");
+        let rsi = read::object(
+            file,
+            &path,
+            read::field(file, path.as_str(), object, "rsi")?,
+        )?;
+        read::check_fields(file, &path, rsi, &["period", "active"])?;
+        config.rsi = positive_period(file, &path, rsi, "period")?;
+        config.rsi_active = v3_active(file, &path, rsi)?;
+    }
+    if object.contains_key("atr") {
+        let path = format!("{path}.atr");
+        let atr = read::object(
+            file,
+            &path,
+            read::field(file, path.as_str(), object, "atr")?,
+        )?;
+        read::check_fields(file, &path, atr, &["period", "active"])?;
+        config.atr = positive_period(file, &path, atr, "period")?;
+        config.atr_active = v3_active(file, &path, atr)?;
+    }
+    if object.contains_key("rvol") {
+        let path = format!("{path}.rvol");
+        let rvol = read::object(
+            file,
+            &path,
+            read::field(file, path.as_str(), object, "rvol")?,
+        )?;
+        read::check_fields(file, &path, rvol, &["period", "active"])?;
+        config.rvol = positive_period(file, &path, rvol, "period")?;
+        config.rvol_active = v3_active(file, &path, rvol)?;
+    }
+    if object.contains_key("macd") {
+        let path = format!("{path}.macd");
+        let macd = read::object(
+            file,
+            &path,
+            read::field(file, path.as_str(), object, "macd")?,
+        )?;
+        read::check_fields(file, &path, macd, &["fast", "slow", "signal", "active"])?;
+        let fast = positive_period(file, &path, macd, "fast")?;
+        let slow = positive_period(file, &path, macd, "slow")?;
+        let signal = positive_period(file, &path, macd, "signal")?;
+        config = config.with_macd(fast, slow, signal);
+        macd_active = Some(v3_active(file, &path, macd)?);
+    }
+    if object.contains_key("adx") {
+        let path = format!("{path}.adx");
+        let adx = read::object(
+            file,
+            &path,
+            read::field(file, path.as_str(), object, "adx")?,
+        )?;
+        read::check_fields(
+            file,
+            &path,
+            adx,
+            &["period", "threshold", "slope_bars", "active"],
+        )?;
+        let period = positive_period(file, &path, adx, "period")?;
+        let threshold = read::number(
+            file,
+            &format!("{path}.threshold"),
+            read::field(file, &path, adx, "threshold")?,
+        )?;
+        if threshold <= 0.0 {
+            return Err(ConfigError::range(
+                file,
+                &format!("{path}.threshold"),
+                "> 0",
+                &threshold.to_string(),
+            ));
+        }
+        let slope = read::u64(
+            file,
+            &format!("{path}.slope_bars"),
+            read::field(file, &path, adx, "slope_bars")?,
+        )?;
+        if slope == 0 {
+            return Err(ConfigError::range(
+                file,
+                &format!("{path}.slope_bars"),
+                "> 0",
+                "0",
+            ));
+        }
+        let slope_bars = usize::try_from(slope).map_err(|_| {
+            ConfigError::range(
+                file,
+                &format!("{path}.slope_bars"),
+                "a representable bar count",
+                &slope.to_string(),
+            )
+        })?;
+        config = config.with_adx(period, threshold, slope_bars);
+        config.adx_active = v3_active(file, &path, adx)?;
+    }
+
+    if !config.is_valid() {
+        return Err(ConfigError::range(
+            file,
+            path,
+            "positive periods with strictly increasing EMA periods and a positive ADX threshold",
+            &format!(
+                "ema=[{},{},{}], rsi={}, atr={}, rvol={}, macd={}/{}/{}, adx={}/{}",
+                config.ema_fast,
+                config.ema_mid,
+                config.ema_slow,
+                config.rsi,
+                config.atr,
+                config.rvol,
+                config.macd_fast,
+                config.macd_slow,
+                config.macd_signal,
+                config.adx,
+                config.adx_threshold
+            ),
+        ));
+    }
+
+    Ok((config, macd_active))
+}
+
+fn v3_active(
+    file: &str,
+    path: &str,
+    object: &serde_json::Map<String, Value>,
+) -> Result<bool, ConfigError> {
+    match object.get("active") {
+        Some(value) => read::boolean(file, &format!("{path}.active"), value),
+        None => Ok(true),
+    }
 }
 
 fn readings(

@@ -53,6 +53,9 @@ fn bar_value(bar: &ModelBar, window_start: usize, window_len: usize) -> Value {
             "rsi14": bar.readings.rsi14,
             "atr14": bar.readings.atr14,
             "rvol20": bar.readings.rvol20,
+            "adx": bar.readings.adx,
+            "di_plus": bar.readings.di_plus,
+            "di_minus": bar.readings.di_minus,
         },
         "direction": {
             "value": direction.direction,

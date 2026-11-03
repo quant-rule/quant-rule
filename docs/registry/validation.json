@@ -1,0 +1,346 @@
+{
+  "schema": "quantrule.validation/v1",
+  "version": "2026-11-03.1",
+  "claims": [
+    {
+      "id": "ema",
+      "kind": "indicator",
+      "construct_tests": [
+        "synthetic_trend",
+        "synthetic_range",
+        "flat",
+        "short_series"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "rsi",
+      "kind": "indicator",
+      "construct_tests": [
+        "synthetic_uptrend",
+        "synthetic_downtrend",
+        "flat",
+        "short_series"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "atr",
+      "kind": "indicator",
+      "construct_tests": [
+        "known_true_range",
+        "gap",
+        "flat",
+        "short_series"
+      ],
+      "primary_outcome": "volatility",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "rvol",
+      "kind": "indicator",
+      "construct_tests": [
+        "known_volume_baseline",
+        "volume_spike",
+        "zero_volume",
+        "short_series"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "macd",
+      "kind": "indicator",
+      "construct_tests": [
+        "synthetic_trend",
+        "synthetic_reversal",
+        "flat",
+        "short_series"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "pivots",
+      "kind": "indicator",
+      "construct_tests": [
+        "synthetic_swing",
+        "confirmation_delay",
+        "equal_high_low",
+        "short_series"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "context",
+      "kind": "indicator",
+      "construct_tests": [
+        "ratio_table",
+        "missing_inputs",
+        "zero_baseline"
+      ],
+      "primary_outcome": "volatility",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "progression",
+      "kind": "indicator",
+      "construct_tests": [
+        "synthetic_leg",
+        "target_revision",
+        "invalidation",
+        "short_series"
+      ],
+      "primary_outcome": "progression",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "adx",
+      "kind": "indicator",
+      "construct_tests": [
+        "synthetic_trend",
+        "synthetic_range",
+        "flat",
+        "short_series"
+      ],
+      "primary_outcome": "trend_strength",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "dmi",
+      "kind": "indicator",
+      "construct_tests": [
+        "synthetic_uptrend",
+        "synthetic_downtrend",
+        "flat",
+        "short_series"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "level.test",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_retest",
+        "availability",
+        "precedence"
+      ],
+      "primary_outcome": "structure",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "level.cross",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_cross",
+        "availability",
+        "precedence"
+      ],
+      "primary_outcome": "structure",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "level.break",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_break",
+        "availability",
+        "precedence"
+      ],
+      "primary_outcome": "structure",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "divergence.rsi_regular_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_pivots",
+        "confirmation_availability"
+      ],
+      "primary_outcome": "reversal",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "divergence.rsi_regular_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_pivots",
+        "confirmation_availability"
+      ],
+      "primary_outcome": "reversal",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "divergence.rsi_hidden_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_pivots",
+        "confirmation_availability"
+      ],
+      "primary_outcome": "reversal",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "divergence.rsi_hidden_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_pivots",
+        "confirmation_availability"
+      ],
+      "primary_outcome": "reversal",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "signal.rsi_threshold",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_threshold",
+        "equality",
+        "availability"
+      ],
+      "primary_outcome": "path_directional",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "signal.ema_pair_cross",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_cross",
+        "equality",
+        "availability"
+      ],
+      "primary_outcome": "path_directional",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "signal.ema_stack_change",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_stack",
+        "equality",
+        "availability"
+      ],
+      "primary_outcome": "path_directional",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "signal.macd_line_signal_cross",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_cross",
+        "equality",
+        "availability"
+      ],
+      "primary_outcome": "path_directional",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "signal.macd_histogram_slope_flip",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_flip",
+        "zero_slope",
+        "availability"
+      ],
+      "primary_outcome": "path_directional",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "signal.macd_zero_cross",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_zero_cross",
+        "equality",
+        "availability"
+      ],
+      "primary_outcome": "path_directional",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "signal.di_cross",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_direction_change",
+        "equality",
+        "availability"
+      ],
+      "primary_outcome": "path_directional",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "signal.trend_continuation",
+      "kind": "event",
+      "construct_tests": [
+        "synthetic_conjunction",
+        "disagreement",
+        "causality"
+      ],
+      "primary_outcome": "path_directional",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "predictive_status": "pending"
+    }
+  ]
+}

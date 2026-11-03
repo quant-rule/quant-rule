@@ -62,8 +62,8 @@ TEST_KINDS = {
     "golden", "causality", "determinism", "edge_cases", "property", "event",
     "boundary", "benchmark",
 }
-SOURCE_RANGE = range(1, 16)
-SUBTYPE_RANGE = {1: range(1, 4), 2: range(1, 5), 3: range(1, 6)}
+SOURCE_RANGE = range(1, 19)
+SUBTYPE_RANGE = {1: range(1, 4), 2: range(1, 5), 3: range(1, 7)}
 
 
 def load(path: Path) -> Any:

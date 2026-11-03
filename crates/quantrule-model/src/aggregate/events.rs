@@ -179,6 +179,9 @@ fn summarize(snapshot: &TimeframeSnapshot) -> TimeframeEventSummary {
     let mut counts_by_subtype = EventSubtypeCounts::default();
 
     for event in &snapshot.events {
+        if !crate::events::is_legacy_axis_event(event) {
+            continue;
+        }
         if event.available_bar_index < window_start || event.available_bar_index > latest {
             continue;
         }
@@ -188,6 +191,7 @@ fn summarize(snapshot: &TimeframeSnapshot) -> TimeframeEventSummary {
     let latest_event = snapshot
         .events
         .iter()
+        .filter(|event| crate::events::is_legacy_axis_event(event))
         .filter(|event| event.available_bar_index <= latest)
         .max_by(|left, right| event_cmp(left, right));
 

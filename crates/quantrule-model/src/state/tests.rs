@@ -6,10 +6,11 @@ use crate::axes::progression::{ProgressionBar, ProgressionConfig, ProgressionSer
 use crate::axes::structure::{StructureBar, StructureSeries};
 use crate::context::{ContextBar, ContextSeries};
 use crate::events::divergence::DivergenceEventSeries;
+use crate::events::dmi::{DmiConfig, DmiEventSeries};
 use crate::events::level::LevelEventSeries;
 use crate::events::signal::SignalEventSeries;
 use crate::kernel::{Readiness, UnavailableReason};
-use crate::readings::Readings;
+use crate::readings::{AdxSeries, Readings};
 use quantrule_data::{Candle, CandleValues, Timeframe, TimeframeSet};
 
 const READINGS_FIXTURE: &str = include_str!("../../tests/fixtures/readings_golden.csv");
@@ -236,9 +237,21 @@ fn the_market_state_assembles_the_latest_readings_and_events() {
         &StructureSeries::compute(&candles, &readings),
         &crate::events::signal::SignalConfig::from_secs(60).expect("timeframe"),
     );
+    let adx = AdxSeries::compute(&candles, 14);
+    let dmi = DmiEventSeries::compute(&adx, &DmiConfig::from_secs(60).expect("timeframe"));
+    let trend = crate::events::trend::TrendContinuationSeries::compute(
+        &readings,
+        &crate::readings::MacdSeries::empty(readings.len()),
+        &adx,
+        &crate::events::trend::TrendContinuationConfig::new(
+            std::num::NonZeroU64::new(60).expect("timeframe"),
+            25.0,
+            3,
+        ),
+    );
     assert_eq!(
         snapshot.events.len(),
-        level.len() + divergence.len() + signal.len()
+        level.len() + divergence.len() + signal.len() + dmi.len() + trend.len()
     );
     assert!(
         snapshot

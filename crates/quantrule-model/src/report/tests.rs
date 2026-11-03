@@ -283,7 +283,13 @@ fn every_event_is_counted_once_and_the_totals_agree() {
     let expected_total: usize = run
         .timeframes()
         .iter()
-        .map(|timeframe| timeframe.events().len())
+        .map(|timeframe| {
+            timeframe
+                .events()
+                .iter()
+                .filter(|event| super::assemble::is_legacy_event(event))
+                .count()
+        })
         .sum();
     assert_eq!(report.events.total as usize, expected_total);
     assert_eq!(report.events.by_type.total(), report.events.total);
@@ -302,7 +308,12 @@ fn every_event_is_counted_once_and_the_totals_agree() {
         let timeframe = run
             .timeframe(timeframe_report.timeframe_secs)
             .expect("the ladder member is present");
-        assert_eq!(timeframe_report.total as usize, timeframe.events().len());
+        let expected_timeframe = timeframe
+            .events()
+            .iter()
+            .filter(|event| super::assemble::is_legacy_event(event))
+            .count();
+        assert_eq!(timeframe_report.total as usize, expected_timeframe);
         assert_eq!(timeframe_report.by_type.total(), timeframe_report.total);
         let subtype_total: u32 = timeframe_report
             .by_subtype
@@ -454,7 +465,12 @@ fn chart_events_are_sorted_and_drawn_at_their_availability_bar() {
     let run = build_run(&candles, &[300]);
     let report = build_report(&run, &[300]);
     let timeframe = run.timeframe(300).expect("the timeframe is present");
-    let mut expected = timeframe.events().to_vec();
+    let mut expected: Vec<_> = timeframe
+        .events()
+        .iter()
+        .filter(|event| super::assemble::is_legacy_event(event))
+        .copied()
+        .collect();
     expected.sort_by(event_cmp);
 
     assert_eq!(report.charts.events.len(), expected.len());

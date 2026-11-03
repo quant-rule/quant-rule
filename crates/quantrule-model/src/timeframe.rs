@@ -22,10 +22,12 @@ use crate::context::ContextBar;
 use crate::context::ContextSeries;
 use crate::events::EventRecord;
 use crate::events::divergence::{DivergenceConfig, DivergenceEventSeries};
+use crate::events::dmi::{DmiConfig, DmiEventSeries};
 use crate::events::level::{LevelEventConfig, LevelEventSeries};
 use crate::events::signal::{SignalConfig, SignalEventSeries};
+use crate::events::trend::{TrendContinuationConfig, TrendContinuationSeries};
 use crate::input::{MarketStateConfig, TimeframeInput};
-use crate::readings::{MacdSeries, PivotKind, PivotScale, PivotSeries, Readings};
+use crate::readings::{AdxSeries, MacdSeries, PivotKind, PivotScale, PivotSeries, Readings};
 use crate::retention::{EventBatch, EventHistory};
 
 /// The six scalar readings for one closed bar.
@@ -43,10 +45,16 @@ pub struct ModelReadings {
     pub atr14: Option<f64>,
     /// Relative volume.
     pub rvol20: Option<f64>,
+    /// Average Directional Index.
+    pub adx: Option<f64>,
+    /// Positive directional indicator.
+    pub di_plus: Option<f64>,
+    /// Negative directional indicator.
+    pub di_minus: Option<f64>,
 }
 
 impl ModelReadings {
-    fn at(readings: &Readings, bar: usize) -> Self {
+    fn at(readings: &Readings, adx: &AdxSeries, bar: usize) -> Self {
         Self {
             ema20: readings.ema20.get(bar),
             ema50: readings.ema50.get(bar),
@@ -54,6 +62,9 @@ impl ModelReadings {
             rsi14: readings.rsi14.get(bar),
             atr14: readings.atr14.get(bar),
             rvol20: readings.rvol20.get(bar),
+            adx: adx.adx.get(bar),
+            di_plus: adx.di_plus.get(bar),
+            di_minus: adx.di_minus.get(bar),
         }
     }
 }
@@ -91,6 +102,9 @@ pub struct TimeframeModel {
     open_times: Vec<i64>,
     readings: Readings,
     macd: MacdSeries,
+    adx: AdxSeries,
+    adx_threshold: f64,
+    adx_slope_bars: usize,
     direction: DirectionSeries,
     momentum: MomentumSeries,
     structure: StructureSeries,
@@ -125,6 +139,11 @@ impl TimeframeModel {
         } else {
             MacdSeries::empty(input.candles.len())
         };
+        let adx = if readings_config.adx_active {
+            AdxSeries::compute(input.candles, readings_config.adx)
+        } else {
+            AdxSeries::empty(input.candles.len())
+        };
         let direction = DirectionSeries::compute(&readings);
         let momentum = MomentumSeries::compute(&readings);
         let structure = StructureSeries::compute_with_config(
@@ -156,12 +175,25 @@ impl TimeframeModel {
             &structure,
             &SignalConfig::new(timeframe_secs),
         );
+        let dmi_events = DmiEventSeries::compute(&adx, &DmiConfig::new(timeframe_secs));
+        let trend_events = TrendContinuationSeries::compute(
+            &readings,
+            &macd,
+            &adx,
+            &TrendContinuationConfig::new(
+                timeframe_secs,
+                readings_config.adx_threshold,
+                readings_config.adx_slope_bars,
+            ),
+        );
 
         let mut events: Vec<EventRecord> = level_events
             .events()
             .iter()
             .chain(divergence_events.events())
             .chain(signal_events.events())
+            .chain(dmi_events.events())
+            .chain(trend_events.events())
             .copied()
             .collect();
         // Keep the detector append order within one availability/occurrence
@@ -199,6 +231,9 @@ impl TimeframeModel {
             open_times,
             readings,
             macd,
+            adx,
+            adx_threshold: readings_config.adx_threshold,
+            adx_slope_bars: readings_config.adx_slope_bars,
             direction,
             momentum,
             structure,
@@ -247,6 +282,18 @@ impl TimeframeModel {
     #[must_use]
     pub const fn macd(&self) -> &MacdSeries {
         &self.macd
+    }
+
+    /// The ADX/DI series computed for this timeframe.
+    #[must_use]
+    pub const fn adx(&self) -> &AdxSeries {
+        &self.adx
+    }
+
+    /// The configured ADX state at `bar`.
+    #[must_use]
+    pub fn adx_state(&self, bar: usize) -> crate::readings::AdxState {
+        self.adx.state(bar, self.adx_threshold, self.adx_slope_bars)
     }
 
     /// The pivot series computed for this timeframe.
@@ -325,7 +372,7 @@ impl TimeframeModel {
             timeframe_secs: self.timeframe_secs,
             bar_index: bar,
             candle,
-            readings: ModelReadings::at(&self.readings, bar),
+            readings: ModelReadings::at(&self.readings, &self.adx, bar),
             direction,
             momentum,
             structure,
