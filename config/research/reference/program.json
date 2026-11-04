@@ -1,0 +1,77 @@
+{
+  "schema": "quantrule.research-program/v1",
+  "program_id": "PROGRAM-2026-11-04-99",
+  "premise": "Reference dry run: three fixture cells prove the runner, aggregator, and report without a market claim.",
+  "economic_rationale": "This is a platform dry run, not a market hypothesis. The fixture cells deliberately fail.",
+  "tier": "model",
+  "changed": "model",
+  "frozen": ["strategy", "portfolio"],
+  "partition_dev": "model_dev",
+  "partition_validation": "model_validation",
+  "costs": {
+    "commission_bps": 4,
+    "slippage_bps": 2,
+    "funding": 0
+  },
+  "green_criteria": {
+    "min_events": 200,
+    "min_clusters": 20,
+    "min_lift": 0.05,
+    "lift_lcb": "> 0"
+  },
+  "correction": {
+    "method": "bonferroni",
+    "primary_cells": 3
+  },
+  "max_parallel": 3,
+  "iteration_cap": 1,
+  "validation_access": "none",
+  "stop_rule": "Dry run only; no validation, no baseline.",
+  "cells": [
+    {
+      "cell_id": "CELL-01",
+      "hypothesis": "Fixture cell 1 fails by construction.",
+      "primary": true,
+      "config_dir": "config/research/reference/cells/CELL-01",
+      "command": [
+        "python3",
+        "tools/research/tests/fixture_cell.py",
+        "--cell",
+        "CELL-01",
+        "--out",
+        "{out}"
+      ],
+      "result_parser": "summary_json"
+    },
+    {
+      "cell_id": "CELL-02",
+      "hypothesis": "Fixture cell 2 fails by construction.",
+      "primary": true,
+      "config_dir": "config/research/reference/cells/CELL-02",
+      "command": [
+        "python3",
+        "tools/research/tests/fixture_cell.py",
+        "--cell",
+        "CELL-02",
+        "--out",
+        "{out}"
+      ],
+      "result_parser": "summary_json"
+    },
+    {
+      "cell_id": "CELL-03",
+      "hypothesis": "Fixture cell 3 fails by construction.",
+      "primary": true,
+      "config_dir": "config/research/reference/cells/CELL-03",
+      "command": [
+        "python3",
+        "tools/research/tests/fixture_cell.py",
+        "--cell",
+        "CELL-03",
+        "--out",
+        "{out}"
+      ],
+      "result_parser": "summary_json"
+    }
+  ]
+}
