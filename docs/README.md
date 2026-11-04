@@ -100,9 +100,11 @@ the remaining pending phase.
 | STRATEGY-003 | Level-fade v7 validation; not green; new rule family rejected | [`docs/improvement/2026-11-01/STRATEGY-003-comparison.md`](improvement/2026-11-01/STRATEGY-003-comparison.md) |
 | MODEL-2026-11-04-04..05 | 1m 4 ATR compression baseline; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md) |
 | MODEL-2026-11-04-06..07 | 1m compression-range next-bar resolution; both partitions pass; accepted |
-| MODEL-2026-11-04-08 | 5m compression-range next-bar resolution; back-lag control fails; no edge | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
+| MODEL-2026-11-04-08 | 5m compression-range next-bar resolution; back-lag control fails; no edge |
+| MODEL-2026-11-04-10..11 | 5m fresh-onset range; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
 | STRATEGY-2026-11-04-01 | Directional 1m compression strategy; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-V9-GATE.md`](improvement/2026-11-04/STRATEGY-V9-GATE.md) |
 | STRATEGY-2026-11-04-02 | 1m compression bracket; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-BRACKET-GATE.md`](improvement/2026-11-04/STRATEGY-BRACKET-GATE.md) |
+| STRATEGY-2026-11-04-03 | 5m fresh-onset bracket; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-ONSET-5M-GATE.md`](improvement/2026-11-04/STRATEGY-ONSET-5M-GATE.md) |
 | Workflow-reset audit | Program green; one Major fixed; Minor/Info routed | [`docs/audits/2026-11-01/workflow-reset-audit.md`](audits/2026-11-01/workflow-reset-audit.md) |
 
 The experiment records above are pre-reset evidence. They are not improvement
@@ -115,7 +117,7 @@ runs under the run contract and are not imported as baselines.
 | Audit Workflow | Current; approved 2026-11-01 | `docs/workflows/audit-workflow.md` |
 | Improvement Workflow | Current; approved 2026-11-01 | `docs/workflows/improvement-workflow.md` |
 | Improvement run contract | Current; schema `quantrule.improvement-run/v1` | `docs/workflows/run-contract.md` |
-| Improvement registry | Current; 1m 4 ATR compression and compression-range model baselines accepted; no strategy or portfolio baseline | `docs/improvement/README.md` |
+| Improvement registry | Current; 1m 4 ATR compression, 1m compression-range, and 5m fresh-onset model baselines accepted; no strategy or portfolio baseline | `docs/improvement/README.md` |
 
 ## Current tutorials
 

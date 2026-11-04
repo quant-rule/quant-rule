@@ -122,7 +122,8 @@ fn event_axis(event: &EventRecord) -> Option<AxisCode> {
             },
             SignalSubtype::TrendContinuation
             | SignalSubtype::CompressionBreakout
-            | SignalSubtype::CompressionRange => None,
+            | SignalSubtype::CompressionRange
+            | SignalSubtype::CompressionRangeOnset => None,
         },
     }
 }

@@ -18,6 +18,8 @@ per-timeframe overrides for:
 - RSI levels, EMA pairs, MACD families, DI cross, and trend continuation;
 - compression-breakout coiling window, break distance, and RVOL confirmation;
 - neutral compression-range coiling window for the pre-breakout boundaries;
+- fresh-onset compression-range window for the first coiling window after a
+  non-coiling bar;
 - progression target, stability, invalidation, and minimum target.
 
 The pivot detection windows are fixed by the model definition at 2 minor bars and

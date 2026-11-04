@@ -87,6 +87,10 @@
         "compression_range": {
           "enabled": false,
           "coiling_bars": 5
+        },
+        "compression_range_onset": {
+          "enabled": false,
+          "coiling_bars": 5
         }
       }
     },

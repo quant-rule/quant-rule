@@ -299,6 +299,7 @@ fn v4_signal(
             "trend_continuation",
             "compression_breakout",
             "compression_range",
+            "compression_range_onset",
         ],
     )?;
     let mut settings = inherited;
@@ -432,6 +433,15 @@ fn v4_signal(
             settings,
         )?;
     }
+
+    if let Some(onset_value) = signal.get("compression_range_onset") {
+        settings = v4_compression_onset(
+            file,
+            &format!("{path}.compression_range_onset"),
+            onset_value,
+            settings,
+        )?;
+    }
     Ok(settings)
 }
 
@@ -481,6 +491,26 @@ fn v4_compression_range(
     }
     if let Some(coiling) = range.get("coiling_bars") {
         settings.compression_range_coiling_bars =
+            positive_usize(file, &format!("{path}.coiling_bars"), coiling)?;
+    }
+    Ok(settings)
+}
+
+fn v4_compression_onset(
+    file: &str,
+    path: &str,
+    value: &Value,
+    inherited: SignalSettings,
+) -> Result<SignalSettings, ConfigError> {
+    let onset = read::object(file, path, value)?;
+    read::check_fields(file, path, onset, &["enabled", "coiling_bars"])?;
+    let mut settings = inherited;
+    if let Some(enabled) = onset.get("enabled") {
+        settings.compression_range_onset =
+            read::boolean(file, &format!("{path}.enabled"), enabled)?;
+    }
+    if let Some(coiling) = onset.get("coiling_bars") {
+        settings.compression_range_onset_coiling_bars =
             positive_usize(file, &format!("{path}.coiling_bars"), coiling)?;
     }
     Ok(settings)
@@ -654,6 +684,10 @@ pub(crate) fn effective_json(config: &MarketStateConfig) -> Value {
                         "compression_range": {
                             "enabled": events.signal.compression_range,
                             "coiling_bars": events.signal.compression_range_coiling_bars
+                        },
+                        "compression_range_onset": {
+                            "enabled": events.signal.compression_range_onset,
+                            "coiling_bars": events.signal.compression_range_onset_coiling_bars
                         }
                     }
                 },

@@ -72,11 +72,13 @@ pub enum SignalSubtype {
     CompressionBreakout = 7,
     /// Code 8: a coiling window completed and published its range.
     CompressionRange = 8,
+    /// Code 9: the first coiling window after a non-coiling bar.
+    CompressionRangeOnset = 9,
 }
 
 impl SignalSubtype {
     /// Every subtype, in contract code order.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::ThresholdCrossing,
         Self::SeriesCrossover,
         Self::CompactStateChange,
@@ -85,6 +87,7 @@ impl SignalSubtype {
         Self::TrendContinuation,
         Self::CompressionBreakout,
         Self::CompressionRange,
+        Self::CompressionRangeOnset,
     ];
 
     /// The contract's numeric code.
@@ -105,6 +108,7 @@ impl SignalSubtype {
             6 => Some(Self::TrendContinuation),
             7 => Some(Self::CompressionBreakout),
             8 => Some(Self::CompressionRange),
+            9 => Some(Self::CompressionRangeOnset),
             _ => None,
         }
     }
