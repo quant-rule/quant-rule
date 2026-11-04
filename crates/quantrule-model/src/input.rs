@@ -81,6 +81,14 @@ pub struct SignalSettings {
     pub trend_adx_threshold: f64,
     /// The ADX slope lookback for the trend-continuation conjunction.
     pub trend_adx_slope_bars: usize,
+    /// Whether the compression-breakout event is active.
+    pub compression_breakout: bool,
+    /// The number of coiling bars in the compression window.
+    pub compression_coiling_bars: usize,
+    /// The close-beyond distance in ATR units for a compression breakout.
+    pub compression_break_atr: f64,
+    /// The minimum RVOL ratio on the breakout bar.
+    pub compression_rvol_min: f64,
 }
 
 impl SignalSettings {
@@ -95,6 +103,10 @@ impl SignalSettings {
         trend_continuation: true,
         trend_adx_threshold: 25.0,
         trend_adx_slope_bars: 3,
+        compression_breakout: false,
+        compression_coiling_bars: 5,
+        compression_break_atr: 0.2,
+        compression_rvol_min: 1.2,
     };
 }
 

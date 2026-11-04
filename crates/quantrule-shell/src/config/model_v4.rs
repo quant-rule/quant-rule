@@ -297,6 +297,7 @@ fn v4_signal(
             "macd",
             "di_cross",
             "trend_continuation",
+            "compression_breakout",
         ],
     )?;
     let mut settings = inherited;
@@ -411,6 +412,47 @@ fn v4_signal(
             trend_value,
             settings,
         )?;
+    }
+
+    if let Some(compression_value) = signal.get("compression_breakout") {
+        settings = v4_compression(
+            file,
+            &format!("{path}.compression_breakout"),
+            compression_value,
+            settings,
+        )?;
+    }
+    Ok(settings)
+}
+
+fn v4_compression(
+    file: &str,
+    path: &str,
+    value: &Value,
+    inherited: SignalSettings,
+) -> Result<SignalSettings, ConfigError> {
+    let compression = read::object(file, path, value)?;
+    read::check_fields(
+        file,
+        path,
+        compression,
+        &["enabled", "coiling_bars", "break_atr", "rvol_min"],
+    )?;
+    let mut settings = inherited;
+    if let Some(enabled) = compression.get("enabled") {
+        settings.compression_breakout = read::boolean(file, &format!("{path}.enabled"), enabled)?;
+    }
+    if let Some(coiling) = compression.get("coiling_bars") {
+        settings.compression_coiling_bars =
+            positive_usize(file, &format!("{path}.coiling_bars"), coiling)?;
+    }
+    if let Some(break_atr) = compression.get("break_atr") {
+        settings.compression_break_atr =
+            positive_number(file, &format!("{path}.break_atr"), break_atr)?;
+    }
+    if let Some(rvol_min) = compression.get("rvol_min") {
+        settings.compression_rvol_min =
+            positive_number(file, &format!("{path}.rvol_min"), rvol_min)?;
     }
     Ok(settings)
 }
@@ -573,6 +615,12 @@ pub(crate) fn effective_json(config: &MarketStateConfig) -> Value {
                             "enabled": events.signal.trend_continuation,
                             "adx_threshold": events.signal.trend_adx_threshold,
                             "adx_slope_bars": events.signal.trend_adx_slope_bars
+                        },
+                        "compression_breakout": {
+                            "enabled": events.signal.compression_breakout,
+                            "coiling_bars": events.signal.compression_coiling_bars,
+                            "break_atr": events.signal.compression_break_atr,
+                            "rvol_min": events.signal.compression_rvol_min
                         }
                     }
                 },

@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-04.1",
+  "version": "2026-11-04.2",
   "indicators": [
     {
       "id": "ema",
@@ -237,7 +237,9 @@
         "context_code"
       ],
       "availability": "after both ratios are available",
-      "events": [],
+      "events": [
+        "signal.compression_breakout"
+      ],
       "tests": [
         "golden",
         "causality",
@@ -702,6 +704,31 @@
         "determinism",
         "edge_cases",
         "event"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.compression_breakout",
+      "event_type": 3,
+      "subtype": 7,
+      "source": 5,
+      "indicator": "context",
+      "role": "signal",
+      "claim": "A coiling context followed by a close beyond the compression range with RVOL confirmation predicts a larger forward range than coiling alone, not direction.",
+      "parameters": [
+        "model.signal.compression_breakout",
+        "model.signal.compression_coiling_bars",
+        "model.signal.compression_break_atr",
+        "model.signal.compression_rvol_min",
+        "model.context.atr_ratio_period",
+        "model.context.rvol_period",
+        "model.context.threshold"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism",
+        "edge_cases"
       ],
       "status": "active"
     }
@@ -1540,6 +1567,54 @@
         "model"
       ],
       "status": "active"
+    },
+    {
+      "id": "model.signal.compression_breakout",
+      "path": "defaults.events.signal.compression_breakout.enabled",
+      "type": "boolean",
+      "default": false,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.compression_coiling_bars",
+      "path": "defaults.events.signal.compression_breakout.coiling_bars",
+      "type": "integer",
+      "default": 5,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.compression_break_atr",
+      "path": "defaults.events.signal.compression_breakout.break_atr",
+      "type": "number",
+      "default": 0.2,
+      "unit": "atr",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.compression_rvol_min",
+      "path": "defaults.events.signal.compression_breakout.rvol_min",
+      "type": "number",
+      "default": 1.2,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
     }
   ],
   "codes": {
@@ -1565,7 +1640,8 @@
       "3": "compact state change",
       "4": "histogram slope flip",
       "5": "zero cross",
-      "6": "trend continuation"
+      "6": "trend continuation",
+      "7": "compression breakout"
     },
     "sources": {
       "1": "EMA fast",

@@ -68,17 +68,20 @@ pub enum SignalSubtype {
     ZeroCross = 5,
     /// Code 6: a registered trend-continuation conjunction fired.
     TrendContinuation = 6,
+    /// Code 7: a compression range broke with participation.
+    CompressionBreakout = 7,
 }
 
 impl SignalSubtype {
     /// Every subtype, in contract code order.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::ThresholdCrossing,
         Self::SeriesCrossover,
         Self::CompactStateChange,
         Self::HistogramSlopeFlip,
         Self::ZeroCross,
         Self::TrendContinuation,
+        Self::CompressionBreakout,
     ];
 
     /// The contract's numeric code.
@@ -97,6 +100,7 @@ impl SignalSubtype {
             4 => Some(Self::HistogramSlopeFlip),
             5 => Some(Self::ZeroCross),
             6 => Some(Self::TrendContinuation),
+            7 => Some(Self::CompressionBreakout),
             _ => None,
         }
     }

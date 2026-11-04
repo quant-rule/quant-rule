@@ -62,7 +62,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--command",
-        choices=("backtest", "claim-validation", "path-validation"),
+        choices=("backtest", "claim-validation", "path-validation", "compression-validation"),
         default="backtest",
         help="run command (default: backtest)",
     )
@@ -268,10 +268,17 @@ def main(argv: list[str] | None = None) -> int:
         config_path = resolve_run_config(manifest_path, manifest["run_config"])
         shell = resolve_shell(args.qr) if args.command == "backtest" else None
         path_config = manifest.get("path_validation")
+        compression_config = manifest.get("compression_validation")
         if args.command == "path-validation":
             if not isinstance(path_config, dict):
                 raise ToolError("path_validation: an object is required for path-validation")
             families_path = resolve_path(manifest_path, str(path_config["families"]))
+        if args.command == "compression-validation" and not isinstance(
+            compression_config, dict
+        ):
+            raise ToolError(
+                "compression_validation: an object is required for compression-validation"
+            )
     except ToolError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
@@ -310,7 +317,7 @@ def main(argv: list[str] | None = None) -> int:
             "--timeframes",
             "5m,15m,1h",
         ]
-    else:
+    elif args.command == "path-validation":
         assert isinstance(path_config, dict)
         command = [
             "python3",
@@ -338,6 +345,30 @@ def main(argv: list[str] | None = None) -> int:
             command.extend(["--config", str(path_config["config"])])
         if path_config.get("skip_sensitivity"):
             command.append("--skip-sensitivity")
+    else:
+        assert isinstance(compression_config, dict)
+        command = [
+            "python3",
+            str(REPO_ROOT / "tools/improvement/compression_validation.py"),
+            "--matrix",
+            str(config_path),
+            "--out",
+            str(root / "artifacts"),
+            "--horizon",
+            str(compression_config.get("horizon", 20)),
+            "--target-atr",
+            str(compression_config.get("target_atr", 2.0)),
+            "--random-draws",
+            str(compression_config.get("random_draws", 200)),
+            "--primary-cells",
+            str(compression_config.get("primary_cells", 2)),
+            "--seed",
+            str(compression_config.get("seed", 0)),
+        ]
+        if compression_config.get("primary_timeframe"):
+            command.extend(
+                ["--primary-timeframe", str(compression_config["primary_timeframe"])]
+            )
     try:
         process = run_process(command, REPO_ROOT)
     except ToolError as error:

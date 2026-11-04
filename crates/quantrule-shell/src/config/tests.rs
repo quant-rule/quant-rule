@@ -376,7 +376,8 @@ fn model_v4_object() -> Value {
                     "ema_pairs": [[20, 50], [50, 200], [20, 200]],
                     "macd": ["line_signal_cross", "histogram_slope_flip", "zero_cross"],
                     "di_cross": true,
-                    "trend_continuation": {"enabled": true, "adx_threshold": 25.0, "adx_slope_bars": 3}
+                    "trend_continuation": {"enabled": true, "adx_threshold": 25.0, "adx_slope_bars": 3},
+                    "compression_breakout": {"enabled": true, "coiling_bars": 6, "break_atr": 0.3, "rvol_min": 1.4}
                 }
             },
             "progression": {
@@ -393,7 +394,8 @@ fn model_v4_object() -> Value {
                     "level": {"test_atr": 0.3},
                     "signal": {
                         "di_cross": false,
-                        "trend_continuation": {"adx_threshold": 30.0}
+                        "trend_continuation": {"adx_threshold": 30.0},
+                        "compression_breakout": {"coiling_bars": 7}
                     }
                 },
                 "progression": {"target_atr": 3.0}
@@ -447,6 +449,10 @@ fn model_v4_reads_events_progression_and_rejects_4h() {
     assert!(events.signal.trend_continuation);
     assert_eq!(events.signal.trend_adx_threshold, 30.0);
     assert_eq!(events.signal.trend_adx_slope_bars, 3);
+    assert!(events.signal.compression_breakout);
+    assert_eq!(events.signal.compression_coiling_bars, 7);
+    assert_eq!(events.signal.compression_break_atr, 0.3);
+    assert_eq!(events.signal.compression_rvol_min, 1.4);
     let progression = config.progression_for(u64::from(Timeframe::M5.seconds()));
     assert_eq!(progression.target_atr, 3.0);
     assert_eq!(progression.stability_bars, 3);
@@ -458,6 +464,10 @@ fn model_v4_reads_events_progression_and_rejects_4h() {
         json!(["ema", "pivots"])
     );
     assert!(effective["timeframes"].get("4h").is_none());
+    assert_eq!(
+        effective["timeframes"]["5m"]["events"]["signal"]["compression_breakout"]["coiling_bars"],
+        7
+    );
 
     let pivots = set(
         model_v4_object(),

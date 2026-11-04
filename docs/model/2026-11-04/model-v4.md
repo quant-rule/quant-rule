@@ -16,6 +16,7 @@ per-timeframe overrides for:
 - level references and ATR thresholds;
 - divergence scale and window;
 - RSI levels, EMA pairs, MACD families, DI cross, and trend continuation;
+- compression-breakout coiling window, break distance, and RVOL confirmation;
 - progression target, stability, invalidation, and minimum target.
 
 The pivot detection windows are fixed by the model definition at 2 minor bars and
@@ -57,6 +58,9 @@ numbers only.
 - v4 result envelope and chart-data tests.
 - Causality, determinism, availability, and edge cases for every event.
 - The path-validation harness and the pre-registered matrix.
+- The compression-breakout event has its own causality, determinism, and
+  edge-case tests; its range-expansion protocol is
+  [`compression-breakout.md`](compression-breakout.md).
 
 ## 5. Validation result
 
@@ -70,5 +74,9 @@ together. The validation partition was not opened.
 - Run record: [`MODEL-2026-11-04-01`](../../improvement/2026-11-04/MODEL-2026-11-04-01-model-v4-dev.md)
 - Protocol: [`path-validation-v4.md`](path-validation-v4.md)
 
-The v4 contract and implementation remain the model surface. The result is model
-evidence, not a strategy verdict or a profitability claim.
+The v4 contract and implementation remain the model surface. The directional
+result is model evidence, not a strategy verdict or a profitability claim. The
+compression-breakout event is a separate non-directional claim, pre-registered
+in [`compression-breakout.md`](compression-breakout.md); its development gate is **inconclusive**
+because the 2 ATR / 20-bar outcome saturated; the validation partition was not
+opened. See [`COMPRESSION-GATE`](../../improvement/2026-11-04/COMPRESSION-GATE.md).
