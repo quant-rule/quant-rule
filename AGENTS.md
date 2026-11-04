@@ -773,6 +773,53 @@ it alone.
 Pre-reset experiment records under `docs/experiments/` are historical and are not
 imported as run records.
 
+### Research goal and evidence standard
+
+The research goal is a durable, cost-aware, rule-based edge on OHLCV candles,
+suitable for adaptation to prop-firm risk rules. Months of research are
+acceptable. A passing backtest is not the goal.
+
+An edge is evidence that survives all of the following: out-of-sample data,
+costs and slippage, multiple instruments or regimes, a minimum trade count, a
+drawdown limit, a profit factor above one, and stability across folds. A
+backtest is a filter, not live proof. Paper trading and small live validation
+follow before any prop-firm claim.
+
+The workflow may conclude that the current model, timeframe, or envelope has no
+edge. That is a valid result, not a failure of the process. It is not a reason
+to change a failed hypothesis.
+
+### Programs and hypotheses
+
+A **program** is a premise plus a bounded set of pre-registered hypotheses. A
+**hypothesis** is one test of that premise. A program is not a search for a
+passing configuration.
+
+Before the first run, the human approves a program charter with: the premise and
+economic rationale; the tier and frozen inputs; the finite hypothesis list and
+exact configs; the development and validation partitions; costs and green
+criteria; the multiple-testing correction and primary-cell count; the iteration
+cap; and the stop rule. The template is
+`docs/governance/<date>/program-charter-template.md`.
+
+- **Exploration** is read-only and uses the development partition. It may
+  generate hypotheses; it never consumes validation or supports a claim.
+- **Confirmation** is a frozen, pre-registered run. Validation is one-shot per
+  hypothesis.
+- A batch of configurations is not a search. Every variation tried is recorded,
+  including failures, and the correction is declared before the first run.
+- No automatic selection loop, no "try until pass", and no post-hoc change to
+  the event, timeframe, target, stop, horizon, filter, or cost.
+- A program stops when its premise is falsified, its budget is exhausted, or the
+  human stops it. A failed hypothesis is not re-pre-registered as a variant.
+- A new program requires a new premise and a new approved charter. It reuses
+  the data, model, backtest, execution, portfolio, analytics, partitions, costs,
+  and accepted baselines; it does not restart the codebase.
+
+The full mandate is `docs/governance/<date>/research-mandate.md`. The program
+tooling is under `tools/research/`; the campaign runbook is
+`docs/workflows/research-swarm.md`.
+
 ### When a Plan Is Required
 
 Prepare a formal plan before implementation when a task:

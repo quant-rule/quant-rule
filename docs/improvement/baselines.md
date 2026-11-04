@@ -1,7 +1,7 @@
 # Baselines
 
 - Date: 2026-11-04 (UTC)
-- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; no strategy or portfolio baseline
+- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -24,6 +24,7 @@ by the agent that ran or reviewed the result.
 | Strategy | `STRATEGY-2026-11-04-01` | — | 2026-11-04 | v9 directional 1m compression; all folds halted; no edge | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-02` | — | 2026-11-04 | v10 1m compression bracket; all folds halted; no edge | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-03` | — | 2026-11-04 | v10 5m fresh-onset bracket; all folds halted; negative gross edge | — | Not accepted — no edge |
+| Strategy | `MODEL-2026-11-04-13..17` | — | 2026-11-04 | Directional event-family program at 15m (pivot break, EMA50 test, DI cross, MACD histogram, trend continuation); all grade C at the model gate; no strategy run | — | Not accepted — program stopped |
 | Portfolio | — | — | — | — | — | None accepted |
 
 ## Rules
