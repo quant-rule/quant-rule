@@ -158,7 +158,7 @@ class EndToEndTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run = Path(directory)
             self.write_bundle(run)
-            bundle = compression_validation.Bundle("TEST", 2020, run, 4, 2.0)
+            bundle = compression_validation.Bundle("TEST", 2020, run, 4, 2.0, {3600})
             selected = bundle.selected[3600]
             self.assertEqual(len(selected), 1)
             self.assertTrue(bundle.hits[3600][25])
@@ -182,7 +182,7 @@ class EndToEndTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run = Path(directory)
             self.write_bundle(run)
-            bundle = compression_validation.Bundle("TEST", 2020, run, 4, 2.0)
+            bundle = compression_validation.Bundle("TEST", 2020, run, 4, 2.0, {3600})
             selected = [
                 (0, event) for event in bundle.selected[3600]
             ]

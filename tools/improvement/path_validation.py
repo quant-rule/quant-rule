@@ -36,7 +36,7 @@ from pathlib import Path
 from statistics import NormalDist
 from typing import Any
 
-TIMEFRAME_CODES = {300: "5m", 900: "15m", 3600: "1h"}
+TIMEFRAME_CODES = {60: "1m", 300: "5m", 900: "15m", 3600: "1h"}
 TIMEFRAME_ORDER = {300: 0, 900: 1, 3600: 2}
 EMA_COLUMNS = {1: "ema_fast", 2: "ema_mid", 3: "ema_slow"}
 PRIMARY_CELLS = 12

@@ -369,6 +369,10 @@ def main(argv: list[str] | None = None) -> int:
             command.extend(
                 ["--primary-timeframe", str(compression_config["primary_timeframe"])]
             )
+        if compression_config.get("timeframes"):
+            command.extend(["--timeframes", str(compression_config["timeframes"])])
+        if compression_config.get("select"):
+            command.append("--select")
     try:
         process = run_process(command, REPO_ROOT)
     except ToolError as error:

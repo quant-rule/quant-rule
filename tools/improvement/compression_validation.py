@@ -38,7 +38,7 @@ from path_validation import TIMEFRAME_CODES, cluster_stats, read_events, read_ro
 EVENT_TYPE = 3
 EVENT_SUBTYPE = 7
 EVENT_SOURCE = 5
-TIMEFRAME_ORDER = {900: "15m", 3600: "1h"}
+TIMEFRAME_ORDER = {60: "1m", 300: "5m", 900: "15m", 3600: "1h"}
 PRIMARY_CELLS = 2
 HORIZON = 20
 TARGET_ATR = 2.0
@@ -65,9 +65,19 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--primary-timeframe",
-        choices=("15m", "1h"),
+        choices=("1m", "5m", "15m", "1h"),
         default=None,
-        help="force the primary timeframe (validation only)",
+        help="force the primary timeframe",
+    )
+    parser.add_argument(
+        "--timeframes",
+        default="1h,15m",
+        help="comma-separated timeframes to evaluate (default: 1h,15m)",
+    )
+    parser.add_argument(
+        "--select",
+        action="store_true",
+        help="evaluate every timeframe and select the best passing cell",
     )
     return parser.parse_args(argv)
 
@@ -130,18 +140,24 @@ def select_events(
 
 class Bundle:
     def __init__(
-        self, instrument: str, fold: int, run: Path, horizon: int, target_atr: float
+        self,
+        instrument: str,
+        fold: int,
+        run: Path,
+        horizon: int,
+        target_atr: float,
+        timeframes: set[int],
     ) -> None:
         self.instrument = instrument
         self.fold = fold
-        self.rows = read_rows(run / "readings.csv")
-        self.events = read_events(run / "events.csv")
+        rows_by_timeframe = read_rows(run / "readings.csv")
+        events_by_timeframe = read_events(run / "events.csv")
         self.hits: dict[int, list[bool | None]] = {}
         self.coiling: dict[int, list[bool]] = {}
         self.placebo: dict[int, list[bool]] = {}
         self.selected: dict[int, list[dict[str, Any]]] = {}
-        for timeframe in TIMEFRAME_ORDER:
-            rows = self.rows.get(timeframe, [])
+        for timeframe in sorted(timeframes):
+            rows = rows_by_timeframe.get(timeframe, [])
             if not rows:
                 continue
             hits = forward_hits(rows, horizon, target_atr)
@@ -156,7 +172,7 @@ class Bundle:
                 for index, row in enumerate(rows)
             ]
             self.selected[timeframe], _ = select_events(
-                self.events.get(timeframe, []), hits
+                events_by_timeframe.get(timeframe, []), hits
             )
 
 
@@ -257,6 +273,21 @@ def lagged_rate(
         hits += int(hit)
         total += 1
     return (hits / total if total else None), total
+
+
+def select_candidate(candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Selects the passing cell with the highest corrected lift bound."""
+    passing = [candidate for candidate in candidates if candidate["pass"]]
+    if not passing:
+        return None
+    return sorted(
+        passing,
+        key=lambda candidate: (
+            -(candidate["lift_lcb"] if candidate["lift_lcb"] is not None else -math.inf),
+            0 if candidate["timeframe"] == "5m" else 1,
+            candidate["timeframe_secs"],
+        ),
+    )[0]
 
 
 def control_p(observed: float, draws: list[float | None]) -> float | None:
@@ -411,31 +442,61 @@ def markdown(document: dict[str, Any]) -> str:
         f"- Primary timeframe: {document['primary_timeframe']}",
         f"- Decision: **{document['decision']}**",
         "",
-        "## Primary",
-        "",
-        "| TF | n | J | Hit | All base | Coiling base | Placebo base | Lift | Lift LCB | Rand p | Back lag | Rep | Pass | Reasons |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
     ]
-    row = document["primary"]
-    lines.append(
-        "| {tf} | {n} | {j} | {hit} | {allb} | {coil} | {placebo} | {lift} | {lcb} | {rand} | {back} | {rep} | {ok} | {reasons} |".format(
-            tf=row["timeframe"],
-            n=row["n"],
-            j=row["clusters"],
-            hit=fmt(row["hit_rate"]),
-            allb=fmt(row["all_base"]),
-            coil=fmt(row["coiling_base"]),
-            placebo=fmt(row["placebo_base"]),
-            lift=fmt_signed(row["lift"]),
-            lcb=fmt(row["lift_lcb"]),
-            rand=fmt(row["random_p"]),
-            back=fmt_signed(row["back_lag_lift"]),
-            rep=row["replication"],
-            ok="yes" if row["pass"] else "no",
-            reasons=", ".join(row["reasons"]) or "-",
+    if document.get("candidates") is not None:
+        lines += [
+            "## Candidate cells",
+            "",
+            "| TF | n | J | Hit | Coiling base | Placebo base | Lift | Lift LCB | Rand p | Back lag | Rep | Pass | Reasons |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+        ]
+        for candidate in document["candidates"]:
+            lines.append(
+                "| {tf} | {n} | {j} | {hit} | {coil} | {placebo} | {lift} | {lcb} | {rand} | {back} | {rep} | {ok} | {reasons} |".format(
+                    tf=candidate["timeframe"],
+                    n=candidate["n"],
+                    j=candidate["clusters"],
+                    hit=fmt(candidate["hit_rate"]),
+                    coil=fmt(candidate["coiling_base"]),
+                    placebo=fmt(candidate["placebo_base"]),
+                    lift=fmt_signed(candidate["lift"]),
+                    lcb=fmt(candidate["lift_lcb"]),
+                    rand=fmt(candidate["random_p"]),
+                    back=fmt_signed(candidate["back_lag_lift"]),
+                    rep=candidate["replication"],
+                    ok="yes" if candidate["pass"] else "no",
+                    reasons=", ".join(candidate["reasons"]) or "-",
+                )
+            )
+        lines.append("")
+    if document.get("primary") is not None:
+        row = document["primary"]
+        lines += [
+            "## Primary",
+            "",
+            "| TF | n | J | Hit | All base | Coiling base | Placebo base | Lift | Lift LCB | Rand p | Back lag | Rep | Pass | Reasons |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+        ]
+        lines.append(
+            "| {tf} | {n} | {j} | {hit} | {allb} | {coil} | {placebo} | {lift} | {lcb} | {rand} | {back} | {rep} | {ok} | {reasons} |".format(
+                tf=row["timeframe"],
+                n=row["n"],
+                j=row["clusters"],
+                hit=fmt(row["hit_rate"]),
+                allb=fmt(row["all_base"]),
+                coil=fmt(row["coiling_base"]),
+                placebo=fmt(row["placebo_base"]),
+                lift=fmt_signed(row["lift"]),
+                lcb=fmt(row["lift_lcb"]),
+                rand=fmt(row["random_p"]),
+                back=fmt_signed(row["back_lag_lift"]),
+                rep=row["replication"],
+                ok="yes" if row["pass"] else "no",
+                reasons=", ".join(row["reasons"]) or "-",
+            )
         )
-    )
     if document.get("secondary") is not None:
+        row = document["secondary"]
         lines += [
             "",
             "## Secondary (descriptive)",
@@ -443,7 +504,6 @@ def markdown(document: dict[str, Any]) -> str:
             "| TF | n | J | Hit | Coiling base | Lift | Lift LCB | Rand p | Back lag | Rep |",
             "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
-        row = document["secondary"]
         lines.append(
             "| {tf} | {n} | {j} | {hit} | {coil} | {lift} | {lcb} | {rand} | {back} | {rep} |".format(
                 tf=row["timeframe"],
@@ -458,28 +518,29 @@ def markdown(document: dict[str, Any]) -> str:
                 rep=row["replication"],
             )
         )
-    lines += [
-        "",
-        "## Per-instrument (primary)",
-        "",
-        "| Instrument | n | Hit | Coiling base | Lift |",
-        "|---|---:|---:|---:|---:|",
-    ]
-    for instrument in sorted(document["primary"]["instruments"]):
-        value = document["primary"]["instruments"][instrument]
-        lines.append(
-            "| {name} | {n} | {hit} | {base} | {lift} |".format(
-                name=instrument,
-                n=value["n"],
-                hit=fmt(value["hit_rate"]),
-                base=fmt(value["coiling_base"]),
-                lift=fmt_signed(
-                    None
-                    if value["hit_rate"] is None or value["coiling_base"] is None
-                    else value["hit_rate"] - value["coiling_base"]
-                ),
+    if document.get("primary") is not None:
+        lines += [
+            "",
+            "## Per-instrument (primary)",
+            "",
+            "| Instrument | n | Hit | Coiling base | Lift |",
+            "|---|---:|---:|---:|---:|",
+        ]
+        for instrument in sorted(document["primary"]["instruments"]):
+            value = document["primary"]["instruments"][instrument]
+            lines.append(
+                "| {name} | {n} | {hit} | {base} | {lift} |".format(
+                    name=instrument,
+                    n=value["n"],
+                    hit=fmt(value["hit_rate"]),
+                    base=fmt(value["coiling_base"]),
+                    lift=fmt_signed(
+                        None
+                        if value["hit_rate"] is None or value["coiling_base"] is None
+                        else value["hit_rate"] - value["coiling_base"]
+                    ),
+                )
             )
-        )
     lines.append("")
     return "\n".join(lines)
 
@@ -498,6 +559,14 @@ def main(argv: list[str] | None = None) -> int:
     if not isinstance(matrix, dict) or not isinstance(matrix.get("cells"), list):
         print("error: matrix must be an object with cells", file=sys.stderr)
         return 1
+    timeframes = set()
+    for code in args.timeframes.split(","):
+        for seconds, name in TIMEFRAME_ORDER.items():
+            if code.strip() == name:
+                timeframes.add(seconds)
+    if not timeframes:
+        print("error: no supported timeframes", file=sys.stderr)
+        return 1
     bundles = [
         Bundle(
             str(cell["instrument"]),
@@ -505,41 +574,88 @@ def main(argv: list[str] | None = None) -> int:
             Path(cell["run"]).expanduser(),
             args.horizon,
             args.target_atr,
+            timeframes,
         )
         for cell in matrix["cells"]
     ]
-    counts = {timeframe: event_count(bundles, timeframe) for timeframe in TIMEFRAME_ORDER}
-    if args.primary_timeframe is not None:
-        primary = 3600 if args.primary_timeframe == "1h" else 900
-    else:
-        primary = 3600 if counts[3600] >= MIN_EVENTS else 900
-    secondary = 900 if primary == 3600 else 3600
+    counts = {timeframe: event_count(bundles, timeframe) for timeframe in sorted(timeframes)}
     z = NormalDist().inv_cdf(1.0 - 0.05 / (2.0 * args.primary_cells))
-    primary_result = evaluate(
-        bundles,
-        primary,
-        args.horizon,
-        args.target_atr,
-        z,
-        args.random_draws,
-        args.seed,
-    )
-    secondary_result = evaluate(
-        bundles,
-        secondary,
-        args.horizon,
-        args.target_atr,
-        z,
-        args.random_draws,
-        args.seed + 1,
-    )
-    decision = "no edge"
-    if primary_result["pass"]:
-        decision = "pass — freeze and open validation once"
-    elif primary_result["n"] < MIN_EVENTS or primary_result["clusters"] < MIN_CLUSTERS:
-        decision = "inconclusive — primary sample too small"
-    elif primary_result["saturated"]:
-        decision = "inconclusive — outcome saturated at the coiling base"
+    primary_result = None
+    secondary_result = None
+    candidates = None
+    selection = None
+    if args.select:
+        candidates = [
+            evaluate(
+                bundles,
+                timeframe,
+                args.horizon,
+                args.target_atr,
+                z,
+                args.random_draws,
+                args.seed + index,
+            )
+            for index, timeframe in enumerate(sorted(timeframes))
+        ]
+        selection = select_candidate(candidates)
+        if selection is not None:
+            decision = f"pass — freeze {selection['timeframe']} and open validation once"
+        elif any(
+            candidate["n"] < MIN_EVENTS
+            or candidate["clusters"] < MIN_CLUSTERS
+            or candidate["saturated"]
+            for candidate in candidates
+        ):
+            decision = "inconclusive — a cell is underpowered or saturated"
+        else:
+            decision = "no edge"
+        primary_timeframe = selection["timeframe"] if selection is not None else "none"
+    else:
+        if args.primary_timeframe is not None:
+            primary = next(
+                seconds
+                for seconds, name in TIMEFRAME_ORDER.items()
+                if name == args.primary_timeframe
+            )
+        else:
+            primary = 3600 if counts.get(3600, 0) >= MIN_EVENTS else 900
+        secondary = next(
+            (timeframe for timeframe in sorted(timeframes) if timeframe != primary),
+            None,
+        )
+        primary_result = evaluate(
+            bundles,
+            primary,
+            args.horizon,
+            args.target_atr,
+            z,
+            args.random_draws,
+            args.seed,
+        )
+        secondary_result = (
+            evaluate(
+                bundles,
+                secondary,
+                args.horizon,
+                args.target_atr,
+                z,
+                args.random_draws,
+                args.seed + 1,
+            )
+            if secondary is not None
+            else None
+        )
+        decision = "no edge"
+        if primary_result["pass"]:
+            decision = "pass — freeze and open validation once"
+        elif (
+            primary_result["n"] < MIN_EVENTS
+            or primary_result["clusters"] < MIN_CLUSTERS
+        ):
+            decision = "inconclusive — primary sample too small"
+        elif primary_result["saturated"]:
+            decision = "inconclusive — outcome saturated at the coiling base"
+        primary_timeframe = TIMEFRAME_ORDER[primary]
     document = {
         "schema": "quantrule.compression-validation/v1",
         "horizon_bars": args.horizon,
@@ -550,9 +666,11 @@ def main(argv: list[str] | None = None) -> int:
         "event_counts": {
             TIMEFRAME_ORDER[key]: value for key, value in counts.items()
         },
-        "primary_timeframe": TIMEFRAME_ORDER[primary],
+        "primary_timeframe": primary_timeframe,
         "primary": primary_result,
         "secondary": secondary_result,
+        "candidates": candidates,
+        "selection": selection,
         "decision": decision,
     }
     out = Path(args.out).expanduser()
