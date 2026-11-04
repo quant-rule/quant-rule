@@ -88,3 +88,10 @@ baseline is accepted.
 
 - Gate: [`STRATEGY-ONSET-5M-GATE`](../../improvement/2026-11-04/STRATEGY-ONSET-5M-GATE.md)
 - Run record: [`STRATEGY-2026-11-04-03`](../../improvement/2026-11-04/STRATEGY-2026-11-04-03-compression-onset-bracket.md)
+
+## 8. Program stop
+
+The follow-up barrier path diagnostic found no directional edge on either the
+momentum or the fade side. The compression bracket program stops; no further
+target/stop, timeframe, or filter variants are supported. See
+[`BARRIER-PATH-GATE`](../../improvement/2026-11-04/BARRIER-PATH-GATE.md).

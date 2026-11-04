@@ -68,6 +68,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
             "path-validation",
             "compression-validation",
             "range-validation",
+            "barrier-path",
             "strategy-matrix",
         ),
         default="backtest",
@@ -278,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         compression_config = manifest.get("compression_validation")
         strategy_matrix = manifest.get("strategy_matrix")
         range_config = manifest.get("range_validation")
+        barrier_config = manifest.get("barrier_path")
         if args.command == "path-validation":
             if not isinstance(path_config, dict):
                 raise ToolError("path_validation: an object is required for path-validation")
@@ -295,6 +297,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "range-validation" and not isinstance(range_config, dict):
             raise ToolError(
                 "range_validation: an object is required for range-validation"
+            )
+        if args.command == "barrier-path" and not isinstance(barrier_config, dict):
+            raise ToolError(
+                "barrier_path: an object is required for barrier-path"
             )
     except ToolError as error:
         print(f"error: {error}", file=sys.stderr)
@@ -390,6 +396,20 @@ def main(argv: list[str] | None = None) -> int:
             command.extend(["--timeframes", str(compression_config["timeframes"])])
         if compression_config.get("select"):
             command.append("--select")
+    elif args.command == "barrier-path":
+        assert isinstance(barrier_config, dict)
+        command = [
+            "python3",
+            str(REPO_ROOT / "tools/improvement/barrier_path.py"),
+            "--matrix",
+            str(config_path),
+            "--out",
+            str(root / "artifacts"),
+            "--horizon",
+            str(barrier_config.get("horizon", 20)),
+            "--cost-bps",
+            str(barrier_config.get("cost_bps", 12.0)),
+        ]
     elif args.command == "range-validation":
         assert isinstance(range_config, dict)
         command = [

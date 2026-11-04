@@ -78,8 +78,10 @@ def read_rows_for_timeframe(path: Path, timeframe: int) -> list[dict[str, Any]]:
                 rows.append(
                     {
                         "bar": int(row["bar"]),
+                        "open": float(row["open"]),
                         "high": float(row["high"]),
                         "low": float(row["low"]),
+                        "close": float(row["close"]),
                         "atr": float(row["atr"]) if row["atr"] else None,
                         "rvol": float(row["rvol"]) if row["rvol"] else None,
                     }

@@ -101,7 +101,8 @@ the remaining pending phase.
 | MODEL-2026-11-04-04..05 | 1m 4 ATR compression baseline; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md) |
 | MODEL-2026-11-04-06..07 | 1m compression-range next-bar resolution; both partitions pass; accepted |
 | MODEL-2026-11-04-08 | 5m compression-range next-bar resolution; back-lag control fails; no edge |
-| MODEL-2026-11-04-10..11 | 5m fresh-onset range; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
+| MODEL-2026-11-04-10..11 | 5m fresh-onset range; both partitions pass; accepted |
+| MODEL-2026-11-04-12 | 5m onset barrier path; momentum and fade both no edge | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
 | STRATEGY-2026-11-04-01 | Directional 1m compression strategy; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-V9-GATE.md`](improvement/2026-11-04/STRATEGY-V9-GATE.md) |
 | STRATEGY-2026-11-04-02 | 1m compression bracket; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-BRACKET-GATE.md`](improvement/2026-11-04/STRATEGY-BRACKET-GATE.md) |
 | STRATEGY-2026-11-04-03 | 5m fresh-onset bracket; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-ONSET-5M-GATE.md`](improvement/2026-11-04/STRATEGY-ONSET-5M-GATE.md) |

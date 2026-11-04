@@ -45,3 +45,12 @@ new issue and human approval.
 - One-year folds reset the account; a continuous account would halt earlier.
 - The 5m bracket has fewer trades per fold.
 - Same-session review, not an independent Quant Validator record.
+
+## Barrier path result
+
+The follow-up diagnostic `MODEL-2026-11-04-12` measured the momentum and fade
+sides for 1–4 ATR targets. Both are close to a symmetric random walk: the 1 ATR
+target hit rate is 47.6% against 50% break-even, and the 2 ATR target is 31.5%
+against 33.3%. Gross R is near zero or negative, and the 12 bps cost is about
+1.21 R per trade. No side/target is promising. The compression bracket program
+stops. See [`BARRIER-PATH-GATE`](BARRIER-PATH-GATE.md).
