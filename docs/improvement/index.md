@@ -63,6 +63,12 @@ The model runs are not green as standalone predictors; the model correctness bas
 
 Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-002.md), [`CYCLE-003`](2026-11-01/CYCLE-003.md), [`CYCLE-004`](2026-11-01/CYCLE-004.md), [`CYCLE-005`](2026-11-01/CYCLE-005.md), [`CYCLE-006`](2026-11-01/CYCLE-006.md), [`CYCLE-007`](2026-11-01/CYCLE-007.md), [`CYCLE-008`](2026-11-03/CYCLE-008.md), [`CYCLE-009`](2026-11-03/CYCLE-009.md), [`CYCLE-010`](2026-11-03/CYCLE-010.md), [`CYCLE-011`](2026-11-03/CYCLE-011.md), and [`CYCLE-012`](2026-11-03/CYCLE-012.md) — no model, strategy, or portfolio baseline.
 
+## Program status
+
+| program | date | status | record |
+|---|---|---|---|
+| `V4-DIRECTIONAL-STRATEGY` | 2026-11-04 | stopped — no directional baseline | [stop](2026-11-04/V4-DIRECTIONAL-STRATEGY-STOP.md) |
+
 Rows sort by date, then tier (`model`, `strategy`, `portfolio`), then run ID. See
 [`baselines.md`](baselines.md) for accepted baselines and
 [`INVALIDATIONS.md`](INVALIDATIONS.md) for retired evidence.
