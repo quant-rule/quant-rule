@@ -122,6 +122,7 @@ fn strategy_config(risk: RiskPolicy) -> StrategyConfig {
 fn event_strategy_config() -> StrategyConfig {
     let events = EventCompositeConfig::new(
         3,
+        0,
         &[
             Condition::Event {
                 timeframe_secs: 900,

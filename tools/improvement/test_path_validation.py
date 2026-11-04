@@ -216,6 +216,39 @@ class ControlTests(unittest.TestCase):
         )
 
 
+class GradeTests(unittest.TestCase):
+    def base_row(self) -> dict:
+        return {
+            "n": 200,
+            "clusters": 20,
+            "lift": 0.06,
+            "lift_lcb": 0.01,
+            "incremental_lift": None,
+            "incremental_lcb": None,
+            "random_p": 0.01,
+            "back_lag_lift": 0.0,
+            "shuffle_p": 0.01,
+            "state_missing": 0,
+            "state_applicable": False,
+            "replication": 2,
+        }
+
+    def test_a_none_state_skips_the_incremental_checks(self) -> None:
+        grade, reasons = path_validation.grade(self.base_row(), True)
+        self.assertEqual(grade, "B")
+        self.assertNotIn("incremental_lift", reasons)
+        self.assertNotIn("incremental_lcb", reasons)
+        self.assertNotIn("state", reasons)
+
+    def test_a_claimed_state_still_requires_the_incremental_lift(self) -> None:
+        value = self.base_row()
+        value["state_applicable"] = True
+        grade, reasons = path_validation.grade(value, True)
+        self.assertEqual(grade, "C")
+        self.assertIn("incremental_lift", reasons)
+        self.assertIn("incremental_lcb", reasons)
+
+
 class EndToEndTests(unittest.TestCase):
     def test_load_and_evaluate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -357,17 +390,33 @@ class EndToEndTests(unittest.TestCase):
                     "source": 4,
                     "reference_value": 50.0,
                     "state": "rsi_side",
-                }
+                },
+                {
+                    "id": "h3_rsi50_no_state",
+                    "event_type": 3,
+                    "subtype": 1,
+                    "source": 4,
+                    "reference_value": 50.0,
+                    "state": "none",
+                },
             ]
             options = path_validation.Options(random_draws=10, shuffle_draws=10)
             bundle = path_validation.load_bundle(cell, families, options, {300})
             self.assertEqual(bundle.selected[("h3_rsi50", 300)][0].hit, True)
+            self.assertFalse(
+                bundle.selected[("h3_rsi50_no_state", 300)][0].state_applicable
+            )
             results = path_validation.evaluate(
                 [bundle], families, {300}, options, path_validation.primary_z()
             )
             self.assertEqual(results[0]["n"], 1)
             self.assertEqual(results[0]["hits"], 1)
             self.assertEqual(results[0]["state_missing"], 0)
+            self.assertTrue(results[0]["state_applicable"])
+            self.assertFalse(results[1]["state_applicable"])
+            self.assertEqual(results[1]["state_missing"], 0)
+            self.assertIsNone(results[1]["state_rate"])
+            self.assertIsNone(results[1]["incremental_lift"])
 
 
 class MatrixTests(unittest.TestCase):

@@ -167,6 +167,10 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
                 &window_bars.to_string(),
             )
         })?;
+        let time_stop_bars = match object.get("time_stop_bars") {
+            Some(value) => read::u64(file, "$.time_stop_bars", value)?,
+            None => 0,
+        };
         let entry = parse_event_conditions(
             file,
             "$.entry.all",
@@ -189,14 +193,15 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
             )?,
             true,
         )?;
-        let events = EventCompositeConfig::new(window_bars, &entry, &exit).map_err(|error| {
-            ConfigError::range(
-                file,
-                "$.entry",
-                "a valid event-composite configuration",
-                &error.to_string(),
-            )
-        })?;
+        let events = EventCompositeConfig::new(window_bars, time_stop_bars, &entry, &exit)
+            .map_err(|error| {
+                ConfigError::range(
+                    file,
+                    "$.entry",
+                    "a valid event-composite configuration",
+                    &error.to_string(),
+                )
+            })?;
         let risk = match parse_risk(file, read::field(file, ROOT, object, "risk")?, schema)? {
             Risk::Atr(risk) => risk,
             Risk::Level { .. } => {

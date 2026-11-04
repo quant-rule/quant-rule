@@ -2006,6 +2006,84 @@ fn strategy_explain_prints_the_trader_rule() {
 }
 
 #[test]
+fn strategy_explain_prints_the_symmetric_event_rule() {
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/v8-explain");
+    let _ = fs::remove_dir_all(&directory);
+    fs::create_dir_all(&directory).expect("the test directory is created");
+    for name in [
+        "policy.json",
+        "data.json",
+        "model.json",
+        "execution.json",
+        "portfolio.json",
+        "analytics.json",
+    ] {
+        fs::copy(fixture(&format!("config-run/{name}")), directory.join(name))
+            .expect("the fixture is copied");
+    }
+    fs::write(
+        directory.join("strategy.json"),
+        r#"{
+  "schema": "quantrule.strategy/v8",
+  "rule": "event-composite",
+  "thesis": "A major pivot break continues in its break direction.",
+  "ladder": ["5m", "15m"],
+  "window_bars": 1,
+  "time_stop_bars": 20,
+  "entry": {
+    "all": [
+      {"kind": "event", "timeframe": "5m", "event_type": 1, "subtype": 3, "source": 8, "direction": 0}
+    ]
+  },
+  "exit": {"any": []},
+  "risk": {
+    "stop": {"kind": "atr", "multiple": 1.0},
+    "target": {"kind": "reward_to_risk", "multiple": 2.0}
+  },
+  "no_trade": {
+    "missing_context": "reject",
+    "require_contiguous_execution": true
+  }
+}
+"#,
+    )
+    .expect("the strategy is written");
+    fs::write(
+        directory.join("run.json"),
+        r#"{
+  "schema": "quantrule.run/v2",
+  "name": "v8-explain",
+  "data": "data.json",
+  "model": "model.json",
+  "strategy": "strategy.json",
+  "execution": "execution.json",
+  "portfolio": "portfolio.json",
+  "analytics": "analytics.json",
+  "output_root": "../../../../target/v8-explain/out",
+  "policy": "policy.json"
+}
+"#,
+    )
+    .expect("the run file is written");
+
+    let config = directory.join("run.json");
+    let config = config.to_str().expect("the path is UTF-8");
+    let output = run(&["strategy", "explain", "--config", config]);
+
+    assert_success(&output);
+    let stdout = stdout_text(&output);
+    assert!(stdout.contains("strategy event-composite"));
+    assert!(stdout.contains("time_stop_bars 20"));
+    assert!(stdout.contains("direction=either"));
+    assert_eq!(stderr_text(&output), "");
+
+    let output = run(&["policy", "check", "--config", config]);
+    assert_success(&output);
+    assert!(stdout_text(&output).contains("strategy=event-composite"));
+    assert_eq!(stderr_text(&output), "");
+}
+
+#[test]
 fn policy_check_rejects_a_cross_config_contradiction() {
     let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/policy-contradiction");
     let _ = fs::remove_dir_all(&directory);
