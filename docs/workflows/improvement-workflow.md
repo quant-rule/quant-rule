@@ -183,7 +183,8 @@ limitation, not a silent second confirmation.
 
 The full mandate is
 [`docs/governance/<date>/research-mandate.md`](../governance/2026-11-04/research-mandate.md).
-The campaign runbook is [`research-swarm.md`](research-swarm.md).
+The campaign runbook is `docs/workflows/research-swarm.md`; the program-platform
+PR adds it.
 
 ## Stop conditions
 
