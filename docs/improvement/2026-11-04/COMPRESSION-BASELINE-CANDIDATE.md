@@ -51,5 +51,6 @@ incremental information is at 1m in this sample.
 
 ## Next step
 
-A separate strategy pre-registration may test the frozen 1m event with realistic
-costs. No strategy work starts before that pre-registration and approval.
+A separate directional strategy was tested and failed after 1m costs; see
+[`STRATEGY-V9-GATE`](STRATEGY-V9-GATE.md). The model baseline is unchanged. A
+bracket strategy would need a new execution feature and a new pre-registration.

@@ -84,6 +84,8 @@ pub enum ExitReason {
     LevelLost,
     /// A v8 event or state condition fired.
     EventCondition,
+    /// The strategy's maximum holding period elapsed.
+    TimeStop,
 }
 
 /// The decision a strategy makes for one closed bar.

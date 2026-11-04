@@ -62,7 +62,13 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--command",
-        choices=("backtest", "claim-validation", "path-validation", "compression-validation"),
+        choices=(
+            "backtest",
+            "claim-validation",
+            "path-validation",
+            "compression-validation",
+            "strategy-matrix",
+        ),
         default="backtest",
         help="run command (default: backtest)",
     )
@@ -269,6 +275,7 @@ def main(argv: list[str] | None = None) -> int:
         shell = resolve_shell(args.qr) if args.command == "backtest" else None
         path_config = manifest.get("path_validation")
         compression_config = manifest.get("compression_validation")
+        strategy_matrix = manifest.get("strategy_matrix")
         if args.command == "path-validation":
             if not isinstance(path_config, dict):
                 raise ToolError("path_validation: an object is required for path-validation")
@@ -278,6 +285,10 @@ def main(argv: list[str] | None = None) -> int:
         ):
             raise ToolError(
                 "compression_validation: an object is required for compression-validation"
+            )
+        if args.command == "strategy-matrix" and not isinstance(strategy_matrix, dict):
+            raise ToolError(
+                "strategy_matrix: an object is required for strategy-matrix"
             )
     except ToolError as error:
         print(f"error: {error}", file=sys.stderr)
@@ -345,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
             command.extend(["--config", str(path_config["config"])])
         if path_config.get("skip_sensitivity"):
             command.append("--skip-sensitivity")
-    else:
+    elif args.command == "compression-validation":
         assert isinstance(compression_config, dict)
         command = [
             "python3",
@@ -373,6 +384,22 @@ def main(argv: list[str] | None = None) -> int:
             command.extend(["--timeframes", str(compression_config["timeframes"])])
         if compression_config.get("select"):
             command.append("--select")
+    else:
+        assert isinstance(strategy_matrix, dict)
+        command = [
+            "python3",
+            str(REPO_ROOT / "tools/improvement/strategy_v9_evaluate.py"),
+            "--matrix",
+            str(config_path),
+            "--out",
+            str(root / "artifacts"),
+            "--max-drawdown",
+            str(strategy_matrix.get("max_drawdown", 0.10)),
+            "--min-trades",
+            str(strategy_matrix.get("min_trades", 30)),
+            "--min-profit-factor",
+            str(strategy_matrix.get("min_profit_factor", 1.0)),
+        ]
     try:
         process = run_process(command, REPO_ROOT)
     except ToolError as error:
