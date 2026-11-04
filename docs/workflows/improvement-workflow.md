@@ -152,6 +152,39 @@ Tier-specific gates are in the [tiers](#tiers) table. A portfolio result is not
 green because `portfolio_dev` looks good; it is green only when the one-shot
 holdout meets the pre-registered criteria.
 
+## Programs, hypotheses, and research budget
+
+The workflow runs **programs**, not isolated strategy attempts. A program is a
+premise plus a finite set of pre-registered hypotheses; a hypothesis is one test
+of that premise. A program must not become a search for a passing configuration.
+
+Before the first run, the human approves a program charter with: the premise and
+economic rationale; the tier and frozen inputs; the exact cell list and configs;
+the development and validation partitions; costs and green criteria; the
+multiple-testing correction and primary-cell count; the iteration cap; and the
+stop rule. The template is
+[`docs/governance/<date>/program-charter-template.md`](../governance/2026-11-04/program-charter-template.md).
+
+| Rule | Meaning |
+|---|---|
+| Exploration | Read-only; development partition only; never supports a claim |
+| Confirmation | Frozen, pre-registered; validation one-shot per hypothesis |
+| Batch | A finite pre-registered list, not a parameter sweep |
+| Correction | Declared before the first run; covers the primary cells |
+| Reporting | Every variation tried is recorded, including failures |
+| Selection | No automatic loop; the human promotes to validation |
+| Stop | Stop when the premise is falsified, the budget is exhausted, or the human stops it |
+| Restart | A new program needs a new premise and a new approved charter; it reuses the platform |
+
+The validation partitions are a scarce data budget. A partition used to choose
+among hypotheses is no longer fresh for those hypotheses; the program registry
+records every use. Reusing a partition is a new program with a disclosed
+limitation, not a silent second confirmation.
+
+The full mandate is
+[`docs/governance/<date>/research-mandate.md`](../governance/2026-11-04/research-mandate.md).
+The campaign runbook is [`research-swarm.md`](research-swarm.md).
+
 ## Stop conditions
 
 Stop and record the reason when:
