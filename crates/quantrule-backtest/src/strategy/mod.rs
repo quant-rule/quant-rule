@@ -14,6 +14,7 @@
 //! conditions. The rule is defined in
 //! `docs/config/2026-10-30/strategy-v3.md`.
 
+mod bracket;
 mod compression;
 mod config;
 mod decision;
@@ -33,6 +34,7 @@ pub use crate::intent::{
     EntryStyle, RiskPolicy, RiskPolicyError, StopSpec, StrategyPosition, TargetSpec, TradeIntent,
 };
 pub use crate::side::Side;
+pub use bracket::{CompressionBracketConfig, CompressionBracketInput, CompressionBracketStrategy};
 pub use compression::{
     CompressionBreakoutConfig, CompressionBreakoutInput, CompressionBreakoutStrategy,
 };

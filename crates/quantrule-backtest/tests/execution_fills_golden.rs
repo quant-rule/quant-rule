@@ -30,6 +30,9 @@ fn intent(decision: Decision) -> OrderIntent {
             open_time: entry.bar.open_time,
             max_notional: None,
         },
+        // The checked-in decision fixture is a ladder strategy, so it never
+        // carries a two-sided entry.
+        Decision::EnterBracket(_) => OrderIntent::Hold,
         Decision::Exit(exit) => OrderIntent::Exit {
             side: exit.side,
             bar_index: exit.bar.bar_index,
@@ -295,7 +298,7 @@ fn run_with_quantities(
                     })
                     .quantity,
             ),
-            Decision::Hold | Decision::Exit(_) => Some(QUANTITY),
+            Decision::EnterBracket(_) | Decision::Hold | Decision::Exit(_) => Some(QUANTITY),
         };
         let batch = engine
             .advance(&row.candle, true)

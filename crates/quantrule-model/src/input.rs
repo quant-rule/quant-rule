@@ -89,6 +89,10 @@ pub struct SignalSettings {
     pub compression_break_atr: f64,
     /// The minimum RVOL ratio on the breakout bar.
     pub compression_rvol_min: f64,
+    /// Whether the neutral compression-range event is active.
+    pub compression_range: bool,
+    /// The number of coiling bars in the range window.
+    pub compression_range_coiling_bars: usize,
 }
 
 impl SignalSettings {
@@ -107,6 +111,8 @@ impl SignalSettings {
         compression_coiling_bars: 5,
         compression_break_atr: 0.2,
         compression_rvol_min: 1.2,
+        compression_range: false,
+        compression_range_coiling_bars: 5,
     };
 }
 

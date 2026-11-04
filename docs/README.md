@@ -42,6 +42,8 @@ The baseline decision is listed in the current architecture decisions below.
 | DashboardState four-axis CLI view | Historical; the axis view is retired with model v3 | `docs/model/2026-10-25/dashboard-state.md` |
 | MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified (#152); axis view retired with model v3 | `docs/model/2026-10-27/market-report.md` |
 | Model evidence protocol | Superseded by the model v3 validation boundary; retained as history | `docs/model/2026-11-01/model-evidence-protocol.md` |
+| Model v4 flat result and configurable events | Implemented; path gate no edge; compression-breakout 4 ATR baseline accepted | `docs/model/2026-11-04/model-v4.md` |
+| Compression-range next-bar resolution | Implemented; dev and validation pass; accepted model baseline (human, 2026-11-04) | `docs/model/2026-11-04/compression-range.md` |
 
 ## Current run contracts
 
@@ -57,6 +59,8 @@ The baseline decision is listed in the current architecture decisions below.
 | Strategy candidates v3–v7 | Retired by model v3; retained as history; none is a validated baseline | `docs/config/2026-11-01/strategy-candidates.md` |
 | Strategy v6 breakout | Retired by model v3; retained as history | `docs/config/2026-11-01/strategy-v6.md` |
 | Strategy v8 event composite | Implemented; validation pending | `docs/config/2026-11-03/strategy-v8.md` |
+| Strategy v9 compression breakout | Implemented; `strategy_dev` no edge; validation not opened | `docs/config/2026-11-04/strategy-v9-compression.md` |
+| Strategy v10 compression bracket | Implemented; `strategy_dev` no edge; validation not opened | `docs/config/2026-11-04/strategy-v10-compression-bracket.md` |
 
 ### Approved target contracts
 
@@ -94,6 +98,10 @@ the remaining pending phase.
 | STRATEGY-001 | First strategy comparison; not green; no strategy baseline | [`docs/improvement/2026-11-01/STRATEGY-001-comparison.md`](improvement/2026-11-01/STRATEGY-001-comparison.md) |
 | STRATEGY-002 | 5m/15m sample-size test; not green; v6 still too selective | [`docs/improvement/2026-11-01/STRATEGY-002-comparison.md`](improvement/2026-11-01/STRATEGY-002-comparison.md) |
 | STRATEGY-003 | Level-fade v7 validation; not green; new rule family rejected | [`docs/improvement/2026-11-01/STRATEGY-003-comparison.md`](improvement/2026-11-01/STRATEGY-003-comparison.md) |
+| MODEL-2026-11-04-04..05 | 1m 4 ATR compression baseline; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md) |
+| MODEL-2026-11-04-06..07 | 1m compression-range next-bar resolution; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
+| STRATEGY-2026-11-04-01 | Directional 1m compression strategy; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-V9-GATE.md`](improvement/2026-11-04/STRATEGY-V9-GATE.md) |
+| STRATEGY-2026-11-04-02 | 1m compression bracket; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-BRACKET-GATE.md`](improvement/2026-11-04/STRATEGY-BRACKET-GATE.md) |
 | Workflow-reset audit | Program green; one Major fixed; Minor/Info routed | [`docs/audits/2026-11-01/workflow-reset-audit.md`](audits/2026-11-01/workflow-reset-audit.md) |
 
 The experiment records above are pre-reset evidence. They are not improvement
@@ -106,7 +114,7 @@ runs under the run contract and are not imported as baselines.
 | Audit Workflow | Current; approved 2026-11-01 | `docs/workflows/audit-workflow.md` |
 | Improvement Workflow | Current; approved 2026-11-01 | `docs/workflows/improvement-workflow.md` |
 | Improvement run contract | Current; schema `quantrule.improvement-run/v1` | `docs/workflows/run-contract.md` |
-| Improvement registry | Current; no baseline accepted; one model harness pilot; invalidations recorded | `docs/improvement/README.md` |
+| Improvement registry | Current; 1m 4 ATR compression and compression-range model baselines accepted; no strategy or portfolio baseline | `docs/improvement/README.md` |
 
 ## Current tutorials
 

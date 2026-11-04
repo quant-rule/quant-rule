@@ -59,6 +59,7 @@ pub(super) enum Schema {
     V7,
     V8,
     V9,
+    V10,
 }
 
 /// Parses `strategy.json`.
@@ -84,6 +85,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
             "window_bars",
             "event",
             "time_stop_bars",
+            "entry_valid_bars",
         ],
     )?;
     if schema != Schema::V8 && schema != Schema::V9 && object.contains_key("window_bars") {
@@ -136,6 +138,12 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
             "$.rule",
             read::field(file, ROOT, object, "rule")?,
             "compression-breakout",
+        )?,
+        Schema::V10 => require_code(
+            file,
+            "$.rule",
+            read::field(file, ROOT, object, "rule")?,
+            "compression-bracket",
         )?,
     }
     let thesis =
@@ -214,6 +222,15 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyRunConfig, Conf
     }
     if schema == Schema::V9 {
         return super::strategy_v9::parse_v9(
+            file,
+            object,
+            ladder,
+            require_contiguous_execution,
+            thesis,
+        );
+    }
+    if schema == Schema::V10 {
+        return super::strategy_v10::parse_v10(
             file,
             object,
             ladder,
@@ -412,10 +429,11 @@ fn require_schema(file: &str, object: &Map<String, Value>) -> Result<Schema, Con
         "quantrule.strategy/v7" => Ok(Schema::V7),
         "quantrule.strategy/v8" => Ok(Schema::V8),
         "quantrule.strategy/v9" => Ok(Schema::V9),
+        "quantrule.strategy/v10" => Ok(Schema::V10),
         _ => Err(ConfigError::schema(
             file,
             &path,
-            "quantrule.strategy/v3, v4, v5, v6, v7, v8, or v9",
+            "quantrule.strategy/v3, v4, v5, v6, v7, v8, v9, or v10",
             found,
         )),
     }
@@ -525,13 +543,13 @@ fn parse_entry(
         Schema::V3 => &["execution", "context"],
         Schema::V4 | Schema::V6 | Schema::V7 => &["execution", "context", "level"],
         Schema::V5 => &["execution", "context", "level", "agreement"],
-        Schema::V8 | Schema::V9 => &[],
+        Schema::V8 | Schema::V9 | Schema::V10 => &[],
     };
     read::check_fields(file, path, entry, fields)?;
     let execution = parse_execution_entry(file, read::field(file, path, entry, "execution")?)?;
     let context = parse_context_entry(file, read::field(file, path, entry, "context")?)?;
     let level = match schema {
-        Schema::V3 | Schema::V8 | Schema::V9 => None,
+        Schema::V3 | Schema::V8 | Schema::V9 | Schema::V10 => None,
         Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => Some(parse_level_entry(
             file,
             read::field(file, path, entry, "level")?,
@@ -542,7 +560,13 @@ fn parse_entry(
             file,
             read::field(file, path, entry, "agreement")?,
         )?),
-        Schema::V3 | Schema::V4 | Schema::V6 | Schema::V7 | Schema::V8 | Schema::V9 => None,
+        Schema::V3
+        | Schema::V4
+        | Schema::V6
+        | Schema::V7
+        | Schema::V8
+        | Schema::V9
+        | Schema::V10 => None,
     };
     Ok((EntryConfig::new(execution, context), level, min_agreement))
 }
@@ -849,7 +873,9 @@ fn parse_exit(file: &str, value: &Value, schema: Schema) -> Result<ExitConfig, C
                     Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => {
                         "context_lost, structure_lost, or level_lost"
                     }
-                    Schema::V8 | Schema::V9 => "this rule uses an explicit condition list",
+                    Schema::V8 | Schema::V9 | Schema::V10 => {
+                        "this rule uses an explicit condition list"
+                    }
                 };
                 return Err(ConfigError::unsupported(file, &item_path, expected, other));
             }
@@ -861,7 +887,7 @@ fn parse_exit(file: &str, value: &Value, schema: Schema) -> Result<ExitConfig, C
         Schema::V4 | Schema::V5 | Schema::V6 | Schema::V7 => {
             ExitConfig::new_level(context_lost, structure_lost, level_lost)
         }
-        Schema::V8 | Schema::V9 => ExitConfig::new(context_lost, structure_lost),
+        Schema::V8 | Schema::V9 | Schema::V10 => ExitConfig::new(context_lost, structure_lost),
     };
     config.map_err(|error| {
         ConfigError::range(file, path, "a valid exit configuration", &error.to_string())
@@ -1035,7 +1061,7 @@ pub(super) fn parse_risk(file: &str, value: &Value, schema: Schema) -> Result<Ri
     )?;
 
     match schema {
-        Schema::V3 | Schema::V8 | Schema::V9 => {
+        Schema::V3 | Schema::V8 | Schema::V9 | Schema::V10 => {
             read::check_fields(file, stop_path, stop, &["kind", "multiple"])?;
             require_code(
                 file,

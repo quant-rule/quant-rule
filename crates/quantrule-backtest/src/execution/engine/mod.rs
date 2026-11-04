@@ -38,6 +38,12 @@
 //! entry fill's bar and time as its submission, because that is when the
 //! bracket became live. The level that never triggers is not an order.
 //!
+//! A two-sided stop entry is submitted as two pending orders, one at each
+//! boundary. The first fill cancels the other leg; a bar that touches both
+//! boundaries with the open between them is ambiguous and fills neither,
+//! because OHLC cannot order the two intrabar triggers. The filled leg is then
+//! bracketed by the same stop/target resolution as a market entry.
+//!
 //! # Input
 //!
 //! The engine consumes the strategy's candle series in order. It does not
@@ -91,9 +97,11 @@
 //! [`RejectReason::NoNextBar`]. It does not close an open position: the first
 //! backtest has no end-of-data exit.
 
+mod bracket_entry;
+
 use quantrule_data::Candle;
 
-use crate::intent::{StrategyPosition, TradeIntent};
+use crate::intent::{BracketIntent, StrategyPosition, TradeIntent};
 use crate::portfolio::floored_steps;
 use crate::side::Side;
 
@@ -113,6 +121,21 @@ struct PendingOrder {
     atr14: Option<f64>,
     max_notional: Option<f64>,
     quantity_step: Option<f64>,
+}
+
+/// A pending two-sided stop-entry bracket.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct PendingBracket {
+    intent: BracketIntent,
+    quantity: f64,
+    atr14: Option<f64>,
+    max_notional: Option<f64>,
+    quantity_step: Option<f64>,
+    upper_order_id: u64,
+    lower_order_id: u64,
+    submitted_bar: usize,
+    submitted_time: i64,
+    remaining_bars: u32,
 }
 
 /// A decision refused before an order was accepted.
@@ -164,6 +187,7 @@ pub struct ExecutionEngine {
     last_bar: Option<(usize, i64)>,
     position: PositionState,
     pending: Option<PendingOrder>,
+    pending_bracket: Option<PendingBracket>,
     next_order_id: u64,
     next_fill_id: u64,
 }
@@ -191,6 +215,7 @@ impl ExecutionEngine {
             last_bar: None,
             position: PositionState::Flat,
             pending: None,
+            pending_bracket: None,
             next_order_id: 0,
             next_fill_id: 0,
         })
@@ -233,6 +258,20 @@ impl ExecutionEngine {
                 self.reject_pending(
                     &mut batch,
                     pending,
+                    index,
+                    time,
+                    RejectReason::NonContiguousBar,
+                );
+            }
+        }
+
+        if let Some(bracket) = self.pending_bracket.take() {
+            if contiguous {
+                self.apply_bracket_entry(bracket, bar, index, time, &mut batch)?;
+            } else {
+                self.reject_bracket(
+                    &mut batch,
+                    bracket,
                     index,
                     time,
                     RejectReason::NonContiguousBar,
@@ -300,7 +339,9 @@ impl ExecutionEngine {
             return Err(ExecutionError::SubmitBeforeAdvance);
         };
         self.validate_intent(intent, index, time)?;
-        if self.pending.is_some() && !matches!(intent, OrderIntent::Hold) {
+        if (self.pending.is_some() || self.pending_bracket.is_some())
+            && !matches!(intent, OrderIntent::Hold)
+        {
             return Err(ExecutionError::PendingOrderExists);
         }
 
@@ -374,6 +415,82 @@ impl ExecutionEngine {
                     }
                 }
             }
+            OrderIntent::EnterBracket {
+                intent,
+                max_notional,
+                ..
+            } => {
+                if self.position.is_open() {
+                    self.reject_bracket_decision(
+                        &mut batch,
+                        &intent,
+                        quantity,
+                        index,
+                        time,
+                        RejectReason::PositionAlreadyOpen,
+                    );
+                } else if let Some(reject_reason) = self.bracket_entry_reject_reason(&intent) {
+                    self.reject_bracket_decision(
+                        &mut batch,
+                        &intent,
+                        quantity,
+                        index,
+                        time,
+                        reject_reason,
+                    );
+                } else {
+                    match usable_quantity(quantity) {
+                        Err(reject_reason) => self.reject_bracket_decision(
+                            &mut batch,
+                            &intent,
+                            quantity,
+                            index,
+                            time,
+                            reject_reason,
+                        ),
+                        Ok(quantity) => {
+                            let upper = Order::new(
+                                OrderSide::Buy,
+                                quantity,
+                                FillReason::Entry,
+                                Trigger::Stop {
+                                    price: intent.upper_price,
+                                },
+                                index,
+                                time,
+                            )
+                            .map_err(ExecutionError::Order)?;
+                            let lower = Order::new(
+                                OrderSide::Sell,
+                                quantity,
+                                FillReason::Entry,
+                                Trigger::Stop {
+                                    price: intent.lower_price,
+                                },
+                                index,
+                                time,
+                            )
+                            .map_err(ExecutionError::Order)?;
+                            let upper_order_id = self.next_order_id();
+                            let lower_order_id = self.next_order_id();
+                            batch.orders.push(pending_record(upper_order_id, &upper));
+                            batch.orders.push(pending_record(lower_order_id, &lower));
+                            self.pending_bracket = Some(PendingBracket {
+                                intent,
+                                quantity,
+                                atr14,
+                                max_notional,
+                                quantity_step,
+                                upper_order_id,
+                                lower_order_id,
+                                submitted_bar: index,
+                                submitted_time: time,
+                                remaining_bars: intent.valid_for_bars,
+                            });
+                        }
+                    }
+                }
+            }
             OrderIntent::Exit { side, .. } => match self.position {
                 PositionState::Open(position) if position.side != side => self.reject_decision(
                     &mut batch,
@@ -436,6 +553,11 @@ impl ExecutionEngine {
             let bar = pending.order.submitted_bar;
             let time = pending.order.submitted_time;
             self.reject_pending(&mut batch, pending, bar, time, RejectReason::NoNextBar);
+        }
+        if let Some(bracket) = self.pending_bracket.take() {
+            let bar = bracket.submitted_bar;
+            let time = bracket.submitted_time;
+            self.reject_bracket(&mut batch, bracket, bar, time, RejectReason::NoNextBar);
         }
         batch
     }
@@ -526,6 +648,11 @@ impl ExecutionEngine {
         let (bar_index, open_time) = match intent {
             OrderIntent::Hold => return Ok(()),
             OrderIntent::Enter {
+                bar_index,
+                open_time,
+                ..
+            }
+            | OrderIntent::EnterBracket {
                 bar_index,
                 open_time,
                 ..

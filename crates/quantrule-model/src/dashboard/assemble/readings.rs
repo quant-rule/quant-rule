@@ -120,7 +120,9 @@ fn event_axis(event: &EventRecord) -> Option<AxisCode> {
                 STRUCTURE_SOURCE_CODE => Some(AxisCode::Structure),
                 _ => None,
             },
-            SignalSubtype::TrendContinuation | SignalSubtype::CompressionBreakout => None,
+            SignalSubtype::TrendContinuation
+            | SignalSubtype::CompressionBreakout
+            | SignalSubtype::CompressionRange => None,
         },
     }
 }

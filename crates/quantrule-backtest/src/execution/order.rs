@@ -181,6 +181,14 @@ pub enum RejectReason {
     NonPositiveQuantity,
     /// The fill notional exceeded the caller's entry risk limit.
     RiskLimit,
+    /// The other leg of a two-sided entry filled first, so this order was
+    /// cancelled.
+    OcoCancelled,
+    /// Both boundaries of a two-sided entry were touched in one bar, and the
+    /// open did not resolve which came first.
+    AmbiguousTrigger,
+    /// The two-sided entry's validity window ended without a trigger.
+    BracketExpired,
 }
 
 /// A request to trade one quantity of one instrument.
@@ -230,7 +238,7 @@ impl Order {
     /// Returns [`OrderError`] when the quantity is not finite or not positive,
     /// a stop or target price is not finite or not positive, or the reason
     /// does not match the trigger. A market order carries an entry or exit
-    /// reason; a stop carries a stop-loss reason; a target carries a
+    /// reason; a stop carries an entry or stop-loss reason; a target carries a
     /// take-profit reason.
     pub fn new(
         side: OrderSide,

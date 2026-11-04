@@ -326,6 +326,7 @@ fn strategy_facts(run: &BacktestRun, bars: usize) -> StrategyFacts {
                     Side::Short => short_entries += 1,
                 }
             }
+            Decision::EnterBracket(_) => entry_attempts += 1,
             Decision::Exit(_) => exit_attempts += 1,
             Decision::Hold => {}
         }
@@ -616,6 +617,9 @@ fn reject_reason_code(reason: RejectReason) -> &'static str {
         RejectReason::MissingQuantity => "missing_quantity",
         RejectReason::NonPositiveQuantity => "non_positive_quantity",
         RejectReason::RiskLimit => "risk_limit",
+        RejectReason::OcoCancelled => "oco_cancelled",
+        RejectReason::AmbiguousTrigger => "ambiguous_trigger",
+        RejectReason::BracketExpired => "bracket_expired",
     }
 }
 

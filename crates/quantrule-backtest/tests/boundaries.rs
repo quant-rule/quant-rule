@@ -61,15 +61,25 @@ fn the_strategy_does_not_import_execution_or_portfolio() {
 
 #[test]
 fn the_execution_engine_does_not_accept_a_strategy_decision() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("execution")
-        .join("engine.rs");
-    let source = fs::read_to_string(&path)
-        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
-    assert!(
-        !source.contains("Decision::") && !source.contains(": Decision"),
-        "{} must use the execution-owned OrderIntent, not a strategy Decision",
-        path.display()
-    );
+        .join("engine");
+    let mut paths: Vec<PathBuf> = fs::read_dir(&directory)
+        .unwrap_or_else(|error| panic!("read {}: {error}", directory.display()))
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "rs"))
+        .collect();
+    paths.sort();
+    assert!(!paths.is_empty(), "the engine sources must exist");
+    for path in paths {
+        let source = fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+        assert!(
+            !source.contains("Decision::") && !source.contains(": Decision"),
+            "{} must use the execution-owned OrderIntent, not a strategy Decision",
+            path.display()
+        );
+    }
 }

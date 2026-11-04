@@ -31,6 +31,21 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--max-drawdown", type=float, default=0.10)
     parser.add_argument("--min-trades", type=int, default=30)
     parser.add_argument("--min-profit-factor", type=float, default=1.0)
+    parser.add_argument(
+        "--title",
+        default="Strategy v9 — 1m Compression Breakout",
+        help="Markdown title",
+    )
+    parser.add_argument(
+        "--name",
+        default="strategy_v9",
+        help="artifact base name",
+    )
+    parser.add_argument(
+        "--require-no-halt",
+        action="store_true",
+        help="fail the matrix when any fold halts",
+    )
     return parser.parse_args(argv)
 
 
@@ -163,6 +178,13 @@ def evaluate(cells: list[dict[str, Any]], args: argparse.Namespace) -> dict[str,
         and pooled_profit_factor > args.min_profit_factor,
         "positive_instruments": positive >= 2,
     }
+    if args.require_no_halt:
+        halted_total = sum(
+            int(bool(fold["halted"]))
+            for instrument in by_instrument.values()
+            for fold in instrument
+        )
+        criteria["no_halt"] = halted_total == 0
     passed = all(criteria.values())
     return {
         "schema": "quantrule.strategy-v9-evaluation/v1",
@@ -179,9 +201,9 @@ def evaluate(cells: list[dict[str, Any]], args: argparse.Namespace) -> dict[str,
     }
 
 
-def markdown(document: dict[str, Any]) -> str:
+def markdown(document: dict[str, Any], title: str) -> str:
     lines = [
-        "# Strategy v9 — 1m Compression Breakout",
+        f"# {title}",
         "",
         f"- Decision: **{'pass' if document['passed'] else 'no edge'}**",
         "",
@@ -245,10 +267,10 @@ def main(argv: list[str] | None = None) -> int:
     document["partition"] = matrix.get("partition")
     out = Path(args.out).expanduser()
     out.mkdir(parents=True, exist_ok=True)
-    (out / "strategy_v9.json").write_text(
+    (out / f"{args.name}.json").write_text(
         json.dumps(document, indent=2) + "\n", encoding="utf-8"
     )
-    (out / "strategy_v9.md").write_text(markdown(document), encoding="utf-8")
+    (out / f"{args.name}.md").write_text(markdown(document, args.title), encoding="utf-8")
     print(f"ok strategy evaluation -> {out}")
     return 0
 

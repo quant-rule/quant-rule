@@ -443,6 +443,8 @@ pub enum StrategyMode {
     EventComposite(super::event::EventCompositeConfig),
     /// The v9 compression-breakout rule.
     CompressionBreakout(super::compression::CompressionBreakoutConfig),
+    /// The v10 compression-bracket rule.
+    CompressionBracket(super::bracket::CompressionBracketConfig),
 }
 
 /// The complete unified ladder strategy configuration.
@@ -674,6 +676,31 @@ impl StrategyConfig {
         })
     }
 
+    /// Builds the compression-bracket rule configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyConfigError::WeightsLength`] only when the internal
+    /// equal-weight set cannot be built; the bracket configuration is validated
+    /// by its own constructor.
+    pub fn new_compression_bracket(
+        ladder: LadderConfig,
+        bracket: super::bracket::CompressionBracketConfig,
+        risk: RiskPolicy,
+        require_contiguous_execution: bool,
+    ) -> Result<Self, StrategyConfigError> {
+        let weights = LadderWeights::equal(ladder.context_timeframes().len());
+        Ok(Self {
+            ladder,
+            weights,
+            entry: EntryConfig::default(),
+            exit: ExitConfig::default(),
+            risk: Some(risk),
+            mode: StrategyMode::CompressionBracket(bracket),
+            require_contiguous_execution,
+        })
+    }
+
     /// The active ladder. `ladder[0]` is the execution timeframe.
     #[must_use]
     pub const fn ladder(&self) -> &LadderConfig {
@@ -728,7 +755,8 @@ impl StrategyConfig {
             StrategyMode::LevelFade(fade) => Some(fade),
             StrategyMode::LadderContext
             | StrategyMode::EventComposite(_)
-            | StrategyMode::CompressionBreakout(_) => None,
+            | StrategyMode::CompressionBreakout(_)
+            | StrategyMode::CompressionBracket(_) => None,
         }
     }
 
@@ -746,6 +774,15 @@ impl StrategyConfig {
     pub fn compression_breakout(&self) -> Option<super::compression::CompressionBreakoutConfig> {
         match self.mode {
             StrategyMode::CompressionBreakout(compression) => Some(compression),
+            _ => None,
+        }
+    }
+
+    /// The v10 compression-bracket configuration, when that is the active rule.
+    #[must_use]
+    pub fn compression_bracket(&self) -> Option<super::bracket::CompressionBracketConfig> {
+        match self.mode {
+            StrategyMode::CompressionBracket(bracket) => Some(bracket),
             _ => None,
         }
     }
@@ -846,6 +883,8 @@ pub enum StrategyConfigError {
     EventStateValue,
     /// The compression-breakout time stop is zero.
     CompressionTimeStop,
+    /// The compression-bracket entry window is zero.
+    CompressionEntryWindow,
 }
 
 impl fmt::Display for StrategyConfigError {
@@ -921,6 +960,12 @@ impl fmt::Display for StrategyConfigError {
             Self::EventStateValue => write!(formatter, "a state value is outside its field range"),
             Self::CompressionTimeStop => {
                 write!(formatter, "the compression time stop must be positive")
+            }
+            Self::CompressionEntryWindow => {
+                write!(
+                    formatter,
+                    "the compression entry window must be exactly one bar"
+                )
             }
         }
     }

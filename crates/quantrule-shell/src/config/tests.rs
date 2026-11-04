@@ -377,7 +377,8 @@ fn model_v4_object() -> Value {
                     "macd": ["line_signal_cross", "histogram_slope_flip", "zero_cross"],
                     "di_cross": true,
                     "trend_continuation": {"enabled": true, "adx_threshold": 25.0, "adx_slope_bars": 3},
-                    "compression_breakout": {"enabled": true, "coiling_bars": 6, "break_atr": 0.3, "rvol_min": 1.4}
+                    "compression_breakout": {"enabled": true, "coiling_bars": 6, "break_atr": 0.3, "rvol_min": 1.4},
+                    "compression_range": {"enabled": true, "coiling_bars": 6}
                 }
             },
             "progression": {
@@ -395,7 +396,8 @@ fn model_v4_object() -> Value {
                     "signal": {
                         "di_cross": false,
                         "trend_continuation": {"adx_threshold": 30.0},
-                        "compression_breakout": {"coiling_bars": 7}
+                        "compression_breakout": {"coiling_bars": 7},
+                        "compression_range": {"coiling_bars": 7}
                     }
                 },
                 "progression": {"target_atr": 3.0}
@@ -453,6 +455,8 @@ fn model_v4_reads_events_progression_and_rejects_4h() {
     assert_eq!(events.signal.compression_coiling_bars, 7);
     assert_eq!(events.signal.compression_break_atr, 0.3);
     assert_eq!(events.signal.compression_rvol_min, 1.4);
+    assert!(events.signal.compression_range);
+    assert_eq!(events.signal.compression_range_coiling_bars, 7);
     let progression = config.progression_for(u64::from(Timeframe::M5.seconds()));
     assert_eq!(progression.target_atr, 3.0);
     assert_eq!(progression.stability_bars, 3);
@@ -466,6 +470,10 @@ fn model_v4_reads_events_progression_and_rejects_4h() {
     assert!(effective["timeframes"].get("4h").is_none());
     assert_eq!(
         effective["timeframes"]["5m"]["events"]["signal"]["compression_breakout"]["coiling_bars"],
+        7
+    );
+    assert_eq!(
+        effective["timeframes"]["5m"]["events"]["signal"]["compression_range"]["coiling_bars"],
         7
     );
 
@@ -849,6 +857,31 @@ fn strategy_v9_object() -> Value {
             "source": 5
         },
         "window_bars": 1,
+        "time_stop_bars": 20,
+        "risk": {
+            "stop": {"kind": "atr", "multiple": 1.0},
+            "target": {"kind": "reward_to_risk", "multiple": 4.0}
+        },
+        "no_trade": {
+            "missing_context": "reject",
+            "require_contiguous_execution": true
+        }
+    })
+}
+
+fn strategy_v10_object() -> Value {
+    json!({
+        "schema": "quantrule.strategy/v10",
+        "rule": "compression-bracket",
+        "thesis": "Trade the two-sided compression range before the breakout.",
+        "ladder": ["1m", "5m"],
+        "event": {
+            "timeframe": "1m",
+            "event_type": 3,
+            "subtype": 8,
+            "source": 5
+        },
+        "entry_valid_bars": 1,
         "time_stop_bars": 20,
         "risk": {
             "stop": {"kind": "atr", "multiple": 1.0},
@@ -2022,6 +2055,70 @@ fn strategy_v8_event_composite_matches_the_contract() {
         strategy::parse(&conflicting, "strategy.json"),
         Range,
         "$.entry",
+    );
+}
+
+#[test]
+fn strategy_v10_compression_bracket_matches_the_contract() {
+    let valid = strategy::parse(&strategy_v10_object(), "strategy.json")
+        .expect("the v10 compression-bracket config loads");
+    assert_eq!(valid.engine.timeframe_secs(), 60);
+    assert_eq!(valid.engine.ladder().context_timeframes(), &[300]);
+    let bracket = valid
+        .engine
+        .compression_bracket()
+        .expect("the v10 configuration");
+    assert_eq!(bracket.event_timeframe_secs(), 60);
+    assert_eq!(bracket.event_type(), 3);
+    assert_eq!(bracket.event_subtype(), 8);
+    assert_eq!(bracket.event_source(), 5);
+    assert_eq!(bracket.entry_valid_bars(), 1);
+    assert_eq!(bracket.time_stop_bars(), 20);
+    let risk = valid.engine.risk().expect("the risk policy");
+    assert_eq!(risk.stop_atr_multiple(), 1.0);
+    assert_eq!(risk.reward_to_risk(), 4.0);
+
+    let mut wrong_timeframe = strategy_v10_object();
+    wrong_timeframe["event"]["timeframe"] = json!("5m");
+    assert_rejected(
+        strategy::parse(&wrong_timeframe, "strategy.json"),
+        Inconsistent,
+        "$.event.timeframe",
+    );
+
+    let mut zero_window = strategy_v10_object();
+    zero_window["entry_valid_bars"] = json!(0);
+    assert_rejected(
+        strategy::parse(&zero_window, "strategy.json"),
+        Range,
+        "$.event",
+    );
+
+    let mut long_window = strategy_v10_object();
+    long_window["entry_valid_bars"] = json!(2);
+    assert_rejected(
+        strategy::parse(&long_window, "strategy.json"),
+        Range,
+        "$.event",
+    );
+
+    let mut missing_event = strategy_v10_object();
+    missing_event
+        .as_object_mut()
+        .expect("an object")
+        .remove("event");
+    assert_rejected(
+        strategy::parse(&missing_event, "strategy.json"),
+        MissingField,
+        "$.event",
+    );
+
+    let mut wrong_rule = strategy_v10_object();
+    wrong_rule["rule"] = json!("compression-breakout");
+    assert_rejected(
+        strategy::parse(&wrong_rule, "strategy.json"),
+        Unsupported,
+        "$.rule",
     );
 }
 

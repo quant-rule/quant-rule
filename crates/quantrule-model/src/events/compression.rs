@@ -204,9 +204,144 @@ impl CompressionBreakoutSeries {
     }
 }
 
+/// The configuration of a compression-range run.
+///
+/// The range event publishes the high and low of a completed coiling window. It
+/// has no breakout distance and no participation threshold: those belong to the
+/// breakout event, which is a separate claim.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CompressionRangeConfig {
+    timeframe_secs: NonZeroU64,
+    coiling_bars: usize,
+}
+
+impl CompressionRangeConfig {
+    /// The contract default coiling window.
+    pub const DEFAULT_COILING_BARS: usize = 5;
+
+    /// Builds a range configuration with the default window.
+    #[must_use]
+    pub const fn new(timeframe_secs: NonZeroU64) -> Self {
+        Self {
+            timeframe_secs,
+            coiling_bars: Self::DEFAULT_COILING_BARS,
+        }
+    }
+
+    /// Builds a range configuration with an explicit window.
+    #[must_use]
+    pub const fn with_coiling_bars(timeframe_secs: NonZeroU64, coiling_bars: usize) -> Self {
+        Self {
+            timeframe_secs,
+            coiling_bars,
+        }
+    }
+
+    /// The configured timeframe in seconds.
+    #[must_use]
+    pub const fn timeframe_secs(self) -> u64 {
+        self.timeframe_secs.get()
+    }
+
+    /// The number of coiling bars in the window.
+    #[must_use]
+    pub const fn coiling_bars(self) -> usize {
+        self.coiling_bars
+    }
+
+    /// Whether the window is usable by the detector.
+    #[must_use]
+    pub fn is_valid(self) -> bool {
+        self.coiling_bars > 0
+    }
+}
+
+/// The compression-range events over one timeframe.
+///
+/// The event is neutral: it publishes where the range is, not which side will
+/// break. It becomes knowable at the last coiling bar, before any later bar is
+/// read.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompressionRangeSeries {
+    events: Vec<EventRecord>,
+}
+
+impl CompressionRangeSeries {
+    /// An empty event series.
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self { events: Vec::new() }
+    }
+
+    /// Computes every completed coiling-window event.
+    ///
+    /// A window ending at bar `b` requires the previous `coiling_bars` bars,
+    /// including `b`, to carry the published coiling context code. Overlapping
+    /// windows each produce their own event; the detector does not suppress a
+    /// window because a neighbouring one also completed.
+    #[must_use]
+    pub fn compute(
+        candles: &[Candle],
+        context: &ContextSeries,
+        config: &CompressionRangeConfig,
+    ) -> Self {
+        if !config.is_valid() {
+            return Self::empty();
+        }
+        let bars = config.coiling_bars;
+        let len = candles.len().min(context.len());
+        let mut events = Vec::new();
+        for bar in bars.saturating_sub(1)..len {
+            let window_start = bar + 1 - bars;
+            if !(window_start..=bar).all(|index| {
+                context.get(index).and_then(|value| value.context_code) == Some(COILING_CODE)
+            }) {
+                continue;
+            }
+            let mut range_high = f64::NEG_INFINITY;
+            let mut range_low = f64::INFINITY;
+            for candle in &candles[window_start..=bar] {
+                range_high = range_high.max(candle.high());
+                range_low = range_low.min(candle.low());
+            }
+            if !range_high.is_finite() || !range_low.is_finite() {
+                continue;
+            }
+            events.push(EventRecord {
+                event_type: EventType::Signal,
+                event_subtype_code: SignalSubtype::CompressionRange.code(),
+                source_code: ATR_SOURCE_CODE,
+                timeframe_secs: config.timeframe_secs(),
+                occurred_bar_index: bar,
+                available_bar_index: bar,
+                direction_code: 0,
+                reference_code: None,
+                primary_value: Some(range_high),
+                reference_value: Some(range_low),
+            });
+        }
+        Self { events }
+    }
+
+    /// The events in bar order.
+    #[must_use]
+    pub fn events(&self) -> &[EventRecord] {
+        &self.events
+    }
+
+    /// Whether no event was detected.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{CompressionBreakoutConfig, CompressionBreakoutSeries};
+    use super::{
+        CompressionBreakoutConfig, CompressionBreakoutSeries, CompressionRangeConfig,
+        CompressionRangeSeries,
+    };
     use crate::context::ContextSeries;
     use crate::events::EventType;
     use crate::readings::{PivotSeries, ReadingSeries, Readings};
@@ -344,5 +479,143 @@ mod tests {
         let context = ContextSeries::compute(&readings);
         let series = CompressionBreakoutSeries::compute(&[], &readings, &context, &config());
         assert!(series.is_empty());
+    }
+
+    fn range_config() -> CompressionRangeConfig {
+        CompressionRangeConfig::with_coiling_bars(
+            NonZeroU64::new(300).expect("a non-zero timeframe"),
+            5,
+        )
+    }
+
+    #[test]
+    fn a_completed_coiling_window_emits_one_neutral_range_event() {
+        let (candles, _, context) = fixture();
+        let series = CompressionRangeSeries::compute(&candles, &context, &range_config());
+        assert_eq!(series.events().len(), 1);
+        let event = series.events()[0];
+        assert_eq!(event.event_type, EventType::Signal);
+        assert_eq!(event.event_subtype_code, 8);
+        assert_eq!(event.source_code, 5);
+        assert_eq!(event.direction_code, 0);
+        assert_eq!(event.occurred_bar_index, 24);
+        assert_eq!(event.available_bar_index, 24);
+        assert_eq!(event.primary_value, Some(100.5));
+        assert_eq!(event.reference_value, Some(99.5));
+    }
+
+    #[test]
+    fn overlapping_coiling_windows_emit_one_event_each() {
+        let (candles, readings, _) = fixture();
+        let readings = Readings {
+            atr14: series(30, |index| Some(if index < 20 { 2.0 } else { 1.0 })),
+            rvol20: series(30, |_| Some(0.5)),
+            ..readings
+        };
+        let context = ContextSeries::compute(&readings);
+        let series = CompressionRangeSeries::compute(&candles, &context, &range_config());
+        assert_eq!(series.events().len(), 6);
+        assert_eq!(
+            series
+                .events()
+                .iter()
+                .map(|event| event.available_bar_index)
+                .collect::<Vec<_>>(),
+            vec![24, 25, 26, 27, 28, 29]
+        );
+        assert!(
+            series
+                .events()
+                .iter()
+                .all(|event| event.direction_code == 0)
+        );
+    }
+
+    #[test]
+    fn a_non_coiling_window_emits_nothing() {
+        let (candles, readings, _) = fixture();
+        let readings = Readings {
+            atr14: series(30, |_| Some(2.0)),
+            rvol20: series(30, |_| Some(0.5)),
+            ..readings
+        };
+        let context = ContextSeries::compute(&readings);
+        let series = CompressionRangeSeries::compute(&candles, &context, &range_config());
+        assert!(series.is_empty());
+    }
+
+    #[test]
+    fn a_series_shorter_than_the_window_emits_nothing() {
+        let readings = Readings::compute(&[]);
+        let context = ContextSeries::compute(&readings);
+        let series = CompressionRangeSeries::compute(&[], &context, &range_config());
+        assert!(series.is_empty());
+
+        let candles = vec![candle(0, 100.0, 99.0, 100.0); 4];
+        let series = CompressionRangeSeries::compute(&candles, &context, &range_config());
+        assert!(series.is_empty());
+    }
+
+    #[test]
+    fn equal_highs_and_lows_publish_equal_boundaries() {
+        let candles = vec![candle(0, 100.0, 100.0, 100.0); 25];
+        let readings = Readings {
+            ema20: series(25, |_| Some(100.0)),
+            ema50: series(25, |_| Some(100.0)),
+            ema200: series(25, |_| Some(100.0)),
+            rsi14: series(25, |_| Some(50.0)),
+            atr14: series(25, |index| Some(if index < 20 { 2.0 } else { 1.0 })),
+            rvol20: series(25, |_| Some(0.5)),
+            pivots: PivotSeries::compute(&[]),
+        };
+        let context = ContextSeries::compute(&readings);
+        let series = CompressionRangeSeries::compute(&candles, &context, &range_config());
+        assert_eq!(series.events().len(), 1);
+        let event = series.events()[0];
+        assert_eq!(event.primary_value, Some(100.0));
+        assert_eq!(event.reference_value, Some(100.0));
+    }
+
+    #[test]
+    fn the_range_prefix_events_are_unchanged_when_later_bars_are_appended() {
+        let (candles, readings, _) = fixture();
+        let readings = Readings {
+            atr14: series(30, |index| Some(if index < 20 { 2.0 } else { 1.0 })),
+            rvol20: series(30, |_| Some(0.5)),
+            ..readings
+        };
+        let context = ContextSeries::compute(&readings);
+        let full = CompressionRangeSeries::compute(&candles, &context, &range_config());
+        for length in 0..=candles.len() {
+            let prefix_context = ContextSeries::compute(&Readings {
+                atr14: series(length, |index| Some(if index < 20 { 2.0 } else { 1.0 })),
+                rvol20: series(length, |_| Some(0.5)),
+                ..Readings::compute(&candles[..length])
+            });
+            let prefix = CompressionRangeSeries::compute(
+                &candles[..length],
+                &prefix_context,
+                &range_config(),
+            );
+            let expected: Vec<_> = full
+                .events()
+                .iter()
+                .filter(|event| event.available_bar_index < length)
+                .copied()
+                .collect();
+            assert_eq!(
+                prefix.events(),
+                expected.as_slice(),
+                "the prefix of length {length} changed an earlier range event"
+            );
+        }
+    }
+
+    #[test]
+    fn the_range_detector_is_deterministic() {
+        let (candles, _, context) = fixture();
+        let first = CompressionRangeSeries::compute(&candles, &context, &range_config());
+        let second = CompressionRangeSeries::compute(&candles, &context, &range_config());
+        assert_eq!(first, second);
     }
 }

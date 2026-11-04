@@ -9,7 +9,7 @@
 //! sets a fill price, fee, or slippage.
 
 use crate::context::LadderContext;
-use crate::intent::{StrategyPosition, TradeIntent};
+use crate::intent::{BracketIntent, StrategyPosition, TradeIntent};
 use crate::side::Side;
 
 use super::input::StrategyInput;
@@ -46,6 +46,19 @@ impl Entry {
     pub const fn side(&self) -> Side {
         self.intent.side
     }
+}
+
+/// A two-sided stop-entry decision.
+///
+/// The strategy does not know the side: the first boundary reached fills the
+/// position and cancels the other leg. The decision carries the two boundary
+/// prices, the risk specification, and the entry window.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BracketEntry {
+    /// The bar whose readings produced the bracket.
+    pub bar: StrategyInput,
+    /// The two-sided entry request.
+    pub intent: BracketIntent,
 }
 
 /// An exit decision.
@@ -98,6 +111,8 @@ pub enum Decision {
     Hold,
     /// Open a position.
     Enter(Entry),
+    /// Place a two-sided stop-entry bracket.
+    EnterBracket(BracketEntry),
     /// Close the open position.
     Exit(Exit),
 }

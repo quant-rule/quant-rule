@@ -17,6 +17,7 @@ per-timeframe overrides for:
 - divergence scale and window;
 - RSI levels, EMA pairs, MACD families, DI cross, and trend continuation;
 - compression-breakout coiling window, break distance, and RVOL confirmation;
+- neutral compression-range coiling window for the pre-breakout boundaries;
 - progression target, stability, invalidation, and minimum target.
 
 The pivot detection windows are fixed by the model definition at 2 minor bars and
@@ -61,6 +62,9 @@ numbers only.
 - The compression-breakout event has its own causality, determinism, and
   edge-case tests; its range-expansion protocol is
   [`compression-breakout.md`](compression-breakout.md).
+- The neutral compression-range event has its own causality, determinism, and
+  edge-case tests; its next-bar resolution protocol is
+  [`compression-range.md`](compression-range.md).
 
 ## 5. Validation result
 
@@ -85,3 +89,8 @@ A later pre-registered harder protocol — 1m, forward 20-bar range ≥ 4 ATR �
 passed both `model_dev` and `model_validation` with the matched baselines,
 controls, and replication. It is an **accepted model baseline** (human, 2026-11-04), not a strategy go. See
 [`COMPRESSION-BASELINE-CANDIDATE`](../../improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md).
+
+The neutral `signal.compression_range` event was added for the two-sided
+bracket. Its next-bar resolution gate passed both partitions and is an
+**accepted model baseline** (human, 2026-11-04); see
+[`COMPRESSION-RANGE-CANDIDATE`](../../improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md).

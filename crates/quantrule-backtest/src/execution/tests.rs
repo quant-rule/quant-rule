@@ -189,7 +189,9 @@ fn order_rejects_reason_trigger_mismatch() {
         0,
         0,
     );
-    assert_eq!(entry_with_stop, Err(OrderError::ReasonTriggerMismatch));
+    // A stop-entry is an entry with a stop trigger; the two-sided bracket
+    // path relies on it.
+    assert!(entry_with_stop.is_ok());
 
     let stop_with_market = Order::new(
         OrderSide::Sell,
@@ -345,7 +347,8 @@ fn fill_reason_exit_flags_and_trigger_match() {
     assert!(FillReason::Exit.matches_trigger(Trigger::Market));
     assert!(FillReason::StopLoss.matches_trigger(Trigger::Stop { price: 95.0 }));
     assert!(FillReason::TakeProfit.matches_trigger(Trigger::Target { price: 110.0 }));
-    assert!(!FillReason::Entry.matches_trigger(Trigger::Stop { price: 95.0 }));
+    assert!(FillReason::Entry.matches_trigger(Trigger::Stop { price: 95.0 }));
+    assert!(!FillReason::Entry.matches_trigger(Trigger::Target { price: 110.0 }));
     assert!(!FillReason::StopLoss.matches_trigger(Trigger::Market));
 }
 

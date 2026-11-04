@@ -249,6 +249,9 @@ mod tests {
             direction,
             occurred_bar_index: bar,
             available_bar_index: bar,
+            reference_code: None,
+            primary_value: None,
+            reference_value: None,
         }
     }
 

@@ -364,6 +364,7 @@ fn the_runner_matches_the_golden_run() {
         .filter_map(|decision| match decision {
             Decision::Hold => None,
             Decision::Enter(entry) => Some(("enter", side_label(entry.intent.side))),
+            Decision::EnterBracket(_) => Some(("bracket", "both")),
             Decision::Exit(exit) => Some(("exit", side_label(exit.side))),
         })
         .collect();
@@ -737,7 +738,7 @@ fn the_strategy_risk_policy_reaches_the_intent() {
         .iter()
         .find_map(|decision| match decision {
             Decision::Enter(entry) => Some(entry),
-            Decision::Exit(_) | Decision::Hold => None,
+            Decision::EnterBracket(_) | Decision::Exit(_) | Decision::Hold => None,
         })
         .expect("the fixture enters");
     assert_eq!(
@@ -784,7 +785,7 @@ fn every_decision_uses_the_execution_position() {
 
     for (position, decision) in run.strategy_walk().positions().iter().zip(run.decisions()) {
         match decision {
-            Decision::Enter(_) => assert!(position.is_flat()),
+            Decision::Enter(_) | Decision::EnterBracket(_) => assert!(position.is_flat()),
             Decision::Exit(exit) => assert_eq!(position.side, Some(exit.side)),
             Decision::Hold => {}
         }
@@ -826,7 +827,7 @@ fn a_rejected_short_is_never_an_open_strategy_position() {
     );
     for (position, decision) in walk.positions().iter().zip(walk.decisions()) {
         match decision {
-            Decision::Enter(_) => assert!(position.is_flat()),
+            Decision::Enter(_) | Decision::EnterBracket(_) => assert!(position.is_flat()),
             Decision::Exit(exit) => assert_eq!(position.side, Some(exit.side)),
             Decision::Hold => {}
         }

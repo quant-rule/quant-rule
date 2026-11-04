@@ -1243,6 +1243,9 @@ fn reject_reason_code(reason: RejectReason) -> &'static str {
         RejectReason::MissingQuantity => "missing_quantity",
         RejectReason::NonPositiveQuantity => "non_positive_quantity",
         RejectReason::RiskLimit => "risk_limit",
+        RejectReason::OcoCancelled => "oco_cancelled",
+        RejectReason::AmbiguousTrigger => "ambiguous_trigger",
+        RejectReason::BracketExpired => "bracket_expired",
     }
 }
 

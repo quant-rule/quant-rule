@@ -357,6 +357,22 @@
       "stop_atr": 4.0,
       "baseline": "coiling_barrier",
       "predictive_status": "pass"
+    },
+    {
+      "id": "signal.compression_range",
+      "kind": "event",
+      "construct_tests": [
+        "compression_window",
+        "range_values",
+        "next_bar_touch",
+        "no_lookahead"
+      ],
+      "primary_outcome": "volatility",
+      "horizon_bars": 1,
+      "target_atr": 4.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_non_coiling_completion",
+      "predictive_status": "pass"
     }
   ]
 }

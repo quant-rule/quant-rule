@@ -1,7 +1,7 @@
 # Run Index
 
 - Date: 2026-11-04 (UTC)
-- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, and strategy gates appended
+- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates appended
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 The local `data/improvement/` store was reset after the 2026-11-03 records, so
@@ -19,6 +19,9 @@ view for the local store.
 | `MODEL-2026-11-04-03` | 2026-11-04 | model | Harder 3 ATR compression cells on 5m and 1m | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/MODEL-2026-11-04-03-compression-harder.md) |
 | `MODEL-2026-11-04-04` | 2026-11-04 | model | 4 ATR compression cells; 1m development pass | model | strategy, portfolio | — | `model_dev` | pass — freeze 1m | [record](2026-11-04/MODEL-2026-11-04-04-compression-4atr-dev.md) |
 | `MODEL-2026-11-04-05` | 2026-11-04 | model | 4 ATR compression; 1m validation pass | model | strategy, portfolio | MODEL-2026-11-04-04 | `model_validation` | accepted | [record](2026-11-04/MODEL-2026-11-04-05-compression-4atr-validation.md) |
+| `MODEL-2026-11-04-06` | 2026-11-04 | model | Compression-range next-bar gate; development pass | model | strategy, portfolio | MODEL-2026-11-04-04..05 | `model_dev` | pass — freeze event | [record](2026-11-04/MODEL-2026-11-04-06-compression-range-dev.md) |
+| `MODEL-2026-11-04-07` | 2026-11-04 | model | Compression-range next-bar gate; validation pass | model | strategy, portfolio | MODEL-2026-11-04-06 | `model_validation` | accepted | [record](2026-11-04/MODEL-2026-11-04-07-compression-range-validation.md) |
+| `STRATEGY-2026-11-04-02` | 2026-11-04 | strategy | 1m compression bracket; all folds halted | strategy | model, portfolio | MODEL-2026-11-04-06..07 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-02-compression-bracket.md) |
 | `STRATEGY-2026-11-04-01` | 2026-11-04 | strategy | Directional 1m compression strategy | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-01-compression-strategy.md) |
 | `MODEL-2026-11-01-01` | 2026-11-01 | model | Model baseline harness pilot | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-01-model-baseline.md) |
 | `MODEL-2026-11-01-02` | 2026-11-01 | model | Multi-horizon axis study | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-02-multi-horizon.md) |

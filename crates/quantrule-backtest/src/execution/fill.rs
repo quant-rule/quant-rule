@@ -44,13 +44,14 @@ impl FillReason {
 
     /// Whether the reason is compatible with the supplied trigger.
     ///
-    /// A market order carries an entry or exit reason; a stop carries a
-    /// stop-loss reason; a target carries a take-profit reason.
+    /// A market order carries an entry or exit reason; a stop carries an entry
+    /// or stop-loss reason; a target carries a take-profit reason.
     #[must_use]
     pub const fn matches_trigger(self, trigger: Trigger) -> bool {
         matches!(
             (self, trigger),
             (Self::Entry | Self::Exit, Trigger::Market)
+                | (Self::Entry, Trigger::Stop { .. })
                 | (Self::StopLoss, Trigger::Stop { .. })
                 | (Self::TakeProfit, Trigger::Target { .. })
         )

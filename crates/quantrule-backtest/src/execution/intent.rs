@@ -5,7 +5,7 @@
 //! imports the strategy module. The entry carries the strategy's
 //! [`crate::intent::TradeIntent`]; execution resolves it against the fill.
 
-use crate::intent::TradeIntent;
+use crate::intent::{BracketIntent, TradeIntent};
 use crate::side::Side;
 
 /// The execution request for one strategy bar.
@@ -21,6 +21,18 @@ pub enum OrderIntent {
     Enter {
         /// The strategy's complete entry request.
         intent: TradeIntent,
+        /// The zero-based bar index that produced the decision.
+        bar_index: usize,
+        /// The decision bar's open time as UTC Unix seconds.
+        open_time: i64,
+        /// The largest entry notional allowed at the fill, when the caller
+        /// enforces a risk envelope. `None` disables the check.
+        max_notional: Option<f64>,
+    },
+    /// Place a two-sided stop-entry bracket for the next bar.
+    EnterBracket {
+        /// The two boundary prices and the risk specification.
+        intent: BracketIntent,
         /// The zero-based bar index that produced the decision.
         bar_index: usize,
         /// The decision bar's open time as UTC Unix seconds.

@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-04.2",
+  "version": "2026-11-04.3",
   "indicators": [
     {
       "id": "ema",
@@ -720,6 +720,29 @@
         "model.signal.compression_coiling_bars",
         "model.signal.compression_break_atr",
         "model.signal.compression_rvol_min",
+        "model.context.atr_ratio_period",
+        "model.context.rvol_period",
+        "model.context.threshold"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.compression_range",
+      "event_type": 3,
+      "subtype": 8,
+      "source": 5,
+      "indicator": "context",
+      "role": "signal",
+      "claim": "A completed coiling window publishes its high and low at the last coiling bar; the next bar touches at least one boundary more often than a matched non-coiling window completion. The event is neutral and does not claim direction.",
+      "parameters": [
+        "model.signal.compression_range",
+        "model.signal.compression_range_coiling_bars",
         "model.context.atr_ratio_period",
         "model.context.rvol_period",
         "model.context.threshold"
@@ -1615,6 +1638,30 @@
         "model"
       ],
       "status": "active"
+    },
+    {
+      "id": "model.signal.compression_range",
+      "path": "defaults.events.signal.compression_range.enabled",
+      "type": "boolean",
+      "default": false,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.compression_range_coiling_bars",
+      "path": "defaults.events.signal.compression_range.coiling_bars",
+      "type": "integer",
+      "default": 5,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
     }
   ],
   "codes": {
@@ -1641,7 +1688,8 @@
       "4": "histogram slope flip",
       "5": "zero cross",
       "6": "trend continuation",
-      "7": "compression breakout"
+      "7": "compression breakout",
+      "8": "compression range"
     },
     "sources": {
       "1": "EMA fast",

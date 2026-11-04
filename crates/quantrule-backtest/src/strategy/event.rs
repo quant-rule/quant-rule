@@ -455,6 +455,9 @@ mod tests {
             direction: 1,
             occurred_bar_index: 10,
             available_bar_index: 10,
+            reference_code: None,
+            primary_value: None,
+            reference_value: None,
         }];
         let strategy = EventCompositeStrategy::new(config, RiskPolicy::default(), true);
         let Decision::Enter(entry) = strategy.decide(&input, StrategyPosition::flat()) else {
