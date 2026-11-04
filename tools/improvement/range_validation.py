@@ -35,7 +35,7 @@ from path_validation import cluster_stats, control_p, percentile
 EVENT_TYPE = 3
 EVENT_SUBTYPE = 8
 EVENT_SOURCE = 5
-EVENT_TIMEFRAME = 60
+TIMEFRAME_ORDER = {60: "1m", 300: "5m", 900: "15m", 3600: "1h"}
 COILING_CODE = 2.0
 ATR_BASELINE_BARS = 20
 CLUSTER_BARS = 20
@@ -52,6 +52,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--matrix", required=True, help="matrix JSON")
     parser.add_argument("--out", required=True, help="output directory")
+    parser.add_argument("--timeframe", choices=("1m", "5m", "15m", "1h"), default="1m")
     parser.add_argument("--coiling-bars", type=int, default=5)
     parser.add_argument("--random-draws", type=int, default=RANDOM_DRAWS)
     parser.add_argument("--seed", type=int, default=SEED)
@@ -65,14 +66,14 @@ def read_json(path: Path) -> Any:
         raise SystemExit(f"error: cannot read {path}: {error}") from None
 
 
-def read_1m_rows(path: Path) -> list[dict[str, Any]]:
-    """Reads only the 1m rows, keeping the harness memory bounded."""
+def read_rows_for_timeframe(path: Path, timeframe: int) -> list[dict[str, Any]]:
+    """Reads only the selected timeframe, keeping the harness memory bounded."""
     rows: list[dict[str, Any]] = []
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
             try:
-                if int(row["timeframe_secs"]) != EVENT_TIMEFRAME:
+                if int(row["timeframe_secs"]) != timeframe:
                     continue
                 rows.append(
                     {
@@ -89,14 +90,14 @@ def read_1m_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def read_range_events(path: Path) -> list[dict[str, Any]]:
-    """Reads only the 1m compression-range events."""
+def read_range_events(path: Path, timeframe: int) -> list[dict[str, Any]]:
+    """Reads only the selected timeframe's compression-range events."""
     events: list[dict[str, Any]] = []
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
             try:
-                if int(row["timeframe_secs"]) != EVENT_TIMEFRAME:
+                if int(row["timeframe_secs"]) != timeframe:
                     continue
                 if (
                     int(row["event_type_code"]) != EVENT_TYPE
@@ -221,11 +222,13 @@ def select_events(
 
 
 class Bundle:
-    def __init__(self, instrument: str, fold: int, run: Path, bars: int) -> None:
+    def __init__(
+        self, instrument: str, fold: int, run: Path, bars: int, timeframe: int
+    ) -> None:
         self.instrument = instrument
         self.fold = fold
-        rows = read_1m_rows(run / "readings.csv")
-        events = read_range_events(run / "events.csv")
+        rows = read_rows_for_timeframe(run / "readings.csv", timeframe)
+        events = read_range_events(run / "events.csv", timeframe)
         codes = context_codes(rows)
         hits, highs, lows = window_hits(rows, bars)
         self.hits = hits
@@ -468,6 +471,7 @@ def markdown(document: dict[str, Any], partition: str) -> str:
         "# Compression-Range Next-Bar Resolution",
         "",
         f"- Partition: `{partition}`",
+        f"- Timeframe: {document['timeframe']}",
         f"- Coiling bars: {document['coiling_bars']}",
         f"- Event: `signal.compression_range` (type 3, subtype 8, source 5)",
         f"- Outcome: next-bar touch of either range boundary",
@@ -519,6 +523,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.coiling_bars <= 0:
         print("error: --coiling-bars must be positive", file=sys.stderr)
         return 1
+    timeframe = next(
+        seconds for seconds, name in TIMEFRAME_ORDER.items() if name == args.timeframe
+    )
     matrix = read_json(Path(args.matrix).expanduser())
     if not isinstance(matrix, dict) or not isinstance(matrix.get("cells"), list):
         print("error: matrix must be an object with cells", file=sys.stderr)
@@ -529,11 +536,13 @@ def main(argv: list[str] | None = None) -> int:
             int(cell["fold"]),
             Path(cell["run"]).expanduser(),
             args.coiling_bars,
+            timeframe,
         )
         for cell in matrix["cells"]
     ]
     document = evaluate(bundles, args.random_draws, args.seed)
     document["partition"] = matrix.get("partition")
+    document["timeframe"] = args.timeframe
     document["coiling_bars"] = args.coiling_bars
     document["seed"] = args.seed
     document["random_draws"] = args.random_draws

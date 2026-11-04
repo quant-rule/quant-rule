@@ -99,7 +99,8 @@ the remaining pending phase.
 | STRATEGY-002 | 5m/15m sample-size test; not green; v6 still too selective | [`docs/improvement/2026-11-01/STRATEGY-002-comparison.md`](improvement/2026-11-01/STRATEGY-002-comparison.md) |
 | STRATEGY-003 | Level-fade v7 validation; not green; new rule family rejected | [`docs/improvement/2026-11-01/STRATEGY-003-comparison.md`](improvement/2026-11-01/STRATEGY-003-comparison.md) |
 | MODEL-2026-11-04-04..05 | 1m 4 ATR compression baseline; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md) |
-| MODEL-2026-11-04-06..07 | 1m compression-range next-bar resolution; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
+| MODEL-2026-11-04-06..07 | 1m compression-range next-bar resolution; both partitions pass; accepted |
+| MODEL-2026-11-04-08 | 5m compression-range next-bar resolution; back-lag control fails; no edge | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
 | STRATEGY-2026-11-04-01 | Directional 1m compression strategy; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-V9-GATE.md`](improvement/2026-11-04/STRATEGY-V9-GATE.md) |
 | STRATEGY-2026-11-04-02 | 1m compression bracket; `strategy_dev` no edge | [`docs/improvement/2026-11-04/STRATEGY-BRACKET-GATE.md`](improvement/2026-11-04/STRATEGY-BRACKET-GATE.md) |
 | Workflow-reset audit | Program green; one Major fixed; Minor/Info routed | [`docs/audits/2026-11-01/workflow-reset-audit.md`](audits/2026-11-01/workflow-reset-audit.md) |
