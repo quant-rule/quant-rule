@@ -399,6 +399,8 @@ def main(argv: list[str] | None = None) -> int:
             str(config_path),
             "--out",
             str(root / "artifacts"),
+            "--timeframe",
+            str(range_config.get("timeframe", "1m")),
             "--coiling-bars",
             str(range_config.get("coiling_bars", 5)),
             "--random-draws",
