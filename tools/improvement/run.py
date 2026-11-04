@@ -67,6 +67,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
             "claim-validation",
             "path-validation",
             "compression-validation",
+            "range-validation",
             "strategy-matrix",
         ),
         default="backtest",
@@ -276,6 +277,7 @@ def main(argv: list[str] | None = None) -> int:
         path_config = manifest.get("path_validation")
         compression_config = manifest.get("compression_validation")
         strategy_matrix = manifest.get("strategy_matrix")
+        range_config = manifest.get("range_validation")
         if args.command == "path-validation":
             if not isinstance(path_config, dict):
                 raise ToolError("path_validation: an object is required for path-validation")
@@ -289,6 +291,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "strategy-matrix" and not isinstance(strategy_matrix, dict):
             raise ToolError(
                 "strategy_matrix: an object is required for strategy-matrix"
+            )
+        if args.command == "range-validation" and not isinstance(range_config, dict):
+            raise ToolError(
+                "range_validation: an object is required for range-validation"
             )
     except ToolError as error:
         print(f"error: {error}", file=sys.stderr)
@@ -384,6 +390,22 @@ def main(argv: list[str] | None = None) -> int:
             command.extend(["--timeframes", str(compression_config["timeframes"])])
         if compression_config.get("select"):
             command.append("--select")
+    elif args.command == "range-validation":
+        assert isinstance(range_config, dict)
+        command = [
+            "python3",
+            str(REPO_ROOT / "tools/improvement/range_validation.py"),
+            "--matrix",
+            str(config_path),
+            "--out",
+            str(root / "artifacts"),
+            "--coiling-bars",
+            str(range_config.get("coiling_bars", 5)),
+            "--random-draws",
+            str(range_config.get("random_draws", 200)),
+            "--seed",
+            str(range_config.get("seed", 0)),
+        ]
     else:
         assert isinstance(strategy_matrix, dict)
         command = [
@@ -399,7 +421,13 @@ def main(argv: list[str] | None = None) -> int:
             str(strategy_matrix.get("min_trades", 30)),
             "--min-profit-factor",
             str(strategy_matrix.get("min_profit_factor", 1.0)),
+            "--title",
+            str(strategy_matrix.get("title", "Strategy v9 — 1m Compression Breakout")),
+            "--name",
+            str(strategy_matrix.get("name", "strategy_v9")),
         ]
+        if strategy_matrix.get("require_no_halt"):
+            command.append("--require-no-halt")
     try:
         process = run_process(command, REPO_ROOT)
     except ToolError as error:

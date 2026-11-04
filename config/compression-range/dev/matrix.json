@@ -1,0 +1,66 @@
+{
+  "schema": "quantrule.compression-matrix/v1",
+  "partition": "dev",
+  "event": "signal.compression_range",
+  "timeframes": [
+    "1m"
+  ],
+  "horizon_bars": 1,
+  "target_atr": null,
+  "cells": [
+    {
+      "instrument": "BTCUSD",
+      "fold": 2018,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/btc-2018/model"
+    },
+    {
+      "instrument": "BTCUSD",
+      "fold": 2019,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/btc-2019/model"
+    },
+    {
+      "instrument": "BTCUSD",
+      "fold": 2020,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/btc-2020/model"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2018,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/eth-2018/model"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2019,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/eth-2019/model"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2020,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/eth-2020/model"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2018,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/xau-2018/model"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2019,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/xau-2019/model"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2020,
+      "partition": "model_dev",
+      "run": "data/compression-range/dev/xau-2020/model"
+    }
+  ]
+}

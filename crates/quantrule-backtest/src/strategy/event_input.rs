@@ -16,7 +16,7 @@ use quantrule_model::timeframe::ModelStates;
 use crate::context::LadderContext;
 
 /// One event as the v8 strategy sees it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EventView {
     /// The event type code: 1 Level, 2 Divergence, 3 Signal.
     pub event_type: u8,
@@ -30,6 +30,12 @@ pub struct EventView {
     pub occurred_bar_index: usize,
     /// The first bar on which it became knowable.
     pub available_bar_index: usize,
+    /// The identified EMA or confirmed swing level, when applicable.
+    pub reference_code: Option<u32>,
+    /// The main measured value at the occurrence.
+    pub primary_value: Option<f64>,
+    /// The compared level or value, when applicable.
+    pub reference_value: Option<f64>,
 }
 
 /// One timeframe's event/state snapshot.
@@ -167,6 +173,9 @@ fn event_view(event: &EventRecord) -> EventView {
         direction: event.direction_code,
         occurred_bar_index: event.occurred_bar_index,
         available_bar_index: event.available_bar_index,
+        reference_code: event.reference_code,
+        primary_value: event.primary_value,
+        reference_value: event.reference_value,
     }
 }
 

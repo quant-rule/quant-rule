@@ -1,0 +1,97 @@
+{
+  "schema": "quantrule.strategy-matrix/v1",
+  "partition": "dev",
+  "rule": "compression-bracket",
+  "cells": [
+    {
+      "instrument": "BTCUSD",
+      "fold": 2018,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/btc-2018"
+    },
+    {
+      "instrument": "BTCUSD",
+      "fold": 2019,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/btc-2019"
+    },
+    {
+      "instrument": "BTCUSD",
+      "fold": 2020,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/btc-2020"
+    },
+    {
+      "instrument": "BTCUSD",
+      "fold": 2021,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/btc-2021"
+    },
+    {
+      "instrument": "BTCUSD",
+      "fold": 2022,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/btc-2022"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2018,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/eth-2018"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2019,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/eth-2019"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2020,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/eth-2020"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2021,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/eth-2021"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2022,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/eth-2022"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2018,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/xau-2018"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2019,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/xau-2019"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2020,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/xau-2020"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2021,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/xau-2021"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2022,
+      "partition": "strategy_dev",
+      "run": "data/compression-bracket/dev/xau-2022"
+    }
+  ]
+}

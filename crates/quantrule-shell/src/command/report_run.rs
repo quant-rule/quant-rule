@@ -397,6 +397,7 @@ struct StrategySummary {
     exit_level_lost: usize,
     exit_event_condition: usize,
     exit_time_stop: usize,
+    bracket_entries: usize,
     open_position: Option<Side>,
     execution_state: Option<StrategyExecutionState>,
     executed_entries: Option<usize>,
@@ -441,6 +442,10 @@ fn summarize_walk(
                     Side::Short => summary.short_entries += 1,
                 }
             }
+            Decision::EnterBracket(_) => {
+                summary.entries += 1;
+                summary.bracket_entries += 1;
+            }
             Decision::Exit(exit) => {
                 summary.exits += 1;
                 match exit.reason {
@@ -457,6 +462,13 @@ fn summarize_walk(
     summary
 }
 
+fn side_label(side: Side) -> &'static str {
+    match side {
+        Side::Long => "long",
+        Side::Short => "short",
+    }
+}
+
 fn decisions_csv(inputs: &[StrategyInput], decisions: &[Decision], timeframe_secs: u64) -> String {
     let mut csv = String::from(
         "type,side,timeframe,timeframe_secs,bar,datetime,direction,momentum_force,structure_score,reason\n",
@@ -465,13 +477,17 @@ fn decisions_csv(inputs: &[StrategyInput], decisions: &[Decision], timeframe_sec
     for (input, decision) in inputs.iter().zip(decisions) {
         let (kind, side, reason) = match decision {
             Decision::Hold => continue,
-            Decision::Enter(entry) => ("entry", entry.intent.side, String::new()),
-            Decision::Exit(exit) => ("exit", exit.side, exit_reason_code(exit.reason).to_owned()),
+            Decision::Enter(entry) => ("entry", entry.intent.side.code(), String::new()),
+            Decision::EnterBracket(_) => ("bracket", 0, String::new()),
+            Decision::Exit(exit) => (
+                "exit",
+                exit.side.code(),
+                exit_reason_code(exit.reason).to_owned(),
+            ),
         };
         let _ = writeln!(
             csv,
-            "{kind},{},{timeframe},{timeframe_secs},{},{},{},{},{},{reason}",
-            side.code(),
+            "{kind},{side},{timeframe},{timeframe_secs},{},{},{},{},{},{reason}",
             input.bar_index,
             format_utc_timestamp(input.open_time),
             number(input.direction),
@@ -493,18 +509,26 @@ fn strategy_json(
         .iter()
         .zip(decisions)
         .filter_map(|(input, decision)| {
-            let (kind, side, reason) = match decision {
+            let (kind, side, side_label, reason) = match decision {
                 Decision::Hold => return None,
-                Decision::Enter(entry) => ("entry", entry.intent.side, Value::Null),
+                Decision::Enter(entry) => (
+                    "entry",
+                    entry.intent.side.code(),
+                    side_label(entry.intent.side),
+                    Value::Null,
+                ),
+                Decision::EnterBracket(_) => ("bracket", 0, "both", Value::Null),
                 Decision::Exit(exit) => (
                     "exit",
-                    exit.side,
+                    exit.side.code(),
+                    side_label(exit.side),
                     Value::String(exit_reason_code(exit.reason).to_owned()),
                 ),
             };
             Some(json!({
                 "type": kind,
-                "side": side.code(),
+                "side": side,
+                "side_label": side_label,
                 "timeframe_secs": input.timeframe_secs,
                 "bar": input.bar_index,
                 "time": input.open_time,
@@ -524,7 +548,9 @@ fn strategy_json(
     if config.strategy.engine.level().is_some() {
         exit_reasons["level_lost"] = json!(summary.exit_level_lost);
     }
-    if config.strategy.engine.compression_breakout().is_some() {
+    if config.strategy.engine.compression_breakout().is_some()
+        || config.strategy.engine.compression_bracket().is_some()
+    {
         exit_reasons["time_stop"] = json!(summary.exit_time_stop);
     }
 
@@ -553,6 +579,7 @@ fn strategy_json(
             "exits": summary.exits,
             "long_entries": summary.long_entries,
             "short_entries": summary.short_entries,
+            "bracket_entries": summary.bracket_entries,
             "exit_reasons": exit_reasons,
             "context": {
                 "complete_bars": summary.context_complete,
@@ -606,6 +633,9 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
     let _ = writeln!(out, "exits: {}", summary.exits);
     let _ = writeln!(out, "long_entries: {}", summary.long_entries);
     let _ = writeln!(out, "short_entries: {}", summary.short_entries);
+    if summary.bracket_entries > 0 {
+        let _ = writeln!(out, "bracket_entries: {}", summary.bracket_entries);
+    }
     let _ = writeln!(out, "exit_reasons:");
     let _ = writeln!(out, "  context_lost: {}", summary.exit_context_lost);
     let _ = writeln!(out, "  structure_lost: {}", summary.exit_structure_lost);
@@ -613,7 +643,9 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
         let _ = writeln!(out, "  level_lost: {}", summary.exit_level_lost);
         let _ = writeln!(out, "  event_condition: {}", summary.exit_event_condition);
     }
-    if config.strategy.engine.compression_breakout().is_some() {
+    if config.strategy.engine.compression_breakout().is_some()
+        || config.strategy.engine.compression_bracket().is_some()
+    {
         let _ = writeln!(out, "  time_stop: {}", summary.exit_time_stop);
     }
     let _ = writeln!(out, "context:");
@@ -624,10 +656,7 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
     let _ = writeln!(
         out,
         "open_position: {}",
-        summary.open_position.map_or("flat", |side| match side {
-            Side::Long => "long",
-            Side::Short => "short",
-        })
+        summary.open_position.map_or("flat", side_label)
     );
     out
 }
@@ -660,7 +689,7 @@ fn strategy_chart(
         .iter()
         .enumerate()
         .filter_map(|(bar, decision)| match decision {
-            Decision::Enter(_) => Some((bar, true)),
+            Decision::Enter(_) | Decision::EnterBracket(_) => Some((bar, true)),
             Decision::Exit(_) => Some((bar, false)),
             Decision::Hold => None,
         })

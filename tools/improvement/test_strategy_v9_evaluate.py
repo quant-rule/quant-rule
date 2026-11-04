@@ -12,7 +12,14 @@ from pathlib import Path
 import strategy_v9_evaluate
 
 
-def write_cell(run: Path, total_return: float, drawdown: float, trades: int, pnls: list[float]) -> None:
+def write_cell(
+    run: Path,
+    total_return: float,
+    drawdown: float,
+    trades: int,
+    pnls: list[float],
+    halted: bool | None = None,
+) -> None:
     portfolio = run / "portfolio"
     portfolio.mkdir(parents=True)
     (portfolio / "report.json").write_text(
@@ -22,7 +29,7 @@ def write_cell(run: Path, total_return: float, drawdown: float, trades: int, pnl
                     "total_return": total_return,
                     "max_drawdown": drawdown,
                     "trades": trades,
-                    "halted": drawdown >= 0.10,
+                    "halted": drawdown >= 0.10 if halted is None else halted,
                     "win_rate": 0.5,
                     "final_equity": 10_000.0 * (1.0 + total_return),
                     "commission": 1.0,
@@ -65,6 +72,26 @@ class EvaluateTests(unittest.TestCase):
             self.assertTrue(document["criteria"]["max_drawdown"])
             self.assertTrue(document["criteria"]["return"])
             self.assertFalse(document["criteria"]["profit_factor"])
+
+    def test_require_no_halt_adds_the_criterion(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_cell(root / "btc-2019", 0.10, 0.05, 40, [10.0], halted=True)
+            cells = [
+                {"instrument": "BTCUSD", "fold": 2019, "run": str(root / "btc-2019")}
+            ]
+            args = strategy_v9_evaluate.parse_arguments(
+                [
+                    "--matrix",
+                    "unused",
+                    "--out",
+                    "unused",
+                    "--require-no-halt",
+                ]
+            )
+            document = strategy_v9_evaluate.evaluate(cells, args)
+            self.assertFalse(document["criteria"]["no_halt"])
+            self.assertFalse(document["passed"])
 
     def test_a_halted_fold_fails_the_drawdown_criterion(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

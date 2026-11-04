@@ -83,6 +83,10 @@
           "coiling_bars": 5,
           "break_atr": 0.2,
           "rvol_min": 1.2
+        },
+        "compression_range": {
+          "enabled": false,
+          "coiling_bars": 5
         }
       }
     },

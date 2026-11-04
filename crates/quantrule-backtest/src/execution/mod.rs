@@ -18,6 +18,8 @@
 //! | Order | Reference price on the next bar |
 //! |---|---|
 //! | Market entry or exit | the bar's open |
+//! | Buy stop entry | the open when it gaps at or above the upper boundary, otherwise the upper boundary when the bar's high reaches it |
+//! | Sell stop entry | the open when it gaps at or below the lower boundary, otherwise the lower boundary when the bar's low reaches it |
 //! | Stop, long | the open when it gaps at or below the stop, otherwise the stop when the bar's low reaches it |
 //! | Stop, short | the open when it gaps at or above the stop, otherwise the stop when the bar's high reaches it |
 //! | Target, long | the open when it gaps at or above the target, otherwise the target when the bar's high reaches it |
@@ -70,6 +72,20 @@
 //! absent volume is not zero: it is treated as tradable. An order that has no
 //! next bar is rejected by [`ExecutionEngine::finish`].
 //!
+//! # Two-sided entry
+//!
+//! An [`crate::intent::BracketIntent`] places one buy stop at its upper
+//! boundary and one sell stop at its lower boundary. The first fill is the
+//! entry and cancels the other leg with
+//! [`RejectReason::OcoCancelled`]. A gap at the open resolves the side before
+//! the intrabar range; when the open is between the boundaries and both are
+//! touched, OHLC cannot order the triggers, so neither leg fills and both are
+//! rejected with [`RejectReason::AmbiguousTrigger`]. A bracket that reaches the
+//! end of its validity window without a trigger is rejected with
+//! [`RejectReason::BracketExpired`]. The filled leg is bracketed by the same
+//! stop/target resolution as a market entry; the position bracket is live from
+//! the entry bar onward.
+//!
 //! Orders that never trigger remain [`OrderState::Pending`]; an order with no
 //! next bar or an invalid execution condition is [`OrderState::Rejected`]. The
 //! engine publishes each order as an [`OrderRecord`] and returns it in an
@@ -78,6 +94,8 @@
 
 mod batch;
 mod bracket;
+#[cfg(test)]
+mod bracket_entry_tests;
 mod config;
 mod engine;
 #[cfg(test)]

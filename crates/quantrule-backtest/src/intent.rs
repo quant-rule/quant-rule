@@ -64,6 +64,62 @@ pub struct TradeIntent {
     pub max_slippage_bps: Option<f64>,
 }
 
+/// A complete two-sided stop-entry request.
+///
+/// The bracket names both boundary prices. Execution places one stop-entry
+/// order at each boundary; the first fill cancels the other. The side is not
+/// known until a boundary is reached, so the request carries no side.
+///
+/// # Examples
+///
+/// ```
+/// use quantrule_backtest::intent::{BracketIntent, StopSpec, TargetSpec};
+///
+/// let intent = BracketIntent {
+///     upper_price: 105.0,
+///     lower_price: 95.0,
+///     stop: StopSpec::AtrMultiple { multiple: 1.0 },
+///     target: TargetSpec::RewardToRisk { multiple: 4.0 },
+///     valid_for_bars: 1,
+///     max_slippage_bps: Some(5.0),
+/// };
+/// assert!(intent.is_valid());
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BracketIntent {
+    /// The upper boundary; a buy stop above the market.
+    pub upper_price: f64,
+    /// The lower boundary; a sell stop below the market.
+    pub lower_price: f64,
+    /// The stop policy applied to the filled side.
+    pub stop: StopSpec,
+    /// The target policy applied to the filled side.
+    pub target: TargetSpec,
+    /// The number of bars the bracket remains live, starting with the next
+    /// bar.
+    pub valid_for_bars: u32,
+    /// The maximum slippage the strategy accepts, in basis points.
+    pub max_slippage_bps: Option<f64>,
+}
+
+impl BracketIntent {
+    /// Whether the brackets and risk specifications are usable.
+    #[must_use]
+    pub fn is_valid(self) -> bool {
+        self.upper_price.is_finite()
+            && self.upper_price > 0.0
+            && self.lower_price.is_finite()
+            && self.lower_price > 0.0
+            && self.lower_price < self.upper_price
+            && self.stop.is_valid()
+            && self.target.is_valid()
+            && self.valid_for_bars > 0
+            && self
+                .max_slippage_bps
+                .is_none_or(|value| value.is_finite() && value >= 0.0)
+    }
+}
+
 /// How an entry should be filled.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EntryStyle {
@@ -332,8 +388,8 @@ impl std::error::Error for RiskPolicyError {}
 #[cfg(test)]
 mod tests {
     use super::{
-        DEFAULT_REWARD_TO_RISK, DEFAULT_STOP_ATR_MULTIPLE, EntryStyle, RiskPolicy, RiskPolicyError,
-        StopSpec, StrategyPosition, TargetSpec, TradeIntent,
+        BracketIntent, DEFAULT_REWARD_TO_RISK, DEFAULT_STOP_ATR_MULTIPLE, EntryStyle, RiskPolicy,
+        RiskPolicyError, StopSpec, StrategyPosition, TargetSpec, TradeIntent,
     };
     use crate::side::Side;
 
@@ -386,6 +442,41 @@ mod tests {
         );
         assert!(TargetSpec::Price { price: 110.0 }.is_valid());
         assert!(!TargetSpec::Price { price: 0.0 }.is_valid());
+    }
+
+    #[test]
+    fn a_bracket_intent_validates_its_boundaries_and_window() {
+        let valid = BracketIntent {
+            upper_price: 105.0,
+            lower_price: 95.0,
+            stop: StopSpec::AtrMultiple { multiple: 1.0 },
+            target: TargetSpec::RewardToRisk { multiple: 4.0 },
+            valid_for_bars: 1,
+            max_slippage_bps: Some(5.0),
+        };
+        assert!(valid.is_valid());
+        assert!(
+            !BracketIntent {
+                upper_price: 95.0,
+                lower_price: 105.0,
+                ..valid
+            }
+            .is_valid()
+        );
+        assert!(
+            !BracketIntent {
+                valid_for_bars: 0,
+                ..valid
+            }
+            .is_valid()
+        );
+        assert!(
+            !BracketIntent {
+                max_slippage_bps: Some(-1.0),
+                ..valid
+            }
+            .is_valid()
+        );
     }
 
     #[test]

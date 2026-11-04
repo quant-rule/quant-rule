@@ -203,6 +203,7 @@ fn parts(decision: Decision) -> (&'static str, &'static str, &'static str) {
     match decision {
         Decision::Hold => ("hold", "", ""),
         Decision::Enter(entry) => ("enter", side_label(entry.intent.side), ""),
+        Decision::EnterBracket(_) => ("bracket", "both", ""),
         Decision::Exit(exit) => ("exit", side_label(exit.side), reason_label(exit.reason)),
     }
 }
@@ -233,7 +234,7 @@ fn the_strategy_matches_the_golden_fixture() {
                 assert_eq!(exit.bar, row.input);
                 position = StrategyPosition::flat();
             }
-            Decision::Hold => {}
+            Decision::EnterBracket(_) | Decision::Hold => {}
         }
         assert_eq!(
             position_label(position),
@@ -260,8 +261,8 @@ fn repeated_runs_are_identical() {
                     Decision::Enter(entry) => {
                         position = StrategyPosition::opened(entry.intent.side, row.input.bar_index);
                     }
+                    Decision::EnterBracket(_) | Decision::Hold => {}
                     Decision::Exit(_) => position = StrategyPosition::flat(),
-                    Decision::Hold => {}
                 }
                 decision
             })
@@ -286,8 +287,8 @@ fn later_bars_do_not_change_earlier_decisions() {
                     Decision::Enter(entry) => {
                         position = StrategyPosition::opened(entry.intent.side, row.input.bar_index);
                     }
+                    Decision::EnterBracket(_) | Decision::Hold => {}
                     Decision::Exit(_) => position = StrategyPosition::flat(),
-                    Decision::Hold => {}
                 }
                 decision
             })

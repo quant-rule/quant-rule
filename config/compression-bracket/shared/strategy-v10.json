@@ -1,0 +1,22 @@
+{
+  "schema": "quantrule.strategy/v10",
+  "rule": "compression-bracket",
+  "thesis": "The accepted 1m compression range publishes both boundaries before the breakout; a two-sided stop entry lets the expansion choose the side, bracketed by a 1 ATR stop, a 4 ATR target, and a 20-bar time stop.",
+  "ladder": ["1m", "5m"],
+  "event": {
+    "timeframe": "1m",
+    "event_type": 3,
+    "subtype": 8,
+    "source": 5
+  },
+  "entry_valid_bars": 1,
+  "time_stop_bars": 20,
+  "risk": {
+    "stop": { "kind": "atr", "multiple": 1.0 },
+    "target": { "kind": "reward_to_risk", "multiple": 4.0 }
+  },
+  "no_trade": {
+    "missing_context": "reject",
+    "require_contiguous_execution": true
+  }
+}

@@ -339,13 +339,24 @@ fn collect_records(walk: &StrategyWalk, name: &str) -> Vec<Value> {
         match decision {
             Decision::Hold => {}
             Decision::Enter(entry) => {
-                records.push(record_value("entry", name, entry.intent.side, None, input));
+                records.push(record_value(
+                    "entry",
+                    name,
+                    entry.intent.side.code(),
+                    side_label(entry.intent.side),
+                    None,
+                    input,
+                ));
+            }
+            Decision::EnterBracket(_) => {
+                records.push(record_value("bracket", name, 0, "both", None, input));
             }
             Decision::Exit(exit) => {
                 records.push(record_value(
                     "exit",
                     name,
-                    exit.side,
+                    exit.side.code(),
+                    side_label(exit.side),
                     Some(exit.reason),
                     input,
                 ));
@@ -358,7 +369,8 @@ fn collect_records(walk: &StrategyWalk, name: &str) -> Vec<Value> {
 fn record_value(
     kind: &'static str,
     name: &str,
-    side: Side,
+    side: i8,
+    side_label: &'static str,
     reason: Option<ExitReason>,
     bar: &StrategyInput,
 ) -> Value {
@@ -369,8 +381,8 @@ fn record_value(
         "timeframe_secs": bar.timeframe_secs,
         "bar": bar.bar_index,
         "datetime": format_utc_timestamp(bar.open_time),
-        "side": side.code(),
-        "side_label": side_label(side),
+        "side": side,
+        "side_label": side_label,
         "direction": bar.direction,
         "momentum_force": bar.momentum_force,
         "structure_score": bar.structure_score,
@@ -764,7 +776,14 @@ mod tests {
     #[test]
     fn an_entry_record_carries_readings_and_no_fill_fields() {
         let bar = StrategyInput::new(300, 7, 1_700_000_000, Some(0.2), Some(0.5), Some(1.0));
-        let value = record_value("entry", RULE_LADDER_CONTEXT, Side::Long, None, &bar);
+        let value = record_value(
+            "entry",
+            RULE_LADDER_CONTEXT,
+            Side::Long.code(),
+            "long",
+            None,
+            &bar,
+        );
 
         assert_eq!(value["type"], "entry");
         assert_eq!(value["strategy"], RULE_LADDER_CONTEXT);
@@ -788,7 +807,8 @@ mod tests {
         let value = record_value(
             "exit",
             RULE_LADDER_CONTEXT,
-            Side::Short,
+            Side::Short.code(),
+            "short",
             Some(ExitReason::ContextLost),
             &bar,
         );

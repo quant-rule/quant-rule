@@ -1,0 +1,48 @@
+{
+  "schema": "quantrule.compression-matrix/v1",
+  "partition": "validation",
+  "event": "signal.compression_range",
+  "timeframes": [
+    "1m"
+  ],
+  "horizon_bars": 1,
+  "target_atr": null,
+  "cells": [
+    {
+      "instrument": "BTCUSD",
+      "fold": 2021,
+      "partition": "model_validation",
+      "run": "data/compression-range/validation/btc-2021/model"
+    },
+    {
+      "instrument": "BTCUSD",
+      "fold": 2022,
+      "partition": "model_validation",
+      "run": "data/compression-range/validation/btc-2022/model"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2021,
+      "partition": "model_validation",
+      "run": "data/compression-range/validation/eth-2021/model"
+    },
+    {
+      "instrument": "ETHUSD",
+      "fold": 2022,
+      "partition": "model_validation",
+      "run": "data/compression-range/validation/eth-2022/model"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2021,
+      "partition": "model_validation",
+      "run": "data/compression-range/validation/xau-2021/model"
+    },
+    {
+      "instrument": "XAUUSD",
+      "fold": 2022,
+      "partition": "model_validation",
+      "run": "data/compression-range/validation/xau-2022/model"
+    }
+  ]
+}

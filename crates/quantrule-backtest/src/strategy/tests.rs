@@ -508,8 +508,8 @@ fn decisions_are_deterministic_across_repeated_runs() {
                 Decision::Enter(entry) => {
                     position = StrategyPosition::opened(entry.intent.side, input.bar_index);
                 }
+                Decision::EnterBracket(_) | Decision::Hold => {}
                 Decision::Exit(_) => position = StrategyPosition::flat(),
-                Decision::Hold => {}
             }
             decisions.push(decision);
         }
@@ -537,8 +537,8 @@ fn later_bars_do_not_change_earlier_decisions() {
                     Decision::Enter(entry) => {
                         position = StrategyPosition::opened(entry.intent.side, input.bar_index);
                     }
+                    Decision::EnterBracket(_) | Decision::Hold => {}
                     Decision::Exit(_) => position = StrategyPosition::flat(),
-                    Decision::Hold => {}
                 }
                 decision
             })

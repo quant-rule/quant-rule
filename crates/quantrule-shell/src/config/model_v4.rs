@@ -298,6 +298,7 @@ fn v4_signal(
             "di_cross",
             "trend_continuation",
             "compression_breakout",
+            "compression_range",
         ],
     )?;
     let mut settings = inherited;
@@ -422,6 +423,15 @@ fn v4_signal(
             settings,
         )?;
     }
+
+    if let Some(range_value) = signal.get("compression_range") {
+        settings = v4_compression_range(
+            file,
+            &format!("{path}.compression_range"),
+            range_value,
+            settings,
+        )?;
+    }
     Ok(settings)
 }
 
@@ -453,6 +463,25 @@ fn v4_compression(
     if let Some(rvol_min) = compression.get("rvol_min") {
         settings.compression_rvol_min =
             positive_number(file, &format!("{path}.rvol_min"), rvol_min)?;
+    }
+    Ok(settings)
+}
+
+fn v4_compression_range(
+    file: &str,
+    path: &str,
+    value: &Value,
+    inherited: SignalSettings,
+) -> Result<SignalSettings, ConfigError> {
+    let range = read::object(file, path, value)?;
+    read::check_fields(file, path, range, &["enabled", "coiling_bars"])?;
+    let mut settings = inherited;
+    if let Some(enabled) = range.get("enabled") {
+        settings.compression_range = read::boolean(file, &format!("{path}.enabled"), enabled)?;
+    }
+    if let Some(coiling) = range.get("coiling_bars") {
+        settings.compression_range_coiling_bars =
+            positive_usize(file, &format!("{path}.coiling_bars"), coiling)?;
     }
     Ok(settings)
 }
@@ -621,6 +650,10 @@ pub(crate) fn effective_json(config: &MarketStateConfig) -> Value {
                             "coiling_bars": events.signal.compression_coiling_bars,
                             "break_atr": events.signal.compression_break_atr,
                             "rvol_min": events.signal.compression_rvol_min
+                        },
+                        "compression_range": {
+                            "enabled": events.signal.compression_range,
+                            "coiling_bars": events.signal.compression_range_coiling_bars
                         }
                     }
                 },
