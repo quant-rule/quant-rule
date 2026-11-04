@@ -1,0 +1,26 @@
+[
+  {
+    "id": "h1_trend_continuation",
+    "label": "V5 1h trend continuation",
+    "event_type": 3,
+    "subtype": 6,
+    "source": 16,
+    "state": "trend"
+  },
+  {
+    "id": "h1_major_pivot_break",
+    "label": "V5 1h major pivot break",
+    "event_type": 1,
+    "subtype": 3,
+    "source": 8,
+    "state": "none"
+  },
+  {
+    "id": "h1_ema50_test",
+    "label": "V5 1h EMA50 test",
+    "event_type": 1,
+    "subtype": 1,
+    "source": 2,
+    "state": "ema_side"
+  }
+]
