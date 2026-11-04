@@ -73,7 +73,7 @@ pub(super) fn event_axis(event: &crate::events::EventRecord) -> Option<AxisCode>
                 STRUCTURE_SOURCE_CODE => Some(AxisCode::Structure),
                 _ => None,
             },
-            SignalSubtype::TrendContinuation => None,
+            SignalSubtype::TrendContinuation | SignalSubtype::CompressionBreakout => None,
         },
     }
 }

@@ -21,6 +21,7 @@ use crate::consensus::TimeframeConsensus;
 use crate::context::ContextBar;
 use crate::context::ContextSeries;
 use crate::events::EventRecord;
+use crate::events::compression::{CompressionBreakoutConfig, CompressionBreakoutSeries};
 use crate::events::divergence::{DivergenceConfig, DivergenceEventSeries};
 use crate::events::dmi::{DmiConfig, DmiEventSeries};
 use crate::events::level::{LevelEventConfig, LevelEventSeries};
@@ -209,19 +210,42 @@ impl TimeframeModel {
             &direction,
             &momentum,
             &structure,
-            &SignalConfig::new(timeframe_secs),
+            &SignalConfig::with_settings(timeframe_secs, event_settings.signal),
         );
-        let dmi_events = DmiEventSeries::compute(&adx, &DmiConfig::new(timeframe_secs));
-        let trend_events = TrendContinuationSeries::compute(
-            &readings,
-            &macd,
-            &adx,
-            &TrendContinuationConfig::new(
-                timeframe_secs,
-                readings_config.adx_threshold,
-                readings_config.adx_slope_bars,
-            ),
-        );
+        let dmi_events = if event_settings.signal.di_cross {
+            DmiEventSeries::compute(&adx, &DmiConfig::new(timeframe_secs))
+        } else {
+            DmiEventSeries::empty()
+        };
+        let trend_events = if event_settings.signal.trend_continuation {
+            TrendContinuationSeries::compute(
+                &readings,
+                &macd,
+                &adx,
+                &TrendContinuationConfig::new(
+                    timeframe_secs,
+                    event_settings.signal.trend_adx_threshold,
+                    event_settings.signal.trend_adx_slope_bars,
+                ),
+            )
+        } else {
+            TrendContinuationSeries::empty()
+        };
+        let compression_events = if event_settings.signal.compression_breakout {
+            CompressionBreakoutSeries::compute(
+                input.candles,
+                &readings,
+                &context,
+                &CompressionBreakoutConfig::with_settings(
+                    timeframe_secs,
+                    event_settings.signal.compression_coiling_bars,
+                    event_settings.signal.compression_break_atr,
+                    event_settings.signal.compression_rvol_min,
+                ),
+            )
+        } else {
+            CompressionBreakoutSeries::empty()
+        };
 
         let mut events: Vec<EventRecord> = level_events
             .events()
@@ -230,6 +254,7 @@ impl TimeframeModel {
             .chain(signal_events.events())
             .chain(dmi_events.events())
             .chain(trend_events.events())
+            .chain(compression_events.events())
             .copied()
             .collect();
         // Keep the detector append order within one availability/occurrence

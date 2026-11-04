@@ -11,6 +11,7 @@
 //! candles, readings, and a configuration, and perform no I/O, read no clock, and
 //! use no randomness.
 
+pub mod compression;
 pub mod divergence;
 pub mod dmi;
 pub mod level;
@@ -95,6 +96,8 @@ pub struct EventRecord {
 pub(crate) fn is_legacy_axis_event(event: &EventRecord) -> bool {
     !(event.event_type == EventType::Signal
         && (event.event_subtype_code == 6
+            || event.event_subtype_code
+                == crate::events::signal::SignalSubtype::CompressionBreakout.code()
             || event.source_code == crate::events::dmi::DI_PLUS_SOURCE_CODE
             || event.source_code == crate::events::dmi::DI_MINUS_SOURCE_CODE))
 }

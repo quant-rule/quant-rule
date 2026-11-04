@@ -77,6 +77,12 @@
           "enabled": true,
           "adx_threshold": 25.0,
           "adx_slope_bars": 3
+        },
+        "compression_breakout": {
+          "enabled": false,
+          "coiling_bars": 5,
+          "break_atr": 0.2,
+          "rvol_min": 1.2
         }
       }
     },
