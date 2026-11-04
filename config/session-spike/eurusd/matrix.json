@@ -1,0 +1,37 @@
+{
+  "schema": "quantrule.model-matrix/v1",
+  "partition": "model_dev",
+  "configs": [
+    "adx25"
+  ],
+  "primary_config": "adx25",
+  "cells": [
+    {
+      "instrument": "EURUSD",
+      "short": "eurusd",
+      "fold": 2018,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/session-spike/eurusd/2018/model"
+      }
+    },
+    {
+      "instrument": "EURUSD",
+      "short": "eurusd",
+      "fold": 2019,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/session-spike/eurusd/2019/model"
+      }
+    },
+    {
+      "instrument": "EURUSD",
+      "short": "eurusd",
+      "fold": 2020,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/session-spike/eurusd/2020/model"
+      }
+    }
+  ]
+}

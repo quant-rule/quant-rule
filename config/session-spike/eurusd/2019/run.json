@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "eurusd-session-spike-2019",
+  "policy": "../shared/policy-EURUSD.json",
+  "data": "data.json",
+  "model": "../../../model-v4/shared/model-adx25.json",
+  "strategy": "../../../model-gate/shared/strategy.json",
+  "execution": "../../../model-gate/shared/execution.json",
+  "portfolio": "../../../model-gate/shared/portfolio.json",
+  "analytics": "../../../model-gate/shared/analytics.json",
+  "output_root": "../../../../data/session-spike/eurusd/2019"
+}
