@@ -2,9 +2,12 @@
 //!
 //! A condition names one published event or one v3 discrete state on one
 //! timeframe. The entry is the conjunction of its conditions; at least one
-//! condition must be a directional event, and every entry event must agree on
-//! the side. The exit is a separate disjunction of conditions. There is no
-//! weighted score, no axis input, and no expression language.
+//! condition must be an event, and every nonzero entry event must agree on the
+//! side. An event condition with `direction: 0` matches either side and takes
+//! the side of the matched event; if the matched entry events disagree, the bar
+//! produces no entry. The exit is a separate disjunction of conditions, and an
+//! optional time stop closes a position after a fixed number of execution bars.
+//! There is no weighted score, no axis input, and no expression language.
 //!
 //! The module is pure: it reads the event/state snapshot and the position it is
 //! given. It performs no I/O, reads no clock, and uses no randomness.
@@ -79,7 +82,7 @@ impl StateField {
 /// One v8 condition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Condition {
-    /// A published event with the exact type, subtype, source, and direction.
+    /// A published event with the exact type, subtype, and source.
     Event {
         /// The source timeframe in seconds.
         timeframe_secs: u32,
@@ -89,7 +92,8 @@ pub enum Condition {
         subtype: u8,
         /// The stable source code.
         source: u8,
-        /// The required direction.
+        /// The required direction. Zero matches either sign and takes the
+        /// matched event's direction; a nonzero value filters exactly.
         direction: i8,
     },
     /// A v3 state with the exact value.
@@ -113,24 +117,51 @@ impl Condition {
     }
 
     fn matches(self, input: &EventStrategyInput) -> bool {
-        let Some(view) = input.timeframe(self.timeframe_secs()) else {
-            return false;
-        };
         match self {
-            Self::Event {
-                event_type,
-                subtype,
-                source,
-                direction,
-                ..
-            } => view.events.iter().any(|event| {
+            Self::Event { .. } => !self.matched_event_directions(input).is_empty(),
+            Self::State {
+                timeframe_secs,
+                field,
+                value,
+            } => {
+                let Some(view) = input.timeframe(u64::from(timeframe_secs)) else {
+                    return false;
+                };
+                state_value(field, view) == Some(value)
+            }
+        }
+    }
+
+    /// The directions of every event that satisfies this condition.
+    ///
+    /// A zero direction matches either sign, so the caller can take the side
+    /// from the matched event. Neutral events never satisfy an event condition:
+    /// they cannot choose a side.
+    fn matched_event_directions(self, input: &EventStrategyInput) -> Vec<i8> {
+        let Some(view) = input.timeframe(self.timeframe_secs()) else {
+            return Vec::new();
+        };
+        let Self::Event {
+            event_type,
+            subtype,
+            source,
+            direction,
+            ..
+        } = self
+        else {
+            return Vec::new();
+        };
+        view.events
+            .iter()
+            .filter(|event| {
                 event.event_type == event_type
                     && event.subtype == subtype
                     && event.source == u16::from(source)
-                    && event.direction == direction
-            }),
-            Self::State { field, value, .. } => state_value(field, view) == Some(value),
-        }
+                    && event.direction != 0
+                    && (direction == 0 || event.direction == direction)
+            })
+            .map(|event| event.direction)
+            .collect()
     }
 }
 
@@ -138,6 +169,7 @@ impl Condition {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EventCompositeConfig {
     window_bars: usize,
+    time_stop_bars: u64,
     entry: [Condition; MAX_CONDITIONS],
     entry_len: usize,
     exit: [Condition; MAX_CONDITIONS],
@@ -147,13 +179,18 @@ pub struct EventCompositeConfig {
 impl EventCompositeConfig {
     /// Builds a bounded event-composite configuration.
     ///
+    /// `time_stop_bars` closes a position after that many execution bars; zero
+    /// disables the time stop. The event window must be at least one bar.
+    ///
     /// # Errors
     ///
     /// Returns [`super::config::StrategyConfigError`] when a list is empty
     /// where required, too long, contains an invalid condition, contains a
-    /// duplicate, or contains entry events that do not agree on direction.
+    /// duplicate, has no entry event, or has nonzero entry events that
+    /// disagree on direction.
     pub fn new(
         window_bars: usize,
+        time_stop_bars: u64,
         entry: &[Condition],
         exit: &[Condition],
     ) -> Result<Self, super::config::StrategyConfigError> {
@@ -175,24 +212,25 @@ impl EventCompositeConfig {
         }; MAX_CONDITIONS];
         let mut exit_conditions = entry_conditions;
         let mut entry_side = 0_i8;
+        let mut entry_events = 0_usize;
         for (index, condition) in entry.iter().copied().enumerate() {
             validate_condition(condition)?;
             if entry[..index].contains(&condition) {
                 return Err(StrategyConfigError::EventDuplicateCondition);
             }
             if let Condition::Event { direction, .. } = condition {
-                if direction == 0 {
-                    return Err(StrategyConfigError::EventEntryDirection);
-                }
-                if entry_side == 0 {
-                    entry_side = direction;
-                } else if entry_side != direction {
-                    return Err(StrategyConfigError::EventDirectionConflict);
+                entry_events += 1;
+                if direction != 0 {
+                    if entry_side == 0 {
+                        entry_side = direction;
+                    } else if entry_side != direction {
+                        return Err(StrategyConfigError::EventDirectionConflict);
+                    }
                 }
             }
             entry_conditions[index] = condition;
         }
-        if entry_side == 0 {
+        if entry_events == 0 {
             return Err(StrategyConfigError::EventEntryDirection);
         }
         for (index, condition) in exit.iter().copied().enumerate() {
@@ -204,6 +242,7 @@ impl EventCompositeConfig {
         }
         Ok(Self {
             window_bars,
+            time_stop_bars,
             entry: entry_conditions,
             entry_len: entry.len(),
             exit: exit_conditions,
@@ -215,6 +254,12 @@ impl EventCompositeConfig {
     #[must_use]
     pub const fn window_bars(self) -> usize {
         self.window_bars
+    }
+
+    /// The maximum holding period in execution bars; zero disables it.
+    #[must_use]
+    pub const fn time_stop_bars(self) -> u64 {
+        self.time_stop_bars
     }
 
     /// The entry conditions.
@@ -320,6 +365,18 @@ impl EventCompositeStrategy {
     #[must_use]
     pub fn decide(&self, input: &EventStrategyInput, position: StrategyPosition) -> Decision {
         if position.is_open() {
+            if self.config.time_stop_bars() > 0
+                && position.bars_held >= self.config.time_stop_bars()
+            {
+                let Some(side) = position.side else {
+                    return Decision::Hold;
+                };
+                return Decision::Exit(Exit {
+                    side,
+                    bar: identity(input),
+                    reason: ExitReason::TimeStop,
+                });
+            }
             if self
                 .config
                 .exit_conditions()
@@ -348,15 +405,21 @@ impl EventCompositeStrategy {
         {
             return Decision::Hold;
         }
-        let side = self
-            .config
-            .entry_conditions()
-            .iter()
-            .find_map(|condition| match condition {
-                Condition::Event { direction, .. } if *direction > 0 => Some(Side::Long),
-                Condition::Event { direction, .. } if *direction < 0 => Some(Side::Short),
-                _ => None,
-            });
+        let mut side = None;
+        for condition in self.config.entry_conditions() {
+            for direction in condition.matched_event_directions(input) {
+                let candidate = if direction > 0 {
+                    Side::Long
+                } else {
+                    Side::Short
+                };
+                match side {
+                    None => side = Some(candidate),
+                    Some(existing) if existing != candidate => return Decision::Hold,
+                    Some(_) => {}
+                }
+            }
+        }
         let Some(side) = side else {
             return Decision::Hold;
         };
@@ -423,6 +486,7 @@ mod tests {
     fn a_state_only_entry_is_rejected() {
         let result = EventCompositeConfig::new(
             3,
+            0,
             &[Condition::State {
                 timeframe_secs: 900,
                 field: StateField::EmaStack,
@@ -437,6 +501,7 @@ mod tests {
     fn a_directional_event_entry_opens_the_side() {
         let config = EventCompositeConfig::new(
             3,
+            0,
             &[Condition::Event {
                 timeframe_secs: 900,
                 event_type: 3,
@@ -470,6 +535,7 @@ mod tests {
     fn a_conflicting_entry_is_rejected() {
         let result = EventCompositeConfig::new(
             3,
+            0,
             &[
                 Condition::Event {
                     timeframe_secs: 900,
@@ -495,6 +561,7 @@ mod tests {
     fn an_exit_condition_closes_the_position() {
         let config = EventCompositeConfig::new(
             3,
+            0,
             &[Condition::Event {
                 timeframe_secs: 900,
                 event_type: 3,
@@ -520,5 +587,130 @@ mod tests {
             exit.reason,
             crate::strategy::decision::ExitReason::EventCondition
         );
+    }
+
+    fn event(direction: i8) -> crate::strategy::event_input::EventView {
+        crate::strategy::event_input::EventView {
+            event_type: 3,
+            subtype: 6,
+            source: 16,
+            direction,
+            occurred_bar_index: 10,
+            available_bar_index: 10,
+            reference_code: None,
+            primary_value: None,
+            reference_value: None,
+        }
+    }
+
+    fn zero_direction_config() -> EventCompositeConfig {
+        EventCompositeConfig::new(
+            3,
+            0,
+            &[Condition::Event {
+                timeframe_secs: 900,
+                event_type: 3,
+                subtype: 6,
+                source: 16,
+                direction: 0,
+            }],
+            &[],
+        )
+        .expect("the config is valid")
+    }
+
+    #[test]
+    fn a_zero_direction_event_opens_the_matched_side() {
+        let strategy =
+            EventCompositeStrategy::new(zero_direction_config(), RiskPolicy::default(), true);
+        for (direction, side) in [(-1, Side::Short), (1, Side::Long)] {
+            let mut input = input();
+            input.timeframes[0].events = vec![event(direction)];
+            let Decision::Enter(entry) = strategy.decide(&input, StrategyPosition::flat()) else {
+                panic!("the entry must fire for direction {direction}");
+            };
+            assert_eq!(entry.side(), side);
+        }
+    }
+
+    #[test]
+    fn a_zero_direction_event_with_opposite_matches_is_ambiguous() {
+        let strategy =
+            EventCompositeStrategy::new(zero_direction_config(), RiskPolicy::default(), true);
+        let mut input = input();
+        input.timeframes[0].events = vec![event(1), event(-1)];
+        assert_eq!(
+            strategy.decide(&input, StrategyPosition::flat()),
+            Decision::Hold
+        );
+    }
+
+    #[test]
+    fn an_exact_direction_ignores_the_other_side() {
+        let config = EventCompositeConfig::new(
+            3,
+            0,
+            &[Condition::Event {
+                timeframe_secs: 900,
+                event_type: 3,
+                subtype: 6,
+                source: 16,
+                direction: 1,
+            }],
+            &[],
+        )
+        .expect("the config is valid");
+        let strategy = EventCompositeStrategy::new(config, RiskPolicy::default(), true);
+        let mut input = input();
+        input.timeframes[0].events = vec![event(-1)];
+        assert_eq!(
+            strategy.decide(&input, StrategyPosition::flat()),
+            Decision::Hold
+        );
+    }
+
+    #[test]
+    fn a_neutral_event_cannot_choose_a_side() {
+        let strategy =
+            EventCompositeStrategy::new(zero_direction_config(), RiskPolicy::default(), true);
+        let mut input = input();
+        input.timeframes[0].events = vec![event(0)];
+        assert_eq!(
+            strategy.decide(&input, StrategyPosition::flat()),
+            Decision::Hold
+        );
+    }
+
+    #[test]
+    fn a_time_stop_closes_the_position() {
+        let config = EventCompositeConfig::new(
+            3,
+            3,
+            &[Condition::Event {
+                timeframe_secs: 900,
+                event_type: 3,
+                subtype: 6,
+                source: 16,
+                direction: 0,
+            }],
+            &[],
+        )
+        .expect("the config is valid");
+        let strategy = EventCompositeStrategy::new(config, RiskPolicy::default(), true);
+        let mut position = StrategyPosition::with_side(Side::Long);
+        position.bars_held = 3;
+        let Decision::Exit(exit) = strategy.decide(&input(), position) else {
+            panic!("the time stop must fire");
+        };
+        assert_eq!(exit.reason, crate::strategy::decision::ExitReason::TimeStop);
+    }
+
+    #[test]
+    fn a_zero_time_stop_never_times_out() {
+        let strategy =
+            EventCompositeStrategy::new(zero_direction_config(), RiskPolicy::default(), true);
+        let mut position = StrategyPosition::with_side(Side::Long);
+        position.bars_held = 10_000;
+        assert_eq!(strategy.decide(&input(), position), Decision::Hold);
     }
 }

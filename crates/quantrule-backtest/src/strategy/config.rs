@@ -947,14 +947,14 @@ impl fmt::Display for StrategyConfigError {
             ),
             Self::EventDuplicateCondition => write!(formatter, "an event condition is duplicated"),
             Self::EventEntryDirection => {
-                write!(formatter, "the entry needs at least one directional event")
+                write!(formatter, "the entry needs at least one event condition")
             }
             Self::EventDirectionConflict => {
                 write!(formatter, "entry events disagree on direction")
             }
             Self::EventTimeframe => write!(formatter, "a condition timeframe must be positive"),
             Self::EventType => write!(formatter, "an event type must be in 1..3"),
-            Self::EventSubtype => write!(formatter, "an event subtype must be in 1..6"),
+            Self::EventSubtype => write!(formatter, "an event subtype must be in 1..7"),
             Self::EventSource => write!(formatter, "an event source must be in 1..18"),
             Self::EventDirection => write!(formatter, "an event direction must be in -1..1"),
             Self::EventStateValue => write!(formatter, "a state value is outside its field range"),

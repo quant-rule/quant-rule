@@ -220,3 +220,14 @@ two-instrument replication together. The validation partition was not opened.
 - Gate: [`MODEL-V4-GATE`](../../improvement/2026-11-04/MODEL-V4-GATE.md)
 - Run record: [`MODEL-2026-11-04-01`](../../improvement/2026-11-04/MODEL-2026-11-04-01-model-v4-dev.md)
 - Local artifacts: `data/improvement/2026-11-04/MODEL-2026-11-04-01/`
+
+## 13. Harness extension — `state: none`
+
+Added after the v4 gate for the five 15m event-family briefs. A family that
+makes no state claim declares `"state": "none"`. The state-conditioned
+incremental test is not applicable: `state_rate`, `incremental_lift`, and
+`incremental_lcb` are null, and the grade does not require them. The cell is
+still graded on the unconditional lift, the cluster-robust lower bound, the
+random control, the back-lag control, the shuffle control, and instrument
+replication. The historical v4 gate above used state-bearing families and is
+unchanged.

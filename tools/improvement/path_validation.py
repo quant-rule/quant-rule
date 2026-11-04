@@ -369,6 +369,7 @@ class Selected:
     index: int
     hit: bool
     state: tuple[str, int, int | None] | None
+    state_applicable: bool = True
 
 
 @dataclass
@@ -429,7 +430,13 @@ def load_bundle(
                 hit = hits[direction][index]
                 if hit is None:
                     continue
-                state = state_key(str(family.get("state", "")), rows[index], direction, int(event["source"]))
+                state_kind = str(family.get("state", ""))
+                state_applicable = state_kind != "none"
+                state = (
+                    state_key(state_kind, rows[index], direction, int(event["source"]))
+                    if state_applicable
+                    else None
+                )
                 selected.append(
                     Selected(
                         bar=index,
@@ -438,6 +445,7 @@ def load_bundle(
                         index=int(event["index"]),
                         hit=bool(hit),
                         state=state,
+                        state_applicable=state_applicable,
                     )
                 )
                 signature.append((index, direction, int(event["source"])))
@@ -540,6 +548,8 @@ def state_base(
     count = 0
     missing = 0
     for bundle_index, event in selected:
+        if not event.state_applicable:
+            continue
         if event.state is None:
             missing += 1
             continue
@@ -693,6 +703,7 @@ def evaluate(
             n = stats["n"]
             base = event_base(bundles, timeframe, selected)
             state, state_missing = state_base(bundles, timeframe, selected)
+            state_applicable = str(family.get("state", "")) != "none"
             p = stats["hit_rate"]
             se = stats["se"]
             lift = p - base if p is not None and base is not None else None
@@ -738,6 +749,7 @@ def evaluate(
                     "base_rate": base,
                     "lift": lift,
                     "lift_lcb": lower(lift, se, z),
+                    "state_applicable": state_applicable,
                     "state_rate": state,
                     "state_missing": state_missing,
                     "incremental_lift": incremental,
@@ -792,37 +804,48 @@ def grade(row: dict[str, Any], primary: bool) -> tuple[str, list[str]]:
         ("clusters", row["clusters"] >= MIN_CLUSTERS),
         ("lift", row["lift"] is not None and row["lift"] >= MIN_LIFT),
         ("lift_lcb", row["lift_lcb"] is not None and row["lift_lcb"] > 0.0),
-        (
-            "incremental_lift",
-            row["incremental_lift"] is not None
-            and row["incremental_lift"] >= MIN_INCREMENTAL_LIFT,
-        ),
-        (
-            "incremental_lcb",
-            row["incremental_lcb"] is not None and row["incremental_lcb"] > 0.0,
-        ),
-        (
-            "random",
-            row["random_p"] is not None and row["random_p"] <= 0.05,
-        ),
-        (
-            "back_lag",
-            row["back_lag_lift"] is not None
-            and (
-                row["back_lag_lift"] <= 0.01
-                or (
-                    row["lift"] is not None
-                    and row["lift"] - row["back_lag_lift"] >= 0.01
-                )
-            ),
-        ),
-        (
-            "shuffle",
-            row["shuffle_p"] is not None and row["shuffle_p"] <= 0.05,
-        ),
-        ("state", row["state_missing"] == 0),
-        ("replication", row["replication"] >= 2),
     ]
+    if row["state_applicable"]:
+        checks.extend(
+            [
+                (
+                    "incremental_lift",
+                    row["incremental_lift"] is not None
+                    and row["incremental_lift"] >= MIN_INCREMENTAL_LIFT,
+                ),
+                (
+                    "incremental_lcb",
+                    row["incremental_lcb"] is not None
+                    and row["incremental_lcb"] > 0.0,
+                ),
+            ]
+        )
+    checks.extend(
+        [
+            (
+                "random",
+                row["random_p"] is not None and row["random_p"] <= 0.05,
+            ),
+            (
+                "back_lag",
+                row["back_lag_lift"] is not None
+                and (
+                    row["back_lag_lift"] <= 0.01
+                    or (
+                        row["lift"] is not None
+                        and row["lift"] - row["back_lag_lift"] >= 0.01
+                    )
+                ),
+            ),
+            (
+                "shuffle",
+                row["shuffle_p"] is not None and row["shuffle_p"] <= 0.05,
+            ),
+        ]
+    )
+    if row["state_applicable"]:
+        checks.append(("state", row["state_missing"] == 0))
+    checks.append(("replication", row["replication"] >= 2))
     for name, ok in checks:
         if not ok:
             reasons.append(name)
@@ -908,6 +931,11 @@ def markdown(document: dict[str, Any]) -> str:
                 grade=row["grade"],
             )
         )
+    lines += [
+        "",
+        "`-` in State/Incr. means the family declares no state (`state: none`); "
+        "the state-conditioned incremental test is not applicable.",
+    ]
     failed = [row for row in primary if row["reasons"]]
     if failed:
         lines += [

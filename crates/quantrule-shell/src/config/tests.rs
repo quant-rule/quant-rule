@@ -830,6 +830,7 @@ fn strategy_v8_object() -> Value {
         "thesis": "Trade a DI cross when the execution EMA stack agrees.",
         "ladder": ["15m", "1h"],
         "window_bars": 2,
+        "time_stop_bars": 20,
         "entry": {
             "all": [
                 {"kind": "event", "timeframe": "15m", "event_type": 3, "subtype": 2, "source": 17, "direction": 1},
@@ -2051,6 +2052,7 @@ fn strategy_v8_event_composite_matches_the_contract() {
         .event_composite()
         .expect("the v8 configuration");
     assert_eq!(events.window_bars(), 2);
+    assert_eq!(events.time_stop_bars(), 20);
     assert_eq!(events.entry_conditions().len(), 2);
     assert_eq!(events.exit_conditions().len(), 1);
 
@@ -2063,6 +2065,31 @@ fn strategy_v8_event_composite_matches_the_contract() {
         strategy::parse(&conflicting, "strategy.json"),
         Range,
         "$.entry",
+    );
+}
+
+#[test]
+fn strategy_v8_zero_direction_and_default_time_stop_match_the_contract() {
+    let mut value = strategy_v8_object();
+    value["entry"]["all"][0]["direction"] = json!(0);
+    value = remove(value, &["time_stop_bars"]);
+    let valid = strategy::parse(&value, "strategy.json").expect("the extended v8 config loads");
+    let events = valid
+        .engine
+        .event_composite()
+        .expect("the v8 configuration");
+    assert_eq!(events.time_stop_bars(), 0);
+    assert!(matches!(
+        events.entry_conditions()[0],
+        quantrule_backtest::strategy::Condition::Event { direction: 0, .. }
+    ));
+
+    let mut invalid = strategy_v8_object();
+    invalid["time_stop_bars"] = json!("20");
+    assert_rejected(
+        strategy::parse(&invalid, "strategy.json"),
+        Type,
+        "$.time_stop_bars",
     );
 }
 

@@ -101,6 +101,7 @@ pub(crate) fn run_strategy_explain(
         writeln!(writer, "context {context}").map_err(RunError::Output)?;
         writeln!(writer, "thesis {}", strategy.thesis).map_err(RunError::Output)?;
         writeln!(writer, "window_bars {}", events.window_bars()).map_err(RunError::Output)?;
+        writeln!(writer, "time_stop_bars {}", events.time_stop_bars()).map_err(RunError::Output)?;
         writeln!(
             writer,
             "entry-all {}",
@@ -417,9 +418,16 @@ fn format_condition(condition: Condition) -> String {
             subtype,
             source,
             direction,
-        } => format!(
-            "event tf={timeframe_secs} type={event_type} subtype={subtype} source={source} direction={direction}"
-        ),
+        } => {
+            let direction = if direction == 0 {
+                "either".to_owned()
+            } else {
+                direction.to_string()
+            };
+            format!(
+                "event tf={timeframe_secs} type={event_type} subtype={subtype} source={source} direction={direction}"
+            )
+        }
         Condition::State {
             timeframe_secs,
             field,
