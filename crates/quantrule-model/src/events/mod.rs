@@ -100,6 +100,8 @@ pub(crate) fn is_legacy_axis_event(event: &EventRecord) -> bool {
                 == crate::events::signal::SignalSubtype::CompressionBreakout.code()
             || event.event_subtype_code
                 == crate::events::signal::SignalSubtype::CompressionRange.code()
+            || event.event_subtype_code
+                == crate::events::signal::SignalSubtype::CompressionRangeOnset.code()
             || event.source_code == crate::events::dmi::DI_PLUS_SOURCE_CODE
             || event.source_code == crate::events::dmi::DI_MINUS_SOURCE_CODE))
 }

@@ -75,7 +75,8 @@ pub(super) fn event_axis(event: &crate::events::EventRecord) -> Option<AxisCode>
             },
             SignalSubtype::TrendContinuation
             | SignalSubtype::CompressionBreakout
-            | SignalSubtype::CompressionRange => None,
+            | SignalSubtype::CompressionRange
+            | SignalSubtype::CompressionRangeOnset => None,
         },
     }
 }

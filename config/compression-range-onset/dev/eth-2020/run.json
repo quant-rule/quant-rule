@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "compression-onset-eth-2020",
+  "policy": "../../../model-gate/shared/policy-ETHUSD.json",
+  "data": "data.json",
+  "model": "../../shared/model-range-onset.json",
+  "strategy": "../../../model-gate/shared/strategy.json",
+  "execution": "../../../model-gate/shared/execution.json",
+  "portfolio": "../../../model-gate/shared/portfolio.json",
+  "analytics": "../../../model-gate/shared/analytics.json",
+  "output_root": "../../../../data/compression-range-onset/dev/eth-2020"
+}

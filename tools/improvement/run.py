@@ -401,6 +401,8 @@ def main(argv: list[str] | None = None) -> int:
             str(root / "artifacts"),
             "--timeframe",
             str(range_config.get("timeframe", "1m")),
+            "--event-subtype",
+            str(range_config.get("event_subtype", 8)),
             "--coiling-bars",
             str(range_config.get("coiling_bars", 5)),
             "--random-draws",

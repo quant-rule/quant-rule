@@ -93,6 +93,10 @@ pub struct SignalSettings {
     pub compression_range: bool,
     /// The number of coiling bars in the range window.
     pub compression_range_coiling_bars: usize,
+    /// Whether the fresh-onset compression-range event is active.
+    pub compression_range_onset: bool,
+    /// The number of coiling bars in the onset window.
+    pub compression_range_onset_coiling_bars: usize,
 }
 
 impl SignalSettings {
@@ -113,6 +117,8 @@ impl SignalSettings {
         compression_rvol_min: 1.2,
         compression_range: false,
         compression_range_coiling_bars: 5,
+        compression_range_onset: false,
+        compression_range_onset_coiling_bars: 5,
     };
 }
 

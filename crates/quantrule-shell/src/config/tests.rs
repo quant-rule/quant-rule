@@ -378,7 +378,8 @@ fn model_v4_object() -> Value {
                     "di_cross": true,
                     "trend_continuation": {"enabled": true, "adx_threshold": 25.0, "adx_slope_bars": 3},
                     "compression_breakout": {"enabled": true, "coiling_bars": 6, "break_atr": 0.3, "rvol_min": 1.4},
-                    "compression_range": {"enabled": true, "coiling_bars": 6}
+                    "compression_range": {"enabled": true, "coiling_bars": 6},
+                    "compression_range_onset": {"enabled": true, "coiling_bars": 6}
                 }
             },
             "progression": {
@@ -397,7 +398,8 @@ fn model_v4_object() -> Value {
                         "di_cross": false,
                         "trend_continuation": {"adx_threshold": 30.0},
                         "compression_breakout": {"coiling_bars": 7},
-                        "compression_range": {"coiling_bars": 7}
+                        "compression_range": {"coiling_bars": 7},
+                        "compression_range_onset": {"coiling_bars": 7}
                     }
                 },
                 "progression": {"target_atr": 3.0}
@@ -457,6 +459,8 @@ fn model_v4_reads_events_progression_and_rejects_4h() {
     assert_eq!(events.signal.compression_rvol_min, 1.4);
     assert!(events.signal.compression_range);
     assert_eq!(events.signal.compression_range_coiling_bars, 7);
+    assert!(events.signal.compression_range_onset);
+    assert_eq!(events.signal.compression_range_onset_coiling_bars, 7);
     let progression = config.progression_for(u64::from(Timeframe::M5.seconds()));
     assert_eq!(progression.target_atr, 3.0);
     assert_eq!(progression.stability_bars, 3);
@@ -474,6 +478,10 @@ fn model_v4_reads_events_progression_and_rejects_4h() {
     );
     assert_eq!(
         effective["timeframes"]["5m"]["events"]["signal"]["compression_range"]["coiling_bars"],
+        7
+    );
+    assert_eq!(
+        effective["timeframes"]["5m"]["events"]["signal"]["compression_range_onset"]["coiling_bars"],
         7
     );
 

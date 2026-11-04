@@ -33,7 +33,6 @@ from typing import Any
 from path_validation import cluster_stats, control_p, percentile
 
 EVENT_TYPE = 3
-EVENT_SUBTYPE = 8
 EVENT_SOURCE = 5
 TIMEFRAME_ORDER = {60: "1m", 300: "5m", 900: "15m", 3600: "1h"}
 COILING_CODE = 2.0
@@ -53,6 +52,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--matrix", required=True, help="matrix JSON")
     parser.add_argument("--out", required=True, help="output directory")
     parser.add_argument("--timeframe", choices=("1m", "5m", "15m", "1h"), default="1m")
+    parser.add_argument("--event-subtype", type=int, default=8)
     parser.add_argument("--coiling-bars", type=int, default=5)
     parser.add_argument("--random-draws", type=int, default=RANDOM_DRAWS)
     parser.add_argument("--seed", type=int, default=SEED)
@@ -90,7 +90,9 @@ def read_rows_for_timeframe(path: Path, timeframe: int) -> list[dict[str, Any]]:
     return rows
 
 
-def read_range_events(path: Path, timeframe: int) -> list[dict[str, Any]]:
+def read_range_events(
+    path: Path, timeframe: int, subtype: int
+) -> list[dict[str, Any]]:
     """Reads only the selected timeframe's compression-range events."""
     events: list[dict[str, Any]] = []
     with path.open(newline="", encoding="utf-8") as handle:
@@ -101,7 +103,7 @@ def read_range_events(path: Path, timeframe: int) -> list[dict[str, Any]]:
                     continue
                 if (
                     int(row["event_type_code"]) != EVENT_TYPE
-                    or int(row["event_subtype_code"]) != EVENT_SUBTYPE
+                    or int(row["event_subtype_code"]) != subtype
                     or int(row["source_code"]) != EVENT_SOURCE
                     or int(row["direction_code"]) != 0
                 ):
@@ -223,12 +225,18 @@ def select_events(
 
 class Bundle:
     def __init__(
-        self, instrument: str, fold: int, run: Path, bars: int, timeframe: int
+        self,
+        instrument: str,
+        fold: int,
+        run: Path,
+        bars: int,
+        timeframe: int,
+        subtype: int,
     ) -> None:
         self.instrument = instrument
         self.fold = fold
         rows = read_rows_for_timeframe(run / "readings.csv", timeframe)
-        events = read_range_events(run / "events.csv", timeframe)
+        events = read_range_events(run / "events.csv", timeframe, subtype)
         codes = context_codes(rows)
         hits, highs, lows = window_hits(rows, bars)
         self.hits = hits
@@ -473,7 +481,7 @@ def markdown(document: dict[str, Any], partition: str) -> str:
         f"- Partition: `{partition}`",
         f"- Timeframe: {document['timeframe']}",
         f"- Coiling bars: {document['coiling_bars']}",
-        f"- Event: `signal.compression_range` (type 3, subtype 8, source 5)",
+        f"- Event: type 3, subtype {document['event_subtype']}, source 5",
         f"- Outcome: next-bar touch of either range boundary",
         f"- Decision: **{document['decision']}**",
         "",
@@ -537,12 +545,14 @@ def main(argv: list[str] | None = None) -> int:
             Path(cell["run"]).expanduser(),
             args.coiling_bars,
             timeframe,
+            args.event_subtype,
         )
         for cell in matrix["cells"]
     ]
     document = evaluate(bundles, args.random_draws, args.seed)
     document["partition"] = matrix.get("partition")
     document["timeframe"] = args.timeframe
+    document["event_subtype"] = args.event_subtype
     document["coiling_bars"] = args.coiling_bars
     document["seed"] = args.seed
     document["random_draws"] = args.random_draws

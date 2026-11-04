@@ -23,7 +23,7 @@ use crate::context::ContextSeries;
 use crate::events::EventRecord;
 use crate::events::compression::{
     CompressionBreakoutConfig, CompressionBreakoutSeries, CompressionRangeConfig,
-    CompressionRangeSeries,
+    CompressionRangeOnsetSeries, CompressionRangeSeries,
 };
 use crate::events::divergence::{DivergenceConfig, DivergenceEventSeries};
 use crate::events::dmi::{DmiConfig, DmiEventSeries};
@@ -263,6 +263,19 @@ impl TimeframeModel {
             CompressionRangeSeries::empty()
         };
 
+        let onset_events = if event_settings.signal.compression_range_onset {
+            CompressionRangeOnsetSeries::compute(
+                input.candles,
+                &context,
+                &CompressionRangeConfig::with_coiling_bars(
+                    timeframe_secs,
+                    event_settings.signal.compression_range_onset_coiling_bars,
+                ),
+            )
+        } else {
+            CompressionRangeOnsetSeries::empty()
+        };
+
         let mut events: Vec<EventRecord> = level_events
             .events()
             .iter()
@@ -272,6 +285,7 @@ impl TimeframeModel {
             .chain(trend_events.events())
             .chain(compression_events.events())
             .chain(range_events.events())
+            .chain(onset_events.events())
             .copied()
             .collect();
         // Keep the detector append order within one availability/occurrence
