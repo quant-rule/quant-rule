@@ -9,7 +9,7 @@ mod json;
 mod provenance;
 
 pub(crate) use bundle::{BundleError, ensure_available, write_bundle};
-pub(crate) use json::json_bytes;
+pub(crate) use json::{json_bytes, model_result_bytes};
 pub(crate) use provenance::{Provenance, REPORT_VERSION, bytes as provenance_bytes};
 
 use std::io::{self, Write};

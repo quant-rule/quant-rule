@@ -1,0 +1,72 @@
+{
+  "schema": "quantrule.model-matrix/v1",
+  "partition": "validation",
+  "configs": [
+    "adx20",
+    "adx25"
+  ],
+  "primary_config": "adx25",
+  "sensitivity_config": "adx20",
+  "cells": [
+    {
+      "instrument": "BTCUSD",
+      "short": "btc",
+      "fold": 2021,
+      "partition": "model_validation",
+      "runs": {
+        "adx20": "data/model-v4/validation/btc-2021-adx20/model",
+        "adx25": "data/model-v4/validation/btc-2021-adx25/model"
+      }
+    },
+    {
+      "instrument": "BTCUSD",
+      "short": "btc",
+      "fold": 2022,
+      "partition": "model_validation",
+      "runs": {
+        "adx20": "data/model-v4/validation/btc-2022-adx20/model",
+        "adx25": "data/model-v4/validation/btc-2022-adx25/model"
+      }
+    },
+    {
+      "instrument": "ETHUSD",
+      "short": "eth",
+      "fold": 2021,
+      "partition": "model_validation",
+      "runs": {
+        "adx20": "data/model-v4/validation/eth-2021-adx20/model",
+        "adx25": "data/model-v4/validation/eth-2021-adx25/model"
+      }
+    },
+    {
+      "instrument": "ETHUSD",
+      "short": "eth",
+      "fold": 2022,
+      "partition": "model_validation",
+      "runs": {
+        "adx20": "data/model-v4/validation/eth-2022-adx20/model",
+        "adx25": "data/model-v4/validation/eth-2022-adx25/model"
+      }
+    },
+    {
+      "instrument": "XAUUSD",
+      "short": "xau",
+      "fold": 2021,
+      "partition": "model_validation",
+      "runs": {
+        "adx20": "data/model-v4/validation/xau-2021-adx20/model",
+        "adx25": "data/model-v4/validation/xau-2021-adx25/model"
+      }
+    },
+    {
+      "instrument": "XAUUSD",
+      "short": "xau",
+      "fold": 2022,
+      "partition": "model_validation",
+      "runs": {
+        "adx20": "data/model-v4/validation/xau-2022-adx20/model",
+        "adx25": "data/model-v4/validation/xau-2022-adx25/model"
+      }
+    }
+  ]
+}

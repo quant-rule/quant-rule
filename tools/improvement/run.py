@@ -2,10 +2,11 @@
 """Validate and execute one improvement run manifest.
 
 The manifest is the contract. This command refuses a non-empty output root,
-copies the manifest and its configuration for provenance, runs the shell once
-for every tier with the manifest's run config, and records the observed command,
-exit code, captured streams, parsed JSON, and artifact digests. A non-zero shell
-exit is a failure, not a partially successful run.
+copies the manifest and its configuration for provenance, runs the selected
+command once (the shell backtest, the claim-validation harness, or the
+path-validation harness), and records the observed command, exit code, captured
+streams, parsed JSON, and artifact digests. A non-zero exit is a failure, not a
+partially successful run.
 """
 
 from __future__ import annotations
@@ -42,10 +43,10 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="run.py",
         description=(
-            "Validate a manifest, create its run folder, execute the shell "
-            "backtest, write results.json, and refresh the store index. The "
+            "Validate a manifest, create its run folder, execute the selected "
+            "command, write results.json, and refresh the store index. The "
             "command refuses a non-empty run folder and never treats a non-zero "
-            "shell exit as success."
+            "exit as success."
         ),
         epilog=(
             "Example: python3 tools/improvement/run.py "
@@ -61,7 +62,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--command",
-        choices=("backtest", "claim-validation"),
+        choices=("backtest", "claim-validation", "path-validation"),
         default="backtest",
         help="run command (default: backtest)",
     )
@@ -93,6 +94,20 @@ def ensure_empty_root(root: Path) -> None:
         raise ToolError(f"output root exists and is not a directory: {root}")
     if any(root.iterdir()):
         raise ToolError(f"output root is not empty: {root}")
+
+
+def resolve_path(manifest_path: Path, value: str) -> Path:
+    path = Path(value).expanduser()
+    candidates = (
+        [path]
+        if path.is_absolute()
+        else [manifest_path.parent / path, REPO_ROOT / path]
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    tried = ", ".join(str(candidate) for candidate in candidates)
+    raise ToolError(f"path not found: {value!r} (tried {tried})")
 
 
 def resolve_run_config(manifest_path: Path, value: str) -> Path:
@@ -252,6 +267,11 @@ def main(argv: list[str] | None = None) -> int:
         ensure_empty_root(root)
         config_path = resolve_run_config(manifest_path, manifest["run_config"])
         shell = resolve_shell(args.qr) if args.command == "backtest" else None
+        path_config = manifest.get("path_validation")
+        if args.command == "path-validation":
+            if not isinstance(path_config, dict):
+                raise ToolError("path_validation: an object is required for path-validation")
+            families_path = resolve_path(manifest_path, str(path_config["families"]))
     except ToolError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
@@ -260,6 +280,8 @@ def main(argv: list[str] | None = None) -> int:
         root.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(manifest_path, root / "manifest.json")
         prepare_config(config_path, root / "config")
+        if args.command == "path-validation":
+            shutil.copyfile(families_path, root / "config" / families_path.name)
         (root / "artifacts").mkdir(exist_ok=True)
         write_text(root / "review.md", review_text(manifest))
         write_text(root / "decision.md", decision_text(manifest))
@@ -277,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
             str(root / "artifacts"),
             "--json",
         ]
-    else:
+    elif args.command == "claim-validation":
         command = [
             "python3",
             str(REPO_ROOT / "tools/improvement/claim_validation.py"),
@@ -288,6 +310,34 @@ def main(argv: list[str] | None = None) -> int:
             "--timeframes",
             "5m,15m,1h",
         ]
+    else:
+        assert isinstance(path_config, dict)
+        command = [
+            "python3",
+            str(REPO_ROOT / "tools/improvement/path_validation.py"),
+            "--matrix",
+            str(config_path),
+            "--families",
+            str(root / "config" / families_path.name),
+            "--out",
+            str(root / "artifacts"),
+            "--timeframes",
+            str(path_config.get("timeframes", "5m,15m,1h")),
+            "--primary-cells",
+            str(path_config.get("primary_cells", 12)),
+            "--random-draws",
+            str(path_config.get("random_draws", 200)),
+            "--shuffle-draws",
+            str(path_config.get("shuffle_draws", 200)),
+            "--horizon",
+            str(path_config.get("horizon", 20)),
+            "--seed",
+            str(path_config.get("seed", 0)),
+        ]
+        if path_config.get("config"):
+            command.extend(["--config", str(path_config["config"])])
+        if path_config.get("skip_sensitivity"):
+            command.append("--skip-sensitivity")
     try:
         process = run_process(command, REPO_ROOT)
     except ToolError as error:
@@ -296,13 +346,14 @@ def main(argv: list[str] | None = None) -> int:
 
     stdout_json = None
     stdout_json_error = None
-    try:
-        stdout_json = json.loads(process.stdout)
-    except json.JSONDecodeError as error:
-        stdout_json_error = (
-            f"stdout is not one JSON document: {error.msg} "
-            f"(line {error.lineno}, column {error.colno})"
-        )
+    if args.command == "backtest":
+        try:
+            stdout_json = json.loads(process.stdout)
+        except json.JSONDecodeError as error:
+            stdout_json_error = (
+                f"stdout is not one JSON document: {error.msg} "
+                f"(line {error.lineno}, column {error.colno})"
+            )
 
     inventory = file_inventory(root / "artifacts")
     result = {

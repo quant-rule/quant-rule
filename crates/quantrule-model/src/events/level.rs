@@ -20,6 +20,7 @@ use quantrule_data::Candle;
 
 use crate::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
 use crate::events::{EventRecord, EventType};
+use crate::input::LevelEventSettings;
 use crate::readings::{PivotKind, PivotScale, Readings};
 
 /// The fraction of ATR 14 that scales the Level-event proximity zone.
@@ -81,16 +82,29 @@ impl LevelSubtype {
 ///
 /// The timeframe is required because every event record carries its source
 /// timeframe. It must be a positive number of seconds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LevelEventConfig {
     timeframe_secs: NonZeroU64,
+    settings: LevelEventSettings,
 }
 
 impl LevelEventConfig {
     /// Builds a configuration from a non-zero timeframe.
     #[must_use]
     pub const fn new(timeframe_secs: NonZeroU64) -> Self {
-        Self { timeframe_secs }
+        Self {
+            timeframe_secs,
+            settings: LevelEventSettings::DEFAULT,
+        }
+    }
+
+    /// Builds a configuration with explicit level settings.
+    #[must_use]
+    pub const fn with_settings(timeframe_secs: NonZeroU64, settings: LevelEventSettings) -> Self {
+        Self {
+            timeframe_secs,
+            settings,
+        }
     }
 
     /// Builds a configuration from a timeframe in seconds.
@@ -106,6 +120,12 @@ impl LevelEventConfig {
     #[must_use]
     pub const fn timeframe_secs(self) -> u64 {
         self.timeframe_secs.get()
+    }
+
+    /// The level settings.
+    #[must_use]
+    pub const fn settings(self) -> LevelEventSettings {
+        self.settings
     }
 }
 
@@ -170,22 +190,26 @@ impl LevelEventSeries {
             };
 
             let mut references: [Option<Reference>; 7] = [None; 7];
-            references[0] = ema_reference(
-                readings.ema20.get(bar),
-                EMA20_SOURCE_CODE,
-                EMA20_REFERENCE_CODE,
-            );
-            references[1] = ema_reference(
-                readings.ema50.get(bar),
-                EMA50_SOURCE_CODE,
-                EMA50_REFERENCE_CODE,
-            );
-            references[2] = ema_reference(
-                readings.ema200.get(bar),
-                EMA200_SOURCE_CODE,
-                EMA200_REFERENCE_CODE,
-            );
-            references[3..7].copy_from_slice(&latest.references());
+            if config.settings().ema {
+                references[0] = ema_reference(
+                    readings.ema20.get(bar),
+                    EMA20_SOURCE_CODE,
+                    EMA20_REFERENCE_CODE,
+                );
+                references[1] = ema_reference(
+                    readings.ema50.get(bar),
+                    EMA50_SOURCE_CODE,
+                    EMA50_REFERENCE_CODE,
+                );
+                references[2] = ema_reference(
+                    readings.ema200.get(bar),
+                    EMA200_SOURCE_CODE,
+                    EMA200_REFERENCE_CODE,
+                );
+            }
+            if config.settings().pivots {
+                references[3..7].copy_from_slice(&latest.references());
+            }
 
             let previous_close = if bar == 0 {
                 None
@@ -308,7 +332,8 @@ fn evaluate(
     bar: usize,
 ) -> Option<EventRecord> {
     let level = reference.price;
-    let band = PROXIMITY_ATR_FRACTION * atr;
+    let band = config.settings().test_atr * atr;
+    let break_distance = config.settings().break_atr * atr;
     let close = candle.close();
 
     let (crossed_up, crossed_down) = previous_close.map_or((false, false), |previous| {
@@ -317,8 +342,8 @@ fn evaluate(
             previous > level && close < level,
         )
     });
-    let broke_up = crossed_up && close >= level + band;
-    let broke_down = crossed_down && close <= level - band;
+    let broke_up = crossed_up && close >= level + break_distance;
+    let broke_down = crossed_down && close <= level - break_distance;
     let tested = candle.low() <= level + band && candle.high() >= level - band;
 
     let subtype = if broke_up || broke_down {
@@ -360,6 +385,7 @@ mod tests {
         LevelEventSeries, LevelSubtype, MAJOR_PIVOT_SOURCE_CODE, MINOR_PIVOT_SOURCE_CODE,
         PROXIMITY_ATR_FRACTION,
     };
+    use crate::input::LevelEventSettings;
     use crate::readings::{PivotSeries, ReadingSeries, Readings};
     use quantrule_data::Candle;
     use std::num::NonZeroU64;
@@ -487,6 +513,51 @@ mod tests {
         let event = event_for(&events, 2, EMA20_REFERENCE_CODE).expect("a break event");
         assert_eq!(event.event_subtype_code, LevelSubtype::Break.code());
         assert_eq!(event.direction_code, 1);
+    }
+
+    #[test]
+    fn a_larger_break_distance_turns_a_break_into_a_cross() {
+        let candles = candles_from(&[
+            (100.5, 99.5, 100.0),
+            (99.5, 98.5, 99.0),
+            (103.5, 101.5, 103.0),
+        ]);
+        let readings = readings_with(
+            &candles,
+            |bar| (bar == 2).then_some(100.0),
+            |_| None,
+            |_| None,
+            |_| Some(10.0),
+        );
+        let settings = LevelEventSettings {
+            break_atr: 0.4,
+            ..LevelEventSettings::DEFAULT
+        };
+        let config = LevelEventConfig::with_settings(
+            NonZeroU64::new(300).expect("a non-zero timeframe"),
+            settings,
+        );
+        let events = LevelEventSeries::compute(&candles, &readings, &config);
+
+        let event = event_for(&events, 2, EMA20_REFERENCE_CODE).expect("a cross event");
+        assert_eq!(event.event_subtype_code, LevelSubtype::Cross.code());
+    }
+
+    #[test]
+    fn disabling_ema_references_suppresses_ema_events() {
+        let candles = monotonic_candles();
+        let mut readings = flat_readings(&candles, Some(100.0), Some(10.0));
+        readings.ema20 = series_from(candles.len(), |bar| (bar >= 1).then_some(100.0));
+        let settings = LevelEventSettings {
+            ema: false,
+            ..LevelEventSettings::DEFAULT
+        };
+        let config = LevelEventConfig::with_settings(
+            NonZeroU64::new(300).expect("a non-zero timeframe"),
+            settings,
+        );
+        let events = LevelEventSeries::compute(&candles, &readings, &config);
+        assert!(event_for(&events, 1, EMA20_REFERENCE_CODE).is_none());
     }
 
     #[test]

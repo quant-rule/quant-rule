@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.validation/v1",
-  "version": "2026-11-03.1",
+  "version": "2026-11-04.1",
   "claims": [
     {
       "id": "ema",
@@ -164,7 +164,7 @@
       "target_atr": 1.0,
       "stop_atr": 1.0,
       "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "predictive_status": "no_edge"
     },
     {
       "id": "divergence.rsi_regular_bullish",
@@ -235,7 +235,7 @@
       "target_atr": 1.0,
       "stop_atr": 1.0,
       "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "predictive_status": "no_edge"
     },
     {
       "id": "signal.ema_pair_cross",
@@ -280,7 +280,7 @@
       "target_atr": 1.0,
       "stop_atr": 1.0,
       "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "predictive_status": "no_edge"
     },
     {
       "id": "signal.macd_histogram_slope_flip",
@@ -340,7 +340,7 @@
       "target_atr": 1.0,
       "stop_atr": 1.0,
       "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "predictive_status": "no_edge"
     }
   ]
 }

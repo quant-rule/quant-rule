@@ -22,6 +22,7 @@ mod leg;
 mod target;
 
 use crate::axes::structure::registry::ConfirmedLevelRegistry;
+use crate::input::ProgressionSettings;
 use crate::kernel::{
     PERCENTILE_WINDOW, Readiness, StateCounters, UnavailableReason, empirical_percentile,
 };
@@ -142,10 +143,18 @@ impl ProgressionBar {
 /// assert_eq!(ProgressionConfig::default().timeframe_secs, None);
 /// assert_eq!(ProgressionConfig::new(300).timeframe_secs, Some(300));
 /// ```
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ProgressionConfig {
     /// The timeframe in seconds, or `None` when the caller does not supply it.
     pub timeframe_secs: Option<u64>,
+    /// The fallback target distance in ATR units.
+    pub target_atr: f64,
+    /// The stability window in bars.
+    pub stability_bars: usize,
+    /// The invalidation distance in ATR units.
+    pub invalidation_atr: f64,
+    /// The minimum usable target distance in ATR units.
+    pub min_target_atr: f64,
 }
 
 impl ProgressionConfig {
@@ -154,6 +163,40 @@ impl ProgressionConfig {
     pub const fn new(timeframe_secs: u64) -> Self {
         Self {
             timeframe_secs: Some(timeframe_secs),
+            target_atr: 2.0,
+            stability_bars: 3,
+            invalidation_atr: 0.2,
+            min_target_atr: 0.2,
+        }
+    }
+
+    /// Builds a configuration with explicit progression settings.
+    #[must_use]
+    pub const fn with_settings(
+        timeframe_secs: u64,
+        target_atr: f64,
+        stability_bars: usize,
+        invalidation_atr: f64,
+        min_target_atr: f64,
+    ) -> Self {
+        Self {
+            timeframe_secs: Some(timeframe_secs),
+            target_atr,
+            stability_bars,
+            invalidation_atr,
+            min_target_atr,
+        }
+    }
+}
+
+impl Default for ProgressionConfig {
+    fn default() -> Self {
+        Self {
+            timeframe_secs: None,
+            target_atr: 2.0,
+            stability_bars: 3,
+            invalidation_atr: 0.2,
+            min_target_atr: 0.2,
         }
     }
 }
@@ -215,6 +258,10 @@ impl ProgressionSeries {
     ) -> Self {
         let registry = ConfirmedLevelRegistry::from_pivots(&readings.pivots);
         let mut level_index = target::LevelIndex::new(&registry);
+        let target_atr = config.target_atr;
+        let stability_bars = config.stability_bars;
+        let invalidation_atr = config.invalidation_atr;
+        let min_target_atr = config.min_target_atr;
         let mut scales = ScaleLegs::default();
         let mut bars = Vec::with_capacity(readings.len());
         let mut counters = StateCounters::new();
@@ -253,12 +300,13 @@ impl ProgressionSeries {
                     if leg.lifecycle.is_terminal() || leg.direction != target_direction {
                         continue;
                     }
-                    if let Some(target) = target::select_index(
+                    if let Some(target) = target::select_index_with_settings(
                         &level_index,
                         scale,
                         leg.direction,
                         leg.origin_price,
                         leg.atr_at_origin,
+                        target_atr,
                     ) {
                         leg.revise(target, bar);
                     }
@@ -272,7 +320,18 @@ impl ProgressionSeries {
                     continue;
                 };
                 let atr_at_origin = usable_atr(readings, candidate.occurred_at);
-                let leg = Leg::new(next_leg_id, candidate, &level_index, atr_at_origin);
+                let leg = Leg::new_with_settings(
+                    next_leg_id,
+                    candidate,
+                    &level_index,
+                    atr_at_origin,
+                    ProgressionSettings {
+                        target_atr,
+                        stability_bars,
+                        invalidation_atr,
+                        min_target_atr,
+                    },
+                );
                 next_leg_id = next_leg_id.saturating_add(1);
                 let legs = scales.get_mut(scale);
                 legs.push(leg);

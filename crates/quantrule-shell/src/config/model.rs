@@ -1,10 +1,11 @@
 //! `model.json`: the per-timeframe reading configuration.
 //!
 //! The model's axis formulas, event rules, and aggregation rules remain fixed
-//! by the model contract. Version 3 exposes scalar reading periods, active
-//! flags, ADX parameters, and optional per-timeframe overrides. Version 2
-//! remains accepted for the historical flat-period shape, and version 1 for the
-//! `structure_scale`-only shape.
+//! by the model contract. Version 4 adds event and progression settings on top
+//! of the version 3 readings; its parser lives in [`super::model_v4`] so the
+//! historical schema parsers stay together. Version 2 remains accepted for the
+//! historical flat-period shape, and version 1 for the `structure_scale`-only
+//! shape.
 
 use quantrule_data::Timeframe;
 use quantrule_model::input::MarketStateConfig;
@@ -12,6 +13,7 @@ use quantrule_model::readings::{PivotScale, ReadingsConfig};
 use serde_json::Value;
 
 use super::error::ConfigError;
+use super::model_v4::parse_v4;
 use super::read::{self, ROOT};
 
 /// Parses `model.json`.
@@ -22,10 +24,11 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<MarketStateConfig, Conf
         "quantrule.model/v1" => parse_v1(file, object),
         "quantrule.model/v2" => parse_v2(file, object),
         "quantrule.model/v3" => parse_v3(file, object),
+        "quantrule.model/v4" => parse_v4(file, object),
         _ => Err(ConfigError::unsupported(
             file,
             "$.schema",
-            "quantrule.model/v1, quantrule.model/v2, or quantrule.model/v3",
+            "quantrule.model/v1, v2, v3, or v4",
             schema,
         )),
     }
@@ -184,7 +187,7 @@ fn parse_v3(
 }
 
 /// Parses the v3 indicator block. The caller owns the schema-version switch.
-fn v3_readings(
+pub(super) fn v3_readings(
     file: &str,
     path: &str,
     object: &serde_json::Map<String, Value>,

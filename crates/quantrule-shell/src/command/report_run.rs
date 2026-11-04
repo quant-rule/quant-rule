@@ -202,6 +202,14 @@ pub(super) fn model_bundle_from(
         config.data.to.as_deref(),
     )
     .map_err(RunError::Output)?;
+    let result = render_report::model_result_bytes(
+        &report,
+        &config.data.data_version,
+        config.data.from.as_deref(),
+        config.data.to.as_deref(),
+        &crate::config::effective_json(&config.model),
+    )
+    .map_err(RunError::Output)?;
     let price = chart::render_report_price_axes_png(&report.charts).map_err(RunError::Chart)?;
     let events = chart::render_report_events_png(&report.charts).map_err(RunError::Chart)?;
     let readings_csv = model_artifacts::readings_csv(model_run, &ladder);
@@ -214,6 +222,7 @@ pub(super) fn model_bundle_from(
         "report.json",
         "price-axes.png",
         "events.png",
+        "result.json",
         "readings.csv",
         "events.csv",
         "levels.csv",
@@ -245,6 +254,7 @@ pub(super) fn model_bundle_from(
         ("report.json", json.clone()),
         ("price-axes.png", price),
         ("events.png", events),
+        ("result.json", result),
         ("readings.csv", readings_csv.into_bytes()),
         ("events.csv", events_csv.into_bytes()),
         ("levels.csv", levels_csv.into_bytes()),

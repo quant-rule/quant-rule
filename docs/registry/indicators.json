@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-03.2",
+  "version": "2026-11-04.1",
   "indicators": [
     {
       "id": "ema",
@@ -14,7 +14,10 @@
         "close"
       ],
       "parameters": [
-        "model.ema.periods"
+        "model.ema.periods",
+        "model.level.references",
+        "model.level.test_atr",
+        "model.level.break_atr"
       ],
       "outputs": [
         "ema_fast",
@@ -143,7 +146,8 @@
         "model.macd.fast",
         "model.macd.slow",
         "model.macd.signal",
-        "model.macd.active"
+        "model.macd.active",
+        "model.signal.macd"
       ],
       "outputs": [
         "macd_line",
@@ -180,7 +184,10 @@
       ],
       "parameters": [
         "model.pivots.minor",
-        "model.pivots.major"
+        "model.pivots.major",
+        "model.level.references",
+        "model.level.test_atr",
+        "model.level.break_atr"
       ],
       "outputs": [
         "minor_high",
@@ -292,7 +299,10 @@
         "model.adx.period",
         "model.adx.threshold",
         "model.adx.slope_bars",
-        "model.adx.active"
+        "model.adx.active",
+        "model.signal.trend_continuation",
+        "model.signal.trend_adx_threshold",
+        "model.signal.trend_adx_slope_bars"
       ],
       "outputs": [
         "adx",
@@ -325,7 +335,8 @@
       ],
       "parameters": [
         "model.adx.period",
-        "model.adx.active"
+        "model.adx.active",
+        "model.signal.di_cross"
       ],
       "outputs": [
         "di_plus",
@@ -355,6 +366,7 @@
       "role": "signal",
       "claim": "A bar range intersects a confirmed or dynamic level; the touch is followed by a path reaction \u2014 the target is reached before the stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
+        "model.level.references",
         "model.level.test_atr"
       ],
       "tests": [
@@ -380,6 +392,7 @@
       "role": "signal",
       "claim": "A close crosses a level; the cross is followed by a path continuation \u2014 the target is reached before the stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
+        "model.level.references",
         "model.level.test_atr"
       ],
       "tests": [
@@ -405,6 +418,7 @@
       "role": "signal",
       "claim": "A close crosses a level and finishes beyond it; the break is followed by a path continuation \u2014 the continuation target is reached before the reversal stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
+        "model.level.references",
         "model.level.break_atr"
       ],
       "tests": [
@@ -585,7 +599,8 @@
       "parameters": [
         "model.macd.fast",
         "model.macd.slow",
-        "model.macd.signal"
+        "model.macd.signal",
+        "model.signal.macd"
       ],
       "tests": [
         "event",
@@ -609,7 +624,8 @@
       "parameters": [
         "model.macd.fast",
         "model.macd.slow",
-        "model.macd.signal"
+        "model.macd.signal",
+        "model.signal.macd"
       ],
       "tests": [
         "event",
@@ -629,7 +645,8 @@
       "parameters": [
         "model.macd.fast",
         "model.macd.slow",
-        "model.macd.signal"
+        "model.macd.signal",
+        "model.signal.macd"
       ],
       "tests": [
         "event",
@@ -651,7 +668,8 @@
       "role": "signal",
       "claim": "A DI crossover is followed by a path in the cross direction more often than a matched barrier baseline.",
       "parameters": [
-        "model.adx.period"
+        "model.adx.period",
+        "model.signal.di_cross"
       ],
       "tests": [
         "golden",
@@ -673,7 +691,10 @@
       "parameters": [
         "model.adx.threshold",
         "model.adx.slope_bars",
-        "model.adx.period"
+        "model.adx.period",
+        "model.signal.trend_continuation",
+        "model.signal.trend_adx_threshold",
+        "model.signal.trend_adx_slope_bars"
       ],
       "tests": [
         "golden",
@@ -818,11 +839,11 @@
     },
     {
       "id": "model.level.test_atr",
-      "path": "fixed",
+      "path": "defaults.events.level.test_atr",
       "type": "number",
       "default": 0.2,
       "unit": "atr",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -830,11 +851,11 @@
     },
     {
       "id": "model.level.break_atr",
-      "path": "fixed",
+      "path": "defaults.events.level.break_atr",
       "type": "number",
       "default": 0.2,
       "unit": "atr",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -842,11 +863,11 @@
     },
     {
       "id": "model.divergence.window",
-      "path": "fixed",
+      "path": "defaults.events.divergence.window",
       "type": "integer",
       "default": 2,
       "unit": "bars",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -854,11 +875,11 @@
     },
     {
       "id": "model.divergence.pivot_scale",
-      "path": "fixed",
+      "path": "defaults.events.divergence.pivot_scale",
       "type": "string",
       "default": "major",
       "unit": "none",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -870,7 +891,7 @@
     },
     {
       "id": "model.signal.rsi_levels",
-      "path": "fixed",
+      "path": "defaults.events.signal.rsi_levels",
       "type": "array<number>",
       "default": [
         30,
@@ -878,7 +899,7 @@
         70
       ],
       "unit": "none",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -886,7 +907,7 @@
     },
     {
       "id": "model.signal.ema_pairs",
-      "path": "fixed",
+      "path": "defaults.events.signal.ema_pairs",
       "type": "array<array<integer>>",
       "default": [
         [
@@ -903,7 +924,7 @@
         ]
       ],
       "unit": "period",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -935,11 +956,11 @@
     },
     {
       "id": "model.progression.target_atr",
-      "path": "fixed",
+      "path": "defaults.progression.target_atr",
       "type": "number",
       "default": 2.0,
       "unit": "atr",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -947,11 +968,11 @@
     },
     {
       "id": "model.progression.stability_bars",
-      "path": "fixed",
+      "path": "defaults.progression.stability_bars",
       "type": "integer",
       "default": 3,
       "unit": "bars",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -959,11 +980,11 @@
     },
     {
       "id": "model.progression.invalidation_atr",
-      "path": "fixed",
+      "path": "defaults.progression.invalidation_atr",
       "type": "number",
       "default": 0.2,
       "unit": "atr",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -971,11 +992,11 @@
     },
     {
       "id": "model.progression.min_target_atr",
-      "path": "fixed",
+      "path": "defaults.progression.min_target_atr",
       "type": "number",
       "default": 0.2,
       "unit": "atr",
-      "configurable": false,
+      "configurable": true,
       "affects": [
         "model"
       ],
@@ -1431,6 +1452,94 @@
       ],
       "status": "active",
       "unit": "none"
+    },
+    {
+      "id": "model.level.references",
+      "path": "defaults.events.level.references",
+      "type": "array<string>",
+      "default": [
+        "ema",
+        "pivots"
+      ],
+      "enum": [
+        "ema",
+        "pivots"
+      ],
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.macd",
+      "path": "defaults.events.signal.macd",
+      "type": "array<string>",
+      "default": [
+        "line_signal_cross",
+        "histogram_slope_flip",
+        "zero_cross"
+      ],
+      "enum": [
+        "line_signal_cross",
+        "histogram_slope_flip",
+        "zero_cross"
+      ],
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.di_cross",
+      "path": "defaults.events.signal.di_cross",
+      "type": "boolean",
+      "default": true,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.trend_continuation",
+      "path": "defaults.events.signal.trend_continuation.enabled",
+      "type": "boolean",
+      "default": true,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.trend_adx_threshold",
+      "path": "defaults.events.signal.trend_continuation.adx_threshold",
+      "type": "number",
+      "default": 25.0,
+      "unit": "none",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.signal.trend_adx_slope_bars",
+      "path": "defaults.events.signal.trend_continuation.adx_slope_bars",
+      "type": "integer",
+      "default": 3,
+      "unit": "bars",
+      "configurable": true,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
     }
   ],
   "codes": {

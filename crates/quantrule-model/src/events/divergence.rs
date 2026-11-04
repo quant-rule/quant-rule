@@ -74,6 +74,7 @@ impl DivergenceSubtype {
 pub struct DivergenceConfig {
     timeframe_secs: NonZeroU64,
     scale: PivotScale,
+    window: usize,
 }
 
 impl DivergenceConfig {
@@ -83,6 +84,17 @@ impl DivergenceConfig {
         Self {
             timeframe_secs,
             scale,
+            window: RSI_WINDOW_BARS,
+        }
+    }
+
+    /// Builds a configuration with an explicit RSI window.
+    #[must_use]
+    pub const fn with_window(timeframe_secs: NonZeroU64, scale: PivotScale, window: usize) -> Self {
+        Self {
+            timeframe_secs,
+            scale,
+            window,
         }
     }
 
@@ -104,6 +116,12 @@ impl DivergenceConfig {
     #[must_use]
     pub const fn scale(self) -> PivotScale {
         self.scale
+    }
+
+    /// The RSI window on either side of a pivot.
+    #[must_use]
+    pub const fn window(self) -> usize {
+        self.window
     }
 }
 
@@ -166,7 +184,12 @@ impl DivergenceEventSeries {
                 occurred_at: pivot.occurred_at,
                 available_at: pivot.available_at,
                 reference_code: level.reference_code,
-                rsi: rsi_window_value(&readings.rsi14, pivot.occurred_at, pivot.kind),
+                rsi: rsi_window_value(
+                    &readings.rsi14,
+                    pivot.occurred_at,
+                    pivot.kind,
+                    config.window(),
+                ),
             };
 
             let previous = match pivot.kind {
@@ -231,10 +254,15 @@ struct PivotState {
 /// A price-low pivot uses the minimum and a price-high pivot uses the maximum.
 /// If any bar in the window has no RSI value, the summary is `None`: the
 /// detector never infers a divergence from an incomplete window.
-fn rsi_window_value(series: &ReadingSeries, occurred_at: usize, kind: PivotKind) -> Option<f64> {
+fn rsi_window_value(
+    series: &ReadingSeries,
+    occurred_at: usize,
+    kind: PivotKind,
+    window: usize,
+) -> Option<f64> {
     let last = series.len().checked_sub(1)?;
-    let start = occurred_at.saturating_sub(RSI_WINDOW_BARS);
-    let end = occurred_at.saturating_add(RSI_WINDOW_BARS).min(last);
+    let start = occurred_at.saturating_sub(window);
+    let end = occurred_at.saturating_add(window).min(last);
     let mut value: Option<f64> = None;
 
     for bar in start..=end {

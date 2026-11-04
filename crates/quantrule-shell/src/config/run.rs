@@ -208,6 +208,17 @@ impl RunConfig {
             ));
         }
 
+        for timeframe in &self.data.available_timeframes {
+            if u64::from(timeframe.seconds()) > self.model.max_timeframe_secs() {
+                return Err(ConfigError::range(
+                    file_name(&self.paths.data),
+                    "$.available_timeframes",
+                    "timeframes at or below the model ceiling",
+                    timeframe.code(),
+                ));
+            }
+        }
+
         for timeframe in Timeframe::ALL {
             if self.model.is_overridden(timeframe)
                 && !self.data.available_timeframes.contains(&timeframe)

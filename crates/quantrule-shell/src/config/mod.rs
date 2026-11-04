@@ -14,6 +14,8 @@ mod data;
 mod error;
 mod execution;
 mod model;
+mod model_v4;
+pub(crate) use model_v4::effective_json;
 mod policy;
 mod portfolio;
 mod read;

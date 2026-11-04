@@ -15,6 +15,7 @@ use crate::axes::direction::DirectionSeries;
 use crate::axes::momentum::MomentumSeries;
 use crate::axes::structure::StructureSeries;
 use crate::events::{EventRecord, EventType};
+use crate::input::SignalSettings;
 use crate::readings::{MacdSeries, Readings};
 
 /// The contract's source code for RSI 14.
@@ -105,16 +106,29 @@ impl SignalSubtype {
 ///
 /// The timeframe is required because every event record carries its source
 /// timeframe. It must be a positive number of seconds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SignalConfig {
     timeframe_secs: NonZeroU64,
+    settings: SignalSettings,
 }
 
 impl SignalConfig {
     /// Builds a configuration from a non-zero timeframe.
     #[must_use]
     pub const fn new(timeframe_secs: NonZeroU64) -> Self {
-        Self { timeframe_secs }
+        Self {
+            timeframe_secs,
+            settings: SignalSettings::DEFAULT,
+        }
+    }
+
+    /// Builds a configuration with explicit signal settings.
+    #[must_use]
+    pub const fn with_settings(timeframe_secs: NonZeroU64, settings: SignalSettings) -> Self {
+        Self {
+            timeframe_secs,
+            settings,
+        }
     }
 
     /// Builds a configuration from a timeframe in seconds.
@@ -129,6 +143,12 @@ impl SignalConfig {
     #[must_use]
     pub const fn timeframe_secs(self) -> u64 {
         self.timeframe_secs.get()
+    }
+
+    /// The signal settings.
+    #[must_use]
+    pub const fn settings(self) -> SignalSettings {
+        self.settings
     }
 }
 
@@ -252,7 +272,7 @@ fn threshold_events(
         return;
     };
 
-    for threshold in RSI_THRESHOLDS {
+    for threshold in config.settings().rsi_levels {
         let direction = if previous < threshold && current > threshold {
             1
         } else if previous > threshold && current < threshold {
@@ -279,7 +299,7 @@ fn ema_events(
     config: &SignalConfig,
     events: &mut Vec<EventRecord>,
 ) {
-    for (fast, slow) in EMA_PAIRS {
+    for (fast, slow) in config.settings().ema_pairs {
         let (Some(previous_fast), Some(previous_slow), Some(current_fast), Some(current_slow)) = (
             ema_value(readings, fast, bar - 1),
             ema_value(readings, slow, bar - 1),
@@ -331,7 +351,7 @@ fn macd_events(
     } else {
         0
     };
-    if cross != 0 {
+    if cross != 0 && config.settings().macd_line_signal_cross {
         events.push(signal_event(
             SignalSubtype::SeriesCrossover,
             MACD_LINE_SOURCE_CODE,
@@ -350,7 +370,7 @@ fn macd_events(
     } else {
         0
     };
-    if zero_cross != 0 {
+    if zero_cross != 0 && config.settings().macd_zero_cross {
         events.push(signal_event(
             SignalSubtype::ZeroCross,
             MACD_LINE_SOURCE_CODE,
@@ -375,7 +395,9 @@ fn macd_events(
     if previous_slope == 0.0 || current_slope == 0.0 {
         return;
     }
-    if previous_slope.signum() != current_slope.signum() {
+    if previous_slope.signum() != current_slope.signum()
+        && config.settings().macd_histogram_slope_flip
+    {
         events.push(signal_event(
             SignalSubtype::HistogramSlopeFlip,
             MACD_HISTOGRAM_SOURCE_CODE,
@@ -540,6 +562,7 @@ mod tests {
         MomentumSeries, RSI_SOURCE_CODE, SignalConfig, SignalEventSeries, SignalSubtype,
         StructureSeries,
     };
+    use crate::input::SignalSettings;
     use crate::readings::{PivotSeries, ReadingSeries, Readings};
     use quantrule_data::Candle;
     use std::num::NonZeroU64;
@@ -759,6 +782,41 @@ mod tests {
         assert_eq!(events.len(), 2);
         assert_eq!(events[0].reference_value, Some(30.0));
         assert_eq!(events[1].reference_value, Some(50.0));
+    }
+
+    #[test]
+    fn custom_rsi_levels_replace_the_default_thresholds() {
+        let candles = candles(&[100.0, 100.0]);
+        let readings = readings_with(
+            &candles,
+            none(2),
+            none(2),
+            none(2),
+            vec![Some(39.0), Some(41.0)],
+            none(2),
+        );
+        let direction = DirectionSeries::compute(&readings);
+        let momentum = MomentumSeries::compute(&readings);
+        let structure = StructureSeries::compute(&candles, &readings);
+        let settings = SignalSettings {
+            rsi_levels: [40.0, 50.0, 60.0],
+            ..SignalSettings::DEFAULT
+        };
+        let config = SignalConfig::with_settings(
+            NonZeroU64::new(300).expect("a non-zero timeframe"),
+            settings,
+        );
+        let series = SignalEventSeries::compute(
+            &readings,
+            &crate::readings::MacdSeries::empty(readings.len()),
+            &direction,
+            &momentum,
+            &structure,
+            &config,
+        );
+        let events = events_of(&series, SignalSubtype::ThresholdCrossing, RSI_SOURCE_CODE);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].reference_value, Some(40.0));
     }
 
     #[test]

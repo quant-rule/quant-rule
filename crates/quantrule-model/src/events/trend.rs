@@ -64,6 +64,12 @@ pub struct TrendContinuationSeries {
 }
 
 impl TrendContinuationSeries {
+    /// An empty event series.
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self { events: Vec::new() }
+    }
+
     /// Computes the trend-continuation events.
     ///
     /// An event is emitted on the first bar of each continuous conjunction. A
