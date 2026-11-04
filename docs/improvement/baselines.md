@@ -1,7 +1,7 @@
 # Baselines
 
 - Date: 2026-11-04 (UTC)
-- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; no strategy or portfolio baseline
+- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -21,6 +21,7 @@ by the agent that ran or reviewed the result.
 | Model | `MODEL-2026-11-04-06..07` | Human | 2026-11-04 | 1m, 5-bar compression range, next-bar boundary touch; dev and validation pass; second use of `model_validation` disclosed | — | Accepted |
 | Model | `MODEL-2026-11-04-08` | — | 2026-11-04 | 5m compression range; strong lift but back-lag control fails; validation not opened | — | Not accepted — no edge |
 | Model | `MODEL-2026-11-04-10..11` | Human | 2026-11-04 | 5m fresh-onset range; dev and validation pass; third use of `model_validation` disclosed | — | Accepted |
+| Model | `PROGRAM-2026-11-04-01` | — | 2026-11-04 | Divergence at a confirmed pivot (regular/hidden bullish/bearish) at 15m; four cells grade C; no validation | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-01` | — | 2026-11-04 | v9 directional 1m compression; all folds halted; no edge | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-02` | — | 2026-11-04 | v10 1m compression bracket; all folds halted; no edge | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-03` | — | 2026-11-04 | v10 5m fresh-onset bracket; all folds halted; negative gross edge | — | Not accepted — no edge |

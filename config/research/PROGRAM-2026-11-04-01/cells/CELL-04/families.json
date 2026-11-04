@@ -1,0 +1,10 @@
+[
+  {
+    "id": "divergence_hidden_bearish_15m",
+    "label": "Hidden bearish divergence 15m",
+    "event_type": 2,
+    "subtype": 4,
+    "source": 4,
+    "state": "none"
+  }
+]

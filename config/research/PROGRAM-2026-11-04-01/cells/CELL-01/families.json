@@ -1,0 +1,10 @@
+[
+  {
+    "id": "divergence_regular_bullish_15m",
+    "label": "Regular bullish divergence 15m",
+    "event_type": 2,
+    "subtype": 1,
+    "source": 4,
+    "state": "none"
+  }
+]
