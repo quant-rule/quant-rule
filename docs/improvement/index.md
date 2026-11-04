@@ -32,6 +32,7 @@ view for the local store.
 | `MODEL-2026-11-04-16` | 2026-11-04 | model | MACD histogram flip 15m; grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/MACD-HIST-15M-CANDIDATE.md) |
 | `MODEL-2026-11-04-17` | 2026-11-04 | model | Trend continuation 15m; grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/TREND-CONT-15M-CANDIDATE.md) |
 | `PROGRAM-2026-11-04-01` | 2026-11-04 | model | Divergence at a confirmed pivot; four cells grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/PROGRAM-2026-11-04-01.md) |
+| `PROGRAM-2026-11-04-02` | 2026-11-04 | model | 15m event with 1h trend agreement; three cells grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/PROGRAM-2026-11-04-02.md) |
 | `STRATEGY-2026-11-04-02` | 2026-11-04 | strategy | 1m compression bracket; all folds halted | strategy | model, portfolio | MODEL-2026-11-04-06..07 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-02-compression-bracket.md) |
 | `STRATEGY-2026-11-04-01` | 2026-11-04 | strategy | Directional 1m compression strategy | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-01-compression-strategy.md) |
 | `MODEL-2026-11-01-01` | 2026-11-01 | model | Model baseline harness pilot | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-01-model-baseline.md) |
