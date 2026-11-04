@@ -1,7 +1,7 @@
 # Baselines
 
 - Date: 2026-11-04 (UTC)
-- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; no strategy or portfolio baseline
+- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -25,6 +25,7 @@ by the agent that ran or reviewed the result.
 | Model | `PROGRAM-2026-11-04-02` | — | 2026-11-04 | Cross-timeframe 15m event with 1h trend agreement; three cells grade C; no validation | — | Not accepted — no edge |
 | Model | `PROGRAM-2026-11-04-03` | — | 2026-11-04 | Early progression target (stage 0/1); pre-flight 78 events, below the 200 minimum; gate not opened | — | Not accepted — inconclusive (underpowered) |
 | Model | `V4-DIRECTIONAL-STRATEGY` | — | 2026-11-04 | Directional strategy foundation; all tested cells failed or were underpowered; stopped | — | Stopped — no directional baseline |
+| Model | `SESSION-LIQUIDITY-SPIKE` | — | 2026-11-04 | Fixed-UTC session spike (ORB/ORF/NCF); no primary pass; no validation | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-01` | — | 2026-11-04 | v9 directional 1m compression; all folds halted; no edge | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-02` | — | 2026-11-04 | v10 1m compression bracket; all folds halted; no edge | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-03` | — | 2026-11-04 | v10 5m fresh-onset bracket; all folds halted; negative gross edge | — | Not accepted — no edge |

@@ -137,3 +137,10 @@ accepted compression model baselines remain valid and direction-neutral.
 The stop record is
 [`docs/improvement/2026-11-04/V4-DIRECTIONAL-STRATEGY-STOP.md`](../../improvement/2026-11-04/V4-DIRECTIONAL-STRATEGY-STOP.md).
 A new program requires a new premise and a new approved charter.
+
+The session/liquidity spike was the first new premise tested after the v4 stop.
+It was pre-registered on `model_dev`, found a real XAU session structure, and
+still failed its primary directional cells. It is recorded as no edge in
+[`docs/improvement/2026-11-04/SESSION-LIQUIDITY-SPIKE.md`](../../improvement/2026-11-04/SESSION-LIQUIDITY-SPIKE.md)
+and stopped. The same rule applies: no tuning, no variant, no validation without
+a new charter.
