@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "compression-strategy-xau-2024",
+  "policy": "../../../../model-gate/shared/policy-XAUUSD.json",
+  "data": "data.json",
+  "model": "../../../../model-v4/shared/model-compression.json",
+  "strategy": "../../shared/strategy-v9.json",
+  "execution": "../../shared/execution-1m.json",
+  "portfolio": "../../shared/portfolio-1m.json",
+  "analytics": "../../../../model-gate/shared/analytics.json",
+  "output_root": "../../../../../data/strategy-v9/validation/xau-2024"
+}

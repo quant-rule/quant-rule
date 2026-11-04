@@ -396,6 +396,7 @@ struct StrategySummary {
     exit_structure_lost: usize,
     exit_level_lost: usize,
     exit_event_condition: usize,
+    exit_time_stop: usize,
     open_position: Option<Side>,
     execution_state: Option<StrategyExecutionState>,
     executed_entries: Option<usize>,
@@ -447,6 +448,7 @@ fn summarize_walk(
                     ExitReason::StructureLost => summary.exit_structure_lost += 1,
                     ExitReason::LevelLost => summary.exit_level_lost += 1,
                     ExitReason::EventCondition => summary.exit_event_condition += 1,
+                    ExitReason::TimeStop => summary.exit_time_stop += 1,
                 }
             }
             Decision::Hold => {}
@@ -521,6 +523,9 @@ fn strategy_json(
     });
     if config.strategy.engine.level().is_some() {
         exit_reasons["level_lost"] = json!(summary.exit_level_lost);
+    }
+    if config.strategy.engine.compression_breakout().is_some() {
+        exit_reasons["time_stop"] = json!(summary.exit_time_stop);
     }
 
     json!({
@@ -607,6 +612,9 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
     if config.strategy.engine.level().is_some() {
         let _ = writeln!(out, "  level_lost: {}", summary.exit_level_lost);
         let _ = writeln!(out, "  event_condition: {}", summary.exit_event_condition);
+    }
+    if config.strategy.engine.compression_breakout().is_some() {
+        let _ = writeln!(out, "  time_stop: {}", summary.exit_time_stop);
     }
     let _ = writeln!(out, "context:");
     let _ = writeln!(out, "  complete_bars: {}", summary.context_complete);
@@ -807,6 +815,7 @@ fn exit_reason_code(reason: ExitReason) -> &'static str {
         ExitReason::StructureLost => "structure_lost",
         ExitReason::LevelLost => "level_lost",
         ExitReason::EventCondition => "event_condition",
+        ExitReason::TimeStop => "time_stop",
     }
 }
 

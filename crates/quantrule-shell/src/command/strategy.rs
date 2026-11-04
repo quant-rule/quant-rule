@@ -585,6 +585,7 @@ fn reason_code(reason: ExitReason) -> &'static str {
         ExitReason::StructureLost => "structure_lost",
         ExitReason::LevelLost => "level_lost",
         ExitReason::EventCondition => "event_condition",
+        ExitReason::TimeStop => "time_stop",
     }
 }
 

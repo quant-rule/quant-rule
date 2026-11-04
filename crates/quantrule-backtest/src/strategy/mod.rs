@@ -14,6 +14,7 @@
 //! conditions. The rule is defined in
 //! `docs/config/2026-10-30/strategy-v3.md`.
 
+mod compression;
 mod config;
 mod decision;
 mod event;
@@ -32,6 +33,9 @@ pub use crate::intent::{
     EntryStyle, RiskPolicy, RiskPolicyError, StopSpec, StrategyPosition, TargetSpec, TradeIntent,
 };
 pub use crate::side::Side;
+pub use compression::{
+    CompressionBreakoutConfig, CompressionBreakoutInput, CompressionBreakoutStrategy,
+};
 pub use config::{
     ContextEntryConfig, DEFAULT_CONFLICT_COUNT_MAX, DEFAULT_DIRECTION_MIN,
     DEFAULT_DIRECTION_SHARE_MIN, DEFAULT_LATE_OR_TERMINAL_COUNT_MAX,

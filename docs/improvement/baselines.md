@@ -18,7 +18,7 @@ by the agent that ran or reviewed the result.
 | Model | `MODEL-2026-11-04-02` | — | 2026-11-04 | Compression-breakout range gate; outcome saturated; validation not opened | — | Not accepted — inconclusive |
 | Model | `MODEL-2026-11-04-03` | — | 2026-11-04 | Harder 3 ATR compression cells; 1m positive lead, 5m placebo fail; validation not opened | — | Not accepted — no edge |
 | Model | `MODEL-2026-11-04-04..05` | Human | 2026-11-04 | 1m, 4 ATR over 20 bars, BTCUSD/ETHUSD/XAUUSD; dev and validation pass | — | Accepted |
-| Strategy | — | — | — | — | — | None accepted |
+| Strategy | `STRATEGY-2026-11-04-01` | — | 2026-11-04 | v9 directional 1m compression; all folds halted; no edge | — | Not accepted — no edge |
 | Portfolio | — | — | — | — | — | None accepted |
 
 ## Rules
