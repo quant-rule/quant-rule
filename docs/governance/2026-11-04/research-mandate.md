@@ -126,3 +126,14 @@ is recorded rather than hidden.
 Markets are adaptive and noisy. Most systematic strategies fail after costs.
 The purpose of this mandate is to make the search honest, not to make it
 succeed on demand.
+
+## 9. Current program status
+
+The **v4 directional strategy foundation is stopped** after the v4 path gate,
+the five 15m event families, divergence, cross-timeframe trend agreement, and
+the progression pre-flight. No directional strategy baseline exists. The
+accepted compression model baselines remain valid and direction-neutral.
+
+The stop record is
+[`docs/improvement/2026-11-04/V4-DIRECTIONAL-STRATEGY-STOP.md`](../../improvement/2026-11-04/V4-DIRECTIONAL-STRATEGY-STOP.md).
+A new program requires a new premise and a new approved charter.
