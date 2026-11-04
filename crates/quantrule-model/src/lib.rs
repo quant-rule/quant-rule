@@ -30,3 +30,9 @@ pub mod retention;
 pub mod run;
 pub mod state;
 pub mod timeframe;
+
+/// The registry version that defines the published indicator and event codes.
+///
+/// It must match `docs/registry/indicators.json`; a registry change updates
+/// both in the same pull request.
+pub const REGISTRY_VERSION: &str = "2026-11-04.1";

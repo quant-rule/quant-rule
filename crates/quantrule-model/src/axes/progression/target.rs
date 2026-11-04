@@ -149,12 +149,25 @@ fn insert_sorted(levels: &mut Vec<ConfirmedLevel>, level: ConfirmedLevel) {
 /// price, so the returned target is unambiguous. The fallback requires a finite
 /// `atr_at_origin`; a measured zero produces a degenerate target at the origin.
 /// Without a finite ATR, and without a structural level, the leg has no target.
+#[cfg(test)]
 pub(crate) fn select_index(
     index: &LevelIndex,
     scale: PivotScale,
     direction: i8,
     origin_price: f64,
     atr_at_origin: Option<f64>,
+) -> Option<Target> {
+    select_index_with_settings(index, scale, direction, origin_price, atr_at_origin, 2.0)
+}
+
+/// Selects the target with an explicit fallback distance.
+pub(crate) fn select_index_with_settings(
+    index: &LevelIndex,
+    scale: PivotScale,
+    direction: i8,
+    origin_price: f64,
+    atr_at_origin: Option<f64>,
+    target_atr: f64,
 ) -> Option<Target> {
     let kind = if direction > 0 {
         PivotKind::High
@@ -169,7 +182,7 @@ pub(crate) fn select_index(
     }
 
     let atr = atr_at_origin?;
-    let price = origin_price + f64::from(direction) * 2.0 * atr;
+    let price = origin_price + f64::from(direction) * target_atr * atr;
     if !price.is_finite() {
         return None;
     }

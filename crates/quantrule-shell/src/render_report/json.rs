@@ -47,6 +47,75 @@ pub(crate) fn json_bytes(
     Ok(format!("{text}\n").into_bytes())
 }
 
+/// Renders the flat v4 model result.
+///
+/// The result carries the effective config, the flat per-timeframe model
+/// summary, and chart-ready data. It carries no axes, cross-timeframe
+/// aggregate, prediction, or confidence field.
+///
+/// # Errors
+///
+/// Returns the serializer's I/O error when the value cannot be encoded.
+pub(crate) fn model_result_bytes(
+    report: &MarketReport,
+    data_version: &str,
+    from: Option<&str>,
+    to: Option<&str>,
+    effective_config: &Value,
+) -> io::Result<Vec<u8>> {
+    let value = json!({
+        "schema": "quantrule.model-result/v4",
+        "data_version": data_version,
+        "model_version": env!("CARGO_PKG_VERSION"),
+        "registry_version": quantrule_model::REGISTRY_VERSION,
+        "requested_period": {
+            "from": from,
+            "to": to,
+        },
+        "effective_config": effective_config,
+        "ladder": report.ladder.to_vec(),
+        "timeframes": report.flat.timeframes.iter().map(flat_timeframe_value).collect::<Vec<_>>(),
+        "charts": v4_chart_value(&report.charts),
+    });
+    let text = serde_json::to_string_pretty(&value).map_err(io::Error::other)?;
+    Ok(format!("{text}\n").into_bytes())
+}
+
+fn v4_chart_value(chart: &ChartReport) -> Value {
+    json!({
+        "timeframe_secs": chart.timeframe_secs,
+        "source_bars": chart.source_bars,
+        "bucket_size": chart.bucket_size,
+        "bars": chart.bars.iter().map(v4_chart_bar_value).collect::<Vec<_>>(),
+        "event_markers": chart.events.iter().map(v4_chart_event_value).collect::<Vec<_>>(),
+    })
+}
+
+fn v4_chart_bar_value(bar: &ReportChartBar) -> Value {
+    json!({
+        "first_bar_index": bar.first_bar_index,
+        "last_bar_index": bar.last_bar_index,
+        "open_time": bar.open_time,
+        "last_open_time": bar.last_open_time,
+        "open": bar.open,
+        "high": bar.high,
+        "low": bar.low,
+        "close": bar.close,
+        "volume": bar.volume,
+    })
+}
+
+fn v4_chart_event_value(event: &ReportChartEvent) -> Value {
+    json!({
+        "bucket_index": event.bucket_index,
+        "available_bar_index": event.available_bar_index,
+        "occurred_bar_index": event.occurred_bar_index,
+        "event_type_code": event.event_type_code,
+        "event_subtype_code": event.event_subtype_code,
+        "direction_code": event.direction_code,
+    })
+}
+
 fn report_value(report: &MarketReport) -> Value {
     json!({
         "period": {
@@ -547,7 +616,7 @@ mod tests {
     use quantrule_model::run::ModelRun;
     use serde_json::Value;
 
-    use super::json_bytes;
+    use super::{json_bytes, model_result_bytes};
 
     fn report(run: &ModelRun, ladder: &[u64]) -> MarketReport {
         let aggregates = quantrule_analytics::cross_timeframe(run);
@@ -596,6 +665,53 @@ mod tests {
             value["market_report"]["flat"]["timeframes"][0]["events"]["total"],
             0
         );
+    }
+
+    #[test]
+    fn the_v4_result_has_charts_and_no_axes_or_prediction() {
+        let run = ModelRun::compute(&[], &MarketStateConfig::default());
+        let report = report(&run, &[60, 300, 900, 3_600]);
+        let effective = serde_json::json!({"schema": "quantrule.model/v4"});
+
+        let bytes = model_result_bytes(
+            &report,
+            "v4",
+            Some("2018-01-01"),
+            Some("2018-12-31"),
+            &effective,
+        )
+        .expect("the result serializes");
+        let value: Value = serde_json::from_slice(&bytes).expect("the bytes are JSON");
+
+        assert_eq!(value["schema"], "quantrule.model-result/v4");
+        assert_eq!(value["registry_version"], quantrule_model::REGISTRY_VERSION);
+        assert_eq!(value["requested_period"]["from"], "2018-01-01");
+        assert!(value["charts"].is_object());
+        assert!(value["timeframes"].is_array());
+        for forbidden in [
+            "axes",
+            "cross_timeframe",
+            "prediction",
+            "confidence",
+            "trades",
+            "positions",
+            "cash",
+            "pnl",
+        ] {
+            assert!(
+                value.get(forbidden).is_none(),
+                "unexpected field {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_registry_constant_matches_the_registry_document() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/registry/indicators.json");
+        let text = std::fs::read_to_string(path).expect("the registry document is readable");
+        let value: Value = serde_json::from_str(&text).expect("the registry is JSON");
+        assert_eq!(value["version"], quantrule_model::REGISTRY_VERSION);
     }
 
     #[test]

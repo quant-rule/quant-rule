@@ -6,6 +6,7 @@
 //! progress. The module is pure: it reads the candidate, the confirmed-level
 //! registry, and the close passed to it.
 
+use crate::input::ProgressionSettings;
 use crate::kernel::UnavailableReason;
 use crate::readings::{PivotCandidate, PivotKind};
 
@@ -59,6 +60,12 @@ pub(crate) struct Leg {
     pub(crate) origin_confirmed: bool,
     /// A usable ATR 14 at the origin bar, if one exists.
     pub(crate) atr_at_origin: Option<f64>,
+    /// The target stability window in bars.
+    pub(crate) stability_bars: usize,
+    /// The invalidation distance in ATR units.
+    pub(crate) invalidation_atr: f64,
+    /// The minimum usable target distance in ATR units.
+    pub(crate) min_target_atr: f64,
     /// The selected target, if one exists.
     pub(crate) target: Option<Target>,
     /// The number of target revisions.
@@ -93,22 +100,41 @@ impl Leg {
     ///
     /// The target is selected from the levels knowable at the candidate's own
     /// bar. The leg never reads a level that is not yet available.
+    #[cfg(test)]
     pub(crate) fn new(
         id: u64,
         candidate: PivotCandidate,
         index: &target::LevelIndex,
         atr_at_origin: Option<f64>,
     ) -> Self {
+        Self::new_with_settings(
+            id,
+            candidate,
+            index,
+            atr_at_origin,
+            ProgressionSettings::DEFAULT,
+        )
+    }
+
+    /// Creates a forming leg with explicit progression settings.
+    pub(crate) fn new_with_settings(
+        id: u64,
+        candidate: PivotCandidate,
+        index: &target::LevelIndex,
+        atr_at_origin: Option<f64>,
+        settings: ProgressionSettings,
+    ) -> Self {
         let direction = match candidate.kind {
             PivotKind::Low => 1,
             PivotKind::High => -1,
         };
-        let target = target::select_index(
+        let target = target::select_index_with_settings(
             index,
             candidate.scale,
             direction,
             candidate.price,
             atr_at_origin,
+            settings.target_atr,
         );
 
         Self {
@@ -120,6 +146,9 @@ impl Leg {
             origin_available_at: None,
             origin_confirmed: false,
             atr_at_origin,
+            stability_bars: settings.stability_bars,
+            invalidation_atr: settings.invalidation_atr,
+            min_target_atr: settings.min_target_atr,
             target,
             target_version: 0,
             target_stable: target.is_some(),
@@ -200,7 +229,7 @@ impl Leg {
         } else {
             close - self.origin_price
         };
-        beyond > 0.2 * atr
+        beyond > self.invalidation_atr * atr
     }
 
     /// Observes one closed bar.
@@ -292,7 +321,7 @@ impl Leg {
 
     fn update_stability(&mut self, bar: usize) {
         if let Some(revision_bar) = self.revision_bar {
-            if bar >= revision_bar.saturating_add(3) {
+            if bar >= revision_bar.saturating_add(self.stability_bars) {
                 self.target_stable = true;
                 self.revision_bar = None;
             }
@@ -339,7 +368,9 @@ impl Leg {
         };
         let distance = (target.price - self.origin_price).abs();
         target.price == self.origin_price
-            || self.atr_at_origin.is_some_and(|atr| distance < 0.2 * atr)
+            || self
+                .atr_at_origin
+                .is_some_and(|atr| distance < self.min_target_atr * atr)
     }
 
     fn update_stage(&mut self) {
@@ -380,6 +411,7 @@ mod tests {
     use super::{Leg, Lifecycle, stage_for};
     use crate::axes::progression::target::{ATR_FALLBACK_BASIS, Target};
     use crate::axes::structure::registry::ConfirmedLevelRegistry;
+    use crate::input::ProgressionSettings;
     use crate::kernel::UnavailableReason;
     use crate::readings::{PivotCandidate, PivotKind, PivotScale, PivotSeries};
 
@@ -420,6 +452,25 @@ mod tests {
         leg.atr_at_origin = atr;
         leg.confirm(6);
         leg
+    }
+
+    #[test]
+    fn a_custom_target_atr_changes_the_fallback_target() {
+        let registry = empty_registry();
+        let mut index = super::target::LevelIndex::new(&registry);
+        index.advance(4);
+        let settings = ProgressionSettings {
+            target_atr: 3.0,
+            ..ProgressionSettings::DEFAULT
+        };
+        let leg = Leg::new_with_settings(
+            1,
+            candidate(PivotKind::Low, 100.0, 4),
+            &index,
+            Some(10.0),
+            settings,
+        );
+        assert_eq!(leg.target.map(|target| target.price), Some(130.0));
     }
 
     #[test]

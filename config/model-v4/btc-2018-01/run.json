@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "model-v4-btc-2018-01",
+  "policy": "../../verification/shared/policy.json",
+  "data": "data.json",
+  "model": "../shared/model.json",
+  "strategy": "../../verification/shared/strategy-v8.json",
+  "execution": "../../verification/shared/execution.json",
+  "portfolio": "../../verification/shared/portfolio.json",
+  "analytics": "../../verification/shared/analytics.json",
+  "output_root": "../../../data/model-v4/btc-2018-01"
+}

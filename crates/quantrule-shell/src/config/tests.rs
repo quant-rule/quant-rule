@@ -358,6 +358,50 @@ fn model_object() -> Value {
     json!({"schema": "quantrule.model/v1", "structure_scale": "major"})
 }
 
+fn model_v4_object() -> Value {
+    json!({
+        "schema": "quantrule.model/v4",
+        "defaults": {
+            "ema": {"periods": [20, 50, 200], "active": true},
+            "rsi": {"period": 14, "active": true},
+            "atr": {"period": 14, "active": true},
+            "rvol": {"period": 20, "active": true},
+            "macd": {"fast": 12, "slow": 26, "signal": 9, "active": true},
+            "adx": {"period": 14, "threshold": 25.0, "slope_bars": 3, "active": true},
+            "events": {
+                "level": {"references": ["ema", "pivots"], "test_atr": 0.2, "break_atr": 0.2},
+                "divergence": {"indicator": "rsi", "pivot_scale": "major", "window": 2},
+                "signal": {
+                    "rsi_levels": [30.0, 50.0, 70.0],
+                    "ema_pairs": [[20, 50], [50, 200], [20, 200]],
+                    "macd": ["line_signal_cross", "histogram_slope_flip", "zero_cross"],
+                    "di_cross": true,
+                    "trend_continuation": {"enabled": true, "adx_threshold": 25.0, "adx_slope_bars": 3}
+                }
+            },
+            "progression": {
+                "target_atr": 2.0,
+                "stability_bars": 3,
+                "invalidation_atr": 0.2,
+                "min_target_atr": 0.2
+            }
+        },
+        "timeframes": {
+            "5m": {
+                "ema": {"periods": [9, 21, 55]},
+                "events": {
+                    "level": {"test_atr": 0.3},
+                    "signal": {
+                        "di_cross": false,
+                        "trend_continuation": {"adx_threshold": 30.0}
+                    }
+                },
+                "progression": {"target_atr": 3.0}
+            }
+        }
+    })
+}
+
 fn model_v3_object() -> Value {
     json!({
         "schema": "quantrule.model/v3",
@@ -386,6 +430,56 @@ fn model_v2_object() -> Value {
         "timeframes": {},
         "structure": {"scale": "major"}
     })
+}
+
+#[test]
+fn model_v4_reads_events_progression_and_rejects_4h() {
+    let config = model::parse(&model_v4_object(), "model.json").expect("the v4 config loads");
+    let m5 = config.readings_for(u64::from(Timeframe::M5.seconds()));
+    assert_eq!(m5.ema_fast, 9);
+    let events = config.events_for(u64::from(Timeframe::M5.seconds()));
+    assert_eq!(events.level.test_atr, 0.3);
+    assert_eq!(events.level.break_atr, 0.2);
+    assert!(events.level.ema);
+    assert!(events.level.pivots);
+    assert!(!events.signal.di_cross);
+    assert_eq!(events.signal.rsi_levels, [30.0, 50.0, 70.0]);
+    assert!(events.signal.trend_continuation);
+    assert_eq!(events.signal.trend_adx_threshold, 30.0);
+    assert_eq!(events.signal.trend_adx_slope_bars, 3);
+    let progression = config.progression_for(u64::from(Timeframe::M5.seconds()));
+    assert_eq!(progression.target_atr, 3.0);
+    assert_eq!(progression.stability_bars, 3);
+
+    let effective = super::effective_json(&config);
+    assert_eq!(effective["schema"], "quantrule.model/v4");
+    assert_eq!(
+        effective["timeframes"]["5m"]["events"]["level"]["references"],
+        json!(["ema", "pivots"])
+    );
+    assert!(effective["timeframes"].get("4h").is_none());
+
+    let pivots = set(
+        model_v4_object(),
+        &["defaults", "pivots"],
+        json!({"minor": 2, "major": 5}),
+    );
+    assert_rejected(
+        model::parse(&pivots, "model.json"),
+        UnknownField,
+        "$.defaults.pivots",
+    );
+
+    let four_hour = set(
+        model_v4_object(),
+        &["timeframes"],
+        json!({"4h": {"ema": {"periods": [9, 21, 55]}}}),
+    );
+    assert_rejected(
+        model::parse(&four_hour, "model.json"),
+        Range,
+        "$.timeframes.4h",
+    );
 }
 
 #[test]
@@ -462,7 +556,7 @@ fn model_matches_the_contract() {
     for (value, kind, path) in [
         (json!(1), Type, "$"),
         (
-            set(model_object(), &["schema"], json!("quantrule.model/v4")),
+            set(model_object(), &["schema"], json!("quantrule.model/v5")),
             Unsupported,
             "$.schema",
         ),

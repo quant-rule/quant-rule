@@ -153,6 +153,8 @@ impl TimeframeModel {
 
         let readings_config = config.readings_for(input.timeframe_secs);
         let readings = Readings::compute_with_config(input.candles, &readings_config);
+        let event_settings = config.events_for(input.timeframe_secs);
+        let progression_settings = config.progression_for(input.timeframe_secs);
         let macd = if config.macd_enabled_for(input.timeframe_secs) {
             MacdSeries::compute(
                 input.candles,
@@ -178,18 +180,28 @@ impl TimeframeModel {
         let progression = ProgressionSeries::compute_with_config(
             input.candles,
             &readings,
-            ProgressionConfig::new(input.timeframe_secs),
+            ProgressionConfig::with_settings(
+                input.timeframe_secs,
+                progression_settings.target_atr,
+                progression_settings.stability_bars,
+                progression_settings.invalidation_atr,
+                progression_settings.min_target_atr,
+            ),
         );
         let context = ContextSeries::compute(&readings);
 
         let level_events = LevelEventSeries::compute(
             input.candles,
             &readings,
-            &LevelEventConfig::new(timeframe_secs),
+            &LevelEventConfig::with_settings(timeframe_secs, event_settings.level),
         );
         let divergence_events = DivergenceEventSeries::compute(
             &readings,
-            &DivergenceConfig::new(timeframe_secs, config.structure_scale),
+            &DivergenceConfig::with_window(
+                timeframe_secs,
+                event_settings.divergence.scale,
+                event_settings.divergence.window,
+            ),
         );
         let signal_events = SignalEventSeries::compute(
             &readings,

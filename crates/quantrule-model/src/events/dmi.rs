@@ -53,6 +53,12 @@ pub struct DmiEventSeries {
 }
 
 impl DmiEventSeries {
+    /// An empty event series.
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self { events: Vec::new() }
+    }
+
     /// Computes every DI crossover event.
     ///
     /// The first possible event is at bar 1 because a crossover needs the prior
