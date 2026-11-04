@@ -1,0 +1,14 @@
+[
+  {
+    "id": "pivot_break_15m_1h_trend",
+    "label": "15m major pivot break with 1h trend agreement",
+    "event_type": 1,
+    "subtype": 3,
+    "source": 8,
+    "context": {
+      "timeframe": "1h",
+      "ema_stack": "agree",
+      "adx_regime": 1
+    }
+  }
+]
