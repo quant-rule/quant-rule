@@ -80,3 +80,8 @@ compression-breakout event is a separate non-directional claim, pre-registered
 in [`compression-breakout.md`](compression-breakout.md); its development gate is **inconclusive**
 because the 2 ATR / 20-bar outcome saturated; the validation partition was not
 opened. See [`COMPRESSION-GATE`](../../improvement/2026-11-04/COMPRESSION-GATE.md).
+
+A later pre-registered harder protocol — 1m, forward 20-bar range ≥ 4 ATR —
+passed both `model_dev` and `model_validation` with the matched baselines,
+controls, and replication. It is an **accepted model baseline** (human, 2026-11-04), not a strategy go. See
+[`COMPRESSION-BASELINE-CANDIDATE`](../../improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md).

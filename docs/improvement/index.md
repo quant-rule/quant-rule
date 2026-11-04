@@ -1,7 +1,7 @@
 # Run Index
 
 - Date: 2026-11-04 (UTC)
-- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4 and compression gates appended
+- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4 and compression gates and the 4 ATR candidate appended
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 The local `data/improvement/` store was reset after the 2026-11-03 records, so
@@ -16,6 +16,9 @@ view for the local store.
 | `MODEL-2026-11-03-02` | 2026-11-03 | model | Model gate on the validation partition | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-03/MODEL-2026-11-03-02-model-gate-validation.md) |
 | `MODEL-2026-11-04-01` | 2026-11-04 | model | v4 path gate on the development partition | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/MODEL-2026-11-04-01-model-v4-dev.md) |
 | `MODEL-2026-11-04-02` | 2026-11-04 | model | Compression-breakout range-expansion gate | model | strategy, portfolio | — | `model_dev` | inconclusive | [record](2026-11-04/MODEL-2026-11-04-02-compression-breakout.md) |
+| `MODEL-2026-11-04-03` | 2026-11-04 | model | Harder 3 ATR compression cells on 5m and 1m | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/MODEL-2026-11-04-03-compression-harder.md) |
+| `MODEL-2026-11-04-04` | 2026-11-04 | model | 4 ATR compression cells; 1m development pass | model | strategy, portfolio | — | `model_dev` | pass — freeze 1m | [record](2026-11-04/MODEL-2026-11-04-04-compression-4atr-dev.md) |
+| `MODEL-2026-11-04-05` | 2026-11-04 | model | 4 ATR compression; 1m validation pass | model | strategy, portfolio | MODEL-2026-11-04-04 | `model_validation` | accepted | [record](2026-11-04/MODEL-2026-11-04-05-compression-4atr-validation.md) |
 | `MODEL-2026-11-01-01` | 2026-11-01 | model | Model baseline harness pilot | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-01-model-baseline.md) |
 | `MODEL-2026-11-01-02` | 2026-11-01 | model | Multi-horizon axis study | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-02-multi-horizon.md) |
 | `MODEL-2026-11-01-03` | 2026-11-01 | model | Context-conditioned axis study | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-03-context.md) |

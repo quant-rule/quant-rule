@@ -1,7 +1,7 @@
 # Baselines
 
 - Date: 2026-11-04 (UTC)
-- Status: Model correctness baseline superseded; v3 and v4 direction gates no edge; compression gate inconclusive; no strategy or portfolio baseline
+- Status: Accepted model baseline: 1m 4 ATR compression expansion; v3/v4 direction and prior compression gates no edge or inconclusive; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -16,6 +16,8 @@ by the agent that ran or reviewed the result.
 | Model | `MODEL-2026-11-03-01..02` | — | 2026-11-03 | v3 claim gate; no signal-role family passed both partitions | `MODEL-2026-11-01-01..04` | Not accepted — no edge |
 | Model | `MODEL-2026-11-04-01` | — | 2026-11-04 | v4 path gate; no tested signal-role family passed `model_dev`; validation not opened | `MODEL-2026-11-03-01..02` | Not accepted — no edge |
 | Model | `MODEL-2026-11-04-02` | — | 2026-11-04 | Compression-breakout range gate; outcome saturated; validation not opened | — | Not accepted — inconclusive |
+| Model | `MODEL-2026-11-04-03` | — | 2026-11-04 | Harder 3 ATR compression cells; 1m positive lead, 5m placebo fail; validation not opened | — | Not accepted — no edge |
+| Model | `MODEL-2026-11-04-04..05` | Human | 2026-11-04 | 1m, 4 ATR over 20 bars, BTCUSD/ETHUSD/XAUUSD; dev and validation pass | — | Accepted |
 | Strategy | — | — | — | — | — | None accepted |
 | Portfolio | — | — | — | — | — | None accepted |
 
