@@ -152,3 +152,13 @@ breakout had a positive lower bound but failed the back-lag and direction-shuffl
 controls. It is recorded as no edge in
 [`docs/improvement/2026-11-04/EURUSD-SESSION-SPIKE.md`](../../improvement/2026-11-04/EURUSD-SESSION-SPIKE.md)
 and stopped. The cost hurdle at EURUSD 15m is severe.
+
+The v5 program then tested the remaining explanation for the v4 failures: that
+the 20-bar horizon was too short for cost and trend persistence. The 1h swing
+gate used the existing v4 events on a 4 ATR target / 2 ATR stop over 100 bars.
+All three cells graded C. Trend continuation had a +3.23pp lift but its
+back-lag placebo was +7.43pp and it did not add to the trend state; the pivot
+break and EMA50 test were flat. The horizon explanation is falsified. It is
+recorded in
+[`docs/improvement/2026-11-04/V5-SWING-1H-GATE.md`](../../improvement/2026-11-04/V5-SWING-1H-GATE.md)
+and stopped. Phase 2 needs a new charter and human approval.
