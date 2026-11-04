@@ -1,11 +1,13 @@
 # V5 Model Program — Execution Plan
 
 - Date: 2026-11-04 (UTC)
-- Status: **Approved** (human, 2026-11-04); Phase 0 and Phase 1 executed — **no edge**; Phase 1b, 2, and 3 not opened
+- Status: **Approved** (human, 2026-11-04); Phase 0, 1, and 2 executed — **no edge**; volume family blocked; Phase 1b, 2b, and 3 not opened; program stopped
 - Owner: human
-- Program: `PROGRAM-2026-11-04-04`
+- Program: `PROGRAM-2026-11-04-04` (Phase 1), `PROGRAM-2026-11-04-05` (Phase 2)
 - Charter: [`docs/governance/2026-11-04/v5-program-charter.md`](../../governance/2026-11-04/v5-program-charter.md)
+- Phase 2 charter: [`docs/governance/2026-11-04/v5-phase2-charter.md`](../../governance/2026-11-04/v5-phase2-charter.md)
 - Pre-registration: [`docs/improvement/2026-11-04/V5-SWING-1H-PREREG.md`](../../improvement/2026-11-04/V5-SWING-1H-PREREG.md)
+- Phase 2 pre-registration: [`docs/improvement/2026-11-04/V5-PHASE2-SPIKE-PREREG.md`](../../improvement/2026-11-04/V5-PHASE2-SPIKE-PREREG.md)
 - Gate result: [`docs/improvement/2026-11-04/V5-SWING-1H-GATE.md`](../../improvement/2026-11-04/V5-SWING-1H-GATE.md)
 - Claim type: research plan; no strategy or edge claim
 
@@ -88,6 +90,11 @@ Phase 1 is complete when:
 Phase 1 acceptance criteria were evaluated on 2026-11-04: the gate ran, all
 three cells graded C, and the no-edge path was recorded.
 
+Phase 2 exploration is complete when the pre-registered candidates are screened
+and the volume admissibility is recorded. It was evaluated on 2026-11-04: no
+candidate passed, the volume family is blocked, and no Phase 2 model charter was
+written.
+
 ## 7. Work breakdown
 
 | Phase | Work | Status |
@@ -96,7 +103,7 @@ three cells graded C, and the no-edge path was recorded.
 | 1 | 1h swing model gate on `model_dev` | Done — no edge |
 | 1 | Validation, only if a cell passes | Not opened |
 | 1b | Context-ATR risk mode (`atr_timeframe`), 1h swing strategy | Not opened — no model baseline |
-| 2 | V5 new-information model: VWAP, volume profile, candle anatomy, gaps, climax, cross-asset | Not opened — needs a new charter and human approval |
+| 2 | V5 new-information model: VWAP, volume profile, candle anatomy, gaps, climax, cross-asset | Exploration done — no edge; volume blocked |
 | 2b | V5 strategy | Not opened |
 | 3 | Portfolio, prop-firm controls, paper, small live | Not opened |
 
@@ -108,7 +115,8 @@ Observed on 2026-11-04:
 |---|---|
 | Pre-flight event count | 919 / 3,126 / 6,722 raw 1h events, all above 200 |
 | `path_validation.py --timeframes 1h --horizon 100 --target-atr 4 --stop-atr 2 --back-lag 100 --primary-cells 3` | three cells grade C; selection null; no edge |
-| Byte-identical rerun | recorded in the run's `review.md` |
+| `v5_phase2_spike.py --config adx25` | three price-only candidates no edge; volume family blocked |
+| Byte-identical rerun | recorded in the run and spike reviews |
 | `python3 tools/check_links.py` | no broken relative links |
 | `python3 tools/check_terms.py` | no banned terms |
 
@@ -137,7 +145,10 @@ only its own run folder and docs. No migration or rollback is required.
 - A request to change the horizon, target, stop, family, state, or costs after a
   result.
 - Phase 2 has no candidate event with `n >= 200`.
+- Phase 2 has no passing price-only candidate and the volume data is not
+  admissible.
 - The human stops the program.
 
-Phase 1 stopped on the second condition on 2026-11-04. Phase 2 is a new premise
-and requires a new approved charter.
+Phase 1 stopped on the second condition on 2026-11-04. Phase 2 stopped on the
+sixth condition on 2026-11-04: no price-only candidate passed and the volume
+family is blocked by the data audit. The v5 program is stopped.
