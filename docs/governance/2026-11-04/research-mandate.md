@@ -162,3 +162,15 @@ break and EMA50 test were flat. The horizon explanation is falsified. It is
 recorded in
 [`docs/improvement/2026-11-04/V5-SWING-1H-GATE.md`](../../improvement/2026-11-04/V5-SWING-1H-GATE.md)
 and stopped. Phase 2 needs a new charter and human approval.
+
+The v5 Phase 2 spike then tested new price-only information: a momentum bar, a
+rejection wick at a confirmed major level, and a cross-asset relative-strength
+cross. All three failed. The momentum bar was the only positive lift (+0.87pp)
+and was beaten by its 100-bar back-lag placebo (+1.89pp); the rejection wick was
+flat and the relative-strength cross was negative. The volume family (VWAP,
+volume profile, volume climax) is **untested**: the pack's volume units change
+by 600×–17,800× within a year on BTC and ETH, which is a data-source defect, not
+a market result. The spike is recorded in
+[`docs/improvement/2026-11-04/V5-PHASE2-SPIKE.md`](../../improvement/2026-11-04/V5-PHASE2-SPIKE.md)
+and the v5 program is stopped. A new attempt needs a consistent volume source or
+a different dataset, and a new approved charter.
