@@ -69,6 +69,7 @@ Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-0
 |---|---|---|---|
 | `V4-DIRECTIONAL-STRATEGY` | 2026-11-04 | stopped — no directional baseline | [stop](2026-11-04/V4-DIRECTIONAL-STRATEGY-STOP.md) |
 | `SESSION-LIQUIDITY-SPIKE` | 2026-11-04 | no edge — stopped | [record](2026-11-04/SESSION-LIQUIDITY-SPIKE.md) |
+| `EURUSD-SESSION-SPIKE` | 2026-11-04 | no edge — stopped | [record](2026-11-04/EURUSD-SESSION-SPIKE.md) |
 
 Rows sort by date, then tier (`model`, `strategy`, `portfolio`), then run ID. See
 [`baselines.md`](baselines.md) for accepted baselines and

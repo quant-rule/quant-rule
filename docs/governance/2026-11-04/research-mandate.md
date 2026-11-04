@@ -144,3 +144,11 @@ still failed its primary directional cells. It is recorded as no edge in
 [`docs/improvement/2026-11-04/SESSION-LIQUIDITY-SPIKE.md`](../../improvement/2026-11-04/SESSION-LIQUIDITY-SPIKE.md)
 and stopped. The same rule applies: no tuning, no variant, no validation without
 a new charter.
+
+The EURUSD DST-aware session spike was the next new data premise. It generated
+the EURUSD model pack, used explicit `Europe/London` and `America/New_York`
+calendars, and found a real session structure. Its New York opening-range
+breakout had a positive lower bound but failed the back-lag and direction-shuffle
+controls. It is recorded as no edge in
+[`docs/improvement/2026-11-04/EURUSD-SESSION-SPIKE.md`](../../improvement/2026-11-04/EURUSD-SESSION-SPIKE.md)
+and stopped. The cost hurdle at EURUSD 15m is severe.
