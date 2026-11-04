@@ -34,6 +34,7 @@ view for the local store.
 | `PROGRAM-2026-11-04-01` | 2026-11-04 | model | Divergence at a confirmed pivot; four cells grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/PROGRAM-2026-11-04-01.md) |
 | `PROGRAM-2026-11-04-02` | 2026-11-04 | model | 15m event with 1h trend agreement; three cells grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/PROGRAM-2026-11-04-02.md) |
 | `PROGRAM-2026-11-04-03` | 2026-11-04 | model | Early progression target; pre-flight 78 events, below 200 | model | strategy, portfolio | — | `model_dev` | inconclusive | [record](2026-11-04/PROGRAM-2026-11-04-03.md) |
+| `MODEL-2026-11-04-18` | 2026-11-04 | model | 1h swing gate, 100 bars, 4 ATR / 2 ATR; three cells grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/V5-SWING-1H-GATE.md) |
 | `STRATEGY-2026-11-04-02` | 2026-11-04 | strategy | 1m compression bracket; all folds halted | strategy | model, portfolio | MODEL-2026-11-04-06..07 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-02-compression-bracket.md) |
 | `STRATEGY-2026-11-04-01` | 2026-11-04 | strategy | Directional 1m compression strategy | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-01-compression-strategy.md) |
 | `MODEL-2026-11-01-01` | 2026-11-01 | model | Model baseline harness pilot | model | strategy, portfolio | — | `model_validation` | not green | [record](2026-11-01/MODEL-2026-11-01-01-model-baseline.md) |
