@@ -1359,7 +1359,11 @@ fn level_extended_events(
     }
 }
 
-fn divergence_subtype(kind: PivotKind, price_delta: f64, value_delta: f64) -> Option<(u8, i8)> {
+pub(crate) fn divergence_subtype(
+    kind: PivotKind,
+    price_delta: f64,
+    value_delta: f64,
+) -> Option<(u8, i8)> {
     match kind {
         PivotKind::Low if price_delta < 0.0 && value_delta > 0.0 => Some((1, 1)),
         PivotKind::High if price_delta > 0.0 && value_delta < 0.0 => Some((2, -1)),

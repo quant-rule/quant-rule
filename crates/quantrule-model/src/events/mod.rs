@@ -17,6 +17,7 @@ pub mod dmi;
 pub mod extended;
 pub mod level;
 pub(crate) mod order;
+pub mod panel;
 pub mod signal;
 pub mod trend;
 
