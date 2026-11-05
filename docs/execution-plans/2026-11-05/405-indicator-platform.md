@@ -111,7 +111,7 @@ panel's extra `rs_regime`/`lag_divergence` names are reconciled to one cross per
 reading (`signal.relative_strength_cross`, `signal.lead_lag_cross`,
 `signal.co_movement_cross`, `signal.dispersion_cross`). Phase 1's read-only
 audit file was not delivered; the human decides whether to require it
-retroactively. Per-indicator golden fixtures are in place; the remaining test gap is the per-indicator edge-case and precedence coverage.
+retroactively. Per-indicator golden fixtures and the family-level edge and precedence checks are in place; the checklist is `tested`. The remaining gaps are the audit decision, the human/Validator `Sign`, and phases 6–8.
 
 ## 8. First-batch implementation
 
