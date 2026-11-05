@@ -107,6 +107,7 @@ def check(registry: Any) -> list[str]:
 
     indicator_ids: set[str] = set()
     indicator_codes: set[int] = set()
+    indicator_events: dict[str, set[str]] = {}
     for index, indicator in enumerate(indicators):
         label = f"indicators[{index}]"
         if not isinstance(indicator, dict):
@@ -120,6 +121,12 @@ def check(registry: Any) -> list[str]:
             errors.append(f"{label}.id duplicate: {ident}")
         else:
             indicator_ids.add(ident)
+            raw_events = indicator.get("events")
+            indicator_events[ident] = (
+                {value for value in raw_events if isinstance(value, str)}
+                if isinstance(raw_events, list)
+                else set()
+            )
         code = indicator.get("code")
         if not isinstance(code, int) or code < 1:
             errors.append(f"{label}.code must be a positive integer")
@@ -195,8 +202,11 @@ def check(registry: Any) -> list[str]:
             errors.append(f"{label}.event_type is invalid")
         elif event.get("subtype") not in SUBTYPE_RANGE[event_type]:
             errors.append(f"{label}.subtype is outside the type's range")
-        if event.get("indicator") not in indicator_ids:
+        owner = event.get("indicator")
+        if owner not in indicator_ids:
             errors.append(f"{label}.indicator is unknown")
+        elif isinstance(ident, str) and ident not in indicator_events.get(owner, set()):
+            errors.append(f"{label}.indicator {owner} does not list {ident} in events")
         if event.get("role") not in ROLES:
             errors.append(f"{label}.role is invalid")
         if event.get("status") not in STATUSES:
