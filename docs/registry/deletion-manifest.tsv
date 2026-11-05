@@ -1,0 +1,316 @@
+path	class	fate	replacement	recover_at	decision
+config/compression-range-5m/dev/matrix.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-5m/validation/matrix.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset-5m/dev/matrix.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset-5m/validation/matrix.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/btc-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/btc-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/btc-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/btc-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/btc-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/btc-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/eth-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/eth-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/eth-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/eth-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/eth-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/eth-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/xau-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/xau-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/xau-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/xau-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/xau-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/dev/xau-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/shared/model-range-onset.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/btc-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/btc-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/btc-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/btc-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/eth-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/eth-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/eth-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/eth-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/xau-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/xau-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/xau-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range-onset/validation/xau-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/btc-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/btc-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/btc-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/btc-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/btc-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/btc-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/eth-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/eth-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/eth-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/eth-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/eth-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/eth-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/matrix.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/xau-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/xau-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/xau-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/xau-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/xau-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/dev/xau-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/shared/model-range.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/btc-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/btc-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/btc-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/btc-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/eth-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/eth-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/eth-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/eth-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/matrix.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/xau-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/xau-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/xau-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression-range/validation/xau-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/btc-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/btc-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/btc-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/btc-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/btc-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/btc-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/eth-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/eth-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/eth-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/eth-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/eth-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/eth-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/matrix.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/xau-2018/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/xau-2018/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/xau-2019/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/xau-2019/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/xau-2020/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/dev/xau-2020/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/btc-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/btc-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/btc-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/btc-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/eth-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/eth-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/eth-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/eth-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/matrix.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/xau-2021/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/xau-2021/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/xau-2022/data.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/compression/validation/xau-2022/run.json	config	decide	keep accepted M1.0 evidence (D4)	8acf857	
+config/defaults/model.json	config	rewrite	current flat model schema (D2)	8acf857	
+config/examples/btcusd-2024-breakout/analytics.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024-breakout/data.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024-breakout/execution.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024-breakout/model.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024-breakout/policy.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024-breakout/portfolio.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024-breakout/run.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024-breakout/strategy.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024/analytics.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024/data.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024/execution.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024/model.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024/policy.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024/portfolio.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024/run.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/examples/btcusd-2024/strategy.json	config	rewrite	current model-spec/strategy schema	8acf857	
+config/model-v4/btc-2018-01/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/btc-2018-01/run.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2018/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2018/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2018/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2019/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2019/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2019/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2020/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2020/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/btc-2020/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2018/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2018/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2018/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2019/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2019/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2019/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2020/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2020/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/eth-2020/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/matrix.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2018/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2018/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2018/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2019/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2019/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2019/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2020/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2020/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/dev/xau-2020/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/families.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/shared/model-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/shared/model-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/shared/model-compression.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/shared/model.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/btc-2021/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/btc-2021/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/btc-2021/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/btc-2022/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/btc-2022/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/btc-2022/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/eth-2021/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/eth-2021/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/eth-2021/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/eth-2022/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/eth-2022/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/eth-2022/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/matrix.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/xau-2021/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/xau-2021/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/xau-2021/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/xau-2022/data.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/xau-2022/run-adx20.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/model-v4/validation/xau-2022/run-adx25.json	config	decide	keep M1.0 baseline or move to evidence (D2/D4)	8acf857	
+config/v5-swing/1h/families.json	config	delete	current programme configs	8acf857	
+crates/quantrule-model/src/aggregate/events.rs	code	delete	strategy as-of context (S3.x)	8acf857	
+crates/quantrule-model/src/aggregate/levels.rs	code	delete	strategy as-of context (S3.x)	8acf857	
+crates/quantrule-model/src/aggregate/mod.rs	code	delete	strategy as-of context (S3.x)	8acf857	
+crates/quantrule-model/src/aggregate/progression.rs	code	delete	strategy as-of context (S3.x)	8acf857	
+crates/quantrule-model/src/aggregate/tests.rs	code	delete	strategy as-of context (S3.x)	8acf857	
+crates/quantrule-model/src/axes/direction.rs	code	delete	flat readings/events (M1.0)	8acf857	
+crates/quantrule-model/src/axes/mod.rs	code	delete	flat readings/events (M1.0)	8acf857	
+crates/quantrule-model/src/axes/momentum.rs	code	delete	flat readings/events (M1.0)	8acf857	
+crates/quantrule-model/src/axes/progression/leg.rs	code	move	crates/quantrule-model/src/progression/	8acf857	
+crates/quantrule-model/src/axes/progression/mod.rs	code	move	crates/quantrule-model/src/progression/	8acf857	
+crates/quantrule-model/src/axes/progression/target.rs	code	move	crates/quantrule-model/src/progression/	8acf857	
+crates/quantrule-model/src/axes/progression/tests.rs	code	move	crates/quantrule-model/src/progression/	8acf857	
+crates/quantrule-model/src/axes/structure/ema.rs	code	delete	flat structure readings/events	8acf857	
+crates/quantrule-model/src/axes/structure/mod.rs	code	delete	flat structure readings/events	8acf857	
+crates/quantrule-model/src/axes/structure/registry.rs	code	delete	flat structure readings/events	8acf857	
+crates/quantrule-model/src/consensus.rs	code	delete	none; no model-level cross-timeframe vote	8acf857	
+crates/quantrule-model/src/dashboard/assemble.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/cross_tf.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/cross_tf/tests.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/direction.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/direction/tests.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/progression.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/progression/tests.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/readings.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/readings/tests.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/structure.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/structure/tests.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/assemble/tests.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/mod.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/dashboard/tests.rs	code	delete	report model / flat events	8acf857	
+crates/quantrule-model/src/report/assemble.rs	code	delete	report/flat.rs	8acf857	
+crates/quantrule-model/src/report/chart.rs	code	delete	report/flat.rs	8acf857	
+crates/quantrule-model/src/report/flat.rs	code	keep	current flat projection	8acf857	
+crates/quantrule-model/src/report/mod.rs	code	rewrite	flat report module only	8acf857	
+crates/quantrule-model/src/report/tests.rs	code	rewrite	flat report tests	8acf857	
+crates/quantrule-model/src/state.rs	code	delete	flat per-timeframe snapshot	8acf857	
+crates/quantrule-model/src/state/tests.rs	code	delete	flat per-timeframe snapshot	8acf857	
+crates/quantrule-shell/src/chart/diagnosis/attribution.rs	code	delete	backtest diagnosis (S3.x)	8acf857	
+crates/quantrule-shell/src/chart/diagnosis/execution.rs	code	delete	backtest diagnosis (S3.x)	8acf857	
+crates/quantrule-shell/src/chart/diagnosis/funnel.rs	code	delete	backtest diagnosis (S3.x)	8acf857	
+crates/quantrule-shell/src/chart/diagnosis/mod.rs	code	delete	backtest diagnosis (S3.x)	8acf857	
+crates/quantrule-shell/src/chart/diagnosis/quality.rs	code	delete	backtest diagnosis (S3.x)	8acf857	
+crates/quantrule-shell/src/chart/diagnosis/scorecard.rs	code	delete	backtest diagnosis (S3.x)	8acf857	
+crates/quantrule-shell/src/chart/market.rs	code	delete	report model	8acf857	
+crates/quantrule-shell/src/chart/report.rs	code	delete	report model	8acf857	
+crates/quantrule-shell/src/command/backtest.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/chart.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/dashboard.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/dispatch.rs	code	rewrite	surviving command dispatch	8acf857	
+crates/quantrule-shell/src/command/help.rs	code	rewrite	surviving command help	8acf857	
+crates/quantrule-shell/src/command/lab.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/layers.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/model.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/parse.rs	code	rewrite	surviving command parser	8acf857	
+crates/quantrule-shell/src/command/report.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/research.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/store.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/store_query.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/store_verify.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/strategy.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/strategy_explain.rs	code	delete	surviving shell surface	8acf857	
+crates/quantrule-shell/src/command/tests.rs	code	rewrite	surviving command tests	8acf857	
+crates/quantrule-shell/src/command/types.rs	code	rewrite	surviving command types	8acf857	
+crates/quantrule-shell/src/store/error.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/ingest.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/ingest/aggregate_tests.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/ingest/fixtures.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/ingest/record_tests.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/ingest/sql.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/ingest/tests.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/ingest/validate.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/lifecycle.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/mod.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/query.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/schema.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/tests.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/src/store/verify.rs	code	delete	none; run evidence is data/improvement	8acf857	
+crates/quantrule-shell/tests/architecture.rs	test	rewrite	current boundaries	8acf857	
+crates/quantrule-shell/tests/backtest_command.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/cap_workflow.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/cli.rs	test	rewrite	surviving command set	8acf857	
+crates/quantrule-shell/tests/diagnosis.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/fixtures/config-run/strategy.json	fixture	rewrite	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/dashboard.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/dashboard.txt	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/help-all.txt	fixture	rewrite	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/help-glossary.txt	fixture	rewrite	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/help-lab-summary.txt	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/help-roles.txt	fixture	rewrite	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/help-store-ingest.txt	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/help-tutorial.txt	fixture	rewrite	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/help.txt	fixture	rewrite	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/analytical/provenance.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/analytical/report.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/execution/provenance.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/execution/report.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/model/provenance.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/model/report.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/notes.md	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/portfolio/provenance.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/portfolio/report.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/strategy/provenance.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/lab/strategy/report.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/market-report-events.png	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/market-report-price-axes.png	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/market-report.json	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/market-report.txt	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/state_m1.csv	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/strategy-run.ndjson	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/timeframes-gaps.report.txt	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/fixtures/timeframes.report.txt	fixture	delete	surviving command fixtures	8acf857	
+crates/quantrule-shell/tests/lab_summary.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/market_chart.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/market_report.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/report_command.rs	test	rewrite	report model only	8acf857	
+crates/quantrule-shell/tests/store_100k.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/store_aggregates.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/store_commands.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/store_verify.rs	test	delete	surviving shell tests	8acf857	
+crates/quantrule-shell/tests/strategy_run.rs	test	delete	surviving shell tests	8acf857	
+docs/README.md	doc	rewrite	current architecture index	8acf857	
+docs/config/2026-10-28/per-engine-config.md	doc	delete	current model/report/config contracts	8acf857	
+docs/config/2026-10-30/migration-v2-to-v3.md	doc	delete	current model/report/config contracts	8acf857	
+docs/config/2026-10-30/model-v2.md	doc	delete	current model/report/config contracts	8acf857	
+docs/model/2026-10-21/four-axis-analytical-model.md	doc	delete	current model/report/config contracts	8acf857	
+docs/model/2026-10-25/dashboard-state.md	doc	delete	current model/report/config contracts	8acf857	
+docs/model/2026-10-27/market-report.md	doc	delete	current model/report/config contracts	8acf857	
+docs/model/2026-10-30/per-timeframe-model.md	doc	delete	current model/report/config contracts	8acf857	
+docs/model/2026-11-01/model-evidence-protocol.md	doc	delete	current model/report/config contracts	8acf857	
+docs/model/2026-11-03/model-v3.md	doc	delete	current model/report/config contracts	8acf857	
+docs/model/2026-11-04/model-v4.md	doc	move	docs/model/2026-11-05/model-m1.0.md	8acf857	
+docs/registry/README.md	doc	rewrite	link the deletion manifest	8acf857	
+docs/registry/history.md	doc	rewrite	link the deletion manifest	8acf857	
+docs/tutorials/2026-10-29/full-pipeline.md	doc	delete	current model/report/config contracts	8acf857	
+docs/tutorials/2026-10-30/config-state-fixture/analytics.json	doc	delete	current config examples	8acf857	
+docs/tutorials/2026-10-30/config-state-fixture/data.json	doc	delete	current config examples	8acf857	
+docs/tutorials/2026-10-30/config-state-fixture/execution.json	doc	delete	current config examples	8acf857	
+docs/tutorials/2026-10-30/config-state-fixture/model.json	doc	delete	current config examples	8acf857	
+docs/tutorials/2026-10-30/config-state-fixture/policy.json	doc	delete	current config examples	8acf857	
+docs/tutorials/2026-10-30/config-state-fixture/portfolio.json	doc	delete	current config examples	8acf857	
+docs/tutorials/2026-10-30/config-state-fixture/run.json	doc	delete	current config examples	8acf857	
+docs/tutorials/2026-10-30/config-state-fixture/strategy.json	doc	delete	current config examples	8acf857	
+docs/tutorials/2026-10-30/unified-ladder.md	doc	delete	current model/report/config contracts	8acf857	
