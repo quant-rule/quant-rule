@@ -68,6 +68,16 @@ pub struct ExtendedConfig {
     pub level_atr: f64,
     /// Aroon window.
     pub aroon_window: usize,
+    /// Path window for efficiency, direction changes, extremes, drawdown, position.
+    pub path_window: usize,
+    /// Momentum-body ratio.
+    pub candle_body: f64,
+    /// Rejection-wick ratio.
+    pub candle_wick: f64,
+    /// Close-at-extreme ratio.
+    pub candle_close: f64,
+    /// Gap threshold in ATR.
+    pub gap_atr: f64,
 }
 
 impl ExtendedConfig {
@@ -101,6 +111,11 @@ impl ExtendedConfig {
         level_lookback: 500,
         level_atr: 0.25,
         aroon_window: 25,
+        path_window: 20,
+        candle_body: 0.7,
+        candle_wick: 0.6,
+        candle_close: 0.8,
+        gap_atr: 0.5,
     };
 }
 
@@ -211,6 +226,34 @@ pub struct ExtendedReadings {
     pub aroon_down: ReadingSeries,
     /// `aroon_up - aroon_down`.
     pub aroon_osc: ReadingSeries,
+    /// `body / range`.
+    pub body_ratio: ReadingSeries,
+    /// `upper_wick / range`.
+    pub upper_wick_ratio: ReadingSeries,
+    /// `lower_wick / range`.
+    pub lower_wick_ratio: ReadingSeries,
+    /// `(close - low) / range`.
+    pub close_position: ReadingSeries,
+    /// Candle-pattern ordinal code.
+    pub pattern_code: ReadingSeries,
+    /// Candle-pattern direction.
+    pub pattern_direction: ReadingSeries,
+    /// `(open - previous close) / ATR`.
+    pub gap_atr: ReadingSeries,
+    /// One when a qualifying gap is filled on the same bar.
+    pub gap_filled: ReadingSeries,
+    /// Net move over the absolute path.
+    pub path_efficiency: ReadingSeries,
+    /// Direction-change ratio over the path window.
+    pub direction_changes: ReadingSeries,
+    /// Bars since the path-window high.
+    pub bars_since_high: ReadingSeries,
+    /// Bars since the path-window low.
+    pub bars_since_low: ReadingSeries,
+    /// `(close - highest high) / ATR`.
+    pub drawdown_atr: ReadingSeries,
+    /// Position inside the path-window range.
+    pub range_position: ReadingSeries,
 }
 
 impl ExtendedReadings {
@@ -271,6 +314,20 @@ impl ExtendedReadings {
             aroon_up: null(),
             aroon_down: null(),
             aroon_osc: null(),
+            body_ratio: null(),
+            upper_wick_ratio: null(),
+            lower_wick_ratio: null(),
+            close_position: null(),
+            pattern_code: null(),
+            pattern_direction: null(),
+            gap_atr: null(),
+            gap_filled: null(),
+            path_efficiency: null(),
+            direction_changes: null(),
+            bars_since_high: null(),
+            bars_since_low: null(),
+            drawdown_atr: null(),
+            range_position: null(),
         }
     }
 
@@ -319,6 +376,7 @@ impl ExtendedReadings {
         ) = participation_series(candles, readings, config, &vwap, &profile.poc);
         let flow = flow_series(candles, config);
         let structure = structure_series(candles, readings, config);
+        let anatomy = anatomy_series(candles, readings, config);
         Self {
             vwap: ReadingSeries::new(vwap),
             vwap_distance_atr: ReadingSeries::new(distance),
@@ -372,8 +430,194 @@ impl ExtendedReadings {
             aroon_up: ReadingSeries::new(structure.aroon_up),
             aroon_down: ReadingSeries::new(structure.aroon_down),
             aroon_osc: ReadingSeries::new(structure.aroon_osc),
+            body_ratio: ReadingSeries::new(anatomy.body_ratio),
+            upper_wick_ratio: ReadingSeries::new(anatomy.upper_wick_ratio),
+            lower_wick_ratio: ReadingSeries::new(anatomy.lower_wick_ratio),
+            close_position: ReadingSeries::new(anatomy.close_position),
+            pattern_code: ReadingSeries::new(anatomy.pattern_code),
+            pattern_direction: ReadingSeries::new(anatomy.pattern_direction),
+            gap_atr: ReadingSeries::new(anatomy.gap_atr),
+            gap_filled: ReadingSeries::new(anatomy.gap_filled),
+            path_efficiency: ReadingSeries::new(anatomy.path_efficiency),
+            direction_changes: ReadingSeries::new(anatomy.direction_changes),
+            bars_since_high: ReadingSeries::new(anatomy.bars_since_high),
+            bars_since_low: ReadingSeries::new(anatomy.bars_since_low),
+            drawdown_atr: ReadingSeries::new(anatomy.drawdown_atr),
+            range_position: ReadingSeries::new(anatomy.range_position),
         }
     }
+}
+
+struct AnatomyReadings {
+    body_ratio: Vec<Option<f64>>,
+    upper_wick_ratio: Vec<Option<f64>>,
+    lower_wick_ratio: Vec<Option<f64>>,
+    close_position: Vec<Option<f64>>,
+    pattern_code: Vec<Option<f64>>,
+    pattern_direction: Vec<Option<f64>>,
+    gap_atr: Vec<Option<f64>>,
+    gap_filled: Vec<Option<f64>>,
+    path_efficiency: Vec<Option<f64>>,
+    direction_changes: Vec<Option<f64>>,
+    bars_since_high: Vec<Option<f64>>,
+    bars_since_low: Vec<Option<f64>>,
+    drawdown_atr: Vec<Option<f64>>,
+    range_position: Vec<Option<f64>>,
+}
+
+fn anatomy_series(
+    candles: &[Candle],
+    readings: &Readings,
+    config: &ExtendedConfig,
+) -> AnatomyReadings {
+    let len = candles.len();
+    let null = || vec![None; len];
+    let mut result = AnatomyReadings {
+        body_ratio: null(),
+        upper_wick_ratio: null(),
+        lower_wick_ratio: null(),
+        close_position: null(),
+        pattern_code: null(),
+        pattern_direction: null(),
+        gap_atr: null(),
+        gap_filled: null(),
+        path_efficiency: null(),
+        direction_changes: null(),
+        bars_since_high: null(),
+        bars_since_low: null(),
+        drawdown_atr: null(),
+        range_position: null(),
+    };
+    for bar in 0..len {
+        let candle = candles[bar];
+        let span = candle.high() - candle.low();
+        if span > 0.0 {
+            let body = (candle.close() - candle.open()).abs();
+            let upper = candle.high() - candle.open().max(candle.close());
+            let lower = candle.open().min(candle.close()) - candle.low();
+            result.body_ratio[bar] = Some(body / span);
+            result.upper_wick_ratio[bar] = Some(upper / span);
+            result.lower_wick_ratio[bar] = Some(lower / span);
+            result.close_position[bar] = Some((candle.close() - candle.low()) / span);
+        }
+        if bar >= 1 {
+            let previous = candles[bar - 1];
+            let bullish_engulf = candle.close() > candle.open()
+                && candle.open() <= previous.close()
+                && candle.close() >= previous.open();
+            let bearish_engulf = candle.close() < candle.open()
+                && candle.open() >= previous.close()
+                && candle.close() <= previous.open();
+            let inside = candle.high() <= previous.high() && candle.low() >= previous.low();
+            let outside = candle.high() > previous.high() && candle.low() < previous.low();
+            let three_soldiers = bar >= 2 && {
+                let previous2 = candles[bar - 2];
+                candle.close() > candle.open()
+                    && previous.close() > previous.open()
+                    && previous2.close() > previous2.open()
+                    && candle.close() > previous.close()
+                    && previous.close() > previous2.close()
+            };
+            let three_crows = bar >= 2 && {
+                let previous2 = candles[bar - 2];
+                candle.close() < candle.open()
+                    && previous.close() < previous.open()
+                    && previous2.close() < previous2.open()
+                    && candle.close() < previous.close()
+                    && previous.close() < previous2.close()
+            };
+            let (code, direction) = if bullish_engulf {
+                (1.0, 1.0)
+            } else if bearish_engulf {
+                (2.0, -1.0)
+            } else if three_soldiers {
+                (7.0, 1.0)
+            } else if three_crows {
+                (8.0, -1.0)
+            } else if outside {
+                (4.0, 0.0)
+            } else if inside {
+                (3.0, 0.0)
+            } else if span > 0.0 {
+                let body = (candle.close() - candle.open()).abs();
+                let upper = candle.high() - candle.open().max(candle.close());
+                let lower = candle.open().min(candle.close()) - candle.low();
+                let position = (candle.close() - candle.low()) / span;
+                if lower >= 2.0 * body && upper <= 0.1 * span && position >= 0.7 {
+                    (5.0, 1.0)
+                } else if upper >= 2.0 * body && lower <= 0.1 * span && position <= 0.3 {
+                    (6.0, -1.0)
+                } else {
+                    (0.0, 0.0)
+                }
+            } else {
+                (0.0, 0.0)
+            };
+            result.pattern_code[bar] = Some(code);
+            result.pattern_direction[bar] = Some(direction);
+        }
+        if bar > 0 {
+            let previous_close = candles[bar - 1].close();
+            if let Some(atr) = readings.atr14.get(bar).filter(|atr| *atr > 0.0) {
+                let gap = (candle.open() - previous_close) / atr;
+                result.gap_atr[bar] = Some(gap);
+                if gap.abs() >= config.gap_atr {
+                    let filled = if gap > 0.0 {
+                        candle.close() <= previous_close
+                    } else {
+                        candle.close() >= previous_close
+                    };
+                    result.gap_filled[bar] = Some(if filled { 1.0 } else { 0.0 });
+                } else {
+                    result.gap_filled[bar] = Some(0.0);
+                }
+            }
+        }
+        let window = config.path_window;
+        if window > 0 && bar + 1 >= window {
+            let start = bar + 1 - window;
+            let mut path = 0.0;
+            let mut changes = 0_u32;
+            let mut previous_sign = 0_i8;
+            for index in (start + 1)..=bar {
+                let delta = candles[index].close() - candles[index - 1].close();
+                path += delta.abs();
+                let sign = delta.signum() as i8;
+                if previous_sign != 0 && sign != 0 && sign != previous_sign {
+                    changes += 1;
+                }
+                if sign != 0 {
+                    previous_sign = sign;
+                }
+            }
+            let net = (candles[bar].close() - candles[start].close()).abs();
+            if path > 0.0 {
+                result.path_efficiency[bar] = Some(net / path);
+            }
+            result.direction_changes[bar] = Some(changes as f64 / window as f64);
+            let mut high_index = start;
+            let mut low_index = start;
+            for index in start..=bar {
+                if candles[index].high() > candles[high_index].high() {
+                    high_index = index;
+                }
+                if candles[index].low() < candles[low_index].low() {
+                    low_index = index;
+                }
+            }
+            result.bars_since_high[bar] = Some((bar - high_index) as f64);
+            result.bars_since_low[bar] = Some((bar - low_index) as f64);
+            let high = candles[high_index].high();
+            let low = candles[low_index].low();
+            if high > low {
+                result.range_position[bar] = Some((candles[bar].close() - low) / (high - low));
+            }
+            if let Some(atr) = readings.atr14.get(bar).filter(|atr| *atr > 0.0) {
+                result.drawdown_atr[bar] = Some((candles[bar].close() - high) / atr);
+            }
+        }
+    }
+    result
 }
 
 struct StructureReadings {
@@ -1347,5 +1591,69 @@ mod tests {
         assert!(extended.last_pivot_low.get(79).is_some());
         assert!(extended.structure_state.get(79).is_some());
         assert!(extended.level_touches.get(79).is_some());
+    }
+
+    #[test]
+    fn candle_anatomy_reads_the_bar() {
+        let candles = [candle(0, 100.0, 101.0, 99.0, 100.8, 10.0)];
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        assert!((extended.body_ratio.get(0).expect("body") - 0.4).abs() < 1e-9);
+        assert!((extended.upper_wick_ratio.get(0).expect("upper") - 0.1).abs() < 1e-9);
+        assert!((extended.lower_wick_ratio.get(0).expect("lower") - 0.5).abs() < 1e-9);
+        assert!((extended.close_position.get(0).expect("position") - 0.9).abs() < 1e-9);
+    }
+
+    #[test]
+    fn candle_pattern_flags_an_engulfing_bar() {
+        let candles = [
+            candle(0, 100.5, 100.6, 99.9, 100.0, 10.0),
+            candle(1, 99.9, 101.1, 99.8, 101.0, 10.0),
+        ];
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        assert_eq!(extended.pattern_code.get(1), Some(1.0));
+        assert_eq!(extended.pattern_direction.get(1), Some(1.0));
+    }
+
+    #[test]
+    fn gap_reads_the_open_jump() {
+        let candles = [
+            candle(0, 100.0, 100.5, 99.5, 100.0, 10.0),
+            candle(1, 101.0, 101.2, 99.8, 99.9, 10.0),
+        ];
+        let readings = readings(&candles);
+        assert!(readings.atr14.get(1).is_none());
+        let mut extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+        assert!(extended.gap_atr.get(1).is_none());
+        let readings = Readings::compute_with_config(
+            &candles,
+            &ReadingsConfig {
+                atr: 1,
+                ..ReadingsConfig::DEFAULT
+            },
+        );
+        extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+        assert!(extended.gap_atr.get(1).is_some());
+    }
+
+    #[test]
+    fn path_reads_efficiency_and_extremes() {
+        let candles: Vec<Candle> = (0..20)
+            .map(|index| {
+                let close = 100.0 + index as f64;
+                candle(index, close, close + 1.0, close - 1.0, close, 10.0)
+            })
+            .collect();
+        let config = ExtendedConfig {
+            path_window: 10,
+            ..ExtendedConfig::DEFAULT
+        };
+        let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+        let efficiency = extended.path_efficiency.get(19).expect("efficiency");
+        assert!((efficiency - 1.0).abs() < 1e-9, "efficiency {efficiency}");
+        assert_eq!(extended.bars_since_high.get(19), Some(0.0));
+        assert!(extended.range_position.get(19).expect("position") > 0.9);
+        assert!(extended.drawdown_atr.get(19).expect("drawdown") <= 0.0);
     }
 }
