@@ -32,6 +32,18 @@ pub const CMF_SOURCE_CODE: u16 = 25;
 pub const MFI_SOURCE_CODE: u16 = 26;
 /// Source code for the accumulation/distribution line.
 pub const AD_SOURCE_CODE: u16 = 27;
+/// Source code for Keltner.
+pub const KELTNER_SOURCE_CODE: u16 = 31;
+/// Source code for Donchian.
+pub const DONCHIAN_SOURCE_CODE: u16 = 32;
+/// Source code for swing structure.
+pub const SWING_SOURCE_CODE: u16 = 33;
+/// Source code for level strength.
+pub const STRENGTH_SOURCE_CODE: u16 = 34;
+/// Source code for candle anatomy.
+pub const CANDLE_SOURCE_CODE: u16 = 37;
+/// Source code for gaps.
+pub const GAP_SOURCE_CODE: u16 = 39;
 
 /// The configuration of the extended event run.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -88,6 +100,7 @@ impl ExtendedEventSeries {
             profile_events(candles, readings, extended, config, bar, &mut events);
             participation_events(candles, readings, extended, config, bar, &mut events);
             flow_events(candles, extended, config, bar, &mut events);
+            level_extended_events(candles, readings, extended, config, bar, &mut events);
         }
         divergence_events(readings, extended, config, &mut events);
         participation_divergences(readings, extended, config, &mut events);
@@ -1101,6 +1114,248 @@ fn flow_divergences(
     }
 }
 
+fn level_extended_events(
+    candles: &[Candle],
+    readings: &Readings,
+    extended: &ExtendedReadings,
+    config: &ExtendedEventConfig,
+    bar: usize,
+    events: &mut Vec<EventRecord>,
+) {
+    let candle = candles[bar];
+    let close = candle.close();
+    let timeframe = config.timeframe_secs();
+    let atr = readings.atr14.get(bar).filter(|atr| *atr > 0.0);
+    if let (Some(upper), Some(lower), Some(atr)) = (
+        extended.keltner_upper.get(bar),
+        extended.keltner_lower.get(bar),
+        atr,
+    ) {
+        if (close - upper).abs() <= config.level_atr * atr
+            || (close - lower).abs() <= config.level_atr * atr
+        {
+            push(
+                events,
+                EventType::Level,
+                1,
+                KELTNER_SOURCE_CODE,
+                timeframe,
+                bar,
+                0,
+                Some(close),
+                Some(if (close - upper).abs() <= (close - lower).abs() {
+                    upper
+                } else {
+                    lower
+                }),
+            );
+        }
+        if bar > 0
+            && let (Some(previous_close), Some(previous_upper), Some(previous_lower)) = (
+                candles.get(bar - 1).map(Candle::close),
+                extended.keltner_upper.get(bar - 1),
+                extended.keltner_lower.get(bar - 1),
+            )
+        {
+            if close > upper && previous_close <= previous_upper {
+                push(
+                    events,
+                    EventType::Level,
+                    3,
+                    KELTNER_SOURCE_CODE,
+                    timeframe,
+                    bar,
+                    1,
+                    Some(close),
+                    Some(upper),
+                );
+            } else if close < lower && previous_close >= previous_lower {
+                push(
+                    events,
+                    EventType::Level,
+                    3,
+                    KELTNER_SOURCE_CODE,
+                    timeframe,
+                    bar,
+                    -1,
+                    Some(close),
+                    Some(lower),
+                );
+            }
+        }
+    }
+    if let (Some(upper), Some(lower), Some(atr)) = (
+        extended.donchian_upper.get(bar),
+        extended.donchian_lower.get(bar),
+        atr,
+    ) {
+        if (candle.high() - upper).abs() <= config.level_atr * atr
+            || (candle.low() - lower).abs() <= config.level_atr * atr
+        {
+            push(
+                events,
+                EventType::Level,
+                1,
+                DONCHIAN_SOURCE_CODE,
+                timeframe,
+                bar,
+                0,
+                Some(candle.high()),
+                Some(upper),
+            );
+        }
+        if bar > 0
+            && let (Some(previous_close), Some(previous_upper), Some(previous_lower)) = (
+                candles.get(bar - 1).map(Candle::close),
+                extended.donchian_upper.get(bar - 1),
+                extended.donchian_lower.get(bar - 1),
+            )
+        {
+            if close > previous_upper && previous_close <= previous_upper {
+                push(
+                    events,
+                    EventType::Level,
+                    3,
+                    DONCHIAN_SOURCE_CODE,
+                    timeframe,
+                    bar,
+                    1,
+                    Some(close),
+                    Some(previous_upper),
+                );
+            } else if close < previous_lower && previous_close >= previous_lower {
+                push(
+                    events,
+                    EventType::Level,
+                    3,
+                    DONCHIAN_SOURCE_CODE,
+                    timeframe,
+                    bar,
+                    -1,
+                    Some(close),
+                    Some(previous_lower),
+                );
+            }
+        }
+    }
+    if let (Some(high), Some(low)) = (
+        extended.last_pivot_high.get(bar),
+        extended.last_pivot_low.get(bar),
+    ) && bar > 0
+        && let (Some(previous_close), Some(previous_high), Some(previous_low)) = (
+            candles.get(bar - 1).map(Candle::close),
+            extended.last_pivot_high.get(bar - 1),
+            extended.last_pivot_low.get(bar - 1),
+        )
+    {
+        if close > high && previous_close <= previous_high {
+            push(
+                events,
+                EventType::Level,
+                3,
+                SWING_SOURCE_CODE,
+                timeframe,
+                bar,
+                1,
+                Some(close),
+                Some(high),
+            );
+        } else if close < low && previous_close >= previous_low {
+            push(
+                events,
+                EventType::Level,
+                3,
+                SWING_SOURCE_CODE,
+                timeframe,
+                bar,
+                -1,
+                Some(close),
+                Some(low),
+            );
+        }
+    }
+    if let Some(touches) = extended.level_touches.get(bar)
+        && touches >= 2.0
+    {
+        push(
+            events,
+            EventType::Level,
+            1,
+            STRENGTH_SOURCE_CODE,
+            timeframe,
+            bar,
+            0,
+            Some(touches),
+            extended.last_pivot_high.get(bar),
+        );
+    }
+    if let (Some(upper_wick), Some(high), Some(atr)) = (
+        extended.upper_wick_ratio.get(bar),
+        extended.last_pivot_high.get(bar),
+        atr,
+    ) && upper_wick >= 0.6
+        && (candle.high() - high).abs() <= config.level_atr * atr
+    {
+        push(
+            events,
+            EventType::Level,
+            1,
+            CANDLE_SOURCE_CODE,
+            timeframe,
+            bar,
+            0,
+            Some(upper_wick),
+            Some(high),
+        );
+    }
+    if let (Some(lower_wick), Some(low), Some(atr)) = (
+        extended.lower_wick_ratio.get(bar),
+        extended.last_pivot_low.get(bar),
+        atr,
+    ) && lower_wick >= 0.6
+        && (candle.low() - low).abs() <= config.level_atr * atr
+    {
+        push(
+            events,
+            EventType::Level,
+            1,
+            CANDLE_SOURCE_CODE,
+            timeframe,
+            bar,
+            0,
+            Some(lower_wick),
+            Some(low),
+        );
+    }
+    if extended.gap_filled.get(bar) == Some(1.0) {
+        push(
+            events,
+            EventType::Level,
+            1,
+            GAP_SOURCE_CODE,
+            timeframe,
+            bar,
+            0,
+            extended.gap_atr.get(bar),
+            Some(0.0),
+        );
+    } else if let Some(gap) = extended.gap_atr.get(bar)
+        && gap.abs() <= 0.2
+    {
+        push(
+            events,
+            EventType::Level,
+            1,
+            GAP_SOURCE_CODE,
+            timeframe,
+            bar,
+            0,
+            Some(gap),
+            Some(0.0),
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{ExtendedEventConfig, ExtendedEventSeries};
@@ -1281,6 +1536,51 @@ mod tests {
                 .events()
                 .iter()
                 .any(|event| event.source_code == 25 && event.event_subtype_code == 15)
+        );
+    }
+
+    #[test]
+    fn a_keltner_break_is_a_level_event() {
+        let mut candles: Vec<Candle> = (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+            .collect();
+        candles[29] = candle(29, 100.0, 106.5, 99.0, 106.0, 10.0);
+        let events = compute(&candles);
+        assert!(
+            events
+                .events()
+                .iter()
+                .any(|event| event.source_code == 31 && event.event_subtype_code == 3)
+        );
+    }
+
+    #[test]
+    fn a_donchian_break_is_a_level_event() {
+        let mut candles: Vec<Candle> = (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+            .collect();
+        candles[29] = candle(29, 100.0, 102.5, 100.0, 102.0, 10.0);
+        let events = compute(&candles);
+        assert!(
+            events
+                .events()
+                .iter()
+                .any(|event| event.source_code == 32 && event.event_subtype_code == 3)
+        );
+    }
+
+    #[test]
+    fn a_filled_gap_is_a_level_event() {
+        let mut candles: Vec<Candle> = (0..20)
+            .map(|index| candle(index, 100.0, 100.5, 99.5, 100.0, 10.0))
+            .collect();
+        candles[19] = candle(19, 102.0, 102.5, 99.0, 99.5, 10.0);
+        let events = compute(&candles);
+        assert!(
+            events
+                .events()
+                .iter()
+                .any(|event| event.source_code == 39 && event.event_subtype_code == 1)
         );
     }
 }

@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.8",
+  "version": "2026-11-05.9",
   "indicators": [
     {
       "id": "ema",
@@ -840,7 +840,10 @@
         "keltner_position"
       ],
       "availability": "EMA and ATR windows",
-      "events": [],
+      "events": [
+        "level.keltner_test",
+        "level.keltner_break"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -871,7 +874,10 @@
         "donchian_position"
       ],
       "availability": "window",
-      "events": [],
+      "events": [
+        "level.donchian_test",
+        "level.donchian_break"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -901,7 +907,9 @@
         "last_pivot_low"
       ],
       "availability": "two confirmed major pivots of each kind",
-      "events": [],
+      "events": [
+        "level.structure_break"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -932,7 +940,9 @@
         "level_age"
       ],
       "availability": "confirmed major levels and ATR",
-      "events": [],
+      "events": [
+        "level.strength_test"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1026,7 +1036,9 @@
         "close_position"
       ],
       "availability": "non-zero range",
-      "events": [],
+      "events": [
+        "level.wick_test"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1089,7 +1101,10 @@
         "gap_filled"
       ],
       "availability": "prior close and ATR",
-      "events": [],
+      "events": [
+        "level.gap_fill",
+        "level.gap_test"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -2891,6 +2906,159 @@
       "role": "signal",
       "claim": "An A/D line cross of its mean marks a flow shift.",
       "formula": "cross_up(AD, AD_MA) or cross_down(AD, AD_MA)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.keltner_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 31,
+      "indicator": "keltner",
+      "role": "context",
+      "claim": "none",
+      "formula": "abs(C-U)<=0.2ATR or abs(C-L)<=0.2ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.keltner_break",
+      "event_type": 1,
+      "subtype": 3,
+      "source": 31,
+      "indicator": "keltner",
+      "role": "context",
+      "claim": "none",
+      "formula": "C>U and C_prev<=U_prev, or C<L and C_prev>=L_prev",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.donchian_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 32,
+      "indicator": "donchian",
+      "role": "context",
+      "claim": "none",
+      "formula": "abs(H-DH)<=0.2ATR or abs(L-DL)<=0.2ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.donchian_break",
+      "event_type": 1,
+      "subtype": 3,
+      "source": 32,
+      "indicator": "donchian",
+      "role": "context",
+      "claim": "none",
+      "formula": "C>DH_prev and C_prev<=DH_prev, or C<DL_prev and C_prev>=DL_prev",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.structure_break",
+      "event_type": 1,
+      "subtype": 3,
+      "source": 33,
+      "indicator": "swing_structure",
+      "role": "context",
+      "claim": "none",
+      "formula": "C>last_pivot_high and C_prev<=last_pivot_high, or C<last_pivot_low and C_prev>=last_pivot_low",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.strength_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 34,
+      "indicator": "level_strength",
+      "role": "context",
+      "claim": "none",
+      "formula": "level_touches >= 2 within 0.2ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.wick_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 37,
+      "indicator": "candle_anatomy",
+      "role": "context",
+      "claim": "none",
+      "formula": "upper_wick_ratio>=0.6 and abs(H-level)<=0.2ATR, or lower mirror",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.gap_fill",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 39,
+      "indicator": "gap",
+      "role": "context",
+      "claim": "none",
+      "formula": "gap_filled=1 for a qualifying gap",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.gap_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 39,
+      "indicator": "gap",
+      "role": "context",
+      "claim": "none",
+      "formula": "abs(gap_atr)<=0.2",
       "parameters": [],
       "tests": [
         "event",
