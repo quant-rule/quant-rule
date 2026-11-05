@@ -152,11 +152,11 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
 | 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
 | 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 28 | relative_strength | 37 | 9 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 29 | lead_lag | 38 | 9 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 30 | breadth | 39 | 9 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 31 | co_movement | 40 | 9 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 32 | dispersion | 41 | 9 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
+| 28 | relative_strength | 37 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 29 | lead_lag | 38 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
 | 33 | session | 42 | 10 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 34 | opening_range | 43 | 10 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 35 | overnight_intraday | 44 | 10 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
@@ -199,11 +199,11 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test bars_since_extreme` | ☐ |
 | 26 | drawdown_atr | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test drawdown_atr` | ☐ |
 | 27 | range_position | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test range_position` | ☐ |
-| 28 | relative_strength | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test relative_strength` | ☐ |
-| 29 | lead_lag | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test lead_lag` | ☐ |
-| 30 | breadth | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test breadth` | ☐ |
-| 31 | co_movement | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test co_movement` | ☐ |
-| 32 | dispersion | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test dispersion` | ☐ |
+| 28 | relative_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test relative_strength` | ☐ |
+| 29 | lead_lag | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test lead_lag` | ☐ |
+| 30 | breadth | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test breadth` | ☐ |
+| 31 | co_movement | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test co_movement` | ☐ |
+| 32 | dispersion | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test dispersion` | ☐ |
 | 33 | session | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test session` | ☐ |
 | 34 | opening_range | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test opening_range` | ☐ |
 | 35 | overnight_intraday | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test overnight_intraday` | ☐ |

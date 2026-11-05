@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.6",
+  "version": "2026-11-05.7",
   "indicators": [
     {
       "id": "ema",
@@ -1230,6 +1230,143 @@
         "range_position"
       ],
       "availability": "path window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "relative_strength",
+      "code": 37,
+      "name": "Relative strength",
+      "taxonomy": "cross_asset",
+      "role": "context",
+      "claim": "The return difference against the peer basket describes relative positioning.",
+      "formula": "ret_i=(C_i-C_i[n])/ATR_i; RS=ret_i-mean(ret_j)",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.panel.return_window",
+        "model.panel.atr_period"
+      ],
+      "outputs": [
+        "relative_strength"
+      ],
+      "availability": "common panel timestamps and return window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "lead_lag",
+      "code": 38,
+      "name": "Lead-lag",
+      "taxonomy": "cross_asset",
+      "role": "context",
+      "claim": "The leader's past return against the follower's current return describes flow propagation.",
+      "formula": "lead=ret_leader[t-k]; follow=ret_i[t]; LL=lead-follow",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.panel.lead_lag",
+        "model.panel.return_window"
+      ],
+      "outputs": [
+        "lead_lag"
+      ],
+      "availability": "lead-lag and return windows",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "breadth",
+      "code": 39,
+      "name": "Breadth",
+      "taxonomy": "cross_asset",
+      "role": "context",
+      "claim": "The share of instruments with a positive return describes participation breadth.",
+      "formula": "BR=count(ret_i>0)/count(ret_i)",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.panel.return_window"
+      ],
+      "outputs": [
+        "breadth"
+      ],
+      "availability": "common panel timestamps",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "co_movement",
+      "code": 40,
+      "name": "Co-movement",
+      "taxonomy": "cross_asset",
+      "role": "diagnostic",
+      "claim": "The same-sign share against the basket describes co-movement.",
+      "formula": "CM=sum(sign(ret_i)==sign(basket))/n",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.panel.co_movement_window"
+      ],
+      "outputs": [
+        "co_movement"
+      ],
+      "availability": "co-movement window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "dispersion",
+      "code": 41,
+      "name": "Dispersion",
+      "taxonomy": "cross_asset",
+      "role": "diagnostic",
+      "claim": "The cross-sectional return range describes dispersion.",
+      "formula": "D=max(ret_j)-min(ret_j)",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.panel.return_window"
+      ],
+      "outputs": [
+        "dispersion"
+      ],
+      "availability": "common panel timestamps",
       "events": [],
       "tests": [
         "causality",
@@ -3924,6 +4061,54 @@
       "type": "number",
       "default": 0.5,
       "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.panel.return_window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 24,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.panel.lead_lag",
+      "path": "fixed",
+      "type": "integer",
+      "default": 2,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.panel.co_movement_window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.panel.atr_period",
+      "path": "fixed",
+      "type": "integer",
+      "default": 14,
+      "unit": "bars",
       "configurable": false,
       "affects": [
         "model"
