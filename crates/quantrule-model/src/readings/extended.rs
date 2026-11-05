@@ -8,7 +8,8 @@
 
 use quantrule_data::Candle;
 
-use super::{ReadingSeries, Readings};
+use super::{PivotKind, PivotScale, ReadingSeries, Readings, atr, ema};
+use crate::axes::structure::registry::ConfirmedLevelRegistry;
 
 /// Configuration for the extended readings.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -45,6 +46,28 @@ pub struct ExtendedConfig {
     pub mfi_window: usize,
     /// CMF threshold.
     pub cmf_threshold: f64,
+    /// Slow ATR window for the term structure.
+    pub atr_slow_window: usize,
+    /// ATR-ratio slope lookback.
+    pub atr_slope_window: usize,
+    /// Range-expansion mean window.
+    pub range_window: usize,
+    /// Fast mean-absolute-return window.
+    pub mar_fast: usize,
+    /// Slow mean-absolute-return window.
+    pub mar_slow: usize,
+    /// Keltner EMA window.
+    pub keltner_window: usize,
+    /// Keltner ATR multiple.
+    pub keltner_atr: f64,
+    /// Donchian window.
+    pub donchian_window: usize,
+    /// Confirmed-level lookback in bars.
+    pub level_lookback: usize,
+    /// Level touch tolerance in ATR.
+    pub level_atr: f64,
+    /// Aroon window.
+    pub aroon_window: usize,
 }
 
 impl ExtendedConfig {
@@ -67,6 +90,17 @@ impl ExtendedConfig {
         flow_window: 20,
         mfi_window: 14,
         cmf_threshold: 0.2,
+        atr_slow_window: 100,
+        atr_slope_window: 10,
+        range_window: 20,
+        mar_fast: 5,
+        mar_slow: 20,
+        keltner_window: 20,
+        keltner_atr: 2.0,
+        donchian_window: 20,
+        level_lookback: 500,
+        level_atr: 0.25,
+        aroon_window: 25,
     };
 }
 
@@ -135,6 +169,48 @@ pub struct ExtendedReadings {
     pub ad_line: ReadingSeries,
     /// Mean of the A/D line over the flow window.
     pub ad_ma: ReadingSeries,
+    /// `ATR fast / ATR slow`.
+    pub atr_ratio: ReadingSeries,
+    /// `ATR ratio[t] - ATR ratio[t-n]`.
+    pub atr_slope: ReadingSeries,
+    /// 0 compressed, 1 normal, 2 expanded.
+    pub vol_regime: ReadingSeries,
+    /// `range / mean(range, n)`.
+    pub range_expansion: ReadingSeries,
+    /// Fast mean absolute return.
+    pub mar_fast: ReadingSeries,
+    /// Slow mean absolute return.
+    pub mar_slow: ReadingSeries,
+    /// `mar_fast / mar_slow`.
+    pub mar_ratio: ReadingSeries,
+    /// Keltner upper band.
+    pub keltner_upper: ReadingSeries,
+    /// Keltner lower band.
+    pub keltner_lower: ReadingSeries,
+    /// `(close - lower) / (upper - lower)`.
+    pub keltner_position: ReadingSeries,
+    /// Donchian upper band.
+    pub donchian_upper: ReadingSeries,
+    /// Donchian lower band.
+    pub donchian_lower: ReadingSeries,
+    /// `(close - lower) / (upper - lower)`.
+    pub donchian_position: ReadingSeries,
+    /// +1 HH/HL, -1 LH/LL, 0 mixed.
+    pub structure_state: ReadingSeries,
+    /// The latest confirmed major pivot high.
+    pub last_pivot_high: ReadingSeries,
+    /// The latest confirmed major pivot low.
+    pub last_pivot_low: ReadingSeries,
+    /// Confirmed-level touches in the lookback.
+    pub level_touches: ReadingSeries,
+    /// Age of the most recently touched level.
+    pub level_age: ReadingSeries,
+    /// Aroon up.
+    pub aroon_up: ReadingSeries,
+    /// Aroon down.
+    pub aroon_down: ReadingSeries,
+    /// `aroon_up - aroon_down`.
+    pub aroon_osc: ReadingSeries,
 }
 
 impl ExtendedReadings {
@@ -174,6 +250,27 @@ impl ExtendedReadings {
             mfi: null(),
             ad_line: null(),
             ad_ma: null(),
+            atr_ratio: null(),
+            atr_slope: null(),
+            vol_regime: null(),
+            range_expansion: null(),
+            mar_fast: null(),
+            mar_slow: null(),
+            mar_ratio: null(),
+            keltner_upper: null(),
+            keltner_lower: null(),
+            keltner_position: null(),
+            donchian_upper: null(),
+            donchian_lower: null(),
+            donchian_position: null(),
+            structure_state: null(),
+            last_pivot_high: null(),
+            last_pivot_low: null(),
+            level_touches: null(),
+            level_age: null(),
+            aroon_up: null(),
+            aroon_down: null(),
+            aroon_osc: null(),
         }
     }
 
@@ -221,6 +318,7 @@ impl ExtendedReadings {
             absorption_strength,
         ) = participation_series(candles, readings, config, &vwap, &profile.poc);
         let flow = flow_series(candles, config);
+        let structure = structure_series(candles, readings, config);
         Self {
             vwap: ReadingSeries::new(vwap),
             vwap_distance_atr: ReadingSeries::new(distance),
@@ -253,8 +351,267 @@ impl ExtendedReadings {
             mfi: ReadingSeries::new(flow.mfi),
             ad_line: ReadingSeries::new(flow.ad_line),
             ad_ma: ReadingSeries::new(flow.ad_ma),
+            atr_ratio: ReadingSeries::new(structure.atr_ratio),
+            atr_slope: ReadingSeries::new(structure.atr_slope),
+            vol_regime: ReadingSeries::new(structure.vol_regime),
+            range_expansion: ReadingSeries::new(structure.range_expansion),
+            mar_fast: ReadingSeries::new(structure.mar_fast),
+            mar_slow: ReadingSeries::new(structure.mar_slow),
+            mar_ratio: ReadingSeries::new(structure.mar_ratio),
+            keltner_upper: ReadingSeries::new(structure.keltner_upper),
+            keltner_lower: ReadingSeries::new(structure.keltner_lower),
+            keltner_position: ReadingSeries::new(structure.keltner_position),
+            donchian_upper: ReadingSeries::new(structure.donchian_upper),
+            donchian_lower: ReadingSeries::new(structure.donchian_lower),
+            donchian_position: ReadingSeries::new(structure.donchian_position),
+            structure_state: ReadingSeries::new(structure.structure_state),
+            last_pivot_high: ReadingSeries::new(structure.last_pivot_high),
+            last_pivot_low: ReadingSeries::new(structure.last_pivot_low),
+            level_touches: ReadingSeries::new(structure.level_touches),
+            level_age: ReadingSeries::new(structure.level_age),
+            aroon_up: ReadingSeries::new(structure.aroon_up),
+            aroon_down: ReadingSeries::new(structure.aroon_down),
+            aroon_osc: ReadingSeries::new(structure.aroon_osc),
         }
     }
+}
+
+struct StructureReadings {
+    atr_ratio: Vec<Option<f64>>,
+    atr_slope: Vec<Option<f64>>,
+    vol_regime: Vec<Option<f64>>,
+    range_expansion: Vec<Option<f64>>,
+    mar_fast: Vec<Option<f64>>,
+    mar_slow: Vec<Option<f64>>,
+    mar_ratio: Vec<Option<f64>>,
+    keltner_upper: Vec<Option<f64>>,
+    keltner_lower: Vec<Option<f64>>,
+    keltner_position: Vec<Option<f64>>,
+    donchian_upper: Vec<Option<f64>>,
+    donchian_lower: Vec<Option<f64>>,
+    donchian_position: Vec<Option<f64>>,
+    structure_state: Vec<Option<f64>>,
+    last_pivot_high: Vec<Option<f64>>,
+    last_pivot_low: Vec<Option<f64>>,
+    level_touches: Vec<Option<f64>>,
+    level_age: Vec<Option<f64>>,
+    aroon_up: Vec<Option<f64>>,
+    aroon_down: Vec<Option<f64>>,
+    aroon_osc: Vec<Option<f64>>,
+}
+
+fn mean_range(candles: &[Candle], bar: usize, window: usize) -> Option<f64> {
+    if window == 0 || bar + 1 < window {
+        return None;
+    }
+    let start = bar + 1 - window;
+    let total: f64 = candles[start..=bar]
+        .iter()
+        .map(|candle| candle.high() - candle.low())
+        .sum();
+    Some(total / window as f64)
+}
+
+fn mean_absolute_return(candles: &[Candle], bar: usize, window: usize) -> Option<f64> {
+    if window == 0 || bar < window || bar == 0 {
+        return None;
+    }
+    let start = bar + 1 - window;
+    let mut total = 0.0;
+    for index in start..=bar {
+        let previous = candles[index - 1].close();
+        if previous == 0.0 {
+            return None;
+        }
+        total += ((candles[index].close() - previous) / previous).abs();
+    }
+    Some(total / window as f64)
+}
+
+fn structure_series(
+    candles: &[Candle],
+    readings: &Readings,
+    config: &ExtendedConfig,
+) -> StructureReadings {
+    let len = candles.len();
+    let null = || vec![None; len];
+    let mut result = StructureReadings {
+        atr_ratio: null(),
+        atr_slope: null(),
+        vol_regime: null(),
+        range_expansion: null(),
+        mar_fast: null(),
+        mar_slow: null(),
+        mar_ratio: null(),
+        keltner_upper: null(),
+        keltner_lower: null(),
+        keltner_position: null(),
+        donchian_upper: null(),
+        donchian_lower: null(),
+        donchian_position: null(),
+        structure_state: null(),
+        last_pivot_high: null(),
+        last_pivot_low: null(),
+        level_touches: null(),
+        level_age: null(),
+        aroon_up: null(),
+        aroon_down: null(),
+        aroon_osc: null(),
+    };
+    if len == 0 {
+        return result;
+    }
+    let atr_slow = atr(candles, config.atr_slow_window);
+    let ema_close = ema(candles, config.keltner_window);
+    let levels = ConfirmedLevelRegistry::from_pivots(&readings.pivots);
+    let mut last_high: Option<f64> = None;
+    let mut last_low: Option<f64> = None;
+    let mut previous_high: Option<f64> = None;
+    let mut previous_low: Option<f64> = None;
+
+    for bar in 0..len {
+        let atr_fast = readings.atr14.get(bar);
+        if let (Some(fast), Some(slow)) = (atr_fast, atr_slow.get(bar))
+            && slow > 0.0
+        {
+            let ratio = fast / slow;
+            result.atr_ratio[bar] = Some(ratio);
+            result.vol_regime[bar] = Some(if ratio <= 0.7 {
+                0.0
+            } else if ratio < 1.3 {
+                1.0
+            } else {
+                2.0
+            });
+            if bar >= config.atr_slope_window
+                && let Some(previous) = result.atr_ratio[bar - config.atr_slope_window]
+            {
+                result.atr_slope[bar] = Some(ratio - previous);
+            }
+        }
+        if let (Some(mean), Some(atr)) = (mean_range(candles, bar, config.range_window), atr_fast)
+            && mean > 0.0
+            && atr > 0.0
+        {
+            result.range_expansion[bar] = Some((candles[bar].high() - candles[bar].low()) / mean);
+        }
+        let fast_mar = mean_absolute_return(candles, bar, config.mar_fast);
+        let slow_mar = mean_absolute_return(candles, bar, config.mar_slow);
+        result.mar_fast[bar] = fast_mar;
+        result.mar_slow[bar] = slow_mar;
+        if let (Some(fast), Some(slow)) = (fast_mar, slow_mar)
+            && slow > 0.0
+        {
+            result.mar_ratio[bar] = Some(fast / slow);
+        }
+        if let (Some(center), Some(atr)) = (ema_close.get(bar), atr_fast) {
+            let upper = center + config.keltner_atr * atr;
+            let lower = center - config.keltner_atr * atr;
+            result.keltner_upper[bar] = Some(upper);
+            result.keltner_lower[bar] = Some(lower);
+            if upper > lower {
+                result.keltner_position[bar] =
+                    Some((candles[bar].close() - lower) / (upper - lower));
+            }
+        }
+        if bar + 1 >= config.donchian_window && config.donchian_window > 0 {
+            let start = bar + 1 - config.donchian_window;
+            let mut upper = f64::NEG_INFINITY;
+            let mut lower = f64::INFINITY;
+            for candle in &candles[start..=bar] {
+                upper = upper.max(candle.high());
+                lower = lower.min(candle.low());
+            }
+            result.donchian_upper[bar] = Some(upper);
+            result.donchian_lower[bar] = Some(lower);
+            if upper > lower {
+                result.donchian_position[bar] =
+                    Some((candles[bar].close() - lower) / (upper - lower));
+            }
+        }
+        if let Some(pivot) = readings.pivots.confirmed_at(PivotScale::Major, bar) {
+            match pivot.kind {
+                PivotKind::High => {
+                    previous_high = last_high;
+                    last_high = Some(pivot.price);
+                }
+                PivotKind::Low => {
+                    previous_low = last_low;
+                    last_low = Some(pivot.price);
+                }
+            }
+        }
+        result.last_pivot_high[bar] = last_high;
+        result.last_pivot_low[bar] = last_low;
+        if let (Some(high), Some(prior_high), Some(low), Some(prior_low)) =
+            (last_high, previous_high, last_low, previous_low)
+        {
+            let high_state = if high > prior_high {
+                1
+            } else if high < prior_high {
+                -1
+            } else {
+                0
+            };
+            let low_state = if low > prior_low {
+                1
+            } else if low < prior_low {
+                -1
+            } else {
+                0
+            };
+            let state = if high_state == 1 && low_state == 1 {
+                1.0
+            } else if high_state == -1 && low_state == -1 {
+                -1.0
+            } else {
+                0.0
+            };
+            result.structure_state[bar] = Some(state);
+        }
+        if let Some(atr) = atr_fast {
+            let tolerance = config.level_atr * atr;
+            let mut touches = 0_u32;
+            let mut youngest: Option<usize> = None;
+            for level in levels.levels() {
+                if level.scale != PivotScale::Major
+                    || level.available_at > bar
+                    || bar - level.available_at > config.level_lookback
+                {
+                    continue;
+                }
+                if (candles[bar].high() - level.price).abs() <= tolerance
+                    || (candles[bar].low() - level.price).abs() <= tolerance
+                {
+                    touches = touches.saturating_add(1);
+                    let age = bar - level.available_at;
+                    youngest = Some(youngest.map_or(age, |current| current.min(age)));
+                }
+            }
+            result.level_touches[bar] = Some(f64::from(touches));
+            result.level_age[bar] = youngest.map(|age| age as f64);
+        }
+        if bar + 1 >= config.aroon_window && config.aroon_window > 0 {
+            let start = bar + 1 - config.aroon_window;
+            let mut high_index = start;
+            let mut low_index = start;
+            for index in start..=bar {
+                if candles[index].high() > candles[high_index].high() {
+                    high_index = index;
+                }
+                if candles[index].low() < candles[low_index].low() {
+                    low_index = index;
+                }
+            }
+            let window = config.aroon_window as f64;
+            let up = 100.0 * (window - (bar - high_index) as f64) / window;
+            let down = 100.0 * (window - (bar - low_index) as f64) / window;
+            result.aroon_up[bar] = Some(up);
+            result.aroon_down[bar] = Some(down);
+            result.aroon_osc[bar] = Some(up - down);
+        }
+    }
+    result
 }
 
 struct FlowSeries {
@@ -916,5 +1273,79 @@ mod tests {
             assert_eq!(full.cmf.get(bar), prefix.cmf.get(bar));
             assert_eq!(full.mfi.get(bar), prefix.mfi.get(bar));
         }
+    }
+
+    #[test]
+    fn atr_term_is_available_after_the_slow_window() {
+        let candles: Vec<Candle> = (0..120)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+            .collect();
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        assert_eq!(extended.atr_ratio.get(99), None);
+        let ratio = extended.atr_ratio.get(119).expect("atr ratio");
+        assert!((ratio - 1.0).abs() < 1e-9, "ratio {ratio}");
+    }
+
+    #[test]
+    fn range_and_mar_read_the_window() {
+        let candles: Vec<Candle> = (0..25)
+            .map(|index| {
+                let close = 100.0 + index as f64;
+                candle(index, close, close + 1.0, close - 1.0, close, 10.0)
+            })
+            .collect();
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        let range = extended.range_expansion.get(24).expect("range");
+        assert!((range - 1.0).abs() < 1e-9, "range {range}");
+        assert!(extended.mar_fast.get(24).is_some());
+        assert!(extended.mar_ratio.get(24).is_some());
+    }
+
+    #[test]
+    fn keltner_and_donchian_publish_bands() {
+        let candles: Vec<Candle> = (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+            .collect();
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        let upper = extended.keltner_upper.get(29).expect("keltner upper");
+        let lower = extended.keltner_lower.get(29).expect("keltner lower");
+        assert!(upper > lower);
+        assert!(extended.keltner_position.get(29).is_some());
+        assert_eq!(extended.donchian_upper.get(29), Some(101.0));
+        assert_eq!(extended.donchian_lower.get(29), Some(99.0));
+    }
+
+    #[test]
+    fn aroon_reads_a_rising_series() {
+        let candles: Vec<Candle> = (0..30)
+            .map(|index| {
+                let close = 100.0 + index as f64;
+                candle(index, close, close + 1.0, close - 1.0, close, 10.0)
+            })
+            .collect();
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        let up = extended.aroon_up.get(29).expect("aroon up");
+        assert!(up > 90.0, "up {up}");
+        assert!(extended.aroon_osc.get(29).is_some());
+    }
+
+    #[test]
+    fn structure_and_levels_publish_when_history_exists() {
+        let candles: Vec<Candle> = (0..80)
+            .map(|index| {
+                let close = 100.0 + (index as f64 * 0.3).sin() * 5.0;
+                candle(index, close, close + 1.0, close - 1.0, close, 10.0)
+            })
+            .collect();
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        assert!(extended.last_pivot_high.get(79).is_some());
+        assert!(extended.last_pivot_low.get(79).is_some());
+        assert!(extended.structure_state.get(79).is_some());
+        assert!(extended.level_touches.get(79).is_some());
     }
 }

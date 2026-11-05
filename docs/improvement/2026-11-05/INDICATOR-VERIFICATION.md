@@ -135,15 +135,15 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 8 | cmf | 17 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 9 | mfi | 18 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 10 | ad_line | 19 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 11 | atr_term | 20 | 5 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 12 | range_expansion | 21 | 5 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 13 | mar | 22 | 5 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 14 | keltner | 23 | 5 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 15 | donchian | 24 | 6 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 16 | swing_structure | 25 | 6 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 17 | level_strength | 26 | 6 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 18 | aroon | 27 | 6 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 19 | bos_choch | 28 | 6 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
+| 11 | atr_term | 20 | 5 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 12 | range_expansion | 21 | 5 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 13 | mar | 22 | 5 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 14 | keltner | 23 | 5 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 15 | donchian | 24 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 16 | swing_structure | 25 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
 | 20 | candle_anatomy | 29 | 7 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 21 | candle_pattern | 30 | 7 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 22 | gap | 31 | 7 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
@@ -182,15 +182,15 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | 8 | cmf | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test cmf` | ☐ |
 | 9 | mfi | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test mfi` | ☐ |
 | 10 | ad_line | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test ad_line` | ☐ |
-| 11 | atr_term | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test atr_term` | ☐ |
-| 12 | range_expansion | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test range_expansion` | ☐ |
-| 13 | mar | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test mar` | ☐ |
-| 14 | keltner | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test keltner` | ☐ |
-| 15 | donchian | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test donchian` | ☐ |
-| 16 | swing_structure | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test swing_structure` | ☐ |
-| 17 | level_strength | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test level_strength` | ☐ |
-| 18 | aroon | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test aroon` | ☐ |
-| 19 | bos_choch | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test bos_choch` | ☐ |
+| 11 | atr_term | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test atr_term` | ☐ |
+| 12 | range_expansion | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test range_expansion` | ☐ |
+| 13 | mar | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test mar` | ☐ |
+| 14 | keltner | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test keltner` | ☐ |
+| 15 | donchian | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test donchian` | ☐ |
+| 16 | swing_structure | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test swing_structure` | ☐ |
+| 17 | level_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test level_strength` | ☐ |
+| 18 | aroon | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test aroon` | ☐ |
+| 19 | bos_choch | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test bos_choch` | ☐ |
 | 20 | candle_anatomy | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test candle_anatomy` | ☐ |
 | 21 | candle_pattern | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test candle_pattern` | ☐ |
 | 22 | gap | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test gap` | ☐ |

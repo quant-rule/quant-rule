@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.4",
+  "version": "2026-11-05.5",
   "indicators": [
     {
       "id": "ema",
@@ -719,6 +719,279 @@
         "divergence.ad_regular_bearish",
         "signal.ad_cross"
       ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "atr_term",
+      "code": 20,
+      "name": "ATR term structure",
+      "taxonomy": "volatility",
+      "role": "context",
+      "claim": "The fast/slow ATR ratio describes the volatility regime.",
+      "formula": "R=ATR14/ATR100; S=R-R[n]; REG=0 if R<=0.7, 1 if 0.7<R<1.3, 2 if R>=1.3",
+      "inputs": [
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.atr.slow_window",
+        "model.atr.slope_window"
+      ],
+      "outputs": [
+        "atr_ratio",
+        "atr_slope",
+        "vol_regime"
+      ],
+      "availability": "slow ATR window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "range_expansion",
+      "code": 21,
+      "name": "Range expansion",
+      "taxonomy": "volatility",
+      "role": "context",
+      "claim": "The current range relative to its mean describes expansion or contraction.",
+      "formula": "RR=(H-L)/mean(H-L,n)",
+      "inputs": [
+        "high",
+        "low"
+      ],
+      "parameters": [
+        "model.range.window"
+      ],
+      "outputs": [
+        "range_expansion"
+      ],
+      "availability": "range window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "mar",
+      "code": 22,
+      "name": "Mean absolute return",
+      "taxonomy": "volatility",
+      "role": "diagnostic",
+      "claim": "The mean absolute return describes realized volatility.",
+      "formula": "MAR=mean(abs(C-C_prev)/C_prev,n); MR=MAR5/MAR20",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.mar.fast",
+        "model.mar.slow"
+      ],
+      "outputs": [
+        "mar_fast",
+        "mar_slow",
+        "mar_ratio"
+      ],
+      "availability": "slow MAR window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "keltner",
+      "code": 23,
+      "name": "Keltner channel",
+      "taxonomy": "volatility",
+      "role": "context",
+      "claim": "The EMA plus/minus ATR band describes the volatility envelope.",
+      "formula": "K=EMA(C,20); U=K+2ATR; L=K-2ATR; KP=(C-L)/(U-L)",
+      "inputs": [
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.keltner.window",
+        "model.keltner.atr"
+      ],
+      "outputs": [
+        "keltner_upper",
+        "keltner_lower",
+        "keltner_position"
+      ],
+      "availability": "EMA and ATR windows",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "donchian",
+      "code": 24,
+      "name": "Donchian channel",
+      "taxonomy": "structure",
+      "role": "context",
+      "claim": "The N-bar high/low channel describes range position and breakout state.",
+      "formula": "DH=max(H,n); DL=min(L,n); DP=(C-DL)/(DH-DL)",
+      "inputs": [
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.donchian.window"
+      ],
+      "outputs": [
+        "donchian_upper",
+        "donchian_lower",
+        "donchian_position"
+      ],
+      "availability": "window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "swing_structure",
+      "code": 25,
+      "name": "Swing structure",
+      "taxonomy": "structure",
+      "role": "context",
+      "claim": "Consecutive confirmed major pivots describe the structural state.",
+      "formula": "HH=H[p]>H[p-1]; HL=L[p]>L[p-1]; SS=+1 if HH&&HL, -1 if LH&&LL, 0 otherwise",
+      "inputs": [
+        "high",
+        "low"
+      ],
+      "parameters": [
+        "model.level.lookback"
+      ],
+      "outputs": [
+        "structure_state",
+        "last_pivot_high",
+        "last_pivot_low"
+      ],
+      "availability": "two confirmed major pivots of each kind",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level_strength",
+      "code": 26,
+      "name": "Level strength",
+      "taxonomy": "structure",
+      "role": "context",
+      "claim": "The number of touches of a confirmed level describes its strength.",
+      "formula": "T=count(|H-L|<=0.2ATR or |L-L|<=0.2ATR,n); age=bar-available",
+      "inputs": [
+        "high",
+        "low",
+        "atr"
+      ],
+      "parameters": [
+        "model.level.lookback",
+        "model.level.atr"
+      ],
+      "outputs": [
+        "level_touches",
+        "level_age"
+      ],
+      "availability": "confirmed major levels and ATR",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "aroon",
+      "code": 27,
+      "name": "Aroon",
+      "taxonomy": "structure",
+      "role": "context",
+      "claim": "The time since the N-bar high and low describes trend freshness.",
+      "formula": "AU=100*(n-bars_since_high)/n; AD=100*(n-bars_since_low)/n; AO=AU-AD",
+      "inputs": [
+        "high",
+        "low"
+      ],
+      "parameters": [
+        "model.aroon.window"
+      ],
+      "outputs": [
+        "aroon_up",
+        "aroon_down",
+        "aroon_osc"
+      ],
+      "availability": "window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "bos_choch",
+      "code": 28,
+      "name": "Break of structure / change of character",
+      "taxonomy": "structure",
+      "role": "context",
+      "claim": "A close beyond the last confirmed pivot is a break of structure or a change of character.",
+      "formula": "BOS: C>last_pivot_high in an up state; CHOCH: C>last_pivot_high in a down state; mirrors below",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.level.lookback"
+      ],
+      "outputs": [
+        "structure_state",
+        "last_pivot_high",
+        "last_pivot_low"
+      ],
+      "availability": "confirmed major pivots",
+      "events": [],
       "tests": [
         "causality",
         "determinism",
@@ -3220,6 +3493,138 @@
       "type": "number",
       "default": 0.2,
       "unit": "none",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.atr.slow_window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 100,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.atr.slope_window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 10,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.range.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.mar.fast",
+      "path": "fixed",
+      "type": "integer",
+      "default": 5,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.mar.slow",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.keltner.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.keltner.atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 2.0,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.donchian.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.level.lookback",
+      "path": "fixed",
+      "type": "integer",
+      "default": 500,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.level.atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.25,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.aroon.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 25,
+      "unit": "bars",
       "configurable": false,
       "affects": [
         "model"
