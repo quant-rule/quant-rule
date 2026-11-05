@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Fail when a retired model or strategy label appears in a current artifact.
+"""Fail when a retired model, strategy, or architecture label appears in a
+current artifact.
 
 History directories are not scanned: ADRs, audits, improvement records, AI
 transparency logs, execution plans, releases, and reports keep their original
 names. The naming registry is the one current document that must name the old
 aliases; it is allowlisted explicitly.
 
-Paths that P3/P4/P6 still remove are listed as pending. The list shrinks with
-each phase and is empty at P7.
+The M2.x research evidence under ``config/research/`` predates the cutover and
+still names retired schemas. It is historical evidence, not a current run
+config, and is the only remaining pending path.
 """
 
 from __future__ import annotations
@@ -34,13 +36,9 @@ ALLOWLIST = {
     "docs/model/2026-11-05/model-families.md",
 }
 
-# Pending current-surface paths that P3, P4, or P6 remove.
-PENDING = (
-    # The retired strategy contracts remain as history until P6.
-    "docs/config/2026-10-",
-    # M2.x research evidence predates the cutover and references retired files.
-    "config/research/",
-)
+# M2.x research evidence predates the cutover and references retired files.
+# It is historical evidence, not a current run config.
+PENDING = ("config/research/",)
 
 TOKENS = [
     "model v3",
@@ -65,6 +63,19 @@ TOKENS = [
     "quantrule.strategy/v7",
     "quantrule.strategy/v8",
     "v5 programme",
+    # Removed architecture: the analytics crate, axis modules, dashboard,
+    # consensus view, market report, and their types have no current surface.
+    "quantrule_analytics",
+    "quantrule-analytics",
+    "quantrule_model::axes",
+    "crate::axes",
+    "crate::dashboard",
+    "crate::consensus",
+    "MarketReport",
+    "DashboardState",
+    "TimeframeConsensus",
+    "AxisContext",
+    "AgreementCode",
 ]
 PATTERN = re.compile("|".join(re.escape(token) for token in TOKENS), re.IGNORECASE)
 

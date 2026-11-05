@@ -2,9 +2,9 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#467](https://github.com/quant-rule/quant-rule/issues/467)
-- Status: **In progress**; P0.1–P2 merged; P3 four-axis removal implemented in
-  [`471-four-axis-removal.md`](471-four-axis-removal.md). P4–P8 remain gated by
-  the decisions in section 5.
+- Status: **In progress**; P0.1–P6 merged; P7 verification and closeout
+  implemented in [`475-verify-closeout.md`](475-verify-closeout.md). P8 remains
+  gated by the decisions in section 5 and by human approval of the M3.x charter.
 - Claim type: repository cutover and model-boundary change
 - Predecessor: [`468-legacy-inventory.md`](468-legacy-inventory.md)
 - History index: [`docs/registry/history.md`](../../registry/history.md)
@@ -72,10 +72,10 @@ Explicit non-goals:
 
 | ID | Decision | Recommendation | Status |
 |---|---|---|---|
-| D1 | P1 validation shape | `signal`: predictive claim; `context`: descriptive construct test with no predictive horizon; `diagnostic`: construct test only, `claim: "none"` | Open — blocks P1 |
-| D2 | P2 current model schema | Keep `quantrule.model/v4` as the current flat model config; delete `v1–v3`; migrate later only with a separate plan | Open — blocks P2 |
-| D3 | P3 strategy boundary | Remove the old axis ladder now; build the multi-timeframe as-of context with S3.x | Open — blocks P3 |
-| D4 | P4 compression configs | Keep `config/compression-range*` as accepted `M1.0` evidence; do not delete | Open — blocks P4 |
+| D1 | P1 validation shape | `signal`: predictive claim; `context`: descriptive construct test with no predictive horizon; `diagnostic`: construct test only, `claim: "none"` | Implemented in P1 |
+| D2 | P2 current model schema | Keep `quantrule.model/v4` as the current flat model config; delete `v1–v3`; migrate later only with a separate plan | Implemented in P2 |
+| D3 | P3 strategy boundary | Remove the old axis ladder now; build the multi-timeframe as-of context with S3.x | Implemented in P3 |
+| D4 | P4 compression configs | Keep `config/compression-range*` as accepted `M1.0` evidence; do not delete | Implemented in P4 |
 | D5 | Naming prefixes | `M`, `S`, `P`, `POL`, `E`; family alignment M3 → S3 → P3 → POL3 | Approved by direction |
 | D6 | Shell surface | Keep `report model`, `events`, data/fetch, `policy check`, `help`; remove old market/store/research/strategy/backtest commands | Approved by direction |
 | D7 | Quant roles | Quant Researcher, Quant Developer, and Quant Validator for P3 and P5 | Approved by policy |
@@ -238,9 +238,11 @@ deletion.
 
 - Approved for P0.1 by the human instruction “proceed with the full execution
   plan” on 2026-11-05.
-- P1–P8 remain gated by D1–D4 and by the human approval gates in `AGENTS.md`.
+- P1–P7 were approved phase by phase by the human instruction “proceed”.
+- P8 remains gated by the human approval of the M3.x charter and by the approval
+  gates in `AGENTS.md`.
 - The plan does not authorize commits, pushes, pull requests, merges, or
-  releases beyond the P0.1 change.
+  releases beyond the approved phase.
 
 ## 10. P0.1 execution record
 
@@ -277,4 +279,9 @@ deletion.
   indicators from 1 reading-only, and the retired report/config/research
   contracts are gone. See
   [`474-checklist-docs.md`](474-checklist-docs.md).
-- P7–P8: not started.
+- P7: implemented on `chore/475-verify-closeout`; the full gate passes, the
+  nine orphan fixtures and the dashboard/report oracle branches are gone, the
+  legacy scan rejects architecture identifiers without the `docs/config`
+  exemption, and the M2 `no_edge` closeout is verified. See
+  [`475-verify-closeout.md`](475-verify-closeout.md).
+- P8: not started; the M3.x charter requires human approval before any run.

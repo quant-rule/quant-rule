@@ -1,7 +1,7 @@
 # Current-Architecture History Index
 
 - Date: 2026-11-05 (UTC)
-- Status: Current boundary; P0.1–P2 merged; P3 four-axis removal in progress
+- Status: Current boundary; P0.1–P7 complete; P8 not started
 - Freeze commit: `32e6fb2`
 - Manifest commit: `8acf857`
 - Work item: [#468](https://github.com/quant-rule/quant-rule/issues/468)
@@ -138,6 +138,24 @@ P6 removed the current-contract documents for surfaces that no longer exist:
 They remain in Git at `392ce80`. ADRs, audits, execution plans, verification
 reports, and run records remain the history of those decisions.
 
+### 3.7 P7 orphan fixtures
+
+P7 removed nine fixtures that no current Rust test read and that the Progression
+oracle no longer rendered:
+
+- `crates/quantrule-model/tests/fixtures/dashboard_readings_golden.csv`
+- `crates/quantrule-model/tests/fixtures/dashboard_direction_tenure_golden.csv`
+- `crates/quantrule-model/tests/fixtures/dashboard_progression_pace_golden.csv`
+- `crates/quantrule-model/tests/fixtures/market_report_golden.txt`
+- `crates/quantrule-model/tests/fixtures/consensus_golden.csv`
+- `crates/quantrule-model/tests/fixtures/direction_golden.csv`
+- `crates/quantrule-model/tests/fixtures/momentum_golden.csv`
+- `crates/quantrule-model/tests/fixtures/structure_golden.csv`
+- `crates/quantrule-model/tests/fixtures/structure_levels_golden.csv`
+
+They remain in Git at `787a1f1`; the plans, audits, and transparency logs that
+created them remain the history of their contracts.
+
 ## 4. Keep as history
 
 | Path | Why |
@@ -186,8 +204,8 @@ The P2 legacy check may report old names only in:
 - `data/research/**`
 
 Current `crates/**`, `config/**`, `docs/architecture/**`, `docs/model/2026-11-05/**`,
-`docs/config/**`, `docs/tutorials/**`, and `README.md` must not contain old model
-or strategy version labels after P2–P6.
+`docs/config/**`, `docs/tutorials/**`, and `README.md` must not contain old model,
+strategy, or architecture labels after P2–P7.
 
 ## 7. Deletion order
 

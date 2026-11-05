@@ -72,8 +72,8 @@ There are deliberately no news, weekend, session, or daily-loss fields.
 ## Strategy
 
 The ladder-context strategy, its axis weights, its as-of context, and the
-`quantrule.strategy/v2`–`/v8` parsers were retired with the four-axis cutover.
-The generic bracket and event-composite engines remain in `quantrule-backtest`
+retired strategy-schema parsers were removed with the four-axis cutover. The
+generic bracket and event-composite engines remain in `quantrule-backtest`
 for S3.x, but no strategy file is loaded and no strategy command is reachable
 from the current shell.
 

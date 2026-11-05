@@ -79,23 +79,6 @@ def confirmed_leg(
     return leg
 
 
-def bar_with_stage(stage: int | None) -> model.Bar:
-    return model.Bar(
-        progress=None,
-        stage_code=stage,
-        leg_direction=None,
-        leg_scale_code=None,
-        size_percentile=None,
-        readiness_code=0,
-        unavailable_reason_code=None,
-        state_age_bars=0,
-        state_changes_50=0,
-        published_leg=None,
-        minor_leg=None,
-        major_leg=None,
-    )
-
-
 class StageTests(unittest.TestCase):
     def test_bucket_boundaries(self) -> None:
         cases = [
@@ -819,31 +802,6 @@ class FormattingTests(unittest.TestCase):
     def test_leg_float_keeps_an_integral_suffix(self) -> None:
         self.assertEqual(cli.format_float(98.0), "98.0")
         self.assertEqual(cli.format_float(None), "")
-
-    def test_report_optional_values_use_a_dash(self) -> None:
-        self.assertEqual(cli.format_optional_int(None), "-")
-        self.assertEqual(cli.format_optional_int(4), "4")
-        self.assertEqual(cli.format_float9(None), "-")
-        self.assertEqual(cli.format_float9(1.0), "1.000000000")
-
-    def test_stage_transitions_ignore_the_first_bar(self) -> None:
-        bars = tuple(
-            bar_with_stage(stage)
-            for stage in (None, 1, 1, 2, None, 2)
-        )
-        self.assertEqual(
-            cli.progression_transitions(bars, 5),
-            [(1, None, 1), (3, 1, 2), (4, 2, None), (5, None, 2)],
-        )
-
-    def test_stage_transitions_keep_the_last_fifty(self) -> None:
-        stages = [0]
-        for _ in range(60):
-            stages.append(1 if stages[-1] == 0 else 0)
-        bars = tuple(bar_with_stage(stage) for stage in stages)
-        transitions = cli.progression_transitions(bars, len(stages) - 1)
-        self.assertEqual(len(transitions), 50)
-        self.assertEqual(transitions[-1][0], len(stages) - 1)
 
 
 if __name__ == "__main__":
