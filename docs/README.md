@@ -36,15 +36,9 @@ The baseline decision is listed in the current architecture decisions below.
 
 | Contract | Status | Path |
 |---|---|---|
-| Model v3 flat indicator/event model | Approved 2026-11-03; flat report, MACD, v3 config, ADX/DI, registry, and claim gate implemented; gate no edge | `docs/model/2026-11-03/model-v3.md` |
-| Four-axis analytical model | Superseded for axes by model v3; retained as history | `docs/model/2026-10-21/four-axis-analytical-model.md` |
-| Per-timeframe model | Superseded for axes by model v3; the per-timeframe boundary remains | `docs/model/2026-10-30/per-timeframe-model.md` |
-| DashboardState four-axis CLI view | Historical; the axis view is retired with model v3 | `docs/model/2026-10-25/dashboard-state.md` |
-| MarketReport full-period descriptive view | Implemented (#150); `market-report` command (#151); verified (#152); axis view retired with model v3 | `docs/model/2026-10-27/market-report.md` |
-| Model evidence protocol | Superseded by the model v3 validation boundary; retained as history | `docs/model/2026-11-01/model-evidence-protocol.md` |
-| Model v4 flat result and configurable events | Implemented; path gate no edge; compression-breakout 4 ATR baseline accepted | `docs/model/2026-11-04/model-v4.md` |
+| M1.0 flat result and configurable events | Current baseline; path gate no edge; compression-breakout 4 ATR baseline accepted | `docs/model/2026-11-05/model-m1.0.md` |
 | Compression-range next-bar resolution | Implemented; dev and validation pass; accepted model baseline (human, 2026-11-04) | `docs/model/2026-11-04/compression-range.md` |
-| Indicator coverage — 10 OHLCV areas | Implemented 2026-11-05: 46 indicators, 143 events, stable event codes, 37/37 checklist rows `verified`; spec v2 implemented; validation claims open | `docs/model/2026-11-05/indicator-coverage.md` |
+| Indicator coverage — 10 OHLCV areas | Implemented 2026-11-05: 46 indicators, 143 events, stable event codes, 37/37 checklist rows `verified`; spec v2 implemented; 188 validation claims and 54/54 construct cases | `docs/model/2026-11-05/indicator-coverage.md` |
 | Model and strategy families | Approved 2026-11-05; `M1.0`, `S1.1–S1.5`, `M2.1–M2.5`, `S2.1+` | `docs/model/2026-11-05/model-families.md` |
 | Model spec v1 | Implemented; condition-only; v2 adds readings, active events, prediction, panel/session | `docs/model/2026-11-05/model-spec-v1.md` |
 | Model spec v2 | Implemented (P1); reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
@@ -54,18 +48,17 @@ The baseline decision is listed in the current architecture decisions below.
 
 | Contract | Status | Path |
 |---|---|---|
-| Per-engine configuration (v1) | Historical; superseded by the policy/strategy v3 contract | `docs/config/2026-10-28/per-engine-config.md` |
-| Policy and strategy blueprints | Current; `run v2`, `policy v1`, `strategy v3`, `execution v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
-| Strategy v2 to v3 migration | Current | `docs/config/2026-10-30/migration-v2-to-v3.md` |
+| Per-engine configuration (v1) | Historical; superseded by the current policy blueprint | `docs/config/2026-10-28/per-engine-config.md` |
+| Policy and strategy blueprints | Current; `run v2`, `policy v1`, `execution v2`; the S3.x strategy schema is future | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Per-engine reports | Approved (#168); implemented by #173–#176; verified by #177 | `docs/reports/2026-10-28/per-engine-reports.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/reports/2026-10-31/diagnosis-v1.md` |
 | BTCUSD 2024 example run | Current example: five bundles, 29 artifacts, byte-identical rerun; captured on 2026-10-31 | `config/examples/btcusd-2024/` |
 | Improvement run contract | Current; schema `quantrule.improvement-run/v1` implemented by `tools/improvement/` | `docs/workflows/run-contract.md` |
-| Strategy candidates v3–v7 | Retired; historical `S1.1–S1.2`; none is a validated baseline | `docs/improvement/2026-11-01/STRATEGY-003-comparison.md` |
-| Strategy v6 breakout (`S1.1`) | Historical; experimental, not validated | `docs/improvement/2026-11-01/STRATEGY-002-comparison.md` |
-| Strategy v8 event composite (`S1.3`) | Historical; validation pending | `docs/execution-plans/2026-11-03/349-strategy-v8.md` |
-| Strategy v9 compression breakout (`S1.4`) | Historical; `strategy_dev` no edge; validation not opened | `docs/improvement/2026-11-04/STRATEGY-V9-GATE.md` |
-| Strategy v10 compression bracket (`S1.5`) | Historical; `strategy_dev` no edge; validation not opened | `docs/improvement/2026-11-04/STRATEGY-BRACKET-GATE.md` |
+| `S1.1` confirmed-level breakout | Historical; experimental, not validated | `docs/improvement/2026-11-01/STRATEGY-002-comparison.md` |
+| `S1.2` failed-level-test fade | Historical; validation failed | `docs/improvement/2026-11-01/STRATEGY-003-comparison.md` |
+| `S1.3` event composite | Historical; validation pending | `docs/execution-plans/2026-11-03/349-strategy-v8.md` |
+| `S1.4` compression breakout | Historical; `strategy_dev` no edge; validation not opened | `docs/improvement/2026-11-04/STRATEGY-V9-GATE.md` |
+| `S1.5` compression bracket | Historical; `strategy_dev` no edge; validation not opened | `docs/improvement/2026-11-04/STRATEGY-BRACKET-GATE.md` |
 
 ### Approved target contracts
 
@@ -76,14 +69,13 @@ the remaining pending phase.
 | Contract | Status | Path |
 |---|---|---|
 | Available timeframes | `quantrule.data/v3`; implemented by #230 | `docs/config/2026-10-30/data-v3.md` |
-| Model v3 flat indicator/event | `quantrule.model/v3`; schema approved 2026-11-03; parser in #346 | `docs/model/2026-11-03/model-v3.md` |
 | Portfolio benchmarks and time metrics | Implemented 2026-11-03 (#345) | `docs/config/2026-11-03/portfolio-benchmarks.md` |
 | MACD reading and events | Implemented 2026-11-03 (#347); opt-in on the legacy v2 path, active in the default config | `docs/config/2026-11-03/model-macd.md` |
 | Indicator and parameter registry | Populated 2026-11-03 (#344); CI check | `docs/registry/README.md` |
-| Current-architecture history index | Frozen 2026-11-05 at `32e6fb2`; P0 legacy inventory | `docs/registry/history.md` |
-| Clean current architecture | P0.1 deletion manifest frozen 2026-11-05 at `8acf857`; P1–P8 gated by D1–D4 | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
-| Per-timeframe model | `quantrule.model/v2`; superseded by v3; v2 parser retired in #346 | `docs/config/2026-10-30/model-v2.md` |
-| Active ladder and context | Implemented (#233, #235); `ladder-context` is live | `docs/config/2026-10-30/strategy-v3.md` |
+| Current-architecture history index | Frozen 2026-11-05 at `32e6fb2`; P0/P1 merged; P2 naming in progress | `docs/registry/history.md` |
+| Clean current architecture | P0.1 and P1 merged; P2 naming is the current phase | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
+| P2 M1.0 naming | Implemented 2026-11-05; M1.0 contract, config identities, retired model parsers, legacy scan | `docs/execution-plans/2026-11-05/470-m1-naming.md` |
+| Legacy ladder and context | P3 retires the axis ladder; S3.x defines the replacement | `docs/config/2026-10-30/strategy-v3.md` |
 | Fill mechanics | `quantrule.execution/v3`; bracket resolution and risk-free config implemented (#234), v3 schema pending | `docs/config/2026-10-30/execution-v3.md` |
 | Strategy/execution boundary | `TradeIntent`; implemented (#234) and wired into the unified rule (#235) | `docs/config/2026-10-30/trade-intent.md` |
 
@@ -185,7 +177,7 @@ committed, and the candles, charts, reports, and databases stay local.
 | AUD-06 step-precision regression | Merged as `a006a17`; finding `Verified` | `docs/execution-plans/2026-10-30/aud-06-step-precision.md` |
 | Unified timeframe ladder | Complete; Phases 1–9 merged through PRs #238–#246; #246 merged as `7c865de` | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
-| Model v3: flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; v8 implementation proceeds separately | `docs/execution-plans/2026-11-03/342-model-v3.md` |
+| Flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; the flat model became the M1.0 baseline | `docs/execution-plans/2026-11-03/342-model-v3.md` |
 | M2.x model programme | Approved 2026-11-05; P0–P5 merged; P5 `no_edge`; P7 closeout complete; legacy removal #463 complete; validation not opened | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 | M2.x model charter | Approved 2026-11-05; P5 `no_edge`; checklist signed; legacy removal #463 complete; strategy tier closed | `docs/governance/2026-11-05/M2-CHARTER.md` |
 

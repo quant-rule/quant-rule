@@ -4,7 +4,7 @@
 - Status: **Pre-registered and executed; no edge; validation not opened**
 - Epic: [#369](https://github.com/quant-rule/quant-rule/issues/369)
 - Plan: [`docs/execution-plans/2026-11-04/369-model-v4.md`](../../execution-plans/2026-11-04/369-model-v4.md)
-- Contract: [`docs/model/2026-11-04/model-v4.md`](model-v4.md)
+- Contract: [`docs/model/2026-11-05/model-m1.0.md`](../2026-11-05/model-m1.0.md)
 - Prior protocol: [`docs/model/2026-11-03/path-validation.md`](../2026-11-03/path-validation.md)
 - Harness: `tools/improvement/path_validation.py`
 - Claim type: model validation evidence; no strategy, cost, or edge claim.

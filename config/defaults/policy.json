@@ -1,5 +1,6 @@
 {
   "schema": "quantrule.policy/v1",
+  "id": "POL1.0",
   "account": {
     "currency": "USD",
     "initial_cash": 10000.0

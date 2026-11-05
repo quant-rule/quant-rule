@@ -354,10 +354,6 @@ fn policy_matches_the_contract() {
     }
 }
 
-fn model_object() -> Value {
-    json!({"schema": "quantrule.model/v1", "structure_scale": "major"})
-}
-
 fn model_v4_object() -> Value {
     json!({
         "schema": "quantrule.model/v4",
@@ -405,36 +401,6 @@ fn model_v4_object() -> Value {
                 "progression": {"target_atr": 3.0}
             }
         }
-    })
-}
-
-fn model_v3_object() -> Value {
-    json!({
-        "schema": "quantrule.model/v3",
-        "defaults": {
-            "ema": {"periods": [20, 50, 200], "active": true},
-            "rsi": {"period": 14, "active": true},
-            "atr": {"period": 14, "active": true},
-            "rvol": {"period": 20, "active": true},
-            "macd": {"fast": 12, "slow": 26, "signal": 9, "active": true},
-            "adx": {"period": 14, "threshold": 25.0, "slope_bars": 3, "active": true}
-        },
-        "timeframes": {}
-    })
-}
-
-fn model_v2_object() -> Value {
-    json!({
-        "schema": "quantrule.model/v2",
-        "defaults": {
-            "ema": [20, 50, 200],
-            "rsi": 14,
-            "atr": 14,
-            "rvol": 20,
-            "macd": {"fast": 12, "slow": 26, "signal": 9}
-        },
-        "timeframes": {},
-        "structure": {"scale": "major"}
     })
 }
 
@@ -509,212 +475,14 @@ fn model_v4_reads_events_progression_and_rejects_4h() {
 }
 
 #[test]
-fn model_v3_reads_adx_and_timeframe_overrides() {
-    let defaults = model::parse(&model_v3_object(), "model.json").expect("the v3 config loads");
-    let m1 = defaults.readings_for(u64::from(Timeframe::M1.seconds()));
-    assert_eq!(m1.adx, 14);
-    assert_eq!(m1.adx_threshold, 25.0);
-    assert_eq!(m1.adx_slope_bars, 3);
-    assert!(m1.adx_active);
-
-    let overridden = set(
-        model_v3_object(),
-        &["timeframes"],
-        json!({"5m": {"adx": {"period": 21, "threshold": 20.0, "slope_bars": 5, "active": false}}}),
-    );
-    let config = model::parse(&overridden, "model.json").expect("the override loads");
-    let m5 = config.readings_for(u64::from(Timeframe::M5.seconds()));
-    assert_eq!(m5.adx, 21);
-    assert_eq!(m5.adx_threshold, 20.0);
-    assert_eq!(m5.adx_slope_bars, 5);
-    assert!(!m5.adx_active);
-}
-
-#[test]
-fn model_v2_reads_defaults_and_timeframe_overrides() {
-    let defaults = model::parse(&model_v2_object(), "model.json").expect("the v2 config loads");
-    assert_eq!(defaults.structure_scale, PivotScale::Major);
-    let m1 = defaults.readings_for(u64::from(Timeframe::M1.seconds()));
-    assert_eq!(m1, quantrule_model::readings::ReadingsConfig::default());
-
-    let overridden = set(
-        model_v2_object(),
-        &["timeframes"],
-        json!({"1m": {"ema": [10, 30, 90], "rsi": 21}}),
-    );
-    let config = model::parse(&overridden, "model.json").expect("the override loads");
-    assert!(config.is_overridden(Timeframe::M1));
-    assert!(!config.is_overridden(Timeframe::M5));
-    let m1 = config.readings_for(u64::from(Timeframe::M1.seconds()));
-    assert_eq!(m1.ema_fast, 10);
-    assert_eq!(m1.ema_mid, 30);
-    assert_eq!(m1.ema_slow, 90);
-    assert_eq!(m1.rsi, 21);
-    assert_eq!(m1.atr, 14);
-    assert_eq!(m1.rvol, 20);
-    let m5 = config.readings_for(u64::from(Timeframe::M5.seconds()));
-    assert_eq!(m5, quantrule_model::readings::ReadingsConfig::default());
-}
-
-#[test]
-fn model_v2_timeframes_map_is_optional() {
-    let without_map = remove(model_v2_object(), &["timeframes"]);
-    let config =
-        model::parse(&without_map, "model.json").expect("an absent timeframes map is valid");
-    assert_eq!(
-        config.readings_for(u64::from(Timeframe::M1.seconds())),
-        quantrule_model::readings::ReadingsConfig::default()
-    );
-}
-
-#[test]
-fn model_matches_the_contract() {
-    let valid = model::parse(&model_object(), "model.json").expect("the valid config loads");
-    assert_eq!(valid.structure_scale, PivotScale::Major);
-    assert!(
-        model::parse(
-            &set(model_object(), &["structure_scale"], json!("minor")),
-            "model.json"
-        )
-        .is_ok()
-    );
-
-    for (value, kind, path) in [
-        (json!(1), Type, "$"),
-        (
-            set(model_object(), &["schema"], json!("quantrule.model/v5")),
-            Unsupported,
-            "$.schema",
-        ),
-        (
-            set(model_object(), &["extra"], json!(1)),
-            UnknownField,
-            "$.extra",
-        ),
-        (
-            remove(model_object(), &["structure_scale"]),
-            MissingField,
-            "$.structure_scale",
-        ),
-        (
-            set(model_object(), &["structure_scale"], json!("weekly")),
-            Range,
-            "$.structure_scale",
-        ),
-        (
-            set(model_object(), &["structure_scale"], json!("Major")),
-            Range,
-            "$.structure_scale",
-        ),
-        (
-            set(model_object(), &["structure_scale"], json!(2)),
-            Type,
-            "$.structure_scale",
-        ),
+fn retired_model_schemas_are_rejected() {
+    for schema in [
+        "quantrule.model/v1",
+        "quantrule.model/v2",
+        "quantrule.model/v3",
     ] {
-        assert_rejected(model::parse(&value, "model.json"), kind, path);
-    }
-}
-
-#[test]
-fn model_v2_reads_macd_overrides_and_rejects_invalid_periods() {
-    let overridden = set(
-        model_v2_object(),
-        &["timeframes"],
-        json!({"1m": {"macd": {"fast": 5, "slow": 10, "signal": 3}}}),
-    );
-    let config = model::parse(&overridden, "model.json").expect("the override loads");
-    let m1 = config.readings_for(u64::from(Timeframe::M1.seconds()));
-    assert_eq!(m1.macd_fast, 5);
-    assert_eq!(m1.macd_slow, 10);
-    assert_eq!(m1.macd_signal, 3);
-    assert!(config.macd_enabled_for(u64::from(Timeframe::M1.seconds())));
-
-    let disabled = set(
-        model_v2_object(),
-        &["defaults", "macd", "active"],
-        json!(false),
-    );
-    let config = model::parse(&disabled, "model.json").expect("the disabled config loads");
-    assert!(!config.macd_enabled_for(u64::from(Timeframe::M1.seconds())));
-
-    let invalid = set(
-        model_v2_object(),
-        &["defaults", "macd"],
-        json!({"fast": 26, "slow": 12, "signal": 9}),
-    );
-    assert_rejected(model::parse(&invalid, "model.json"), Range, "$.defaults");
-
-    let zero = set(model_v2_object(), &["defaults", "macd", "signal"], json!(0));
-    assert_rejected(
-        model::parse(&zero, "model.json"),
-        Range,
-        "$.defaults.macd.signal",
-    );
-}
-
-#[test]
-fn model_v2_rejects_invalid_readings() {
-    for (value, kind, path) in [
-        (
-            remove(model_v2_object(), &["defaults"]),
-            MissingField,
-            "$.defaults",
-        ),
-        (
-            remove(model_v2_object(), &["defaults", "rsi"]),
-            MissingField,
-            "$.defaults.rsi",
-        ),
-        (
-            set(model_v2_object(), &["defaults", "ema"], json!([20, 50])),
-            Range,
-            "$.defaults.ema",
-        ),
-        (
-            set(
-                model_v2_object(),
-                &["defaults", "ema"],
-                json!([50, 20, 200]),
-            ),
-            Range,
-            "$.defaults",
-        ),
-        (
-            set(model_v2_object(), &["defaults", "rsi"], json!(0)),
-            Range,
-            "$.defaults.rsi",
-        ),
-        (
-            set(
-                model_v2_object(),
-                &["timeframes"],
-                json!({"30m": {"rsi": 21}}),
-            ),
-            Range,
-            "$.timeframes.30m",
-        ),
-        (
-            set(
-                model_v2_object(),
-                &["timeframes"],
-                json!({"1m": {"unknown": 1}}),
-            ),
-            UnknownField,
-            "$.timeframes.1m.unknown",
-        ),
-        (
-            remove(model_v2_object(), &["structure"]),
-            MissingField,
-            "$.structure",
-        ),
-        (
-            set(model_v2_object(), &["structure", "scale"], json!("weekly")),
-            Range,
-            "$.structure.scale",
-        ),
-    ] {
-        assert_rejected(model::parse(&value, "model.json"), kind, path);
+        let value = json!({"schema": schema});
+        assert_rejected(model::parse(&value, "model.json"), Unsupported, "$.schema");
     }
 }
 
@@ -1775,6 +1543,10 @@ fn the_example_config_loads_and_resolves() {
     let config = run::RunConfig::load(&example_path()).expect("the example config is valid");
 
     assert_eq!(config.name, "btcusd-2024");
+    assert_eq!(config.model_id.as_deref(), Some("M1.0"));
+    assert_eq!(config.policy_id.as_deref(), Some("POL1.0"));
+    assert_eq!(config.execution_id.as_deref(), Some("E1.0"));
+    assert_eq!(config.portfolio_id.as_deref(), Some("P1.0"));
     assert_eq!(
         config.data.data_version,
         "dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31"

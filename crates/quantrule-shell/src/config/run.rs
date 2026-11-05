@@ -36,6 +36,16 @@ pub(crate) struct RunConfig {
     pub(crate) config_hash: String,
     /// The eight resolved config paths.
     pub(crate) paths: ConfigPaths,
+    /// The optional model identity, such as `M1.0`.
+    pub(crate) model_id: Option<String>,
+    /// The optional policy identity, such as `POL1.0`.
+    pub(crate) policy_id: Option<String>,
+    /// The optional strategy identity, such as `S3.1`.
+    pub(crate) strategy_id: Option<String>,
+    /// The optional execution identity, such as `E1.0`.
+    pub(crate) execution_id: Option<String>,
+    /// The optional portfolio identity, such as `P1.0`.
+    pub(crate) portfolio_id: Option<String>,
     /// The human-owned policy envelope.
     pub(crate) policy: PolicyConfig,
     /// The data engine's source and ladder.
@@ -133,6 +143,11 @@ impl RunConfig {
             output_root: base.join(&run.output_root),
             config_hash,
             paths,
+            model_id: run.model_id,
+            policy_id: run.policy_id,
+            strategy_id: run.strategy_id,
+            execution_id: run.execution_id,
+            portfolio_id: run.portfolio_id,
             policy,
             data,
             model,
@@ -142,7 +157,30 @@ impl RunConfig {
             analytics,
         };
         config.validate_cross()?;
+        config.validate_identities()?;
         Ok(config)
+    }
+
+    fn validate_identities(&self) -> Result<(), ConfigError> {
+        for (field, value, prefix) in [
+            ("model_id", self.model_id.as_deref(), "M"),
+            ("policy_id", self.policy_id.as_deref(), "POL"),
+            ("strategy_id", self.strategy_id.as_deref(), "S"),
+            ("execution_id", self.execution_id.as_deref(), "E"),
+            ("portfolio_id", self.portfolio_id.as_deref(), "P"),
+        ] {
+            if let Some(identity) = value
+                && !identity.starts_with(prefix)
+            {
+                return Err(ConfigError::range(
+                    file_name(&self.paths.run),
+                    &format!("$.{field}"),
+                    &format!("an identity starting with {prefix}"),
+                    identity,
+                ));
+            }
+        }
+        Ok(())
     }
 
     pub(super) fn validate_cross(&self) -> Result<(), ConfigError> {
@@ -351,6 +389,11 @@ impl RunConfig {
 #[derive(Debug)]
 pub(super) struct RunFile {
     pub(super) name: String,
+    model_id: Option<String>,
+    policy_id: Option<String>,
+    strategy_id: Option<String>,
+    execution_id: Option<String>,
+    portfolio_id: Option<String>,
     policy: String,
     data: String,
     model: String,
@@ -370,6 +413,11 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
         &[
             "schema",
             "name",
+            "model_id",
+            "policy_id",
+            "strategy_id",
+            "execution_id",
+            "portfolio_id",
             "policy",
             "data",
             "model",
@@ -385,6 +433,11 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
     Ok(RunFile {
         name: read::non_empty_string(file, "$.name", read::field(file, ROOT, object, "name")?)?
             .to_owned(),
+        model_id: optional_identity(file, object, "model_id")?,
+        policy_id: optional_identity(file, object, "policy_id")?,
+        strategy_id: optional_identity(file, object, "strategy_id")?,
+        execution_id: optional_identity(file, object, "execution_id")?,
+        portfolio_id: optional_identity(file, object, "portfolio_id")?,
         policy: read::non_empty_string(
             file,
             "$.policy",
@@ -426,6 +479,19 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
         )?
         .to_owned(),
     })
+}
+
+fn optional_identity(
+    file: &str,
+    object: &serde_json::Map<String, Value>,
+    field: &str,
+) -> Result<Option<String>, ConfigError> {
+    match object.get(field) {
+        Some(value) => Ok(Some(
+            read::non_empty_string(file, &format!("$.{field}"), value)?.to_owned(),
+        )),
+        None => Ok(None),
+    }
 }
 
 fn load_document(path: &Path, file: &str) -> Result<Value, ConfigError> {

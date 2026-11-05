@@ -4,7 +4,7 @@
 - Status: **Pre-registered and executed; inconclusive — outcome saturated; validation not opened**
 - Issue: [#371](https://github.com/quant-rule/quant-rule/issues/371)
 - Plan: [`docs/execution-plans/2026-11-04/371-compression-breakout.md`](../../execution-plans/2026-11-04/371-compression-breakout.md)
-- Model contract: [`docs/model/2026-11-04/model-v4.md`](model-v4.md)
+- Model contract: [`docs/model/2026-11-05/model-m1.0.md`](../2026-11-05/model-m1.0.md)
 - Claim type: model validation evidence; no strategy, cost, or edge claim.
 
 ## 1. Question

@@ -1,5 +1,6 @@
 {
   "schema": "quantrule.portfolio/v1",
+  "id": "P1.0",
   "initial_cash": 10000.0,
   "currency": "USD",
   "sizing": {

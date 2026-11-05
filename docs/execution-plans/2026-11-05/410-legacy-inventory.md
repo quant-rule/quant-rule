@@ -42,7 +42,7 @@ The reference check, tests, links, and terms checks passed.
 | `data/reports/**` | Report bundles | History; local workspace |
 | `docs/registry/**` | Current indicator/event/parameter registry | Current contract |
 | `docs/model/2026-11-03/model-v3.md` | Prior model contract | History |
-| `docs/model/2026-11-04/model-v4.md` | `M1.0` current model contract | Current baseline |
+| `docs/model/2026-11-05/model-m1.0.md` | `M1.0` current model contract | Current baseline |
 | `docs/model/2026-11-04/compression-*.md` | Accepted model-baseline protocols | Current evidence |
 | `docs/model/2026-11-05/**` | Indicator coverage, spec v1, model families | Current contract |
 | `docs/governance/**`, `docs/workflows/**`, `docs/roles/**`, `docs/architecture/**`, `docs/adr/**` | Living process and architecture | Current |

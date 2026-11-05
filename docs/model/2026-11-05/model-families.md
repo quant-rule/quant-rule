@@ -1,8 +1,8 @@
-# Model and Strategy Families — Naming Registry
+# Model, Strategy, Portfolio, Policy, and Execution Families — Naming Registry
 
 - Date: 2026-11-05 (UTC)
 - Status: **Approved** (human, 2026-11-05)
-- Scope: model and strategy identifiers for the M2.x programme
+- Scope: model, strategy, portfolio, policy, and execution identifiers
 - Contract: [`AGENTS.md`](../../../AGENTS.md) sections 2, 8, and 11
 - Claim type: naming and traceability contract; no edge claim
 
@@ -17,14 +17,21 @@ The rule is `<type><family>.<version>`:
 
 | Prefix | Kind | Example |
 |---|---|---|
-| `M` | Model | `M1.0`, `M2.1` |
-| `S` | Strategy | `S1.1`, `S2.1` |
+| `M` | Model | `M1.0`, `M3.1` |
+| `S` | Strategy | `S1.1`, `S3.1` |
+| `P` | Portfolio | `P1.0`, `P3.1` |
+| `POL` | Policy | `POL1.0`, `POL3.1` |
+| `E` | Execution | `E1.0`, `E3.1` |
+
+`M1.0` is the only current model identity. `M2.1–M2.5` is historical with no
+accepted baseline; `M3.x` is the next family. `S3.x`, `P3.x`, `POL3.x`, and
+`E3.x` are future and follow an accepted M3.x baseline.
 
 ## 2. Registry
 
 | New ID | Meaning | Old name | Status | Record or contract |
 |---|---|---|---|---|
-| `M1.0` | Current model: flat indicator/event model v4 | model v4 | Baseline; path gate no edge; compression baselines accepted | [`docs/model/2026-11-04/model-v4.md`](../../model/2026-11-04/model-v4.md) |
+| `M1.0` | Current model: flat indicator/event model | model v4 | Baseline; path gate no edge; compression baselines accepted | [`docs/model/2026-11-05/model-m1.0.md`](model-m1.0.md) |
 | `S1.1` | Confirmed-level breakout strategy | strategy v6 | Historical; experimental, not validated | [`STRATEGY-002-comparison.md`](../../improvement/2026-11-01/STRATEGY-002-comparison.md) |
 | `S1.2` | Failed-level-test fade strategy | strategy v7 | Historical; validation failed | [`STRATEGY-003-comparison.md`](../../improvement/2026-11-01/STRATEGY-003-comparison.md) |
 | `S1.3` | Event-composite strategy | strategy v8 | Historical; validation pending | [`349-strategy-v8.md`](../../execution-plans/2026-11-03/349-strategy-v8.md) |

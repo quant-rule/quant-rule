@@ -36,6 +36,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, Con
         object,
         &[
             "schema",
+            "id",
             "fill_timeframe",
             "order_type",
             "tie_break",

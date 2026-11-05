@@ -3,7 +3,7 @@
 - Date: 2026-11-04 (UTC)
 - Status: **Verified — no edge; validation gate not reached**
 - Epic: [#369](https://github.com/quant-rule/quant-rule/issues/369)
-- Contract: [`docs/model/2026-11-04/model-v4.md`](../../model/2026-11-04/model-v4.md)
+- Contract: [`docs/model/2026-11-05/model-m1.0.md`](../../model/2026-11-05/model-m1.0.md)
 - Protocol: [`docs/model/2026-11-04/path-validation-v4.md`](../../model/2026-11-04/path-validation-v4.md)
 - AI transparency log:
   [`docs/ai-transparency-log/2026-11-04/369-model-v4.md`](../../ai-transparency-log/2026-11-04/369-model-v4.md)

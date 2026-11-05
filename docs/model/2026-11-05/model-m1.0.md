@@ -1,10 +1,16 @@
-# Model v4 — Flat Result, Configurable Events, and 1h Ceiling
+# M1.0 — Flat Result, Configurable Events, and 1h Ceiling
 
 - Date: 2026-11-04 (UTC)
 - Status: **Implemented; path validation no edge**
+- Model ID: `M1.0`
+- Family: `M1`
+- Former path: `docs/model/2026-11-04/model-v4.md` (moved in P2)
 - Epic: [#369](https://github.com/quant-rule/quant-rule/issues/369)
 - Plan: [`docs/execution-plans/2026-11-04/369-model-v4.md`](../../execution-plans/2026-11-04/369-model-v4.md)
 - Claim type: model contract; no strategy or edge claim.
+
+`quantrule.model/v4` and `quantrule.model-result/v4` are file-format schema
+versions. They are not the model identity; the identity is `M1.0`.
 
 ## 1. Config
 
@@ -63,10 +69,10 @@ numbers only.
 - The path-validation harness and the pre-registered matrix.
 - The compression-breakout event has its own causality, determinism, and
   edge-case tests; its range-expansion protocol is
-  [`compression-breakout.md`](compression-breakout.md).
+  [`compression-breakout.md`](../2026-11-04/compression-breakout.md).
 - The neutral compression-range event has its own causality, determinism, and
   edge-case tests; its next-bar resolution protocol is
-  [`compression-range.md`](compression-range.md).
+  [`compression-range.md`](../2026-11-04/compression-range.md).
 
 ## 5. Validation result
 
@@ -78,12 +84,12 @@ together. The validation partition was not opened.
 
 - Decision: [`docs/improvement/2026-11-04/MODEL-V4-GATE.md`](../../improvement/2026-11-04/MODEL-V4-GATE.md)
 - Run record: [`MODEL-2026-11-04-01`](../../improvement/2026-11-04/MODEL-2026-11-04-01-model-v4-dev.md)
-- Protocol: [`path-validation-v4.md`](path-validation-v4.md)
+- Protocol: [`path-validation-v4.md`](../2026-11-04/path-validation-v4.md)
 
 The v4 contract and implementation remain the model surface. The directional
 result is model evidence, not a strategy verdict or a profitability claim. The
 compression-breakout event is a separate non-directional claim, pre-registered
-in [`compression-breakout.md`](compression-breakout.md); its development gate is **inconclusive**
+in [`compression-breakout.md`](../2026-11-04/compression-breakout.md); its development gate is **inconclusive**
 because the 2 ATR / 20-bar outcome saturated; the validation partition was not
 opened. See [`COMPRESSION-GATE`](../../improvement/2026-11-04/COMPRESSION-GATE.md).
 
