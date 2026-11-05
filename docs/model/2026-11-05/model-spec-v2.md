@@ -245,11 +245,15 @@ The output is the standard model bundle plus:
 |---|---|
 | `prediction.csv` | The causal vote and its raw long/short counts |
 | `conditions.csv` | The optional condition values, when conditions are declared |
+| `panel.csv` | The panel readings, one row per common timestamp and instrument: `timestamp,instrument,is_leader,relative_strength,leader_return,lead_lag,breadth,co_movement,dispersion`; written only when the spec declares a panel |
+| `session.csv` | The session readings, one row per evaluation bar: `bar,timestamp,session_code,session_age,opening_range_high,opening_range_low,opening_range_atr,session_range_atr,session_vwap,overnight_return,intraday_return,calendar_bucket`; written only when the spec declares a session |
 | `events.csv` | The active-event projection of the base, extended, session, and panel batches; the stable `event_code` is the identity column |
 | `provenance.json` | The spec schema, id, family, instrument, file hash, readings, extended readings, active events, prediction definition, panel order, session, event counts, and conditions |
 
-`readings.csv`, `levels.csv`, `legs.csv`, `result.json`, and the charts remain
-the standard model artifacts.
+`readings.csv`, `levels.csv`, `legs.csv`, and `result.json` remain the standard
+model artifacts. A missing panel or session reading is an empty CSV cell, never a
+zero. `calendar_bucket` is `weekday * 100 + month` and is published for every
+evaluation bar, not only in-session bars.
 
 ## 9. Determinism and causality
 
@@ -260,7 +264,7 @@ config, and run config produce byte-identical artifacts. The tests cover:
 |---|---|
 | v2 parse, reading overrides, active events, prediction, panel/session | `crates/quantrule-model/src/spec/v2.rs` |
 | JSON parsing, panel resolution, role rejection, condition validation | `crates/quantrule-shell/src/spec/v2.rs` |
-| CLI run, `prediction.csv`, filtered events, provenance, byte-identical rerun | `crates/quantrule-shell/tests/report_command.rs` |
+| CLI run, `prediction.csv`, `panel.csv`, `session.csv`, filtered events, provenance, byte-identical rerun | `crates/quantrule-shell/tests/report_command.rs` |
 
 The model tests prove that a prefix run keeps the same prediction values and
 that repeated runs are identical. The panel and session tests prove that their

@@ -9,8 +9,10 @@ use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use quantrule_model::events::{EventRecord, EventType};
+use quantrule_model::panel::PanelReadings;
 use quantrule_model::readings::{PivotKind, PivotScale};
 use quantrule_model::run::ModelRun;
+use quantrule_model::sessions::SessionReadings;
 
 /// The per-bar readings and states for every ladder timeframe.
 pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
@@ -245,6 +247,60 @@ pub(super) fn prediction_csv(run: &quantrule_model::spec::v2::SpecRun) -> String
     csv
 }
 
+/// The panel readings, one row per common timestamp and instrument.
+pub(super) fn panel_csv(readings: &PanelReadings, leader: &str) -> String {
+    let mut csv = String::from(
+        "timestamp,instrument,is_leader,relative_strength,leader_return,lead_lag,breadth,co_movement,dispersion\n",
+    );
+    for (position, timestamp) in readings.timestamps.iter().enumerate() {
+        for (instrument, series) in &readings.instruments {
+            let _ = writeln!(
+                csv,
+                "{},{},{},{},{},{},{},{},{}",
+                timestamp,
+                instrument,
+                u8::from(instrument == leader),
+                optional(series.relative_strength.get(position).copied().flatten()),
+                optional(series.leader_return.get(position).copied().flatten()),
+                optional(series.lead_lag.get(position).copied().flatten()),
+                optional(series.breadth.get(position).copied().flatten()),
+                optional(series.co_movement.get(position).copied().flatten()),
+                optional(series.dispersion.get(position).copied().flatten()),
+            );
+        }
+    }
+    csv
+}
+
+/// The session readings for the evaluation timeframe.
+pub(super) fn session_csv(
+    candles: &[quantrule_data::Candle],
+    sessions: &SessionReadings,
+) -> String {
+    let mut csv = String::from(
+        "bar,timestamp,session_code,session_age,opening_range_high,opening_range_low,opening_range_atr,session_range_atr,session_vwap,overnight_return,intraday_return,calendar_bucket\n",
+    );
+    for (bar, candle) in candles.iter().enumerate() {
+        let _ = writeln!(
+            csv,
+            "{},{},{},{},{},{},{},{},{},{},{},{}",
+            bar,
+            candle.timestamp(),
+            optional(sessions.session_code.get(bar)),
+            optional(sessions.session_age.get(bar)),
+            optional(sessions.opening_range_high.get(bar)),
+            optional(sessions.opening_range_low.get(bar)),
+            optional(sessions.opening_range_atr.get(bar)),
+            optional(sessions.session_range_atr.get(bar)),
+            optional(sessions.session_vwap.get(bar)),
+            optional(sessions.overnight_return.get(bar)),
+            optional(sessions.intraday_return.get(bar)),
+            optional(sessions.calendar_bucket.get(bar)),
+        );
+    }
+    csv
+}
+
 /// Every confirmed level for every ladder timeframe.
 pub(super) fn levels_csv(run: &ModelRun, ladder: &[u64]) -> String {
     let mut csv = String::from(
@@ -400,11 +456,16 @@ pub(super) fn conditions_csv(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use quantrule_data::Candle;
     use quantrule_model::input::{MarketStateConfig, TimeframeInput};
+    use quantrule_model::panel::{PanelInstrumentReadings, PanelReadings};
+    use quantrule_model::readings::ReadingSeries;
     use quantrule_model::run::ModelRun;
+    use quantrule_model::sessions::SessionReadings;
 
-    use super::{events_csv, legs_csv, levels_csv, readings_csv};
+    use super::{events_csv, legs_csv, levels_csv, panel_csv, readings_csv, session_csv};
 
     fn candles() -> Vec<Candle> {
         (0..90)
@@ -422,6 +483,55 @@ mod tests {
                 .expect("the test candle is valid")
             })
             .collect()
+    }
+
+    #[test]
+    fn panel_csv_is_sorted_and_marks_the_leader() {
+        let series = |relative: Option<f64>, lag: Option<f64>| PanelInstrumentReadings {
+            relative_strength: vec![relative],
+            leader_return: vec![lag],
+            lead_lag: vec![lag.map(|value| -value)],
+            breadth: vec![Some(2.0 / 3.0)],
+            co_movement: vec![Some(1.0)],
+            dispersion: vec![Some(0.0)],
+        };
+        let mut instruments = BTreeMap::new();
+        instruments.insert(String::from("ETH"), series(Some(-0.5), Some(1.0)));
+        instruments.insert(String::from("BTC"), series(Some(0.5), Some(1.0)));
+        let readings = PanelReadings {
+            timestamps: vec![100],
+            instruments,
+        };
+        let csv = panel_csv(&readings, "BTC");
+        assert_eq!(
+            csv,
+            "timestamp,instrument,is_leader,relative_strength,leader_return,lead_lag,breadth,co_movement,dispersion\n\
+             100,BTC,1,0.5,1,-1,0.6666666666666666,1,0\n\
+             100,ETH,0,-0.5,1,-1,0.6666666666666666,1,0\n"
+        );
+    }
+
+    #[test]
+    fn session_csv_publishes_the_calendar_bucket() {
+        let candles = candles()[..3].to_vec();
+        let series = |values: [Option<f64>; 3]| ReadingSeries::new(values.to_vec());
+        let sessions = SessionReadings {
+            session_code: series([Some(1.0), Some(1.0), None]),
+            session_age: series([Some(0.0), Some(1.0), None]),
+            opening_range_high: series([Some(101.0), Some(101.0), None]),
+            opening_range_low: series([Some(99.0), Some(99.0), None]),
+            opening_range_atr: series([Some(2.0), Some(2.0), None]),
+            session_range_atr: series([Some(2.0), Some(2.0), None]),
+            session_vwap: series([Some(100.0), Some(100.0), None]),
+            overnight_return: series([None, None, None]),
+            intraday_return: series([Some(0.0), Some(0.5), None]),
+            calendar_bucket: series([Some(301.0), Some(301.0), Some(301.0)]),
+        };
+        let csv = session_csv(&candles, &sessions);
+        assert_eq!(csv.lines().count(), 4);
+        assert!(csv.starts_with("bar,timestamp,session_code,session_age"));
+        assert!(csv.lines().last().expect("last row").ends_with(",301"));
+        assert!(csv.contains("0,0,1,0,101,99,2,2,100,,0,301"));
     }
 
     #[test]

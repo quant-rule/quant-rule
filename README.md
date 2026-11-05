@@ -137,9 +137,12 @@ contains:
 | `levels.csv` | Every confirmed level |
 | `legs.csv` | Every retained progression leg |
 | `provenance.json` | Data version, config hash, period, config file names, and artifact list |
+| `panel.csv` | Panel readings when a v2 spec declares a panel |
+| `session.csv` | Session readings, including `calendar_bucket`, when a v2 spec declares a session |
 
 A `--spec` run adds `conditions.csv`; a `quantrule.model-spec/v2` run also adds
-`prediction.csv`. A bundle is available if and only if its `report.json` exists;
+`prediction.csv`, `panel.csv`, and `session.csv` when declared. A bundle is
+available if and only if its `report.json` exists;
 the writer writes every other artifact first and `report.json` last, and removes a
 partial bundle on failure.
 

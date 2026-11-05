@@ -295,6 +295,52 @@ mod tests {
     }
 
     #[test]
+    fn breadth_is_the_positive_return_share() {
+        let make = |close_at_end: f64| -> Vec<Candle> {
+            (0..25)
+                .map(|index| {
+                    let close = if index == 24 { close_at_end } else { 100.0 };
+                    Candle::new(
+                        index as u64,
+                        START + index as i64 * 3_600,
+                        close,
+                        close + 0.5,
+                        close - 0.5,
+                        close,
+                        Some(10.0),
+                    )
+                    .expect("valid candle")
+                })
+                .collect()
+        };
+        let btc_series = make(110.0);
+        let eth_series = make(90.0);
+        let xau_series = make(110.0);
+        let instruments = [
+            PanelInstrument {
+                name: "BTC",
+                candles: &btc_series,
+            },
+            PanelInstrument {
+                name: "ETH",
+                candles: &eth_series,
+            },
+            PanelInstrument {
+                name: "XAU",
+                candles: &xau_series,
+            },
+        ];
+        let readings = PanelReadings::compute(&instruments, &PanelConfig::DEFAULT);
+        let btc = readings.instruments.get("BTC").expect("btc");
+        let eth = readings.instruments.get("ETH").expect("eth");
+        assert_eq!(btc.breadth[24], Some(2.0 / 3.0));
+        assert_eq!(eth.breadth[24], Some(2.0 / 3.0));
+        assert!(btc.relative_strength[24].expect("btc rs") > 0.0);
+        assert!(eth.relative_strength[24].expect("eth rs") < 0.0);
+        assert!(btc.dispersion[24].expect("dispersion") > 0.0);
+    }
+
+    #[test]
     fn co_movement_is_high_for_aligned_series() {
         let readings = readings();
         let btc = readings.instruments.get("BTC").expect("btc");

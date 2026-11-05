@@ -289,8 +289,10 @@ fn vwap_events(
     }
 
     // Reclaim: a cross after at least `reclaim_bars` bars on the other side.
+    // The mirror is a downward reclaim after the same number of bars above.
     if bar >= config.reclaim_bars {
         let mut below = true;
+        let mut above = true;
         for (index, prior) in candles
             .iter()
             .enumerate()
@@ -299,30 +301,49 @@ fn vwap_events(
         {
             let Some(prior_vwap) = extended.vwap.get(index) else {
                 below = false;
+                above = false;
                 break;
             };
             if prior.close() >= prior_vwap {
                 below = false;
+            }
+            if prior.close() <= prior_vwap {
+                above = false;
+            }
+            if !below && !above {
                 break;
             }
         }
-        if below
-            && let Some(prior_vwap) = extended.vwap.get(bar - 1)
-            && candles[bar - 1].close() <= prior_vwap
-            && close > vwap
-        {
-            push(
-                events,
-                codes::SIGNAL_VWAP_RECLAIM,
-                EventType::Signal,
-                14,
-                VWAP_SOURCE_CODE,
-                timeframe,
-                bar,
-                1,
-                Some(distance),
-                Some(vwap),
-            );
+        if let Some(prior_vwap) = extended.vwap.get(bar - 1) {
+            let previous_close = candles[bar - 1].close();
+            if below && previous_close <= prior_vwap && close > vwap {
+                push(
+                    events,
+                    codes::SIGNAL_VWAP_RECLAIM,
+                    EventType::Signal,
+                    14,
+                    VWAP_SOURCE_CODE,
+                    timeframe,
+                    bar,
+                    1,
+                    Some(distance),
+                    Some(vwap),
+                );
+            }
+            if above && previous_close >= prior_vwap && close < vwap {
+                push(
+                    events,
+                    codes::SIGNAL_VWAP_RECLAIM,
+                    EventType::Signal,
+                    14,
+                    VWAP_SOURCE_CODE,
+                    timeframe,
+                    bar,
+                    -1,
+                    Some(distance),
+                    Some(vwap),
+                );
+            }
         }
     }
 
@@ -1588,7 +1609,7 @@ mod tests {
     use super::{
         ExtendedEventConfig, ExtendedEventSeries, atr_divergences, divergence_events,
         flow_divergences, level_extended_events, participation_divergences, participation_events,
-        profile_events,
+        profile_events, vwap_events,
     };
     use crate::events::{EventRecord, EventType, codes};
     use crate::readings::{
@@ -1619,6 +1640,52 @@ mod tests {
         assert!(events.events().iter().any(|event| {
             event.source_code == 19 && event.event_type == crate::events::EventType::Level
         }));
+    }
+
+    #[test]
+    fn vwap_reclaim_has_both_directions() {
+        let config = ExtendedEventConfig::from_secs(3600).expect("timeframe");
+        let cases = [
+            (
+                (0..8)
+                    .map(|i| if i < 6 { 99.0 } else { 101.0 })
+                    .collect::<Vec<_>>(),
+                1,
+            ),
+            (
+                (0..8)
+                    .map(|i| if i < 6 { 101.0 } else { 99.0 })
+                    .collect::<Vec<_>>(),
+                -1,
+            ),
+        ];
+        for (closes, expected) in cases {
+            let candles: Vec<Candle> = closes
+                .iter()
+                .enumerate()
+                .map(|(index, close)| {
+                    candle(index as u64, *close, close + 0.5, close - 0.5, *close, 10.0)
+                })
+                .collect();
+            let mut extended = ExtendedReadings::empty(8);
+            extended.vwap = ReadingSeries::new(vec![Some(100.0); 8]);
+            let mut events = Vec::new();
+            vwap_events(
+                &candles,
+                &extended,
+                &config,
+                6,
+                candles[6],
+                Some(1.0),
+                &mut events,
+            );
+            let reclaims: Vec<_> = events
+                .iter()
+                .filter(|event| event.event_code == codes::SIGNAL_VWAP_RECLAIM)
+                .collect();
+            assert_eq!(reclaims.len(), 1, "closes {closes:?}");
+            assert_eq!(reclaims[0].direction_code, expected);
+        }
     }
 
     #[test]
