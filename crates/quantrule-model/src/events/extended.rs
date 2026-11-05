@@ -40,6 +40,8 @@ pub const DONCHIAN_SOURCE_CODE: u16 = 32;
 pub const SWING_SOURCE_CODE: u16 = 33;
 /// Source code for level strength.
 pub const STRENGTH_SOURCE_CODE: u16 = 34;
+/// Source code for break of structure and change of character.
+pub const BOS_CHOCH_SOURCE_CODE: u16 = 36;
 /// Source code for candle anatomy.
 pub const CANDLE_SOURCE_CODE: u16 = 37;
 /// Source code for gaps.
@@ -1289,6 +1291,49 @@ fn level_extended_events(
                 EventType::Level,
                 3,
                 SWING_SOURCE_CODE,
+                timeframe,
+                bar,
+                -1,
+                Some(close),
+                Some(low),
+            );
+        }
+    }
+    if bar > 0
+        && let (Some(high), Some(low), Some(previous_state)) = (
+            extended.last_pivot_high.get(bar),
+            extended.last_pivot_low.get(bar),
+            extended.structure_state.get(bar - 1),
+        )
+        && let (Some(previous_close), Some(previous_high), Some(previous_low)) = (
+            candles.get(bar - 1).map(Candle::close),
+            extended.last_pivot_high.get(bar - 1),
+            extended.last_pivot_low.get(bar - 1),
+        )
+    {
+        // The prior structure state classifies the break: with the trend is a
+        // break of structure, against it is a change of character. A neutral
+        // prior state is unclassified and emits neither.
+        if close > high && previous_close <= previous_high && previous_state != 0.0 {
+            let subtype = if previous_state > 0.0 { 4 } else { 5 };
+            push(
+                events,
+                EventType::Level,
+                subtype,
+                BOS_CHOCH_SOURCE_CODE,
+                timeframe,
+                bar,
+                1,
+                Some(close),
+                Some(high),
+            );
+        } else if close < low && previous_close >= previous_low && previous_state != 0.0 {
+            let subtype = if previous_state < 0.0 { 4 } else { 5 };
+            push(
+                events,
+                EventType::Level,
+                subtype,
+                BOS_CHOCH_SOURCE_CODE,
                 timeframe,
                 bar,
                 -1,

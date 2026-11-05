@@ -1,9 +1,11 @@
 //! Session signal events.
 //!
-//! The five calendar and session readings produce eight signal families: the
-//! session open and close, the opening-range breakout and fade, the overnight
-//! continuation and fade, and the session-range expansion and contraction. The
-//! module is pure and deterministic and needs no panel.
+//! The five calendar and session readings produce eight signal families and
+//! three level families: the session VWAP test, the opening-range test, and the
+//! opening-range break, plus the session open and close, the opening-range
+//! breakout and fade, the overnight continuation and fade, and the session-range
+//! expansion and contraction. The module is pure and deterministic and needs no
+//! panel.
 //!
 //! A session close becomes knowable only on the first bar outside the session,
 //! because the last in-session bar cannot be identified from the bar itself. The
@@ -13,6 +15,7 @@
 use crate::events::EventRecord;
 use crate::events::EventType;
 use crate::events::extended::{cross_down_value, cross_up_value, push};
+use crate::readings::Readings;
 use crate::sessions::{SessionConfig, SessionReadings};
 use quantrule_data::Candle;
 
@@ -48,6 +51,7 @@ impl SessionEventSeries {
     #[must_use]
     pub fn compute(
         candles: &[Candle],
+        readings: &Readings,
         sessions: &SessionReadings,
         config: &SessionConfig,
         timeframe_secs: u64,
@@ -56,6 +60,7 @@ impl SessionEventSeries {
         for bar in 0..candles.len() {
             let inside = in_session(sessions, bar);
             let previous_inside = bar > 0 && in_session(sessions, bar - 1);
+            let atr = readings.atr14.get(bar).filter(|atr| *atr > 0.0);
             if inside && !previous_inside {
                 push(
                     &mut events,
@@ -89,8 +94,27 @@ impl SessionEventSeries {
                 .session_age
                 .get(bar)
                 .is_some_and(|age| age >= config.opening_range_bars as f64);
+            if inside {
+                session_vwap_level(
+                    candles[bar].close(),
+                    sessions,
+                    atr,
+                    timeframe_secs,
+                    bar,
+                    &mut events,
+                );
+            }
             if inside && complete {
                 opening_range_events(candles, sessions, config, timeframe_secs, bar, &mut events);
+                opening_range_levels(
+                    candles,
+                    sessions,
+                    atr,
+                    config,
+                    timeframe_secs,
+                    bar,
+                    &mut events,
+                );
             }
             if inside && sessions.session_age.get(bar) == Some(0.0) {
                 overnight_events(sessions, timeframe_secs, bar, &mut events);
@@ -152,6 +176,118 @@ impl SessionEventSeries {
 
 fn in_session(sessions: &SessionReadings, bar: usize) -> bool {
     sessions.session_code.get(bar) == Some(1.0)
+}
+
+fn session_vwap_level(
+    close: f64,
+    sessions: &SessionReadings,
+    atr: Option<f64>,
+    timeframe_secs: u64,
+    bar: usize,
+    events: &mut Vec<EventRecord>,
+) {
+    let (Some(vwap), Some(atr)) = (sessions.session_vwap.get(bar), atr) else {
+        return;
+    };
+    if (close - vwap).abs() <= 0.2 * atr {
+        push(
+            events,
+            EventType::Level,
+            1,
+            SESSION_SOURCE_CODE,
+            timeframe_secs,
+            bar,
+            0,
+            Some(close),
+            Some(vwap),
+        );
+    }
+}
+
+fn opening_range_levels(
+    candles: &[Candle],
+    sessions: &SessionReadings,
+    atr: Option<f64>,
+    config: &SessionConfig,
+    timeframe_secs: u64,
+    bar: usize,
+    events: &mut Vec<EventRecord>,
+) {
+    let Some(age) = sessions.session_age.get(bar) else {
+        return;
+    };
+    if age < config.opening_range_bars as f64 {
+        return;
+    }
+    let (Some(high), Some(low), Some(atr)) = (
+        sessions.opening_range_high.get(bar),
+        sessions.opening_range_low.get(bar),
+        atr,
+    ) else {
+        return;
+    };
+    let candle = candles[bar];
+    if (candle.high() - high).abs() <= 0.2 * atr {
+        push(
+            events,
+            EventType::Level,
+            1,
+            OPENING_RANGE_SOURCE_CODE,
+            timeframe_secs,
+            bar,
+            1,
+            Some(candle.high()),
+            Some(high),
+        );
+    }
+    if (candle.low() - low).abs() <= 0.2 * atr {
+        push(
+            events,
+            EventType::Level,
+            1,
+            OPENING_RANGE_SOURCE_CODE,
+            timeframe_secs,
+            bar,
+            -1,
+            Some(candle.low()),
+            Some(low),
+        );
+    }
+    if bar == 0 {
+        return;
+    }
+    let (Some(previous), Some(previous_high), Some(previous_low)) = (
+        candles.get(bar - 1).map(Candle::close),
+        sessions.opening_range_high.get(bar - 1),
+        sessions.opening_range_low.get(bar - 1),
+    ) else {
+        return;
+    };
+    if candle.close() > high && previous <= previous_high {
+        push(
+            events,
+            EventType::Level,
+            3,
+            OPENING_RANGE_SOURCE_CODE,
+            timeframe_secs,
+            bar,
+            1,
+            Some(candle.close()),
+            Some(high),
+        );
+    } else if candle.close() < low && previous >= previous_low {
+        push(
+            events,
+            EventType::Level,
+            3,
+            OPENING_RANGE_SOURCE_CODE,
+            timeframe_secs,
+            bar,
+            -1,
+            Some(candle.close()),
+            Some(low),
+        );
+    }
 }
 
 fn opening_range_events(
@@ -287,7 +423,13 @@ mod tests {
     fn events(candles: &[Candle]) -> SessionEventSeries {
         let readings = Readings::compute_with_config(candles, &ReadingsConfig::DEFAULT);
         let sessions = SessionReadings::compute(candles, &readings, &SessionConfig::london());
-        SessionEventSeries::compute(candles, &sessions, &SessionConfig::london(), 3_600)
+        SessionEventSeries::compute(
+            candles,
+            &readings,
+            &sessions,
+            &SessionConfig::london(),
+            3_600,
+        )
     }
 
     #[test]
@@ -298,7 +440,10 @@ mod tests {
             .events()
             .iter()
             .filter(|event| {
-                event.source_code == 50 && event.available_bar_index == event.occurred_bar_index
+                event.event_type == crate::events::EventType::Signal
+                    && event.event_subtype_code == 23
+                    && event.source_code == 50
+                    && event.available_bar_index == event.occurred_bar_index
             })
             .map(|event| event.occurred_bar_index)
             .collect();
@@ -307,7 +452,10 @@ mod tests {
             .events()
             .iter()
             .filter(|event| {
-                event.source_code == 50 && event.available_bar_index > event.occurred_bar_index
+                event.event_type == crate::events::EventType::Signal
+                    && event.event_subtype_code == 23
+                    && event.source_code == 50
+                    && event.available_bar_index > event.occurred_bar_index
             })
             .map(|event| (event.occurred_bar_index, event.available_bar_index))
             .collect();
@@ -323,6 +471,45 @@ mod tests {
         }));
         assert!(events.events().iter().any(|event| {
             event.source_code == 52 && event.direction_code == 1 && event.occurred_bar_index == 32
+        }));
+    }
+
+    #[test]
+    fn session_level_events_are_published() {
+        let candles = series(3);
+        let events = events(&candles);
+        assert!(events.events().iter().any(|event| {
+            event.event_type == crate::events::EventType::Level
+                && event.source_code == 50
+                && event.event_subtype_code == 1
+        }));
+        assert!(events.events().iter().any(|event| {
+            event.event_type == crate::events::EventType::Level
+                && event.source_code == 51
+                && event.event_subtype_code == 3
+        }));
+    }
+
+    #[test]
+    fn the_opening_range_test_fires_on_a_touch() {
+        let mut candles = series(3);
+        let opening_high = candles[9].high();
+        let timestamp = candles[14].timestamp();
+        candles[14] = Candle::new(
+            14,
+            timestamp,
+            opening_high - 1.0,
+            opening_high,
+            opening_high - 1.5,
+            opening_high - 0.5,
+            Some(10.0),
+        )
+        .expect("the touch candle is valid");
+        let events = events(&candles);
+        assert!(events.events().iter().any(|event| {
+            event.event_type == crate::events::EventType::Level
+                && event.source_code == 51
+                && event.event_subtype_code == 1
         }));
     }
 

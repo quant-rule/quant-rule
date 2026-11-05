@@ -136,9 +136,15 @@ fn model(candles: &[Candle]) -> TimeframeModel {
 fn session_events(candles: &[Candle]) -> Vec<EventRecord> {
     let readings = Readings::compute_with_config(candles, &ReadingsConfig::DEFAULT);
     let sessions = SessionReadings::compute(candles, &readings, &SessionConfig::london());
-    SessionEventSeries::compute(candles, &sessions, &SessionConfig::london(), TIMEFRAME_SECS)
-        .events()
-        .to_vec()
+    SessionEventSeries::compute(
+        candles,
+        &readings,
+        &sessions,
+        &SessionConfig::london(),
+        TIMEFRAME_SECS,
+    )
+    .events()
+    .to_vec()
 }
 
 fn assert_batch(events: &[EventRecord], bars: usize) {

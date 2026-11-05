@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.14",
+  "version": "2026-11-05.15",
   "indicators": [
     {
       "id": "ema",
@@ -1025,7 +1025,11 @@
         "last_pivot_low"
       ],
       "availability": "confirmed major pivots",
-      "events": [],
+      "events": [
+        "level.bos",
+        "level.choch",
+        "signal.structure_change"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1481,6 +1485,7 @@
       ],
       "availability": "bar timestamp",
       "events": [
+        "level.session_vwap_test",
         "signal.session_open",
         "signal.session_close"
       ],
@@ -1515,6 +1520,8 @@
       ],
       "availability": "session start and ATR",
       "events": [
+        "level.opening_range_test",
+        "level.opening_range_break",
         "signal.opening_range_breakout",
         "signal.opening_range_fade"
       ],
@@ -4080,6 +4087,91 @@
         "determinism"
       ],
       "status": "active"
+    },
+    {
+      "id": "level.bos",
+      "event_type": 1,
+      "subtype": 4,
+      "source": 36,
+      "indicator": "bos_choch",
+      "role": "context",
+      "claim": "A close beyond the last confirmed pivot in the direction of the current structure continues the structure.",
+      "formula": "SS_prev>0 and C>last_pivot_high and C_prev<=last_pivot_high, or SS_prev<0 and C<last_pivot_low and C_prev>=last_pivot_low",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.choch",
+      "event_type": 1,
+      "subtype": 5,
+      "source": 36,
+      "indicator": "bos_choch",
+      "role": "context",
+      "claim": "A close beyond the last confirmed pivot against the current structure changes character.",
+      "formula": "SS_prev<0 and C>last_pivot_high and C_prev<=last_pivot_high, or SS_prev>0 and C<last_pivot_low and C_prev>=last_pivot_low",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.session_vwap_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 50,
+      "indicator": "session",
+      "role": "context",
+      "claim": "A close at the session VWAP tests the session's volume-weighted price.",
+      "formula": "abs(C-SVWAP)<=0.2*ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.opening_range_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 51,
+      "indicator": "opening_range",
+      "role": "context",
+      "claim": "A bar range intersecting the opening-range high or low tests the range boundary.",
+      "formula": "after k bars: abs(H-ORH)<=0.2*ATR or abs(L-ORL)<=0.2*ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.opening_range_break",
+      "event_type": 1,
+      "subtype": 3,
+      "source": 51,
+      "indicator": "opening_range",
+      "role": "context",
+      "claim": "A close beyond the completed opening range breaks the range.",
+      "formula": "after k bars: C>ORH and C_prev<=ORH_prev, or C<ORL and C_prev>=ORL_prev",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
     }
   ],
   "parameters": [
@@ -5515,7 +5607,9 @@
     "level_subtypes": {
       "1": "test/retest",
       "2": "cross",
-      "3": "break"
+      "3": "break",
+      "4": "break of structure",
+      "5": "change of character"
     },
     "divergence_subtypes": {
       "1": "regular bullish",
