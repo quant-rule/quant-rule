@@ -38,4 +38,4 @@ pub mod timeframe;
 ///
 /// It must match `docs/registry/indicators.json`; a registry change updates
 /// both in the same pull request.
-pub const REGISTRY_VERSION: &str = "2026-11-05.16";
+pub const REGISTRY_VERSION: &str = "2026-11-05.17";
