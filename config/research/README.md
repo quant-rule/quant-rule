@@ -17,7 +17,17 @@ config/research/<PROGRAM-ID>/
   cells/
     CELL-01/
     CELL-02/
+  runs/
+    shared/
+    <INSTRUMENT>/
+      policy.json
+      <YEAR>/
+        data.json
+        run.json
 ```
+
+A model cell uses one-year run configs so each run stays inside the 600,000 M1
+candle input cap. The runner merges the yearly bundles per instrument.
 
 ## Commands
 

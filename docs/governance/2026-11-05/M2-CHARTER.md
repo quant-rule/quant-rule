@@ -2,6 +2,7 @@
 
 - Date: 2026-11-05 (UTC)
 - Status: **Approved** (human, 2026-11-05)
+- Result: **`no_edge`** at P5 (2026-11-05); no candidate, validation not opened
 - Plan: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Program: [`config/research/PROGRAM-2026-11-05-03/program.json`](../../../config/research/PROGRAM-2026-11-05-03/program.json)
 - Coverage: `python3 tools/research/coverage.py --program config/research/PROGRAM-2026-11-05-03/program.json`

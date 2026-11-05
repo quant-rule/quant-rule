@@ -126,8 +126,10 @@ shown to have used the same values.
 ## 4. Active events and roles
 
 `active_events` is the set of registry event IDs the model version uses. Every
-ID must exist in the registry, and the set is unique. The set may include
-`signal`, `context`, and `diagnostic` events; a condition may read any of them.
+ID must exist in the registry, and the set is unique. Several registry IDs may
+share one numeric event code; the set stays unique by ID, and the published
+event is counted once per bar by code. The set may include `signal`, `context`,
+and `diagnostic` events; a condition may read any of them.
 
 Only a `signal` event may appear in `prediction.long` or `prediction.short`. A
 `context` or `diagnostic` event in a vote list is rejected. This is the
