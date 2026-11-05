@@ -1,4 +1,4 @@
-//! The Progression axis.
+//! The progression series.
 //!
 //! Progression follows a structural leg from its pivot candidate through
 //! confirmation, target selection, progress, and a terminal lifecycle. It keeps
@@ -7,11 +7,11 @@
 //! publishes the full record of the leg at each scale. A series with no
 //! confirmed leg yet publishes its newest forming leg.
 //!
-//! The axis reads the pivot candidates and confirmed pivots from [`Readings`],
+//! The series reads the pivot candidates and confirmed pivots from [`Readings`],
 //! the ATR 14 value at the origin, and the close of each candle. It rebuilds the
-//! confirmed-level registry from the pivots instead of reading the Structure
-//! axis, so a correlated output cannot become a second vote. The module is
-//! pure: it performs no I/O, reads no clock, and uses no randomness.
+//! confirmed-level registry from the pivots instead of reading another
+//! measurement's output, so a correlated output cannot become a second vote. The
+//! module is pure: it performs no I/O, reads no clock, and uses no randomness.
 //!
 //! The two scales are never blended. The published leg is one record chosen by
 //! creation order among the confirmed legs, and the stage codes of the two legs
@@ -109,7 +109,7 @@ pub struct ProgressionBar {
     pub size_percentile: Option<f64>,
     /// Mechanical completeness of the published leg.
     pub readiness: Readiness,
-    /// Why the axis is unavailable, or `None` when progress is available.
+    /// Why the measurement is unavailable, or `None` when progress is available.
     pub unavailable_reason: Option<UnavailableReason>,
     /// Closed bars the published stage has held; zero before the first code.
     pub state_age_bars: u64,
@@ -120,7 +120,7 @@ pub struct ProgressionBar {
 impl ProgressionBar {
     /// The published leg record, or `None` when no leg exists.
     ///
-    /// The record is the leg the axis published on this bar, so its id, target,
+    /// The record is the leg the series published on this bar, so its id, target,
     /// origin, and lifecycle agree with the bar's published progress and stage.
     #[must_use]
     pub fn published_leg(&self) -> Option<ProgressionLeg> {
@@ -130,7 +130,7 @@ impl ProgressionBar {
 
 /// The Progression configuration.
 ///
-/// `timeframe_secs` is recorded on every leg. The axis does not derive it from
+/// `timeframe_secs` is recorded on every leg. The series does not derive it from
 /// candle timestamps, because the timeframe is a property of the series, not of
 /// the model arithmetic. The assembling layer supplies it; standalone use
 /// leaves it null.
@@ -138,7 +138,7 @@ impl ProgressionBar {
 /// # Examples
 ///
 /// ```
-/// use quantrule_model::axes::progression::ProgressionConfig;
+/// use quantrule_model::progression::ProgressionConfig;
 ///
 /// assert_eq!(ProgressionConfig::default().timeframe_secs, None);
 /// assert_eq!(ProgressionConfig::new(300).timeframe_secs, Some(300));
@@ -213,7 +213,7 @@ impl Default for ProgressionConfig {
 ///
 /// ```
 /// use quantrule_data::Candle;
-/// use quantrule_model::axes::progression::ProgressionSeries;
+/// use quantrule_model::progression::ProgressionSeries;
 /// use quantrule_model::kernel::Readiness;
 /// use quantrule_model::readings::Readings;
 ///
@@ -532,7 +532,7 @@ impl ScaleLegs {
         }
     }
 
-    /// The leg the axis publishes.
+    /// The leg the series publishes.
     ///
     /// The newest leg whose origin is confirmed, across both scales; before any
     /// leg confirms, the newest leg overall. A newer unconfirmed candidate is

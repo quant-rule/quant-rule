@@ -3,7 +3,7 @@
 //! A leg's target is the nearest confirmed structural level of the same scale
 //! beyond its origin, or the ATR fallback when no such level is knowable. The
 //! module reads only the confirmed-level registry built from the pivot
-//! readings; it never reads another axis's output.
+//! readings; it never reads another measurement's output.
 //!
 //! The registry is append-only, so only a nearer structural level can revise a
 //! target as new levels confirm. A fallback target is replaced by the first
@@ -12,7 +12,7 @@
 
 use std::cmp::Ordering;
 
-use crate::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
+use crate::levels::{ConfirmedLevel, ConfirmedLevelRegistry};
 use crate::readings::{PivotKind, PivotScale};
 
 /// Contract §14 code for a confirmed structural level.
@@ -35,7 +35,7 @@ pub(crate) struct Target {
 /// The registry is append-only and ordered by confirmation bar. `advance` moves
 /// the confirmation pointer and inserts each new level into a price-sorted
 /// vector for its scale and kind. Target selection is then a binary search
-/// rather than a scan of the whole registry, which keeps the progression axis
+/// rather than a scan of the whole registry, which keeps the progression series
 /// linear over a long series.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct LevelIndex {
@@ -197,7 +197,7 @@ mod tests {
     use quantrule_data::Candle;
 
     use super::{ATR_FALLBACK_BASIS, STRUCTURAL_BASIS, Target, nearest_level, select};
-    use crate::axes::structure::registry::ConfirmedLevelRegistry;
+    use crate::levels::ConfirmedLevelRegistry;
     use crate::readings::{PivotScale, PivotSeries};
 
     fn candle(high: f64, low: f64) -> Candle {

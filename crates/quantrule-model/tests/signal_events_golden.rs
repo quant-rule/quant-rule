@@ -4,16 +4,12 @@
 //! The original rows came from an independent Python implementation; the
 //! EMA-stack and RSI-zone state-change rows were regenerated from the
 //! implementation when those two registered event families were completed. The
-//! test recomputes the readings, the axes, and the Signal series and compares
-//! every field.
+//! test recomputes the readings and the Signal series and compares every field.
 
 use quantrule_data::Candle;
-use quantrule_model::axes::direction::DirectionSeries;
-use quantrule_model::axes::momentum::MomentumSeries;
-use quantrule_model::axes::structure::StructureSeries;
 use quantrule_model::events::signal::{
-    DIRECTION_SOURCE_CODE, EMA20_SOURCE_CODE, EMA50_SOURCE_CODE, EMA200_SOURCE_CODE,
-    MOMENTUM_SOURCE_CODE, RSI_SOURCE_CODE, STRUCTURE_SOURCE_CODE, SignalConfig, SignalEventSeries,
+    EMA20_SOURCE_CODE, EMA50_SOURCE_CODE, EMA200_SOURCE_CODE, RSI_SOURCE_CODE, SignalConfig,
+    SignalEventSeries,
 };
 use quantrule_model::readings::Readings;
 
@@ -122,15 +118,9 @@ fn config() -> SignalConfig {
 
 fn compute(candles: &[Candle]) -> SignalEventSeries {
     let readings = Readings::compute(candles);
-    let direction = DirectionSeries::compute(&readings);
-    let momentum = MomentumSeries::compute(&readings);
-    let structure = StructureSeries::compute(candles, &readings);
     SignalEventSeries::compute(
         &readings,
         &quantrule_model::readings::MacdSeries::empty(readings.len()),
-        &direction,
-        &momentum,
-        &structure,
         &config(),
     )
 }
@@ -213,13 +203,7 @@ fn every_event_uses_a_known_source_code() {
         assert!(
             matches!(
                 event.source_code,
-                RSI_SOURCE_CODE
-                    | EMA20_SOURCE_CODE
-                    | EMA50_SOURCE_CODE
-                    | EMA200_SOURCE_CODE
-                    | DIRECTION_SOURCE_CODE
-                    | STRUCTURE_SOURCE_CODE
-                    | MOMENTUM_SOURCE_CODE
+                RSI_SOURCE_CODE | EMA20_SOURCE_CODE | EMA50_SOURCE_CODE | EMA200_SOURCE_CODE
             ),
             "unknown source code {}",
             event.source_code
@@ -237,15 +221,14 @@ fn the_fixture_covers_thresholds_ema_crosses_and_state_changes() {
         .map(|event| event.source_code)
         .collect();
 
-    assert!(sources.contains(&RSI_SOURCE_CODE), "no threshold event");
+    assert!(sources.contains(&RSI_SOURCE_CODE), "no RSI event");
     assert!(sources.contains(&EMA20_SOURCE_CODE), "no EMA event");
     assert!(
-        sources.contains(&MOMENTUM_SOURCE_CODE),
-        "no Momentum state change"
-    );
-    assert!(
-        sources.contains(&STRUCTURE_SOURCE_CODE),
-        "no Structure state change"
+        series
+            .events()
+            .iter()
+            .any(|event| event.event_subtype_code == 3 && event.source_code == RSI_SOURCE_CODE),
+        "no RSI-zone state change"
     );
 }
 

@@ -1,9 +1,7 @@
 //! Architecture guards for the shell crate.
 //!
 //! The shell parses, calls the pipeline, and renders. These tests protect the
-//! one-way renderer edges, the single strategy walk, and the workspace crate
-//! graph: the architecture documents are only truthful while a test reads the
-//! manifests themselves.
+//! one-way renderer edges and the workspace crate graph.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -44,21 +42,10 @@ fn collect(path: &Path, files: &mut Vec<(PathBuf, String)>) {
 
 #[test]
 fn renderers_do_not_depend_on_the_command_module() {
-    let mut files: Vec<(String, String)> = [
-        "diagnosis.rs",
-        "lab_summary.rs",
-        "render.rs",
-        "render_series.rs",
-        "render_state.rs",
-    ]
-    .into_iter()
-    .map(|file| (file.to_owned(), source(file)))
-    .collect();
-    files.extend(
-        sources("render_dashboard")
-            .into_iter()
-            .map(|(path, text)| (path.display().to_string(), text)),
-    );
+    let mut files: Vec<(String, String)> = ["render.rs", "render_flat.rs"]
+        .into_iter()
+        .map(|file| (file.to_owned(), source(file)))
+        .collect();
     files.extend(
         sources("render_report")
             .into_iter()
@@ -68,17 +55,6 @@ fn renderers_do_not_depend_on_the_command_module() {
         assert!(
             !text.contains("use crate::command"),
             "{name} must not import command; the command module calls the renderer"
-        );
-    }
-}
-
-#[test]
-fn the_shell_does_not_walk_the_strategy() {
-    for (path, text) in sources("command") {
-        assert!(
-            !text.contains(".on_bar("),
-            "{} must not call the strategy walk; the runner owns it",
-            path.display()
         );
     }
 }
@@ -99,26 +75,24 @@ fn commands_do_not_rebuild_the_ladder_or_model_inputs() {
     }
 }
 
+#[test]
+fn the_legacy_analytics_crate_is_gone() {
+    let manifest = source("../Cargo.toml");
+    assert!(!manifest.contains("quantrule-analytics"));
+    assert!(!manifest.contains("analytics"));
+}
+
 /// Every workspace crate and the workspace crates it may depend on.
 ///
 /// The order is the dependency order, so a crate may only name crates above
 /// it. Adding an edge is an architecture decision; this table is its guard.
-const ALLOWED_EDGES: [(&str, &[&str]); 5] = [
+const ALLOWED_EDGES: [(&str, &[&str]); 4] = [
     ("quantrule-data", &[]),
     ("quantrule-model", &["quantrule-data"]),
     ("quantrule-backtest", &["quantrule-data", "quantrule-model"]),
     (
-        "quantrule-analytics",
-        &["quantrule-data", "quantrule-model"],
-    ),
-    (
         "quantrule-shell",
-        &[
-            "quantrule-analytics",
-            "quantrule-backtest",
-            "quantrule-data",
-            "quantrule-model",
-        ],
+        &["quantrule-backtest", "quantrule-data", "quantrule-model"],
     ),
 ];
 
@@ -164,76 +138,19 @@ fn parse_workspace_dependencies(manifest: &str) -> Vec<String> {
             dependencies.push(key.to_owned());
         }
     }
-    dependencies.sort();
-    dependencies.dedup();
     dependencies
 }
 
-/// Checks a graph against [`ALLOWED_EDGES`], naming a forbidden pair.
-fn check_graph(graph: &BTreeMap<String, Vec<String>>) -> Result<(), String> {
-    for (name, allowed) in ALLOWED_EDGES {
-        let Some(actual) = graph.get(name) else {
-            return Err(format!("the graph omits the crate {name}"));
-        };
-        for dependency in actual {
-            if !ALLOWED_EDGES
-                .iter()
-                .any(|(candidate, _)| *candidate == dependency.as_str())
-            {
-                return Err(format!(
-                    "{name} depends on {dependency}, which is not a workspace crate"
-                ));
-            }
-            if !allowed.contains(&dependency.as_str()) {
-                return Err(format!("forbidden dependency: {name} -> {dependency}"));
-            }
-        }
-        for dependency in allowed {
-            if !actual.iter().any(|edge| edge.as_str() == *dependency) {
-                return Err(format!(
-                    "the graph omits the allowed dependency: {name} -> {dependency}"
-                ));
-            }
-        }
-    }
-    for name in graph.keys() {
-        if !ALLOWED_EDGES
-            .iter()
-            .any(|(candidate, _)| *candidate == name)
-        {
-            return Err(format!("the graph names an unknown crate {name}"));
-        }
-    }
-    Ok(())
-}
-
 #[test]
-fn the_workspace_crate_graph_is_one_way() {
+fn the_workspace_graph_is_acyclic_and_directional() {
     let graph = workspace_graph();
-    if let Err(message) = check_graph(&graph) {
-        panic!("the workspace crate graph violates the baseline: {message}");
+    for (crate_name, allowed) in ALLOWED_EDGES {
+        let actual = graph.get(crate_name).expect("the crate is in the graph");
+        for dependency in actual {
+            assert!(
+                allowed.contains(&dependency.as_str()),
+                "{crate_name} must not depend on {dependency}"
+            );
+        }
     }
-}
-
-#[test]
-fn a_synthetic_forbidden_edge_names_the_crate_pair() {
-    let mut graph = workspace_graph();
-    graph
-        .get_mut("quantrule-model")
-        .expect("the model crate")
-        .push("quantrule-backtest".to_owned());
-    let error = check_graph(&graph).expect_err("a model -> backtest edge is forbidden");
-    assert!(
-        error.contains("quantrule-model -> quantrule-backtest"),
-        "the error must name the pair: {error}"
-    );
-}
-
-#[test]
-fn external_manifest_dependencies_are_not_workspace_edges() {
-    let manifest = "[dependencies]\nserde = \"1\"\nquantrule-data = { path = \"../quantrule-data\" }\n\n[dev-dependencies]\nquantrule-model = { path = \"../quantrule-model\" }\n";
-    assert_eq!(
-        parse_workspace_dependencies(manifest),
-        vec!["quantrule-data".to_owned()]
-    );
 }

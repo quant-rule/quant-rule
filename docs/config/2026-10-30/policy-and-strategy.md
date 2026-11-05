@@ -1,28 +1,35 @@
-# Policy and Strategy Blueprints
+# Policy Blueprint and Current Run Contracts
 
-- Date: 2026-10-30
-- Applies to: run schema `quantrule.run/v2`, policy `v1`, strategy `v3`,
-  execution `v2`
+- Date: 2026-10-30 (updated 2026-11-05 for the M1.0 cutover)
+- Applies to: run schema `quantrule.run/v2`, policy `v1`, data `v3`, model
+  `v4`, execution `v2`, portfolio `v1`
 - Related: `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md`
 
 ## Run composition
 
-`run.json` names the policy, the six engine files, and the output root:
+`run.json` names the policy, the five current engine files, and the output root:
 
 ```json
 {
   "schema": "quantrule.run/v2",
   "name": "eurusd-2025",
+  "model_id": "M1.0",
+  "policy_id": "POL1.0",
+  "execution_id": "E1.0",
+  "portfolio_id": "P1.0",
   "policy": "policy.json",
   "data": "data.json",
   "model": "model.json",
-  "strategy": "strategy.json",
   "execution": "execution.json",
   "portfolio": "portfolio.json",
-  "analytics": "analytics.json",
-  "output_root": "../../../data/labs/backtest-eurusd-2025"
+  "output_root": "../../../data/labs/eurusd-2025"
 }
 ```
+
+`strategy` and `analytics` are not current run fields. The loader rejects them
+with an unknown-field error; S3.x adds a strategy file back. The identity fields
+are optional, but a present identity must carry its type prefix (`M`, `POL`,
+`S`, `E`, `P`).
 
 ## Policy
 
@@ -64,66 +71,15 @@ There are deliberately no news, weekend, session, or daily-loss fields.
 
 ## Strategy
 
-```json
-{
-  "schema": "quantrule.strategy/v3",
-  "rule": "ladder-context",
-  "thesis": "Trade with the higher-timeframe regime after a lower-timeframe structure shift.",
-  "ladder": ["5m", "15m"],
-  "weights": {
-    "direction": { "15m": 1.0 },
-    "momentum": { "15m": 1.0 },
-    "structure": { "15m": 1.0 },
-    "progression": { "15m": 1.0 }
-  },
-  "entry": {
-    "execution": {
-      "direction_min": 0.1,
-      "momentum_min": 0.1,
-      "structure_min": 0.0,
-      "structure_shift": { "from_max": 0, "to_min": 1 }
-    },
-    "context": {
-      "direction": { "kind": "bullish", "share_min": 0.5 },
-      "momentum": { "kind": "not_bearish", "bearish_share_max": 0.5 },
-      "structure": { "conflict_count_max": 0 },
-      "progression": {
-        "direction": "bullish",
-        "late_or_terminal_count_max": 0
-      }
-    }
-  },
-  "exit": { "on": ["context_lost", "structure_lost"] },
-  "risk": {
-    "stop": { "kind": "atr", "multiple": 2.0 },
-    "target": { "kind": "reward_to_risk", "multiple": 1.5 }
-  },
-  "no_trade": {
-    "missing_context": "reject",
-    "require_contiguous_execution": true
-  }
-}
-```
+The ladder-context strategy, its axis weights, its as-of context, and the
+`quantrule.strategy/v2`–`/v8` parsers were retired with the four-axis cutover.
+The generic bracket and event-composite engines remain in `quantrule-backtest`
+for S3.x, but no strategy file is loaded and no strategy command is reachable
+from the current shell.
 
-| Field | Rule |
-|---|---|
-| `rule` | Exactly `ladder-context` in v3 |
-| `thesis` | Non-empty human explanation; never executable |
-| `ladder` | Ascending, unique, at least two members; `ladder[0]` is execution |
-| `weights` | Optional per-axis map keyed by context timeframe; finite, `> 0`; a present block must cover every context timeframe |
-| `entry.execution` | Execution thresholds and Structure state shift |
-| `entry.context` | Direction, Momentum, Structure conflict, and Progression filters |
-| `exit.on` | Non-empty, unique subset of `context_lost` and `structure_lost` |
-| `risk.stop` | `atr` with a finite multiple `> 0` |
-| `risk.target` | `reward_to_risk` with a finite multiple `> 0` |
-| `no_trade.missing_context` | Exactly `reject` |
-| `no_trade.require_contiguous_execution` | Exactly `true` |
-
-The strategy receives the execution bar snapshot and the as-of higher-timeframe
-context. It cannot read percentiles, readiness, events, execution, portfolio, or
-policy. A `quantrule.strategy/v2` file is rejected with a migration message.
-
-`strategy explain --config <run.json>` renders the rule in trader words.
+S3.x defines the replacement multi-timeframe context over the published events,
+states, confirmed levels, and progression values. It does not restore the old
+axis scores.
 
 ## Portfolio
 
@@ -159,10 +115,11 @@ policy. A `quantrule.strategy/v2` file is rejected with a migration message.
 }
 ```
 
-The execution engine receives a `TradeIntent` from the strategy. The stop and
-target specifications live in the intent, not in the execution file or the
-execution config. Execution resolves them against the fill; it never stores or
-chooses a distance.
+Execution receives a `TradeIntent` from the strategy in the S3.x pipeline. The
+stop and target specifications live in the intent, not in the execution file or
+the execution config. Execution resolves them against the fill; it never stores
+or chooses a distance. The current shell loads and validates this config but
+does not run execution.
 
 ## Portfolio accounting
 
@@ -185,15 +142,15 @@ fee and is never recomputed.
   "from": "2025-01-01",
   "to": "2025-12-31",
   "source_timeframe": "1m",
-  "available_timeframes": ["1m", "5m", "15m", "1h", "4h"],
+  "available_timeframes": ["1m", "5m", "15m", "1h"],
   "max_candles": 600000
 }
 ```
 
 `source_timeframe` is fixed at `1m`. The `available_timeframes` list is
-ascending, unique, includes `1m`, and may include `4h`. The data engine supports
-`1m`, `5m`, `15m`, `1h`, and `4h`; the strategy's active ladder is a subset and
-is introduced in the strategy v3 contract. The CSV must be one-minute spaced:
+ascending, unique, and includes `1m`. The data engine supports `1m`, `5m`,
+`15m`, `1h`, and `4h`; the M1.0 model ceiling is `1h`, so a run with `4h` in its
+ladder is rejected. The CSV must be one-minute spaced:
 the loader measures every parsed source row before `from`/`to` is applied and
 rejects a native M5/M15/H1 file, even when the date bound would retain only one
 row. A sparse M1 file with gaps is accepted while at least one adjacent pair is
@@ -204,9 +161,9 @@ observed cadence.
 
 ```bash
 quantrule policy check --config <run.json>
-quantrule strategy explain --config <run.json>
-quantrule backtest --config <run.json>
+quantrule report model --config <run.json> --out <dir>
+quantrule events <csv-path>
 ```
 
-`policy check` and `strategy explain` are read-only: they read no candles and
-write no artifacts.
+`policy check` is read-only: it reads no candles and writes no artifacts.
+`report model` reads the configured candles and writes the flat bundle.

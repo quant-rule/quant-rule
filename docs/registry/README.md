@@ -2,14 +2,14 @@
 
 - Date: 2026-11-03 (UTC)
 - Status: Populated 2026-11-03; CI check in `tools/check_registry.py`
-- Contract: [`docs/model/2026-11-03/model-v3.md`](../model/2026-11-03/model-v3.md)
+- Contract: [`docs/model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md)
 - ADR: [`docs/adr/2026-11-03/flat-indicator-event-model.md`](../adr/2026-11-03/flat-indicator-event-model.md)
 
 ## 1. Purpose
 
 The registry is the single documented index of every indicator, event, source
-code, and behaviour-affecting parameter in the model, strategy, policy,
-execution, portfolio, and analytics contracts.
+code, and behaviour-affecting parameter in the model, policy, execution, and
+portfolio contracts.
 
 If a number can change a model value, an event, a strategy decision, a fill, a
 position, or a reported result, it belongs here. A number that is not in the

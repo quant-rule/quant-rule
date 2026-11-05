@@ -4,7 +4,7 @@
 - Tool: OpenCode, DeepSeek V4.1 Flash
 - Work item: [#471](https://github.com/quant-rule/quant-rule/issues/471)
 - Plan: [`471-four-axis-removal.md`](../../execution-plans/2026-11-05/471-four-axis-removal.md)
-- Scope: P3a-1, the behavior-neutral module move
+- Scope: P3a–P3d, the full four-axis removal
 
 ## Intent and boundary
 
@@ -48,11 +48,64 @@ No model formula, event, state, or output changed in this slice.
   events use `LEGACY_UNREGISTERED` code 0. The model core cutover can remove
   them without removing a registered event.
 
-## Remaining P3 work
+## P3a–P3d implementation
 
-- P3a-2: rewrite `TimeframeModel`, `ModelBar`, `TimeframeSnapshot`, and
-  `ModelRun` without axis fields; remove the legacy axis state events.
-- P3b: remove the old shell commands and rewrite `report model`/`events` around
-  the flat model.
-- P3c: remove `quantrule-analytics` and the backtest axis ladder/context.
-- P3d: delete old modules, tests, fixtures, and docs; update the M1.0 contract.
+- Rewrote `TimeframeModel`, `ModelBar`, and `ModelRun` without axis, consensus,
+  or snapshot fields.
+- Removed the legacy axis state events from `SignalEventSeries`. They used code 0
+  and were never registry events.
+- Deleted `axes`, `dashboard`, `state`, `consensus`, `aggregate`, and the old
+  report assembler/chart.
+- Moved the retained level registry and progression series to flat modules.
+- Rewrote the shell around data/fetch, `report model`, `events`, `policy check`,
+  and `help`. Removed the old chart, store, research, lab, strategy, and backtest
+  commands.
+- Removed `quantrule-analytics`.
+- Removed the backtest axis ladder, context, strategy walk, and runner; kept
+  execution, portfolio, the bracket engine, and the event-composite engine.
+- Removed the strategy and analytics files from `run.json`; the loader rejects
+  them as unknown fields.
+- Removed the `fetch` PNG chart path; fetch writes CSV only.
+- Deleted the approved old model, config, and tutorial documents and redirected
+  historical links to `docs/registry/history.md`.
+- Updated the M1.0 contract, README, docs index, architecture kata, and
+  characteristics.
+
+## P3 verification and evidence
+
+| Check | Observed result |
+|---|---|
+| `cargo fmt --all -- --check` | Pass |
+| `cargo clippy --all-targets -- -D warnings` | Pass |
+| `cargo test` | 977 passed, 0 failed, 7 ignored across 28 suites |
+| `python3 tools/check_legacy.py` | 179 current files; no retired labels |
+| `python3 tools/check_registry.py` | 46 indicators, 143 events, 110 parameters |
+| `python3 tools/check_validation.py` | 188 claims |
+| `python3 tools/check_links.py` | 538 Markdown files; no broken relative links |
+| `python3 tools/check_terms.py` | 324 files; no banned terms |
+| Signal golden fixture | 69 legacy axis-state rows removed; 49 registered rows remain and pass |
+| `report model` fixture | Flat bundle; no chart artifacts; no axes or market_report field |
+| `events` fixture | Deterministic JSON; no axis state events |
+
+The Quant Developer and Quant Validator passes were sequential passes by the
+same agent, not independent agents or independent model judgments. The
+Validator reproduced the working tree before the commit; the PR and CI run are
+the post-commit reproduction.
+
+## P3 learning
+
+- The axis state events were the only model output that depended on the axis
+  series. Removing them loses no registry event, but it does change the signal
+  golden fixture; the fixture now carries the registered rows only.
+- The shell's report bundle was coupled to `MarketReport` and the chart
+  renderer. A flat `FlatReport` projection made the report independent of the
+  deleted dashboard and chart code.
+- The backtest context and strategy walk were the last axis consumers. Removing
+  them exposed the generic event engine's dependence on the context type; its
+  input now takes explicit timeframe views, which is the S3.x shape.
+- The `fetch` chart option could not survive the chart deletion. The command now
+  writes CSV only; this is an intentional command-contract change recorded in
+  the plan.
+- Historical documents linked to deleted current contracts. Redirecting those
+  links to the history index keeps the history readable without restoring the
+  retired current docs.

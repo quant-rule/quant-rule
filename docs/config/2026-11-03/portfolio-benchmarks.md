@@ -3,7 +3,7 @@
 - Date: 2026-11-03 (UTC)
 - Issue: [#345](https://github.com/quant-rule/quant-rule/issues/345)
 - Status: Implemented
-- Contract: [`docs/model/2026-11-03/model-v3.md`](../../model/2026-11-03/model-v3.md)
+- Contract: [`docs/model/2026-11-03/model-v3.md`](../../registry/history.md)
 - Defaults: [`config/defaults/README.md`](../../../config/defaults/README.md)
 
 ## 1. Purpose

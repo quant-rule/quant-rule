@@ -1,4 +1,4 @@
-//! Unit tests for the Progression axis: creation, confirmation, publication,
+//! Unit tests for the progression series: creation, confirmation, publication,
 //! readiness, counters, and the edge paths the golden fixture does not reach.
 //!
 //! The tests live beside the module so they can reach its private helpers; the
@@ -9,8 +9,8 @@ use quantrule_data::Candle;
 
 use super::leg::Leg;
 use super::{ProgressionConfig, ProgressionSeries, readiness};
-use crate::axes::structure::registry::ConfirmedLevelRegistry;
 use crate::kernel::{Readiness, UnavailableReason};
+use crate::levels::ConfirmedLevelRegistry;
 use crate::readings::{PivotCandidate, PivotKind, PivotScale, PivotSeries, Readings};
 
 /// Candles from a piecewise-linear mid-price path, with a half-point range.
@@ -626,7 +626,7 @@ fn timestamps_do_not_affect_the_output() {
 
 #[test]
 fn irregular_timestamps_do_not_affect_the_output() {
-    // The axis never reads a timestamp; only bar order and the configured
+    // The series never reads a timestamp; only bar order and the configured
     // timeframe matter. Non-uniform spacing, including gaps and a repeated
     // second, must leave every published value unchanged.
     let candles = reference_path();
@@ -919,7 +919,7 @@ fn a_missing_candle_without_a_leg_reports_an_unconfirmed_origin() {
     let bar = series.get(20).expect("bar 20");
 
     // With no leg, the origin is unconfirmed even though the candle is also
-    // missing; the no-leg condition is the axis's primary unavailability.
+    // missing; the no-leg condition is the series' primary unavailability.
     assert_eq!(bar.leg_direction, None);
     assert_eq!(bar.progress, None);
     assert_eq!(

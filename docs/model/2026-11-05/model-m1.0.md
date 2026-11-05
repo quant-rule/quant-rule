@@ -47,25 +47,40 @@ The result schema is `quantrule.model-result/v4`. It carries:
 - `latest.context`;
 - `levels`;
 - `events`;
-- `progression`;
-- `charts` as chart-ready data.
+- `progression`.
 
-The result carries no axes, no cross-timeframe aggregate, no prediction, and no
-confidence field. The shell renders chart images from `charts`; the JSON carries
-numbers only.
+The result carries no axis score, no cross-timeframe aggregate, no consensus,
+no chart projection, no prediction, and no confidence field. The per-timeframe
+result is the only model output; every cross-timeframe view is computed by a
+reporting consumer, and the strategy context is built by S3.x.
+
+The shell publishes the same result through `report model` as a bundle:
+`summary.txt`, `report.json`, `result.json`, `readings.csv`, `events.csv`,
+`levels.csv`, `legs.csv`, and `provenance.json`. A model spec adds
+`conditions.csv` and, for a v2 spec, `prediction.csv`.
+
+`report.json` carries the core Level, Divergence, and Signal event domain. The
+`events.csv` artifact and the `events` command carry the full registered and
+extended event batch; the extended sources (19+) have their own CSV surface.
 
 ## 3. Compatibility
 
-- v3 config and historical v3 reports remain readable.
-- v4 is the new result path.
-- v8 reads events/states; v7 remains historical.
-- `market-report` remains the legacy v3 view.
+- Model schema versions 1–3 are retired; the loader rejects them with an explicit
+  unsupported-schema error.
+- `quantrule.model/v4` and `quantrule.model-result/v4` are the current
+  file-format schemas.
+- The four-axis scores, dashboard, market state, consensus, cross-timeframe
+  aggregate, and their shell commands are retired. They remain in Git history
+  and in the audit, ADR, and improvement records.
+- The strategy context is not part of M1.0; S3.x builds it from the published
+  events and states.
 
 ## 4. Verification
 
-- v4 parser tests, including 4h rejection.
-- v4 result envelope and chart-data tests.
+- v4 parser tests, including 4h rejection and retired-schema rejection.
+- Flat result envelope and report-bundle tests.
 - Causality, determinism, availability, and edge cases for every event.
+- Boundary tests proving the model series does not import the report.
 - The path-validation harness and the pre-registered matrix.
 - The compression-breakout event has its own causality, determinism, and
   edge-case tests; its range-expansion protocol is

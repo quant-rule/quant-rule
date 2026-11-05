@@ -1,31 +1,24 @@
 //! The QuantRule shell binary.
 //!
 //! The shell is the product's only surface. It parses commands, performs source
-//! access, calls the data engine, and renders the result. It holds no indicator
-//! or model logic.
+//! access, calls the data and model engines, and renders the result. It holds no
+//! indicator or model logic.
 
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]
 
-mod chart;
 mod command;
 mod config;
 mod csv;
-mod diagnosis;
 mod export;
 mod fetch;
-mod lab_evidence;
-mod lab_summary;
 mod labels;
 mod pipeline;
 mod render;
-mod render_dashboard;
+mod render_flat;
 mod render_report;
-mod render_series;
-mod render_state;
 mod source;
 mod spec;
-mod store;
 
 use std::ffi::OsString;
 use std::io::{self, Write};

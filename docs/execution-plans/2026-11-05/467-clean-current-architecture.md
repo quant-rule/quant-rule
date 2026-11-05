@@ -2,7 +2,9 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#467](https://github.com/quant-rule/quant-rule/issues/467)
-- Status: **Approved for P0.1**; P1–P8 gated by the decisions in section 5
+- Status: **In progress**; P0.1–P2 merged; P3 four-axis removal implemented in
+  [`471-four-axis-removal.md`](471-four-axis-removal.md). P4–P8 remain gated by
+  the decisions in section 5.
 - Claim type: repository cutover and model-boundary change
 - Predecessor: [`468-legacy-inventory.md`](468-legacy-inventory.md)
 - History index: [`docs/registry/history.md`](../../registry/history.md)
@@ -252,3 +254,15 @@ deletion.
   missing paths.
 - No code, test, config, fixture, or model behavior was changed.
 - P1 is blocked by D1; P2 by D2; P3 by D3; P4 by D4.
+
+## 11. Phase execution record
+
+- P0.1: merged in PR #478 at `6fff066`.
+- P1: merged in PR #479 at `a9110b1`; #469, #480, #481, and #482 closed.
+- P2: merged in PR #483 at `0e3ba07`; #470 closed.
+- P3: implemented on `refactor/471-four-axis-removal`; the flat model is the only
+  model, the analytics crate and the old shell surface are gone, and execution,
+  portfolio, and the generic bracket/event engines remain. The detailed record
+  and the sequential Quant Developer/Validator passes are in
+  [`471-four-axis-removal.md`](471-four-axis-removal.md).
+- P4–P8: not started.

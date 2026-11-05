@@ -5,7 +5,7 @@
 - Normative source:
   [`AGENTS.md` section 10](../../../AGENTS.md#10-agentic-engineering-and-role-definitions)
 - Companion: [Quant roles](quant-roles.md),
-  [full-pipeline tutorial](../../tutorials/2026-10-29/full-pipeline.md)
+  [full-pipeline tutorial](../../registry/history.md)
 - Scope: candles-only, rule-based signals. Statistical, machine-learning, and
   neural-network signal generation are out of scope.
 - Claim type: procedural. This manual makes no profitability claim.
@@ -52,8 +52,8 @@ Read, in this order:
 
 1. [`AGENTS.md` section 10](../../../AGENTS.md#10-agentic-engineering-and-role-definitions).
 2. The researcher's protocol and lab result.
-3. The [four-axis model contract](../../model/2026-10-21/four-axis-analytical-model.md) and the [research output contract](../../analytics/2026-10-24/research-output.md).
-4. The [configuration contract](../../config/2026-10-28/per-engine-config.md) and the [report contract](../../reports/2026-10-28/per-engine-reports.md).
+3. The [four-axis model contract](../../registry/history.md) and the [research output contract](../../analytics/2026-10-24/research-output.md).
+4. The [configuration contract](../../registry/history.md) and the [report contract](../../reports/2026-10-28/per-engine-reports.md).
 
 Confirm the scope in writing. If the protocol, the threshold, the metric, or the
 sample needs to change, stop and return it to the researcher. The developer
@@ -356,8 +356,8 @@ Requested from validator:
 
 - [`AGENTS.md` section 10](../../../AGENTS.md#10-agentic-engineering-and-role-definitions)
 - [Quant roles overview](quant-roles.md)
-- [Full-pipeline tutorial](../../tutorials/2026-10-29/full-pipeline.md)
-- [Four-axis analytical model](../../model/2026-10-21/four-axis-analytical-model.md)
+- [Full-pipeline tutorial](../../registry/history.md)
+- [Four-axis analytical model](../../registry/history.md)
 - [Research output contract](../../analytics/2026-10-24/research-output.md)
-- [Per-engine configuration](../../config/2026-10-28/per-engine-config.md)
+- [Per-engine configuration](../../registry/history.md)
 - [Per-engine reports](../../reports/2026-10-28/per-engine-reports.md)

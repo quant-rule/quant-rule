@@ -2,31 +2,20 @@
 //!
 //! The parser turns one typed line into a [`Command`]. It owns tokenization
 //! and the interactive-only conveniences: a path may be the trimmed remainder
-//! of the line, and a model command may carry a trailing `--window` option. It
-//! does not open a source or compute a model value.
+//! of the line, and the event command may carry a trailing `--window` option.
+//! It does not open a source or compute a model value.
 
 use std::path::PathBuf;
 
-use super::backtest::parse_backtest_arguments;
-use super::chart::parse_market_chart_arguments;
-use super::dashboard::parse_dashboard_arguments;
 use super::fetch::parse_fetch_arguments;
-use super::lab::parse_lab_arguments;
-use super::model::parse_model_series_arguments;
 use super::policy::parse_policy_arguments;
-use super::report::parse_market_report_arguments;
 use super::report_run::parse_report_arguments;
-use super::research::parse_research_arguments;
-use super::store::parse_store_arguments;
-use super::store_query;
-use super::strategy::parse_strategy_run_arguments;
-use super::strategy_explain::parse_strategy_explain_arguments;
-use super::types::{Axis, Command, HelpTopic, ModelArgs, ParseError, WindowMode};
+use super::types::{Command, HelpTopic, ModelArgs, ParseError, WindowMode};
 
 /// Parses one command line.
 ///
-/// A blank line returns `Ok(None)`. A `candles` or `candles-tolerant` path is
-/// the trimmed remainder of the line, so a path may contain spaces.
+/// A blank line returns `Ok(None)`. A path command takes the trimmed remainder
+/// of the line, so a path may contain spaces.
 ///
 /// # Errors
 ///
@@ -47,62 +36,14 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "candles" => path_command(rest, "candles", Command::Candles),
         "candles-tolerant" => path_command(rest, "candles-tolerant", Command::CandlesTolerant),
         "timeframes" => path_command(rest, "timeframes", Command::Timeframes),
-        "market-state" => parse_model_command(rest, "market-state", Command::MarketState),
-        "market-dashboard" => {
-            let arguments = tokenize(rest)?;
-            parse_dashboard_arguments(&arguments).map(|args| Some(Command::MarketDashboard(args)))
-        }
         "events" => parse_model_command(rest, "events", Command::Events),
-        "legs" => parse_model_command(rest, "legs", Command::Legs),
-        "model-series" => {
-            let arguments = tokenize(rest)?;
-            parse_model_series_arguments(&arguments).map(|args| Some(Command::ModelSeries(args)))
-        }
-        "axis" => parse_axis(rest),
-        "market-chart" => {
-            let arguments = tokenize(rest)?;
-            parse_market_chart_arguments(&arguments).map(|args| Some(Command::MarketChart(args)))
-        }
-        "market-report" => {
-            let arguments = tokenize(rest)?;
-            parse_market_report_arguments(&arguments).map(|args| Some(Command::MarketReport(args)))
-        }
         "report" => {
             let arguments = tokenize(rest)?;
             parse_report_arguments(&arguments).map(|args| Some(Command::Report(args)))
         }
-        "backtest" => {
-            let arguments = tokenize(rest)?;
-            parse_backtest_arguments(&arguments).map(|args| Some(Command::Backtest(args)))
-        }
-        "strategy-run" => {
-            let arguments = tokenize(rest)?;
-            parse_strategy_run_arguments(&arguments).map(|args| Some(Command::StrategyRun(args)))
-        }
-        "strategy" => {
-            let arguments = tokenize(rest)?;
-            parse_strategy_explain_arguments(&arguments)
-                .map(|args| Some(Command::StrategyExplain(args)))
-        }
         "policy" => {
             let arguments = tokenize(rest)?;
             parse_policy_arguments(&arguments).map(Some)
-        }
-        "lab" => {
-            let arguments = tokenize(rest)?;
-            parse_lab_arguments(&arguments)
-        }
-        "research" => {
-            let arguments = tokenize(rest)?;
-            parse_research_arguments(&arguments)
-        }
-        "store" => {
-            let arguments = tokenize(rest)?;
-            parse_store_arguments(&arguments)
-        }
-        "db" => {
-            let arguments = tokenize(rest)?;
-            store_query::parse_db_arguments(&arguments)
         }
         "fetch" => {
             let arguments = tokenize(rest)?;
@@ -157,7 +98,7 @@ fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     }
 
     if quote.is_some() {
-        return Err(ParseError::Fetch(String::from(
+        return Err(ParseError::Usage(String::from(
             "unterminated quoted argument",
         )));
     }
@@ -166,6 +107,62 @@ fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     }
 
     Ok(tokens)
+}
+
+/// Parses an already-split `events <csv-path> [--window full|latest]`.
+///
+/// # Errors
+///
+/// Returns [`ParseError::MissingPath`] when the path is absent, and
+/// [`ParseError::Window`] for a repeated or invalid window.
+pub(crate) fn parse_model_arguments(
+    arguments: &[String],
+    name: &'static str,
+) -> Result<ModelArgs, ParseError> {
+    const USAGE: &str = "usage: events <csv-path> [--window full|latest]";
+    let mut path = None;
+    let mut window = WindowMode::Full;
+    let mut window_seen = false;
+    let mut index = 0;
+
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "--window" => {
+                if window_seen {
+                    return Err(ParseError::Window(format!(
+                        "--window was supplied twice\n{USAGE}"
+                    )));
+                }
+                index += 1;
+                let value = arguments.get(index).ok_or_else(|| {
+                    ParseError::Window(format!("--window requires a value\n{USAGE}"))
+                })?;
+                window = WindowMode::from_code(value).ok_or_else(|| {
+                    ParseError::Window(format!(
+                        "--window expects full or latest, found '{value}'\n{USAGE}"
+                    ))
+                })?;
+                window_seen = true;
+            }
+            option if option.starts_with("--") => {
+                return Err(ParseError::Window(format!(
+                    "unknown option '{option}'\n{USAGE}"
+                )));
+            }
+            value => {
+                if path.is_some() {
+                    return Err(ParseError::Window(format!(
+                        "unexpected argument '{value}'\n{USAGE}"
+                    )));
+                }
+                path = Some(PathBuf::from(value));
+            }
+        }
+        index += 1;
+    }
+
+    let path = path.ok_or(ParseError::MissingPath(name))?;
+    Ok(ModelArgs::new(path, window))
 }
 
 fn parse_model_command(
@@ -181,24 +178,7 @@ fn parse_model_command(
     Ok(Some(build(ModelArgs::new(PathBuf::from(path), window))))
 }
 
-fn parse_axis(rest: &str) -> Result<Option<Command>, ParseError> {
-    let (body, window) = split_window_option(rest, "axis")?;
-    let (path, axis) = body
-        .rsplit_once(char::is_whitespace)
-        .ok_or(ParseError::AxisUsage)?;
-    let path = path.trim();
-    let axis = axis.trim();
-    if path.is_empty() || axis.is_empty() {
-        return Err(ParseError::AxisUsage);
-    }
-    let axis = Axis::from_code(axis).ok_or_else(|| ParseError::UnknownAxis(axis.to_owned()))?;
-    Ok(Some(Command::Axis {
-        args: ModelArgs::new(PathBuf::from(path), window),
-        axis,
-    }))
-}
-
-/// Splits an optional trailing `--window <full|latest>` from a model command.
+/// Splits an optional trailing `--window <full|latest>` from the event command.
 ///
 /// The path is kept as the trimmed remainder, so an interactive path may still
 /// contain spaces. The option is only recognized at the end of the command.
@@ -259,23 +239,19 @@ fn path_command(
     }
 }
 
-/// The help usage line.
-const HELP_USAGE: &str = "usage: help [<command>|all|glossary|tutorial|roles]";
-
 /// Parses the optional one- or two-word help topic.
 ///
-/// `all`, `glossary`, `tutorial`, and `roles` are reserved topics. Any other
-/// topic must name a command in the help metadata; the error points to
-/// `help all` so the caller can recover.
+/// `all` and `glossary` are reserved topics. Any other topic must name a
+/// command in the help metadata.
 ///
 /// # Errors
 ///
-/// Returns [`ParseError::Usage`] for more than two words or for a reserved
-/// topic with extra words, and [`ParseError::UnknownHelpTopic`] for a name that
-/// is not a command.
+/// Returns [`ParseError::Usage`] for more than two words, and
+/// [`ParseError::Help`] for a name that is not a command.
 pub(crate) fn parse_help_arguments(arguments: &[String]) -> Result<HelpTopic, ParseError> {
+    const USAGE: &str = "usage: help [<command>|all|glossary]";
     if arguments.len() > 2 {
-        return Err(ParseError::Usage(HELP_USAGE.to_owned()));
+        return Err(ParseError::Usage(USAGE.to_owned()));
     }
     if arguments.is_empty() {
         return Ok(HelpTopic::Short);
@@ -284,21 +260,18 @@ pub(crate) fn parse_help_arguments(arguments: &[String]) -> Result<HelpTopic, Pa
         match arguments[0].as_str() {
             "all" => return Ok(HelpTopic::All),
             "glossary" => return Ok(HelpTopic::Glossary),
-            "tutorial" => return Ok(HelpTopic::Tutorial),
-            "roles" => return Ok(HelpTopic::Roles),
             _ => {}
         }
     }
-    if matches!(
-        arguments[0].as_str(),
-        "all" | "glossary" | "tutorial" | "roles"
-    ) {
-        return Err(ParseError::Usage(HELP_USAGE.to_owned()));
+    if matches!(arguments[0].as_str(), "all" | "glossary") {
+        return Err(ParseError::Usage(USAGE.to_owned()));
     }
     let name = arguments.join(" ");
     if super::help::is_command(&name) {
         Ok(HelpTopic::Command(name))
     } else {
-        Err(ParseError::UnknownHelpTopic(name))
+        Err(ParseError::Help(format!(
+            "unknown help topic '{name}'; use help all"
+        )))
     }
 }

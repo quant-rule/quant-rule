@@ -1,8 +1,9 @@
 //! Boundary guards for the model module graph.
 //!
 //! The guards are source-level because Rust has no stable way to assert that a
-//! module does not import another. They protect the one-way edge that broke the
-//! `run`/`state` cycle: the run orchestration must not depend on the view.
+//! module does not import another. They protect the one-way edge from the model
+//! series to the report projection: the run and timeframe modules must not
+//! depend on the report.
 
 use std::fs;
 use std::path::PathBuf;
@@ -15,25 +16,28 @@ fn source(file: &str) -> String {
 }
 
 #[test]
-fn run_does_not_import_the_state_view() {
-    let run = source("run.rs");
-    assert!(
-        !run.contains("use crate::state"),
-        "run.rs must not import the state view; the state module depends on run, not the reverse"
-    );
+fn the_model_series_does_not_import_the_report() {
+    for file in ["run.rs", "timeframe.rs"] {
+        let source = source(file);
+        assert!(
+            !source.contains("use crate::report"),
+            "{file} must not import the report; the report projects the series"
+        );
+    }
 }
 
 #[test]
-fn state_does_not_define_the_input_or_consensus_contract() {
-    let state = source("state.rs");
+fn the_report_does_not_define_the_input_or_run_contract() {
+    let report = source("report/flat.rs");
     for definition in [
         "struct MarketStateConfig",
         "struct TimeframeInput",
-        "struct TimeframeConsensus",
+        "struct ModelRun",
+        "struct TimeframeModel",
     ] {
         assert!(
-            !state.contains(definition),
-            "state.rs must keep the view only; found {definition}"
+            !report.contains(definition),
+            "the report must project the run only; found {definition}"
         );
     }
 }

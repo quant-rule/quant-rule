@@ -7,13 +7,13 @@
 //! only when the newer pivot is confirmed, and the event is appended once.
 //!
 //! The detector reports a structural relationship with RSI as its source. It
-//! never changes an axis value and is not a second RSI vote. The module is pure:
+//! never changes a reading and is not a second RSI vote. The module is pure:
 //! it reads only the readings and the configuration it is given.
 
 use std::num::NonZeroU64;
 
-use crate::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
 use crate::events::{EventRecord, EventType};
+use crate::levels::{ConfirmedLevel, ConfirmedLevelRegistry};
 use crate::readings::{PivotKind, PivotScale, ReadingSeries, Readings};
 
 /// The contract's source code for RSI 14.
@@ -341,10 +341,7 @@ mod tests {
         DivergenceConfig, DivergenceEventSeries, DivergenceSubtype, RSI_SOURCE_CODE,
         RSI_WINDOW_BARS,
     };
-    use crate::axes::direction::DirectionSeries;
-    use crate::axes::momentum::MomentumSeries;
-    use crate::axes::structure::StructureSeries;
-    use crate::axes::structure::registry::ConfirmedLevelRegistry;
+    use crate::levels::ConfirmedLevelRegistry;
     use crate::readings::{PivotKind, PivotScale, PivotSeries, ReadingSeries, Readings};
     use quantrule_data::Candle;
     use std::num::NonZeroU64;
@@ -709,26 +706,18 @@ mod tests {
     }
 
     #[test]
-    fn the_detector_changes_no_axis_value() {
+    fn the_detector_does_not_change_the_readings() {
         let candles = candles(&regular_bullish_series());
         let readings = readings(
             &candles,
             regular_bullish_rsi(),
             atr_values(candles.len(), 8, 2.0),
         );
-        let direction_before = DirectionSeries::compute(&readings);
-        let momentum_before = MomentumSeries::compute(&readings);
-        let structure_before = StructureSeries::compute(&candles, &readings);
+        let before = readings.clone();
 
         let events = DivergenceEventSeries::compute(&readings, &config());
         assert!(!events.is_empty(), "the fixture must produce an event");
-
-        assert_eq!(direction_before, DirectionSeries::compute(&readings));
-        assert_eq!(momentum_before, MomentumSeries::compute(&readings));
-        assert_eq!(
-            structure_before,
-            StructureSeries::compute(&candles, &readings)
-        );
+        assert_eq!(readings, before);
     }
 
     #[test]

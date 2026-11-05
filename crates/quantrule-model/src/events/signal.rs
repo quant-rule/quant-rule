@@ -1,19 +1,16 @@
 //! Signal events.
 //!
 //! A Signal event records a discrete change in a reading: an RSI 14 threshold
-//! crossing, a configured EMA/EMA crossover, or a change in a published compact
-//! Direction, Momentum, or Structure state code. A price/EMA crossing is a Level
-//! event and is never emitted here.
+//! crossing, a configured EMA/EMA crossover, a MACD state change, or a
+//! compression/trend condition. A price/EMA crossing is a Level event and is
+//! never emitted here.
 //!
-//! The detector reads the readings and the three axis series. It never changes
-//! an axis value; a signal is evidence, not a vote. The module is pure: it
-//! performs no I/O, reads no clock, and uses no randomness.
+//! The detector reads the readings and the MACD series. It never changes a
+//! reading; a signal is evidence, not a vote. The module is pure: it performs no
+//! I/O, reads no clock, and uses no randomness.
 
 use std::num::NonZeroU64;
 
-use crate::axes::direction::DirectionSeries;
-use crate::axes::momentum::MomentumSeries;
-use crate::axes::structure::StructureSeries;
 use crate::events::{EventRecord, EventType};
 use crate::input::SignalSettings;
 use crate::readings::{MacdSeries, Readings};
@@ -32,12 +29,6 @@ pub const EMA20_SOURCE_CODE: u16 = 1;
 pub const EMA50_SOURCE_CODE: u16 = 2;
 /// The contract's source code for EMA 200.
 pub const EMA200_SOURCE_CODE: u16 = 3;
-/// The contract's source code for EMA spread alignment (Direction).
-pub const DIRECTION_SOURCE_CODE: u16 = 9;
-/// The contract's source code for swing relations (Structure).
-pub const STRUCTURE_SOURCE_CODE: u16 = 10;
-/// The contract's source code for RSI force (Momentum).
-pub const MOMENTUM_SOURCE_CODE: u16 = 11;
 
 /// The contract's reference code for EMA 20.
 pub const EMA20_REFERENCE_CODE: u32 = 1;
@@ -164,7 +155,7 @@ impl SignalConfig {
     }
 }
 
-/// The Signal events detected over one readings and axis series.
+/// The Signal events detected over one readings series and its MACD series.
 ///
 /// The events are stored in bar order. Inside one bar the fixed order is RSI
 /// thresholds 30, 50, 70; EMA pairs 20/50, 50/200, 20/200; then Direction,
@@ -178,9 +169,6 @@ impl SignalConfig {
 /// use std::num::NonZeroU64;
 ///
 /// use quantrule_data::Candle;
-/// use quantrule_model::axes::direction::DirectionSeries;
-/// use quantrule_model::axes::momentum::MomentumSeries;
-/// use quantrule_model::axes::structure::StructureSeries;
 /// use quantrule_model::events::signal::{SignalConfig, SignalEventSeries};
 /// use quantrule_model::readings::{MacdSeries, Readings};
 ///
@@ -189,18 +177,8 @@ impl SignalConfig {
 /// let candles = [candle];
 /// let readings = Readings::compute(&candles);
 /// let macd = MacdSeries::compute(&candles, 12, 26, 9);
-/// let direction = DirectionSeries::compute(&readings);
-/// let momentum = MomentumSeries::compute(&readings);
-/// let structure = StructureSeries::compute(&candles, &readings);
 /// let config = SignalConfig::new(NonZeroU64::new(300).expect("a non-zero timeframe"));
-/// let events = SignalEventSeries::compute(
-///     &readings,
-///     &macd,
-///     &direction,
-///     &momentum,
-///     &structure,
-///     &config,
-/// );
+/// let events = SignalEventSeries::compute(&readings, &macd, &config);
 ///
 /// assert!(events.is_empty());
 /// ```
@@ -210,25 +188,13 @@ pub struct SignalEventSeries {
 }
 
 impl SignalEventSeries {
-    /// Computes every Signal event over the readings and axis series.
+    /// Computes every Signal event over the readings and MACD series.
     ///
     /// The input is not modified. The series covers the shorter of the input
     /// lengths; the model's own series always have equal length.
     #[must_use]
-    pub fn compute(
-        readings: &Readings,
-        macd: &MacdSeries,
-        direction: &DirectionSeries,
-        momentum: &MomentumSeries,
-        structure: &StructureSeries,
-        config: &SignalConfig,
-    ) -> Self {
-        let len = readings
-            .len()
-            .min(macd.len())
-            .min(direction.len())
-            .min(momentum.len())
-            .min(structure.len());
+    pub fn compute(readings: &Readings, macd: &MacdSeries, config: &SignalConfig) -> Self {
+        let len = readings.len().min(macd.len());
         let mut events = Vec::new();
 
         for bar in 1..len {
@@ -237,7 +203,6 @@ impl SignalEventSeries {
             ema_stack_change(readings, bar, config, &mut events);
             rsi_zone_change(readings, bar, config, &mut events);
             macd_events(macd, bar, config, &mut events);
-            state_events(direction, momentum, structure, bar, config, &mut events);
         }
 
         Self { events }
@@ -509,103 +474,6 @@ fn rsi_zone_change(
     ));
 }
 
-fn state_events(
-    direction: &DirectionSeries,
-    momentum: &MomentumSeries,
-    structure: &StructureSeries,
-    bar: usize,
-    config: &SignalConfig,
-    events: &mut Vec<EventRecord>,
-) {
-    if let Some((previous, current, direction_code)) = state_change(
-        |index| direction.get(index).and_then(|bar| bar.state_code),
-        bar,
-        false,
-    ) {
-        events.push(state_event(
-            crate::events::codes::LEGACY_UNREGISTERED,
-            DIRECTION_SOURCE_CODE,
-            previous,
-            current,
-            direction_code,
-            bar,
-            config,
-        ));
-    }
-
-    if let Some((previous, current, direction_code)) = state_change(
-        |index| momentum.get(index).and_then(|bar| bar.state_code),
-        bar,
-        false,
-    ) {
-        events.push(state_event(
-            crate::events::codes::LEGACY_UNREGISTERED,
-            MOMENTUM_SOURCE_CODE,
-            previous,
-            current,
-            direction_code,
-            bar,
-            config,
-        ));
-    }
-
-    if let Some((previous, current, direction_code)) = state_change(
-        |index| structure.get(index).and_then(|bar| bar.state_code),
-        bar,
-        true,
-    ) {
-        events.push(state_event(
-            crate::events::codes::LEGACY_UNREGISTERED,
-            STRUCTURE_SOURCE_CODE,
-            previous,
-            current,
-            direction_code,
-            bar,
-            config,
-        ));
-    }
-}
-
-/// Returns the previous and current codes when both are present and differ.
-///
-/// The first code-bearing bar is not a change, and a transition to or from a
-/// null code is not a published code change.
-fn state_change(
-    code: impl Fn(usize) -> Option<i8>,
-    bar: usize,
-    sign_only: bool,
-) -> Option<(f64, f64, i8)> {
-    let previous = code(bar - 1)?;
-    let current = code(bar)?;
-    if previous == current {
-        return None;
-    }
-    let direction = if sign_only { current.signum() } else { current };
-    Some((f64::from(previous), f64::from(current), direction))
-}
-
-fn state_event(
-    event_code: u16,
-    source_code: u16,
-    previous: f64,
-    current: f64,
-    direction: i8,
-    bar: usize,
-    config: &SignalConfig,
-) -> EventRecord {
-    signal_event(
-        event_code,
-        SignalSubtype::CompactStateChange,
-        source_code,
-        None,
-        Some(current),
-        Some(previous),
-        direction,
-        bar,
-        config,
-    )
-}
-
 #[allow(clippy::too_many_arguments)]
 fn signal_event(
     event_code: u16,
@@ -663,9 +531,7 @@ fn ema_reference(period: usize) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::{
-        DIRECTION_SOURCE_CODE, DirectionSeries, EMA20_SOURCE_CODE, MOMENTUM_SOURCE_CODE,
-        MomentumSeries, RSI_SOURCE_CODE, SignalConfig, SignalEventSeries, SignalSubtype,
-        StructureSeries,
+        EMA20_SOURCE_CODE, RSI_SOURCE_CODE, SignalConfig, SignalEventSeries, SignalSubtype,
     };
     use crate::input::SignalSettings;
     use crate::readings::{PivotSeries, ReadingSeries, Readings};
@@ -734,16 +600,10 @@ mod tests {
         SignalConfig::new(NonZeroU64::new(300).expect("a non-zero timeframe"))
     }
 
-    fn signals(candles: &[Candle], readings: &Readings) -> SignalEventSeries {
-        let direction = DirectionSeries::compute(readings);
-        let momentum = MomentumSeries::compute(readings);
-        let structure = StructureSeries::compute(candles, readings);
+    fn signals(_candles: &[Candle], readings: &Readings) -> SignalEventSeries {
         SignalEventSeries::compute(
             readings,
             &crate::readings::MacdSeries::empty(readings.len()),
-            &direction,
-            &momentum,
-            &structure,
             &config(),
         )
     }
@@ -780,17 +640,7 @@ mod tests {
             signal: ReadingSeries::new(vec![None, Some(-0.1), Some(-0.1), Some(0.0), Some(0.1)]),
             histogram: ReadingSeries::new(vec![None, Some(-0.1), Some(0.0), Some(0.1), Some(0.05)]),
         };
-        let direction = DirectionSeries::compute(&readings);
-        let momentum = MomentumSeries::compute(&readings);
-        let structure = StructureSeries::compute(&candles, &readings);
-        let series = SignalEventSeries::compute(
-            &readings,
-            &macd,
-            &direction,
-            &momentum,
-            &structure,
-            &config(),
-        );
+        let series = SignalEventSeries::compute(&readings, &macd, &config());
 
         assert!(
             series.events().iter().any(|event| {
@@ -900,9 +750,6 @@ mod tests {
             vec![Some(39.0), Some(41.0)],
             none(2),
         );
-        let direction = DirectionSeries::compute(&readings);
-        let momentum = MomentumSeries::compute(&readings);
-        let structure = StructureSeries::compute(&candles, &readings);
         let settings = SignalSettings {
             rsi_levels: [40.0, 50.0, 60.0],
             ..SignalSettings::DEFAULT
@@ -914,9 +761,6 @@ mod tests {
         let series = SignalEventSeries::compute(
             &readings,
             &crate::readings::MacdSeries::empty(readings.len()),
-            &direction,
-            &momentum,
-            &structure,
             &config,
         );
         let events = events_of(&series, SignalSubtype::ThresholdCrossing, RSI_SOURCE_CODE);
@@ -1055,104 +899,6 @@ mod tests {
     }
 
     #[test]
-    fn a_direction_state_change_emits_on_the_change_bar() {
-        let candles = candles(&[100.0, 100.0]);
-        let readings = readings_with(
-            &candles,
-            vec![Some(101.0), Some(110.0)],
-            flat(2, 100.0),
-            flat(2, 99.0),
-            flat(2, 50.0),
-            flat(2, 10.0),
-        );
-        let series = signals(&candles, &readings);
-
-        let events = events_of(
-            &series,
-            SignalSubtype::CompactStateChange,
-            DIRECTION_SOURCE_CODE,
-        );
-        assert_eq!(events.len(), 1);
-        let event = events[0];
-        assert_eq!(event.direction_code, 1);
-        assert_eq!(event.primary_value, Some(1.0));
-        assert_eq!(event.reference_value, Some(0.0));
-        assert_eq!(event.available_bar_index, 1);
-    }
-
-    #[test]
-    fn a_momentum_state_change_and_its_threshold_both_fire() {
-        let candles = candles(&[100.0, 100.0]);
-        let readings = readings_with(
-            &candles,
-            none(2),
-            none(2),
-            none(2),
-            vec![Some(44.0), Some(56.0)],
-            none(2),
-        );
-        let series = signals(&candles, &readings);
-
-        let threshold = events_of(&series, SignalSubtype::ThresholdCrossing, RSI_SOURCE_CODE);
-        let state = events_of(
-            &series,
-            SignalSubtype::CompactStateChange,
-            MOMENTUM_SOURCE_CODE,
-        );
-        assert_eq!(threshold.len(), 1);
-        assert_eq!(state.len(), 1);
-        assert_eq!(threshold[0].available_bar_index, 1);
-        assert_eq!(state[0].available_bar_index, 1);
-        assert_eq!(state[0].direction_code, 1);
-    }
-
-    #[test]
-    fn the_first_code_is_not_a_state_change() {
-        let candles = candles(&[100.0, 100.0]);
-        let readings = readings_with(
-            &candles,
-            none(2),
-            none(2),
-            none(2),
-            vec![None, Some(60.0)],
-            none(2),
-        );
-        let series = signals(&candles, &readings);
-
-        assert!(
-            events_of(
-                &series,
-                SignalSubtype::CompactStateChange,
-                MOMENTUM_SOURCE_CODE
-            )
-            .is_empty()
-        );
-    }
-
-    #[test]
-    fn a_transition_to_null_is_not_a_state_change() {
-        let candles = candles(&[100.0, 100.0]);
-        let readings = readings_with(
-            &candles,
-            none(2),
-            none(2),
-            none(2),
-            vec![Some(60.0), None],
-            none(2),
-        );
-        let series = signals(&candles, &readings);
-
-        assert!(
-            events_of(
-                &series,
-                SignalSubtype::CompactStateChange,
-                MOMENTUM_SOURCE_CODE
-            )
-            .is_empty()
-        );
-    }
-
-    #[test]
     fn an_empty_series_has_no_events() {
         let candles = Vec::new();
         let readings = readings_with(&candles, vec![], vec![], vec![], vec![], vec![]);
@@ -1234,7 +980,7 @@ mod tests {
     }
 
     #[test]
-    fn the_detector_changes_no_axis_value() {
+    fn the_detector_does_not_change_the_readings() {
         let candles = candles(&[100.0, 101.0, 102.0]);
         let readings = readings_with(
             &candles,
@@ -1244,26 +990,15 @@ mod tests {
             vec![Some(29.0), Some(31.0), Some(51.0)],
             flat(3, 10.0),
         );
-        let direction_before = DirectionSeries::compute(&readings);
-        let momentum_before = MomentumSeries::compute(&readings);
-        let structure_before = StructureSeries::compute(&candles, &readings);
+        let before = readings.clone();
 
         let events = SignalEventSeries::compute(
             &readings,
             &crate::readings::MacdSeries::empty(readings.len()),
-            &direction_before,
-            &momentum_before,
-            &structure_before,
             &config(),
         );
         assert!(!events.is_empty(), "the fixture must produce an event");
-
-        assert_eq!(direction_before, DirectionSeries::compute(&readings));
-        assert_eq!(momentum_before, MomentumSeries::compute(&readings));
-        assert_eq!(
-            structure_before,
-            StructureSeries::compute(&candles, &readings)
-        );
+        assert_eq!(readings, before);
     }
 
     #[test]

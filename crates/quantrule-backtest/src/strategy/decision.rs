@@ -8,7 +8,6 @@
 //! side and a risk bracket. Execution resolves the request; the strategy never
 //! sets a fill price, fee, or slippage.
 
-use crate::context::LadderContext;
 use crate::intent::{BracketIntent, StrategyPosition, TradeIntent};
 use crate::side::Side;
 
@@ -25,7 +24,7 @@ use super::input::StrategyInput;
 /// use quantrule_backtest::intent::RiskPolicy;
 /// use quantrule_backtest::strategy::{Entry, Side, StrategyInput};
 ///
-/// let bar = StrategyInput::new(300, 0, 0, Some(0.4), Some(0.2), Some(1.0));
+/// let bar = StrategyInput::new(300, 0, 0);
 /// let entry = Entry {
 ///     bar,
 ///     intent: RiskPolicy::default().intent(Side::Long),
@@ -72,9 +71,9 @@ pub struct BracketEntry {
 /// ```
 /// use quantrule_backtest::strategy::{Exit, ExitReason, Side, StrategyInput};
 ///
-/// let bar = StrategyInput::new(300, 1, 300, Some(0.0), Some(0.0), Some(0.0));
-/// let exit = Exit { side: Side::Long, bar, reason: ExitReason::ContextLost };
-/// assert_eq!(exit.reason, ExitReason::ContextLost);
+/// let bar = StrategyInput::new(300, 1, 300);
+/// let exit = Exit { side: Side::Long, bar, reason: ExitReason::TimeStop };
+/// assert_eq!(exit.reason, ExitReason::TimeStop);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Exit {
@@ -89,13 +88,7 @@ pub struct Exit {
 /// Why a strategy closed a position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitReason {
-    /// The higher-timeframe context that justified the entry no longer holds.
-    ContextLost,
-    /// The execution Structure state flipped against the position.
-    StructureLost,
-    /// The nearest confirmed structural level was lost.
-    LevelLost,
-    /// A v8 event or state condition fired.
+    /// A registered event or discrete-state condition fired.
     EventCondition,
     /// The strategy's maximum holding period elapsed.
     TimeStop,
@@ -120,59 +113,30 @@ pub enum Decision {
 /// A causal, stateless strategy over one execution timeframe.
 ///
 /// The runner calls [`Strategy::decide`] once per closed execution bar, in
-/// ascending open-time order, with the as-of [`LadderContext`] and the position
-/// execution actually holds. Execution and portfolio own the position. A
-/// strategy must not read a bar it has not been given, the clock, or any random
-/// source. It emits `Enter` only when the position is flat and `Exit` only when
-/// the position is open.
+/// ascending open-time order, with the position execution actually holds.
+/// Execution and portfolio own the position. A strategy must not read a bar it
+/// has not been given, the clock, or any random source. It emits `Enter` only
+/// when the position is flat and `Exit` only when the position is open.
 ///
 /// # Examples
 ///
 /// ```
-/// use quantrule_backtest::context::LadderContext;
 /// use quantrule_backtest::intent::StrategyPosition;
 /// use quantrule_backtest::strategy::{Decision, Strategy, StrategyInput};
 ///
 /// struct NeverTrades;
 ///
 /// impl Strategy for NeverTrades {
-///     fn decide(
-///         &self,
-///         _input: &StrategyInput,
-///         _context: &LadderContext,
-///         _position: StrategyPosition,
-///     ) -> Decision {
+///     fn decide(&self, _input: &StrategyInput, _position: StrategyPosition) -> Decision {
 ///         Decision::Hold
 ///     }
 /// }
 ///
 /// let strategy = NeverTrades;
-/// let bar = StrategyInput::new(300, 0, 0, None, None, None);
-/// let context = LadderContext {
-///     execution_timeframe_secs: 300,
-///     execution_bar_index: 0,
-///     execution_open_time: 0,
-///     execution_close_time: 300,
-///     context: Vec::new(),
-///     missing_timeframes: vec![900],
-///     direction: quantrule_backtest::context::AxisContext::unavailable(),
-///     momentum: quantrule_backtest::context::AxisContext::unavailable(),
-///     structure: quantrule_backtest::context::StructureContext::unavailable(),
-///     progression: quantrule_backtest::context::ProgressionContext::unavailable(),
-///     levels: quantrule_backtest::context::LevelContext::unavailable(),
-///     agreement: quantrule_backtest::context::AgreementContext::unavailable(),
-/// };
-/// assert_eq!(
-///     strategy.decide(&bar, &context, StrategyPosition::flat()),
-///     Decision::Hold
-/// );
+/// let bar = StrategyInput::new(300, 0, 0);
+/// assert_eq!(strategy.decide(&bar, StrategyPosition::flat()), Decision::Hold);
 /// ```
 pub trait Strategy {
     /// Decides for one closed execution bar.
-    fn decide(
-        &self,
-        input: &StrategyInput,
-        context: &LadderContext,
-        position: StrategyPosition,
-    ) -> Decision;
+    fn decide(&self, input: &StrategyInput, position: StrategyPosition) -> Decision;
 }

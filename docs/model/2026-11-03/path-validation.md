@@ -2,7 +2,7 @@
 
 - Date: 2026-11-03 (UTC)
 - Status: **Approved and executed**; the first pilot (`COPPERCMD 1h`) stopped with a negative primary lift. Issue [#365](https://github.com/quant-rule/quant-rule/issues/365)
-- Contract: [`docs/model/2026-11-03/model-v3.md`](model-v3.md)
+- Contract: [`docs/model/2026-11-03/model-v3.md`](../../registry/history.md)
 - Plan: [`docs/execution-plans/2026-11-03/365-path-validation.md`](../../execution-plans/2026-11-03/365-path-validation.md)
 - Scope: model validation evidence; not a strategy or edge claim
 

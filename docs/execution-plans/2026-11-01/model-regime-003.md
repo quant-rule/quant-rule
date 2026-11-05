@@ -4,7 +4,7 @@
 - Status: **Approved** — human approved the continuing model-evidence cycle.
 - Work item: `model-regime-003`
 - Prior run: [`MODEL-2026-11-01-02`](../../improvement/2026-11-01/MODEL-2026-11-01-02-multi-horizon.md)
-- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../model/2026-11-01/model-evidence-protocol.md)
+- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../registry/history.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-11-01/model-regime-003.md`](../../ai-transparency-log/2026-11-01/model-regime-003.md)
 
 ## 1. Intent

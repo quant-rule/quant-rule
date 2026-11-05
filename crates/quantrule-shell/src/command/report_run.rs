@@ -1,47 +1,39 @@
-//! The config-driven `report` command.
+//! The config-driven `report model` command.
 //!
-//! The command loads the run configuration, runs only the engines the selected
-//! report needs, and writes the bundle through the shared writer. The strategy
-//! bundle is explicit about whether it is the virtual diagnostic walk or the
-//! executed backtest walk.
+//! The command loads the run configuration, computes the flat model over the
+//! configured ladder, and writes the bundle through the shared writer. It does
+//! not compute a reading, an event, or a progression value.
 
-use std::fmt::Write as _;
 use std::fs;
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use quantrule_backtest::runner::BacktestRun;
-use quantrule_backtest::runner::walk_strategy;
-use quantrule_backtest::strategy::{Decision, ExitReason, Side, StrategyInput, StrategyWalk};
-use quantrule_data::{Candle, Timeframe, format_utc_timestamp};
+use quantrule_data::{Candle, Timeframe};
 use quantrule_model::input::MarketStateConfig;
 use quantrule_model::panel::PanelInstrument;
-use quantrule_model::readings::PivotScale;
-use quantrule_model::report::MarketReport;
+use quantrule_model::report::FlatReport;
 use quantrule_model::run::ModelRun;
 use quantrule_model::spec::v2::{ModelSpecV2, SpecRun};
 use quantrule_model::spec::{ModelSpec, SpecEvaluation};
-use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
-pub(super) mod bundles;
 mod model_artifacts;
 
-use super::types::{ParseError, ReportArgs, ReportEngine, ReportError, RunError};
-use crate::chart;
+use super::types::{ParseError, ReportArgs, ReportError, RunError};
 use crate::config::RunConfig;
 use crate::pipeline::{self, PipelineError};
 use crate::render_report::{self, Provenance};
-use crate::source::DateRange;
 
 /// Parses the already-split arguments of `report`.
 ///
 /// # Errors
 ///
-/// Returns [`ParseError::Report`] for a missing engine, a missing or repeated
-/// `--config`/`--out`, an unknown option, or an extra positional argument.
+/// Returns [`ParseError::Report`] for a missing `model` engine, a missing or
+/// repeated `--config`/`--out`, an unknown option, or an extra positional
+/// argument.
 pub(crate) fn parse_report_arguments(arguments: &[String]) -> Result<ReportArgs, ParseError> {
-    const USAGE: &str = "usage: report <model|strategy|execution|portfolio|analytical> --config <run.json> [--spec <spec.json>] [--out <dir>] [--json]";
+    const USAGE: &str =
+        "usage: report model --config <run.json> [--spec <spec.json>] [--out <dir>] [--json]";
     let mut engine = None;
     let mut config = None;
     let mut spec = None;
@@ -115,11 +107,12 @@ pub(crate) fn parse_report_arguments(arguments: &[String]) -> Result<ReportArgs,
                         "unexpected argument '{value}'\n{USAGE}"
                     )));
                 }
-                engine = Some(ReportEngine::parse(value).ok_or_else(|| {
-                    ParseError::Report(format!(
-                        "unknown report engine '{value}'; use model, strategy, execution, portfolio, or analytical\n{USAGE}"
-                    ))
-                })?);
+                if value != "model" {
+                    return Err(ParseError::Report(format!(
+                        "unknown report engine '{value}'; use model\n{USAGE}"
+                    )));
+                }
+                engine = Some(value);
             }
         }
         index += 1;
@@ -129,15 +122,9 @@ pub(crate) fn parse_report_arguments(arguments: &[String]) -> Result<ReportArgs,
         engine.ok_or_else(|| ParseError::Report(format!("missing report engine\n{USAGE}")))?;
     let config =
         config.ok_or_else(|| ParseError::Report(format!("--config is required\n{USAGE}")))?;
-
-    if spec.is_some() && engine != ReportEngine::Model {
-        return Err(ParseError::Report(format!(
-            "--spec is only valid for report model\n{USAGE}"
-        )));
-    }
+    let _ = engine;
 
     Ok(ReportArgs {
-        engine,
         config,
         spec,
         out,
@@ -145,12 +132,12 @@ pub(crate) fn parse_report_arguments(arguments: &[String]) -> Result<ReportArgs,
     })
 }
 
-/// Loads the run configuration and writes the selected bundle.
+/// Loads the run configuration and writes the model bundle.
 ///
 /// # Errors
 ///
-/// Returns a [`RunError`] when the configuration, the source, the model, a
-/// chart, or an artifact fails.
+/// Returns a [`RunError`] when the configuration, the source, the model, a spec,
+/// or an artifact fails.
 pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(), RunError> {
     let config = RunConfig::load(&args.config).map_err(RunError::Config)?;
     let out = args
@@ -158,122 +145,84 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
         .clone()
         .unwrap_or_else(|| config.output_root.clone());
 
-    let bundle = match args.engine {
-        ReportEngine::Model => {
-            if let Some(spec_path) = &args.spec {
-                let text = fs::read_to_string(spec_path).map_err(|source| {
-                    RunError::Report(ReportError::SpecRead {
-                        path: spec_path.clone(),
-                        source,
-                    })
-                })?;
-                let schema = crate::spec::schema_of(&text)
+    let bundle = if let Some(spec_path) = &args.spec {
+        let text = fs::read_to_string(spec_path).map_err(|source| {
+            RunError::Report(ReportError::SpecRead {
+                path: spec_path.clone(),
+                source,
+            })
+        })?;
+        let schema = crate::spec::schema_of(&text)
+            .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
+        let spec_hash = content_hash(text.as_bytes());
+        let file = spec_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("spec.json")
+            .to_owned();
+        match schema.as_str() {
+            "quantrule.model-spec/v1" => {
+                let spec = crate::spec::parse_model_spec(&text)
                     .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
-                let spec_hash = content_hash(text.as_bytes());
-                let file = spec_path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("spec.json")
-                    .to_owned();
-                match schema.as_str() {
-                    "quantrule.model-spec/v1" => {
-                        let spec = crate::spec::parse_model_spec(&text).map_err(|error| {
-                            RunError::Report(ReportError::Spec(error.to_string()))
-                        })?;
-                        let timeframes = spec_timeframes(&config, &spec.ladder)?;
-                        let model = pipeline::run_model_with_ladder(&config, &timeframes)
-                            .map_err(|error| pipeline_error(&config, error))?;
-                        let evaluation = spec.evaluate(&model).map_err(|error| {
-                            RunError::Report(ReportError::Spec(error.to_string()))
-                        })?;
-                        model_bundle_with_spec(
-                            &config,
-                            &out,
-                            &model,
-                            &spec.ladder,
-                            &config.model,
-                            &SpecRunArtifacts::V1 {
-                                spec: &spec,
-                                evaluation: &evaluation,
-                                file,
-                                hash: spec_hash,
-                            },
-                        )?
-                    }
-                    "quantrule.model-spec/v2" => {
-                        let parsed =
-                            crate::spec::v2::parse_model_spec_v2(&text).map_err(|error| {
-                                RunError::Report(ReportError::Spec(error.to_string()))
-                            })?;
-                        let timeframes = spec_timeframes(&config, &parsed.spec.timeframes)?;
-                        let mut spec_config = config.clone();
-                        spec_config.model = parsed.spec.readings;
-                        let model = pipeline::run_model_with_ladder(&spec_config, &timeframes)
-                            .map_err(|error| pipeline_error(&config, error))?;
-                        let panel_series =
-                            load_panel_series(&config, spec_path, &parsed, &model, timeframes[0])?;
-                        let panel: Vec<PanelInstrument<'_>> = panel_series
-                            .iter()
-                            .map(|(name, candles)| PanelInstrument { name, candles })
-                            .collect();
-                        let run =
-                            SpecRun::compute(&parsed.spec, model, &panel).map_err(|error| {
-                                RunError::Report(ReportError::Spec(error.to_string()))
-                            })?;
-                        model_bundle_with_spec(
-                            &config,
-                            &out,
-                            run.base(),
-                            &parsed.spec.timeframes,
-                            &parsed.spec.readings,
-                            &SpecRunArtifacts::V2 {
-                                spec: &parsed.spec,
-                                run: &run,
-                                file,
-                                hash: spec_hash,
-                            },
-                        )?
-                    }
-                    other => {
-                        return Err(RunError::Report(ReportError::Spec(format!(
-                            "the schema {other} is not quantrule.model-spec/v1 or /v2"
-                        ))));
-                    }
-                }
-            } else {
-                let model = load_model(&config)?;
-                model_bundle_from(&config, &out, &model)?
+                let timeframes = spec_timeframes(&config, &spec.ladder)?;
+                let model = pipeline::run_model_with_ladder(&config, &timeframes)
+                    .map_err(|error| pipeline_error(&config, error))?;
+                let evaluation = spec
+                    .evaluate(&model)
+                    .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
+                model_bundle_with_spec(
+                    &config,
+                    &out,
+                    &model,
+                    &spec.ladder,
+                    &config.model,
+                    &SpecRunArtifacts::V1 {
+                        spec: &spec,
+                        evaluation: &evaluation,
+                        file,
+                        hash: spec_hash,
+                    },
+                )?
+            }
+            "quantrule.model-spec/v2" => {
+                let parsed = crate::spec::v2::parse_model_spec_v2(&text)
+                    .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
+                let timeframes = spec_timeframes(&config, &parsed.spec.timeframes)?;
+                let mut spec_config = config.clone();
+                spec_config.model = parsed.spec.readings;
+                let model = pipeline::run_model_with_ladder(&spec_config, &timeframes)
+                    .map_err(|error| pipeline_error(&config, error))?;
+                let panel_series =
+                    load_panel_series(&config, spec_path, &parsed, &model, timeframes[0])?;
+                let panel: Vec<PanelInstrument<'_>> = panel_series
+                    .iter()
+                    .map(|(name, candles)| PanelInstrument { name, candles })
+                    .collect();
+                let run = SpecRun::compute(&parsed.spec, model, &panel)
+                    .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
+                model_bundle_with_spec(
+                    &config,
+                    &out,
+                    run.base(),
+                    &parsed.spec.timeframes,
+                    &parsed.spec.readings,
+                    &SpecRunArtifacts::V2 {
+                        spec: &parsed.spec,
+                        run: &run,
+                        file,
+                        hash: spec_hash,
+                    },
+                )?
+            }
+            other => {
+                return Err(RunError::Report(ReportError::Spec(format!(
+                    "the schema {other} is not quantrule.model-spec/v1 or /v2"
+                ))));
             }
         }
-        ReportEngine::Strategy => {
-            let model = load_model(&config)?;
-            let timeframe_secs = config.strategy.engine.timeframe_secs();
-            let timeframe = model
-                .timeframe(timeframe_secs)
-                .ok_or_else(|| RunError::Report(ReportError::NoStrategyBars { timeframe_secs }))?;
-            let walk =
-                walk_strategy(&model, &config.strategy.engine).map_err(RunError::Backtest)?;
-            strategy_bundle_from_walk(
-                &config,
-                &out,
-                timeframe,
-                &walk,
-                StrategyExecutionState::Virtual,
-                None,
-            )?
-        }
-        ReportEngine::Execution => {
-            let run = run_pipeline(&config)?;
-            bundles::execution_bundle_from(&config, &out, &run)?
-        }
-        ReportEngine::Portfolio => {
-            let run = run_pipeline(&config)?;
-            bundles::portfolio_bundle_from(&config, &out, &run)?
-        }
-        ReportEngine::Analytical => {
-            let model = load_model(&config)?;
-            bundles::analytical_bundle_from(&config, &out, &model)?
-        }
+    } else {
+        let model = load_model(&config)?;
+        model_bundle_from(&config, &out, &model)?
     };
     emit(writer, args.json, &bundle)
 }
@@ -324,7 +273,7 @@ pub(super) enum SpecRunArtifacts<'a> {
 ///
 /// # Errors
 ///
-/// Returns a [`RunError`] when the report, a chart, or an artifact fails.
+/// Returns a [`RunError`] when the report or an artifact fails.
 pub(super) fn model_bundle_with_spec(
     config: &RunConfig,
     out: &Path,
@@ -347,13 +296,26 @@ fn model_bundle_with(
     let bundle = out.join("model");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
-    let aggregates = quantrule_analytics::cross_timeframe(model_run);
-    let report = MarketReport::compute(model_run, ladder, &aggregates);
-    if report.charts.bars.is_empty() {
-        return Err(RunError::Report(ReportError::EmptyChart {
+    let report = FlatReport::compute(model_run, ladder);
+    if report
+        .timeframes
+        .iter()
+        .all(|timeframe| timeframe.bars == 0)
+    {
+        return Err(RunError::Report(ReportError::EmptyPeriod {
             period: period_label(config),
         }));
     }
+    let first_open_time = report
+        .timeframes
+        .iter()
+        .filter_map(|timeframe| timeframe.first_open_time)
+        .min();
+    let last_open_time = report
+        .timeframes
+        .iter()
+        .filter_map(|timeframe| timeframe.last_open_time)
+        .max();
 
     let summary =
         render_report::summary_bytes(&report, &config.data.data_version, &period_label(config))
@@ -367,14 +329,13 @@ fn model_bundle_with(
     .map_err(RunError::Output)?;
     let result = render_report::model_result_bytes(
         &report,
+        ladder,
         &config.data.data_version,
         config.data.from.as_deref(),
         config.data.to.as_deref(),
         &crate::config::effective_json(effective_model),
     )
     .map_err(RunError::Output)?;
-    let price = chart::render_report_price_axes_png(&report.charts).map_err(RunError::Chart)?;
-    let events = chart::render_report_events_png(&report.charts).map_err(RunError::Chart)?;
     let readings_csv = model_artifacts::readings_csv(model_run, ladder);
     let events_csv = match spec {
         Some(SpecRunArtifacts::V2 { run, .. }) => {
@@ -401,8 +362,6 @@ fn model_bundle_with(
     let mut name_list = vec![
         "summary.txt",
         "report.json",
-        "price-axes.png",
-        "events.png",
         "result.json",
         "readings.csv",
         "events.csv",
@@ -438,14 +397,17 @@ fn model_bundle_with(
         config_hash: &config.config_hash,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
-        first_open_time: report.period.first_open_time,
-        last_open_time: report.period.last_open_time,
+        first_open_time,
+        last_open_time,
         config_files: &files,
         config: json!({
-            "structure_scale": scale_label(effective_model.structure_scale),
+            "model_id": config.model_id,
+            "policy_id": config.policy_id,
+            "execution_id": config.execution_id,
+            "portfolio_id": config.portfolio_id,
+            "model": crate::config::effective_json(effective_model),
             "ladder": ladder.iter().map(|seconds| timeframe_label(*seconds)).collect::<Vec<_>>(),
             "policy": policy_value(config),
-            "strategy": strategy_value(config),
         }),
         spec: spec_value,
         artifacts: &names,
@@ -455,8 +417,6 @@ fn model_bundle_with(
     let mut artifacts = vec![
         ("summary.txt", summary),
         ("report.json", json.clone()),
-        ("price-axes.png", price),
-        ("events.png", events),
         ("result.json", result),
         ("readings.csv", readings_csv.into_bytes()),
         ("events.csv", events_csv.into_bytes()),
@@ -674,472 +634,11 @@ fn spec_timeframes(config: &RunConfig, ladder: &[u64]) -> Result<Vec<Timeframe>,
                 .iter()
                 .copied()
                 .find(|timeframe| u64::from(timeframe.seconds()) == *timeframe_secs)
-                .ok_or_else(|| {
-                    RunError::Report(ReportError::SpecTimeframe {
-                        timeframe_secs: *timeframe_secs,
-                    })
-                })
+                .ok_or(RunError::Report(ReportError::SpecTimeframe {
+                    timeframe_secs: *timeframe_secs,
+                }))
         })
         .collect()
-}
-
-/// Whether a strategy report is the execution-free diagnostic walk or the
-/// backtest's executed walk.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum StrategyExecutionState {
-    /// Every decision is assumed to fill immediately.
-    Virtual,
-    /// Positions and outcomes come from the backtest execution.
-    Executed,
-}
-
-impl StrategyExecutionState {
-    const fn code(self) -> &'static str {
-        match self {
-            Self::Virtual => "virtual",
-            Self::Executed => "executed",
-        }
-    }
-}
-
-/// The entries and exits the backtest actually filled.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct ExecutedCounts {
-    pub(super) entries: usize,
-    pub(super) exits: usize,
-}
-
-/// Counts the entries and exits the backtest actually filled.
-pub(super) fn executed_counts(run: &BacktestRun) -> ExecutedCounts {
-    let mut entries = 0;
-    let mut exits = 0;
-    for fill in run
-        .execution_batches()
-        .iter()
-        .flat_map(|batch| batch.fills.iter())
-    {
-        match fill.reason {
-            quantrule_backtest::execution::FillReason::Entry => entries += 1,
-            quantrule_backtest::execution::FillReason::Exit
-            | quantrule_backtest::execution::FillReason::StopLoss
-            | quantrule_backtest::execution::FillReason::TakeProfit => exits += 1,
-        }
-    }
-    ExecutedCounts { entries, exits }
-}
-
-pub(super) fn strategy_bundle_from_walk(
-    config: &RunConfig,
-    out: &Path,
-    timeframe: &TimeframeModel,
-    walk: &StrategyWalk,
-    execution_state: StrategyExecutionState,
-    executed: Option<ExecutedCounts>,
-) -> Result<BundleOutput, RunError> {
-    let bundle = out.join("strategy");
-    render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
-
-    let timeframe_secs = config.strategy.engine.timeframe_secs();
-    if timeframe.is_empty() {
-        return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs,
-        }));
-    }
-
-    let inputs = walk.inputs();
-    let decisions = walk.decisions();
-    let summary = summarize_walk(walk, timeframe.len(), execution_state, executed);
-    let csv = decisions_csv(inputs, decisions, timeframe_secs);
-    let report_json = strategy_json(config, timeframe, inputs, decisions, &summary);
-    let summary_text = strategy_summary(config, &summary);
-    let chart = strategy_chart(config, timeframe, decisions)?;
-
-    let names = artifact_names(&[
-        "summary.txt",
-        "report.json",
-        "decisions.csv",
-        "price-decisions.png",
-        "provenance.json",
-    ]);
-    let files = config_files(config);
-    let provenance = render_report::provenance_bytes(&Provenance {
-        report: "strategy",
-        data_version: &config.data.data_version,
-        config_hash: &config.config_hash,
-        from: config.data.from.as_deref(),
-        to: config.data.to.as_deref(),
-        first_open_time: timeframe.candle(0).map(|candle| candle.timestamp()),
-        last_open_time: timeframe
-            .candle(timeframe.len() - 1)
-            .map(|candle| candle.timestamp()),
-        config_files: &files,
-        config: json!({
-            "structure_scale": scale_label(config.model.structure_scale),
-            "strategy": strategy_value(config),
-        }),
-        spec: None,
-        artifacts: &names,
-    })
-    .map_err(RunError::Output)?;
-
-    let json_bytes = json_bytes(&report_json)?;
-    let artifacts = vec![
-        ("summary.txt", summary_text.into_bytes()),
-        ("report.json", json_bytes.clone()),
-        ("decisions.csv", csv.into_bytes()),
-        ("price-decisions.png", chart),
-    ];
-    render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
-    Ok(BundleOutput {
-        path: bundle,
-        names,
-        json: json_bytes,
-    })
-}
-
-#[derive(Debug, Default)]
-struct StrategySummary {
-    bars: usize,
-    entries: usize,
-    exits: usize,
-    long_entries: usize,
-    short_entries: usize,
-    context_complete: usize,
-    context_missing: usize,
-    context_conflicts: usize,
-    progression_late: usize,
-    exit_context_lost: usize,
-    exit_structure_lost: usize,
-    exit_level_lost: usize,
-    exit_event_condition: usize,
-    exit_time_stop: usize,
-    bracket_entries: usize,
-    open_position: Option<Side>,
-    execution_state: Option<StrategyExecutionState>,
-    executed_entries: Option<usize>,
-    executed_exits: Option<usize>,
-}
-
-fn summarize_walk(
-    walk: &StrategyWalk,
-    bars: usize,
-    execution_state: StrategyExecutionState,
-    executed: Option<ExecutedCounts>,
-) -> StrategySummary {
-    let mut summary = StrategySummary {
-        bars,
-        open_position: walk.open_position(),
-        execution_state: Some(execution_state),
-        executed_entries: executed.map(|counts| counts.entries),
-        executed_exits: executed.map(|counts| counts.exits),
-        ..StrategySummary::default()
-    };
-
-    for context in walk.contexts() {
-        if context.context_complete() {
-            summary.context_complete += 1;
-        } else {
-            summary.context_missing += 1;
-        }
-        if context.structure.conflict_count > 0 {
-            summary.context_conflicts += 1;
-        }
-        if context.progression.late_or_terminal_count > 0 {
-            summary.progression_late += 1;
-        }
-    }
-
-    for decision in walk.decisions() {
-        match decision {
-            Decision::Enter(entry) => {
-                summary.entries += 1;
-                match entry.intent.side {
-                    Side::Long => summary.long_entries += 1,
-                    Side::Short => summary.short_entries += 1,
-                }
-            }
-            Decision::EnterBracket(_) => {
-                summary.entries += 1;
-                summary.bracket_entries += 1;
-            }
-            Decision::Exit(exit) => {
-                summary.exits += 1;
-                match exit.reason {
-                    ExitReason::ContextLost => summary.exit_context_lost += 1,
-                    ExitReason::StructureLost => summary.exit_structure_lost += 1,
-                    ExitReason::LevelLost => summary.exit_level_lost += 1,
-                    ExitReason::EventCondition => summary.exit_event_condition += 1,
-                    ExitReason::TimeStop => summary.exit_time_stop += 1,
-                }
-            }
-            Decision::Hold => {}
-        }
-    }
-    summary
-}
-
-fn side_label(side: Side) -> &'static str {
-    match side {
-        Side::Long => "long",
-        Side::Short => "short",
-    }
-}
-
-fn decisions_csv(inputs: &[StrategyInput], decisions: &[Decision], timeframe_secs: u64) -> String {
-    let mut csv = String::from(
-        "type,side,timeframe,timeframe_secs,bar,datetime,direction,momentum_force,structure_score,reason\n",
-    );
-    let timeframe = timeframe_label(timeframe_secs);
-    for (input, decision) in inputs.iter().zip(decisions) {
-        let (kind, side, reason) = match decision {
-            Decision::Hold => continue,
-            Decision::Enter(entry) => ("entry", entry.intent.side.code(), String::new()),
-            Decision::EnterBracket(_) => ("bracket", 0, String::new()),
-            Decision::Exit(exit) => (
-                "exit",
-                exit.side.code(),
-                exit_reason_code(exit.reason).to_owned(),
-            ),
-        };
-        let _ = writeln!(
-            csv,
-            "{kind},{side},{timeframe},{timeframe_secs},{},{},{},{},{},{reason}",
-            input.bar_index,
-            format_utc_timestamp(input.open_time),
-            number(input.direction),
-            number(input.momentum_force),
-            number(input.structure_score),
-        );
-    }
-    csv
-}
-
-fn strategy_json(
-    config: &RunConfig,
-    timeframe: &TimeframeModel,
-    inputs: &[StrategyInput],
-    decisions: &[Decision],
-    summary: &StrategySummary,
-) -> Value {
-    let records: Vec<Value> = inputs
-        .iter()
-        .zip(decisions)
-        .filter_map(|(input, decision)| {
-            let (kind, side, side_label, reason) = match decision {
-                Decision::Hold => return None,
-                Decision::Enter(entry) => (
-                    "entry",
-                    entry.intent.side.code(),
-                    side_label(entry.intent.side),
-                    Value::Null,
-                ),
-                Decision::EnterBracket(_) => ("bracket", 0, "both", Value::Null),
-                Decision::Exit(exit) => (
-                    "exit",
-                    exit.side.code(),
-                    side_label(exit.side),
-                    Value::String(exit_reason_code(exit.reason).to_owned()),
-                ),
-            };
-            Some(json!({
-                "type": kind,
-                "side": side,
-                "side_label": side_label,
-                "timeframe_secs": input.timeframe_secs,
-                "bar": input.bar_index,
-                "time": input.open_time,
-                "direction": input.direction,
-                "momentum_force": input.momentum_force,
-                "structure_score": input.structure_score,
-                "structure_state_code": input.structure_state_code,
-                "reason": reason,
-            }))
-        })
-        .collect();
-
-    let mut exit_reasons = json!({
-        "context_lost": summary.exit_context_lost,
-        "structure_lost": summary.exit_structure_lost,
-    });
-    if config.strategy.engine.level().is_some() {
-        exit_reasons["level_lost"] = json!(summary.exit_level_lost);
-    }
-
-    json!({
-        "report": "strategy",
-        "report_version": render_report::REPORT_VERSION,
-        "model_version": env!("CARGO_PKG_VERSION"),
-        "execution_state": summary.execution_state.map_or("virtual", |state| state.code()),
-        "data_version": config.data.data_version,
-        "requested_period": {
-            "from": config.data.from,
-            "to": config.data.to,
-        },
-        "actual_period": {
-            "first_open_time": timeframe.candle(0).map(|candle| candle.timestamp()),
-            "last_open_time": timeframe.candle(timeframe.len() - 1).map(|candle| candle.timestamp()),
-        },
-        "config": {
-            "structure_scale": scale_label(config.model.structure_scale),
-            "strategy": strategy_value(config),
-        },
-        "summary": {
-            "bars": summary.bars,
-            "decisions": summary.entries + summary.exits,
-            "entries": summary.entries,
-            "exits": summary.exits,
-            "long_entries": summary.long_entries,
-            "short_entries": summary.short_entries,
-            "bracket_entries": summary.bracket_entries,
-            "exit_reasons": exit_reasons,
-            "context": {
-                "complete_bars": summary.context_complete,
-                "missing_bars": summary.context_missing,
-                "conflict_bars": summary.context_conflicts,
-                "late_or_terminal_bars": summary.progression_late,
-            },
-            "open_position": summary.open_position.map(|side| side.code()),
-            "executed_entries": summary.executed_entries,
-            "executed_exits": summary.executed_exits,
-        },
-        "records": {"decisions": records},
-    })
-}
-
-fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
-    let mut out = String::new();
-    let _ = writeln!(out, "QuantRule strategy report");
-    let _ = writeln!(out, "data_version: {}", config.data.data_version);
-    let _ = writeln!(out, "requested_period: {}", period_label(config));
-    let _ = writeln!(
-        out,
-        "timeframe_secs: {}",
-        config.strategy.engine.timeframe_secs()
-    );
-    let _ = writeln!(out, "ladder: {}", ladder_label(config));
-    let _ = writeln!(out, "bars: {}", summary.bars);
-    let _ = writeln!(
-        out,
-        "execution_state: {}",
-        summary
-            .execution_state
-            .map_or("virtual", |state| state.code())
-    );
-    let _ = writeln!(
-        out,
-        "executed_entries: {}",
-        summary
-            .executed_entries
-            .map_or_else(|| String::from("-"), |count| count.to_string())
-    );
-    let _ = writeln!(
-        out,
-        "executed_exits: {}",
-        summary
-            .executed_exits
-            .map_or_else(|| String::from("-"), |count| count.to_string())
-    );
-    let _ = writeln!(out, "decisions: {}", summary.entries + summary.exits);
-    let _ = writeln!(out, "entries: {}", summary.entries);
-    let _ = writeln!(out, "exits: {}", summary.exits);
-    let _ = writeln!(out, "long_entries: {}", summary.long_entries);
-    let _ = writeln!(out, "short_entries: {}", summary.short_entries);
-    if summary.bracket_entries > 0 {
-        let _ = writeln!(out, "bracket_entries: {}", summary.bracket_entries);
-    }
-    let _ = writeln!(out, "exit_reasons:");
-    let _ = writeln!(out, "  context_lost: {}", summary.exit_context_lost);
-    let _ = writeln!(out, "  structure_lost: {}", summary.exit_structure_lost);
-    if config.strategy.engine.level().is_some() {
-        let _ = writeln!(out, "  level_lost: {}", summary.exit_level_lost);
-        let _ = writeln!(out, "  event_condition: {}", summary.exit_event_condition);
-    }
-    let _ = writeln!(out, "context:");
-    let _ = writeln!(out, "  complete_bars: {}", summary.context_complete);
-    let _ = writeln!(out, "  missing_bars: {}", summary.context_missing);
-    let _ = writeln!(out, "  conflict_bars: {}", summary.context_conflicts);
-    let _ = writeln!(out, "  late_or_terminal_bars: {}", summary.progression_late);
-    let _ = writeln!(
-        out,
-        "open_position: {}",
-        summary.open_position.map_or("flat", side_label)
-    );
-    out
-}
-
-fn ladder_label(config: &RunConfig) -> String {
-    let mut parts =
-        Vec::with_capacity(config.strategy.engine.ladder().context_timeframes().len() + 1);
-    parts.push(timeframe_label(config.strategy.engine.timeframe_secs()));
-    for seconds in config.strategy.engine.ladder().context_timeframes() {
-        parts.push(timeframe_label(*seconds));
-    }
-    parts.join(",")
-}
-
-fn strategy_chart(
-    config: &RunConfig,
-    timeframe: &TimeframeModel,
-    decisions: &[Decision],
-) -> Result<Vec<u8>, RunError> {
-    let candles: Vec<_> = (0..timeframe.len())
-        .filter_map(|bar| timeframe.candle(bar))
-        .collect();
-    if candles.is_empty() {
-        return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs: config.strategy.engine.timeframe_secs(),
-        }));
-    }
-    let range = chart_range(config, &candles)?;
-    let markers: Vec<(usize, bool)> = decisions
-        .iter()
-        .enumerate()
-        .filter_map(|(bar, decision)| match decision {
-            Decision::Enter(_) | Decision::EnterBracket(_) => Some((bar, true)),
-            Decision::Exit(_) => Some((bar, false)),
-            Decision::Hold => None,
-        })
-        .collect();
-    let timeframe = Timeframe::ALL
-        .iter()
-        .copied()
-        .find(|timeframe| u64::from(timeframe.seconds()) == config.strategy.engine.timeframe_secs())
-        .unwrap_or(Timeframe::M15);
-    chart::render_decisions_png(&candles, &markers, &config.name, &range, timeframe)
-        .map_err(RunError::Chart)
-}
-
-fn chart_range(
-    config: &RunConfig,
-    candles: &[quantrule_data::Candle],
-) -> Result<DateRange, RunError> {
-    let Some(first) = candles.first() else {
-        return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs: config.strategy.engine.timeframe_secs(),
-        }));
-    };
-    let Some(last) = candles.last() else {
-        return Err(RunError::Report(ReportError::NoStrategyBars {
-            timeframe_secs: config.strategy.engine.timeframe_secs(),
-        }));
-    };
-    let from = config
-        .data
-        .from
-        .clone()
-        .unwrap_or_else(|| day_label(first.timestamp()));
-    let to = config
-        .data
-        .to
-        .clone()
-        .unwrap_or_else(|| day_label(last.timestamp()));
-    DateRange::parse(&from, &to)
-        .map_err(|error| RunError::Report(ReportError::Period(error.to_string())))
-}
-
-/// Runs the full pipeline once for the execution and portfolio reports.
-pub(super) fn run_pipeline(config: &RunConfig) -> Result<BacktestRun, RunError> {
-    pipeline::run_backtest(config).map_err(|error| pipeline_error(config, error))
 }
 
 fn load_model(config: &RunConfig) -> Result<ModelRun, RunError> {
@@ -1149,15 +648,10 @@ fn load_model(config: &RunConfig) -> Result<ModelRun, RunError> {
 fn pipeline_error(config: &RunConfig, error: PipelineError) -> RunError {
     match error {
         PipelineError::Source(error) => RunError::Source(error),
-        PipelineError::Backtest(error) => RunError::Backtest(error),
         PipelineError::EmptyPeriod => RunError::Report(ReportError::EmptyPeriod {
             period: period_label(config),
         }),
     }
-}
-
-fn strategy_value(config: &RunConfig) -> Value {
-    super::strategy::strategy_config_value(&config.strategy.engine, &config.strategy.thesis)
 }
 
 fn policy_value(config: &RunConfig) -> Value {
@@ -1192,20 +686,14 @@ fn period_label(config: &RunConfig) -> String {
     }
 }
 
-fn day_label(timestamp: i64) -> String {
-    format_utc_timestamp(timestamp)[..10].to_owned()
-}
-
 fn config_files(config: &RunConfig) -> Vec<String> {
     [
         &config.paths.run,
         &config.paths.policy,
         &config.paths.data,
         &config.paths.model,
-        &config.paths.strategy,
         &config.paths.execution,
         &config.paths.portfolio,
-        &config.paths.analytics,
     ]
     .into_iter()
     .map(|path| {
@@ -1221,39 +709,11 @@ fn artifact_names(names: &[&str]) -> Vec<String> {
     names.iter().map(|name| (*name).to_owned()).collect()
 }
 
-fn scale_label(scale: PivotScale) -> &'static str {
-    match scale {
-        PivotScale::Major => "major",
-        PivotScale::Minor => "minor",
-    }
-}
-
 fn timeframe_label(timeframe_secs: u64) -> &'static str {
     Timeframe::ALL
         .iter()
         .find(|timeframe| u64::from(timeframe.seconds()) == timeframe_secs)
         .map_or("15m", |timeframe| timeframe.code())
-}
-
-fn exit_reason_code(reason: ExitReason) -> &'static str {
-    match reason {
-        ExitReason::ContextLost => "context_lost",
-        ExitReason::StructureLost => "structure_lost",
-        ExitReason::LevelLost => "level_lost",
-        ExitReason::EventCondition => "event_condition",
-        ExitReason::TimeStop => "time_stop",
-    }
-}
-
-fn number(value: Option<f64>) -> String {
-    value.map_or_else(String::new, |value| value.to_string())
-}
-
-fn json_bytes(value: &Value) -> Result<Vec<u8>, RunError> {
-    let text = serde_json::to_string(value)
-        .map_err(io::Error::other)
-        .map_err(RunError::Output)?;
-    Ok(format!("{text}\n").into_bytes())
 }
 
 fn emit(writer: &mut impl Write, json_stdout: bool, bundle: &BundleOutput) -> Result<(), RunError> {
@@ -1269,85 +729,33 @@ fn emit(writer: &mut impl Write, json_stdout: bool, bundle: &BundleOutput) -> Re
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::command::types::ReportEngine;
+    use super::parse_report_arguments;
 
     fn arguments(tokens: &[&str]) -> Vec<String> {
         tokens.iter().map(|token| (*token).to_owned()).collect()
     }
 
     #[test]
-    fn parses_the_report_command() {
-        let args = parse_report_arguments(&arguments(&[
-            "strategy",
-            "--config",
-            "config/run.json",
-            "--out",
-            "out",
-            "--json",
-        ]))
-        .expect("the arguments are valid");
-        assert_eq!(args.engine, ReportEngine::Strategy);
-        assert_eq!(args.config, PathBuf::from("config/run.json"));
-        assert_eq!(args.spec, None);
-        assert_eq!(args.out, Some(PathBuf::from("out")));
-        assert!(args.json);
-
-        let args = parse_report_arguments(&arguments(&[
+    fn parses_the_model_shape() {
+        let parsed = parse_report_arguments(&arguments(&[
             "model",
             "--config",
-            "config/run.json",
-            "--spec",
-            "spec.json",
+            "run.json",
+            "--out",
+            "target/report",
         ]))
-        .expect("the spec arguments are valid");
-        assert_eq!(args.spec, Some(PathBuf::from("spec.json")));
-        assert!(
-            parse_report_arguments(&arguments(&["strategy", "--config", "a", "--spec", "s"]))
-                .is_err()
+        .expect("the shape is valid");
+        assert_eq!(parsed.config.to_str(), Some("run.json"));
+        assert_eq!(
+            parsed.out.as_deref().and_then(|path| path.to_str()),
+            Some("target/report")
         );
-
-        assert!(parse_report_arguments(&arguments(&[])).is_err());
-        assert!(parse_report_arguments(&arguments(&["model"])).is_err());
-        assert!(
-            parse_report_arguments(&arguments(&["model", "--config", "a", "--config", "b",]))
-                .is_err()
-        );
-        assert!(parse_report_arguments(&arguments(&["weekly", "--config", "a",])).is_err());
     }
 
     #[test]
-    fn the_decisions_csv_is_the_fixed_shape() {
-        let entry_bar = StrategyInput::new(900, 7, 1_735_695_900, Some(0.2), Some(0.3), Some(1.0));
-        let exit_bar = StrategyInput::new(900, 9, 1_735_697_700, Some(0.0), Some(0.0), Some(0.0));
-        let inputs = vec![entry_bar, entry_bar, exit_bar];
-        let decisions = vec![
-            Decision::Enter(quantrule_backtest::strategy::Entry {
-                bar: entry_bar,
-                intent: quantrule_backtest::intent::RiskPolicy::default().intent(Side::Long),
-            }),
-            Decision::Hold,
-            Decision::Exit(quantrule_backtest::strategy::Exit {
-                side: Side::Long,
-                bar: exit_bar,
-                reason: ExitReason::ContextLost,
-            }),
-        ];
-
-        let csv = decisions_csv(&inputs, &decisions, 900);
-        let lines: Vec<&str> = csv.lines().collect();
-        assert_eq!(lines.len(), 3);
-        assert_eq!(
-            lines[0],
-            "type,side,timeframe,timeframe_secs,bar,datetime,direction,momentum_force,structure_score,reason"
-        );
-        assert_eq!(
-            lines[1],
-            "entry,1,15m,900,7,2025-01-01T01:45:00Z,0.2,0.3,1,"
-        );
-        assert_eq!(
-            lines[2],
-            "exit,1,15m,900,9,2025-01-01T02:15:00Z,0,0,0,context_lost"
-        );
+    fn rejects_other_engines_and_missing_config() {
+        assert!(parse_report_arguments(&arguments(&["strategy", "--config", "run.json"])).is_err());
+        assert!(parse_report_arguments(&arguments(&["model"])).is_err());
+        assert!(parse_report_arguments(&arguments(&["model", "--config"])).is_err());
     }
 }

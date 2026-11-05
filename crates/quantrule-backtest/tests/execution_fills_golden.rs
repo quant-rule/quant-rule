@@ -140,12 +140,12 @@ fn decision(field: &str, bar: StrategyInput) -> Decision {
         "exit_long" => Decision::Exit(Exit {
             side: Side::Long,
             bar,
-            reason: ExitReason::ContextLost,
+            reason: ExitReason::EventCondition,
         }),
         "exit_short" => Decision::Exit(Exit {
             side: Side::Short,
             bar,
-            reason: ExitReason::ContextLost,
+            reason: ExitReason::EventCondition,
         }),
         other => panic!("unknown decision {other:?}"),
     }
@@ -178,12 +178,7 @@ fn load_bars() -> Vec<BarRow> {
         )
         .unwrap_or_else(|error| panic!("invalid candle on bar {bar}: {error}"));
 
-        let (direction, momentum, structure) = match fields[8] {
-            "enter_long" => (Some(0.5), Some(0.5), Some(1.0)),
-            "enter_short" => (Some(-0.5), Some(-0.5), Some(-1.0)),
-            _ => (Some(0.0), Some(0.0), Some(0.0)),
-        };
-        let input = StrategyInput::new(900, bar, time, direction, momentum, structure);
+        let input = StrategyInput::new(900, bar, time);
 
         rows.push(BarRow {
             candle,
@@ -481,7 +476,7 @@ fn a_series_that_never_fills_leaves_the_order_pending_until_finish() {
                 .expect("the candle is valid"),
             atr14: Some(1.0),
             decision: Decision::Enter(Entry {
-                bar: StrategyInput::new(900, 1, 900, Some(0.5), Some(0.5), Some(1.0)),
+                bar: StrategyInput::new(900, 1, 900),
                 intent: RiskPolicy::default().intent(Side::Long),
             }),
         },

@@ -1,26 +1,23 @@
 //! The model engine.
 //!
-//! The analytical model's contract is in `docs/model/`. Its implementation is
-//! tracked as the sub-issues of issue #14. This crate currently provides the
+//! The analytical model's contract is in `docs/model/`. This crate provides the
 //! shared numeric kernel in [`kernel`], the indicator readings in [`readings`],
-//! the Direction, Momentum, Structure, and Progression axes in [`axes`], and
-//! the shared event record and event detectors in [`events`], the volatility and
-//! participation context in [`context`], and the cross-timeframe aggregates in
-//! [`aggregate`]; [`input`] owns the run configuration and candle input,
-//! [`timeframe`] owns one timeframe's series, [`run`] orchestrates the ladder,
-//! and [`consensus`] owns the cross-axis diagnostic. [`state`] assembles the
-//! published market state view, [`dashboard`] defines the typed four-axis
-//! dashboard view, and [`report`] defines the full-period descriptive market
-//! report.
+//! the flat confirmed-level registry in [`levels`], the progression series in
+//! [`progression`], the shared event record and event detectors in [`events`],
+//! the volatility and participation context in [`context`], the panel and
+//! session artifacts, and the flat report in [`report`]. [`input`] owns the run
+//! configuration and candle input, [`timeframe`] owns one timeframe's series,
+//! and [`run`] orchestrates the ladder.
+//!
+//! The model publishes readings, discrete states, confirmed levels, events,
+//! progression, and context per timeframe. It carries no axis score, no
+//! consensus, no dashboard view, and no cross-timeframe aggregate: those were
+//! the legacy four-axis architecture and are not part of M1.0.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-pub mod aggregate;
-pub mod axes;
-pub mod consensus;
 pub mod context;
-pub mod dashboard;
 pub mod events;
 pub mod input;
 pub mod kernel;
@@ -33,7 +30,6 @@ pub mod retention;
 pub mod run;
 pub mod sessions;
 pub mod spec;
-pub mod state;
 pub mod timeframe;
 
 /// The registry version that defines the published indicator and event codes.

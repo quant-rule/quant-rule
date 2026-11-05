@@ -1,10 +1,9 @@
 //! The confirmed-level registry.
 //!
 //! The registry is the ordered record of every confirmed swing pivot at both
-//! scales. The Structure axis publishes it for the Progression axis, which
-//! needs same-scale structural targets, and for the Level events, which select
-//! their bounded reference set from it. The registry itself does not select
-//! that set; it holds the full confirmed history.
+//! scales. The progression series needs same-scale structural targets, and the
+//! Level events select their bounded reference set from it. The registry itself
+//! does not select that set; it holds the full confirmed history.
 //!
 //! A level is appended once, at the bar on which its pivot became knowable, so
 //! an earlier level is never renumbered by a later confirmation. The module is
@@ -48,7 +47,7 @@ pub struct ConfirmedLevel {
 /// # Examples
 ///
 /// ```
-/// use quantrule_model::axes::structure::registry::ConfirmedLevelRegistry;
+/// use quantrule_model::levels::ConfirmedLevelRegistry;
 /// use quantrule_model::readings::PivotSeries;
 ///
 /// let registry = ConfirmedLevelRegistry::from_pivots(&PivotSeries::compute(&[]));

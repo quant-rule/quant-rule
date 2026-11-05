@@ -4,7 +4,7 @@
 - Status: Stopped at the model gate; no strategy or portfolio baseline
 - Model run: [`MODEL-2026-11-01-02`](MODEL-2026-11-01-02-multi-horizon.md)
 - Prior cycle: [`CYCLE-001`](CYCLE-001.md)
-- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../model/2026-11-01/model-evidence-protocol.md)
+- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../registry/history.md)
 - Claim type: model evidence; no edge claim
 
 ## Question

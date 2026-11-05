@@ -18,9 +18,9 @@ use std::num::NonZeroU64;
 
 use quantrule_data::Candle;
 
-use crate::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
 use crate::events::{EventRecord, EventType};
 use crate::input::LevelEventSettings;
+use crate::levels::{ConfirmedLevel, ConfirmedLevelRegistry};
 use crate::readings::{PivotKind, PivotScale, Readings};
 
 /// The fraction of ATR 14 that scales the Level-event proximity zone.

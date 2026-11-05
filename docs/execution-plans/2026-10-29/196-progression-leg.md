@@ -4,7 +4,7 @@
 - Status: **Approved — 2026-10-29; B2 approved — 2026-10-29.** The human approved the two-part recommendation and, after the missing oracle was found, the B2 validation path with five merge conditions.
 - Issue: [#196](https://github.com/quant-rule/quant-rule/issues/196)
 - Baseline: `v0.2.0`, `main` at `56ab072`
-- Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md) §8.4; [`docs/model/2026-10-27/market-report.md`](../../model/2026-10-27/market-report.md) §10–§11
+- Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../registry/history.md) §8.4; [`docs/model/2026-10-27/market-report.md`](../../registry/history.md) §10–§11
 
 ## Intent
 

@@ -1,10 +1,14 @@
 //! `run.json`: the composition root.
 //!
-//! The run file names the policy blueprint, the engine files, and the output
-//! root. This module reads them in contract order, resolves every path against
-//! the file that names it, builds the engine configs, and runs the cross-config
-//! checks that need more than one file. No candle is read and no output is
-//! written here: a config error leaves the filesystem untouched.
+//! The run file names the policy blueprint, the data, model, execution, and
+//! portfolio files, and the output root. This module reads them in contract
+//! order, resolves every path against the file that names it, builds the
+//! engine configs, and runs the cross-config checks that need more than one
+//! file. No candle is read and no output is written here: a config error
+//! leaves the filesystem untouched.
+//!
+//! The strategy and analytics files left with the four-axis cutover. S3.x adds
+//! a strategy file back when the flat strategy context exists.
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -12,10 +16,8 @@ use std::path::{Path, PathBuf};
 use quantrule_backtest::portfolio::{DrawdownAction, PortfolioConfig};
 use quantrule_data::Timeframe;
 use quantrule_model::input::MarketStateConfig;
-use quantrule_model::readings::PivotScale;
 use serde_json::Value;
 
-use super::analytics::{self, AnalyticsConfig};
 use super::data::{self, DataConfig};
 use super::error::ConfigError;
 use super::execution::{self, ExecutionRunConfig};
@@ -23,7 +25,6 @@ use super::model;
 use super::policy::{self, PolicyConfig};
 use super::portfolio;
 use super::read::{self, ROOT};
-use super::strategy::{self, StrategyRunConfig};
 
 /// One validated run, ready for the pipeline.
 #[derive(Debug, Clone)]
@@ -32,15 +33,15 @@ pub(crate) struct RunConfig {
     pub(crate) name: String,
     /// The resolved output root.
     pub(crate) output_root: PathBuf,
-    /// A stable fingerprint of the eight config files.
+    /// A stable fingerprint of the six config files.
     pub(crate) config_hash: String,
-    /// The eight resolved config paths.
+    /// The six resolved config paths.
     pub(crate) paths: ConfigPaths,
     /// The optional model identity, such as `M1.0`.
     pub(crate) model_id: Option<String>,
     /// The optional policy identity, such as `POL1.0`.
     pub(crate) policy_id: Option<String>,
-    /// The optional strategy identity, such as `S3.1`.
+    /// The optional strategy identity reserved for S3.x.
     pub(crate) strategy_id: Option<String>,
     /// The optional execution identity, such as `E1.0`.
     pub(crate) execution_id: Option<String>,
@@ -52,17 +53,13 @@ pub(crate) struct RunConfig {
     pub(crate) data: DataConfig,
     /// The model engine's configuration.
     pub(crate) model: MarketStateConfig,
-    /// The explainable strategy blueprint and thresholds.
-    pub(crate) strategy: StrategyRunConfig,
     /// The execution engine's configuration and fill policy.
     pub(crate) execution: ExecutionRunConfig,
     /// The portfolio engine's configuration.
     pub(crate) portfolio: PortfolioConfig,
-    /// The analytical report's configuration.
-    pub(crate) analytics: AnalyticsConfig,
 }
 
-/// The eight resolved config files.
+/// The six resolved config files.
 #[derive(Debug, Clone)]
 pub(crate) struct ConfigPaths {
     /// The run file itself.
@@ -73,14 +70,10 @@ pub(crate) struct ConfigPaths {
     pub(crate) data: PathBuf,
     /// The model file.
     pub(crate) model: PathBuf,
-    /// The strategy file.
-    pub(crate) strategy: PathBuf,
     /// The execution file.
     pub(crate) execution: PathBuf,
     /// The portfolio file.
     pub(crate) portfolio: PathBuf,
-    /// The analytics file.
-    pub(crate) analytics: PathBuf,
 }
 
 impl RunConfig {
@@ -101,10 +94,8 @@ impl RunConfig {
             policy: base.join(&run.policy),
             data: base.join(&run.data),
             model: base.join(&run.model),
-            strategy: base.join(&run.strategy),
             execution: base.join(&run.execution),
             portfolio: base.join(&run.portfolio),
-            analytics: base.join(&run.analytics),
         };
 
         let policy = policy::parse(
@@ -120,10 +111,6 @@ impl RunConfig {
             &load_document(&paths.model, display(&run.model))?,
             display(&run.model),
         )?;
-        let strategy = strategy::parse(
-            &load_document(&paths.strategy, display(&run.strategy))?,
-            display(&run.strategy),
-        )?;
         let execution = execution::parse(
             &load_document(&paths.execution, display(&run.execution))?,
             display(&run.execution),
@@ -131,10 +118,6 @@ impl RunConfig {
         let portfolio = portfolio::parse(
             &load_document(&paths.portfolio, display(&run.portfolio))?,
             display(&run.portfolio),
-        )?;
-        let analytics = analytics::parse(
-            &load_document(&paths.analytics, display(&run.analytics))?,
-            display(&run.analytics),
         )?;
 
         let config_hash = fingerprint(&paths)?;
@@ -151,17 +134,15 @@ impl RunConfig {
             policy,
             data,
             model,
-            strategy,
             execution,
             portfolio,
-            analytics,
         };
         config.validate_cross()?;
         config.validate_identities()?;
         Ok(config)
     }
 
-    fn validate_identities(&self) -> Result<(), ConfigError> {
+    pub(super) fn validate_identities(&self) -> Result<(), ConfigError> {
         for (field, value, prefix) in [
             ("model_id", self.model_id.as_deref(), "M"),
             ("policy_id", self.policy_id.as_deref(), "POL"),
@@ -184,68 +165,6 @@ impl RunConfig {
     }
 
     pub(super) fn validate_cross(&self) -> Result<(), ConfigError> {
-        let strategy_secs = self.strategy.engine.timeframe_secs();
-        let mut active =
-            Vec::with_capacity(self.strategy.engine.ladder().context_timeframes().len() + 1);
-        active.push(strategy_secs);
-        active.extend_from_slice(self.strategy.engine.ladder().context_timeframes());
-
-        let mut strategy_timeframe = None;
-        for seconds in &active {
-            let Some(timeframe) = self
-                .data
-                .available_timeframes
-                .iter()
-                .copied()
-                .find(|timeframe| u64::from(timeframe.seconds()) == *seconds)
-            else {
-                return Err(ConfigError::inconsistent(
-                    file_name(&self.paths.strategy),
-                    "$.ladder",
-                    "a member of the data ladder",
-                    &seconds.to_string(),
-                ));
-            };
-            if !self.policy.universe.timeframes.contains(&timeframe) {
-                return Err(ConfigError::inconsistent(
-                    file_name(&self.paths.strategy),
-                    "$.ladder",
-                    "a member of the policy universe",
-                    timeframe.code(),
-                ));
-            }
-            if *seconds == strategy_secs {
-                strategy_timeframe = Some(timeframe);
-            }
-        }
-
-        let Some(strategy_timeframe) = strategy_timeframe else {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.strategy),
-                "$.ladder",
-                "the execution timeframe",
-                &strategy_secs.to_string(),
-            ));
-        };
-
-        if self.execution.fill_timeframe != strategy_timeframe {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.execution),
-                "$.fill_timeframe",
-                strategy_timeframe.code(),
-                self.execution.fill_timeframe.code(),
-            ));
-        }
-
-        if self.analytics.structure_scale != self.model.structure_scale {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.analytics),
-                "$.structure_scale",
-                scale_code(self.model.structure_scale),
-                scale_code(self.analytics.structure_scale),
-            ));
-        }
-
         for timeframe in &self.data.available_timeframes {
             if u64::from(timeframe.seconds()) > self.model.max_timeframe_secs() {
                 return Err(ConfigError::range(
@@ -270,17 +189,6 @@ impl RunConfig {
             }
         }
 
-        for timeframe in &self.analytics.timeframes {
-            if !self.data.available_timeframes.contains(timeframe) {
-                return Err(ConfigError::inconsistent(
-                    file_name(&self.paths.analytics),
-                    "$.timeframes",
-                    "timeframes from the available data ladder",
-                    timeframe.code(),
-                ));
-            }
-        }
-
         for timeframe in &self.policy.universe.timeframes {
             if !self.data.available_timeframes.contains(timeframe) {
                 return Err(ConfigError::inconsistent(
@@ -290,6 +198,32 @@ impl RunConfig {
                     timeframe.code(),
                 ));
             }
+        }
+
+        if !self
+            .data
+            .available_timeframes
+            .contains(&self.execution.fill_timeframe)
+        {
+            return Err(ConfigError::inconsistent(
+                file_name(&self.paths.execution),
+                "$.fill_timeframe",
+                "a timeframe from the available data ladder",
+                self.execution.fill_timeframe.code(),
+            ));
+        }
+        if !self
+            .policy
+            .universe
+            .timeframes
+            .contains(&self.execution.fill_timeframe)
+        {
+            return Err(ConfigError::inconsistent(
+                file_name(&self.paths.execution),
+                "$.fill_timeframe",
+                "a timeframe from the policy universe",
+                self.execution.fill_timeframe.code(),
+            ));
         }
 
         if !self
@@ -397,10 +331,8 @@ pub(super) struct RunFile {
     policy: String,
     data: String,
     model: String,
-    strategy: String,
     execution: String,
     portfolio: String,
-    analytics: String,
     pub(super) output_root: String,
 }
 
@@ -421,10 +353,8 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             "policy",
             "data",
             "model",
-            "strategy",
             "execution",
             "portfolio",
-            "analytics",
             "output_root",
         ],
     )?;
@@ -448,12 +378,6 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             .to_owned(),
         model: read::non_empty_string(file, "$.model", read::field(file, ROOT, object, "model")?)?
             .to_owned(),
-        strategy: read::non_empty_string(
-            file,
-            "$.strategy",
-            read::field(file, ROOT, object, "strategy")?,
-        )?
-        .to_owned(),
         execution: read::non_empty_string(
             file,
             "$.execution",
@@ -464,12 +388,6 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             file,
             "$.portfolio",
             read::field(file, ROOT, object, "portfolio")?,
-        )?
-        .to_owned(),
-        analytics: read::non_empty_string(
-            file,
-            "$.analytics",
-            read::field(file, ROOT, object, "analytics")?,
         )?
         .to_owned(),
         output_root: read::non_empty_string(
@@ -516,10 +434,8 @@ fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
         &paths.policy,
         &paths.data,
         &paths.model,
-        &paths.strategy,
         &paths.execution,
         &paths.portfolio,
-        &paths.analytics,
     ] {
         let bytes = std::fs::read(path).map_err(|error| match error.kind() {
             io::ErrorKind::NotFound => ConfigError::missing_file(file_name(path)),
@@ -550,11 +466,4 @@ fn display(name: &str) -> &str {
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or(name)
-}
-
-fn scale_code(scale: PivotScale) -> &'static str {
-    match scale {
-        PivotScale::Major => "major",
-        PivotScale::Minor => "minor",
-    }
 }

@@ -397,24 +397,6 @@ pub(crate) fn load_full_timeframes(path: &Path) -> Result<TimeframeSet, SourceEr
 
 /// Loads an M1 CSV into the extended-range set.
 ///
-/// The set keeps up to [`quantrule_data::EXTENDED_SERIES`] M1 candles. When a
-/// bound is supplied, an M1 row is handed to the engine only when its timestamp
-/// lies inside the inclusive UTC range; the filter runs before the ladder
-/// build, so the model never sees a candle outside the requested period. A row
-/// whose timestamp cannot be parsed is still handed to the engine, which
-/// reports the canonical error.
-///
-/// # Errors
-///
-/// Returns a [`SourceError`] for the same reasons as [`load_timeframes`], and
-/// when the input exceeds the extended-range cap.
-pub(crate) fn load_extended_timeframes(
-    path: &Path,
-    bounds: DateBounds,
-) -> Result<TimeframeSet, SourceError> {
-    load_timeframes_with_limit(path, bounds, quantrule_data::EXTENDED_SERIES)
-}
-
 /// Loads an M1 CSV into a set with an explicit refusal bound.
 ///
 /// The set keeps up to `limit` M1 candles and rejects the next one instead of

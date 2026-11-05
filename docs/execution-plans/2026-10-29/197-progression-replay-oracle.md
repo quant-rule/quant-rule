@@ -6,7 +6,7 @@
   pending a push; no commit, push, or pull request has been authorized yet.
 - Issue: [#197](https://github.com/quant-rule/quant-rule/issues/197)
 - Baseline: `main` at `37dea9d`
-- Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md) §8.4, §9, §14
+- Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../registry/history.md) §8.4, §9, §14
 - Prior decisions: [`docs/execution-plans/2026-10-24/22-progression-axis.md`](../2026-10-24/22-progression-axis.md) D1–D10; [`docs/execution-plans/2026-10-29/196-progression-leg.md`](196-progression-leg.md) B2
 - Transparency log: [`docs/ai-transparency-log/2026-10-29/197-progression-replay-oracle.md`](../../ai-transparency-log/2026-10-29/197-progression-replay-oracle.md)
 

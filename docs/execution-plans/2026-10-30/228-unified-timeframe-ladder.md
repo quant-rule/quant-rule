@@ -159,11 +159,11 @@ The one-way ladder is fixed:
 The detailed contracts are:
 
 - [`docs/config/2026-10-30/data-v3.md`](../../config/2026-10-30/data-v3.md)
-- [`docs/config/2026-10-30/model-v2.md`](../../config/2026-10-30/model-v2.md)
+- [`docs/config/2026-10-30/model-v2.md`](../../registry/history.md)
 - [`docs/config/2026-10-30/strategy-v3.md`](../../config/2026-10-30/strategy-v3.md)
 - [`docs/config/2026-10-30/execution-v3.md`](../../config/2026-10-30/execution-v3.md)
 - [`docs/config/2026-10-30/trade-intent.md`](../../config/2026-10-30/trade-intent.md)
-- [`docs/model/2026-10-30/per-timeframe-model.md`](../../model/2026-10-30/per-timeframe-model.md)
+- [`docs/model/2026-10-30/per-timeframe-model.md`](../../registry/history.md)
 - [`docs/adr/2026-10-30/one-way-timeframe-ladder.md`](../../adr/2026-10-30/one-way-timeframe-ladder.md)
 
 ### Contract versions

@@ -431,13 +431,15 @@ impl EventCompositeStrategy {
 }
 
 fn identity(input: &EventStrategyInput) -> super::input::StrategyInput {
+    let execution = input.timeframe(input.execution_timeframe_secs);
     super::input::StrategyInput::new(
         input.execution_timeframe_secs,
         input.execution_bar_index,
         input.execution_open_time,
-        None,
-        None,
-        None,
+    )
+    .with_progression(
+        execution.and_then(|view| view.progression_leg_direction),
+        execution.and_then(|view| view.progression_stage),
     )
     .with_contiguous(input.execution_contiguous)
 }

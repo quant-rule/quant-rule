@@ -410,9 +410,9 @@ fn stage_for(progress: f64) -> i8 {
 mod tests {
     use super::target::{ATR_FALLBACK_BASIS, Target};
     use super::{Leg, Lifecycle, stage_for};
-    use crate::axes::structure::registry::ConfirmedLevelRegistry;
     use crate::input::ProgressionSettings;
     use crate::kernel::UnavailableReason;
+    use crate::levels::ConfirmedLevelRegistry;
     use crate::readings::{PivotCandidate, PivotKind, PivotScale, PivotSeries};
 
     fn empty_registry() -> ConfirmedLevelRegistry {

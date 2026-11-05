@@ -6,7 +6,7 @@
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md)
-- Model contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
+- Model contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../registry/history.md)
 - Transparency log: [`docs/ai-transparency-log/2026-10-24/76-research-output.md`](../../ai-transparency-log/2026-10-24/76-research-output.md)
 - Program: analytics sub-issues [#77](https://github.com/quant-rule/quant-rule/issues/77)–[#82](https://github.com/quant-rule/quant-rule/issues/82) under [#13](https://github.com/quant-rule/quant-rule/issues/13)
 

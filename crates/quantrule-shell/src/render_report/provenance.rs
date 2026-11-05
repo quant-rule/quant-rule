@@ -9,7 +9,7 @@ use std::io;
 use serde_json::{Value, json};
 
 /// The report contract version carried by every new bundle.
-pub(crate) const REPORT_VERSION: &str = "2026-10-28";
+pub(crate) const REPORT_VERSION: &str = "2026-11-05";
 
 /// One report's provenance values.
 pub(crate) struct Provenance<'a> {

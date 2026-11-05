@@ -4,7 +4,7 @@
 - Status: **Approved** — human approved the model-improvement run.
 - Work item: `model-evidence-002`
 - Prior run: [`MODEL-2026-11-01-01`](../../improvement/2026-11-01/MODEL-2026-11-01-01-model-baseline.md)
-- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../model/2026-11-01/model-evidence-protocol.md)
+- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../registry/history.md)
 - AI transparency log: [`docs/ai-transparency-log/2026-11-01/model-evidence-002.md`](../../ai-transparency-log/2026-11-01/model-evidence-002.md)
 
 ## 1. Intent
