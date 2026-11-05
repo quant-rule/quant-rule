@@ -2,7 +2,8 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#469](https://github.com/quant-rule/quant-rule/issues/469)
-- Status: **Approved for P1a**; P1b blocked by D1
+- Status: **Approved for P1a and P1b-1**; P1b-2 is the open construct-coverage
+  work in [#481](https://github.com/quant-rule/quant-rule/issues/481)
 - Claim type: registry and validation contract; no edge claim
 - Parent plan: [#467](https://github.com/quant-rule/quant-rule/issues/467)
 - AI transparency log: [`docs/ai-transparency-log/2026-11-05/469-validation-claims.md`](../../ai-transparency-log/2026-11-05/469-validation-claims.md)
@@ -46,15 +47,20 @@ construct tests.
 - Update the registry README to state the enforced rule.
 - No model, strategy, config, or runtime behavior change.
 
-### P1b — validation claims (blocked by D1)
+### P1b — validation claims (D1 approved)
 
-- Resolve D1: the claim shape for `signal`, `context`, and `diagnostic` events.
-- Complete `validation.json` for the 46 indicators and 142 active events.
-- Add a table-driven construct-test suite by event family; every event has at
-  least one case that exercises its condition.
-- Add `check_validation.py` to CI.
-- `predictive_status: "pending"` where no result exists.
-- No invented edge claim.
+P1b is split into two tracked deliverables:
+
+- **P1b-1 [#480]** — claim schema and claims. Complete `validation.json` for the
+  46 indicators and 142 active events, with the role-specific shape:
+  `signal` predictive; `context`/`diagnostic` construct-only with
+  `primary_outcome: "none"` and `predictive_status: "not_applicable"`.
+  Add `check_validation.py` to CI.
+- **P1b-2 [#481]** — construct coverage. Add a table-driven case for the 54
+  events listed in [`construct-gaps.md`](../../registry/construct-gaps.md).
+  Every active event must reach its detector and assert its published code.
+
+`predictive_status: "pending"` where no result exists. No invented edge claim.
 
 Explicit non-goals:
 
@@ -133,4 +139,15 @@ or formula. That is a model-contract change and needs separate approval.
 - `python3 tools/check_terms.py`: 338 files, no banned terms.
 - `python3 tools/check_validation.py`: still fails for 36 indicators and 124
   active events; P1b is not started.
+- No formula, model output, strategy, or runtime behavior changed.
+
+## 10. P1b-1 execution record
+
+- 2026-11-05: D1 approved with the role-specific shape.
+- `validation.json` now carries 188 claims: 46 indicators and 142 active events.
+- `signal` events keep predictive fields; `context`/`diagnostic` events use
+  `primary_outcome: "none"` and `predictive_status: "not_applicable"`.
+- `check_validation.py` passes and is added to CI.
+- 54 direct construct cases remain in
+  [`construct-gaps.md`](../../registry/construct-gaps.md), tracked by #481.
 - No formula, model output, strategy, or runtime behavior changed.

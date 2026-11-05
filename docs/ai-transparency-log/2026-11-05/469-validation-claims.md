@@ -48,6 +48,18 @@ or a runtime behavior.
   event, which would force a predictive frame onto context and diagnostic
   events.
 
+## P1b-1 — validation claims
+
+- D1 was approved: `signal` events keep predictive fields; `context` and
+  `diagnostic` events use `primary_outcome: "none"` and
+  `predictive_status: "not_applicable"`.
+- `validation.json` now has 188 claims: 46 indicators and 142 active events.
+- `check_validation.py` passes and is added to CI.
+- The 54 events without a direct construct case are listed in
+  `docs/registry/construct-gaps.md` and tracked by #481. They are not claimed
+  as covered.
+- No formula, model output, strategy, or runtime behavior changed.
+
 ## Rejected or corrected suggestions
 
 - Rejected: setting the six diagnostic indicator claims to `"none"`. The

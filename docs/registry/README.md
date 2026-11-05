@@ -115,6 +115,16 @@ codes 19–54 and signal subtypes 10–23 for the indicator-completeness program
 Every `signal` and `context` entry has a claim. A `diagnostic` entry has
 `claim: "none"`.
 
+### 4.1 Validation claims
+
+`validation.json` carries one claim per active indicator and event. A `signal`
+event carries a predictive outcome, a horizon, a target, a stop, and a baseline.
+A `context` or `diagnostic` event carries `primary_outcome: "none"` and
+`predictive_status: "not_applicable"`; it is a construct claim, not an edge
+claim. `construct_tests` names the test that exercises the condition. Direct
+construct gaps are listed in [`construct-gaps.md`](construct-gaps.md) and tracked
+by [#481](https://github.com/quant-rule/quant-rule/issues/481).
+
 ## 5. CI checks
 
 `tools/check_registry.py` enforces:
