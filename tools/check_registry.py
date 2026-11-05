@@ -221,6 +221,13 @@ def check(registry: Any) -> list[str]:
             errors.append(f"{label}.status is invalid")
         if not isinstance(event.get("claim"), str) or not event["claim"]:
             errors.append(f"{label}.claim must be a non-empty string")
+        role = event.get("role")
+        if role in ("signal", "context") and event.get("claim") == "none":
+            errors.append(
+                f"{label}.claim must describe a {role} event; \"none\" is only for diagnostics"
+            )
+        if role == "diagnostic" and event.get("claim") != "none":
+            errors.append(f'{label}.claim must be "none" for a diagnostic event')
         if not isinstance(event.get("formula"), str) or not event["formula"]:
             errors.append(f"{label}.formula must be a non-empty string")
         sources = event.get("sources", [event.get("source")])

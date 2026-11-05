@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.16",
+  "version": "2026-11-05.17",
   "indicators": [
     {
       "id": "ema",
@@ -1634,7 +1634,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "A bar range intersects a confirmed or dynamic level; the touch is followed by a path reaction \u2014 the target is reached before the stop \u2014 more often than a matched barrier baseline.",
+      "claim": "A bar range intersects a confirmed or dynamic level; the touch is followed by a path reaction — the target is reached before the stop — more often than a matched barrier baseline.",
       "parameters": [
         "model.level.references",
         "model.level.test_atr"
@@ -1662,7 +1662,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "A close crosses a level; the cross is followed by a path continuation \u2014 the target is reached before the stop \u2014 more often than a matched barrier baseline.",
+      "claim": "A close crosses a level; the cross is followed by a path continuation — the target is reached before the stop — more often than a matched barrier baseline.",
       "parameters": [
         "model.level.references",
         "model.level.test_atr"
@@ -1690,7 +1690,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "A close crosses a level and finishes beyond it; the break is followed by a path continuation \u2014 the continuation target is reached before the reversal stop \u2014 more often than a matched barrier baseline.",
+      "claim": "A close crosses a level and finishes beyond it; the break is followed by a path continuation — the continuation target is reached before the reversal stop — more often than a matched barrier baseline.",
       "parameters": [
         "model.level.references",
         "model.level.break_atr"
@@ -2091,7 +2091,7 @@
       "source": 19,
       "indicator": "vwap",
       "role": "context",
-      "claim": "none",
+      "claim": "A bar range that intersects the session VWAP marks a test of the volume-weighted price.",
       "formula": "abs(C - VWAP) <= 0.2*ATR",
       "parameters": [],
       "tests": [
@@ -2109,7 +2109,7 @@
       "source": 19,
       "indicator": "vwap",
       "role": "context",
-      "claim": "none",
+      "claim": "A close crossing the VWAP marks a change in side relative to the volume-weighted price.",
       "formula": "cross_up(C, VWAP) or cross_down(C, VWAP)",
       "parameters": [],
       "tests": [
@@ -2127,7 +2127,7 @@
       "source": 19,
       "indicator": "vwap",
       "role": "context",
-      "claim": "none",
+      "claim": "A close that clears the VWAP by the break distance marks a break of the volume-weighted price.",
       "formula": "(C - VWAP)*sign(C[t-1]-VWAP[t-1]) >= 0.2*ATR",
       "parameters": [],
       "tests": [
@@ -2253,7 +2253,7 @@
       "source": 19,
       "indicator": "vwap",
       "role": "context",
-      "claim": "none",
+      "claim": "A change in the sign of the VWAP slope marks a turn in the volume-weighted price.",
       "formula": "sign(S[t]) != sign(S[t-1])",
       "parameters": [],
       "tests": [
@@ -2271,7 +2271,7 @@
       "source": 20,
       "indicator": "volume_profile",
       "role": "context",
-      "claim": "none",
+      "claim": "A close within the test band of the point of control marks a test of the profile POC.",
       "formula": "abs(C - POC) <= 0.2*ATR",
       "parameters": [],
       "tests": [
@@ -2289,7 +2289,7 @@
       "source": 20,
       "indicator": "volume_profile",
       "role": "context",
-      "claim": "none",
+      "claim": "A high within the test band of the value-area high marks a test of the VAH.",
       "formula": "abs(H - VAH) <= 0.2*ATR",
       "parameters": [],
       "tests": [
@@ -2307,7 +2307,7 @@
       "source": 20,
       "indicator": "volume_profile",
       "role": "context",
-      "claim": "none",
+      "claim": "A low within the test band of the value-area low marks a test of the VAL.",
       "formula": "abs(L - VAL) <= 0.2*ATR",
       "parameters": [],
       "tests": [
@@ -2325,7 +2325,7 @@
       "source": 20,
       "indicator": "volume_profile",
       "role": "context",
-      "claim": "none",
+      "claim": "A close beyond the value area after a close inside marks a value-area break.",
       "formula": "C > VAH or C < VAL after a close inside the value area",
       "parameters": [],
       "tests": [
@@ -2343,7 +2343,7 @@
       "source": 20,
       "indicator": "volume_profile",
       "role": "context",
-      "claim": "none",
+      "claim": "A close back inside the value area after a close outside marks a value-area re-entry.",
       "formula": "C[t-1] > VAH and C[t] <= VAH, or the mirror below VAL",
       "parameters": [],
       "tests": [
@@ -2433,7 +2433,7 @@
       "source": 20,
       "indicator": "volume_profile",
       "role": "context",
-      "claim": "none",
+      "claim": "A change in the sign of profile skew marks a shift in volume above versus below the POC.",
       "formula": "sign(SK[t]) != sign(SK[t-1])",
       "parameters": [],
       "tests": [
@@ -2451,7 +2451,7 @@
       "source": 20,
       "indicator": "volume_profile",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross of the profile concentration threshold marks a change in how concentrated volume is at the POC.",
       "formula": "cross_up(CO, 0.5) or cross_down(CO, 0.5)",
       "parameters": [],
       "tests": [
@@ -2631,7 +2631,7 @@
       "source": 22,
       "indicator": "absorption",
       "role": "context",
-      "claim": "none",
+      "claim": "A high-volume, narrow-range bar at the VWAP or POC marks absorption at that level.",
       "formula": "AB at VWAP or POC within 0.25 ATR",
       "parameters": [],
       "tests": [
@@ -2685,7 +2685,7 @@
       "source": 23,
       "indicator": "volume_oscillator",
       "role": "context",
-      "claim": "none",
+      "claim": "A zero cross of the volume oscillator marks a change in fast versus slow volume.",
       "formula": "cross_up(VO, 0) or cross_down(VO, 0)",
       "parameters": [],
       "tests": [
@@ -2793,7 +2793,7 @@
       "source": 24,
       "indicator": "obv",
       "role": "context",
-      "claim": "none",
+      "claim": "A change in the sign of the OBV slope marks a change in cumulative volume flow.",
       "formula": "sign(OBV-OBV[n]) changes",
       "parameters": [],
       "tests": [
@@ -2901,7 +2901,7 @@
       "source": 25,
       "indicator": "cmf",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross of the Chaikin money-flow threshold marks a change in money-flow pressure.",
       "formula": "cross_up(CMF, 0.2) or cross_down(CMF, -0.2)",
       "parameters": [],
       "tests": [
@@ -3009,7 +3009,7 @@
       "source": 26,
       "indicator": "mfi",
       "role": "context",
-      "claim": "none",
+      "claim": "A change in the MFI zone marks a move between oversold, neutral, and overbought money flow.",
       "formula": "zone(MFI) changes, zone = -1 below 20, 0 in 20..80, +1 above 80",
       "parameters": [],
       "tests": [
@@ -3081,7 +3081,7 @@
       "source": 31,
       "indicator": "keltner",
       "role": "context",
-      "claim": "none",
+      "claim": "A close within the test band of a Keltner band marks a test of that band.",
       "formula": "abs(C-U)<=0.2ATR or abs(C-L)<=0.2ATR",
       "parameters": [],
       "tests": [
@@ -3099,7 +3099,7 @@
       "source": 31,
       "indicator": "keltner",
       "role": "context",
-      "claim": "none",
+      "claim": "A close beyond a Keltner band after a close inside marks a band break.",
       "formula": "C>U and C_prev<=U_prev, or C<L and C_prev>=L_prev",
       "parameters": [],
       "tests": [
@@ -3117,7 +3117,7 @@
       "source": 32,
       "indicator": "donchian",
       "role": "context",
-      "claim": "none",
+      "claim": "A high or low within the test band of a Donchian boundary marks a test of that boundary.",
       "formula": "abs(H-DH)<=0.2ATR or abs(L-DL)<=0.2ATR",
       "parameters": [],
       "tests": [
@@ -3135,7 +3135,7 @@
       "source": 32,
       "indicator": "donchian",
       "role": "context",
-      "claim": "none",
+      "claim": "A close beyond a Donchian boundary after a close inside marks a channel break.",
       "formula": "C>DH_prev and C_prev<=DH_prev, or C<DL_prev and C_prev>=DL_prev",
       "parameters": [],
       "tests": [
@@ -3153,7 +3153,7 @@
       "source": 33,
       "indicator": "swing_structure",
       "role": "context",
-      "claim": "none",
+      "claim": "A close beyond the last confirmed pivot marks a break of the current structure.",
       "formula": "C>last_pivot_high and C_prev<=last_pivot_high, or C<last_pivot_low and C_prev>=last_pivot_low",
       "parameters": [],
       "tests": [
@@ -3171,7 +3171,7 @@
       "source": 34,
       "indicator": "level_strength",
       "role": "context",
-      "claim": "none",
+      "claim": "A confirmed level tested at least twice within the test band marks a stronger level.",
       "formula": "level_touches >= 2 within 0.2ATR",
       "parameters": [],
       "tests": [
@@ -3189,7 +3189,7 @@
       "source": 37,
       "indicator": "candle_anatomy",
       "role": "context",
-      "claim": "none",
+      "claim": "A dominant wick that reaches a level marks a wick test of that level.",
       "formula": "upper_wick_ratio>=0.6 and abs(H-level)<=0.2ATR, or lower mirror",
       "parameters": [],
       "tests": [
@@ -3207,7 +3207,7 @@
       "source": 39,
       "indicator": "gap",
       "role": "context",
-      "claim": "none",
+      "claim": "A close that returns to the prior close marks a filled gap.",
       "formula": "gap_filled=1 for a qualifying gap",
       "parameters": [],
       "tests": [
@@ -3225,7 +3225,7 @@
       "source": 39,
       "indicator": "gap",
       "role": "context",
-      "claim": "none",
+      "claim": "A gap within the test band marks a test of the prior close.",
       "formula": "abs(gap_atr)<=0.2",
       "parameters": [],
       "tests": [
@@ -3387,7 +3387,7 @@
       "source": 28,
       "indicator": "atr_term",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross below the ATR-ratio threshold marks volatility compression.",
       "formula": "cross_down(ATR_ratio, 0.7)",
       "parameters": [],
       "tests": [
@@ -3405,7 +3405,7 @@
       "source": 28,
       "indicator": "atr_term",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross above the ATR-ratio threshold marks volatility expansion.",
       "formula": "cross_up(ATR_ratio, 1.3)",
       "parameters": [],
       "tests": [
@@ -3423,7 +3423,7 @@
       "source": 28,
       "indicator": "atr_term",
       "role": "context",
-      "claim": "none",
+      "claim": "A change in the volatility-regime code marks a regime change.",
       "formula": "vol_regime[t] != vol_regime[t-1]",
       "parameters": [],
       "tests": [
@@ -3441,7 +3441,7 @@
       "source": 29,
       "indicator": "range_expansion",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross above the range-ratio threshold marks range expansion.",
       "formula": "cross_up(RR, 1.5)",
       "parameters": [],
       "tests": [
@@ -3459,7 +3459,7 @@
       "source": 29,
       "indicator": "range_expansion",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross below the range-ratio threshold marks range contraction.",
       "formula": "cross_down(RR, 0.7)",
       "parameters": [],
       "tests": [
@@ -3495,7 +3495,7 @@
       "source": 31,
       "indicator": "keltner",
       "role": "context",
-      "claim": "none",
+      "claim": "A close outside a Keltner band marks a Keltner breakout.",
       "formula": "C>U and C_prev<=U_prev, or C<L and C_prev>=L_prev",
       "parameters": [],
       "tests": [
@@ -3513,7 +3513,7 @@
       "source": 31,
       "indicator": "keltner",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross of the Keltner position thresholds marks a move to the band edge.",
       "formula": "cross_up(KP, 0.8) or cross_down(KP, 0.2)",
       "parameters": [],
       "tests": [
@@ -3531,7 +3531,7 @@
       "source": 32,
       "indicator": "donchian",
       "role": "context",
-      "claim": "none",
+      "claim": "A close outside a Donchian boundary marks a Donchian breakout.",
       "formula": "C>DH_prev and C_prev<=DH_prev, or C<DL_prev and C_prev>=DL_prev",
       "parameters": [],
       "tests": [
@@ -3549,7 +3549,7 @@
       "source": 32,
       "indicator": "donchian",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross of the Donchian position thresholds marks a move to the channel edge.",
       "formula": "cross_up(DP, 0.8) or cross_down(DP, 0.2)",
       "parameters": [],
       "tests": [
@@ -3567,7 +3567,7 @@
       "source": 33,
       "indicator": "swing_structure",
       "role": "context",
-      "claim": "none",
+      "claim": "A change in the swing-structure code marks a structural change.",
       "formula": "SS[t] != SS[t-1]",
       "parameters": [],
       "tests": [
@@ -3585,7 +3585,7 @@
       "source": 34,
       "indicator": "level_strength",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross of the level-touch count marks a change in level strength.",
       "formula": "cross_up(level_touches, 2)",
       "parameters": [],
       "tests": [
@@ -3603,7 +3603,7 @@
       "source": 35,
       "indicator": "aroon",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross of the Aroon thresholds marks a change in the recent-extreme balance.",
       "formula": "cross_up(AU,70) or cross_down(AD,30)",
       "parameters": [],
       "tests": [
@@ -3621,7 +3621,7 @@
       "source": 35,
       "indicator": "aroon",
       "role": "context",
-      "claim": "none",
+      "claim": "A zero cross of the Aroon oscillator marks a change in the high/low recency balance.",
       "formula": "cross_up(AO,0) or cross_down(AO,0)",
       "parameters": [],
       "tests": [
@@ -3639,7 +3639,7 @@
       "source": 37,
       "indicator": "candle_anatomy",
       "role": "context",
-      "claim": "none",
+      "claim": "A wide bar closing near its extreme marks candle momentum.",
       "formula": "range>=1.5ATR and BR>=0.7 and CP>=0.8 or CP<=0.2",
       "parameters": [],
       "tests": [
@@ -3657,7 +3657,7 @@
       "source": 37,
       "indicator": "candle_anatomy",
       "role": "context",
-      "claim": "none",
+      "claim": "A dominant wick against the close marks candle rejection.",
       "formula": "UWR>=0.6 and C<O, or LWR>=0.6 and C>O",
       "parameters": [],
       "tests": [
@@ -3675,7 +3675,7 @@
       "source": 37,
       "indicator": "candle_anatomy",
       "role": "context",
-      "claim": "none",
+      "claim": "A bar with a small body relative to its range marks indecision.",
       "formula": "BR<=0.1",
       "parameters": [],
       "tests": [
@@ -3693,7 +3693,7 @@
       "source": 37,
       "indicator": "candle_anatomy",
       "role": "context",
-      "claim": "none",
+      "claim": "A bar with a body covering most of its range marks a marubozu.",
       "formula": "BR>=0.9",
       "parameters": [],
       "tests": [
@@ -3711,7 +3711,7 @@
       "source": 38,
       "indicator": "candle_pattern",
       "role": "context",
-      "claim": "none",
+      "claim": "A bar that engulfs the prior body marks an engulfing pattern.",
       "formula": "pattern_code 1 or 2",
       "parameters": [],
       "tests": [
@@ -3729,7 +3729,7 @@
       "source": 38,
       "indicator": "candle_pattern",
       "role": "context",
-      "claim": "none",
+      "claim": "A bar inside the prior range marks an inside pattern.",
       "formula": "pattern_code 3",
       "parameters": [],
       "tests": [
@@ -3747,7 +3747,7 @@
       "source": 38,
       "indicator": "candle_pattern",
       "role": "context",
-      "claim": "none",
+      "claim": "A bar outside the prior range marks an outside pattern.",
       "formula": "pattern_code 4",
       "parameters": [],
       "tests": [
@@ -3765,7 +3765,7 @@
       "source": 38,
       "indicator": "candle_pattern",
       "role": "context",
-      "claim": "none",
+      "claim": "A long lower wick with a small body near the high marks a hammer.",
       "formula": "pattern_code 5",
       "parameters": [],
       "tests": [
@@ -3783,7 +3783,7 @@
       "source": 38,
       "indicator": "candle_pattern",
       "role": "context",
-      "claim": "none",
+      "claim": "A long upper wick with a small body near the low marks a star.",
       "formula": "pattern_code 6",
       "parameters": [],
       "tests": [
@@ -3801,7 +3801,7 @@
       "source": 38,
       "indicator": "candle_pattern",
       "role": "context",
-      "claim": "none",
+      "claim": "Three rising closes mark three white soldiers.",
       "formula": "pattern_code 7",
       "parameters": [],
       "tests": [
@@ -3819,7 +3819,7 @@
       "source": 38,
       "indicator": "candle_pattern",
       "role": "context",
-      "claim": "none",
+      "claim": "Three falling closes mark three black crows.",
       "formula": "pattern_code 8",
       "parameters": [],
       "tests": [
@@ -3837,7 +3837,7 @@
       "source": 39,
       "indicator": "gap",
       "role": "context",
-      "claim": "none",
+      "claim": "A gap in the close direction marks gap continuation.",
       "formula": "gap>=0.5ATR and C>O",
       "parameters": [],
       "tests": [
@@ -3855,7 +3855,7 @@
       "source": 39,
       "indicator": "gap",
       "role": "context",
-      "claim": "none",
+      "claim": "A gap against the close direction marks a faded gap.",
       "formula": "gap<=-0.5ATR and C<O",
       "parameters": [],
       "tests": [
@@ -3909,7 +3909,7 @@
       "source": 42,
       "indicator": "bars_since_extreme",
       "role": "context",
-      "claim": "none",
+      "claim": "A new high or low within the lookback marks a fresh extreme.",
       "formula": "bars_since_high=0 or bars_since_low=0",
       "parameters": [],
       "tests": [
@@ -3927,7 +3927,7 @@
       "source": 42,
       "indicator": "bars_since_extreme",
       "role": "context",
-      "claim": "none",
+      "claim": "An extreme at the lookback edge marks a stale extreme.",
       "formula": "bars_since_high==n-1 or bars_since_low==n-1, where n=model.path.window",
       "parameters": [
         "model.path.window"
@@ -3947,7 +3947,7 @@
       "source": 43,
       "indicator": "drawdown_atr",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross below the drawdown threshold marks a deeper drawdown.",
       "formula": "cross_down(DD,-1) or cross_down(DD,-2)",
       "parameters": [],
       "tests": [
@@ -3965,7 +3965,7 @@
       "source": 43,
       "indicator": "drawdown_atr",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross above the recovery threshold marks drawdown recovery.",
       "formula": "cross_up(DD,-0.5)",
       "parameters": [],
       "tests": [
@@ -3983,7 +3983,7 @@
       "source": 44,
       "indicator": "range_position",
       "role": "context",
-      "claim": "none",
+      "claim": "A cross of the range-position thresholds marks a move to the range edge.",
       "formula": "cross_up(RP,0.8) or cross_down(RP,0.2)",
       "parameters": [],
       "tests": [
@@ -4055,7 +4055,7 @@
       "source": 48,
       "indicator": "co_movement",
       "role": "diagnostic",
-      "claim": "A co-movement threshold cross marks a change in same-sign alignment.",
+      "claim": "none",
       "formula": "cross_up(CM,0.7) or cross_down(CM,0.3)",
       "parameters": [],
       "tests": [
@@ -4073,7 +4073,7 @@
       "source": 49,
       "indicator": "dispersion",
       "role": "diagnostic",
-      "claim": "A dispersion threshold cross marks a widening cross-sectional return range.",
+      "claim": "none",
       "formula": "cross_up(D,1.0)",
       "parameters": [],
       "tests": [

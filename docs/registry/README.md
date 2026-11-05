@@ -126,7 +126,8 @@ Every `signal` and `context` entry has a claim. A `diagnostic` entry has
    field has a registry parameter entry.
 5. Every code default matches the registry default.
 6. Every event source is a registered indicator or series.
-7. Every `signal`/`context` event has a claim and at least one validation test.
+7. Every `signal`/`context` event has a descriptive claim and at least one
+   validation test; every `diagnostic` event has `claim: "none"`.
 8. A strategy config cannot reference a `diagnostic` measurement.
 9. `indicators.md` is a current generation of `indicators.json`.
 
