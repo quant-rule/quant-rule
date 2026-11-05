@@ -244,7 +244,9 @@ fn sample_aggregates(ladder: &[u64]) -> CrossTimeframeAggregates {
             event_count_by_subtype: EventSubtypeCounts {
                 level: [4, 5, 6],
                 divergence: [7, 8, 9, 10],
-                signal: [11, 12, 13, 0, 0],
+                signal: [
+                    11, 12, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ],
             },
             divergence_count_by_subtype: [7, 8, 9, 10],
             divergence_timeframe_count: 14,

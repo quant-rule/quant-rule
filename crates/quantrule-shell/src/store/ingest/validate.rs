@@ -204,7 +204,7 @@ fn validate_events(rows: &[EventRow], bar_counts: &BTreeMap<u64, usize>) -> Resu
         let max_subtype = match row.event_type_code {
             1 => 3,
             2 => 4,
-            3 => 6,
+            3 => 23,
             code => {
                 return Err(invalid(format!(
                     "the event at bar {} has type code {code}",
@@ -218,7 +218,7 @@ fn validate_events(rows: &[EventRow], bar_counts: &BTreeMap<u64, usize>) -> Resu
                 row.occurred_bar_index, row.event_subtype_code, row.event_type_code
             )));
         }
-        if !(1..=18).contains(&row.source_code) {
+        if !(1..=54).contains(&row.source_code) {
             return Err(invalid(format!(
                 "the event at bar {} has source code {}",
                 row.occurred_bar_index, row.source_code

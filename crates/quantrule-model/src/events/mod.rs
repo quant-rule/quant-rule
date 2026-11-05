@@ -14,6 +14,7 @@
 pub mod compression;
 pub mod divergence;
 pub mod dmi;
+pub mod extended;
 pub mod level;
 pub(crate) mod order;
 pub mod signal;
@@ -94,14 +95,15 @@ pub struct EventRecord {
 /// independent fixtures remain stable regression guards.
 #[must_use]
 pub(crate) fn is_legacy_axis_event(event: &EventRecord) -> bool {
-    !(event.event_type == EventType::Signal
-        && (event.event_subtype_code == 6
-            || event.event_subtype_code
-                == crate::events::signal::SignalSubtype::CompressionBreakout.code()
-            || event.event_subtype_code
-                == crate::events::signal::SignalSubtype::CompressionRange.code()
-            || event.event_subtype_code
-                == crate::events::signal::SignalSubtype::CompressionRangeOnset.code()
-            || event.source_code == crate::events::dmi::DI_PLUS_SOURCE_CODE
-            || event.source_code == crate::events::dmi::DI_MINUS_SOURCE_CODE))
+    !(event.source_code >= 19
+        || (event.event_type == EventType::Signal
+            && (event.event_subtype_code == 6
+                || event.event_subtype_code
+                    == crate::events::signal::SignalSubtype::CompressionBreakout.code()
+                || event.event_subtype_code
+                    == crate::events::signal::SignalSubtype::CompressionRange.code()
+                || event.event_subtype_code
+                    == crate::events::signal::SignalSubtype::CompressionRangeOnset.code()
+                || event.source_code == crate::events::dmi::DI_PLUS_SOURCE_CODE
+                || event.source_code == crate::events::dmi::DI_MINUS_SOURCE_CODE)))
 }

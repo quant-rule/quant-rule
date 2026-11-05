@@ -196,6 +196,114 @@ pub(crate) fn codes_csv() -> String {
         "zero cross",
         "A series crossed zero.",
     );
+    push(
+        "event_subtype.signal",
+        "6",
+        "trend continuation",
+        "The trend-continuation conjunction became true.",
+    );
+    push(
+        "event_subtype.signal",
+        "7",
+        "compression breakout",
+        "A compression range broke.",
+    );
+    push(
+        "event_subtype.signal",
+        "8",
+        "compression range",
+        "A compression range was published.",
+    );
+    push(
+        "event_subtype.signal",
+        "9",
+        "compression range onset",
+        "A fresh compression range began.",
+    );
+    push(
+        "event_subtype.signal",
+        "10",
+        "candle pattern",
+        "A candle pattern was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "11",
+        "participation",
+        "A volume-participation condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "12",
+        "absorption",
+        "Absorption at a level was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "13",
+        "volume profile",
+        "A volume-profile condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "14",
+        "VWAP",
+        "A VWAP condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "15",
+        "volume flow",
+        "A volume-flow condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "16",
+        "volatility",
+        "A volatility-regime condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "17",
+        "range",
+        "A range-expansion condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "18",
+        "channel",
+        "A channel condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "19",
+        "structure",
+        "A structure condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "20",
+        "gap",
+        "A gap condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "21",
+        "path",
+        "A path or duration condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "22",
+        "cross-asset",
+        "A cross-asset condition was detected.",
+    );
+    push(
+        "event_subtype.signal",
+        "23",
+        "session",
+        "A session condition was detected.",
+    );
 
     push(
         "source",
@@ -281,6 +389,21 @@ pub(crate) fn codes_csv() -> String {
         "15",
         "MACD histogram",
         "The MACD line minus its signal.",
+    );
+    push("source", "16", "ADX", "The average directional index.");
+    push("source", "17", "+DI", "The positive directional indicator.");
+    push("source", "18", "-DI", "The negative directional indicator.");
+    push(
+        "source",
+        "19",
+        "VWAP",
+        "The rolling volume-weighted average price.",
+    );
+    push(
+        "source",
+        "20",
+        "volume profile",
+        "The rolling point of control and value area.",
     );
 
     push(

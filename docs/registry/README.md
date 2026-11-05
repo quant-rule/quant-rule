@@ -34,9 +34,7 @@ docs/registry/
 `indicators.json` is the source of truth. `indicators.md` is generated from it
 and is never edited by hand.
 
-## 3. Entry types
-
-### 3.1 Indicator
+## 3. Entry types### 3.1 Indicator
 
 | Field | Meaning |
 |---|---|
@@ -66,6 +64,7 @@ and is never edited by hand.
 | `indicator` | Owning indicator ID |
 | `role` | `signal`, `context`, or `diagnostic` |
 | `claim` | One falsifiable sentence, or `none` for a descriptive event |
+| `formula` | The exact arithmetic condition that emits the event; required and non-empty |
 | `parameters` | Parameter IDs that shape the event |
 | `precedence` | Events it suppresses on the same bar, if any |
 | `tests` | Required test classes |
@@ -94,7 +93,8 @@ provenance.
 
 `codes` records the stable numeric registries: event types, event subtypes,
 sources, roles, scales, target bases, lifecycle, stages, and unavailable reasons.
-A code is never reused after retirement.
+A code is never reused after retirement. The 2026-11-05 extension reserves source
+codes 19–54 and signal subtypes 10–23 for the indicator-completeness programme.
 
 ## 4. Role and claim rules
 

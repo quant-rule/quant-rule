@@ -27,11 +27,15 @@ use crate::events::compression::{
 };
 use crate::events::divergence::{DivergenceConfig, DivergenceEventSeries};
 use crate::events::dmi::{DmiConfig, DmiEventSeries};
+use crate::events::extended::{ExtendedEventConfig, ExtendedEventSeries};
 use crate::events::level::{LevelEventConfig, LevelEventSeries};
 use crate::events::signal::{SignalConfig, SignalEventSeries};
 use crate::events::trend::{TrendContinuationConfig, TrendContinuationSeries};
 use crate::input::{MarketStateConfig, TimeframeInput};
-use crate::readings::{AdxSeries, MacdSeries, PivotKind, PivotScale, PivotSeries, Readings};
+use crate::readings::{
+    AdxSeries, ExtendedConfig, ExtendedReadings, MacdSeries, PivotKind, PivotScale, PivotSeries,
+    Readings,
+};
 use crate::retention::{EventBatch, EventHistory};
 
 /// The six scalar readings for one closed bar.
@@ -129,6 +133,7 @@ pub struct TimeframeModel {
     candles: Vec<Candle>,
     open_times: Vec<i64>,
     readings: Readings,
+    extended: ExtendedReadings,
     macd: MacdSeries,
     adx: AdxSeries,
     adx_threshold: f64,
@@ -139,6 +144,7 @@ pub struct TimeframeModel {
     progression: ProgressionSeries,
     context: ContextSeries,
     events: EventBatch,
+    extended_events: ExtendedEventSeries,
     event_history: EventHistory,
     levels: Vec<ConfirmedLevel>,
     snapshot: TimeframeSnapshot,
@@ -157,6 +163,8 @@ impl TimeframeModel {
 
         let readings_config = config.readings_for(input.timeframe_secs);
         let readings = Readings::compute_with_config(input.candles, &readings_config);
+        let extended =
+            ExtendedReadings::compute(input.candles, &readings, &ExtendedConfig::DEFAULT);
         let event_settings = config.events_for(input.timeframe_secs);
         let progression_settings = config.progression_for(input.timeframe_secs);
         let macd = if config.macd_enabled_for(input.timeframe_secs) {
@@ -275,6 +283,12 @@ impl TimeframeModel {
         } else {
             CompressionRangeOnsetSeries::empty()
         };
+        let extended_events = ExtendedEventSeries::compute(
+            input.candles,
+            &readings,
+            &extended,
+            &ExtendedEventConfig::new(timeframe_secs),
+        );
 
         let mut events: Vec<EventRecord> = level_events
             .events()
@@ -322,6 +336,7 @@ impl TimeframeModel {
             candles: input.candles.to_vec(),
             open_times,
             readings,
+            extended,
             macd,
             adx,
             adx_threshold: readings_config.adx_threshold,
@@ -332,6 +347,7 @@ impl TimeframeModel {
             progression,
             context,
             events,
+            extended_events,
             event_history,
             levels,
             snapshot,
@@ -368,6 +384,12 @@ impl TimeframeModel {
     #[must_use]
     pub const fn readings(&self) -> &Readings {
         &self.readings
+    }
+
+    /// The extended OHLCV readings computed for this timeframe.
+    #[must_use]
+    pub const fn extended(&self) -> &ExtendedReadings {
+        &self.extended
     }
 
     /// The MACD series computed for this timeframe.
@@ -497,6 +519,16 @@ impl TimeframeModel {
     #[must_use]
     pub fn events(&self) -> &[EventRecord] {
         self.events.as_slice()
+    }
+
+    /// The extended events detected for this timeframe.
+    ///
+    /// These are additive to the v4 event batch; the legacy report and
+    /// dashboard read [`Self::events`] only. The shell's event CSV publishes
+    /// both batches.
+    #[must_use]
+    pub const fn extended_events(&self) -> &ExtendedEventSeries {
+        &self.extended_events
     }
 
     /// The full event batch wrapper.

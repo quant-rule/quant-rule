@@ -382,8 +382,8 @@ fn aggregates(aggregates: &CrossTimeframeAggregates, w: &mut RowWriter) {
     for count in events.event_count_by_subtype.divergence {
         w.field(count);
     }
-    for count in events.event_count_by_subtype.signal {
-        w.field(count);
+    for count in events.event_count_by_subtype.signal.iter().take(5) {
+        w.field(*count);
     }
     w.field(events.divergence_timeframe_count);
     w.opt_float(events.divergence_direction_agreement_share);

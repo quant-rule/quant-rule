@@ -14,13 +14,14 @@ use quantrule_model::run::ModelRun;
 /// The per-bar readings and states for every ladder timeframe.
 pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
     let mut csv = String::from(
-        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code\n",
+        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration\n",
     );
     for &timeframe_secs in ladder {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
             continue;
         };
         let readings = timeframe.readings();
+        let extended = timeframe.extended();
         let macd = timeframe.macd();
         let adx = timeframe.adx();
         for bar in 0..timeframe.len() {
@@ -36,16 +37,14 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
             let progression = timeframe.progression().get(bar);
             let adx_state = timeframe.adx_state(bar);
             let context = timeframe.context().get(bar);
-            let _ = writeln!(
-                csv,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
-                timeframe_secs,
-                bar,
-                candle.timestamp(),
-                candle.open(),
-                candle.high(),
-                candle.low(),
-                candle.close(),
+            let values = [
+                timeframe_secs.to_string(),
+                bar.to_string(),
+                candle.timestamp().to_string(),
+                candle.open().to_string(),
+                candle.high().to_string(),
+                candle.low().to_string(),
+                candle.close().to_string(),
                 optional(candle.volume()),
                 optional(ema_fast),
                 optional(ema_mid),
@@ -70,7 +69,22 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
                 optional(context.and_then(|bar| bar.atr_ratio)),
                 optional(context.and_then(|bar| bar.rvol_ratio)),
                 optional(context.and_then(|bar| bar.context_code).map(f64::from)),
-            );
+                optional(extended.vwap.get(bar)),
+                optional(extended.vwap_distance_atr.get(bar)),
+                optional(extended.vwap_slope.get(bar)),
+                optional(extended.vwap_band_upper.get(bar)),
+                optional(extended.vwap_band_lower.get(bar)),
+                optional(extended.poc.get(bar)),
+                optional(extended.vah.get(bar)),
+                optional(extended.val.get(bar)),
+                optional(extended.poc_distance_atr.get(bar)),
+                optional(extended.va_position.get(bar)),
+                optional(extended.profile_skew.get(bar)),
+                optional(extended.profile_concentration.get(bar)),
+                optional(extended.poc_migration.get(bar)),
+            ];
+            csv.push_str(&values.join(","));
+            csv.push('\n');
         }
     }
     csv
@@ -85,7 +99,12 @@ pub(super) fn events_csv(run: &ModelRun, ladder: &[u64]) -> String {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
             continue;
         };
-        for (event_index, event) in timeframe.events().iter().enumerate() {
+        for (event_index, event) in timeframe
+            .events()
+            .iter()
+            .chain(timeframe.extended_events().events())
+            .enumerate()
+        {
             let _ = writeln!(
                 csv,
                 "{},{},{},{},{},{},{},{},{},{},{},{}",
@@ -273,9 +292,10 @@ mod tests {
 
         let events = events_csv(&run, &ladder);
         assert!(events.starts_with("timeframe_secs,event_index,event_type_code"));
+        let timeframe = run.timeframe(300).expect("the timeframe");
         assert_eq!(
             events.lines().count(),
-            run.timeframe(300).expect("the timeframe").events().len() + 1
+            timeframe.events().len() + timeframe.extended_events().len() + 1
         );
 
         let levels = levels_csv(&run, &ladder);

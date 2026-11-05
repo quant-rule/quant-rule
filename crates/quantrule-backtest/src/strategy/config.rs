@@ -875,7 +875,7 @@ pub enum StrategyConfigError {
     EventType,
     /// The event subtype code is outside 1..6.
     EventSubtype,
-    /// The event source code is outside 1..18.
+    /// The event source code is outside 1..54.
     EventSource,
     /// The event direction is outside -1..1.
     EventDirection,

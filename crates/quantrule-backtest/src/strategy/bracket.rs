@@ -49,10 +49,10 @@ impl CompressionBracketConfig {
         if !(1..=3).contains(&event_type) {
             return Err(StrategyConfigError::EventType);
         }
-        if !(1..=9).contains(&event_subtype) {
+        if !(1..=23).contains(&event_subtype) {
             return Err(StrategyConfigError::EventSubtype);
         }
-        if !(1..=18).contains(&event_source) {
+        if !(1..=54).contains(&event_source) {
             return Err(StrategyConfigError::EventSource);
         }
         if entry_valid_bars != 1 {
