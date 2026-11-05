@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.9",
+  "version": "2026-11-05.10",
   "indicators": [
     {
       "id": "ema",
@@ -750,7 +750,10 @@
         "vol_regime"
       ],
       "availability": "slow ATR window",
-      "events": [],
+      "events": [
+        "divergence.atr_bullish",
+        "divergence.atr_bearish"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -3059,6 +3062,40 @@
       "role": "context",
       "claim": "none",
       "formula": "abs(gap_atr)<=0.2",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.atr_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 28,
+      "indicator": "atr_term",
+      "role": "signal",
+      "claim": "A lower price low with a higher ATR ratio marks volatility absorption.",
+      "formula": "L[t] < L[p] and ATR_ratio[t] > ATR_ratio[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.atr_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 28,
+      "indicator": "atr_term",
+      "role": "signal",
+      "claim": "A higher price high with a lower ATR ratio marks fading volatility.",
+      "formula": "H[t] > H[p] and ATR_ratio[t] < ATR_ratio[p]",
       "parameters": [],
       "tests": [
         "event",
