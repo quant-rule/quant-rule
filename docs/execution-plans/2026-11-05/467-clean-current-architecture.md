@@ -248,5 +248,7 @@ deletion.
 - `python3 tools/check_terms.py`: 340 files; no banned terms.
 - `python3 tools/check_registry.py`: 46 indicators, 143 events, 110 parameters.
 - Manifest totals: 126 delete, 5 move, 49 rewrite, 169 decide, 3 keep.
+- Manifest integrity: 352 rows, six columns per row, zero duplicates, zero
+  missing paths.
 - No code, test, config, fixture, or model behavior was changed.
 - P1 is blocked by D1; P2 by D2; P3 by D3; P4 by D4.

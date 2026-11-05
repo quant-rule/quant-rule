@@ -26,6 +26,7 @@ deleted. P1–P8 were not started.
 | `python3 tools/check_links.py` | First run failed on the not-yet-written AI log; after the log was added: 544 Markdown files, no broken relative links |
 | `git status --short --branch` | Branch `docs/467-p0-1-deletion-manifest`; only the plan, manifest, log, and index edits are present |
 | Manifest count | 352 paths: 126 delete, 5 move, 49 rewrite, 169 decide, 3 keep |
+| Manifest integrity | 352 rows, six columns per row, zero duplicates, zero missing paths |
 
 ## Learning
 
