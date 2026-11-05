@@ -47,3 +47,21 @@ The test covers the four directional cases of the shared subtype helper.
   panel event series with pivot-to-timestamp mapping.
 - The issue remains open for the panel event series and the panel divergence
   tests.
+
+## Panel divergence follow-up
+
+The panel-level divergences are implemented in `events/panel.rs`:
+
+- `PanelEventSeries` groups events by instrument.
+- It maps each confirmed pivot bar to the panel timestamp and reads relative
+  strength, lead-lag, or breadth at that point.
+- It emits regular bullish/bearish divergences for sources 45, 46, and 47.
+- Events are sorted by availability and deduplicated by occurrence key.
+
+Verification: `cargo test -p quantrule-model events::panel` passes; the
+workspace suite passes; the registry reports 46 indicators, 91 events, and 110
+parameters.
+
+The panel event record has no instrument field, so the series returns a map
+keyed by instrument; collapsing the panel into one event list would lose the
+instrument identity.

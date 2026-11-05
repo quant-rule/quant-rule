@@ -96,7 +96,8 @@ Explicit non-goals:
 | 6a | [#436](https://github.com/quant-rule/quant-rule/issues/436) | Multi-instrument panel input | Done |
 | 6b | [#437](https://github.com/quant-rule/quant-rule/issues/437) | DST-aware session calendar | Done |
 | 7 | [#419](https://github.com/quant-rule/quant-rule/issues/419) | Level events | Done |
-| 7b | [#420](https://github.com/quant-rule/quant-rule/issues/420)–[#422](https://github.com/quant-rule/quant-rule/issues/422) | Divergence, signal, validation | Todo |
+| 7b | [#420](https://github.com/quant-rule/quant-rule/issues/420) | Divergence events | Done |
+| 7c | [#421](https://github.com/quant-rule/quant-rule/issues/421)–[#422](https://github.com/quant-rule/quant-rule/issues/422) | Signal and event validation | Todo |
 | 8 | [#423](https://github.com/quant-rule/quant-rule/issues/423)–[#425](https://github.com/quant-rule/quant-rule/issues/425) | Spec engine | Todo |
 | 9 | [#426](https://github.com/quant-rule/quant-rule/issues/426)–[#429](https://github.com/quant-rule/quant-rule/issues/429) | v6–v10 charters, swarm, validation | Todo |
 | 10 | [#430](https://github.com/quant-rule/quant-rule/issues/430) | Closeout | Todo |

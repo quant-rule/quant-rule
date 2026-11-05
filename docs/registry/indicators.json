@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.10",
+  "version": "2026-11-05.11",
   "indicators": [
     {
       "id": "ema",
@@ -1276,7 +1276,10 @@
         "relative_strength"
       ],
       "availability": "common panel timestamps and return window",
-      "events": [],
+      "events": [
+        "divergence.rs_regular_bullish",
+        "divergence.rs_regular_bearish"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1304,7 +1307,10 @@
         "lead_lag"
       ],
       "availability": "lead-lag and return windows",
-      "events": [],
+      "events": [
+        "divergence.lead_lag_bullish",
+        "divergence.lead_lag_bearish"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1331,7 +1337,10 @@
         "breadth"
       ],
       "availability": "common panel timestamps",
-      "events": [],
+      "events": [
+        "divergence.breadth_regular_bullish",
+        "divergence.breadth_regular_bearish"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -3096,6 +3105,108 @@
       "role": "signal",
       "claim": "A higher price high with a lower ATR ratio marks fading volatility.",
       "formula": "H[t] > H[p] and ATR_ratio[t] < ATR_ratio[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.rs_regular_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 45,
+      "indicator": "relative_strength",
+      "role": "signal",
+      "claim": "A lower price low with a higher relative strength marks accumulation.",
+      "formula": "L[t] < L[p] and RS[t] > RS[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.rs_regular_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 45,
+      "indicator": "relative_strength",
+      "role": "signal",
+      "claim": "A higher price high with a lower relative strength marks distribution.",
+      "formula": "H[t] > H[p] and RS[t] < RS[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.lead_lag_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 46,
+      "indicator": "lead_lag",
+      "role": "signal",
+      "claim": "A lower price low with a higher lead-lag marks flow support.",
+      "formula": "L[t] < L[p] and LL[t] > LL[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.lead_lag_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 46,
+      "indicator": "lead_lag",
+      "role": "signal",
+      "claim": "A higher price high with a lower lead-lag marks fading flow.",
+      "formula": "H[t] > H[p] and LL[t] < LL[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.breadth_regular_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 47,
+      "indicator": "breadth",
+      "role": "signal",
+      "claim": "A lower price low with higher breadth marks broad participation.",
+      "formula": "L[t] < L[p] and BR[t] > BR[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.breadth_regular_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 47,
+      "indicator": "breadth",
+      "role": "signal",
+      "claim": "A higher price high with lower breadth marks narrowing participation.",
+      "formula": "H[t] > H[p] and BR[t] < BR[p]",
       "parameters": [],
       "tests": [
         "event",
