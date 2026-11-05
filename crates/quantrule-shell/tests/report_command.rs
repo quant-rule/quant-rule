@@ -453,3 +453,100 @@ fn the_analytical_bundle_uses_the_configured_timeframes() {
     );
     assert!(report.contains("\"timeframes\":[\"15m\"]"), "{report}");
 }
+
+#[test]
+fn a_spec_run_is_byte_identical_on_rerun() {
+    let first = output_dir("report-spec-1");
+    let second = output_dir("report-spec-2");
+    let config = fixture(CONFIG);
+    let spec = fixture("config-run/spec.json");
+    for out in [&first, &second] {
+        let output = run(&[
+            "report",
+            "model",
+            "--config",
+            config.to_str().expect("the config path is UTF-8"),
+            "--spec",
+            spec.to_str().expect("the spec path is UTF-8"),
+            "--out",
+            out.to_str().expect("the output path is UTF-8"),
+        ]);
+        assert_success(&output);
+    }
+
+    let left = first.join("model");
+    let right = second.join("model");
+    for name in [
+        "readings.csv",
+        "events.csv",
+        "levels.csv",
+        "conditions.csv",
+        "result.json",
+        "provenance.json",
+    ] {
+        assert!(left.join(name).exists(), "{name} is missing");
+        assert_eq!(
+            read(&left.join(name)),
+            read(&right.join(name)),
+            "{name} differs between reruns"
+        );
+    }
+    let conditions =
+        String::from_utf8(read(&left.join("conditions.csv"))).expect("conditions.csv is UTF-8");
+    assert!(conditions.starts_with("condition_id,timeframe_secs,bar,timestamp,value\n"));
+    assert!(conditions.contains("rsi_up_15m,300,"));
+    assert!(conditions.contains("di_up_15m,300,"));
+    assert!(conditions.lines().count() > 1);
+
+    let provenance =
+        String::from_utf8(read(&left.join("provenance.json"))).expect("provenance.json is UTF-8");
+    assert!(provenance.contains("\"spec\":{"));
+    assert!(provenance.contains("\"id\":\"fixture-spec\""));
+    assert!(provenance.contains("\"registry_version\":"));
+}
+
+#[test]
+fn a_spec_timeframe_must_be_configured() {
+    let out = output_dir("report-spec-missing-timeframe");
+    let output = run(&[
+        "report",
+        "model",
+        "--config",
+        fixture(CONFIG).to_str().expect("the config path is UTF-8"),
+        "--spec",
+        fixture("config-run/spec-missing-timeframe.json")
+            .to_str()
+            .expect("the spec path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert!(!output.status.success());
+    assert!(
+        error(&output).contains("the spec timeframe 120 is not in the data configuration"),
+        "unexpected stderr: {}",
+        error(&output)
+    );
+}
+
+#[test]
+fn a_spec_is_only_valid_for_the_model_report() {
+    let out = output_dir("report-spec-wrong-engine");
+    let output = run(&[
+        "report",
+        "strategy",
+        "--config",
+        fixture(CONFIG).to_str().expect("the config path is UTF-8"),
+        "--spec",
+        fixture("config-run/spec.json")
+            .to_str()
+            .expect("the spec path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert!(!output.status.success());
+    assert!(
+        error(&output).contains("--spec is only valid for report model"),
+        "unexpected stderr: {}",
+        error(&output)
+    );
+}

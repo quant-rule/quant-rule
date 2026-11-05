@@ -132,6 +132,10 @@ const CONFIG: OptionHelp = OptionHelp {
     flag: "--config <path>",
     description: "The run configuration; required.",
 };
+const SPEC: OptionHelp = OptionHelp {
+    flag: "--spec <spec.json>",
+    description: "Run the model over the spec's ladder and publish conditions.csv.",
+};
 const OPTIONAL_CONFIG: OptionHelp = OptionHelp {
     flag: "--config <path>",
     description: "The strategy blueprint run configuration; optional.",
@@ -256,7 +260,7 @@ const STRATEGY_RUN_OPTIONS: &[OptionHelp] = &[
     TO,
     JSON_STRATEGY,
 ];
-const REPORT_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BUNDLE];
+const REPORT_OPTIONS: &[OptionHelp] = &[CONFIG, SPEC, BUNDLE_OUT, JSON_BUNDLE];
 const BACKTEST_OPTIONS: &[OptionHelp] = &[CONFIG, BUNDLE_OUT, JSON_BACKTEST, DIAGNOSE];
 const LAB_SUMMARY_OPTIONS: &[OptionHelp] =
     &[ROLE, DATA_VERSION, CONFIG, CREATED, OPERATOR, NOTES, FORCE];
@@ -491,13 +495,14 @@ const COMMANDS: &[CommandHelp] = &[
         name: "report",
         short_usage: "report <engine> --config <run>",
         short_summary: "One config-driven report bundle.",
-        usage: "report <engine> --config <run.json> [--out <dir>] [--json]",
+        usage: "report <engine> --config <run.json> [--spec <spec.json>] [--out <dir>] [--json]",
         summary: "Write one config-driven report bundle under <out>/<engine>/.",
         options: REPORT_OPTIONS,
         output: "One bundle and its artifact paths, or report.json bytes with --json.",
         notes: &[
             "Engines: model, strategy, execution, portfolio, or analytical.",
             "Runs only the engines the bundle needs; a non-empty target is refused and a partial bundle is removed on failure.",
+            "--spec is valid only for report model; it sets the ladder and adds conditions.csv.",
         ],
         group: Group::Runs,
     },

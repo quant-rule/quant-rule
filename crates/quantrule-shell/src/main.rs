@@ -24,7 +24,6 @@ mod render_report;
 mod render_series;
 mod render_state;
 mod source;
-#[cfg(test)]
 mod spec;
 mod store;
 

@@ -31,6 +31,8 @@ pub(crate) struct Provenance<'a> {
     pub config_files: &'a [String],
     /// The resolved engine configuration values.
     pub config: Value,
+    /// The model spec, for a spec run.
+    pub spec: Option<Value>,
     /// The bundle's artifact names, in the contract's order.
     pub artifacts: &'a [String],
 }
@@ -41,7 +43,7 @@ pub(crate) struct Provenance<'a> {
 ///
 /// Returns the serializer's I/O error when the value cannot be encoded.
 pub(crate) fn bytes(provenance: &Provenance<'_>) -> io::Result<Vec<u8>> {
-    let value = json!({
+    let mut value = json!({
         "schema": "quantrule.provenance/v1",
         "report": provenance.report,
         "report_version": REPORT_VERSION,
@@ -60,6 +62,11 @@ pub(crate) fn bytes(provenance: &Provenance<'_>) -> io::Result<Vec<u8>> {
         "config": provenance.config,
         "artifacts": provenance.artifacts,
     });
+    // A spec run adds the spec identity; a config-only run keeps its historical
+    // bytes, so the existing provenance fixtures stay valid.
+    if let Some(spec) = &provenance.spec {
+        value["spec"] = spec.clone();
+    }
     let text = serde_json::to_string(&value).map_err(io::Error::other)?;
     Ok(format!("{text}\n").into_bytes())
 }

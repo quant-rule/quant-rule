@@ -81,6 +81,7 @@ pub(crate) fn execution_bundle_from(
             "fee_rate": config.execution.engine.fee_rate(),
             "slippage_bps": config.execution.engine.slippage_bps(),
         }),
+        spec: None,
         artifacts: &names,
     })
     .map_err(RunError::Output)?;
@@ -251,6 +252,7 @@ pub(crate) fn portfolio_bundle_from(
             },
             "mark_to_market": config.portfolio.mark_to_market.code(),
         }),
+        spec: None,
         artifacts: &names,
     })
     .map_err(RunError::Output)?;
@@ -1315,6 +1317,7 @@ pub(crate) fn analytical_bundle_from(
             "timeframes": config.analytics.timeframes.iter().map(|timeframe| timeframe.code()).collect::<Vec<_>>(),
             "relations": config.analytics.relations,
         }),
+        spec: None,
         artifacts: &names,
     })
     .map_err(RunError::Output)?;

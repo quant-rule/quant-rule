@@ -304,6 +304,34 @@ fn macd_state(line: Option<f64>, signal: Option<f64>) -> Option<i8> {
     }
 }
 
+/// The per-bar condition values for a spec run.
+pub(super) fn conditions_csv(
+    evaluation: &quantrule_model::spec::SpecEvaluation,
+    run: &ModelRun,
+) -> String {
+    let mut csv = String::from("condition_id,timeframe_secs,bar,timestamp,value\n");
+    let Some(timeframe) = run.timeframe(evaluation.evaluation_timeframe_secs) else {
+        return csv;
+    };
+    for condition in &evaluation.conditions {
+        for (bar, value) in condition.values.iter().enumerate() {
+            let Some(timestamp) = timeframe.open_times().get(bar) else {
+                continue;
+            };
+            let _ = writeln!(
+                csv,
+                "{},{},{},{},{}",
+                condition.id,
+                evaluation.evaluation_timeframe_secs,
+                bar,
+                timestamp,
+                u8::from(*value),
+            );
+        }
+    }
+    csv
+}
+
 #[cfg(test)]
 mod tests {
     use quantrule_data::Candle;

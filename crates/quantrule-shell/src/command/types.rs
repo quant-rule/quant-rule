@@ -322,6 +322,8 @@ pub(crate) struct ReportArgs {
     pub(crate) engine: ReportEngine,
     /// The run configuration.
     pub(crate) config: PathBuf,
+    /// The optional model spec for a `model` report.
+    pub(crate) spec: Option<PathBuf>,
     /// The output-root override, when supplied.
     pub(crate) out: Option<PathBuf>,
     /// Whether to print the `report.json` bytes to stdout.
@@ -558,6 +560,20 @@ pub(crate) enum ReportError {
         /// The requested period label.
         period: String,
     },
+    /// The model spec could not be read.
+    SpecRead {
+        /// The spec path.
+        path: PathBuf,
+        /// The underlying I/O error.
+        source: io::Error,
+    },
+    /// The model spec could not be parsed, validated, or evaluated.
+    Spec(String),
+    /// A spec timeframe is absent from the data configuration.
+    SpecTimeframe {
+        /// The timeframe in seconds.
+        timeframe_secs: u64,
+    },
     /// The strategy timeframe has no bars.
     NoStrategyBars {
         /// The strategy timeframe in seconds.
@@ -607,6 +623,18 @@ impl fmt::Display for ReportError {
                 formatter,
                 "the requested period '{period}' produced no chart bars"
             ),
+            Self::SpecRead { path, source } => {
+                write!(
+                    formatter,
+                    "cannot read the model spec {}: {source}",
+                    path.display()
+                )
+            }
+            Self::Spec(message) => write!(formatter, "the model spec failed: {message}"),
+            Self::SpecTimeframe { timeframe_secs } => write!(
+                formatter,
+                "the spec timeframe {timeframe_secs} is not in the data configuration"
+            ),
             Self::NoStrategyBars { timeframe_secs } => write!(
                 formatter,
                 "the strategy timeframe {timeframe_secs} produced no bars"
@@ -627,11 +655,14 @@ impl std::error::Error for ReportError {
         match self {
             Self::ReadOutput { source, .. } | Self::CreateDirectory { source, .. } => Some(source),
             Self::Artifact { source, .. } => Some(source),
+            Self::SpecRead { source, .. } => Some(source),
             Self::OutputNotEmpty { .. }
             | Self::OutputNotDirectory { .. }
             | Self::EmptyPeriod { .. }
             | Self::EmptyChart { .. }
             | Self::NoStrategyBars { .. }
+            | Self::Spec(_)
+            | Self::SpecTimeframe { .. }
             | Self::Period(_) => None,
         }
     }

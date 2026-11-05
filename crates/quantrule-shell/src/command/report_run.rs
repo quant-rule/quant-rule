@@ -6,6 +6,7 @@
 //! executed backtest walk.
 
 use std::fmt::Write as _;
+use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
@@ -16,6 +17,7 @@ use quantrule_data::{Timeframe, format_utc_timestamp};
 use quantrule_model::readings::PivotScale;
 use quantrule_model::report::MarketReport;
 use quantrule_model::run::ModelRun;
+use quantrule_model::spec::{ModelSpec, SpecEvaluation};
 use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
@@ -36,9 +38,10 @@ use crate::source::DateRange;
 /// Returns [`ParseError::Report`] for a missing engine, a missing or repeated
 /// `--config`/`--out`, an unknown option, or an extra positional argument.
 pub(crate) fn parse_report_arguments(arguments: &[String]) -> Result<ReportArgs, ParseError> {
-    const USAGE: &str = "usage: report <model|strategy|execution|portfolio|analytical> --config <run.json> [--out <dir>] [--json]";
+    const USAGE: &str = "usage: report <model|strategy|execution|portfolio|analytical> --config <run.json> [--spec <spec.json>] [--out <dir>] [--json]";
     let mut engine = None;
     let mut config = None;
+    let mut spec = None;
     let mut out = None;
     let mut json = false;
     let mut index = 0;
@@ -59,6 +62,21 @@ pub(crate) fn parse_report_arguments(arguments: &[String]) -> Result<ReportArgs,
                         ParseError::Report(format!("--config requires a non-empty path\n{USAGE}"))
                     })?;
                 config = Some(PathBuf::from(value));
+            }
+            "--spec" => {
+                if spec.is_some() {
+                    return Err(ParseError::Report(format!(
+                        "--spec was supplied twice\n{USAGE}"
+                    )));
+                }
+                index += 1;
+                let value = arguments
+                    .get(index)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| {
+                        ParseError::Report(format!("--spec requires a non-empty path\n{USAGE}"))
+                    })?;
+                spec = Some(PathBuf::from(value));
             }
             "--out" => {
                 if out.is_some() {
@@ -109,9 +127,16 @@ pub(crate) fn parse_report_arguments(arguments: &[String]) -> Result<ReportArgs,
     let config =
         config.ok_or_else(|| ParseError::Report(format!("--config is required\n{USAGE}")))?;
 
+    if spec.is_some() && engine != ReportEngine::Model {
+        return Err(ParseError::Report(format!(
+            "--spec is only valid for report model\n{USAGE}"
+        )));
+    }
+
     Ok(ReportArgs {
         engine,
         config,
+        spec,
         out,
         json,
     })
@@ -132,8 +157,41 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
 
     let bundle = match args.engine {
         ReportEngine::Model => {
-            let model = load_model(&config)?;
-            model_bundle_from(&config, &out, &model)?
+            if let Some(spec_path) = &args.spec {
+                let text = fs::read_to_string(spec_path).map_err(|source| {
+                    RunError::Report(ReportError::SpecRead {
+                        path: spec_path.clone(),
+                        source,
+                    })
+                })?;
+                let spec = crate::spec::parse_model_spec(&text)
+                    .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
+                let timeframes = spec_timeframes(&config, &spec.ladder)?;
+                let model = pipeline::run_model_with_ladder(&config, &timeframes)
+                    .map_err(|error| pipeline_error(&config, error))?;
+                let evaluation = spec
+                    .evaluate(&model)
+                    .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
+                let file = spec_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("spec.json")
+                    .to_owned();
+                model_bundle_with_spec(
+                    &config,
+                    &out,
+                    &model,
+                    &spec.ladder,
+                    &SpecRunArtifacts {
+                        spec: &spec,
+                        evaluation: &evaluation,
+                        file,
+                    },
+                )?
+            } else {
+                let model = load_model(&config)?;
+                model_bundle_from(&config, &out, &model)?
+            }
         }
         ReportEngine::Strategy => {
             let model = load_model(&config)?;
@@ -180,12 +238,47 @@ pub(super) fn model_bundle_from(
     out: &Path,
     model_run: &ModelRun,
 ) -> Result<BundleOutput, RunError> {
+    let ladder = pipeline::ladder_secs_for(&config.data.available_timeframes);
+    model_bundle_with(config, out, model_run, &ladder, None)
+}
+
+/// The spec identity and evaluated conditions a spec run publishes.
+pub(super) struct SpecRunArtifacts<'a> {
+    /// The parsed and validated spec.
+    pub(super) spec: &'a ModelSpec,
+    /// The per-condition evaluation.
+    pub(super) evaluation: &'a SpecEvaluation,
+    /// The spec file name as written.
+    pub(super) file: String,
+}
+
+/// Writes the model bundle for a spec run.
+///
+/// # Errors
+///
+/// Returns a [`RunError`] when the report, a chart, or an artifact fails.
+pub(super) fn model_bundle_with_spec(
+    config: &RunConfig,
+    out: &Path,
+    model_run: &ModelRun,
+    ladder: &[u64],
+    spec: &SpecRunArtifacts<'_>,
+) -> Result<BundleOutput, RunError> {
+    model_bundle_with(config, out, model_run, ladder, Some(spec))
+}
+
+fn model_bundle_with(
+    config: &RunConfig,
+    out: &Path,
+    model_run: &ModelRun,
+    ladder: &[u64],
+    spec: Option<&SpecRunArtifacts<'_>>,
+) -> Result<BundleOutput, RunError> {
     let bundle = out.join("model");
     render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
 
     let aggregates = quantrule_analytics::cross_timeframe(model_run);
-    let ladder = pipeline::ladder_secs_for(&config.data.available_timeframes);
-    let report = MarketReport::compute(model_run, &ladder, &aggregates);
+    let report = MarketReport::compute(model_run, ladder, &aggregates);
     if report.charts.bars.is_empty() {
         return Err(RunError::Report(ReportError::EmptyChart {
             period: period_label(config),
@@ -212,12 +305,14 @@ pub(super) fn model_bundle_from(
     .map_err(RunError::Output)?;
     let price = chart::render_report_price_axes_png(&report.charts).map_err(RunError::Chart)?;
     let events = chart::render_report_events_png(&report.charts).map_err(RunError::Chart)?;
-    let readings_csv = model_artifacts::readings_csv(model_run, &ladder);
-    let events_csv = model_artifacts::events_csv(model_run, &ladder);
-    let levels_csv = model_artifacts::levels_csv(model_run, &ladder);
-    let legs_csv = model_artifacts::legs_csv(model_run, &ladder);
+    let readings_csv = model_artifacts::readings_csv(model_run, ladder);
+    let events_csv = model_artifacts::events_csv(model_run, ladder);
+    let levels_csv = model_artifacts::levels_csv(model_run, ladder);
+    let conditions_csv =
+        spec.map(|spec| model_artifacts::conditions_csv(spec.evaluation, model_run));
+    let legs_csv = model_artifacts::legs_csv(model_run, ladder);
 
-    let names = artifact_names(&[
+    let mut name_list = vec![
         "summary.txt",
         "report.json",
         "price-axes.png",
@@ -228,8 +323,13 @@ pub(super) fn model_bundle_from(
         "levels.csv",
         "legs.csv",
         "provenance.json",
-    ]);
+    ];
+    if spec.is_some() {
+        name_list.insert(8, "conditions.csv");
+    }
+    let names = artifact_names(&name_list);
     let files = config_files(config);
+    let spec_value = spec.map(|spec| spec_provenance(spec.spec, spec.evaluation, &spec.file));
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "model",
         data_version: &config.data.data_version,
@@ -245,11 +345,12 @@ pub(super) fn model_bundle_from(
             "policy": policy_value(config),
             "strategy": strategy_value(config),
         }),
+        spec: spec_value,
         artifacts: &names,
     })
     .map_err(RunError::Output)?;
 
-    let artifacts = vec![
+    let mut artifacts = vec![
         ("summary.txt", summary),
         ("report.json", json.clone()),
         ("price-axes.png", price),
@@ -260,12 +361,54 @@ pub(super) fn model_bundle_from(
         ("levels.csv", levels_csv.into_bytes()),
         ("legs.csv", legs_csv.into_bytes()),
     ];
+    if let Some(conditions) = conditions_csv {
+        artifacts.insert(8, ("conditions.csv", conditions.into_bytes()));
+    }
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
     Ok(BundleOutput {
         path: bundle,
         names,
         json,
     })
+}
+
+fn spec_provenance(spec: &ModelSpec, evaluation: &SpecEvaluation, file: &str) -> Value {
+    json!({
+        "schema": spec.schema,
+        "id": spec.id,
+        "file": file,
+        "registry_version": quantrule_model::REGISTRY_VERSION,
+        "ladder": spec.ladder,
+        "evaluation_timeframe": spec.evaluation_timeframe_secs,
+        "conditions": evaluation
+            .conditions
+            .iter()
+            .map(|condition| json!({
+                "id": condition.id,
+                "bars": evaluation.bars,
+                "true_count": condition.true_count,
+            }))
+            .collect::<Vec<Value>>(),
+    })
+}
+
+fn spec_timeframes(config: &RunConfig, ladder: &[u64]) -> Result<Vec<Timeframe>, RunError> {
+    ladder
+        .iter()
+        .map(|timeframe_secs| {
+            config
+                .data
+                .available_timeframes
+                .iter()
+                .copied()
+                .find(|timeframe| u64::from(timeframe.seconds()) == *timeframe_secs)
+                .ok_or_else(|| {
+                    RunError::Report(ReportError::SpecTimeframe {
+                        timeframe_secs: *timeframe_secs,
+                    })
+                })
+        })
+        .collect()
 }
 
 /// Whether a strategy report is the execution-free diagnostic walk or the
@@ -362,6 +505,7 @@ pub(super) fn strategy_bundle_from_walk(
             "structure_scale": scale_label(config.model.structure_scale),
             "strategy": strategy_value(config),
         }),
+        spec: None,
         artifacts: &names,
     })
     .map_err(RunError::Output)?;
@@ -892,8 +1036,23 @@ mod tests {
         .expect("the arguments are valid");
         assert_eq!(args.engine, ReportEngine::Strategy);
         assert_eq!(args.config, PathBuf::from("config/run.json"));
+        assert_eq!(args.spec, None);
         assert_eq!(args.out, Some(PathBuf::from("out")));
         assert!(args.json);
+
+        let args = parse_report_arguments(&arguments(&[
+            "model",
+            "--config",
+            "config/run.json",
+            "--spec",
+            "spec.json",
+        ]))
+        .expect("the spec arguments are valid");
+        assert_eq!(args.spec, Some(PathBuf::from("spec.json")));
+        assert!(
+            parse_report_arguments(&arguments(&["strategy", "--config", "a", "--spec", "s"]))
+                .is_err()
+        );
 
         assert!(parse_report_arguments(&arguments(&[])).is_err());
         assert!(parse_report_arguments(&arguments(&["model"])).is_err());

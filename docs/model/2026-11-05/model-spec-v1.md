@@ -138,7 +138,28 @@ not a clamp.
 The evaluator returns one boolean per evaluation bar per condition, in document
 order, plus a true count. It does not write files; the shell owns artifacts.
 
-## 7. Deferred to v2
+## 7. Shell command and artifacts
+
+```text
+report model --config <run.json> --spec <spec.json> [--out <dir>] [--json]
+```
+
+The run configuration supplies the data source, period, and available
+timeframes. The spec's ladder must be a subset of the configuration's available
+timeframes; the command runs only the spec's ladder. The output is the standard
+model bundle plus `conditions.csv`:
+
+| Artifact | Content |
+|---|---|
+| `readings.csv`, `events.csv`, `levels.csv`, `legs.csv` | The model batch for the spec's ladder |
+| `conditions.csv` | `condition_id,timeframe_secs,bar,timestamp,value`, one row per condition bar |
+| `result.json` | The standard model result |
+| `provenance.json` | The standard provenance plus a `spec` object: schema, id, file, registry version, ladder, evaluation timeframe, and each condition's true count |
+
+A spec run over the same data configuration, spec, and output bytes is
+byte-identical on rerun. The spec file name is recorded, never an absolute path.
+
+## 8. Deferred to v2
 
 | Extension | Why deferred |
 |---|---|
@@ -150,7 +171,7 @@ order, plus a true count. It does not write files; the shell owns artifacts.
 A v2 document uses a new `schema` value. The v1 parser never guesses at an
 unknown extension.
 
-## 8. Verification
+## 9. Verification
 
 | Test | File |
 |---|---|
@@ -159,3 +180,4 @@ unknown extension.
 | Extended event batch feeding | `crates/quantrule-model/src/spec/tests.rs` |
 | Causality, determinism, and missing-timeframe rejection | `crates/quantrule-model/src/spec/tests.rs` |
 | JSON parsing, registry resolution, and end-to-end evaluation | `crates/quantrule-shell/src/spec.rs` |
+| CLI spec run, `conditions.csv`, provenance, and byte-identical rerun | `crates/quantrule-shell/tests/report_command.rs` |

@@ -1,0 +1,18 @@
+{
+  "schema": "quantrule.model-spec/v1",
+  "id": "fixture-missing-timeframe",
+  "ladder": [120, 300],
+  "evaluation_timeframe": 300,
+  "conditions": [
+    {
+      "id": "two_minute_state",
+      "when": {
+        "state": {
+          "state": "rsi_zone",
+          "timeframe": 120,
+          "equals": 1
+        }
+      }
+    }
+  ]
+}

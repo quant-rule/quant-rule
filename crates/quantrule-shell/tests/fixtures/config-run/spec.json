@@ -1,0 +1,28 @@
+{
+  "schema": "quantrule.model-spec/v1",
+  "id": "fixture-spec",
+  "ladder": [300, 900],
+  "evaluation_timeframe": 300,
+  "conditions": [
+    {
+      "id": "rsi_up_15m",
+      "when": {
+        "event": {
+          "id": "signal.rsi_threshold",
+          "timeframe": 900,
+          "direction": 1
+        }
+      }
+    },
+    {
+      "id": "di_up_15m",
+      "when": {
+        "state": {
+          "state": "di_state",
+          "timeframe": 900,
+          "equals": 1
+        }
+      }
+    }
+  ]
+}
