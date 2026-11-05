@@ -61,7 +61,7 @@ determinism, golden, and edge tests for the extended readings.
 | Event references from indicators | 148 | Five events are shared by two indicators |
 | Parameters | 110 | Registry `parameters` |
 | Checklist rows `tested` | 37/37 | Table A and Table B checks are ticked |
-| Checklist rows `verified` | 37/37 | Human signed rows 1–37 on 2026-11-05; row 37 is reading-only |
+| Checklist rows `verified` | 37/37 | Human signed rows 1–37 on 2026-11-05: 36 event-producing indicators wired and spec-usable, 1 reading-only |
 
 The five shared event IDs are `divergence.rsi_regular_bullish`,
 `divergence.rsi_regular_bearish`, `divergence.rsi_hidden_bullish`,
@@ -254,7 +254,8 @@ definition meaningless.
 becomes `verified`.
 
 **Status.** Fixed (P7): the human signed rows 1–37 on 2026-11-05; the agent
-recorded the signature. The checklist is 37/37 `verified`.
+recorded the signature. The checklist is 37/37 `verified`: 36 event-producing
+indicators are wired and spec-usable, and row 37 is reading-only.
 
 ### F-03 — The v1 spec cannot configure the M2 model
 
@@ -337,7 +338,8 @@ agreed). The coverage document was updated in the same P0 change.
 **Evidence.** The v2 spec run computes session events for the evaluated
 instrument and panel events for the declared panel, merges them into the event
 view, and publishes the active projection. Checklist rows 28–36 are now
-`Wiring` and `Spec` ☑; row 37 (`calendar_bucket`) is reading-only.
+`Wiring` and `Spec` ☑ for rows 1–36; row 37 (`calendar_bucket`) is reading-only
+and its `Wiring`/`Spec` cells are `—`.
 
 **Impact.** Ten indicators (relative strength, lead-lag, breadth, co-movement,
 dispersion, session, opening range, overnight/intraday, session range, calendar

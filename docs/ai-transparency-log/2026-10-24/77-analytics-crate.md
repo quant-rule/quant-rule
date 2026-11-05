@@ -2,7 +2,7 @@
 
 - Work item: [#77](https://github.com/quant-rule/quant-rule/issues/77) — feat: add the analytics crate and axis resolution
 - Plan: [`docs/execution-plans/2026-10-24/77-analytics-crate.md`](../../execution-plans/2026-10-24/77-analytics-crate.md)
-- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §6
+- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../registry/history.md) §6
 - Date: 2026-10-24 (UTC)
 
 ## Entry: crate and resolution

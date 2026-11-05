@@ -1,7 +1,7 @@
 # Indicator Implementation Summary and Verification Checklist
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved — implementation contract**; 37/37 rows `verified` (human sign-off, 2026-11-05)
+- Status: **Approved — implementation contract**; 37/37 rows `verified` (human sign-off, 2026-11-05): 36 event-producing indicators wired and spec-usable, 1 reading-only
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Coverage: [`docs/model/2026-11-05/indicator-coverage.md`](../../model/2026-11-05/indicator-coverage.md)
 - Phase 1 audit: [`docs/improvement/2026-11-05/INDICATOR-AUDIT.md`](INDICATOR-AUDIT.md)
@@ -168,13 +168,17 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | verified |
 | 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | verified |
 | 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | verified |
-| 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | verified |
+| 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | — | — | verified, reading-only |
+
+`—` means not applicable: a reading-only indicator has no event to wire or
+activate in a spec.
 
 Rows 28–36 are wired by the v2 spec run (P1): panel and session events are
 active, conditions read the combined base/extended/session/panel batch, and
-`events.csv` publishes the active projection. Row 37 `calendar_bucket` stays
-open: it is a reading-only indicator with no event, so it is exercised by the
-area cell's session readings and has no event to activate in a spec.
+`events.csv` publishes the active projection. Row 37 `calendar_bucket` is a
+reading-only indicator: it has no event to activate in a spec, so its `Wiring`
+and `Spec` cells are `—`, not open work. 36 event-producing indicators are wired
+and spec-usable; 1 indicator is reading-only.
 
 ## 4. Verification table B — test and math checklist
 
@@ -183,8 +187,11 @@ edge cases, `A` event availability, `N` no double count, `P` precedence, `M`
 math validity (allowed ops only, null/zero handling, no future data, no
 statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 
-| # | Indicator | F | C | D | G | E | A | N | P | M | Cmd | Sign |
+| # | Indicator | F | C* | D* | G | E | A* | N* | P* | M | Cmd | Sign |
 |---:|---|---|---|---|---|---|---|---|---|---|---|---|
+
+`*` = family-level check. The tick means the family suite covers the behavior;
+it does not prove a per-indicator test for this row.
 | 1 | vwap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test vwap_is_the_volume_weighted_typical_price | ☑ |
 | 2 | volume_profile | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test profile_poc_is_the_highest_volume_bin | ☑ |
 | 3 | rvol (extended) | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test rvol_reads_the_volume_ratio | ☑ |
@@ -232,7 +239,7 @@ fixtures.
 
 The `Sign` column is the human or Quant Validator signature. The human signed
 rows 1–37 on 2026-11-05; the agent recorded the signature and did not supply it.
-Every row is now `verified`, including row 37, which is reading-only.
+Every row is now `verified`: 36 event-producing indicators are wired and spec-usable, and row 37 is reading-only.
 
 ## 5. Known gaps
 
@@ -246,7 +253,7 @@ are reconciled to one cross per reading. `signal.structure_change` is shared by
 |---|---|---|
 | `INDICATOR-AUDIT.md` | Delivered retrospectively as [`INDICATOR-AUDIT.md`](INDICATOR-AUDIT.md) | Accept the retrospective limitation; the audit did not screen the backlog |
 | `Sign` column | 37/37 rows signed by the human on 2026-11-05 | Closed; F-02 is Fixed |
-| Spec v2 and panel/session wiring | P1 implemented: rows 28–36 are wired; row 37 is reading-only | The P1 PR records the v2 contract and tests; the `Sign` column remains open |
+| Spec v2 and panel/session wiring | P1 implemented: rows 28–36 are wired; row 37 is reading-only | Row 37 has no spec event; the P5 bundle publishes `session.csv` with `calendar_bucket` |
 | Phases 6–8 | Moved to the [M2.x programme](../../execution-plans/2026-11-05/410-m2-model-programme.md) | Approve the charter, run the swarm, validate, close out |
 
 ## 6. Golden fixtures
@@ -279,12 +286,13 @@ the empty-series header. The v4 readings keep their independent
 | Determinism | Repeated model runs |
 | Panel | Availability and occurrence keys on a three-instrument panel |
 
-Table B's `C` and `D` cells are family-level: the extended readings, panel, and
-session suites each have one causality and one determinism test. `A` and `N`
-are checked for indicators whose plan events are all registered; they remain
-open where an event is missing. `P` stays open for the extended families: the
-precedence test covers the v4 level references, and the extended batch proves
-one occurrence per key rather than a per-indicator reference order.
+Table B's `C*` and `D*` cells are family-level: the extended readings, panel,
+and session suites each have one causality and one determinism test. `A*` and
+`N*` are family-level too: the event-validation suite proves availability and
+one occurrence for the batch, not a per-indicator test. `P*` is family-level:
+the precedence test covers the v4 level references, and the extended batch
+proves one occurrence per key rather than a per-indicator reference order. A tick
+does not upgrade a family-level check to a per-indicator proof.
 
 ## 8. Verification commands
 

@@ -2,7 +2,7 @@
 
 - Work item: [#78](https://github.com/quant-rule/quant-rule/issues/78) — feat: add as-of timeframe alignment
 - Plan: [`docs/execution-plans/2026-10-24/78-as-of-alignment.md`](../../execution-plans/2026-10-24/78-as-of-alignment.md)
-- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §7.2
+- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../registry/history.md) §7.2
 - Date: 2026-10-24 (UTC)
 
 ## Entry: as-of alignment

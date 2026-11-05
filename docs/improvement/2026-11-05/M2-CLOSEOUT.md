@@ -38,7 +38,7 @@ The development result, hashes, gate detail, and finding P5-F1 are in
 | Finding | Status | Evidence |
 |---|---|---|
 | F-01 retrospective audit | Fixed | Audit document delivered |
-| F-02 `Sign` column | Fixed | Human signed 37/37 rows on 2026-11-05 |
+| F-02 `Sign` column | Fixed | Human signed 37/37 rows on 2026-11-05: 36 event-producing indicators wired, 1 reading-only |
 | F-03 v1 spec limits | Fixed | `model-spec-v2.md` |
 | F-04 `volume_oscillator` double owner | Fixed | `rvol.outputs` no longer lists it; `check_registry.py` passes |
 | F-05 absorption formula | Fixed | Coverage document matches the registry |
@@ -56,8 +56,9 @@ on `model_dev`; its pooled metrics matched the preserved P5 result exactly.
 Table B of [`INDICATOR-VERIFICATION.md`](INDICATOR-VERIFICATION.md) has all
 `F/C/D/G/E/A/N/P/M` cells ticked for 37 rows. The human signed rows 1–37 on
 2026-11-05; the agent recorded the signature and did not supply it. Every row is
-now `verified`, including row 37 (`calendar_bucket`), which is reading-only and
-has no event to activate in a spec. F-02 is **Fixed**.
+now `verified`: 36 event-producing indicators are wired and spec-usable, and
+row 37 (`calendar_bucket`) is verified as reading-only with no event to activate
+in a spec. F-02 is **Fixed**.
 
 ## 5. Legacy removal
 

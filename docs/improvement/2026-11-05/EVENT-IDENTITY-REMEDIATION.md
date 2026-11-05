@@ -47,12 +47,12 @@ Regression tests:
 
 | Residual | Status |
 |---|---|
-| `docs/registry/validation.json` still has no claim for 36 indicators and 124 events | Open |
-| The shell report JSON and the SQLite store do not yet carry `event_code` | Open |
-| Panel and session readings are not in `readings.csv`; `calendar_bucket` is not spec-usable | Open |
-| `breadth`, `level_strength`, `gap_fade`, `absorption`, and the VWAP mirror still differ from the original plan text | Open |
-| The checklist's row 37 status and the 37/37 completion rule remain inconsistent | Open |
-| The repository naming is `M1.0`/`M2.x`; no `v1.x`/`v2.x` rename exists | Decision required |
+| `docs/registry/validation.json` still has no claim for 36 indicators and 124 events | Fixed in P1: 188 claims for 46 indicators and 143 events |
+| The shell report JSON and the SQLite store do not yet carry `event_code` | Store retired in P3; `events.csv` carries `event_code`, `report.json` carries type/subtype/source |
+| Panel and session readings are not in `readings.csv`; `calendar_bucket` is not spec-usable | Fixed in P5: `panel.csv` and `session.csv` are spec artifacts; `session.csv` carries `calendar_bucket` |
+| `breadth`, `level_strength`, `gap_fade`, `absorption`, and the VWAP mirror still differ from the original plan text | Fixed in P5: the registry is the named contract and the plan table was reconciled |
+| The checklist's row 37 status and the 37/37 completion rule remain inconsistent | Fixed in P6: row 37 is `verified, reading-only`; 36 event-producing indicators are wired |
+| The repository naming is `M1.0`/`M2.x`; no `v1.x`/`v2.x` rename exists | Fixed in P2: the naming registry is current |
 | The M2 dev result was produced before this change | Historical; rerun and Quant Validator required before any new claim |
 
 The event-identity fix is a model-layer behavior change. It does not constitute

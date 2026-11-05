@@ -5,7 +5,7 @@
 - Pull request: [#96](https://github.com/quant-rule/quant-rule/pull/96)
 - Status: Verified
 - Date: 2026-10-24 (UTC)
-- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §2–§12
+- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../registry/history.md) §2–§12
 - Transparency log: [`docs/ai-transparency-log/2026-10-24/80-export.md`](../../ai-transparency-log/2026-10-24/80-export.md)
 
 ## 1. Intent

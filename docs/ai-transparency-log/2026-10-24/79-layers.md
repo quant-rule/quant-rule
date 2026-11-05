@@ -2,7 +2,7 @@
 
 - Work item: [#79](https://github.com/quant-rule/quant-rule/issues/79) — feat: build layers 1, 2, and 3
 - Plan: [`docs/execution-plans/2026-10-24/79-layers.md`](../../execution-plans/2026-10-24/79-layers.md)
-- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md) §5–§7
+- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../registry/history.md) §5–§7
 - Date: 2026-10-24 (UTC)
 
 ## Entry: the three layers

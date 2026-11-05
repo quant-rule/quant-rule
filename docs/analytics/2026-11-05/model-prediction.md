@@ -2,7 +2,7 @@
 
 - Date: 2026-11-05 (UTC)
 - Status: **Implemented** (P2); no edge claim
-- Research contract: [`docs/analytics/2026-10-24/research-output.md`](../2026-10-24/research-output.md)
+- Research contract: [`docs/analytics/2026-10-24/research-output.md`](../../registry/history.md)
 - Plan: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Implementation: `tools/improvement/model_prediction.py`,
   `tools/research/adapters.py`

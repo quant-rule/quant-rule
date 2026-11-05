@@ -6,7 +6,7 @@
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan: [`docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`](../../execution-plans/2026-10-28/141-mvp-v1-final-contract.md)
 - Config contract: [`docs/config/2026-10-28/per-engine-config.md`](../../registry/history.md)
-- Report contract: [`docs/reports/2026-10-28/per-engine-reports.md`](../../reports/2026-10-28/per-engine-reports.md)
+- Report contract: [`docs/reports/2026-10-28/per-engine-reports.md`](../../registry/history.md)
 - Supersedes in part: [`docs/adr/2026-10-27/analysis-and-backtest-boundaries.md`](../2026-10-27/analysis-and-backtest-boundaries.md)
 
 ## Context

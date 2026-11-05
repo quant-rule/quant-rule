@@ -6,7 +6,7 @@
 - Pull request: [#111](https://github.com/quant-rule/quant-rule/pull/111)
 - Status: Verified; follow-up branches closed D1, D2, and E. PR #111 is merged.
 - Date: 2026-10-25 (UTC)
-- Related: [history policy ADR](../../adr/2026-10-25/history-retention-and-display-policy.md), [dataset verification](../../analytics/2026-10-25/dataset-verification.md)
+- Related: [history policy ADR](../../adr/2026-10-25/history-retention-and-display-policy.md), [dataset verification](../../registry/history.md)
 
 ## 1. Intent
 

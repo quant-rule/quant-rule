@@ -2,7 +2,7 @@
 
 - Work item: [#82](https://github.com/quant-rule/quant-rule/issues/82) — test: verify the research dataset
 - Plan: [`docs/execution-plans/2026-10-24/82-verify.md`](../../execution-plans/2026-10-24/82-verify.md)
-- Report: [`docs/analytics/2026-10-24/dataset-report.md`](../../analytics/2026-10-24/dataset-report.md)
+- Report: [`docs/analytics/2026-10-24/dataset-report.md`](../../registry/history.md)
 - Date: 2026-10-24 (UTC)
 
 ## Entry: end-to-end verification

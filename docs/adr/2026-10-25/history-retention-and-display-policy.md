@@ -2,7 +2,7 @@
 
 - Date: 2026-10-25 (UTC)
 - Status: Accepted
-- Related: [model contract](../../registry/history.md), [research contract](../../analytics/2026-10-24/research-output.md), [store ADR](../2026-10-24/sqlite-store.md)
+- Related: [model contract](../../registry/history.md), [research contract](../../registry/history.md), [store ADR](../2026-10-24/sqlite-store.md)
 
 ## 1. Context
 
