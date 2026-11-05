@@ -88,6 +88,7 @@ impl TrendContinuationSeries {
             let active = conjunction(readings, macd, adx, bar, config);
             if !previous && let Some(direction) = active {
                 events.push(EventRecord {
+                    event_code: crate::events::codes::SIGNAL_TREND_CONTINUATION,
                     event_type: EventType::Signal,
                     event_subtype_code: SignalSubtype::TrendContinuation.code(),
                     source_code: ADX_SOURCE_CODE,

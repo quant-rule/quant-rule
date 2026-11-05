@@ -234,6 +234,8 @@ impl SignalEventSeries {
         for bar in 1..len {
             threshold_events(readings, bar, config, &mut events);
             ema_events(readings, bar, config, &mut events);
+            ema_stack_change(readings, bar, config, &mut events);
+            rsi_zone_change(readings, bar, config, &mut events);
             macd_events(macd, bar, config, &mut events);
             state_events(direction, momentum, structure, bar, config, &mut events);
         }
@@ -293,6 +295,7 @@ fn threshold_events(
             continue;
         };
         events.push(signal_event(
+            crate::events::codes::SIGNAL_RSI_THRESHOLD,
             SignalSubtype::ThresholdCrossing,
             RSI_SOURCE_CODE,
             None,
@@ -329,6 +332,7 @@ fn ema_events(
             continue;
         };
         events.push(signal_event(
+            crate::events::codes::SIGNAL_EMA_PAIR_CROSS,
             SignalSubtype::SeriesCrossover,
             ema_source(fast),
             Some(ema_reference(slow)),
@@ -365,6 +369,7 @@ fn macd_events(
     };
     if cross != 0 && config.settings().macd_line_signal_cross {
         events.push(signal_event(
+            crate::events::codes::SIGNAL_MACD_LINE_SIGNAL_CROSS,
             SignalSubtype::SeriesCrossover,
             MACD_LINE_SOURCE_CODE,
             Some(u32::from(MACD_SIGNAL_SOURCE_CODE)),
@@ -384,6 +389,7 @@ fn macd_events(
     };
     if zero_cross != 0 && config.settings().macd_zero_cross {
         events.push(signal_event(
+            crate::events::codes::SIGNAL_MACD_ZERO_CROSS,
             SignalSubtype::ZeroCross,
             MACD_LINE_SOURCE_CODE,
             None,
@@ -411,6 +417,7 @@ fn macd_events(
         && config.settings().macd_histogram_slope_flip
     {
         events.push(signal_event(
+            crate::events::codes::SIGNAL_MACD_HISTOGRAM_SLOPE_FLIP,
             SignalSubtype::HistogramSlopeFlip,
             MACD_HISTOGRAM_SOURCE_CODE,
             None,
@@ -421,6 +428,85 @@ fn macd_events(
             config,
         ));
     }
+}
+
+fn ema_stack_state(readings: &Readings, bar: usize) -> Option<i8> {
+    let fast = readings.ema20.get(bar)?;
+    let mid = readings.ema50.get(bar)?;
+    let slow = readings.ema200.get(bar)?;
+    Some(if fast > mid && mid > slow {
+        1
+    } else if fast < mid && mid < slow {
+        -1
+    } else {
+        0
+    })
+}
+
+fn ema_stack_change(
+    readings: &Readings,
+    bar: usize,
+    config: &SignalConfig,
+    events: &mut Vec<EventRecord>,
+) {
+    let (Some(previous), Some(current)) = (
+        ema_stack_state(readings, bar - 1),
+        ema_stack_state(readings, bar),
+    ) else {
+        return;
+    };
+    if previous == current {
+        return;
+    }
+    events.push(signal_event(
+        crate::events::codes::SIGNAL_EMA_STACK_CHANGE,
+        SignalSubtype::CompactStateChange,
+        EMA20_SOURCE_CODE,
+        None,
+        Some(f64::from(current)),
+        Some(f64::from(previous)),
+        current,
+        bar,
+        config,
+    ));
+}
+
+fn rsi_zone(value: f64) -> i8 {
+    if value < 30.0 {
+        -1
+    } else if value > 70.0 {
+        1
+    } else {
+        0
+    }
+}
+
+fn rsi_zone_change(
+    readings: &Readings,
+    bar: usize,
+    config: &SignalConfig,
+    events: &mut Vec<EventRecord>,
+) {
+    let (Some(previous), Some(current)) = (readings.rsi14.get(bar - 1), readings.rsi14.get(bar))
+    else {
+        return;
+    };
+    let previous = rsi_zone(previous);
+    let current = rsi_zone(current);
+    if previous == current {
+        return;
+    }
+    events.push(signal_event(
+        crate::events::codes::SIGNAL_RSI_ZONE_CHANGE,
+        SignalSubtype::CompactStateChange,
+        RSI_SOURCE_CODE,
+        None,
+        Some(f64::from(current)),
+        Some(f64::from(previous)),
+        current,
+        bar,
+        config,
+    ));
 }
 
 fn state_events(
@@ -437,6 +523,7 @@ fn state_events(
         false,
     ) {
         events.push(state_event(
+            crate::events::codes::LEGACY_UNREGISTERED,
             DIRECTION_SOURCE_CODE,
             previous,
             current,
@@ -452,6 +539,7 @@ fn state_events(
         false,
     ) {
         events.push(state_event(
+            crate::events::codes::LEGACY_UNREGISTERED,
             MOMENTUM_SOURCE_CODE,
             previous,
             current,
@@ -467,6 +555,7 @@ fn state_events(
         true,
     ) {
         events.push(state_event(
+            crate::events::codes::LEGACY_UNREGISTERED,
             STRUCTURE_SOURCE_CODE,
             previous,
             current,
@@ -496,6 +585,7 @@ fn state_change(
 }
 
 fn state_event(
+    event_code: u16,
     source_code: u16,
     previous: f64,
     current: f64,
@@ -504,6 +594,7 @@ fn state_event(
     config: &SignalConfig,
 ) -> EventRecord {
     signal_event(
+        event_code,
         SignalSubtype::CompactStateChange,
         source_code,
         None,
@@ -517,6 +608,7 @@ fn state_event(
 
 #[allow(clippy::too_many_arguments)]
 fn signal_event(
+    event_code: u16,
     subtype: SignalSubtype,
     source_code: u16,
     reference_code: Option<u32>,
@@ -527,6 +619,7 @@ fn signal_event(
     config: &SignalConfig,
 ) -> EventRecord {
     EventRecord {
+        event_code,
         event_type: EventType::Signal,
         event_subtype_code: subtype.code(),
         source_code,
@@ -1181,5 +1274,27 @@ mod tests {
         assert_eq!(SignalSubtype::TrendContinuation.code(), 6);
         assert_eq!(super::RSI_THRESHOLDS, [30.0, 50.0, 70.0]);
         assert_eq!(super::EMA_PAIRS.len(), 3);
+    }
+
+    #[test]
+    fn ema_stack_and_rsi_zone_changes_are_published() {
+        let candles = candles(&[100.0; 3]);
+        let readings = readings_with(
+            &candles,
+            vec![Some(100.0), Some(100.0), Some(101.0)],
+            vec![Some(100.0), Some(100.0), Some(100.0)],
+            vec![Some(100.0), Some(100.0), Some(99.0)],
+            vec![Some(50.0), Some(50.0), Some(75.0)],
+            flat(3, 10.0),
+        );
+        let series = signals(&candles, &readings);
+        assert!(series.events().iter().any(|event| {
+            event.event_code == crate::events::codes::SIGNAL_EMA_STACK_CHANGE
+                && event.occurred_bar_index == 2
+        }));
+        assert!(series.events().iter().any(|event| {
+            event.event_code == crate::events::codes::SIGNAL_RSI_ZONE_CHANGE
+                && event.occurred_bar_index == 2
+        }));
     }
 }

@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 
 use crate::events::EventRecord;
 use crate::events::EventType;
+use crate::events::codes;
 use crate::events::extended::divergence_subtype;
 use crate::panel::{PanelInstrument, PanelInstrumentReadings, PanelReadings};
 use crate::readings::{PivotKind, PivotScale, PivotSeries};
@@ -95,7 +96,20 @@ impl PanelEventSeries {
                     ) else {
                         continue;
                     };
+                    let event_code = match source {
+                        RELATIVE_STRENGTH_SOURCE_CODE if subtype == 1 => {
+                            codes::DIVERGENCE_RS_REGULAR_BULLISH
+                        }
+                        RELATIVE_STRENGTH_SOURCE_CODE => codes::DIVERGENCE_RS_REGULAR_BEARISH,
+                        LEAD_LAG_SOURCE_CODE if subtype == 1 => codes::DIVERGENCE_LEAD_LAG_BULLISH,
+                        LEAD_LAG_SOURCE_CODE => codes::DIVERGENCE_LEAD_LAG_BEARISH,
+                        BREADTH_SOURCE_CODE if subtype == 1 => {
+                            codes::DIVERGENCE_BREADTH_REGULAR_BULLISH
+                        }
+                        _ => codes::DIVERGENCE_BREADTH_REGULAR_BEARISH,
+                    };
                     events.push(EventRecord {
+                        event_code,
                         event_type: EventType::Divergence,
                         event_subtype_code: subtype,
                         source_code: source,
@@ -127,10 +141,9 @@ impl PanelEventSeries {
             events.retain(|event| {
                 seen.insert(
                     (
-                        event.event_type.code(),
-                        event.event_subtype_code,
-                        event.source_code,
+                        event.event_code,
                         event.occurred_bar_index,
+                        event.reference_code,
                     ),
                     true,
                 )
@@ -172,6 +185,7 @@ fn panel_signal_events(
         if crossed_up(&series.relative_strength, position, 0.0) {
             push_signal(
                 events,
+                codes::SIGNAL_RELATIVE_STRENGTH_CROSS,
                 RELATIVE_STRENGTH_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -182,6 +196,7 @@ fn panel_signal_events(
         } else if crossed_down(&series.relative_strength, position, 0.0) {
             push_signal(
                 events,
+                codes::SIGNAL_RELATIVE_STRENGTH_CROSS,
                 RELATIVE_STRENGTH_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -193,6 +208,7 @@ fn panel_signal_events(
         if crossed_up(&series.leader_return, position, 1.0) {
             push_signal(
                 events,
+                codes::SIGNAL_LEAD_LAG_CROSS,
                 LEAD_LAG_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -203,6 +219,7 @@ fn panel_signal_events(
         } else if crossed_down(&series.leader_return, position, -1.0) {
             push_signal(
                 events,
+                codes::SIGNAL_LEAD_LAG_CROSS,
                 LEAD_LAG_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -214,6 +231,7 @@ fn panel_signal_events(
         if crossed_up(&series.breadth, position, 0.67) {
             push_signal(
                 events,
+                codes::SIGNAL_BREADTH_CROSS,
                 BREADTH_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -224,6 +242,7 @@ fn panel_signal_events(
         } else if crossed_down(&series.breadth, position, 0.33) {
             push_signal(
                 events,
+                codes::SIGNAL_BREADTH_CROSS,
                 BREADTH_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -235,6 +254,7 @@ fn panel_signal_events(
         if crossed_up(&series.co_movement, position, 0.7) {
             push_signal(
                 events,
+                codes::SIGNAL_CO_MOVEMENT_CROSS,
                 CO_MOVEMENT_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -245,6 +265,7 @@ fn panel_signal_events(
         } else if crossed_down(&series.co_movement, position, 0.3) {
             push_signal(
                 events,
+                codes::SIGNAL_CO_MOVEMENT_CROSS,
                 CO_MOVEMENT_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -256,6 +277,7 @@ fn panel_signal_events(
         if crossed_up(&series.dispersion, position, DISPERSION_THRESHOLD) {
             push_signal(
                 events,
+                codes::SIGNAL_DISPERSION_CROSS,
                 DISPERSION_SOURCE_CODE,
                 timeframe_secs,
                 bar,
@@ -293,8 +315,13 @@ fn crossed_down(series: &[Option<f64>], position: usize, level: f64) -> bool {
     }
 }
 
+// The arguments mirror the event-record fields one-for-one; grouping them into
+// a synthetic struct would add an allocation or a second mapping without
+// removing a real invariant.
+#[allow(clippy::too_many_arguments)]
 fn push_signal(
     events: &mut Vec<EventRecord>,
+    event_code: u16,
     source: u16,
     timeframe_secs: u64,
     bar: usize,
@@ -303,6 +330,7 @@ fn push_signal(
     threshold: f64,
 ) {
     events.push(EventRecord {
+        event_code,
         event_type: EventType::Signal,
         event_subtype_code: CROSS_ASSET_SIGNAL_SUBTYPE,
         source_code: source,

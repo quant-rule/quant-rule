@@ -3,7 +3,7 @@
 - Date: 2026-11-05 (UTC)
 - Status: **Records complete**; `no_edge` recorded; checklist signed; legacy
   removal delivered in [#463](https://github.com/quant-rule/quant-rule/issues/463);
-  P5-F1 remains open
+  P5-F1 is fixed by [`EVENT-IDENTITY-REMEDIATION.md`](EVENT-IDENTITY-REMEDIATION.md); the historical run record is unchanged
 - Plan: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Charter: [`docs/governance/2026-11-05/M2-CHARTER.md`](../../governance/2026-11-05/M2-CHARTER.md)
 - Development result: [`M2-DEV-SWARM.md`](M2-DEV-SWARM.md)
@@ -100,7 +100,7 @@ condition of the `no_edge` closeout.
 
 | Finding | Impact | Status |
 |---|---|---|
-| P5-F1 | Runtime emission is 101/106 codes and 138/143 event IDs; two compact-state events have no emitter and three compression events are disabled by default | Open; needs an audit/remediation route |
+| P5-F1 | Runtime emission was 101/106 codes and 138/143 event IDs; two compact-state events had no emitter and three compression events were disabled by default | Fixed by [`EVENT-IDENTITY-REMEDIATION.md`](EVENT-IDENTITY-REMEDIATION.md) |
 | Legacy inventory | Removed in [#463](https://github.com/quant-rule/quant-rule/issues/463); history records and shared engines kept | Closed |
 
 ## 7. Board and next gates
@@ -114,4 +114,4 @@ condition of the `no_edge` closeout.
 | #405 indicator platform | Closed and Done |
 | #463 legacy removal | Delivered in #463 |
 
-The next gate is the #463 pull request. P5-F1 remains the only open finding.
+The next gate is the #463 pull request. P5-F1 is fixed by `EVENT-IDENTITY-REMEDIATION.md`; no open finding remains in this closeout.

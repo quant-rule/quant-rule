@@ -313,8 +313,15 @@ fn compare(
         .get(current.occurred_at)
         .filter(|atr| *atr != 0.0 && atr.is_finite())
         .map(|atr| price_delta / atr);
+    let event_code = match subtype {
+        DivergenceSubtype::RegularBullish => crate::events::codes::DIVERGENCE_RSI_REGULAR_BULLISH,
+        DivergenceSubtype::RegularBearish => crate::events::codes::DIVERGENCE_RSI_REGULAR_BEARISH,
+        DivergenceSubtype::HiddenBullish => crate::events::codes::DIVERGENCE_RSI_HIDDEN_BULLISH,
+        DivergenceSubtype::HiddenBearish => crate::events::codes::DIVERGENCE_RSI_HIDDEN_BEARISH,
+    };
 
     Some(EventRecord {
+        event_code,
         event_type: EventType::Divergence,
         event_subtype_code: subtype.code(),
         source_code: RSI_SOURCE_CODE,

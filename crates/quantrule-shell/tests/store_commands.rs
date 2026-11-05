@@ -128,7 +128,7 @@ fn store_list_prints_the_dataset_and_counts() {
     assert_eq!(row[column(header, "layer3_rows")], "260");
     assert_eq!(row[column(header, "pivot_rows")], "354");
     assert_eq!(row[column(header, "level_rows")], "94");
-    assert_eq!(row[column(header, "event_rows")], "655");
+    assert_eq!(row[column(header, "event_rows")], "664");
     assert_eq!(row[column(header, "leg_rows")], "217");
 }
 

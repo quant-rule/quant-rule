@@ -176,6 +176,7 @@ impl CompressionBreakoutSeries {
                 (-1, range_low)
             };
             events.push(EventRecord {
+                event_code: crate::events::codes::SIGNAL_COMPRESSION_BREAKOUT,
                 event_type: EventType::Signal,
                 event_subtype_code: SignalSubtype::CompressionBreakout.code(),
                 source_code: ATR_SOURCE_CODE,
@@ -296,6 +297,7 @@ impl CompressionRangeSeries {
                 continue;
             };
             events.push(EventRecord {
+                event_code: crate::events::codes::SIGNAL_COMPRESSION_RANGE,
                 event_type: EventType::Signal,
                 event_subtype_code: SignalSubtype::CompressionRange.code(),
                 source_code: ATR_SOURCE_CODE,
@@ -367,6 +369,7 @@ impl CompressionRangeOnsetSeries {
                 continue;
             };
             events.push(EventRecord {
+                event_code: crate::events::codes::SIGNAL_COMPRESSION_RANGE_ONSET,
                 event_type: EventType::Signal,
                 event_subtype_code: SignalSubtype::CompressionRangeOnset.code(),
                 source_code: ATR_SOURCE_CODE,

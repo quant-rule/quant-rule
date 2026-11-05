@@ -127,17 +127,20 @@ shown to have used the same values.
 
 `active_events` is the set of registry event IDs the model version uses. Every
 ID must exist in the registry, and the set is unique. Several registry IDs may
-share one numeric event code; the set stays unique by ID, and the published
-event is counted once per bar by code. The set may include `signal`, `context`,
-and `diagnostic` events; a condition may read any of them.
+share a type, subtype, and source; the registry assigns each ID its own stable
+event code, and the published event is counted once per bar by that code. The
+set may include `signal`, `context`, and `diagnostic` events; a condition may
+read any of them.
 
 Only a `signal` event may appear in `prediction.long` or `prediction.short`. A
 `context` or `diagnostic` event in a vote list is rejected. This is the
 registry-role rule: a descriptor is not a directional vote.
 
-The `events.csv` artifact of a v2 run is filtered to the active set. The full
-model batch still exists internally; the published artifact is the model
-version's own event surface.
+The `events.csv` artifact of a v2 run is filtered to the active set by stable
+`event_code`. The full model batch still exists internally; the published
+artifact is the model version's own event surface. Listing a compression event
+in `active_events` enables its detector; the compression family remains disabled
+when no compression event is active.
 
 ## 5. Prediction
 
@@ -167,7 +170,8 @@ Two prediction kinds are supported:
   At bar `t`, every listed event whose `available_bar_index` equals `t` adds its
   own `direction_code` (`+1`, `-1`, or `0`). A neutral event is active but does
   not vote.
-- An event is counted once per bar even if several records share its code.
+- An event is counted once per bar by its stable event code. Two registered IDs
+  may share a type, subtype, and source, but they never share an event code.
 - `total = long - short`. If `abs(total) >= min_votes`, the prediction is
   `sign(total)`; otherwise it is `0`.
 - `min_votes` is 1–64.
@@ -241,7 +245,7 @@ The output is the standard model bundle plus:
 |---|---|
 | `prediction.csv` | The causal vote and its raw long/short counts |
 | `conditions.csv` | The optional condition values, when conditions are declared |
-| `events.csv` | The active-event projection of the base, extended, session, and panel batches |
+| `events.csv` | The active-event projection of the base, extended, session, and panel batches; the stable `event_code` is the identity column |
 | `provenance.json` | The spec schema, id, family, instrument, file hash, readings, extended readings, active events, prediction definition, panel order, session, event counts, and conditions |
 
 `readings.csv`, `levels.csv`, `legs.csv`, `result.json`, and the charts remain

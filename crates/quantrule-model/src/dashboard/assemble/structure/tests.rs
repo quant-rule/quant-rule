@@ -60,6 +60,7 @@ fn model(candles: &[Candle]) -> TimeframeModel {
 
 fn event(event_type: EventType, subtype: u8, source: u16) -> EventRecord {
     EventRecord {
+        event_code: 0,
         event_type,
         event_subtype_code: subtype,
         source_code: source,

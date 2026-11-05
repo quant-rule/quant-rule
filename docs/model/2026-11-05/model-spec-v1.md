@@ -18,7 +18,8 @@ score, or a statistic.
 
 The shell parses JSON. The model receives resolved numeric codes, so the model
 crate has no JSON dependency. The registry is embedded in the shell at compile
-time and resolves event identifiers to their type, subtype, and source codes.
+time and resolves each event identifier to its stable registry event code. The
+type, subtype, and source remain descriptive family fields.
 
 ## 2. Document
 
@@ -84,7 +85,7 @@ An expression is an object with exactly one of the following keys.
 
 | Field | Type | Required | Rule |
 |---|---|---|---|
-| `id` | string | yes | A registry event ID; resolved to type, subtype, and source |
+| `id` | string | yes | A registry event ID; resolved to its stable registry event code |
 | `timeframe` | positive integer | yes | Must be in the ladder |
 | `direction` | -1, 0, or 1 | no | Absent means either direction |
 | `within_bars` | integer 0–10,000 | no | Lookback in referenced-timeframe bars; default 0 |
@@ -151,7 +152,7 @@ model bundle plus `conditions.csv`:
 
 | Artifact | Content |
 |---|---|
-| `readings.csv`, `events.csv`, `levels.csv`, `legs.csv` | The model batch for the spec's ladder |
+| `readings.csv`, `events.csv`, `levels.csv`, `legs.csv` | The model batch for the spec's ladder; `events.csv` carries the stable `event_code` column |
 | `conditions.csv` | `condition_id,timeframe_secs,bar,timestamp,value`, one row per condition bar |
 | `result.json` | The standard model result |
 | `provenance.json` | The standard provenance plus a `spec` object: schema, id, file, registry version, ladder, evaluation timeframe, and each condition's true count |

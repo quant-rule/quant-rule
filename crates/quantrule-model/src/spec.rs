@@ -72,6 +72,8 @@ pub enum SpecExpression {
 /// One event predicate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SpecEvent {
+    /// The stable registry event code.
+    pub event_code: u16,
     /// The event type.
     pub event_type: EventType,
     /// The event subtype code.
@@ -193,6 +195,8 @@ pub enum SpecError {
     ExpressionTooLarge,
     /// A condition references a timeframe outside the ladder.
     UnknownTimeframe(u64),
+    /// The event code is zero.
+    ZeroEventCode,
     /// The event subtype is zero.
     ZeroEventSubtype,
     /// The event source is zero.
@@ -261,6 +265,7 @@ impl std::fmt::Display for SpecError {
                     "the condition timeframe {timeframe} is not in the ladder"
                 )
             }
+            Self::ZeroEventCode => write!(formatter, "the event code is zero"),
             Self::ZeroEventSubtype => write!(formatter, "the event subtype is zero"),
             Self::ZeroEventSource => write!(formatter, "the event source is zero"),
             Self::InvalidDirection(direction) => {
@@ -435,6 +440,9 @@ fn validate_expression(
     }
     match expression {
         SpecExpression::Event(event) => {
+            if event.event_code == 0 {
+                return Err(SpecError::ZeroEventCode);
+            }
             if event.subtype == 0 {
                 return Err(SpecError::ZeroEventSubtype);
             }
@@ -572,7 +580,7 @@ fn as_of_indices(
     indices
 }
 
-type PredicateKey = (u64, u8, u8, u16, Option<i8>);
+type PredicateKey = (u64, u16, Option<i8>);
 
 /// The available bars for every event predicate in the spec.
 struct EventPredicates {
@@ -595,11 +603,9 @@ impl EventPredicates {
                 .iter()
                 .chain(timeframe.extended_events().events())
                 .filter(|event| {
-                    event.event_type.code() == key.1
-                        && event.event_subtype_code == key.2
-                        && event.source_code == key.3
+                    event.event_code == key.1
                         && key
-                            .4
+                            .2
                             .is_none_or(|direction| event.direction_code == direction)
                 })
                 .map(|event| event.available_bar_index)
@@ -625,13 +631,7 @@ impl EventPredicates {
 fn collect_predicates(expression: &SpecExpression, keys: &mut BTreeSet<PredicateKey>) {
     match expression {
         SpecExpression::Event(event) => {
-            keys.insert((
-                event.timeframe_secs,
-                event.event_type.code(),
-                event.subtype,
-                event.source,
-                event.direction,
-            ));
+            keys.insert((event.timeframe_secs, event.event_code, event.direction));
         }
         SpecExpression::State(_) => {}
         SpecExpression::All(children) | SpecExpression::Any(children) => {
@@ -656,13 +656,7 @@ fn evaluate_expression(expression: &SpecExpression, context: &EvalContext<'_>) -
             let Some(as_of) = context.as_of.index(event.timeframe_secs, context.bar) else {
                 return false;
             };
-            let key = (
-                event.timeframe_secs,
-                event.event_type.code(),
-                event.subtype,
-                event.source,
-                event.direction,
-            );
+            let key = (event.timeframe_secs, event.event_code, event.direction);
             context.predicates.contains(&key, as_of, event.within_bars)
         }
         SpecExpression::State(state) => {
