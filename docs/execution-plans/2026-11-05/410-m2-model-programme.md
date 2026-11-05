@@ -490,6 +490,13 @@ Still fixed in the P3 charter before the first run:
 | Close | #409 | #423–#425 are done |
 | Update | #405 phase table | Phases 6–8 become M2.x P3–P7 |
 
+Executed 2026-11-05: #410 was renamed “M2.x model swarm and validation”, set
+In Progress, and linked to its eight sub-issues; #405 was renamed and linked to
+#410; #426 was closed as superseded; #409 was closed as delivered; #427–#430
+were re-scoped; #454 (P1), #455 (P2), #456 (P3), and #457 (P0) were created.
+PR [#453](https://github.com/quant-rule/quant-rule/pull/453) carries the P0
+documentation and closes #457.
+
 ## 18. Approval
 
 - Approved by: human, 2026-11-05

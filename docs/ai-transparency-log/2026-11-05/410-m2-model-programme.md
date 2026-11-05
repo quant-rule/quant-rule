@@ -38,6 +38,26 @@ partitions. P1–P8 remain proposed work.
 | `docs/workflows/research-swarm.md` | Exploratory and confirmatory model modes |
 | `docs/README.md` | Contract and program index |
 
+### 2.1 Issue and board actions
+
+After the human approved the P0 commit, the agent:
+
+- Renamed #410 to “M2.x model swarm and validation”, re-scoped its body, and set
+  it In Progress.
+- Renamed #405 to “Build the indicator-complete model platform” and re-scoped
+  its body.
+- Closed #426 as superseded (not deleted) and #409 as delivered.
+- Re-scoped #427–#430 to the M2.x phases.
+- Created #454 (model spec v2), #455 (prediction evaluator), #456 (M2.x charter
+  and coverage), and #457 (P0 naming/audit/legacy).
+- Added native sub-issue links: #410 now contains #457, #454–#456, and
+  #427–#430; #405 contains #410.
+- Set #457 In Progress and #454–#456 Todo; labelled the PR item as a pull
+  request and set it In Progress.
+
+The prompts and bodies were written by the agent; the human approved the P0
+commit. The issue edits are repository metadata, not code or evidence claims.
+
 ## 3. Verification and evidence
 
 The agent ran these commands in the worktree and observed the listed results.
