@@ -121,13 +121,14 @@ record of what was released.
 
 | Program | Status | Plan |
 |---|---|---|
-| Clean current architecture | P0.1–P7 complete; full gate and closeout recorded | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
+| Clean current architecture | P0.1–P7 complete; P8a charter approved, P8b not started | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
 | P2 M1.0 naming | Merged; M1.0 contract, config identities, retired model parsers, legacy scan | `docs/execution-plans/2026-11-05/470-m1-naming.md` |
 | P3 four-axis removal | Merged in PR #484 at `84ad934` | `docs/execution-plans/2026-11-05/471-four-axis-removal.md` |
 | P4 config cleanup | Merged in PR #485 at `50549dd` | `docs/execution-plans/2026-11-05/472-config-cleanup.md` |
 | P5 panel/session artifacts | Merged in PR #486 at `392ce80` | `docs/execution-plans/2026-11-05/473-panel-session-artifacts.md` |
 | P6 checklist/docs | Implemented; row 37 wording, family-level tests, retired contracts | `docs/execution-plans/2026-11-05/474-checklist-docs.md` |
 | P7 verify/closeout | Implemented; full gate, oracle cleanup, M2 closeout verification | `docs/execution-plans/2026-11-05/475-verify-closeout.md` |
+| P8a M3.x charter | Approved 2026-11-06; P8b not started | `docs/governance/2026-11-05/M3-CHARTER.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 
 ## Current architecture decisions
