@@ -187,35 +187,55 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | 8 | cmf | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test cmf` | ☐ |
 | 9 | mfi | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test mfi` | ☐ |
 | 10 | ad_line | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test ad_line` | ☐ |
-| 11 | atr_term | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test atr_term` | ☐ |
-| 12 | range_expansion | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test range_expansion` | ☐ |
-| 13 | mar | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test mar` | ☐ |
-| 14 | keltner | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test keltner` | ☐ |
-| 15 | donchian | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test donchian` | ☐ |
-| 16 | swing_structure | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test swing_structure` | ☐ |
-| 17 | level_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test level_strength` | ☐ |
-| 18 | aroon | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test aroon` | ☐ |
+| 11 | atr_term | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test atr_term` | ☐ |
+| 12 | range_expansion | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test range_expansion` | ☐ |
+| 13 | mar | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test mar` | ☐ |
+| 14 | keltner | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test keltner` | ☐ |
+| 15 | donchian | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test donchian` | ☐ |
+| 16 | swing_structure | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test swing_structure` | ☐ |
+| 17 | level_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test level_strength` | ☐ |
+| 18 | aroon | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test aroon` | ☐ |
 | 19 | bos_choch | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test bos_choch` | ☐ |
-| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test candle_anatomy` | ☐ |
-| 21 | candle_pattern | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test candle_pattern` | ☐ |
-| 22 | gap | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test gap` | ☐ |
-| 23 | path_efficiency | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test path_efficiency` | ☐ |
-| 24 | direction_changes | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test direction_changes` | ☐ |
-| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test bars_since_extreme` | ☐ |
-| 26 | drawdown_atr | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test drawdown_atr` | ☐ |
-| 27 | range_position | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test range_position` | ☐ |
-| 28 | relative_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test relative_strength` | ☐ |
-| 29 | lead_lag | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test lead_lag` | ☐ |
-| 30 | breadth | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test breadth` | ☐ |
-| 31 | co_movement | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test co_movement` | ☐ |
-| 32 | dispersion | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test dispersion` | ☐ |
-| 33 | session | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test session` | ☐ |
-| 34 | opening_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test opening_range` | ☐ |
-| 35 | overnight_intraday | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test overnight_intraday` | ☐ |
-| 36 | session_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test session_range` | ☐ |
-| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test calendar_bucket` | ☐ |
+| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test candle_anatomy` | ☐ |
+| 21 | candle_pattern | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test candle_pattern` | ☐ |
+| 22 | gap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test gap` | ☐ |
+| 23 | path_efficiency | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test path_efficiency` | ☐ |
+| 24 | direction_changes | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test direction_changes` | ☐ |
+| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test bars_since_extreme` | ☐ |
+| 26 | drawdown_atr | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test drawdown_atr` | ☐ |
+| 27 | range_position | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test range_position` | ☐ |
+| 28 | relative_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test relative_strength` | ☐ |
+| 29 | lead_lag | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test lead_lag` | ☐ |
+| 30 | breadth | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test breadth` | ☐ |
+| 31 | co_movement | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test co_movement` | ☐ |
+| 32 | dispersion | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test dispersion` | ☐ |
+| 33 | session | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test session` | ☐ |
+| 34 | opening_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test opening_range` | ☐ |
+| 35 | overnight_intraday | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test overnight_intraday` | ☐ |
+| 36 | session_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test session_range` | ☐ |
+| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test calendar_bucket` | ☐ |
 
-## 5. Verification commands
+## 5. Event validation suite
+
+`crates/quantrule-model/tests/event_validation.rs` proves, over the checked-in
+260-bar fixture:
+
+| Test | Coverage |
+|---|---|
+| Availability and order | v4, extended, and session batches |
+| One occurrence | Extended occurrence key, full-record uniqueness, v4/extended disjointness |
+| Level precedence | One event per reference per bar; fixed reference order |
+| Golden fixtures | Extended and session regression fixtures |
+| Causality | Prefix runs at bars 61, 131, and 201 |
+| Determinism | Repeated model runs |
+| Panel | Availability and occurrence keys on a three-instrument panel |
+
+Table B's `A` and `N` cells are checked for the indicators with events. `P` stays
+open for the extended families: the precedence test covers the v4 level
+references, and the extended batch proves one occurrence per key rather than a
+per-indicator reference order.
+
+## 6. Verification commands
 
 Per indicator:
 
@@ -241,7 +261,7 @@ python3 tools/check_links.py
 python3 tools/check_terms.py
 ```
 
-## 6. Status definitions
+## 7. Status definitions
 
 | Status | Meaning |
 |---|---|

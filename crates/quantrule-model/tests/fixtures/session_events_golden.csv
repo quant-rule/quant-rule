@@ -1,0 +1,8 @@
+# Session event (London calendar) regression fixture for the 260-bar readings fixture.
+# Generated from the implementation; it is a regression lock, not an independent oracle.
+# Regenerate with `cargo test -p quantrule-model --test event_validation -- --ignored regenerate_event_fixtures`.
+bar,event_type_code,event_subtype_code,source_code,timeframe_secs,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value
+0,3,23,50,300,118,118,0,,0,
+1,3,23,53,300,121,121,1,,1.662224945578815,1.5
+2,3,23,51,300,123,123,-1,,99.48,99.52
+3,3,23,50,300,213,214,0,,96.85,

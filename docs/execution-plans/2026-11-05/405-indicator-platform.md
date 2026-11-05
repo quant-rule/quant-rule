@@ -99,7 +99,7 @@ Explicit non-goals:
 | 7b | [#420](https://github.com/quant-rule/quant-rule/issues/420) | Divergence events | Done |
 | 7c | [#421](https://github.com/quant-rule/quant-rule/issues/421) | Single-instrument signals | Done |
 | 7d | [#421](https://github.com/quant-rule/quant-rule/issues/421) | Panel and session signals | Done |
-| 7e | [#422](https://github.com/quant-rule/quant-rule/issues/422) | Event validation and precedence | Todo |
+| 7e | [#422](https://github.com/quant-rule/quant-rule/issues/422) | Event validation and precedence | Done |
 | 8 | [#423](https://github.com/quant-rule/quant-rule/issues/423)–[#425](https://github.com/quant-rule/quant-rule/issues/425) | Spec engine | Todo |
 | 9 | [#426](https://github.com/quant-rule/quant-rule/issues/426)–[#429](https://github.com/quant-rule/quant-rule/issues/429) | v6–v10 charters, swarm, validation | Todo |
 | 10 | [#430](https://github.com/quant-rule/quant-rule/issues/430) | Closeout | Todo |
