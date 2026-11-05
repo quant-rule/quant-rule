@@ -127,10 +127,10 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 |---:|---|---:|---:|---|---|---|---|---|---|---|
 | 1 | vwap | 11 | 1 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 2 | volume_profile | 12 | 2 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 3 | rvol (extended) | 4 | 3 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 4 | volume_climax | 13 | 3 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 5 | absorption | 14 | 3 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 6 | volume_oscillator | 15 | 3 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
+| 3 | rvol (extended) | 4 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
+| 4 | volume_climax | 13 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
+| 5 | absorption | 14 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
+| 6 | volume_oscillator | 15 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 7 | obv | 16 | 4 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 8 | cmf | 17 | 4 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 9 | mfi | 18 | 4 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
@@ -174,10 +174,10 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 |---:|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | vwap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test vwap` | ☐ |
 | 2 | volume_profile | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test volume_profile` | ☐ |
-| 3 | rvol | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test rvol` | ☐ |
-| 4 | volume_climax | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test volume_climax` | ☐ |
-| 5 | absorption | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test absorption` | ☐ |
-| 6 | volume_oscillator | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test volume_oscillator` | ☐ |
+| 3 | rvol | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test rvol` | ☐ |
+| 4 | volume_climax | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test volume_climax` | ☐ |
+| 5 | absorption | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test absorption` | ☐ |
+| 6 | volume_oscillator | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test volume_oscillator` | ☐ |
 | 7 | obv | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test obv` | ☐ |
 | 8 | cmf | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test cmf` | ☐ |
 | 9 | mfi | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test mfi` | ☐ |

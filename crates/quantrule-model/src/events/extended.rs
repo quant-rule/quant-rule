@@ -10,7 +10,7 @@ use std::num::NonZeroU64;
 use quantrule_data::Candle;
 
 use crate::events::{EventRecord, EventType};
-use crate::readings::{ExtendedReadings, PivotKind, PivotScale, Readings};
+use crate::readings::{ExtendedReadings, PivotKind, PivotScale, ReadingSeries, Readings};
 
 /// Source code for the rolling VWAP.
 pub const VWAP_SOURCE_CODE: u16 = 19;
@@ -18,6 +18,12 @@ pub const VWAP_SOURCE_CODE: u16 = 19;
 pub const PROFILE_SOURCE_CODE: u16 = 20;
 /// Source code for RVOL, used by the profile breakout confirmation.
 pub const RVOL_SOURCE_CODE: u16 = 6;
+/// Source code for the volume climax.
+pub const CLIMAX_SOURCE_CODE: u16 = 21;
+/// Source code for absorption.
+pub const ABSORPTION_SOURCE_CODE: u16 = 22;
+/// Source code for the volume oscillator.
+pub const VOLUME_OSCILLATOR_SOURCE_CODE: u16 = 23;
 
 /// The configuration of the extended event run.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -72,8 +78,10 @@ impl ExtendedEventSeries {
             let atr = readings.atr14.get(bar).filter(|atr| *atr > 0.0);
             vwap_events(candles, extended, config, bar, candle, atr, &mut events);
             profile_events(candles, readings, extended, config, bar, &mut events);
+            participation_events(candles, readings, extended, config, bar, &mut events);
         }
         divergence_events(readings, extended, config, &mut events);
+        participation_divergences(readings, extended, config, &mut events);
         events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
         // The occurrence key is one event per timeframe, type, subtype, source,
         // bar, direction, and reference. A reclaim and a rejection can describe
@@ -572,6 +580,257 @@ fn divergence_events(
     }
 }
 
+fn cross_up_value(series: &ReadingSeries, bar: usize, level: f64) -> bool {
+    if bar == 0 {
+        return false;
+    }
+    match (series.get(bar), series.get(bar - 1)) {
+        (Some(now), Some(previous)) => now > level && previous <= level,
+        _ => false,
+    }
+}
+
+fn cross_down_value(series: &ReadingSeries, bar: usize, level: f64) -> bool {
+    if bar == 0 {
+        return false;
+    }
+    match (series.get(bar), series.get(bar - 1)) {
+        (Some(now), Some(previous)) => now < level && previous >= level,
+        _ => false,
+    }
+}
+
+fn participation_events(
+    candles: &[Candle],
+    readings: &Readings,
+    extended: &ExtendedReadings,
+    config: &ExtendedEventConfig,
+    bar: usize,
+    events: &mut Vec<EventRecord>,
+) {
+    let candle = candles[bar];
+    let close = candle.close();
+    let direction = (close - candle.open()).signum() as i8;
+    let timeframe = config.timeframe_secs();
+    if cross_up_value(&extended.rvol_fast, bar, 1.5) {
+        push(
+            events,
+            EventType::Signal,
+            11,
+            RVOL_SOURCE_CODE,
+            timeframe,
+            bar,
+            direction,
+            extended.rvol_fast.get(bar),
+            Some(1.5),
+        );
+    }
+    if cross_down_value(&extended.rvol_fast, bar, 0.7) {
+        push(
+            events,
+            EventType::Signal,
+            11,
+            RVOL_SOURCE_CODE,
+            timeframe,
+            bar,
+            0,
+            extended.rvol_fast.get(bar),
+            Some(0.7),
+        );
+    }
+    if cross_up_value(&extended.rvol_ratio, bar, 1.5) {
+        push(
+            events,
+            EventType::Signal,
+            11,
+            RVOL_SOURCE_CODE,
+            timeframe,
+            bar,
+            direction,
+            extended.rvol_ratio.get(bar),
+            Some(1.5),
+        );
+    }
+    if cross_up_value(&extended.volume_oscillator, bar, 0.0) {
+        push(
+            events,
+            EventType::Signal,
+            11,
+            VOLUME_OSCILLATOR_SOURCE_CODE,
+            timeframe,
+            bar,
+            direction,
+            extended.volume_oscillator.get(bar),
+            Some(0.0),
+        );
+    } else if cross_down_value(&extended.volume_oscillator, bar, 0.0) {
+        push(
+            events,
+            EventType::Signal,
+            11,
+            VOLUME_OSCILLATOR_SOURCE_CODE,
+            timeframe,
+            bar,
+            -direction,
+            extended.volume_oscillator.get(bar),
+            Some(0.0),
+        );
+    }
+
+    if extended.climax_flag.get(bar) == Some(1.0) {
+        let climax_direction = extended.climax_direction.get(bar).unwrap_or(0.0) as i8;
+        if bar > 0 {
+            let previous = candles[bar - 1];
+            if close >= previous.low() && close <= previous.high() {
+                push(
+                    events,
+                    EventType::Signal,
+                    11,
+                    CLIMAX_SOURCE_CODE,
+                    timeframe,
+                    bar,
+                    -climax_direction,
+                    extended.climax_strength.get(bar),
+                    Some(previous.high()),
+                );
+            }
+        }
+        let span = candle.high() - candle.low();
+        let close_position = if span > 0.0 {
+            (close - candle.low()) / span
+        } else {
+            0.0
+        };
+        if close_position >= 0.8 {
+            push(
+                events,
+                EventType::Signal,
+                11,
+                CLIMAX_SOURCE_CODE,
+                timeframe,
+                bar,
+                1,
+                extended.climax_strength.get(bar),
+                Some(close_position),
+            );
+        } else if close_position <= 0.2 {
+            push(
+                events,
+                EventType::Signal,
+                11,
+                CLIMAX_SOURCE_CODE,
+                timeframe,
+                bar,
+                -1,
+                extended.climax_strength.get(bar),
+                Some(close_position),
+            );
+        }
+    }
+
+    if extended.absorption_flag.get(bar) == Some(1.0) {
+        let level = extended.vwap.get(bar).or_else(|| extended.poc.get(bar));
+        push(
+            events,
+            EventType::Level,
+            1,
+            ABSORPTION_SOURCE_CODE,
+            timeframe,
+            bar,
+            0,
+            extended.absorption_strength.get(bar),
+            level,
+        );
+    }
+    if bar > 0 && extended.absorption_flag.get(bar - 1) == Some(1.0) {
+        let previous = candles[bar - 1];
+        let Some(atr) = readings.atr14.get(bar).filter(|atr| *atr > 0.0) else {
+            return;
+        };
+        if close > previous.high() + config.level_atr * atr {
+            push(
+                events,
+                EventType::Signal,
+                12,
+                ABSORPTION_SOURCE_CODE,
+                timeframe,
+                bar,
+                1,
+                Some(close),
+                Some(previous.high()),
+            );
+        } else if close < previous.low() - config.level_atr * atr {
+            push(
+                events,
+                EventType::Signal,
+                12,
+                ABSORPTION_SOURCE_CODE,
+                timeframe,
+                bar,
+                -1,
+                Some(close),
+                Some(previous.low()),
+            );
+        } else if close >= previous.low() && close <= previous.high() {
+            let direction = extended.absorption_direction.get(bar - 1).unwrap_or(0.0) as i8;
+            push(
+                events,
+                EventType::Signal,
+                12,
+                ABSORPTION_SOURCE_CODE,
+                timeframe,
+                bar,
+                -direction,
+                Some(close),
+                Some(previous.high()),
+            );
+        }
+    }
+}
+
+fn participation_divergences(
+    readings: &Readings,
+    extended: &ExtendedReadings,
+    config: &ExtendedEventConfig,
+    events: &mut Vec<EventRecord>,
+) {
+    for (source, series) in [
+        (RVOL_SOURCE_CODE, &extended.rvol_slow),
+        (CLIMAX_SOURCE_CODE, &extended.rvol_fast),
+    ] {
+        let mut previous_high: Option<(f64, f64, usize, usize)> = None;
+        let mut previous_low: Option<(f64, f64, usize, usize)> = None;
+        for pivot in readings.pivots.all_confirmed(PivotScale::Major) {
+            let Some(value) = series.get(pivot.occurred_at) else {
+                continue;
+            };
+            let state = (pivot.price, value, pivot.occurred_at, pivot.available_at);
+            let previous = match pivot.kind {
+                PivotKind::High => previous_high.replace(state),
+                PivotKind::Low => previous_low.replace(state),
+            };
+            let Some(previous) = previous else { continue };
+            let (subtype, direction) = match pivot.kind {
+                PivotKind::Low if pivot.price < previous.0 && value > previous.1 => (1, 1),
+                PivotKind::High if pivot.price > previous.0 && value < previous.1 => (2, -1),
+                _ => continue,
+            };
+            events.push(EventRecord {
+                event_type: EventType::Divergence,
+                event_subtype_code: subtype,
+                source_code: source,
+                timeframe_secs: config.timeframe_secs(),
+                occurred_bar_index: state.2,
+                available_bar_index: state.3,
+                direction_code: direction,
+                reference_code: None,
+                primary_value: Some(state.0),
+                reference_value: Some(value),
+            });
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{ExtendedEventConfig, ExtendedEventSeries};
@@ -653,5 +912,61 @@ mod tests {
             })
             .collect();
         assert_eq!(compute(&candles), compute(&candles));
+    }
+
+    fn compute_with(candles: &[Candle], config: ExtendedConfig) -> ExtendedEventSeries {
+        let readings = Readings::compute_with_config(candles, &ReadingsConfig::DEFAULT);
+        let extended = ExtendedReadings::compute(candles, &readings, &config);
+        let event_config = ExtendedEventConfig::from_secs(3600).expect("timeframe");
+        ExtendedEventSeries::compute(candles, &readings, &extended, &event_config)
+    }
+
+    #[test]
+    fn a_volume_expansion_is_a_participation_event() {
+        let mut candles: Vec<Candle> = (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+            .collect();
+        candles[29] = candle(29, 100.0, 101.0, 99.0, 100.0, 100.0);
+        let events = compute(&candles);
+        assert!(
+            events
+                .events()
+                .iter()
+                .any(|event| event.source_code == 6 && event.event_subtype_code == 11)
+        );
+    }
+
+    #[test]
+    fn a_climax_reversal_is_a_participation_event() {
+        let mut candles: Vec<Candle> = (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+            .collect();
+        candles[29] = candle(29, 100.0, 103.0, 99.0, 100.5, 100.0);
+        let events = compute(&candles);
+        assert!(events.events().iter().any(|event| {
+            event.source_code == 21 && event.event_subtype_code == 11 && event.direction_code == -1
+        }));
+    }
+
+    #[test]
+    fn an_absorption_break_is_a_participation_event() {
+        let mut candles: Vec<Candle> = (0..21)
+            .map(|index| candle(index, 100.0, 100.5, 99.5, 100.0, 10.0))
+            .collect();
+        candles[19] = candle(19, 100.0, 100.1, 99.9, 100.05, 30.0);
+        candles[20] = candle(20, 100.05, 101.2, 100.0, 101.0, 10.0);
+        let config = ExtendedConfig {
+            vwap_window: 5,
+            profile_window: 5,
+            profile_bins: 4,
+            rvol_fast: 5,
+            rvol_slow: 5,
+            volume_oscillator: 5,
+            ..ExtendedConfig::DEFAULT
+        };
+        let events = compute_with(&candles, config);
+        assert!(events.events().iter().any(|event| {
+            event.source_code == 22 && event.event_subtype_code == 12 && event.direction_code == 1
+        }));
     }
 }

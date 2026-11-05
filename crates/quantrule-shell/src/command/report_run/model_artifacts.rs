@@ -14,7 +14,7 @@ use quantrule_model::run::ModelRun;
 /// The per-bar readings and states for every ladder timeframe.
 pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
     let mut csv = String::from(
-        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration\n",
+        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength\n",
     );
     for &timeframe_secs in ladder {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
@@ -82,6 +82,16 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
                 optional(extended.profile_skew.get(bar)),
                 optional(extended.profile_concentration.get(bar)),
                 optional(extended.poc_migration.get(bar)),
+                optional(extended.rvol_fast.get(bar)),
+                optional(extended.rvol_slow.get(bar)),
+                optional(extended.rvol_ratio.get(bar)),
+                optional(extended.volume_oscillator.get(bar)),
+                optional(extended.climax_flag.get(bar)),
+                optional(extended.climax_direction.get(bar)),
+                optional(extended.climax_strength.get(bar)),
+                optional(extended.absorption_flag.get(bar)),
+                optional(extended.absorption_direction.get(bar)),
+                optional(extended.absorption_strength.get(bar)),
             ];
             csv.push_str(&values.join(","));
             csv.push('\n');

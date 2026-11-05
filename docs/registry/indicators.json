@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.2",
+  "version": "2026-11-05.3",
   "indicators": [
     {
       "id": "ema",
@@ -108,21 +108,34 @@
       "id": "rvol",
       "code": 4,
       "name": "Relative volume",
-      "taxonomy": "volatility",
+      "taxonomy": "participation",
       "role": "context",
-      "claim": "Relative volume describes participation; it does not predict direction.",
-      "formula": "volume / SMA(volume, n)",
+      "claim": "Fast and slow relative volume describe participation; an expansion or contraction is a context for a directional claim.",
+      "formula": "RV5=V/mean(V,5); RV20=V/mean(V,20); RV50=V/mean(V,50); RR=RV5/RV50; VO=(mean(V,5)-mean(V,20))/mean(V,20)",
       "inputs": [
         "volume"
       ],
       "parameters": [
-        "model.rvol.period"
+        "model.rvol.period",
+        "model.rvol.fast",
+        "model.rvol.slow",
+        "model.volume_oscillator.period"
       ],
       "outputs": [
-        "rvol"
+        "rvol",
+        "rvol_fast",
+        "rvol_slow",
+        "rvol_ratio",
+        "volume_oscillator"
       ],
       "availability": "n closed bars with volume",
-      "events": [],
+      "events": [
+        "divergence.rvol_bullish",
+        "divergence.rvol_bearish",
+        "signal.rvol_expansion",
+        "signal.rvol_contraction",
+        "signal.rvol_ratio"
+      ],
       "tests": [
         "golden",
         "causality",
@@ -447,6 +460,116 @@
         "signal.profile_poc_cross",
         "signal.profile_skew",
         "signal.profile_concentration"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "volume_climax",
+      "code": 13,
+      "name": "Volume climax",
+      "taxonomy": "participation",
+      "role": "signal",
+      "claim": "A high-volume wide-range bar marks a participation climax; the close location decides reversal or continuation.",
+      "formula": "CL = RV5 >= 3 and range/ATR >= 1.5; CD=sign(C-O); CS=RV5*range/ATR",
+      "inputs": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "atr"
+      ],
+      "parameters": [
+        "model.volume_climax.volume",
+        "model.volume_climax.range_atr",
+        "model.rvol.fast"
+      ],
+      "outputs": [
+        "climax_flag",
+        "climax_direction",
+        "climax_strength"
+      ],
+      "availability": "fast RVOL and ATR available",
+      "events": [
+        "divergence.climax_bullish",
+        "divergence.climax_bearish",
+        "signal.climax_reversal",
+        "signal.climax_continuation"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "absorption",
+      "code": 14,
+      "name": "Absorption",
+      "taxonomy": "participation",
+      "role": "signal",
+      "claim": "High volume with a small range at VWAP or POC marks absorption; the next bar's break or rejection is directional.",
+      "formula": "AB = RV5 >= 2 and range/ATR <= 0.6 and min(|C-VWAP|,|C-POC|) <= 0.25 ATR; AS=RV5/(range/ATR)",
+      "inputs": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "atr"
+      ],
+      "parameters": [
+        "model.absorption.volume",
+        "model.absorption.range_atr",
+        "model.absorption.level_atr"
+      ],
+      "outputs": [
+        "absorption_flag",
+        "absorption_direction",
+        "absorption_strength"
+      ],
+      "availability": "fast RVOL, VWAP or POC, and ATR available",
+      "events": [
+        "level.absorption_test",
+        "signal.absorption_break",
+        "signal.absorption_rejection"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "volume_oscillator",
+      "code": 15,
+      "name": "Volume oscillator",
+      "taxonomy": "participation",
+      "role": "context",
+      "claim": "The fast/slow volume spread describes participation trend; it is context, not a standalone direction.",
+      "formula": "VO=(mean(V,5)-mean(V,20))/mean(V,20)",
+      "inputs": [
+        "volume"
+      ],
+      "parameters": [
+        "model.volume_oscillator.period"
+      ],
+      "outputs": [
+        "volume_oscillator"
+      ],
+      "availability": "long volume window available",
+      "events": [
+        "signal.volume_oscillator_cross"
       ],
       "tests": [
         "causality",
@@ -1245,6 +1368,227 @@
       "role": "context",
       "claim": "none",
       "formula": "cross_up(CO, 0.5) or cross_down(CO, 0.5)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.rvol_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 6,
+      "indicator": "rvol",
+      "role": "signal",
+      "claim": "A lower price low with a higher slow RVOL marks accumulation.",
+      "formula": "L[t] < L[p] and RV50[t] > RV50[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.rvol_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 6,
+      "indicator": "rvol",
+      "role": "signal",
+      "claim": "A higher price high with a lower slow RVOL marks distribution.",
+      "formula": "H[t] > H[p] and RV50[t] < RV50[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.rvol_expansion",
+      "event_type": 3,
+      "subtype": 11,
+      "source": 6,
+      "indicator": "rvol",
+      "role": "signal",
+      "claim": "A fast relative-volume expansion marks participation.",
+      "formula": "cross_up(RV5, 1.5)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.rvol_contraction",
+      "event_type": 3,
+      "subtype": 11,
+      "source": 6,
+      "indicator": "rvol",
+      "role": "context",
+      "claim": "A fast relative-volume contraction marks fading participation.",
+      "formula": "cross_down(RV5, 0.7)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.rvol_ratio",
+      "event_type": 3,
+      "subtype": 11,
+      "source": 6,
+      "indicator": "rvol",
+      "role": "signal",
+      "claim": "A fast/slow RVOL ratio expansion marks a participation shift.",
+      "formula": "cross_up(RV5/RV50, 1.5)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.climax_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 21,
+      "indicator": "volume_climax",
+      "role": "signal",
+      "claim": "A lower price low with a higher climax volume marks exhaustion.",
+      "formula": "L[t] < L[p] and RV5[t] > RV5[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.climax_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 21,
+      "indicator": "volume_climax",
+      "role": "signal",
+      "claim": "A higher price high with a lower climax volume marks fading demand.",
+      "formula": "H[t] > H[p] and RV5[t] < RV5[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.climax_reversal",
+      "event_type": 3,
+      "subtype": 11,
+      "source": 21,
+      "indicator": "volume_climax",
+      "role": "signal",
+      "claim": "A climax bar that closes back inside the prior range reverses.",
+      "formula": "CL and C inside [L[t-1], H[t-1]]; direction -CD",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.climax_continuation",
+      "event_type": 3,
+      "subtype": 11,
+      "source": 21,
+      "indicator": "volume_climax",
+      "role": "signal",
+      "claim": "A climax bar that closes at its extreme continues.",
+      "formula": "CL and CP >= 0.8 or CP <= 0.2; direction sign(C-O)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.absorption_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 22,
+      "indicator": "absorption",
+      "role": "context",
+      "claim": "none",
+      "formula": "AB at VWAP or POC within 0.25 ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.absorption_break",
+      "event_type": 3,
+      "subtype": 12,
+      "source": 22,
+      "indicator": "absorption",
+      "role": "signal",
+      "claim": "A break of the absorption bar's range continues.",
+      "formula": "C > H_abs + 0.2*ATR or C < L_abs - 0.2*ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.absorption_rejection",
+      "event_type": 3,
+      "subtype": 12,
+      "source": 22,
+      "indicator": "absorption",
+      "role": "signal",
+      "claim": "A rejection back inside the absorption range reverses.",
+      "formula": "C inside the absorption bar's range; direction -AS_side",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.volume_oscillator_cross",
+      "event_type": 3,
+      "subtype": 11,
+      "source": 23,
+      "indicator": "volume_oscillator",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(VO, 0) or cross_down(VO, 0)",
       "parameters": [],
       "tests": [
         "event",
@@ -2239,6 +2583,102 @@
       "type": "number",
       "default": 0.7,
       "unit": "fraction",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.rvol.fast",
+      "path": "fixed",
+      "type": "integer",
+      "default": 5,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.rvol.slow",
+      "path": "fixed",
+      "type": "integer",
+      "default": 50,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.volume_oscillator.period",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.volume_climax.volume",
+      "path": "fixed",
+      "type": "number",
+      "default": 3.0,
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.volume_climax.range_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 1.5,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.absorption.volume",
+      "path": "fixed",
+      "type": "number",
+      "default": 2.0,
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.absorption.range_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.6,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.absorption.level_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.25,
+      "unit": "atr",
       "configurable": false,
       "affects": [
         "model"
