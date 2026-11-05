@@ -2,9 +2,10 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#476](https://github.com/quant-rule/quant-rule/issues/476)
-- Status: **Verified** 2026-11-05; the M3.x charter is **Proposed** and awaits
-  the human decision. P8b is not authorized. Approved to draft by the human
-  instruction "proceed" on 2026-11-06 (UTC)
+- Status: **Verified** 2026-11-05; the M3.x charter was **Approved** by the
+  human on 2026-11-06. P8b, validation, and the strategy tier remain
+  unauthorized. Approved to draft by the human instruction "proceed" on
+  2026-11-06 (UTC)
 - Claim type: research charter; no model or strategy behavior change, no edge
   claim
 - Parent: [`467-clean-current-architecture.md`](467-clean-current-architecture.md)
@@ -194,5 +195,8 @@ base, the state-increment control, the volume exclusion, the partition reuse,
 the correction, and the absence of a post-hoc variant. These were sequential
 passes by the same agent, not independent reviews.
 
-The charter is not approved. P8b remains blocked on the human decision.
+The charter was approved by the human on 2026-11-06. The approval covers the
+premise, cells, correction, budget, and stop rule. It does not authorize P8b,
+any run, `model_validation`, or the strategy tier. P8b remains blocked on a
+separate authorization.
 

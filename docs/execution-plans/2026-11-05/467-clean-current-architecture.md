@@ -2,9 +2,9 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#467](https://github.com/quant-rule/quant-rule/issues/467)
-- Status: **In progress**; P0.1–P7 merged; P8a charter proposed in
-  [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md) and awaiting human
-  approval. P8b is not authorized.
+- Status: **In progress**; P0.1–P7 merged; P8a charter approved by the human on
+  2026-11-06 in [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md).
+  P8b is not authorized.
 - Claim type: repository cutover and model-boundary change
 - Predecessor: [`468-legacy-inventory.md`](468-legacy-inventory.md)
 - History index: [`docs/registry/history.md`](../../registry/history.md)
@@ -286,11 +286,11 @@ deletion.
   legacy scan rejects architecture identifiers without the `docs/config`
   exemption, and the M2 `no_edge` closeout is verified. See
   [`475-verify-closeout.md`](475-verify-closeout.md).
-- P8a: the M3.x charter is proposed in
+- P8a: the M3.x charter was approved by the human on 2026-11-06 in
   [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md). The premise is
   state-conditioned event edge; the charter has 10 exploratory area cells, 5
   primary state cells, a count-only timeframe switch, a volume-admissibility
   rule, and the full correction/stop protocol. No programme, config, or run is
   created. See [`476-m3-charter.md`](476-m3-charter.md).
-- P8b: not started; it requires the human charter approval and a separate
-  authorization to build and run.
+- P8b: not started; it requires a separate human authorization to build and
+  run.

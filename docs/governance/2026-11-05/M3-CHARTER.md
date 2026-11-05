@@ -1,7 +1,8 @@
 # M3.x Model Programme Charter — State-Conditioned Event Edge
 
 - Date: 2026-11-05 (UTC)
-- Status: **Proposed** — not approved; P8b is not authorized
+- Status: **Approved** (human, 2026-11-06) — P8b, validation, and the strategy
+  tier remain unauthorized
 - Programme ID: `PROGRAM-2026-11-05-04` (planned; not created)
 - Owner: human
 - Coordinator: OpenCode session `docs/476-m3-charter`
@@ -493,8 +494,8 @@ Approve all of the following before P8b:
 | Validation access not approved now; request after the development gate | Section 10 |
 | Strategy tier closed until an accepted M3.x baseline | Sections 3 and 10 |
 
-- Approved by: `<human>`
-- Approved on: `<YYYY-MM-DD>`
+- Approved by: Human
+- Approved on: 2026-11-06 (UTC)
 - Scope: the premise, cells, correction, budget, and stop rule above
 - Not authorized: P8b, any run, `model_validation`, or the strategy tier
 

@@ -12,8 +12,9 @@
 The human approved P8a by the instruction "proceed" on 2026-11-06. P8a drafts
 the M3.x charter for human approval. It does not create a programme, run a cell,
 open validation, or change a formula, event, strategy, execution, portfolio, or
-shell command. The charter is `Proposed`; the human decides whether to approve
-it and whether P8b may start.
+shell command. The human approved the charter on 2026-11-06; the approval covers
+the premise, cells, correction, budget, and stop rule, but not P8b, any run,
+validation, or the strategy tier.
 
 ## Changes
 
@@ -31,6 +32,8 @@ it and whether P8b may start.
 - Defined the exact programme manifest fields, cell paths, spec example, reading
   overrides, state-file schema, command, and coverage output.
 - Updated `docs/README.md` and the parent plan.
+- Recorded the human approval on 2026-11-06. The approval covers the charter;
+  it does not authorize P8b, any run, validation, or the strategy tier.
 - Created no programme manifest, cell spec, run config, code change, or run
   artifact; read no forward outcome.
 
