@@ -7,20 +7,21 @@
 - Scope: 46 indicators (10 existing, 36 new), 10 information areas
 - All inputs: OHLCV and time only
 - Claim type: registry and implementation contract; no edge claim
+- Reconciliation: 2026-11-05; phases 0–5 implemented, phase 1 audit not delivered, phases 6–8 open
 
 ## 1. What will be implemented
 
-| Phase | Work | Output |
-|---|---|---|
-| 0 | Registry schema extension, coverage matrix, codes, roles, claims | `docs/registry/` updated; event `formula` required |
-| 1 | Read-only feature audit of the top 10 | `docs/improvement/2026-11-05/INDICATOR-AUDIT.md` |
-| 2 | Tier 1 readings | VWAP, profile, ATR term, participation, lead-lag/breadth, Donchian |
-| 3 | Event layer | Level, divergence, signal events; availability; precedence |
-| 4 | Spec engine | `quantrule.model-spec/v1`, evaluator, `--spec`, registry, conformance |
-| 5 | Tier 2 readings | Flow, path, cross-asset context, calendar |
-| 6 | v6–v10 charters and swarm | Five charters, matrix, dev run |
-| 7 | Validation and baseline | One-shot `model_validation`, Quant Validator, baseline |
-| 8 | Closeout | Registry, index, baselines, cleanup |
+| Phase | Work | Output | State |
+|---|---|---|---|
+| 0 | Registry schema extension, coverage matrix, codes, roles, claims | `docs/registry/` updated; event `formula` required | Done |
+| 1 | Read-only feature audit of the top 10 | `docs/improvement/2026-11-05/INDICATOR-AUDIT.md` | **Not delivered** |
+| 2 | Tier 1 readings | VWAP, profile, ATR term, participation, lead-lag/breadth, Donchian | Done |
+| 3 | Event layer | Level, divergence, signal events; availability; precedence | Done, with the gaps in §5 |
+| 4 | Spec engine | `quantrule.model-spec/v1`, evaluator, `--spec`, registry, conformance | Done |
+| 5 | Tier 2 readings | Flow, path, cross-asset context, calendar | Done |
+| 6 | v6–v10 charters and swarm | Five charters, matrix, dev run | Open — #426–#428 |
+| 7 | Validation and baseline | One-shot `model_validation`, Quant Validator, baseline | Open — #429 |
+| 8 | Closeout | Registry, index, baselines, cleanup | Open — #430 |
 
 ## 2. Indicators and events
 
@@ -73,9 +74,9 @@ registry ID; the registry entry carries the exact formula.
 | 6 | `pivots` (existing) | `level.test`, `level.cross`, `level.break` | RSI divergence at pivots | existing structure signals |
 | 24 | `donchian` | `level.donchian_test`, `level.donchian_break` | none | `signal.donchian_breakout`, `signal.donchian_position` |
 | 25 | `swing_structure` | `level.structure_break` | none | `signal.structure_change` |
-| 26 | `level_strength` | `level.strength_test`, `level.strength_break` | none | `signal.strength_change` |
+| 26 | `level_strength` | `level.strength_test` (planned: `level.strength_break`, not registered) | none | `signal.strength_change` |
 | 27 | `aroon` | none | none | `signal.aroon_cross`, `signal.aroon_osc` |
-| 28 | `bos_choch` | `level.bos`, `level.choch` | none | `signal.structure_direction` |
+| 28 | `bos_choch` | none (planned: `level.bos`, `level.choch`, not registered) | none | none (planned: `signal.structure_direction`, not registered) |
 
 ### Area 7 — Candle anatomy and gaps
 
@@ -105,12 +106,16 @@ registry ID; the registry entry carries the exact formula.
 | 40 | `co_movement` | none | none | `signal.co_movement_cross` |
 | 41 | `dispersion` | none | none | `signal.dispersion_cross` |
 
+The registry implements one cross per panel reading. The earlier plan named two
+signals for `relative_strength` and `lead_lag`; `signal.rs_regime` and
+`signal.lag_divergence` are **not registered**.
+
 ### Area 10 — Calendar and session
 
 | Code | Indicator | L events | D events | S events |
 |---:|---|---|---|---|
-| 42 | `session` | `level.session_vwap_test` | none | `signal.session_open`, `signal.session_close` |
-| 43 | `opening_range` | `level.opening_range_test`, `level.opening_range_break` | none | `signal.opening_range_breakout`, `signal.opening_range_fade` |
+| 42 | `session` | none (planned: `level.session_vwap_test`, not registered) | none | `signal.session_open`, `signal.session_close` |
+| 43 | `opening_range` | none (planned: `level.opening_range_test`, `level.opening_range_break`, not registered) | none | `signal.opening_range_breakout`, `signal.opening_range_fade` |
 | 44 | `overnight_intraday` | none | none | `signal.overnight_continuation`, `signal.overnight_fade` |
 | 45 | `session_range` | none | none | `signal.session_range_expansion`, `signal.session_range_contraction` |
 | 46 | `calendar_bucket` | none | none | none |
@@ -125,48 +130,43 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 
 | # | Indicator | Code | Area | Registry | Formula | Reading | Events | Wiring | Spec | Status |
 |---:|---|---:|---:|---|---|---|---|---|---|---|
-| 1 | vwap | 11 | 1 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 2 | volume_profile | 12 | 2 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 3 | rvol (extended) | 4 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 4 | volume_climax | 13 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 5 | absorption | 14 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 6 | volume_oscillator | 15 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 7 | obv | 16 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 8 | cmf | 17 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 9 | mfi | 18 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 10 | ad_line | 19 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 11 | atr_term | 20 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 12 | range_expansion | 21 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 13 | mar | 22 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 14 | keltner | 23 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 15 | donchian | 24 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 16 | swing_structure | 25 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 20 | candle_anatomy | 29 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 21 | candle_pattern | 30 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 22 | gap | 31 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 23 | path_efficiency | 32 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 24 | direction_changes | 33 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
-| 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 1 | vwap | 11 | 1 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 2 | volume_profile | 12 | 2 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 3 | rvol (extended) | 4 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 4 | volume_climax | 13 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 5 | absorption | 14 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 6 | volume_oscillator | 15 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 7 | obv | 16 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 8 | cmf | 17 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 9 | mfi | 18 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 10 | ad_line | 19 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 11 | atr_term | 20 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 12 | range_expansion | 21 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 13 | mar | 22 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 14 | keltner | 23 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 15 | donchian | 24 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 16 | swing_structure | 25 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | code |
+| 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 20 | candle_anatomy | 29 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 21 | candle_pattern | 30 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 22 | gap | 31 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 23 | path_efficiency | 32 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 24 | direction_changes | 33 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
+| 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
 | 28 | relative_strength | 37 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 29 | lead_lag | 38 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
 | 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-
-`Events` is checked when every event registered for the indicator in
-`docs/registry/indicators.json` is implemented. `bos_choch` has no registered
-event yet, so its cell stays open. The session-VWAP and opening-range level
-events are also deferred; the registry carries only the session signal events.
 
 ## 4. Verification table B — test and math checklist
 
@@ -177,45 +177,58 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 
 | # | Indicator | F | C | D | G | E | A | N | P | M | Cmd | Sign |
 |---:|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | vwap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test vwap` | ☐ |
-| 2 | volume_profile | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test volume_profile` | ☐ |
-| 3 | rvol | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test rvol` | ☐ |
-| 4 | volume_climax | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test volume_climax` | ☐ |
-| 5 | absorption | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test absorption` | ☐ |
-| 6 | volume_oscillator | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test volume_oscillator` | ☐ |
-| 7 | obv | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test obv` | ☐ |
-| 8 | cmf | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test cmf` | ☐ |
-| 9 | mfi | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test mfi` | ☐ |
-| 10 | ad_line | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test ad_line` | ☐ |
-| 11 | atr_term | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test atr_term` | ☐ |
-| 12 | range_expansion | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test range_expansion` | ☐ |
-| 13 | mar | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test mar` | ☐ |
-| 14 | keltner | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test keltner` | ☐ |
-| 15 | donchian | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test donchian` | ☐ |
-| 16 | swing_structure | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test swing_structure` | ☐ |
-| 17 | level_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test level_strength` | ☐ |
-| 18 | aroon | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test aroon` | ☐ |
-| 19 | bos_choch | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test bos_choch` | ☐ |
-| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test candle_anatomy` | ☐ |
-| 21 | candle_pattern | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test candle_pattern` | ☐ |
-| 22 | gap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test gap` | ☐ |
-| 23 | path_efficiency | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test path_efficiency` | ☐ |
-| 24 | direction_changes | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test direction_changes` | ☐ |
-| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test bars_since_extreme` | ☐ |
-| 26 | drawdown_atr | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test drawdown_atr` | ☐ |
-| 27 | range_position | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test range_position` | ☐ |
-| 28 | relative_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test relative_strength` | ☐ |
-| 29 | lead_lag | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test lead_lag` | ☐ |
-| 30 | breadth | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test breadth` | ☐ |
-| 31 | co_movement | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test co_movement` | ☐ |
-| 32 | dispersion | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test dispersion` | ☐ |
-| 33 | session | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test session` | ☐ |
-| 34 | opening_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test opening_range` | ☐ |
-| 35 | overnight_intraday | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test overnight_intraday` | ☐ |
-| 36 | session_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test session_range` | ☐ |
-| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | `cargo test calendar_bucket` | ☐ |
+| 1 | vwap | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☑ | ☐ | ☑ | cargo test vwap_is_the_volume_weighted_typical_price | ☐ |
+| 2 | volume_profile | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☑ | ☐ | ☑ | cargo test profile_poc_is_the_highest_volume_bin | ☐ |
+| 3 | rvol (extended) | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test rvol_reads_the_volume_ratio | ☐ |
+| 4 | volume_climax | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test climax_flags_a_high_volume_wide_bar | ☐ |
+| 5 | absorption | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test absorption_flags_a_small_range_near_vwap | ☐ |
+| 6 | volume_oscillator | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
+| 7 | obv | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test obv_accumulates_signed_volume | ☐ |
+| 8 | cmf | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test cmf_is_one_when_every_close_is_the_high | ☐ |
+| 9 | mfi | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test mfi_is_one_hundred_when_every_bar_rises | ☐ |
+| 10 | ad_line | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
+| 11 | atr_term | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test atr_term_is_available_after_the_slow_window | ☐ |
+| 12 | range_expansion | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
+| 13 | mar | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
+| 14 | keltner | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
+| 15 | donchian | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
+| 16 | swing_structure | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
+| 17 | level_strength | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☐ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
+| 18 | aroon | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test aroon_reads_a_rising_series | ☐ |
+| 19 | bos_choch | ☐ | ☑ | ☑ | ☐ | ☐ | ☐ | ☐ | ☐ | ☑ | — | ☐ |
+| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_anatomy_reads_the_bar | ☐ |
+| 21 | candle_pattern | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_pattern_flags_an_engulfing_bar | ☐ |
+| 22 | gap | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test gap_reads_the_open_jump | ☐ |
+| 23 | path_efficiency | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 24 | direction_changes | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
+| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 26 | drawdown_atr | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
+| 27 | range_position | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
+| 28 | relative_strength | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test relative_strength_ranks_the_faster_instrument | ☐ |
+| 29 | lead_lag | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test lead_lag_reads_the_leader | ☐ |
+| 30 | breadth | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
+| 31 | co_movement | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test co_movement_is_high_for_aligned_series | ☐ |
+| 32 | dispersion | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
+| 33 | session | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☐ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 34 | opening_range | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☐ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 35 | overnight_intraday | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
+| 36 | session_range | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
+| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☐ | ☑ | — | — | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
 
-## 5. Event validation suite
+## 5. Known gaps
+
+| Gap | Evidence | Next step |
+|---|---|---|
+| `INDICATOR-AUDIT.md` | The file is absent from `docs/improvement/2026-11-05/` | Human decides whether to require the audit retroactively |
+| `level.strength_break` | The registry has only `level.strength_test` | Implement the break event or remove it from the plan |
+| `level.bos`, `level.choch`, `signal.structure_direction` | `bos_choch` has zero registered events and reuses the swing-structure outputs | Implement BOS/CHOCH or descope the indicator |
+| `level.session_vwap_test` | `session_vwap` is a reading; no level event is registered | Implement the level event or remove it from the plan |
+| `level.opening_range_test`, `level.opening_range_break` | Only the opening-range signals are registered | Implement the level events or remove them from the plan |
+| `signal.rs_regime`, `signal.lag_divergence` | The panel has one cross per reading | Implement the extra signals or reconcile the plan to one cross |
+| Panel signal IDs | `signal.relative_strength_cross`, `signal.lead_lag_cross`, `signal.co_movement_cross`, `signal.dispersion_cross` replace the plan names | Update the plan and any downstream charter to the registry IDs |
+| Phases 6–8 | #426–#430 are Todo | Approve the charters, run the swarm, validate, close out |
+
+## 6. Event validation suite
 
 `crates/quantrule-model/tests/event_validation.rs` proves, over the checked-in
 260-bar fixture:
@@ -230,12 +243,14 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | Determinism | Repeated model runs |
 | Panel | Availability and occurrence keys on a three-instrument panel |
 
-Table B's `A` and `N` cells are checked for the indicators with events. `P` stays
-open for the extended families: the precedence test covers the v4 level
-references, and the extended batch proves one occurrence per key rather than a
-per-indicator reference order.
+Table B's `C` and `D` cells are family-level: the extended readings, panel, and
+session suites each have one causality and one determinism test. `A` and `N`
+are checked for indicators whose plan events are all registered; they remain
+open where an event is missing. `P` stays open for the extended families: the
+precedence test covers the v4 level references, and the extended batch proves
+one occurrence per key rather than a per-indicator reference order.
 
-## 6. Verification commands
+## 7. Verification commands
 
 Per indicator:
 
@@ -261,7 +276,7 @@ python3 tools/check_links.py
 python3 tools/check_terms.py
 ```
 
-## 7. Status definitions
+## 8. Status definitions
 
 | Status | Meaning |
 |---|---|

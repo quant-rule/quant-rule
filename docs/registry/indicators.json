@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.13",
+  "version": "2026-11-05.14",
   "indicators": [
     {
       "id": "ema",
@@ -251,7 +251,9 @@
       ],
       "availability": "after both ratios are available",
       "events": [
-        "signal.compression_breakout"
+        "signal.compression_breakout",
+        "signal.compression_range",
+        "signal.compression_range_onset"
       ],
       "tests": [
         "golden",
@@ -325,7 +327,9 @@
         "adx_slope"
       ],
       "availability": "2*n-1 closed bars",
-      "events": [],
+      "events": [
+        "signal.trend_continuation"
+      ],
       "tests": [
         "golden",
         "causality",
@@ -751,6 +755,8 @@
       ],
       "availability": "slow ATR window",
       "events": [
+        "divergence.atr_bullish",
+        "divergence.atr_bearish",
         "signal.atr_compression",
         "signal.atr_expansion",
         "signal.atr_regime"
@@ -850,6 +856,8 @@
       ],
       "availability": "EMA and ATR windows",
       "events": [
+        "level.keltner_test",
+        "level.keltner_break",
         "signal.keltner_breakout",
         "signal.keltner_position"
       ],
@@ -884,6 +892,8 @@
       ],
       "availability": "window",
       "events": [
+        "level.donchian_test",
+        "level.donchian_break",
         "signal.donchian_breakout",
         "signal.donchian_position"
       ],
@@ -917,6 +927,7 @@
       ],
       "availability": "two confirmed major pivots of each kind",
       "events": [
+        "level.structure_break",
         "signal.structure_change"
       ],
       "tests": [
@@ -950,6 +961,7 @@
       ],
       "availability": "confirmed major levels and ATR",
       "events": [
+        "level.strength_test",
         "signal.strength_change"
       ],
       "tests": [
@@ -1049,6 +1061,7 @@
       ],
       "availability": "non-zero range",
       "events": [
+        "level.wick_test",
         "signal.candle_momentum",
         "signal.candle_rejection",
         "signal.candle_doji",
@@ -1125,6 +1138,8 @@
       ],
       "availability": "prior close and ATR",
       "events": [
+        "level.gap_fill",
+        "level.gap_test",
         "signal.gap_continuation",
         "signal.gap_fade"
       ],

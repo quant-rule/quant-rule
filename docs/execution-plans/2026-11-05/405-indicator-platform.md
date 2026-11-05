@@ -104,6 +104,16 @@ Explicit non-goals:
 | 9 | [#426](https://github.com/quant-rule/quant-rule/issues/426)–[#429](https://github.com/quant-rule/quant-rule/issues/429) | v6–v10 charters, swarm, validation | Todo |
 | 10 | [#430](https://github.com/quant-rule/quant-rule/issues/430) | Closeout | Todo |
 
+Reconciliation (2026-11-05): the verification checklist is the source of truth
+for the remaining gaps. Phase 3 is implemented except for the BOS/CHOCH events,
+the `level.strength_break` event, the session-VWAP level event, and the
+opening-range level events. Phase 1's read-only audit file was not delivered;
+the human decides whether to require it retroactively. The registry event IDs
+for the panel signals are `signal.relative_strength_cross`,
+`signal.lead_lag_cross`, `signal.co_movement_cross`, and
+`signal.dispersion_cross`; the earlier plan names for two extra panel signals
+are not registered.
+
 ## 8. First-batch implementation
 
 | Item | Path |
