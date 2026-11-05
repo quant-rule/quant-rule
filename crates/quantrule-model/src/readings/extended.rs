@@ -1427,6 +1427,7 @@ mod tests {
         };
         let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
         assert_eq!(extended.absorption_flag.get(19), Some(1.0));
+        assert_eq!(extended.absorption_direction.get(19), Some(1.0));
         assert!(extended.absorption_strength.get(19).is_some());
     }
 
@@ -1634,7 +1635,8 @@ mod tests {
             },
         );
         extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
-        assert!(extended.gap_atr.get(1).is_some());
+        let gap = extended.gap_atr.get(1).expect("the gap is available");
+        assert!((gap - 1.0 / 1.4).abs() < 1e-9, "gap {gap}");
     }
 
     #[test]

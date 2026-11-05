@@ -124,10 +124,11 @@ record of what was released.
 
 | Program | Status | Plan |
 |---|---|---|
-| Clean current architecture | P0.1–P3 merged; P4 config cleanup in progress | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
+| Clean current architecture | P0.1–P4 merged; P5 panel/session artifacts in progress | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
 | P2 M1.0 naming | Merged; M1.0 contract, config identities, retired model parsers, legacy scan | `docs/execution-plans/2026-11-05/470-m1-naming.md` |
 | P3 four-axis removal | Merged in PR #484 at `84ad934` | `docs/execution-plans/2026-11-05/471-four-axis-removal.md` |
-| P4 config cleanup | Current; config tree, help golden, old-schema test | `docs/execution-plans/2026-11-05/472-config-cleanup.md` |
+| P4 config cleanup | Merged in PR #485 at `50549dd` | `docs/execution-plans/2026-11-05/472-config-cleanup.md` |
+| P5 panel/session artifacts | Current; CSV artifacts, VWAP mirror, formula reconciliation | `docs/execution-plans/2026-11-05/473-panel-session-artifacts.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 
 ## Current architecture decisions

@@ -944,7 +944,7 @@
       "taxonomy": "structure",
       "role": "context",
       "claim": "The number of touches of a confirmed level describes its strength.",
-      "formula": "T=count(|H-L|<=0.2ATR or |L-L|<=0.2ATR,n); age=bar-available",
+      "formula": "T=count(confirmed major levels within 0.2ATR of H or L, lookback); age=bars since the youngest such level",
       "inputs": [
         "high",
         "low",

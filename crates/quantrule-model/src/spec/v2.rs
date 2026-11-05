@@ -436,6 +436,8 @@ pub struct SpecRun {
     active_events: Vec<SpecEventCode>,
     prediction: PredictionSeries,
     conditions: Option<SpecEvaluation>,
+    session_readings: Option<SessionReadings>,
+    panel_readings: Option<PanelReadings>,
     session_events: Vec<EventRecord>,
     panel_events: Vec<EventRecord>,
 }
@@ -479,29 +481,33 @@ impl SpecRun {
                     spec.evaluation_timeframe_secs,
                 ))?;
         let bars = timeframe.len();
-        let session_events = match spec.session {
-            Some(config) => {
-                let sessions =
-                    SessionReadings::compute(timeframe.candles(), timeframe.readings(), &config);
-                SessionEventSeries::compute(
-                    timeframe.candles(),
-                    timeframe.readings(),
-                    &sessions,
-                    &config,
-                    spec.evaluation_timeframe_secs,
-                )
-                .events()
-                .to_vec()
+        let session_readings = spec.session.map(|config| {
+            SessionReadings::compute(timeframe.candles(), timeframe.readings(), &config)
+        });
+        let session_events = match (&session_readings, spec.session) {
+            (Some(sessions), Some(config)) => SessionEventSeries::compute(
+                timeframe.candles(),
+                timeframe.readings(),
+                sessions,
+                &config,
+                spec.evaluation_timeframe_secs,
+            )
+            .events()
+            .to_vec(),
+            _ => Vec::new(),
+        };
+        let panel_readings = if spec.panel_instruments.is_empty() {
+            None
+        } else {
+            Some(PanelReadings::compute(panel, &PanelConfig::DEFAULT))
+        };
+        let panel_events = match &panel_readings {
+            Some(readings) => {
+                let series =
+                    PanelEventSeries::compute(panel, readings, spec.evaluation_timeframe_secs);
+                series.events(&spec.instrument).to_vec()
             }
             None => Vec::new(),
-        };
-        let panel_events = if spec.panel_instruments.is_empty() {
-            Vec::new()
-        } else {
-            let readings = PanelReadings::compute(panel, &PanelConfig::DEFAULT);
-            let series =
-                PanelEventSeries::compute(panel, &readings, spec.evaluation_timeframe_secs);
-            series.events(&spec.instrument).to_vec()
         };
         let mut events: Vec<EventRecord> = timeframe
             .events()
@@ -528,6 +534,8 @@ impl SpecRun {
             active_events: spec.active_events.clone(),
             prediction,
             conditions,
+            session_readings,
+            panel_readings,
             session_events,
             panel_events,
         })
@@ -585,6 +593,18 @@ impl SpecRun {
     #[must_use]
     pub const fn conditions(&self) -> Option<&SpecEvaluation> {
         self.conditions.as_ref()
+    }
+
+    /// The session readings for the evaluated instrument, when declared.
+    #[must_use]
+    pub const fn session_readings(&self) -> Option<&SessionReadings> {
+        self.session_readings.as_ref()
+    }
+
+    /// The panel readings, when declared.
+    #[must_use]
+    pub const fn panel_readings(&self) -> Option<&PanelReadings> {
+        self.panel_readings.as_ref()
     }
 
     /// The session events for the evaluated instrument.

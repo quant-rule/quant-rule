@@ -11,6 +11,12 @@
 - Contract: `AGENTS.md`, `docs/model/2026-11-05/model-m1.0.md`, `docs/registry/README.md`
 - Claim type: registry and indicator contract; no edge claim
 
+The machine-checked formula registry is
+[`docs/registry/indicators.json`](../../registry/indicators.json). Where this
+table and the registry disagree, the registry is the named contract; P5
+reconciled the breadth, gap-fade, level-strength, absorption, VWAP-reclaim
+mirror, and cross-asset rows to it.
+
 ## 1. Completeness rule
 
 An area scores **10/10** when it has:
@@ -47,7 +53,7 @@ covered. The registry never invents a meaningless event to fill a cell.
 
 | Code | Indicator | Reading formula | Level event | Divergence event | Signal event | Role |
 |---:|---|---|---|---|---|---|
-| 11 | `vwap` | `TP=(H+L+C)/3`; `VWAP=sum(TP*V,n)/sum(V,n)`; `D=(C-VWAP)/ATR`; `S=VWAP-VWAP[n]`; `MAD=mean(abs(TP-VWAP),n)`; bands `VWAP±2MAD` | `test(C,VWAP)`; `cross_up(C,VWAP)`; `C>VWAP+0.2ATR && C[t-1]>VWAP[t-1]+0.2ATR` | bearish: `H[t]>H[p] && D[t]<D[p]`; bullish: `L[t]<L[p] && D[t]>D[p]`; hidden mirrors | reclaim: `cross_up(C,VWAP) && count(C<VWAP,6)>=6`; rejection: `H>=VWAP && C<VWAP && C<O`; slope: `sign(S[t])!=sign(S[t-1])` | context/signal |
+| 11 | `vwap` | `TP=(H+L+C)/3`; `VWAP=sum(TP*V,n)/sum(V,n)`; `D=(C-VWAP)/ATR`; `S=VWAP-VWAP[n]`; `MAD=mean(abs(TP-VWAP),n)`; bands `VWAP±2MAD` | `test(C,VWAP)`; `cross_up(C,VWAP)`; `C>VWAP+0.2ATR && C[t-1]>VWAP[t-1]+0.2ATR` | bearish: `H[t]>H[p] && D[t]<D[p]`; bullish: `L[t]<L[p] && D[t]>D[p]`; hidden mirrors | reclaim: `cross_up(C,VWAP) && count(C<VWAP,6)>=6`, mirror `cross_down(C,VWAP) && count(C>VWAP,6)>=6`; rejection: `H>=VWAP && C<VWAP && C<O`, mirror `L<=VWAP && C>VWAP && C>O`; slope: `sign(S[t])!=sign(S[t-1])` | context/signal |
 
 ## 4. Area 2 — Volume by price (10/10)
 
@@ -89,7 +95,7 @@ covered. The registry never invents a meaningless event to fill a cell.
 | 6 | `pivots` (existing) | confirmed high/low at 2 minor and 5 major bars; available at `t+k` | `test(C,L)`; `cross_up(C,L)`; `C>L` | price vs RSI/OBV at pivots | `SS` change | signal/context |
 | 24 | `donchian` | `DH=max(H,n)`; `DL=min(L,n)`; `DP=(C-DL)/(DH-DL)` | `test(H,DH)`; `C>DH` | none | `C>DH && RR>=1.2`; `C<DL`; `cross_up(DP,0.8)` | context/signal |
 | 25 | `swing_structure` | `HH=H[p]>H[p-1]`; `HL=L[p]>L[p-1]`; `SS=+1 if HH&&HL, -1 if LH&&LL, 0 otherwise` | `C>last_pivot_high`; `C<last_pivot_low` | none | `SS[t]!=SS[t-1]` | context |
-| 26 | `level_strength` | `T=count(test(H,L) or test(L,L),n)`; `S=T/n` | `T>=2` test/break | none | `cross_up(S,0.5)` | context |
+| 26 | `level_strength` | `T=count(confirmed major levels within 0.2ATR of H or L, lookback)`; `age=bars since the youngest such level` | `T>=2` test/break | none | `cross_up(T,2)` | context |
 | 27 | `aroon` | `AU=100*(n-bars_since_high)/n`; `AD=100*(n-bars_since_low)/n`; `AO=AU-AD` | none | none | `cross_up(AU,70)`; `cross_down(AD,30)`; `cross_up(AO,0)` | context |
 | 28 | `bos_choch` | `BOS=C>last_pivot_high in up structure`; `CHOCH=C>last_pivot_high in down structure`; mirrors | BOS/CHOCH event | none | `SS` direction change | signal/context |
 
@@ -99,7 +105,7 @@ covered. The registry never invents a meaningless event to fill a cell.
 |---:|---|---|---|---|---|---|
 | 29 | `candle_anatomy` | `R=H-L`; `B=abs(C-O)`; `UW=H-max(O,C)`; `LW=min(O,C)-L`; `CP=(C-L)/R`; `BR=B/R`; `UWR=UW/R`; `LWR=LW/R` | `UWR>=0.6 && test(H,L)`; `LWR>=0.6 && test(L,L)` | none | `R>=1.5ATR && BR>=0.7 && CP>=0.8`; `UWR>=0.6 && C<O`; `BR<=0.1`; `BR>=0.9` | context/signal |
 | 30 | `candle_pattern` | engulfing: `C>O && O<=C_prev && C>=O_prev`; inside: `H<=H_prev && L>=L_prev`; outside: `H>H_prev && L<L_prev`; hammer: `LW>=2B && UW<=0.1R && CP>=0.7`; star: `UW>=2B && LW<=0.1R && CP<=0.3` | none | none | pattern flags | context/signal |
-| 31 | `gap` | `G=O-C_prev`; `GA=G/ATR` | fill: `C` returns to `C_prev`; `abs(G)<=0.2ATR` | none | continuation: `GA>=0.5 && C>O`; fade: `GA>=0.5 && C<C_prev` | context/signal |
+| 31 | `gap` | `G=O-C_prev`; `GA=G/ATR` | fill: `C` returns to `C_prev`; `abs(G)<=0.2ATR` | none | continuation: `GA>=0.5 && C>O`; fade: `GA<=-0.5 && C<O` | context/signal |
 
 ## 10. Area 8 — Path and duration (10/10)
 
@@ -116,8 +122,8 @@ covered. The registry never invents a meaningless event to fill a cell.
 | Code | Indicator | Reading formula | Level event | Divergence event | Signal event | Role |
 |---:|---|---|---|---|---|---|
 | 37 | `relative_strength` | `ret_i=(C_i-C_i[n])/ATR_i`; `RS=ret_i-mean(ret_j)` | none | bearish: `H[t]>H[p] && RS[t]<RS[p]`; bullish mirror | `cross_up(RS,0)`; `cross_down(RS,0)` | context/signal |
-| 38 | `lead_lag` | `lead=ret_leader[t-k]`; `follow=ret_follower[t]`; `LL=lead-follow` | none | `sign(lead)!=sign(follow) && abs(lead)>=1` | `cross_up(lead,1)`; `cross_down(lead,-1)` | signal/context |
-| 39 | `breadth` | `BR=count(C_i>VWAP_i or ret_i>0)/N` | none | bearish: `H[t]>H[p] && BR[t]<BR[p]`; bullish mirror | `cross_up(BR,0.67)`; `cross_down(BR,0.33)` | context |
+| 38 | `lead_lag` | `lead=ret_leader[t-k]`; `follow=ret_follower[t]`; `LL=lead-follow` | none | `sign(lead)!=sign(follow) && abs(lead)>=1` | `cross_up(lead,1)`; `cross_down(lead,-1)`; the event is named `signal.lead_lag_cross` and reads the leader return | signal/context |
+| 39 | `breadth` | `BR=count(ret_i>0)/count(ret_i present)` | none | bearish: `H[t]>H[p] && BR[t]<BR[p]`; bullish mirror | `cross_up(BR,0.67)`; `cross_down(BR,0.33)` | context |
 | 40 | `co_movement` | `CM=sum(sign(ret_i)==sign(ret_basket))/n` | none | none | `cross_up(CM,0.7)`; `cross_down(CM,0.3)` | diagnostic |
 | 41 | `dispersion` | `D=max(ret_j)-min(ret_j)` | none | none | `cross_up(D,threshold)` | diagnostic |
 

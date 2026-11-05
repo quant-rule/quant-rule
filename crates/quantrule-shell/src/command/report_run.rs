@@ -357,6 +357,25 @@ fn model_bundle_with(
         Some(SpecRunArtifacts::V2 { run, .. }) => Some(model_artifacts::prediction_csv(run)),
         _ => None,
     };
+    let panel_csv = match spec {
+        Some(SpecRunArtifacts::V2 { spec, run, .. }) => run.panel_readings().map(|readings| {
+            model_artifacts::panel_csv(
+                readings,
+                spec.panel_instruments.first().map_or("", String::as_str),
+            )
+        }),
+        _ => None,
+    };
+    let session_csv = match spec {
+        Some(SpecRunArtifacts::V2 { run, .. }) => run.session_readings().map(|readings| {
+            let candles = run
+                .base()
+                .timeframe(run.evaluation_timeframe_secs())
+                .map_or(&[][..], |timeframe| timeframe.candles());
+            model_artifacts::session_csv(candles, readings)
+        }),
+        _ => None,
+    };
     let legs_csv = model_artifacts::legs_csv(model_run, ladder);
 
     let mut name_list = vec![
@@ -374,6 +393,12 @@ fn model_bundle_with(
     }
     if prediction_csv.is_some() {
         name_list.push("prediction.csv");
+    }
+    if panel_csv.is_some() {
+        name_list.push("panel.csv");
+    }
+    if session_csv.is_some() {
+        name_list.push("session.csv");
     }
     let names = artifact_names(&name_list);
     let files = config_files(config);
@@ -428,6 +453,12 @@ fn model_bundle_with(
     }
     if let Some(prediction) = prediction_csv {
         artifacts.push(("prediction.csv", prediction.into_bytes()));
+    }
+    if let Some(panel) = panel_csv {
+        artifacts.push(("panel.csv", panel.into_bytes()));
+    }
+    if let Some(session) = session_csv {
+        artifacts.push(("session.csv", session.into_bytes()));
     }
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
     Ok(BundleOutput {

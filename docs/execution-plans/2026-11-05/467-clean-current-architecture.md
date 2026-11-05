@@ -269,4 +269,7 @@ deletion.
   example strategy/analytics files are gone, the config evidence boundary is
   explicit, and the help surface has a golden contract. See
   [`472-config-cleanup.md`](472-config-cleanup.md).
-- P5–P8: not started.
+- P5: implemented on `feat/473-panel-session-artifacts`; panel/session CSV
+  artifacts, the bearish VWAP reclaim mirror, and the formula reconciliation are
+  recorded in [`473-panel-session-artifacts.md`](473-panel-session-artifacts.md).
+- P6–P8: not started.

@@ -112,6 +112,8 @@ fn the_spec_v1_bundle_adds_conditions() {
     let bundle = out.join("model");
     assert!(bundle.join("conditions.csv").exists());
     assert!(!bundle.join("prediction.csv").exists());
+    assert!(!bundle.join("panel.csv").exists());
+    assert!(!bundle.join("session.csv").exists());
     let provenance =
         String::from_utf8(read(&bundle.join("provenance.json"))).expect("provenance is UTF-8");
     assert!(provenance.contains("fixture-spec"));
@@ -137,6 +139,18 @@ fn the_spec_v2_bundle_adds_conditions_and_prediction() {
     let bundle = out.join("model");
     assert!(bundle.join("conditions.csv").exists());
     assert!(bundle.join("prediction.csv").exists());
+    assert!(bundle.join("panel.csv").exists());
+    assert!(bundle.join("session.csv").exists());
+
+    let panel = String::from_utf8(read(&bundle.join("panel.csv"))).expect("panel CSV");
+    assert!(panel.starts_with("timestamp,instrument,is_leader,relative_strength"));
+    assert!(panel.lines().count() > 1, "panel.csv must carry rows");
+
+    let session = String::from_utf8(read(&bundle.join("session.csv"))).expect("session CSV");
+    assert!(session.starts_with("bar,timestamp,session_code"));
+    assert!(session.contains("calendar_bucket"));
+    assert!(session.lines().count() > 1, "session.csv must carry rows");
+
     let provenance =
         String::from_utf8(read(&bundle.join("provenance.json"))).expect("provenance is UTF-8");
     assert!(provenance.contains("\"id\":\"M2.1\""));
