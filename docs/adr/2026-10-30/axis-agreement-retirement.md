@@ -4,7 +4,7 @@
 - Status: Accepted; superseded by the unified `ladder-context` rule
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#235](https://github.com/quant-rule/quant-rule/issues/235)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Current rule: [`docs/config/2026-10-30/strategy-v3.md`](../../config/2026-10-30/strategy-v3.md)
+- Current rule: [`docs/config/2026-10-30/strategy-v3.md`](../../registry/history.md)
 - Archived fixture: [`axis-agreement-golden.csv`](axis-agreement-golden.csv)
 
 ## Context

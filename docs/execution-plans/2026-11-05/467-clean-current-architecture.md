@@ -272,4 +272,9 @@ deletion.
 - P5: implemented on `feat/473-panel-session-artifacts`; panel/session CSV
   artifacts, the bearish VWAP reclaim mirror, and the formula reconciliation are
   recorded in [`473-panel-session-artifacts.md`](473-panel-session-artifacts.md).
-- P6–P8: not started.
+- P6: implemented on `docs/474-checklist-docs`; row 37 is `verified,
+  reading-only`, the completion claim distinguishes 36 event-producing
+  indicators from 1 reading-only, and the retired report/config/research
+  contracts are gone. See
+  [`474-checklist-docs.md`](474-checklist-docs.md).
+- P7–P8: not started.

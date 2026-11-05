@@ -401,6 +401,6 @@ Requested from developer:
 - [Quant roles overview](quant-roles.md)
 - [Full-pipeline tutorial](../../registry/history.md)
 - [Four-axis analytical model](../../registry/history.md)
-- [Research output contract](../../analytics/2026-10-24/research-output.md)
+- [Research output contract](../../registry/history.md)
 - [Per-engine configuration](../../registry/history.md)
-- [Per-engine reports](../../reports/2026-10-28/per-engine-reports.md)
+- [Per-engine reports](../../registry/history.md)

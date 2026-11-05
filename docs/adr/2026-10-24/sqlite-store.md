@@ -3,7 +3,7 @@
 - Date: 2026-10-24 (UTC)
 - Issue: [#65](https://github.com/quant-rule/quant-rule/issues/65) — arch: define the SQLite per-bar store and research schema
 - Status: Accepted. The store implementation follows this document.
-- Related: [research output contract](../../analytics/2026-10-24/research-output.md), [model contract](../../registry/history.md), [store epic #64](https://github.com/quant-rule/quant-rule/issues/64)
+- Related: [research output contract](../../registry/history.md), [model contract](../../registry/history.md), [store epic #64](https://github.com/quant-rule/quant-rule/issues/64)
 
 ## 1. Context
 

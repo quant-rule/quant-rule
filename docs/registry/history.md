@@ -121,6 +121,23 @@ Keep model/strategy evidence documents under `docs/model/2026-11-03/` and
 `docs/model/2026-11-04/` as historical evidence unless they are current
 contracts. The current `M1.0` contract is the moved model-v4 path.
 
+### 3.6 P6 retired contracts
+
+P6 removed the current-contract documents for surfaces that no longer exist:
+
+- `docs/config/2026-10-30/strategy-v3.md`
+- `docs/config/2026-10-30/execution-v3.md`
+- `docs/config/2026-10-30/trade-intent.md`
+- `docs/config/2026-11-03/portfolio-benchmarks.md`
+- `docs/reports/2026-10-28/per-engine-reports.md`
+- `docs/reports/2026-10-31/diagnosis-v1.md`
+- `docs/analytics/2026-10-24/research-output.md`
+- `docs/analytics/2026-10-24/dataset-report.md`
+- `docs/analytics/2026-10-25/dataset-verification.md`
+
+They remain in Git at `392ce80`. ADRs, audits, execution plans, verification
+reports, and run records remain the history of those decisions.
+
 ## 4. Keep as history
 
 | Path | Why |

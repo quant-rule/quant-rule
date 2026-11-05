@@ -4,7 +4,7 @@
 - Status: Accepted
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), sub-issues [#229](https://github.com/quant-rule/quant-rule/issues/229)–[#237](https://github.com/quant-rule/quant-rule/issues/237)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
-- Related: [`docs/model/2026-10-30/per-timeframe-model.md`](../../registry/history.md), [`docs/config/2026-10-30/strategy-v3.md`](../../config/2026-10-30/strategy-v3.md), [`docs/config/2026-10-30/trade-intent.md`](../../config/2026-10-30/trade-intent.md), [`docs/adr/2026-10-30/stateless-strategy-position-parameter.md`](stateless-strategy-position-parameter.md)
+- Related: [`docs/model/2026-10-30/per-timeframe-model.md`](../../registry/history.md), [`docs/config/2026-10-30/strategy-v3.md`](../../registry/history.md), [`docs/config/2026-10-30/trade-intent.md`](../../registry/history.md), [`docs/adr/2026-10-30/stateless-strategy-position-parameter.md`](stateless-strategy-position-parameter.md)
 
 ## Context
 

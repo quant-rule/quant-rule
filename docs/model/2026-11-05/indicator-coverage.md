@@ -1,7 +1,7 @@
 # Indicator Coverage — 10 OHLCV Information Areas
 
 - Date: 2026-11-05 (UTC)
-- Status: **Implemented** — 46 indicators, 143 events, 110 parameters; event codes 1–143; 37/37 checklist rows `verified`; spec v2 implemented; validation claims open
+- Status: **Implemented** — 46 indicators, 143 events, 110 parameters; event codes 1–143; 37/37 checklist rows `verified` (36 event-producing indicators wired and spec-usable, 1 reading-only); spec v2 implemented; validation claims open
 - Scope: 10 information areas, 36 new indicators, 10 existing indicators
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Plan: [`docs/execution-plans/2026-11-05/405-indicator-platform.md`](../../execution-plans/2026-11-05/405-indicator-platform.md)

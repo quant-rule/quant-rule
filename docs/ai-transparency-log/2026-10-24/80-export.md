@@ -2,7 +2,7 @@
 
 - Work item: [#80](https://github.com/quant-rule/quant-rule/issues/80) — feat: export CSV with manifest and data dictionary
 - Plan: [`docs/execution-plans/2026-10-24/80-export.md`](../../execution-plans/2026-10-24/80-export.md)
-- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md)
+- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../registry/history.md)
 - Date: 2026-10-24 (UTC)
 
 ## Entry: the dataset export

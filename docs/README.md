@@ -50,10 +50,7 @@ the four-axis cutover.
 | Policy blueprint | Current; `run v2`, `policy v1`, data schema 3, model schema 4, `execution v2`, `portfolio v1` | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
-| Portfolio benchmarks and time metrics | Historical; the portfolio engine is retained for S3.x | `docs/config/2026-11-03/portfolio-benchmarks.md` |
 | MACD reading and events | Current | `docs/config/2026-11-03/model-macd.md` |
-| Fill mechanics | Historical; retained for S3.x | `docs/config/2026-10-30/execution-v3.md` |
-| Strategy/execution boundary | Historical; `TradeIntent` is retained for S3.x | `docs/config/2026-10-30/trade-intent.md` |
 | Improvement run contract | Current workflow contract; no run is current after M2 closeout | `docs/workflows/run-contract.md` |
 
 The current run does not reference `strategy.json` or `analytics.json`. The loader
@@ -124,11 +121,12 @@ record of what was released.
 
 | Program | Status | Plan |
 |---|---|---|
-| Clean current architecture | P0.1–P4 merged; P5 panel/session artifacts in progress | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
+| Clean current architecture | P0.1–P5 merged; P6 checklist/docs implemented | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
 | P2 M1.0 naming | Merged; M1.0 contract, config identities, retired model parsers, legacy scan | `docs/execution-plans/2026-11-05/470-m1-naming.md` |
 | P3 four-axis removal | Merged in PR #484 at `84ad934` | `docs/execution-plans/2026-11-05/471-four-axis-removal.md` |
 | P4 config cleanup | Merged in PR #485 at `50549dd` | `docs/execution-plans/2026-11-05/472-config-cleanup.md` |
-| P5 panel/session artifacts | Current; CSV artifacts, VWAP mirror, formula reconciliation | `docs/execution-plans/2026-11-05/473-panel-session-artifacts.md` |
+| P5 panel/session artifacts | Merged in PR #486 at `392ce80` | `docs/execution-plans/2026-11-05/473-panel-session-artifacts.md` |
+| P6 checklist/docs | Implemented; row 37 wording, family-level tests, retired contracts | `docs/execution-plans/2026-11-05/474-checklist-docs.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 
 ## Current architecture decisions

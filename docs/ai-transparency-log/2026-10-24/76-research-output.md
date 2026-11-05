@@ -2,7 +2,7 @@
 
 - Work item: [#76](https://github.com/quant-rule/quant-rule/issues/76) — docs: define the research output contract
 - Plan: [`docs/execution-plans/2026-10-24/76-research-output.md`](../../execution-plans/2026-10-24/76-research-output.md)
-- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../analytics/2026-10-24/research-output.md)
+- Contract: [`docs/analytics/2026-10-24/research-output.md`](../../registry/history.md)
 - Date: 2026-10-24 (UTC)
 
 ## Entry: contract definition
