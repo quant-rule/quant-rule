@@ -89,7 +89,7 @@ Explicit non-goals:
 | 0 | [#411](https://github.com/quant-rule/quant-rule/issues/411), [#412](https://github.com/quant-rule/quant-rule/issues/412) | Registry schema, coverage, codes | Done |
 | 1 | [#413](https://github.com/quant-rule/quant-rule/issues/413) | `vwap` and `volume_profile` readings/events | Done |
 | 2 | [#414](https://github.com/quant-rule/quant-rule/issues/414) | Participation readings | Done |
-| 3 | [#415](https://github.com/quant-rule/quant-rule/issues/415) | Volume-price flow readings | Todo |
+| 3 | [#415](https://github.com/quant-rule/quant-rule/issues/415) | Volume-price flow readings | Done |
 | 4 | [#416](https://github.com/quant-rule/quant-rule/issues/416) | Volatility and structure readings | Todo |
 | 5 | [#417](https://github.com/quant-rule/quant-rule/issues/417) | Anatomy and path readings | Todo |
 | 6 | [#418](https://github.com/quant-rule/quant-rule/issues/418) | Cross-asset and calendar readings | Todo |

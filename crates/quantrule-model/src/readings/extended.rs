@@ -39,6 +39,12 @@ pub struct ExtendedConfig {
     pub absorption_range_atr: f64,
     /// Absorption level tolerance.
     pub absorption_level_atr: f64,
+    /// Flow window for OBV/CMF/AD means.
+    pub flow_window: usize,
+    /// MFI window.
+    pub mfi_window: usize,
+    /// CMF threshold.
+    pub cmf_threshold: f64,
 }
 
 impl ExtendedConfig {
@@ -58,6 +64,9 @@ impl ExtendedConfig {
         absorption_volume: 2.0,
         absorption_range_atr: 0.6,
         absorption_level_atr: 0.25,
+        flow_window: 20,
+        mfi_window: 14,
+        cmf_threshold: 0.2,
     };
 }
 
@@ -110,6 +119,22 @@ pub struct ExtendedReadings {
     pub absorption_direction: ReadingSeries,
     /// `rvol_fast / (range / ATR)`.
     pub absorption_strength: ReadingSeries,
+    /// On-balance volume.
+    pub obv: ReadingSeries,
+    /// Mean of OBV over the flow window.
+    pub obv_ma: ReadingSeries,
+    /// `OBV - OBV[n]`.
+    pub obv_slope: ReadingSeries,
+    /// Chaikin money flow.
+    pub cmf: ReadingSeries,
+    /// `CMF - CMF[n]`.
+    pub cmf_slope: ReadingSeries,
+    /// Money flow index.
+    pub mfi: ReadingSeries,
+    /// Accumulation/distribution line.
+    pub ad_line: ReadingSeries,
+    /// Mean of the A/D line over the flow window.
+    pub ad_ma: ReadingSeries,
 }
 
 impl ExtendedReadings {
@@ -141,6 +166,14 @@ impl ExtendedReadings {
             absorption_flag: null(),
             absorption_direction: null(),
             absorption_strength: null(),
+            obv: null(),
+            obv_ma: null(),
+            obv_slope: null(),
+            cmf: null(),
+            cmf_slope: null(),
+            mfi: null(),
+            ad_line: null(),
+            ad_ma: null(),
         }
     }
 
@@ -187,6 +220,7 @@ impl ExtendedReadings {
             absorption_direction,
             absorption_strength,
         ) = participation_series(candles, readings, config, &vwap, &profile.poc);
+        let flow = flow_series(candles, config);
         Self {
             vwap: ReadingSeries::new(vwap),
             vwap_distance_atr: ReadingSeries::new(distance),
@@ -211,8 +245,138 @@ impl ExtendedReadings {
             absorption_flag: ReadingSeries::new(absorption_flag),
             absorption_direction: ReadingSeries::new(absorption_direction),
             absorption_strength: ReadingSeries::new(absorption_strength),
+            obv: ReadingSeries::new(flow.obv),
+            obv_ma: ReadingSeries::new(flow.obv_ma),
+            obv_slope: ReadingSeries::new(flow.obv_slope),
+            cmf: ReadingSeries::new(flow.cmf),
+            cmf_slope: ReadingSeries::new(flow.cmf_slope),
+            mfi: ReadingSeries::new(flow.mfi),
+            ad_line: ReadingSeries::new(flow.ad_line),
+            ad_ma: ReadingSeries::new(flow.ad_ma),
         }
     }
+}
+
+struct FlowSeries {
+    obv: Vec<Option<f64>>,
+    obv_ma: Vec<Option<f64>>,
+    obv_slope: Vec<Option<f64>>,
+    cmf: Vec<Option<f64>>,
+    cmf_slope: Vec<Option<f64>>,
+    mfi: Vec<Option<f64>>,
+    ad_line: Vec<Option<f64>>,
+    ad_ma: Vec<Option<f64>>,
+}
+
+fn money_flow_volume(candle: &Candle) -> f64 {
+    let span = candle.high() - candle.low();
+    if span <= 0.0 {
+        return 0.0;
+    }
+    (((candle.close() - candle.low()) - (candle.high() - candle.close())) / span) * volume(candle)
+}
+
+fn flow_series(candles: &[Candle], config: &ExtendedConfig) -> FlowSeries {
+    let len = candles.len();
+    let mut result = FlowSeries {
+        obv: vec![None; len],
+        obv_ma: vec![None; len],
+        obv_slope: vec![None; len],
+        cmf: vec![None; len],
+        cmf_slope: vec![None; len],
+        mfi: vec![None; len],
+        ad_line: vec![None; len],
+        ad_ma: vec![None; len],
+    };
+    if len == 0 {
+        return result;
+    }
+    let mut obv = 0.0;
+    let mut ad = 0.0;
+    result.obv[0] = Some(0.0);
+    result.ad_line[0] = Some(0.0);
+    for bar in 1..len {
+        let change = candles[bar].close() - candles[bar - 1].close();
+        obv += change.signum() * volume(&candles[bar]);
+        ad += money_flow_volume(&candles[bar]);
+        result.obv[bar] = Some(obv);
+        result.ad_line[bar] = Some(ad);
+    }
+    let window = config.flow_window;
+    if window > 0 {
+        for bar in (window - 1)..len {
+            let start = bar + 1 - window;
+            let obv_values: Vec<f64> = result.obv[start..=bar]
+                .iter()
+                .filter_map(|value| *value)
+                .collect();
+            if obv_values.len() == window {
+                result.obv_ma[bar] = Some(obv_values.iter().sum::<f64>() / window as f64);
+            }
+            let ad_values: Vec<f64> = result.ad_line[start..=bar]
+                .iter()
+                .filter_map(|value| *value)
+                .collect();
+            if ad_values.len() == window {
+                result.ad_ma[bar] = Some(ad_values.iter().sum::<f64>() / window as f64);
+            }
+            let mut flow = 0.0;
+            let mut total_volume = 0.0;
+            for candle in &candles[start..=bar] {
+                flow += money_flow_volume(candle);
+                total_volume += volume(candle);
+            }
+            if total_volume > 0.0 {
+                result.cmf[bar] = Some(flow / total_volume);
+            }
+            if bar >= 2 * window - 1 {
+                let prior = bar - window;
+                if let Some(previous) = result.cmf[prior] {
+                    result.cmf_slope[bar] = result.cmf[bar].map(|value| value - previous);
+                }
+            }
+            if bar + 1 >= 2 * window {
+                let prior = bar - window;
+                if let Some(previous) = result.obv[prior] {
+                    result.obv_slope[bar] = result.obv[bar].map(|value| value - previous);
+                }
+            }
+        }
+    }
+    let mfi_window = config.mfi_window;
+    if mfi_window > 0 {
+        for bar in mfi_window..len {
+            let start = bar + 1 - mfi_window;
+            let mut positive = 0.0;
+            let mut negative = 0.0;
+            for index in start..=bar {
+                let typical =
+                    (candles[index].high() + candles[index].low() + candles[index].close()) / 3.0;
+                let previous = if index > 0 {
+                    (candles[index - 1].high()
+                        + candles[index - 1].low()
+                        + candles[index - 1].close())
+                        / 3.0
+                } else {
+                    typical
+                };
+                let flow = typical * volume(&candles[index]);
+                if typical > previous {
+                    positive += flow;
+                } else if typical < previous {
+                    negative += flow;
+                }
+            }
+            if positive + negative > 0.0 {
+                result.mfi[bar] = Some(if negative > 0.0 {
+                    100.0 - 100.0 / (1.0 + positive / negative)
+                } else {
+                    100.0
+                });
+            }
+        }
+    }
+    result
 }
 
 #[allow(clippy::type_complexity)]
@@ -685,6 +849,72 @@ mod tests {
             assert_eq!(full.rvol_fast.get(bar), prefix.rvol_fast.get(bar));
             assert_eq!(full.rvol_slow.get(bar), prefix.rvol_slow.get(bar));
             assert_eq!(full.climax_flag.get(bar), prefix.climax_flag.get(bar));
+        }
+    }
+
+    #[test]
+    fn obv_accumulates_signed_volume() {
+        let candles = [
+            candle(0, 10.0, 10.0, 10.0, 10.0, 1.0),
+            candle(1, 11.0, 11.0, 11.0, 11.0, 2.0),
+            candle(2, 10.0, 10.0, 10.0, 10.0, 3.0),
+        ];
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        assert_eq!(extended.obv.get(0), Some(0.0));
+        assert_eq!(extended.obv.get(1), Some(2.0));
+        assert_eq!(extended.obv.get(2), Some(-1.0));
+    }
+
+    #[test]
+    fn cmf_is_one_when_every_close_is_the_high() {
+        let candles: Vec<Candle> = (0..6)
+            .map(|index| candle(index, 10.0, 11.0, 10.0, 11.0, 10.0))
+            .collect();
+        let config = ExtendedConfig {
+            flow_window: 5,
+            ..ExtendedConfig::DEFAULT
+        };
+        let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+        let value = extended.cmf.get(5).expect("cmf");
+        assert!((value - 1.0).abs() < 1e-9, "cmf {value}");
+    }
+
+    #[test]
+    fn mfi_is_one_hundred_when_every_bar_rises() {
+        let candles: Vec<Candle> = (0..6)
+            .map(|index| {
+                let price = 10.0 + index as f64;
+                candle(index, price, price + 0.5, price - 0.5, price, 10.0)
+            })
+            .collect();
+        let config = ExtendedConfig {
+            mfi_window: 3,
+            ..ExtendedConfig::DEFAULT
+        };
+        let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+        assert_eq!(extended.mfi.get(5), Some(100.0));
+    }
+
+    #[test]
+    fn flow_readings_are_causal() {
+        let candles: Vec<Candle> = (0..12)
+            .map(|index| {
+                let price = 10.0 + (index as f64 * 0.4).sin();
+                candle(index, price, price + 0.5, price - 0.5, price, 10.0)
+            })
+            .collect();
+        let config = ExtendedConfig {
+            flow_window: 5,
+            mfi_window: 3,
+            ..ExtendedConfig::DEFAULT
+        };
+        let full = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+        let prefix = ExtendedReadings::compute(&candles[..8], &readings(&candles[..8]), &config);
+        for bar in 0..8 {
+            assert_eq!(full.obv.get(bar), prefix.obv.get(bar));
+            assert_eq!(full.cmf.get(bar), prefix.cmf.get(bar));
+            assert_eq!(full.mfi.get(bar), prefix.mfi.get(bar));
         }
     }
 }

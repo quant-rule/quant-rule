@@ -131,10 +131,10 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 4 | volume_climax | 13 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 5 | absorption | 14 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 6 | volume_oscillator | 15 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 7 | obv | 16 | 4 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 8 | cmf | 17 | 4 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 9 | mfi | 18 | 4 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 10 | ad_line | 19 | 4 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
+| 7 | obv | 16 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
+| 8 | cmf | 17 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
+| 9 | mfi | 18 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
+| 10 | ad_line | 19 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 11 | atr_term | 20 | 5 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 12 | range_expansion | 21 | 5 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 13 | mar | 22 | 5 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
@@ -178,10 +178,10 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | 4 | volume_climax | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test volume_climax` | ☐ |
 | 5 | absorption | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test absorption` | ☐ |
 | 6 | volume_oscillator | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test volume_oscillator` | ☐ |
-| 7 | obv | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test obv` | ☐ |
-| 8 | cmf | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test cmf` | ☐ |
-| 9 | mfi | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test mfi` | ☐ |
-| 10 | ad_line | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test ad_line` | ☐ |
+| 7 | obv | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test obv` | ☐ |
+| 8 | cmf | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test cmf` | ☐ |
+| 9 | mfi | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test mfi` | ☐ |
+| 10 | ad_line | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | `cargo test ad_line` | ☐ |
 | 11 | atr_term | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test atr_term` | ☐ |
 | 12 | range_expansion | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test range_expansion` | ☐ |
 | 13 | mar | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test mar` | ☐ |

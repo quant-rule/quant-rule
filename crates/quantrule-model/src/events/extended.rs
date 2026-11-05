@@ -24,6 +24,14 @@ pub const CLIMAX_SOURCE_CODE: u16 = 21;
 pub const ABSORPTION_SOURCE_CODE: u16 = 22;
 /// Source code for the volume oscillator.
 pub const VOLUME_OSCILLATOR_SOURCE_CODE: u16 = 23;
+/// Source code for on-balance volume.
+pub const OBV_SOURCE_CODE: u16 = 24;
+/// Source code for Chaikin money flow.
+pub const CMF_SOURCE_CODE: u16 = 25;
+/// Source code for the money flow index.
+pub const MFI_SOURCE_CODE: u16 = 26;
+/// Source code for the accumulation/distribution line.
+pub const AD_SOURCE_CODE: u16 = 27;
 
 /// The configuration of the extended event run.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -79,9 +87,11 @@ impl ExtendedEventSeries {
             vwap_events(candles, extended, config, bar, candle, atr, &mut events);
             profile_events(candles, readings, extended, config, bar, &mut events);
             participation_events(candles, readings, extended, config, bar, &mut events);
+            flow_events(candles, extended, config, bar, &mut events);
         }
         divergence_events(readings, extended, config, &mut events);
         participation_divergences(readings, extended, config, &mut events);
+        flow_divergences(readings, extended, config, &mut events);
         events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
         // The occurrence key is one event per timeframe, type, subtype, source,
         // bar, direction, and reference. A reclaim and a rejection can describe
@@ -831,6 +841,266 @@ fn participation_divergences(
     }
 }
 
+fn cross_up_series(a: &ReadingSeries, b: &ReadingSeries, bar: usize) -> bool {
+    if bar == 0 {
+        return false;
+    }
+    match (a.get(bar), b.get(bar), a.get(bar - 1), b.get(bar - 1)) {
+        (Some(now), Some(level), Some(previous), Some(previous_level)) => {
+            now > level && previous <= previous_level
+        }
+        _ => false,
+    }
+}
+
+fn cross_down_series(a: &ReadingSeries, b: &ReadingSeries, bar: usize) -> bool {
+    if bar == 0 {
+        return false;
+    }
+    match (a.get(bar), b.get(bar), a.get(bar - 1), b.get(bar - 1)) {
+        (Some(now), Some(level), Some(previous), Some(previous_level)) => {
+            now < level && previous >= previous_level
+        }
+        _ => false,
+    }
+}
+
+fn mfi_zone(value: f64) -> i8 {
+    if value < 20.0 {
+        -1
+    } else if value > 80.0 {
+        1
+    } else {
+        0
+    }
+}
+
+fn flow_events(
+    candles: &[Candle],
+    extended: &ExtendedReadings,
+    config: &ExtendedEventConfig,
+    bar: usize,
+    events: &mut Vec<EventRecord>,
+) {
+    let timeframe = config.timeframe_secs();
+    let close = candles[bar].close();
+    let direction = (close - candles[bar].open()).signum() as i8;
+    if cross_up_series(&extended.obv, &extended.obv_ma, bar) {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            OBV_SOURCE_CODE,
+            timeframe,
+            bar,
+            1,
+            extended.obv.get(bar),
+            extended.obv_ma.get(bar),
+        );
+    } else if cross_down_series(&extended.obv, &extended.obv_ma, bar) {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            OBV_SOURCE_CODE,
+            timeframe,
+            bar,
+            -1,
+            extended.obv.get(bar),
+            extended.obv_ma.get(bar),
+        );
+    }
+    if bar > 0
+        && let (Some(slope), Some(previous)) =
+            (extended.obv_slope.get(bar), extended.obv_slope.get(bar - 1))
+        && slope.signum() != previous.signum()
+    {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            OBV_SOURCE_CODE,
+            timeframe,
+            bar,
+            if slope > 0.0 { 1 } else { -1 },
+            Some(slope),
+            Some(0.0),
+        );
+    }
+    if cross_up_value(&extended.cmf, bar, 0.0) {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            CMF_SOURCE_CODE,
+            timeframe,
+            bar,
+            direction,
+            extended.cmf.get(bar),
+            Some(0.0),
+        );
+    } else if cross_down_value(&extended.cmf, bar, 0.0) {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            CMF_SOURCE_CODE,
+            timeframe,
+            bar,
+            -direction,
+            extended.cmf.get(bar),
+            Some(0.0),
+        );
+    }
+    if cross_up_value(&extended.cmf, bar, 0.2) {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            CMF_SOURCE_CODE,
+            timeframe,
+            bar,
+            1,
+            extended.cmf.get(bar),
+            Some(0.2),
+        );
+    } else if cross_down_value(&extended.cmf, bar, -0.2) {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            CMF_SOURCE_CODE,
+            timeframe,
+            bar,
+            -1,
+            extended.cmf.get(bar),
+            Some(-0.2),
+        );
+    }
+    for level in [20.0, 50.0, 80.0] {
+        if cross_up_value(&extended.mfi, bar, level) {
+            push(
+                events,
+                EventType::Signal,
+                15,
+                MFI_SOURCE_CODE,
+                timeframe,
+                bar,
+                1,
+                extended.mfi.get(bar),
+                Some(level),
+            );
+        } else if cross_down_value(&extended.mfi, bar, level) {
+            push(
+                events,
+                EventType::Signal,
+                15,
+                MFI_SOURCE_CODE,
+                timeframe,
+                bar,
+                -1,
+                extended.mfi.get(bar),
+                Some(level),
+            );
+        }
+    }
+    if bar > 0
+        && let (Some(current), Some(previous)) = (extended.mfi.get(bar), extended.mfi.get(bar - 1))
+    {
+        let current_zone = mfi_zone(current);
+        let previous_zone = mfi_zone(previous);
+        if current_zone != previous_zone {
+            push(
+                events,
+                EventType::Signal,
+                15,
+                MFI_SOURCE_CODE,
+                timeframe,
+                bar,
+                current_zone,
+                Some(current),
+                Some(previous),
+            );
+        }
+    }
+    if cross_up_series(&extended.ad_line, &extended.ad_ma, bar) {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            AD_SOURCE_CODE,
+            timeframe,
+            bar,
+            1,
+            extended.ad_line.get(bar),
+            extended.ad_ma.get(bar),
+        );
+    } else if cross_down_series(&extended.ad_line, &extended.ad_ma, bar) {
+        push(
+            events,
+            EventType::Signal,
+            15,
+            AD_SOURCE_CODE,
+            timeframe,
+            bar,
+            -1,
+            extended.ad_line.get(bar),
+            extended.ad_ma.get(bar),
+        );
+    }
+}
+
+fn flow_divergences(
+    readings: &Readings,
+    extended: &ExtendedReadings,
+    config: &ExtendedEventConfig,
+    events: &mut Vec<EventRecord>,
+) {
+    for (source, series, hidden) in [
+        (OBV_SOURCE_CODE, &extended.obv, true),
+        (CMF_SOURCE_CODE, &extended.cmf, true),
+        (MFI_SOURCE_CODE, &extended.mfi, true),
+        (AD_SOURCE_CODE, &extended.ad_line, false),
+    ] {
+        let mut previous_high: Option<(f64, f64, usize, usize)> = None;
+        let mut previous_low: Option<(f64, f64, usize, usize)> = None;
+        for pivot in readings.pivots.all_confirmed(PivotScale::Major) {
+            let Some(value) = series.get(pivot.occurred_at) else {
+                continue;
+            };
+            let state = (pivot.price, value, pivot.occurred_at, pivot.available_at);
+            let previous = match pivot.kind {
+                PivotKind::High => previous_high.replace(state),
+                PivotKind::Low => previous_low.replace(state),
+            };
+            let Some(previous) = previous else { continue };
+            let (subtype, direction) = match pivot.kind {
+                PivotKind::Low if pivot.price < previous.0 && value > previous.1 => (1, 1),
+                PivotKind::High if pivot.price > previous.0 && value < previous.1 => (2, -1),
+                PivotKind::Low if hidden && pivot.price > previous.0 && value < previous.1 => {
+                    (3, 1)
+                }
+                PivotKind::High if hidden && pivot.price < previous.0 && value > previous.1 => {
+                    (4, -1)
+                }
+                _ => continue,
+            };
+            events.push(EventRecord {
+                event_type: EventType::Divergence,
+                event_subtype_code: subtype,
+                source_code: source,
+                timeframe_secs: config.timeframe_secs(),
+                occurred_bar_index: state.2,
+                available_bar_index: state.3,
+                direction_code: direction,
+                reference_code: None,
+                primary_value: Some(state.0),
+                reference_value: Some(value),
+            });
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{ExtendedEventConfig, ExtendedEventSeries};
@@ -968,5 +1238,49 @@ mod tests {
         assert!(events.events().iter().any(|event| {
             event.source_code == 22 && event.event_subtype_code == 12 && event.direction_code == 1
         }));
+    }
+
+    #[test]
+    fn an_obv_cross_is_a_flow_event() {
+        let mut candles: Vec<Candle> = (0..30)
+            .map(|index| {
+                let up = index % 2 == 0;
+                candle(
+                    index,
+                    100.0,
+                    101.0,
+                    99.0,
+                    if up { 100.5 } else { 99.5 },
+                    10.0,
+                )
+            })
+            .collect();
+        candles[29] = candle(29, 100.0, 102.0, 100.0, 101.5, 100.0);
+        let events = compute(&candles);
+        assert!(
+            events
+                .events()
+                .iter()
+                .any(|event| event.source_code == 24 && event.event_subtype_code == 15)
+        );
+    }
+
+    #[test]
+    fn a_cmf_zero_cross_is_a_flow_event() {
+        let mut candles: Vec<Candle> = Vec::new();
+        for index in 0..30 {
+            if index < 15 {
+                candles.push(candle(index, 101.0, 101.0, 99.0, 99.0, 10.0));
+            } else {
+                candles.push(candle(index, 99.0, 101.0, 99.0, 101.0, 10.0));
+            }
+        }
+        let events = compute(&candles);
+        assert!(
+            events
+                .events()
+                .iter()
+                .any(|event| event.source_code == 25 && event.event_subtype_code == 15)
+        );
     }
 }
