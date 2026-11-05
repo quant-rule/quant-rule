@@ -22,16 +22,16 @@ commit or from the commit immediately before its deletion.
 
 | Fate | Files | Meaning |
 |---|---:|---|
-| `delete` | 119 | Removed from the working surface in P3/P4 |
+| `delete` | 126 | Removed from the working surface in P3/P4 |
 | `move` | 5 | Retained logic moves to a flat module or the M1.0 contract |
-| `rewrite` | 36 | Retained surface is rewritten for the flat model or the surviving commands |
-| `decide` | 154 | Blocked by D2/D4; keep is recommended for the accepted M1.0 evidence |
-| `keep` | 1 | `report/flat.rs`, the current flat projection |
+| `rewrite` | 49 | Retained surface is rewritten for the flat model or the surviving commands |
+| `decide` | 169 | Blocked by D2/D3/D4; keep is recommended for the accepted M1.0 evidence |
+| `keep` | 3 | `report/flat.rs` and the generic backtest bracket/event engines |
 
 | Class | Files |
 |---|---:|
 | Config | 172 |
-| Code | 77 |
+| Code | 114 |
 | Fixtures | 29 |
 | Tests | 14 |
 | Docs | 23 |
@@ -49,6 +49,7 @@ commit or from the commit immediately before its deletion.
 | `crates/quantrule-shell/src/command/` | 13 | `market-state`, `market-dashboard`, `market-chart`, `market-report`, `axis`, `legs`, `model-series`, `research export`, `research summary`, store, strategy, backtest, lab | Surviving shell surface |
 | `crates/quantrule-shell/src/chart/` | 8 | Old market charts and backtest diagnosis | Report model |
 | `crates/quantrule-shell/src/store/` | 14 | SQLite store | None; run evidence stays in `data/improvement` |
+| `crates/quantrule-shell/src/` | 7 | Dashboard/state/series/lab/diagnosis renderers | Report model / flat events |
 | `crates/quantrule-shell/tests/` | 34 | 11 old-command tests and 23 fixtures | Surviving shell tests |
 | `config/v5-swing/` | 1 | Old programme config | Current programme configs |
 | `docs/model/` | 6 | Old axis, dashboard, report, per-timeframe, evidence-protocol, and v3 contracts | M1.0 and current model contracts |
@@ -66,6 +67,11 @@ replacement, and `8acf857` recovery commit.
 | `crates/quantrule-model/src/report/{mod,tests}.rs` | rewrite | Flat report module and tests |
 | `docs/model/2026-11-04/model-v4.md` | move | `docs/model/2026-11-05/model-m1.0.md` |
 | `crates/quantrule-shell/src/command/{dispatch,types,help,parse,tests}.rs` | rewrite | Surviving command surface |
+| `crates/quantrule-shell/src/{chart/mod,pipeline,export,labels}.rs` | rewrite | Surviving shell modules |
+| `crates/quantrule-shell/src/render_report/**` | rewrite | Current report bundle |
+| `crates/quantrule-shell/src/command/report_run/**` | rewrite | Current report bundle |
+| `crates/quantrule-shell/src/command/help/topics.rs` | rewrite | Surviving help topics |
+| `crates/quantrule-model/src/lib.rs` | rewrite | Flat model module surface |
 | `crates/quantrule-shell/tests/{cli,architecture,report_command}.rs` | rewrite | Surviving shell tests |
 | `crates/quantrule-shell/tests/fixtures/{help*,config-run/strategy.json}` | rewrite | Surviving command fixtures |
 | `config/defaults/model.json` | rewrite | Current flat model schema |
@@ -86,6 +92,7 @@ remove them by accident.
 | `crates/quantrule-model/src/{panel,sessions,spec,timeframe,run,input,kernel}.rs` | Flat model and spec |
 | `crates/quantrule-model/src/report/flat.rs` | Flat report projection |
 | `crates/quantrule-backtest/src/{execution,portfolio}/**` | Execution and portfolio engines |
+| `crates/quantrule-backtest/src/strategy/{bracket,event}.rs` | Generic bracket and event-composite engines for S3.x |
 | `crates/quantrule-shell/src/{config,command,source}/**` after P3/P4 | Surviving shell surface |
 | `config/defaults/**`, `config/research/**` | Current configs |
 | `config/compression-range/**`, `config/compression-range-5m/**`, `config/compression-range-onset-5m/**` | Accepted M1.0 evidence, subject to D4 |
@@ -108,7 +115,7 @@ remove them by accident.
 |---|---|---|---|
 | D1 | P1 validation shape for context/diagnostic events | None in this manifest; blocks P1 | `signal`: predictive; `context`: descriptive construct test; `diagnostic`: construct only |
 | D2 | Current model schema: keep `quantrule.model/v4` or migrate to `model-spec/v2` | `config/model-v4/**`, `config/defaults/model.json`, `config/examples/**` | Keep v4 as the current flat model config; delete v1–v3 |
-| D3 | P3 strategy boundary: remove the axis ladder or rewrite it | `crates/quantrule-backtest/src/strategy/ladder.rs`, `context/levels.rs`; not in the delete set yet | Remove the old axis ladder; build the multi-timeframe context with S3.x |
+| D3 | P3 strategy boundary: remove the axis ladder or rewrite it | `crates/quantrule-backtest/src/{context,runner,strategy}/**`, except the generic `bracket` and `event` engines | Remove the old axis ladder; build the multi-timeframe context with S3.x |
 | D4 | Compression evidence: delete or keep | `config/compression*` | Keep as accepted M1.0 evidence; move only with a manifest |
 
 The `decide` rows in the TSV are blocked by D2/D4. They are not authorized for

@@ -242,11 +242,11 @@ deletion.
 
 ## 10. P0.1 execution record
 
-- 2026-11-05: the plan of record, the exact 315-path manifest, the manifest
+- 2026-11-05: the plan of record, the exact 352-path manifest, the manifest
   summary, the AI transparency log, and the index links were added.
 - `python3 tools/check_links.py`: 544 Markdown files; no broken relative links.
 - `python3 tools/check_terms.py`: 340 files; no banned terms.
 - `python3 tools/check_registry.py`: 46 indicators, 143 events, 110 parameters.
-- Manifest totals: 119 delete, 5 move, 36 rewrite, 154 decide, 1 keep.
+- Manifest totals: 126 delete, 5 move, 49 rewrite, 169 decide, 3 keep.
 - No code, test, config, fixture, or model behavior was changed.
 - P1 is blocked by D1; P2 by D2; P3 by D3; P4 by D4.
