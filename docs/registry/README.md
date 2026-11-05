@@ -29,6 +29,7 @@ docs/registry/
   indicators.json    indicators, events, parameters, and codes
   validation.json    one validation claim per active indicator and event
   indicators.md      generated human-readable table
+  history.md         current-vs-history boundary and deletion inventory
 ```
 
 `indicators.json` is the source of truth. `indicators.md` is generated from it
