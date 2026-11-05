@@ -569,9 +569,7 @@ impl Strategy for LadderContextStrategy {
                         }),
                         None => Decision::Hold,
                     },
-                    StrategyMode::EventComposite(_)
-                    | StrategyMode::CompressionBreakout(_)
-                    | StrategyMode::CompressionBracket(_) => Decision::Hold,
+                    StrategyMode::EventComposite(_) => Decision::Hold,
                 }
             }
             Some(open) => {
@@ -581,9 +579,7 @@ impl Strategy for LadderContextStrategy {
                     | StrategyMode::ThreeTimeframe(_)
                     | StrategyMode::Breakout(_)
                     | StrategyMode::LevelFade(_) => self.level_exit_reason(input, context, open),
-                    StrategyMode::EventComposite(_)
-                    | StrategyMode::CompressionBreakout(_)
-                    | StrategyMode::CompressionBracket(_) => None,
+                    StrategyMode::EventComposite(_) => None,
                 };
                 match reason {
                     Some(reason) => Decision::Exit(Exit {

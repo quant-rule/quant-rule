@@ -21,8 +21,6 @@ mod portfolio;
 mod read;
 mod run;
 mod strategy;
-mod strategy_v10;
-mod strategy_v9;
 
 #[cfg(test)]
 mod tests;

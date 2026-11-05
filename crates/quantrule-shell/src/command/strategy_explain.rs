@@ -134,61 +134,6 @@ pub(crate) fn run_strategy_explain(
         .map_err(RunError::Output)?;
         return Ok(());
     }
-    if let Some(bracket) = engine.compression_bracket() {
-        writeln!(writer, "strategy compression-bracket").map_err(RunError::Output)?;
-        writeln!(writer, "execution {execution}").map_err(RunError::Output)?;
-        writeln!(writer, "context {context}").map_err(RunError::Output)?;
-        writeln!(writer, "thesis {}", strategy.thesis).map_err(RunError::Output)?;
-        writeln!(
-            writer,
-            "event timeframe={} type={} subtype={} source={}",
-            labels::timeframe_label(bracket.event_timeframe_secs()),
-            bracket.event_type(),
-            bracket.event_subtype(),
-            bracket.event_source()
-        )
-        .map_err(RunError::Output)?;
-        writeln!(writer, "entry_valid_bars {}", bracket.entry_valid_bars())
-            .map_err(RunError::Output)?;
-        writeln!(writer, "time_stop_bars {}", bracket.time_stop_bars())
-            .map_err(RunError::Output)?;
-        let risk = engine.risk().unwrap_or_default();
-        writeln!(
-            writer,
-            "risk stop_atr={} reward_to_risk={}",
-            risk.stop_atr_multiple(),
-            risk.reward_to_risk()
-        )
-        .map_err(RunError::Output)?;
-        return Ok(());
-    }
-    if let Some(compression) = engine.compression_breakout() {
-        writeln!(writer, "strategy compression-breakout").map_err(RunError::Output)?;
-        writeln!(writer, "execution {execution}").map_err(RunError::Output)?;
-        writeln!(writer, "context {context}").map_err(RunError::Output)?;
-        writeln!(writer, "thesis {}", strategy.thesis).map_err(RunError::Output)?;
-        writeln!(
-            writer,
-            "event timeframe={} type={} subtype={} source={}",
-            labels::timeframe_label(compression.event_timeframe_secs()),
-            compression.event_type(),
-            compression.event_subtype(),
-            compression.event_source()
-        )
-        .map_err(RunError::Output)?;
-        writeln!(writer, "window_bars {}", compression.window_bars()).map_err(RunError::Output)?;
-        writeln!(writer, "time_stop_bars {}", compression.time_stop_bars())
-            .map_err(RunError::Output)?;
-        let risk = engine.risk().unwrap_or_default();
-        writeln!(
-            writer,
-            "risk stop_atr={} reward_to_risk={}",
-            risk.stop_atr_multiple(),
-            risk.reward_to_risk()
-        )
-        .map_err(RunError::Output)?;
-        return Ok(());
-    }
     if let Some(level) = engine.level() {
         let mut exits = Vec::new();
         if engine.exit().on_context_lost() {
@@ -209,8 +154,6 @@ pub(crate) fn run_strategy_explain(
             StrategyMode::LevelFade(_) => ("level-fade", None),
             StrategyMode::LadderContext => ("ladder-context", None),
             StrategyMode::EventComposite(_) => ("event-composite", None),
-            StrategyMode::CompressionBreakout(_) => ("compression-breakout", None),
-            StrategyMode::CompressionBracket(_) => ("compression-bracket", None),
         };
         return write_level_explain(
             writer,

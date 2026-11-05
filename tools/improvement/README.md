@@ -13,7 +13,6 @@ shell still runs the backtest.
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the published report |
 | `model_confidence.py --source CSV --timeframe TF` | Axis hit rates and ordered buckets from `model-series` |
 | `model_prediction.py --bundle NAME=DIR ...` | Forward/barrier model-prediction evaluation with base rate, controls, and grade |
-| `strategy_compare.py <run-root>` | Compare the portfolio reports of v3-v6 cells that exist |
 | `cleanup.py --check` | Report retired terms and legacy run paths |
 | `common.py` | Shared schema, JSON, UTC, path, and process helpers |
 
@@ -93,13 +92,6 @@ never joined across. Direction and momentum report coverage, evaluated bars,
 hits, hit rate, and `p - 1.96 * sqrt(p * (1 - p) / n)`. Structure codes and
 progression stages report ordered buckets with counts, mean axis value, and mean
 forward return. `--format csv` emits one tidy row per statistic.
-
-## Strategy comparison
-
-`strategy_compare.py` scans `<run-root>/<cell>/portfolio/report.json` for cell
-names `v3`, `v4`, `v5`, `v6` or names beginning `v3-`, `v4-`, and so on. Only
-present cells become rows. The JSON output lists versions with no cell under
-`missing`.
 
 ## Term check
 

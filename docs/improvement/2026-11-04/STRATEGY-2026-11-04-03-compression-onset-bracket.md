@@ -7,7 +7,7 @@
 - Partition: `strategy_dev` (2018-01-01..2022-12-31)
 - Code commit: `2c85b41` plus the 381 working tree
 - Manifest: `data/improvement/2026-11-04/STRATEGY-2026-11-04-03/manifest.json`
-- Contract: [`docs/config/2026-11-04/strategy-v10-compression-bracket-onset-5m.md`](../../config/2026-11-04/strategy-v10-compression-bracket-onset-5m.md)
+- Contract: removed in #463; this record is the durable evidence
 - Local artifacts: `data/improvement/2026-11-04/STRATEGY-2026-11-04-03/artifacts/`
   and the fifteen one-year bundles under
   `data/compression-bracket-onset-5m/dev/`

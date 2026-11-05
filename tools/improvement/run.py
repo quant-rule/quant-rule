@@ -69,7 +69,6 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
             "compression-validation",
             "range-validation",
             "barrier-path",
-            "strategy-matrix",
         ),
         default="backtest",
         help="run command (default: backtest)",
@@ -277,7 +276,6 @@ def main(argv: list[str] | None = None) -> int:
         shell = resolve_shell(args.qr) if args.command == "backtest" else None
         path_config = manifest.get("path_validation")
         compression_config = manifest.get("compression_validation")
-        strategy_matrix = manifest.get("strategy_matrix")
         range_config = manifest.get("range_validation")
         barrier_config = manifest.get("barrier_path")
         if args.command == "path-validation":
@@ -289,10 +287,6 @@ def main(argv: list[str] | None = None) -> int:
         ):
             raise ToolError(
                 "compression_validation: an object is required for compression-validation"
-            )
-        if args.command == "strategy-matrix" and not isinstance(strategy_matrix, dict):
-            raise ToolError(
-                "strategy_matrix: an object is required for strategy-matrix"
             )
         if args.command == "range-validation" and not isinstance(range_config, dict):
             raise ToolError(
@@ -430,28 +424,6 @@ def main(argv: list[str] | None = None) -> int:
             "--seed",
             str(range_config.get("seed", 0)),
         ]
-    else:
-        assert isinstance(strategy_matrix, dict)
-        command = [
-            "python3",
-            str(REPO_ROOT / "tools/improvement/strategy_v9_evaluate.py"),
-            "--matrix",
-            str(config_path),
-            "--out",
-            str(root / "artifacts"),
-            "--max-drawdown",
-            str(strategy_matrix.get("max_drawdown", 0.10)),
-            "--min-trades",
-            str(strategy_matrix.get("min_trades", 30)),
-            "--min-profit-factor",
-            str(strategy_matrix.get("min_profit_factor", 1.0)),
-            "--title",
-            str(strategy_matrix.get("title", "Strategy v9 — 1m Compression Breakout")),
-            "--name",
-            str(strategy_matrix.get("name", "strategy_v9")),
-        ]
-        if strategy_matrix.get("require_no_halt"):
-            command.append("--require-no-halt")
     try:
         process = run_process(command, REPO_ROOT)
     except ToolError as error:

@@ -7,7 +7,7 @@
 - Partition: `strategy_dev` (2018-01-01..2022-12-31)
 - Code commit: `8e8a481` plus the 377 working tree
 - Manifest: `data/improvement/2026-11-04/STRATEGY-2026-11-04-02/manifest.json`
-- Contract: [`docs/config/2026-11-04/strategy-v10-compression-bracket.md`](../../config/2026-11-04/strategy-v10-compression-bracket.md)
+- Contract: removed in #463; this record is the durable evidence
 - Local artifacts: `data/improvement/2026-11-04/STRATEGY-2026-11-04-02/artifacts/`
   and the fifteen one-year bundles under `data/compression-bracket/dev/`
 - Verdict: **no edge — every fold halted at the 10% drawdown limit**

@@ -4,7 +4,7 @@
 - Status: **Approved by the human's instruction to complete the model and strategy**
 - Issue: [#349](https://github.com/quant-rule/quant-rule/issues/349)
 - Epic: [#342](https://github.com/quant-rule/quant-rule/issues/342)
-- Contract: [`docs/config/2026-11-03/strategy-v8.md`](../../config/2026-11-03/strategy-v8.md)
+- Contract: removed in #463; this plan is the durable record
 - AI transparency log:
   [`docs/ai-transparency-log/2026-11-03/349-strategy-v8.md`](../../ai-transparency-log/2026-11-03/349-strategy-v8.md)
 

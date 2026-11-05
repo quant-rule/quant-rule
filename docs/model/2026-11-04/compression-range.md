@@ -106,7 +106,7 @@ validation failure is `development_only` and stops the program.
 The model publishes numbers only. The bracket strategy reads the published range
 values and the bar identity; it does not recompute the range, read a statistic,
 or read a future bar. The strategy protocol is
-[`docs/config/2026-11-04/strategy-v10-compression-bracket.md`](../../config/2026-11-04/strategy-v10-compression-bracket.md).
+The strategy contract was removed in #463; the historical decision is [STRATEGY-BRACKET-GATE.md](../../improvement/2026-11-04/STRATEGY-BRACKET-GATE.md).
 
 ## 10. Boundaries and limitations
 

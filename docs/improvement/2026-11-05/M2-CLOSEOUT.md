@@ -2,7 +2,7 @@
 
 - Date: 2026-11-05 (UTC)
 - Status: **Records complete**; `no_edge` recorded; checklist signed; legacy
-  removal delegated to [#463](https://github.com/quant-rule/quant-rule/issues/463);
+  removal delivered in [#463](https://github.com/quant-rule/quant-rule/issues/463);
   P5-F1 remains open
 - Plan: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Charter: [`docs/governance/2026-11-05/M2-CHARTER.md`](../../governance/2026-11-05/M2-CHARTER.md)
@@ -96,13 +96,12 @@ removal with its own plan and reference check. P7 closes the records, audit, and
 checklist; #410 closes after #430. The removal is a separate follow-up, not a
 condition of the `no_edge` closeout.
 
-## 6. Open follow-ups
+## 6. Follow-ups and closure
 
-| Finding | Impact | Recommended route |
+| Finding | Impact | Status |
 |---|---|---|
-| P5-F1 | Runtime emission is 101/106 codes and 138/143 event IDs; two compact-state events have no emitter and three compression events are disabled by default | New audit/remediation issue; do not change a spec post-hoc |
-| F-02 | Checklist is `tested`, not `verified` | Human/Quant Validator signature |
-| Legacy inventory | Old strategy configs, docs, and parsers remain; history is already mapped | [#463](https://github.com/quant-rule/quant-rule/issues/463) |
+| P5-F1 | Runtime emission is 101/106 codes and 138/143 event IDs; two compact-state events have no emitter and three compression events are disabled by default | Open; needs an audit/remediation route |
+| Legacy inventory | Removed in [#463](https://github.com/quant-rule/quant-rule/issues/463); history records and shared engines kept | Closed |
 
 ## 7. Board and next gates
 
@@ -110,9 +109,9 @@ condition of the `no_edge` closeout.
 |---|---|
 | #428 P5 development swarm | Closed; board Done |
 | #429 P6 validation | Closed as not applicable; no candidate |
-| #430 P7 closeout | Records complete; PR pending |
-| #410 M2.x programme | In Progress; closes after #430 |
-| #405 indicator platform | Checklist signed; closes after #410 |
+| #430 P7 closeout | Merged in #464 |
+| #410 M2.x programme | Closed and Done |
+| #405 indicator platform | Closed and Done |
+| #463 legacy removal | Delivered in #463 |
 
-The next gate is the P7 commit and PR. No legacy path is deleted; the removal
-is [#463](https://github.com/quant-rule/quant-rule/issues/463).
+The next gate is the #463 pull request. P5-F1 remains the only open finding.

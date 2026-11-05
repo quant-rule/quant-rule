@@ -57,7 +57,9 @@ renumbered, and `S2.x` remains closed.
 The alias column is a mapping, not a rewrite. Historical files, configs, run
 records, AI transparency logs, audits, plans, and reports keep their original
 names. A reader resolves an old name through this table. New artifacts use the
-new ID.
+new ID. The `S1.x` strategy-specific configs, contract docs, parsers, and tools
+were removed in [#463](https://github.com/quant-rule/quant-rule/issues/463); the
+history records and shared engines remain.
 
 ## 4. Naming rules
 
