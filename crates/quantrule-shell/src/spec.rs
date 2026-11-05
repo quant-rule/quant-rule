@@ -1,9 +1,8 @@
-//! The `quantrule.model-spec/v1` JSON parser.
+//! The `quantrule.model-spec` JSON parsers.
 //!
 //! The shell owns JSON parsing; the model owns the resolved spec and its
-//! evaluator. The parser resolves registry event identifiers to their numeric
-//! type, subtype, and source codes and builds a [`ModelSpec`], then runs the
-//! model's validation.
+//! evaluators. The v1 parser and the v2 parser share one embedded registry so
+//! an event identifier resolves to the same numeric codes in both schemas.
 //!
 //! The registry is embedded at compile time so the parser and the model cannot
 //! drift apart without a rebuild, and a spec run records the registry version
@@ -13,10 +12,13 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use quantrule_model::events::EventType;
+use quantrule_model::spec::v2::SpecEventRole;
 use quantrule_model::spec::{
     ModelSpec, SPEC_SCHEMA, SpecCondition, SpecEvent, SpecExpression, SpecState, SpecStateField,
 };
 use serde_json::{Map, Value};
+
+pub(crate) mod v2;
 
 const REGISTRY_JSON: &str = include_str!("../../../docs/registry/indicators.json");
 
@@ -27,7 +29,7 @@ pub struct SpecParseError {
 }
 
 impl SpecParseError {
-    fn new(message: impl Into<String>) -> Self {
+    pub(crate) fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
         }
@@ -43,10 +45,27 @@ impl fmt::Display for SpecParseError {
 impl std::error::Error for SpecParseError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct EventCode {
-    event_type: EventType,
-    subtype: u8,
-    source: u16,
+pub(crate) struct EventCode {
+    pub(crate) event_type: EventType,
+    pub(crate) subtype: u8,
+    pub(crate) source: u16,
+    pub(crate) role: SpecEventRole,
+}
+
+/// Reads the schema field without validating the rest of the document.
+///
+/// The report command uses this to dispatch to the v1 or v2 parser with one
+/// error shape. A malformed document is rejected here.
+///
+/// # Errors
+///
+/// Returns a [`SpecParseError`] when the JSON is malformed, the root is not an
+/// object, or the schema field is missing or not a string.
+pub(crate) fn schema_of(text: &str) -> Result<String, SpecParseError> {
+    let value: Value = serde_json::from_str(text)
+        .map_err(|error| SpecParseError::new(format!("invalid JSON: {error}")))?;
+    let object = as_object(&value, "the spec")?;
+    Ok(as_str(field(object, "schema", "the spec")?, "the spec schema")?.to_string())
 }
 
 /// Parses and validates a `quantrule.model-spec/v1` document.
@@ -109,7 +128,10 @@ pub fn parse_model_spec(text: &str) -> Result<ModelSpec, SpecParseError> {
     Ok(spec)
 }
 
-fn parse_condition(value: &Value, registry: &Registry) -> Result<SpecCondition, SpecParseError> {
+pub(crate) fn parse_condition(
+    value: &Value,
+    registry: &Registry,
+) -> Result<SpecCondition, SpecParseError> {
     let object = as_object(value, "a condition")?;
     allow_only(object, &["id", "when"], "a condition")?;
     let id = as_str(field(object, "id", "a condition")?, "a condition id")?.to_string();
@@ -240,12 +262,12 @@ fn state_field(name: &str) -> Option<SpecStateField> {
     }
 }
 
-struct Registry {
-    events: BTreeMap<String, EventCode>,
+pub(crate) struct Registry {
+    pub(crate) events: BTreeMap<String, EventCode>,
 }
 
 impl Registry {
-    fn load() -> Result<Self, SpecParseError> {
+    pub(crate) fn load() -> Result<Self, SpecParseError> {
         let value: Value = serde_json::from_str(REGISTRY_JSON)
             .map_err(|error| SpecParseError::new(format!("invalid embedded registry: {error}")))?;
         let object = as_object(&value, "the registry")?;
@@ -284,12 +306,27 @@ impl Registry {
             let source = u16::try_from(source).map_err(|_| {
                 SpecParseError::new(format!("the registry event {id} has a bad source"))
             })?;
+            let role = as_str(
+                field(event, "role", "a registry event")?,
+                "a registry event role",
+            )?;
+            let role = match role {
+                "signal" => SpecEventRole::Signal,
+                "context" => SpecEventRole::Context,
+                "diagnostic" => SpecEventRole::Diagnostic,
+                other => {
+                    return Err(SpecParseError::new(format!(
+                        "the registry event {id} has the unknown role {other}"
+                    )));
+                }
+            };
             map.insert(
                 id.to_string(),
                 EventCode {
                     event_type,
                     subtype,
                     source,
+                    role,
                 },
             );
         }
@@ -297,7 +334,7 @@ impl Registry {
     }
 }
 
-fn field<'a>(
+pub(crate) fn field<'a>(
     object: &'a Map<String, Value>,
     name: &str,
     context: &str,
@@ -307,7 +344,7 @@ fn field<'a>(
         .ok_or_else(|| SpecParseError::new(format!("{context} is missing {name}")))
 }
 
-fn as_object<'a>(
+pub(crate) fn as_object<'a>(
     value: &'a Value,
     context: &str,
 ) -> Result<&'a Map<String, Value>, SpecParseError> {
@@ -316,31 +353,34 @@ fn as_object<'a>(
         .ok_or_else(|| SpecParseError::new(format!("{context} must be an object")))
 }
 
-fn as_array<'a>(value: &'a Value, context: &str) -> Result<&'a Vec<Value>, SpecParseError> {
+pub(crate) fn as_array<'a>(
+    value: &'a Value,
+    context: &str,
+) -> Result<&'a Vec<Value>, SpecParseError> {
     value
         .as_array()
         .ok_or_else(|| SpecParseError::new(format!("{context} must be an array")))
 }
 
-fn as_str<'a>(value: &'a Value, context: &str) -> Result<&'a str, SpecParseError> {
+pub(crate) fn as_str<'a>(value: &'a Value, context: &str) -> Result<&'a str, SpecParseError> {
     value
         .as_str()
         .ok_or_else(|| SpecParseError::new(format!("{context} must be a string")))
 }
 
-fn as_u64(value: &Value, context: &str) -> Result<u64, SpecParseError> {
+pub(crate) fn as_u64(value: &Value, context: &str) -> Result<u64, SpecParseError> {
     value
         .as_u64()
         .ok_or_else(|| SpecParseError::new(format!("{context} must be a non-negative integer")))
 }
 
-fn as_i64(value: &Value, context: &str) -> Result<i64, SpecParseError> {
+pub(crate) fn as_i64(value: &Value, context: &str) -> Result<i64, SpecParseError> {
     value
         .as_i64()
         .ok_or_else(|| SpecParseError::new(format!("{context} must be an integer")))
 }
 
-fn allow_only(
+pub(crate) fn allow_only(
     object: &Map<String, Value>,
     allowed: &[&str],
     context: &str,

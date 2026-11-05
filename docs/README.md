@@ -47,6 +47,7 @@ The baseline decision is listed in the current architecture decisions below.
 | Indicator coverage — 10 OHLCV areas | Implemented 2026-11-05: 46 indicators, 143 events, 37/37 checklist rows `tested`; `Sign` open; spec v2 pending | `docs/model/2026-11-05/indicator-coverage.md` |
 | Model and strategy families | Approved 2026-11-05; `M1.0`, `S1.1–S1.5`, `M2.1–M2.5`, `S2.1+` | `docs/model/2026-11-05/model-families.md` |
 | Model spec v1 | Implemented; condition-only; v2 adds readings, active events, prediction, panel/session | `docs/model/2026-11-05/model-spec-v1.md` |
+| Model spec v2 | Implemented (P1); reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 
 ## Current run contracts
 

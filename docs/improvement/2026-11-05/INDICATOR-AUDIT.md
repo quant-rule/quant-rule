@@ -194,12 +194,12 @@ checker must count unique IDs, not indicator references.
 |---|---|---|---|---|---|---|---|---|---|---|
 | F-01 | Major | Process | Phase 1 was not pre-registered; this audit is retrospective | 405 plan phase 1 “Not delivered”; this document | The feature screen did not gate the backlog | (a) Accept retrospective with limitation; (b) re-audit before M2; (c) waive | (a) | This document; 405 plan updated | Fixed | 410 plan, 405 plan |
 | F-02 | Major | Verification | 37/37 rows are `tested`, 0 `verified`; `Sign` open | Checklist Table B | No row is formally verified | (a) Sign now; (b) defer to P7; (c) waive | (a) | `Sign` column | Open | Checklist |
-| F-03 | Major | Spec | v1 cannot configure readings, active events, prediction, or panel/session | v1 contract; checklist rows 28–37 `Spec` ☐ | The M2 swarm cannot run from a spec | (a) v2; (b) extend v1 in place; (c) separate config | (a) | P1 acceptance tests | Planned | 410 plan P1 |
+| F-03 | Major | Spec | v1 cannot configure readings, active events, prediction, or panel/session | v1 contract; v2 closes the reading/active/prediction/panel gap | The M2 swarm cannot run from a spec | (a) v2; (b) extend v1 in place; (c) separate config | (a) | v2 parser and report tests | Fixed | [model-spec-v2.md](../../model/2026-11-05/model-spec-v2.md) |
 | F-04 | Medium | Registry | `volume_oscillator` is owned by both `rvol` and indicator 15 | `rvol.outputs` includes `volume_oscillator`; indicator 15 owns it; `participation_series` computes it | Ambiguous ownership; coverage or vote code could count it twice | (a) Remove from `rvol.outputs`; (b) merge into `rvol`; (c) leave | (a) | `check_registry.py`; registry diff | Open | Registry |
 | F-05 | Medium | Documentation | Absorption formula differs between coverage doc and registry/implementation | Coverage Area 3: `min(abs(H-L_level),abs(L-L_level))`; registry: `min(|C-VWAP|,|C-POC|)`; code uses close distance | A reader could implement the wrong formula | (a) Update coverage doc; (b) change code; (c) mark both | (a) | Doc diff; registry; code review | Fixed | Coverage, registry |
-| F-06 | Medium | Spec | Panel and session readings are not wired into the spec run | Checklist rows 28–37 `Wiring` ☐ | Ten indicators are not exercised by a spec | (a) v2 panel/session; (b) separate panel run; (c) leave out | (a) | P1 panel/session tests | Planned | 410 plan P1 |
+| F-06 | Medium | Spec | Panel and session readings are not wired into the spec run | Checklist rows 28–36 now `Wiring` and `Spec` ☑ | The ten panel/session indicators are not exercised by a spec | (a) v2 panel/session; (b) separate panel run; (c) leave out | (a) | v2 panel/session tests | Fixed | [model-spec-v2.md](../../model/2026-11-05/model-spec-v2.md) |
 | F-07 | Low | Coverage | 148 indicator event references for 143 unique events | Registry count; five shared IDs | A naive coverage check overcounts | (a) Dedupe in the checker; (b) list each event once; (c) leave | (a) | Coverage checker test | Planned | P3 |
-| F-08 | Low | Prediction | Context events with `claim: none` can be misread as directional votes | Registry roles: 71 context, 67 signal, 5 diagnostic | A vote that counts every event would double count descriptors | (a) Vote counts only `signal` events with a direction; context enters conditions; (b) count all events | (a) | P1 vote tests | Planned | P1 |
+| F-08 | Low | Prediction | Context events with `claim: none` can be misread as directional votes | Registry roles: 71 context, 67 signal, 5 diagnostic; v2 rejects a non-signal vote | A vote that counts every event would double count descriptors | (a) Vote counts only `signal` events with a direction; context enters conditions; (b) count all events | (a) | v2 role-rejection test | Fixed | [model-spec-v2.md](../../model/2026-11-05/model-spec-v2.md) |
 | F-09 | Low | Registry | `signal.profile_concentration` at 0.5 may be sparse | Formula `max(bin)/sum(V) >= 0.5` over 24 bins | The event may be inert in the development run | (a) Measure occurrence; (b) change threshold; (c) retire | (a) | P5 occurrence report | Open | Registry |
 | F-10 | Info | Scope | This audit covers 10 of 46 indicators | Scope table | The other 36 rest on the checklist and golden fixtures | (a) Expand audit; (b) accept scope | (b) | Checklist | Triaged | 405 plan |
 
@@ -258,7 +258,8 @@ becomes `verified`.
 
 **Evidence.** The v1 contract says “The v1 model run uses the default readings
 and event settings.” It has no `readings`, `active_events`, `prediction`,
-`panel`, or `session` field. Checklist rows 28–37 mark `Spec` open.
+`panel`, or `session` field. The v2 contract and parser now provide them; v1 is
+unchanged.
 
 **Impact.** The M2 swarm needs per-cell reading windows, event activation, and a
 prediction. Without v2 it cannot run as a model programme.
@@ -270,10 +271,11 @@ would break a published schema. Option (c) creates two sources of truth.
 
 **Recommended.** (a).
 
-**Verification.** P1 acceptance tests: parse, validate, override, active event,
-vote, panel/session, causality, determinism, byte-identical rerun, edge cases.
+**Verification.** v2 parser and report tests: parse, validate, override, active
+event, vote, panel/session, causality, determinism, byte-identical rerun, edge
+cases.
 
-**Status.** Planned (P1).
+**Status.** Fixed. See [`model-spec-v2.md`](../../model/2026-11-05/model-spec-v2.md).
 
 ### F-04 — `volume_oscillator` has two owners
 
@@ -328,9 +330,10 @@ agreed). The coverage document was updated in the same P0 change.
 
 ### F-06 — Panel and session are not wired into the spec
 
-**Evidence.** Checklist rows 28–37 mark `Wiring` and `Spec` open. The v1 spec has
-no panel or session field. The panel and session batches exist in the model and
-have their own tests, but a spec run cannot select them.
+**Evidence.** The v2 spec run computes session events for the evaluated
+instrument and panel events for the declared panel, merges them into the event
+view, and publishes the active projection. Checklist rows 28–36 are now
+`Wiring` and `Spec` ☑; row 37 (`calendar_bucket`) is reading-only.
 
 **Impact.** Ten indicators (relative strength, lead-lag, breadth, co-movement,
 dispersion, session, opening range, overnight/intraday, session range, calendar
@@ -344,11 +347,11 @@ leave 10 indicators untried, violating the coverage rule.
 
 **Recommended.** (a).
 
-**Verification.** P1 panel/session tests; a spec run with a four-instrument panel
-and a London session publishes the panel and session events for the evaluated
-instrument.
+**Verification.** v2 panel/session tests; a spec run with a declared panel and a
+London session publishes the panel and session events for the evaluated
+instrument, and conditions read them.
 
-**Status.** Planned (P1).
+**Status.** Fixed. See [`model-spec-v2.md`](../../model/2026-11-05/model-spec-v2.md).
 
 ### F-07 — Event references overcount unique events
 
@@ -392,11 +395,10 @@ overfitting.
 
 **Recommended.** (a).
 
-**Verification.** A vote test with one signal event and one context event
-produces `+1`/`-1` from the signal only; the context event changes a condition,
-not the score.
+**Verification.** The v2 parser rejects a context or diagnostic event in a vote
+list; a context event remains usable in a condition.
 
-**Status.** Planned (P1).
+**Status.** Fixed. See [`model-spec-v2.md`](../../model/2026-11-05/model-spec-v2.md).
 
 ### F-09 — Profile concentration may be sparse
 
@@ -456,11 +458,10 @@ worktree. The results are recorded here as observed, not projected.
 
 The top ten features are implemented, registered, and tested. The audit found
 one ownership inconsistency (F-04), one documentation mismatch now fixed (F-05),
-two contract gaps that the M2 programme must close (F-03, F-06), one coverage
-trap (F-07), one prediction-role rule (F-08), one sparse-event question (F-09),
-and the two process gaps that were already known (F-01, F-02).
+two contract gaps now closed by v2 (F-03, F-06), one coverage trap (F-07), one
+prediction-role rule now fixed (F-08), one sparse-event question (F-09), and the
+two process gaps that were already known (F-01, F-02).
 
 None of the findings is a Critical defect. F-01 is fixed as an artifact but its
-pre-registration limitation stands. F-02 remains a human/Validator action. The
-rest are routed to the M2 plan: P1 for the spec and vote rules, P3 for coverage,
-and P5 for the occurrence measurement.
+pre-registration limitation stands. F-02 remains a human/Validator action. F-03,
+F-05, F-06, and F-08 are fixed in P1. F-04, F-07, and F-09 are routed to P3/P5.

@@ -5,6 +5,7 @@
 //! retained progression legs. The module formats numbers; it computes no
 //! indicator and applies no rule.
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use quantrule_model::events::{EventRecord, EventType};
@@ -175,6 +176,77 @@ pub(super) fn events_csv(run: &ModelRun, ladder: &[u64]) -> String {
                 optional(event_completeness(event)),
             );
         }
+    }
+    csv
+}
+
+/// The v2 spec events: base, extended, session, and panel batches.
+///
+/// The active-event set filters the published rows. A row is one event record;
+/// the event index is assigned after filtering so the artifact is stable.
+pub(super) fn spec_events_csv(
+    run: &quantrule_model::spec::v2::SpecRun,
+    active: &[quantrule_model::spec::v2::SpecEventCode],
+) -> String {
+    let mut csv = String::from(
+        "timeframe_secs,event_index,event_type_code,event_subtype_code,source_code,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value,data_completeness\n",
+    );
+    let active_codes: BTreeSet<(u8, u8, u16)> = active
+        .iter()
+        .map(|event| (event.event_type.code(), event.subtype, event.source))
+        .collect();
+    let mut event_index = 0_usize;
+    for event in run.prediction_events() {
+        let key = (
+            event.event_type.code(),
+            event.event_subtype_code,
+            event.source_code,
+        );
+        if !active_codes.is_empty() && !active_codes.contains(&key) {
+            continue;
+        }
+        let _ = writeln!(
+            csv,
+            "{},{},{},{},{},{},{},{},{},{},{},{}",
+            run.evaluation_timeframe_secs(),
+            event_index,
+            event.event_type.code(),
+            event.event_subtype_code,
+            event.source_code,
+            event.occurred_bar_index,
+            event.available_bar_index,
+            event.direction_code,
+            optional(event.reference_code.map(f64::from)),
+            optional(event.primary_value),
+            optional(event.reference_value),
+            optional(event_completeness(&event)),
+        );
+        event_index += 1;
+    }
+    csv
+}
+
+/// The causal v2 prediction for the evaluation timeframe.
+pub(super) fn prediction_csv(run: &quantrule_model::spec::v2::SpecRun) -> String {
+    let mut csv = String::from("timeframe_secs,bar,timestamp,prediction,long_votes,short_votes\n");
+    let Some(timeframe) = run.base().timeframe(run.evaluation_timeframe_secs()) else {
+        return csv;
+    };
+    let prediction = run.prediction();
+    for bar in 0..prediction.len() {
+        let Some(timestamp) = timeframe.open_times().get(bar) else {
+            continue;
+        };
+        let _ = writeln!(
+            csv,
+            "{},{},{},{},{},{}",
+            run.evaluation_timeframe_secs(),
+            bar,
+            timestamp,
+            prediction.value(bar).unwrap_or_default(),
+            prediction.long_votes.get(bar).copied().unwrap_or_default(),
+            prediction.short_votes.get(bar).copied().unwrap_or_default(),
+        );
     }
     csv
 }

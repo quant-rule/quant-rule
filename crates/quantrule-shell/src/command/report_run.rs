@@ -13,10 +13,13 @@ use std::path::{Path, PathBuf};
 use quantrule_backtest::runner::BacktestRun;
 use quantrule_backtest::runner::walk_strategy;
 use quantrule_backtest::strategy::{Decision, ExitReason, Side, StrategyInput, StrategyWalk};
-use quantrule_data::{Timeframe, format_utc_timestamp};
+use quantrule_data::{Candle, Timeframe, format_utc_timestamp};
+use quantrule_model::input::MarketStateConfig;
+use quantrule_model::panel::PanelInstrument;
 use quantrule_model::readings::PivotScale;
 use quantrule_model::report::MarketReport;
 use quantrule_model::run::ModelRun;
+use quantrule_model::spec::v2::{ModelSpecV2, SpecRun};
 use quantrule_model::spec::{ModelSpec, SpecEvaluation};
 use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
@@ -164,30 +167,79 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
                         source,
                     })
                 })?;
-                let spec = crate::spec::parse_model_spec(&text)
+                let schema = crate::spec::schema_of(&text)
                     .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
-                let timeframes = spec_timeframes(&config, &spec.ladder)?;
-                let model = pipeline::run_model_with_ladder(&config, &timeframes)
-                    .map_err(|error| pipeline_error(&config, error))?;
-                let evaluation = spec
-                    .evaluate(&model)
-                    .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
+                let spec_hash = content_hash(text.as_bytes());
                 let file = spec_path
                     .file_name()
                     .and_then(|name| name.to_str())
                     .unwrap_or("spec.json")
                     .to_owned();
-                model_bundle_with_spec(
-                    &config,
-                    &out,
-                    &model,
-                    &spec.ladder,
-                    &SpecRunArtifacts {
-                        spec: &spec,
-                        evaluation: &evaluation,
-                        file,
-                    },
-                )?
+                match schema.as_str() {
+                    "quantrule.model-spec/v1" => {
+                        let spec = crate::spec::parse_model_spec(&text).map_err(|error| {
+                            RunError::Report(ReportError::Spec(error.to_string()))
+                        })?;
+                        let timeframes = spec_timeframes(&config, &spec.ladder)?;
+                        let model = pipeline::run_model_with_ladder(&config, &timeframes)
+                            .map_err(|error| pipeline_error(&config, error))?;
+                        let evaluation = spec.evaluate(&model).map_err(|error| {
+                            RunError::Report(ReportError::Spec(error.to_string()))
+                        })?;
+                        model_bundle_with_spec(
+                            &config,
+                            &out,
+                            &model,
+                            &spec.ladder,
+                            &config.model,
+                            &SpecRunArtifacts::V1 {
+                                spec: &spec,
+                                evaluation: &evaluation,
+                                file,
+                                hash: spec_hash,
+                            },
+                        )?
+                    }
+                    "quantrule.model-spec/v2" => {
+                        let parsed =
+                            crate::spec::v2::parse_model_spec_v2(&text).map_err(|error| {
+                                RunError::Report(ReportError::Spec(error.to_string()))
+                            })?;
+                        let timeframes = spec_timeframes(&config, &parsed.spec.timeframes)?;
+                        let mut spec_config = config.clone();
+                        spec_config.model = parsed.spec.readings;
+                        let model = pipeline::run_model_with_ladder(&spec_config, &timeframes)
+                            .map_err(|error| pipeline_error(&config, error))?;
+                        let panel_series =
+                            load_panel_series(&config, spec_path, &parsed, &model, timeframes[0])?;
+                        let panel: Vec<PanelInstrument<'_>> = panel_series
+                            .iter()
+                            .map(|(name, candles)| PanelInstrument { name, candles })
+                            .collect();
+                        let run =
+                            SpecRun::compute(&parsed.spec, model, &panel).map_err(|error| {
+                                RunError::Report(ReportError::Spec(error.to_string()))
+                            })?;
+                        model_bundle_with_spec(
+                            &config,
+                            &out,
+                            run.base(),
+                            &parsed.spec.timeframes,
+                            &parsed.spec.readings,
+                            &SpecRunArtifacts::V2 {
+                                spec: &parsed.spec,
+                                run: &run,
+                                file,
+                                hash: spec_hash,
+                            },
+                        )?
+                    }
+                    other => {
+                        return Err(RunError::Report(ReportError::Spec(format!(
+                            "the schema {other} is not quantrule.model-spec/v1 or /v2"
+                        ))));
+                    }
+                }
             } else {
                 let model = load_model(&config)?;
                 model_bundle_from(&config, &out, &model)?
@@ -239,17 +291,33 @@ pub(super) fn model_bundle_from(
     model_run: &ModelRun,
 ) -> Result<BundleOutput, RunError> {
     let ladder = pipeline::ladder_secs_for(&config.data.available_timeframes);
-    model_bundle_with(config, out, model_run, &ladder, None)
+    model_bundle_with(config, out, model_run, &ladder, &config.model, None)
 }
 
-/// The spec identity and evaluated conditions a spec run publishes.
-pub(super) struct SpecRunArtifacts<'a> {
-    /// The parsed and validated spec.
-    pub(super) spec: &'a ModelSpec,
-    /// The per-condition evaluation.
-    pub(super) evaluation: &'a SpecEvaluation,
-    /// The spec file name as written.
-    pub(super) file: String,
+/// The spec artifacts a model bundle publishes.
+pub(super) enum SpecRunArtifacts<'a> {
+    /// v1 conditions only.
+    V1 {
+        /// The parsed v1 spec.
+        spec: &'a ModelSpec,
+        /// The per-condition evaluation.
+        evaluation: &'a SpecEvaluation,
+        /// The spec file name as written.
+        file: String,
+        /// The spec content fingerprint.
+        hash: String,
+    },
+    /// v2 prediction and optional conditions.
+    V2 {
+        /// The parsed v2 spec.
+        spec: &'a ModelSpecV2,
+        /// The completed v2 run.
+        run: &'a SpecRun,
+        /// The spec file name as written.
+        file: String,
+        /// The spec content fingerprint.
+        hash: String,
+    },
 }
 
 /// Writes the model bundle for a spec run.
@@ -262,9 +330,10 @@ pub(super) fn model_bundle_with_spec(
     out: &Path,
     model_run: &ModelRun,
     ladder: &[u64],
+    effective_model: &MarketStateConfig,
     spec: &SpecRunArtifacts<'_>,
 ) -> Result<BundleOutput, RunError> {
-    model_bundle_with(config, out, model_run, ladder, Some(spec))
+    model_bundle_with(config, out, model_run, ladder, effective_model, Some(spec))
 }
 
 fn model_bundle_with(
@@ -272,6 +341,7 @@ fn model_bundle_with(
     out: &Path,
     model_run: &ModelRun,
     ladder: &[u64],
+    effective_model: &MarketStateConfig,
     spec: Option<&SpecRunArtifacts<'_>>,
 ) -> Result<BundleOutput, RunError> {
     let bundle = out.join("model");
@@ -300,16 +370,32 @@ fn model_bundle_with(
         &config.data.data_version,
         config.data.from.as_deref(),
         config.data.to.as_deref(),
-        &crate::config::effective_json(&config.model),
+        &crate::config::effective_json(effective_model),
     )
     .map_err(RunError::Output)?;
     let price = chart::render_report_price_axes_png(&report.charts).map_err(RunError::Chart)?;
     let events = chart::render_report_events_png(&report.charts).map_err(RunError::Chart)?;
     let readings_csv = model_artifacts::readings_csv(model_run, ladder);
-    let events_csv = model_artifacts::events_csv(model_run, ladder);
+    let events_csv = match spec {
+        Some(SpecRunArtifacts::V2 { run, .. }) => {
+            model_artifacts::spec_events_csv(run, run.active_events())
+        }
+        _ => model_artifacts::events_csv(model_run, ladder),
+    };
     let levels_csv = model_artifacts::levels_csv(model_run, ladder);
-    let conditions_csv =
-        spec.map(|spec| model_artifacts::conditions_csv(spec.evaluation, model_run));
+    let conditions_csv = match spec {
+        Some(SpecRunArtifacts::V1 { evaluation, .. }) => {
+            Some(model_artifacts::conditions_csv(evaluation, model_run))
+        }
+        Some(SpecRunArtifacts::V2 { run, .. }) => run
+            .conditions()
+            .map(|evaluation| model_artifacts::conditions_csv(evaluation, model_run)),
+        None => None,
+    };
+    let prediction_csv = match spec {
+        Some(SpecRunArtifacts::V2 { run, .. }) => Some(model_artifacts::prediction_csv(run)),
+        _ => None,
+    };
     let legs_csv = model_artifacts::legs_csv(model_run, ladder);
 
     let mut name_list = vec![
@@ -324,12 +410,28 @@ fn model_bundle_with(
         "legs.csv",
         "provenance.json",
     ];
-    if spec.is_some() {
-        name_list.insert(8, "conditions.csv");
+    if conditions_csv.is_some() {
+        name_list.push("conditions.csv");
+    }
+    if prediction_csv.is_some() {
+        name_list.push("prediction.csv");
     }
     let names = artifact_names(&name_list);
     let files = config_files(config);
-    let spec_value = spec.map(|spec| spec_provenance(spec.spec, spec.evaluation, &spec.file));
+    let spec_value = spec.map(|spec| match spec {
+        SpecRunArtifacts::V1 {
+            spec,
+            evaluation,
+            file,
+            hash,
+        } => spec_provenance(spec, evaluation, file, hash),
+        SpecRunArtifacts::V2 {
+            spec,
+            run,
+            file,
+            hash,
+        } => spec_v2_provenance(spec, run, file, hash),
+    });
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "model",
         data_version: &config.data.data_version,
@@ -340,8 +442,8 @@ fn model_bundle_with(
         last_open_time: report.period.last_open_time,
         config_files: &files,
         config: json!({
-            "structure_scale": scale_label(config.model.structure_scale),
-            "ladder": ladder_codes(config),
+            "structure_scale": scale_label(effective_model.structure_scale),
+            "ladder": ladder.iter().map(|seconds| timeframe_label(*seconds)).collect::<Vec<_>>(),
             "policy": policy_value(config),
             "strategy": strategy_value(config),
         }),
@@ -362,7 +464,10 @@ fn model_bundle_with(
         ("legs.csv", legs_csv.into_bytes()),
     ];
     if let Some(conditions) = conditions_csv {
-        artifacts.insert(8, ("conditions.csv", conditions.into_bytes()));
+        artifacts.push(("conditions.csv", conditions.into_bytes()));
+    }
+    if let Some(prediction) = prediction_csv {
+        artifacts.push(("prediction.csv", prediction.into_bytes()));
     }
     render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
     Ok(BundleOutput {
@@ -372,11 +477,12 @@ fn model_bundle_with(
     })
 }
 
-fn spec_provenance(spec: &ModelSpec, evaluation: &SpecEvaluation, file: &str) -> Value {
+fn spec_provenance(spec: &ModelSpec, evaluation: &SpecEvaluation, file: &str, hash: &str) -> Value {
     json!({
         "schema": spec.schema,
         "id": spec.id,
         "file": file,
+        "file_hash": hash,
         "registry_version": quantrule_model::REGISTRY_VERSION,
         "ladder": spec.ladder,
         "evaluation_timeframe": spec.evaluation_timeframe_secs,
@@ -390,6 +496,172 @@ fn spec_provenance(spec: &ModelSpec, evaluation: &SpecEvaluation, file: &str) ->
             }))
             .collect::<Vec<Value>>(),
     })
+}
+
+fn spec_v2_provenance(spec: &ModelSpecV2, run: &SpecRun, file: &str, hash: &str) -> Value {
+    let extended = spec.readings.extended();
+    let prediction = run.prediction();
+    let long = prediction
+        .long_votes
+        .iter()
+        .filter(|votes| **votes > 0)
+        .count();
+    let short = prediction
+        .short_votes
+        .iter()
+        .filter(|votes| **votes > 0)
+        .count();
+    json!({
+        "schema": spec.schema,
+        "id": spec.id,
+        "family": spec.family,
+        "instrument": spec.instrument,
+        "file": file,
+        "file_hash": hash,
+        "registry_version": quantrule_model::REGISTRY_VERSION,
+        "timeframes": spec.timeframes,
+        "evaluation_timeframe": spec.evaluation_timeframe_secs,
+        "readings": crate::config::effective_json(&spec.readings),
+        "extended": {
+            "vwap_window": extended.vwap_window,
+            "vwap_band_mad": extended.vwap_band_mad,
+            "profile_window": extended.profile_window,
+            "profile_bins": extended.profile_bins,
+            "profile_value_area": extended.profile_value_area,
+            "rvol_fast": extended.rvol_fast,
+            "rvol_slow": extended.rvol_slow,
+            "volume_oscillator": extended.volume_oscillator,
+            "climax_volume": extended.climax_volume,
+            "climax_range_atr": extended.climax_range_atr,
+            "absorption_volume": extended.absorption_volume,
+            "absorption_range_atr": extended.absorption_range_atr,
+            "absorption_level_atr": extended.absorption_level_atr,
+            "flow_window": extended.flow_window,
+            "mfi_window": extended.mfi_window,
+            "cmf_threshold": extended.cmf_threshold,
+            "atr_slow_window": extended.atr_slow_window,
+            "atr_slope_window": extended.atr_slope_window,
+            "range_window": extended.range_window,
+            "mar_fast": extended.mar_fast,
+            "mar_slow": extended.mar_slow,
+            "keltner_window": extended.keltner_window,
+            "keltner_atr": extended.keltner_atr,
+            "donchian_window": extended.donchian_window,
+            "level_lookback": extended.level_lookback,
+            "level_atr": extended.level_atr,
+            "aroon_window": extended.aroon_window,
+            "path_window": extended.path_window,
+            "candle_body": extended.candle_body,
+            "candle_wick": extended.candle_wick,
+            "candle_close": extended.candle_close,
+            "gap_atr": extended.gap_atr,
+        },
+        "active_events": spec.active_events.iter().map(|event| event.id.clone()).collect::<Vec<_>>(),
+        "prediction": {
+            "kind": "vote",
+            "long": spec.prediction.long.iter().map(|event| event.id.clone()).collect::<Vec<_>>(),
+            "short": spec.prediction.short.iter().map(|event| event.id.clone()).collect::<Vec<_>>(),
+            "min_votes": spec.prediction.min_votes,
+            "bars": prediction.len(),
+            "long_bars": long,
+            "short_bars": short,
+            "flat_bars": prediction.values.iter().filter(|value| **value == 0).count(),
+        },
+        "panel": spec.panel_instruments,
+        "session": spec.session.map(|session| json!({
+            "zone": session_zone_label(session.zone),
+            "start_hour": session.start_hour,
+            "end_hour": session.end_hour,
+            "opening_range_bars": session.opening_range_bars,
+        })),
+        "session_events": run.session_events().len(),
+        "panel_events": run.panel_events().len(),
+        "conditions": run.conditions().map(|evaluation| evaluation
+            .conditions
+            .iter()
+            .map(|condition| json!({
+                "id": condition.id,
+                "bars": evaluation.bars,
+                "true_count": condition.true_count,
+            }))
+            .collect::<Vec<Value>>()),
+    })
+}
+
+fn content_hash(bytes: &[u8]) -> String {
+    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    let mut hash = OFFSET;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(PRIME);
+    }
+    format!("{hash:016x}")
+}
+
+fn session_zone_label(zone: quantrule_model::sessions::SessionZone) -> &'static str {
+    match zone {
+        quantrule_model::sessions::SessionZone::Utc => "utc",
+        quantrule_model::sessions::SessionZone::London => "london",
+        quantrule_model::sessions::SessionZone::NewYork => "new_york",
+    }
+}
+
+fn load_panel_series(
+    config: &RunConfig,
+    spec_path: &Path,
+    parsed: &crate::spec::v2::ParsedModelSpecV2,
+    model: &ModelRun,
+    timeframe: Timeframe,
+) -> Result<Vec<(String, Vec<Candle>)>, RunError> {
+    let mut series = Vec::with_capacity(parsed.spec.panel_instruments.len());
+    for name in &parsed.spec.panel_instruments {
+        let candles = if name == &parsed.spec.instrument {
+            model
+                .timeframe(parsed.spec.evaluation_timeframe_secs)
+                .map(|timeframe| timeframe.candles().to_vec())
+                .ok_or_else(|| {
+                    spec_error(format!(
+                        "the evaluated timeframe {} is absent from the model run",
+                        parsed.spec.evaluation_timeframe_secs
+                    ))
+                })?
+        } else {
+            let source = parsed
+                .panel_sources
+                .get(name)
+                .ok_or_else(|| spec_error(format!("the panel source {name} is not declared")))?;
+            let path = resolve_spec_path(spec_path, source);
+            let set =
+                pipeline::load_set_with_limit(&path, config.data.bounds, config.data.max_candles)
+                    .map_err(|error| pipeline_error(config, PipelineError::Source(error)))?;
+            set.series(timeframe).iter().copied().collect()
+        };
+        if candles.is_empty() {
+            return Err(spec_error(format!(
+                "the panel instrument {name} has no {} candles",
+                timeframe.code()
+            )));
+        }
+        series.push((name.clone(), candles));
+    }
+    Ok(series)
+}
+
+fn resolve_spec_path(spec_path: &Path, source: &str) -> PathBuf {
+    let path = PathBuf::from(source);
+    if path.is_absolute() {
+        path
+    } else {
+        spec_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(path)
+    }
+}
+
+fn spec_error(message: impl Into<String>) -> RunError {
+    RunError::Report(ReportError::Spec(message.into()))
 }
 
 fn spec_timeframes(config: &RunConfig, ladder: &[u64]) -> Result<Vec<Timeframe>, RunError> {
@@ -957,15 +1229,6 @@ fn config_files(config: &RunConfig) -> Vec<String> {
 
 fn artifact_names(names: &[&str]) -> Vec<String> {
     names.iter().map(|name| (*name).to_owned()).collect()
-}
-
-fn ladder_codes(config: &RunConfig) -> Vec<&'static str> {
-    config
-        .data
-        .available_timeframes
-        .iter()
-        .map(|timeframe| timeframe.code())
-        .collect()
 }
 
 fn scale_label(scale: PivotScale) -> &'static str {

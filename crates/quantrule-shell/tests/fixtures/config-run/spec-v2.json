@@ -1,0 +1,60 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M2.1",
+  "family": "M2",
+  "instrument": "EURUSD",
+  "timeframes": [3600],
+  "readings": {
+    "ema": {
+      "fast": 10,
+      "mid": 30,
+      "slow": 90
+    },
+    "rsi": {
+      "period": 10
+    },
+    "extended": {
+      "vwap_window": 12,
+      "profile_window": 48
+    }
+  },
+  "active_events": [
+    "signal.rsi_threshold",
+    "signal.ema_pair_cross",
+    "signal.relative_strength_cross",
+    "signal.session_open"
+  ],
+  "prediction": {
+    "kind": "vote",
+    "long": [
+      "signal.rsi_threshold"
+    ],
+    "short": [
+      "signal.ema_pair_cross"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "session_open",
+      "when": {
+        "event": {
+          "id": "signal.session_open",
+          "timeframe": 3600
+        }
+      }
+    }
+  ],
+  "panel": {
+    "leader": "BTC",
+    "sources": {
+      "BTC": "../state_m1.csv"
+    }
+  },
+  "session": {
+    "zone": "london",
+    "start_hour": 8,
+    "end_hour": 16,
+    "opening_range_bars": 2
+  }
+}

@@ -1,7 +1,7 @@
 # M2.x Model Programme — Execution Plan
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved** (human, 2026-11-05); P0 documentation complete; issue/board actions and P1 next
+- Status: **Approved** (human, 2026-11-05); P0 merged in PR #453; P1 implemented in the `feat/454-model-spec-v2` worktree; P2 next
 - Owner: human
 - Epic: [#410](https://github.com/quant-rule/quant-rule/issues/410)
 - Related: [#405](https://github.com/quant-rule/quant-rule/issues/405) indicator platform
@@ -202,7 +202,14 @@ frozen specs, and the one-shot validation access.
   "family": "M2",
   "instrument": "XAU",
   "timeframes": [3600],
-  "panel": ["XAU", "BTC", "SP500", "EURUSD"],
+  "panel": {
+    "leader": "BTC",
+    "sources": {
+      "BTC": "../../data/sources/BTCUSD_M1_2018-01-01_2024-12-31.csv",
+      "SP500": "../../data/sources/ESANDP500_M1_2018-01-01_2024-12-31.csv",
+      "EURUSD": "../../data/sources/EURUSD_M1_2018-01-01_2024-12-31.csv"
+    }
+  },
   "session": {
     "zone": "london",
     "start_hour": 8,
@@ -222,26 +229,35 @@ frozen specs, and the one-shot validation access.
 ```
 
 - `timeframes` has exactly one entry in v2. Cross-timeframe is a later schema.
-- `panel` is optional. If present, all instruments must share the timeframe. The
-  evaluated instrument must be in the panel.
+- `panel` is optional. It names a leader and the other instruments' M1 sources.
+  The evaluated instrument comes from the run config and is not repeated in the
+  panel sources. The panel aligns on common timestamps; no forward fill.
 - `session` is optional. It is the calendar used by the session events.
 - `readings` exposes the v4 and extended reading windows and periods. Event
   thresholds remain contract-fixed; only activation and reading windows vary.
   A field that would turn every event threshold into a free parameter is
   rejected.
 - `active_events` is the set of registry IDs the model version uses. The
-  prediction references only active events.
+  prediction references only active events. Only `signal` events may vote; a
+  `context` or `diagnostic` event is a condition, not a vote.
 - `prediction.kind = vote` counts each event once: a long event adds `+1`, a
   short event adds `-1`, and the sign of the total above `min_votes` is the
   prediction. `kind = score` is exploratory only and is not a primary cell.
+- `conditions` is optional and reads the combined base, extended, session, and
+  panel event set. It is diagnostic and does not change the vote.
 - No stop, target, position, cash, or P&L field. The prediction is a model
   output, not a strategy.
 - The evaluator, not the spec, owns the horizon, costs, and partition. The spec
   cannot read a forward outcome.
-- The run writes `readings.csv`, `events.csv`, `levels.csv`, `conditions.csv`,
-  `prediction.csv`, `result.json`, and `provenance.json`. The provenance names
-  the spec ID/family, registry version, sources, panel, session, overrides, and
-  active events.
+- The run writes `readings.csv`, `events.csv` (active-event projection),
+  `levels.csv`, `conditions.csv`, `prediction.csv`, `result.json`, and
+  `provenance.json`. The provenance names the spec ID/family, file hash,
+  registry version, sources, panel order, session, reading overrides, active
+  events, and prediction definition.
+
+The implemented contract and its limits are in
+[`model-spec-v2.md`](../../model/2026-11-05/model-spec-v2.md). P1 is implemented;
+the checks are recorded in the PR and the P1 AI log.
 
 ## 8. Prediction evaluator
 
@@ -349,6 +365,14 @@ and board actions and remain pending until the human authorizes them.
 7. Update provenance and `report model --spec`.
 8. Tests: parse, validate, override, prediction, panel/session, causality,
    determinism, byte-identical rerun, edge cases.
+
+P1 implementation (2026-11-05): the v2 contract is
+[`model-spec-v2.md`](../../model/2026-11-05/model-spec-v2.md). The model crate
+owns `spec/v2.rs`; the shell owns the v2 parser and the report branch; the
+`report model --spec` bundle publishes `prediction.csv`, the active-event
+projection of `events.csv`, optional `conditions.csv`, and the v2 provenance.
+`MarketStateConfig` carries the extended reading config so the override reaches
+`TimeframeModel`. The verification is in the P1 PR and the #454 AI log.
 
 ### P2 details
 

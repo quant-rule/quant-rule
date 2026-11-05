@@ -159,21 +159,22 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
 | 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
 | 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
-| 28 | relative_strength | 37 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
-| 29 | lead_lag | 38 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
-| 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
-| 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
-| 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
-| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
-| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
-| 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
-| 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 28 | relative_strength | 37 | 9 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 29 | lead_lag | 38 | 9 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
 | 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
 
-Rows 28–37 have `Wiring` and `Spec` open because the v1 spec cannot select a
-panel or a session and cannot activate the extended readings. The model and the
-panel/session batches are implemented; the spec surface is the gap. M2.x P1
-closes it with `quantrule.model-spec/v2`.
+Rows 28–36 are wired by the v2 spec run (P1): panel and session events are
+active, conditions read the combined base/extended/session/panel batch, and
+`events.csv` publishes the active projection. Row 37 `calendar_bucket` stays
+open: it is a reading-only indicator with no event, so it is exercised by the
+area cell's session readings and has no event to activate in a spec.
 
 ## 4. Verification table B — test and math checklist
 
@@ -245,7 +246,7 @@ are reconciled to one cross per reading. `signal.structure_change` is shared by
 |---|---|---|
 | `INDICATOR-AUDIT.md` | Delivered retrospectively as [`INDICATOR-AUDIT.md`](INDICATOR-AUDIT.md) | Accept the retrospective limitation; the audit did not screen the backlog |
 | `Sign` column | 0/37 rows signed in Table B | Human or Quant Validator signs; the agent cannot fill it |
-| Spec v2 and panel/session wiring | Table A rows 28–37 have `Wiring` and `Spec` open; v1 is condition-only | M2.x P1 adds reading overrides, active events, prediction, and panel/session |
+| Spec v2 and panel/session wiring | P1 implemented: rows 28–36 are wired; row 37 is reading-only | The P1 PR records the v2 contract and tests; the `Sign` column remains open |
 | Phases 6–8 | Moved to the [M2.x programme](../../execution-plans/2026-11-05/410-m2-model-programme.md) | Approve the charter, run the swarm, validate, close out |
 
 ## 6. Golden fixtures

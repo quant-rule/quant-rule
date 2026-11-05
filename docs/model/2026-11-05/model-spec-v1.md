@@ -184,12 +184,16 @@ locks the expected `conditions.csv` for the fixture spec.
 
 ## 8. Deferred to v2
 
-| Extension | Why deferred |
+The v2 contract is implemented in
+[`model-spec-v2.md`](model-spec-v2.md). It adds the following to the v1 shape;
+the v1 document and parser are unchanged.
+
+| Extension | v2 status |
 |---|---|
-| Reading overrides | The v1 model run uses the default readings and event settings |
-| Event-family switches | The registry selects conditions; the run computes every family |
-| Panel and session conditions | Their event series are separate from the per-timeframe batch |
-| Strategy fields | A strategy is human-owned and reads the snapshot, not the spec |
+| Reading overrides | Implemented: v4 and extended reading periods/windows, event thresholds fixed |
+| Event-family switches | Implemented: `active_events` filters the published event surface |
+| Panel and session conditions | Implemented: optional panel sources and session calendar; conditions read the combined batch |
+| Strategy fields | Still excluded: a strategy is human-owned and reads the snapshot, not the spec |
 
 A v2 document uses a new `schema` value. The v1 parser never guesses at an
 unknown extension.
