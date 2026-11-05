@@ -57,6 +57,24 @@ class CellTests(unittest.TestCase):
             record = cell.run_cell(loaded, loaded.cells[0], "dev", root / "out")
             self.assertEqual(record["verdict"], "fail")
 
+    def test_phase_is_substituted_in_the_cell_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            value = one_cell("pass")
+            value["cells"][0]["command"] = [
+                sys.executable,
+                "-c",
+                "print('ok')",
+                "{phase}",
+                "{out}",
+            ]
+            value["cells"][0]["result_parser"] = "none"
+            path = write(root, value)
+            loaded = program.load_program(path, repo_root=root)
+            record = cell.run_cell(loaded, loaded.cells[0], "dev", root / "out")
+        self.assertIn("dev", record["command"])
+        self.assertEqual(record["verdict"], "pass")
+
     def test_validation_is_rejected_without_one_shot_access(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

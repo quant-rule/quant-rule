@@ -1,7 +1,7 @@
 # M2.x Model Programme — Execution Plan
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved** (human, 2026-11-05); P0–P2 merged; P3 charter approved; P4 next
+- Status: **Approved** (human, 2026-11-05); P0–P3 merged; P4 implemented; P5 next
 - Owner: human
 - Epic: [#410](https://github.com/quant-rule/quant-rule/issues/410)
 - Related: [#405](https://github.com/quant-rule/quant-rule/issues/405) indicator platform
@@ -415,6 +415,15 @@ before the P4 model-cell runner lands.
 2. Run a dry run on a tiny fixture; aggregate deterministically.
 3. Verify the leaderboard and coverage output.
 4. No validation access.
+
+P4 implementation (2026-11-05): `tools/research/model_cell.py` runs the four
+instrument specs, one pooled `model_prediction`, and writes the root result the
+`model_prediction` adapter reads. The 32 run configs live under
+`config/research/PROGRAM-2026-11-05-03/runs/`; the program cell command passes
+`--phase {phase}`. `cell.py` records `spec_id` and `prediction_digest`, and
+`report.py` renders the model leaderboard columns. The dry run is
+`tools/research/test_model_cell.py`; it uses a fake shell and the real evaluator.
+Verification is in the P4 PR and the #427 AI log.
 
 ### P5 details
 

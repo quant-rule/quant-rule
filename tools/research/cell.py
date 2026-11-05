@@ -71,7 +71,9 @@ def run_cell(
     out_dir = Path(out_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
     command = [
-        token.replace("{config}", cell.config_dir).replace("{out}", str(out_dir))
+        token.replace("{config}", cell.config_dir)
+        .replace("{out}", str(out_dir))
+        .replace("{phase}", phase)
         for token in cell.command
     ]
     try:
@@ -123,6 +125,8 @@ def run_cell(
         "stderr": _tail(stderr),
         "artifacts": artifacts(out_dir),
         "metrics": metrics,
+        "spec_id": metrics.get("spec_id"),
+        "prediction_digest": metrics.get("prediction_digest"),
         "verdict": verdict,
         "limitations": limitations,
     }

@@ -13,21 +13,32 @@ import report
 from test_program import cell, document, write
 
 
-def result(path: Path, verdict: str, lift: float) -> None:
+def result(path: Path, verdict: str, lift: float, model: bool = False) -> None:
     path.mkdir(parents=True, exist_ok=True)
+    metrics = {
+        "n": 100,
+        "clusters": 20,
+        "lift": lift,
+        "lift_lcb": lift - 0.01,
+        "grade": "B" if verdict == "pass" else "C",
+    }
+    if model:
+        metrics.update(
+            {
+                "hit_rate": 0.56,
+                "base_rate": 0.50,
+                "random_p": 0.01,
+                "shuffle_p": 0.02,
+                "replication": 2,
+            }
+        )
     document_value = {
         "schema": "quantrule.research-cell-result/v1",
         "program_id": "PROGRAM-2026-11-04-90",
         "cell_id": path.name,
         "phase": "dev",
         "verdict": verdict,
-        "metrics": {
-            "n": 100,
-            "clusters": 20,
-            "lift": lift,
-            "lift_lcb": lift - 0.01,
-            "grade": "B" if verdict == "pass" else "C",
-        },
+        "metrics": metrics,
         "limitations": ["fixture"],
     }
     (path / "cell-result.json").write_text(
@@ -80,6 +91,21 @@ class ReportTests(unittest.TestCase):
             document_value = report.build(loaded, results)
             self.assertEqual(document_value["cells"][1]["verdict"], "missing")
             self.assertTrue(document_value["decision"].startswith("no_edge"))
+
+    def test_a_model_cell_uses_the_model_leaderboard_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = write(root, three_cell_program())
+            loaded = program.load_program(path, repo_root=root)
+            results = root / "results"
+            result(results / "CELL-01", "pass", 0.06, model=True)
+            result(results / "CELL-02", "fail", 0.01, model=True)
+            result(results / "CELL-03", "fail", 0.01, model=True)
+            document_value = report.build(loaded, results)
+            text = report.markdown(document_value)
+        self.assertIn("| Hit | Base |", text)
+        self.assertIn("| Random p | Shuffle p | Rep |", text)
+        self.assertIn("| CELL-01 | yes | pass", text)
 
     def test_correction_is_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

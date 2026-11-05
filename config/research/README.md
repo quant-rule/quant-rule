@@ -29,6 +29,12 @@ python3 tools/research/program.py --program config/research/<PROGRAM-ID>/program
 python3 tools/research/coverage.py \
   --program config/research/<PROGRAM-ID>/program.json
 
+# Run one model cell (four instruments + one pooled evaluation).
+python3 tools/research/model_cell.py \
+  --cell-dir config/research/<PROGRAM-ID>/cells/<CELL-ID> \
+  --phase dev \
+  --out data/research/<PROGRAM-ID>/dev/<CELL-ID>
+
 # Run one cell.
 python3 tools/research/cell.py \
   --program config/research/<PROGRAM-ID>/program.json \

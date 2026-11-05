@@ -143,24 +143,61 @@ def markdown(document: dict[str, Any]) -> str:
         f"{document['correction']['primary_cells']} primary cells",
         f"- Decision: **{document['decision']}**",
         "",
-        "| Cell | Primary | Verdict | n | Clusters | Lift | Lift LCB | Grade |",
-        "|---|---|---|---:|---:|---:|---:|---|",
     ]
+    model_mode = any(
+        numeric(metric(row, "hit_rate")) is not None
+        for row in document["cells"]
+    )
+    if model_mode:
+        lines.extend(
+            [
+                "| Cell | Primary | Verdict | n | Clusters | Hit | Base | Lift | "
+                "LCB | Random p | Shuffle p | Rep | Grade |",
+                "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "| Cell | Primary | Verdict | n | Clusters | Lift | Lift LCB | Grade |",
+                "|---|---|---|---:|---:|---:|---:|---|",
+            ]
+        )
     for row in document["cells"]:
         metrics = row["metrics"]
-        lines.append(
-            "| {cell} | {primary} | {verdict} | {n} | {clusters} | {lift} | "
-            "{lcb} | {grade} |".format(
-                cell=row["cell_id"],
-                primary="yes" if row["primary"] else "no",
-                verdict=row["verdict"],
-                n=fmt(metrics.get("n")),
-                clusters=fmt(metrics.get("clusters")),
-                lift=fmt(metrics.get("lift")),
-                lcb=fmt(metrics.get("lift_lcb")),
-                grade=fmt(metrics.get("grade")),
+        if model_mode:
+            lines.append(
+                "| {cell} | {primary} | {verdict} | {n} | {clusters} | {hit} | "
+                "{base} | {lift} | {lcb} | {random} | {shuffle} | {rep} | {grade} |".format(
+                    cell=row["cell_id"],
+                    primary="yes" if row["primary"] else "no",
+                    verdict=row["verdict"],
+                    n=fmt(metrics.get("n")),
+                    clusters=fmt(metrics.get("clusters")),
+                    hit=fmt(metrics.get("hit_rate")),
+                    base=fmt(metrics.get("base_rate")),
+                    lift=fmt(metrics.get("lift")),
+                    lcb=fmt(metrics.get("lift_lcb")),
+                    random=fmt(metrics.get("random_p")),
+                    shuffle=fmt(metrics.get("shuffle_p")),
+                    rep=fmt(metrics.get("replication")),
+                    grade=fmt(metrics.get("grade")),
+                )
             )
-        )
+        else:
+            lines.append(
+                "| {cell} | {primary} | {verdict} | {n} | {clusters} | {lift} | "
+                "{lcb} | {grade} |".format(
+                    cell=row["cell_id"],
+                    primary="yes" if row["primary"] else "no",
+                    verdict=row["verdict"],
+                    n=fmt(metrics.get("n")),
+                    clusters=fmt(metrics.get("clusters")),
+                    lift=fmt(metrics.get("lift")),
+                    lcb=fmt(metrics.get("lift_lcb")),
+                    grade=fmt(metrics.get("grade")),
+                )
+            )
     if document["candidate"]:
         lines += [
             "",
