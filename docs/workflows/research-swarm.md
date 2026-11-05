@@ -178,6 +178,21 @@ The evaluator writes `evaluation/model_prediction.json` and
 `"result_parser": "model_prediction"` reads those metrics into
 `cell-result.json`; the evaluator never opens validation.
 
+A pre-registered M2.x cell uses the model-cell runner instead of the two manual
+commands. It runs the four instrument specs, keeps one pooled evaluation, and
+writes the root `model_prediction.json` the adapter reads:
+
+```bash
+python3 tools/research/model_cell.py \
+  --cell-dir config/research/<PROGRAM-ID>/cells/<CELL-ID> \
+  --phase dev \
+  --out data/research/<PROGRAM-ID>/dev/<CELL-ID>
+```
+
+The runner uses `target/release/quantrule` by default; pass `--qr` to select the
+binary. A model program uses `batch.py --mode config`; it never needs a code
+worktree unless a cell changes code.
+
 The worktree mode copies each cell result back to the coordinator's
 `data/research/<PROGRAM-ID>/<phase>/<CELL-ID>/` for aggregation. The worktree
 remains for code review and is removed after the program closes.

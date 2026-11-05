@@ -157,6 +157,7 @@ committed, and the candles, charts, reports, and databases stay local.
 | Progression replay oracle | Regenerates and checks the Progression golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
 | Experiment matrix runner | Runs one isolated `backtest` per manifest cell in deterministic order. | [`tools/experiment/README.md`](../tools/experiment/README.md) |
 | Improvement run store | Manifest validation, run execution, evidence extraction, and deterministic index (Python). Baselines and invalidations are recorded in `docs/improvement/`. | `tools/improvement/` |
+| Research model-cell runner | Runs four instrument specs, one pooled prediction evaluation, and the root model result. | `tools/research/model_cell.py` |
 
 ## Releases
 
@@ -182,7 +183,7 @@ committed, and the candles, charts, reports, and databases stay local.
 | Unified timeframe ladder | Complete; Phases 1–9 merged through PRs #238–#246; #246 merged as `7c865de` | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
 | Model v3: flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; v8 implementation proceeds separately | `docs/execution-plans/2026-11-03/342-model-v3.md` |
-| M2.x model programme | Approved 2026-11-05; P0–P2 merged; P3 charter proposed; 10 exploratory + 5 primary cells; 46/143 covered | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
+| M2.x model programme | Approved 2026-11-05; P0–P3 merged; P4 runner implemented; 10 exploratory + 5 primary cells; 46/143 covered | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 | M2.x model charter | Approved 2026-11-05; P4 runner next; strategy tier closed | `docs/governance/2026-11-05/M2-CHARTER.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.

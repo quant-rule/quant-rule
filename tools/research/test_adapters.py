@@ -18,6 +18,8 @@ def document(grade: str = "A", verdict: str = "pass") -> dict:
         "family": "M2",
         "instrument": "BTC",
         "partition": "model_dev",
+        "phase": "dev",
+        "prediction_digest": "abc123",
         "horizon": 20,
         "cost_bps": 6.0,
         "grade": grade,
@@ -51,6 +53,8 @@ class ModelPredictionAdapterTests(unittest.TestCase):
         self.assertEqual(parsed.metrics["n"], 240)
         self.assertEqual(parsed.metrics["grade"], "A")
         self.assertEqual(parsed.metrics["cost_bps"], 6.0)
+        self.assertEqual(parsed.metrics["spec_id"], "M2.1")
+        self.assertEqual(parsed.metrics["prediction_digest"], "abc123")
 
     def test_a_failing_prediction_is_parsed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

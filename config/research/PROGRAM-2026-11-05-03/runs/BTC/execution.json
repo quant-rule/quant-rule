@@ -1,0 +1,10 @@
+{
+  "schema": "quantrule.execution/v2",
+  "fill_timeframe": "15m",
+  "order_type": "market_next_open",
+  "tie_break": "stop_first",
+  "fee_rate": 0.0,
+  "slippage_bps": 2.0,
+  "zero_volume": "reject",
+  "end_of_data": "leave_open"
+}
