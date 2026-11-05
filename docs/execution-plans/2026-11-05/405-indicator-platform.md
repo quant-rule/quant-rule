@@ -92,7 +92,7 @@ Explicit non-goals:
 | 3 | [#415](https://github.com/quant-rule/quant-rule/issues/415) | Volume-price flow readings | Done |
 | 4 | [#416](https://github.com/quant-rule/quant-rule/issues/416) | Volatility and structure readings | Done |
 | 5 | [#417](https://github.com/quant-rule/quant-rule/issues/417) | Anatomy and path readings | Done |
-| 6 | [#418](https://github.com/quant-rule/quant-rule/issues/418) | Cross-asset and calendar readings | Todo |
+| 6 | [#418](https://github.com/quant-rule/quant-rule/issues/418) | Cross-asset and calendar readings | Blocked on #436/#437 |
 | 7 | [#419](https://github.com/quant-rule/quant-rule/issues/419)–[#422](https://github.com/quant-rule/quant-rule/issues/422) | Event layer | Todo |
 | 8 | [#423](https://github.com/quant-rule/quant-rule/issues/423)–[#425](https://github.com/quant-rule/quant-rule/issues/425) | Spec engine | Todo |
 | 9 | [#426](https://github.com/quant-rule/quant-rule/issues/426)–[#429](https://github.com/quant-rule/quant-rule/issues/429) | v6–v10 charters, swarm, validation | Todo |
