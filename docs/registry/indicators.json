@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.11",
+  "version": "2026-11-05.12",
   "indicators": [
     {
       "id": "ema",
@@ -751,8 +751,9 @@
       ],
       "availability": "slow ATR window",
       "events": [
-        "divergence.atr_bullish",
-        "divergence.atr_bearish"
+        "signal.atr_compression",
+        "signal.atr_expansion",
+        "signal.atr_regime"
       ],
       "tests": [
         "causality",
@@ -781,7 +782,10 @@
         "range_expansion"
       ],
       "availability": "range window",
-      "events": [],
+      "events": [
+        "signal.range_expansion",
+        "signal.range_contraction"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -811,7 +815,9 @@
         "mar_ratio"
       ],
       "availability": "slow MAR window",
-      "events": [],
+      "events": [
+        "signal.mar_regime"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -844,8 +850,8 @@
       ],
       "availability": "EMA and ATR windows",
       "events": [
-        "level.keltner_test",
-        "level.keltner_break"
+        "signal.keltner_breakout",
+        "signal.keltner_position"
       ],
       "tests": [
         "causality",
@@ -878,8 +884,8 @@
       ],
       "availability": "window",
       "events": [
-        "level.donchian_test",
-        "level.donchian_break"
+        "signal.donchian_breakout",
+        "signal.donchian_position"
       ],
       "tests": [
         "causality",
@@ -911,7 +917,7 @@
       ],
       "availability": "two confirmed major pivots of each kind",
       "events": [
-        "level.structure_break"
+        "signal.structure_change"
       ],
       "tests": [
         "causality",
@@ -944,7 +950,7 @@
       ],
       "availability": "confirmed major levels and ATR",
       "events": [
-        "level.strength_test"
+        "signal.strength_change"
       ],
       "tests": [
         "causality",
@@ -975,7 +981,10 @@
         "aroon_osc"
       ],
       "availability": "window",
-      "events": [],
+      "events": [
+        "signal.aroon_cross",
+        "signal.aroon_osc"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1040,7 +1049,10 @@
       ],
       "availability": "non-zero range",
       "events": [
-        "level.wick_test"
+        "signal.candle_momentum",
+        "signal.candle_rejection",
+        "signal.candle_doji",
+        "signal.candle_marubozu"
       ],
       "tests": [
         "causality",
@@ -1074,7 +1086,15 @@
         "pattern_direction"
       ],
       "availability": "previous bar; three-bar patterns need three bars",
-      "events": [],
+      "events": [
+        "signal.pattern_engulfing",
+        "signal.pattern_inside",
+        "signal.pattern_outside",
+        "signal.pattern_hammer",
+        "signal.pattern_star",
+        "signal.pattern_three_soldiers",
+        "signal.pattern_three_crows"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1105,8 +1125,8 @@
       ],
       "availability": "prior close and ATR",
       "events": [
-        "level.gap_fill",
-        "level.gap_test"
+        "signal.gap_continuation",
+        "signal.gap_fade"
       ],
       "tests": [
         "causality",
@@ -1134,7 +1154,9 @@
         "path_efficiency"
       ],
       "availability": "path window",
-      "events": [],
+      "events": [
+        "signal.path_efficiency"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1161,7 +1183,9 @@
         "direction_changes"
       ],
       "availability": "path window",
-      "events": [],
+      "events": [
+        "signal.direction_changes"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1190,7 +1214,10 @@
         "bars_since_low"
       ],
       "availability": "path window",
-      "events": [],
+      "events": [
+        "signal.extreme_new",
+        "signal.extreme_stale"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1219,7 +1246,10 @@
         "drawdown_atr"
       ],
       "availability": "path window and ATR",
-      "events": [],
+      "events": [
+        "signal.drawdown_threshold",
+        "signal.drawdown_recovery"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1248,7 +1278,9 @@
         "range_position"
       ],
       "availability": "path window",
-      "events": [],
+      "events": [
+        "signal.range_position"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -3207,6 +3239,584 @@
       "role": "signal",
       "claim": "A higher price high with lower breadth marks narrowing participation.",
       "formula": "H[t] > H[p] and BR[t] < BR[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.atr_compression",
+      "event_type": 3,
+      "subtype": 16,
+      "source": 28,
+      "indicator": "atr_term",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_down(ATR_ratio, 0.7)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.atr_expansion",
+      "event_type": 3,
+      "subtype": 16,
+      "source": 28,
+      "indicator": "atr_term",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(ATR_ratio, 1.3)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.atr_regime",
+      "event_type": 3,
+      "subtype": 16,
+      "source": 28,
+      "indicator": "atr_term",
+      "role": "context",
+      "claim": "none",
+      "formula": "vol_regime[t] != vol_regime[t-1]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.range_expansion",
+      "event_type": 3,
+      "subtype": 17,
+      "source": 29,
+      "indicator": "range_expansion",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(RR, 1.5)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.range_contraction",
+      "event_type": 3,
+      "subtype": 17,
+      "source": 29,
+      "indicator": "range_expansion",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_down(RR, 0.7)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.mar_regime",
+      "event_type": 3,
+      "subtype": 16,
+      "source": 30,
+      "indicator": "mar",
+      "role": "diagnostic",
+      "claim": "none",
+      "formula": "cross_up(MR, 1.5) or cross_down(MR, 0.7)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.keltner_breakout",
+      "event_type": 3,
+      "subtype": 18,
+      "source": 31,
+      "indicator": "keltner",
+      "role": "context",
+      "claim": "none",
+      "formula": "C>U and C_prev<=U_prev, or C<L and C_prev>=L_prev",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.keltner_position",
+      "event_type": 3,
+      "subtype": 18,
+      "source": 31,
+      "indicator": "keltner",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(KP, 0.8) or cross_down(KP, 0.2)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.donchian_breakout",
+      "event_type": 3,
+      "subtype": 18,
+      "source": 32,
+      "indicator": "donchian",
+      "role": "context",
+      "claim": "none",
+      "formula": "C>DH_prev and C_prev<=DH_prev, or C<DL_prev and C_prev>=DL_prev",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.donchian_position",
+      "event_type": 3,
+      "subtype": 18,
+      "source": 32,
+      "indicator": "donchian",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(DP, 0.8) or cross_down(DP, 0.2)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.structure_change",
+      "event_type": 3,
+      "subtype": 19,
+      "source": 33,
+      "indicator": "swing_structure",
+      "role": "context",
+      "claim": "none",
+      "formula": "SS[t] != SS[t-1]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.strength_change",
+      "event_type": 3,
+      "subtype": 19,
+      "source": 34,
+      "indicator": "level_strength",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(level_touches, 2)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.aroon_cross",
+      "event_type": 3,
+      "subtype": 19,
+      "source": 35,
+      "indicator": "aroon",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(AU,70) or cross_down(AD,30)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.aroon_osc",
+      "event_type": 3,
+      "subtype": 19,
+      "source": 35,
+      "indicator": "aroon",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(AO,0) or cross_down(AO,0)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.candle_momentum",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 37,
+      "indicator": "candle_anatomy",
+      "role": "context",
+      "claim": "none",
+      "formula": "range>=1.5ATR and BR>=0.7 and CP>=0.8 or CP<=0.2",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.candle_rejection",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 37,
+      "indicator": "candle_anatomy",
+      "role": "context",
+      "claim": "none",
+      "formula": "UWR>=0.6 and C<O, or LWR>=0.6 and C>O",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.candle_doji",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 37,
+      "indicator": "candle_anatomy",
+      "role": "context",
+      "claim": "none",
+      "formula": "BR<=0.1",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.candle_marubozu",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 37,
+      "indicator": "candle_anatomy",
+      "role": "context",
+      "claim": "none",
+      "formula": "BR>=0.9",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.pattern_engulfing",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 38,
+      "indicator": "candle_pattern",
+      "role": "context",
+      "claim": "none",
+      "formula": "pattern_code 1 or 2",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.pattern_inside",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 38,
+      "indicator": "candle_pattern",
+      "role": "context",
+      "claim": "none",
+      "formula": "pattern_code 3",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.pattern_outside",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 38,
+      "indicator": "candle_pattern",
+      "role": "context",
+      "claim": "none",
+      "formula": "pattern_code 4",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.pattern_hammer",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 38,
+      "indicator": "candle_pattern",
+      "role": "context",
+      "claim": "none",
+      "formula": "pattern_code 5",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.pattern_star",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 38,
+      "indicator": "candle_pattern",
+      "role": "context",
+      "claim": "none",
+      "formula": "pattern_code 6",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.pattern_three_soldiers",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 38,
+      "indicator": "candle_pattern",
+      "role": "context",
+      "claim": "none",
+      "formula": "pattern_code 7",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.pattern_three_crows",
+      "event_type": 3,
+      "subtype": 10,
+      "source": 38,
+      "indicator": "candle_pattern",
+      "role": "context",
+      "claim": "none",
+      "formula": "pattern_code 8",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.gap_continuation",
+      "event_type": 3,
+      "subtype": 20,
+      "source": 39,
+      "indicator": "gap",
+      "role": "context",
+      "claim": "none",
+      "formula": "gap>=0.5ATR and C>O",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.gap_fade",
+      "event_type": 3,
+      "subtype": 20,
+      "source": 39,
+      "indicator": "gap",
+      "role": "context",
+      "claim": "none",
+      "formula": "gap<=-0.5ATR and C<O",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.path_efficiency",
+      "event_type": 3,
+      "subtype": 21,
+      "source": 40,
+      "indicator": "path_efficiency",
+      "role": "diagnostic",
+      "claim": "none",
+      "formula": "cross_up(ER,0.5) or cross_down(ER,0.2)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.direction_changes",
+      "event_type": 3,
+      "subtype": 21,
+      "source": 41,
+      "indicator": "direction_changes",
+      "role": "diagnostic",
+      "claim": "none",
+      "formula": "cross_up(DR,0.5) or cross_down(DR,0.3)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.extreme_new",
+      "event_type": 3,
+      "subtype": 21,
+      "source": 42,
+      "indicator": "bars_since_extreme",
+      "role": "context",
+      "claim": "none",
+      "formula": "bars_since_high=0 or bars_since_low=0",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.extreme_stale",
+      "event_type": 3,
+      "subtype": 21,
+      "source": 42,
+      "indicator": "bars_since_extreme",
+      "role": "context",
+      "claim": "none",
+      "formula": "bars_since_high>=n-1 or bars_since_low>=n-1",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.drawdown_threshold",
+      "event_type": 3,
+      "subtype": 21,
+      "source": 43,
+      "indicator": "drawdown_atr",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_down(DD,-1) or cross_down(DD,-2)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.drawdown_recovery",
+      "event_type": 3,
+      "subtype": 21,
+      "source": 43,
+      "indicator": "drawdown_atr",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(DD,-0.5)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.range_position",
+      "event_type": 3,
+      "subtype": 21,
+      "source": 44,
+      "indicator": "range_position",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(RP,0.8) or cross_down(RP,0.2)",
       "parameters": [],
       "tests": [
         "event",

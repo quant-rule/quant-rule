@@ -19,6 +19,7 @@ pub mod level;
 pub(crate) mod order;
 pub mod panel;
 pub mod signal;
+pub mod signals;
 pub mod trend;
 
 /// The contract's event-type codes.

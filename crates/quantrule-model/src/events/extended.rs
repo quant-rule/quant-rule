@@ -47,6 +47,25 @@ pub const GAP_SOURCE_CODE: u16 = 39;
 /// Source code for the ATR term structure.
 pub const ATR_SOURCE_CODE: u16 = 28;
 
+/// Source code for range expansion.
+pub const RANGE_SOURCE_CODE: u16 = 29;
+/// Source code for mean absolute return.
+pub const MAR_SOURCE_CODE: u16 = 30;
+/// Source code for Aroon.
+pub const AROON_SOURCE_CODE: u16 = 35;
+/// Source code for candle patterns.
+pub const PATTERN_SOURCE_CODE: u16 = 38;
+/// Source code for path efficiency.
+pub const PATH_SOURCE_CODE: u16 = 40;
+/// Source code for direction changes.
+pub const DIRECTION_SOURCE_CODE: u16 = 41;
+/// Source code for bars since extreme.
+pub const EXTREME_SOURCE_CODE: u16 = 42;
+/// Source code for drawdown.
+pub const DRAWDOWN_SOURCE_CODE: u16 = 43;
+/// Source code for range position.
+pub const RANGE_POSITION_SOURCE_CODE: u16 = 44;
+
 /// The configuration of the extended event run.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ExtendedEventConfig {
@@ -108,6 +127,7 @@ impl ExtendedEventSeries {
         participation_divergences(readings, extended, config, &mut events);
         flow_divergences(readings, extended, config, &mut events);
         atr_divergences(readings, extended, config, &mut events);
+        crate::events::signals::compute(candles, readings, extended, config, &mut events);
         events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
         // The occurrence key is one event per timeframe, type, subtype, source,
         // bar, direction, and reference. A reclaim and a rejection can describe
@@ -157,7 +177,7 @@ impl ExtendedEventSeries {
 // Grouping them into synthetic structs would obscure the mapping, so the
 // argument count is intentional.
 #[allow(clippy::too_many_arguments)]
-fn push(
+pub(crate) fn push(
     events: &mut Vec<EventRecord>,
     event_type: EventType,
     subtype: u8,
@@ -606,7 +626,7 @@ fn divergence_events(
     }
 }
 
-fn cross_up_value(series: &ReadingSeries, bar: usize, level: f64) -> bool {
+pub(crate) fn cross_up_value(series: &ReadingSeries, bar: usize, level: f64) -> bool {
     if bar == 0 {
         return false;
     }
@@ -616,7 +636,7 @@ fn cross_up_value(series: &ReadingSeries, bar: usize, level: f64) -> bool {
     }
 }
 
-fn cross_down_value(series: &ReadingSeries, bar: usize, level: f64) -> bool {
+pub(crate) fn cross_down_value(series: &ReadingSeries, bar: usize, level: f64) -> bool {
     if bar == 0 {
         return false;
     }
@@ -1647,5 +1667,35 @@ mod tests {
             Some((2, -1))
         );
         assert_eq!(divergence_subtype(PivotKind::Low, 1.0, -1.0), None);
+    }
+
+    #[test]
+    fn a_momentum_bar_is_a_candle_signal() {
+        let mut candles: Vec<Candle> = (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+            .collect();
+        candles[29] = candle(29, 100.0, 106.0, 99.0, 105.5, 10.0);
+        let events = compute(&candles);
+        assert!(
+            events
+                .events()
+                .iter()
+                .any(|event| event.source_code == 37 && event.event_subtype_code == 10)
+        );
+    }
+
+    #[test]
+    fn a_gap_continuation_is_a_gap_signal() {
+        let mut candles: Vec<Candle> = (0..20)
+            .map(|index| candle(index, 100.0, 100.5, 99.5, 100.0, 10.0))
+            .collect();
+        candles[19] = candle(19, 102.0, 103.0, 101.0, 102.5, 10.0);
+        let events = compute(&candles);
+        assert!(
+            events
+                .events()
+                .iter()
+                .any(|event| event.source_code == 39 && event.event_subtype_code == 20)
+        );
     }
 }
