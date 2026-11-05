@@ -22,10 +22,11 @@ REGISTRY = ROOT / "docs/registry/indicators.json"
 VALIDATION = ROOT / "docs/registry/validation.json"
 
 CLAIM_KEYS = {
-    "id", "kind", "construct_tests", "primary_outcome",
+    "id", "kind", "construct_tests", "construct_status", "primary_outcome",
     "horizon_bars", "target_atr", "stop_atr", "baseline",
     "predictive_status",
 }
+CONSTRUCT_STATUSES = {"covered", "defect", "pending"}
 REQUIRED = {"id", "kind", "construct_tests", "primary_outcome", "predictive_status"}
 KINDS = {"indicator", "event"}
 STATUSES = {"pending", "pass", "no_edge", "defect", "inconclusive", "not_applicable"}
@@ -104,6 +105,8 @@ def check(registry: dict[str, Any], validation: dict[str, Any]) -> list[str]:
             not isinstance(test, str) or not test for test in tests
         ):
             errors.append(f"{label}.construct_tests must be a non-empty string array")
+        if "construct_status" in claim and claim["construct_status"] not in CONSTRUCT_STATUSES:
+            errors.append(f"{label}.construct_status is invalid")
         outcome = claim.get("primary_outcome")
         if outcome not in OUTCOMES:
             errors.append(f"{label}.primary_outcome is invalid")

@@ -2,8 +2,9 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#469](https://github.com/quant-rule/quant-rule/issues/469)
-- Status: **Approved for P1a and P1b-1**; P1b-2 is the open construct-coverage
-  work in [#481](https://github.com/quant-rule/quant-rule/issues/481)
+- Status: **P1a, P1b-1, and P1b-2 complete**; PR [#479](https://github.com/quant-rule/quant-rule/pull/479)
+  is ready for review. The session-range defect found during P1b-2 is fixed in
+  [#482](https://github.com/quant-rule/quant-rule/issues/482).
 - Claim type: registry and validation contract; no edge claim
 - Parent plan: [#467](https://github.com/quant-rule/quant-rule/issues/467)
 - AI transparency log: [`docs/ai-transparency-log/2026-11-05/469-validation-claims.md`](../../ai-transparency-log/2026-11-05/469-validation-claims.md)
@@ -151,3 +152,30 @@ or formula. That is a model-contract change and needs separate approval.
 - 54 direct construct cases remain in
   [`construct-gaps.md`](../../registry/construct-gaps.md), tracked by #481.
 - No formula, model output, strategy, or runtime behavior changed.
+
+## 11. P1b-2 execution record
+
+- 2026-11-05: all 54 direct construct cases were added.
+- Divergence: `events::extended::tests::divergence_sources_cover_their_events`
+  covers VWAP, profile POC, RVOL, climax, OBV, CMF, MFI, AD, and ATR; the RSI
+  cases use the existing divergence tests; RS, lead-lag, and breadth use
+  `events::panel::tests::panel_divergences_and_crosses_are_exercised`.
+- Absorption, wick, and profile concentration:
+  `events::extended::tests::absorption_wick_and_profile_events_are_exercised`.
+- ATR, candle, pattern, and gap:
+  `events::signals::tests::atr_candle_pattern_and_gap_events_are_exercised`.
+- Session fades and range:
+  `events::session::tests::session_fade_and_range_events_are_exercised`.
+- Panel crosses: `events::panel::tests::panel_divergences_and_crosses_are_exercised`.
+- Defect found: `signal.session_range_contraction` was unreachable. Fixed by
+  comparing a new session's first range with the prior session's last inside
+  range, while keeping the within-session comparison. The construct test now
+  asserts code 138. This is a model behavior change; the QD implementation and
+  QV reproduction are sequential passes, not independent agents. Human
+  acceptance remains required.
+- `cargo test -p quantrule-model`: 593 unit tests, 35 doctests, and the
+  integration suite pass; the golden fixtures are unchanged.
+- `cargo clippy -p quantrule-model --all-targets -- -D warnings`: pass.
+- `cargo fmt --all -- --check`: pass.
+- `python3 tools/check_validation.py`: 188 claims.
+- No claim of an edge.

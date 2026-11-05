@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.validation/v1",
-  "version": "2026-11-05.1",
+  "version": "2026-11-05.3",
   "claims": [
     {
       "id": "absorption",
@@ -420,7 +420,7 @@
       "id": "divergence.ad_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -433,7 +433,7 @@
       "id": "divergence.ad_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -446,7 +446,7 @@
       "id": "divergence.atr_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -459,7 +459,7 @@
       "id": "divergence.atr_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -472,7 +472,7 @@
       "id": "divergence.breadth_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -485,7 +485,7 @@
       "id": "divergence.breadth_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -498,7 +498,7 @@
       "id": "divergence.climax_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -511,7 +511,7 @@
       "id": "divergence.climax_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -524,7 +524,7 @@
       "id": "divergence.cmf_hidden_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -537,7 +537,7 @@
       "id": "divergence.cmf_hidden_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -550,7 +550,7 @@
       "id": "divergence.cmf_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -563,7 +563,7 @@
       "id": "divergence.cmf_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -576,7 +576,7 @@
       "id": "divergence.lead_lag_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -589,7 +589,7 @@
       "id": "divergence.lead_lag_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -602,7 +602,7 @@
       "id": "divergence.mfi_hidden_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -615,7 +615,7 @@
       "id": "divergence.mfi_hidden_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -628,7 +628,7 @@
       "id": "divergence.mfi_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -641,7 +641,7 @@
       "id": "divergence.mfi_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -654,7 +654,7 @@
       "id": "divergence.obv_hidden_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -667,7 +667,7 @@
       "id": "divergence.obv_hidden_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -680,7 +680,7 @@
       "id": "divergence.obv_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -693,7 +693,7 @@
       "id": "divergence.obv_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -706,7 +706,7 @@
       "id": "divergence.profile_poc_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -719,7 +719,7 @@
       "id": "divergence.profile_poc_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -732,7 +732,7 @@
       "id": "divergence.rs_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -745,7 +745,7 @@
       "id": "divergence.rs_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -758,7 +758,7 @@
       "id": "divergence.rsi_hidden_bearish",
       "kind": "event",
       "construct_tests": [
-        "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+        "divergence::tests::a_lower_high_with_a_higher_rsi_high_is_hidden_bearish"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -771,7 +771,7 @@
       "id": "divergence.rsi_hidden_bullish",
       "kind": "event",
       "construct_tests": [
-        "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+        "divergence::tests::a_higher_low_with_a_lower_rsi_low_is_hidden_bullish"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -784,7 +784,7 @@
       "id": "divergence.rsi_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+        "divergence::tests::a_higher_high_with_a_lower_rsi_high_is_regular_bearish"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -797,7 +797,7 @@
       "id": "divergence.rsi_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+        "divergence::tests::a_lower_low_with_a_higher_rsi_low_is_regular_bullish"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -810,7 +810,7 @@
       "id": "divergence.rvol_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -823,7 +823,7 @@
       "id": "divergence.rvol_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -836,7 +836,7 @@
       "id": "divergence.vwap_hidden_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -849,7 +849,7 @@
       "id": "divergence.vwap_hidden_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -862,7 +862,7 @@
       "id": "divergence.vwap_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -875,7 +875,7 @@
       "id": "divergence.vwap_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
       "predictive_status": "pending",
@@ -888,7 +888,7 @@
       "id": "level.absorption_test",
       "kind": "event",
       "construct_tests": [
-        "level_events_golden::the_level_events_match_the_golden_fixture"
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -995,7 +995,7 @@
       "id": "level.opening_range_break",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::session_level_events_are_published"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1004,7 +1004,7 @@
       "id": "level.opening_range_test",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::the_opening_range_test_fires_on_a_touch"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1058,7 +1058,7 @@
       "id": "level.session_vwap_test",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::session_level_events_are_published"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1125,7 +1125,7 @@
       "id": "level.wick_test",
       "kind": "event",
       "construct_tests": [
-        "level_events_golden::the_level_events_match_the_golden_fixture"
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1134,7 +1134,7 @@
       "id": "signal.absorption_break",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
       ],
       "primary_outcome": "participation",
       "predictive_status": "pending",
@@ -1147,7 +1147,7 @@
       "id": "signal.absorption_rejection",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
       ],
       "primary_outcome": "participation",
       "predictive_status": "pending",
@@ -1191,7 +1191,7 @@
       "id": "signal.atr_compression",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1200,7 +1200,7 @@
       "id": "signal.atr_expansion",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1209,7 +1209,7 @@
       "id": "signal.atr_regime",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1218,7 +1218,7 @@
       "id": "signal.breadth_cross",
       "kind": "event",
       "construct_tests": [
-        "event_validation::panel_events_respect_availability_and_one_occurrence"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1236,7 +1236,7 @@
       "id": "signal.candle_marubozu",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1245,7 +1245,7 @@
       "id": "signal.candle_momentum",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1254,7 +1254,7 @@
       "id": "signal.candle_rejection",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1311,7 +1311,7 @@
       "id": "signal.co_movement_cross",
       "kind": "event",
       "construct_tests": [
-        "event_validation::panel_events_respect_availability_and_one_occurrence"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1320,7 +1320,7 @@
       "id": "signal.compression_breakout",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "compression::tests::a_coiling_window_followed_by_a_breakout_emits_one_event"
       ],
       "primary_outcome": "volatility",
       "predictive_status": "pass",
@@ -1381,7 +1381,7 @@
       "id": "signal.dispersion_cross",
       "kind": "event",
       "construct_tests": [
-        "event_validation::panel_events_respect_availability_and_one_occurrence"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1439,7 +1439,7 @@
       "id": "signal.ema_stack_change",
       "kind": "event",
       "construct_tests": [
-        "signal_events_golden::the_signal_events_match_the_golden_fixture"
+        "signal::tests::ema_stack_and_rsi_zone_changes_are_published"
       ],
       "primary_outcome": "path_directional",
       "predictive_status": "pending",
@@ -1470,7 +1470,7 @@
       "id": "signal.gap_continuation",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1479,7 +1479,7 @@
       "id": "signal.gap_fade",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1506,7 +1506,7 @@
       "id": "signal.lead_lag_cross",
       "kind": "event",
       "construct_tests": [
-        "event_validation::panel_events_respect_availability_and_one_occurrence"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1607,7 +1607,7 @@
       "id": "signal.opening_range_breakout",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::opening_range_breakout_and_overnight_continuation_are_published"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1616,7 +1616,7 @@
       "id": "signal.opening_range_fade",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::session_fade_and_range_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1625,7 +1625,7 @@
       "id": "signal.overnight_continuation",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::opening_range_breakout_and_overnight_continuation_are_published"
       ],
       "primary_outcome": "structure",
       "predictive_status": "pending",
@@ -1638,7 +1638,7 @@
       "id": "signal.overnight_fade",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::session_fade_and_range_events_are_exercised"
       ],
       "primary_outcome": "structure",
       "predictive_status": "pending",
@@ -1669,7 +1669,7 @@
       "id": "signal.pattern_hammer",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1696,7 +1696,7 @@
       "id": "signal.pattern_star",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1705,7 +1705,7 @@
       "id": "signal.pattern_three_crows",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1714,7 +1714,7 @@
       "id": "signal.pattern_three_soldiers",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1723,7 +1723,7 @@
       "id": "signal.profile_concentration",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1794,7 +1794,7 @@
       "id": "signal.relative_strength_cross",
       "kind": "event",
       "construct_tests": [
-        "event_validation::panel_events_respect_availability_and_one_occurrence"
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1851,7 +1851,7 @@
       "id": "signal.session_close",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::session_open_and_close_are_published"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1860,7 +1860,7 @@
       "id": "signal.session_open",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::session_open_and_close_are_published"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
@@ -1869,16 +1869,17 @@
       "id": "signal.session_range_contraction",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "defect::session_range_contraction"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.session_range_expansion",
       "kind": "event",
       "construct_tests": [
-        "event_validation::extended_and_session_events_match_their_fixtures"
+        "session::tests::session_fade_and_range_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable"
