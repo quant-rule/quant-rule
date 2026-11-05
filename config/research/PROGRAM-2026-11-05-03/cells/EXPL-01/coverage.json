@@ -1,0 +1,11 @@
+{
+  "cell_id": "EXPL-01",
+  "kind": "exploratory",
+  "areas": [
+    1
+  ],
+  "indicators": [
+    "vwap"
+  ],
+  "benchmark_events": []
+}

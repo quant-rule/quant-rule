@@ -1,0 +1,55 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M2.3",
+  "family": "M2",
+  "instrument": "XAU",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "divergence.rs_regular_bullish",
+    "divergence.rs_regular_bearish",
+    "divergence.lead_lag_bullish",
+    "divergence.lead_lag_bearish",
+    "divergence.breadth_regular_bullish",
+    "divergence.breadth_regular_bearish",
+    "signal.relative_strength_cross",
+    "signal.lead_lag_cross",
+    "signal.breadth_cross",
+    "signal.co_movement_cross",
+    "signal.dispersion_cross"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "divergence.rs_regular_bullish",
+      "divergence.rs_regular_bearish"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.relative_strength_cross",
+      "when": {
+        "event": {
+          "id": "signal.relative_strength_cross",
+          "timeframe": 3600
+        }
+      }
+    }
+  ],
+  "readings": {
+    "extended": {
+      "vwap_window": 24,
+      "profile_window": 96
+    }
+  },
+  "panel": {
+    "leader": "BTC",
+    "sources": {
+      "BTC": "../../../../../data/sources/BTCUSD_M1_2018-01-01_2024-12-31.csv",
+      "SP500": "../../../../../data/sources/ESANDP500_M1_2018-01-01_2024-12-31.csv",
+      "EURUSD": "../../../../../data/sources/EURUSD_M1_2018-01-01_2024-12-31.csv"
+    }
+  }
+}

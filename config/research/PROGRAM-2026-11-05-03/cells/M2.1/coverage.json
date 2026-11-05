@@ -1,0 +1,23 @@
+{
+  "cell_id": "M2.1",
+  "kind": "primary",
+  "areas": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "indicators": [
+    "vwap",
+    "volume_profile",
+    "rvol",
+    "volume_climax",
+    "absorption",
+    "volume_oscillator",
+    "obv",
+    "cmf",
+    "mfi",
+    "ad_line"
+  ],
+  "benchmark_events": []
+}

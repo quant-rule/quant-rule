@@ -1,0 +1,213 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "program_id": "PROGRAM-2026-11-05-03",
+  "ok": true,
+  "counts": {
+    "cells": 15,
+    "exploratory": 10,
+    "primary": 5,
+    "indicators": 46,
+    "events": 143,
+    "specs": 60
+  },
+  "cells": [
+    {
+      "cell_id": "EXPL-01",
+      "kind": "exploratory",
+      "areas": [
+        1
+      ],
+      "indicators": 1,
+      "active_events": 10,
+      "prediction_events": 6,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-02",
+      "kind": "exploratory",
+      "areas": [
+        2
+      ],
+      "indicators": 1,
+      "active_events": 11,
+      "prediction_events": 4,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-03",
+      "kind": "exploratory",
+      "areas": [
+        3
+      ],
+      "indicators": 4,
+      "active_events": 13,
+      "prediction_events": 10,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-04",
+      "kind": "exploratory",
+      "areas": [
+        4
+      ],
+      "indicators": 4,
+      "active_events": 21,
+      "prediction_events": 18,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-05",
+      "kind": "exploratory",
+      "areas": [
+        5
+      ],
+      "indicators": 5,
+      "active_events": 12,
+      "prediction_events": 2,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-06",
+      "kind": "exploratory",
+      "areas": [
+        6
+      ],
+      "indicators": 11,
+      "active_events": 28,
+      "prediction_events": 16,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-07",
+      "kind": "exploratory",
+      "areas": [
+        7
+      ],
+      "indicators": 3,
+      "active_events": 17,
+      "prediction_events": 1,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-08",
+      "kind": "exploratory",
+      "areas": [
+        8
+      ],
+      "indicators": 7,
+      "active_events": 10,
+      "prediction_events": 3,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-09",
+      "kind": "exploratory",
+      "areas": [
+        9
+      ],
+      "indicators": 5,
+      "active_events": 11,
+      "prediction_events": 6,
+      "panel": true,
+      "session": false
+    },
+    {
+      "cell_id": "EXPL-10",
+      "kind": "exploratory",
+      "areas": [
+        10
+      ],
+      "indicators": 5,
+      "active_events": 11,
+      "prediction_events": 2,
+      "panel": false,
+      "session": true
+    },
+    {
+      "cell_id": "M2.1",
+      "kind": "primary",
+      "areas": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "indicators": 10,
+      "active_events": 55,
+      "prediction_events": 8,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "M2.2",
+      "kind": "primary",
+      "areas": [
+        5,
+        6,
+        7
+      ],
+      "indicators": 19,
+      "active_events": 56,
+      "prediction_events": 4,
+      "panel": false,
+      "session": false
+    },
+    {
+      "cell_id": "M2.3",
+      "kind": "primary",
+      "areas": [
+        9
+      ],
+      "indicators": 5,
+      "active_events": 11,
+      "prediction_events": 2,
+      "panel": true,
+      "session": false
+    },
+    {
+      "cell_id": "M2.4",
+      "kind": "primary",
+      "areas": [
+        8,
+        10
+      ],
+      "indicators": 12,
+      "active_events": 21,
+      "prediction_events": 2,
+      "panel": false,
+      "session": true
+    },
+    {
+      "cell_id": "M2.5",
+      "kind": "primary",
+      "areas": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "indicators": 46,
+      "active_events": 143,
+      "prediction_events": 17,
+      "panel": true,
+      "session": true
+    }
+  ],
+  "missing_indicators": [],
+  "missing_events": [],
+  "errors": []
+}

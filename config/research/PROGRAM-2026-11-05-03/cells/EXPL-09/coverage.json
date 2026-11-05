@@ -1,0 +1,15 @@
+{
+  "cell_id": "EXPL-09",
+  "kind": "exploratory",
+  "areas": [
+    9
+  ],
+  "indicators": [
+    "relative_strength",
+    "lead_lag",
+    "breadth",
+    "co_movement",
+    "dispersion"
+  ],
+  "benchmark_events": []
+}

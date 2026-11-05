@@ -1,0 +1,114 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M2.2",
+  "family": "M2",
+  "instrument": "BTC",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "level.test",
+    "level.cross",
+    "level.break",
+    "divergence.rsi_regular_bullish",
+    "divergence.rsi_regular_bearish",
+    "divergence.rsi_hidden_bullish",
+    "divergence.rsi_hidden_bearish",
+    "signal.rsi_threshold",
+    "signal.ema_pair_cross",
+    "signal.ema_stack_change",
+    "signal.rsi_zone_change",
+    "signal.macd_line_signal_cross",
+    "signal.macd_histogram_slope_flip",
+    "signal.macd_zero_cross",
+    "signal.di_cross",
+    "signal.trend_continuation",
+    "level.keltner_test",
+    "level.keltner_break",
+    "level.donchian_test",
+    "level.donchian_break",
+    "level.structure_break",
+    "level.strength_test",
+    "level.wick_test",
+    "level.gap_fill",
+    "level.gap_test",
+    "divergence.atr_bullish",
+    "divergence.atr_bearish",
+    "signal.atr_compression",
+    "signal.atr_expansion",
+    "signal.atr_regime",
+    "signal.range_expansion",
+    "signal.range_contraction",
+    "signal.mar_regime",
+    "signal.keltner_breakout",
+    "signal.keltner_position",
+    "signal.donchian_breakout",
+    "signal.donchian_position",
+    "signal.structure_change",
+    "signal.strength_change",
+    "signal.aroon_cross",
+    "signal.aroon_osc",
+    "signal.candle_momentum",
+    "signal.candle_rejection",
+    "signal.candle_doji",
+    "signal.candle_marubozu",
+    "signal.pattern_engulfing",
+    "signal.pattern_inside",
+    "signal.pattern_outside",
+    "signal.pattern_hammer",
+    "signal.pattern_star",
+    "signal.pattern_three_soldiers",
+    "signal.pattern_three_crows",
+    "signal.gap_continuation",
+    "signal.gap_fade",
+    "level.bos",
+    "level.choch"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "divergence.rsi_regular_bullish",
+      "divergence.rsi_regular_bearish",
+      "divergence.atr_bullish",
+      "divergence.atr_bearish"
+    ],
+    "min_votes": 2
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.atr_regime",
+      "when": {
+        "event": {
+          "id": "signal.atr_regime",
+          "timeframe": 3600
+        }
+      }
+    },
+    {
+      "id": "condition_signal.structure_change",
+      "when": {
+        "event": {
+          "id": "signal.structure_change",
+          "timeframe": 3600
+        }
+      }
+    },
+    {
+      "id": "condition_signal.candle_momentum",
+      "when": {
+        "event": {
+          "id": "signal.candle_momentum",
+          "timeframe": 3600
+        }
+      }
+    }
+  ],
+  "readings": {
+    "extended": {
+      "atr_slow_window": 100,
+      "keltner_window": 20,
+      "donchian_window": 20,
+      "profile_window": 96
+    }
+  }
+}

@@ -25,6 +25,10 @@ config/research/<PROGRAM-ID>/
 # Validate the manifest and the declared phase.
 python3 tools/research/program.py --program config/research/<PROGRAM-ID>/program.json
 
+# Check the event and indicator coverage of the matrix.
+python3 tools/research/coverage.py \
+  --program config/research/<PROGRAM-ID>/program.json
+
 # Run one cell.
 python3 tools/research/cell.py \
   --program config/research/<PROGRAM-ID>/program.json \

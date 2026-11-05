@@ -1,0 +1,17 @@
+{
+  "cell_id": "EXPL-08",
+  "kind": "exploratory",
+  "areas": [
+    8
+  ],
+  "indicators": [
+    "path_efficiency",
+    "direction_changes",
+    "bars_since_extreme",
+    "drawdown_atr",
+    "range_position",
+    "context",
+    "progression"
+  ],
+  "benchmark_events": []
+}

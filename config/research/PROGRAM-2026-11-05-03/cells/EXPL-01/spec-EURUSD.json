@@ -1,0 +1,44 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-01",
+  "family": "M2",
+  "instrument": "EURUSD",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "level.vwap_test",
+    "level.vwap_cross",
+    "level.vwap_break",
+    "divergence.vwap_regular_bullish",
+    "divergence.vwap_regular_bearish",
+    "divergence.vwap_hidden_bullish",
+    "divergence.vwap_hidden_bearish",
+    "signal.vwap_reclaim",
+    "signal.vwap_rejection",
+    "signal.vwap_slope"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "divergence.vwap_regular_bullish",
+      "divergence.vwap_regular_bearish",
+      "divergence.vwap_hidden_bullish",
+      "divergence.vwap_hidden_bearish",
+      "signal.vwap_reclaim",
+      "signal.vwap_rejection"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.vwap_slope",
+      "when": {
+        "event": {
+          "id": "signal.vwap_slope",
+          "timeframe": 3600
+        }
+      }
+    }
+  ]
+}

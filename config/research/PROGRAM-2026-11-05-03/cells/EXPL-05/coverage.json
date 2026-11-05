@@ -1,0 +1,15 @@
+{
+  "cell_id": "EXPL-05",
+  "kind": "exploratory",
+  "areas": [
+    5
+  ],
+  "indicators": [
+    "atr_term",
+    "range_expansion",
+    "mar",
+    "keltner",
+    "atr"
+  ],
+  "benchmark_events": []
+}

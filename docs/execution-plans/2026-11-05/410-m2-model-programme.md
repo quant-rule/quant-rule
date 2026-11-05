@@ -1,7 +1,7 @@
 # M2.x Model Programme — Execution Plan
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved** (human, 2026-11-05); P0 merged in PR #453; P1 merged in PR #458; P2 implemented in the `feat/455-prediction-evaluator` worktree; P3 next
+- Status: **Approved** (human, 2026-11-05); P0–P2 merged; P3 charter approved; P4 next
 - Owner: human
 - Epic: [#410](https://github.com/quant-rule/quant-rule/issues/410)
 - Related: [#405](https://github.com/quant-rule/quant-rule/issues/405) indicator platform
@@ -399,6 +399,15 @@ Verification is in the P2 PR and the #455 AI log.
    validation access.
 4. Build the coverage checker and prove every indicator and event is covered.
 5. Human approves the charter.
+
+P3 implementation (2026-11-05): the charter is
+[`docs/governance/2026-11-05/M2-CHARTER.md`](../../governance/2026-11-05/M2-CHARTER.md).
+The program is `config/research/PROGRAM-2026-11-05-03/program.json`, with ten
+exploratory cells, five primary cells, and four instrument specs per cell
+(60 specs). The coverage checker is `tools/research/coverage.py`; it proves
+46/46 indicators, 143/143 events, and the required panel/session context.
+The charter was approved by the human on 2026-11-05. No development run starts
+before the P4 model-cell runner lands.
 
 ### P4 details
 
