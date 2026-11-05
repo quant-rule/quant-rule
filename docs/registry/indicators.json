@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.3",
+  "version": "2026-11-05.4",
   "indicators": [
     {
       "id": "ema",
@@ -570,6 +570,154 @@
       "availability": "long volume window available",
       "events": [
         "signal.volume_oscillator_cross"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "obv",
+      "code": 16,
+      "name": "On-balance volume",
+      "taxonomy": "flow",
+      "role": "context",
+      "claim": "Cumulative signed volume describes flow; an OBV/MA cross or divergence is a flow claim.",
+      "formula": "OBV[t]=OBV[t-1]+sign(C[t]-C[t-1])*V[t]; OBV_MA=mean(OBV,n); OBV_slope=OBV-OBV[n]",
+      "inputs": [
+        "close",
+        "volume"
+      ],
+      "parameters": [
+        "model.flow.window"
+      ],
+      "outputs": [
+        "obv",
+        "obv_ma",
+        "obv_slope"
+      ],
+      "availability": "flow window and volume",
+      "events": [
+        "divergence.obv_regular_bullish",
+        "divergence.obv_regular_bearish",
+        "divergence.obv_hidden_bullish",
+        "divergence.obv_hidden_bearish",
+        "signal.obv_cross",
+        "signal.obv_slope"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "cmf",
+      "code": 17,
+      "name": "Chaikin money flow",
+      "taxonomy": "flow",
+      "role": "context",
+      "claim": "Money-flow volume over the flow window describes accumulation or distribution.",
+      "formula": "MFV=((C-L)-(H-C))/(H-L)*V; CMF=sum(MFV,n)/sum(V,n); CMF_slope=CMF-CMF[n]",
+      "inputs": [
+        "high",
+        "low",
+        "close",
+        "volume"
+      ],
+      "parameters": [
+        "model.flow.window",
+        "model.cmf.threshold"
+      ],
+      "outputs": [
+        "cmf",
+        "cmf_slope"
+      ],
+      "availability": "flow window and positive volume",
+      "events": [
+        "divergence.cmf_regular_bullish",
+        "divergence.cmf_regular_bearish",
+        "divergence.cmf_hidden_bullish",
+        "divergence.cmf_hidden_bearish",
+        "signal.cmf_cross",
+        "signal.cmf_threshold"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "mfi",
+      "code": 18,
+      "name": "Money flow index",
+      "taxonomy": "flow",
+      "role": "signal",
+      "claim": "The volume-weighted RSI marks flow extremes and divergences.",
+      "formula": "TP=(H+L+C)/3; POS=sum(TP*V where TP>TP_prev); NEG=sum(TP*V where TP<TP_prev); MFI=100-100/(1+POS/NEG)",
+      "inputs": [
+        "high",
+        "low",
+        "close",
+        "volume"
+      ],
+      "parameters": [
+        "model.mfi.window"
+      ],
+      "outputs": [
+        "mfi"
+      ],
+      "availability": "MFI window and positive flow",
+      "events": [
+        "divergence.mfi_regular_bullish",
+        "divergence.mfi_regular_bearish",
+        "divergence.mfi_hidden_bullish",
+        "divergence.mfi_hidden_bearish",
+        "signal.mfi_threshold",
+        "signal.mfi_zone"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "ad_line",
+      "code": 19,
+      "name": "Accumulation/distribution line",
+      "taxonomy": "flow",
+      "role": "context",
+      "claim": "The cumulative money-flow line describes accumulation or distribution.",
+      "formula": "AD[t]=AD[t-1]+MFV[t]; AD_MA=mean(AD,n)",
+      "inputs": [
+        "high",
+        "low",
+        "close",
+        "volume"
+      ],
+      "parameters": [
+        "model.flow.window"
+      ],
+      "outputs": [
+        "ad_line",
+        "ad_ma"
+      ],
+      "availability": "flow window and volume",
+      "events": [
+        "divergence.ad_regular_bullish",
+        "divergence.ad_regular_bearish",
+        "signal.ad_cross"
       ],
       "tests": [
         "causality",
@@ -1589,6 +1737,363 @@
       "role": "context",
       "claim": "none",
       "formula": "cross_up(VO, 0) or cross_down(VO, 0)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.obv_regular_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 24,
+      "indicator": "obv",
+      "role": "signal",
+      "claim": "A lower price low with a higher OBV marks accumulation.",
+      "formula": "L[t] < L[p] and OBV[t] > OBV[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.obv_regular_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 24,
+      "indicator": "obv",
+      "role": "signal",
+      "claim": "A higher price high with a lower OBV marks distribution.",
+      "formula": "H[t] > H[p] and OBV[t] < OBV[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.obv_hidden_bullish",
+      "event_type": 2,
+      "subtype": 3,
+      "source": 24,
+      "indicator": "obv",
+      "role": "signal",
+      "claim": "A higher low with a lower OBV marks hidden accumulation.",
+      "formula": "L[t] > L[p] and OBV[t] < OBV[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.obv_hidden_bearish",
+      "event_type": 2,
+      "subtype": 4,
+      "source": 24,
+      "indicator": "obv",
+      "role": "signal",
+      "claim": "A lower high with a higher OBV marks hidden distribution.",
+      "formula": "H[t] < H[p] and OBV[t] > OBV[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.obv_cross",
+      "event_type": 3,
+      "subtype": 15,
+      "source": 24,
+      "indicator": "obv",
+      "role": "signal",
+      "claim": "An OBV/MA cross marks a flow shift.",
+      "formula": "cross_up(OBV, OBV_MA) or cross_down(OBV, OBV_MA)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.obv_slope",
+      "event_type": 3,
+      "subtype": 15,
+      "source": 24,
+      "indicator": "obv",
+      "role": "context",
+      "claim": "none",
+      "formula": "sign(OBV-OBV[n]) changes",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.cmf_regular_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 25,
+      "indicator": "cmf",
+      "role": "signal",
+      "claim": "A lower price low with a higher CMF marks accumulation.",
+      "formula": "L[t] < L[p] and CMF[t] > CMF[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.cmf_regular_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 25,
+      "indicator": "cmf",
+      "role": "signal",
+      "claim": "A higher price high with a lower CMF marks distribution.",
+      "formula": "H[t] > H[p] and CMF[t] < CMF[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.cmf_hidden_bullish",
+      "event_type": 2,
+      "subtype": 3,
+      "source": 25,
+      "indicator": "cmf",
+      "role": "signal",
+      "claim": "A higher low with a lower CMF marks hidden accumulation.",
+      "formula": "L[t] > L[p] and CMF[t] < CMF[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.cmf_hidden_bearish",
+      "event_type": 2,
+      "subtype": 4,
+      "source": 25,
+      "indicator": "cmf",
+      "role": "signal",
+      "claim": "A lower high with a higher CMF marks hidden distribution.",
+      "formula": "H[t] < H[p] and CMF[t] > CMF[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.cmf_cross",
+      "event_type": 3,
+      "subtype": 15,
+      "source": 25,
+      "indicator": "cmf",
+      "role": "signal",
+      "claim": "A CMF zero cross marks a flow shift.",
+      "formula": "cross_up(CMF, 0) or cross_down(CMF, 0)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.cmf_threshold",
+      "event_type": 3,
+      "subtype": 15,
+      "source": 25,
+      "indicator": "cmf",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(CMF, 0.2) or cross_down(CMF, -0.2)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.mfi_regular_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 26,
+      "indicator": "mfi",
+      "role": "signal",
+      "claim": "A lower price low with a higher MFI marks accumulation.",
+      "formula": "L[t] < L[p] and MFI[t] > MFI[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.mfi_regular_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 26,
+      "indicator": "mfi",
+      "role": "signal",
+      "claim": "A higher price high with a lower MFI marks distribution.",
+      "formula": "H[t] > H[p] and MFI[t] < MFI[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.mfi_hidden_bullish",
+      "event_type": 2,
+      "subtype": 3,
+      "source": 26,
+      "indicator": "mfi",
+      "role": "signal",
+      "claim": "A higher low with a lower MFI marks hidden accumulation.",
+      "formula": "L[t] > L[p] and MFI[t] < MFI[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.mfi_hidden_bearish",
+      "event_type": 2,
+      "subtype": 4,
+      "source": 26,
+      "indicator": "mfi",
+      "role": "signal",
+      "claim": "A lower high with a higher MFI marks hidden distribution.",
+      "formula": "H[t] < H[p] and MFI[t] > MFI[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.mfi_threshold",
+      "event_type": 3,
+      "subtype": 15,
+      "source": 26,
+      "indicator": "mfi",
+      "role": "signal",
+      "claim": "An MFI threshold cross marks a flow shift.",
+      "formula": "cross_up(MFI, 20/50/80) or cross_down(MFI, 20/50/80)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.mfi_zone",
+      "event_type": 3,
+      "subtype": 15,
+      "source": 26,
+      "indicator": "mfi",
+      "role": "context",
+      "claim": "none",
+      "formula": "zone(MFI) changes, zone = -1 below 20, 0 in 20..80, +1 above 80",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.ad_regular_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 27,
+      "indicator": "ad_line",
+      "role": "signal",
+      "claim": "A lower price low with a higher A/D line marks accumulation.",
+      "formula": "L[t] < L[p] and AD[t] > AD[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.ad_regular_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 27,
+      "indicator": "ad_line",
+      "role": "signal",
+      "claim": "A higher price high with a lower A/D line marks distribution.",
+      "formula": "H[t] > H[p] and AD[t] < AD[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.ad_cross",
+      "event_type": 3,
+      "subtype": 15,
+      "source": 27,
+      "indicator": "ad_line",
+      "role": "signal",
+      "claim": "An A/D line cross of its mean marks a flow shift.",
+      "formula": "cross_up(AD, AD_MA) or cross_down(AD, AD_MA)",
       "parameters": [],
       "tests": [
         "event",
@@ -2679,6 +3184,42 @@
       "type": "number",
       "default": 0.25,
       "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.flow.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.mfi.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 14,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.cmf.threshold",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.2,
+      "unit": "none",
       "configurable": false,
       "affects": [
         "model"
