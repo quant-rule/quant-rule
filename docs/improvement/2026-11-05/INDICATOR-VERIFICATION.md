@@ -130,43 +130,43 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 
 | # | Indicator | Code | Area | Registry | Formula | Reading | Events | Wiring | Spec | Status |
 |---:|---|---:|---:|---|---|---|---|---|---|---|
-| 1 | vwap | 11 | 1 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 2 | volume_profile | 12 | 2 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 3 | rvol (extended) | 4 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 4 | volume_climax | 13 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 5 | absorption | 14 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 6 | volume_oscillator | 15 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 7 | obv | 16 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 8 | cmf | 17 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 9 | mfi | 18 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 10 | ad_line | 19 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 11 | atr_term | 20 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 12 | range_expansion | 21 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 13 | mar | 22 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 14 | keltner | 23 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 15 | donchian | 24 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 16 | swing_structure | 25 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 20 | candle_anatomy | 29 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 21 | candle_pattern | 30 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 22 | gap | 31 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 23 | path_efficiency | 32 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 24 | direction_changes | 33 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 28 | relative_strength | 37 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 29 | lead_lag | 38 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 1 | vwap | 11 | 1 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 2 | volume_profile | 12 | 2 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 3 | rvol (extended) | 4 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 4 | volume_climax | 13 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 5 | absorption | 14 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 6 | volume_oscillator | 15 | 3 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 7 | obv | 16 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 8 | cmf | 17 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 9 | mfi | 18 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 10 | ad_line | 19 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 11 | atr_term | 20 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 12 | range_expansion | 21 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 13 | mar | 22 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 14 | keltner | 23 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 15 | donchian | 24 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 16 | swing_structure | 25 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 20 | candle_anatomy | 29 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 21 | candle_pattern | 30 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 22 | gap | 31 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 23 | path_efficiency | 32 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 24 | direction_changes | 33 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | tested |
+| 28 | relative_strength | 37 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 29 | lead_lag | 38 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
+| 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
 
 ## 4. Verification table B — test and math checklist
 
@@ -177,43 +177,50 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 
 | # | Indicator | F | C | D | G | E | A | N | P | M | Cmd | Sign |
 |---:|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | vwap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | cargo test vwap_is_the_volume_weighted_typical_price | ☐ |
-| 2 | volume_profile | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | cargo test profile_poc_is_the_highest_volume_bin | ☐ |
-| 3 | rvol (extended) | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test rvol_reads_the_volume_ratio | ☐ |
-| 4 | volume_climax | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test climax_flags_a_high_volume_wide_bar | ☐ |
-| 5 | absorption | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test absorption_flags_a_small_range_near_vwap | ☐ |
-| 6 | volume_oscillator | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test volume_oscillator_reads_the_fast_slow_gap | ☐ |
-| 7 | obv | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test obv_accumulates_signed_volume | ☐ |
-| 8 | cmf | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test cmf_is_one_when_every_close_is_the_high | ☐ |
-| 9 | mfi | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test mfi_is_one_hundred_when_every_bar_rises | ☐ |
-| 10 | ad_line | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test ad_line_accumulates_money_flow | ☐ |
-| 11 | atr_term | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test atr_term_is_available_after_the_slow_window | ☐ |
-| 12 | range_expansion | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
-| 13 | mar | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
-| 14 | keltner | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
-| 15 | donchian | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
-| 16 | swing_structure | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
-| 17 | level_strength | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
-| 18 | aroon | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test aroon_reads_a_rising_series | ☐ |
-| 19 | bos_choch | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test -p quantrule-model --test event_validation bos_and_choch | ☐ |
-| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_anatomy_reads_the_bar | ☐ |
-| 21 | candle_pattern | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_pattern_flags_an_engulfing_bar | ☐ |
-| 22 | gap | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test gap_reads_the_open_jump | ☐ |
-| 23 | path_efficiency | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
-| 24 | direction_changes | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test direction_changes_counts_sign_flips | ☐ |
-| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
-| 26 | drawdown_atr | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
-| 27 | range_position | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
-| 28 | relative_strength | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test relative_strength_ranks_the_faster_instrument | ☐ |
-| 29 | lead_lag | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test lead_lag_reads_the_leader | ☐ |
-| 30 | breadth | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
-| 31 | co_movement | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test co_movement_is_high_for_aligned_series | ☐ |
-| 32 | dispersion | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
-| 33 | session | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
-| 34 | opening_range | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
-| 35 | overnight_intraday | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test overnight_and_intraday_returns_read_the_session | ☐ |
-| 36 | session_range | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test session_range_reads_the_session_high_low | ☐ |
-| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☑ | ☑ | — | — | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 1 | vwap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test vwap_is_the_volume_weighted_typical_price | ☐ |
+| 2 | volume_profile | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test profile_poc_is_the_highest_volume_bin | ☐ |
+| 3 | rvol (extended) | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test rvol_reads_the_volume_ratio | ☐ |
+| 4 | volume_climax | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test climax_flags_a_high_volume_wide_bar | ☐ |
+| 5 | absorption | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test absorption_flags_a_small_range_near_vwap | ☐ |
+| 6 | volume_oscillator | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test volume_oscillator_reads_the_fast_slow_gap | ☐ |
+| 7 | obv | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test obv_accumulates_signed_volume | ☐ |
+| 8 | cmf | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test cmf_is_one_when_every_close_is_the_high | ☐ |
+| 9 | mfi | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test mfi_is_one_hundred_when_every_bar_rises | ☐ |
+| 10 | ad_line | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test ad_line_accumulates_money_flow | ☐ |
+| 11 | atr_term | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test atr_term_is_available_after_the_slow_window | ☐ |
+| 12 | range_expansion | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
+| 13 | mar | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
+| 14 | keltner | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
+| 15 | donchian | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
+| 16 | swing_structure | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
+| 17 | level_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
+| 18 | aroon | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test aroon_reads_a_rising_series | ☐ |
+| 19 | bos_choch | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test -p quantrule-model --test event_validation bos_and_choch | ☐ |
+| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test candle_anatomy_reads_the_bar | ☐ |
+| 21 | candle_pattern | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test candle_pattern_flags_an_engulfing_bar | ☐ |
+| 22 | gap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test gap_reads_the_open_jump | ☐ |
+| 23 | path_efficiency | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 24 | direction_changes | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test direction_changes_counts_sign_flips | ☐ |
+| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 26 | drawdown_atr | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 27 | range_position | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 28 | relative_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test relative_strength_ranks_the_faster_instrument | ☐ |
+| 29 | lead_lag | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test lead_lag_reads_the_leader | ☐ |
+| 30 | breadth | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
+| 31 | co_movement | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test co_movement_is_high_for_aligned_series | ☐ |
+| 32 | dispersion | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
+| 33 | session | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 34 | opening_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 35 | overnight_intraday | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test overnight_and_intraday_returns_read_the_session | ☐ |
+| 36 | session_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | cargo test session_range_reads_the_session_high_low | ☐ |
+| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☑ | ☑ | — | — | ☑ | ☑ | cargo test london_session_and_opening_range | ☐ |
+
+`E` is covered by `tests/edge_cases.rs`: every extended, panel, and session
+reading is finite or null on an empty series, a single candle, a short series, a
+flat range, zero volume, and equal highs and lows. `P` is the fixed detector
+order plus the occurrence key in `tests/event_validation.rs`, together with the
+v4 level-reference order test. These are family-level checks, not per-indicator
+fixtures.
 
 ## 5. Known gaps
 
@@ -226,7 +233,6 @@ are reconciled to one cross per reading. `signal.structure_change` is shared by
 | Gap | Evidence | Next step |
 |---|---|---|
 | `INDICATOR-AUDIT.md` | The file is absent from `docs/improvement/2026-11-05/` | Human decides whether to require the audit retroactively |
-| Per-indicator edge cases and precedence | The golden fixtures cover empty series and exact values; the one-bar, zero-range, zero-volume, equal-high/low, and precedence cases are not per indicator | Add the remaining edge and precedence tests |
 | Phases 6–8 | #426–#430 are Todo | Approve the charters, run the swarm, validate, close out |
 
 ## 6. Golden fixtures
