@@ -144,14 +144,14 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
 | 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
 | 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 20 | candle_anatomy | 29 | 7 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 21 | candle_pattern | 30 | 7 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 22 | gap | 31 | 7 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 23 | path_efficiency | 32 | 8 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 24 | direction_changes | 33 | 8 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 25 | bars_since_extreme | 34 | 8 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 26 | drawdown_atr | 35 | 8 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 27 | range_position | 36 | 8 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
+| 20 | candle_anatomy | 29 | 7 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 21 | candle_pattern | 30 | 7 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 22 | gap | 31 | 7 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 23 | path_efficiency | 32 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 24 | direction_changes | 33 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
 | 28 | relative_strength | 37 | 9 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 29 | lead_lag | 38 | 9 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
 | 30 | breadth | 39 | 9 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
@@ -191,14 +191,14 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | 17 | level_strength | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test level_strength` | ☐ |
 | 18 | aroon | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test aroon` | ☐ |
 | 19 | bos_choch | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test bos_choch` | ☐ |
-| 20 | candle_anatomy | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test candle_anatomy` | ☐ |
-| 21 | candle_pattern | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test candle_pattern` | ☐ |
-| 22 | gap | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test gap` | ☐ |
-| 23 | path_efficiency | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test path_efficiency` | ☐ |
-| 24 | direction_changes | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test direction_changes` | ☐ |
-| 25 | bars_since_extreme | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test bars_since_extreme` | ☐ |
-| 26 | drawdown_atr | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test drawdown_atr` | ☐ |
-| 27 | range_position | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test range_position` | ☐ |
+| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test candle_anatomy` | ☐ |
+| 21 | candle_pattern | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test candle_pattern` | ☐ |
+| 22 | gap | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test gap` | ☐ |
+| 23 | path_efficiency | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test path_efficiency` | ☐ |
+| 24 | direction_changes | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test direction_changes` | ☐ |
+| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test bars_since_extreme` | ☐ |
+| 26 | drawdown_atr | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test drawdown_atr` | ☐ |
+| 27 | range_position | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test range_position` | ☐ |
 | 28 | relative_strength | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test relative_strength` | ☐ |
 | 29 | lead_lag | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test lead_lag` | ☐ |
 | 30 | breadth | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test breadth` | ☐ |

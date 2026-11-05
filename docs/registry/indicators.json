@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.5",
+  "version": "2026-11-05.6",
   "indicators": [
     {
       "id": "ema",
@@ -991,6 +991,245 @@
         "last_pivot_low"
       ],
       "availability": "confirmed major pivots",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "candle_anatomy",
+      "code": 29,
+      "name": "Candle anatomy",
+      "taxonomy": "price_action",
+      "role": "context",
+      "claim": "Body, wick, and close-position ratios describe the bar's internal structure.",
+      "formula": "R=H-L; B=|C-O|; UW=H-max(O,C); LW=min(O,C)-L; CP=(C-L)/R; BR=B/R; UWR=UW/R; LWR=LW/R",
+      "inputs": [
+        "open",
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.candle.body",
+        "model.candle.wick",
+        "model.candle.close"
+      ],
+      "outputs": [
+        "body_ratio",
+        "upper_wick_ratio",
+        "lower_wick_ratio",
+        "close_position"
+      ],
+      "availability": "non-zero range",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "candle_pattern",
+      "code": 30,
+      "name": "Candle pattern",
+      "taxonomy": "price_action",
+      "role": "context",
+      "claim": "Engulfing, inside, outside, hammer, star, and three-bar patterns describe bar sequences.",
+      "formula": "engulfing: C>O and O<=C_prev and C>=O_prev (mirror); inside: H<=H_prev and L>=L_prev; outside: H>H_prev and L<L_prev; hammer/star by wick and close position; three soldiers/crows by three rising/falling bars",
+      "inputs": [
+        "open",
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.candle.body",
+        "model.candle.wick",
+        "model.candle.close"
+      ],
+      "outputs": [
+        "pattern_code",
+        "pattern_direction"
+      ],
+      "availability": "previous bar; three-bar patterns need three bars",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "gap",
+      "code": 31,
+      "name": "Gap",
+      "taxonomy": "price_action",
+      "role": "context",
+      "claim": "The open versus the prior close describes a gap and whether it filled.",
+      "formula": "G=O-C_prev; GA=G/ATR; filled when |GA|>=0.5 and C crosses C_prev",
+      "inputs": [
+        "open",
+        "close",
+        "atr"
+      ],
+      "parameters": [
+        "model.gap.atr"
+      ],
+      "outputs": [
+        "gap_atr",
+        "gap_filled"
+      ],
+      "availability": "prior close and ATR",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "path_efficiency",
+      "code": 32,
+      "name": "Path efficiency",
+      "taxonomy": "path",
+      "role": "diagnostic",
+      "claim": "The net move divided by the absolute path describes trend efficiency.",
+      "formula": "ER=|C-C_n|/sum(|C_i-C_{i-1}|,n)",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.path.window"
+      ],
+      "outputs": [
+        "path_efficiency"
+      ],
+      "availability": "path window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "direction_changes",
+      "code": 33,
+      "name": "Direction changes",
+      "taxonomy": "path",
+      "role": "diagnostic",
+      "claim": "The close-to-close direction-change ratio describes choppiness.",
+      "formula": "DC=sum(sign(C_i-C_{i-1})!=sign(C_{i-1}-C_{i-2}),n); DR=DC/n",
+      "inputs": [
+        "close"
+      ],
+      "parameters": [
+        "model.path.window"
+      ],
+      "outputs": [
+        "direction_changes"
+      ],
+      "availability": "path window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "bars_since_extreme",
+      "code": 34,
+      "name": "Bars since extreme",
+      "taxonomy": "path",
+      "role": "context",
+      "claim": "The bars since the path-window high and low describe freshness.",
+      "formula": "BH=n-index(max H,n); BL=n-index(min L,n)",
+      "inputs": [
+        "high",
+        "low"
+      ],
+      "parameters": [
+        "model.path.window"
+      ],
+      "outputs": [
+        "bars_since_high",
+        "bars_since_low"
+      ],
+      "availability": "path window",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "drawdown_atr",
+      "code": 35,
+      "name": "Drawdown from high",
+      "taxonomy": "path",
+      "role": "context",
+      "claim": "The close below the path-window high in ATR units describes drawdown.",
+      "formula": "DD=(C-max(H,n))/ATR",
+      "inputs": [
+        "high",
+        "close",
+        "atr"
+      ],
+      "parameters": [
+        "model.path.window"
+      ],
+      "outputs": [
+        "drawdown_atr"
+      ],
+      "availability": "path window and ATR",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "range_position",
+      "code": 36,
+      "name": "Range position",
+      "taxonomy": "path",
+      "role": "context",
+      "claim": "The close position inside the path-window range describes where price sits.",
+      "formula": "RP=(C-min(L,n))/(max(H,n)-min(L,n))",
+      "inputs": [
+        "high",
+        "low",
+        "close"
+      ],
+      "parameters": [
+        "model.path.window"
+      ],
+      "outputs": [
+        "range_position"
+      ],
+      "availability": "path window",
       "events": [],
       "tests": [
         "causality",
@@ -3625,6 +3864,66 @@
       "type": "integer",
       "default": 25,
       "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.path.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 20,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.candle.body",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.7,
+      "unit": "fraction",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.candle.wick",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.6,
+      "unit": "fraction",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.candle.close",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.8,
+      "unit": "fraction",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.gap.atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.5,
+      "unit": "atr",
       "configurable": false,
       "affects": [
         "model"

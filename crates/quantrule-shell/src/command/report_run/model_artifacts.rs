@@ -14,7 +14,7 @@ use quantrule_model::run::ModelRun;
 /// The per-bar readings and states for every ladder timeframe.
 pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
     let mut csv = String::from(
-        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength,obv,obv_ma,obv_slope,cmf,cmf_slope,mfi,ad_line,ad_ma,atr_ratio,atr_slope,vol_regime,range_expansion,mar_fast,mar_slow,mar_ratio,keltner_upper,keltner_lower,keltner_position,donchian_upper,donchian_lower,donchian_position,structure_state,last_pivot_high,last_pivot_low,level_touches,level_age,aroon_up,aroon_down,aroon_osc\n",
+        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength,obv,obv_ma,obv_slope,cmf,cmf_slope,mfi,ad_line,ad_ma,atr_ratio,atr_slope,vol_regime,range_expansion,mar_fast,mar_slow,mar_ratio,keltner_upper,keltner_lower,keltner_position,donchian_upper,donchian_lower,donchian_position,structure_state,last_pivot_high,last_pivot_low,level_touches,level_age,aroon_up,aroon_down,aroon_osc,body_ratio,upper_wick_ratio,lower_wick_ratio,close_position,pattern_code,pattern_direction,gap_atr,gap_filled,path_efficiency,direction_changes,bars_since_high,bars_since_low,drawdown_atr,range_position\n",
     );
     for &timeframe_secs in ladder {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
@@ -121,6 +121,20 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
                 optional(extended.aroon_up.get(bar)),
                 optional(extended.aroon_down.get(bar)),
                 optional(extended.aroon_osc.get(bar)),
+                optional(extended.body_ratio.get(bar)),
+                optional(extended.upper_wick_ratio.get(bar)),
+                optional(extended.lower_wick_ratio.get(bar)),
+                optional(extended.close_position.get(bar)),
+                optional(extended.pattern_code.get(bar)),
+                optional(extended.pattern_direction.get(bar)),
+                optional(extended.gap_atr.get(bar)),
+                optional(extended.gap_filled.get(bar)),
+                optional(extended.path_efficiency.get(bar)),
+                optional(extended.direction_changes.get(bar)),
+                optional(extended.bars_since_high.get(bar)),
+                optional(extended.bars_since_low.get(bar)),
+                optional(extended.drawdown_atr.get(bar)),
+                optional(extended.range_position.get(bar)),
             ];
             csv.push_str(&values.join(","));
             csv.push('\n');
