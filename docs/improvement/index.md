@@ -1,7 +1,7 @@
 # Run Index
 
 - Date: 2026-11-04 (UTC)
-- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates appended
+- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, and the M2.x development swarm appended
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 The local `data/improvement/` store was reset after the 2026-11-03 records, so
@@ -35,6 +35,7 @@ view for the local store.
 | `PROGRAM-2026-11-04-02` | 2026-11-04 | model | 15m event with 1h trend agreement; three cells grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/PROGRAM-2026-11-04-02.md) |
 | `PROGRAM-2026-11-04-03` | 2026-11-04 | model | Early progression target; pre-flight 78 events, below 200 | model | strategy, portfolio | — | `model_dev` | inconclusive | [record](2026-11-04/PROGRAM-2026-11-04-03.md) |
 | `MODEL-2026-11-04-18` | 2026-11-04 | model | 1h swing gate, 100 bars, 4 ATR / 2 ATR; three cells grade C | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/V5-SWING-1H-GATE.md) |
+| `PROGRAM-2026-11-05-03` | 2026-11-05 | model | M2.x 1h panel; 10 exploratory + 5 primary cells; no primary passed | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-05/M2-DEV-SWARM.md) |
 | `PROGRAM-2026-11-04-05` | 2026-11-04 | model | V5 Phase 2 price-only spike; three candidates no edge; volume blocked | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/V5-PHASE2-SPIKE.md) |
 | `STRATEGY-2026-11-04-02` | 2026-11-04 | strategy | 1m compression bracket; all folds halted | strategy | model, portfolio | MODEL-2026-11-04-06..07 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-02-compression-bracket.md) |
 | `STRATEGY-2026-11-04-01` | 2026-11-04 | strategy | Directional 1m compression strategy | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-01-compression-strategy.md) |
@@ -72,6 +73,7 @@ Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-0
 | `V4-DIRECTIONAL-STRATEGY` | 2026-11-04 | stopped — no directional baseline | [stop](2026-11-04/V4-DIRECTIONAL-STRATEGY-STOP.md) |
 | `SESSION-LIQUIDITY-SPIKE` | 2026-11-04 | no edge — stopped | [record](2026-11-04/SESSION-LIQUIDITY-SPIKE.md) |
 | `EURUSD-SESSION-SPIKE` | 2026-11-04 | no edge — stopped | [record](2026-11-04/EURUSD-SESSION-SPIKE.md) |
+| `PROGRAM-2026-11-05-03` | 2026-11-05 | no edge — stopped | [record](2026-11-05/M2-DEV-SWARM.md) |
 
 Rows sort by date, then tier (`model`, `strategy`, `portfolio`), then run ID. See
 [`baselines.md`](baselines.md) for accepted baselines and

@@ -1,7 +1,7 @@
 # Baselines
 
-- Date: 2026-11-04 (UTC)
-- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; the EURUSD DST-aware session spike stopped with no edge; the v5 1h swing gate stopped with no edge; the v5 Phase 2 price-only spike stopped with no edge and the volume family is blocked by data quality; no strategy or portfolio baseline
+- Date: 2026-11-05 (UTC)
+- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; the EURUSD DST-aware session spike stopped with no edge; the v5 1h swing gate stopped with no edge; the v5 Phase 2 price-only spike stopped with no edge and the volume family is blocked by data quality; the M2.x 1h direction programme stopped with no edge; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -29,6 +29,7 @@ by the agent that ran or reviewed the result.
 | Model | `EURUSD-SESSION-SPIKE` | — | 2026-11-04 | DST-aware EURUSD London/NY session spike; no primary pass; no validation | — | Not accepted — no edge |
 | Model | `MODEL-2026-11-04-18` | — | 2026-11-04 | V5 1h swing gate, 4 ATR / 2 ATR / 100 bars; three cells grade C; horizon explanation falsified; no validation | — | Not accepted — no edge |
 | Model | `PROGRAM-2026-11-04-05` | — | 2026-11-04 | V5 Phase 2 price-only spike; three candidates no edge; volume family blocked by data quality; no validation | — | Not accepted — no edge |
+| Model | `PROGRAM-2026-11-05-03` | — | 2026-11-05 | M2.x 1h panel; 10 exploratory + 5 primary cells; no primary passed; validation not opened | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-01` | — | 2026-11-04 | v9 directional 1m compression; all folds halted; no edge | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-02` | — | 2026-11-04 | v10 1m compression bracket; all folds halted; no edge | — | Not accepted — no edge |
 | Strategy | `STRATEGY-2026-11-04-03` | — | 2026-11-04 | v10 5m fresh-onset bracket; all folds halted; negative gross edge | — | Not accepted — no edge |

@@ -125,8 +125,7 @@
         "rvol",
         "rvol_fast",
         "rvol_slow",
-        "rvol_ratio",
-        "volume_oscillator"
+        "rvol_ratio"
       ],
       "availability": "n closed bars with volume",
       "events": [

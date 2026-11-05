@@ -2,6 +2,7 @@
 
 - Date: 2026-11-05 (UTC)
 - Status: **Retrospective, read-only**; closes the missing Phase 1 artifact
+- Closeout: 2026-11-05; F-02 fixed by the human signature; F-10 remains triaged as accepted scope
 - Scope: VWAP, volume profile, RVOL, volume climax, absorption, OBV, CMF, MFI,
   ATR term, and session
 - Basis: registry `2026-11-05.15`, checklist `INDICATOR-VERIFICATION.md`, model
@@ -193,14 +194,14 @@ checker must count unique IDs, not indicator references.
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
 | F-01 | Major | Process | Phase 1 was not pre-registered; this audit is retrospective | 405 plan phase 1 “Not delivered”; this document | The feature screen did not gate the backlog | (a) Accept retrospective with limitation; (b) re-audit before M2; (c) waive | (a) | This document; 405 plan updated | Fixed | 410 plan, 405 plan |
-| F-02 | Major | Verification | 37/37 rows are `tested`, 0 `verified`; `Sign` open | Checklist Table B | No row is formally verified | (a) Sign now; (b) defer to P7; (c) waive | (a) | `Sign` column | Open | Checklist |
+| F-02 | Major | Verification | 37/37 rows are `tested`, 0 `verified`; `Sign` open | Checklist Table B | No row is formally verified | (a) Sign now; (b) defer to P7; (c) waive | (a) | `Sign` column | Fixed | Checklist |
 | F-03 | Major | Spec | v1 cannot configure readings, active events, prediction, or panel/session | v1 contract; v2 closes the reading/active/prediction/panel gap | The M2 swarm cannot run from a spec | (a) v2; (b) extend v1 in place; (c) separate config | (a) | v2 parser and report tests | Fixed | [model-spec-v2.md](../../model/2026-11-05/model-spec-v2.md) |
-| F-04 | Medium | Registry | `volume_oscillator` is owned by both `rvol` and indicator 15 | `rvol.outputs` includes `volume_oscillator`; indicator 15 owns it; `participation_series` computes it | Ambiguous ownership; coverage or vote code could count it twice | (a) Remove from `rvol.outputs`; (b) merge into `rvol`; (c) leave | (a) | `check_registry.py`; registry diff | Open | Registry |
+| F-04 | Medium | Registry | `volume_oscillator` is owned by both `rvol` and indicator 15 | `rvol.outputs` includes `volume_oscillator`; indicator 15 owns it; `participation_series` computes it | Ambiguous ownership; coverage or vote code could count it twice | (a) Remove from `rvol.outputs`; (b) merge into `rvol`; (c) leave | (a) | `check_registry.py`; registry diff | Fixed | Registry |
 | F-05 | Medium | Documentation | Absorption formula differs between coverage doc and registry/implementation | Coverage Area 3: `min(abs(H-L_level),abs(L-L_level))`; registry: `min(|C-VWAP|,|C-POC|)`; code uses close distance | A reader could implement the wrong formula | (a) Update coverage doc; (b) change code; (c) mark both | (a) | Doc diff; registry; code review | Fixed | Coverage, registry |
 | F-06 | Medium | Spec | Panel and session readings are not wired into the spec run | Checklist rows 28–36 now `Wiring` and `Spec` ☑ | The ten panel/session indicators are not exercised by a spec | (a) v2 panel/session; (b) separate panel run; (c) leave out | (a) | v2 panel/session tests | Fixed | [model-spec-v2.md](../../model/2026-11-05/model-spec-v2.md) |
-| F-07 | Low | Coverage | 148 indicator event references for 143 unique events | Registry count; five shared IDs | A naive coverage check overcounts | (a) Dedupe in the checker; (b) list each event once; (c) leave | (a) | Coverage checker test | Planned | P3 |
+| F-07 | Low | Coverage | 148 indicator event references for 143 unique events | Registry count; five shared IDs | A naive coverage check overcounts | (a) Dedupe in the checker; (b) list each event once; (c) leave | (a) | Coverage checker test | Fixed | P3 |
 | F-08 | Low | Prediction | Context events with `claim: none` can be misread as directional votes | Registry roles: 71 context, 67 signal, 5 diagnostic; v2 rejects a non-signal vote | A vote that counts every event would double count descriptors | (a) Vote counts only `signal` events with a direction; context enters conditions; (b) count all events | (a) | v2 role-rejection test | Fixed | [model-spec-v2.md](../../model/2026-11-05/model-spec-v2.md) |
-| F-09 | Low | Registry | `signal.profile_concentration` at 0.5 may be sparse | Formula `max(bin)/sum(V) >= 0.5` over 24 bins | The event may be inert in the development run | (a) Measure occurrence; (b) change threshold; (c) retire | (a) | P5 occurrence report | Open | Registry |
+| F-09 | Low | Registry | `signal.profile_concentration` at 0.5 may be sparse | Formula `max(bin)/sum(V) >= 0.5` over 24 bins | The event may be inert in the development run | (a) Measure occurrence; (b) change threshold; (c) retire | (a) | P5 occurrence report | Fixed | Registry |
 | F-10 | Info | Scope | This audit covers 10 of 46 indicators | Scope table | The other 36 rest on the checklist and golden fixtures | (a) Expand audit; (b) accept scope | (b) | Checklist | Triaged | 405 plan |
 
 ## 5. Finding details
@@ -252,7 +253,8 @@ definition meaningless.
 **Verification.** The `Sign` column is populated for all 37 rows; the status
 becomes `verified`.
 
-**Status.** Open.
+**Status.** Fixed (P7): the human signed rows 1–37 on 2026-11-05; the agent
+recorded the signature. The checklist is 37/37 `verified`.
 
 ### F-03 — The v1 spec cannot configure the M2 model
 
@@ -300,7 +302,9 @@ Option (b) would remove a registered indicator and change the area map. Option
 shows one owner; the event `signal.volume_oscillator_cross` still resolves to
 code 15.
 
-**Status.** Open.
+**Status.** Fixed (P7): `volume_oscillator` was removed from `rvol.outputs` and
+remains owned by indicator 15. `check_registry.py` reports 46 indicators, 143
+events, and 110 parameters.
 
 ### F-05 — Absorption formula mismatch
 
@@ -373,7 +377,8 @@ produce the event. Option (c) leaves a known trap.
 **Verification.** A coverage test asserts `unique(events) == 143` and every
 primary prediction names each event once.
 
-**Status.** Planned (P3).
+**Status.** Fixed (P3): `tools/research/coverage.py` and its test dedupe by event
+ID; the committed matrix reports 46 indicators and 143 events.
 
 ### F-08 — Context events are not votes
 
@@ -419,7 +424,10 @@ requires evidence and approval. Option (c) is premature.
 **Verification.** The P5 cell report includes an occurrence count for every
 event, including this one. A zero count is recorded, not hidden.
 
-**Status.** Open.
+**Status.** Fixed (P7): a deterministic reproduction of `EXPL-02` on `model_dev`
+recorded 13,541 `signal.profile_concentration` events across the four
+instruments and three folds; the reproduced metrics match the preserved P5
+result. The event is not inert.
 
 ### F-10 — Audit scope is ten of forty-six
 
