@@ -1,27 +1,29 @@
 # Indicator Implementation Summary and Verification Checklist
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved — implementation contract**
+- Status: **Approved — implementation contract**; 37/37 rows `tested`, 0/37 `verified`
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Coverage: [`docs/model/2026-11-05/indicator-coverage.md`](../../model/2026-11-05/indicator-coverage.md)
+- Phase 1 audit: [`docs/improvement/2026-11-05/INDICATOR-AUDIT.md`](INDICATOR-AUDIT.md)
+- M2.x programme: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Scope: 46 indicators (10 existing, 36 new), 10 information areas
 - All inputs: OHLCV and time only
 - Claim type: registry and implementation contract; no edge claim
-- Reconciliation: 2026-11-05; phases 0–5 implemented, phase 1 audit not delivered, phases 6–8 open
+- Reconciliation: 2026-11-05; phases 0–5 implemented; Phase 1 audit delivered retrospectively; phases 6–8 moved to the M2.x programme
 
 ## 1. What will be implemented
 
 | Phase | Work | Output | State |
 |---|---|---|---|
 | 0 | Registry schema extension, coverage matrix, codes, roles, claims | `docs/registry/` updated; event `formula` required | Done |
-| 1 | Read-only feature audit of the top 10 | `docs/improvement/2026-11-05/INDICATOR-AUDIT.md` | **Not delivered** |
+| 1 | Read-only feature audit of the top 10 | [`INDICATOR-AUDIT.md`](INDICATOR-AUDIT.md) | Done — retrospective; see the limitation |
 | 2 | Tier 1 readings | VWAP, profile, ATR term, participation, lead-lag/breadth, Donchian | Done |
 | 3 | Event layer | Level, divergence, signal events; availability; precedence | Done; §5 records the remaining audit and phase gaps |
 | 4 | Spec engine | `quantrule.model-spec/v1`, evaluator, `--spec`, registry, conformance | Done |
 | 5 | Tier 2 readings | Flow, path, cross-asset context, calendar | Done |
-| 6 | v6–v10 charters and swarm | Five charters, matrix, dev run | Open — #426–#428 |
-| 7 | Validation and baseline | One-shot `model_validation`, Quant Validator, baseline | Open — #429 |
-| 8 | Closeout | Registry, index, baselines, cleanup | Open — #430 |
+| 6 | M2.x charters and swarm | Five primary cells, ten exploratory cells, dev run | Moved to the [M2.x programme](../../execution-plans/2026-11-05/410-m2-model-programme.md) P3–P5 |
+| 7 | Validation and baseline | One-shot `model_validation`, Quant Validator, baseline | Moved to the M2.x programme P6 |
+| 8 | Closeout | Registry, index, baselines, cleanup | Moved to the M2.x programme P7 |
 
 ## 2. Indicators and events
 
@@ -168,6 +170,11 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
 | 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | tested |
 
+Rows 28–37 have `Wiring` and `Spec` open because the v1 spec cannot select a
+panel or a session and cannot activate the extended readings. The model and the
+panel/session batches are implemented; the spec surface is the gap. M2.x P1
+closes it with `quantrule.model-spec/v2`.
+
 ## 4. Verification table B — test and math checklist
 
 `F` formula unit test, `C` causality, `D` determinism, `G` golden fixture, `E`
@@ -222,6 +229,10 @@ order plus the occurrence key in `tests/event_validation.rs`, together with the
 v4 level-reference order test. These are family-level checks, not per-indicator
 fixtures.
 
+The `Sign` column is the human or Quant Validator signature. The agent cannot
+fill it. Until it is filled, the row is `tested`, not `verified`, even when every
+other cell is ticked. The retrospective audit records the same gap as F-02.
+
 ## 5. Known gaps
 
 The missing-event batch closed the BOS/CHOCH, session-VWAP, opening-range, and
@@ -232,8 +243,10 @@ are reconciled to one cross per reading. `signal.structure_change` is shared by
 
 | Gap | Evidence | Next step |
 |---|---|---|
-| `INDICATOR-AUDIT.md` | The file is absent from `docs/improvement/2026-11-05/` | Human decides whether to require the audit retroactively |
-| Phases 6–8 | #426–#430 are Todo | Approve the charters, run the swarm, validate, close out |
+| `INDICATOR-AUDIT.md` | Delivered retrospectively as [`INDICATOR-AUDIT.md`](INDICATOR-AUDIT.md) | Accept the retrospective limitation; the audit did not screen the backlog |
+| `Sign` column | 0/37 rows signed in Table B | Human or Quant Validator signs; the agent cannot fill it |
+| Spec v2 and panel/session wiring | Table A rows 28–37 have `Wiring` and `Spec` open; v1 is condition-only | M2.x P1 adds reading overrides, active events, prediction, and panel/session |
+| Phases 6–8 | Moved to the [M2.x programme](../../execution-plans/2026-11-05/410-m2-model-programme.md) | Approve the charter, run the swarm, validate, close out |
 
 ## 6. Golden fixtures
 
@@ -307,5 +320,5 @@ python3 tools/check_terms.py
 | `code` | Reading and events implemented |
 | `tested` | F/C/D/G/E/A/N/P all pass |
 | `wired` | Model emits the reading and event codes in the artifacts |
-| `spec` | Usable from a `quantrule.model-spec/v1` spec |
+| `spec` | Usable from a `quantrule.model-spec/v1` or `/v2` spec |
 | `verified` | Human or Quant Validator has signed the row |

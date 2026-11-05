@@ -1,8 +1,9 @@
 # Research Swarm Runbook
 
-- Date: 2026-11-04 (UTC)
+- Date: 2026-11-05 (UTC)
 - Status: Current
 - Contract: [`docs/governance/2026-11-04/research-mandate.md`](../governance/2026-11-04/research-mandate.md)
+- M2.x programme: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Scope: concurrent research programs executed through the Improvement Workflow
 
 ## 1. Purpose
@@ -26,7 +27,66 @@ hypothesis, one config, one worktree, and one result.
 The coordinator does not tune, vote, or promote. A cell agent does not read
 another cell's result or change its config after seeing a result.
 
-## 3. Program lifecycle
+## 3. Model programme modes
+
+A model program has two modes. The mode is declared in the cell and in the
+program report; it is not inferred from a result.
+
+| Mode | Cells | Partition | Evidence | Ranked | Validation |
+|---|---|---|---|---|---|
+| Exploratory model | Ten area cells, one per information area | `model_dev` only | Coverage and hypothesis generation | No | Never |
+| Confirmatory model | Five primary M2.x cells | `model_dev`, then one-shot `model_validation` | Corrected primary evidence | Yes | Only after human promotion |
+
+### 3.1 Exploratory model mode
+
+The exploratory mode exists so that every registry event is tried at least once
+without turning the search into an optimizer.
+
+- There is one cell per information area: volume-weighted price, volume by
+  price, participation, volume-price flow, volatility structure, structure,
+  candle anatomy and gaps, path and duration, cross-asset, and calendar/session.
+- Each cell activates the events of its area and publishes a directional vote.
+  The cell is labelled `exploratory` in `cell-result.json` and in the program
+  report.
+- The ten area cells are **not ranked** and receive **no multiple-testing
+  credit**. A positive area cell is a hypothesis for a primary cell, not a
+  candidate.
+- The exploratory mode never opens `model_validation`, never changes a primary
+  spec, and never feeds a strategy.
+- A coverage checker reads the ten specs and the registry and fails the program
+  if any registry event ID is absent from every exploratory prediction. Shared
+  event IDs are counted once. It also checks all 46 indicator IDs: an indicator
+  with no event (for example `calendar_bucket`) is exercised as a reading or a
+  condition in its area cell.
+- Diagnostic events may appear in exploratory cells. A primary cell that will
+  feed a strategy uses only `signal` and `context` events.
+- The human freezes the ten area specs and the five primary specs before the
+  first run. A cell agent may not add, remove, or retune an event after seeing a
+  result. A failed exploratory cell is retired; it is not retried with a
+  variant.
+- Exploratory results are reported in full, including failures and zero-event
+  counts. They are evidence about coverage and data quality, not a performance
+  claim.
+
+### 3.2 Confirmatory model mode
+
+The confirmatory mode is the only mode that can produce an accepted M2.x
+baseline.
+
+- The five primary cells are the only confirmatory cells. The correction is
+  Bonferroni over five.
+- A spec is frozen by ID, configuration hash, and code commit before the first
+  development run.
+- The human reviews every cell and promotes at most the declared primary cells.
+- The promoted cells run `model_validation` once. The validation access is
+  recorded in the registry.
+- A validation cell that fails is not retried with a post-hoc variant.
+
+The event-to-area mapping and the exact cell specs are fixed in the M2.x charter
+before the first run. The charter is the only place where the finite cell list
+can change, and only before a run.
+
+## 4. Program lifecycle
 
 1. The human approves a charter using
    [`program-charter-template.md`](../governance/2026-11-04/program-charter-template.md).
@@ -51,7 +111,7 @@ another cell's result or change its config after seeing a result.
 10. The human accepts or rejects; the registry is updated; the worktrees and
     branches are cleaned.
 
-## 4. Concurrency
+## 5. Concurrency
 
 - `max_parallel` is declared in the program manifest, default 5, maximum 64.
 - Config-only cells run through the batch runner with isolated output
@@ -61,7 +121,7 @@ another cell's result or change its config after seeing a result.
   measurement tools.
 - Each cell writes only its own `data/research/<PROGRAM-ID>/<CELL-ID>/`.
 
-## 5. Commands
+## 6. Commands
 
 ```bash
 # Config-only dev batch.
@@ -91,11 +151,33 @@ python3 tools/research/registry.py \
   --report data/research/<PROGRAM-ID>/program-results/program-results.json
 ```
 
+A model cell runs a model spec and a prediction evaluator instead of a strategy
+backtest:
+
+```bash
+quantrule report model \
+  --config config/research/<PROGRAM-ID>/cells/<CELL-ID>/run.json \
+  --spec config/research/<PROGRAM-ID>/cells/<CELL-ID>/spec.json \
+  --out data/research/<PROGRAM-ID>/dev/<CELL-ID>
+
+python3 tools/improvement/model_prediction.py \
+  --predictions data/research/<PROGRAM-ID>/dev/<CELL-ID>/prediction.csv \
+  --series data/research/<PROGRAM-ID>/dev/<CELL-ID>/readings.csv \
+  --source data/sources/<INSTRUMENT>_M1_2018-01-01_2024-12-31.csv \
+  --partition model_dev \
+  --horizon <H> \
+  --out data/research/<PROGRAM-ID>/dev/<CELL-ID>/model_prediction.json
+```
+
+The second command is part of the M2.x programme (P2); it is not present until
+that phase lands. The runbook names the intended interface so a cell brief can
+be written against it.
+
 The worktree mode copies each cell result back to the coordinator's
 `data/research/<PROGRAM-ID>/<phase>/<CELL-ID>/` for aggregation. The worktree
 remains for code review and is removed after the program closes.
 
-## 6. Cell boundaries
+## 7. Cell boundaries
 
 - One hypothesis, one config, one worktree, one result.
 - No cell edits a shared file.
@@ -106,7 +188,7 @@ remains for code review and is removed after the program closes.
 - A failed cell is retired. It is not retried with a variant in the same
   program.
 
-## 7. Human gates
+## 8. Human gates
 
 | Gate | Human action |
 |---|---|
@@ -119,7 +201,7 @@ remains for code review and is removed after the program closes.
 A charter approval does not authorize commits, pushes, PRs, merges, or
 deployments. Those have their own gates.
 
-## 8. Stop conditions
+## 9. Stop conditions
 
 - No primary cell passes the development gate.
 - A validation cell fails.
@@ -131,7 +213,7 @@ deployments. Those have their own gates.
 A stopped program does not open the next tier. A new program requires a new
 premise and a new approved charter.
 
-## 9. Closeout
+## 10. Closeout
 
 - Preserve every `cell-result.json` and the program report.
 - Write the registry record.

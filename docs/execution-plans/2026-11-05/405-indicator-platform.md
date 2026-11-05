@@ -1,16 +1,18 @@
 # Indicator Completeness and Model-Spec Platform — Execution Plan
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved** (human, 2026-11-05); implementation in progress
+- Status: **Approved** (human, 2026-11-05); phases 0–5 implemented; Phase 1 audit delivered retrospectively; phases 6–8 moved to the M2.x programme
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Coverage: [`docs/model/2026-11-05/indicator-coverage.md`](../../model/2026-11-05/indicator-coverage.md)
 - Verification checklist: [`docs/improvement/2026-11-05/INDICATOR-VERIFICATION.md`](../../improvement/2026-11-05/INDICATOR-VERIFICATION.md)
+- Phase 1 audit: [`docs/improvement/2026-11-05/INDICATOR-AUDIT.md`](../../improvement/2026-11-05/INDICATOR-AUDIT.md)
+- M2.x programme: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](410-m2-model-programme.md)
 - Claim type: platform and indicator programme; no edge claim
 
 ## 1. Intent
 
-Make the model information-complete for OHLCV and configurable enough to run a
-v6–v10 model swarm. The current model is a fixed Rust event set whose readings
+Make the model information-complete for OHLCV and configurable enough to run an
+M2.x model swarm. The current model is a fixed Rust event set whose readings
 are mostly price-momentum and trend transforms. This programme adds the missing
 OHLCV dimensions — volume-weighted price, volume by price, participation,
 volume-price flow, volatility structure, structure, candle anatomy, path,
@@ -51,7 +53,7 @@ Explicit non-goals:
   absolute-volume rules are not.
 - The v4 event batch remains the legacy report/dashboard/analytics domain; the
   extended batch is additive and published in the event CSV.
-- A bounded expression tree can express the v6–v10 logic without a general
+- A bounded expression tree can express the M2.x logic without a general
   purpose language.
 - The feature audit may conclude that a dimension has no edge; that is a valid
   result.
@@ -60,7 +62,7 @@ Explicit non-goals:
 
 | Decision | Choice | Status |
 |---|---|---|
-| Spec schema | `quantrule.model-spec/v1` | Approved |
+| Spec schema | `quantrule.model-spec/v1`; v2 adds readings, active events, prediction, panel/session | Approved |
 | Evaluator | Rust evaluator, shell parses JSON | Approved |
 | Event formula | Required on every registry event | Approved |
 | Legacy boundary | Extended events separate from `TimeframeModel::events()` | Approved |
@@ -79,7 +81,8 @@ Explicit non-goals:
 - The event CSV publishes both the v4 and extended batches.
 - The legacy report, dashboard, and analytics fixtures remain valid.
 - The spec engine runs a model spec end-to-end.
-- The v6–v10 swarm runs and reports every cell.
+- The M2.x swarm runs and reports every cell (moved to the
+  [M2.x programme](410-m2-model-programme.md) P3–P7).
 - A model baseline is accepted or `no edge` is recorded.
 
 ## 7. Work breakdown
@@ -101,8 +104,8 @@ Explicit non-goals:
 | 7d | [#421](https://github.com/quant-rule/quant-rule/issues/421) | Panel and session signals | Done |
 | 7e | [#422](https://github.com/quant-rule/quant-rule/issues/422) | Event validation and precedence | Done |
 | 8 | [#423](https://github.com/quant-rule/quant-rule/issues/423)–[#425](https://github.com/quant-rule/quant-rule/issues/425) | Spec engine | Done |
-| 9 | [#426](https://github.com/quant-rule/quant-rule/issues/426)–[#429](https://github.com/quant-rule/quant-rule/issues/429) | v6–v10 charters, swarm, validation | Todo |
-| 10 | [#430](https://github.com/quant-rule/quant-rule/issues/430) | Closeout | Todo |
+| 9 | [#426](https://github.com/quant-rule/quant-rule/issues/426)–[#429](https://github.com/quant-rule/quant-rule/issues/429) | M2.x charters, swarm, validation — moved to the [M2.x programme](410-m2-model-programme.md) | Moved |
+| 10 | [#430](https://github.com/quant-rule/quant-rule/issues/430) | M2.x closeout — moved to the [M2.x programme](410-m2-model-programme.md) | Moved |
 
 Reconciliation (2026-11-05): the BOS/CHOCH levels, the session-VWAP level, and
 the opening-range test/break levels are registered and implemented. The plan's
@@ -110,8 +113,13 @@ the opening-range test/break levels are registered and implemented. The plan's
 panel's extra `rs_regime`/`lag_divergence` names are reconciled to one cross per
 reading (`signal.relative_strength_cross`, `signal.lead_lag_cross`,
 `signal.co_movement_cross`, `signal.dispersion_cross`). Phase 1's read-only
-audit file was not delivered; the human decides whether to require it
-retroactively. Per-indicator golden fixtures and the family-level edge and precedence checks are in place; the checklist is `tested`. The remaining gaps are the audit decision, the human/Validator `Sign`, and phases 6–8.
+audit was delivered retrospectively; see
+[`INDICATOR-AUDIT.md`](../../improvement/2026-11-05/INDICATOR-AUDIT.md). The
+limitation — it did not screen the backlog before implementation — is recorded
+there. Per-indicator golden fixtures and the family-level edge and precedence
+checks are in place; the checklist is `tested`. The remaining gaps are the
+human/Validator `Sign` and the spec v2/panel/session wiring, which the M2.x
+programme carries in P1.
 
 ## 8. First-batch implementation
 
@@ -167,7 +175,7 @@ without touching the v4 model or its accepted baselines.
 
 - A reading or event fails causality, determinism, golden, or edge tests.
 - The feature audit finds no candidate above the screen.
-- A v6–v10 premise is a variant of a failed hypothesis.
+- An M2.x premise is a variant of a failed hypothesis.
 - No cell passes dev; validation fails; human stops.
 
 ## 12. Approval
@@ -175,5 +183,7 @@ without touching the v4 model or its accepted baselines.
 - Approved by: human, 2026-11-05
 - Scope: the registry, the 36-indicator coverage, the first batch, and the
   platform phases
+- Phase 9–10: moved to the [M2.x programme](410-m2-model-programme.md), approved
+  by the human on 2026-11-05
 - Not authorized: strategy work, live capital, a new dependency, or a change to
   the v4 event domain
