@@ -1,394 +1,1963 @@
 {
   "schema": "quantrule.validation/v1",
-  "version": "2026-11-04.4",
+  "version": "2026-11-05.3",
   "claims": [
     {
-      "id": "ema",
+      "id": "absorption",
       "kind": "indicator",
       "construct_tests": [
-        "synthetic_trend",
-        "synthetic_range",
-        "flat",
-        "short_series"
-      ],
-      "primary_outcome": "path_directional",
-      "predictive_status": "pending"
-    },
-    {
-      "id": "rsi",
-      "kind": "indicator",
-      "construct_tests": [
-        "synthetic_uptrend",
-        "synthetic_downtrend",
-        "flat",
-        "short_series"
-      ],
-      "primary_outcome": "path_directional",
-      "predictive_status": "pending"
-    },
-    {
-      "id": "atr",
-      "kind": "indicator",
-      "construct_tests": [
-        "known_true_range",
-        "gap",
-        "flat",
-        "short_series"
-      ],
-      "primary_outcome": "volatility",
-      "predictive_status": "pending"
-    },
-    {
-      "id": "rvol",
-      "kind": "indicator",
-      "construct_tests": [
-        "known_volume_baseline",
-        "volume_spike",
-        "zero_volume",
-        "short_series"
+        "absorption_flags_a_small_range_near_vwap"
       ],
       "primary_outcome": "participation",
       "predictive_status": "pending"
     },
     {
-      "id": "macd",
+      "id": "ad_line",
       "kind": "indicator",
       "construct_tests": [
-        "synthetic_trend",
-        "synthetic_reversal",
-        "flat",
-        "short_series"
+        "ad_line_accumulates_money_flow"
       ],
-      "primary_outcome": "path_directional",
-      "predictive_status": "pending"
-    },
-    {
-      "id": "pivots",
-      "kind": "indicator",
-      "construct_tests": [
-        "synthetic_swing",
-        "confirmation_delay",
-        "equal_high_low",
-        "short_series"
-      ],
-      "primary_outcome": "structure",
-      "predictive_status": "pending"
-    },
-    {
-      "id": "context",
-      "kind": "indicator",
-      "construct_tests": [
-        "ratio_table",
-        "missing_inputs",
-        "zero_baseline"
-      ],
-      "primary_outcome": "volatility",
-      "predictive_status": "pending"
-    },
-    {
-      "id": "progression",
-      "kind": "indicator",
-      "construct_tests": [
-        "synthetic_leg",
-        "target_revision",
-        "invalidation",
-        "short_series"
-      ],
-      "primary_outcome": "progression",
+      "primary_outcome": "participation",
       "predictive_status": "pending"
     },
     {
       "id": "adx",
       "kind": "indicator",
       "construct_tests": [
-        "synthetic_trend",
-        "synthetic_range",
-        "flat",
-        "short_series"
+        "readings_golden::every_scalar_reading_matches_the_golden_values"
       ],
-      "primary_outcome": "trend_strength",
+      "primary_outcome": "path_directional",
       "predictive_status": "pending"
+    },
+    {
+      "id": "aroon",
+      "kind": "indicator",
+      "construct_tests": [
+        "aroon_reads_a_rising_series"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "atr",
+      "kind": "indicator",
+      "construct_tests": [
+        "readings_golden::every_scalar_reading_matches_the_golden_values"
+      ],
+      "primary_outcome": "volatility",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "atr_term",
+      "kind": "indicator",
+      "construct_tests": [
+        "atr_term_is_available_after_the_slow_window"
+      ],
+      "primary_outcome": "volatility",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "bars_since_extreme",
+      "kind": "indicator",
+      "construct_tests": [
+        "path_reads_efficiency_and_extremes"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "bos_choch",
+      "kind": "indicator",
+      "construct_tests": [
+        "event_validation::bos_and_choch"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "breadth",
+      "kind": "indicator",
+      "construct_tests": [
+        "breadth_and_dispersion_are_common"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "calendar_bucket",
+      "kind": "indicator",
+      "construct_tests": [
+        "london_session_and_opening_range"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "candle_anatomy",
+      "kind": "indicator",
+      "construct_tests": [
+        "candle_anatomy_reads_the_bar"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "candle_pattern",
+      "kind": "indicator",
+      "construct_tests": [
+        "candle_pattern_flags_an_engulfing_bar"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "cmf",
+      "kind": "indicator",
+      "construct_tests": [
+        "cmf_is_one_when_every_close_is_the_high"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "co_movement",
+      "kind": "indicator",
+      "construct_tests": [
+        "co_movement_is_high_for_aligned_series"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "context",
+      "kind": "indicator",
+      "construct_tests": [
+        "context_golden::the_context_matches_the_golden_fixture"
+      ],
+      "primary_outcome": "volatility",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "direction_changes",
+      "kind": "indicator",
+      "construct_tests": [
+        "direction_changes_counts_sign_flips"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "dispersion",
+      "kind": "indicator",
+      "construct_tests": [
+        "breadth_and_dispersion_are_common"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
     },
     {
       "id": "dmi",
       "kind": "indicator",
       "construct_tests": [
-        "synthetic_uptrend",
-        "synthetic_downtrend",
-        "flat",
-        "short_series"
+        "readings_golden::every_scalar_reading_matches_the_golden_values"
       ],
       "primary_outcome": "path_directional",
       "predictive_status": "pending"
     },
     {
-      "id": "level.test",
-      "kind": "event",
+      "id": "donchian",
+      "kind": "indicator",
       "construct_tests": [
-        "synthetic_retest",
-        "availability",
-        "precedence"
+        "keltner_and_donchian_publish_bands"
       ],
       "primary_outcome": "structure",
-      "horizon_bars": 20,
-      "target_atr": 1.0,
-      "stop_atr": 1.0,
-      "baseline": "matched_barrier",
       "predictive_status": "pending"
     },
     {
-      "id": "level.cross",
-      "kind": "event",
+      "id": "drawdown_atr",
+      "kind": "indicator",
       "construct_tests": [
-        "synthetic_cross",
-        "availability",
-        "precedence"
+        "path_reads_efficiency_and_extremes"
       ],
       "primary_outcome": "structure",
-      "horizon_bars": 20,
-      "target_atr": 1.0,
-      "stop_atr": 1.0,
-      "baseline": "matched_barrier",
       "predictive_status": "pending"
     },
     {
-      "id": "level.break",
-      "kind": "event",
+      "id": "ema",
+      "kind": "indicator",
       "construct_tests": [
-        "synthetic_break",
-        "availability",
-        "precedence"
+        "readings_golden::every_scalar_reading_matches_the_golden_values"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "gap",
+      "kind": "indicator",
+      "construct_tests": [
+        "gap_reads_the_open_jump"
       ],
       "primary_outcome": "structure",
-      "horizon_bars": 20,
-      "target_atr": 1.0,
-      "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "no_edge"
-    },
-    {
-      "id": "divergence.rsi_regular_bullish",
-      "kind": "event",
-      "construct_tests": [
-        "synthetic_pivots",
-        "confirmation_availability"
-      ],
-      "primary_outcome": "reversal",
-      "horizon_bars": 20,
-      "target_atr": 1.0,
-      "stop_atr": 1.0,
-      "baseline": "matched_barrier",
       "predictive_status": "pending"
     },
     {
-      "id": "divergence.rsi_regular_bearish",
-      "kind": "event",
+      "id": "keltner",
+      "kind": "indicator",
       "construct_tests": [
-        "synthetic_pivots",
-        "confirmation_availability"
+        "keltner_and_donchian_publish_bands"
       ],
-      "primary_outcome": "reversal",
-      "horizon_bars": 20,
-      "target_atr": 1.0,
-      "stop_atr": 1.0,
-      "baseline": "matched_barrier",
+      "primary_outcome": "volatility",
       "predictive_status": "pending"
     },
     {
-      "id": "divergence.rsi_hidden_bullish",
+      "id": "lead_lag",
+      "kind": "indicator",
+      "construct_tests": [
+        "lead_lag_reads_the_leader"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "level_strength",
+      "kind": "indicator",
+      "construct_tests": [
+        "structure_and_levels_publish_when_history_exists"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "macd",
+      "kind": "indicator",
+      "construct_tests": [
+        "readings_golden::every_scalar_reading_matches_the_golden_values"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "mar",
+      "kind": "indicator",
+      "construct_tests": [
+        "range_and_mar_read_the_window"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "mfi",
+      "kind": "indicator",
+      "construct_tests": [
+        "mfi_is_one_hundred_when_every_bar_rises"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "obv",
+      "kind": "indicator",
+      "construct_tests": [
+        "obv_accumulates_signed_volume"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "opening_range",
+      "kind": "indicator",
+      "construct_tests": [
+        "london_session_and_opening_range"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "overnight_intraday",
+      "kind": "indicator",
+      "construct_tests": [
+        "overnight_and_intraday_returns_read_the_session"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "path_efficiency",
+      "kind": "indicator",
+      "construct_tests": [
+        "path_reads_efficiency_and_extremes"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "pivots",
+      "kind": "indicator",
+      "construct_tests": [
+        "readings_golden::the_fixture_covers_every_reading_and_both_pivot_scales"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "progression",
+      "kind": "indicator",
+      "construct_tests": [
+        "progression_golden::the_per_bar_fixture_matches_the_computed_series"
+      ],
+      "primary_outcome": "progression",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "range_expansion",
+      "kind": "indicator",
+      "construct_tests": [
+        "range_and_mar_read_the_window"
+      ],
+      "primary_outcome": "volatility",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "range_position",
+      "kind": "indicator",
+      "construct_tests": [
+        "path_reads_efficiency_and_extremes"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "relative_strength",
+      "kind": "indicator",
+      "construct_tests": [
+        "relative_strength_ranks_the_faster_instrument"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "rsi",
+      "kind": "indicator",
+      "construct_tests": [
+        "readings_golden::every_scalar_reading_matches_the_golden_values"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "rvol",
+      "kind": "indicator",
+      "construct_tests": [
+        "rvol_reads_the_volume_ratio"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "session",
+      "kind": "indicator",
+      "construct_tests": [
+        "london_session_and_opening_range"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "session_range",
+      "kind": "indicator",
+      "construct_tests": [
+        "session_range_reads_the_session_high_low"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "swing_structure",
+      "kind": "indicator",
+      "construct_tests": [
+        "structure_and_levels_publish_when_history_exists"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "volume_climax",
+      "kind": "indicator",
+      "construct_tests": [
+        "climax_flags_a_high_volume_wide_bar"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "volume_oscillator",
+      "kind": "indicator",
+      "construct_tests": [
+        "volume_oscillator_reads_the_fast_slow_gap"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "volume_profile",
+      "kind": "indicator",
+      "construct_tests": [
+        "profile_poc_is_the_highest_volume_bin"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "vwap",
+      "kind": "indicator",
+      "construct_tests": [
+        "vwap_is_the_volume_weighted_typical_price"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending"
+    },
+    {
+      "id": "divergence.ad_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_pivots",
-        "confirmation_availability"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
       "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.ad_regular_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.atr_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.atr_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.breadth_regular_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.breadth_regular_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.climax_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.climax_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.cmf_hidden_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.cmf_hidden_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.cmf_regular_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.cmf_regular_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.lead_lag_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.lead_lag_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.mfi_hidden_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.mfi_hidden_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.mfi_regular_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.mfi_regular_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.obv_hidden_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.obv_hidden_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.obv_regular_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.obv_regular_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.profile_poc_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.profile_poc_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.rs_regular_bearish",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.rs_regular_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
     },
     {
       "id": "divergence.rsi_hidden_bearish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_pivots",
-        "confirmation_availability"
+        "divergence::tests::a_lower_high_with_a_higher_rsi_high_is_hidden_bearish"
       ],
       "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "baseline": "matched_barrier"
     },
     {
-      "id": "signal.rsi_threshold",
+      "id": "divergence.rsi_hidden_bullish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_threshold",
-        "equality",
-        "availability"
+        "divergence::tests::a_higher_low_with_a_lower_rsi_low_is_hidden_bullish"
       ],
-      "primary_outcome": "path_directional",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "no_edge"
+      "baseline": "matched_barrier"
     },
     {
-      "id": "signal.ema_pair_cross",
+      "id": "divergence.rsi_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_cross",
-        "equality",
-        "availability"
+        "divergence::tests::a_higher_high_with_a_lower_rsi_high_is_regular_bearish"
       ],
-      "primary_outcome": "path_directional",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "baseline": "matched_barrier"
     },
     {
-      "id": "signal.ema_stack_change",
+      "id": "divergence.rsi_regular_bullish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_stack",
-        "equality",
-        "availability"
+        "divergence::tests::a_lower_low_with_a_higher_rsi_low_is_regular_bullish"
       ],
-      "primary_outcome": "path_directional",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "baseline": "matched_barrier"
     },
     {
-      "id": "signal.macd_line_signal_cross",
+      "id": "divergence.rvol_bearish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_cross",
-        "equality",
-        "availability"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
-      "primary_outcome": "path_directional",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "no_edge"
+      "baseline": "matched_barrier"
     },
     {
-      "id": "signal.macd_histogram_slope_flip",
+      "id": "divergence.rvol_bullish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_flip",
-        "zero_slope",
-        "availability"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
-      "primary_outcome": "path_directional",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "baseline": "matched_barrier"
     },
     {
-      "id": "signal.macd_zero_cross",
+      "id": "divergence.vwap_hidden_bearish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_zero_cross",
-        "equality",
-        "availability"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
-      "primary_outcome": "path_directional",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "baseline": "matched_barrier"
     },
     {
-      "id": "signal.di_cross",
+      "id": "divergence.vwap_hidden_bullish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_direction_change",
-        "equality",
-        "availability"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
-      "primary_outcome": "path_directional",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "pending"
+      "baseline": "matched_barrier"
     },
     {
-      "id": "signal.trend_continuation",
+      "id": "divergence.vwap_regular_bearish",
       "kind": "event",
       "construct_tests": [
-        "synthetic_conjunction",
-        "disagreement",
-        "causality"
+        "extended::tests::divergence_sources_cover_their_events"
       ],
-      "primary_outcome": "path_directional",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier",
-      "predictive_status": "no_edge"
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "divergence.vwap_regular_bullish",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::divergence_sources_cover_their_events"
+      ],
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "level.absorption_test",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.bos",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.break",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "no_edge",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "level.choch",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.cross",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "level.donchian_break",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.donchian_test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.gap_fill",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.gap_test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.keltner_break",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.keltner_test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.opening_range_break",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::session_level_events_are_published"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.opening_range_test",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::the_opening_range_test_fires_on_a_touch"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.profile_poc_test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.profile_va_break",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.profile_va_reentry",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.profile_vah_test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.profile_val_test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.session_vwap_test",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::session_level_events_are_published"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.strength_test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.structure_break",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "level.vwap_break",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.vwap_cross",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.vwap_test",
+      "kind": "event",
+      "construct_tests": [
+        "level_events_golden::the_level_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "level.wick_test",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.absorption_break",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.absorption_rejection",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.ad_cross",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.aroon_cross",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.aroon_osc",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.atr_compression",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.atr_expansion",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.atr_regime",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.breadth_cross",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.candle_doji",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.candle_marubozu",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.candle_momentum",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.candle_rejection",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.climax_continuation",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.climax_reversal",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.cmf_cross",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.cmf_threshold",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.co_movement_cross",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
     },
     {
       "id": "signal.compression_breakout",
       "kind": "event",
       "construct_tests": [
-        "compression_window",
-        "breakout_distance",
-        "rvol_confirmation",
-        "no_lookahead"
+        "compression::tests::a_coiling_window_followed_by_a_breakout_emits_one_event"
       ],
       "primary_outcome": "volatility",
+      "predictive_status": "pass",
       "horizon_bars": 20,
       "target_atr": 4.0,
       "stop_atr": 4.0,
-      "baseline": "coiling_barrier",
-      "predictive_status": "pass"
+      "baseline": "coiling_barrier"
     },
     {
       "id": "signal.compression_range",
       "kind": "event",
       "construct_tests": [
-        "compression_window",
-        "range_values",
-        "next_bar_touch",
-        "no_lookahead"
+        "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "volatility",
+      "predictive_status": "pass",
       "horizon_bars": 1,
       "target_atr": 4.0,
       "stop_atr": 1.0,
-      "baseline": "matched_non_coiling_completion",
-      "predictive_status": "pass"
+      "baseline": "matched_non_coiling_completion"
     },
     {
       "id": "signal.compression_range_onset",
       "kind": "event",
       "construct_tests": [
-        "onset_window",
-        "range_values",
-        "next_bar_touch",
-        "no_lookahead"
+        "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "volatility",
+      "predictive_status": "pass",
       "horizon_bars": 1,
       "target_atr": 4.0,
       "stop_atr": 1.0,
-      "baseline": "matched_non_coiling_completion",
-      "predictive_status": "pass"
+      "baseline": "matched_non_coiling_completion"
+    },
+    {
+      "id": "signal.di_cross",
+      "kind": "event",
+      "construct_tests": [
+        "signal_events_golden::the_signal_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.direction_changes",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.dispersion_cross",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.donchian_breakout",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.donchian_position",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.drawdown_recovery",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.drawdown_threshold",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.ema_pair_cross",
+      "kind": "event",
+      "construct_tests": [
+        "signal_events_golden::the_signal_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.ema_stack_change",
+      "kind": "event",
+      "construct_tests": [
+        "signal::tests::ema_stack_and_rsi_zone_changes_are_published"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.extreme_new",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.extreme_stale",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.gap_continuation",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.gap_fade",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.keltner_breakout",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.keltner_position",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.lead_lag_cross",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.macd_histogram_slope_flip",
+      "kind": "event",
+      "construct_tests": [
+        "signal_events_golden::the_signal_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.macd_line_signal_cross",
+      "kind": "event",
+      "construct_tests": [
+        "signal_events_golden::the_signal_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "no_edge",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.macd_zero_cross",
+      "kind": "event",
+      "construct_tests": [
+        "signal_events_golden::the_signal_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.mar_regime",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.mfi_threshold",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.mfi_zone",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.obv_cross",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.obv_slope",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.opening_range_breakout",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::opening_range_breakout_and_overnight_continuation_are_published"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.opening_range_fade",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::session_fade_and_range_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.overnight_continuation",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::opening_range_breakout_and_overnight_continuation_are_published"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.overnight_fade",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::session_fade_and_range_events_are_exercised"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.path_efficiency",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.pattern_engulfing",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.pattern_hammer",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.pattern_inside",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.pattern_outside",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.pattern_star",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.pattern_three_crows",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.pattern_three_soldiers",
+      "kind": "event",
+      "construct_tests": [
+        "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.profile_concentration",
+      "kind": "event",
+      "construct_tests": [
+        "extended::tests::absorption_wick_and_profile_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.profile_poc_cross",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.profile_skew",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.profile_va_breakout",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.range_contraction",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.range_expansion",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.range_position",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.relative_strength_cross",
+      "kind": "event",
+      "construct_tests": [
+        "panel::tests::panel_divergences_and_crosses_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.rsi_threshold",
+      "kind": "event",
+      "construct_tests": [
+        "signal_events_golden::the_signal_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "no_edge",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.rvol_contraction",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.rvol_expansion",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.rvol_ratio",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.session_close",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::session_open_and_close_are_published"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.session_open",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::session_open_and_close_are_published"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.session_range_contraction",
+      "kind": "event",
+      "construct_tests": [
+        "defect::session_range_contraction"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
+    },
+    {
+      "id": "signal.session_range_expansion",
+      "kind": "event",
+      "construct_tests": [
+        "session::tests::session_fade_and_range_events_are_exercised"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.strength_change",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.structure_change",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.trend_continuation",
+      "kind": "event",
+      "construct_tests": [
+        "signal_events_golden::the_signal_events_match_the_golden_fixture"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "no_edge",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.volume_oscillator_cross",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
+    },
+    {
+      "id": "signal.vwap_reclaim",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.vwap_rejection",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "participation",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.vwap_slope",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "none",
+      "predictive_status": "not_applicable"
     }
   ]
 }

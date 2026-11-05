@@ -117,6 +117,16 @@ codes 19–54 and signal subtypes 10–23 for the indicator-completeness program
 Every `signal` and `context` entry has a claim. A `diagnostic` entry has
 `claim: "none"`.
 
+### 4.1 Validation claims
+
+`validation.json` carries one claim per active indicator and event. A `signal`
+event carries a predictive outcome, a horizon, a target, a stop, and a baseline.
+A `context` or `diagnostic` event carries `primary_outcome: "none"` and
+`predictive_status: "not_applicable"`; it is a construct claim, not an edge
+claim. `construct_tests` names the test that exercises the condition. The
+construct coverage, including the session-range defect found and fixed during
+P1b-2, is recorded in [`construct-gaps.md`](construct-gaps.md).
+
 ## 5. CI checks
 
 `tools/check_registry.py` enforces:
@@ -128,7 +138,8 @@ Every `signal` and `context` entry has a claim. A `diagnostic` entry has
    field has a registry parameter entry.
 5. Every code default matches the registry default.
 6. Every event source is a registered indicator or series.
-7. Every `signal`/`context` event has a claim and at least one validation test.
+7. Every `signal`/`context` event has a descriptive claim and at least one
+   validation test; every `diagnostic` event has `claim: "none"`.
 8. A strategy config cannot reference a `diagnostic` measurement.
 9. `indicators.md` is a current generation of `indicators.json`.
 

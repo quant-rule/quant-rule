@@ -22,13 +22,14 @@ REGISTRY = ROOT / "docs/registry/indicators.json"
 VALIDATION = ROOT / "docs/registry/validation.json"
 
 CLAIM_KEYS = {
-    "id", "kind", "construct_tests", "primary_outcome",
+    "id", "kind", "construct_tests", "construct_status", "primary_outcome",
     "horizon_bars", "target_atr", "stop_atr", "baseline",
     "predictive_status",
 }
+CONSTRUCT_STATUSES = {"covered", "defect", "pending"}
 REQUIRED = {"id", "kind", "construct_tests", "primary_outcome", "predictive_status"}
 KINDS = {"indicator", "event"}
-STATUSES = {"pending", "pass", "no_edge", "defect", "inconclusive"}
+STATUSES = {"pending", "pass", "no_edge", "defect", "inconclusive", "not_applicable"}
 OUTCOMES = {
     "path_directional", "structure", "reversal", "volatility",
     "participation", "progression", "trend_strength", "none",
@@ -57,6 +58,11 @@ def check(registry: dict[str, Any], validation: dict[str, Any]) -> list[str]:
     }
     active_events = {
         event["id"]
+        for event in registry.get("events", [])
+        if event.get("status") == "active"
+    }
+    event_roles = {
+        event["id"]: event.get("role")
         for event in registry.get("events", [])
         if event.get("status") == "active"
     }
@@ -99,19 +105,37 @@ def check(registry: dict[str, Any], validation: dict[str, Any]) -> list[str]:
             not isinstance(test, str) or not test for test in tests
         ):
             errors.append(f"{label}.construct_tests must be a non-empty string array")
+        if "construct_status" in claim and claim["construct_status"] not in CONSTRUCT_STATUSES:
+            errors.append(f"{label}.construct_status is invalid")
         outcome = claim.get("primary_outcome")
         if outcome not in OUTCOMES:
             errors.append(f"{label}.primary_outcome is invalid")
-        if kind == "event" and outcome == "none":
-            errors.append(f"{label} is an event with no primary outcome")
-        if claim.get("predictive_status") not in STATUSES:
+        status = claim.get("predictive_status")
+        if status not in STATUSES:
             errors.append(f"{label}.predictive_status is invalid")
         if kind == "event":
-            for field in ("horizon_bars", "target_atr", "stop_atr"):
-                if not isinstance(claim.get(field), (int, float)) or claim[field] <= 0:
-                    errors.append(f"{label}.{field} must be positive")
-            if not isinstance(claim.get("baseline"), str) or not claim["baseline"]:
-                errors.append(f"{label}.baseline must be a non-empty string")
+            role = event_roles.get(ident)
+            if role == "signal":
+                if outcome == "none":
+                    errors.append(f"{label} is a signal event with no primary outcome")
+                if status == "not_applicable":
+                    errors.append(
+                        f"{label} is a signal event and cannot be not_applicable"
+                    )
+                for field in ("horizon_bars", "target_atr", "stop_atr"):
+                    if not isinstance(claim.get(field), (int, float)) or claim[field] <= 0:
+                        errors.append(f"{label}.{field} must be positive")
+                if not isinstance(claim.get("baseline"), str) or not claim["baseline"]:
+                    errors.append(f"{label}.baseline must be a non-empty string")
+            elif role in ("context", "diagnostic"):
+                if outcome != "none":
+                    errors.append(
+                        f"{label} is a {role} event; primary_outcome must be none"
+                    )
+                if status != "not_applicable":
+                    errors.append(
+                        f'{label} is a {role} event; predictive_status must be "not_applicable"'
+                    )
 
     for ident in sorted(active_indicators - claimed_indicators):
         errors.append(f"active indicator has no validation claim: {ident}")

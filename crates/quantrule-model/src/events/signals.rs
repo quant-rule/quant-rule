@@ -682,3 +682,133 @@ pub(crate) fn compute(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::compute;
+    use crate::events::extended::ExtendedEventConfig;
+    use crate::events::{EventRecord, codes};
+    use crate::readings::{
+        ExtendedConfig, ExtendedReadings, ReadingSeries, Readings, ReadingsConfig,
+    };
+    use quantrule_data::Candle;
+
+    fn candle(index: u64, open: f64, high: f64, low: f64, close: f64) -> Candle {
+        Candle::new(index, index as i64, open, high, low, close, Some(10.0)).expect("valid candle")
+    }
+
+    fn series() -> Vec<Candle> {
+        (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.5))
+            .collect()
+    }
+
+    fn wide_series() -> Vec<Candle> {
+        let mut candles = series();
+        candles[29] = candle(29, 101.0, 110.0, 100.0, 109.0);
+        candles
+    }
+
+    fn rejection_series() -> Vec<Candle> {
+        let mut candles = series();
+        candles[29] = candle(29, 105.0, 110.0, 100.0, 101.0);
+        candles
+    }
+
+    fn gap_series(close: f64) -> Vec<Candle> {
+        let mut candles = series();
+        candles[29] = candle(29, 102.0, 103.0, 101.0, close);
+        candles
+    }
+
+    fn series_at(len: usize, values: &[(usize, f64)]) -> ReadingSeries {
+        let mut data = vec![None; len];
+        for (bar, value) in values {
+            data[*bar] = Some(*value);
+        }
+        ReadingSeries::new(data)
+    }
+
+    fn events_with(
+        candles: &[Candle],
+        overrides: impl FnOnce(&mut ExtendedReadings),
+    ) -> Vec<EventRecord> {
+        let readings = Readings::compute_with_config(candles, &ReadingsConfig::DEFAULT);
+        let mut extended = ExtendedReadings::compute(candles, &readings, &ExtendedConfig::DEFAULT);
+        overrides(&mut extended);
+        let mut events = Vec::new();
+        compute(
+            candles,
+            &readings,
+            &extended,
+            &ExtendedEventConfig::from_secs(3600).expect("timeframe"),
+            &mut events,
+        );
+        events
+    }
+
+    fn has(events: &[EventRecord], code: u16) -> bool {
+        events.iter().any(|event| event.event_code == code)
+    }
+
+    #[test]
+    fn atr_candle_pattern_and_gap_events_are_exercised() {
+        let candles = series();
+        let len = candles.len();
+
+        let compression = events_with(&candles, |extended| {
+            extended.atr_ratio = series_at(len, &[(28, 0.8), (29, 0.6)]);
+        });
+        assert!(has(&compression, codes::SIGNAL_ATR_COMPRESSION));
+
+        let expansion = events_with(&candles, |extended| {
+            extended.atr_ratio = series_at(len, &[(28, 1.2), (29, 1.4)]);
+        });
+        assert!(has(&expansion, codes::SIGNAL_ATR_EXPANSION));
+
+        let regime = events_with(&candles, |extended| {
+            extended.vol_regime = series_at(len, &[(28, 0.0), (29, 1.0)]);
+        });
+        assert!(has(&regime, codes::SIGNAL_ATR_REGIME));
+
+        let momentum = events_with(&wide_series(), |extended| {
+            extended.body_ratio = series_at(len, &[(29, 0.8)]);
+            extended.close_position = series_at(len, &[(29, 0.9)]);
+        });
+        assert!(has(&momentum, codes::SIGNAL_CANDLE_MOMENTUM));
+
+        let marubozu = events_with(&wide_series(), |extended| {
+            extended.body_ratio = series_at(len, &[(29, 0.95)]);
+        });
+        assert!(has(&marubozu, codes::SIGNAL_CANDLE_MARUBOZU));
+
+        let rejection = events_with(&rejection_series(), |extended| {
+            extended.upper_wick_ratio = series_at(len, &[(29, 0.7)]);
+            extended.lower_wick_ratio = series_at(len, &[(29, 0.2)]);
+        });
+        assert!(has(&rejection, codes::SIGNAL_CANDLE_REJECTION));
+
+        for (pattern, code) in [
+            (5.0, codes::SIGNAL_PATTERN_HAMMER),
+            (6.0, codes::SIGNAL_PATTERN_STAR),
+            (7.0, codes::SIGNAL_PATTERN_THREE_SOLDIERS),
+            (8.0, codes::SIGNAL_PATTERN_THREE_CROWS),
+        ] {
+            let patterns = events_with(&candles, |extended| {
+                extended.pattern_code = series_at(len, &[(29, pattern)]);
+                extended.pattern_direction = series_at(len, &[(29, 1.0)]);
+            });
+            assert!(has(&patterns, code), "pattern {pattern} did not emit");
+        }
+
+        let continuation = events_with(&gap_series(102.5), |extended| {
+            extended.gap_atr = series_at(len, &[(29, 0.6)]);
+        });
+        assert!(has(&continuation, codes::SIGNAL_GAP_CONTINUATION));
+
+        let fade = events_with(&gap_series(101.5), |extended| {
+            extended.gap_atr = series_at(len, &[(29, -0.6)]);
+        });
+        assert!(has(&fade, codes::SIGNAL_GAP_FADE));
+    }
+}

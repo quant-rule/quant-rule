@@ -1585,9 +1585,15 @@ fn atr_divergences(
 
 #[cfg(test)]
 mod tests {
-    use super::{ExtendedEventConfig, ExtendedEventSeries};
-    use crate::events::{EventType, codes};
-    use crate::readings::{ExtendedConfig, ExtendedReadings, Readings, ReadingsConfig};
+    use super::{
+        ExtendedEventConfig, ExtendedEventSeries, atr_divergences, divergence_events,
+        flow_divergences, level_extended_events, participation_divergences, participation_events,
+        profile_events,
+    };
+    use crate::events::{EventRecord, EventType, codes};
+    use crate::readings::{
+        ExtendedConfig, ExtendedReadings, PivotKind, ReadingSeries, Readings, ReadingsConfig,
+    };
     use quantrule_data::Candle;
 
     fn candle(index: u64, open: f64, high: f64, low: f64, close: f64, volume: f64) -> Candle {
@@ -1873,6 +1879,333 @@ mod tests {
                 .events()
                 .iter()
                 .any(|event| event.source_code == 39 && event.event_subtype_code == 20)
+        );
+    }
+
+    fn pivot_candles(kind: PivotKind, first: f64, second: f64) -> Vec<Candle> {
+        (0..30)
+            .map(|index| {
+                let index = index as u64;
+                match kind {
+                    PivotKind::Low => {
+                        let low = if index == 5 {
+                            first
+                        } else if index == 15 {
+                            second
+                        } else {
+                            101.0
+                        };
+                        candle(index, 101.0, 101.5, low, 101.0, 10.0)
+                    }
+                    PivotKind::High => {
+                        let high = if index == 5 {
+                            first
+                        } else if index == 15 {
+                            second
+                        } else {
+                            100.0
+                        };
+                        candle(index, 100.0, high, 99.5, 100.0, 10.0)
+                    }
+                }
+            })
+            .collect()
+    }
+
+    fn two_pivot_values(len: usize, first: f64, second: f64) -> ReadingSeries {
+        let mut values = vec![None; len];
+        values[5] = Some(first);
+        values[15] = Some(second);
+        ReadingSeries::new(values)
+    }
+
+    fn series_at(len: usize, values: &[(usize, f64)]) -> ReadingSeries {
+        let mut data = vec![None; len];
+        for (bar, value) in values {
+            data[*bar] = Some(*value);
+        }
+        ReadingSeries::new(data)
+    }
+
+    fn event_config() -> ExtendedEventConfig {
+        ExtendedEventConfig::from_secs(3600).expect("timeframe")
+    }
+
+    fn vwap_profile_codes(
+        kind: PivotKind,
+        first: f64,
+        second: f64,
+        first_value: f64,
+        second_value: f64,
+    ) -> Vec<u16> {
+        let candles = pivot_candles(kind, first, second);
+        let readings = Readings::compute(&candles);
+        let mut extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+        extended.vwap_distance_atr = two_pivot_values(candles.len(), first_value, second_value);
+        extended.poc = two_pivot_values(candles.len(), first_value, second_value);
+        let mut events = Vec::new();
+        divergence_events(&readings, &extended, &event_config(), &mut events);
+        events.iter().map(|event| event.event_code).collect()
+    }
+
+    fn participation_codes(
+        kind: PivotKind,
+        first: f64,
+        second: f64,
+        first_value: f64,
+        second_value: f64,
+    ) -> Vec<u16> {
+        let candles = pivot_candles(kind, first, second);
+        let readings = Readings::compute(&candles);
+        let mut extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+        extended.rvol_slow = two_pivot_values(candles.len(), first_value, second_value);
+        extended.rvol_fast = two_pivot_values(candles.len(), first_value, second_value);
+        let mut events = Vec::new();
+        participation_divergences(&readings, &extended, &event_config(), &mut events);
+        events.iter().map(|event| event.event_code).collect()
+    }
+
+    fn flow_codes(
+        kind: PivotKind,
+        first: f64,
+        second: f64,
+        first_value: f64,
+        second_value: f64,
+    ) -> Vec<u16> {
+        let candles = pivot_candles(kind, first, second);
+        let readings = Readings::compute(&candles);
+        let mut extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+        for series in [
+            &mut extended.obv,
+            &mut extended.cmf,
+            &mut extended.mfi,
+            &mut extended.ad_line,
+        ] {
+            *series = two_pivot_values(candles.len(), first_value, second_value);
+        }
+        let mut events = Vec::new();
+        flow_divergences(&readings, &extended, &event_config(), &mut events);
+        events.iter().map(|event| event.event_code).collect()
+    }
+
+    fn atr_codes(
+        kind: PivotKind,
+        first: f64,
+        second: f64,
+        first_value: f64,
+        second_value: f64,
+    ) -> Vec<u16> {
+        let candles = pivot_candles(kind, first, second);
+        let readings = Readings::compute(&candles);
+        let mut extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+        extended.atr_ratio = two_pivot_values(candles.len(), first_value, second_value);
+        let mut events = Vec::new();
+        atr_divergences(&readings, &extended, &event_config(), &mut events);
+        events.iter().map(|event| event.event_code).collect()
+    }
+
+    #[test]
+    fn divergence_sources_cover_their_events() {
+        assert_eq!(
+            vwap_profile_codes(PivotKind::Low, 99.0, 98.0, 0.5, 1.5),
+            vec![
+                codes::DIVERGENCE_VWAP_REGULAR_BULLISH,
+                codes::DIVERGENCE_PROFILE_POC_BULLISH
+            ]
+        );
+        assert_eq!(
+            vwap_profile_codes(PivotKind::Low, 99.0, 100.0, 1.5, 0.5),
+            vec![codes::DIVERGENCE_VWAP_HIDDEN_BULLISH]
+        );
+        assert_eq!(
+            vwap_profile_codes(PivotKind::High, 101.0, 102.0, 1.5, 0.5),
+            vec![
+                codes::DIVERGENCE_VWAP_REGULAR_BEARISH,
+                codes::DIVERGENCE_PROFILE_POC_BEARISH
+            ]
+        );
+        assert_eq!(
+            vwap_profile_codes(PivotKind::High, 101.0, 100.5, 0.5, 1.5),
+            vec![codes::DIVERGENCE_VWAP_HIDDEN_BEARISH]
+        );
+
+        assert_eq!(
+            participation_codes(PivotKind::Low, 99.0, 98.0, 0.5, 1.5),
+            vec![
+                codes::DIVERGENCE_RVOL_BULLISH,
+                codes::DIVERGENCE_CLIMAX_BULLISH
+            ]
+        );
+        assert_eq!(
+            participation_codes(PivotKind::High, 101.0, 102.0, 1.5, 0.5),
+            vec![
+                codes::DIVERGENCE_RVOL_BEARISH,
+                codes::DIVERGENCE_CLIMAX_BEARISH
+            ]
+        );
+
+        assert_eq!(
+            flow_codes(PivotKind::Low, 99.0, 98.0, 0.5, 1.5),
+            vec![
+                codes::DIVERGENCE_OBV_REGULAR_BULLISH,
+                codes::DIVERGENCE_CMF_REGULAR_BULLISH,
+                codes::DIVERGENCE_MFI_REGULAR_BULLISH,
+                codes::DIVERGENCE_AD_REGULAR_BULLISH
+            ]
+        );
+        assert_eq!(
+            flow_codes(PivotKind::Low, 99.0, 100.0, 1.5, 0.5),
+            vec![
+                codes::DIVERGENCE_OBV_HIDDEN_BULLISH,
+                codes::DIVERGENCE_CMF_HIDDEN_BULLISH,
+                codes::DIVERGENCE_MFI_HIDDEN_BULLISH
+            ]
+        );
+        assert_eq!(
+            flow_codes(PivotKind::High, 101.0, 102.0, 1.5, 0.5),
+            vec![
+                codes::DIVERGENCE_OBV_REGULAR_BEARISH,
+                codes::DIVERGENCE_CMF_REGULAR_BEARISH,
+                codes::DIVERGENCE_MFI_REGULAR_BEARISH,
+                codes::DIVERGENCE_AD_REGULAR_BEARISH
+            ]
+        );
+        assert_eq!(
+            flow_codes(PivotKind::High, 101.0, 100.5, 0.5, 1.5),
+            vec![
+                codes::DIVERGENCE_OBV_HIDDEN_BEARISH,
+                codes::DIVERGENCE_CMF_HIDDEN_BEARISH,
+                codes::DIVERGENCE_MFI_HIDDEN_BEARISH
+            ]
+        );
+
+        assert_eq!(
+            atr_codes(PivotKind::Low, 99.0, 98.0, 0.5, 1.5),
+            vec![codes::DIVERGENCE_ATR_BULLISH]
+        );
+        assert_eq!(
+            atr_codes(PivotKind::High, 101.0, 102.0, 1.5, 0.5),
+            vec![codes::DIVERGENCE_ATR_BEARISH]
+        );
+    }
+
+    fn flat_candles() -> Vec<Candle> {
+        (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.5, 10.0))
+            .collect()
+    }
+
+    fn level_events_with(
+        candles: &[Candle],
+        bar: usize,
+        overrides: impl FnOnce(&mut ExtendedReadings),
+    ) -> Vec<EventRecord> {
+        let readings = Readings::compute(candles);
+        let mut extended = ExtendedReadings::compute(candles, &readings, &ExtendedConfig::DEFAULT);
+        overrides(&mut extended);
+        let mut events = Vec::new();
+        level_extended_events(
+            candles,
+            &readings,
+            &extended,
+            &event_config(),
+            bar,
+            &mut events,
+        );
+        events
+    }
+
+    fn participation_events_with(
+        candles: &[Candle],
+        bar: usize,
+        overrides: impl FnOnce(&mut ExtendedReadings),
+    ) -> Vec<EventRecord> {
+        let readings = Readings::compute(candles);
+        let mut extended = ExtendedReadings::compute(candles, &readings, &ExtendedConfig::DEFAULT);
+        overrides(&mut extended);
+        let mut events = Vec::new();
+        participation_events(
+            candles,
+            &readings,
+            &extended,
+            &event_config(),
+            bar,
+            &mut events,
+        );
+        events
+    }
+
+    #[test]
+    fn absorption_wick_and_profile_events_are_exercised() {
+        let mut candles = flat_candles();
+        let len = candles.len();
+
+        let absorption = participation_events_with(&candles, 29, |extended| {
+            extended.absorption_flag = series_at(len, &[(29, 1.0)]);
+            extended.absorption_strength = series_at(len, &[(29, 1.0)]);
+            extended.vwap = series_at(len, &[(29, 100.0)]);
+        });
+        assert!(
+            absorption
+                .iter()
+                .any(|event| event.event_code == codes::LEVEL_ABSORPTION_TEST)
+        );
+
+        candles[29] = candle(29, 102.0, 111.0, 101.0, 110.0, 10.0);
+        let broken = participation_events_with(&candles, 29, |extended| {
+            extended.absorption_flag = series_at(len, &[(28, 1.0)]);
+            extended.absorption_direction = series_at(len, &[(28, 1.0)]);
+        });
+        assert!(
+            broken
+                .iter()
+                .any(|event| event.event_code == codes::SIGNAL_ABSORPTION_BREAK)
+        );
+
+        candles[29] = candle(29, 100.0, 101.0, 99.0, 100.0, 10.0);
+        let rejected = participation_events_with(&candles, 29, |extended| {
+            extended.absorption_flag = series_at(len, &[(28, 1.0)]);
+            extended.absorption_direction = series_at(len, &[(28, 1.0)]);
+        });
+        assert!(
+            rejected
+                .iter()
+                .any(|event| event.event_code == codes::SIGNAL_ABSORPTION_REJECTION)
+        );
+
+        let mut wick_candles = flat_candles();
+        wick_candles[29] = candle(29, 100.0, 101.0, 99.0, 100.0, 10.0);
+        let wick = level_events_with(&wick_candles, 29, |extended| {
+            extended.upper_wick_ratio = series_at(len, &[(29, 0.7)]);
+            extended.last_pivot_high = series_at(len, &[(29, 101.0)]);
+        });
+        assert!(
+            wick.iter()
+                .any(|event| event.event_code == codes::LEVEL_WICK_TEST)
+        );
+
+        let profile = {
+            let candles = flat_candles();
+            let readings = Readings::compute(&candles);
+            let mut extended =
+                ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+            extended.poc = series_at(len, &[(29, 100.0)]);
+            extended.profile_concentration = series_at(len, &[(28, 0.4), (29, 0.6)]);
+            let mut events = Vec::new();
+            profile_events(
+                &candles,
+                &readings,
+                &extended,
+                &event_config(),
+                29,
+                &mut events,
+            );
+            events
+        };
+        assert!(
+            profile
+                .iter()
+                .any(|event| event.event_code == codes::SIGNAL_PROFILE_CONCENTRATION)
         );
     }
 }

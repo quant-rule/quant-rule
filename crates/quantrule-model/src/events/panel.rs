@@ -477,6 +477,219 @@ mod tests {
     }
 
     #[test]
+    fn panel_divergences_and_crosses_are_exercised() {
+        use crate::events::codes;
+        use crate::panel::PanelInstrumentReadings;
+        use std::collections::BTreeMap;
+
+        fn pivot_btc(kind: crate::readings::PivotKind, first: f64, second: f64) -> Vec<Candle> {
+            (0..30)
+                .map(|index| {
+                    let index = index as u64;
+                    match kind {
+                        crate::readings::PivotKind::Low => {
+                            let low = if index == 5 {
+                                first
+                            } else if index == 15 {
+                                second
+                            } else {
+                                101.0
+                            };
+                            Candle::new(
+                                index,
+                                1_700_000_000 + index as i64 * 3_600,
+                                101.0,
+                                101.5,
+                                low,
+                                101.0,
+                                Some(10.0),
+                            )
+                            .expect("valid candle")
+                        }
+                        crate::readings::PivotKind::High => {
+                            let high = if index == 5 {
+                                first
+                            } else if index == 15 {
+                                second
+                            } else {
+                                100.0
+                            };
+                            Candle::new(
+                                index,
+                                1_700_000_000 + index as i64 * 3_600,
+                                100.0,
+                                high,
+                                99.5,
+                                100.0,
+                                Some(10.0),
+                            )
+                            .expect("valid candle")
+                        }
+                    }
+                })
+                .collect()
+        }
+
+        fn panel(
+            btc: &[Candle],
+            rs: Vec<Option<f64>>,
+            lead: Vec<Option<f64>>,
+            breadth: Vec<Option<f64>>,
+            leader_return: Vec<Option<f64>>,
+            co_movement: Vec<Option<f64>>,
+            dispersion: Vec<Option<f64>>,
+        ) -> crate::panel::PanelReadings {
+            let timestamps: Vec<i64> = btc.iter().map(Candle::timestamp).collect();
+            let mut instruments = BTreeMap::new();
+            instruments.insert(
+                "BTC".to_string(),
+                PanelInstrumentReadings {
+                    relative_strength: rs,
+                    leader_return,
+                    lead_lag: lead,
+                    breadth,
+                    co_movement,
+                    dispersion,
+                },
+            );
+            crate::panel::PanelReadings {
+                timestamps,
+                instruments,
+            }
+        }
+
+        fn empty(len: usize) -> Vec<Option<f64>> {
+            vec![None; len]
+        }
+
+        let len = 30;
+        let mut rs = empty(len);
+        let mut lead = empty(len);
+        let mut breadth = empty(len);
+        rs[5] = Some(0.5);
+        rs[15] = Some(1.5);
+        lead[5] = Some(0.5);
+        lead[15] = Some(1.5);
+        breadth[5] = Some(0.5);
+        breadth[15] = Some(1.5);
+        let bullish = pivot_btc(crate::readings::PivotKind::Low, 99.0, 98.0);
+        let p = panel(
+            &bullish,
+            rs,
+            lead,
+            breadth,
+            empty(len),
+            empty(len),
+            empty(len),
+        );
+        let series = PanelEventSeries::compute(
+            &[PanelInstrument {
+                name: "BTC",
+                candles: &bullish,
+            }],
+            &p,
+            3_600,
+        );
+        for code in [
+            codes::DIVERGENCE_RS_REGULAR_BULLISH,
+            codes::DIVERGENCE_LEAD_LAG_BULLISH,
+            codes::DIVERGENCE_BREADTH_REGULAR_BULLISH,
+        ] {
+            assert!(
+                series
+                    .events("BTC")
+                    .iter()
+                    .any(|event| event.event_code == code),
+                "divergence {code} did not emit"
+            );
+        }
+
+        let mut rs = empty(len);
+        let mut lead = empty(len);
+        let mut breadth = empty(len);
+        rs[5] = Some(1.5);
+        rs[15] = Some(0.5);
+        lead[5] = Some(1.5);
+        lead[15] = Some(0.5);
+        breadth[5] = Some(1.5);
+        breadth[15] = Some(0.5);
+        let bearish = pivot_btc(crate::readings::PivotKind::High, 101.0, 102.0);
+        let p = panel(
+            &bearish,
+            rs,
+            lead,
+            breadth,
+            empty(len),
+            empty(len),
+            empty(len),
+        );
+        let series = PanelEventSeries::compute(
+            &[PanelInstrument {
+                name: "BTC",
+                candles: &bearish,
+            }],
+            &p,
+            3_600,
+        );
+        for code in [
+            codes::DIVERGENCE_RS_REGULAR_BEARISH,
+            codes::DIVERGENCE_LEAD_LAG_BEARISH,
+            codes::DIVERGENCE_BREADTH_REGULAR_BEARISH,
+        ] {
+            assert!(
+                series
+                    .events("BTC")
+                    .iter()
+                    .any(|event| event.event_code == code),
+                "divergence {code} did not emit"
+            );
+        }
+
+        let base = (0..len)
+            .map(|index| candle(index, 100.0))
+            .collect::<Vec<_>>();
+        let mut rs = empty(len);
+        let mut leader = empty(len);
+        let mut breadth = empty(len);
+        let mut co = empty(len);
+        let mut dispersion = empty(len);
+        rs[28] = Some(0.0);
+        rs[29] = Some(0.1);
+        leader[28] = Some(1.0);
+        leader[29] = Some(2.0);
+        breadth[28] = Some(0.5);
+        breadth[29] = Some(0.7);
+        co[28] = Some(0.5);
+        co[29] = Some(0.8);
+        dispersion[28] = Some(0.5);
+        dispersion[29] = Some(1.5);
+        let p = panel(&base, rs, empty(len), breadth, leader, co, dispersion);
+        let series = PanelEventSeries::compute(
+            &[PanelInstrument {
+                name: "BTC",
+                candles: &base,
+            }],
+            &p,
+            3_600,
+        );
+        for code in [
+            codes::SIGNAL_RELATIVE_STRENGTH_CROSS,
+            codes::SIGNAL_LEAD_LAG_CROSS,
+            codes::SIGNAL_BREADTH_CROSS,
+            codes::SIGNAL_CO_MOVEMENT_CROSS,
+            codes::SIGNAL_DISPERSION_CROSS,
+        ] {
+            assert!(
+                series
+                    .events("BTC")
+                    .iter()
+                    .any(|event| event.event_code == code),
+                "cross {code} did not emit"
+            );
+        }
+    }
+
+    #[test]
     fn repeated_panel_event_computation_is_identical() {
         let btc: Vec<Candle> = (0..60)
             .map(|index| candle(index, 100.0 + index as f64 * 0.1))
