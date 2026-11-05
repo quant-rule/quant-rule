@@ -103,6 +103,7 @@ the remaining pending phase.
 | STRATEGY-001 | First strategy comparison; not green; no strategy baseline | [`docs/improvement/2026-11-01/STRATEGY-001-comparison.md`](improvement/2026-11-01/STRATEGY-001-comparison.md) |
 | STRATEGY-002 | 5m/15m sample-size test; not green; v6 still too selective | [`docs/improvement/2026-11-01/STRATEGY-002-comparison.md`](improvement/2026-11-01/STRATEGY-002-comparison.md) |
 | STRATEGY-003 | Level-fade v7 validation; not green; new rule family rejected | [`docs/improvement/2026-11-01/STRATEGY-003-comparison.md`](improvement/2026-11-01/STRATEGY-003-comparison.md) |
+| PROGRAM-2026-11-05-03 | M2.x 1h panel; 10 exploratory + 5 primary cells; no primary passed; no edge; validation not opened | [`docs/improvement/2026-11-05/M2-DEV-SWARM.md`](improvement/2026-11-05/M2-DEV-SWARM.md) |
 | MODEL-2026-11-04-04..05 | 1m 4 ATR compression baseline; both partitions pass; accepted | [`docs/improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md) |
 | MODEL-2026-11-04-06..07 | 1m compression-range next-bar resolution; both partitions pass; accepted |
 | MODEL-2026-11-04-08 | 5m compression-range next-bar resolution; back-lag control fails; no edge |
@@ -183,8 +184,8 @@ committed, and the candles, charts, reports, and databases stay local.
 | Unified timeframe ladder | Complete; Phases 1–9 merged through PRs #238–#246; #246 merged as `7c865de` | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
 | Model v3: flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; v8 implementation proceeds separately | `docs/execution-plans/2026-11-03/342-model-v3.md` |
-| M2.x model programme | Approved 2026-11-05; P0–P4 merged; P5 development swarm complete, `no_edge`; validation not opened | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
-| M2.x model charter | Approved 2026-11-05; P4 runner next; strategy tier closed | `docs/governance/2026-11-05/M2-CHARTER.md` |
+| M2.x model programme | Approved 2026-11-05; P0–P5 merged; P5 `no_edge`; P7 closeout records complete; legacy removal #463; validation not opened | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
+| M2.x model charter | Approved 2026-11-05; P5 `no_edge`; checklist signed; legacy removal #463; strategy tier closed | `docs/governance/2026-11-05/M2-CHARTER.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

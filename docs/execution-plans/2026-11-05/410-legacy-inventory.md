@@ -1,7 +1,8 @@
 # Legacy Inventory — S1.x and Pre-Family Artifacts
 
 - Date: 2026-11-05 (UTC)
-- Status: **Proposed** — the removal boundary is approved; the exact list awaits review; removal deferred to P7
+- Status: **Follow-up approved** — the removal boundary is approved; the exact
+  path list below is the removal scope, tracked by [#463](https://github.com/quant-rule/quant-rule/issues/463); a reference check must pass before deletion
 - Scope: old strategy versions v6–v10 (`S1.1–S1.5`), pre-family strategy
   configs, and old research pilots
 - Plan: [`410-m2-model-programme.md`](410-m2-model-programme.md)
@@ -22,7 +23,8 @@ code and docs**. This inventory applies that rule as follows.
 | Accepted model-baseline configs and contracts | **Keep** | They are the evidence behind accepted `M1.0` baselines |
 | Historical file names | **Keep** | The naming registry maps them; renaming old paths adds risk with no evidence value |
 
-The removal is a separate `chore/legacy-removal` change after P7 closeout. This
+The removal is a separate `chore/legacy-removal` change after P7 closeout,
+tracked by [#463](https://github.com/quant-rule/quant-rule/issues/463). This
 document authorizes the inventory, not the deletion.
 
 ## 2. Keep — history records

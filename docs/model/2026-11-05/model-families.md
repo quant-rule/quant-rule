@@ -30,16 +30,17 @@ The rule is `<type><family>.<version>`:
 | `S1.3` | Event-composite strategy | strategy v8 | Historical; validation pending | [`349-strategy-v8.md`](../../execution-plans/2026-11-03/349-strategy-v8.md) |
 | `S1.4` | 1m compression breakout strategy | strategy v9 | Historical; `strategy_dev` no edge | [`STRATEGY-V9-GATE.md`](../../improvement/2026-11-04/STRATEGY-V9-GATE.md) |
 | `S1.5` | Compression bracket strategy family, including 5m and fresh-onset variants | strategy v10 | Historical; `strategy_dev` no edge | [`STRATEGY-BRACKET-GATE.md`](../../improvement/2026-11-04/STRATEGY-BRACKET-GATE.md) and [`STRATEGY-ONSET-5M-GATE.md`](../../improvement/2026-11-04/STRATEGY-ONSET-5M-GATE.md) |
-| `M2.1` | M2 model: volume and participation cell | new | Proposed; candidate only | M2.x charter (P3) |
-| `M2.2` | M2 model: structure and volatility cell | new | Proposed; candidate only | M2.x charter (P3) |
-| `M2.3` | M2 model: cross-asset cell | new | Proposed; candidate only | M2.x charter (P3) |
-| `M2.4` | M2 model: session and time cell | new | Proposed; candidate only | M2.x charter (P3) |
-| `M2.5` | M2 model: all-area vote cell | new | Proposed; candidate only | M2.x charter (P3) |
+| `M2.1` | M2 model: volume and participation cell | new | Historical; `model_dev` no edge; not accepted | M2.x charter (P3); [P5 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
+| `M2.2` | M2 model: structure and volatility cell | new | Historical; `model_dev` no edge; not accepted | M2.x charter (P3); [P5 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
+| `M2.3` | M2 model: cross-asset cell | new | Historical; `model_dev` no edge; not accepted | M2.x charter (P3); [P5 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
+| `M2.4` | M2 model: session and time cell | new | Historical; `model_dev` no edge; not accepted | M2.x charter (P3); [P5 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
+| `M2.5` | M2 model: all-area vote cell | new | Historical; `model_dev` no edge; not accepted | M2.x charter (P3); [P5 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
 | `S2.1+` | Strategies built on an accepted M2.x model | new | Closed until an M2.x baseline is accepted | P8 |
 
-`M2.1`–`M2.5` name the five **primary cells** before the run. A cell becomes an
-accepted model version only if the human accepts its validation evidence. The
-cell ID is stable either way; a rejected cell is not renumbered.
+`M2.1`–`M2.5` name the five **primary cells** before the run. P5 ran all five on
+`model_dev`; none passed, so none is an accepted model version and validation
+was not opened. The cell ID is stable either way; a rejected cell is not
+renumbered, and `S2.x` remains closed.
 
 ## 3. Historical aliases
 
