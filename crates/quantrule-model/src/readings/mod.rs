@@ -19,6 +19,7 @@
 mod adx;
 mod atr;
 mod ema;
+mod extended;
 mod macd;
 mod pivots;
 mod rsi;
@@ -30,6 +31,7 @@ pub mod roles;
 pub use adx::{AdxSeries, AdxState};
 pub use atr::atr;
 pub use ema::ema;
+pub use extended::{ExtendedConfig, ExtendedReadings};
 pub use macd::MacdSeries;
 pub use pivots::{Pivot, PivotCandidate, PivotKind, PivotScale, PivotSeries};
 pub use rsi::rsi;

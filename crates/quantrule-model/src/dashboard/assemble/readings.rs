@@ -101,6 +101,11 @@ pub(super) fn axis_readings(
 /// change to the axis named by its source code. Progression is not an event
 /// axis; its transitions are synthesized from the stage series.
 fn event_axis(event: &EventRecord) -> Option<AxisCode> {
+    // The dashboard is the legacy four-axis view. Extended events (sources 19+)
+    // have their own reporting surface and are not mapped onto a legacy axis.
+    if (19..=54).contains(&event.source_code) {
+        return None;
+    }
     match event.event_type {
         EventType::Level | EventType::Divergence => Some(AxisCode::Structure),
         EventType::Signal => match SignalSubtype::from_code(event.event_subtype_code)? {

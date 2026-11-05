@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-04.4",
+  "version": "2026-11-05.2",
   "indicators": [
     {
       "id": "ema",
@@ -356,6 +356,105 @@
         "edge_cases"
       ],
       "status": "active"
+    },
+    {
+      "id": "vwap",
+      "code": 11,
+      "name": "Volume-weighted average price",
+      "taxonomy": "volume",
+      "role": "context",
+      "claim": "A reclaim or rejection at the rolling VWAP reaches the ATR target before the stop more often than a matched barrier base.",
+      "formula": "TP=(H+L+C)/3; VWAP=sum(TP*V,n)/sum(V,n); D=(C-VWAP)/ATR; S=VWAP-VWAP[n]; MAD=mean(abs(TP-VWAP),n); bands=VWAP +/- 2*MAD",
+      "inputs": [
+        "high",
+        "low",
+        "close",
+        "volume",
+        "atr"
+      ],
+      "parameters": [
+        "model.vwap.window",
+        "model.vwap.band_mad"
+      ],
+      "outputs": [
+        "vwap",
+        "vwap_distance_atr",
+        "vwap_slope",
+        "vwap_band_upper",
+        "vwap_band_lower"
+      ],
+      "availability": "n closed bars and sum(V,n) > 0",
+      "events": [
+        "level.vwap_test",
+        "level.vwap_cross",
+        "level.vwap_break",
+        "divergence.vwap_regular_bullish",
+        "divergence.vwap_regular_bearish",
+        "divergence.vwap_hidden_bullish",
+        "divergence.vwap_hidden_bearish",
+        "signal.vwap_reclaim",
+        "signal.vwap_rejection",
+        "signal.vwap_slope"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "volume_profile",
+      "code": 12,
+      "name": "Rolling volume profile",
+      "taxonomy": "volume",
+      "role": "context",
+      "claim": "A value-area breakout or POC cross reaches the ATR target before the stop more often than a matched barrier base.",
+      "formula": "96 bars, 24 price bins; bin_j=sum(V_i where TP_i in bin_j); POC=argmax(bin); VAH/VAL expand from POC until sum(bin)>=0.7*sum(V); PD=(C-POC)/ATR; VP=(C-VAL)/(VAH-VAL); SK=(V above POC - V below POC)/sum(V); CO=max(bin)/sum(V); PM=POC-POC[n]",
+      "inputs": [
+        "high",
+        "low",
+        "close",
+        "volume",
+        "atr"
+      ],
+      "parameters": [
+        "model.profile.window",
+        "model.profile.bins",
+        "model.profile.value_area"
+      ],
+      "outputs": [
+        "poc",
+        "vah",
+        "val",
+        "poc_distance_atr",
+        "va_position",
+        "profile_skew",
+        "profile_concentration",
+        "poc_migration"
+      ],
+      "availability": "n closed bars and sum(V,n) > 0",
+      "events": [
+        "level.profile_poc_test",
+        "level.profile_vah_test",
+        "level.profile_val_test",
+        "level.profile_va_break",
+        "level.profile_va_reentry",
+        "divergence.profile_poc_bullish",
+        "divergence.profile_poc_bearish",
+        "signal.profile_va_breakout",
+        "signal.profile_poc_cross",
+        "signal.profile_skew",
+        "signal.profile_concentration"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
     }
   ],
   "events": [
@@ -383,7 +482,8 @@
         3,
         7,
         8
-      ]
+      ],
+      "formula": "abs(C - L) <= test_atr * ATR, where L is the referenced EMA or confirmed pivot price"
     },
     {
       "id": "level.cross",
@@ -409,7 +509,8 @@
         3,
         7,
         8
-      ]
+      ],
+      "formula": "(C[t] - L[t]) * (C[t-1] - L[t-1]) <= 0 and sign(C-L) changes"
     },
     {
       "id": "level.break",
@@ -435,7 +536,8 @@
         3,
         7,
         8
-      ]
+      ],
+      "formula": "(C[t] - L[t]) >= break_atr * ATR and (C[t-1] - L[t-1]) >= break_atr * ATR, or the mirror below"
     },
     {
       "id": "divergence.rsi_regular_bullish",
@@ -454,7 +556,8 @@
         "causality",
         "determinism"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "L[t] < L[p] and RSI[t] > RSI[p] at consecutive confirmed major pivots p"
     },
     {
       "id": "divergence.rsi_regular_bearish",
@@ -473,7 +576,8 @@
         "causality",
         "determinism"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "H[t] > H[p] and RSI[t] < RSI[p] at consecutive confirmed major pivots p"
     },
     {
       "id": "divergence.rsi_hidden_bullish",
@@ -492,7 +596,8 @@
         "causality",
         "determinism"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "L[t] > L[p] and RSI[t] < RSI[p] at consecutive confirmed major pivots p"
     },
     {
       "id": "divergence.rsi_hidden_bearish",
@@ -511,7 +616,8 @@
         "causality",
         "determinism"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "H[t] < H[p] and RSI[t] > RSI[p] at consecutive confirmed major pivots p"
     },
     {
       "id": "signal.rsi_threshold",
@@ -529,7 +635,8 @@
         "causality",
         "determinism"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "cross_up(RSI, 30), cross_up(RSI, 50), cross_up(RSI, 70), or the mirror down"
     },
     {
       "id": "signal.ema_pair_cross",
@@ -552,7 +659,8 @@
         1,
         2,
         3
-      ]
+      ],
+      "formula": "cross_up(EMA_fast, EMA_slow) or cross_down(EMA_fast, EMA_slow) for a configured pair"
     },
     {
       "id": "signal.ema_stack_change",
@@ -570,7 +678,8 @@
         "causality",
         "determinism"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "sign(EMA_fast - EMA_mid) or sign(EMA_mid - EMA_slow) changes"
     },
     {
       "id": "signal.rsi_zone_change",
@@ -588,7 +697,8 @@
         "causality",
         "determinism"
       ],
-      "status": "experimental"
+      "status": "experimental",
+      "formula": "zone(RSI) changes, where zone = -1 if RSI < 30, 0 if 30 <= RSI <= 70, +1 if RSI > 70"
     },
     {
       "id": "signal.macd_line_signal_cross",
@@ -613,7 +723,8 @@
       "sources": [
         13,
         14
-      ]
+      ],
+      "formula": "cross_up(MACD_line, MACD_signal) or cross_down(MACD_line, MACD_signal)"
     },
     {
       "id": "signal.macd_histogram_slope_flip",
@@ -634,7 +745,8 @@
         "causality",
         "determinism"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "sign(hist[t] - hist[t-1]) != sign(hist[t-1] - hist[t-2])"
     },
     {
       "id": "signal.macd_zero_cross",
@@ -655,7 +767,8 @@
         "causality",
         "determinism"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "cross_up(MACD_line, 0) or cross_down(MACD_line, 0)"
     },
     {
       "id": "signal.di_cross",
@@ -680,7 +793,8 @@
         "edge_cases",
         "event"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "cross_up(DI_plus, DI_minus) or cross_down(DI_plus, DI_minus)"
     },
     {
       "id": "signal.trend_continuation",
@@ -705,7 +819,8 @@
         "edge_cases",
         "event"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "ADX >= threshold and ADX[t] > ADX[t-slope] and DI side == EMA stack == MACD state == d"
     },
     {
       "id": "signal.compression_breakout",
@@ -730,7 +845,8 @@
         "determinism",
         "edge_cases"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "range <= coiling_atr*ATR for N bars and C beyond the range by break_atr*ATR and RVOL >= min"
     },
     {
       "id": "signal.compression_range",
@@ -753,7 +869,8 @@
         "determinism",
         "edge_cases"
       ],
-      "status": "active"
+      "status": "active",
+      "formula": "range <= coiling_atr*ATR for N consecutive bars"
     },
     {
       "id": "signal.compression_range_onset",
@@ -775,6 +892,364 @@
         "causality",
         "determinism",
         "edge_cases"
+      ],
+      "status": "active",
+      "formula": "first bar of a new coiling window after a non-coiling bar"
+    },
+    {
+      "id": "level.vwap_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "context",
+      "claim": "none",
+      "formula": "abs(C - VWAP) <= 0.2*ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.vwap_cross",
+      "event_type": 1,
+      "subtype": 2,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(C, VWAP) or cross_down(C, VWAP)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.vwap_break",
+      "event_type": 1,
+      "subtype": 3,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "context",
+      "claim": "none",
+      "formula": "(C - VWAP)*sign(C[t-1]-VWAP[t-1]) >= 0.2*ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.vwap_regular_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "signal",
+      "claim": "A lower price low with a higher VWAP distance marks absorption.",
+      "formula": "L[t] < L[p] and D[t] > D[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.vwap_regular_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "signal",
+      "claim": "A higher price high with a lower VWAP distance marks distribution.",
+      "formula": "H[t] > H[p] and D[t] < D[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.vwap_hidden_bullish",
+      "event_type": 2,
+      "subtype": 3,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "signal",
+      "claim": "A higher low with a lower VWAP distance marks hidden absorption.",
+      "formula": "L[t] > L[p] and D[t] < D[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.vwap_hidden_bearish",
+      "event_type": 2,
+      "subtype": 4,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "signal",
+      "claim": "A lower high with a higher VWAP distance marks hidden distribution.",
+      "formula": "H[t] < H[p] and D[t] > D[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.vwap_reclaim",
+      "event_type": 3,
+      "subtype": 14,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "signal",
+      "claim": "A reclaim after six bars on the other side continues.",
+      "formula": "cross_up(C,VWAP) and count(C < VWAP, 6) >= 6; mirror cross_down",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.vwap_rejection",
+      "event_type": 3,
+      "subtype": 14,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "signal",
+      "claim": "A rejection at VWAP reverses away from it.",
+      "formula": "H >= VWAP and C < VWAP and C < O; mirror L <= VWAP and C > VWAP and C > O",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.vwap_slope",
+      "event_type": 3,
+      "subtype": 14,
+      "source": 19,
+      "indicator": "vwap",
+      "role": "context",
+      "claim": "none",
+      "formula": "sign(S[t]) != sign(S[t-1])",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.profile_poc_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "context",
+      "claim": "none",
+      "formula": "abs(C - POC) <= 0.2*ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.profile_vah_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "context",
+      "claim": "none",
+      "formula": "abs(H - VAH) <= 0.2*ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.profile_val_test",
+      "event_type": 1,
+      "subtype": 1,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "context",
+      "claim": "none",
+      "formula": "abs(L - VAL) <= 0.2*ATR",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.profile_va_break",
+      "event_type": 1,
+      "subtype": 3,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "context",
+      "claim": "none",
+      "formula": "C > VAH or C < VAL after a close inside the value area",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "level.profile_va_reentry",
+      "event_type": 1,
+      "subtype": 2,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "context",
+      "claim": "none",
+      "formula": "C[t-1] > VAH and C[t] <= VAH, or the mirror below VAL",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.profile_poc_bullish",
+      "event_type": 2,
+      "subtype": 1,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "signal",
+      "claim": "A lower price low with a higher POC marks accumulation.",
+      "formula": "L[t] < L[p] and PM[t] > PM[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "divergence.profile_poc_bearish",
+      "event_type": 2,
+      "subtype": 2,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "signal",
+      "claim": "A higher price high with a lower POC marks distribution.",
+      "formula": "H[t] > H[p] and PM[t] < PM[p]",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.profile_va_breakout",
+      "event_type": 3,
+      "subtype": 13,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "signal",
+      "claim": "A value-area breakout with volume continues.",
+      "formula": "(C > VAH or C < VAL) and RV20 >= 1.5",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.profile_poc_cross",
+      "event_type": 3,
+      "subtype": 13,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "signal",
+      "claim": "A POC cross continues in the cross direction.",
+      "formula": "cross_up(C,POC) or cross_down(C,POC)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.profile_skew",
+      "event_type": 3,
+      "subtype": 13,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "context",
+      "claim": "none",
+      "formula": "sign(SK[t]) != sign(SK[t-1])",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.profile_concentration",
+      "event_type": 3,
+      "subtype": 13,
+      "source": 20,
+      "indicator": "volume_profile",
+      "role": "context",
+      "claim": "none",
+      "formula": "cross_up(CO, 0.5) or cross_down(CO, 0.5)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
       ],
       "status": "active"
     }
@@ -1709,6 +2184,66 @@
         "model"
       ],
       "status": "active"
+    },
+    {
+      "id": "model.vwap.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 24,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.vwap.band_mad",
+      "path": "fixed",
+      "type": "number",
+      "default": 2.0,
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.profile.window",
+      "path": "fixed",
+      "type": "integer",
+      "default": 96,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.profile.bins",
+      "path": "fixed",
+      "type": "integer",
+      "default": 24,
+      "unit": "none",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.profile.value_area",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.7,
+      "unit": "fraction",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
     }
   ],
   "codes": {
@@ -1737,7 +2272,21 @@
       "6": "trend continuation",
       "7": "compression breakout",
       "8": "compression range",
-      "9": "compression range onset"
+      "9": "compression range onset",
+      "10": "candle pattern",
+      "11": "participation",
+      "12": "absorption",
+      "13": "volume profile",
+      "14": "VWAP",
+      "15": "volume flow",
+      "16": "volatility",
+      "17": "range",
+      "18": "channel",
+      "19": "structure",
+      "20": "gap",
+      "21": "path",
+      "22": "cross-asset",
+      "23": "session"
     },
     "sources": {
       "1": "EMA fast",
@@ -1757,7 +2306,43 @@
       "15": "MACD histogram",
       "16": "ADX",
       "17": "+DI",
-      "18": "-DI"
+      "18": "-DI",
+      "19": "VWAP",
+      "20": "volume profile",
+      "21": "volume climax",
+      "22": "absorption",
+      "23": "volume oscillator",
+      "24": "OBV",
+      "25": "CMF",
+      "26": "MFI",
+      "27": "A/D line",
+      "28": "ATR term",
+      "29": "range expansion",
+      "30": "MAR",
+      "31": "Keltner",
+      "32": "Donchian",
+      "33": "swing structure",
+      "34": "level strength",
+      "35": "Aroon",
+      "36": "BOS/CHOCH",
+      "37": "candle anatomy",
+      "38": "candle pattern",
+      "39": "gap",
+      "40": "path efficiency",
+      "41": "direction changes",
+      "42": "bars since extreme",
+      "43": "drawdown",
+      "44": "range position",
+      "45": "relative strength",
+      "46": "lead-lag",
+      "47": "breadth",
+      "48": "co-movement",
+      "49": "dispersion",
+      "50": "session",
+      "51": "opening range",
+      "52": "overnight/intraday",
+      "53": "session range",
+      "54": "calendar bucket"
     },
     "roles": {
       "1": "signal",

@@ -295,7 +295,7 @@ fn validate_condition(condition: Condition) -> Result<(), super::config::Strateg
             if !(1..=7).contains(&subtype) {
                 return Err(StrategyConfigError::EventSubtype);
             }
-            if !(1..=18).contains(&source) {
+            if !(1..=54).contains(&source) {
                 return Err(StrategyConfigError::EventSource);
             }
             if !(-1..=1).contains(&direction) {

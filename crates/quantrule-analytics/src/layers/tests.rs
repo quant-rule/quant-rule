@@ -708,10 +708,10 @@ fn event_and_leg_records_are_ordered_and_valid() {
         let max_subtype = match row.event_type_code {
             1 => 3,
             2 => 4,
-            _ => 6,
+            _ => 23,
         };
         assert!((1..=max_subtype).contains(&row.event_subtype_code));
-        assert!((1..=18).contains(&row.source_code));
+        assert!((1..=20).contains(&row.source_code));
         assert!((-1..=1).contains(&row.direction_code));
         if let Some(reference) = row.reference_code {
             assert!(

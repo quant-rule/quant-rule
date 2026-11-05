@@ -53,7 +53,7 @@ impl CompressionBreakoutConfig {
         if !(1..=7).contains(&event_subtype) {
             return Err(StrategyConfigError::EventSubtype);
         }
-        if !(1..=18).contains(&event_source) {
+        if !(1..=54).contains(&event_source) {
             return Err(StrategyConfigError::EventSource);
         }
         if window_bars == 0 {

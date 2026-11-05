@@ -44,6 +44,7 @@ The baseline decision is listed in the current architecture decisions below.
 | Model evidence protocol | Superseded by the model v3 validation boundary; retained as history | `docs/model/2026-11-01/model-evidence-protocol.md` |
 | Model v4 flat result and configurable events | Implemented; path gate no edge; compression-breakout 4 ATR baseline accepted | `docs/model/2026-11-04/model-v4.md` |
 | Compression-range next-bar resolution | Implemented; dev and validation pass; accepted model baseline (human, 2026-11-04) | `docs/model/2026-11-04/compression-range.md` |
+| Indicator coverage — 10 OHLCV areas | Approved 2026-11-05; `vwap` and `volume_profile` implemented; 34 indicators planned | `docs/model/2026-11-05/indicator-coverage.md` |
 
 ## Current run contracts
 

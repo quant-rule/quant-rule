@@ -346,7 +346,15 @@ impl FlatTimeframe {
             .iter()
             .map(|level| FlatLevel::from_level(level, latest_close, latest_atr))
             .collect();
-        let events = FlatEventSeries::compute(timeframe.events());
+        // The flat report keeps the v4 event domain; the extended sources
+        // (19+) have their own surface. DI, trend, and compression events stay.
+        let events: Vec<EventRecord> = timeframe
+            .events()
+            .iter()
+            .filter(|event| event.source_code < 19)
+            .copied()
+            .collect();
+        let events = FlatEventSeries::compute(&events);
         let progression = bars
             .checked_sub(1)
             .and_then(|bar| timeframe.progression().get(bar))

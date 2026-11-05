@@ -26,7 +26,21 @@
     "role": { "enum": ["signal", "context", "diagnostic"] },
     "status": { "enum": ["active", "planned", "retired", "experimental"] },
     "taxonomy": {
-      "enum": ["trend", "momentum", "structure", "progression", "volatility"]
+      "enum": [
+        "trend",
+        "momentum",
+        "structure",
+        "progression",
+        "volatility",
+        "volume",
+        "participation",
+        "flow",
+        "price_action",
+        "path",
+        "cross_asset",
+        "session",
+        "calendar"
+      ]
     },
     "indicator": {
       "type": "object",
@@ -107,6 +121,7 @@
         "indicator",
         "role",
         "claim",
+        "formula",
         "parameters",
         "tests",
         "status"
@@ -117,9 +132,16 @@
         "event_type": { "type": "integer", "enum": [1, 2, 3] },
         "subtype": { "type": "integer", "minimum": 1 },
         "source": { "type": "integer", "minimum": 1 },
+        "sources": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
         "indicator": { "type": "string", "minLength": 1 },
         "role": { "$ref": "#/$defs/role" },
         "claim": { "type": "string", "minLength": 1 },
+        "formula": { "type": "string", "minLength": 1 },
         "parameters": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },

@@ -31,7 +31,7 @@ INDICATOR_KEYS = {
 }
 EVENT_KEYS = {
     "id", "event_type", "subtype", "source", "indicator", "role", "claim",
-    "parameters", "tests", "status", "sources", "precedence",
+    "formula", "parameters", "tests", "status", "sources", "precedence",
 }
 PARAMETER_KEYS = {
     "id", "path", "type", "default", "min", "max", "enum", "unit",
@@ -51,7 +51,11 @@ CODE_ORDER = [
 ]
 ROLES = {"signal", "context", "diagnostic"}
 STATUSES = {"active", "planned", "retired", "experimental"}
-TAXONOMIES = {"trend", "momentum", "structure", "progression", "volatility"}
+TAXONOMIES = {
+    "trend", "momentum", "structure", "progression", "volatility", "volume",
+    "participation", "flow", "price_action", "path", "cross_asset", "session",
+    "calendar",
+}
 AFFECTS = {"model", "strategy", "policy", "execution", "portfolio", "analytics"}
 PARAMETER_TYPES = {
     "integer", "number", "boolean", "string", "array<integer>", "array<number>",
@@ -62,8 +66,8 @@ TEST_KINDS = {
     "golden", "causality", "determinism", "edge_cases", "property", "event",
     "boundary", "benchmark",
 }
-SOURCE_RANGE = range(1, 19)
-SUBTYPE_RANGE = {1: range(1, 4), 2: range(1, 5), 3: range(1, 10)}
+SOURCE_RANGE = range(1, 55)
+SUBTYPE_RANGE = {1: range(1, 4), 2: range(1, 5), 3: range(1, 24)}
 
 
 def load(path: Path) -> Any:
@@ -199,6 +203,8 @@ def check(registry: Any) -> list[str]:
             errors.append(f"{label}.status is invalid")
         if not isinstance(event.get("claim"), str) or not event["claim"]:
             errors.append(f"{label}.claim must be a non-empty string")
+        if not isinstance(event.get("formula"), str) or not event["formula"]:
+            errors.append(f"{label}.formula must be a non-empty string")
         sources = event.get("sources", [event.get("source")])
         if not isinstance(sources, list) or not sources:
             errors.append(f"{label}.sources must be a non-empty array")
