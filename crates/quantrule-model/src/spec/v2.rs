@@ -72,8 +72,11 @@ pub struct SpecEventCode {
 /// The prediction kind. Version 2 supports the directional vote only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PredictionKind {
-    /// Count long and short events; the sign above the threshold wins.
+    /// Count long and short event lists; the sign above the threshold wins.
     Vote,
+    /// Count each active signal event's own direction; the sign above the
+    /// threshold wins.
+    Direction,
 }
 
 /// The resolved vote definition.
@@ -85,6 +88,8 @@ pub struct SpecPrediction {
     pub long: Vec<SpecEventCode>,
     /// Events that add a short vote.
     pub short: Vec<SpecEventCode>,
+    /// Events whose own direction votes, for [`PredictionKind::Direction`].
+    pub events: Vec<SpecEventCode>,
     /// The minimum absolute vote count that emits a non-zero prediction.
     pub min_votes: usize,
 }
@@ -153,6 +158,8 @@ pub enum SpecV2Error {
     DuplicatePredictionEvent(String),
     /// The prediction has no events.
     EmptyPrediction,
+    /// The prediction fields do not match its kind.
+    InvalidPredictionShape(&'static str),
     /// The vote threshold is outside 1..=[`MAX_MIN_VOTES`].
     InvalidMinVotes(usize),
     /// A panel instrument name is empty.
@@ -220,9 +227,8 @@ impl std::fmt::Display for SpecV2Error {
             Self::DuplicatePredictionEvent(id) => {
                 write!(formatter, "the prediction event {id} is duplicated")
             }
-            Self::EmptyPrediction => {
-                write!(formatter, "the prediction has no long or short events")
-            }
+            Self::EmptyPrediction => write!(formatter, "the prediction has no events"),
+            Self::InvalidPredictionShape(message) => write!(formatter, "{message}"),
             Self::InvalidMinVotes(min_votes) => write!(
                 formatter,
                 "min_votes {min_votes} is outside 1..={MAX_MIN_VOTES}"
@@ -327,19 +333,45 @@ impl ModelSpecV2 {
             .map(|event| (event.id.as_str(), event))
             .collect();
         let mut prediction_events = BTreeSet::new();
-        for event in self.prediction.long.iter().chain(&self.prediction.short) {
+        let mut validate_prediction_event = |event: &SpecEventCode| {
             if !active.contains_key(event.id.as_str()) {
                 return Err(SpecV2Error::PredictionEventNotActive(event.id.clone()));
             }
             if event.role != SpecEventRole::Signal {
                 return Err(SpecV2Error::PredictionEventNotSignal(event.id.clone()));
             }
-            if !prediction_events.insert(event.id.as_str()) {
+            if !prediction_events.insert(event.id.clone()) {
                 return Err(SpecV2Error::DuplicatePredictionEvent(event.id.clone()));
             }
-        }
-        if self.prediction.long.is_empty() && self.prediction.short.is_empty() {
-            return Err(SpecV2Error::EmptyPrediction);
+            Ok(())
+        };
+        match self.prediction.kind {
+            PredictionKind::Vote => {
+                if !self.prediction.events.is_empty() {
+                    return Err(SpecV2Error::InvalidPredictionShape(
+                        "a vote prediction must not carry an events list",
+                    ));
+                }
+                for event in self.prediction.long.iter().chain(&self.prediction.short) {
+                    validate_prediction_event(event)?;
+                }
+                if self.prediction.long.is_empty() && self.prediction.short.is_empty() {
+                    return Err(SpecV2Error::EmptyPrediction);
+                }
+            }
+            PredictionKind::Direction => {
+                if !self.prediction.long.is_empty() || !self.prediction.short.is_empty() {
+                    return Err(SpecV2Error::InvalidPredictionShape(
+                        "a direction prediction must not carry long or short lists",
+                    ));
+                }
+                for event in &self.prediction.events {
+                    validate_prediction_event(event)?;
+                }
+                if self.prediction.events.is_empty() {
+                    return Err(SpecV2Error::EmptyPrediction);
+                }
+            }
         }
         if !(1..=MAX_MIN_VOTES).contains(&self.prediction.min_votes) {
             return Err(SpecV2Error::InvalidMinVotes(self.prediction.min_votes));
@@ -697,6 +729,12 @@ fn predict(
             -1_i8,
         );
     }
+    let direction_events: BTreeSet<(u8, u8, u16)> = spec
+        .prediction
+        .events
+        .iter()
+        .map(|event| (event.event_type.code(), event.subtype, event.source))
+        .collect();
     let mut long = vec![0_u16; timeframe.len()];
     let mut short = vec![0_u16; timeframe.len()];
     let mut seen = BTreeSet::new();
@@ -706,16 +744,22 @@ fn predict(
             event.event_subtype_code,
             event.source_code,
         );
-        let Some(side) = sides.get(&key) else {
+        let contribution = match spec.prediction.kind {
+            PredictionKind::Vote => sides.get(&key).copied(),
+            PredictionKind::Direction => direction_events
+                .contains(&key)
+                .then_some(event.direction_code),
+        };
+        let Some(side) = contribution else {
             continue;
         };
         let bar = event.available_bar_index;
         if bar >= timeframe.len() || !seen.insert((bar, key.0, key.1, key.2)) {
             continue;
         }
-        if *side > 0 {
+        if side > 0 {
             long[bar] = long[bar].saturating_add(1);
-        } else {
+        } else if side < 0 {
             short[bar] = short[bar].saturating_add(1);
         }
     }
@@ -775,7 +819,7 @@ fn extended_is_valid(config: crate::readings::ExtendedConfig) -> bool {
 mod tests {
     use super::{
         ModelSpecV2, PredictionKind, SPEC_V2_SCHEMA, SpecEventCode, SpecEventRole, SpecPrediction,
-        SpecRun,
+        SpecRun, SpecV2Error,
     };
     use crate::events::EventType;
     use crate::input::{MarketStateConfig, TimeframeInput};
@@ -836,6 +880,7 @@ mod tests {
                 kind: PredictionKind::Vote,
                 long: vec![long],
                 short: vec![short],
+                events: Vec::new(),
                 min_votes: 1,
             },
             conditions: Vec::new(),
@@ -1011,6 +1056,46 @@ mod tests {
         assert_eq!(evaluation.conditions[0].values.len(), candles.len());
     }
 
+    #[test]
+    fn a_direction_prediction_votes_from_event_directions() {
+        let candles = candles(400);
+        let mut spec = spec();
+        spec.prediction = SpecPrediction {
+            kind: PredictionKind::Direction,
+            long: Vec::new(),
+            short: Vec::new(),
+            events: vec![
+                event("signal.rsi_threshold", SpecEventRole::Signal, 1, 4),
+                event("signal.ema_pair_cross", SpecEventRole::Signal, 2, 1),
+            ],
+            min_votes: 1,
+        };
+        let result = SpecRun::compute(&spec, run(&candles), &[]).expect("the direction run");
+        assert_eq!(result.prediction().len(), candles.len());
+        assert!(
+            result.prediction().values.iter().any(|value| *value != 0),
+            "the synthetic series produced no direction vote"
+        );
+    }
+
+    #[test]
+    fn a_prediction_kind_rejects_the_other_kind_fields() {
+        let first = event("signal.rsi_threshold", SpecEventRole::Signal, 1, 4);
+        let mut vote_with_events = spec();
+        vote_with_events.prediction.events = vec![first.clone()];
+        assert!(matches!(
+            vote_with_events.validate(),
+            Err(SpecV2Error::InvalidPredictionShape(_))
+        ));
+        let mut direction_with_sides = spec();
+        direction_with_sides.prediction.kind = PredictionKind::Direction;
+        direction_with_sides.prediction.events = vec![first];
+        assert!(matches!(
+            direction_with_sides.validate(),
+            Err(SpecV2Error::InvalidPredictionShape(_))
+        ));
+    }
+
     fn candle_with_close(index: usize, timestamp: i64, close: f64) -> Candle {
         Candle::new(
             index as u64,
@@ -1066,6 +1151,7 @@ mod edge_tests {
                 kind: super::PredictionKind::Vote,
                 long: vec![event],
                 short: Vec::new(),
+                events: Vec::new(),
                 min_votes: 1,
             },
             conditions: Vec::new(),

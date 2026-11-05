@@ -1,0 +1,64 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M2.4",
+  "family": "M2",
+  "instrument": "SP500",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "signal.compression_breakout",
+    "signal.compression_range",
+    "signal.compression_range_onset",
+    "signal.path_efficiency",
+    "signal.direction_changes",
+    "signal.extreme_new",
+    "signal.extreme_stale",
+    "signal.drawdown_threshold",
+    "signal.drawdown_recovery",
+    "signal.range_position",
+    "signal.session_open",
+    "signal.session_close",
+    "signal.opening_range_breakout",
+    "signal.opening_range_fade",
+    "signal.overnight_continuation",
+    "signal.overnight_fade",
+    "signal.session_range_expansion",
+    "signal.session_range_contraction",
+    "level.session_vwap_test",
+    "level.opening_range_test",
+    "level.opening_range_break"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.overnight_continuation",
+      "signal.overnight_fade"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.session_open",
+      "when": {
+        "event": {
+          "id": "signal.session_open",
+          "timeframe": 3600
+        }
+      }
+    }
+  ],
+  "readings": {
+    "extended": {
+      "atr_slow_window": 100,
+      "range_window": 20,
+      "path_window": 20
+    }
+  },
+  "session": {
+    "zone": "london",
+    "start_hour": 8,
+    "end_hour": 16,
+    "opening_range_bars": 2
+  }
+}

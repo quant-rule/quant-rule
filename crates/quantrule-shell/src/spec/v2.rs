@@ -344,22 +344,48 @@ fn parse_prediction(
     let prediction = as_object(field(object, "prediction", "the spec")?, "prediction")?;
     allow_only(
         prediction,
-        &["kind", "long", "short", "min_votes"],
+        &["kind", "long", "short", "events", "min_votes"],
         "prediction",
     )?;
     let kind = match prediction.get("kind") {
         Some(value) => match as_str(value, "prediction.kind")? {
             "vote" => PredictionKind::Vote,
+            "direction" => PredictionKind::Direction,
             other => {
                 return Err(SpecParseError::new(format!(
-                    "prediction.kind {other} is not vote"
+                    "prediction.kind {other} is not vote or direction"
                 )));
             }
         },
         None => PredictionKind::Vote,
     };
-    let long = parse_event_list(prediction.get("long"), "prediction.long", registry)?;
-    let short = parse_event_list(prediction.get("short"), "prediction.short", registry)?;
+    let has_sides = prediction.get("long").is_some() || prediction.get("short").is_some();
+    let has_events = prediction.get("events").is_some();
+    if kind == PredictionKind::Vote && has_events {
+        return Err(SpecParseError::new(
+            "a vote prediction must not carry an events list",
+        ));
+    }
+    if kind == PredictionKind::Direction && has_sides {
+        return Err(SpecParseError::new(
+            "a direction prediction must not carry long or short lists",
+        ));
+    }
+    let long = if kind == PredictionKind::Vote {
+        parse_event_list(prediction.get("long"), "prediction.long", registry)?
+    } else {
+        Vec::new()
+    };
+    let short = if kind == PredictionKind::Vote {
+        parse_event_list(prediction.get("short"), "prediction.short", registry)?
+    } else {
+        Vec::new()
+    };
+    let events = if kind == PredictionKind::Direction {
+        parse_event_list(prediction.get("events"), "prediction.events", registry)?
+    } else {
+        Vec::new()
+    };
     let min_votes = match prediction.get("min_votes") {
         Some(value) => {
             let value = as_u64(value, "prediction.min_votes")?;
@@ -372,6 +398,7 @@ fn parse_prediction(
         kind,
         long,
         short,
+        events,
         min_votes,
     })
 }
@@ -643,6 +670,51 @@ mod tests {
             error
                 .to_string()
                 .contains("must not repeat the evaluated instrument")
+        );
+    }
+}
+
+#[cfg(test)]
+mod direction_tests {
+    use super::parse_model_spec_v2;
+    use quantrule_model::spec::v2::PredictionKind;
+
+    const DOCUMENT: &str = r#"
+    {
+      "schema": "quantrule.model-spec/v2",
+      "id": "M2.direction",
+      "family": "M2",
+      "instrument": "XAU",
+      "timeframes": [3600],
+      "active_events": ["signal.rsi_threshold", "signal.ema_pair_cross"],
+      "prediction": {
+        "kind": "direction",
+        "events": ["signal.rsi_threshold", "signal.ema_pair_cross"],
+        "min_votes": 1
+      }
+    }
+    "#;
+
+    #[test]
+    fn a_direction_prediction_parses() {
+        let parsed = parse_model_spec_v2(DOCUMENT).expect("the direction spec parses");
+        assert_eq!(parsed.spec.prediction.kind, PredictionKind::Direction);
+        assert_eq!(parsed.spec.prediction.events.len(), 2);
+        assert!(parsed.spec.prediction.long.is_empty());
+        assert!(parsed.spec.prediction.short.is_empty());
+    }
+
+    #[test]
+    fn a_direction_prediction_rejects_sides() {
+        let document = DOCUMENT.replace(
+            "\"events\": [\"signal.rsi_threshold\", \"signal.ema_pair_cross\"],",
+            "\"long\": [\"signal.rsi_threshold\"],",
+        );
+        let error = parse_model_spec_v2(&document).expect_err("a side list");
+        assert!(
+            error
+                .to_string()
+                .contains("must not carry long or short lists")
         );
     }
 }

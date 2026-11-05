@@ -1,0 +1,42 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-05",
+  "family": "M2",
+  "instrument": "SP500",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "level.keltner_test",
+    "level.keltner_break",
+    "divergence.atr_bullish",
+    "divergence.atr_bearish",
+    "signal.atr_compression",
+    "signal.atr_expansion",
+    "signal.atr_regime",
+    "signal.range_expansion",
+    "signal.range_contraction",
+    "signal.mar_regime",
+    "signal.keltner_breakout",
+    "signal.keltner_position"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "divergence.atr_bullish",
+      "divergence.atr_bearish"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.atr_regime",
+      "when": {
+        "event": {
+          "id": "signal.atr_regime",
+          "timeframe": 3600
+        }
+      }
+    }
+  ]
+}

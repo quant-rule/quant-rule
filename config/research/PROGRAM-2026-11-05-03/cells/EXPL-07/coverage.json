@@ -1,0 +1,15 @@
+{
+  "cell_id": "EXPL-07",
+  "kind": "exploratory",
+  "areas": [
+    7
+  ],
+  "indicators": [
+    "candle_anatomy",
+    "candle_pattern",
+    "gap"
+  ],
+  "benchmark_events": [
+    "signal.rsi_threshold"
+  ]
+}

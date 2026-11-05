@@ -1,0 +1,128 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M2.1",
+  "family": "M2",
+  "instrument": "BTC",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "level.vwap_test",
+    "level.vwap_cross",
+    "level.vwap_break",
+    "divergence.vwap_regular_bullish",
+    "divergence.vwap_regular_bearish",
+    "divergence.vwap_hidden_bullish",
+    "divergence.vwap_hidden_bearish",
+    "signal.vwap_reclaim",
+    "signal.vwap_rejection",
+    "signal.vwap_slope",
+    "level.profile_poc_test",
+    "level.profile_vah_test",
+    "level.profile_val_test",
+    "level.profile_va_break",
+    "level.profile_va_reentry",
+    "divergence.profile_poc_bullish",
+    "divergence.profile_poc_bearish",
+    "signal.profile_va_breakout",
+    "signal.profile_poc_cross",
+    "signal.profile_skew",
+    "signal.profile_concentration",
+    "divergence.rvol_bullish",
+    "divergence.rvol_bearish",
+    "signal.rvol_expansion",
+    "signal.rvol_contraction",
+    "signal.rvol_ratio",
+    "divergence.climax_bullish",
+    "divergence.climax_bearish",
+    "signal.climax_reversal",
+    "signal.climax_continuation",
+    "level.absorption_test",
+    "signal.absorption_break",
+    "signal.absorption_rejection",
+    "signal.volume_oscillator_cross",
+    "divergence.obv_regular_bullish",
+    "divergence.obv_regular_bearish",
+    "divergence.obv_hidden_bullish",
+    "divergence.obv_hidden_bearish",
+    "signal.obv_cross",
+    "signal.obv_slope",
+    "divergence.cmf_regular_bullish",
+    "divergence.cmf_regular_bearish",
+    "divergence.cmf_hidden_bullish",
+    "divergence.cmf_hidden_bearish",
+    "signal.cmf_cross",
+    "signal.cmf_threshold",
+    "divergence.mfi_regular_bullish",
+    "divergence.mfi_regular_bearish",
+    "divergence.mfi_hidden_bullish",
+    "divergence.mfi_hidden_bearish",
+    "signal.mfi_threshold",
+    "signal.mfi_zone",
+    "divergence.ad_regular_bullish",
+    "divergence.ad_regular_bearish",
+    "signal.ad_cross"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "divergence.vwap_regular_bullish",
+      "divergence.vwap_regular_bearish",
+      "divergence.profile_poc_bullish",
+      "divergence.profile_poc_bearish",
+      "divergence.rvol_bullish",
+      "divergence.rvol_bearish",
+      "divergence.obv_regular_bullish",
+      "divergence.obv_regular_bearish"
+    ],
+    "min_votes": 2
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.vwap_slope",
+      "when": {
+        "event": {
+          "id": "signal.vwap_slope",
+          "timeframe": 3600
+        }
+      }
+    },
+    {
+      "id": "condition_signal.profile_skew",
+      "when": {
+        "event": {
+          "id": "signal.profile_skew",
+          "timeframe": 3600
+        }
+      }
+    },
+    {
+      "id": "condition_signal.volume_oscillator_cross",
+      "when": {
+        "event": {
+          "id": "signal.volume_oscillator_cross",
+          "timeframe": 3600
+        }
+      }
+    },
+    {
+      "id": "condition_signal.obv_slope",
+      "when": {
+        "event": {
+          "id": "signal.obv_slope",
+          "timeframe": 3600
+        }
+      }
+    }
+  ],
+  "readings": {
+    "extended": {
+      "vwap_window": 24,
+      "profile_window": 96,
+      "rvol_fast": 5,
+      "rvol_slow": 50,
+      "flow_window": 20,
+      "mfi_window": 14
+    }
+  }
+}

@@ -139,6 +139,8 @@ version's own event surface.
 
 ## 5. Prediction
 
+Two prediction kinds are supported:
+
 ```json
 "prediction": {
   "kind": "vote",
@@ -148,14 +150,27 @@ version's own event surface.
 }
 ```
 
-- `kind` is `vote` in v2.
-- `long` and `short` are disjoint lists of active `signal` events.
-- At bar `t`, every listed event whose `available_bar_index` equals `t` adds one
-  vote to its side. An event is counted once per bar even if several records
-  share its code.
+```json
+"prediction": {
+  "kind": "direction",
+  "events": ["divergence.vwap_regular_bullish", "divergence.vwap_regular_bearish"],
+  "min_votes": 2
+}
+```
+
+- `kind = vote`: `long` and `short` are disjoint lists of active `signal`
+  events. At bar `t`, every listed event whose `available_bar_index` equals `t`
+  adds one vote to its declared side.
+- `kind = direction`: `events` is a non-empty list of active `signal` events.
+  At bar `t`, every listed event whose `available_bar_index` equals `t` adds its
+  own `direction_code` (`+1`, `-1`, or `0`). A neutral event is active but does
+  not vote.
+- An event is counted once per bar even if several records share its code.
 - `total = long - short`. If `abs(total) >= min_votes`, the prediction is
   `sign(total)`; otherwise it is `0`.
 - `min_votes` is 1–64.
+- A vote prediction must not carry `events`; a direction prediction must not
+  carry `long` or `short`. The parser rejects the wrong shape.
 
 The vote is transient: it does not persist a previous event into a later bar.
 The prediction at `t` uses only data available at `t`. It reads no forward
@@ -271,8 +286,8 @@ Observed on 2026-11-05 in the `feat/454-model-spec-v2` worktree:
 
 | Command | Result |
 |---|---|
-| `cargo test -p quantrule-model --lib spec::v2` | 7 passed |
-| `cargo test -p quantrule-shell --bin quantrule spec::v2` | 5 passed |
+| `cargo test -p quantrule-model --lib spec::v2` | 9 passed |
+| `cargo test -p quantrule-shell --bin quantrule spec::v2` | 7 passed |
 | `cargo test -p quantrule-shell --test report_command a_v2_spec` | 1 passed |
 | `cargo clippy -p quantrule-model -p quantrule-shell --all-targets -- -D warnings` | clean |
 | `cargo fmt --check` | clean |

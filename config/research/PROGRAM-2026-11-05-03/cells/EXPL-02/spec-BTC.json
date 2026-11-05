@@ -1,0 +1,43 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-02",
+  "family": "M2",
+  "instrument": "BTC",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "level.profile_poc_test",
+    "level.profile_vah_test",
+    "level.profile_val_test",
+    "level.profile_va_break",
+    "level.profile_va_reentry",
+    "divergence.profile_poc_bullish",
+    "divergence.profile_poc_bearish",
+    "signal.profile_va_breakout",
+    "signal.profile_poc_cross",
+    "signal.profile_skew",
+    "signal.profile_concentration"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "divergence.profile_poc_bullish",
+      "divergence.profile_poc_bearish",
+      "signal.profile_va_breakout",
+      "signal.profile_poc_cross"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.profile_skew",
+      "when": {
+        "event": {
+          "id": "signal.profile_skew",
+          "timeframe": 3600
+        }
+      }
+    }
+  ]
+}

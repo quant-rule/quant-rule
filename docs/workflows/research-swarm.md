@@ -139,6 +139,10 @@ python3 tools/research/batch.py \
   --worktree-root /home/zantgo/Proyectos/quant-rule--<PROGRAM-ID> \
   --prepare-only
 
+# Coverage check: every indicator and event is in a frozen cell.
+python3 tools/research/coverage.py \
+  --program config/research/<PROGRAM-ID>/program.json
+
 # Aggregate.
 python3 tools/research/report.py \
   --program config/research/<PROGRAM-ID>/program.json \

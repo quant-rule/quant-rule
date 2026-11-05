@@ -1,0 +1,15 @@
+{
+  "cell_id": "M2.3",
+  "kind": "primary",
+  "areas": [
+    9
+  ],
+  "indicators": [
+    "relative_strength",
+    "lead_lag",
+    "breadth",
+    "co_movement",
+    "dispersion"
+  ],
+  "benchmark_events": []
+}

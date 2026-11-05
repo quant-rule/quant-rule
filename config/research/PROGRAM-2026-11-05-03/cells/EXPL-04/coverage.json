@@ -1,0 +1,14 @@
+{
+  "cell_id": "EXPL-04",
+  "kind": "exploratory",
+  "areas": [
+    4
+  ],
+  "indicators": [
+    "obv",
+    "cmf",
+    "mfi",
+    "ad_line"
+  ],
+  "benchmark_events": []
+}
