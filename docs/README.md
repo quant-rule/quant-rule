@@ -81,6 +81,7 @@ the remaining pending phase.
 | MACD reading and events | Implemented 2026-11-03 (#347); opt-in on the legacy v2 path, active in the default config | `docs/config/2026-11-03/model-macd.md` |
 | Indicator and parameter registry | Populated 2026-11-03 (#344); CI check | `docs/registry/README.md` |
 | Current-architecture history index | Frozen 2026-11-05 at `32e6fb2`; P0 legacy inventory | `docs/registry/history.md` |
+| Clean current architecture | P0.1 deletion manifest frozen 2026-11-05 at `8acf857`; P1–P8 gated by D1–D4 | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
 | Per-timeframe model | `quantrule.model/v2`; superseded by v3; v2 parser retired in #346 | `docs/config/2026-10-30/model-v2.md` |
 | Active ladder and context | Implemented (#233, #235); `ladder-context` is live | `docs/config/2026-10-30/strategy-v3.md` |
 | Fill mechanics | `quantrule.execution/v3`; bracket resolution and risk-free config implemented (#234), v3 schema pending | `docs/config/2026-10-30/execution-v3.md` |

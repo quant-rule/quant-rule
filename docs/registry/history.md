@@ -1,9 +1,12 @@
 # Current-Architecture History Index
 
 - Date: 2026-11-05 (UTC)
-- Status: Frozen inventory; deletion starts in P2
+- Status: Frozen inventory; P0.1 deletion manifest at `8acf857`; deletion
+  starts in P3/P4 after D1–D4
 - Freeze commit: `32e6fb2`
+- Manifest commit: `8acf857`
 - Work item: [#468](https://github.com/quant-rule/quant-rule/issues/468)
+- Deletion manifest: [`deletion-manifest.md`](deletion-manifest.md)
 - Purpose: the single index of artifacts removed from the current surface and
   the history that remains
 
