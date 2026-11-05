@@ -44,7 +44,9 @@ The baseline decision is listed in the current architecture decisions below.
 | Model evidence protocol | Superseded by the model v3 validation boundary; retained as history | `docs/model/2026-11-01/model-evidence-protocol.md` |
 | Model v4 flat result and configurable events | Implemented; path gate no edge; compression-breakout 4 ATR baseline accepted | `docs/model/2026-11-04/model-v4.md` |
 | Compression-range next-bar resolution | Implemented; dev and validation pass; accepted model baseline (human, 2026-11-04) | `docs/model/2026-11-04/compression-range.md` |
-| Indicator coverage — 10 OHLCV areas | Approved 2026-11-05; `vwap` and `volume_profile` implemented; 34 indicators planned | `docs/model/2026-11-05/indicator-coverage.md` |
+| Indicator coverage — 10 OHLCV areas | Implemented 2026-11-05: 46 indicators, 143 events, 37/37 checklist rows `tested`; `Sign` open; spec v2 pending | `docs/model/2026-11-05/indicator-coverage.md` |
+| Model and strategy families | Approved 2026-11-05; `M1.0`, `S1.1–S1.5`, `M2.1–M2.5`, `S2.1+` | `docs/model/2026-11-05/model-families.md` |
+| Model spec v1 | Implemented; condition-only; v2 adds readings, active events, prediction, panel/session | `docs/model/2026-11-05/model-spec-v1.md` |
 
 ## Current run contracts
 
@@ -57,11 +59,11 @@ The baseline decision is listed in the current architecture decisions below.
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/reports/2026-10-31/diagnosis-v1.md` |
 | BTCUSD 2024 example run | Current example: five bundles, 29 artifacts, byte-identical rerun; captured on 2026-10-31 | `config/examples/btcusd-2024/` |
 | Improvement run contract | Current; schema `quantrule.improvement-run/v1` implemented by `tools/improvement/` | `docs/workflows/run-contract.md` |
-| Strategy candidates v3–v7 | Retired by model v3; retained as history; none is a validated baseline | `docs/config/2026-11-01/strategy-candidates.md` |
-| Strategy v6 breakout | Retired by model v3; retained as history | `docs/config/2026-11-01/strategy-v6.md` |
-| Strategy v8 event composite | Implemented; validation pending | `docs/config/2026-11-03/strategy-v8.md` |
-| Strategy v9 compression breakout | Implemented; `strategy_dev` no edge; validation not opened | `docs/config/2026-11-04/strategy-v9-compression.md` |
-| Strategy v10 compression bracket | Implemented; `strategy_dev` no edge; validation not opened | `docs/config/2026-11-04/strategy-v10-compression-bracket.md` |
+| Strategy candidates v3–v7 | Retired; historical `S1.1–S1.2`; none is a validated baseline | `docs/config/2026-11-01/strategy-candidates.md` |
+| Strategy v6 breakout (`S1.1`) | Historical; experimental, not validated | `docs/config/2026-11-01/strategy-v6.md` |
+| Strategy v8 event composite (`S1.3`) | Historical; validation pending | `docs/config/2026-11-03/strategy-v8.md` |
+| Strategy v9 compression breakout (`S1.4`) | Historical; `strategy_dev` no edge; validation not opened | `docs/config/2026-11-04/strategy-v9-compression.md` |
+| Strategy v10 compression bracket (`S1.5`) | Historical; `strategy_dev` no edge; validation not opened | `docs/config/2026-11-04/strategy-v10-compression-bracket.md` |
 
 ### Approved target contracts
 
@@ -119,6 +121,7 @@ runs under the run contract and are not imported as baselines.
 | Audit Workflow | Current; approved 2026-11-01 | `docs/workflows/audit-workflow.md` |
 | Improvement Workflow | Current; approved 2026-11-01 | `docs/workflows/improvement-workflow.md` |
 | Improvement run contract | Current; schema `quantrule.improvement-run/v1` | `docs/workflows/run-contract.md` |
+| Research Swarm Runbook | Current; exploratory and confirmatory model modes | `docs/workflows/research-swarm.md` |
 | Improvement registry | Current; 1m 4 ATR compression, 1m compression-range, and 5m fresh-onset model baselines accepted; no strategy or portfolio baseline | `docs/improvement/README.md` |
 
 ## Current tutorials
@@ -177,6 +180,7 @@ committed, and the candles, charts, reports, and databases stay local.
 | Unified timeframe ladder | Complete; Phases 1–9 merged through PRs #238–#246; #246 merged as `7c865de` | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
 | Model v3: flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; v8 implementation proceeds separately | `docs/execution-plans/2026-11-03/342-model-v3.md` |
+| M2.x model programme | Approved 2026-11-05; P0 naming/audit/legacy inventory; P1 spec v2 next; strategy tier closed | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

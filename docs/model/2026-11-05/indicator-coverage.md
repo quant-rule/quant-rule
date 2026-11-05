@@ -1,11 +1,13 @@
 # Indicator Coverage — 10 OHLCV Information Areas
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved (human, 2026-11-05); implementation in progress**
+- Status: **Implemented** — 46 indicators, 143 events, 110 parameters; 37/37 checklist rows `tested`; `Sign` open; spec v2 pending
 - Scope: 10 information areas, 36 new indicators, 10 existing indicators
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Plan: [`docs/execution-plans/2026-11-05/405-indicator-platform.md`](../../execution-plans/2026-11-05/405-indicator-platform.md)
 - Checklist: [`docs/improvement/2026-11-05/INDICATOR-VERIFICATION.md`](../../improvement/2026-11-05/INDICATOR-VERIFICATION.md)
+- Retrospective audit: [`docs/improvement/2026-11-05/INDICATOR-AUDIT.md`](../../improvement/2026-11-05/INDICATOR-AUDIT.md)
+- M2.x programme: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Contract: `AGENTS.md`, `docs/model/2026-11-04/model-v4.md`, `docs/registry/README.md`
 - Claim type: registry and indicator contract; no edge claim
 
@@ -59,7 +61,7 @@ covered. The registry never invents a meaningless event to fill a cell.
 |---:|---|---|---|---|---|---|
 | 4 | `rvol` (extended) | `RV5=V/mean(V,5)`; `RV20=V/mean(V,20)`; `RV50=V/mean(V,50)`; `RR=RV5/RV50` | none | bearish: `H[t]>H[p] && RV50[t]<RV50[p]`; bullish mirror | `cross_up(RV5,1.5)`; `cross_down(RV5,0.7)`; `cross_up(RR,1.5)` | context/signal |
 | 13 | `volume_climax` | `CL=RV5>=3 && (H-L)/ATR>=1.5`; `CD=sign(C-O)`; `CS=RV5*(H-L)/ATR` | none | bearish: `H[t]>H[p] && RV5[t]<RV5[p]`; bullish mirror | reversal: `CL && C inside [L[t-1],H[t-1]]` → `-CD`; continuation: `CL && CP>=0.8` → `+1` | signal |
-| 14 | `absorption` | `AB=RV5>=2 && (H-L)/ATR<=0.6 && min(abs(H-L_level),abs(L-L_level))<=0.25ATR`; `AS=RV5/((H-L)/ATR)` | `AB` at a level | none | `C>H_abs+0.2ATR` → +1; `C inside absorption range` → `-AS_side` | signal/context |
+| 14 | `absorption` | `AB=RV5>=2 && (H-L)/ATR<=0.6 && min(|C-VWAP|,|C-POC|)<=0.25ATR`; `AS=RV5/((H-L)/ATR)` | `AB` at a level | none | `C>H_abs+0.2ATR` → +1; `C inside absorption range` → `-AS_side` | signal/context |
 | 15 | `volume_oscillator` | `VO=(mean(V,5)-mean(V,20))/mean(V,20)` | none | none | `cross_up(VO,0)`; `cross_down(VO,0)` | context |
 
 ## 6. Area 4 — Volume-price flow (10/10)
@@ -274,7 +276,7 @@ For every spec:
 | 3 | Event layer: level, divergence, signal, precedence | Event tests |
 | 4 | Spec engine: schema, evaluator, `--spec`, registry, conformance | `cargo test`, clippy, fmt |
 | 5 | Tier 2 readings: flow, path, cross-asset context, calendar | Tests |
-| 6 | v6–v10 charters and swarm | Human approves charters |
+| 6 | M2.x charters and swarm | Human approves charters |
 | 7 | Validation and baseline | Quant Validator, human acceptance |
 | 8 | Closeout | Registry, index, baselines, cleanup |
 
@@ -283,5 +285,5 @@ For every spec:
 - A formula cannot be expressed with the allowed arithmetic.
 - A reading or event fails causality, determinism, golden, or edge tests.
 - The feature audit finds no candidate above the screen.
-- A v6–v10 premise is a variant of a failed hypothesis.
+- An M2.x premise is a variant of a failed hypothesis.
 - No cell passes dev; validation fails; human stops.
