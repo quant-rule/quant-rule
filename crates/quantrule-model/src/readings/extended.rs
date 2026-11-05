@@ -23,6 +23,22 @@ pub struct ExtendedConfig {
     pub profile_bins: usize,
     /// Fraction of volume included in the value area.
     pub profile_value_area: f64,
+    /// Fast relative-volume window.
+    pub rvol_fast: usize,
+    /// Slow relative-volume window.
+    pub rvol_slow: usize,
+    /// Volume-oscillator long window.
+    pub volume_oscillator: usize,
+    /// Climax volume multiple.
+    pub climax_volume: f64,
+    /// Climax range multiple.
+    pub climax_range_atr: f64,
+    /// Absorption volume multiple.
+    pub absorption_volume: f64,
+    /// Absorption range maximum.
+    pub absorption_range_atr: f64,
+    /// Absorption level tolerance.
+    pub absorption_level_atr: f64,
 }
 
 impl ExtendedConfig {
@@ -34,6 +50,14 @@ impl ExtendedConfig {
         profile_window: 96,
         profile_bins: 24,
         profile_value_area: 0.7,
+        rvol_fast: 5,
+        rvol_slow: 50,
+        volume_oscillator: 20,
+        climax_volume: 3.0,
+        climax_range_atr: 1.5,
+        absorption_volume: 2.0,
+        absorption_range_atr: 0.6,
+        absorption_level_atr: 0.25,
     };
 }
 
@@ -66,6 +90,26 @@ pub struct ExtendedReadings {
     pub profile_concentration: ReadingSeries,
     /// `POC - POC[n]`.
     pub poc_migration: ReadingSeries,
+    /// `V / mean(V, fast)`.
+    pub rvol_fast: ReadingSeries,
+    /// `V / mean(V, slow)`.
+    pub rvol_slow: ReadingSeries,
+    /// `rvol_fast / rvol_slow`.
+    pub rvol_ratio: ReadingSeries,
+    /// `(mean(V, fast) - mean(V, long)) / mean(V, long)`.
+    pub volume_oscillator: ReadingSeries,
+    /// One when the bar is a volume climax.
+    pub climax_flag: ReadingSeries,
+    /// The climax bar's direction.
+    pub climax_direction: ReadingSeries,
+    /// `rvol_fast * range / ATR`.
+    pub climax_strength: ReadingSeries,
+    /// One when the bar is absorption at VWAP or POC.
+    pub absorption_flag: ReadingSeries,
+    /// The absorption bar's close side relative to the level.
+    pub absorption_direction: ReadingSeries,
+    /// `rvol_fast / (range / ATR)`.
+    pub absorption_strength: ReadingSeries,
 }
 
 impl ExtendedReadings {
@@ -87,6 +131,16 @@ impl ExtendedReadings {
             profile_skew: null(),
             profile_concentration: null(),
             poc_migration: null(),
+            rvol_fast: null(),
+            rvol_slow: null(),
+            rvol_ratio: null(),
+            volume_oscillator: null(),
+            climax_flag: null(),
+            climax_direction: null(),
+            climax_strength: null(),
+            absorption_flag: null(),
+            absorption_direction: null(),
+            absorption_strength: null(),
         }
     }
 
@@ -121,6 +175,18 @@ impl ExtendedReadings {
         }
 
         let profile = ProfileSeries::compute(candles, readings, config);
+        let (
+            rvol_fast,
+            rvol_slow,
+            rvol_ratio,
+            volume_oscillator,
+            climax_flag,
+            climax_direction,
+            climax_strength,
+            absorption_flag,
+            absorption_direction,
+            absorption_strength,
+        ) = participation_series(candles, readings, config, &vwap, &profile.poc);
         Self {
             vwap: ReadingSeries::new(vwap),
             vwap_distance_atr: ReadingSeries::new(distance),
@@ -135,8 +201,124 @@ impl ExtendedReadings {
             profile_skew: ReadingSeries::new(profile.skew),
             profile_concentration: ReadingSeries::new(profile.concentration),
             poc_migration: ReadingSeries::new(profile.poc_migration),
+            rvol_fast: ReadingSeries::new(rvol_fast),
+            rvol_slow: ReadingSeries::new(rvol_slow),
+            rvol_ratio: ReadingSeries::new(rvol_ratio),
+            volume_oscillator: ReadingSeries::new(volume_oscillator),
+            climax_flag: ReadingSeries::new(climax_flag),
+            climax_direction: ReadingSeries::new(climax_direction),
+            climax_strength: ReadingSeries::new(climax_strength),
+            absorption_flag: ReadingSeries::new(absorption_flag),
+            absorption_direction: ReadingSeries::new(absorption_direction),
+            absorption_strength: ReadingSeries::new(absorption_strength),
         }
     }
+}
+
+#[allow(clippy::type_complexity)]
+fn participation_series(
+    candles: &[Candle],
+    readings: &Readings,
+    config: &ExtendedConfig,
+    vwap: &[Option<f64>],
+    poc: &[Option<f64>],
+) -> (
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+    Vec<Option<f64>>,
+) {
+    let len = candles.len();
+    let mut fast = vec![None; len];
+    let mut slow = vec![None; len];
+    let mut ratio = vec![None; len];
+    let mut oscillator = vec![None; len];
+    let mut climax_flag = vec![None; len];
+    let mut climax_direction = vec![None; len];
+    let mut climax_strength = vec![None; len];
+    let mut absorption_flag = vec![None; len];
+    let mut absorption_direction = vec![None; len];
+    let mut absorption_strength = vec![None; len];
+
+    for bar in 0..len {
+        let Some(fast_mean) = mean_volume(candles, bar, config.rvol_fast) else {
+            continue;
+        };
+        let volume = volume(&candles[bar]);
+        if fast_mean <= 0.0 {
+            continue;
+        }
+        let fast_value = volume / fast_mean;
+        fast[bar] = Some(fast_value);
+        if let Some(slow_mean) = mean_volume(candles, bar, config.rvol_slow)
+            && slow_mean > 0.0
+        {
+            let slow_value = volume / slow_mean;
+            slow[bar] = Some(slow_value);
+            ratio[bar] = Some(fast_value / slow_value);
+        }
+        if let Some(long_mean) = mean_volume(candles, bar, config.volume_oscillator)
+            && long_mean > 0.0
+        {
+            oscillator[bar] = Some((fast_mean - long_mean) / long_mean);
+        }
+
+        let Some(atr) = readings.atr14.get(bar).filter(|atr| *atr > 0.0) else {
+            continue;
+        };
+        let range_atr = (candles[bar].high() - candles[bar].low()) / atr;
+        if fast_value >= config.climax_volume && range_atr >= config.climax_range_atr {
+            climax_flag[bar] = Some(1.0);
+            let direction = (candles[bar].close() - candles[bar].open()).signum();
+            climax_direction[bar] = Some(direction);
+            climax_strength[bar] = Some(fast_value * range_atr);
+        }
+        if fast_value >= config.absorption_volume && range_atr <= config.absorption_range_atr {
+            let mut nearest: Option<(f64, f64)> = None;
+            for level in [vwap[bar], poc[bar]].into_iter().flatten() {
+                let distance = (candles[bar].close() - level).abs();
+                if distance <= config.absorption_level_atr * atr
+                    && nearest.is_none_or(|(best, _)| distance < best)
+                {
+                    nearest = Some((distance, level));
+                }
+            }
+            if let Some((_, level)) = nearest {
+                absorption_flag[bar] = Some(1.0);
+                absorption_direction[bar] = Some((candles[bar].close() - level).signum());
+                if range_atr > 0.0 {
+                    absorption_strength[bar] = Some(fast_value / range_atr);
+                }
+            }
+        }
+    }
+    (
+        fast,
+        slow,
+        ratio,
+        oscillator,
+        climax_flag,
+        climax_direction,
+        climax_strength,
+        absorption_flag,
+        absorption_direction,
+        absorption_strength,
+    )
+}
+
+fn mean_volume(candles: &[Candle], bar: usize, window: usize) -> Option<f64> {
+    if window == 0 || bar + 1 < window {
+        return None;
+    }
+    let start = bar + 1 - window;
+    let total: f64 = candles[start..=bar].iter().map(volume).sum();
+    Some(total / window as f64)
 }
 
 fn typical_price(candle: &Candle) -> f64 {
@@ -429,5 +611,80 @@ mod tests {
         let first = ExtendedReadings::compute(&candles, &readings, &config);
         let second = ExtendedReadings::compute(&candles, &readings, &config);
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn rvol_reads_the_volume_ratio() {
+        let candles: Vec<Candle> = (0..7)
+            .map(|index| {
+                let volume = if index == 6 { 20.0 } else { 10.0 };
+                candle(index, 10.0, 10.5, 9.5, 10.0, volume)
+            })
+            .collect();
+        let config = ExtendedConfig {
+            rvol_fast: 3,
+            rvol_slow: 6,
+            volume_oscillator: 6,
+            ..ExtendedConfig::DEFAULT
+        };
+        let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+        let value = extended.rvol_fast.get(6).expect("fast rvol");
+        assert!((value - 1.5).abs() < 1e-9, "fast rvol {value}");
+    }
+
+    #[test]
+    fn climax_flags_a_high_volume_wide_bar() {
+        let mut candles: Vec<Candle> = (0..30)
+            .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+            .collect();
+        candles[29] = candle(29, 100.0, 103.0, 99.0, 102.0, 100.0);
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        assert_eq!(extended.climax_flag.get(29), Some(1.0));
+        assert_eq!(extended.climax_direction.get(29), Some(1.0));
+        assert!(extended.climax_strength.get(29).is_some());
+    }
+
+    #[test]
+    fn absorption_flags_a_small_range_near_vwap() {
+        let mut candles: Vec<Candle> = (0..20)
+            .map(|index| candle(index, 100.0, 100.5, 99.5, 100.0, 10.0))
+            .collect();
+        candles[19] = candle(19, 100.0, 100.1, 99.9, 100.05, 30.0);
+        let config = ExtendedConfig {
+            vwap_window: 5,
+            profile_window: 5,
+            profile_bins: 4,
+            rvol_fast: 5,
+            rvol_slow: 5,
+            volume_oscillator: 5,
+            ..ExtendedConfig::DEFAULT
+        };
+        let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+        assert_eq!(extended.absorption_flag.get(19), Some(1.0));
+        assert!(extended.absorption_strength.get(19).is_some());
+    }
+
+    #[test]
+    fn participation_is_causal() {
+        let candles: Vec<Candle> = (0..20)
+            .map(|index| {
+                let volume = 10.0 + index as f64;
+                candle(index, 100.0, 101.0, 99.0, 100.0, volume)
+            })
+            .collect();
+        let config = ExtendedConfig {
+            rvol_fast: 3,
+            rvol_slow: 6,
+            volume_oscillator: 6,
+            ..ExtendedConfig::DEFAULT
+        };
+        let full = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+        let prefix = ExtendedReadings::compute(&candles[..15], &readings(&candles[..15]), &config);
+        for bar in 0..15 {
+            assert_eq!(full.rvol_fast.get(bar), prefix.rvol_fast.get(bar));
+            assert_eq!(full.rvol_slow.get(bar), prefix.rvol_slow.get(bar));
+            assert_eq!(full.climax_flag.get(bar), prefix.climax_flag.get(bar));
+        }
     }
 }
