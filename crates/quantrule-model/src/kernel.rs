@@ -1,11 +1,11 @@
 //! The shared numeric kernel of the model engine.
 //!
-//! The kernel owns the definitions every axis, event, and aggregate uses: the
+//! The kernel owns the definitions every measurement and event uses: the
 //! unavailable-reason and readiness registries, the contract's fixed clamp, the
 //! sign operation, the compact-state bucketing, the empirical percentile, and
-//! the per-axis state counters. It knows nothing about Direction, Momentum,
-//! Structure, Progression, events, timeframes, or candles, and it performs no
-//! I/O, reads no clock, and uses no randomness.
+//! the per-series state counters. It knows nothing about readings, events,
+//! timeframes, or candles, and it performs no I/O, reads no clock, and uses no
+//! randomness.
 //!
 //! Missing measurements are represented by [`Option`]. No helper in this module
 //! returns zero to mean "unavailable": a zero from a helper is a measured zero.
@@ -25,7 +25,7 @@ pub const STATE_CHANGE_WINDOW: usize = 50;
 /// `+0.1` inclusive is state 0, and a value strictly above `+0.1` is state +1.
 pub const COMPACT_STATE_THRESHOLD: f64 = 0.1;
 
-/// Why an axis cannot publish a measurement.
+/// Why a measurement is unavailable.
 ///
 /// The codes are the contract's code registry. A code is stable once
 /// published; a retired code is not reused.
@@ -102,7 +102,7 @@ impl UnavailableReason {
     }
 }
 
-/// How complete an axis measurement is.
+/// How complete a measurement is.
 ///
 /// Readiness is mechanical completeness, not confidence. A neutral zero can be
 /// a ready measurement.
@@ -111,10 +111,10 @@ impl UnavailableReason {
 pub enum Readiness {
     /// Code 0: the primary value is missing.
     Unavailable = 0,
-    /// Code 1: the primary value exists but the axis is not yet complete.
+    /// Code 1: the primary value exists but the measurement is not yet complete.
     Provisional = 1,
     /// Code 2: the primary value exists, the reference is stable, and the
-    /// percentile has enough samples where the axis publishes one.
+    /// percentile has enough samples where the measurement publishes one.
     Ready = 2,
 }
 
@@ -164,7 +164,7 @@ impl Readiness {
 ///
 /// The bounds are fixed by the contract so no call site re-derives them. A
 /// NaN is returned unchanged rather than being reported as zero, and an
-/// infinity is clamped to the corresponding bound. An axis must still check
+/// infinity is clamped to the corresponding bound. A measurement must still check
 /// availability before publishing the result; the NaN pass-through is a defect
 /// signal, not a supported output.
 ///
@@ -187,7 +187,7 @@ pub fn clamp_unit(value: f64) -> f64 {
 ///
 /// A zero has sign zero. A NaN is returned unchanged rather than being reported
 /// as a neutral zero, because an invalid measurement is not a measured zero.
-/// An axis must check availability before publishing the result.
+/// A measurement must check availability before publishing the result.
 ///
 /// # Examples
 ///
@@ -295,9 +295,9 @@ pub fn empirical_percentile(samples: &[f64], value: f64) -> Option<f64> {
     Some(100.0 * count as f64 / window.len() as f64)
 }
 
-/// A per-axis counter of compact-state age and recent changes.
+/// A per-series counter of compact-state age and recent changes.
 ///
-/// The counter is agnostic to the code family: the axis passes its published
+/// The counter is agnostic to the code family: the series passes its published
 /// compact code. A `None` code freezes both counters, per the contract. The
 /// first closed bar with a code has age 1; each later bar with the same code
 /// increments the age, and a change resets it to 1.
@@ -339,7 +339,7 @@ impl StateCounters {
 
     /// Observes one closed bar and returns the updated counters.
     ///
-    /// `code` is the axis's published compact code. `None` means the code is
+    /// `code` is the series' published compact code. `None` means the code is
     /// unavailable on this bar; both counters then hold their previous values.
     ///
     /// # Examples

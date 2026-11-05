@@ -15,8 +15,8 @@
 use std::collections::HashMap;
 
 use quantrule_data::Candle;
-use quantrule_model::axes::progression::{ProgressionBar, ProgressionLeg, ProgressionSeries};
 use quantrule_model::kernel::{Readiness, UnavailableReason};
+use quantrule_model::progression::{ProgressionBar, ProgressionLeg, ProgressionSeries};
 use quantrule_model::readings::Readings;
 
 const FIXTURE: &str = include_str!("fixtures/progression_golden.csv");
@@ -560,7 +560,7 @@ fn a_flat_series_produces_no_legs_even_though_the_atr_is_zero() {
 
     // A strict pivot cannot occur on a flat series, so there is no leg to
     // exercise. The zero ATR is still a valid measurement; the direct leg
-    // test in `axes::progression::leg` covers its degenerate target.
+    // test in `progression::leg` covers its degenerate target.
     assert_eq!(readings.atr14.get(20), Some(0.0));
     assert!(series.legs().is_empty());
 }

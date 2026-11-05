@@ -3,7 +3,7 @@
 - Date: 2026-10-24 (UTC)
 - Issue: [#76](https://github.com/quant-rule/quant-rule/issues/76) — docs: define the research output contract
 - Status: Contract. The analytics engine and the export follow this document.
-- Related: [model contract](../../model/2026-10-21/four-axis-analytical-model.md), [plan](../../execution-plans/2026-10-24/76-research-output.md), [transparency log](../../ai-transparency-log/2026-10-24/76-research-output.md)
+- Related: [model contract](../../registry/history.md), [plan](../../execution-plans/2026-10-24/76-research-output.md), [transparency log](../../ai-transparency-log/2026-10-24/76-research-output.md)
 
 ## 1. Purpose
 

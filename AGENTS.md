@@ -21,7 +21,7 @@ INPUT > DATA ENGINE > MODEL ENGINE > OUTPUT
 - **INPUT — data sources.** Candles originate from one or more historic sources. Sources are interchangeable; nothing upstream of the data engine may assume a particular vendor, format, or transport.
 - **DATA ENGINE — ingestion and processing.** Ingests candles from the shell, which performs the source access, then processes them and emits a time series of OHLCV candles per timeframe. The data engine owns candle normalization, timeframe construction, ordering, and gap handling. It knows nothing about indicators or strategies, and it never reaches for a source itself.
 - **MODEL ENGINE — the analytical model.** Takes the candle series as input and produces a market state. **Indicator readings** compute the calculation families: exponential moving averages, relative strength index, average true range, relative volume, MACD, and confirmed swing pivots. **Event detection** turns those readings into published numbers: three shared event types — **level**, **divergence**, and **signal** — plus discrete per-indicator states and progression legs. The model publishes per-timeframe results only; cross-timeframe reporting views are computed outside the model run by analytics/reporting. Every indicator and event has one definition, one role, and one claim in the registry; a reading may feed several events, and each event states its own definition. The model layer publishes numbers — continuous values, ordinal codes, and discrete codes — and never words; labels are a presentation mapping in the shell.
-- **OUTPUT — the market state.** The per-timeframe readings, states, confirmed levels, event records, progression legs, context, and coverage. Reports and analytics compute descriptive cross-timeframe views from those measurements; the strategy composes its own as-of context from events and states. The four axis names — direction, momentum, structure, progression — are a reporting taxonomy only; they are not model outputs and no strategy reads them.
+- **OUTPUT — the market state.** The per-timeframe readings, states, confirmed levels, event records, progression legs, context, and coverage. Reports compute descriptive cross-timeframe views from those measurements; the strategy composes its own as-of context from events and states. The legacy Direction, Momentum, and Structure scores are retired and are not model outputs; the Progression series remains a published measurement.
 
 The shell is not a fifth stage. It wraps the pipeline: it feeds commands into it and renders what comes back out. The stages above describe data flow, and the shell is the only surface through which that flow is reached.
 
@@ -44,8 +44,9 @@ The Rust workspace holds one crate per pipeline stage, plus the research engine,
 - `crates/quantrule-data` — the data engine.
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
 - `crates/quantrule-backtest` — the strategy, execution, and portfolio engines and the deterministic runner, which depend on `quantrule-model` and `quantrule-data`.
-- `crates/quantrule-shell` — the shell binary, which depends on `quantrule-model`, `quantrule-backtest`, `quantrule-analytics`, and `quantrule-data`.
-- `crates/quantrule-analytics` — the research engine, which depends on `quantrule-model` and `quantrule-data` and builds the research dataset. It is not a pipeline stage; the shell owns its I/O.
+- `crates/quantrule-shell` — the shell binary, which depends on `quantrule-model`, `quantrule-backtest`, and `quantrule-data`.
+
+The research engine (`quantrule-analytics`) was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.
 
 The decision stack above the pipeline is one-way:
 

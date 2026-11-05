@@ -9,7 +9,7 @@
 - Local artifacts: `data/improvement/2026-11-01/MODEL-2026-11-01-01/`
 - Verdict: `not green — no model baseline accepted`
 - Claim type: harness pilot; no edge claim
-- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../model/2026-11-01/model-evidence-protocol.md)
+- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../registry/history.md)
 
 ## Hypothesis
 

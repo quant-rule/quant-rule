@@ -1,12 +1,14 @@
 {
   "schema": "quantrule.run/v2",
   "name": "fixture",
+  "model_id": "M1.0",
+  "policy_id": "POL1.0",
+  "execution_id": "E1.0",
+  "portfolio_id": "P1.0",
   "data": "data.json",
   "model": "model.json",
-  "strategy": "strategy.json",
   "execution": "execution.json",
   "portfolio": "portfolio.json",
-  "analytics": "analytics.json",
   "output_root": "../../../../target/report-tests/report-command-default",
   "policy": "policy.json"
 }

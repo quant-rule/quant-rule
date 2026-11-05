@@ -5,7 +5,7 @@
 - Work item: [#343](https://github.com/quant-rule/quant-rule/issues/343)
 - Epic: [#342](https://github.com/quant-rule/quant-rule/issues/342)
 - Plan: [`docs/execution-plans/2026-11-03/342-model-v3.md`](../../execution-plans/2026-11-03/342-model-v3.md)
-- Contract: [`docs/model/2026-11-03/model-v3.md`](../../model/2026-11-03/model-v3.md)
+- Contract: [`docs/model/2026-11-03/model-v3.md`](../../registry/history.md)
 - Supersedes for axes: [`docs/adr/2026-10-21/four-axis-analytical-model.md`](../2026-10-21/four-axis-analytical-model.md)
 - Supersedes for strategy input: [`docs/adr/2026-10-30/rule-purity-and-statistics-boundary.md`](../2026-10-30/rule-purity-and-statistics-boundary.md) (the statistics boundary is retained)
 
@@ -108,7 +108,7 @@ hard. The strategy failures were downstream of a descriptive model.
 
 ## Links
 
-- Model v3 contract: [`docs/model/2026-11-03/model-v3.md`](../../model/2026-11-03/model-v3.md)
+- Model v3 contract: [`docs/model/2026-11-03/model-v3.md`](../../registry/history.md)
 - Registry: [`docs/registry/README.md`](../../registry/README.md)
 - Execution plan: [`docs/execution-plans/2026-11-03/342-model-v3.md`](../../execution-plans/2026-11-03/342-model-v3.md)
 - Prior evidence: [`docs/improvement/2026-11-01/CYCLE-007.md`](../../improvement/2026-11-01/CYCLE-007.md)

@@ -5,7 +5,7 @@
 - Model run: [`MODEL-2026-11-01-01`](MODEL-2026-11-01-01-model-baseline.md)
 - Audit: [`docs/audits/2026-11-01/workflow-reset-audit.md`](../../audits/2026-11-01/workflow-reset-audit.md)
 - Claim type: model evidence; no edge claim
-- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../model/2026-11-01/model-evidence-protocol.md)
+- Protocol: [`docs/model/2026-11-01/model-evidence-protocol.md`](../../registry/history.md)
 
 ## Run
 

@@ -9,7 +9,6 @@
 //! output byte is written. A rejection names the file and the JSON path, never
 //! a stack trace or an absolute path.
 
-mod analytics;
 mod data;
 mod error;
 mod execution;
@@ -20,7 +19,6 @@ mod policy;
 mod portfolio;
 mod read;
 mod run;
-mod strategy;
 
 #[cfg(test)]
 mod tests;

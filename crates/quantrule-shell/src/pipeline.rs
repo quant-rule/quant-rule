@@ -2,15 +2,14 @@
 //!
 //! One module owns the source-to-engine path: read the M1 CSV into the data
 //! engine's timeframe set, copy the selected ladder's series into the model
-//! input shape, and run either the model or the full backtest. Command families parse arguments
-//! and render the result; they do not rebuild the ladder or the inputs.
+//! input shape, and run the model. Command families parse arguments and render
+//! the result; they do not rebuild the ladder or the inputs.
 //!
 //! The module performs I/O because the shell owns source access. It does not
 //! compute an indicator, a rule, a fill, or an accounting value.
 
 use std::path::Path;
 
-use quantrule_backtest::runner::{BacktestConfig, BacktestError, BacktestRun};
 use quantrule_data::{Candle, Timeframe, TimeframeSet};
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
 use quantrule_model::run::ModelRun;
@@ -37,23 +36,6 @@ impl WindowMode {
             _ => None,
         }
     }
-
-    /// The stable code used in the dashboard header.
-    pub(crate) const fn code(self) -> &'static str {
-        match self {
-            Self::Full => "full",
-            Self::Latest => "latest",
-        }
-    }
-}
-
-/// The default ladder in seconds, fastest first.
-///
-/// Path-based commands use this ladder. A configured run uses the available
-/// ladder from `data.json`.
-#[must_use]
-pub(crate) fn ladder_secs() -> [u64; 4] {
-    Timeframe::DEFAULT_LADDER.map(|timeframe| u64::from(timeframe.seconds()))
 }
 
 /// The configured ladder in seconds, fastest first.
@@ -102,8 +84,6 @@ impl ModelInputs {
 pub(crate) enum PipelineError {
     /// The source or the data engine rejected the candles.
     Source(SourceError),
-    /// Execution or the portfolio rejected the run.
-    Backtest(BacktestError),
     /// The requested period selected no M1 candle.
     EmptyPeriod,
 }
@@ -123,14 +103,6 @@ pub(crate) fn load_set_with_limit(
     limit: usize,
 ) -> Result<TimeframeSet, SourceError> {
     csv::load_timeframes_with_limit(path, bounds, limit)
-}
-
-/// Loads an extended set bounded by a date range.
-pub(crate) fn load_extended_set(
-    path: &Path,
-    bounds: DateBounds,
-) -> Result<TimeframeSet, SourceError> {
-    csv::load_extended_timeframes(path, bounds)
 }
 
 /// Builds a model run from an already loaded set and an explicit configuration.
@@ -172,27 +144,4 @@ pub(crate) fn run_model_with_ladder(
         return Err(PipelineError::EmptyPeriod);
     }
     Ok(model_run_from_set_with_ladder(&set, ladder, &config.model))
-}
-
-/// Loads the configured run and runs the full backtest once.
-pub(crate) fn run_backtest(config: &RunConfig) -> Result<BacktestRun, PipelineError> {
-    let set = load_set_with_limit(
-        &config.data.source.path,
-        config.data.bounds,
-        config.data.max_candles,
-    )
-    .map_err(PipelineError::Source)?;
-    if set.series(Timeframe::M1).is_empty() {
-        return Err(PipelineError::EmptyPeriod);
-    }
-    let inputs = ModelInputs::from_set_with_ladder(&set, &config.data.available_timeframes);
-    let backtest = BacktestConfig {
-        model: config.model,
-        strategy: config.strategy.engine.clone(),
-        execution: config.execution.engine,
-        portfolio: config.portfolio,
-        max_position_fraction: config.policy.risk.max_position_fraction,
-    };
-    quantrule_backtest::runner::run_backtest(&inputs.as_inputs(), &backtest)
-        .map_err(PipelineError::Backtest)
 }

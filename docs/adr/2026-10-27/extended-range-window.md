@@ -3,7 +3,7 @@
 - Date: 2026-10-27 (UTC)
 - Issue: [#144](https://github.com/quant-rule/quant-rule/issues/144) — feat: add the extended-range M1 window
 - Status: Accepted. The 600,000-candle bound and the fixed-retention behavior are the decision; implementation follows this document.
-- Related: [program plan](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md), [analysis and backtest boundaries](analysis-and-backtest-boundaries.md), [history, retention, and display policy](../2026-10-25/history-retention-and-display-policy.md), [model contract](../../model/2026-10-21/four-axis-analytical-model.md)
+- Related: [program plan](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md), [analysis and backtest boundaries](analysis-and-backtest-boundaries.md), [history, retention, and display policy](../2026-10-25/history-retention-and-display-policy.md), [model contract](../../registry/history.md)
 
 ## 1. Context
 

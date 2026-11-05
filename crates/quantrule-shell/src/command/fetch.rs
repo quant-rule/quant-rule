@@ -1,18 +1,18 @@
 //! Fetch command parsing and execution.
 //!
-//! The command streams a Dukascopy range through the shell's transport, writes
-//! the accepted candles, and warns when the result exceeds the batch cap. The
-//! engine never reaches for the network itself.
+//! The command streams a Dukascopy range through the shell's transport and
+//! writes the accepted candles as CSV. The engine never reaches for the network
+//! itself.
 
 use std::io::{self, Write};
 use std::path::PathBuf;
 
-use quantrule_data::{DEFAULT_WINDOW, EXTENDED_SERIES, MAX_SERIES, Timeframe};
+use quantrule_data::{EXTENDED_SERIES, MAX_SERIES, Timeframe};
 
 use super::parse_native_timeframe;
 
 use super::types::{FetchArgs, ParseError, RunError};
-use crate::fetch::{self, DEFAULT_CHART_CANDLES, FetchOptions};
+use crate::fetch::{self, FetchOptions};
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
 
 /// Parses the arguments of a `fetch` command.
@@ -24,11 +24,11 @@ use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
 /// # Errors
 ///
 /// Returns a [`ParseError::Fetch`] with a usage message when a positional
-/// argument, option value, date, symbol, or chart candle count is invalid.
+/// argument, option value, date, symbol, or timeframe is invalid.
 pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, ParseError> {
     if arguments.len() < 3 {
         return Err(ParseError::Fetch(String::from(
-            "usage: fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>] [--png <path>] [--candles <n>]",
+            "usage: fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]",
         )));
     }
 
@@ -39,9 +39,6 @@ pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, P
 
     let mut timeframe = None;
     let mut csv = None;
-    let mut png = None;
-    let mut candles = DEFAULT_CHART_CANDLES;
-    let mut candles_seen = false;
     let mut index = 3;
 
     while index < arguments.len() {
@@ -66,33 +63,6 @@ pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, P
                 }
                 csv = Some(PathBuf::from(value));
             }
-            "--png" => {
-                let value = option_value(arguments, &mut index, "--png")?;
-                if png.is_some() {
-                    return Err(ParseError::Fetch(String::from("--png was supplied twice")));
-                }
-                png = Some(PathBuf::from(value));
-            }
-            "--candles" => {
-                if candles_seen {
-                    return Err(ParseError::Fetch(String::from(
-                        "--candles was supplied twice",
-                    )));
-                }
-                let value = option_value(arguments, &mut index, "--candles")?;
-                let count = value.parse::<usize>().map_err(|_| {
-                    ParseError::Fetch(format!(
-                        "--candles expects a positive integer, found '{value}'"
-                    ))
-                })?;
-                if count == 0 || count > DEFAULT_WINDOW {
-                    return Err(ParseError::Fetch(format!(
-                        "--candles must be between 1 and {DEFAULT_WINDOW}"
-                    )));
-                }
-                candles = count;
-                candles_seen = true;
-            }
             option if option.starts_with("--") => {
                 return Err(ParseError::Fetch(format!("unknown option '{option}'")));
             }
@@ -105,21 +75,11 @@ pub(crate) fn parse_fetch_arguments(arguments: &[String]) -> Result<FetchArgs, P
         index += 1;
     }
 
-    if let (Some(csv_path), Some(png_path)) = (&csv, &png)
-        && crate::export::outputs_conflict(csv_path, png_path)
-    {
-        return Err(ParseError::Fetch(String::from(
-            "--csv and --png must not resolve to the same file or temporary path",
-        )));
-    }
-
     Ok(FetchArgs {
         symbol,
         range,
         timeframe: timeframe.unwrap_or(Timeframe::M1),
         csv,
-        png,
-        candles,
     })
 }
 
@@ -140,17 +100,15 @@ fn option_value<'a>(
     Ok(value)
 }
 
-/// Fetches a Dukascopy range and writes the CSV and optional chart.
+/// Fetches a Dukascopy range and writes the CSV.
 ///
 /// The CSV path defaults to
 /// `data/sources/<SYMBOL>_<M1|M5|M15|H1>_<start>_<end>.csv`, where `<SYMBOL>` is the
-/// uppercase compact symbol. A PNG is written only when the command supplied a
-/// path.
+/// uppercase compact symbol.
 ///
 /// # Errors
 ///
-/// Returns a [`RunError`] when the source, CSV, chart, PNG, or summary writer
-/// fails.
+/// Returns a [`RunError`] when the source, CSV, or summary writer fails.
 pub(crate) fn run_fetch(
     args: &FetchArgs,
     writer: &mut impl Write,
@@ -160,7 +118,7 @@ pub(crate) fn run_fetch(
         .csv
         .clone()
         .unwrap_or_else(|| fetch::default_csv_path(&args.symbol, &args.range, args.timeframe));
-    let options = FetchOptions::new(csv_path, args.png.clone(), args.candles);
+    let options = FetchOptions::new(csv_path);
     let request = FetchRequest::new(args.symbol.clone(), args.range.clone(), args.timeframe)
         .map_err(|source| RunError::Fetch(fetch::FetchRunError::Source(source)))?;
     let transport = HttpTransport::new();
@@ -174,9 +132,9 @@ pub(crate) fn run_fetch(
 
 /// Warns when a fetch produced more rows than the batch dataset cap.
 ///
-/// The fetch itself streams the whole range and writes every accepted row, so
-/// the warning is the shell's way of making the downstream limit visible before
-/// the user tries to ingest or export the file.
+/// The fetch streams the whole range and writes every accepted row, so the
+/// warning makes the downstream limit visible before the user tries to read the
+/// file as a batch dataset.
 pub(crate) fn write_fetch_cap_warning(
     accepted: usize,
     warnings: &mut impl Write,
@@ -184,7 +142,7 @@ pub(crate) fn write_fetch_cap_warning(
     if accepted > MAX_SERIES {
         writeln!(
             warnings,
-            "warning: accepted={accepted} exceeds the {MAX_SERIES}-row batch cap; store and research reject this file, market-chart requires --window latest, and market-report accepts up to {EXTENDED_SERIES} rows"
+            "warning: accepted={accepted} exceeds the {MAX_SERIES}-row batch cap; report model accepts up to {EXTENDED_SERIES} rows"
         )?;
     }
     Ok(())

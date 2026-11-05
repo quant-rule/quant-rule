@@ -232,9 +232,6 @@ fn identity(input: &CompressionBracketInput<'_>) -> StrategyInput {
         input.execution_timeframe_secs,
         input.execution_bar_index,
         input.execution_open_time,
-        None,
-        None,
-        None,
     )
     .with_contiguous(input.execution_contiguous)
 }

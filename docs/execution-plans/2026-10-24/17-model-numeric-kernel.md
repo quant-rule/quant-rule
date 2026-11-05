@@ -6,7 +6,7 @@
 - Status: Verified
 - Date: 2026-10-24 (UTC)
 - Umbrella plan: [`docs/execution-plans/2026-10-21/14-model-engine.md`](../../execution-plans/2026-10-21/14-model-engine.md)
-- Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
+- Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../registry/history.md)
 - Transparency log: [`docs/ai-transparency-log/2026-10-24/17-model-numeric-kernel.md`](../../ai-transparency-log/2026-10-24/17-model-numeric-kernel.md)
 
 ## Intent

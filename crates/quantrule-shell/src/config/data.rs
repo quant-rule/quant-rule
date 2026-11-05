@@ -3,7 +3,7 @@
 //! The data engine owns candle validation and bucket construction. This module
 //! owns the file's shape and the path resolution the contract assigns to the
 //! file that names the source. The available ladder is configurable in v3; the
-//! strategy owns the active subset.
+//! the model run selects its ladder from this set.
 
 use std::path::{Path, PathBuf};
 

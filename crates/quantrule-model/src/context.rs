@@ -1,8 +1,9 @@
 //! The volatility and participation context.
 //!
-//! The context is a descriptive diagnostic outside the four axes. It publishes
+//! The context is a descriptive diagnostic. It publishes
 //! `atr_ratio = ATR14 / SMA20(ATR14)`, `rvol_ratio = RVOL20`, and a four-bucket
-//! `context_code`. No axis reads it, and it never votes on a direction.
+//! `context_code`. No reading consumes it as a vote, and it never votes on a
+//! direction.
 //!
 //! The module is pure: it reads only the readings it is given. It performs no
 //! I/O, reads no clock, and uses no randomness.
@@ -142,9 +143,6 @@ mod tests {
         ATR_BASELINE_BARS, COILING_CODE, ContextSeries, EXPANDING_CODE,
         HIGH_RANGE_LOW_PARTICIPATION_CODE, SETTLING_CODE,
     };
-    use crate::axes::direction::DirectionSeries;
-    use crate::axes::momentum::MomentumSeries;
-    use crate::axes::structure::StructureSeries;
     use crate::readings::{PivotSeries, ReadingSeries, Readings};
     use quantrule_data::Candle;
 
@@ -323,20 +321,13 @@ mod tests {
     }
 
     #[test]
-    fn no_axis_reads_the_context() {
+    fn the_context_detector_does_not_change_the_readings() {
         let candles = candles(ATR_BASELINE_BARS + 1);
         let readings = readings(&candles, atr_window(4.0), rvol_window(1.5));
-        let direction_before = DirectionSeries::compute(&readings);
-        let momentum_before = MomentumSeries::compute(&readings);
-        let structure_before = StructureSeries::compute(&candles, &readings);
+        let before = readings.clone();
 
         let _ = ContextSeries::compute(&readings);
 
-        assert_eq!(direction_before, DirectionSeries::compute(&readings));
-        assert_eq!(momentum_before, MomentumSeries::compute(&readings));
-        assert_eq!(
-            structure_before,
-            StructureSeries::compute(&candles, &readings)
-        );
+        assert_eq!(readings, before);
     }
 }

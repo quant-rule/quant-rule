@@ -3,7 +3,7 @@
 - Date: 2026-11-03 (UTC)
 - Issue: [#347](https://github.com/quant-rule/quant-rule/issues/347)
 - Status: Implemented; opt-in on the legacy model path, active in `config/defaults/model.json`
-- Contract: [`docs/model/2026-11-03/model-v3.md`](../../model/2026-11-03/model-v3.md)
+- Contract: [`docs/model/2026-11-03/model-v3.md`](../../registry/history.md)
 
 ## 1. Formula
 

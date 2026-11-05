@@ -9,7 +9,7 @@
 use quantrule_data::Candle;
 
 use super::{PivotKind, PivotScale, ReadingSeries, Readings, atr, ema};
-use crate::axes::structure::registry::ConfirmedLevelRegistry;
+use crate::levels::ConfirmedLevelRegistry;
 
 /// Configuration for the extended readings.
 #[derive(Debug, Clone, Copy, PartialEq)]

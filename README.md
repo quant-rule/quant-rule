@@ -1,667 +1,214 @@
 # QuantRule
 
-A deterministic, rule-based trading signal engine.
+QuantRule is a local, single-user, deterministic shell application for rule-based
+research on OHLCV candles. You start it and type commands; it prints or writes what
+the data and model engines produce. There is no graphical interface, no service, and
+no library to embed.
 
-QuantRule is a shell application. You start it and write commands — print a candle series, compute an indicator, run a backtest. The shell is the whole interface: there is no graphical interface, no service, and no library to embed.
+The current model is **M1.0**: a flat per-timeframe measurement of readings,
+discrete states, confirmed levels, events, progression, and context. It publishes
+numbers, nulls, and stable codes. It carries no axis score, no composite direction
+vote, no dashboard, and no cross-timeframe aggregate.
 
-## Set up once
-
-These steps are per machine, not per run. They put the Rust toolchain and the
-binary on `PATH`, so later commands are just `quantrule ...` from any directory.
-The examples use `~/.bashrc`. If your shell is zsh, substitute `~/.zshrc`.
-
-**1. Put the Rust toolchain on `PATH`.** The workspace pins Rust 1.99
-(`rust-version` in `Cargo.toml`). Install it with [rustup](https://rustup.rs) if
-`cargo` is missing. The installer usually adds `~/.cargo/bin` to the shell
-profile; if `cargo --version` still fails in a new terminal, append it yourself:
-
-```bash
-# Only when rustup is absent:
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Only when `cargo --version` still fails after reopening the terminal:
-echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
-exec "$SHELL" -l
-cargo --version
-```
-
-Do not install a second `cargo` from the distribution package manager. It can
-shadow rustup and compile the project with a different toolchain.
-
-**2. Build the release binary once, from the repository root.**
-
-```bash
-cargo build --release -p quantrule-shell
-```
-
-**3. Put the binary on `PATH`.** Run this from the repository root, so `$PWD`
-expands to the absolute path:
-
-```bash
-echo "export PATH=\"$PWD/target/release:\$PATH\"" >> ~/.bashrc
-exec "$SHELL" -l
-quantrule help | head -3
-```
-
-`quantrule` now resolves from any directory. Config-internal paths stay anchored
-to the config files, so `quantrule backtest --config /absolute/path/run.json`
-works from anywhere. If you would rather not change your shell, call the binary
-by path instead: `./target/release/quantrule`.
-
-**4. Fetch the example data once.** The full-year example reads
-`data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv`, which is not committed:
-
-```bash
-quantrule fetch btc/usd 2024-01-01 2024-12-31 \
-  --csv data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv
-```
-
-It downloads about 34 MB and takes a few minutes. The captured run below uses a
-local 2024 slice of `BTCUSD_M1_2018-01-01_2024-12-31.csv`; a fresh fetch can
-differ if the provider's history has changed.
-
-**5. Verify with one full run.**
-
-```bash
-test -f data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv && echo "data ready"
-lab=data/labs/lab-result-2026-10-31T14-15-00Z
-quantrule backtest --config config/examples/btcusd-2024/run.json --out "$lab" --diagnose
-quantrule lab summary "$lab" \
-  --role researcher \
-  --data-version dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31 \
-  --config config/examples/btcusd-2024/run.json \
-  --created-utc 2026-10-31T14:15:00Z
-```
-
-The backtest prints the five bundle paths and the diagnosis path under `$lab`;
-`lab summary` adds `$lab/summary.txt` for the whole folder. Replace the timestamp with the UTC
-time of the run: a lab result folder uses `YYYY-MM-DDTHH-MM-SSZ`, and
-`--created-utc` uses `YYYY-MM-DDTHH:MM:SSZ`. The backtest takes about 20 seconds
-on a release build. When it does, the machine is set up.
-
-When the code changes, rebuild with `cargo build --release -p quantrule-shell`;
-the `PATH` entry keeps pointing at the new binary.
-
-The local workspace is documented in [`data/README.md`](data/README.md): one
-directory per artifact kind, and only those notes are committed. A plain
-`quantrule fetch` writes to `data/sources/`, `research export` writes to
-`data/research/`, and `store init` writes to `data/db/quantrule.db`.
-
-## Learn the pipeline
-
-The [unified-ladder tutorial](docs/tutorials/2026-10-30/unified-ladder.md) runs
-the current strategy, policy check, strategy walk, five-bundle backtest, and
-strategy report through shell commands. The dated 2026-10-29 full-pipeline
-tutorial is preserved for the retired rule.
-
-The current improvement process is split into two workflows:
-
-- [Audit Workflow](docs/workflows/audit-workflow.md) — audit, remediation plan,
-  execution, verification.
-- [Improvement Workflow](docs/workflows/improvement-workflow.md) — model run,
-  strategy run, portfolio run, review, new hypothesis.
-- [Run contract](docs/workflows/run-contract.md) — manifests, run folders,
-  baselines, and invalidations.
-
-The improvement tooling lives in [`tools/improvement/`](tools/improvement/README.md).
-It records evidence; it does not tune a strategy or accept a baseline.
-
-## Releases
-
-| Tag | Title | Notes |
-|---|---|---|
-| `v0.5.0` | Workflow reset baseline | [`docs/releases/2026-11-01/v0.5.0.md`](docs/releases/2026-11-01/v0.5.0.md) |
-| `v0.3.0` | Lab Summary and Help | [`docs/releases/2026-10-30/v0.3.0.md`](docs/releases/2026-10-30/v0.3.0.md) |
-| `v0.2.0` | MVP v1 | [`docs/releases/2026-10-28/v0.2.0.md`](docs/releases/2026-10-28/v0.2.0.md) |
-
-## Policy, strategy, and improvement
-
-QuantRule has three human-visible levels:
-
-| Level | File | What it decides |
-|---|---|---|
-| Policy | `policy.json` | Account size, performance target, max drawdown, position size, leverage, tickets, timeframes |
-| Strategy | `strategy.json` (with the human thesis) | Thesis, entry, exit, and risk/reward in trader words |
-| Engine contracts | `data.json`, `model.json`, `execution.json`, `portfolio.json`, `analytics.json` | Measurement, fills, accounting, evaluation |
-
-Validate the envelope and render the strategy:
-
-```bash
-cargo run -p quantrule-shell -- policy check --config config/examples/btcusd-2024/run.json
-cargo run -p quantrule-shell -- strategy explain --config config/examples/btcusd-2024/run.json
-```
-
-The improvement workflow is documented in
-[`docs/workflows/improvement-workflow.md`](docs/workflows/improvement-workflow.md),
-the audit workflow in
-[`docs/workflows/audit-workflow.md`](docs/workflows/audit-workflow.md), the run
-contract in [`docs/workflows/run-contract.md`](docs/workflows/run-contract.md),
-and the human walkthrough in
-[`docs/tutorials/2026-10-30/improvement-workflow.md`](docs/tutorials/2026-10-30/improvement-workflow.md).
-The charter is in
-[`docs/governance/2026-10-30/improvement-charter.md`](docs/governance/2026-10-30/improvement-charter.md),
-and the finding and run formats in
-[`docs/audits/README.md`](docs/audits/README.md) and
-[`docs/improvement/README.md`](docs/improvement/README.md).
+The current shell surface is deliberately small: data inspection, event records,
+the flat model report, policy validation, source fetch, and help. Strategy,
+execution, portfolio, and backtest runs are future work; the execution and
+portfolio libraries and the generic bracket/event engines remain in the workspace
+for S3.x.
 
 ## Build and run
 
-The workspace uses the Rust version in `Cargo.toml`. After the setup above,
-`quantrule` is the same binary as `cargo run -p quantrule-shell --`, so the
-commands below can drop the `cargo run` prefix.
-
 ```bash
-cargo run -p quantrule-shell
+cargo build --release
+./target/release/quantrule
 ```
 
-The prompt is written to stderr. stdout is reserved for command output, so the same command can be piped or captured.
-
-Non-interactive invocation:
-
-```bash
-cargo run -p quantrule-shell -- candles path/to/candles.csv
-cargo run -p quantrule-shell -- candles-tolerant path/to/candles.csv
-cargo run -p quantrule-shell -- timeframes path/to/m1.csv
-cargo run -p quantrule-shell -- market-state path/to/m1.csv
-cargo run -p quantrule-shell -- market-state path/to/m1.csv --window latest
-cargo run -p quantrule-shell -- market-dashboard path/to/m1.csv
-cargo run -p quantrule-shell -- market-dashboard path/to/m1.csv --window latest --json
-cargo run -p quantrule-shell -- market-chart path/to/m1.csv --png data/charts/market.png --timeframe 1m --candles 1000
-cargo run -p quantrule-shell -- axis path/to/m1.csv direction
-cargo run -p quantrule-shell -- events path/to/m1.csv
-cargo run -p quantrule-shell -- legs path/to/m1.csv
-cargo run -p quantrule-shell -- model-series path/to/m1.csv --timeframe 1m --bars 1000
-cargo run -p quantrule-shell -- research export path/to/m1.csv demo --data-version binance:BTCUSDT:60:1704067200-1710115200
-cargo run -p quantrule-shell -- research summary path/to/m1.csv
-cargo run -p quantrule-shell -- store init --db data/db/quantrule.db
-cargo run -p quantrule-shell -- store ingest path/to/m1.csv --dataset demo --data-version binance:BTCUSDT:60:1704067200-1710115200
-cargo run -p quantrule-shell -- store verify path/to/m1.csv --dataset demo --data-version binance:BTCUSDT:60:1704067200-1710115200 --db data/db/quantrule.db
-cargo run -p quantrule-shell -- store list --db data/db/quantrule.db
-cargo run -p quantrule-shell -- store show demo bar --timeframe 1m --limit 10 --db data/db/quantrule.db
-cargo run -p quantrule-shell -- db series demo --timeframe 1m --limit 10 --db data/db/quantrule.db
-cargo run -p quantrule-shell -- db bars demo --limit 10 --db data/db/quantrule.db
-cargo run -p quantrule-shell -- db metrics demo --limit 10 --db data/db/quantrule.db
-cargo run -p quantrule-shell -- db layer3 demo --limit 10 --db data/db/quantrule.db
-cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --csv data/sources/XAUUSD_M1_2025-01-01_2025-12-31.csv
-cargo run -p quantrule-shell -- fetch eurusd 2026-01-01 2026-06-30 --timeframe 1h --csv data/sources/EURUSD_H1_2026-01-01_2026-06-30.csv
-cargo run -p quantrule-shell -- fetch gold 2025-01-01 2025-12-31 --png data/charts/xauusd_2025.png
-```
-
-A full config-driven run, its five report bundles, and the root lab summary:
+The interactive prompt reads commands from stdin. A non-interactive invocation runs
+one command and exits with the command's status:
 
 ```bash
-cargo run -p quantrule-shell -- backtest --config config/examples/btcusd-2024/run.json --out data/labs/lab-result-2026-10-31T14-15-00Z --diagnose
-cargo run -p quantrule-shell -- report portfolio --config config/examples/btcusd-2024/run.json --out data/reports/portfolio-report
-cargo run -p quantrule-shell -- lab summary data/labs/lab-result-2026-10-31T14-15-00Z --role researcher --data-version dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31 --config config/examples/btcusd-2024/run.json --created-utc 2026-10-31T14:15:00Z
+./target/release/quantrule candles crates/quantrule-shell/tests/fixtures/three.csv
 ```
 
 ## Commands
 
 | Command | Arguments | Output |
 |---|---|---|
-| `candles` | `<csv-path>` | Up to the last 1000 candles as NDJSON, oldest first |
-| `candles-tolerant` | `<csv-path>` | Up to the last 1000 valid candles as NDJSON, plus a quality report on stderr |
-| `timeframes` | `<csv-path>` | M1, M5, M15, H1, and H4 as NDJSON, plus an aggregation report on stderr |
-| `market-state` | `<csv-path>` [`--window full\|latest`] | The four-timeframe market state as one JSON object |
-| `market-dashboard` | `<csv-path>` [`--window full\|latest`] [`--json`] | The four-axis text dashboard, or the numeric dashboard state as one JSON object |
-| `market-chart` | `<csv-path> --png <path>` [options] | A deterministic PNG of the last bars; `--window latest` supports inputs above the 100k cap |
-| `market-report` | `<csv-path> --data-version <id> --out <dir>` [options] | A deterministic full-period report: `summary.txt`, `report.json`, and two PNGs |
-| `strategy-run` | `<csv-path> --strategy <name> --data-version <id>` [options] | Strategy entries and exits as NDJSON; no fills, positions, equity, or P&L |
-| `strategy explain` | `--config <run.json>` | The validated strategy thesis, entry, exit, and risk/reward in trader words |
-| `policy check` | `--config <run.json>` | Validate the policy against the strategy and engine configs |
-| `report` | `<model\|strategy\|execution\|portfolio\|analytical> --config <run.json>` [options] | One bundle under `<out>/<engine>/`; with `--json`, the `report.json` bytes |
-| `backtest` | `--config <run.json>` [options] | One full run and all five bundles; with `--diagnose`, also `diagnosis/`; with `--json`, a summary envelope |
-| `lab summary` | `<lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <ts>` [options] | A deterministic root `summary.txt` for a lab result folder; prints `wrote <path>` |
-| `lab diagnose` | `<lab-dir> --config <run.json>` [options] | Re-runs the config, verifies the lab identity, and writes `<lab-dir>/diagnosis/` |
-| `lab list` | `--root <dir>` [options] | A deterministic table or JSON array of lab result folders under a root |
-| `axis` | `<csv-path> <axis>` [`--window full\|latest`] | One NDJSON line per timeframe for `direction`, `momentum`, `structure`, or `progression` |
-| `events` | `<csv-path>` [`--window full\|latest`] | Every event record in the analyzed window as NDJSON, in availability order |
-| `legs` | `<csv-path>` [`--window full\|latest`] | The minor and major leg per timeframe as NDJSON |
-| `model-series` | `<csv-path>` [options] | The last complete model bars as NDJSON: candle, readings, four axes, context, and consensus |
-| `research export` | `<csv-path> <dataset> --data-version <id>` [options] | The raw M1 file and the three research layers, with the manifest, dictionary, and code table |
-| `research summary` | `<csv-path>` | Per-axis counts, ranges, ordinal histograms, and pairwise continuous correlations |
-| `store init` | [options] | Creates or opens the SQLite store and prints its schema version |
-| `store ingest` | `<csv-path> --dataset <name> --data-version <id>` [options] | Writes one dataset, every ladder bar, every consensus row, every M1 aggregate row, every pivot, every confirmed level, every event, and every retained leg, and prints the stored counts |
-| `store verify` | `<csv-path> --dataset <name> --data-version <id>` [options] | Rebuilds the source and compares every stored table; prints `verified ...` or the first mismatch |
-| `store list` | [options] | One CSV row per stored dataset with identity, counts, and Layer 3 state |
-| `store show` | `<dataset> <table>` [options] | CSV rows from one stored table |
-| `store remove` | `<dataset>` [options] | Removes one dataset and its cascading rows; the database file remains |
-| `db series` | `<dataset>` [options] | Stored candles as NDJSON |
-| `db bars` | `<dataset>` [options] | Full stored bar rows as CSV |
-| `db metrics` | `<dataset>` [options] | Metrics and resolutions as CSV |
-| `db layer3` | `<dataset>` [options] | Materialized Layer 3 rows as CSV |
-| `fetch` | `<symbol> <start> <end>` [options] | A CSV of native BID candles and an optional PNG chart |
-| `help` | [`<command>` \| `all` \| `glossary` \| `tutorial` \| `roles`] | The short map, one command contract, or a reference topic |
-| `quit` | none | Exits with status 0 |
-
-### Help contract
-
-`help` has three levels and three reference topics. The short map, the command
-pages, and `help all` render from one command metadata table, so they cannot
-drift. The output is fixed-width plain text with no terminal-width dependence
-and no color.
-
-| Command | Output |
-|---|---|
-| `help` | A one-screen map of the pipeline, commands, and reference topics. |
-| `help <command>` | The full contract for one command. One- or two-word topics such as `store ingest`, `research export`, and `lab summary` are accepted. |
-| `help all` | Every command and option. |
-| `help glossary` | Precise terms such as `NDJSON`, `report bundle`, `data version`, the four axes, events, and legs. |
-| `help tutorial` | The unified-ladder tutorial map and its repository path. |
-| `help roles` | The Quant Researcher, Quant Developer, and Quant Validator map and handoff. |
-
-An unknown topic is an error that points to `help all`.
-
-`fetch` options:
-
-| Option | Meaning |
-|---|---|
-| `--timeframe <tf>` | Native interval: `1m`, `5m`, `15m`, or `1h` (default `1m`; `M1`, `M5`, `M15`, and `H1` are also accepted) |
-| `--csv <path>` | CSV target (default `data/sources/<SYMBOL>_<M1\|M5\|M15\|H1>_<start>_<end>.csv`) |
-| `--png <path>` | Also write a chart; the PNG is opt-in |
-| `--candles <n>` | Candles in the chart, from the tail of the fetched range (default 1000, max 1000) |
-
-`research export` options:
-
-| Option | Meaning |
-|---|---|
-| `--data-version <id>` | Required identity of the input series: source, timeframe, and coverage |
-| `--root <dir>` | Export root (default `data/research`) |
-
-`research export` reads an M1 CSV, builds M1/M5/M15/H1, and writes `<root>/raw/<dataset>/m1.csv` and `<root>/processed/<dataset>/` with `layer1.csv`, `layer2.csv`, `layer3.csv`, `manifest.json`, `data_dictionary.csv`, `data_dictionary.md`, `codes.csv`, and `README.md`. A native higher-timeframe file is rejected before any file is written. The manifest records the data version, the model and contract versions, the configuration, the row counts, and the data file list. The export is deterministic: the same input and configuration produce byte-identical files. The input is capped at 100,000 M1 candles; an over-cap input fails rather than being truncated.
-
-`research summary` prints one line per timeframe and axis with the present count, null count, minimum, maximum, mean, and the ten ordinal bucket counts. It then prints one line per timeframe and axis pair with the Pearson correlation of the two continuous values. Ordinal codes are counted, never averaged, and no line combines the axes. A native higher-timeframe file is rejected before any line is printed. The output is deterministic: the same input prints the same text.
-
-`store init` options:
-
-| Option | Meaning |
-|---|---|
-| `--db <path>` | Database path (default `data/db/quantrule.db`) |
-
-`store init` opens the SQLite store, applies the schema migrations in order, each in one transaction (version 1, then the version 2 event-index migration), and prints the path and the schema version. Reopening an existing store is idempotent, and a version 1 database is migrated in place. A store whose schema is newer than the binary is rejected, and a file that is not a database fails with a clear error. The store is a shell-owned module; the data, model, and analytics crates remain pure.
-
-`store remove <dataset> [--db <path>]` removes one dataset and every row that references it through the foreign-key cascade. It never deletes the database file; other datasets remain. Removing a missing dataset is an error. A same-name dataset with a different identity is a conflict until it is removed explicitly.
-
-`store ingest` options:
-
-| Option | Meaning |
-|---|---|
-| `--dataset <name>` | Required unique dataset name |
-| `--data-version <id>` | Required identity of the input series: source, timeframe, and coverage |
-| `--db <path>` | Database path (default `data/db/quantrule.db`) |
-
-`store ingest` reads one M1 CSV, builds M1/M5/M15/H1 in memory, and writes one `dataset` row, one wide `bar` row per Layer 2 row, one `consensus` row per closed bar per timeframe, one `layer3` row per M1 bar, one `pivot` row per pivot occurrence, one `level` row per confirmed level, one `event` row per event record, and one `leg` row per retained progression leg in a single `BEGIN IMMEDIATE` transaction. It writes the candle, the six readings, the four-axis metrics, and the 12 axis-resolution columns for every ladder bar; a missing value is `NULL` with its unavailable-reason code, and a valid zero stays `0`. The resolution columns carry each axis's continuous value, ordinal bucket, and unavailable reason. The consensus row carries the three axis counts and the weakest directional axis code; a missing axis is excluded, and Progression does not vote. The Layer 3 row carries the as-of M5/M15/H1 block columns and the 82 cross-timeframe aggregate columns over the configured ladder; a missing measurement is `NULL`, a count of zero stays `0`, and a list is `;`-separated text with no spaces, with an empty list stored as an empty string rather than `NULL`. A block that has no closed higher bar yet is `NULL` in all its columns; a new dataset is marked `layer3_materialized = 1`. A #68–#72 dataset is not backfilled and stays `0`. A pivot candidate is available on its occurrence bar; a confirmed pivot carries the confirmation bar as its availability bar and is stored once, with `confirmed_code = 1`, rather than duplicated. Every level carries its `1000 + n` reference code and both its occurrence and availability bars. Every event is stored once, on or after its availability bar, and never before it. Coincident Signal threshold crossings are distinct rows because the threshold value is part of their identity; every other event keeps the original occurrence key. Every retained leg carries its origin, target, progress, displacement, and lifecycle codes; a value that is not yet knowable is `NULL`. The M1 `bar` count equals the accepted source rows; the full count covers the whole ladder. The input is capped at 100,000 M1 candles and a count mismatch or over-cap input is rejected before anything is written; a native higher-timeframe file is rejected before the database is opened. Re-running the same name with the same identity is a no-op that prints `unchanged`; a different identity for an existing name is a conflict and changes nothing. Output is one deterministic line: `ingested <name> bars=<n> timeframes=<k>` or `unchanged <name> bars=<n> timeframes=<k>`.
-
-`store verify` reads the same source again, rebuilds the layers, opens the store read-only, and compares the dataset identity, the foreign-key graph, and every row of `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, and `leg`. A success prints `verified <name> bars=<n> tables=7`; the first value, count, or structural mismatch fails with a deterministic message. The comparison uses the same writer parameter functions, so it proves writer/reader consistency and catches drift; it is not an independent oracle for the model or the layer computation. A dataset with `layer3_materialized = 0` is incomplete and must be re-ingested into a fresh database. Verification never writes, migrates, or repairs the store.
-
-### Store query contract
-
-The query commands open an existing database read-only. A missing file is an error and is never created; a newer schema, a foreign `application_id`, or a version-0 file with tables is rejected; no migration runs. The displayed rows omit the internal `dataset_id` and the event row `id`, so the same logical dataset dumps identically across a remove and re-ingest. CSV uses an empty field for `NULL`, the shortest round-trip decimal for a float, and quotes a field that contains a comma, quote, or newline. `--limit` is `1..=1000` and defaults to `100`. `--timeframe` accepts `1m`, `5m`, `15m`, or `1h`; `--bar` filters `bar_index` where the table has one.
-
-| Command | Output |
-|---|---|
-| `store remove <dataset>` | Removes the dataset and every row that references it; prints `removed <name> bars=<n>`; the database file is kept |
-| `store list` | One CSV row per dataset, sorted by name: identity, `m1_bars`, `layer3_materialized`, and `bar`/`consensus`/`layer3`/`pivot`/`level`/`event`/`leg` counts |
-| `store show <dataset> <table>` | The content columns of `bar`, `consensus`, `layer3`, `pivot`, `level`, `event`, or `leg`, in DDL order and the table's fixed query order (bar, consensus, and layer3 by timeframe and bar; pivot by timeframe and occurrence; event by semantic key; leg by timeframe and leg_id), without the internal `dataset_id` or event row `id`. `event.reference_code = 0` is rendered as `NULL`. A dataset name uses only letters, digits, `.`, `-`, and `_`, does not start with `-`, and is not `.` or `..`. |
-| `db series <dataset>` | NDJSON with `dataset`, `timeframe_secs`, `bar_index`, ISO `open_time`, OHLC, and nullable volume; oldest first |
-| `db bars <dataset>` | The content `bar` columns as CSV (73 columns) |
-| `db metrics <dataset>` | `timeframe_secs`, `bar_index`, the 47 metric columns, and the 12 resolution columns as CSV (61 columns) |
-| `db layer3 <dataset>` | The materialized `layer3` content columns as CSV (284 columns) |
-
-`candles` reads the file one row at a time. A missing file, bad header, malformed row, invalid OHLC, duplicate timestamp, or out-of-order timestamp aborts the command. The shell builds the window before writing, so a late error produces no partial NDJSON.
-
-`candles-tolerant` reads the same file but skips row-level failures: wrong field count, invalid OHLC, non-finite value, bad timestamp, duplicate timestamp, and out-of-order timestamp. A missing file or bad header still aborts. It builds the window first, then writes the retained valid candles as NDJSON to stdout and the quality report to stderr. A run with skipped rows, including a file where every data row is rejected, exits with status 0.
-
-Interactive errors are printed to stderr and keep the session open. Non-interactive errors exit with status 1. A successful non-interactive `candles` run writes nothing to stderr; a successful `candles-tolerant` run writes its quality report to stderr, and a successful `timeframes` run writes its aggregation report to stderr.
-
-### CSV contract
-
-| Item | Value |
-|---|---|
-| Header | `Date,Open,High,Low,Close,Volume` |
-| Timestamp | `YYYY-MM-DD HH:MM:SS+00:00` (UTC) |
-| Columns | Exactly six; volume may be empty |
-| Prices | Open, high, low, and close must be finite and positive; zero or negative prices are rejected by every command |
-| Order | Strictly increasing timestamps for `candles`; out-of-order rows are skipped by `candles-tolerant` |
-| Ladder source | Every ladder consumer requires one-minute spacing when two or more rows are present; a file whose rows are never closer than 5m, 15m, 1h, or 4h is rejected |
-
-A header-only file is a valid empty series and prints nothing. In tolerant mode it reports zero counts. Ordering is checked before candle validity, so an invalid row with a duplicate timestamp is counted as `duplicate`, not `invalid`.
-
-The ladder guard measures every parsed source row before a date bound is applied, so a native higher-timeframe file is rejected even when the requested period would retain only one row. A sparse M1 file with gaps is accepted as soon as one adjacent pair is one minute apart. A single row has no spacing to measure and is accepted; a header-only file remains a valid empty series. The error names the observed spacing and asks for an M1 source.
-
-### Timeframe construction contract
-
-`timeframes` reads an M1 CSV strictly and builds five first-class series in the data engine. It does not fetch a source, and it does not write a derived CSV. M5, M15, H1, and H4 are built from M1 only; D1 is not supported.
-
-| Item | Rule |
-|---|---|
-| Source | Validated M1 rows from the strict CSV reader; when two or more rows are present, the smallest spacing between consecutive rows must be 60s |
-| M1 validation | Timestamps strictly increasing and aligned to whole UTC minutes; a native M5/M15/H1/H4 cadence is rejected; any invalid row aborts the command |
-| Derived series | M5, M15, H1, H4 |
-| Window | 1000 candles per timeframe |
-| Complete bucket | Exactly 5, 15, 60, or 240 M1 candles, checked on bucket transition or at end of input |
-| Partial bucket | Recorded and dropped; never printed as a candle |
-| OHLC | Open is the first M1 open, high the maximum, low the minimum, close the last M1 close |
-| Volume | Summed only when every source volume is known; otherwise `null`; a real zero is `0`; a non-finite sum is rejected at the bucket that overflowed |
-| Gap | `after`, `before`, and `missing` between consecutive candles in a series; no market-session calendar is applied |
-| stdout | NDJSON grouped M1, M5, M15, H1, H4; oldest candle first within each series |
-| stderr | One aggregation summary per timeframe, then its partial-bucket and gap records |
-
-A bucket is published only after every M1 candle it contains is known. The command builds the complete set before writing stdout, so a source error produces no partial NDJSON. A complete trailing bucket is published at end of input; an incomplete trailing bucket is dropped and counted.
-
-The report has this shape:
-
-```text
-aggregation timeframe=5m retained=3 partial=1 gaps=1
-partial timeframe=5m bucket=2025-01-01T00:00:00Z present=4 expected=5
-gap timeframe=5m after=2025-01-01T00:10:00Z before=2025-01-01T00:20:00Z missing=1
-```
-
-`retained` is the number of candles in the bounded window, `partial` is the number of dropped incomplete buckets, and `gaps` is the number of gap records. The five summaries always appear in M1, M5, M15, H1, H4 order. The partial and gap records cover the entire input, not only the retained window.
-
-### Market-state contract
-
-`market-state`, `axis`, `events`, and `legs` read an M1 CSV, build the M1/M5/M15/H1 ladder through the data engine, and call the model. Every ladder consumer requires one-minute source spacing; a native higher-timeframe file is rejected before the model runs. They analyze the full series up to the 100,000 M1 cap by default; `--window latest` streams the file without the full-series cap and retains the last 1,000 candles per timeframe. The model publishes numbers; the shell maps the stable numeric codes to labels and never recomputes an axis, aggregate, or event. `events` covers every event in the analyzed window, not only the retained candle tail.
-
-`market-state` prints one JSON object with four keys:
-
-| Key | Content |
-|---|---|
-| `ladder` | The timeframe codes, fastest first |
-| `timeframes` | One object per timeframe with its axis values, state codes, diagnostics, context, consensus counts, and event summary |
-| `aggregates` | The Direction, Momentum, Structure, Progression, and Event aggregates |
-| `consensus` | One cross-axis consensus per timeframe |
-
-`axis` prints one NDJSON line per timeframe for the selected axis. It carries the numeric fields, the compact code, the readiness and reason codes, the label fields, and the state counters.
-
-`events` prints one NDJSON line per event, grouped by timeframe and ordered by availability. Each line carries the type, subtype, source, occurrence and availability bars and UTC timestamps, direction, reference, measured values, and the labels for the type, subtype, and source.
-
-`legs` prints two NDJSON lines per timeframe, one for each pivot scale. Each line carries the published leg or `null`, its origin and availability bars, target basis and version, progress, displacement, lifecycle, stage, and target-reached code, with the lifecycle, stage, direction, scale, and target-basis labels.
-
-`model-series <csv-path> [--timeframe <tf>] [--bars <n>] [--window full|latest]` prints the last complete model bars per timeframe as NDJSON, oldest first. Each line carries the timeframe, dataset bar and stable series index, UTC timestamp, window start and length, candle, the scalar readings (including `adx`, `di_plus`, and `di_minus`), the four axes with their diagnostics, context, and consensus. `--bars` is `1..=100000` and defaults to 1000; `--timeframe` defaults to the whole ladder and accepts `1m`, `5m`, `15m`, `1h`, or `4h`. Events remain a separate command because a bar can have several events. The default input window is the full series up to 600,000 M1 candles; `--window latest` streams the file without the full-series cap and uses the last 1,000 candles per timeframe.
-
-### Market-dashboard contract
-
-`market-dashboard <csv-path> [--window full|latest] [--json]` prints one instrument's four-axis dashboard over the fixed M1/M5/M15/H1 ladder. It calls the model's `DashboardState`; the shell only formats the published numbers. The default input is the full series up to 100,000 M1 candles; `--window latest` streams the file without the full-series cap and retains the last 1,000 candles per timeframe.
-
-The text output has:
-
-| Part | Content |
-|---|---|
-| Header | Window, ladder, model and view-contract versions |
-| `as-of` | The open time of each timeframe's latest closed bar, or `— no closed bar` |
-| `cross-TF agreement` | The strict-majority count over Direction, Momentum, and Structure, with coverage |
-| `churn` | The maximum 50-bar state-change count, its sources, threshold, history completeness, and class |
-| Track header and legend | The four tracks and the glyph key |
-| One row per timeframe | Four cells; a missing timeframe prints `— no closed bar` |
-| `diagnostics` | Volatility and participation ratios, the numeric context code, and the per-timeframe consensus |
-| `evidence` | The axis-specific details, with current Structure reference prices on a `levels` line |
-| `readings` | The latest dated Event or Transition per axis, or `—` |
-
-The four tracks are identical and never reversed. The position is the dot's slot in an eleven-slot track; the three-step radius is `·` small, `•` medium, or `●` large; readiness is `■` solid or `□` dashed. An undefined position has no dot and prints `— r<code>` with the model's unavailable reason. A missing size prints `—`. A valid zero prints `0%`; it is never shown as absence.
-
-`--json` prints one object with `model_version`, `view_contract`, and the numeric `dashboard_state`. Enum codes are stable strings; numbers keep full precision; a missing value is `null` or `{"kind":"undefined","reason_code":n}`. The JSON carries the full per-timeframe state, readings, cross-timeframe aggregates, agreement, and churn. It contains no labels beyond the stable enum codes and no strategy vocabulary.
-
-The text and JSON outputs are deterministic: the same input, window, and configuration print the same bytes, interactively or non-interactively. The view is descriptive; it is not a strategy, forecast, entry, exit, stop, target, confidence, probability, or recommendation.
-
-### Market chart
-
-`market-chart <csv-path> --png <path> [--timeframe <tf>] [--candles <n>] [--window full|latest]` renders the last bars of one timeframe as a deterministic PNG. The top panel shows the OHLCV candles and a volume strip; the four panels below show the continuous Direction, Momentum, Structure, and Progression resolutions on the shared `[-1, +1]` scale. A missing axis value is a gap, never a zero. `--timeframe` accepts `1m`, `5m`, `15m`, `1h`, or `4h` and defaults to `1m`; `--candles` defaults to 1000 and is capped at 1000. The default window is the full series up to 100,000 M1 candles; `--window latest` uses the last 1,000 candles per timeframe and lets a larger fetch be charted. The command prints `png=<path> timeframe=<tf> candles=<n> bytes=<n>`.
-
-The output is deterministic: the same input and configuration produce the same bytes, and the interactive and non-interactive invocations print the same text. The command set is the product's public interface; changing a command name or what it means is a command-contract decision.
-
-### Market-report contract
-
-`market-report <csv-path> --data-version <id> [--from <date>] [--to <date>] --out <dir> [--json]` runs the model over the extended M1 range and writes the model's full-period descriptive view as exactly four artifacts, in this order: `summary.txt`, `report.json`, `price-axes.png`, `events.png`. It calls the model's `MarketReport`; the shell only loads, renders, and writes.
-
-- `--data-version <id>` is the caller-supplied identity of the input series; the report records it and never infers it from the path.
-- `--from` and `--to` are inclusive UTC `YYYY-MM-DD` dates. The shell filters the M1 source before building the ladder, and no pre-range warm-up is used. Omitting both uses the file's full coverage.
-- The source must be one-minute spaced. A native higher-timeframe file is rejected before the report is built, including when the date bound would leave only one row; no output directory is created.
-- `--out` must be absent or an empty directory. Every byte is built before the directory is populated, each artifact is written atomically, and a failure removes the partial set. A non-empty directory or an output path that is a file is refused.
-- `--json` prints the exact `report.json` bytes to stdout. Without it, the command prints the four artifact paths in contract order.
-- The chart uses H1, or the slowest available timeframe, reduced to at most 240 buckets. Each bucket keeps the last published axis value; an ordinal code is never averaged.
-
-The report publishes coverage, axis statistics and ordinal histograms, full-period event counts, the latest published state, cross-timeframe aggregates, and chart buckets. It contains no order, fill, position, trade, equity, drawdown, or P&L field, and it applies no strategy. A range with no M1 candles fails and writes no artifacts. The JSON envelope carries `model_version`, `view_contract`, `data_version`, `requested_period`, and `market_report`; object keys have a fixed order, numbers keep full precision, and a missing value is `null`.
-
-The output is deterministic: the same input, range, data version, and configuration produce the same four files byte for byte, interactively or non-interactively. The view contract is `docs/model/2026-10-27/market-report.md`. The extended range accepts up to 600,000 M1 candles. `market-state`, `market-dashboard`, `market-chart`, `axis`, `events`, `legs`, the store, and research accept up to 100,000 M1 candles on the full-window path; `model-series` accepts up to 600,000; `--window latest` streams the file without that cap and keeps the last 1,000 candles per timeframe. `market-report` and `strategy-run` accept up to 600,000; `report` and `backtest` take their cap from `data.json.max_candles`, at most 600,000.
-
-### Report bundles and backtest
-
-`report <engine> --config <run.json> [--out <dir>] [--json]` runs only the engines one bundle needs and writes it under `<out>/<engine>/`. `backtest --config <run.json> [--out <dir>] [--json]` loads the candles once, runs the pipeline once, and writes all five bundles from that result. Both require a one-minute-spaced source; a native higher-timeframe file is rejected before any bundle directory is created.
-
-| Bundle | Engines | Artifacts |
-|---|---|---|
-| `model` | data, model | `summary.txt`, `report.json`, `price-axes.png`, `events.png`, `provenance.json` |
-| `strategy` | data, model, strategy | `summary.txt`, `report.json`, `decisions.csv`, `price-decisions.png`, `provenance.json` |
-| `execution` | data, model, strategy, execution, portfolio | `summary.txt`, `report.json`, `orders.csv`, `fills.csv`, `rejections.csv`, `price-fills.png`, `provenance.json` |
-| `portfolio` | data, model, strategy, execution, portfolio | `summary.txt`, `report.json`, `trades.csv`, `equity.csv`, `equity.png`, `drawdown.png`, `provenance.json` |
-| `analytical` | data, model | `summary.txt`, `report.json`, `axes.csv`, `relations.csv`, `provenance.json` |
-
-The `strategy` bundle written by `backtest` uses the executed walk and marks
-`execution_state` as `executed`; it also publishes `executed_entries` and
-`executed_exits`. The standalone `report strategy` uses the virtual diagnostic
-walk and marks `execution_state` as `virtual`; its executed counts are null.
-
-A run is specified by eight files. The command line carries only the config path, an optional output override, and an optional JSON flag.
-
-| File | Contents |
-|---|---|
-| `run.json` | Run name, policy reference, output root, and the six engine file names |
-| `policy.json` | Account, objective, risk envelope, tickets, and timeframes |
-| `data.json` | Instrument ticket, source CSV, data version, UTC period, the configurable `available_timeframes` list (default `1m`/`5m`/`15m`/`1h`, with `4h` supported), and `max_candles` (`1..=600000`) |
-| `model.json` | Default reading periods (`ema`, `rsi`, `atr`, `rvol`), optional per-timeframe overrides, and the structure scale (`major` or `minor`) |
-| `strategy.json` | Thesis, active ladder, context weights, execution and context entry conditions, exit reasons, and risk intent |
-| `execution.json` | Fill timeframe, order type, tie break, fee rate, slippage, zero-volume and end-of-data policy |
-| `portfolio.json` | Cash, currency, sizing, leverage, position limit, commission, funding, drawdown limit and action, mark policy |
-| `analytics.json` | Analytical report scale, timeframe subset, and relations switch |
-
-`data.source.path` resolves against `data.json`; `output_root` and the other file names resolve against `run.json`. The loader validates every file before a candle is read or a byte is written: an error names the file and the JSON path, never an absolute path. `analytics.json.timeframes` must be a subset of the ladder, and its structure scale must equal the model's. The policy must agree with the portfolio cash, drawdown, leverage, position size, ticket, and timeframe. The contracts are [`docs/config/2026-10-30/policy-and-strategy.md`](docs/config/2026-10-30/policy-and-strategy.md) and [`docs/reports/2026-10-28/per-engine-reports.md`](docs/reports/2026-10-28/per-engine-reports.md).
-
-`--out` defaults to the run's `output_root`. A bundle is available if and only if its `report.json` exists; the writer refuses a non-empty target and removes a partial bundle on failure. `report --json` prints the `report.json` bytes; `backtest --json` prints a summary envelope with the data version, the requested and actual periods, the five bundle paths, the diagnosis path when `--diagnose` is set, and the portfolio's final equity, return, net P&L, drawdown, trade count, and halt flag. `provenance.json` records the data version, the config hash, the periods, the config file names, the resolved engine values, and the artifact list.
-
-The model is computed once per run. The analytical bundle summarizes that model one bar at a time, so no layer set is materialized and the model is not recomputed. The model bundle's four legacy artifacts are byte-identical to `market-report` for the same data, period, and default model settings.
-
-A fresh checkout has no source data, because `data/sources/` is not committed. The example run needs its M1 file first:
+| `candles` | `<csv-path>` | One NDJSON object per retained candle |
+| `candles-tolerant` | `<csv-path>` | NDJSON candles on stdout; the quality report on stderr |
+| `timeframes` | `<csv-path>` | NDJSON candles per timeframe on stdout; the aggregation report on stderr |
+| `events` | `<csv-path> [--window full\|latest]` | One JSON object per registered and extended event |
+| `report model` | `--config <run.json> [--spec <spec.json>] [--out <dir>] [--json]` | The flat model bundle, or its artifact paths |
+| `policy check` | `--config <run.json>` | One `policy ok ...` line after every config check |
+| `fetch` | `<symbol> <start> <end> [--timeframe <1m\|5m\|15m\|1h>] [--csv <path>]` | The CSV path and the accepted/rejected counts |
+| `help` | `[<command>\|all\|glossary]` | The command map, one contract, or the glossary |
+
+`events` and `report model` use the data engine's default ladder M1, M5, M15, H1.
+`events` uses the default model configuration; `report model` uses the configured
+run.
+
+### Examples
 
 ```bash
-cargo run -p quantrule-shell -- fetch btc/usd 2024-01-01 2024-12-31 --csv data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv
-cargo run -p quantrule-shell -- backtest --config config/examples/btcusd-2024/run.json --out data/labs/lab-result-2026-10-31T14-15-00Z --diagnose
+quantrule candles crates/quantrule-shell/tests/fixtures/three.csv
+quantrule events crates/quantrule-shell/tests/fixtures/state_m1.csv --window latest
+quantrule policy check --config crates/quantrule-shell/tests/fixtures/config-run/run.json
+quantrule report model --config crates/quantrule-shell/tests/fixtures/config-run/run.json --out target/report
+quantrule report model --config crates/quantrule-shell/tests/fixtures/config-run/run.json --spec crates/quantrule-shell/tests/fixtures/config-run/spec.json --out target/report-spec
+quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 1h --csv data/sources/XAUUSD_H1.csv
 ```
 
-Without `--json`, the command prints the five bundle paths in contract order,
-then the diagnosis path:
+## The M1.0 model
 
-```text
-data/labs/lab-result-2026-10-31T14-15-00Z/model
-data/labs/lab-result-2026-10-31T14-15-00Z/strategy
-data/labs/lab-result-2026-10-31T14-15-00Z/execution
-data/labs/lab-result-2026-10-31T14-15-00Z/portfolio
-data/labs/lab-result-2026-10-31T14-15-00Z/analytical
-data/labs/lab-result-2026-10-31T14-15-00Z/diagnosis
-```
-
-The envelope below is the current 5m `ladder-context` example run.
-
-`--json` prints one envelope instead:
-
-```json
-{"actual_period":{"first_open_time":1704143700,"last_open_time":1735656600},"bundles":{"analytical":"data/labs/lab-result-2026-10-31T14-15-00Z/analytical","execution":"data/labs/lab-result-2026-10-31T14-15-00Z/execution","model":"data/labs/lab-result-2026-10-31T14-15-00Z/model","portfolio":"data/labs/lab-result-2026-10-31T14-15-00Z/portfolio","strategy":"data/labs/lab-result-2026-10-31T14-15-00Z/strategy"},"data_version":"dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31","diagnosis":"data/labs/lab-result-2026-10-31T14-15-00Z/diagnosis","diagnosis_artifacts":["summary.txt","checks.csv","funnel.csv","data-quality.csv","model-health.csv","strategy-funnel.csv","strategy-exit-reasons.csv","execution-rejections.csv","portfolio-monthly.csv","trades_enriched.csv","00-run-scorecard.png","10-data-quality.png","30-strategy-funnel.png","40-execution-quality.png","50-portfolio-attribution.png","manifest.txt","diagnosis.json"],"model_version":"0.3.0","portfolio":{"final_equity":8035.586146102877,"halted":true,"max_drawdown":0.20217986431634316,"net_pnl":-1964.4138538971251,"total_return":-0.19644138538971223,"trades":117},"report":"backtest","report_version":"2026-10-28","requested_period":{"from":"2024-01-01","to":"2024-12-31"}}
-```
+The model runs once per configured ladder. For every timeframe it publishes:
 
 | Field | Meaning |
 |---|---|
-| `data_version` | The input identity declared in `data.json`; never inferred from the path |
-| `requested_period` | The inclusive UTC date range from `data.json` |
-| `actual_period` | First and last open time of the strategy timeframe's bars, in Unix seconds |
-| `bundles` | The five bundle directories that were written |
-| `portfolio` | Final equity, total return, net P&L, maximum drawdown, trade count, and the halt flag |
-| `model_version`, `report_version` | The versions that produced the run |
+| `readings` | EMA 20/50/200, RSI 14, ATR 14, RVOL 20, MACD, ADX/DI |
+| `states` | EMA stack, RSI zone, MACD state and histogram sign, ADX regime and slope, DI state |
+| `levels` | Confirmed swing highs and lows at the minor and major scales, with occurrence and availability bars |
+| `events` | Level, Divergence, and Signal records; each carries type, subtype, source, direction, occurrence bar, availability bar, and measured values |
+| `progression` | The structural leg at each scale: origin, target, progress, displacement, lifecycle, and stage |
+| `context` | ATR ratio, RVOL ratio, and the context code |
 
-The values above are the BTCUSD 2024 example run captured on 2026-10-31 with
-`data_version dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31`. They describe that
-run; re-run the command to reproduce them. The run halts at the configured 20%
-drawdown limit, so the final equity is after the halt, not a full-period result.
-The source covers the strategy timeframe from 2024-01-01T21:15:00Z to
-2024-12-31T14:50:00Z; the actual period is recorded, not fabricated.
+A missing measurement is `null`, never zero. A valid zero is a value. Ordinal codes
+are counted and compared, never averaged. The model never reads a later bar through
+an earlier output.
 
-`first_open_time` and `last_open_time` are the strategy timeframe's first and last open times. The run is deterministic: the same inputs and configuration produce byte-identical bundles and the same envelope, interactively or non-interactively. A single report writes only its own directory:
+The full contract is
+[`docs/model/2026-11-05/model-m1.0.md`](docs/model/2026-11-05/model-m1.0.md).
+The indicator and event registry is [`docs/registry/`](docs/registry/).
 
-```bash
-cargo run -p quantrule-shell -- report portfolio --config config/examples/btcusd-2024/run.json --out data/reports/portfolio-report
+## Configuration
+
+A run is described by `run.json`:
+
+```json
+{
+  "schema": "quantrule.run/v2",
+  "name": "btcusd-2024",
+  "model_id": "M1.0",
+  "policy_id": "POL1.0",
+  "execution_id": "E1.0",
+  "portfolio_id": "P1.0",
+  "policy": "policy.json",
+  "data": "data.json",
+  "model": "model.json",
+  "execution": "execution.json",
+  "portfolio": "portfolio.json",
+  "output_root": "../../../data/labs/backtest-btcusd-2024"
+}
 ```
 
-### Lab result summary
+| File | Contract | Current role |
+|---|---|---|
+| `policy.json` | `quantrule.policy/v1` | Human-owned account, objective, risk, and universe envelope |
+| `data.json` | `quantrule.data/v3` | Source path, data version, period, and available ladder |
+| `model.json` | `quantrule.model/v4` | M1.0 reading, event, and progression settings |
+| `execution.json` | `quantrule.execution/v2` | Fill mechanics and costs for S3.x |
+| `portfolio.json` | `quantrule.portfolio/v1` | Capital, sizing, costs, and risk limits for S3.x |
 
-`lab summary <lab-dir> --role <role> --data-version <id> --config <run.json> --created-utc <YYYY-MM-DDTHH:MM:SSZ> [--operator human|agent] [--notes <path>] [--force]` writes one deterministic `summary.txt` at the root of a lab result folder. A lab result folder is `data/labs/lab-result-YYYY-MM-DDTHH-MM-SSZ` in UTC and holds the five report bundles from one `backtest` plus that root summary.
+`strategy.json` and `analytics.json` are not part of the current run. The loader
+rejects them with an unknown-field error. The old model schema versions 1–3 are retired and rejected with an
+unsupported-schema error.
 
-| Option | Meaning |
-|---|---|
-| `--role <role>` | Required: `researcher`, `developer`, or `validator` |
-| `--data-version <id>` | Required; must match every bundle's `report.json` and `provenance.json` |
-| `--config <path>` | Required; recorded as the run configuration |
-| `--created-utc <ts>` | Required explicit UTC time, `YYYY-MM-DDTHH:MM:SSZ`; the command never reads the clock |
-| `--operator <kind>` | `human` (default) or `agent` |
-| `--notes <path>` | Include the file verbatim under Role notes |
-| `--force` | Overwrite an existing root `summary.txt` |
+`policy check` loads every file, resolves every path, and validates the cross-config
+rules before any candle is read: the data ladder, model ceiling, policy universe,
+instrument, execution fill timeframe, and portfolio envelope must agree. An error
+names the file and the JSON path, never an absolute path.
 
-The summary has seven sections: Identity, Artifacts, Observed result, Checks, Role notes, Limitations, and Next. It copies published values from the five `report.json` files; it does not recompute the model. It refuses a missing bundle, a data-version mismatch, a config-hash mismatch, a model-version mismatch, or an existing summary without `--force`, and writes atomically. A rerun is evidence only when its portfolio provenance `config_hash` matches the main lab and its report reproduces final equity, net P&L, trades, max drawdown, and halt state; an absent, unreadable, or differing rerun is not evidence. The same lab and the same arguments produce the same bytes. It prints `wrote <path>`.
+## `report model` bundle
 
-### Cross-engine diagnosis
-
-`backtest --config <run.json> [--out <dir>] --diagnose` writes the five per-engine bundles and a separate `<out>/diagnosis/` artifact from the same completed run. `lab diagnose <lab-dir> --config <run.json> [--out <dir>] [--json] [--strict]` re-runs the config, checks that the rerun reproduces the lab's final equity, net P&L, trades, drawdown, and halt state with the same config hash, and writes the same artifact. A stale lab is refused when its config hash, data version, or model version differs from the supplied config.
+`report model` writes `<out>/model/` and refuses a non-empty target. The bundle
+contains:
 
 | Artifact | Contents |
 |---|---|
-| `summary.txt` | Identity, scorecard, funnel, data quality, model health, strategy, execution, portfolio, triage, limitations |
-| `diagnosis.json` | The same evidence as machine-readable JSON |
-| `00-run-scorecard.png` | Checks, funnel, cost waterfall, and triage |
-| `10-data-quality.png` | Per-timeframe coverage, gap histogram, and longest gaps |
-| `30-strategy-funnel.png` | Entry attempts vs fills by day, exit-reason and hold-time P&L |
-| `40-execution-quality.png` | Order states, fill reasons, rejections, slippage, and latency |
-| `50-portfolio-attribution.png` | Equity vs buy-and-hold, drawdown vs limit, cost waterfall, monthly returns |
-| `checks.csv`, `funnel.csv`, `data-quality.csv`, `model-health.csv`, `strategy-funnel.csv`, `strategy-exit-reasons.csv`, `execution-rejections.csv`, `portfolio-monthly.csv`, `trades_enriched.csv` | Companion tables |
-| `manifest.txt` | Artifact names and byte lengths |
+| `summary.txt` | Coverage, events, latest readings/states/context, and progression |
+| `report.json` | The flat report envelope, carrying numbers and codes only |
+| `result.json` | The `quantrule.model-result/v4` result with the effective config |
+| `readings.csv` | Per-bar readings, states, progression, context, and extended readings |
+| `events.csv` | The registered and extended event batch |
+| `levels.csv` | Every confirmed level |
+| `legs.csv` | Every retained progression leg |
+| `provenance.json` | Data version, config hash, period, config file names, and artifact list |
 
-The scorecard counts checks by `pass`, `fail`, and `unknown`; it never combines them into a score. The thresholds are reporting defaults, not trading rules. The diagnosis is read-only evaluation: no model, strategy, execution, or portfolio engine reads it, and it never enters the signal path. `--strict` fails only on identity and data-integrity checks, never on a bad trading result. The same lab and configuration produce byte-identical text, JSON, CSV, and PNG files. The full contract is [`docs/reports/2026-10-31/diagnosis-v1.md`](docs/reports/2026-10-31/diagnosis-v1.md).
+A `--spec` run adds `conditions.csv`; a `quantrule.model-spec/v2` run also adds
+`prediction.csv`. A bundle is available if and only if its `report.json` exists;
+the writer writes every other artifact first and `report.json` last, and removes a
+partial bundle on failure.
 
-`lab list --root <dir> [--json]` lists the lab result folders under a root in folder-name order. A folder is a lab when `portfolio/report.json` exists; the `diagnosis` column says whether `diagnosis/diagnosis.json` exists. A present `config_hash` must be 16 hex characters; a lab with a malformed hash is rejected. A missing `summary.halted` is listed as `—` in the table and `null` in JSON.
+The JSON envelope carries `model_version`, `view_contract` (`2026-11-05`),
+`data_version`, `requested_period`, and `flat_report`. The result carries no axes,
+no cross-timeframe aggregate, no charts, and no confidence field.
 
-### Strategy-run contract
+## Determinism
 
-`strategy-run <csv-path> --strategy <name> --data-version <id> [--config <run.json>] [--from <date>] [--to <date>] [--json]` runs one of the implemented strategies over its active ladder and prints its entries and exits: `ladder-context` (v3), `level-retest` (v4), `three-timeframe` (v5), or `breakout` (v6). The built-in default is 5m execution with 15m context. It requires a one-minute-spaced source and rejects a native higher-timeframe file before printing. With `--config`, it uses the run's strategy and model configuration. The JSON envelope marks `execution_state` as `virtual`: the diagnostic walk assumes every decision fills immediately. The standalone `report strategy` is also virtual; only the `strategy` bundle written by `backtest` reads the executed walk. It stops at the strategy decision: it creates no order, fill, position, equity, trade, or P&L record. Those belong to the backtest path.
+The same candles, data version, and configuration produce the same output, every
+time, interactively or non-interactively. There is no wall-clock time, unseeded
+randomness, or unordered iteration in the signal path. Shell commands sort their
+input explicitly and print in a fixed order. `cargo test` includes causality,
+determinism, golden-fixture, and byte-identical rerun tests.
 
-- `ladder-context` enters long when the execution Direction and Momentum are positive, Structure turns up, and the weighted context is bullish without conflicts or late/terminal legs. It enters short on the mirrored conditions. It exits on `context_lost`, `structure_lost`, or an execution bracket. It never reverses on the same bar and never exits at the end of the data.
-- `level-retest` enters when the execution bar retests a confirmed higher-timeframe level in the direction of the context and closes back on the correct side. It uses a structural price stop and the next confirmed level as the target.
-- `three-timeframe` requires a 5m/15m priority agreement and enters on a 1m confirmed-level retest; the stop and target are structural.
-- `breakout` enters when the execution close crosses a confirmed level by the configured buffer in the direction of the context. The stop is beyond the broken level and the target is the next confirmed level, or the configured reward-to-risk fallback.
-- `--data-version <id>` is the caller-supplied identity of the input series; the envelope records it and never infers it from the path.
-- `--from` and `--to` are inclusive UTC `YYYY-MM-DD` dates applied to the M1 source before the ladder is built. No pre-range warm-up is used.
-- Without `--json`, the command prints one NDJSON line per entry or exit, oldest first. Each record carries `type`, `strategy`, `timeframe`, `timeframe_secs`, `bar`, `datetime`, `side`, `side_label`, `direction`, `momentum_force`, and `structure_score`; an exit also carries `reason` (`context_lost`, `structure_lost`, or `level_lost`). Model Signal events remain a separate event type and are never relabelled as strategy entries or exits.
-- With `--json`, the command prints one envelope with `model_version`, `strategy`, `strategy_config`, `data_version`, `requested_period`, `effective_period`, `actual_period`, `bars`, `timeframe_secs`, and `records`; `records` carries the same records as the bare NDJSON output.
-  - `requested_period` is the CLI `--from`/`--to` exactly; it is null when omitted.
-  - `effective_period` is the range actually applied: the CLI dates when either is supplied, otherwise the run configuration's `data.from`/`data.to`; a null endpoint means the full file.
-  - `actual_period` is the first and last analyzed execution bar, or null when the execution timeframe has no bar.
-  - `bars` is the number of execution bars analyzed; `bars: 0` means the execution timeframe could not be built, and the bare output is empty.
+A result that is meant to be reproducible records its data version and config hash
+in `provenance.json`.
 
-`--config` uses the strategy blueprint from the run configuration; without it the built-in defaults are used. With `--config` and no `--from`/`--to`, the run's `data.from`/`data.to` bounds are applied to the M1 source. The strategy reads only the configured timeframe, uses the extended range up to 600,000 M1 candles, and fails with a message when the requested period has no M1 candles. When an execution bar exists but a context timeframe has no closed bar, the strategy holds; the run can have no records. When the execution timeframe itself has no bar, the command exits 0 with no bare records and reports `bars: 0` in the JSON envelope. The output is deterministic: the same input, range, data version, and configuration produce the same bytes, interactively or non-interactively.
+## Fetch
 
-### Fetch contract
+`fetch` reads a Dukascopy range through the shell's explicit network transport and
+writes the accepted candles as CSV. The default path is
+`data/sources/<SYMBOL>_<TF>_<start>_<end>.csv`. The CSV is written through a
+sibling temporary file and renamed only after every row is accepted, so a failed
+fetch leaves no partial file under the requested name. A result above the batch cap
+prints a warning on stderr.
 
-`fetch` reads native OHLCV candles from Dukascopy's `freeserv.dukascopy.com` chart endpoint on the BID side. Each timeframe is requested with the provider's own interval and is never synthesized from 1-minute candles. These native intervals are for source inspection and comparison; the canonical M5, M15, H1, and H4 series used for analysis come from `timeframes`, which derives them from M1. The request uses a fixed JSONP callback and fixed browser headers, and the page cursor is always the last timestamp delivered by the page, so the same data and configuration produce the same request sequence and the same output bytes.
+The current fetch surface writes CSV only. The old PNG chart option was removed with
+the four-axis chart surface.
 
-| Timeframe | Provider interval | File code |
-|---|---|---|
-| `1m` | `1MIN` | `M1` |
-| `5m` | `5MIN` | `M5` |
-| `15m` | `15MIN` | `M15` |
-| `1h` | `1HOUR` | `H1` |
+## Repository layout
 
-| Item | Value |
+| Path | Role |
 |---|---|
-| Price side | BID |
-| Date range | Inclusive UTC dates, `YYYY-MM-DD`; the end covers its whole day |
-| Default CSV | `data/sources/<SYMBOL>_<M1\|M5\|M15\|H1>_<start>_<end>.csv`, for example `data/sources/XAUUSD_M1_2025-01-01_2025-12-31.csv` |
-| PNG | Written only with `--png <path>`; the chart shows the last `--candles` candles |
-| Chart | Price and volume panels, no moving average, UTC labels |
-| Duplicate cursor row | Dropped at the page boundary |
-| Invalid candle | Skipped and counted; the remaining candles are kept |
-| No accepted candles | The command fails and commits no CSV |
+| `crates/quantrule-data` | Data engine: normalization, ladder construction, ordering, gaps |
+| `crates/quantrule-model` | Model engine: readings, states, levels, events, progression, context, flat report |
+| `crates/quantrule-backtest` | Execution, portfolio, and generic bracket/event engines for S3.x |
+| `crates/quantrule-shell` | The binary: parse, source access, model orchestration, and rendering |
+| `docs/model/2026-11-05/` | Current model contract and model-family registry |
+| `docs/registry/` | Indicator/event registry, validation claims, and history boundary |
+| `docs/architecture/` | Living architecture baseline |
+| `docs/execution-plans/` | Plans of record for substantial work |
+| `docs/ai-transparency-log/` | Material AI contributions and verification |
 
-A successful fetch prints a fixed summary to stdout:
-
-```text
-symbol=XAU/USD timeframe=1m start=2025-01-01 end=2025-12-31
-rows=354441 accepted=354441 rejected=0 pages=12
-first=2025-01-01T23:00:00Z last=2025-12-31T21:58:00Z
-csv=data/sources/XAUUSD_M1_2025-01-01_2025-12-31.csv
-png=none
-```
-
-The CSV is written through a temporary sibling and renamed only after the fetch completes, so an interrupted or failed fetch does not leave a partial file under the requested name. A fetch whose accepted row count exceeds 100,000 writes a warning to stderr: `store` and `research` reject that file, `market-chart` needs `--window latest` to chart it, and `market-report` accepts it up to 600,000 rows. The source requires network access; the test suite does not, because pagination, retries, JSONP parsing, CSV shape, and chart determinism are exercised with fixtures.
-
-### NDJSON contract
-
-One candle per line, oldest first:
-
-```json
-{"series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":0.5,"close":1.5,"volume":10}
-```
-
-`timeframes` adds `timeframe` as the first field and groups the output by series:
-
-```json
-{"timeframe":"5m","series_index":0,"window_index":0,"datetime":"2025-01-01T00:00:00Z","open":1,"high":2,"low":0.5,"close":1.5,"volume":50}
-```
-
-| Field | Meaning |
-|---|---|
-| `timeframe` | Series code (`1m`, `5m`, `15m`, `1h`, or `4h`); present only in `timeframes` output |
-| `series_index` | Stable index assigned by the data engine; survives eviction |
-| `window_index` | Position in the printed window; the oldest candle is 0 |
-| `datetime` | RFC 3339 UTC timestamp |
-| `open`, `high`, `low`, `close` | Candle prices |
-| `volume` | Source volume, or `null` when absent; a real zero is `0` |
-
-### Quality report contract
-
-`candles-tolerant` writes a fixed summary line followed by one line per skipped row, in source order:
-
-```text
-quality rows_read=8 accepted=2 rejected=6 duplicate=1 out_of_order=1 invalid=4 evicted=0 retained=2
-skipped line=3 reason=invalid: high is below low
-skipped line=4 reason=invalid: open is not finite
-skipped line=5 reason=invalid: invalid timestamp: timestamp has an invalid date
-skipped line=6 reason=duplicate: duplicate timestamp at 2025-01-01T00:00:00Z
-skipped line=7 reason=out_of_order: timestamp 2024-12-31T23:59:00Z is earlier than 2025-01-01T00:00:00Z
-skipped line=8 reason=field_count: expected 6 fields, found 5
-```
-
-| Count | Meaning |
-|---|---|
-| `rows_read` | Data rows after the header, including rejected rows |
-| `accepted` | Rows accepted by the window, including candles later evicted |
-| `rejected` | Rows skipped; equals `duplicate + out_of_order + invalid` |
-| `duplicate` | Rejected rows whose timestamp equals the last accepted timestamp |
-| `out_of_order` | Rejected rows earlier than the last accepted timestamp |
-| `invalid` | Rejected rows with a wrong field count or an invalid candle |
-| `evicted` | Accepted candles no longer retained by the 1000-candle window |
-| `retained` | Candles printed in the NDJSON output |
-
-The counts satisfy `rows_read = accepted + rejected` and `accepted = evicted + retained`. A skipped row's `reason` is one of `invalid: ...`, `duplicate: ...`, `out_of_order: ...`, or `field_count: ...`. The report contains no clock value and no unordered iteration, so the same input produces the same bytes.
-
-## Scope
-
-MVP v1 covers local M1 CSV ingestion, both strict and tolerant, the candle window, M5/M15/H1/H4 construction from M1, the four-axis market state with its events and legs, a native Dukascopy fetch for `1m`, `5m`, `15m`, and `1h`, and a full config-driven backtest: the unified ladder-context strategy, next-open execution with an ATR bracket, portfolio accounting with commission, funding, and a drawdown halt, and the five report bundles. The fetched higher intervals are source references; canonical multi-timeframe series are derived from M1 by the data engine. A run is deterministic: the same data and configuration produce the same bundles and the same printed output.
-
-## Verification
+## Development
 
 ```bash
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 cargo test
-cargo doc --no-deps
+python3 tools/check_legacy.py
+python3 tools/check_registry.py
+python3 tools/check_validation.py
+python3 tools/check_links.py
+python3 tools/check_terms.py
 ```
 
-## Developing QuantRule
+The registry checks cover 46 indicators, 143 events, 188 validation claims, and 54
+construct cases. The legacy scan rejects retired model and strategy labels in the
+current surface; history directories are exempt and remain in Git.
 
-The agent roles, review gates, and verification rules are in [`AGENTS.md`](AGENTS.md). The role overview and handoff chain are in [`docs/roles/2026-10-29/quant-roles.md`](docs/roles/2026-10-29/quant-roles.md). The operating manuals are [Quant Researcher](docs/roles/2026-10-29/quant-researcher-manual.md), [Quant Developer](docs/roles/2026-10-29/quant-developer-manual.md), and [Quant Validator](docs/roles/2026-10-29/quant-validator-manual.md). The rest of the documentation is indexed in [`docs/README.md`](docs/README.md).
+## History
+
+The four-axis model, the dashboard, the market state, the consensus view, the
+cross-timeframe aggregate, the analytics crate, the SQLite store, the research
+export, the lab tooling, and the old shell commands were retired in P3 of
+[`docs/execution-plans/2026-11-05/467-clean-current-architecture.md`](docs/execution-plans/2026-11-05/467-clean-current-architecture.md).
+Their evidence remains in ADRs, audits, improvement records, execution plans,
+release notes, reports, and Git history. The boundary is indexed in
+[`docs/registry/history.md`](docs/registry/history.md).
+
+## Non-goals
+
+- Tick data, order books, machine learning, and statistical signal generation.
+- A server, GUI, embedded library, live trading, or multi-tenancy.
+- A profitability claim from a single backtest.
+- Rebuilding the strategy/portfolio surface before S3.x.

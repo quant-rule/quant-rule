@@ -12,12 +12,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use quantrule_data::Candle;
-use quantrule_model::axes::structure::registry::ConfirmedLevelRegistry;
 use quantrule_model::events::EventRecord;
 use quantrule_model::events::EventType;
 use quantrule_model::events::panel::PanelEventSeries;
 use quantrule_model::events::session::SessionEventSeries;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
+use quantrule_model::levels::ConfirmedLevelRegistry;
 use quantrule_model::panel::{PanelConfig, PanelInstrument, PanelReadings};
 use quantrule_model::readings::{PivotKind, PivotScale, Readings, ReadingsConfig};
 use quantrule_model::sessions::{SessionConfig, SessionReadings};

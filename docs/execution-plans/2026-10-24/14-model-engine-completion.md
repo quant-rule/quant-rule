@@ -4,7 +4,7 @@
 - **Date:** 2026-10-24 (UTC)
 - **Approved:** 2026-10-24 by the human, with D1 model-only and D3 milestone cadence
 - **Container issue:** [#14](https://github.com/quant-rule/quant-rule/issues/14)
-- **Contract:** [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
+- **Contract:** [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../registry/history.md)
 - **Umbrella plan:** [`docs/execution-plans/2026-10-21/14-model-engine.md`](../../execution-plans/2026-10-21/14-model-engine.md)
 - **Baseline:** `main` at `2a845b9`; M1 ([#17](https://github.com/quant-rule/quant-rule/issues/17)) merged; data engine ([#9](https://github.com/quant-rule/quant-rule/issues/9)) complete
 - **Scope:** #14 and the 13 open model sub-issues #18–#30

@@ -34,7 +34,7 @@ pub(crate) struct PolicyConfig {
     pub(crate) objective: PolicyObjective,
     /// Position and leverage limits.
     pub(crate) risk: PolicyRisk,
-    /// The instruments and strategy timeframes the loop may use.
+    /// The instruments and timeframes the run may use.
     pub(crate) universe: PolicyUniverse,
 }
 
@@ -74,7 +74,7 @@ pub(crate) struct PolicyRisk {
 pub(crate) struct PolicyUniverse {
     /// The permitted instrument tickets, in declaration order.
     pub(crate) tickets: Vec<String>,
-    /// The permitted strategy timeframes, fastest first.
+    /// The permitted timeframes, fastest first.
     pub(crate) timeframes: Vec<Timeframe>,
 }
 

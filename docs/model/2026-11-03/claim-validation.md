@@ -4,7 +4,7 @@
 - Status: Pre-registered and executed for `MODEL-2026-11-03-01..02`; result **no edge**
 - Issue: [#348](https://github.com/quant-rule/quant-rule/issues/348)
 - Harness: `tools/improvement/claim_validation.py`
-- Contract: [`docs/model/2026-11-03/model-v3.md`](model-v3.md)
+- Contract: [`docs/model/2026-11-03/model-v3.md`](../../registry/history.md)
 
 ## 1. Question
 

@@ -1,8 +1,7 @@
 # Current-Architecture History Index
 
 - Date: 2026-11-05 (UTC)
-- Status: Frozen inventory; P0.1 and P1 merged; P2 naming in progress;
-  deletion starts in P3/P4 after D1–D4
+- Status: Current boundary; P0.1–P2 merged; P3 four-axis removal in progress
 - Freeze commit: `32e6fb2`
 - Manifest commit: `8acf857`
 - Work item: [#468](https://github.com/quant-rule/quant-rule/issues/468)
@@ -32,7 +31,7 @@ evidence remains. It is not a current architecture contract.
 | `crates/quantrule-model/src/spec/**` | Model-spec evaluation |
 | `crates/quantrule-model/src/timeframe.rs`, `run.rs`, `input.rs`, `kernel.rs` | Flat per-timeframe model and run |
 | `crates/quantrule-backtest/src/{execution,portfolio}/**` | Execution and portfolio engines |
-| `crates/quantrule-shell/src/{config,command,source,store?}` | Current shell surface, after P3/P4 cleanup |
+| `crates/quantrule-shell/src/{config,command,source}` | Current shell surface |
 | `docs/registry/**` | Registry, validation, history |
 | `docs/model/2026-11-05/**` | Current model family and spec contracts |
 | `docs/architecture/**` | Current architecture |
@@ -72,8 +71,9 @@ Keep/rewrite: `report model`, `events`, data/fetch commands, `policy check`,
 
 ### 3.3 Old config parsers and configs
 
-Delete the `quantrule.model/v1..v4` and `quantrule.strategy/v2..v8` parser
-branches and their migration text. Delete:
+The `quantrule.model/v1`–`/v3` parsers and the strategy parser surface were
+removed. `quantrule.model/v4` is the current flat model schema. The old
+programme configs remain historical evidence:
 
 | Path | Files |
 |---|---:|
@@ -85,17 +85,15 @@ branches and their migration text. Delete:
 | `config/compression-range-onset-5m/**` | 2 |
 | `config/v5-swing/**` | 1 |
 
-Keep `config/defaults/**`, `config/examples/**`, and `config/research/**`, then
-rewrite the examples to the current schema.
+`config/defaults/**`, `config/examples/**`, and `config/research/**` are the
+current config set; the examples carry the current run shape.
 
 ### 3.4 Old tests and fixtures
 
-Delete the axis, dashboard, market-report, consensus, and aggregate goldens and
-tests. Delete the old model tests that only prove retired behaviour.
-
-Keep and extend the flat readings, events, levels, panel, session, spec,
-prediction, and edge-case tests. The current 24 model test files are not all
-legacy; the exact list is in the execution plan.
+The axis, dashboard, market-report, consensus, and aggregate goldens and tests
+were removed with their modules. The flat readings, events, levels, panel,
+session, spec, prediction, and edge-case tests remain; the exact list is in the
+execution plan.
 
 ### 3.5 Old current-architecture docs
 
@@ -116,7 +114,7 @@ config contracts, old tutorials, and old strategy config contracts:
 
 Keep model/strategy evidence documents under `docs/model/2026-11-03/` and
 `docs/model/2026-11-04/` as historical evidence unless they are current
-contracts. The current `M1.0` contract replaces the old model-v4 path in P2.
+contracts. The current `M1.0` contract is the moved model-v4 path.
 
 ## 4. Keep as history
 

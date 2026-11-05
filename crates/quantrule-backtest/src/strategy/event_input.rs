@@ -1,19 +1,18 @@
 //! The event/state snapshot a v8 strategy may read.
 //!
-//! The snapshot carries one closed model bar per active ladder timeframe: the
-//! bar identity, the v3 discrete states, and the events that became knowable
-//! within the configured window. It does not carry a raw indicator value, an
-//! axis value, a percentile, a readiness code, a fill, a position, or P&L.
+//! The snapshot carries one closed model bar per included timeframe: the bar
+//! identity, the discrete states, the events that became knowable within the
+//! configured window, and the published progression and context values. It does
+//! not carry a raw indicator value, an axis score, a percentile, a readiness
+//! code, a fill, a position, or P&L.
 //!
-//! The module is pure: it only projects a completed model run and the selected
-//! as-of context. It performs no I/O, reads no clock, and uses no randomness.
+//! The module is pure: it only projects a completed model run. It performs no
+//! I/O, reads no clock, and uses no randomness.
 
 use quantrule_model::context::ContextBar;
 use quantrule_model::events::EventRecord;
 use quantrule_model::run::ModelRun;
 use quantrule_model::timeframe::ModelStates;
-
-use crate::context::LadderContext;
 
 /// One event as the v8 strategy sees it.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -70,56 +69,71 @@ pub struct EventStrategyInput {
     pub execution_open_time: i64,
     /// Whether this execution bar opened one timeframe after the previous one.
     pub execution_contiguous: bool,
-    /// The execution timeframe first, then context timeframes, fastest first.
+    /// The execution timeframe first, then any explicitly added context
+    /// timeframes, fastest first.
     pub timeframes: Vec<EventTimeframeView>,
 }
 
 impl EventStrategyInput {
-    /// Projects a completed model run and the as-of context onto the v8 input.
+    /// Projects the execution timeframe of a completed model run.
     ///
     /// `window_bars` is at least one. An event is included when its
     /// `available_bar_index` is at or before the selected bar and no more than
-    /// `window_bars` behind it.
+    /// `window_bars` behind it. Higher-timeframe views are added explicitly with
+    /// [`Self::with_view`]; the model run does not infer a cross-timeframe
+    /// alignment for the strategy.
     #[must_use]
     pub fn from_model_run(
         run: &ModelRun,
         execution_timeframe_secs: u64,
         execution_bar_index: usize,
-        context: &LadderContext,
         window_bars: usize,
     ) -> Self {
-        let mut timeframes = Vec::with_capacity(context.context.len() + 1);
+        let mut timeframes = Vec::new();
+        let execution_open_time = run
+            .timeframe(execution_timeframe_secs)
+            .and_then(|timeframe| timeframe.candle(execution_bar_index))
+            .map_or(0, |candle| candle.timestamp());
         if let Some(timeframe) = run.timeframe(execution_timeframe_secs)
-            && let Some(bar) = timeframe.bar(execution_bar_index)
+            && let Some(view) = view(timeframe, execution_bar_index, window_bars)
         {
-            timeframes.push(view(
-                timeframe.timeframe_secs(),
-                &bar,
-                timeframe.events(),
-                window_bars,
-                timeframe.context().get(bar.bar_index),
-            ));
-        }
-        for selected in &context.context {
-            if let Some(timeframe) = run.timeframe(selected.timeframe_secs)
-                && let Some(bar) = timeframe.bar(selected.bar_index)
-            {
-                timeframes.push(view(
-                    timeframe.timeframe_secs(),
-                    &bar,
-                    timeframe.events(),
-                    window_bars,
-                    timeframe.context().get(bar.bar_index),
-                ));
-            }
+            timeframes.push(view);
         }
         Self {
             execution_timeframe_secs,
             execution_bar_index,
-            execution_open_time: context.execution_open_time,
+            execution_open_time,
             execution_contiguous: false,
             timeframes,
         }
+    }
+
+    /// Appends one explicitly selected timeframe view.
+    ///
+    /// Returns `self` unchanged when the timeframe or bar is absent. Views stay
+    /// ordered by timeframe, so the result does not depend on insertion order.
+    #[must_use]
+    pub fn with_view(
+        mut self,
+        run: &ModelRun,
+        timeframe_secs: u64,
+        bar_index: usize,
+        window_bars: usize,
+    ) -> Self {
+        if self
+            .timeframes
+            .iter()
+            .any(|view| view.timeframe_secs == timeframe_secs)
+        {
+            return self;
+        }
+        if let Some(timeframe) = run.timeframe(timeframe_secs)
+            && let Some(view) = view(timeframe, bar_index, window_bars)
+        {
+            self.timeframes.push(view);
+            self.timeframes.sort_by_key(|view| view.timeframe_secs);
+        }
+        self
     }
 
     /// One timeframe's view, or `None` when it is absent.
@@ -139,30 +153,29 @@ impl EventStrategyInput {
 }
 
 fn view(
-    timeframe_secs: u64,
-    bar: &quantrule_model::timeframe::ModelBar,
-    events: &[EventRecord],
+    timeframe: &quantrule_model::timeframe::TimeframeModel,
+    bar_index: usize,
     window_bars: usize,
-    context: Option<ContextBar>,
-) -> EventTimeframeView {
-    let window_start = bar.bar_index.saturating_sub(window_bars.saturating_sub(1));
-    EventTimeframeView {
-        timeframe_secs,
-        bar_index: bar.bar_index,
+) -> Option<EventTimeframeView> {
+    let bar = timeframe.bar(bar_index)?;
+    let window_start = bar_index.saturating_sub(window_bars.saturating_sub(1));
+    Some(EventTimeframeView {
+        timeframe_secs: timeframe.timeframe_secs(),
+        bar_index,
         open_time: bar.candle.timestamp(),
         states: bar.states,
         progression_stage: bar.progression.stage_code,
         progression_leg_direction: bar.progression.leg_direction,
-        events: events
+        events: timeframe
+            .events()
             .iter()
             .filter(|event| {
-                event.available_bar_index <= bar.bar_index
-                    && event.available_bar_index >= window_start
+                event.available_bar_index <= bar_index && event.available_bar_index >= window_start
             })
             .map(event_view)
             .collect(),
-        context,
-    }
+        context: timeframe.context().get(bar_index),
+    })
 }
 
 fn event_view(event: &EventRecord) -> EventView {
@@ -182,7 +195,6 @@ fn event_view(event: &EventRecord) -> EventView {
 #[cfg(test)]
 mod tests {
     use super::EventStrategyInput;
-    use crate::context::LadderContext;
     use quantrule_data::Candle;
     use quantrule_model::input::{MarketStateConfig, TimeframeInput};
     use quantrule_model::run::ModelRun;
@@ -212,27 +224,63 @@ mod tests {
     #[test]
     fn the_snapshot_carries_identity_states_and_events() {
         let run = run();
-        let context = LadderContext {
-            execution_timeframe_secs: 300,
-            execution_bar_index: 20,
-            execution_open_time: 20 * 300,
-            execution_close_time: 21 * 300,
-            context: Vec::new(),
-            missing_timeframes: Vec::new(),
-            direction: crate::context::AxisContext::unavailable(),
-            momentum: crate::context::AxisContext::unavailable(),
-            structure: crate::context::StructureContext::unavailable(),
-            progression: crate::context::ProgressionContext::unavailable(),
-            levels: crate::context::LevelContext::unavailable(),
-            agreement: crate::context::AgreementContext::unavailable(),
-        };
-        let input = EventStrategyInput::from_model_run(&run, 300, 20, &context, 5);
+        let input = EventStrategyInput::from_model_run(&run, 300, 20, 5);
         assert_eq!(input.execution_timeframe_secs, 300);
         assert_eq!(input.execution_bar_index, 20);
         let view = input.timeframe(300).expect("the execution timeframe");
         assert_eq!(view.bar_index, 20);
         assert_eq!(view.open_time, 20 * 300);
         assert!(view.states.ema_stack.is_none());
+    }
+
+    #[test]
+    fn an_explicit_context_view_is_sorted_by_timeframe() {
+        let candles_300 = (0..80)
+            .map(|index| {
+                let close = 100.0 + index as f64 * 0.5;
+                Candle::new(
+                    index as u64,
+                    index as i64 * 300,
+                    close,
+                    close + 1.0,
+                    close - 1.0,
+                    close,
+                    Some(1.0),
+                )
+                .expect("the test candle is valid")
+            })
+            .collect::<Vec<_>>();
+        let candles_900 = (0..30)
+            .map(|index| {
+                let close = 100.0 + index as f64;
+                Candle::new(
+                    index as u64,
+                    index as i64 * 900,
+                    close,
+                    close + 1.0,
+                    close - 1.0,
+                    close,
+                    Some(1.0),
+                )
+                .expect("the test candle is valid")
+            })
+            .collect::<Vec<_>>();
+        let run = ModelRun::compute(
+            &[
+                TimeframeInput::new(300, &candles_300),
+                TimeframeInput::new(900, &candles_900),
+            ],
+            &MarketStateConfig::default(),
+        );
+        let input = EventStrategyInput::from_model_run(&run, 300, 20, 5)
+            .with_view(&run, 900, 6, 5)
+            .with_view(&run, 300, 20, 5);
+        let timeframes: Vec<u64> = input
+            .timeframes
+            .iter()
+            .map(|view| view.timeframe_secs)
+            .collect();
+        assert_eq!(timeframes, vec![300, 900]);
     }
 
     #[test]

@@ -1,14 +1,14 @@
 //! The flat per-timeframe indicator/event report.
 //!
-//! This projection is the model v3 view: readings, discrete states, confirmed
+//! This projection is the M1.0 view: readings, discrete states, confirmed
 //! levels, events, progression, and context. It carries no axis value, no
 //! consensus, and no cross-timeframe aggregate. The report is a pure projection
 //! of a completed [`crate::run::ModelRun`]; it never recomputes a reading or an
 //! event.
 
-use crate::axes::progression::ProgressionLeg;
-use crate::axes::structure::registry::ConfirmedLevel;
 use crate::events::{EventRecord, EventType};
+use crate::levels::ConfirmedLevel;
+use crate::progression::{ProgressionBar, ProgressionLeg};
 use crate::readings::{PivotKind, PivotScale};
 use crate::run::ModelRun;
 use crate::timeframe::TimeframeModel;
@@ -285,7 +285,7 @@ impl FlatTimeframe {
         let last_open_time = timeframe
             .candle(bars.saturating_sub(1))
             .map(|candle| candle.timestamp());
-        let (expected_bars, missing_bars, coverage_share) = super::assemble::coverage(
+        let (expected_bars, missing_bars, coverage_share) = coverage(
             bars,
             first_open_time,
             last_open_time,
@@ -517,7 +517,7 @@ impl FlatEvent {
 }
 
 impl FlatProgression {
-    fn from(bar: crate::axes::progression::ProgressionBar) -> Self {
+    fn from(bar: ProgressionBar) -> Self {
         Self {
             progress: bar.progress,
             stage_code: bar.stage_code,
@@ -553,6 +553,35 @@ impl From<ProgressionLeg> for FlatLeg {
             target_reached_code: leg.target_reached_code,
         }
     }
+}
+
+/// Counts expected bars, missing bars, and coverage over the closed span.
+fn coverage(
+    bars: usize,
+    first_open_time: Option<i64>,
+    last_open_time: Option<i64>,
+    timeframe_secs: u64,
+) -> (usize, usize, Option<f64>) {
+    let (Some(first), Some(last)) = (first_open_time, last_open_time) else {
+        return (0, 0, None);
+    };
+    if timeframe_secs == 0 {
+        return (0, 0, None);
+    }
+    let span = i128::from(last) - i128::from(first);
+    let steps = span / i128::from(timeframe_secs);
+    let expected_bars = if steps < 0 {
+        1
+    } else {
+        usize::try_from(steps + 1).unwrap_or(usize::MAX).max(1)
+    };
+    let missing_bars = expected_bars.saturating_sub(bars);
+    let coverage_share = if expected_bars == 0 {
+        None
+    } else {
+        Some((bars as f64 / expected_bars as f64).min(1.0))
+    };
+    (expected_bars, missing_bars, coverage_share)
 }
 
 fn ema_stack(fast: Option<f64>, mid: Option<f64>, slow: Option<f64>) -> Option<i8> {

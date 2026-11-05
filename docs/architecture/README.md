@@ -24,24 +24,22 @@ optimizes for trust, not scale, availability, or latency.
 INPUT (shell source access)
   → data engine
   → model engine
-  → strategy → execution → portfolio
-  → output (shell render, store, export)
+  → output (shell render: model report, event batch)
 ```
 
 The shell is the only surface and the only impure layer. It parses a command, calls
 into the pipeline, and renders the result. The engines are pure and depend one way.
-Analytics reads candle and model output for research and diagnosis; it is not a pipeline stage
-and never feeds a rule.
+Execution, portfolio, and the generic bracket/event engines remain libraries for
+S3.x; they are not reachable from the current shell surface.
 
 ## Crates
 
 | Crate | Role | Depends on (workspace) |
 |---|---|---|
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
-| `quantrule-model` | Model engine: readings, four axes, events. | `quantrule-data` |
-| `quantrule-backtest` | Strategy, execution, portfolio, and the deterministic runner. | `quantrule-data`, `quantrule-model` |
-| `quantrule-analytics` | Research engine: cross-timeframe research and diagnosis. Not a pipeline stage; the shell owns its I/O. | `quantrule-data`, `quantrule-model` |
-| `quantrule-shell` | The binary and only surface: parse, call, render; configuration load, source fetch, store, file I/O. | all of the above |
+| `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
+| `quantrule-backtest` | Execution, portfolio, and the generic bracket/event engines for S3.x. | `quantrule-data`, `quantrule-model` |
+| `quantrule-shell` | The binary and only surface: parse, call, render; configuration load and source fetch. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
 
 ## Documents
 
@@ -50,10 +48,9 @@ and never feeds a rule.
 | Product kata | Why the product exists, for whom, what "done" means. Solution-agnostic. | [`kata.md`](kata.md) |
 | Architecture characteristics | Which non-domain properties shape the architecture, how each is measured, and what is deliberately not optimized. | [`characteristics.md`](characteristics.md) |
 | Architecture baseline decision | Why the kata and characteristics are the baseline, and what alternatives were rejected. | [`../adr/2026-10-31/adopt-architecture-baseline.md`](../adr/2026-10-31/adopt-architecture-baseline.md) |
-| Model contract | The four axes, numeric output fields, event model, and aggregation rules. | [`../model/2026-10-30/per-timeframe-model.md`](../model/2026-10-30/per-timeframe-model.md) |
-| Policy and strategy contracts | Human-owned policy and strategy blueprints and the engine boundaries. | [`../config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md) |
-| Report bundles | Per-engine artifacts, schemas, boundaries, and availability. | [`../reports/2026-10-28/per-engine-reports.md`](../reports/2026-10-28/per-engine-reports.md) |
-| Research output | Dataset layers, columns, null rules, alignment, and export metadata. | [`../analytics/2026-10-24/research-output.md`](../analytics/2026-10-24/research-output.md) |
+| Model contract | The flat readings, discrete states, confirmed levels, events, progression, context, and the numeric output fields. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
+| Policy contract | The human-owned policy envelope and the cross-config rules. | [`../config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md) |
+| Report command | The `report model` bundle artifacts and the flat result envelope. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
 | Documentation index | The full documentation tree and the current architecture decisions. | [`../README.md`](../README.md) |
 
 ## Reading order

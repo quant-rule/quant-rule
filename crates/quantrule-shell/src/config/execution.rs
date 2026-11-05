@@ -2,8 +2,8 @@
 //!
 //! Execution owns how a decision becomes a fill: the fill timeframe, the order
 //! type, the tie rule, slippage, fees, and the zero-volume/end-of-data policy.
-//! It does not own the strategy's risk/reward. The bracket distances arrive from
-//! `strategy.json` as a `TradeIntent` and are resolved by the execution engine,
+//! It does not own the strategy's risk/reward. In the S3.x pipeline the bracket
+//! distances arrive as a `TradeIntent` and are resolved by the execution engine,
 //! not stored in this file.
 
 use quantrule_backtest::execution::ExecutionConfig;
@@ -19,15 +19,15 @@ use super::read::{self, ROOT};
 pub(crate) struct ExecutionRunConfig {
     /// The costs and fill mechanics.
     pub(crate) engine: ExecutionConfig,
-    /// The timeframe fills are simulated on; it must equal the strategy
-    /// timeframe.
+    /// The timeframe fills are simulated on; it must be in the data ladder and
+    /// the policy universe.
     pub(crate) fill_timeframe: Timeframe,
 }
 
 /// Parses `execution.json`.
 ///
 /// The file owns costs and mechanics only. Stop and target distances are part
-/// of the strategy's risk intent; the execution file must not duplicate them.
+/// of the S3.x risk intent; the execution file must not duplicate them.
 pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::check_fields(

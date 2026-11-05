@@ -6,7 +6,7 @@
 - Container: [#148](https://github.com/quant-rule/quant-rule/issues/148)
 - Program: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan: [`docs/execution-plans/2026-10-27/141-market-analysis-and-backtest.md`](../../execution-plans/2026-10-27/141-market-analysis-and-backtest.md)
-- Contract: [`docs/model/2026-10-27/market-report.md`](../../model/2026-10-27/market-report.md)
+- Contract: [`docs/model/2026-10-27/market-report.md`](../../registry/history.md)
 - Branch/worktree: `feat/151-market-report-command` in `quant-rule--151-market-report-command`
 - PR: [#155](https://github.com/quant-rule/quant-rule/pull/155)
 - Status: Implementation, tests, and documentation complete; PR #155 open.

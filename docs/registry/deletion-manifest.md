@@ -1,8 +1,8 @@
 # Deletion Manifest — Clean Current Architecture
 
 - Date: 2026-11-05 (UTC)
-- Status: **Frozen for P0.1**; deletion starts in P3/P4 after the decisions in
-  section 6 are resolved
+- Status: **Partially executed**; P3 removed the four-axis, analytics, and old
+  shell surfaces. P4 executes the remaining config and docs cleanup.
 - Issue: [#467](https://github.com/quant-rule/quant-rule/issues/467)
 - Plan: [`467-clean-current-architecture.md`](../execution-plans/2026-11-05/467-clean-current-architecture.md)
 - Freeze / recovery commit: `8acf857`

@@ -49,14 +49,17 @@ hypothesis, revise it through a pre-registered experiment, or stop with "no edge
 
 1. Ingest and validate interchangeable OHLCV candles; build the configured ladder
    from M1 with explicit gaps and partial buckets.
-2. Measure each timeframe with four independent axes and three event types; publish
-   numbers, nulls, and codes — never labels or a single composite score.
+2. Measure each timeframe with flat readings, discrete states, confirmed levels,
+   three event types, progression, and context; publish numbers, nulls, and codes —
+   never labels or a single composite score.
 3. Evaluate the human-owned policy and strategy through execution and portfolio
    accounting, with explicit costs; no look-ahead, no statistics in the signal path.
-4. Produce per-engine evidence bundles and a lab summary; refuse stale or
-   mismatched labs; every artifact deterministic.
-5. Expose every capability as a discoverable shell command; keep a local store and
-   research export that can be verified.
+   The execution and portfolio libraries exist; the strategy surface arrives with
+   S3.x.
+4. Produce the flat model report bundle with provenance; every artifact
+   deterministic.
+5. Expose every capability as a discoverable shell command; a capability that
+   cannot be typed does not exist.
 
 ## Constraints and non-goals
 
@@ -71,12 +74,12 @@ hypothesis, revise it through a pre-registered experiment, or stop with "no edge
 
 ## Done when
 
-- One run on a full-year M1 file produces the five evidence bundles and the root
-  lab summary.
+- One configured run over an M1 file produces the flat model bundle.
 - A rerun over the same candles, data version, and configuration is byte-identical.
-- A stale or mismatched lab is refused.
-- A validation record can be assembled from the lab artifacts and their provenance.
+- A bundle is refused when its target is not empty.
+- A validation record can be assembled from the bundle artifacts and their
+  provenance.
 - Every command, argument, and output shape is discoverable from help.
-- Every axis and rule has causal, deterministic, fixed-expected-value, and
-  edge-case evidence.
+- Every reading, event, and rule has causal, deterministic, fixed-expected-value,
+  and edge-case evidence.
 - A negative result can be recorded and the improvement workflow can stop.

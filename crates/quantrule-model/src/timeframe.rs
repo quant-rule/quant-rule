@@ -1,23 +1,13 @@
 //! One timeframe's complete model series.
 //!
-//! The module owns the per-bar readings, axes, context, events, confirmed
-//! levels, and the latest snapshot. It reads only the candles and configuration
-//! it is given; it performs no I/O, reads no clock, and uses no randomness.
+//! The module owns the per-bar readings, context, events, confirmed levels, and
+//! progression. It reads only the candles and configuration it is given; it
+//! performs no I/O, reads no clock, and uses no randomness.
 
 use std::num::NonZeroU64;
 
 use quantrule_data::Candle;
 
-use crate::aggregate::events::EVENT_WINDOW_BARS;
-use crate::aggregate::{ReferenceSet, TimeframeSnapshot};
-use crate::axes::direction::{DirectionBar, DirectionSeries};
-use crate::axes::momentum::{MomentumBar, MomentumSeries};
-use crate::axes::progression::{
-    ProgressionBar, ProgressionConfig, ProgressionLeg, ProgressionSeries,
-};
-use crate::axes::structure::registry::{ConfirmedLevel, ConfirmedLevelRegistry};
-use crate::axes::structure::{StructureBar, StructureConfig, StructureSeries};
-use crate::consensus::TimeframeConsensus;
 use crate::context::ContextBar;
 use crate::context::ContextSeries;
 use crate::events::EventRecord;
@@ -32,9 +22,9 @@ use crate::events::level::{LevelEventConfig, LevelEventSeries};
 use crate::events::signal::{SignalConfig, SignalEventSeries};
 use crate::events::trend::{TrendContinuationConfig, TrendContinuationSeries};
 use crate::input::{MarketStateConfig, TimeframeInput};
-use crate::readings::{
-    AdxSeries, ExtendedReadings, MacdSeries, PivotKind, PivotScale, PivotSeries, Readings,
-};
+use crate::levels::{ConfirmedLevel, ConfirmedLevelRegistry};
+use crate::progression::{ProgressionBar, ProgressionConfig, ProgressionLeg, ProgressionSeries};
+use crate::readings::{AdxSeries, ExtendedReadings, MacdSeries, PivotSeries, Readings};
 use crate::retention::{EventBatch, EventHistory};
 
 /// The six scalar readings for one closed bar.
@@ -78,8 +68,8 @@ impl ModelReadings {
 
 /// The v3 discrete indicator states for one closed bar.
 ///
-/// The states are derived from the published readings, never from the legacy
-/// axes. A strategy may read them; it never recomputes an indicator.
+/// The states are derived from the published readings, never from a legacy
+/// axis score. A strategy may read them; it never recomputes an indicator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModelStates {
     /// +1 fast > mid > slow, -1 fast < mid < slow, 0 otherwise.
@@ -111,18 +101,10 @@ pub struct ModelBar {
     pub readings: ModelReadings,
     /// The v3 discrete indicator states.
     pub states: ModelStates,
-    /// Direction.
-    pub direction: DirectionBar,
-    /// Momentum.
-    pub momentum: MomentumBar,
-    /// Structure.
-    pub structure: StructureBar,
     /// Progression.
     pub progression: ProgressionBar,
     /// Context.
     pub context: ContextBar,
-    /// The cross-axis consensus for this bar.
-    pub consensus: TimeframeConsensus,
 }
 
 /// One timeframe's complete model series and records.
@@ -137,16 +119,12 @@ pub struct TimeframeModel {
     adx: AdxSeries,
     adx_threshold: f64,
     adx_slope_bars: usize,
-    direction: DirectionSeries,
-    momentum: MomentumSeries,
-    structure: StructureSeries,
     progression: ProgressionSeries,
     context: ContextSeries,
     events: EventBatch,
     extended_events: ExtendedEventSeries,
     event_history: EventHistory,
     levels: Vec<ConfirmedLevel>,
-    snapshot: TimeframeSnapshot,
 }
 
 impl TimeframeModel {
@@ -180,13 +158,6 @@ impl TimeframeModel {
         } else {
             AdxSeries::empty(input.candles.len())
         };
-        let direction = DirectionSeries::compute(&readings);
-        let momentum = MomentumSeries::compute(&readings);
-        let structure = StructureSeries::compute_with_config(
-            input.candles,
-            &readings,
-            StructureConfig::new(config.structure_scale),
-        );
         let progression = ProgressionSeries::compute_with_config(
             input.candles,
             &readings,
@@ -216,9 +187,6 @@ impl TimeframeModel {
         let signal_events = SignalEventSeries::compute(
             &readings,
             &macd,
-            &direction,
-            &momentum,
-            &structure,
             &SignalConfig::with_settings(timeframe_secs, event_settings.signal),
         );
         let dmi_events = if event_settings.signal.di_cross {
@@ -310,23 +278,6 @@ impl TimeframeModel {
         let event_history = EventHistory::from_batch(&events);
         let registry = ConfirmedLevelRegistry::from_pivots(&readings.pivots);
         let levels: Vec<ConfirmedLevel> = registry.levels().to_vec();
-        let latest = input.candles.len().checked_sub(1)?;
-        let snapshot = snapshot_at(
-            SnapshotInputs {
-                timeframe_secs: input.timeframe_secs,
-                candles: input.candles,
-                readings: &readings,
-                direction: &direction,
-                momentum: &momentum,
-                structure: &structure,
-                progression: &progression,
-                context: &context,
-                events: event_history.as_slice(),
-                levels: &levels,
-            },
-            latest,
-            true,
-        )?;
 
         let open_times = input.candles.iter().map(Candle::timestamp).collect();
 
@@ -340,16 +291,12 @@ impl TimeframeModel {
             adx,
             adx_threshold: readings_config.adx_threshold,
             adx_slope_bars: readings_config.adx_slope_bars,
-            direction,
-            momentum,
-            structure,
             progression,
             context,
             events,
             extended_events,
             event_history,
             levels,
-            snapshot,
         })
     }
 
@@ -424,46 +371,13 @@ impl TimeframeModel {
         &self.readings.pivots
     }
 
-    /// The Direction series for this timeframe.
-    ///
-    /// The dashboard reads the published bars to derive bias tenure; the axis
-    /// itself is not recomputed.
-    #[must_use]
-    pub const fn direction(&self) -> &DirectionSeries {
-        &self.direction
-    }
-
     /// The Progression series for this timeframe.
-    ///
-    /// The dashboard reads the published bars to derive recent pace; the axis
-    /// itself is not recomputed.
     #[must_use]
     pub const fn progression(&self) -> &ProgressionSeries {
         &self.progression
     }
 
-    /// The Momentum series for this timeframe.
-    ///
-    /// The market report reads the published bars for its statistics; the axis
-    /// itself is not recomputed.
-    #[must_use]
-    pub const fn momentum(&self) -> &MomentumSeries {
-        &self.momentum
-    }
-
-    /// The Structure series for this timeframe.
-    ///
-    /// The market report reads the published bars for its statistics; the axis
-    /// itself is not recomputed.
-    #[must_use]
-    pub const fn structure(&self) -> &StructureSeries {
-        &self.structure
-    }
-
     /// The context series for this timeframe.
-    ///
-    /// The market report reads the latest published context; it is not
-    /// recomputed.
     #[must_use]
     pub const fn context(&self) -> &ContextSeries {
         &self.context
@@ -504,9 +418,6 @@ impl TimeframeModel {
     #[must_use]
     pub fn bar(&self, bar: usize) -> Option<ModelBar> {
         let candle = self.candles.get(bar).copied()?;
-        let direction = self.direction.get(bar)?;
-        let momentum = self.momentum.get(bar)?;
-        let structure = self.structure.get(bar)?;
         let progression = self.progression.get(bar)?;
         let context = self.context.get(bar)?;
         Some(ModelBar {
@@ -522,17 +433,8 @@ impl TimeframeModel {
                 self.adx_threshold,
                 self.adx_slope_bars,
             ),
-            direction,
-            momentum,
-            structure,
             progression,
             context,
-            consensus: TimeframeConsensus::from_bars(
-                self.timeframe_secs,
-                &direction,
-                &momentum,
-                &structure,
-            ),
         })
     }
 
@@ -550,9 +452,8 @@ impl TimeframeModel {
 
     /// The extended events detected for this timeframe.
     ///
-    /// These are additive to the v4 event batch; the legacy report and
-    /// dashboard read [`Self::events`] only. The shell's event CSV publishes
-    /// both batches.
+    /// These are additive to the v4 event batch; [`Self::events`] carries the
+    /// registered event batch. The shell's event CSV publishes both batches.
     #[must_use]
     pub const fn extended_events(&self) -> &ExtendedEventSeries {
         &self.extended_events
@@ -564,7 +465,7 @@ impl TimeframeModel {
         &self.events
     }
 
-    /// The bounded event history published with the latest snapshot.
+    /// The bounded event history.
     #[must_use]
     pub const fn event_history(&self) -> &EventHistory {
         &self.event_history
@@ -574,41 +475,6 @@ impl TimeframeModel {
     #[must_use]
     pub fn levels(&self) -> &[ConfirmedLevel] {
         &self.levels
-    }
-
-    /// The latest published snapshot.
-    ///
-    /// The snapshot carries the retained event batch, bounded to
-    /// `EVENT_SNAPSHOT_LIMIT` records; aggregate consumers should use
-    /// [`Self::snapshot_at`], which keeps only the five-bar window and the
-    /// latest event.
-    #[must_use]
-    pub const fn snapshot(&self) -> &TimeframeSnapshot {
-        &self.snapshot
-    }
-
-    /// The aggregate input at `bar`, or `None` when out of range.
-    ///
-    /// The event list is bounded to the five-bar window plus the latest
-    /// earlier event, which is everything the cross-timeframe aggregate reads.
-    #[must_use]
-    pub fn snapshot_at(&self, bar: usize) -> Option<TimeframeSnapshot> {
-        snapshot_at(
-            SnapshotInputs {
-                timeframe_secs: self.timeframe_secs,
-                candles: &self.candles,
-                readings: &self.readings,
-                direction: &self.direction,
-                momentum: &self.momentum,
-                structure: &self.structure,
-                progression: &self.progression,
-                context: &self.context,
-                events: self.events.as_slice(),
-                levels: &self.levels,
-            },
-            bar,
-            false,
-        )
     }
 
     /// The last `count` complete model bars, oldest first.
@@ -685,134 +551,4 @@ fn sign_state(value: f64) -> i8 {
     } else {
         0
     }
-}
-
-/// The data a snapshot reads from one timeframe.
-struct SnapshotInputs<'a> {
-    timeframe_secs: u64,
-    candles: &'a [Candle],
-    readings: &'a Readings,
-    direction: &'a DirectionSeries,
-    momentum: &'a MomentumSeries,
-    structure: &'a StructureSeries,
-    progression: &'a ProgressionSeries,
-    context: &'a ContextSeries,
-    events: &'a [EventRecord],
-    levels: &'a [ConfirmedLevel],
-}
-
-fn snapshot_at(
-    inputs: SnapshotInputs<'_>,
-    bar: usize,
-    full_events: bool,
-) -> Option<TimeframeSnapshot> {
-    let SnapshotInputs {
-        timeframe_secs,
-        candles,
-        readings,
-        direction,
-        momentum,
-        structure,
-        progression,
-        context,
-        events,
-        levels,
-    } = inputs;
-    let direction = direction.get(bar)?;
-    let momentum = momentum.get(bar)?;
-    let structure = structure.get(bar)?;
-    let progression = progression.get(bar)?;
-    let context = context.get(bar)?;
-    let (minor_high, minor_low, major_high, major_low) = latest_swings_at(levels, bar);
-
-    let references = ReferenceSet::from_parts(
-        readings.ema20.get(bar),
-        readings.ema50.get(bar),
-        readings.ema200.get(bar),
-        minor_high.map(|level| level.price),
-        minor_low.map(|level| level.price),
-        major_high.map(|level| level.price),
-        major_low.map(|level| level.price),
-    );
-
-    let retained = if full_events {
-        events.to_vec()
-    } else {
-        let window_start = bar.saturating_sub(EVENT_WINDOW_BARS - 1);
-        let begin = events.partition_point(|event| event.available_bar_index < window_start);
-        let end = events.partition_point(|event| event.available_bar_index <= bar);
-        let mut retained = Vec::with_capacity(end.saturating_sub(begin) + 1);
-        if end > 0 && end - 1 < begin {
-            retained.push(events[end - 1]);
-        }
-        retained.extend_from_slice(&events[begin..end]);
-        retained
-    };
-
-    let minor_origin_time_secs = progression
-        .minor_leg
-        .and_then(|leg| candles.get(leg.origin_occurred_at).map(Candle::timestamp));
-    let major_origin_time_secs = progression
-        .major_leg
-        .and_then(|leg| candles.get(leg.origin_occurred_at).map(Candle::timestamp));
-
-    Some(TimeframeSnapshot {
-        timeframe_secs,
-        latest_bar_index: bar,
-        direction,
-        momentum,
-        structure,
-        progression,
-        context,
-        atr: readings.atr14.get(bar),
-        references,
-        events: retained,
-        minor_origin_time_secs,
-        major_origin_time_secs,
-    })
-}
-
-fn latest_swings_at(
-    levels: &[ConfirmedLevel],
-    bar: usize,
-) -> (
-    Option<ConfirmedLevel>,
-    Option<ConfirmedLevel>,
-    Option<ConfirmedLevel>,
-    Option<ConfirmedLevel>,
-) {
-    let mut minor_high = None;
-    let mut minor_low = None;
-    let mut major_high = None;
-    let mut major_low = None;
-    let end = levels.partition_point(|level| level.available_at <= bar);
-
-    // Levels are in confirmation order. Walking back from the latest one
-    // finds the four latest swings without scanning the whole registry for
-    // every M1 bar.
-    for level in levels[..end].iter().rev() {
-        match (level.scale, level.kind) {
-            (PivotScale::Minor, PivotKind::High) if minor_high.is_none() => {
-                minor_high = Some(*level);
-            }
-            (PivotScale::Minor, PivotKind::Low) if minor_low.is_none() => {
-                minor_low = Some(*level);
-            }
-            (PivotScale::Major, PivotKind::High) if major_high.is_none() => {
-                major_high = Some(*level);
-            }
-            (PivotScale::Major, PivotKind::Low) if major_low.is_none() => {
-                major_low = Some(*level);
-            }
-            _ => {}
-        }
-        if minor_high.is_some()
-            && minor_low.is_some()
-            && major_high.is_some()
-            && major_low.is_some()
-        {
-            break;
-        }
-    }
-    (minor_high, minor_low, major_high, major_low)
 }

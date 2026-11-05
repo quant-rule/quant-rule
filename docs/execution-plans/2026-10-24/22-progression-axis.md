@@ -6,7 +6,7 @@
 - Status: Verified (implementation, independent review, checks, and delivery complete; PR merged)
 - Date: 2026-10-24 (UTC)
 - Program plan: [Completion plan (M2–M14)](14-model-engine-completion.md)
-- Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../model/2026-10-21/four-axis-analytical-model.md)
+- Contract: [`docs/model/2026-10-21/four-axis-analytical-model.md`](../../registry/history.md)
 - Umbrella plan: [`docs/execution-plans/2026-10-21/14-model-engine.md`](../2026-10-21/14-model-engine.md)
 - Transparency log: [`docs/ai-transparency-log/2026-10-24/22-progression-axis.md`](../../ai-transparency-log/2026-10-24/22-progression-axis.md)
 - Approval basis: the program plan's decision D1/D3 and the human's `continue` after the four M6 defaults D1–D4 were presented.

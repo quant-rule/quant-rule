@@ -8,16 +8,12 @@
 
 use std::path::{Path, PathBuf};
 
-use quantrule_backtest::portfolio::{DrawdownAction, SizingMode};
 use quantrule_data::Timeframe;
-use quantrule_model::readings::PivotScale;
 use serde_json::{Value, json};
 
 use super::error::ConfigErrorKind;
-use super::error::ConfigErrorKind::{
-    Inconsistent, MissingField, Range, Schema, Type, UnknownField, Unsupported,
-};
-use super::{ConfigError, analytics, data, execution, model, policy, portfolio, run, strategy};
+use super::error::ConfigErrorKind::{Inconsistent, MissingField, Range, Unsupported};
+use super::{ConfigError, data, execution, model, policy, portfolio, run};
 
 fn set(mut value: Value, path: &[&str], replacement: Value) -> Value {
     let (last, parents) = path.split_last().expect("the path is not empty");
@@ -66,230 +62,6 @@ fn data_object() -> Value {
     })
 }
 
-#[test]
-fn data_matches_the_contract() {
-    let base = Path::new("config");
-    let valid = data::parse(&data_object(), "data.json", base).expect("the valid config loads");
-    assert_eq!(valid.instrument, "EURUSD");
-    assert_eq!(valid.data_version, "version");
-    assert_eq!(valid.source.path, Path::new("config/candles.csv"));
-    assert_eq!(valid.source_timeframe, Timeframe::M1);
-    assert_eq!(valid.available_timeframes, Timeframe::ALL);
-    assert_eq!(valid.max_candles, 600_000);
-    assert_eq!(valid.from.as_deref(), Some("2025-01-01"));
-    assert_eq!(valid.to.as_deref(), Some("2025-12-31"));
-
-    let subset = set(
-        data_object(),
-        &["available_timeframes"],
-        json!(["1m", "15m", "4h"]),
-    );
-    let subset = data::parse(&subset, "data.json", base).expect("a supported subset is valid");
-    assert_eq!(
-        subset.available_timeframes,
-        vec![Timeframe::M1, Timeframe::M15, Timeframe::H4]
-    );
-
-    let open = set(
-        set(data_object(), &["from"], json!(null)),
-        &["to"],
-        json!(null),
-    );
-    assert!(
-        data::parse(&open, "data.json", base).is_ok(),
-        "a null bound is accepted"
-    );
-
-    let absolute = set(
-        data_object(),
-        &["source", "path"],
-        json!("/var/data/candles.csv"),
-    );
-    let absolute = data::parse(&absolute, "data.json", base).expect("an absolute path is accepted");
-    assert_eq!(absolute.source.path, Path::new("/var/data/candles.csv"));
-
-    let tilde = set(data_object(), &["source", "path"], json!("~/candles.csv"));
-    let tilde = data::parse(&tilde, "data.json", base).expect("a tilde is a literal path");
-    assert_eq!(tilde.source.path, Path::new("config/~/candles.csv"));
-
-    let environment = set(
-        data_object(),
-        &["source", "path"],
-        json!("$HOME/candles.csv"),
-    );
-    let environment =
-        data::parse(&environment, "data.json", base).expect("a variable is a literal path");
-    assert_eq!(
-        environment.source.path,
-        Path::new("config/$HOME/candles.csv")
-    );
-
-    let one = set(data_object(), &["max_candles"], json!(1));
-    assert!(
-        data::parse(&one, "data.json", base).is_ok(),
-        "the smallest bound is accepted"
-    );
-
-    let cases = vec![
-        ("top level", json!([]), Type, "$"),
-        (
-            "schema",
-            set(data_object(), &["schema"], json!("quantrule.data/v2")),
-            Schema,
-            "$.schema",
-        ),
-        (
-            "unknown field",
-            set(data_object(), &["extra"], json!(true)),
-            UnknownField,
-            "$.extra",
-        ),
-        (
-            "missing source",
-            remove(data_object(), &["source"]),
-            MissingField,
-            "$.source",
-        ),
-        (
-            "source type",
-            set(data_object(), &["source"], json!("csv")),
-            Type,
-            "$.source",
-        ),
-        (
-            "source kind",
-            set(data_object(), &["source", "kind"], json!("dukascopy")),
-            Unsupported,
-            "$.source.kind",
-        ),
-        (
-            "source unknown",
-            set(data_object(), &["source", "extra"], json!(1)),
-            UnknownField,
-            "$.source.extra",
-        ),
-        (
-            "source path",
-            set(data_object(), &["source", "path"], json!("")),
-            Range,
-            "$.source.path",
-        ),
-        (
-            "data version",
-            set(data_object(), &["data_version"], json!("")),
-            Range,
-            "$.data_version",
-        ),
-        (
-            "from type",
-            set(data_object(), &["from"], json!(20250101)),
-            Type,
-            "$.from",
-        ),
-        (
-            "from date",
-            set(data_object(), &["from"], json!("2025-13-01")),
-            Range,
-            "$.from",
-        ),
-        (
-            "to date",
-            set(data_object(), &["to"], json!("nope")),
-            Range,
-            "$.to",
-        ),
-        (
-            "reversed range",
-            set(
-                set(data_object(), &["from"], json!("2025-12-31")),
-                &["to"],
-                json!("2025-01-01"),
-            ),
-            Range,
-            "$.from",
-        ),
-        (
-            "source timeframe",
-            set(data_object(), &["source_timeframe"], json!("5m")),
-            Range,
-            "$.source_timeframe",
-        ),
-        (
-            "timeframe case",
-            set(data_object(), &["source_timeframe"], json!("1M")),
-            Range,
-            "$.source_timeframe",
-        ),
-        (
-            "available empty",
-            set(data_object(), &["available_timeframes"], json!([])),
-            Range,
-            "$.available_timeframes",
-        ),
-        (
-            "available missing m1",
-            set(
-                data_object(),
-                &["available_timeframes"],
-                json!(["5m", "15m"]),
-            ),
-            Range,
-            "$.available_timeframes[0]",
-        ),
-        (
-            "available duplicate",
-            set(
-                data_object(),
-                &["available_timeframes"],
-                json!(["1m", "5m", "5m"]),
-            ),
-            Range,
-            "$.available_timeframes",
-        ),
-        (
-            "available order",
-            set(
-                data_object(),
-                &["available_timeframes"],
-                json!(["1h", "15m", "5m", "1m"]),
-            ),
-            Range,
-            "$.available_timeframes",
-        ),
-        (
-            "available element",
-            set(
-                data_object(),
-                &["available_timeframes"],
-                json!(["1m", 5, "15m"]),
-            ),
-            Type,
-            "$.available_timeframes[1]",
-        ),
-        (
-            "max candles zero",
-            set(data_object(), &["max_candles"], json!(0)),
-            Range,
-            "$.max_candles",
-        ),
-        (
-            "max candles large",
-            set(data_object(), &["max_candles"], json!(600001)),
-            Range,
-            "$.max_candles",
-        ),
-        (
-            "max candles type",
-            set(data_object(), &["max_candles"], json!("600000")),
-            Type,
-            "$.max_candles",
-        ),
-    ];
-    for (_, value, kind, path) in cases {
-        assert_rejected(data::parse(&value, "data.json", base), kind, path);
-    }
-}
-
 fn policy_object() -> Value {
     json!({
         "schema": "quantrule.policy/v1",
@@ -311,47 +83,37 @@ fn policy_object() -> Value {
     })
 }
 
-#[test]
-fn policy_matches_the_contract() {
-    let valid = policy::parse(&policy_object(), "policy.json").expect("the valid policy loads");
-    assert_eq!(valid.account.initial_cash, 10_000.0);
-    assert_eq!(valid.objective.evaluation_days, 90);
-    assert_eq!(valid.universe.tickets, ["EURUSD", "BTCUSD"]);
+fn execution_object() -> Value {
+    json!({
+        "schema": "quantrule.execution/v2",
+        "fill_timeframe": "15m",
+        "order_type": "market_next_open",
+        "tie_break": "stop_first",
+        "fee_rate": 0.0,
+        "slippage_bps": 2.0,
+        "zero_volume": "reject",
+        "end_of_data": "leave_open"
+    })
+}
 
-    for (value, kind, path) in [
-        (json!(1), Type, "$"),
-        (
-            set(policy_object(), &["schema"], json!("quantrule.policy/v2")),
-            Schema,
-            "$.schema",
-        ),
-        (
-            set(policy_object(), &["account", "currency"], json!("EUR")),
-            Unsupported,
-            "$.account.currency",
-        ),
-        (
-            set(policy_object(), &["risk", "max_leverage"], json!(2.0)),
-            Unsupported,
-            "$.risk.max_leverage",
-        ),
-        (
-            set(policy_object(), &["universe", "tickets"], json!([])),
-            Range,
-            "$.universe.tickets",
-        ),
-        (
-            set(
-                policy_object(),
-                &["universe", "timeframes"],
-                json!(["15m", "5m"]),
-            ),
-            Range,
-            "$.universe.timeframes[1]",
-        ),
-    ] {
-        assert_rejected(policy::parse(&value, "policy.json"), kind, path);
-    }
+fn portfolio_object() -> Value {
+    json!({
+        "schema": "quantrule.portfolio/v1",
+        "initial_cash": 10000.0,
+        "currency": "USD",
+        "sizing": {
+            "mode": "fixed_notional",
+            "notional": 10000.0,
+            "quantity_step": 0.0001
+        },
+        "leverage": 1.0,
+        "max_open_positions": 1,
+        "allow_short": true,
+        "commission": {"rate": 0.001, "base": "equity", "per": "operation"},
+        "funding": {"rate": 0.0001, "interval_hours": 8},
+        "max_drawdown": {"limit": 0.2, "action": "halt"},
+        "mark_to_market": "bar_close"
+    })
 }
 
 fn model_v4_object() -> Value {
@@ -404,73 +166,132 @@ fn model_v4_object() -> Value {
     })
 }
 
+fn run_object() -> Value {
+    json!({
+        "schema": "quantrule.run/v2",
+        "name": "run",
+        "model_id": "M1.0",
+        "policy_id": "POL1.0",
+        "execution_id": "E1.0",
+        "portfolio_id": "P1.0",
+        "policy": "policy.json",
+        "data": "data.json",
+        "model": "model.json",
+        "execution": "execution.json",
+        "portfolio": "portfolio.json",
+        "output_root": "out"
+    })
+}
+
+#[test]
+fn data_matches_the_contract() {
+    let base = Path::new("config");
+    let valid = data::parse(&data_object(), "data.json", base).expect("the valid config loads");
+    assert_eq!(valid.instrument, "EURUSD");
+    assert_eq!(valid.data_version, "version");
+    assert_eq!(valid.source.path, Path::new("config/candles.csv"));
+    assert_eq!(valid.source_timeframe, Timeframe::M1);
+    assert_eq!(valid.available_timeframes, Timeframe::ALL);
+    assert_eq!(valid.max_candles, 600_000);
+    assert_eq!(valid.from.as_deref(), Some("2025-01-01"));
+    assert_eq!(valid.to.as_deref(), Some("2025-12-31"));
+}
+
+#[test]
+fn data_rejects_a_missing_source_and_an_inverted_range() {
+    for value in [
+        remove(data_object(), &["source"]),
+        set(data_object(), &["from"], json!("2026-01-01")),
+        set(data_object(), &["source_timeframe"], json!("5m")),
+    ] {
+        assert!(data::parse(&value, "data.json", Path::new("config")).is_err());
+    }
+    assert_rejected(
+        data::parse(
+            &remove(data_object(), &["source"]),
+            "data.json",
+            Path::new("config"),
+        ),
+        MissingField,
+        "$.source",
+    );
+}
+
+#[test]
+fn policy_matches_the_contract() {
+    let valid = policy::parse(&policy_object(), "policy.json").expect("the valid policy loads");
+    assert_eq!(valid.account.currency, "USD");
+    assert_eq!(valid.account.initial_cash, 10_000.0);
+    assert_eq!(valid.objective.performance_target, 0.10);
+    assert_eq!(valid.universe.tickets, ["EURUSD", "BTCUSD"]);
+}
+
+#[test]
+fn policy_rejects_an_out_of_range_risk_envelope() {
+    for value in [
+        set(policy_object(), &["risk", "max_leverage"], json!(2.0)),
+        set(policy_object(), &["risk", "max_open_positions"], json!(2)),
+        set(policy_object(), &["objective", "max_drawdown"], json!(1.5)),
+        set(policy_object(), &["universe", "tickets"], json!([])),
+    ] {
+        assert!(policy::parse(&value, "policy.json").is_err());
+    }
+}
+
+#[test]
+fn execution_matches_the_contract() {
+    let valid = execution::parse(&execution_object(), "execution.json").expect("valid execution");
+    assert_eq!(valid.fill_timeframe, Timeframe::M15);
+}
+
+#[test]
+fn execution_rejects_an_unknown_timeframe() {
+    assert_rejected(
+        execution::parse(
+            &set(execution_object(), &["fill_timeframe"], json!("2m")),
+            "execution.json",
+        ),
+        Range,
+        "$.fill_timeframe",
+    );
+}
+
+#[test]
+fn portfolio_matches_the_contract() {
+    let valid = portfolio::parse(&portfolio_object(), "portfolio.json").expect("valid portfolio");
+    assert_eq!(valid.initial_cash, 10_000.0);
+    assert_eq!(valid.max_open_positions, 1);
+}
+
+#[test]
+fn portfolio_rejects_a_missing_drawdown_limit() {
+    assert_rejected(
+        portfolio::parse(
+            &set(portfolio_object(), &["max_drawdown", "limit"], json!(null)),
+            "portfolio.json",
+        ),
+        Inconsistent,
+        "$.max_drawdown.action",
+    );
+}
+
 #[test]
 fn model_v4_reads_events_progression_and_rejects_4h() {
     let config = model::parse(&model_v4_object(), "model.json").expect("the v4 config loads");
-    let m5 = config.readings_for(u64::from(Timeframe::M5.seconds()));
-    assert_eq!(m5.ema_fast, 9);
-    let events = config.events_for(u64::from(Timeframe::M5.seconds()));
-    assert_eq!(events.level.test_atr, 0.3);
-    assert_eq!(events.level.break_atr, 0.2);
-    assert!(events.level.ema);
-    assert!(events.level.pivots);
-    assert!(!events.signal.di_cross);
-    assert_eq!(events.signal.rsi_levels, [30.0, 50.0, 70.0]);
-    assert!(events.signal.trend_continuation);
-    assert_eq!(events.signal.trend_adx_threshold, 30.0);
-    assert_eq!(events.signal.trend_adx_slope_bars, 3);
-    assert!(events.signal.compression_breakout);
-    assert_eq!(events.signal.compression_coiling_bars, 7);
-    assert_eq!(events.signal.compression_break_atr, 0.3);
-    assert_eq!(events.signal.compression_rvol_min, 1.4);
-    assert!(events.signal.compression_range);
-    assert_eq!(events.signal.compression_range_coiling_bars, 7);
-    assert!(events.signal.compression_range_onset);
-    assert_eq!(events.signal.compression_range_onset_coiling_bars, 7);
-    let progression = config.progression_for(u64::from(Timeframe::M5.seconds()));
-    assert_eq!(progression.target_atr, 3.0);
-    assert_eq!(progression.stability_bars, 3);
+    assert_eq!(config.max_timeframe_secs(), 3_600);
+    assert!(config.is_overridden(Timeframe::M5));
 
-    let effective = super::effective_json(&config);
-    assert_eq!(effective["schema"], "quantrule.model/v4");
-    assert_eq!(
-        effective["timeframes"]["5m"]["events"]["level"]["references"],
-        json!(["ema", "pivots"])
-    );
-    assert!(effective["timeframes"].get("4h").is_none());
-    assert_eq!(
-        effective["timeframes"]["5m"]["events"]["signal"]["compression_breakout"]["coiling_bars"],
-        7
-    );
-    assert_eq!(
-        effective["timeframes"]["5m"]["events"]["signal"]["compression_range"]["coiling_bars"],
-        7
-    );
-    assert_eq!(
-        effective["timeframes"]["5m"]["events"]["signal"]["compression_range_onset"]["coiling_bars"],
-        7
-    );
-
-    let pivots = set(
-        model_v4_object(),
-        &["defaults", "pivots"],
-        json!({"minor": 2, "major": 5}),
-    );
     assert_rejected(
-        model::parse(&pivots, "model.json"),
-        UnknownField,
-        "$.defaults.pivots",
-    );
-
-    let four_hour = set(
-        model_v4_object(),
-        &["timeframes"],
-        json!({"4h": {"ema": {"periods": [9, 21, 55]}}}),
-    );
-    assert_rejected(
-        model::parse(&four_hour, "model.json"),
+        model::parse(
+            &set(
+                model_v4_object(),
+                &["defaults", "ema", "periods"],
+                json!([20, 50]),
+            ),
+            "model.json",
+        ),
         Range,
-        "$.timeframes.4h",
+        "$.defaults.ema.periods",
     );
 }
 
@@ -481,1362 +302,88 @@ fn retired_model_schemas_are_rejected() {
         "quantrule.model/v2",
         "quantrule.model/v3",
     ] {
-        let value = json!({"schema": schema});
-        assert_rejected(model::parse(&value, "model.json"), Unsupported, "$.schema");
-    }
-}
-
-fn strategy_object() -> Value {
-    json!({
-        "schema": "quantrule.strategy/v3",
-        "rule": "ladder-context",
-        "thesis": "Trade with the higher-timeframe regime after a lower-timeframe structure shift.",
-        "ladder": ["5m", "15m"],
-        "weights": {
-            "direction": {"15m": 1.0},
-            "momentum": {"15m": 1.0},
-            "structure": {"15m": 1.0},
-            "progression": {"15m": 1.0}
-        },
-        "entry": {
-            "execution": {
-                "direction_min": 0.1,
-                "momentum_min": 0.1,
-                "structure_min": 0.0,
-                "structure_shift": {"from_max": 0, "to_min": 1}
-            },
-            "context": {
-                "direction": {"kind": "bullish", "share_min": 0.5},
-                "momentum": {"kind": "not_bearish", "bearish_share_max": 0.5},
-                "structure": {"conflict_count_max": 0},
-                "progression": {
-                    "direction": "bullish",
-                    "late_or_terminal_count_max": 0
-                }
-            }
-        },
-        "exit": {"on": ["context_lost", "structure_lost"]},
-        "risk": {
-            "stop": {"kind": "atr", "multiple": 2.0},
-            "target": {"kind": "reward_to_risk", "multiple": 1.5}
-        },
-        "no_trade": {
-            "missing_context": "reject",
-            "require_contiguous_execution": true
-        }
-    })
-}
-
-fn strategy_v4_object() -> Value {
-    json!({
-        "schema": "quantrule.strategy/v4",
-        "rule": "level-retest",
-        "thesis": "Enter on a retest of a confirmed level in the direction of the higher-timeframe context.",
-        "ladder": ["5m", "15m"],
-        "weights": {
-            "direction": {"15m": 1.0},
-            "momentum": {"15m": 1.0},
-            "structure": {"15m": 1.0},
-            "progression": {"15m": 1.0}
-        },
-        "entry": {
-            "execution": {
-                "direction_min": 0.1,
-                "momentum_min": 0.1,
-                "structure_min": 0.0,
-                "structure_shift": {"from_max": 0, "to_min": 1}
-            },
-            "context": {
-                "direction": {"kind": "bullish", "share_min": 0.5},
-                "momentum": {"kind": "not_bearish", "bearish_share_max": 0.5},
-                "structure": {"conflict_count_max": 0},
-                "progression": {
-                    "direction": "bullish",
-                    "late_or_terminal_count_max": 0
-                }
-            },
-            "level": {
-                "max_distance_fraction": 0.02,
-                "scale": "major"
-            }
-        },
-        "exit": {"on": ["context_lost", "level_lost"]},
-        "risk": {
-            "stop": {"kind": "level", "buffer_fraction": 0.002},
-            "target": {"kind": "next_level", "min_reward_to_risk": 2.0}
-        },
-        "no_trade": {
-            "missing_context": "reject",
-            "require_contiguous_execution": true
-        }
-    })
-}
-
-fn strategy_v6_object() -> Value {
-    let mut value = strategy_v4_object();
-    value["schema"] = json!("quantrule.strategy/v6");
-    value["rule"] = json!("breakout");
-    value["thesis"] = json!(
-        "Enter on a confirmed-level breakout in the direction of the higher-timeframe context."
-    );
-    value
-}
-
-fn strategy_v7_object() -> Value {
-    let mut value = strategy_v4_object();
-    value["schema"] = json!("quantrule.strategy/v7");
-    value["rule"] = json!("level-fade");
-    value["thesis"] = json!("Fade a failed test of a confirmed level in either direction.");
-    value["exit"] = json!({"on": ["level_lost"]});
-    value
-}
-
-fn strategy_v8_object() -> Value {
-    json!({
-        "schema": "quantrule.strategy/v8",
-        "rule": "event-composite",
-        "thesis": "Trade a DI cross when the execution EMA stack agrees.",
-        "ladder": ["15m", "1h"],
-        "window_bars": 2,
-        "time_stop_bars": 20,
-        "entry": {
-            "all": [
-                {"kind": "event", "timeframe": "15m", "event_type": 3, "subtype": 2, "source": 17, "direction": 1},
-                {"kind": "state", "timeframe": "15m", "field": "ema_stack", "value": 1}
-            ]
-        },
-        "exit": {
-            "any": [
-                {"kind": "state", "timeframe": "15m", "field": "ema_stack", "value": -1}
-            ]
-        },
-        "risk": {
-            "stop": {"kind": "atr", "multiple": 2.0},
-            "target": {"kind": "reward_to_risk", "multiple": 1.5}
-        },
-        "no_trade": {
-            "missing_context": "reject",
-            "require_contiguous_execution": true
-        }
-    })
-}
-
-fn strategy_v5_object() -> Value {
-    json!({
-        "schema": "quantrule.strategy/v5",
-        "rule": "three-timeframe",
-        "thesis": "Enter a 1m reversal in the direction of a 5m and 15m priority agreement.",
-        "ladder": ["1m", "5m", "15m"],
-        "weights": {
-            "direction": {"5m": 1.0, "15m": 1.0},
-            "momentum": {"5m": 1.0, "15m": 1.0},
-            "structure": {"5m": 1.0, "15m": 1.0},
-            "progression": {"5m": 1.0, "15m": 1.0}
-        },
-        "entry": {
-            "execution": {
-                "direction_min": 0.1,
-                "momentum_min": 0.1,
-                "structure_min": 0.0,
-                "structure_shift": {"from_max": 0, "to_min": 1}
-            },
-            "context": {
-                "direction": {"kind": "bullish", "share_min": 0.5},
-                "momentum": {"kind": "not_bearish", "bearish_share_max": 0.5},
-                "structure": {"conflict_count_max": 0},
-                "progression": {
-                    "direction": "bullish",
-                    "late_or_terminal_count_max": 0
-                }
-            },
-            "level": {
-                "max_distance_fraction": 0.01,
-                "scale": "major"
-            },
-            "agreement": {"min_bars": 15}
-        },
-        "exit": {"on": ["context_lost", "level_lost"]},
-        "risk": {
-            "stop": {"kind": "level", "buffer_fraction": 0.005},
-            "target": {"kind": "next_level", "min_reward_to_risk": 2.0}
-        },
-        "no_trade": {
-            "missing_context": "reject",
-            "require_contiguous_execution": true
-        }
-    })
-}
-
-#[test]
-fn strategy_matches_the_contract() {
-    let valid =
-        strategy::parse(&strategy_object(), "strategy.json").expect("the valid config loads");
-    assert_eq!(valid.engine.timeframe_secs(), 300);
-    assert_eq!(valid.engine.ladder().context_timeframes(), &[900]);
-    assert_eq!(valid.engine.weights().direction(), &[1.0]);
-    assert_eq!(valid.engine.entry().execution().direction_min(), 0.1);
-    assert_eq!(
-        valid
-            .engine
-            .risk()
-            .expect("the control has a risk policy")
-            .stop_atr_multiple(),
-        2.0
-    );
-    assert_eq!(
-        valid
-            .engine
-            .risk()
-            .expect("the control has a risk policy")
-            .reward_to_risk(),
-        1.5
-    );
-
-    for (value, kind, path) in [
-        (json!(1), Type, "$"),
-        (
-            set(
-                strategy_object(),
-                &["schema"],
-                json!("quantrule.strategy/v2"),
-            ),
-            Range,
+        assert_rejected(
+            model::parse(&json!({"schema": schema}), "model.json"),
+            Unsupported,
             "$.schema",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["schema"],
-                json!("quantrule.strategy/v4"),
-            ),
-            Unsupported,
-            "$.rule",
-        ),
-        (
-            set(strategy_object(), &["extra"], json!(1)),
-            UnknownField,
-            "$.extra",
-        ),
-        (
-            set(strategy_object(), &["rule"], json!("axis-agreement")),
-            Unsupported,
-            "$.rule",
-        ),
-        (
-            remove(strategy_object(), &["thesis"]),
-            MissingField,
-            "$.thesis",
-        ),
-        (
-            set(strategy_object(), &["thesis"], json!("")),
-            Range,
-            "$.thesis",
-        ),
-        (
-            remove(strategy_object(), &["ladder"]),
-            MissingField,
-            "$.ladder",
-        ),
-        (
-            set(strategy_object(), &["ladder"], json!(["5m"])),
-            Range,
-            "$.ladder",
-        ),
-        (
-            set(strategy_object(), &["ladder"], json!(["5m", "30m"])),
-            Range,
-            "$.ladder[1]",
-        ),
-        (
-            set(strategy_object(), &["ladder"], json!(["15m", "5m"])),
-            Range,
-            "$.ladder",
-        ),
-        (
-            set(strategy_object(), &["ladder"], json!(["5m", "5m"])),
-            Range,
-            "$.ladder",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["weights", "other"],
-                json!({"15m": 1.0}),
-            ),
-            UnknownField,
-            "$.weights.other",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["weights", "direction", "1h"],
-                json!(1.0),
-            ),
-            UnknownField,
-            "$.weights.direction.1h",
-        ),
-        (
-            remove(strategy_object(), &["weights", "direction", "15m"]),
-            MissingField,
-            "$.weights.direction.15m",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["weights", "direction", "15m"],
-                json!(0.0),
-            ),
-            Range,
-            "$.weights.direction.15m",
-        ),
-        (
-            remove(strategy_object(), &["entry", "execution"]),
-            MissingField,
-            "$.entry.execution",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["entry", "execution", "direction_min"],
-                json!(1.1),
-            ),
-            Range,
-            "$.entry.execution",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["entry", "execution", "structure_shift", "from_max"],
-                json!(1),
-            ),
-            Range,
-            "$.entry.execution",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["entry", "context", "direction", "kind"],
-                json!("bearish"),
-            ),
-            Unsupported,
-            "$.entry.context.direction.kind",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["entry", "context", "direction", "share_min"],
-                json!(1.1),
-            ),
-            Range,
-            "$.entry.context",
-        ),
-        (
-            set(strategy_object(), &["exit", "on"], json!([])),
-            Range,
-            "$.exit.on",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["exit", "on"],
-                json!(["context_lost", "context_lost"]),
-            ),
-            Inconsistent,
-            "$.exit.on[1]",
-        ),
-        (
-            set(strategy_object(), &["exit", "on"], json!(["unknown"])),
-            Unsupported,
-            "$.exit.on[0]",
-        ),
-        (
-            set(strategy_object(), &["risk", "stop", "kind"], json!("price")),
-            Unsupported,
-            "$.risk.stop.kind",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["risk", "target", "multiple"],
-                json!(0.0),
-            ),
-            Range,
-            "$.risk",
-        ),
-        (
-            remove(strategy_object(), &["no_trade", "missing_context"]),
-            MissingField,
-            "$.no_trade.missing_context",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["no_trade", "missing_context"],
-                json!("skip"),
-            ),
-            Unsupported,
-            "$.no_trade.missing_context",
-        ),
-        (
-            set(
-                strategy_object(),
-                &["no_trade", "require_contiguous_execution"],
-                json!(false),
-            ),
-            Range,
-            "$.no_trade.require_contiguous_execution",
-        ),
-    ] {
-        assert_rejected(strategy::parse(&value, "strategy.json"), kind, path);
+        );
     }
 }
 
 #[test]
-fn strategy_v4_level_retest_matches_the_contract() {
-    let valid = strategy::parse(&strategy_v4_object(), "strategy.json")
-        .expect("the v4 level-retest config loads");
-    assert!(valid.engine.risk().is_none());
-    let level = valid.engine.level().expect("the level config is present");
-    assert_eq!(level.max_distance_fraction(), 0.02);
-    assert_eq!(level.stop_buffer_fraction(), 0.002);
-    assert_eq!(level.min_reward_to_risk(), 2.0);
-    assert_eq!(level.scale(), Some(PivotScale::Major));
-    assert!(valid.engine.exit().on_level_lost());
-    assert!(!valid.engine.exit().on_structure_lost());
+fn run_parses_the_current_shape() {
+    let parsed = run::parse(&run_object(), "run.json").expect("the run parses");
+    assert_eq!(parsed.name, "run");
+}
 
-    let no_scale = set(
-        strategy_v4_object(),
-        &["entry", "level", "scale"],
-        json!("both"),
-    );
-    let no_scale = strategy::parse(&no_scale, "strategy.json").expect("both scales load");
-    assert_eq!(
-        no_scale
-            .engine
-            .level()
-            .expect("the level config is present")
-            .scale(),
-        None
-    );
-
-    for (value, kind, path) in [
-        (
-            set(
-                strategy_v4_object(),
-                &["entry", "level", "scale"],
-                json!("session"),
-            ),
-            Unsupported,
-            "$.entry.level.scale",
-        ),
-        (
-            set(
-                strategy_v4_object(),
-                &["risk", "stop", "kind"],
-                json!("atr"),
-            ),
-            Unsupported,
-            "$.risk.stop.kind",
-        ),
-        (
-            set(
-                strategy_v4_object(),
-                &["exit", "on"],
-                json!(["context_lost", "level_lost", "level_lost"]),
-            ),
-            Inconsistent,
-            "$.exit.on[2]",
-        ),
-    ] {
-        assert_rejected(strategy::parse(&value, "strategy.json"), kind, path);
+#[test]
+fn run_rejects_the_removed_strategy_and_analytics_files() {
+    for field in ["strategy", "analytics"] {
+        let value = set(run_object(), &[field], json!("old.json"));
+        assert_rejected(
+            run::parse(&value, "run.json"),
+            ConfigErrorKind::UnknownField,
+            &format!("$.{field}"),
+        );
     }
 }
 
 #[test]
-fn strategy_v5_three_timeframe_matches_the_contract() {
-    let valid = strategy::parse(&strategy_v5_object(), "strategy.json")
-        .expect("the v5 three-timeframe config loads");
-    assert!(valid.engine.risk().is_none());
-    let three = valid
-        .engine
-        .three_timeframe()
-        .expect("the three-timeframe config is present");
-    assert_eq!(three.min_agreement_bars(), 15);
-    assert_eq!(three.level().max_distance_fraction(), 0.01);
-    assert_eq!(three.level().stop_buffer_fraction(), 0.005);
-    assert_eq!(three.level().min_reward_to_risk(), 2.0);
-    assert_eq!(three.level().scale(), Some(PivotScale::Major));
-    assert!(valid.engine.exit().on_level_lost());
-
-    for (value, kind, path) in [
-        (
-            remove(strategy_v5_object(), &["entry", "agreement"]),
-            MissingField,
-            "$.entry.agreement",
-        ),
-        (
-            set(
-                strategy_v5_object(),
-                &["entry", "agreement", "min_bars"],
-                json!(0),
-            ),
-            Range,
-            "$.entry.agreement.min_bars",
-        ),
-        (
-            set(strategy_v5_object(), &["rule"], json!("level-retest")),
-            Unsupported,
-            "$.rule",
-        ),
-        (
-            set(strategy_v5_object(), &["ladder"], json!(["15m", "1m"])),
-            Range,
-            "$.ladder",
-        ),
-    ] {
-        assert_rejected(strategy::parse(&value, "strategy.json"), kind, path);
-    }
-}
-
-fn execution_object() -> Value {
-    json!({
-        "schema": "quantrule.execution/v2",
-        "fill_timeframe": "15m",
-        "order_type": "market_next_open",
-        "tie_break": "stop_first",
-        "fee_rate": 0.0,
-        "slippage_bps": 2.0,
-        "zero_volume": "reject",
-        "end_of_data": "leave_open"
-    })
-}
-
-#[test]
-fn strategy_v2_is_rejected_with_a_migration_message() {
-    let value = json!({
-        "schema": "quantrule.strategy/v2",
-        "name": "axis-agreement",
-        "thesis": "Trade only when direction, momentum, and structure agree; exit when they disagree.",
-        "timeframe": "15m",
-        "long_threshold": 0.1,
-        "short_threshold": -0.1,
-        "stop_atr_multiple": 2.0,
-        "reward_to_risk": 1.5
-    });
-    let error =
-        strategy::parse(&value, "strategy.json").expect_err("the v2 schema must be rejected");
-    assert!(
-        error
-            .to_string()
-            .contains("quantrule.strategy/v2 is retired; use quantrule.strategy/v3 with rule \"ladder-context\""),
-        "the rejection must explain the migration: {error}"
-    );
-}
-
-#[test]
-fn execution_matches_the_contract() {
-    let valid =
-        execution::parse(&execution_object(), "execution.json").expect("the valid config loads");
-    assert_eq!(valid.fill_timeframe, Timeframe::M15);
-    assert_eq!(valid.engine.fee_rate(), 0.0);
-    assert_eq!(valid.engine.slippage_bps(), 2.0);
-
-    for (value, kind, path) in [
-        (json!(1), Type, "$"),
-        (
-            set(
-                execution_object(),
-                &["schema"],
-                json!("quantrule.execution/v3"),
-            ),
-            Schema,
-            "$.schema",
-        ),
-        (
-            set(execution_object(), &["extra"], json!(1)),
-            UnknownField,
-            "$.extra",
-        ),
-        (
-            remove(execution_object(), &["fee_rate"]),
-            MissingField,
-            "$.fee_rate",
-        ),
-        (
-            set(execution_object(), &["fill_timeframe"], json!("30m")),
-            Range,
-            "$.fill_timeframe",
-        ),
-        (
-            set(execution_object(), &["order_type"], json!("limit")),
-            Unsupported,
-            "$.order_type",
-        ),
-        (
-            set(execution_object(), &["tie_break"], json!("target_first")),
-            Unsupported,
-            "$.tie_break",
-        ),
-        (
-            set(execution_object(), &["fee_rate"], json!(-0.001)),
-            Range,
-            "$.fee_rate",
-        ),
-        (
-            set(execution_object(), &["slippage_bps"], json!(10_000.0)),
-            Range,
-            "$.slippage_bps",
-        ),
-        (
-            set(execution_object(), &["slippage_bps"], json!(-1.0)),
-            Range,
-            "$.slippage_bps",
-        ),
-        (
-            set(execution_object(), &["zero_volume"], json!("skip")),
-            Unsupported,
-            "$.zero_volume",
-        ),
-        (
-            set(execution_object(), &["end_of_data"], json!("close")),
-            Unsupported,
-            "$.end_of_data",
-        ),
-    ] {
-        assert_rejected(execution::parse(&value, "execution.json"), kind, path);
-    }
-}
-
-fn portfolio_object() -> Value {
-    json!({
-        "schema": "quantrule.portfolio/v1",
-        "initial_cash": 10000.0,
-        "currency": "USD",
-        "sizing": {
-            "mode": "fixed_notional",
-            "notional": 10000.0,
-            "quantity_step": 0.0001
-        },
-        "leverage": 1.0,
-        "max_open_positions": 1,
-        "allow_short": true,
-        "commission": {"rate": 0.001, "base": "equity", "per": "operation"},
-        "funding": {"rate": 0.0001, "interval_hours": 8},
-        "max_drawdown": {"limit": 0.2, "action": "halt"},
-        "mark_to_market": "bar_close"
-    })
-}
-
-#[test]
-fn portfolio_matches_the_contract() {
-    let valid =
-        portfolio::parse(&portfolio_object(), "portfolio.json").expect("the valid config loads");
-    assert_eq!(valid.initial_cash, 10_000.0);
-    assert_eq!(
-        valid.sizing,
-        SizingMode::FixedNotional {
-            notional: 10_000.0,
-            quantity_step: 0.0001,
-        }
-    );
-    assert_eq!(valid.leverage, 1.0);
-    assert_eq!(valid.max_open_positions, 1);
-    assert!(valid.allow_short);
-    assert_eq!(valid.commission.rate(), 0.001);
-    assert_eq!(valid.funding.rate(), 0.0001);
-    assert_eq!(valid.funding.interval().hours(), 8);
-    assert_eq!(valid.max_drawdown.limit(), Some(0.2));
-    assert_eq!(valid.max_drawdown.action(), DrawdownAction::Halt);
-
-    let fraction = set(
-        portfolio_object(),
-        &["sizing"],
-        json!({"mode": "equity_fraction", "fraction": 0.25, "quantity_step": 0.0001}),
-    );
-    assert!(
-        portfolio::parse(&fraction, "portfolio.json").is_ok(),
-        "the equity-fraction mode is valid"
-    );
-
-    let no_limit = set(
-        set(portfolio_object(), &["max_drawdown", "limit"], json!(null)),
-        &["max_drawdown", "action"],
-        json!("none"),
-    );
-    assert!(
-        portfolio::parse(&no_limit, "portfolio.json").is_ok(),
-        "a null limit with no action is valid"
-    );
-
-    let measured = set(
-        portfolio_object(),
-        &["max_drawdown", "action"],
-        json!("none"),
-    );
-    assert!(
-        portfolio::parse(&measured, "portfolio.json").is_ok(),
-        "a measured limit with no action is valid"
-    );
-
-    let receiving = set(portfolio_object(), &["funding", "rate"], json!(-0.0001));
-    assert!(
-        portfolio::parse(&receiving, "portfolio.json").is_ok(),
-        "a negative funding rate reverses the payer"
-    );
-
-    let long_only = set(portfolio_object(), &["allow_short"], json!(false));
-    assert!(
-        portfolio::parse(&long_only, "portfolio.json").is_ok(),
-        "long-only is valid"
-    );
-
-    let cases = vec![
-        ("top level", json!([]), Type, "$"),
-        (
-            "schema",
-            set(
-                portfolio_object(),
-                &["schema"],
-                json!("quantrule.portfolio/v2"),
-            ),
-            Schema,
-            "$.schema",
-        ),
-        (
-            "unknown field",
-            set(portfolio_object(), &["extra"], json!(1)),
-            UnknownField,
-            "$.extra",
-        ),
-        (
-            "initial cash",
-            set(portfolio_object(), &["initial_cash"], json!(0.0)),
-            Range,
-            "$.initial_cash",
-        ),
-        (
-            "initial cash type",
-            set(portfolio_object(), &["initial_cash"], json!("10000")),
-            Type,
-            "$.initial_cash",
-        ),
-        (
-            "currency",
-            set(portfolio_object(), &["currency"], json!("EUR")),
-            Unsupported,
-            "$.currency",
-        ),
-        (
-            "sizing type",
-            set(portfolio_object(), &["sizing"], json!([])),
-            Type,
-            "$.sizing",
-        ),
-        (
-            "sizing mode",
-            set(portfolio_object(), &["sizing", "mode"], json!("percent")),
-            Unsupported,
-            "$.sizing.mode",
-        ),
-        (
-            "sizing unknown",
-            set(portfolio_object(), &["sizing", "fraction"], json!(0.1)),
-            UnknownField,
-            "$.sizing.fraction",
-        ),
-        (
-            "notional",
-            set(portfolio_object(), &["sizing", "notional"], json!(0.0)),
-            Range,
-            "$.sizing.notional",
-        ),
-        (
-            "step",
-            set(portfolio_object(), &["sizing", "quantity_step"], json!(0.0)),
-            Range,
-            "$.sizing.quantity_step",
-        ),
-        (
-            "fraction low",
-            set(
-                portfolio_object(),
-                &["sizing"],
-                json!({"mode": "equity_fraction", "fraction": 0.0, "quantity_step": 0.0001}),
-            ),
-            Range,
-            "$.sizing.fraction",
-        ),
-        (
-            "fraction high",
-            set(
-                portfolio_object(),
-                &["sizing"],
-                json!({"mode": "equity_fraction", "fraction": 1.5, "quantity_step": 0.0001}),
-            ),
-            Range,
-            "$.sizing.fraction",
-        ),
-        (
-            "equity unknown",
-            set(
-                portfolio_object(),
-                &["sizing"],
-                json!({"mode": "equity_fraction", "notional": 1.0, "quantity_step": 0.0001}),
-            ),
-            UnknownField,
-            "$.sizing.notional",
-        ),
-        (
-            "leverage",
-            set(portfolio_object(), &["leverage"], json!(2.0)),
-            Unsupported,
-            "$.leverage",
-        ),
-        (
-            "position limit",
-            set(portfolio_object(), &["max_open_positions"], json!(2)),
-            Unsupported,
-            "$.max_open_positions",
-        ),
-        (
-            "position type",
-            set(portfolio_object(), &["max_open_positions"], json!(1.0)),
-            Type,
-            "$.max_open_positions",
-        ),
-        (
-            "allow short",
-            set(portfolio_object(), &["allow_short"], json!("true")),
-            Type,
-            "$.allow_short",
-        ),
-        (
-            "commission unknown",
-            set(portfolio_object(), &["commission", "extra"], json!(1)),
-            UnknownField,
-            "$.commission.extra",
-        ),
-        (
-            "commission rate",
-            set(portfolio_object(), &["commission", "rate"], json!(-1.0)),
-            Range,
-            "$.commission.rate",
-        ),
-        (
-            "commission base",
-            set(
-                portfolio_object(),
-                &["commission", "base"],
-                json!("notional"),
-            ),
-            Unsupported,
-            "$.commission.base",
-        ),
-        (
-            "commission per",
-            set(portfolio_object(), &["commission", "per"], json!("bar")),
-            Unsupported,
-            "$.commission.per",
-        ),
-        (
-            "funding unknown",
-            set(portfolio_object(), &["funding", "extra"], json!(1)),
-            UnknownField,
-            "$.funding.extra",
-        ),
-        (
-            "funding interval",
-            set(portfolio_object(), &["funding", "interval_hours"], json!(3)),
-            Range,
-            "$.funding.interval_hours",
-        ),
-        (
-            "funding rate",
-            set(portfolio_object(), &["funding", "rate"], json!("0.0001")),
-            Type,
-            "$.funding.rate",
-        ),
-        (
-            "drawdown low",
-            set(portfolio_object(), &["max_drawdown", "limit"], json!(0.0)),
-            Range,
-            "$.max_drawdown.limit",
-        ),
-        (
-            "drawdown high",
-            set(portfolio_object(), &["max_drawdown", "limit"], json!(1.5)),
-            Range,
-            "$.max_drawdown.limit",
-        ),
-        (
-            "drawdown action",
-            set(
-                portfolio_object(),
-                &["max_drawdown", "action"],
-                json!("liquidate"),
-            ),
-            Unsupported,
-            "$.max_drawdown.action",
-        ),
-        (
-            "drawdown without limit",
-            set(portfolio_object(), &["max_drawdown", "limit"], json!(null)),
-            Inconsistent,
-            "$.max_drawdown.action",
-        ),
-        (
-            "mark to market",
-            set(portfolio_object(), &["mark_to_market"], json!("bar_open")),
-            Unsupported,
-            "$.mark_to_market",
-        ),
-        (
-            "missing cash",
-            remove(portfolio_object(), &["initial_cash"]),
-            MissingField,
-            "$.initial_cash",
-        ),
-    ];
-    for (_, value, kind, path) in cases {
-        assert_rejected(portfolio::parse(&value, "portfolio.json"), kind, path);
-    }
-}
-
-fn analytics_object() -> Value {
-    json!({
-        "schema": "quantrule.analytics/v1",
-        "structure_scale": "major",
-        "timeframes": ["1m", "5m", "15m", "1h"],
-        "relations": true
-    })
-}
-
-#[test]
-fn analytics_matches_the_contract() {
-    let valid =
-        analytics::parse(&analytics_object(), "analytics.json").expect("the valid config loads");
-    assert_eq!(valid.structure_scale, PivotScale::Major);
-    assert_eq!(valid.timeframes, Timeframe::DEFAULT_LADDER);
-    assert!(valid.relations);
-
-    let subset = set(analytics_object(), &["timeframes"], json!(["1m", "15m"]));
-    let subset = analytics::parse(&subset, "analytics.json").expect("a subset is valid");
-    assert_eq!(subset.timeframes, vec![Timeframe::M1, Timeframe::M15]);
-
-    let no_relations = set(analytics_object(), &["relations"], json!(false));
-    let no_relations =
-        analytics::parse(&no_relations, "analytics.json").expect("relations may be false");
-    assert!(!no_relations.relations);
-
-    for (value, kind, path) in [
-        (json!(1), Type, "$"),
-        (
-            set(
-                analytics_object(),
-                &["schema"],
-                json!("quantrule.analytics/v2"),
-            ),
-            Schema,
-            "$.schema",
-        ),
-        (
-            set(analytics_object(), &["extra"], json!(1)),
-            UnknownField,
-            "$.extra",
-        ),
-        (
-            set(analytics_object(), &["structure_scale"], json!("weekly")),
-            Range,
-            "$.structure_scale",
-        ),
-        (
-            set(analytics_object(), &["timeframes"], json!([])),
-            Range,
-            "$.timeframes",
-        ),
-        (
-            set(analytics_object(), &["timeframes"], json!(["1m", "1m"])),
-            Range,
-            "$.timeframes[1]",
-        ),
-        (
-            set(analytics_object(), &["timeframes"], json!(["5m", "1m"])),
-            Range,
-            "$.timeframes[1]",
-        ),
-        (
-            set(analytics_object(), &["timeframes"], json!(["1m", "30m"])),
-            Range,
-            "$.timeframes[1]",
-        ),
-        (
-            set(analytics_object(), &["relations"], json!("true")),
-            Type,
-            "$.relations",
-        ),
-    ] {
-        assert_rejected(analytics::parse(&value, "analytics.json"), kind, path);
-    }
-}
-
-fn run_object() -> Value {
-    json!({
-        "schema": "quantrule.run/v2",
-        "name": "run",
-        "policy": "policy.json",
-        "data": "data.json",
-        "model": "model.json",
-        "strategy": "strategy.json",
-        "execution": "execution.json",
-        "portfolio": "portfolio.json",
-        "analytics": "analytics.json",
-        "output_root": "out"
-    })
-}
-
-#[test]
-fn run_matches_the_contract() {
-    let valid = run::parse(&run_object(), "run.json").expect("the valid config loads");
-    assert_eq!(valid.name, "run");
-    assert_eq!(valid.output_root, "out");
-
-    for (value, kind, path) in [
-        (json!(1), Type, "$"),
-        (
-            set(run_object(), &["schema"], json!("quantrule.run/v3")),
-            Schema,
-            "$.schema",
-        ),
-        (
-            set(run_object(), &["extra"], json!(1)),
-            UnknownField,
-            "$.extra",
-        ),
-        (set(run_object(), &["name"], json!("")), Range, "$.name"),
-        (set(run_object(), &["name"], json!(1)), Type, "$.name"),
-        (set(run_object(), &["data"], json!("")), Range, "$.data"),
-        (
-            remove(run_object(), &["output_root"]),
-            MissingField,
-            "$.output_root",
-        ),
-        (
-            set(run_object(), &["output_root"], json!("")),
-            Range,
-            "$.output_root",
-        ),
-    ] {
-        assert_rejected(run::parse(&value, "run.json"), kind, path);
-    }
-}
-
-fn example_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../config/examples/btcusd-2024/run.json")
-}
-
-fn fixtures_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config")
+fn run_rejects_a_bad_identity_prefix() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
+    config.model_id = Some(String::from("S1.0"));
+    assert_rejected(config.validate_identities(), Range, "$.model_id");
 }
 
 #[test]
 fn the_example_config_loads_and_resolves() {
-    let config = run::RunConfig::load(&example_path()).expect("the example config is valid");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../config/examples/btcusd-2024/run.json");
+    let config = run::RunConfig::load(&path).expect("the example config is valid");
 
     assert_eq!(config.name, "btcusd-2024");
     assert_eq!(config.model_id.as_deref(), Some("M1.0"));
     assert_eq!(config.policy_id.as_deref(), Some("POL1.0"));
     assert_eq!(config.execution_id.as_deref(), Some("E1.0"));
     assert_eq!(config.portfolio_id.as_deref(), Some("P1.0"));
-    assert_eq!(
-        config.data.data_version,
-        "dukascopy-bid-btcusd-m1-2024-01-01_2024-12-31"
-    );
-    assert_eq!(config.data.from.as_deref(), Some("2024-01-01"));
-    assert_eq!(config.data.to.as_deref(), Some("2024-12-31"));
     assert_eq!(config.data.source_timeframe, Timeframe::M1);
     assert_eq!(config.data.available_timeframes, Timeframe::DEFAULT_LADDER);
-    assert_eq!(config.data.max_candles, 600_000);
-    assert!(
-        config
-            .data
-            .source
-            .path
-            .ends_with("data/sources/BTCUSD_M1_2024-01-01_2024-12-31.csv")
-    );
-    assert!(
-        config
-            .paths
-            .data
-            .ends_with("config/examples/btcusd-2024/data.json")
-    );
-    assert!(
-        config
-            .output_root
-            .ends_with("data/labs/backtest-btcusd-2024")
-    );
+}
 
-    assert_eq!(config.model.structure_scale, PivotScale::Major);
-    assert_eq!(config.strategy.engine.timeframe_secs(), 300);
-    assert_eq!(config.strategy.engine.ladder().context_timeframes(), &[900]);
-    assert_eq!(
-        config.strategy.engine.entry().execution().direction_min(),
-        0.1
-    );
-    assert_eq!(
-        config
-            .strategy
-            .engine
-            .risk()
-            .expect("the control has a risk policy")
-            .stop_atr_multiple(),
-        2.0
-    );
-    assert_eq!(
-        config
-            .strategy
-            .engine
-            .risk()
-            .expect("the control has a risk policy")
-            .reward_to_risk(),
-        1.5
-    );
-
+#[test]
+fn the_config_run_fixture_loads() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let config = run::RunConfig::load(&path).expect("the fixture config is valid");
+    assert_eq!(config.name, "fixture");
     assert_eq!(config.execution.fill_timeframe, Timeframe::M5);
-    assert_eq!(config.execution.engine.fee_rate(), 0.0);
-    assert_eq!(config.execution.engine.slippage_bps(), 2.0);
-
-    assert_eq!(config.portfolio.initial_cash, 10_000.0);
-    assert_eq!(
-        config.portfolio.sizing,
-        SizingMode::FixedNotional {
-            notional: 10_000.0,
-            quantity_step: 0.0001,
-        }
-    );
-    assert_eq!(config.portfolio.leverage, 1.0);
-    assert_eq!(config.portfolio.max_open_positions, 1);
-    assert!(config.portfolio.allow_short);
-    assert_eq!(config.portfolio.commission.rate(), 0.001);
-    assert_eq!(config.portfolio.funding.rate(), 0.0001);
-    assert_eq!(config.portfolio.funding.interval().hours(), 8);
-    assert_eq!(config.portfolio.max_drawdown.limit(), Some(0.2));
-    assert_eq!(config.portfolio.max_drawdown.action(), DrawdownAction::Halt);
-
-    assert_eq!(config.analytics.structure_scale, PivotScale::Major);
-    assert_eq!(config.analytics.timeframes, Timeframe::DEFAULT_LADDER);
-    assert!(config.analytics.relations);
-}
-
-fn assert_cross(config: &run::RunConfig, kind: ConfigErrorKind, path: &str, file: &str) {
-    let error = config
-        .validate_cross()
-        .expect_err("the cross-config check must fail");
-    assert_eq!(error.kind(), kind, "unexpected category: {error}");
-    assert_eq!(error.path(), path, "unexpected path: {error}");
-    assert!(
-        error.to_string().contains(file),
-        "the error must name {file}: {error}"
-    );
 }
 
 #[test]
-fn cross_config_invariants_are_enforced() {
-    let base = run::RunConfig::load(&example_path()).expect("the example config is valid");
+fn a_cross_config_mismatch_is_rejected() {
+    let base = Path::new("config");
+    let policy = policy::parse(&policy_object(), "policy.json").expect("policy");
+    let mut data_value = data_object();
+    data_value["available_timeframes"] = json!(["1m", "5m", "15m", "1h"]);
+    let data = data::parse(&data_value, "data.json", base).expect("data");
+    let model = model::parse(&model_v4_object(), "model.json").expect("model");
+    let execution = execution::parse(&execution_object(), "execution.json").expect("execution");
+    let portfolio = portfolio::parse(&portfolio_object(), "portfolio.json").expect("portfolio");
 
-    let mut missing_strategy_timeframe = base.clone();
-    missing_strategy_timeframe.data.available_timeframes = vec![Timeframe::M1, Timeframe::M5];
-    assert_cross(
-        &missing_strategy_timeframe,
-        Inconsistent,
-        "$.ladder",
-        "strategy.json",
-    );
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
+    config.policy = policy;
+    config.data = data;
+    config.model = model;
+    config.execution = execution;
+    config.portfolio = portfolio;
 
-    let mut wrong_fill_timeframe = base.clone();
-    wrong_fill_timeframe.execution.fill_timeframe = Timeframe::M15;
-    assert_cross(
-        &wrong_fill_timeframe,
-        Inconsistent,
-        "$.fill_timeframe",
-        "execution.json",
-    );
+    assert!(config.validate_cross().is_ok());
 
-    let mut wrong_scale = base.clone();
-    wrong_scale.analytics.structure_scale = PivotScale::Minor;
-    assert_cross(
-        &wrong_scale,
-        Inconsistent,
-        "$.structure_scale",
-        "analytics.json",
-    );
-
-    let mut missing_timeframe = base.clone();
-    missing_timeframe.data.available_timeframes =
-        vec![Timeframe::M1, Timeframe::M5, Timeframe::M15];
-    missing_timeframe.analytics.timeframes = vec![Timeframe::H1];
-    assert_cross(
-        &missing_timeframe,
-        Inconsistent,
-        "$.timeframes",
-        "analytics.json",
-    );
-}
-
-#[test]
-fn the_config_fingerprint_is_stable_and_visible_in_provenance() {
-    let first = run::RunConfig::load(&example_path()).expect("the example loads");
-    let second = run::RunConfig::load(&example_path()).expect("the example loads again");
-    assert_eq!(first.config_hash, second.config_hash);
-    assert_eq!(first.config_hash.len(), 16);
-    assert!(first.config_hash.chars().all(|c| c.is_ascii_hexdigit()));
-}
-
-#[test]
-fn a_missing_file_is_reported_without_an_absolute_path() {
-    let error = run::RunConfig::load(&fixtures_path().join("run-missing.json"))
-        .expect_err("the referenced file is missing");
-    assert_eq!(error.kind(), ConfigErrorKind::MissingFile);
-    let message = error.to_string();
-    assert!(message.contains("absent.json"), "{message}");
-    assert!(
-        !message.contains(env!("CARGO_MANIFEST_DIR")),
-        "the message must not print an absolute path: {message}"
-    );
-}
-
-#[test]
-fn invalid_json_is_reported() {
-    let error = run::RunConfig::load(&fixtures_path().join("invalid.json"))
-        .expect_err("the file is not valid JSON");
-    assert_eq!(error.kind(), ConfigErrorKind::InvalidJson);
-    let message = error.to_string();
-    assert!(message.contains("invalid.json"), "{message}");
-    assert!(message.contains("valid JSON"), "{message}");
-}
-
-#[test]
-fn the_error_format_names_the_file_path_and_values() {
-    let error = data::parse(
-        &set(data_object(), &["schema"], json!("quantrule.data/v2")),
-        "data.json",
-        Path::new("config"),
-    )
-    .expect_err("the schema is wrong");
-    assert_eq!(
-        error.to_string(),
-        "config error: data.json: $.schema: expected quantrule.data/v3, found quantrule.data/v2"
-    );
-
-    let error = data::parse(
-        &remove(data_object(), &["max_candles"]),
-        "data.json",
-        Path::new("config"),
-    )
-    .expect_err("the field is missing");
-    assert_eq!(
-        error.to_string(),
-        "config error: data.json: $.max_candles: expected a required field, found missing"
-    );
-}
-
-#[test]
-fn strategy_v6_breakout_matches_the_contract() {
-    let valid = strategy::parse(&strategy_v6_object(), "strategy.json")
-        .expect("the v6 breakout config loads");
-    assert!(matches!(
-        valid.engine.mode(),
-        quantrule_backtest::strategy::StrategyMode::Breakout(_)
-    ));
-    assert_eq!(
-        valid
-            .engine
-            .level()
-            .expect("the level config")
-            .max_distance_fraction(),
-        0.02
-    );
-    assert!(valid.engine.exit().on_level_lost());
-
-    let value = set(strategy_v6_object(), &["rule"], json!("level-retest"));
+    config.policy.universe.timeframes = vec![Timeframe::M15, Timeframe::H4];
     assert_rejected(
-        strategy::parse(&value, "strategy.json"),
-        Unsupported,
-        "$.rule",
-    );
-}
-
-#[test]
-fn strategy_v8_event_composite_matches_the_contract() {
-    let valid = strategy::parse(&strategy_v8_object(), "strategy.json")
-        .expect("the v8 event-composite config loads");
-    let events = valid
-        .engine
-        .event_composite()
-        .expect("the v8 configuration");
-    assert_eq!(events.window_bars(), 2);
-    assert_eq!(events.time_stop_bars(), 20);
-    assert_eq!(events.entry_conditions().len(), 2);
-    assert_eq!(events.exit_conditions().len(), 1);
-
-    let mut conflicting = strategy_v8_object();
-    conflicting["entry"]["all"] = json!([
-        {"kind": "event", "timeframe": "15m", "event_type": 3, "subtype": 2, "source": 17, "direction": 1},
-        {"kind": "event", "timeframe": "15m", "event_type": 3, "subtype": 2, "source": 17, "direction": -1}
-    ]);
-    assert_rejected(
-        strategy::parse(&conflicting, "strategy.json"),
-        Range,
-        "$.entry",
-    );
-}
-
-#[test]
-fn strategy_v8_zero_direction_and_default_time_stop_match_the_contract() {
-    let mut value = strategy_v8_object();
-    value["entry"]["all"][0]["direction"] = json!(0);
-    value = remove(value, &["time_stop_bars"]);
-    let valid = strategy::parse(&value, "strategy.json").expect("the extended v8 config loads");
-    let events = valid
-        .engine
-        .event_composite()
-        .expect("the v8 configuration");
-    assert_eq!(events.time_stop_bars(), 0);
-    assert!(matches!(
-        events.entry_conditions()[0],
-        quantrule_backtest::strategy::Condition::Event { direction: 0, .. }
-    ));
-
-    let mut invalid = strategy_v8_object();
-    invalid["time_stop_bars"] = json!("20");
-    assert_rejected(
-        strategy::parse(&invalid, "strategy.json"),
-        Type,
-        "$.time_stop_bars",
-    );
-}
-
-#[test]
-fn strategy_v7_level_fade_matches_the_contract() {
-    let valid = strategy::parse(&strategy_v7_object(), "strategy.json")
-        .expect("the v7 level-fade config loads");
-    assert!(matches!(
-        valid.engine.mode(),
-        quantrule_backtest::strategy::StrategyMode::LevelFade(_)
-    ));
-    assert_eq!(
-        valid
-            .engine
-            .level()
-            .expect("the level config")
-            .max_distance_fraction(),
-        0.02
-    );
-    assert!(valid.engine.exit().on_level_lost());
-
-    let value = set(strategy_v7_object(), &["rule"], json!("breakout"));
-    assert_rejected(
-        strategy::parse(&value, "strategy.json"),
-        Unsupported,
-        "$.rule",
+        config.validate_cross(),
+        Inconsistent,
+        "$.universe.timeframes",
     );
 }

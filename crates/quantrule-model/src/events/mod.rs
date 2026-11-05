@@ -2,7 +2,7 @@
 //!
 //! The contract defines three event types — Level, Divergence, and Signal — that
 //! share one numeric record. An event is appended once, when it becomes
-//! knowable, and it never alters an axis value. The record carries the type, the
+//! knowable, and it never alters a reading. The record carries the type, the
 //! subtype, the source, the timeframe, the occurrence and availability bars, the
 //! direction, the reference, and the measured values.
 //!
@@ -17,7 +17,6 @@ pub mod divergence;
 pub mod dmi;
 pub mod extended;
 pub mod level;
-pub(crate) mod order;
 pub mod panel;
 pub mod session;
 pub mod signal;
@@ -97,25 +96,4 @@ pub struct EventRecord {
     pub primary_value: Option<f64>,
     /// The compared level or value, when applicable.
     pub reference_value: Option<f64>,
-}
-
-/// Whether an event belongs to the legacy axis-report domain.
-///
-/// The v3-only ADX/DI and trend-continuation families are published in the flat
-/// report and the CSV artifacts. The legacy axis report, dashboard, and
-/// cross-timeframe event aggregates keep their historical domain so their
-/// independent fixtures remain stable regression guards.
-#[must_use]
-pub(crate) fn is_legacy_axis_event(event: &EventRecord) -> bool {
-    !(event.source_code >= 19
-        || (event.event_type == EventType::Signal
-            && (event.event_subtype_code == 6
-                || event.event_subtype_code
-                    == crate::events::signal::SignalSubtype::CompressionBreakout.code()
-                || event.event_subtype_code
-                    == crate::events::signal::SignalSubtype::CompressionRange.code()
-                || event.event_subtype_code
-                    == crate::events::signal::SignalSubtype::CompressionRangeOnset.code()
-                || event.source_code == crate::events::dmi::DI_PLUS_SOURCE_CODE
-                || event.source_code == crate::events::dmi::DI_MINUS_SOURCE_CODE)))
 }

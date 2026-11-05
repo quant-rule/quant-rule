@@ -2,7 +2,7 @@
 //!
 //! The command loads the run configuration. The loader validates the policy and
 //! every cross-config rule, so this command is the human-visible proof that the
-//! policy envelope, strategy, execution, portfolio, and universe agree.
+//! policy envelope, data ladder, model, execution, and portfolio agree.
 
 use std::io::Write;
 use std::path::Path;
@@ -87,62 +87,17 @@ pub(crate) fn run_policy_check(
         .map(|timeframe| timeframe.code())
         .collect::<Vec<_>>()
         .join(",");
+    let ladder = config
+        .data
+        .available_timeframes
+        .iter()
+        .map(|timeframe| timeframe.code())
+        .collect::<Vec<_>>()
+        .join(",");
     let tickets = config.policy.universe.tickets.join(",");
-    let (strategy_name, risk) = match config.strategy.engine.mode() {
-        quantrule_backtest::strategy::StrategyMode::ThreeTimeframe(three) => (
-            "three-timeframe",
-            format!(
-                "stop_level_buffer={} target_next_level min_reward_to_risk={} agreement_bars={}",
-                three.level().stop_buffer_fraction(),
-                three.level().min_reward_to_risk(),
-                three.min_agreement_bars()
-            ),
-        ),
-        quantrule_backtest::strategy::StrategyMode::Breakout(breakout) => (
-            "breakout",
-            format!(
-                "stop_level_buffer={} target_next_level min_reward_to_risk={}",
-                breakout.stop_buffer_fraction(),
-                breakout.min_reward_to_risk()
-            ),
-        ),
-        quantrule_backtest::strategy::StrategyMode::LevelFade(fade) => (
-            "level-fade",
-            format!(
-                "stop_level_buffer={} target_next_level min_reward_to_risk={}",
-                fade.stop_buffer_fraction(),
-                fade.min_reward_to_risk()
-            ),
-        ),
-        quantrule_backtest::strategy::StrategyMode::LevelRetest(level) => (
-            "level-retest",
-            format!(
-                "stop_level_buffer={} target_next_level min_reward_to_risk={}",
-                level.stop_buffer_fraction(),
-                level.min_reward_to_risk()
-            ),
-        ),
-        quantrule_backtest::strategy::StrategyMode::LadderContext
-        | quantrule_backtest::strategy::StrategyMode::EventComposite(_) => {
-            let risk = config.strategy.engine.risk().unwrap_or_default();
-            (
-                match config.strategy.engine.mode() {
-                    quantrule_backtest::strategy::StrategyMode::EventComposite(_) => {
-                        "event-composite"
-                    }
-                    _ => "ladder-context",
-                },
-                format!(
-                    "stop_atr={} reward_to_risk={}",
-                    risk.stop_atr_multiple(),
-                    risk.reward_to_risk()
-                ),
-            )
-        }
-    };
     writeln!(
         writer,
-        "policy ok run={} account={} {} target={} {}d max_drawdown={} risk={} leverage={} positions={} tickets={} timeframes={} strategy={} execution={} ladder={} {}",
+        "policy ok run={} account={} {} target={} {}d max_drawdown={} risk={} leverage={} positions={} tickets={} timeframes={} model={} model_ladder={} execution={}",
         config.name,
         config.policy.account.currency,
         config.policy.account.initial_cash,
@@ -154,25 +109,12 @@ pub(crate) fn run_policy_check(
         config.policy.risk.max_open_positions,
         tickets,
         timeframes,
-        strategy_name,
-        labels::timeframe_label(config.strategy.engine.timeframe_secs()),
-        ladder_label(&config),
-        risk,
+        config.model_id.as_deref().unwrap_or("-"),
+        ladder,
+        labels::timeframe_label(u64::from(config.execution.fill_timeframe.seconds())),
     )
     .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
-}
-
-fn ladder_label(config: &RunConfig) -> String {
-    let mut parts =
-        Vec::with_capacity(config.strategy.engine.ladder().context_timeframes().len() + 1);
-    parts.push(labels::timeframe_label(
-        config.strategy.engine.timeframe_secs(),
-    ));
-    for seconds in config.strategy.engine.ladder().context_timeframes() {
-        parts.push(labels::timeframe_label(*seconds));
-    }
-    parts.join(",")
 }
 
 #[cfg(test)]

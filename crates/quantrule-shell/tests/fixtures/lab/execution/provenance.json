@@ -1,8 +1,0 @@
-{
-  "schema": "quantrule.provenance/v1",
-  "report": "execution",
-  "report_version": "2026-10-28",
-  "data_version": "test:v1",
-  "config_hash": "c7cbbb812daf8957",
-  "model_version": "0.3.0"
-}
