@@ -376,21 +376,35 @@ mod tests {
 
     #[test]
     fn panel_signals_cross_their_thresholds() {
-        let btc: Vec<Candle> = (0..60)
+        let btc: Vec<Candle> = (0..100)
             .map(|index| {
                 let close = if index < 30 {
                     100.0 + index as f64
                 } else {
-                    130.0 - (index - 30) as f64 * 2.0
+                    130.0 - (index - 30) as f64 * 0.5
                 };
                 candle(index, close)
             })
             .collect();
-        let eth: Vec<Candle> = (0..60)
-            .map(|index| candle(index, 100.0 + index as f64 * 0.5))
+        let eth: Vec<Candle> = (0..100)
+            .map(|index| {
+                let close = if index < 30 {
+                    100.0 + index as f64
+                } else {
+                    130.0 + (index - 30) as f64
+                };
+                candle(index, close)
+            })
             .collect();
-        let xau: Vec<Candle> = (0..60)
-            .map(|index| candle(index, 100.0 + index as f64 * 0.2))
+        let xau: Vec<Candle> = (0..100)
+            .map(|index| {
+                let close = if index < 30 {
+                    100.0 + index as f64
+                } else {
+                    130.0 + (index - 30) as f64 * 0.2
+                };
+                candle(index, close)
+            })
             .collect();
         let panel = [
             PanelInstrument {
@@ -417,6 +431,16 @@ mod tests {
         assert!(btc_events.iter().any(|event| event.source_code == 45
             && event.event_type == EventType::Signal
             && event.direction_code == -1));
+        assert!(
+            btc_events
+                .iter()
+                .any(|event| event.source_code == 48 && event.event_type == EventType::Signal)
+        );
+        assert!(
+            btc_events
+                .iter()
+                .any(|event| event.source_code == 49 && event.event_type == EventType::Signal)
+        );
         assert!(
             btc_events
                 .iter()
