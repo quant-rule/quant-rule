@@ -30,6 +30,7 @@ pub mod report;
 pub mod retention;
 pub mod run;
 pub mod sessions;
+pub mod spec;
 pub mod state;
 pub mod timeframe;
 

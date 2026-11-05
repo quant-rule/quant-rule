@@ -473,6 +473,25 @@ impl TimeframeModel {
         &self.open_times
     }
 
+    /// The v3 discrete states at `bar`, or `None` when out of range.
+    ///
+    /// This is the cheap accessor for a consumer that reads a state without
+    /// assembling the complete model bar.
+    #[must_use]
+    pub fn states_at(&self, bar: usize) -> Option<ModelStates> {
+        if bar >= self.candles.len() {
+            return None;
+        }
+        Some(model_states(
+            &self.readings,
+            &self.macd,
+            &self.adx,
+            bar,
+            self.adx_threshold,
+            self.adx_slope_bars,
+        ))
+    }
+
     /// The complete model bar at `bar`, or `None` when out of range.
     #[must_use]
     pub fn bar(&self, bar: usize) -> Option<ModelBar> {
