@@ -30,6 +30,8 @@ docs/registry/
   validation.json    one validation claim per active indicator and event
   indicators.md      generated human-readable table
   history.md         current-vs-history boundary and deletion inventory
+  deletion-manifest.md   file-by-file P0.1 deletion boundary
+  deletion-manifest.tsv  exact path list for P0.1
 ```
 
 `indicators.json` is the source of truth. `indicators.md` is generated from it
