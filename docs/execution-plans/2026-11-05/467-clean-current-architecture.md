@@ -2,9 +2,9 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#467](https://github.com/quant-rule/quant-rule/issues/467)
-- Status: **In progress**; P0.1–P6 merged; P7 verification and closeout
-  implemented in [`475-verify-closeout.md`](475-verify-closeout.md). P8 remains
-  gated by the decisions in section 5 and by human approval of the M3.x charter.
+- Status: **In progress**; P0.1–P7 merged; P8a charter proposed in
+  [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md) and awaiting human
+  approval. P8b is not authorized.
 - Claim type: repository cutover and model-boundary change
 - Predecessor: [`468-legacy-inventory.md`](468-legacy-inventory.md)
 - History index: [`docs/registry/history.md`](../../registry/history.md)
@@ -188,7 +188,9 @@ tests, configs, or architecture docs; history remains.
 
 - P8a: draft the M3.x charter with a new premise, finite hypotheses, exact
   configs, partitions, costs, green criteria, correction, iteration cap, and
-  stop rule.
+  stop rule. The proposed charter is
+  [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md); it is **Proposed**
+  and awaits the human decision.
 - P8b: run only after the human approves the charter.
 
 Acceptance: the charter is approved before the first run; validation remains
@@ -284,4 +286,11 @@ deletion.
   legacy scan rejects architecture identifiers without the `docs/config`
   exemption, and the M2 `no_edge` closeout is verified. See
   [`475-verify-closeout.md`](475-verify-closeout.md).
-- P8: not started; the M3.x charter requires human approval before any run.
+- P8a: the M3.x charter is proposed in
+  [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md). The premise is
+  state-conditioned event edge; the charter has 10 exploratory area cells, 5
+  primary state cells, a count-only timeframe switch, a volume-admissibility
+  rule, and the full correction/stop protocol. No programme, config, or run is
+  created. See [`476-m3-charter.md`](476-m3-charter.md).
+- P8b: not started; it requires the human charter approval and a separate
+  authorization to build and run.
