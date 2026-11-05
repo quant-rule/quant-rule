@@ -15,7 +15,7 @@
 use crate::events::EventRecord;
 use crate::events::EventType;
 use crate::events::codes;
-use crate::events::extended::{cross_down_value, cross_up_value, push};
+use crate::events::extended::push;
 use crate::readings::Readings;
 use crate::sessions::{SessionConfig, SessionReadings};
 use quantrule_data::Candle;
@@ -58,6 +58,7 @@ impl SessionEventSeries {
         timeframe_secs: u64,
     ) -> Self {
         let mut events = Vec::new();
+        let mut last_inside_range: Option<f64> = None;
         for bar in 0..candles.len() {
             let inside = in_session(sessions, bar);
             let previous_inside = bar > 0 && in_session(sessions, bar - 1);
@@ -122,38 +123,46 @@ impl SessionEventSeries {
             if inside && sessions.session_age.get(bar) == Some(0.0) {
                 overnight_events(sessions, timeframe_secs, bar, &mut events);
             }
-            if inside && previous_inside {
-                if cross_up_value(&sessions.session_range_atr, bar, SESSION_RANGE_EXPANSION) {
-                    push(
-                        &mut events,
-                        codes::SIGNAL_SESSION_RANGE_EXPANSION,
-                        EventType::Signal,
-                        SESSION_SIGNAL_SUBTYPE,
-                        SESSION_RANGE_SOURCE_CODE,
-                        timeframe_secs,
-                        bar,
-                        1,
-                        sessions.session_range_atr.get(bar),
-                        Some(SESSION_RANGE_EXPANSION),
-                    );
-                } else if cross_down_value(
-                    &sessions.session_range_atr,
-                    bar,
-                    SESSION_RANGE_CONTRACTION,
-                ) {
-                    push(
-                        &mut events,
-                        codes::SIGNAL_SESSION_RANGE_CONTRACTION,
-                        EventType::Signal,
-                        SESSION_SIGNAL_SUBTYPE,
-                        SESSION_RANGE_SOURCE_CODE,
-                        timeframe_secs,
-                        bar,
-                        -1,
-                        sessions.session_range_atr.get(bar),
-                        Some(SESSION_RANGE_CONTRACTION),
-                    );
+            if inside {
+                let previous_range = if previous_inside {
+                    sessions.session_range_atr.get(bar - 1)
+                } else {
+                    last_inside_range
+                };
+                if let (Some(current), Some(previous)) =
+                    (sessions.session_range_atr.get(bar), previous_range)
+                {
+                    if current > SESSION_RANGE_EXPANSION && previous <= SESSION_RANGE_EXPANSION {
+                        push(
+                            &mut events,
+                            codes::SIGNAL_SESSION_RANGE_EXPANSION,
+                            EventType::Signal,
+                            SESSION_SIGNAL_SUBTYPE,
+                            SESSION_RANGE_SOURCE_CODE,
+                            timeframe_secs,
+                            bar,
+                            1,
+                            Some(current),
+                            Some(SESSION_RANGE_EXPANSION),
+                        );
+                    } else if current < SESSION_RANGE_CONTRACTION
+                        && previous >= SESSION_RANGE_CONTRACTION
+                    {
+                        push(
+                            &mut events,
+                            codes::SIGNAL_SESSION_RANGE_CONTRACTION,
+                            EventType::Signal,
+                            SESSION_SIGNAL_SUBTYPE,
+                            SESSION_RANGE_SOURCE_CODE,
+                            timeframe_secs,
+                            bar,
+                            -1,
+                            Some(current),
+                            Some(SESSION_RANGE_CONTRACTION),
+                        );
+                    }
                 }
+                last_inside_range = sessions.session_range_atr.get(bar);
             }
         }
         events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
@@ -564,5 +573,86 @@ mod tests {
     fn repeated_session_event_computation_is_identical() {
         let candles = series(3);
         assert_eq!(events(&candles), events(&candles));
+    }
+
+    #[test]
+    fn session_fade_and_range_events_are_exercised() {
+        let mut candles = series(2);
+        let opening_low = candles[8].low().min(candles[9].low());
+        let timestamp = candles[11].timestamp();
+        candles[11] = Candle::new(
+            11,
+            timestamp,
+            opening_low + 0.5,
+            opening_low + 1.0,
+            opening_low - 2.0,
+            opening_low - 1.0,
+            Some(10.0),
+        )
+        .expect("the fade candle is valid");
+        let faded = events(&candles);
+        assert!(
+            faded
+                .events()
+                .iter()
+                .any(|event| event.event_code == crate::events::codes::SIGNAL_OPENING_RANGE_FADE)
+        );
+
+        let previous_close = candles[31].close();
+        let timestamp = candles[32].timestamp();
+        candles[32] = Candle::new(
+            32,
+            timestamp,
+            previous_close + 5.0,
+            previous_close + 6.0,
+            previous_close + 1.0,
+            previous_close + 2.0,
+            Some(10.0),
+        )
+        .expect("the overnight-fade candle is valid");
+        let first = events(&candles);
+        assert!(
+            first
+                .events()
+                .iter()
+                .any(|event| event.event_code == crate::events::codes::SIGNAL_OVERNIGHT_FADE)
+        );
+
+        let base = candles[32].close();
+        for (bar, candle) in candles.iter_mut().enumerate().take(34).skip(32) {
+            let timestamp = candle.timestamp();
+            *candle = Candle::new(
+                bar as u64,
+                timestamp,
+                base,
+                base + 0.2,
+                base - 0.2,
+                base,
+                Some(10.0),
+            )
+            .expect("the narrow candle is valid");
+        }
+        let timestamp = candles[34].timestamp();
+        candles[34] = Candle::new(
+            34,
+            timestamp,
+            base,
+            base + 10.0,
+            base - 10.0,
+            base,
+            Some(10.0),
+        )
+        .expect("the wide candle is valid");
+        let expanded = events(&candles);
+        assert!(
+            expanded
+                .events()
+                .iter()
+                .any(|event| event.event_code
+                    == crate::events::codes::SIGNAL_SESSION_RANGE_EXPANSION)
+        );
+        assert!(expanded.events().iter().any(
+            |event| event.event_code == crate::events::codes::SIGNAL_SESSION_RANGE_CONTRACTION
+        ));
     }
 }
