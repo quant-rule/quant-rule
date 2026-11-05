@@ -18,12 +18,10 @@ only the standard library.
 |---|---|
 | `crates/quantrule-model/tests/fixtures/progression_golden.csv` | Every per-bar Progression value and both per-scale leg records. |
 | `crates/quantrule-model/tests/fixtures/progression_legs_golden.csv` | The retained-leg ledger in creation order. |
-| `crates/quantrule-model/tests/fixtures/dashboard_readings_golden.csv` | The Progression rows (`axis_code 4`); the other axes are preserved byte for byte. |
-| `crates/quantrule-model/tests/fixtures/market_report_golden.txt` | The Progression axis statistics, latest state, published-leg line, and chart `stage` fields; every other line is preserved byte for byte. |
 
 The ledger has no comment header, so its file stays byte-identical to its
-pre-#197 form. The three fixtures that carry a header name this oracle and its
-input.
+pre-#197 form. The per-bar fixture carries a header that names this oracle and
+its input.
 
 ## Check and write
 

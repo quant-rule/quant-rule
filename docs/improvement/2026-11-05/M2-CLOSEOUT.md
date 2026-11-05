@@ -115,4 +115,5 @@ condition of the `no_edge` closeout.
 | #405 indicator platform | Closed and Done |
 | #463 legacy removal | Delivered in #463 |
 
-The next gate is the #463 pull request. P5-F1 is fixed by `EVENT-IDENTITY-REMEDIATION.md`; no open finding remains in this closeout.
+The next gate is the M3.x charter (P8a). P5-F1 is fixed by
+`EVENT-IDENTITY-REMEDIATION.md`; no open finding remains in this closeout.
