@@ -377,4 +377,63 @@ mod tests {
         assert!(readings.session_range_atr.get(3).is_none());
         assert_eq!(readings.calendar_bucket.get(0), Some(101.0));
     }
+
+    fn two_day_series() -> Vec<Candle> {
+        let mut candles = Vec::new();
+        let mut previous: f64 = 100.0;
+        for index in 0..48 {
+            let close = 100.0 + index as f64 * 0.5;
+            let open = previous;
+            let high = open.max(close) + 0.5;
+            let low = open.min(close) - 0.5;
+            candles.push(candle(
+                index,
+                timestamp(2024, 1, 15, 0) + index as i64 * 3_600,
+                open,
+                high,
+                low,
+                close,
+            ));
+            previous = close;
+        }
+        candles
+    }
+
+    #[test]
+    fn overnight_and_intraday_returns_read_the_session() {
+        let candles = two_day_series();
+        let readings = Readings::compute_with_config(&candles, &ReadingsConfig::DEFAULT);
+        let sessions = SessionReadings::compute(&candles, &readings, &SessionConfig::london());
+        let overnight = sessions
+            .overnight_return
+            .get(32)
+            .expect("day two overnight return");
+        assert!(overnight > 0.0, "overnight {overnight}");
+        let intraday = sessions
+            .intraday_return
+            .get(39)
+            .expect("day two intraday return");
+        let atr = readings.atr14.get(39).expect("ATR at the session close");
+        let expected = (candles[39].close() - candles[32].open()) / atr;
+        assert!((intraday - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn session_range_reads_the_session_high_low() {
+        let candles = two_day_series();
+        let readings = Readings::compute_with_config(&candles, &ReadingsConfig::DEFAULT);
+        let sessions = SessionReadings::compute(&candles, &readings, &SessionConfig::london());
+        let value = sessions
+            .session_range_atr
+            .get(39)
+            .expect("day two session range");
+        let high = (32..=39)
+            .map(|bar| candles[bar].high())
+            .fold(f64::NEG_INFINITY, f64::max);
+        let low = (32..=39)
+            .map(|bar| candles[bar].low())
+            .fold(f64::INFINITY, f64::min);
+        let atr = readings.atr14.get(39).expect("ATR at the session close");
+        assert!((value - (high - low) / atr).abs() < 1e-9);
+    }
 }

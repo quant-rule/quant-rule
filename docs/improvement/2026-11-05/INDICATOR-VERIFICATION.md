@@ -177,43 +177,43 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 
 | # | Indicator | F | C | D | G | E | A | N | P | M | Cmd | Sign |
 |---:|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | vwap | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☑ | ☐ | ☑ | cargo test vwap_is_the_volume_weighted_typical_price | ☐ |
-| 2 | volume_profile | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☑ | ☐ | ☑ | cargo test profile_poc_is_the_highest_volume_bin | ☐ |
-| 3 | rvol (extended) | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test rvol_reads_the_volume_ratio | ☐ |
-| 4 | volume_climax | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test climax_flags_a_high_volume_wide_bar | ☐ |
-| 5 | absorption | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test absorption_flags_a_small_range_near_vwap | ☐ |
-| 6 | volume_oscillator | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
-| 7 | obv | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test obv_accumulates_signed_volume | ☐ |
-| 8 | cmf | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test cmf_is_one_when_every_close_is_the_high | ☐ |
-| 9 | mfi | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test mfi_is_one_hundred_when_every_bar_rises | ☐ |
-| 10 | ad_line | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
-| 11 | atr_term | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test atr_term_is_available_after_the_slow_window | ☐ |
-| 12 | range_expansion | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
-| 13 | mar | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
-| 14 | keltner | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
-| 15 | donchian | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
-| 16 | swing_structure | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
-| 17 | level_strength | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
-| 18 | aroon | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test aroon_reads_a_rising_series | ☐ |
-| 19 | bos_choch | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test -p quantrule-model --test event_validation | ☐ |
-| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_anatomy_reads_the_bar | ☐ |
-| 21 | candle_pattern | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_pattern_flags_an_engulfing_bar | ☐ |
-| 22 | gap | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test gap_reads_the_open_jump | ☐ |
-| 23 | path_efficiency | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
-| 24 | direction_changes | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
-| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
-| 26 | drawdown_atr | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
-| 27 | range_position | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
-| 28 | relative_strength | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test relative_strength_ranks_the_faster_instrument | ☐ |
-| 29 | lead_lag | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test lead_lag_reads_the_leader | ☐ |
-| 30 | breadth | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
-| 31 | co_movement | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test co_movement_is_high_for_aligned_series | ☐ |
-| 32 | dispersion | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
-| 33 | session | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
-| 34 | opening_range | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
-| 35 | overnight_intraday | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
-| 36 | session_range | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
-| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☐ | ☑ | — | — | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 1 | vwap | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | cargo test vwap_is_the_volume_weighted_typical_price | ☐ |
+| 2 | volume_profile | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | cargo test profile_poc_is_the_highest_volume_bin | ☐ |
+| 3 | rvol (extended) | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test rvol_reads_the_volume_ratio | ☐ |
+| 4 | volume_climax | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test climax_flags_a_high_volume_wide_bar | ☐ |
+| 5 | absorption | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test absorption_flags_a_small_range_near_vwap | ☐ |
+| 6 | volume_oscillator | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test volume_oscillator_reads_the_fast_slow_gap | ☐ |
+| 7 | obv | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test obv_accumulates_signed_volume | ☐ |
+| 8 | cmf | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test cmf_is_one_when_every_close_is_the_high | ☐ |
+| 9 | mfi | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test mfi_is_one_hundred_when_every_bar_rises | ☐ |
+| 10 | ad_line | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test ad_line_accumulates_money_flow | ☐ |
+| 11 | atr_term | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test atr_term_is_available_after_the_slow_window | ☐ |
+| 12 | range_expansion | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
+| 13 | mar | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test range_and_mar_read_the_window | ☐ |
+| 14 | keltner | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
+| 15 | donchian | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
+| 16 | swing_structure | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
+| 17 | level_strength | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
+| 18 | aroon | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test aroon_reads_a_rising_series | ☐ |
+| 19 | bos_choch | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test -p quantrule-model --test event_validation bos_and_choch | ☐ |
+| 20 | candle_anatomy | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_anatomy_reads_the_bar | ☐ |
+| 21 | candle_pattern | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_pattern_flags_an_engulfing_bar | ☐ |
+| 22 | gap | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test gap_reads_the_open_jump | ☐ |
+| 23 | path_efficiency | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 24 | direction_changes | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test direction_changes_counts_sign_flips | ☐ |
+| 25 | bars_since_extreme | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 26 | drawdown_atr | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 27 | range_position | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test path_reads_efficiency_and_extremes | ☐ |
+| 28 | relative_strength | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test relative_strength_ranks_the_faster_instrument | ☐ |
+| 29 | lead_lag | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test lead_lag_reads_the_leader | ☐ |
+| 30 | breadth | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
+| 31 | co_movement | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test co_movement_is_high_for_aligned_series | ☐ |
+| 32 | dispersion | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
+| 33 | session | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 34 | opening_range | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 35 | overnight_intraday | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test overnight_and_intraday_returns_read_the_session | ☐ |
+| 36 | session_range | ☑ | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test session_range_reads_the_session_high_low | ☐ |
+| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☑ | ☑ | — | — | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
 
 ## 5. Known gaps
 
@@ -226,10 +226,25 @@ are reconciled to one cross per reading. `signal.structure_change` is shared by
 | Gap | Evidence | Next step |
 |---|---|---|
 | `INDICATOR-AUDIT.md` | The file is absent from `docs/improvement/2026-11-05/` | Human decides whether to require the audit retroactively |
-| Per-indicator golden fixtures | The batch fixtures cover the event families, not each indicator's reading | Add per-indicator fixtures before any row becomes `tested` |
+| Per-indicator edge cases and precedence | The golden fixtures cover empty series and exact values; the one-bar, zero-range, zero-volume, equal-high/low, and precedence cases are not per indicator | Add the remaining edge and precedence tests |
 | Phases 6–8 | #426–#430 are Todo | Approve the charters, run the swarm, validate, close out |
 
-## 6. Event validation suite
+## 6. Golden fixtures
+
+The per-indicator golden fixtures are checked-in regression locks generated from
+the implementation, not independent oracles:
+
+| Fixture | Coverage | Test |
+|---|---|---|
+| `extended_readings_golden.csv` | Every extended reading, 260 bars | `cargo test -p quantrule-model --test extended_readings_golden` |
+| `panel_readings_golden.csv` | The five panel readings, three instruments, 80 bars | `cargo test -p quantrule-model --test panel_readings_golden` |
+| `session_readings_golden.csv` | The ten session readings, 72 bars | `cargo test -p quantrule-model --test session_readings_golden` |
+
+Each suite also proves causality on a prefix, determinism on a repeated run, and
+the empty-series header. The v4 readings keep their independent
+`readings_golden.csv`.
+
+## 7. Event validation suite
 
 `crates/quantrule-model/tests/event_validation.rs` proves, over the checked-in
 260-bar fixture:
@@ -251,7 +266,7 @@ open where an event is missing. `P` stays open for the extended families: the
 precedence test covers the v4 level references, and the extended batch proves
 one occurrence per key rather than a per-indicator reference order.
 
-## 7. Verification commands
+## 8. Verification commands
 
 Per indicator:
 
@@ -277,7 +292,7 @@ python3 tools/check_links.py
 python3 tools/check_terms.py
 ```
 
-## 8. Status definitions
+## 9. Status definitions
 
 | Status | Meaning |
 |---|---|

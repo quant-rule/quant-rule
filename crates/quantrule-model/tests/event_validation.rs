@@ -359,6 +359,25 @@ fn one_occurrence_is_recorded_once() {
 }
 
 #[test]
+fn bos_and_choch_are_classified() {
+    let candles = load_candles();
+    let model = model(&candles);
+    let extended = model.extended_events().events();
+    assert!(
+        extended
+            .iter()
+            .any(|event| event.source_code == 36 && event.event_subtype_code == 4),
+        "the fixture has no break of structure"
+    );
+    assert!(
+        extended
+            .iter()
+            .any(|event| event.source_code == 36 && event.event_subtype_code == 5),
+        "the fixture has no change of character"
+    );
+}
+
+#[test]
 fn level_events_follow_the_reference_order() {
     let candles = load_candles();
     let model = model(&candles);

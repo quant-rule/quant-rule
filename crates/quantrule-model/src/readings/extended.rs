@@ -1656,4 +1656,56 @@ mod tests {
         assert!(extended.range_position.get(19).expect("position") > 0.9);
         assert!(extended.drawdown_atr.get(19).expect("drawdown") <= 0.0);
     }
+
+    #[test]
+    fn volume_oscillator_reads_the_fast_slow_gap() {
+        let candles: Vec<Candle> = (0..30)
+            .map(|index| {
+                let volume = if index == 29 { 100.0 } else { 10.0 };
+                candle(index, 100.0, 101.0, 99.0, 100.0, volume)
+            })
+            .collect();
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        assert_eq!(extended.volume_oscillator.get(19), Some(0.0));
+        let value = extended
+            .volume_oscillator
+            .get(29)
+            .expect("the burst is measurable");
+        assert!(value > 0.5, "oscillator {value}");
+    }
+
+    #[test]
+    fn ad_line_accumulates_money_flow() {
+        let candles = [
+            candle(0, 1.0, 1.0, 1.0, 1.0, 10.0),
+            candle(1, 1.0, 2.0, 1.0, 2.0, 10.0),
+            candle(2, 2.0, 3.0, 2.0, 3.0, 5.0),
+        ];
+        let extended =
+            ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+        assert_eq!(extended.ad_line.get(0), Some(0.0));
+        assert_eq!(extended.ad_line.get(1), Some(10.0));
+        assert_eq!(extended.ad_line.get(2), Some(15.0));
+    }
+
+    #[test]
+    fn direction_changes_counts_sign_flips() {
+        let candles: Vec<Candle> = (0..20)
+            .map(|index| {
+                let close = 100.0 + (index % 2) as f64;
+                candle(index, close, close + 1.0, close - 1.0, close, 10.0)
+            })
+            .collect();
+        let config = ExtendedConfig {
+            path_window: 20,
+            ..ExtendedConfig::DEFAULT
+        };
+        let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+        let value = extended
+            .direction_changes
+            .get(19)
+            .expect("the window is measurable");
+        assert!((value - 0.9).abs() < 1e-9, "direction changes {value}");
+    }
 }
