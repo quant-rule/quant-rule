@@ -30,7 +30,13 @@ PARTITIONS = {
     "portfolio_dev",
     "portfolio_holdout",
 }
-PARSERS = {"path_validation", "strategy_evaluation", "summary_json", "none"}
+PARSERS = {
+    "path_validation",
+    "strategy_evaluation",
+    "model_prediction",
+    "summary_json",
+    "none",
+}
 
 
 class ProgramError(ValueError):

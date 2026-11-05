@@ -161,17 +161,18 @@ quantrule report model \
   --out data/research/<PROGRAM-ID>/dev/<CELL-ID>
 
 python3 tools/improvement/model_prediction.py \
-  --predictions data/research/<PROGRAM-ID>/dev/<CELL-ID>/prediction.csv \
-  --series data/research/<PROGRAM-ID>/dev/<CELL-ID>/readings.csv \
-  --source data/sources/<INSTRUMENT>_M1_2018-01-01_2024-12-31.csv \
+  --bundle <INSTRUMENT>=data/research/<PROGRAM-ID>/dev/<CELL-ID> \
+  --spec-id <M2.x> --family M2 \
   --partition model_dev \
-  --horizon <H> \
-  --out data/research/<PROGRAM-ID>/dev/<CELL-ID>/model_prediction.json
+  --horizon <H> --target-atr <T> --stop-atr <S> --cost-bps <C> \
+  --primary-cells 5 --seed 0 \
+  --out data/research/<PROGRAM-ID>/dev/<CELL-ID>/evaluation
 ```
 
-The second command is part of the M2.x programme (P2); it is not present until
-that phase lands. The runbook names the intended interface so a cell brief can
-be written against it.
+The evaluator writes `evaluation/model_prediction.json` and
+`evaluation/model_prediction.md`. A cell with
+`"result_parser": "model_prediction"` reads those metrics into
+`cell-result.json`; the evaluator never opens validation.
 
 The worktree mode copies each cell result back to the coordinator's
 `data/research/<PROGRAM-ID>/<phase>/<CELL-ID>/` for aggregation. The worktree
