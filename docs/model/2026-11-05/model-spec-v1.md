@@ -159,6 +159,29 @@ model bundle plus `conditions.csv`:
 A spec run over the same data configuration, spec, and output bytes is
 byte-identical on rerun. The spec file name is recorded, never an absolute path.
 
+### Preflight
+
+```text
+python3 tools/research/spec_preflight.py --config <run.json> --spec <spec.json>
+```
+
+The preflight is read-only and does not run the model. It checks:
+
+| Check | Rule |
+|---|---|
+| Spec schema, id, ladder, evaluation timeframe, condition ids | The v1 rules in §2–§5 |
+| Event identifiers | Active registry event with a role, a claim, and a formula |
+| State names and codes | The §3 state table |
+| Registry version | The model constant matches `docs/registry/indicators.json` |
+| Ladder | Every spec timeframe is in the data configuration |
+| Source | The CSV exists, has the OHLCV header, and is strictly ascending |
+| Period | At least one source bar falls in the run period |
+| Coverage | Every spec timeframe has at least one bucket in the period |
+
+It prints one deterministic block and exits nonzero on the first failure. The
+conformance fixture `crates/quantrule-shell/tests/fixtures/config-run/spec_conditions_golden.csv`
+locks the expected `conditions.csv` for the fixture spec.
+
 ## 8. Deferred to v2
 
 | Extension | Why deferred |
@@ -181,3 +204,4 @@ unknown extension.
 | Causality, determinism, and missing-timeframe rejection | `crates/quantrule-model/src/spec/tests.rs` |
 | JSON parsing, registry resolution, and end-to-end evaluation | `crates/quantrule-shell/src/spec.rs` |
 | CLI spec run, `conditions.csv`, provenance, and byte-identical rerun | `crates/quantrule-shell/tests/report_command.rs` |
+| Preflight registry, ladder, source, and period checks | `tools/research/test_spec_preflight.py` |

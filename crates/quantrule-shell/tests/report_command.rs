@@ -550,3 +550,28 @@ fn a_spec_is_only_valid_for_the_model_report() {
         error(&output)
     );
 }
+
+#[test]
+fn the_spec_conditions_match_the_conformance_fixture() {
+    let out = output_dir("report-spec-conformance");
+    let output = run(&[
+        "report",
+        "model",
+        "--config",
+        fixture(CONFIG).to_str().expect("the config path is UTF-8"),
+        "--spec",
+        fixture("config-run/spec.json")
+            .to_str()
+            .expect("the spec path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]);
+    assert_success(&output);
+
+    let conditions = read(&out.join("model/conditions.csv"));
+    let expected = include_bytes!("fixtures/config-run/spec_conditions_golden.csv");
+    assert_eq!(
+        conditions, expected,
+        "conditions.csv differs from the conformance fixture"
+    );
+}
