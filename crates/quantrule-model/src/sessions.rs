@@ -85,6 +85,8 @@ pub struct SessionReadings {
     pub opening_range_atr: ReadingSeries,
     /// The session range so far in ATR.
     pub session_range_atr: ReadingSeries,
+    /// The session-anchored VWAP.
+    pub session_vwap: ReadingSeries,
     /// The overnight return in ATR.
     pub overnight_return: ReadingSeries,
     /// The intraday return in ATR.
@@ -104,6 +106,7 @@ impl SessionReadings {
         let mut opening_range_low = vec![None; len];
         let mut opening_range_atr = vec![None; len];
         let mut session_range_atr = vec![None; len];
+        let mut session_vwap = vec![None; len];
         let mut overnight_return = vec![None; len];
         let mut intraday_return = vec![None; len];
         let mut calendar_bucket = vec![None; len];
@@ -129,6 +132,8 @@ impl SessionReadings {
                 opening_low: f64::INFINITY,
                 bars: 0,
                 overnight: None,
+                vwap_weighted: 0.0,
+                vwap_volume: 0.0,
             });
             if state.bars == 0 {
                 state.open = candle.open();
@@ -145,6 +150,10 @@ impl SessionReadings {
             state.high = state.high.max(candle.high());
             state.low = state.low.min(candle.low());
             state.bars = state.bars.saturating_add(1);
+            let volume = candle.volume().unwrap_or(0.0);
+            let typical = (candle.high() + candle.low() + candle.close()) / 3.0;
+            state.vwap_weighted += typical * volume;
+            state.vwap_volume += volume;
             let values = result_values(state, candle, hour, config, atr);
             session_code[bar] = Some(1.0);
             session_age[bar] = values.age;
@@ -152,6 +161,9 @@ impl SessionReadings {
             opening_range_low[bar] = values.opening_low;
             opening_range_atr[bar] = values.opening_atr;
             session_range_atr[bar] = values.session_atr;
+            if state.vwap_volume > 0.0 {
+                session_vwap[bar] = Some(state.vwap_weighted / state.vwap_volume);
+            }
             overnight_return[bar] = state.overnight;
             intraday_return[bar] = values.intraday;
             last_session_close = Some(candle.close());
@@ -163,6 +175,7 @@ impl SessionReadings {
             opening_range_low: ReadingSeries::new(opening_range_low),
             opening_range_atr: ReadingSeries::new(opening_range_atr),
             session_range_atr: ReadingSeries::new(session_range_atr),
+            session_vwap: ReadingSeries::new(session_vwap),
             overnight_return: ReadingSeries::new(overnight_return),
             intraday_return: ReadingSeries::new(intraday_return),
             calendar_bucket: ReadingSeries::new(calendar_bucket),
@@ -178,6 +191,8 @@ struct DayState {
     opening_low: f64,
     bars: usize,
     overnight: Option<f64>,
+    vwap_weighted: f64,
+    vwap_volume: f64,
 }
 
 struct Values {
