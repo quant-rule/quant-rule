@@ -257,12 +257,13 @@ Notes
 Runs
 ----
 
-report <engine> --config <run.json> [--out <dir>] [--json]
+report <engine> --config <run.json> [--spec <spec.json>] [--out <dir>] [--json]
 
 Write one config-driven report bundle under <out>/<engine>/.
 
 Options
   --config <path>              The run configuration; required.
+  --spec <spec.json>           Run the model over the spec's ladder and publish conditions.csv.
   --out <dir>                  Output root override (default: the run config).
   --json                       Print report.json bytes to stdout.
 
@@ -272,6 +273,7 @@ Output
 Notes
   Engines: model, strategy, execution, portfolio, or analytical.
   Runs only the engines the bundle needs; a non-empty target is refused and a partial bundle is removed on failure.
+  --spec is valid only for report model; it sets the ladder and adds conditions.csv.
 
 backtest --config <run.json> [--out <dir>] [--json] [--diagnose]
 

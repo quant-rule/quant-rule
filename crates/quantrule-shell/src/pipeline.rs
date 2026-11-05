@@ -150,8 +150,18 @@ pub(crate) fn model_run_from_set_with_ladder(
     ModelRun::compute(&inputs.as_inputs(), config)
 }
 
-/// Loads the configured run and computes its model once.
+/// Loads the configured run and computes its model over the active ladder.
 pub(crate) fn run_model(config: &RunConfig) -> Result<ModelRun, PipelineError> {
+    run_model_with_ladder(config, &config.data.available_timeframes)
+}
+
+/// Loads the configured run and computes its model over an explicit ladder.
+///
+/// The spec engine uses this to run only the timeframes the spec declares.
+pub(crate) fn run_model_with_ladder(
+    config: &RunConfig,
+    ladder: &[Timeframe],
+) -> Result<ModelRun, PipelineError> {
     let set = load_set_with_limit(
         &config.data.source.path,
         config.data.bounds,
@@ -161,11 +171,7 @@ pub(crate) fn run_model(config: &RunConfig) -> Result<ModelRun, PipelineError> {
     if set.series(Timeframe::M1).is_empty() {
         return Err(PipelineError::EmptyPeriod);
     }
-    Ok(model_run_from_set_with_ladder(
-        &set,
-        &config.data.available_timeframes,
-        &config.model,
-    ))
+    Ok(model_run_from_set_with_ladder(&set, ladder, &config.model))
 }
 
 /// Loads the configured run and runs the full backtest once.
