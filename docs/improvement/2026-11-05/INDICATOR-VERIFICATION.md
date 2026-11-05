@@ -16,7 +16,7 @@
 | 0 | Registry schema extension, coverage matrix, codes, roles, claims | `docs/registry/` updated; event `formula` required | Done |
 | 1 | Read-only feature audit of the top 10 | `docs/improvement/2026-11-05/INDICATOR-AUDIT.md` | **Not delivered** |
 | 2 | Tier 1 readings | VWAP, profile, ATR term, participation, lead-lag/breadth, Donchian | Done |
-| 3 | Event layer | Level, divergence, signal events; availability; precedence | Done, with the gaps in §5 |
+| 3 | Event layer | Level, divergence, signal events; availability; precedence | Done; §5 records the remaining audit and phase gaps |
 | 4 | Spec engine | `quantrule.model-spec/v1`, evaluator, `--spec`, registry, conformance | Done |
 | 5 | Tier 2 readings | Flow, path, cross-asset context, calendar | Done |
 | 6 | v6–v10 charters and swarm | Five charters, matrix, dev run | Open — #426–#428 |
@@ -74,9 +74,9 @@ registry ID; the registry entry carries the exact formula.
 | 6 | `pivots` (existing) | `level.test`, `level.cross`, `level.break` | RSI divergence at pivots | existing structure signals |
 | 24 | `donchian` | `level.donchian_test`, `level.donchian_break` | none | `signal.donchian_breakout`, `signal.donchian_position` |
 | 25 | `swing_structure` | `level.structure_break` | none | `signal.structure_change` |
-| 26 | `level_strength` | `level.strength_test` (planned: `level.strength_break`, not registered) | none | `signal.strength_change` |
+| 26 | `level_strength` | `level.strength_test` (the plan's `level.strength_break` is the same test event; no separate break) | none | `signal.strength_change` |
 | 27 | `aroon` | none | none | `signal.aroon_cross`, `signal.aroon_osc` |
-| 28 | `bos_choch` | none (planned: `level.bos`, `level.choch`, not registered) | none | none (planned: `signal.structure_direction`, not registered) |
+| 28 | `bos_choch` | `level.bos`, `level.choch` | none | `signal.structure_change` (shared with `swing_structure`) |
 
 ### Area 7 — Candle anatomy and gaps
 
@@ -114,8 +114,8 @@ signals for `relative_strength` and `lead_lag`; `signal.rs_regime` and
 
 | Code | Indicator | L events | D events | S events |
 |---:|---|---|---|---|
-| 42 | `session` | none (planned: `level.session_vwap_test`, not registered) | none | `signal.session_open`, `signal.session_close` |
-| 43 | `opening_range` | none (planned: `level.opening_range_test`, `level.opening_range_break`, not registered) | none | `signal.opening_range_breakout`, `signal.opening_range_fade` |
+| 42 | `session` | `level.session_vwap_test` | none | `signal.session_open`, `signal.session_close` |
+| 43 | `opening_range` | `level.opening_range_test`, `level.opening_range_break` | none | `signal.opening_range_breakout`, `signal.opening_range_fade` |
 | 44 | `overnight_intraday` | none | none | `signal.overnight_continuation`, `signal.overnight_fade` |
 | 45 | `session_range` | none | none | `signal.session_range_expansion`, `signal.session_range_contraction` |
 | 46 | `calendar_bucket` | none | none | none |
@@ -146,9 +146,9 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 14 | keltner | 23 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
 | 15 | donchian | 24 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
 | 16 | swing_structure | 25 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☑ | code |
+| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
 | 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
-| 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
 | 20 | candle_anatomy | 29 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
 | 21 | candle_pattern | 30 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
 | 22 | gap | 31 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | code |
@@ -162,8 +162,8 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
-| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
 | 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
@@ -193,9 +193,9 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | 14 | keltner | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
 | 15 | donchian | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test keltner_and_donchian_publish_bands | ☐ |
 | 16 | swing_structure | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
-| 17 | level_strength | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☐ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
+| 17 | level_strength | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test structure_and_levels_publish_when_history_exists | ☐ |
 | 18 | aroon | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test aroon_reads_a_rising_series | ☐ |
-| 19 | bos_choch | ☐ | ☑ | ☑ | ☐ | ☐ | ☐ | ☐ | ☐ | ☑ | — | ☐ |
+| 19 | bos_choch | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test -p quantrule-model --test event_validation | ☐ |
 | 20 | candle_anatomy | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_anatomy_reads_the_bar | ☐ |
 | 21 | candle_pattern | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test candle_pattern_flags_an_engulfing_bar | ☐ |
 | 22 | gap | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test gap_reads_the_open_jump | ☐ |
@@ -209,23 +209,24 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | 30 | breadth | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
 | 31 | co_movement | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test co_movement_is_high_for_aligned_series | ☐ |
 | 32 | dispersion | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test breadth_and_dispersion_are_common | ☐ |
-| 33 | session | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☐ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
-| 34 | opening_range | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☐ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 33 | session | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
+| 34 | opening_range | ☑ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
 | 35 | overnight_intraday | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
 | 36 | session_range | ☐ | ☑ | ☑ | ☐ | ☐ | ☑ | ☑ | ☐ | ☑ | — | ☐ |
 | 37 | calendar_bucket | ☑ | ☑ | ☑ | ☐ | ☑ | — | — | ☐ | ☑ | cargo test london_session_and_opening_range | ☐ |
 
 ## 5. Known gaps
 
+The missing-event batch closed the BOS/CHOCH, session-VWAP, opening-range, and
+strength-name gaps. `level.strength_break` is the same test event as
+`level.strength_test`; the panel's extra `rs_regime` and `lag_divergence` names
+are reconciled to one cross per reading. `signal.structure_change` is shared by
+`swing_structure` and `bos_choch`.
+
 | Gap | Evidence | Next step |
 |---|---|---|
 | `INDICATOR-AUDIT.md` | The file is absent from `docs/improvement/2026-11-05/` | Human decides whether to require the audit retroactively |
-| `level.strength_break` | The registry has only `level.strength_test` | Implement the break event or remove it from the plan |
-| `level.bos`, `level.choch`, `signal.structure_direction` | `bos_choch` has zero registered events and reuses the swing-structure outputs | Implement BOS/CHOCH or descope the indicator |
-| `level.session_vwap_test` | `session_vwap` is a reading; no level event is registered | Implement the level event or remove it from the plan |
-| `level.opening_range_test`, `level.opening_range_break` | Only the opening-range signals are registered | Implement the level events or remove them from the plan |
-| `signal.rs_regime`, `signal.lag_divergence` | The panel has one cross per reading | Implement the extra signals or reconcile the plan to one cross |
-| Panel signal IDs | `signal.relative_strength_cross`, `signal.lead_lag_cross`, `signal.co_movement_cross`, `signal.dispersion_cross` replace the plan names | Update the plan and any downstream charter to the registry IDs |
+| Per-indicator golden fixtures | The batch fixtures cover the event families, not each indicator's reading | Add per-indicator fixtures before any row becomes `tested` |
 | Phases 6–8 | #426–#430 are Todo | Approve the charters, run the swarm, validate, close out |
 
 ## 6. Event validation suite
