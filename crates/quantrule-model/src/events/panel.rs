@@ -1,16 +1,17 @@
-//! Panel divergence events.
+//! Panel divergence and signal events.
 //!
 //! A panel divergence compares consecutive confirmed price pivots of one
 //! instrument against a panel reading at the pivot timestamp: relative strength,
-//! lead-lag, or breadth. The event is keyed by instrument, because the model
-//! event record does not carry an instrument field.
+//! lead-lag, or breadth. A panel signal is a threshold crossing of one of the
+//! five cross-asset readings. The events are keyed by instrument, because the
+//! model event record does not carry an instrument field.
 
 use std::collections::BTreeMap;
 
 use crate::events::EventRecord;
 use crate::events::EventType;
 use crate::events::extended::divergence_subtype;
-use crate::panel::{PanelInstrument, PanelReadings};
+use crate::panel::{PanelInstrument, PanelInstrumentReadings, PanelReadings};
 use crate::readings::{PivotKind, PivotScale, PivotSeries};
 
 /// Source code for relative strength.
@@ -19,6 +20,15 @@ pub const RELATIVE_STRENGTH_SOURCE_CODE: u16 = 45;
 pub const LEAD_LAG_SOURCE_CODE: u16 = 46;
 /// Source code for breadth.
 pub const BREADTH_SOURCE_CODE: u16 = 47;
+/// Source code for co-movement.
+pub const CO_MOVEMENT_SOURCE_CODE: u16 = 48;
+/// Source code for dispersion.
+pub const DISPERSION_SOURCE_CODE: u16 = 49;
+
+/// Signal subtype for a cross-asset signal.
+const CROSS_ASSET_SIGNAL_SUBTYPE: u8 = 22;
+/// Dispersion crossing threshold, in ATR units.
+const DISPERSION_THRESHOLD: f64 = 1.0;
 
 /// The panel divergence events, grouped by instrument.
 #[derive(Debug, Clone, PartialEq)]
@@ -99,6 +109,19 @@ impl PanelEventSeries {
                     });
                 }
             }
+            let bars: BTreeMap<i64, usize> = instrument
+                .candles
+                .iter()
+                .enumerate()
+                .map(|(index, candle)| (candle.timestamp(), index))
+                .collect();
+            panel_signal_events(
+                series,
+                &readings.timestamps,
+                &bars,
+                timeframe_secs,
+                &mut events,
+            );
             events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
             let mut seen = BTreeMap::new();
             events.retain(|event| {
@@ -130,9 +153,173 @@ impl PanelEventSeries {
     }
 }
 
+/// Emits the five cross-asset signal families at their threshold crossings.
+///
+/// The reading position is a common panel position; the bar index is mapped
+/// back to the instrument's own candles so the record keeps the bar identity
+/// of the instrument it is grouped under.
+fn panel_signal_events(
+    series: &PanelInstrumentReadings,
+    timestamps: &[i64],
+    bars: &BTreeMap<i64, usize>,
+    timeframe_secs: u64,
+    events: &mut Vec<EventRecord>,
+) {
+    for (position, timestamp) in timestamps.iter().enumerate() {
+        let Some(&bar) = bars.get(timestamp) else {
+            continue;
+        };
+        if crossed_up(&series.relative_strength, position, 0.0) {
+            push_signal(
+                events,
+                RELATIVE_STRENGTH_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                1,
+                series.relative_strength[position],
+                0.0,
+            );
+        } else if crossed_down(&series.relative_strength, position, 0.0) {
+            push_signal(
+                events,
+                RELATIVE_STRENGTH_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                -1,
+                series.relative_strength[position],
+                0.0,
+            );
+        }
+        if crossed_up(&series.leader_return, position, 1.0) {
+            push_signal(
+                events,
+                LEAD_LAG_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                1,
+                series.leader_return[position],
+                1.0,
+            );
+        } else if crossed_down(&series.leader_return, position, -1.0) {
+            push_signal(
+                events,
+                LEAD_LAG_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                -1,
+                series.leader_return[position],
+                -1.0,
+            );
+        }
+        if crossed_up(&series.breadth, position, 0.67) {
+            push_signal(
+                events,
+                BREADTH_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                1,
+                series.breadth[position],
+                0.67,
+            );
+        } else if crossed_down(&series.breadth, position, 0.33) {
+            push_signal(
+                events,
+                BREADTH_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                -1,
+                series.breadth[position],
+                0.33,
+            );
+        }
+        if crossed_up(&series.co_movement, position, 0.7) {
+            push_signal(
+                events,
+                CO_MOVEMENT_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                1,
+                series.co_movement[position],
+                0.7,
+            );
+        } else if crossed_down(&series.co_movement, position, 0.3) {
+            push_signal(
+                events,
+                CO_MOVEMENT_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                -1,
+                series.co_movement[position],
+                0.3,
+            );
+        }
+        if crossed_up(&series.dispersion, position, DISPERSION_THRESHOLD) {
+            push_signal(
+                events,
+                DISPERSION_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                1,
+                series.dispersion[position],
+                DISPERSION_THRESHOLD,
+            );
+        }
+    }
+}
+
+fn crossed_up(series: &[Option<f64>], position: usize, level: f64) -> bool {
+    if position == 0 {
+        return false;
+    }
+    match (
+        series.get(position).copied().flatten(),
+        series.get(position - 1).copied().flatten(),
+    ) {
+        (Some(now), Some(previous)) => now > level && previous <= level,
+        _ => false,
+    }
+}
+
+fn crossed_down(series: &[Option<f64>], position: usize, level: f64) -> bool {
+    if position == 0 {
+        return false;
+    }
+    match (
+        series.get(position).copied().flatten(),
+        series.get(position - 1).copied().flatten(),
+    ) {
+        (Some(now), Some(previous)) => now < level && previous >= level,
+        _ => false,
+    }
+}
+
+fn push_signal(
+    events: &mut Vec<EventRecord>,
+    source: u16,
+    timeframe_secs: u64,
+    bar: usize,
+    direction: i8,
+    primary: Option<f64>,
+    threshold: f64,
+) {
+    events.push(EventRecord {
+        event_type: EventType::Signal,
+        event_subtype_code: CROSS_ASSET_SIGNAL_SUBTYPE,
+        source_code: source,
+        timeframe_secs,
+        occurred_bar_index: bar,
+        available_bar_index: bar,
+        direction_code: direction,
+        reference_code: None,
+        primary_value: primary,
+        reference_value: Some(threshold),
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::PanelEventSeries;
+    use crate::events::EventType;
     use crate::panel::{PanelConfig, PanelInstrument, PanelReadings};
     use quantrule_data::Candle;
 
@@ -185,6 +372,56 @@ mod tests {
                     .all(|pair| pair[0].available_bar_index <= pair[1].available_bar_index)
             );
         }
+    }
+
+    #[test]
+    fn panel_signals_cross_their_thresholds() {
+        let btc: Vec<Candle> = (0..60)
+            .map(|index| {
+                let close = if index < 30 {
+                    100.0 + index as f64
+                } else {
+                    130.0 - (index - 30) as f64 * 2.0
+                };
+                candle(index, close)
+            })
+            .collect();
+        let eth: Vec<Candle> = (0..60)
+            .map(|index| candle(index, 100.0 + index as f64 * 0.5))
+            .collect();
+        let xau: Vec<Candle> = (0..60)
+            .map(|index| candle(index, 100.0 + index as f64 * 0.2))
+            .collect();
+        let panel = [
+            PanelInstrument {
+                name: "BTC",
+                candles: &btc,
+            },
+            PanelInstrument {
+                name: "ETH",
+                candles: &eth,
+            },
+            PanelInstrument {
+                name: "XAU",
+                candles: &xau,
+            },
+        ];
+        let readings = PanelReadings::compute(&panel, &PanelConfig::DEFAULT);
+        let events = PanelEventSeries::compute(&panel, &readings, 3_600);
+        let btc_events = events.events("BTC");
+        assert!(
+            btc_events
+                .iter()
+                .any(|event| event.source_code == 45 && event.event_type == EventType::Signal)
+        );
+        assert!(btc_events.iter().any(|event| event.source_code == 45
+            && event.event_type == EventType::Signal
+            && event.direction_code == -1));
+        assert!(
+            btc_events
+                .iter()
+                .all(|event| event.available_bar_index >= event.occurred_bar_index)
+        );
     }
 
     #[test]

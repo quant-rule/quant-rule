@@ -58,3 +58,33 @@ occurrence-key dedup and availability rules are the same as the earlier batches.
 - Panel and session signals were not faked on a single instrument or without a
   session calendar; they remain open with the panel and session APIs.
 - `cargo clippy --fix` collapsed the nested let-chains; no logic changed.
+
+## Panel and session signal follow-up
+
+The remaining #421 signals are implemented:
+
+- `events/panel.rs` adds the relative-strength, lead-return, breadth,
+  co-movement, and dispersion threshold crossings (source 45–49, subtype 22),
+  grouped by instrument and mapped back to the instrument's own bar index.
+- `panel.rs` publishes `leader_return`, the leader return at `t - k`, so the
+  lead-lag signal uses the documented `lead` reading rather than the spread.
+- `events/session.rs` adds session open/close, opening-range breakout/fade,
+  overnight continuation/fade, and session-range expansion/contraction
+  (source 50–53, subtype 23).
+- A session close occurs on the last in-session bar and is available on the
+  first out-of-session bar; the last bar is not knowable from itself.
+- `session_age` is now bars since the session opened, matching the coverage
+  document and the registry formula. It was clock hours, which only agreed with
+  bars on an hourly series.
+
+The registry now carries 46 indicators, 138 events, and 110 parameters.
+
+Verification: `cargo test -p quantrule-model events::panel` and
+`cargo test -p quantrule-model events::session` pass; the session tests cover
+open/close, opening-range breakout, overnight continuation, causality, and
+determinism.
+
+The opening-range signal waits until the opening range is complete, because a
+partial range would publish a breakout that the next opening bar can invalidate.
+The lead-return signal is per instrument, like the breadth divergence, because
+the event record has no panel scope.

@@ -1,0 +1,367 @@
+//! Session signal events.
+//!
+//! The five calendar and session readings produce eight signal families: the
+//! session open and close, the opening-range breakout and fade, the overnight
+//! continuation and fade, and the session-range expansion and contraction. The
+//! module is pure and deterministic and needs no panel.
+//!
+//! A session close becomes knowable only on the first bar outside the session,
+//! because the last in-session bar cannot be identified from the bar itself. The
+//! record therefore occurs on the last in-session bar and is available on the
+//! next one.
+
+use crate::events::EventRecord;
+use crate::events::EventType;
+use crate::events::extended::{cross_down_value, cross_up_value, push};
+use crate::sessions::{SessionConfig, SessionReadings};
+use quantrule_data::Candle;
+
+/// Source code for the session state.
+pub const SESSION_SOURCE_CODE: u16 = 50;
+/// Source code for the opening range.
+pub const OPENING_RANGE_SOURCE_CODE: u16 = 51;
+/// Source code for the overnight and intraday returns.
+pub const OVERNIGHT_SOURCE_CODE: u16 = 52;
+/// Source code for the session range.
+pub const SESSION_RANGE_SOURCE_CODE: u16 = 53;
+
+/// Signal subtype for a session signal.
+const SESSION_SIGNAL_SUBTYPE: u8 = 23;
+/// The overnight move that qualifies as a continuation or fade, in ATR.
+const OVERNIGHT_THRESHOLD: f64 = 0.5;
+/// The session-range expansion threshold, in ATR.
+const SESSION_RANGE_EXPANSION: f64 = 1.5;
+/// The session-range contraction threshold, in ATR.
+const SESSION_RANGE_CONTRACTION: f64 = 0.7;
+
+/// The session signal events over one candle series.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SessionEventSeries {
+    events: Vec<EventRecord>,
+}
+
+impl SessionEventSeries {
+    /// Computes the session signal events.
+    ///
+    /// The session readings must have been computed with the same configuration,
+    /// so the opening-range width and the session boundaries agree.
+    #[must_use]
+    pub fn compute(
+        candles: &[Candle],
+        sessions: &SessionReadings,
+        config: &SessionConfig,
+        timeframe_secs: u64,
+    ) -> Self {
+        let mut events = Vec::new();
+        for bar in 0..candles.len() {
+            let inside = in_session(sessions, bar);
+            let previous_inside = bar > 0 && in_session(sessions, bar - 1);
+            if inside && !previous_inside {
+                push(
+                    &mut events,
+                    EventType::Signal,
+                    SESSION_SIGNAL_SUBTYPE,
+                    SESSION_SOURCE_CODE,
+                    timeframe_secs,
+                    bar,
+                    0,
+                    sessions.session_age.get(bar),
+                    None,
+                );
+            }
+            if !inside && previous_inside {
+                // The last in-session bar is only identifiable here, so the
+                // record occurs on that bar and becomes available on this one.
+                events.push(EventRecord {
+                    event_type: EventType::Signal,
+                    event_subtype_code: SESSION_SIGNAL_SUBTYPE,
+                    source_code: SESSION_SOURCE_CODE,
+                    timeframe_secs,
+                    occurred_bar_index: bar - 1,
+                    available_bar_index: bar,
+                    direction_code: 0,
+                    reference_code: None,
+                    primary_value: Some(candles[bar - 1].close()),
+                    reference_value: None,
+                });
+            }
+            let complete = sessions
+                .session_age
+                .get(bar)
+                .is_some_and(|age| age >= config.opening_range_bars as f64);
+            if inside && complete {
+                opening_range_events(candles, sessions, config, timeframe_secs, bar, &mut events);
+            }
+            if inside && sessions.session_age.get(bar) == Some(0.0) {
+                overnight_events(sessions, timeframe_secs, bar, &mut events);
+            }
+            if inside && previous_inside {
+                if cross_up_value(&sessions.session_range_atr, bar, SESSION_RANGE_EXPANSION) {
+                    push(
+                        &mut events,
+                        EventType::Signal,
+                        SESSION_SIGNAL_SUBTYPE,
+                        SESSION_RANGE_SOURCE_CODE,
+                        timeframe_secs,
+                        bar,
+                        1,
+                        sessions.session_range_atr.get(bar),
+                        Some(SESSION_RANGE_EXPANSION),
+                    );
+                } else if cross_down_value(
+                    &sessions.session_range_atr,
+                    bar,
+                    SESSION_RANGE_CONTRACTION,
+                ) {
+                    push(
+                        &mut events,
+                        EventType::Signal,
+                        SESSION_SIGNAL_SUBTYPE,
+                        SESSION_RANGE_SOURCE_CODE,
+                        timeframe_secs,
+                        bar,
+                        -1,
+                        sessions.session_range_atr.get(bar),
+                        Some(SESSION_RANGE_CONTRACTION),
+                    );
+                }
+            }
+        }
+        events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
+        Self { events }
+    }
+
+    /// The detected events.
+    #[must_use]
+    pub fn events(&self) -> &[EventRecord] {
+        &self.events
+    }
+
+    /// The number of detected events.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.events.len()
+    }
+
+    /// Whether no event was detected.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
+    }
+}
+
+fn in_session(sessions: &SessionReadings, bar: usize) -> bool {
+    sessions.session_code.get(bar) == Some(1.0)
+}
+
+fn opening_range_events(
+    candles: &[Candle],
+    sessions: &SessionReadings,
+    config: &SessionConfig,
+    timeframe_secs: u64,
+    bar: usize,
+    events: &mut Vec<EventRecord>,
+) {
+    let Some(age) = sessions.session_age.get(bar) else {
+        return;
+    };
+    if age < config.opening_range_bars as f64 {
+        return;
+    }
+    if let (Some(high), Some(low)) = (
+        sessions.opening_range_high.get(bar),
+        sessions.opening_range_low.get(bar),
+    ) && let (Some(previous), Some(previous_high), Some(previous_low)) = (
+        candles.get(bar - 1).map(Candle::close),
+        sessions.opening_range_high.get(bar - 1),
+        sessions.opening_range_low.get(bar - 1),
+    ) {
+        let close = candles[bar].close();
+        if close > high && previous <= previous_high {
+            push(
+                events,
+                EventType::Signal,
+                SESSION_SIGNAL_SUBTYPE,
+                OPENING_RANGE_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                1,
+                Some(close),
+                Some(high),
+            );
+        } else if close < low && previous >= previous_low {
+            push(
+                events,
+                EventType::Signal,
+                SESSION_SIGNAL_SUBTYPE,
+                OPENING_RANGE_SOURCE_CODE,
+                timeframe_secs,
+                bar,
+                -1,
+                Some(close),
+                Some(low),
+            );
+        }
+    }
+}
+
+fn overnight_events(
+    sessions: &SessionReadings,
+    timeframe_secs: u64,
+    bar: usize,
+    events: &mut Vec<EventRecord>,
+) {
+    let Some(overnight) = sessions.overnight_return.get(bar) else {
+        return;
+    };
+    if overnight < OVERNIGHT_THRESHOLD {
+        return;
+    }
+    let Some(intraday) = sessions.intraday_return.get(bar) else {
+        return;
+    };
+    if intraday > 0.0 {
+        push(
+            events,
+            EventType::Signal,
+            SESSION_SIGNAL_SUBTYPE,
+            OVERNIGHT_SOURCE_CODE,
+            timeframe_secs,
+            bar,
+            1,
+            Some(overnight),
+            Some(intraday),
+        );
+    } else if intraday < 0.0 {
+        push(
+            events,
+            EventType::Signal,
+            SESSION_SIGNAL_SUBTYPE,
+            OVERNIGHT_SOURCE_CODE,
+            timeframe_secs,
+            bar,
+            -1,
+            Some(overnight),
+            Some(intraday),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SessionEventSeries;
+    use crate::readings::{Readings, ReadingsConfig};
+    use crate::sessions::{SessionConfig, SessionReadings, days_from_civil};
+    use quantrule_data::Candle;
+
+    fn timestamp(year: i64, month: u32, day: u32, hour: u32) -> i64 {
+        days_from_civil(year, month, day) * 86_400 + i64::from(hour) * 3_600
+    }
+
+    fn series(days: usize) -> Vec<Candle> {
+        let start = timestamp(2024, 1, 15, 0);
+        let mut candles = Vec::new();
+        let mut previous: f64 = 100.0;
+        for index in 0..days * 24 {
+            let close = 100.0 + index as f64 * 0.5;
+            let open = previous;
+            let high = open.max(close) + 0.5;
+            let low = open.min(close) - 0.5;
+            candles.push(
+                Candle::new(
+                    index as u64,
+                    start + index as i64 * 3_600,
+                    open,
+                    high,
+                    low,
+                    close,
+                    Some(10.0),
+                )
+                .expect("valid candle"),
+            );
+            previous = close;
+        }
+        candles
+    }
+
+    fn events(candles: &[Candle]) -> SessionEventSeries {
+        let readings = Readings::compute_with_config(candles, &ReadingsConfig::DEFAULT);
+        let sessions = SessionReadings::compute(candles, &readings, &SessionConfig::london());
+        SessionEventSeries::compute(candles, &sessions, &SessionConfig::london(), 3_600)
+    }
+
+    #[test]
+    fn session_open_and_close_are_published() {
+        let candles = series(3);
+        let events = events(&candles);
+        let opens: Vec<usize> = events
+            .events()
+            .iter()
+            .filter(|event| {
+                event.source_code == 50 && event.available_bar_index == event.occurred_bar_index
+            })
+            .map(|event| event.occurred_bar_index)
+            .collect();
+        assert_eq!(opens, [8, 32, 56]);
+        let closes: Vec<(usize, usize)> = events
+            .events()
+            .iter()
+            .filter(|event| {
+                event.source_code == 50 && event.available_bar_index > event.occurred_bar_index
+            })
+            .map(|event| (event.occurred_bar_index, event.available_bar_index))
+            .collect();
+        assert_eq!(closes, [(15, 16), (39, 40), (63, 64)]);
+    }
+
+    #[test]
+    fn opening_range_breakout_and_overnight_continuation_are_published() {
+        let candles = series(3);
+        let events = events(&candles);
+        assert!(events.events().iter().any(|event| {
+            event.source_code == 51 && event.direction_code == 1 && event.available_bar_index == 11
+        }));
+        assert!(events.events().iter().any(|event| {
+            event.source_code == 52 && event.direction_code == 1 && event.occurred_bar_index == 32
+        }));
+    }
+
+    #[test]
+    fn session_events_are_causal() {
+        let candles = series(3);
+        let full = events(&candles);
+        let prefix = events(&candles[..40]);
+        let expected: Vec<_> = full
+            .events()
+            .iter()
+            .filter(|event| event.available_bar_index < 40)
+            .map(|event| {
+                (
+                    event.occurred_bar_index,
+                    event.available_bar_index,
+                    event.source_code,
+                    event.direction_code,
+                )
+            })
+            .collect();
+        let observed: Vec<_> = prefix
+            .events()
+            .iter()
+            .map(|event| {
+                (
+                    event.occurred_bar_index,
+                    event.available_bar_index,
+                    event.source_code,
+                    event.direction_code,
+                )
+            })
+            .collect();
+        assert_eq!(expected, observed);
+    }
+
+    #[test]
+    fn repeated_session_event_computation_is_identical() {
+        let candles = series(3);
+        assert_eq!(events(&candles), events(&candles));
+    }
+}

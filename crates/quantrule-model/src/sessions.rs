@@ -154,7 +154,7 @@ impl SessionReadings {
             let typical = (candle.high() + candle.low() + candle.close()) / 3.0;
             state.vwap_weighted += typical * volume;
             state.vwap_volume += volume;
-            let values = result_values(state, candle, hour, config, atr);
+            let values = result_values(state, candle, atr);
             session_code[bar] = Some(1.0);
             session_age[bar] = values.age;
             opening_range_high[bar] = values.opening_high;
@@ -204,14 +204,10 @@ struct Values {
     intraday: Option<f64>,
 }
 
-fn result_values(
-    state: &DayState,
-    candle: Candle,
-    hour: u32,
-    config: &SessionConfig,
-    atr: Option<f64>,
-) -> Values {
-    let age = Some(f64::from(hour - config.start_hour));
+fn result_values(state: &DayState, candle: Candle, atr: Option<f64>) -> Values {
+    // The age is bars since the session opened, so a 15-minute series and an
+    // hourly series both count bars rather than clock hours.
+    let age = Some(state.bars.saturating_sub(1) as f64);
     let opening_high = state.opening_high.is_finite().then_some(state.opening_high);
     let opening_low = state.opening_low.is_finite().then_some(state.opening_low);
     let opening_atr = opening_high

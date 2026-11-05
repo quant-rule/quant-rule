@@ -123,9 +123,9 @@ covered. The registry never invents a meaningless event to fill a cell.
 
 | Code | Indicator | Reading formula | Level event | Divergence event | Signal event | Role |
 |---:|---|---|---|---|---|---|
-| 42 | `session` | DST-aware session code; `SA=bars since open`; `SVWAP` from open | `test(C,SVWAP)` | none | `SA==0` session open; `SA==len-1` session close | context |
-| 43 | `opening_range` | `ORH=max(H,first k)`; `ORL=min(L,first k)`; `ORR=(ORH-ORL)/ATR` | `test(H,ORH)`; `C>ORH` | none | `C>ORH` breakout; `C<ORL` fade | context/signal |
-| 44 | `overnight_intraday` | `ON=O_session-C_prev`; `ID=C-O_session` | none | none | `ON>=0.5ATR && ID>0` continuation; `ON>=0.5ATR && ID<0` fade | signal/context |
+| 42 | `session` | DST-aware session code; `SA=bars since open`; `SVWAP` from open | `test(C,SVWAP)` | none | `SA==0` session open; last session bar, available next bar, session close | context |
+| 43 | `opening_range` | `ORH=max(H,first k)`; `ORL=min(L,first k)`; `ORR=(ORH-ORL)/ATR` | `test(H,ORH)`; `C>ORH` | none | after k bars: `C>ORH` breakout; `C<ORL` fade | context/signal |
+| 44 | `overnight_intraday` | `ON=O_session-C_prev`; `ID=C-O_session` | none | none | at session open: `ON>=0.5ATR && ID>0` continuation; `ON>=0.5ATR && ID<0` fade | signal/context |
 | 45 | `session_range` | `SR=(session_high-session_low)/ATR` | none | none | `cross_up(SR,1.5)`; `cross_down(SR,0.7)` | context |
 | 46 | `calendar_bucket` | `DOW=0..6`; `MON=1..12` | none | none | none | diagnostic |
 
