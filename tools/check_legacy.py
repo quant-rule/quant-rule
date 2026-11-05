@@ -36,13 +36,9 @@ ALLOWLIST = {
 
 # Pending current-surface paths that P3, P4, or P6 remove.
 PENDING = (
+    # The retired strategy contracts remain as history until P6.
     "docs/config/2026-10-",
-    "docs/config/2026-11-01",
-    "docs/tutorials/",
-    "docs/model/2026-10-",
-    "docs/model/2026-11-01",
-    "docs/model/2026-11-03/model-v3.md",
-    "config/examples/",
+    # M2.x research evidence predates the cutover and references retired files.
     "config/research/",
 )
 

@@ -178,19 +178,18 @@ fn help_lists_only_the_surviving_commands() {
     ] {
         assert!(!text.contains(removed), "help must not list {removed}");
     }
+    assert_eq!(text, fixture_text("help.txt"));
 }
 
 #[test]
 fn help_all_and_glossary_are_stable_topics() {
     let all = run(&["help", "all"]);
     assert_success(&all);
-    assert!(stdout_text(&all).contains("report model"));
+    assert_eq!(stdout_text(&all), fixture_text("help-all.txt"));
 
     let glossary = run(&["help", "glossary"]);
     assert_success(&glossary);
-    let text = stdout_text(&glossary);
-    assert!(text.contains("availability"));
-    assert!(text.contains("M1.0"));
+    assert_eq!(stdout_text(&glossary), fixture_text("help-glossary.txt"));
 }
 
 #[test]
@@ -216,6 +215,25 @@ fn policy_check_validates_the_current_example() {
     assert!(text.contains("model=M1.0"));
     assert!(text.contains("model_ladder=1m,5m,15m,1h"));
     assert!(text.contains("timeframes=5m,15m"));
+}
+
+#[test]
+fn a_retired_model_schema_fails_cleanly() {
+    let config = fixture("config-run/run-old-model.json");
+    let output = run(&[
+        "policy",
+        "check",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+    ]);
+    assert_failure(&output);
+    let error = stderr_text(&output);
+    assert!(error.contains("model-v3.json"), "unexpected error: {error}");
+    assert!(error.contains("$.schema"), "unexpected error: {error}");
+    assert!(
+        error.contains("expected quantrule.model/v4"),
+        "unexpected error: {error}"
+    );
 }
 
 #[test]

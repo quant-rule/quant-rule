@@ -260,9 +260,13 @@ deletion.
 - P0.1: merged in PR #478 at `6fff066`.
 - P1: merged in PR #479 at `a9110b1`; #469, #480, #481, and #482 closed.
 - P2: merged in PR #483 at `0e3ba07`; #470 closed.
-- P3: implemented on `refactor/471-four-axis-removal`; the flat model is the only
-  model, the analytics crate and the old shell surface are gone, and execution,
-  portfolio, and the generic bracket/event engines remain. The detailed record
-  and the sequential Quant Developer/Validator passes are in
+- P3: merged in PR #484 at `84ad934`; the flat model is the only model, the
+  analytics crate and the old shell surface are gone, and execution, portfolio,
+  and the generic bracket/event engines remain. The detailed record and the
+  sequential Quant Developer/Validator passes are in
   [`471-four-axis-removal.md`](471-four-axis-removal.md).
-- P4–P8: not started.
+- P4: implemented on `refactor/472-config-cleanup`; the retired `v5-swing` and
+  example strategy/analytics files are gone, the config evidence boundary is
+  explicit, and the help surface has a golden contract. See
+  [`472-config-cleanup.md`](472-config-cleanup.md).
+- P5–P8: not started.

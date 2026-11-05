@@ -255,7 +255,7 @@
 | `portfolio.max_drawdown.limit` | `max_drawdown.limit` | `0.1` | fraction | true | portfolio | active |
 | `execution.fee_rate` | `fee_rate` | `0.0` | fraction | true | execution | active |
 | `execution.slippage_bps` | `slippage_bps` | `2.0` | bps | true | execution | active |
-| `analytics.relations` | `relations` | `true` | none | true | analytics | active |
+| `analytics.relations` | `relations` | `true` | none | false | analytics | retired |
 | `benchmark.seed` | `benchmark.seed` | `0` | none | false | analytics | active |
 | `benchmark.paths` | `benchmark.paths` | `1000` | none | false | analytics | active |
 | `model.adx.period` | `defaults.adx.period` | `14` | bars | true | model | active |

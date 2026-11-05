@@ -109,8 +109,13 @@ A run is described by `run.json`:
 | `portfolio.json` | `quantrule.portfolio/v1` | Capital, sizing, costs, and risk limits for S3.x |
 
 `strategy.json` and `analytics.json` are not part of the current run. The loader
-rejects them with an unknown-field error. The old model schema versions 1–3 are retired and rejected with an
-unsupported-schema error.
+rejects them with an unknown-field error. The old model schema versions 1–3 are
+retired and rejected with an unsupported-schema error.
+
+`config/defaults/` and `config/examples/` are the current config tree.
+`config/compression*`, `config/model-v4/`, and `config/research/` are accepted
+model or historical research evidence, not current run configs. See
+[`config/README.md`](config/README.md).
 
 `policy check` loads every file, resolves every path, and validates the cross-config
 rules before any candle is read: the data ladder, model ceiling, policy universe,
