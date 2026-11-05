@@ -1,7 +1,7 @@
 # M2.x Model Programme — Execution Plan
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved** (human, 2026-11-05); P0–P3 merged; P4 implemented; P5 next
+- Status: **Approved** (human, 2026-11-05); P0–P4 merged; P5 executed, `no_edge`; P6 not opened
 - Owner: human
 - Epic: [#410](https://github.com/quant-rule/quant-rule/issues/410)
 - Related: [#405](https://github.com/quant-rule/quant-rule/issues/405) indicator platform
@@ -431,6 +431,15 @@ Verification is in the P4 PR and the #427 AI log.
 2. Run the 15 cells on `model_dev`.
 3. Report every cell, including failures.
 4. No post-hoc variant; no validation.
+
+P5 implementation (2026-11-05): all 15 cells ran on `model_dev` in the
+`feat/428-m2-dev-swarm` worktree. The run used one-year folds because the shell
+caps an input at 600,000 M1 candles; `model_cell.py` merges the yearly bundles
+per instrument before the pooled evaluation. No primary cell passed. The
+decision is `no_edge`; there is no candidate, and validation was not opened. The
+full result, hashes, gate detail, and finding P5-F1 are in
+[`M2-DEV-SWARM.md`](../../improvement/2026-11-05/M2-DEV-SWARM.md). P6 stays
+closed until a new programme is approved.
 
 ### P6 details
 

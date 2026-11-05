@@ -148,8 +148,6 @@ pub enum SpecV2Error {
     TooManyActiveEvents(usize),
     /// An active event id is duplicated.
     DuplicateActiveEvent(String),
-    /// Two active events share a numeric code.
-    DuplicateActiveEventCode(u8, u8, u16),
     /// A prediction event is not in the active set.
     PredictionEventNotActive(String),
     /// A prediction event is not a `signal` role.
@@ -211,10 +209,6 @@ impl std::fmt::Display for SpecV2Error {
             Self::DuplicateActiveEvent(id) => {
                 write!(formatter, "the active event {id} is duplicated")
             }
-            Self::DuplicateActiveEventCode(event_type, subtype, source) => write!(
-                formatter,
-                "two active events share type {event_type}, subtype {subtype}, source {source}"
-            ),
             Self::PredictionEventNotActive(id) => {
                 write!(formatter, "the prediction event {id} is not active")
             }
@@ -314,17 +308,9 @@ impl ModelSpecV2 {
             return Err(SpecV2Error::TooManyActiveEvents(self.active_events.len()));
         }
         let mut identifiers = BTreeSet::new();
-        let mut codes = BTreeSet::new();
         for event in &self.active_events {
             if !identifiers.insert(event.id.as_str()) {
                 return Err(SpecV2Error::DuplicateActiveEvent(event.id.clone()));
-            }
-            if !codes.insert((event.event_type.code(), event.subtype, event.source)) {
-                return Err(SpecV2Error::DuplicateActiveEventCode(
-                    event.event_type.code(),
-                    event.subtype,
-                    event.source,
-                ));
             }
         }
         let active: BTreeMap<&str, &SpecEventCode> = self
@@ -952,6 +938,17 @@ mod tests {
             };
             assert_eq!(result.prediction().value(bar), Some(expected));
         }
+    }
+
+    #[test]
+    fn active_events_may_share_a_runtime_code() {
+        let mut spec = spec();
+        // The registry has several IDs per numeric code; the active set is
+        // unique by ID and the prediction still counts the code once per bar.
+        spec.active_events
+            .push(event("signal.rsi_zone", SpecEventRole::Context, 1, 4));
+        spec.validate()
+            .expect("two active IDs may share one runtime code");
     }
 
     #[test]

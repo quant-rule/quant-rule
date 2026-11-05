@@ -3,16 +3,19 @@
 
 It writes a synthetic prediction and readings bundle under `<out>/model/`. The
 synthetic series has a known directional edge so the real evaluator can be
-exercised without market data.
+exercised without market data. The run config's `data.json` supplies the year,
+so yearly bundles merge without duplicate timestamps.
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 
-BARS = 2000
+BARS = 8_760
 
 
 def predictions() -> dict[int, int]:
@@ -24,6 +27,17 @@ def predictions() -> dict[int, int]:
     return values
 
 
+def start_timestamp(config_path: Path) -> int:
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        data_path = config_path.parent / str(config.get("data", "data.json"))
+        data = json.loads(data_path.read_text(encoding="utf-8"))
+        year = int(str(data.get("from", "2018-01-01"))[:4])
+    except (OSError, ValueError, json.JSONDecodeError):
+        year = 2018
+    return int(datetime(year, 1, 1, tzinfo=timezone.utc).timestamp())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--config")
@@ -33,9 +47,10 @@ def main() -> int:
     out = Path(args.out).expanduser()
     model = out / "model"
     model.mkdir(parents=True, exist_ok=True)
+    start = start_timestamp(Path(args.config)) if args.config else 1_515_000_000
     directions = predictions()
     close = [100.0]
-    for index in range(1, BARS + 1):
+    for index in range(1, BARS):
         previous = index - 1
         if previous in directions:
             close.append(close[-1] + directions[previous] * 2.0)
@@ -58,7 +73,7 @@ def main() -> int:
                 [
                     3600,
                     index,
-                    1_515_000_000 + index * 3600,
+                    start + index * 3600,
                     directions.get(index, 0),
                     1 if directions.get(index) == 1 else 0,
                     1 if directions.get(index) == -1 else 0,
@@ -79,12 +94,12 @@ def main() -> int:
                 "atr",
             ]
         )
-        for index in range(BARS + 1):
+        for index in range(BARS):
             writer.writerow(
                 [
                     3600,
                     index,
-                    1_515_000_000 + index * 3600,
+                    start + index * 3600,
                     close[index],
                     close[index] + 0.5,
                     close[index] - 0.5,

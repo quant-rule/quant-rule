@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "m2-btc-2022",
+  "policy": "../policy.json",
+  "data": "data.json",
+  "model": "../../shared/model.json",
+  "strategy": "../../shared/strategy.json",
+  "execution": "../../shared/execution.json",
+  "portfolio": "../../shared/portfolio.json",
+  "analytics": "../../shared/analytics.json",
+  "output_root": "../../../../../../data/research/PROGRAM-2026-11-05-03/tmp"
+}

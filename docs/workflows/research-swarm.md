@@ -155,32 +155,12 @@ python3 tools/research/registry.py \
   --report data/research/<PROGRAM-ID>/program-results/program-results.json
 ```
 
-A model cell runs a model spec and a prediction evaluator instead of a strategy
-backtest:
-
-```bash
-quantrule report model \
-  --config config/research/<PROGRAM-ID>/cells/<CELL-ID>/run.json \
-  --spec config/research/<PROGRAM-ID>/cells/<CELL-ID>/spec.json \
-  --out data/research/<PROGRAM-ID>/dev/<CELL-ID>
-
-python3 tools/improvement/model_prediction.py \
-  --bundle <INSTRUMENT>=data/research/<PROGRAM-ID>/dev/<CELL-ID> \
-  --spec-id <M2.x> --family M2 \
-  --partition model_dev \
-  --horizon <H> --target-atr <T> --stop-atr <S> --cost-bps <C> \
-  --primary-cells 5 --seed 0 \
-  --out data/research/<PROGRAM-ID>/dev/<CELL-ID>/evaluation
-```
-
-The evaluator writes `evaluation/model_prediction.json` and
-`evaluation/model_prediction.md`. A cell with
+A pre-registered M2.x cell runs each instrument spec over the phase's yearly
+folds. The folds keep every run inside the 600,000 M1-candle input cap. The
+runner merges the yearly prediction and readings bundles into one continuous
+per-instrument bundle, then runs one pooled prediction evaluation. A cell with
 `"result_parser": "model_prediction"` reads those metrics into
 `cell-result.json`; the evaluator never opens validation.
-
-A pre-registered M2.x cell uses the model-cell runner instead of the two manual
-commands. It runs the four instrument specs, keeps one pooled evaluation, and
-writes the root `model_prediction.json` the adapter reads:
 
 ```bash
 python3 tools/research/model_cell.py \
