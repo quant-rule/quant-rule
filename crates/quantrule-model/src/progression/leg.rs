@@ -408,8 +408,8 @@ fn stage_for(progress: f64) -> i8 {
 
 #[cfg(test)]
 mod tests {
+    use super::target::{ATR_FALLBACK_BASIS, Target};
     use super::{Leg, Lifecycle, stage_for};
-    use crate::axes::progression::target::{ATR_FALLBACK_BASIS, Target};
     use crate::axes::structure::registry::ConfirmedLevelRegistry;
     use crate::input::ProgressionSettings;
     use crate::kernel::UnavailableReason;

@@ -13,7 +13,9 @@
 //! uses no randomness.
 
 mod ema;
-pub mod registry;
+
+/// Compatibility re-export; the registry now lives in `crate::levels`.
+pub use crate::levels as registry;
 
 use std::cmp::Ordering;
 
@@ -24,7 +26,7 @@ use crate::readings::{Pivot, PivotKind, PivotScale, Readings};
 use quantrule_data::Candle;
 
 use self::ema::EmaFeatures;
-use self::registry::ConfirmedLevelRegistry;
+use crate::levels::ConfirmedLevelRegistry;
 
 /// The published Structure values for one closed bar.
 ///

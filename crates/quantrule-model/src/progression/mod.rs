@@ -21,11 +21,11 @@
 mod leg;
 mod target;
 
-use crate::axes::structure::registry::ConfirmedLevelRegistry;
 use crate::input::ProgressionSettings;
 use crate::kernel::{
     PERCENTILE_WINDOW, Readiness, StateCounters, UnavailableReason, empirical_percentile,
 };
+use crate::levels::ConfirmedLevelRegistry;
 use crate::readings::{PivotKind, PivotScale, Readings};
 use quantrule_data::Candle;
 
