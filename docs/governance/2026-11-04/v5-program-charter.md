@@ -44,7 +44,7 @@ and instrument replication.
 | Frozen | data engine, model code, policy, strategy, execution, portfolio, analytics |
 | Data versions | `dukascopy-bid-{btcusd,ethusd,xauusd}-m1-...`; existing v4 model pack |
 | Costs | 4 bps commission per operation, 2 bps slippage, no funding (strategy tier only) |
-| Policy | `config/model-gate/shared/policy-*.json`; model gate is pre-cost |
+| Policy | The M1.0 policy envelope in [`docs/config/2026-10-30/policy-and-strategy.md`](../../config/2026-10-30/policy-and-strategy.md); the model-gate configs were removed in #463 |
 
 Phase 1 reuses the accepted v4 model pack at 1h. Regenerating the pack is not
 part of the hypothesis.

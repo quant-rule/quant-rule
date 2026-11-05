@@ -107,7 +107,7 @@ validation failure is `development_only` and stops the program.
 The pre-registered 5m onset bracket reads the published range values and the 5m
 bar identity. It does not recompute the range or read a future bar. The strategy
 protocol is
-[`docs/config/2026-11-04/strategy-v10-compression-bracket-onset-5m.md`](../../config/2026-11-04/strategy-v10-compression-bracket-onset-5m.md).
+The strategy contract was removed in #463; the historical decision is [STRATEGY-ONSET-5M-GATE.md](../../improvement/2026-11-04/STRATEGY-ONSET-5M-GATE.md).
 
 ## 10. Boundaries and limitations
 

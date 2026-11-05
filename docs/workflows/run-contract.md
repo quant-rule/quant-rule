@@ -362,7 +362,6 @@ backtest, and the tooling records, validates, and indexes the evidence.
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the published report |
 | `index.py --root data/improvement` | Rebuild `index.json` and `index.md` in deterministic order |
 | `model_confidence.py` | Axis hit rates and ordered buckets from `model-series` |
-| `strategy_compare.py` | Compare the portfolio reports of the v3–v6 cells that exist |
 | `cleanup.py --check` | Report retired terms and legacy run paths; never delete or rewrite |
 | `common.py` | Shared schema, JSON, UTC, path, and process helpers |
 

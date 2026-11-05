@@ -441,10 +441,6 @@ pub enum StrategyMode {
     LevelFade(LevelRetestConfig),
     /// The v8 bounded event-composite rule.
     EventComposite(super::event::EventCompositeConfig),
-    /// The v9 compression-breakout rule.
-    CompressionBreakout(super::compression::CompressionBreakoutConfig),
-    /// The v10 compression-bracket rule.
-    CompressionBracket(super::bracket::CompressionBracketConfig),
 }
 
 /// The complete unified ladder strategy configuration.
@@ -651,56 +647,6 @@ impl StrategyConfig {
         })
     }
 
-    /// Builds the compression-breakout rule configuration.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StrategyConfigError::WeightsLength`] only when the internal
-    /// equal-weight set cannot be built; the compression configuration is
-    /// validated by its own constructor.
-    pub fn new_compression_breakout(
-        ladder: LadderConfig,
-        compression: super::compression::CompressionBreakoutConfig,
-        risk: RiskPolicy,
-        require_contiguous_execution: bool,
-    ) -> Result<Self, StrategyConfigError> {
-        let weights = LadderWeights::equal(ladder.context_timeframes().len());
-        Ok(Self {
-            ladder,
-            weights,
-            entry: EntryConfig::default(),
-            exit: ExitConfig::default(),
-            risk: Some(risk),
-            mode: StrategyMode::CompressionBreakout(compression),
-            require_contiguous_execution,
-        })
-    }
-
-    /// Builds the compression-bracket rule configuration.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StrategyConfigError::WeightsLength`] only when the internal
-    /// equal-weight set cannot be built; the bracket configuration is validated
-    /// by its own constructor.
-    pub fn new_compression_bracket(
-        ladder: LadderConfig,
-        bracket: super::bracket::CompressionBracketConfig,
-        risk: RiskPolicy,
-        require_contiguous_execution: bool,
-    ) -> Result<Self, StrategyConfigError> {
-        let weights = LadderWeights::equal(ladder.context_timeframes().len());
-        Ok(Self {
-            ladder,
-            weights,
-            entry: EntryConfig::default(),
-            exit: ExitConfig::default(),
-            risk: Some(risk),
-            mode: StrategyMode::CompressionBracket(bracket),
-            require_contiguous_execution,
-        })
-    }
-
     /// The active ladder. `ladder[0]` is the execution timeframe.
     #[must_use]
     pub const fn ladder(&self) -> &LadderConfig {
@@ -753,10 +699,7 @@ impl StrategyConfig {
             StrategyMode::ThreeTimeframe(three) => Some(three.level),
             StrategyMode::Breakout(breakout) => Some(breakout),
             StrategyMode::LevelFade(fade) => Some(fade),
-            StrategyMode::LadderContext
-            | StrategyMode::EventComposite(_)
-            | StrategyMode::CompressionBreakout(_)
-            | StrategyMode::CompressionBracket(_) => None,
+            StrategyMode::LadderContext | StrategyMode::EventComposite(_) => None,
         }
     }
 
@@ -765,24 +708,6 @@ impl StrategyConfig {
     pub fn event_composite(&self) -> Option<super::event::EventCompositeConfig> {
         match self.mode {
             StrategyMode::EventComposite(events) => Some(events),
-            _ => None,
-        }
-    }
-
-    /// The v9 compression-breakout configuration, when that is the active rule.
-    #[must_use]
-    pub fn compression_breakout(&self) -> Option<super::compression::CompressionBreakoutConfig> {
-        match self.mode {
-            StrategyMode::CompressionBreakout(compression) => Some(compression),
-            _ => None,
-        }
-    }
-
-    /// The v10 compression-bracket configuration, when that is the active rule.
-    #[must_use]
-    pub fn compression_bracket(&self) -> Option<super::bracket::CompressionBracketConfig> {
-        match self.mode {
-            StrategyMode::CompressionBracket(bracket) => Some(bracket),
             _ => None,
         }
     }

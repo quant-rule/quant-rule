@@ -3,7 +3,7 @@
 - Date: 2026-11-04 (UTC)
 - Development run: [`STRATEGY-2026-11-04-01`](STRATEGY-2026-11-04-01-compression-strategy.md)
 - Validation run: none — not opened
-- Contract: [`docs/config/2026-11-04/strategy-v9-compression.md`](../../config/2026-11-04/strategy-v9-compression.md)
+- Contract: removed in #463; this record is the durable evidence
 - Gate: **no edge**
 - Claim type: strategy evidence after costs; no profitability claim
 

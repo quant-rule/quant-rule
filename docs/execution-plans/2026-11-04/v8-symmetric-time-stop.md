@@ -121,7 +121,7 @@ published state.
 | 3 | Parse optional `time_stop_bars` and allow direction 0 | `crates/quantrule-shell/src/config/strategy.rs` |
 | 4 | Print the time stop in `strategy explain` | `crates/quantrule-shell/src/command/strategy_explain.rs` |
 | 5 | Add unit, runner, config, and shell tests | `crates/quantrule-backtest/src/strategy/event.rs`, `crates/quantrule-backtest/src/runner/tests.rs`, `crates/quantrule-shell/src/config/tests.rs` |
-| 6 | Update the v8 contract | `docs/config/2026-11-03/strategy-v8.md` |
+| 6 | Update the v8 contract | `docs/config/2026-11-03/strategy-v8.md` (removed in #463) |
 | 7 | Add `state: none` to the path harness and tests | `tools/improvement/path_validation.py`, `tools/improvement/test_path_validation.py` |
 | 8 | Document the no-state gate | `docs/model/2026-11-04/path-validation-v4.md` |
 | 9 | Generate and verify the model pack | `data/model-v4/` (ignored local data) |

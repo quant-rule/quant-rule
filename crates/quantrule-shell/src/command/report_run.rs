@@ -964,11 +964,6 @@ fn strategy_json(
     if config.strategy.engine.level().is_some() {
         exit_reasons["level_lost"] = json!(summary.exit_level_lost);
     }
-    if config.strategy.engine.compression_breakout().is_some()
-        || config.strategy.engine.compression_bracket().is_some()
-    {
-        exit_reasons["time_stop"] = json!(summary.exit_time_stop);
-    }
 
     json!({
         "report": "strategy",
@@ -1058,11 +1053,6 @@ fn strategy_summary(config: &RunConfig, summary: &StrategySummary) -> String {
     if config.strategy.engine.level().is_some() {
         let _ = writeln!(out, "  level_lost: {}", summary.exit_level_lost);
         let _ = writeln!(out, "  event_condition: {}", summary.exit_event_condition);
-    }
-    if config.strategy.engine.compression_breakout().is_some()
-        || config.strategy.engine.compression_bracket().is_some()
-    {
-        let _ = writeln!(out, "  time_stop: {}", summary.exit_time_stop);
     }
     let _ = writeln!(out, "context:");
     let _ = writeln!(out, "  complete_bars: {}", summary.context_complete);

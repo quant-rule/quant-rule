@@ -7,7 +7,7 @@ not re-run the gate and does not decide validation.
 
 Registered parsers:
 - path_validation: tools/improvement/path_validation.py output
-- strategy_evaluation: tools/improvement/strategy_v9_evaluate.py output
+- strategy_evaluation: legacy strategy-matrix output (no current producer)
 - model_prediction: tools/improvement/model_prediction.py output
 - summary_json: a generic summary.json with metrics and verdict
 - none: no parser; the exit code is the verdict

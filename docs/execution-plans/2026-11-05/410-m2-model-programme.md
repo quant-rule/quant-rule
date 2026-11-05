@@ -1,7 +1,7 @@
 # M2.x Model Programme — Execution Plan
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved** (human, 2026-11-05); P0–P5 merged; P5 executed, `no_edge`; P6 not opened; P7 closeout records complete; legacy removal #463
+- Status: **Approved** (human, 2026-11-05); P0–P5 merged; P5 executed, `no_edge`; P6 not opened; P7 closeout complete; legacy removal #463 complete
 - Owner: human
 - Epic: [#410](https://github.com/quant-rule/quant-rule/issues/410)
 - Related: [#405](https://github.com/quant-rule/quant-rule/issues/405) indicator platform
@@ -459,7 +459,7 @@ closed until a new programme is approved.
 P7 closeout (2026-11-05): the registry F-04 owner fix, the audit
 F-02/F-04/F-07/F-09 closure, the checklist signature, and the
 baselines/index/naming-registry updates are in the `feat/430-m2-closeout`
-worktree. The legacy removal is delegated to
+worktree. The legacy removal was delivered in
 [#463](https://github.com/quant-rule/quant-rule/issues/463) as a separate
 `chore/legacy-removal` change, per the inventory. The closeout record is
 [`M2-CLOSEOUT.md`](../../improvement/2026-11-05/M2-CLOSEOUT.md).

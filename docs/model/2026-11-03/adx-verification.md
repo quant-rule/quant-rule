@@ -4,7 +4,7 @@
 - Status: **Pilot; not a model baseline and not an edge claim**
 - Epic: [#342](https://github.com/quant-rule/quant-rule/issues/342)
 - Plan: [`docs/execution-plans/2026-11-03/342-model-verification-adx.md`](../../execution-plans/2026-11-03/342-model-verification-adx.md)
-- Configs: `config/verification/shared/model.json`, `config/verification/shared/model-adx20.json`
+- Configs: the model-gate verification configs (removed in #463); the registry and model contract are the source of truth
 - Local artifacts: `data/verification/`
 
 ## 1. Question

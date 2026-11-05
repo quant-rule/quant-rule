@@ -4,7 +4,7 @@
 - Status: **Verified — no edge; validation not opened**
 - Issue: [#375](https://github.com/quant-rule/quant-rule/issues/375)
 - Model baseline: `MODEL-2026-11-04-04..05` (accepted 2026-11-04)
-- Strategy contract: [`docs/config/2026-11-04/strategy-v9-compression.md`](../../config/2026-11-04/strategy-v9-compression.md)
+- Strategy contract: removed in #463; this plan is the durable record
 - AI transparency log:
   [`docs/ai-transparency-log/2026-11-04/375-compression-strategy.md`](../../ai-transparency-log/2026-11-04/375-compression-strategy.md)
 - Claim type: strategy evidence after costs; no portfolio or profitability claim.

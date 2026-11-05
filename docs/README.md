@@ -61,11 +61,11 @@ The baseline decision is listed in the current architecture decisions below.
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/reports/2026-10-31/diagnosis-v1.md` |
 | BTCUSD 2024 example run | Current example: five bundles, 29 artifacts, byte-identical rerun; captured on 2026-10-31 | `config/examples/btcusd-2024/` |
 | Improvement run contract | Current; schema `quantrule.improvement-run/v1` implemented by `tools/improvement/` | `docs/workflows/run-contract.md` |
-| Strategy candidates v3–v7 | Retired; historical `S1.1–S1.2`; none is a validated baseline | `docs/config/2026-11-01/strategy-candidates.md` |
-| Strategy v6 breakout (`S1.1`) | Historical; experimental, not validated | `docs/config/2026-11-01/strategy-v6.md` |
-| Strategy v8 event composite (`S1.3`) | Historical; validation pending | `docs/config/2026-11-03/strategy-v8.md` |
-| Strategy v9 compression breakout (`S1.4`) | Historical; `strategy_dev` no edge; validation not opened | `docs/config/2026-11-04/strategy-v9-compression.md` |
-| Strategy v10 compression bracket (`S1.5`) | Historical; `strategy_dev` no edge; validation not opened | `docs/config/2026-11-04/strategy-v10-compression-bracket.md` |
+| Strategy candidates v3–v7 | Retired; historical `S1.1–S1.2`; none is a validated baseline | `docs/improvement/2026-11-01/STRATEGY-003-comparison.md` |
+| Strategy v6 breakout (`S1.1`) | Historical; experimental, not validated | `docs/improvement/2026-11-01/STRATEGY-002-comparison.md` |
+| Strategy v8 event composite (`S1.3`) | Historical; validation pending | `docs/execution-plans/2026-11-03/349-strategy-v8.md` |
+| Strategy v9 compression breakout (`S1.4`) | Historical; `strategy_dev` no edge; validation not opened | `docs/improvement/2026-11-04/STRATEGY-V9-GATE.md` |
+| Strategy v10 compression bracket (`S1.5`) | Historical; `strategy_dev` no edge; validation not opened | `docs/improvement/2026-11-04/STRATEGY-BRACKET-GATE.md` |
 
 ### Approved target contracts
 
@@ -184,8 +184,8 @@ committed, and the candles, charts, reports, and databases stay local.
 | Unified timeframe ladder | Complete; Phases 1–9 merged through PRs #238–#246; #246 merged as `7c865de` | `docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md` |
 | Cross-engine diagnosis v1 | Implemented; awaiting human acceptance | `docs/execution-plans/2026-10-31/diagnosis-v1.md` |
 | Model v3: flat indicator/event model, validation gate, and benchmarks | Stopped at the model gate 2026-11-03; no edge; v8 implementation proceeds separately | `docs/execution-plans/2026-11-03/342-model-v3.md` |
-| M2.x model programme | Approved 2026-11-05; P0–P5 merged; P5 `no_edge`; P7 closeout records complete; legacy removal #463; validation not opened | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
-| M2.x model charter | Approved 2026-11-05; P5 `no_edge`; checklist signed; legacy removal #463; strategy tier closed | `docs/governance/2026-11-05/M2-CHARTER.md` |
+| M2.x model programme | Approved 2026-11-05; P0–P5 merged; P5 `no_edge`; P7 closeout complete; legacy removal #463 complete; validation not opened | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
+| M2.x model charter | Approved 2026-11-05; P5 `no_edge`; checklist signed; legacy removal #463 complete; strategy tier closed | `docs/governance/2026-11-05/M2-CHARTER.md` |
 
 Execution plans are repository documents. An external draft is a scratch copy; see `AGENTS.md` section 5.
 

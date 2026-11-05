@@ -123,20 +123,12 @@ pub(crate) fn run_policy_check(
             ),
         ),
         quantrule_backtest::strategy::StrategyMode::LadderContext
-        | quantrule_backtest::strategy::StrategyMode::EventComposite(_)
-        | quantrule_backtest::strategy::StrategyMode::CompressionBreakout(_)
-        | quantrule_backtest::strategy::StrategyMode::CompressionBracket(_) => {
+        | quantrule_backtest::strategy::StrategyMode::EventComposite(_) => {
             let risk = config.strategy.engine.risk().unwrap_or_default();
             (
                 match config.strategy.engine.mode() {
                     quantrule_backtest::strategy::StrategyMode::EventComposite(_) => {
                         "event-composite"
-                    }
-                    quantrule_backtest::strategy::StrategyMode::CompressionBreakout(_) => {
-                        "compression-breakout"
-                    }
-                    quantrule_backtest::strategy::StrategyMode::CompressionBracket(_) => {
-                        "compression-bracket"
                     }
                     _ => "ladder-context",
                 },

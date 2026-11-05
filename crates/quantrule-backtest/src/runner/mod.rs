@@ -32,9 +32,7 @@ use crate::portfolio::{
 };
 use crate::side::Side;
 use crate::strategy::{
-    CompressionBracketConfig, CompressionBracketInput, CompressionBracketStrategy,
-    CompressionBreakoutConfig, CompressionBreakoutInput, CompressionBreakoutStrategy, Decision,
-    EventCompositeStrategy, EventStrategyInput, EventView, LadderContextStrategy, Strategy,
+    Decision, EventCompositeStrategy, EventStrategyInput, LadderContextStrategy, Strategy,
     StrategyConfig, StrategyInput, StrategyWalk,
 };
 
@@ -120,68 +118,7 @@ impl BacktestRun {
 /// Runs the model, strategy, execution, and portfolio over the inputs.
 ///
 /// The model is computed once over every non-empty timeframe input. If the
-/// Builds the per-bar index of one configured event family.
-fn configured_event_index(
-    model: &ModelRun,
-    timeframe_secs: u64,
-    event_type: u8,
-    subtype: u8,
-    source: u16,
-) -> Vec<Vec<EventView>> {
-    let Some(timeframe) = model.timeframe(timeframe_secs) else {
-        return Vec::new();
-    };
-    let mut index = vec![Vec::new(); timeframe.len()];
-    for event in timeframe.events() {
-        if event.event_type.code() != event_type
-            || event.event_subtype_code != subtype
-            || event.source_code != source
-        {
-            continue;
-        }
-        if let Some(slot) = index.get_mut(event.available_bar_index) {
-            slot.push(EventView {
-                event_type: event.event_type.code(),
-                subtype: event.event_subtype_code,
-                source: event.source_code,
-                direction: event.direction_code,
-                occurred_bar_index: event.occurred_bar_index,
-                available_bar_index: event.available_bar_index,
-                reference_code: event.reference_code,
-                primary_value: event.primary_value,
-                reference_value: event.reference_value,
-            });
-        }
-    }
-    index
-}
-
-/// Builds the per-bar index of the configured compression-breakout event.
-fn compression_event_index(
-    model: &ModelRun,
-    config: CompressionBreakoutConfig,
-) -> Vec<Vec<EventView>> {
-    configured_event_index(
-        model,
-        config.event_timeframe_secs(),
-        config.event_type(),
-        config.event_subtype(),
-        config.event_source(),
-    )
-}
-
-/// Builds the per-bar index of the configured compression-range event.
-fn bracket_event_index(model: &ModelRun, config: CompressionBracketConfig) -> Vec<Vec<EventView>> {
-    configured_event_index(
-        model,
-        config.event_timeframe_secs(),
-        config.event_type(),
-        config.event_subtype(),
-        config.event_source(),
-    )
-}
-
-/// strategy timeframe is absent, the run is empty and the ledger stays at its/// strategy timeframe is absent, the run is empty and the ledger stays at its
+/// strategy timeframe is absent, the run is empty and the ledger stays at its
 /// initial cash; this is not an error.
 ///
 /// # Errors
@@ -211,20 +148,6 @@ pub fn run_backtest(
             config.strategy.require_contiguous_execution(),
         )
     });
-    let compression_strategy = config.strategy.compression_breakout().map(|compression| {
-        CompressionBreakoutStrategy::new(
-            compression,
-            config.strategy.risk().unwrap_or_default(),
-            config.strategy.require_contiguous_execution(),
-        )
-    });
-    let bracket_strategy = config.strategy.compression_bracket().map(|bracket| {
-        CompressionBracketStrategy::new(
-            bracket,
-            config.strategy.risk().unwrap_or_default(),
-            config.strategy.require_contiguous_execution(),
-        )
-    });
     let mut inputs_seen = Vec::new();
     let mut contexts: Vec<LadderContext> = Vec::new();
     let mut decisions = Vec::new();
@@ -239,12 +162,6 @@ pub fn run_backtest(
             LadderContextBuilder::new(&model, config.strategy.ladder(), config.strategy.weights())
                 .map_err(BacktestError::Context)?
                 .with_level_scale(config.strategy.level_scale());
-        let compression_index = compression_strategy
-            .as_ref()
-            .map(|compression| compression_event_index(&model, compression.config()));
-        let bracket_index = bracket_strategy
-            .as_ref()
-            .map(|bracket| bracket_event_index(&model, bracket.config()));
         inputs_seen.reserve(timeframe.len());
         contexts.reserve(timeframe.len());
         decisions.reserve(timeframe.len());
@@ -282,51 +199,19 @@ pub fn run_backtest(
 
             let input = StrategyInput::from_model_bar(&bar, previous.as_ref(), contiguous);
             let position = execution.position_view();
-            let decision = match &bracket_strategy {
-                Some(bracket) => {
-                    let events = bracket_index
-                        .as_ref()
-                        .and_then(|index| index.get(bar_index))
-                        .map_or(&[][..], Vec::as_slice);
-                    let bracket_input = CompressionBracketInput {
-                        execution_timeframe_secs: config.strategy.timeframe_secs(),
-                        execution_bar_index: bar_index,
-                        execution_open_time: time,
-                        execution_contiguous: contiguous,
-                        events,
-                    };
-                    bracket.decide(&bracket_input, position)
+            let decision = match &event_strategy {
+                Some(event_strategy) => {
+                    let event_input = EventStrategyInput::from_model_run(
+                        &model,
+                        config.strategy.timeframe_secs(),
+                        bar_index,
+                        &context,
+                        event_strategy.config().window_bars(),
+                    )
+                    .with_contiguous(contiguous);
+                    event_strategy.decide(&event_input, position)
                 }
-                None => match &compression_strategy {
-                    Some(compression) => {
-                        let events = compression_index
-                            .as_ref()
-                            .and_then(|index| index.get(bar_index))
-                            .map_or(&[][..], Vec::as_slice);
-                        let compression_input = CompressionBreakoutInput {
-                            execution_timeframe_secs: config.strategy.timeframe_secs(),
-                            execution_bar_index: bar_index,
-                            execution_open_time: time,
-                            execution_contiguous: contiguous,
-                            events,
-                        };
-                        compression.decide(&compression_input, position)
-                    }
-                    None => match &event_strategy {
-                        Some(event_strategy) => {
-                            let event_input = EventStrategyInput::from_model_run(
-                                &model,
-                                config.strategy.timeframe_secs(),
-                                bar_index,
-                                &context,
-                                event_strategy.config().window_bars(),
-                            )
-                            .with_contiguous(contiguous);
-                            event_strategy.decide(&event_input, position)
-                        }
-                        None => strategy.decide(&input, &context, position),
-                    },
-                },
+                None => strategy.decide(&input, &context, position),
             };
             inputs_seen.push(input);
             contexts.push(context);
@@ -443,26 +328,6 @@ pub fn walk_strategy(
             config.require_contiguous_execution(),
         )
     });
-    let compression_strategy = config.compression_breakout().map(|compression| {
-        CompressionBreakoutStrategy::new(
-            compression,
-            config.risk().unwrap_or_default(),
-            config.require_contiguous_execution(),
-        )
-    });
-    let bracket_strategy = config.compression_bracket().map(|bracket| {
-        CompressionBracketStrategy::new(
-            bracket,
-            config.risk().unwrap_or_default(),
-            config.require_contiguous_execution(),
-        )
-    });
-    let compression_index = compression_strategy
-        .as_ref()
-        .map(|compression| compression_event_index(run, compression.config()));
-    let bracket_index = bracket_strategy
-        .as_ref()
-        .map(|bracket| bracket_event_index(run, bracket.config()));
     let execution_secs = i64::from(timeframe.timeframe_secs() as u32);
     let mut context_builder = LadderContextBuilder::new(run, config.ladder(), config.weights())
         .map_err(BacktestError::Context)?
@@ -490,51 +355,19 @@ pub fn walk_strategy(
         if position.is_open() {
             position.bars_held += 1;
         }
-        let decision = match &bracket_strategy {
-            Some(bracket) => {
-                let events = bracket_index
-                    .as_ref()
-                    .and_then(|index| index.get(bar_index))
-                    .map_or(&[][..], Vec::as_slice);
-                let bracket_input = CompressionBracketInput {
-                    execution_timeframe_secs: config.timeframe_secs(),
-                    execution_bar_index: bar_index,
-                    execution_open_time: time,
-                    execution_contiguous: contiguous,
-                    events,
-                };
-                bracket.decide(&bracket_input, position)
+        let decision = match &event_strategy {
+            Some(event_strategy) => {
+                let event_input = EventStrategyInput::from_model_run(
+                    run,
+                    config.timeframe_secs(),
+                    bar_index,
+                    &context,
+                    event_strategy.config().window_bars(),
+                )
+                .with_contiguous(contiguous);
+                event_strategy.decide(&event_input, position)
             }
-            None => match &compression_strategy {
-                Some(compression) => {
-                    let events = compression_index
-                        .as_ref()
-                        .and_then(|index| index.get(bar_index))
-                        .map_or(&[][..], Vec::as_slice);
-                    let compression_input = CompressionBreakoutInput {
-                        execution_timeframe_secs: config.timeframe_secs(),
-                        execution_bar_index: bar_index,
-                        execution_open_time: time,
-                        execution_contiguous: contiguous,
-                        events,
-                    };
-                    compression.decide(&compression_input, position)
-                }
-                None => match &event_strategy {
-                    Some(event_strategy) => {
-                        let event_input = EventStrategyInput::from_model_run(
-                            run,
-                            config.timeframe_secs(),
-                            bar_index,
-                            &context,
-                            event_strategy.config().window_bars(),
-                        )
-                        .with_contiguous(contiguous);
-                        event_strategy.decide(&event_input, position)
-                    }
-                    None => strategy.decide(&input, &context, position),
-                },
-            },
+            None => strategy.decide(&input, &context, position),
         };
         positions.push(position);
         match decision {
