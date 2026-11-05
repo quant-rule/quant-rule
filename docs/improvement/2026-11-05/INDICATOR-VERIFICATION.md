@@ -99,11 +99,11 @@ registry ID; the registry entry carries the exact formula.
 
 | Code | Indicator | L events | D events | S events |
 |---:|---|---|---|---|
-| 37 | `relative_strength` | none | `divergence.rs_regular_bullish`, `divergence.rs_regular_bearish` | `signal.rs_cross`, `signal.rs_regime` |
-| 38 | `lead_lag` | none | `divergence.lead_lag_bullish`, `divergence.lead_lag_bearish` | `signal.lead_signal`, `signal.lag_divergence` |
+| 37 | `relative_strength` | none | `divergence.rs_regular_bullish`, `divergence.rs_regular_bearish` | `signal.relative_strength_cross` |
+| 38 | `lead_lag` | none | `divergence.lead_lag_bullish`, `divergence.lead_lag_bearish` | `signal.lead_lag_cross` |
 | 39 | `breadth` | none | `divergence.breadth_regular_bullish`, `divergence.breadth_regular_bearish` | `signal.breadth_cross` |
-| 40 | `co_movement` | none | none | `signal.comovement_regime` |
-| 41 | `dispersion` | none | none | `signal.dispersion` |
+| 40 | `co_movement` | none | none | `signal.co_movement_cross` |
+| 41 | `dispersion` | none | none | `signal.dispersion_cross` |
 
 ### Area 10 — Calendar and session
 
@@ -135,33 +135,38 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 8 | cmf | 17 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 9 | mfi | 18 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
 | 10 | ad_line | 19 | 4 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | tested |
-| 11 | atr_term | 20 | 5 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 12 | range_expansion | 21 | 5 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 13 | mar | 22 | 5 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 14 | keltner | 23 | 5 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 15 | donchian | 24 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 16 | swing_structure | 25 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
+| 11 | atr_term | 20 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 12 | range_expansion | 21 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 13 | mar | 22 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 14 | keltner | 23 | 5 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 15 | donchian | 24 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 16 | swing_structure | 25 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 17 | level_strength | 26 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 18 | aroon | 27 | 6 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
 | 19 | bos_choch | 28 | 6 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 20 | candle_anatomy | 29 | 7 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 21 | candle_pattern | 30 | 7 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 22 | gap | 31 | 7 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 23 | path_efficiency | 32 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 24 | direction_changes | 33 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☐ | ☑ | ☐ | code |
-| 28 | relative_strength | 37 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 29 | lead_lag | 38 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 20 | candle_anatomy | 29 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 21 | candle_pattern | 30 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 22 | gap | 31 | 7 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 23 | path_efficiency | 32 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 24 | direction_changes | 33 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 25 | bars_since_extreme | 34 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 26 | drawdown_atr | 35 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 27 | range_position | 36 | 8 | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | code |
+| 28 | relative_strength | 37 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 29 | lead_lag | 38 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+| 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | code |
+
+`Events` is checked when every event registered for the indicator in
+`docs/registry/indicators.json` is implemented. `bos_choch` has no registered
+event yet, so its cell stays open. The session-VWAP and opening-range level
+events are also deferred; the registry carries only the session signal events.
 
 ## 4. Verification table B — test and math checklist
 

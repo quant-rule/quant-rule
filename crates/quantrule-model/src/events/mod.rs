@@ -18,6 +18,7 @@ pub mod extended;
 pub mod level;
 pub(crate) mod order;
 pub mod panel;
+pub mod session;
 pub mod signal;
 pub mod signals;
 pub mod trend;

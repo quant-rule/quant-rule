@@ -48,6 +48,8 @@ impl PanelConfig {
 pub struct PanelInstrumentReadings {
     /// `ret_i - mean(ret_j)` in ATR units.
     pub relative_strength: Vec<Option<f64>>,
+    /// The leader return at `t - k`.
+    pub leader_return: Vec<Option<f64>>,
     /// The leader return at `t - k` minus this instrument's return.
     pub lead_lag: Vec<Option<f64>>,
     /// The share of instruments with a positive return.
@@ -145,6 +147,7 @@ impl PanelReadings {
         for (instrument_index, instrument) in panel.iter().enumerate() {
             let mut readings = PanelInstrumentReadings {
                 relative_strength: vec![None; timestamps.len()],
+                leader_return: vec![None; timestamps.len()],
                 lead_lag: vec![None; timestamps.len()],
                 breadth: vec![None; timestamps.len()],
                 co_movement: vec![None; timestamps.len()],
@@ -203,9 +206,12 @@ impl PanelReadings {
                     let low = values.iter().copied().fold(f64::INFINITY, f64::min);
                     readings.dispersion[position] = Some(high - low);
                 }
-                if position >= config.lead_lag && instrument_index > 0 {
+                if position >= config.lead_lag {
                     let leader = returns[0][position - config.lead_lag];
-                    if let (Some(leader), Some(own)) = (leader, own) {
+                    readings.leader_return[position] = leader;
+                    if instrument_index > 0
+                        && let (Some(leader), Some(own)) = (leader, own)
+                    {
                         readings.lead_lag[position] = Some(leader - own);
                     }
                 }

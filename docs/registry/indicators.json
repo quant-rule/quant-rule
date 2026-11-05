@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.12",
+  "version": "2026-11-05.13",
   "indicators": [
     {
       "id": "ema",
@@ -1310,7 +1310,8 @@
       "availability": "common panel timestamps and return window",
       "events": [
         "divergence.rs_regular_bullish",
-        "divergence.rs_regular_bearish"
+        "divergence.rs_regular_bearish",
+        "signal.relative_strength_cross"
       ],
       "tests": [
         "causality",
@@ -1336,12 +1337,14 @@
         "model.panel.return_window"
       ],
       "outputs": [
+        "leader_return",
         "lead_lag"
       ],
       "availability": "lead-lag and return windows",
       "events": [
         "divergence.lead_lag_bullish",
-        "divergence.lead_lag_bearish"
+        "divergence.lead_lag_bearish",
+        "signal.lead_lag_cross"
       ],
       "tests": [
         "causality",
@@ -1371,7 +1374,8 @@
       "availability": "common panel timestamps",
       "events": [
         "divergence.breadth_regular_bullish",
-        "divergence.breadth_regular_bearish"
+        "divergence.breadth_regular_bearish",
+        "signal.breadth_cross"
       ],
       "tests": [
         "causality",
@@ -1399,7 +1403,9 @@
         "co_movement"
       ],
       "availability": "co-movement window",
-      "events": [],
+      "events": [
+        "signal.co_movement_cross"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1426,7 +1432,9 @@
         "dispersion"
       ],
       "availability": "common panel timestamps",
-      "events": [],
+      "events": [
+        "signal.dispersion_cross"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1442,7 +1450,7 @@
       "taxonomy": "session",
       "role": "context",
       "claim": "The session code and age describe the local session.",
-      "formula": "local=UTC+zone offset; session_code=1 if start<=local_hour<end else 0; age=local_hour-start",
+      "formula": "local=UTC+zone offset; session_code=1 if start<=local_hour<end else 0; age=bars since session open",
       "inputs": [
         "timestamp"
       ],
@@ -1457,7 +1465,10 @@
         "session_age"
       ],
       "availability": "bar timestamp",
-      "events": [],
+      "events": [
+        "signal.session_open",
+        "signal.session_close"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1488,7 +1499,10 @@
         "opening_range_atr"
       ],
       "availability": "session start and ATR",
-      "events": [],
+      "events": [
+        "signal.opening_range_breakout",
+        "signal.opening_range_fade"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1518,7 +1532,10 @@
         "intraday_return"
       ],
       "availability": "prior session close and ATR",
-      "events": [],
+      "events": [
+        "signal.overnight_continuation",
+        "signal.overnight_fade"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -1547,7 +1564,10 @@
         "session_range_atr"
       ],
       "availability": "session start and ATR",
-      "events": [],
+      "events": [
+        "signal.session_range_expansion",
+        "signal.session_range_contraction"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -3817,6 +3837,227 @@
       "role": "context",
       "claim": "none",
       "formula": "cross_up(RP,0.8) or cross_down(RP,0.2)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.relative_strength_cross",
+      "event_type": 3,
+      "subtype": 22,
+      "source": 45,
+      "indicator": "relative_strength",
+      "role": "context",
+      "claim": "A relative-strength zero cross marks a change in positioning against the peer basket.",
+      "formula": "cross_up(RS,0) or cross_down(RS,0)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.lead_lag_cross",
+      "event_type": 3,
+      "subtype": 22,
+      "source": 46,
+      "indicator": "lead_lag",
+      "role": "context",
+      "claim": "A leader-return threshold cross marks a propagation impulse.",
+      "formula": "cross_up(lead,1) or cross_down(lead,-1)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.breadth_cross",
+      "event_type": 3,
+      "subtype": 22,
+      "source": 47,
+      "indicator": "breadth",
+      "role": "context",
+      "claim": "A breadth threshold cross marks a change in participation breadth.",
+      "formula": "cross_up(BR,0.67) or cross_down(BR,0.33)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.co_movement_cross",
+      "event_type": 3,
+      "subtype": 22,
+      "source": 48,
+      "indicator": "co_movement",
+      "role": "diagnostic",
+      "claim": "A co-movement threshold cross marks a change in same-sign alignment.",
+      "formula": "cross_up(CM,0.7) or cross_down(CM,0.3)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.dispersion_cross",
+      "event_type": 3,
+      "subtype": 22,
+      "source": 49,
+      "indicator": "dispersion",
+      "role": "diagnostic",
+      "claim": "A dispersion threshold cross marks a widening cross-sectional return range.",
+      "formula": "cross_up(D,1.0)",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.session_open",
+      "event_type": 3,
+      "subtype": 23,
+      "source": 50,
+      "indicator": "session",
+      "role": "context",
+      "claim": "The first bar of a session marks the session open.",
+      "formula": "session_code[t]==1 and session_code[t-1]!=1",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.session_close",
+      "event_type": 3,
+      "subtype": 23,
+      "source": 50,
+      "indicator": "session",
+      "role": "context",
+      "claim": "The last bar of a session is known only on the next bar.",
+      "formula": "session_code[t]==0 and session_code[t-1]==1; occurred t-1, available t",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.opening_range_breakout",
+      "event_type": 3,
+      "subtype": 23,
+      "source": 51,
+      "indicator": "opening_range",
+      "role": "context",
+      "claim": "A close above the completed opening range marks a breakout.",
+      "formula": "age>=k and C>ORH and C_prev<=ORH_prev",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.opening_range_fade",
+      "event_type": 3,
+      "subtype": 23,
+      "source": 51,
+      "indicator": "opening_range",
+      "role": "context",
+      "claim": "A close below the completed opening range marks a fade.",
+      "formula": "age>=k and C<ORL and C_prev>=ORL_prev",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.overnight_continuation",
+      "event_type": 3,
+      "subtype": 23,
+      "source": 52,
+      "indicator": "overnight_intraday",
+      "role": "signal",
+      "claim": "A large overnight move continued by the first intraday bar marks continuation.",
+      "formula": "age==0 and ON>=0.5 and ID>0",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.overnight_fade",
+      "event_type": 3,
+      "subtype": 23,
+      "source": 52,
+      "indicator": "overnight_intraday",
+      "role": "signal",
+      "claim": "A large overnight move reversed by the first intraday bar marks a fade.",
+      "formula": "age==0 and ON>=0.5 and ID<0",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.session_range_expansion",
+      "event_type": 3,
+      "subtype": 23,
+      "source": 53,
+      "indicator": "session_range",
+      "role": "context",
+      "claim": "A session range crossing 1.5 ATR marks expansion.",
+      "formula": "cross_up(SR,1.5) within one session",
+      "parameters": [],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.session_range_contraction",
+      "event_type": 3,
+      "subtype": 23,
+      "source": 53,
+      "indicator": "session_range",
+      "role": "context",
+      "claim": "A session range crossing below 0.7 ATR marks contraction.",
+      "formula": "cross_down(SR,0.7) within one session",
       "parameters": [],
       "tests": [
         "event",
