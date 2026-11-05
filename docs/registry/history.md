@@ -1,8 +1,8 @@
 # Current-Architecture History Index
 
 - Date: 2026-11-05 (UTC)
-- Status: Frozen inventory; P0.1 deletion manifest at `8acf857`; deletion
-  starts in P3/P4 after D1–D4
+- Status: Frozen inventory; P0.1 and P1 merged; P2 naming in progress;
+  deletion starts in P3/P4 after D1–D4
 - Freeze commit: `32e6fb2`
 - Manifest commit: `8acf857`
 - Work item: [#468](https://github.com/quant-rule/quant-rule/issues/468)
@@ -38,7 +38,7 @@ evidence remains. It is not a current architecture contract.
 | `docs/architecture/**` | Current architecture |
 | `docs/workflows/**`, `docs/governance/**` | Current operating contracts |
 
-`docs/model/2026-11-04/model-v4.md` is renamed to the `M1.0` contract in P2.
+`docs/model/2026-11-05/model-m1.0.md` is the `M1.0` contract after the P2 rename.
 
 ## 3. Delete from the current surface
 
@@ -116,7 +116,7 @@ config contracts, old tutorials, and old strategy config contracts:
 
 Keep model/strategy evidence documents under `docs/model/2026-11-03/` and
 `docs/model/2026-11-04/` as historical evidence unless they are current
-contracts. The current `M1.0` contract replaces `model-v4.md`.
+contracts. The current `M1.0` contract replaces the old model-v4 path in P2.
 
 ## 4. Keep as history
 

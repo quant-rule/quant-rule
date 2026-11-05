@@ -29,6 +29,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<PortfolioConfig, Config
         object,
         &[
             "schema",
+            "id",
             "initial_cash",
             "currency",
             "sizing",

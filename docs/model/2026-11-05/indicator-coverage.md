@@ -8,7 +8,7 @@
 - Checklist: [`docs/improvement/2026-11-05/INDICATOR-VERIFICATION.md`](../../improvement/2026-11-05/INDICATOR-VERIFICATION.md)
 - Retrospective audit: [`docs/improvement/2026-11-05/INDICATOR-AUDIT.md`](../../improvement/2026-11-05/INDICATOR-AUDIT.md)
 - M2.x programme: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
-- Contract: `AGENTS.md`, `docs/model/2026-11-04/model-v4.md`, `docs/registry/README.md`
+- Contract: `AGENTS.md`, `docs/model/2026-11-05/model-m1.0.md`, `docs/registry/README.md`
 - Claim type: registry and indicator contract; no edge claim
 
 ## 1. Completeness rule

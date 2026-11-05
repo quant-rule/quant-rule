@@ -85,7 +85,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<PolicyConfig, ConfigErr
         file,
         ROOT,
         object,
-        &["schema", "account", "objective", "risk", "universe"],
+        &["schema", "id", "account", "objective", "risk", "universe"],
     )?;
     read::schema(file, object, "quantrule.policy/v1")?;
 
