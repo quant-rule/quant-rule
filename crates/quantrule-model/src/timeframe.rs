@@ -33,8 +33,7 @@ use crate::events::signal::{SignalConfig, SignalEventSeries};
 use crate::events::trend::{TrendContinuationConfig, TrendContinuationSeries};
 use crate::input::{MarketStateConfig, TimeframeInput};
 use crate::readings::{
-    AdxSeries, ExtendedConfig, ExtendedReadings, MacdSeries, PivotKind, PivotScale, PivotSeries,
-    Readings,
+    AdxSeries, ExtendedReadings, MacdSeries, PivotKind, PivotScale, PivotSeries, Readings,
 };
 use crate::retention::{EventBatch, EventHistory};
 
@@ -163,8 +162,7 @@ impl TimeframeModel {
 
         let readings_config = config.readings_for(input.timeframe_secs);
         let readings = Readings::compute_with_config(input.candles, &readings_config);
-        let extended =
-            ExtendedReadings::compute(input.candles, &readings, &ExtendedConfig::DEFAULT);
+        let extended = ExtendedReadings::compute(input.candles, &readings, &config.extended());
         let event_settings = config.events_for(input.timeframe_secs);
         let progression_settings = config.progression_for(input.timeframe_secs);
         let macd = if config.macd_enabled_for(input.timeframe_secs) {
@@ -376,6 +374,15 @@ impl TimeframeModel {
     #[must_use]
     pub fn candle(&self, bar: usize) -> Option<Candle> {
         self.candles.get(bar).copied()
+    }
+
+    /// The closed candles for this timeframe.
+    ///
+    /// The slice is read-only and in timestamp order. The spec run needs it to
+    /// compute session readings and session events over the evaluated series.
+    #[must_use]
+    pub fn candles(&self) -> &[Candle] {
+        &self.candles
     }
 
     /// The scalar readings computed for this timeframe.

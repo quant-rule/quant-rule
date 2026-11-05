@@ -17,6 +17,8 @@ use crate::events::EventType;
 use crate::run::ModelRun;
 use crate::timeframe::{ModelStates, TimeframeModel};
 
+pub mod v2;
+
 /// The only schema version this module evaluates.
 pub const SPEC_SCHEMA: &str = "quantrule.model-spec/v1";
 /// The maximum expression depth, counting the root as one.

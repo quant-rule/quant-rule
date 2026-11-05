@@ -6,7 +6,7 @@
 
 use quantrule_data::{Candle, Timeframe};
 
-use crate::readings::{PivotScale, ReadingsConfig};
+use crate::readings::{ExtendedConfig, PivotScale, ReadingsConfig};
 
 /// Level-event settings.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -192,6 +192,7 @@ pub struct MarketStateConfig {
     /// The pivot scale used by Structure and Divergence.
     pub structure_scale: PivotScale,
     readings: [ReadingsConfig; Timeframe::ALL.len()],
+    extended: ExtendedConfig,
     events: [EventSettings; Timeframe::ALL.len()],
     progression: [ProgressionSettings; Timeframe::ALL.len()],
     overridden: [bool; Timeframe::ALL.len()],
@@ -206,6 +207,7 @@ impl MarketStateConfig {
         Self {
             structure_scale,
             readings: [ReadingsConfig::DEFAULT; Timeframe::ALL.len()],
+            extended: ExtendedConfig::DEFAULT,
             events: [EventSettings::DEFAULT; Timeframe::ALL.len()],
             progression: [ProgressionSettings::DEFAULT; Timeframe::ALL.len()],
             overridden: [false; Timeframe::ALL.len()],
@@ -226,6 +228,21 @@ impl MarketStateConfig {
     /// Sets the default readings for every timeframe.
     pub fn set_readings_default(&mut self, readings: ReadingsConfig) {
         self.readings = [readings; Timeframe::ALL.len()];
+    }
+
+    /// The extended reading configuration shared by every timeframe.
+    #[must_use]
+    pub const fn extended(&self) -> ExtendedConfig {
+        self.extended
+    }
+
+    /// Sets the extended reading configuration shared by every timeframe.
+    ///
+    /// The extended readings are one configuration for the whole run because
+    /// they are computed independently per timeframe and the v2 spec has one
+    /// evaluation timeframe.
+    pub fn set_extended(&mut self, extended: ExtendedConfig) {
+        self.extended = extended;
     }
 
     /// Sets one timeframe's readings and marks them as an explicit override.

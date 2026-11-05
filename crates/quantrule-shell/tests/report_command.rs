@@ -575,3 +575,66 @@ fn the_spec_conditions_match_the_conformance_fixture() {
         "conditions.csv differs from the conformance fixture"
     );
 }
+
+#[test]
+fn a_v2_spec_run_publishes_a_causal_prediction() {
+    let first = output_dir("report-spec-v2-1");
+    let second = output_dir("report-spec-v2-2");
+    let config = fixture(CONFIG);
+    let spec = fixture("config-run/spec-v2.json");
+    for out in [&first, &second] {
+        let output = run(&[
+            "report",
+            "model",
+            "--config",
+            config.to_str().expect("the config path is UTF-8"),
+            "--spec",
+            spec.to_str().expect("the spec path is UTF-8"),
+            "--out",
+            out.to_str().expect("the output path is UTF-8"),
+        ]);
+        assert_success(&output);
+    }
+
+    for name in [
+        "prediction.csv",
+        "events.csv",
+        "conditions.csv",
+        "provenance.json",
+    ] {
+        assert_eq!(
+            read(&first.join("model").join(name)),
+            read(&second.join("model").join(name)),
+            "{name} differs between reruns"
+        );
+    }
+
+    let prediction =
+        String::from_utf8(read(&first.join("model/prediction.csv"))).expect("prediction is UTF-8");
+    assert!(
+        prediction.starts_with("timeframe_secs,bar,timestamp,prediction,long_votes,short_votes\n")
+    );
+    let rows: Vec<&str> = prediction.lines().skip(1).collect();
+    assert!(!rows.is_empty(), "the prediction has no rows");
+    for row in rows {
+        let columns: Vec<&str> = row.split(',').collect();
+        assert_eq!(columns.len(), 6, "unexpected prediction row: {row}");
+        assert!(
+            ["-1", "0", "1"].contains(&columns[3]),
+            "unexpected prediction value: {row}"
+        );
+    }
+
+    let provenance =
+        String::from_utf8(read(&first.join("model/provenance.json"))).expect("provenance is UTF-8");
+    assert!(provenance.contains("\"schema\":\"quantrule.model-spec/v2\""));
+    assert!(provenance.contains("\"family\":\"M2\""));
+    assert!(provenance.contains("\"prediction\":{"));
+    assert!(provenance.contains("\"long\":[\"signal.rsi_threshold\"]"));
+    assert!(provenance.contains("\"short\":[\"signal.ema_pair_cross\"]"));
+    assert!(provenance.contains(
+        "\"active_events\":[\"signal.rsi_threshold\",\"signal.ema_pair_cross\",\"signal.relative_strength_cross\",\"signal.session_open\"]"
+    ));
+    assert!(provenance.contains("\"panel\":[\"BTC\",\"EURUSD\"]"));
+    assert!(provenance.contains("\"session\":{"));
+}
