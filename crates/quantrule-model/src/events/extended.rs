@@ -44,6 +44,8 @@ pub const STRENGTH_SOURCE_CODE: u16 = 34;
 pub const CANDLE_SOURCE_CODE: u16 = 37;
 /// Source code for gaps.
 pub const GAP_SOURCE_CODE: u16 = 39;
+/// Source code for the ATR term structure.
+pub const ATR_SOURCE_CODE: u16 = 28;
 
 /// The configuration of the extended event run.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -105,6 +107,7 @@ impl ExtendedEventSeries {
         divergence_events(readings, extended, config, &mut events);
         participation_divergences(readings, extended, config, &mut events);
         flow_divergences(readings, extended, config, &mut events);
+        atr_divergences(readings, extended, config, &mut events);
         events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
         // The occurrence key is one event per timeframe, type, subtype, source,
         // bar, direction, and reference. A reclaim and a rejection can describe
@@ -1356,6 +1359,52 @@ fn level_extended_events(
     }
 }
 
+fn divergence_subtype(kind: PivotKind, price_delta: f64, value_delta: f64) -> Option<(u8, i8)> {
+    match kind {
+        PivotKind::Low if price_delta < 0.0 && value_delta > 0.0 => Some((1, 1)),
+        PivotKind::High if price_delta > 0.0 && value_delta < 0.0 => Some((2, -1)),
+        _ => None,
+    }
+}
+
+fn atr_divergences(
+    readings: &Readings,
+    extended: &ExtendedReadings,
+    config: &ExtendedEventConfig,
+    events: &mut Vec<EventRecord>,
+) {
+    let mut previous_high: Option<(f64, f64, usize, usize)> = None;
+    let mut previous_low: Option<(f64, f64, usize, usize)> = None;
+    for pivot in readings.pivots.all_confirmed(PivotScale::Major) {
+        let Some(value) = extended.atr_ratio.get(pivot.occurred_at) else {
+            continue;
+        };
+        let state = (pivot.price, value, pivot.occurred_at, pivot.available_at);
+        let previous = match pivot.kind {
+            PivotKind::High => previous_high.replace(state),
+            PivotKind::Low => previous_low.replace(state),
+        };
+        let Some(previous) = previous else { continue };
+        let Some((subtype, direction)) =
+            divergence_subtype(pivot.kind, pivot.price - previous.0, value - previous.1)
+        else {
+            continue;
+        };
+        events.push(EventRecord {
+            event_type: EventType::Divergence,
+            event_subtype_code: subtype,
+            source_code: ATR_SOURCE_CODE,
+            timeframe_secs: config.timeframe_secs(),
+            occurred_bar_index: state.2,
+            available_bar_index: state.3,
+            direction_code: direction,
+            reference_code: None,
+            primary_value: Some(state.0),
+            reference_value: Some(value),
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{ExtendedEventConfig, ExtendedEventSeries};
@@ -1582,5 +1631,17 @@ mod tests {
                 .iter()
                 .any(|event| event.source_code == 39 && event.event_subtype_code == 1)
         );
+    }
+
+    #[test]
+    fn atr_divergence_subtypes_are_directional() {
+        use super::divergence_subtype;
+        use crate::readings::PivotKind;
+        assert_eq!(divergence_subtype(PivotKind::Low, -1.0, 1.0), Some((1, 1)));
+        assert_eq!(
+            divergence_subtype(PivotKind::High, 1.0, -1.0),
+            Some((2, -1))
+        );
+        assert_eq!(divergence_subtype(PivotKind::Low, 1.0, -1.0), None);
     }
 }

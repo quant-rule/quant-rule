@@ -1,0 +1,49 @@
+# AI Transparency Log — ATR Divergence (#420)
+
+- Date: 2026-11-05 (UTC)
+- Tool: OpenCode agent session (DeepSeek V4.1 Flash)
+- Work item: ATR divergence events
+- Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
+- Plan: [`docs/execution-plans/2026-11-05/405-indicator-platform.md`](../../execution-plans/2026-11-05/405-indicator-platform.md)
+- Status: ATR divergence implemented and tested; panel divergences remain in #420
+
+## Intent and boundary
+
+Add the remaining single-instrument divergence: price vs the ATR term ratio.
+VWAP, profile, RVOL, climax, OBV, CMF, MFI, and AD divergences were already in
+the extended batch. Panel-level relative-strength, lead-lag, and breadth
+divergences need a panel event API and remain open.
+
+## Implemented work
+
+| Event | Status |
+|---|---|
+| `divergence.atr_bullish` | Done |
+| `divergence.atr_bearish` | Done |
+| Shared `divergence_subtype` helper | Done |
+| Registry entries | Done |
+
+## Verification and evidence
+
+Observed on 2026-11-05:
+
+| Command | Result |
+|---|---|
+| `cargo test -p quantrule-model extended` | 36 extended tests pass |
+| `cargo test --workspace` | all 49 result groups pass |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean |
+| `python3 tools/check_registry.py` | 46 indicators, 85 events, 110 parameters |
+
+The test covers the four directional cases of the shared subtype helper.
+
+## Learning and rejected suggestions
+
+- The divergence comparison is a shared helper so the ATR and future panel
+  events use the same matrix.
+- The ATR divergence is regular-only; a hidden variant would need a separate
+  claim and is not registered.
+- Panel divergences were not faked on a single instrument: relative strength,
+  lead-lag, and breadth are panel readings, and their divergence events need a
+  panel event series with pivot-to-timestamp mapping.
+- The issue remains open for the panel event series and the panel divergence
+  tests.
