@@ -72,21 +72,26 @@ Keep/rewrite: `report model`, `events`, data/fetch commands, `policy check`,
 ### 3.3 Old config parsers and configs
 
 The `quantrule.model/v1`–`/v3` parsers and the strategy parser surface were
-removed. `quantrule.model/v4` is the current flat model schema. The old
-programme configs remain historical evidence:
+removed. `quantrule.model/v4` is the current flat model schema.
 
-| Path | Files |
-|---|---:|
-| `config/model-v4/**` | 54 |
-| `config/compression/**` | 32 |
-| `config/compression-range/**` | 33 |
-| `config/compression-range-5m/**` | 2 |
-| `config/compression-range-onset/**` | 31 |
-| `config/compression-range-onset-5m/**` | 2 |
-| `config/v5-swing/**` | 1 |
+`config/defaults/**` and `config/examples/**` are the current config set. The
+example strategy/analytics files and `config/v5-swing/**` were deleted in P4.
 
-`config/defaults/**`, `config/examples/**`, and `config/research/**` are the
-current config set; the examples carry the current run shape.
+These directories are kept as evidence, not current run configs:
+
+| Path | Why |
+|---|---|
+| `config/model-v4/**` | Accepted M1.0 baseline |
+| `config/compression/**` | Compression-breakout evidence |
+| `config/compression-range/**` | Accepted compression-range baseline |
+| `config/compression-range-5m/**` | Accepted 5m compression-range evidence |
+| `config/compression-range-onset/**` | Accepted fresh-onset evidence |
+| `config/compression-range-onset-5m/**` | Accepted 5m onset evidence |
+| `config/research/**` | Historical M2.x programme evidence |
+
+The evidence directories may reference retired strategy/analytics paths. They are
+not expected to load through the current `run.json` loader. See
+`config/README.md`.
 
 ### 3.4 Old tests and fixtures
 

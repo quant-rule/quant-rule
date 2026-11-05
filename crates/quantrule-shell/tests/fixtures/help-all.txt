@@ -1,0 +1,51 @@
+candles
+  usage:  candles <csv-path>
+  does:   Read one M1 CSV strictly and print its retained candles as NDJSON.
+  output: one JSON object per candle: series_index, window_index, datetime, open, high, low, close, volume
+  note:   The strict read rejects a malformed row.
+  note:   The window is the data engine's bounded retained tail.
+
+candles-tolerant
+  usage:  candles-tolerant <csv-path>
+  does:   Read one M1 CSV tolerantly and print the retained candles plus a quality report.
+  output: NDJSON candles, then rejected counts and gap records
+  note:   A malformed row is counted and skipped, not accepted.
+
+timeframes
+  usage:  timeframes <csv-path>
+  does:   Build M5, M15, and H1 from one M1 CSV and print every retained series.
+  output: NDJSON candles per timeframe, then partial-bucket and gap records
+  note:   The data engine owns aggregation, ordering, and gap detection.
+
+events
+  usage:  events <csv-path> [--window full|latest]
+  does:   Print the flat model's registered and extended event records.
+  output: one JSON object per event, grouped by timeframe and availability order
+  note:   The default model configuration is used.
+  note:   The model runs over the default 1m/5m/15m/1h ladder.
+
+report model
+  usage:  report model --config <run.json> [--spec <spec.json>] [--out <dir>] [--json]
+  does:   Write the flat per-timeframe model bundle for one configured run.
+  output: the artifact paths, or report.json with --json
+  note:   The bundle is written under <out>/model and is refused if the directory is not empty.
+  note:   The bundle carries readings, states, levels, events, progression, and context; it carries no axis or cross-timeframe aggregate.
+  note:   A spec adds conditions.csv and prediction.csv.
+
+policy check
+  usage:  policy check --config <run.json>
+  does:   Validate the policy and every engine config against it.
+  output: one `policy ok ...` line
+  note:   The loader rejects a missing, malformed, or inconsistent config before any candle is read.
+
+fetch
+  usage:  fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]
+  does:   Fetch a Dukascopy range and write the accepted candles as CSV.
+  output: rows, accepted/rejected counts, first/last timestamps, and the CSV path
+  note:   The default path is data/sources/<SYMBOL>_<TF>_<start>_<end>.csv.
+  note:   The CSV is written atomically; an empty result leaves no file.
+
+help
+  usage:  help [<command>|all|glossary]
+  does:   Print the command map, one command contract, or the glossary.
+  output: plain text

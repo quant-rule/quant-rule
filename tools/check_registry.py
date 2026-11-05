@@ -302,7 +302,6 @@ def check_defaults(registry: dict[str, Any]) -> list[str]:
         "policy": ROOT / "config/defaults/policy.json",
         "portfolio": ROOT / "config/defaults/portfolio.json",
         "execution": ROOT / "config/examples/btcusd-2024/execution.json",
-        "analytics": ROOT / "config/examples/btcusd-2024/analytics.json",
     }
     loaded = {name: load(path) for name, path in configs.items()}
     for ident, parameter in parameters.items():
@@ -334,8 +333,6 @@ def identify_config(ident: str) -> str | None:
         return "portfolio"
     if ident.startswith("execution."):
         return "execution"
-    if ident.startswith("analytics."):
-        return "analytics"
     return None
 
 

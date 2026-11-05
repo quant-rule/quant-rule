@@ -48,6 +48,7 @@ the four-axis cutover.
 | Contract | Status | Path |
 |---|---|---|
 | Policy blueprint | Current; `run v2`, `policy v1`, data schema 3, model schema 4, `execution v2`, `portfolio v1` | `docs/config/2026-10-30/policy-and-strategy.md` |
+| Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
 | Portfolio benchmarks and time metrics | Historical; the portfolio engine is retained for S3.x | `docs/config/2026-11-03/portfolio-benchmarks.md` |
 | MACD reading and events | Current | `docs/config/2026-11-03/model-macd.md` |
@@ -123,9 +124,10 @@ record of what was released.
 
 | Program | Status | Plan |
 |---|---|---|
-| Clean current architecture | P0.1–P2 merged; P3 four-axis removal in progress | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
+| Clean current architecture | P0.1–P3 merged; P4 config cleanup in progress | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
 | P2 M1.0 naming | Merged; M1.0 contract, config identities, retired model parsers, legacy scan | `docs/execution-plans/2026-11-05/470-m1-naming.md` |
-| P3 four-axis removal | Current; flat model cutover | `docs/execution-plans/2026-11-05/471-four-axis-removal.md` |
+| P3 four-axis removal | Merged in PR #484 at `84ad934` | `docs/execution-plans/2026-11-05/471-four-axis-removal.md` |
+| P4 config cleanup | Current; config tree, help golden, old-schema test | `docs/execution-plans/2026-11-05/472-config-cleanup.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 
 ## Current architecture decisions

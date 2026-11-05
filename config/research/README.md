@@ -1,5 +1,12 @@
 # Research Programs
 
+- Status: Historical M2.x evidence after the P3 cutover
+
+These configs predate the flat-model cutover. Their `runs/**/run.json` files
+reference the retired `strategy.json` and `analytics.json` files, so the current
+loader rejects them. They are kept for reproducibility of the M2.x evidence, not
+as current run configs. The current example runs are under `config/examples/`.
+
 A research program is a premise plus a finite set of pre-registered cells. The
 manifest is data; the runner and engine do the work. A program is not a
 parameter sweep and does not select a winner automatically.

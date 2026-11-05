@@ -4983,11 +4983,11 @@
       "type": "boolean",
       "default": true,
       "unit": "none",
-      "configurable": true,
+      "configurable": false,
       "affects": [
         "analytics"
       ],
-      "status": "active"
+      "status": "retired"
     },
     {
       "id": "benchmark.seed",
