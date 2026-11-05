@@ -12,6 +12,7 @@ shell still runs the backtest.
 | `run.py <manifest> [--qr PATH]` | Validate, create the run folder, invoke the shell, write `results.json`, refresh the index |
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the published report |
 | `model_confidence.py --source CSV --timeframe TF` | Axis hit rates and ordered buckets from `model-series` |
+| `model_prediction.py --bundle NAME=DIR ...` | Forward/barrier model-prediction evaluation with base rate, controls, and grade |
 | `strategy_compare.py <run-root>` | Compare the portfolio reports of v3-v6 cells that exist |
 | `cleanup.py --check` | Report retired terms and legacy run paths |
 | `common.py` | Shared schema, JSON, UTC, path, and process helpers |

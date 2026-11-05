@@ -8,6 +8,7 @@ not re-run the gate and does not decide validation.
 Registered parsers:
 - path_validation: tools/improvement/path_validation.py output
 - strategy_evaluation: tools/improvement/strategy_v9_evaluate.py output
+- model_prediction: tools/improvement/model_prediction.py output
 - summary_json: a generic summary.json with metrics and verdict
 - none: no parser; the exit code is the verdict
 """
@@ -125,6 +126,43 @@ def parse_strategy_evaluation(out_dir: Path) -> ParseResult:
     return ParseResult(metrics, "pass" if passed else "fail", tuple(limitations))
 
 
+def parse_model_prediction(out_dir: Path) -> ParseResult:
+    document = _read(out_dir / "model_prediction.json")
+    metrics_doc = document.get("metrics")
+    if not isinstance(metrics_doc, dict):
+        raise ValueError("model_prediction.json has no metrics object")
+    grade = document.get("grade")
+    passed = document.get("verdict") == "pass" and grade in {"A", "B"}
+    metrics = {
+        "n": metrics_doc.get("n"),
+        "clusters": metrics_doc.get("clusters"),
+        "hit_rate": metrics_doc.get("hit_rate"),
+        "base_rate": metrics_doc.get("base_rate"),
+        "lift": metrics_doc.get("lift"),
+        "lift_lcb": metrics_doc.get("lift_lcb"),
+        "lcb_method": metrics_doc.get("lcb_method"),
+        "random_p": metrics_doc.get("random_p"),
+        "shuffle_p": metrics_doc.get("shuffle_p"),
+        "back_lag_lift": metrics_doc.get("back_lag_lift"),
+        "replication": metrics_doc.get("replication"),
+        "grade": grade,
+        "partition": document.get("partition"),
+        "horizon": document.get("horizon"),
+        "cost_bps": document.get("cost_bps"),
+        "verdict": document.get("verdict"),
+    }
+    limitations = document.get("limitations", [])
+    if not isinstance(limitations, list):
+        limitations = [str(limitations)]
+    if not passed:
+        limitations = list(limitations) + ["The model prediction did not pass the gate."]
+    return ParseResult(
+        metrics,
+        "pass" if passed else "fail",
+        tuple(str(item) for item in limitations),
+    )
+
+
 def parse_summary_json(out_dir: Path) -> ParseResult:
     document = _read(out_dir / "summary.json")
     metrics = document.get("metrics", document)
@@ -148,6 +186,8 @@ def parse(parser: str, out_dir: Path) -> ParseResult:
         return parse_path_validation(out_dir)
     if parser == "strategy_evaluation":
         return parse_strategy_evaluation(out_dir)
+    if parser == "model_prediction":
+        return parse_model_prediction(out_dir)
     if parser == "summary_json":
         return parse_summary_json(out_dir)
     if parser == "none":

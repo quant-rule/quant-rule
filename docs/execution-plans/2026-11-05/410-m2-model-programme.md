@@ -1,7 +1,7 @@
 # M2.x Model Programme — Execution Plan
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved** (human, 2026-11-05); P0 merged in PR #453; P1 implemented in the `feat/454-model-spec-v2` worktree; P2 next
+- Status: **Approved** (human, 2026-11-05); P0 merged in PR #453; P1 merged in PR #458; P2 implemented in the `feat/455-prediction-evaluator` worktree; P3 next
 - Owner: human
 - Epic: [#410](https://github.com/quant-rule/quant-rule/issues/410)
 - Related: [#405](https://github.com/quant-rule/quant-rule/issues/405) indicator platform
@@ -382,6 +382,14 @@ projection of `events.csv`, optional `conditions.csv`, and the v2 provenance.
 4. Write `model_prediction.json`.
 5. Add the `model_prediction` adapter.
 6. Tests: look-ahead, causality, known lift, determinism, empty/short series.
+
+P2 implementation (2026-11-05): the contract is
+[`docs/analytics/2026-11-05/model-prediction.md`](../../analytics/2026-11-05/model-prediction.md).
+The evaluator supports forward and barrier outcomes, cost hurdles, split bounds
+and outcome-crossing purge, direction-matched base rates, cluster-robust lift,
+Wilson fallback, random/shuffle/back-lag controls, per-instrument and per-year
+results, and grade A–D. The research adapter registers `model_prediction`.
+Verification is in the P2 PR and the #455 AI log.
 
 ### P3 details
 
