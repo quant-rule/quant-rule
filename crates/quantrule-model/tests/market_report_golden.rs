@@ -358,3 +358,21 @@ fn the_render_is_stable_across_repeated_runs() {
 
     assert_eq!(render(&first), render(&second));
 }
+#[test]
+#[ignore = "regenerates the market-report fixture deliberately"]
+fn regenerate_market_report_fixture() {
+    let candles = load_candles();
+    let run = ModelRun::compute(
+        &[TimeframeInput {
+            timeframe_secs: TIMEFRAME_SECS,
+            candles: &candles,
+        }],
+        &MarketStateConfig::default(),
+    );
+    let report = report(&run, &[TIMEFRAME_SECS]);
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/market_report_golden.txt"
+    );
+    std::fs::write(path, render(&report)).expect("the fixture is writable");
+}

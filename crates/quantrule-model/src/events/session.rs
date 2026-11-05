@@ -14,6 +14,7 @@
 
 use crate::events::EventRecord;
 use crate::events::EventType;
+use crate::events::codes;
 use crate::events::extended::{cross_down_value, cross_up_value, push};
 use crate::readings::Readings;
 use crate::sessions::{SessionConfig, SessionReadings};
@@ -64,6 +65,7 @@ impl SessionEventSeries {
             if inside && !previous_inside {
                 push(
                     &mut events,
+                    codes::SIGNAL_SESSION_OPEN,
                     EventType::Signal,
                     SESSION_SIGNAL_SUBTYPE,
                     SESSION_SOURCE_CODE,
@@ -78,6 +80,7 @@ impl SessionEventSeries {
                 // The last in-session bar is only identifiable here, so the
                 // record occurs on that bar and becomes available on this one.
                 events.push(EventRecord {
+                    event_code: codes::SIGNAL_SESSION_CLOSE,
                     event_type: EventType::Signal,
                     event_subtype_code: SESSION_SIGNAL_SUBTYPE,
                     source_code: SESSION_SOURCE_CODE,
@@ -123,6 +126,7 @@ impl SessionEventSeries {
                 if cross_up_value(&sessions.session_range_atr, bar, SESSION_RANGE_EXPANSION) {
                     push(
                         &mut events,
+                        codes::SIGNAL_SESSION_RANGE_EXPANSION,
                         EventType::Signal,
                         SESSION_SIGNAL_SUBTYPE,
                         SESSION_RANGE_SOURCE_CODE,
@@ -139,6 +143,7 @@ impl SessionEventSeries {
                 ) {
                     push(
                         &mut events,
+                        codes::SIGNAL_SESSION_RANGE_CONTRACTION,
                         EventType::Signal,
                         SESSION_SIGNAL_SUBTYPE,
                         SESSION_RANGE_SOURCE_CODE,
@@ -192,6 +197,7 @@ fn session_vwap_level(
     if (close - vwap).abs() <= 0.2 * atr {
         push(
             events,
+            codes::LEVEL_SESSION_VWAP_TEST,
             EventType::Level,
             1,
             SESSION_SOURCE_CODE,
@@ -230,6 +236,7 @@ fn opening_range_levels(
     if (candle.high() - high).abs() <= 0.2 * atr {
         push(
             events,
+            codes::LEVEL_OPENING_RANGE_TEST,
             EventType::Level,
             1,
             OPENING_RANGE_SOURCE_CODE,
@@ -243,6 +250,7 @@ fn opening_range_levels(
     if (candle.low() - low).abs() <= 0.2 * atr {
         push(
             events,
+            codes::LEVEL_OPENING_RANGE_TEST,
             EventType::Level,
             1,
             OPENING_RANGE_SOURCE_CODE,
@@ -266,6 +274,7 @@ fn opening_range_levels(
     if candle.close() > high && previous <= previous_high {
         push(
             events,
+            codes::LEVEL_OPENING_RANGE_BREAK,
             EventType::Level,
             3,
             OPENING_RANGE_SOURCE_CODE,
@@ -278,6 +287,7 @@ fn opening_range_levels(
     } else if candle.close() < low && previous >= previous_low {
         push(
             events,
+            codes::LEVEL_OPENING_RANGE_BREAK,
             EventType::Level,
             3,
             OPENING_RANGE_SOURCE_CODE,
@@ -316,6 +326,7 @@ fn opening_range_events(
         if close > high && previous <= previous_high {
             push(
                 events,
+                codes::SIGNAL_OPENING_RANGE_BREAKOUT,
                 EventType::Signal,
                 SESSION_SIGNAL_SUBTYPE,
                 OPENING_RANGE_SOURCE_CODE,
@@ -328,6 +339,7 @@ fn opening_range_events(
         } else if close < low && previous >= previous_low {
             push(
                 events,
+                codes::SIGNAL_OPENING_RANGE_FADE,
                 EventType::Signal,
                 SESSION_SIGNAL_SUBTYPE,
                 OPENING_RANGE_SOURCE_CODE,
@@ -359,6 +371,7 @@ fn overnight_events(
     if intraday > 0.0 {
         push(
             events,
+            codes::SIGNAL_OVERNIGHT_CONTINUATION,
             EventType::Signal,
             SESSION_SIGNAL_SUBTYPE,
             OVERNIGHT_SOURCE_CODE,
@@ -371,6 +384,7 @@ fn overnight_events(
     } else if intraday < 0.0 {
         push(
             events,
+            codes::SIGNAL_OVERNIGHT_FADE,
             EventType::Signal,
             SESSION_SIGNAL_SUBTYPE,
             OVERNIGHT_SOURCE_CODE,

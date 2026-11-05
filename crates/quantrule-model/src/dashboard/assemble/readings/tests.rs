@@ -11,6 +11,7 @@ fn record(
     available: usize,
 ) -> EventRecord {
     EventRecord {
+        event_code: 0,
         event_type,
         event_subtype_code: subtype,
         source_code: source,

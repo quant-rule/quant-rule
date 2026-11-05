@@ -61,7 +61,7 @@ determinism, golden, and edge tests for the extended readings.
 | Event references from indicators | 148 | Five events are shared by two indicators |
 | Parameters | 110 | Registry `parameters` |
 | Checklist rows `tested` | 37/37 | Table A and Table B checks are ticked |
-| Checklist rows `verified` | 0/37 | The `Sign` column is open |
+| Checklist rows `verified` | 37/37 | Human signed rows 1–37 on 2026-11-05; row 37 is reading-only |
 
 The five shared event IDs are `divergence.rsi_regular_bullish`,
 `divergence.rsi_regular_bearish`, `divergence.rsi_hidden_bullish`,

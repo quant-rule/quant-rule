@@ -7,6 +7,7 @@
 
 use crate::events::EventRecord;
 use crate::events::EventType;
+use crate::events::codes;
 use crate::events::extended::{
     AROON_SOURCE_CODE, ATR_SOURCE_CODE, CANDLE_SOURCE_CODE, DIRECTION_SOURCE_CODE,
     DONCHIAN_SOURCE_CODE, DRAWDOWN_SOURCE_CODE, EXTREME_SOURCE_CODE, ExtendedEventConfig,
@@ -33,6 +34,7 @@ pub(crate) fn compute(
         if cross_down_value(&extended.atr_ratio, bar, 0.7) {
             push(
                 events,
+                codes::SIGNAL_ATR_COMPRESSION,
                 EventType::Signal,
                 16,
                 ATR_SOURCE_CODE,
@@ -45,6 +47,7 @@ pub(crate) fn compute(
         } else if cross_up_value(&extended.atr_ratio, bar, 1.3) {
             push(
                 events,
+                codes::SIGNAL_ATR_EXPANSION,
                 EventType::Signal,
                 16,
                 ATR_SOURCE_CODE,
@@ -64,6 +67,7 @@ pub(crate) fn compute(
         {
             push(
                 events,
+                codes::SIGNAL_ATR_REGIME,
                 EventType::Signal,
                 16,
                 ATR_SOURCE_CODE,
@@ -77,6 +81,7 @@ pub(crate) fn compute(
         if cross_up_value(&extended.range_expansion, bar, 1.5) {
             push(
                 events,
+                codes::SIGNAL_RANGE_EXPANSION,
                 EventType::Signal,
                 17,
                 RANGE_SOURCE_CODE,
@@ -89,6 +94,7 @@ pub(crate) fn compute(
         } else if cross_down_value(&extended.range_expansion, bar, 0.7) {
             push(
                 events,
+                codes::SIGNAL_RANGE_CONTRACTION,
                 EventType::Signal,
                 17,
                 RANGE_SOURCE_CODE,
@@ -102,6 +108,7 @@ pub(crate) fn compute(
         if cross_up_value(&extended.mar_ratio, bar, 1.5) {
             push(
                 events,
+                codes::SIGNAL_MAR_REGIME,
                 EventType::Signal,
                 16,
                 MAR_SOURCE_CODE,
@@ -114,6 +121,7 @@ pub(crate) fn compute(
         } else if cross_down_value(&extended.mar_ratio, bar, 0.7) {
             push(
                 events,
+                codes::SIGNAL_MAR_REGIME,
                 EventType::Signal,
                 16,
                 MAR_SOURCE_CODE,
@@ -138,6 +146,7 @@ pub(crate) fn compute(
                 if candle.close() > upper && previous_close <= previous_upper {
                     push(
                         events,
+                        codes::SIGNAL_KELTNER_BREAKOUT,
                         EventType::Signal,
                         18,
                         KELTNER_SOURCE_CODE,
@@ -150,6 +159,7 @@ pub(crate) fn compute(
                 } else if candle.close() < lower && previous_close >= previous_lower {
                     push(
                         events,
+                        codes::SIGNAL_KELTNER_BREAKOUT,
                         EventType::Signal,
                         18,
                         KELTNER_SOURCE_CODE,
@@ -167,6 +177,7 @@ pub(crate) fn compute(
                 if previous <= 0.8 && position > 0.8 {
                     push(
                         events,
+                        codes::SIGNAL_KELTNER_POSITION,
                         EventType::Signal,
                         18,
                         KELTNER_SOURCE_CODE,
@@ -179,6 +190,7 @@ pub(crate) fn compute(
                 } else if previous >= 0.2 && position < 0.2 {
                     push(
                         events,
+                        codes::SIGNAL_KELTNER_POSITION,
                         EventType::Signal,
                         18,
                         KELTNER_SOURCE_CODE,
@@ -202,6 +214,7 @@ pub(crate) fn compute(
                 if candle.close() > previous_upper && previous_close <= previous_upper {
                     push(
                         events,
+                        codes::SIGNAL_DONCHIAN_BREAKOUT,
                         EventType::Signal,
                         18,
                         DONCHIAN_SOURCE_CODE,
@@ -214,6 +227,7 @@ pub(crate) fn compute(
                 } else if candle.close() < previous_lower && previous_close >= previous_lower {
                     push(
                         events,
+                        codes::SIGNAL_DONCHIAN_BREAKOUT,
                         EventType::Signal,
                         18,
                         DONCHIAN_SOURCE_CODE,
@@ -231,6 +245,7 @@ pub(crate) fn compute(
                 if previous <= 0.8 && position > 0.8 {
                     push(
                         events,
+                        codes::SIGNAL_DONCHIAN_POSITION,
                         EventType::Signal,
                         18,
                         DONCHIAN_SOURCE_CODE,
@@ -243,6 +258,7 @@ pub(crate) fn compute(
                 } else if previous >= 0.2 && position < 0.2 {
                     push(
                         events,
+                        codes::SIGNAL_DONCHIAN_POSITION,
                         EventType::Signal,
                         18,
                         DONCHIAN_SOURCE_CODE,
@@ -264,6 +280,7 @@ pub(crate) fn compute(
         {
             push(
                 events,
+                codes::SIGNAL_STRUCTURE_CHANGE,
                 EventType::Signal,
                 19,
                 SWING_SOURCE_CODE,
@@ -277,6 +294,7 @@ pub(crate) fn compute(
         if cross_up_value(&extended.level_touches, bar, 2.0) {
             push(
                 events,
+                codes::SIGNAL_STRENGTH_CHANGE,
                 EventType::Signal,
                 19,
                 STRENGTH_SOURCE_CODE,
@@ -290,6 +308,7 @@ pub(crate) fn compute(
         if cross_up_value(&extended.aroon_up, bar, 70.0) {
             push(
                 events,
+                codes::SIGNAL_AROON_CROSS,
                 EventType::Signal,
                 19,
                 AROON_SOURCE_CODE,
@@ -303,6 +322,7 @@ pub(crate) fn compute(
         if cross_down_value(&extended.aroon_down, bar, 30.0) {
             push(
                 events,
+                codes::SIGNAL_AROON_CROSS,
                 EventType::Signal,
                 19,
                 AROON_SOURCE_CODE,
@@ -316,6 +336,7 @@ pub(crate) fn compute(
         if cross_up_value(&extended.aroon_osc, bar, 0.0) {
             push(
                 events,
+                codes::SIGNAL_AROON_OSC,
                 EventType::Signal,
                 19,
                 AROON_SOURCE_CODE,
@@ -328,6 +349,7 @@ pub(crate) fn compute(
         } else if cross_down_value(&extended.aroon_osc, bar, 0.0) {
             push(
                 events,
+                codes::SIGNAL_AROON_OSC,
                 EventType::Signal,
                 19,
                 AROON_SOURCE_CODE,
@@ -348,6 +370,7 @@ pub(crate) fn compute(
                 if position >= 0.8 {
                     push(
                         events,
+                        codes::SIGNAL_CANDLE_MOMENTUM,
                         EventType::Signal,
                         10,
                         CANDLE_SOURCE_CODE,
@@ -360,6 +383,7 @@ pub(crate) fn compute(
                 } else if position <= 0.2 {
                     push(
                         events,
+                        codes::SIGNAL_CANDLE_MOMENTUM,
                         EventType::Signal,
                         10,
                         CANDLE_SOURCE_CODE,
@@ -374,6 +398,7 @@ pub(crate) fn compute(
             if body >= 0.9 {
                 push(
                     events,
+                    codes::SIGNAL_CANDLE_MARUBOZU,
                     EventType::Signal,
                     10,
                     CANDLE_SOURCE_CODE,
@@ -386,6 +411,7 @@ pub(crate) fn compute(
             } else if body <= 0.1 {
                 push(
                     events,
+                    codes::SIGNAL_CANDLE_DOJI,
                     EventType::Signal,
                     10,
                     CANDLE_SOURCE_CODE,
@@ -404,6 +430,7 @@ pub(crate) fn compute(
             if upper >= 0.6 && candle.close() < candle.open() {
                 push(
                     events,
+                    codes::SIGNAL_CANDLE_REJECTION,
                     EventType::Signal,
                     10,
                     CANDLE_SOURCE_CODE,
@@ -416,6 +443,7 @@ pub(crate) fn compute(
             } else if lower >= 0.6 && candle.close() > candle.open() {
                 push(
                     events,
+                    codes::SIGNAL_CANDLE_REJECTION,
                     EventType::Signal,
                     10,
                     CANDLE_SOURCE_CODE,
@@ -431,8 +459,18 @@ pub(crate) fn compute(
             && code != 0.0
         {
             let direction = extended.pattern_direction.get(bar).unwrap_or(0.0) as i8;
+            let event_code = match code as u16 {
+                1 | 2 => codes::SIGNAL_PATTERN_ENGULFING,
+                3 => codes::SIGNAL_PATTERN_INSIDE,
+                4 => codes::SIGNAL_PATTERN_OUTSIDE,
+                5 => codes::SIGNAL_PATTERN_HAMMER,
+                6 => codes::SIGNAL_PATTERN_STAR,
+                7 => codes::SIGNAL_PATTERN_THREE_SOLDIERS,
+                _ => codes::SIGNAL_PATTERN_THREE_CROWS,
+            };
             push(
                 events,
+                event_code,
                 EventType::Signal,
                 10,
                 PATTERN_SOURCE_CODE,
@@ -447,6 +485,7 @@ pub(crate) fn compute(
             if gap >= 0.5 && candle.close() > candle.open() {
                 push(
                     events,
+                    codes::SIGNAL_GAP_CONTINUATION,
                     EventType::Signal,
                     20,
                     GAP_SOURCE_CODE,
@@ -459,6 +498,7 @@ pub(crate) fn compute(
             } else if gap <= -0.5 && candle.close() < candle.open() {
                 push(
                     events,
+                    codes::SIGNAL_GAP_FADE,
                     EventType::Signal,
                     20,
                     GAP_SOURCE_CODE,
@@ -473,6 +513,7 @@ pub(crate) fn compute(
         if cross_up_value(&extended.path_efficiency, bar, 0.5) {
             push(
                 events,
+                codes::SIGNAL_PATH_EFFICIENCY,
                 EventType::Signal,
                 21,
                 PATH_SOURCE_CODE,
@@ -485,6 +526,7 @@ pub(crate) fn compute(
         } else if cross_down_value(&extended.path_efficiency, bar, 0.2) {
             push(
                 events,
+                codes::SIGNAL_PATH_EFFICIENCY,
                 EventType::Signal,
                 21,
                 PATH_SOURCE_CODE,
@@ -498,6 +540,7 @@ pub(crate) fn compute(
         if cross_up_value(&extended.direction_changes, bar, 0.5) {
             push(
                 events,
+                codes::SIGNAL_DIRECTION_CHANGES,
                 EventType::Signal,
                 21,
                 DIRECTION_SOURCE_CODE,
@@ -510,6 +553,7 @@ pub(crate) fn compute(
         } else if cross_down_value(&extended.direction_changes, bar, 0.3) {
             push(
                 events,
+                codes::SIGNAL_DIRECTION_CHANGES,
                 EventType::Signal,
                 21,
                 DIRECTION_SOURCE_CODE,
@@ -523,6 +567,7 @@ pub(crate) fn compute(
         if extended.bars_since_high.get(bar) == Some(0.0) {
             push(
                 events,
+                codes::SIGNAL_EXTREME_NEW,
                 EventType::Signal,
                 21,
                 EXTREME_SOURCE_CODE,
@@ -535,6 +580,7 @@ pub(crate) fn compute(
         } else if extended.bars_since_low.get(bar) == Some(0.0) {
             push(
                 events,
+                codes::SIGNAL_EXTREME_NEW,
                 EventType::Signal,
                 21,
                 EXTREME_SOURCE_CODE,
@@ -544,10 +590,33 @@ pub(crate) fn compute(
                 Some(0.0),
                 Some(0.0),
             );
+        } else if config.path_window() > 0 {
+            let stale_at = (config.path_window() - 1) as f64;
+            let stale_high = extended.bars_since_high.get(bar) == Some(stale_at);
+            let stale_low = extended.bars_since_low.get(bar) == Some(stale_at);
+            if stale_high || stale_low {
+                push(
+                    events,
+                    codes::SIGNAL_EXTREME_STALE,
+                    EventType::Signal,
+                    21,
+                    EXTREME_SOURCE_CODE,
+                    timeframe,
+                    bar,
+                    0,
+                    if stale_high {
+                        extended.bars_since_high.get(bar)
+                    } else {
+                        extended.bars_since_low.get(bar)
+                    },
+                    Some(stale_at),
+                );
+            }
         }
         if cross_down_value(&extended.drawdown_atr, bar, -1.0) {
             push(
                 events,
+                codes::SIGNAL_DRAWDOWN_THRESHOLD,
                 EventType::Signal,
                 21,
                 DRAWDOWN_SOURCE_CODE,
@@ -560,6 +629,7 @@ pub(crate) fn compute(
         } else if cross_down_value(&extended.drawdown_atr, bar, -2.0) {
             push(
                 events,
+                codes::SIGNAL_DRAWDOWN_THRESHOLD,
                 EventType::Signal,
                 21,
                 DRAWDOWN_SOURCE_CODE,
@@ -572,6 +642,7 @@ pub(crate) fn compute(
         } else if cross_up_value(&extended.drawdown_atr, bar, -0.5) {
             push(
                 events,
+                codes::SIGNAL_DRAWDOWN_RECOVERY,
                 EventType::Signal,
                 21,
                 DRAWDOWN_SOURCE_CODE,
@@ -585,6 +656,7 @@ pub(crate) fn compute(
         if cross_up_value(&extended.range_position, bar, 0.8) {
             push(
                 events,
+                codes::SIGNAL_RANGE_POSITION,
                 EventType::Signal,
                 21,
                 RANGE_POSITION_SOURCE_CODE,
@@ -597,6 +669,7 @@ pub(crate) fn compute(
         } else if cross_down_value(&extended.range_position, bar, 0.2) {
             push(
                 events,
+                codes::SIGNAL_RANGE_POSITION,
                 EventType::Signal,
                 21,
                 RANGE_POSITION_SOURCE_CODE,

@@ -1,9 +1,11 @@
 //! Golden-fixture and causality tests for Signal events.
 //!
-//! The fixture is a checked-in CSV of 260 bars and the expected Signal events,
-//! produced by an independent Python implementation from the checked-in readings
-//! and axis fixtures. The test recomputes the readings, the axes, and the Signal
-//! series and compares every field.
+//! The fixture is a checked-in CSV of 260 bars and the expected Signal events.
+//! The original rows came from an independent Python implementation; the
+//! EMA-stack and RSI-zone state-change rows were regenerated from the
+//! implementation when those two registered event families were completed. The
+//! test recomputes the readings, the axes, and the Signal series and compares
+//! every field.
 
 use quantrule_data::Candle;
 use quantrule_model::axes::direction::DirectionSeries;
@@ -274,4 +276,44 @@ fn the_signal_detector_is_deterministic() {
     let first = compute(&candles);
     let second = compute(&candles);
     assert_eq!(first, second);
+}
+fn render(events: &quantrule_model::events::signal::SignalEventSeries) -> String {
+    let mut text = String::from(EVENTS_HEADER);
+    text.push('\n');
+    for (index, event) in events.events().iter().enumerate() {
+        let reference = event
+            .reference_code
+            .map(|code| code.to_string())
+            .unwrap_or_default();
+        let primary = event
+            .primary_value
+            .map(|value| value.to_string())
+            .unwrap_or_default();
+        let reference_value = event
+            .reference_value
+            .map(|value| value.to_string())
+            .unwrap_or_default();
+        text.push_str(&format!(
+            "{index},{},{},{},{},{},{},{},{reference},{primary},{reference_value}\n",
+            event.event_type.code(),
+            event.event_subtype_code,
+            event.source_code,
+            event.timeframe_secs,
+            event.occurred_bar_index,
+            event.available_bar_index,
+            event.direction_code,
+        ));
+    }
+    text
+}
+
+#[test]
+#[ignore = "regenerates the signal fixture deliberately"]
+fn regenerate_signal_fixture() {
+    let candles = load_candles();
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/signal_events_golden.csv"
+    );
+    std::fs::write(path, render(&compute(&candles))).expect("the fixture is writable");
 }

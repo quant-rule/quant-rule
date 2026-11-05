@@ -11,6 +11,7 @@
 //! candles, readings, and a configuration, and perform no I/O, read no clock, and
 //! use no randomness.
 
+pub mod codes;
 pub mod compression;
 pub mod divergence;
 pub mod dmi;
@@ -68,6 +69,14 @@ impl EventType {
 /// than the former.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EventRecord {
+    /// The stable registry event code.
+    ///
+    /// This is the event's identity. Type, subtype, and source describe the
+    /// family, but several registered events share those three numbers; the
+    /// code distinguishes them. It is never reused after retirement. Code
+    /// [`codes::LEGACY_UNREGISTERED`] is reserved for legacy events outside
+    /// the typed registry.
+    pub event_code: u16,
     /// The event type.
     pub event_type: EventType,
     /// The type's compact subtype code.

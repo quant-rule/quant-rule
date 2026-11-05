@@ -285,7 +285,8 @@ impl TimeframeModel {
             input.candles,
             &readings,
             &extended,
-            &ExtendedEventConfig::new(timeframe_secs),
+            &ExtendedEventConfig::new(timeframe_secs)
+                .with_path_window(config.extended().path_window),
         );
 
         let mut events: Vec<EventRecord> = level_events

@@ -58,6 +58,7 @@ and is never edited by hand.
 | Field | Meaning |
 |---|---|
 | `id` | Stable identifier, e.g. `level.break` |
+| `code` | Stable positive event identity, unique across every event |
 | `event_type` | 1 Level, 2 Divergence, 3 Signal |
 | `subtype` | Numeric subtype |
 | `source` | Numeric source code |
@@ -69,6 +70,11 @@ and is never edited by hand.
 | `precedence` | Events it suppresses on the same bar, if any |
 | `tests` | Required test classes |
 | `status` | `active`, `planned`, `retired`, or `experimental` |
+
+`code` is the runtime identity. Several events may share a type, subtype, and
+source, but no two events share a code. A retired code is never reused. The model
+publishes the code in every event record, and the spec filters, counts, and votes
+by it.
 
 ### 3.3 Parameter
 

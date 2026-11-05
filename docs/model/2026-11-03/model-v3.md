@@ -237,6 +237,7 @@ Three event types share one record.
 | Field | Type | Meaning |
 |---|---|---|
 | `event_index` | integer | Stable sequence within the timeframe |
+| `event_code` | positive integer | Stable registry event identity; unique across all events |
 | `event_type_code` | 1..3 | Level, Divergence, Signal |
 | `event_subtype_code` | integer | Subtype defined below |
 | `source_code` | integer | Reading or comparison that produced the event |
@@ -254,8 +255,10 @@ Three event types share one record.
 
 An event is appended once, when it becomes knowable, and is never upgraded in
 place. If several references qualify on one bar, they produce separate records in
-the fixed reference order. The same `(event_type_code, event_subtype_code,
-source_code, reference_code, occurred_bar_index)` is never emitted twice.
+the fixed reference order. The same `(event_code, reference_code,
+occurred_bar_index)` is never emitted twice. The code is the event's identity;
+`event_type_code`, `event_subtype_code`, and `source_code` describe its family
+and may be shared by several registered events.
 
 ### 5.2 Level events
 

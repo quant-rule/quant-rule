@@ -89,7 +89,13 @@ fn spec(conditions: Vec<SpecCondition>) -> ModelSpec {
 }
 
 fn event(source: u16, subtype: u8, timeframe_secs: u64) -> SpecExpression {
+    let event_code = match (source, subtype) {
+        (4, 1) => crate::events::codes::SIGNAL_RSI_THRESHOLD,
+        (30, 16) => crate::events::codes::SIGNAL_MAR_REGIME,
+        _ => 0,
+    };
     SpecExpression::Event(SpecEvent {
+        event_code,
         event_type: EventType::Signal,
         subtype,
         source,

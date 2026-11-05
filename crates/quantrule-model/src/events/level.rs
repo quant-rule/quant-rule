@@ -364,7 +364,14 @@ fn evaluate(
         0
     };
 
+    let event_code = match subtype {
+        LevelSubtype::Test => crate::events::codes::LEVEL_TEST,
+        LevelSubtype::Cross => crate::events::codes::LEVEL_CROSS,
+        LevelSubtype::Break => crate::events::codes::LEVEL_BREAK,
+    };
+
     Some(EventRecord {
+        event_code,
         event_type: EventType::Level,
         event_subtype_code: subtype.code(),
         source_code: reference.source_code,

@@ -219,6 +219,11 @@ events, decide whether future programmes may enable compression in a v2 spec,
 and add a runtime emission check to the coverage tooling. This report does not
 change a spec after seeing a result.
 
+Remediation (2026-11-05): [`EVENT-IDENTITY-REMEDIATION.md`](EVENT-IDENTITY-REMEDIATION.md)
+assigns every registry event a stable code, implements the three missing
+emitters, and enables compression when a v2 spec lists a compression event. The
+P5 result above remains the historical pre-change record.
+
 ## 8. Pre-run defects corrected
 
 The first execution attempt exposed four plumbing defects. They were fixed

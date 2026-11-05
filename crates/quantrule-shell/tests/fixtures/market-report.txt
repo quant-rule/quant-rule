@@ -51,7 +51,7 @@ timeframe  axis         codes                                null
 
 [events]
 timeframe   level  divergence  signal  total latest_type          latest_subtype        occurred  available
-1m            438           6     109    553 level                test                       259        259
+1m            438           6     118    562 level                test                       259        259
 5m             54           0      14     68 signal               compact_state_change        51         51
 15m             3           0       0      3 level                test                        16         16
 1h              0           0       0      0 -                    -                            -          -

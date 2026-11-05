@@ -29,12 +29,13 @@ const SESSION_FIXTURE: &str = include_str!("fixtures/session_events_golden.csv")
 const TIMEFRAME_SECS: u64 = 300;
 const CUTOFFS: [usize; 3] = [61, 131, 201];
 
-const EVENTS_HEADER: &str = "bar,event_type_code,event_subtype_code,source_code,timeframe_secs,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value";
+const EVENTS_HEADER: &str = "bar,event_code,event_type_code,event_subtype_code,source_code,timeframe_secs,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value";
 const READINGS_HEADER: &str = "bar,timestamp,open,high,low,close,volume,ema20,ema50,ema200,rsi14,atr14,rvol20,minor_candidate_high,minor_candidate_low,minor_pivot_high,minor_pivot_low,minor_pivot_occurred_at,major_candidate_high,major_candidate_low,major_pivot_high,major_pivot_low,major_pivot_occurred_at";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct ExpectedEvent {
     bar: usize,
+    event_code: u16,
     event_type_code: u8,
     event_subtype_code: u8,
     source_code: u16,
@@ -100,23 +101,24 @@ fn load_events(fixture: &str) -> Vec<ExpectedEvent> {
     let mut events = Vec::new();
     for line in lines {
         let fields: Vec<&str> = line.split(',').collect();
-        assert_eq!(fields.len(), 11, "wrong column count in {line:?}");
+        assert_eq!(fields.len(), 12, "wrong column count in {line:?}");
         events.push(ExpectedEvent {
             bar: fields[0].parse().expect("the row index is a usize"),
-            event_type_code: fields[1].parse().expect("the event type is a u8"),
-            event_subtype_code: fields[2].parse().expect("the subtype is a u8"),
-            source_code: fields[3].parse().expect("the source is a u16"),
-            timeframe_secs: fields[4].parse().expect("the timeframe is a u64"),
-            occurred_bar_index: fields[5].parse().expect("the occurrence is a usize"),
-            available_bar_index: fields[6].parse().expect("the availability is a usize"),
-            direction_code: fields[7].parse().expect("the direction is an i8"),
-            reference_code: if fields[8].is_empty() {
+            event_code: fields[1].parse().expect("the event code is a u16"),
+            event_type_code: fields[2].parse().expect("the event type is a u8"),
+            event_subtype_code: fields[3].parse().expect("the subtype is a u8"),
+            source_code: fields[4].parse().expect("the source is a u16"),
+            timeframe_secs: fields[5].parse().expect("the timeframe is a u64"),
+            occurred_bar_index: fields[6].parse().expect("the occurrence is a usize"),
+            available_bar_index: fields[7].parse().expect("the availability is a usize"),
+            direction_code: fields[8].parse().expect("the direction is an i8"),
+            reference_code: if fields[9].is_empty() {
                 None
             } else {
-                Some(fields[8].parse().expect("the reference is a u32"))
+                Some(fields[9].parse().expect("the reference is a u32"))
             },
-            primary_value: number(fields[9]),
-            reference_value: number(fields[10]),
+            primary_value: number(fields[10]),
+            reference_value: number(fields[11]),
         });
     }
     events
@@ -165,6 +167,24 @@ fn assert_batch(events: &[EventRecord], bars: usize) {
             event.available_bar_index
         );
         assert_eq!(event.timeframe_secs, TIMEFRAME_SECS);
+        if event.event_code != quantrule_model::events::codes::LEGACY_UNREGISTERED {
+            let family = quantrule_model::events::codes::FAMILIES
+                .iter()
+                .find(|(code, _, _, _)| *code == event.event_code)
+                .unwrap_or_else(|| panic!("the event code {} is not registered", event.event_code));
+            assert_eq!(
+                (event.event_type.code(), event.event_subtype_code),
+                (family.1, family.2),
+                "the event code {} has the wrong family",
+                event.event_code
+            );
+            assert!(
+                family.3.contains(&event.source_code),
+                "the event code {} has the wrong source {}",
+                event.event_code,
+                event.source_code
+            );
+        }
         assert!(
             (-1..=1).contains(&event.direction_code),
             "the direction code is outside -1..=1: {event:?}"
@@ -196,10 +216,23 @@ fn optional_bits(value: Option<f64>) -> u64 {
     value.map_or(u64::MAX, f64::to_bits)
 }
 
-type RecordKey = (u8, u8, u16, u64, usize, usize, i8, Option<u32>, u64, u64);
+type RecordKey = (
+    u16,
+    u8,
+    u8,
+    u16,
+    u64,
+    usize,
+    usize,
+    i8,
+    Option<u32>,
+    u64,
+    u64,
+);
 
 fn record_key(event: &EventRecord) -> RecordKey {
     (
+        event.event_code,
         event.event_type.code(),
         event.event_subtype_code,
         event.source_code,
@@ -223,7 +256,7 @@ fn assert_no_identical_records(events: &[EventRecord]) {
     }
 }
 
-type ExtendedKey = (u64, u8, u8, u16, usize, Option<u32>, Option<u64>);
+type ExtendedKey = (u64, u16, u8, u8, u16, usize, Option<u32>, Option<u64>);
 
 fn assert_extended_occurrences_are_unique(events: &[EventRecord]) {
     let mut seen = BTreeSet::new();
@@ -235,6 +268,7 @@ fn assert_extended_occurrences_are_unique(events: &[EventRecord]) {
         };
         let key: ExtendedKey = (
             event.timeframe_secs,
+            event.event_code,
             event.event_type.code(),
             event.event_subtype_code,
             event.source_code,
@@ -309,6 +343,7 @@ fn assert_golden(actual: &[EventRecord], expected: &[ExpectedEvent]) {
     assert_eq!(actual.len(), expected.len(), "the event count changed");
     for (index, (event, expected)) in actual.iter().zip(expected).enumerate() {
         assert_eq!(expected.bar, index, "the fixture row index changed");
+        assert_eq!(event.event_code, expected.event_code);
         assert_eq!(event.event_type.code(), expected.event_type_code);
         assert_eq!(event.event_subtype_code, expected.event_subtype_code);
         assert_eq!(event.source_code, expected.source_code);
@@ -545,7 +580,8 @@ fn format_events(events: &[EventRecord], label: &str) -> String {
             .map(|value| value.to_string())
             .unwrap_or_default();
         text.push_str(&format!(
-            "{index},{},{},{},{},{},{},{},{reference},{primary},{reference_value}\n",
+            "{index},{},{},{},{},{},{},{},{},{reference},{primary},{reference_value}\n",
+            event.event_code,
             event.event_type.code(),
             event.event_subtype_code,
             event.source_code,

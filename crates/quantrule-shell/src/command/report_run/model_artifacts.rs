@@ -147,7 +147,7 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
 /// The full event batch for every ladder timeframe.
 pub(super) fn events_csv(run: &ModelRun, ladder: &[u64]) -> String {
     let mut csv = String::from(
-        "timeframe_secs,event_index,event_type_code,event_subtype_code,source_code,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value,data_completeness\n",
+        "timeframe_secs,event_index,event_code,event_type_code,event_subtype_code,source_code,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value,data_completeness\n",
     );
     for &timeframe_secs in ladder {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
@@ -161,9 +161,10 @@ pub(super) fn events_csv(run: &ModelRun, ladder: &[u64]) -> String {
         {
             let _ = writeln!(
                 csv,
-                "{},{},{},{},{},{},{},{},{},{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{}",
                 timeframe_secs,
                 event_index,
+                event.event_code,
                 event.event_type.code(),
                 event.event_subtype_code,
                 event.source_code,
@@ -189,27 +190,20 @@ pub(super) fn spec_events_csv(
     active: &[quantrule_model::spec::v2::SpecEventCode],
 ) -> String {
     let mut csv = String::from(
-        "timeframe_secs,event_index,event_type_code,event_subtype_code,source_code,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value,data_completeness\n",
+        "timeframe_secs,event_index,event_code,event_type_code,event_subtype_code,source_code,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value,data_completeness\n",
     );
-    let active_codes: BTreeSet<(u8, u8, u16)> = active
-        .iter()
-        .map(|event| (event.event_type.code(), event.subtype, event.source))
-        .collect();
+    let active_codes: BTreeSet<u16> = active.iter().map(|event| event.code).collect();
     let mut event_index = 0_usize;
     for event in run.prediction_events() {
-        let key = (
-            event.event_type.code(),
-            event.event_subtype_code,
-            event.source_code,
-        );
-        if !active_codes.is_empty() && !active_codes.contains(&key) {
+        if !active_codes.is_empty() && !active_codes.contains(&event.event_code) {
             continue;
         }
         let _ = writeln!(
             csv,
-            "{},{},{},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{},{},{},{}",
             run.evaluation_timeframe_secs(),
             event_index,
+            event.event_code,
             event.event_type.code(),
             event.event_subtype_code,
             event.source_code,
@@ -444,7 +438,7 @@ mod tests {
         assert_eq!(readings.lines().count(), 91);
 
         let events = events_csv(&run, &ladder);
-        assert!(events.starts_with("timeframe_secs,event_index,event_type_code"));
+        assert!(events.starts_with("timeframe_secs,event_index,event_code,event_type_code"));
         let timeframe = run.timeframe(300).expect("the timeframe");
         assert_eq!(
             events.lines().count(),

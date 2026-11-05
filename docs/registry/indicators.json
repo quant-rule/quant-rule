@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.15",
+  "version": "2026-11-05.16",
   "indicators": [
     {
       "id": "ema",
@@ -1628,6 +1628,7 @@
   "events": [
     {
       "id": "level.test",
+      "code": 1,
       "event_type": 1,
       "subtype": 1,
       "source": 1,
@@ -1655,6 +1656,7 @@
     },
     {
       "id": "level.cross",
+      "code": 2,
       "event_type": 1,
       "subtype": 2,
       "source": 1,
@@ -1682,6 +1684,7 @@
     },
     {
       "id": "level.break",
+      "code": 3,
       "event_type": 1,
       "subtype": 3,
       "source": 1,
@@ -1709,6 +1712,7 @@
     },
     {
       "id": "divergence.rsi_regular_bullish",
+      "code": 4,
       "event_type": 2,
       "subtype": 1,
       "source": 4,
@@ -1729,6 +1733,7 @@
     },
     {
       "id": "divergence.rsi_regular_bearish",
+      "code": 5,
       "event_type": 2,
       "subtype": 2,
       "source": 4,
@@ -1749,6 +1754,7 @@
     },
     {
       "id": "divergence.rsi_hidden_bullish",
+      "code": 6,
       "event_type": 2,
       "subtype": 3,
       "source": 4,
@@ -1769,6 +1775,7 @@
     },
     {
       "id": "divergence.rsi_hidden_bearish",
+      "code": 7,
       "event_type": 2,
       "subtype": 4,
       "source": 4,
@@ -1789,6 +1796,7 @@
     },
     {
       "id": "signal.rsi_threshold",
+      "code": 8,
       "event_type": 3,
       "subtype": 1,
       "source": 4,
@@ -1808,6 +1816,7 @@
     },
     {
       "id": "signal.ema_pair_cross",
+      "code": 9,
       "event_type": 3,
       "subtype": 2,
       "source": 1,
@@ -1832,6 +1841,7 @@
     },
     {
       "id": "signal.ema_stack_change",
+      "code": 10,
       "event_type": 3,
       "subtype": 3,
       "source": 1,
@@ -1851,6 +1861,7 @@
     },
     {
       "id": "signal.rsi_zone_change",
+      "code": 11,
       "event_type": 3,
       "subtype": 3,
       "source": 4,
@@ -1870,6 +1881,7 @@
     },
     {
       "id": "signal.macd_line_signal_cross",
+      "code": 12,
       "event_type": 3,
       "subtype": 2,
       "source": 13,
@@ -1896,6 +1908,7 @@
     },
     {
       "id": "signal.macd_histogram_slope_flip",
+      "code": 13,
       "event_type": 3,
       "subtype": 4,
       "source": 15,
@@ -1918,6 +1931,7 @@
     },
     {
       "id": "signal.macd_zero_cross",
+      "code": 14,
       "event_type": 3,
       "subtype": 5,
       "source": 13,
@@ -1940,6 +1954,7 @@
     },
     {
       "id": "signal.di_cross",
+      "code": 15,
       "event_type": 3,
       "subtype": 2,
       "source": 17,
@@ -1966,6 +1981,7 @@
     },
     {
       "id": "signal.trend_continuation",
+      "code": 16,
       "event_type": 3,
       "subtype": 6,
       "source": 16,
@@ -1992,6 +2008,7 @@
     },
     {
       "id": "signal.compression_breakout",
+      "code": 17,
       "event_type": 3,
       "subtype": 7,
       "source": 5,
@@ -2018,6 +2035,7 @@
     },
     {
       "id": "signal.compression_range",
+      "code": 18,
       "event_type": 3,
       "subtype": 8,
       "source": 5,
@@ -2042,6 +2060,7 @@
     },
     {
       "id": "signal.compression_range_onset",
+      "code": 19,
       "event_type": 3,
       "subtype": 9,
       "source": 5,
@@ -2066,6 +2085,7 @@
     },
     {
       "id": "level.vwap_test",
+      "code": 20,
       "event_type": 1,
       "subtype": 1,
       "source": 19,
@@ -2083,6 +2103,7 @@
     },
     {
       "id": "level.vwap_cross",
+      "code": 21,
       "event_type": 1,
       "subtype": 2,
       "source": 19,
@@ -2100,6 +2121,7 @@
     },
     {
       "id": "level.vwap_break",
+      "code": 22,
       "event_type": 1,
       "subtype": 3,
       "source": 19,
@@ -2117,6 +2139,7 @@
     },
     {
       "id": "divergence.vwap_regular_bullish",
+      "code": 23,
       "event_type": 2,
       "subtype": 1,
       "source": 19,
@@ -2134,6 +2157,7 @@
     },
     {
       "id": "divergence.vwap_regular_bearish",
+      "code": 24,
       "event_type": 2,
       "subtype": 2,
       "source": 19,
@@ -2151,6 +2175,7 @@
     },
     {
       "id": "divergence.vwap_hidden_bullish",
+      "code": 25,
       "event_type": 2,
       "subtype": 3,
       "source": 19,
@@ -2168,6 +2193,7 @@
     },
     {
       "id": "divergence.vwap_hidden_bearish",
+      "code": 26,
       "event_type": 2,
       "subtype": 4,
       "source": 19,
@@ -2185,6 +2211,7 @@
     },
     {
       "id": "signal.vwap_reclaim",
+      "code": 27,
       "event_type": 3,
       "subtype": 14,
       "source": 19,
@@ -2202,6 +2229,7 @@
     },
     {
       "id": "signal.vwap_rejection",
+      "code": 28,
       "event_type": 3,
       "subtype": 14,
       "source": 19,
@@ -2219,6 +2247,7 @@
     },
     {
       "id": "signal.vwap_slope",
+      "code": 29,
       "event_type": 3,
       "subtype": 14,
       "source": 19,
@@ -2236,6 +2265,7 @@
     },
     {
       "id": "level.profile_poc_test",
+      "code": 30,
       "event_type": 1,
       "subtype": 1,
       "source": 20,
@@ -2253,6 +2283,7 @@
     },
     {
       "id": "level.profile_vah_test",
+      "code": 31,
       "event_type": 1,
       "subtype": 1,
       "source": 20,
@@ -2270,6 +2301,7 @@
     },
     {
       "id": "level.profile_val_test",
+      "code": 32,
       "event_type": 1,
       "subtype": 1,
       "source": 20,
@@ -2287,6 +2319,7 @@
     },
     {
       "id": "level.profile_va_break",
+      "code": 33,
       "event_type": 1,
       "subtype": 3,
       "source": 20,
@@ -2304,6 +2337,7 @@
     },
     {
       "id": "level.profile_va_reentry",
+      "code": 34,
       "event_type": 1,
       "subtype": 2,
       "source": 20,
@@ -2321,6 +2355,7 @@
     },
     {
       "id": "divergence.profile_poc_bullish",
+      "code": 35,
       "event_type": 2,
       "subtype": 1,
       "source": 20,
@@ -2338,6 +2373,7 @@
     },
     {
       "id": "divergence.profile_poc_bearish",
+      "code": 36,
       "event_type": 2,
       "subtype": 2,
       "source": 20,
@@ -2355,6 +2391,7 @@
     },
     {
       "id": "signal.profile_va_breakout",
+      "code": 37,
       "event_type": 3,
       "subtype": 13,
       "source": 20,
@@ -2372,6 +2409,7 @@
     },
     {
       "id": "signal.profile_poc_cross",
+      "code": 38,
       "event_type": 3,
       "subtype": 13,
       "source": 20,
@@ -2389,6 +2427,7 @@
     },
     {
       "id": "signal.profile_skew",
+      "code": 39,
       "event_type": 3,
       "subtype": 13,
       "source": 20,
@@ -2406,6 +2445,7 @@
     },
     {
       "id": "signal.profile_concentration",
+      "code": 40,
       "event_type": 3,
       "subtype": 13,
       "source": 20,
@@ -2423,6 +2463,7 @@
     },
     {
       "id": "divergence.rvol_bullish",
+      "code": 41,
       "event_type": 2,
       "subtype": 1,
       "source": 6,
@@ -2440,6 +2481,7 @@
     },
     {
       "id": "divergence.rvol_bearish",
+      "code": 42,
       "event_type": 2,
       "subtype": 2,
       "source": 6,
@@ -2457,6 +2499,7 @@
     },
     {
       "id": "signal.rvol_expansion",
+      "code": 43,
       "event_type": 3,
       "subtype": 11,
       "source": 6,
@@ -2474,6 +2517,7 @@
     },
     {
       "id": "signal.rvol_contraction",
+      "code": 44,
       "event_type": 3,
       "subtype": 11,
       "source": 6,
@@ -2491,6 +2535,7 @@
     },
     {
       "id": "signal.rvol_ratio",
+      "code": 45,
       "event_type": 3,
       "subtype": 11,
       "source": 6,
@@ -2508,6 +2553,7 @@
     },
     {
       "id": "divergence.climax_bullish",
+      "code": 46,
       "event_type": 2,
       "subtype": 1,
       "source": 21,
@@ -2525,6 +2571,7 @@
     },
     {
       "id": "divergence.climax_bearish",
+      "code": 47,
       "event_type": 2,
       "subtype": 2,
       "source": 21,
@@ -2542,6 +2589,7 @@
     },
     {
       "id": "signal.climax_reversal",
+      "code": 48,
       "event_type": 3,
       "subtype": 11,
       "source": 21,
@@ -2559,6 +2607,7 @@
     },
     {
       "id": "signal.climax_continuation",
+      "code": 49,
       "event_type": 3,
       "subtype": 11,
       "source": 21,
@@ -2576,6 +2625,7 @@
     },
     {
       "id": "level.absorption_test",
+      "code": 50,
       "event_type": 1,
       "subtype": 1,
       "source": 22,
@@ -2593,6 +2643,7 @@
     },
     {
       "id": "signal.absorption_break",
+      "code": 51,
       "event_type": 3,
       "subtype": 12,
       "source": 22,
@@ -2610,6 +2661,7 @@
     },
     {
       "id": "signal.absorption_rejection",
+      "code": 52,
       "event_type": 3,
       "subtype": 12,
       "source": 22,
@@ -2627,6 +2679,7 @@
     },
     {
       "id": "signal.volume_oscillator_cross",
+      "code": 53,
       "event_type": 3,
       "subtype": 11,
       "source": 23,
@@ -2644,6 +2697,7 @@
     },
     {
       "id": "divergence.obv_regular_bullish",
+      "code": 54,
       "event_type": 2,
       "subtype": 1,
       "source": 24,
@@ -2661,6 +2715,7 @@
     },
     {
       "id": "divergence.obv_regular_bearish",
+      "code": 55,
       "event_type": 2,
       "subtype": 2,
       "source": 24,
@@ -2678,6 +2733,7 @@
     },
     {
       "id": "divergence.obv_hidden_bullish",
+      "code": 56,
       "event_type": 2,
       "subtype": 3,
       "source": 24,
@@ -2695,6 +2751,7 @@
     },
     {
       "id": "divergence.obv_hidden_bearish",
+      "code": 57,
       "event_type": 2,
       "subtype": 4,
       "source": 24,
@@ -2712,6 +2769,7 @@
     },
     {
       "id": "signal.obv_cross",
+      "code": 58,
       "event_type": 3,
       "subtype": 15,
       "source": 24,
@@ -2729,6 +2787,7 @@
     },
     {
       "id": "signal.obv_slope",
+      "code": 59,
       "event_type": 3,
       "subtype": 15,
       "source": 24,
@@ -2746,6 +2805,7 @@
     },
     {
       "id": "divergence.cmf_regular_bullish",
+      "code": 60,
       "event_type": 2,
       "subtype": 1,
       "source": 25,
@@ -2763,6 +2823,7 @@
     },
     {
       "id": "divergence.cmf_regular_bearish",
+      "code": 61,
       "event_type": 2,
       "subtype": 2,
       "source": 25,
@@ -2780,6 +2841,7 @@
     },
     {
       "id": "divergence.cmf_hidden_bullish",
+      "code": 62,
       "event_type": 2,
       "subtype": 3,
       "source": 25,
@@ -2797,6 +2859,7 @@
     },
     {
       "id": "divergence.cmf_hidden_bearish",
+      "code": 63,
       "event_type": 2,
       "subtype": 4,
       "source": 25,
@@ -2814,6 +2877,7 @@
     },
     {
       "id": "signal.cmf_cross",
+      "code": 64,
       "event_type": 3,
       "subtype": 15,
       "source": 25,
@@ -2831,6 +2895,7 @@
     },
     {
       "id": "signal.cmf_threshold",
+      "code": 65,
       "event_type": 3,
       "subtype": 15,
       "source": 25,
@@ -2848,6 +2913,7 @@
     },
     {
       "id": "divergence.mfi_regular_bullish",
+      "code": 66,
       "event_type": 2,
       "subtype": 1,
       "source": 26,
@@ -2865,6 +2931,7 @@
     },
     {
       "id": "divergence.mfi_regular_bearish",
+      "code": 67,
       "event_type": 2,
       "subtype": 2,
       "source": 26,
@@ -2882,6 +2949,7 @@
     },
     {
       "id": "divergence.mfi_hidden_bullish",
+      "code": 68,
       "event_type": 2,
       "subtype": 3,
       "source": 26,
@@ -2899,6 +2967,7 @@
     },
     {
       "id": "divergence.mfi_hidden_bearish",
+      "code": 69,
       "event_type": 2,
       "subtype": 4,
       "source": 26,
@@ -2916,6 +2985,7 @@
     },
     {
       "id": "signal.mfi_threshold",
+      "code": 70,
       "event_type": 3,
       "subtype": 15,
       "source": 26,
@@ -2933,6 +3003,7 @@
     },
     {
       "id": "signal.mfi_zone",
+      "code": 71,
       "event_type": 3,
       "subtype": 15,
       "source": 26,
@@ -2950,6 +3021,7 @@
     },
     {
       "id": "divergence.ad_regular_bullish",
+      "code": 72,
       "event_type": 2,
       "subtype": 1,
       "source": 27,
@@ -2967,6 +3039,7 @@
     },
     {
       "id": "divergence.ad_regular_bearish",
+      "code": 73,
       "event_type": 2,
       "subtype": 2,
       "source": 27,
@@ -2984,6 +3057,7 @@
     },
     {
       "id": "signal.ad_cross",
+      "code": 74,
       "event_type": 3,
       "subtype": 15,
       "source": 27,
@@ -3001,6 +3075,7 @@
     },
     {
       "id": "level.keltner_test",
+      "code": 75,
       "event_type": 1,
       "subtype": 1,
       "source": 31,
@@ -3018,6 +3093,7 @@
     },
     {
       "id": "level.keltner_break",
+      "code": 76,
       "event_type": 1,
       "subtype": 3,
       "source": 31,
@@ -3035,6 +3111,7 @@
     },
     {
       "id": "level.donchian_test",
+      "code": 77,
       "event_type": 1,
       "subtype": 1,
       "source": 32,
@@ -3052,6 +3129,7 @@
     },
     {
       "id": "level.donchian_break",
+      "code": 78,
       "event_type": 1,
       "subtype": 3,
       "source": 32,
@@ -3069,6 +3147,7 @@
     },
     {
       "id": "level.structure_break",
+      "code": 79,
       "event_type": 1,
       "subtype": 3,
       "source": 33,
@@ -3086,6 +3165,7 @@
     },
     {
       "id": "level.strength_test",
+      "code": 80,
       "event_type": 1,
       "subtype": 1,
       "source": 34,
@@ -3103,6 +3183,7 @@
     },
     {
       "id": "level.wick_test",
+      "code": 81,
       "event_type": 1,
       "subtype": 1,
       "source": 37,
@@ -3120,6 +3201,7 @@
     },
     {
       "id": "level.gap_fill",
+      "code": 82,
       "event_type": 1,
       "subtype": 1,
       "source": 39,
@@ -3137,6 +3219,7 @@
     },
     {
       "id": "level.gap_test",
+      "code": 83,
       "event_type": 1,
       "subtype": 1,
       "source": 39,
@@ -3154,6 +3237,7 @@
     },
     {
       "id": "divergence.atr_bullish",
+      "code": 84,
       "event_type": 2,
       "subtype": 1,
       "source": 28,
@@ -3171,6 +3255,7 @@
     },
     {
       "id": "divergence.atr_bearish",
+      "code": 85,
       "event_type": 2,
       "subtype": 2,
       "source": 28,
@@ -3188,6 +3273,7 @@
     },
     {
       "id": "divergence.rs_regular_bullish",
+      "code": 86,
       "event_type": 2,
       "subtype": 1,
       "source": 45,
@@ -3205,6 +3291,7 @@
     },
     {
       "id": "divergence.rs_regular_bearish",
+      "code": 87,
       "event_type": 2,
       "subtype": 2,
       "source": 45,
@@ -3222,6 +3309,7 @@
     },
     {
       "id": "divergence.lead_lag_bullish",
+      "code": 88,
       "event_type": 2,
       "subtype": 1,
       "source": 46,
@@ -3239,6 +3327,7 @@
     },
     {
       "id": "divergence.lead_lag_bearish",
+      "code": 89,
       "event_type": 2,
       "subtype": 2,
       "source": 46,
@@ -3256,6 +3345,7 @@
     },
     {
       "id": "divergence.breadth_regular_bullish",
+      "code": 90,
       "event_type": 2,
       "subtype": 1,
       "source": 47,
@@ -3273,6 +3363,7 @@
     },
     {
       "id": "divergence.breadth_regular_bearish",
+      "code": 91,
       "event_type": 2,
       "subtype": 2,
       "source": 47,
@@ -3290,6 +3381,7 @@
     },
     {
       "id": "signal.atr_compression",
+      "code": 92,
       "event_type": 3,
       "subtype": 16,
       "source": 28,
@@ -3307,6 +3399,7 @@
     },
     {
       "id": "signal.atr_expansion",
+      "code": 93,
       "event_type": 3,
       "subtype": 16,
       "source": 28,
@@ -3324,6 +3417,7 @@
     },
     {
       "id": "signal.atr_regime",
+      "code": 94,
       "event_type": 3,
       "subtype": 16,
       "source": 28,
@@ -3341,6 +3435,7 @@
     },
     {
       "id": "signal.range_expansion",
+      "code": 95,
       "event_type": 3,
       "subtype": 17,
       "source": 29,
@@ -3358,6 +3453,7 @@
     },
     {
       "id": "signal.range_contraction",
+      "code": 96,
       "event_type": 3,
       "subtype": 17,
       "source": 29,
@@ -3375,6 +3471,7 @@
     },
     {
       "id": "signal.mar_regime",
+      "code": 97,
       "event_type": 3,
       "subtype": 16,
       "source": 30,
@@ -3392,6 +3489,7 @@
     },
     {
       "id": "signal.keltner_breakout",
+      "code": 98,
       "event_type": 3,
       "subtype": 18,
       "source": 31,
@@ -3409,6 +3507,7 @@
     },
     {
       "id": "signal.keltner_position",
+      "code": 99,
       "event_type": 3,
       "subtype": 18,
       "source": 31,
@@ -3426,6 +3525,7 @@
     },
     {
       "id": "signal.donchian_breakout",
+      "code": 100,
       "event_type": 3,
       "subtype": 18,
       "source": 32,
@@ -3443,6 +3543,7 @@
     },
     {
       "id": "signal.donchian_position",
+      "code": 101,
       "event_type": 3,
       "subtype": 18,
       "source": 32,
@@ -3460,6 +3561,7 @@
     },
     {
       "id": "signal.structure_change",
+      "code": 102,
       "event_type": 3,
       "subtype": 19,
       "source": 33,
@@ -3477,6 +3579,7 @@
     },
     {
       "id": "signal.strength_change",
+      "code": 103,
       "event_type": 3,
       "subtype": 19,
       "source": 34,
@@ -3494,6 +3597,7 @@
     },
     {
       "id": "signal.aroon_cross",
+      "code": 104,
       "event_type": 3,
       "subtype": 19,
       "source": 35,
@@ -3511,6 +3615,7 @@
     },
     {
       "id": "signal.aroon_osc",
+      "code": 105,
       "event_type": 3,
       "subtype": 19,
       "source": 35,
@@ -3528,6 +3633,7 @@
     },
     {
       "id": "signal.candle_momentum",
+      "code": 106,
       "event_type": 3,
       "subtype": 10,
       "source": 37,
@@ -3545,6 +3651,7 @@
     },
     {
       "id": "signal.candle_rejection",
+      "code": 107,
       "event_type": 3,
       "subtype": 10,
       "source": 37,
@@ -3562,6 +3669,7 @@
     },
     {
       "id": "signal.candle_doji",
+      "code": 108,
       "event_type": 3,
       "subtype": 10,
       "source": 37,
@@ -3579,6 +3687,7 @@
     },
     {
       "id": "signal.candle_marubozu",
+      "code": 109,
       "event_type": 3,
       "subtype": 10,
       "source": 37,
@@ -3596,6 +3705,7 @@
     },
     {
       "id": "signal.pattern_engulfing",
+      "code": 110,
       "event_type": 3,
       "subtype": 10,
       "source": 38,
@@ -3613,6 +3723,7 @@
     },
     {
       "id": "signal.pattern_inside",
+      "code": 111,
       "event_type": 3,
       "subtype": 10,
       "source": 38,
@@ -3630,6 +3741,7 @@
     },
     {
       "id": "signal.pattern_outside",
+      "code": 112,
       "event_type": 3,
       "subtype": 10,
       "source": 38,
@@ -3647,6 +3759,7 @@
     },
     {
       "id": "signal.pattern_hammer",
+      "code": 113,
       "event_type": 3,
       "subtype": 10,
       "source": 38,
@@ -3664,6 +3777,7 @@
     },
     {
       "id": "signal.pattern_star",
+      "code": 114,
       "event_type": 3,
       "subtype": 10,
       "source": 38,
@@ -3681,6 +3795,7 @@
     },
     {
       "id": "signal.pattern_three_soldiers",
+      "code": 115,
       "event_type": 3,
       "subtype": 10,
       "source": 38,
@@ -3698,6 +3813,7 @@
     },
     {
       "id": "signal.pattern_three_crows",
+      "code": 116,
       "event_type": 3,
       "subtype": 10,
       "source": 38,
@@ -3715,6 +3831,7 @@
     },
     {
       "id": "signal.gap_continuation",
+      "code": 117,
       "event_type": 3,
       "subtype": 20,
       "source": 39,
@@ -3732,6 +3849,7 @@
     },
     {
       "id": "signal.gap_fade",
+      "code": 118,
       "event_type": 3,
       "subtype": 20,
       "source": 39,
@@ -3749,6 +3867,7 @@
     },
     {
       "id": "signal.path_efficiency",
+      "code": 119,
       "event_type": 3,
       "subtype": 21,
       "source": 40,
@@ -3766,6 +3885,7 @@
     },
     {
       "id": "signal.direction_changes",
+      "code": 120,
       "event_type": 3,
       "subtype": 21,
       "source": 41,
@@ -3783,6 +3903,7 @@
     },
     {
       "id": "signal.extreme_new",
+      "code": 121,
       "event_type": 3,
       "subtype": 21,
       "source": 42,
@@ -3800,14 +3921,17 @@
     },
     {
       "id": "signal.extreme_stale",
+      "code": 122,
       "event_type": 3,
       "subtype": 21,
       "source": 42,
       "indicator": "bars_since_extreme",
       "role": "context",
       "claim": "none",
-      "formula": "bars_since_high>=n-1 or bars_since_low>=n-1",
-      "parameters": [],
+      "formula": "bars_since_high==n-1 or bars_since_low==n-1, where n=model.path.window",
+      "parameters": [
+        "model.path.window"
+      ],
       "tests": [
         "event",
         "causality",
@@ -3817,6 +3941,7 @@
     },
     {
       "id": "signal.drawdown_threshold",
+      "code": 123,
       "event_type": 3,
       "subtype": 21,
       "source": 43,
@@ -3834,6 +3959,7 @@
     },
     {
       "id": "signal.drawdown_recovery",
+      "code": 124,
       "event_type": 3,
       "subtype": 21,
       "source": 43,
@@ -3851,6 +3977,7 @@
     },
     {
       "id": "signal.range_position",
+      "code": 125,
       "event_type": 3,
       "subtype": 21,
       "source": 44,
@@ -3868,6 +3995,7 @@
     },
     {
       "id": "signal.relative_strength_cross",
+      "code": 126,
       "event_type": 3,
       "subtype": 22,
       "source": 45,
@@ -3885,6 +4013,7 @@
     },
     {
       "id": "signal.lead_lag_cross",
+      "code": 127,
       "event_type": 3,
       "subtype": 22,
       "source": 46,
@@ -3902,6 +4031,7 @@
     },
     {
       "id": "signal.breadth_cross",
+      "code": 128,
       "event_type": 3,
       "subtype": 22,
       "source": 47,
@@ -3919,6 +4049,7 @@
     },
     {
       "id": "signal.co_movement_cross",
+      "code": 129,
       "event_type": 3,
       "subtype": 22,
       "source": 48,
@@ -3936,6 +4067,7 @@
     },
     {
       "id": "signal.dispersion_cross",
+      "code": 130,
       "event_type": 3,
       "subtype": 22,
       "source": 49,
@@ -3953,6 +4085,7 @@
     },
     {
       "id": "signal.session_open",
+      "code": 131,
       "event_type": 3,
       "subtype": 23,
       "source": 50,
@@ -3970,6 +4103,7 @@
     },
     {
       "id": "signal.session_close",
+      "code": 132,
       "event_type": 3,
       "subtype": 23,
       "source": 50,
@@ -3987,6 +4121,7 @@
     },
     {
       "id": "signal.opening_range_breakout",
+      "code": 133,
       "event_type": 3,
       "subtype": 23,
       "source": 51,
@@ -4004,6 +4139,7 @@
     },
     {
       "id": "signal.opening_range_fade",
+      "code": 134,
       "event_type": 3,
       "subtype": 23,
       "source": 51,
@@ -4021,6 +4157,7 @@
     },
     {
       "id": "signal.overnight_continuation",
+      "code": 135,
       "event_type": 3,
       "subtype": 23,
       "source": 52,
@@ -4038,6 +4175,7 @@
     },
     {
       "id": "signal.overnight_fade",
+      "code": 136,
       "event_type": 3,
       "subtype": 23,
       "source": 52,
@@ -4055,6 +4193,7 @@
     },
     {
       "id": "signal.session_range_expansion",
+      "code": 137,
       "event_type": 3,
       "subtype": 23,
       "source": 53,
@@ -4072,6 +4211,7 @@
     },
     {
       "id": "signal.session_range_contraction",
+      "code": 138,
       "event_type": 3,
       "subtype": 23,
       "source": 53,
@@ -4089,6 +4229,7 @@
     },
     {
       "id": "level.bos",
+      "code": 139,
       "event_type": 1,
       "subtype": 4,
       "source": 36,
@@ -4106,6 +4247,7 @@
     },
     {
       "id": "level.choch",
+      "code": 140,
       "event_type": 1,
       "subtype": 5,
       "source": 36,
@@ -4123,6 +4265,7 @@
     },
     {
       "id": "level.session_vwap_test",
+      "code": 141,
       "event_type": 1,
       "subtype": 1,
       "source": 50,
@@ -4140,6 +4283,7 @@
     },
     {
       "id": "level.opening_range_test",
+      "code": 142,
       "event_type": 1,
       "subtype": 1,
       "source": 51,
@@ -4157,6 +4301,7 @@
     },
     {
       "id": "level.opening_range_break",
+      "code": 143,
       "event_type": 1,
       "subtype": 3,
       "source": 51,

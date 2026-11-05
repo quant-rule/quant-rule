@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use quantrule_model::input::MarketStateConfig;
+use quantrule_model::input::{EventSettings, MarketStateConfig};
 use quantrule_model::readings::{ExtendedConfig, PivotScale, ReadingsConfig};
 use quantrule_model::sessions::{SessionConfig, SessionZone};
 use quantrule_model::spec::v2::{
@@ -75,8 +75,9 @@ pub(crate) fn parse_model_spec_v2(text: &str) -> Result<ParsedModelSpecV2, SpecP
         Some(value) => as_u64(value, "evaluation_timeframe")?,
         None => timeframes[0],
     };
-    let readings = parse_readings(object.get("readings"))?;
+    let mut readings = parse_readings(object.get("readings"))?;
     let active_events = parse_active_events(object, &registry)?;
+    enable_active_compression(&mut readings, &active_events);
     let prediction = parse_prediction(object, &registry)?;
     let conditions = match object.get("conditions") {
         Some(value) => as_array(value, "conditions")?
@@ -146,6 +147,23 @@ fn parse_timeframes(object: &Map<String, Value>) -> Result<Vec<u64>, SpecParseEr
         return Err(SpecParseError::new("the timeframe is zero"));
     }
     Ok(vec![timeframe])
+}
+
+fn enable_active_compression(config: &mut MarketStateConfig, active: &[SpecEventCode]) {
+    // Compression is disabled by default because it was a legacy v4 family.
+    // A v2 spec that explicitly lists a compression event has activated it, so
+    // the run must enable the detector rather than silently publish no event.
+    let mut events = EventSettings::DEFAULT;
+    events.signal.compression_breakout = active
+        .iter()
+        .any(|event| event.code == quantrule_model::events::codes::SIGNAL_COMPRESSION_BREAKOUT);
+    events.signal.compression_range = active
+        .iter()
+        .any(|event| event.code == quantrule_model::events::codes::SIGNAL_COMPRESSION_RANGE);
+    events.signal.compression_range_onset = active
+        .iter()
+        .any(|event| event.code == quantrule_model::events::codes::SIGNAL_COMPRESSION_RANGE_ONSET);
+    config.set_events_default(events);
 }
 
 fn parse_readings(value: Option<&Value>) -> Result<MarketStateConfig, SpecParseError> {
@@ -427,6 +445,7 @@ fn resolve_event(id: &str, registry: &Registry) -> Result<SpecEventCode, SpecPar
         .ok_or_else(|| SpecParseError::new(format!("the event id {id} is not in the registry")))?;
     Ok(SpecEventCode {
         id: id.to_string(),
+        code: code.code,
         role: code.role,
         event_type: code.event_type,
         subtype: code.subtype,
@@ -630,6 +649,23 @@ mod tests {
         assert_eq!(parsed.panel_sources.len(), 3);
         assert!(!parsed.panel_sources.contains_key("XAU"));
         assert!(parsed.spec.session.is_some());
+    }
+
+    #[test]
+    fn an_active_compression_event_enables_the_detector() {
+        let document = FIXTURE.replace(
+            "\"signal.relative_strength_cross\"",
+            "\"signal.relative_strength_cross\", \"signal.compression_breakout\"",
+        );
+        let parsed = parse_model_spec_v2(&document).expect("the compression spec parses");
+        assert!(
+            parsed
+                .spec
+                .readings
+                .events_for(3600)
+                .signal
+                .compression_breakout
+        );
     }
 
     #[test]

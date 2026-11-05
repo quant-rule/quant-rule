@@ -9,7 +9,7 @@ use std::num::NonZeroU64;
 
 use quantrule_data::Candle;
 
-use crate::events::{EventRecord, EventType};
+use crate::events::{EventRecord, EventType, codes};
 use crate::readings::{ExtendedReadings, PivotKind, PivotScale, ReadingSeries, Readings};
 
 /// Source code for the rolling VWAP.
@@ -74,6 +74,7 @@ pub struct ExtendedEventConfig {
     timeframe_secs: NonZeroU64,
     reclaim_bars: usize,
     level_atr: f64,
+    path_window: usize,
 }
 
 impl ExtendedEventConfig {
@@ -84,7 +85,15 @@ impl ExtendedEventConfig {
             timeframe_secs,
             reclaim_bars: 6,
             level_atr: 0.2,
+            path_window: 20,
         }
+    }
+
+    /// Uses the same path window as the extended readings.
+    #[must_use]
+    pub const fn with_path_window(mut self, path_window: usize) -> Self {
+        self.path_window = path_window;
+        self
     }
 
     /// Builds a configuration from a timeframe in seconds.
@@ -97,6 +106,12 @@ impl ExtendedEventConfig {
     #[must_use]
     pub const fn timeframe_secs(self) -> u64 {
         self.timeframe_secs.get()
+    }
+
+    /// The path window used by the extreme-stale event.
+    #[must_use]
+    pub const fn path_window(self) -> usize {
+        self.path_window
     }
 }
 
@@ -137,20 +152,11 @@ impl ExtendedEventSeries {
         // twice.
         let mut seen = BTreeSet::new();
         events.retain(|event| {
-            let threshold =
-                if event.event_type == EventType::Signal && event.event_subtype_code == 1 {
-                    event.reference_value.map(f64::to_bits)
-                } else {
-                    None
-                };
             seen.insert((
                 event.timeframe_secs,
-                event.event_type.code(),
-                event.event_subtype_code,
-                event.source_code,
+                event.event_code,
                 event.occurred_bar_index,
                 event.reference_code,
-                threshold,
             ))
         });
         Self { events }
@@ -181,6 +187,7 @@ impl ExtendedEventSeries {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn push(
     events: &mut Vec<EventRecord>,
+    event_code: u16,
     event_type: EventType,
     subtype: u8,
     source: u16,
@@ -191,6 +198,7 @@ pub(crate) fn push(
     reference: Option<f64>,
 ) {
     events.push(EventRecord {
+        event_code,
         event_type,
         event_subtype_code: subtype,
         source_code: source,
@@ -225,6 +233,7 @@ fn vwap_events(
     if distance <= config.level_atr * atr {
         push(
             events,
+            codes::LEVEL_VWAP_TEST,
             EventType::Level,
             1,
             VWAP_SOURCE_CODE,
@@ -246,6 +255,7 @@ fn vwap_events(
         if crossed {
             push(
                 events,
+                codes::LEVEL_VWAP_CROSS,
                 EventType::Level,
                 2,
                 VWAP_SOURCE_CODE,
@@ -265,6 +275,7 @@ fn vwap_events(
         {
             push(
                 events,
+                codes::LEVEL_VWAP_BREAK,
                 EventType::Level,
                 3,
                 VWAP_SOURCE_CODE,
@@ -302,6 +313,7 @@ fn vwap_events(
         {
             push(
                 events,
+                codes::SIGNAL_VWAP_RECLAIM,
                 EventType::Signal,
                 14,
                 VWAP_SOURCE_CODE,
@@ -318,6 +330,7 @@ fn vwap_events(
     if candle.high() >= vwap && close < vwap && close < candle.open() {
         push(
             events,
+            codes::SIGNAL_VWAP_REJECTION,
             EventType::Signal,
             14,
             VWAP_SOURCE_CODE,
@@ -330,6 +343,7 @@ fn vwap_events(
     } else if candle.low() <= vwap && close > vwap && close > candle.open() {
         push(
             events,
+            codes::SIGNAL_VWAP_REJECTION,
             EventType::Signal,
             14,
             VWAP_SOURCE_CODE,
@@ -351,6 +365,7 @@ fn vwap_events(
     {
         push(
             events,
+            codes::SIGNAL_VWAP_SLOPE,
             EventType::Signal,
             14,
             VWAP_SOURCE_CODE,
@@ -385,6 +400,7 @@ fn profile_events(
     {
         push(
             events,
+            codes::LEVEL_PROFILE_VAH_TEST,
             EventType::Level,
             1,
             PROFILE_SOURCE_CODE,
@@ -400,6 +416,7 @@ fn profile_events(
     {
         push(
             events,
+            codes::LEVEL_PROFILE_VAL_TEST,
             EventType::Level,
             1,
             PROFILE_SOURCE_CODE,
@@ -413,6 +430,7 @@ fn profile_events(
     if (close - poc).abs() <= config.level_atr * atr {
         push(
             events,
+            codes::LEVEL_PROFILE_POC_TEST,
             EventType::Level,
             1,
             PROFILE_SOURCE_CODE,
@@ -434,6 +452,7 @@ fn profile_events(
             if close > vah && previous_close <= previous_vah {
                 push(
                     events,
+                    codes::LEVEL_PROFILE_VA_BREAK,
                     EventType::Level,
                     3,
                     PROFILE_SOURCE_CODE,
@@ -446,6 +465,7 @@ fn profile_events(
             } else if close < val && previous_close >= previous_val {
                 push(
                     events,
+                    codes::LEVEL_PROFILE_VA_BREAK,
                     EventType::Level,
                     3,
                     PROFILE_SOURCE_CODE,
@@ -459,6 +479,7 @@ fn profile_events(
             if close <= vah && previous_close > previous_vah {
                 push(
                     events,
+                    codes::LEVEL_PROFILE_VA_REENTRY,
                     EventType::Level,
                     2,
                     PROFILE_SOURCE_CODE,
@@ -471,6 +492,7 @@ fn profile_events(
             } else if close >= val && previous_close < previous_val {
                 push(
                     events,
+                    codes::LEVEL_PROFILE_VA_REENTRY,
                     EventType::Level,
                     2,
                     PROFILE_SOURCE_CODE,
@@ -486,6 +508,7 @@ fn profile_events(
         if (close > vah || close < val) && rvol >= 1.5 {
             push(
                 events,
+                codes::SIGNAL_PROFILE_VA_BREAKOUT,
                 EventType::Signal,
                 13,
                 PROFILE_SOURCE_CODE,
@@ -507,6 +530,7 @@ fn profile_events(
             if crossed {
                 push(
                     events,
+                    codes::SIGNAL_PROFILE_POC_CROSS,
                     EventType::Signal,
                     13,
                     PROFILE_SOURCE_CODE,
@@ -525,6 +549,7 @@ fn profile_events(
         {
             push(
                 events,
+                codes::SIGNAL_PROFILE_SKEW,
                 EventType::Signal,
                 13,
                 PROFILE_SOURCE_CODE,
@@ -542,6 +567,7 @@ fn profile_events(
         {
             push(
                 events,
+                codes::SIGNAL_PROFILE_CONCENTRATION,
                 EventType::Signal,
                 13,
                 PROFILE_SOURCE_CODE,
@@ -582,7 +608,14 @@ fn divergence_events(
             PivotKind::High if pivot.price < previous.0 && value > previous.1 => (4, -1),
             _ => continue,
         };
+        let event_code = match subtype {
+            1 => codes::DIVERGENCE_VWAP_REGULAR_BULLISH,
+            2 => codes::DIVERGENCE_VWAP_REGULAR_BEARISH,
+            3 => codes::DIVERGENCE_VWAP_HIDDEN_BULLISH,
+            _ => codes::DIVERGENCE_VWAP_HIDDEN_BEARISH,
+        };
         events.push(EventRecord {
+            event_code,
             event_type: EventType::Divergence,
             event_subtype_code: subtype,
             source_code: VWAP_SOURCE_CODE,
@@ -613,7 +646,13 @@ fn divergence_events(
             PivotKind::High if pivot.price > previous.0 && value < previous.1 => (2, -1),
             _ => continue,
         };
+        let event_code = if subtype == 1 {
+            codes::DIVERGENCE_PROFILE_POC_BULLISH
+        } else {
+            codes::DIVERGENCE_PROFILE_POC_BEARISH
+        };
         events.push(EventRecord {
+            event_code,
             event_type: EventType::Divergence,
             event_subtype_code: subtype,
             source_code: PROFILE_SOURCE_CODE,
@@ -663,6 +702,7 @@ fn participation_events(
     if cross_up_value(&extended.rvol_fast, bar, 1.5) {
         push(
             events,
+            codes::SIGNAL_RVOL_EXPANSION,
             EventType::Signal,
             11,
             RVOL_SOURCE_CODE,
@@ -676,6 +716,7 @@ fn participation_events(
     if cross_down_value(&extended.rvol_fast, bar, 0.7) {
         push(
             events,
+            codes::SIGNAL_RVOL_CONTRACTION,
             EventType::Signal,
             11,
             RVOL_SOURCE_CODE,
@@ -689,6 +730,7 @@ fn participation_events(
     if cross_up_value(&extended.rvol_ratio, bar, 1.5) {
         push(
             events,
+            codes::SIGNAL_RVOL_RATIO,
             EventType::Signal,
             11,
             RVOL_SOURCE_CODE,
@@ -702,6 +744,7 @@ fn participation_events(
     if cross_up_value(&extended.volume_oscillator, bar, 0.0) {
         push(
             events,
+            codes::SIGNAL_VOLUME_OSCILLATOR_CROSS,
             EventType::Signal,
             11,
             VOLUME_OSCILLATOR_SOURCE_CODE,
@@ -714,6 +757,7 @@ fn participation_events(
     } else if cross_down_value(&extended.volume_oscillator, bar, 0.0) {
         push(
             events,
+            codes::SIGNAL_VOLUME_OSCILLATOR_CROSS,
             EventType::Signal,
             11,
             VOLUME_OSCILLATOR_SOURCE_CODE,
@@ -732,6 +776,7 @@ fn participation_events(
             if close >= previous.low() && close <= previous.high() {
                 push(
                     events,
+                    codes::SIGNAL_CLIMAX_REVERSAL,
                     EventType::Signal,
                     11,
                     CLIMAX_SOURCE_CODE,
@@ -752,6 +797,7 @@ fn participation_events(
         if close_position >= 0.8 {
             push(
                 events,
+                codes::SIGNAL_CLIMAX_CONTINUATION,
                 EventType::Signal,
                 11,
                 CLIMAX_SOURCE_CODE,
@@ -764,6 +810,7 @@ fn participation_events(
         } else if close_position <= 0.2 {
             push(
                 events,
+                codes::SIGNAL_CLIMAX_CONTINUATION,
                 EventType::Signal,
                 11,
                 CLIMAX_SOURCE_CODE,
@@ -780,6 +827,7 @@ fn participation_events(
         let level = extended.vwap.get(bar).or_else(|| extended.poc.get(bar));
         push(
             events,
+            codes::LEVEL_ABSORPTION_TEST,
             EventType::Level,
             1,
             ABSORPTION_SOURCE_CODE,
@@ -798,6 +846,7 @@ fn participation_events(
         if close > previous.high() + config.level_atr * atr {
             push(
                 events,
+                codes::SIGNAL_ABSORPTION_BREAK,
                 EventType::Signal,
                 12,
                 ABSORPTION_SOURCE_CODE,
@@ -810,6 +859,7 @@ fn participation_events(
         } else if close < previous.low() - config.level_atr * atr {
             push(
                 events,
+                codes::SIGNAL_ABSORPTION_BREAK,
                 EventType::Signal,
                 12,
                 ABSORPTION_SOURCE_CODE,
@@ -823,6 +873,7 @@ fn participation_events(
             let direction = extended.absorption_direction.get(bar - 1).unwrap_or(0.0) as i8;
             push(
                 events,
+                codes::SIGNAL_ABSORPTION_REJECTION,
                 EventType::Signal,
                 12,
                 ABSORPTION_SOURCE_CODE,
@@ -863,7 +914,14 @@ fn participation_divergences(
                 PivotKind::High if pivot.price > previous.0 && value < previous.1 => (2, -1),
                 _ => continue,
             };
+            let event_code = match (source, subtype) {
+                (RVOL_SOURCE_CODE, 1) => codes::DIVERGENCE_RVOL_BULLISH,
+                (RVOL_SOURCE_CODE, _) => codes::DIVERGENCE_RVOL_BEARISH,
+                (CLIMAX_SOURCE_CODE, 1) => codes::DIVERGENCE_CLIMAX_BULLISH,
+                _ => codes::DIVERGENCE_CLIMAX_BEARISH,
+            };
             events.push(EventRecord {
+                event_code,
                 event_type: EventType::Divergence,
                 event_subtype_code: subtype,
                 source_code: source,
@@ -926,6 +984,7 @@ fn flow_events(
     if cross_up_series(&extended.obv, &extended.obv_ma, bar) {
         push(
             events,
+            codes::SIGNAL_OBV_CROSS,
             EventType::Signal,
             15,
             OBV_SOURCE_CODE,
@@ -938,6 +997,7 @@ fn flow_events(
     } else if cross_down_series(&extended.obv, &extended.obv_ma, bar) {
         push(
             events,
+            codes::SIGNAL_OBV_CROSS,
             EventType::Signal,
             15,
             OBV_SOURCE_CODE,
@@ -955,6 +1015,7 @@ fn flow_events(
     {
         push(
             events,
+            codes::SIGNAL_OBV_SLOPE,
             EventType::Signal,
             15,
             OBV_SOURCE_CODE,
@@ -968,6 +1029,7 @@ fn flow_events(
     if cross_up_value(&extended.cmf, bar, 0.0) {
         push(
             events,
+            codes::SIGNAL_CMF_CROSS,
             EventType::Signal,
             15,
             CMF_SOURCE_CODE,
@@ -980,6 +1042,7 @@ fn flow_events(
     } else if cross_down_value(&extended.cmf, bar, 0.0) {
         push(
             events,
+            codes::SIGNAL_CMF_CROSS,
             EventType::Signal,
             15,
             CMF_SOURCE_CODE,
@@ -993,6 +1056,7 @@ fn flow_events(
     if cross_up_value(&extended.cmf, bar, 0.2) {
         push(
             events,
+            codes::SIGNAL_CMF_THRESHOLD,
             EventType::Signal,
             15,
             CMF_SOURCE_CODE,
@@ -1005,6 +1069,7 @@ fn flow_events(
     } else if cross_down_value(&extended.cmf, bar, -0.2) {
         push(
             events,
+            codes::SIGNAL_CMF_THRESHOLD,
             EventType::Signal,
             15,
             CMF_SOURCE_CODE,
@@ -1019,6 +1084,7 @@ fn flow_events(
         if cross_up_value(&extended.mfi, bar, level) {
             push(
                 events,
+                codes::SIGNAL_MFI_THRESHOLD,
                 EventType::Signal,
                 15,
                 MFI_SOURCE_CODE,
@@ -1031,6 +1097,7 @@ fn flow_events(
         } else if cross_down_value(&extended.mfi, bar, level) {
             push(
                 events,
+                codes::SIGNAL_MFI_THRESHOLD,
                 EventType::Signal,
                 15,
                 MFI_SOURCE_CODE,
@@ -1050,6 +1117,7 @@ fn flow_events(
         if current_zone != previous_zone {
             push(
                 events,
+                codes::SIGNAL_MFI_ZONE,
                 EventType::Signal,
                 15,
                 MFI_SOURCE_CODE,
@@ -1064,6 +1132,7 @@ fn flow_events(
     if cross_up_series(&extended.ad_line, &extended.ad_ma, bar) {
         push(
             events,
+            codes::SIGNAL_AD_CROSS,
             EventType::Signal,
             15,
             AD_SOURCE_CODE,
@@ -1076,6 +1145,7 @@ fn flow_events(
     } else if cross_down_series(&extended.ad_line, &extended.ad_ma, bar) {
         push(
             events,
+            codes::SIGNAL_AD_CROSS,
             EventType::Signal,
             15,
             AD_SOURCE_CODE,
@@ -1123,7 +1193,15 @@ fn flow_divergences(
                 }
                 _ => continue,
             };
+            let base = match source {
+                OBV_SOURCE_CODE => codes::DIVERGENCE_OBV_REGULAR_BULLISH,
+                CMF_SOURCE_CODE => codes::DIVERGENCE_CMF_REGULAR_BULLISH,
+                MFI_SOURCE_CODE => codes::DIVERGENCE_MFI_REGULAR_BULLISH,
+                _ => codes::DIVERGENCE_AD_REGULAR_BULLISH,
+            };
+            let event_code = base + u16::from(subtype - 1);
             events.push(EventRecord {
+                event_code,
                 event_type: EventType::Divergence,
                 event_subtype_code: subtype,
                 source_code: source,
@@ -1161,6 +1239,7 @@ fn level_extended_events(
         {
             push(
                 events,
+                codes::LEVEL_KELTNER_TEST,
                 EventType::Level,
                 1,
                 KELTNER_SOURCE_CODE,
@@ -1185,6 +1264,7 @@ fn level_extended_events(
             if close > upper && previous_close <= previous_upper {
                 push(
                     events,
+                    codes::LEVEL_KELTNER_BREAK,
                     EventType::Level,
                     3,
                     KELTNER_SOURCE_CODE,
@@ -1197,6 +1277,7 @@ fn level_extended_events(
             } else if close < lower && previous_close >= previous_lower {
                 push(
                     events,
+                    codes::LEVEL_KELTNER_BREAK,
                     EventType::Level,
                     3,
                     KELTNER_SOURCE_CODE,
@@ -1219,6 +1300,7 @@ fn level_extended_events(
         {
             push(
                 events,
+                codes::LEVEL_DONCHIAN_TEST,
                 EventType::Level,
                 1,
                 DONCHIAN_SOURCE_CODE,
@@ -1239,6 +1321,7 @@ fn level_extended_events(
             if close > previous_upper && previous_close <= previous_upper {
                 push(
                     events,
+                    codes::LEVEL_DONCHIAN_BREAK,
                     EventType::Level,
                     3,
                     DONCHIAN_SOURCE_CODE,
@@ -1251,6 +1334,7 @@ fn level_extended_events(
             } else if close < previous_lower && previous_close >= previous_lower {
                 push(
                     events,
+                    codes::LEVEL_DONCHIAN_BREAK,
                     EventType::Level,
                     3,
                     DONCHIAN_SOURCE_CODE,
@@ -1276,6 +1360,7 @@ fn level_extended_events(
         if close > high && previous_close <= previous_high {
             push(
                 events,
+                codes::LEVEL_STRUCTURE_BREAK,
                 EventType::Level,
                 3,
                 SWING_SOURCE_CODE,
@@ -1288,6 +1373,7 @@ fn level_extended_events(
         } else if close < low && previous_close >= previous_low {
             push(
                 events,
+                codes::LEVEL_STRUCTURE_BREAK,
                 EventType::Level,
                 3,
                 SWING_SOURCE_CODE,
@@ -1316,8 +1402,14 @@ fn level_extended_events(
         // prior state is unclassified and emits neither.
         if close > high && previous_close <= previous_high && previous_state != 0.0 {
             let subtype = if previous_state > 0.0 { 4 } else { 5 };
+            let event_code = if subtype == 4 {
+                codes::LEVEL_BOS
+            } else {
+                codes::LEVEL_CHOCH
+            };
             push(
                 events,
+                event_code,
                 EventType::Level,
                 subtype,
                 BOS_CHOCH_SOURCE_CODE,
@@ -1329,8 +1421,14 @@ fn level_extended_events(
             );
         } else if close < low && previous_close >= previous_low && previous_state != 0.0 {
             let subtype = if previous_state < 0.0 { 4 } else { 5 };
+            let event_code = if subtype == 4 {
+                codes::LEVEL_BOS
+            } else {
+                codes::LEVEL_CHOCH
+            };
             push(
                 events,
+                event_code,
                 EventType::Level,
                 subtype,
                 BOS_CHOCH_SOURCE_CODE,
@@ -1347,6 +1445,7 @@ fn level_extended_events(
     {
         push(
             events,
+            codes::LEVEL_STRENGTH_TEST,
             EventType::Level,
             1,
             STRENGTH_SOURCE_CODE,
@@ -1366,6 +1465,7 @@ fn level_extended_events(
     {
         push(
             events,
+            codes::LEVEL_WICK_TEST,
             EventType::Level,
             1,
             CANDLE_SOURCE_CODE,
@@ -1385,6 +1485,7 @@ fn level_extended_events(
     {
         push(
             events,
+            codes::LEVEL_WICK_TEST,
             EventType::Level,
             1,
             CANDLE_SOURCE_CODE,
@@ -1398,6 +1499,7 @@ fn level_extended_events(
     if extended.gap_filled.get(bar) == Some(1.0) {
         push(
             events,
+            codes::LEVEL_GAP_FILL,
             EventType::Level,
             1,
             GAP_SOURCE_CODE,
@@ -1412,6 +1514,7 @@ fn level_extended_events(
     {
         push(
             events,
+            codes::LEVEL_GAP_TEST,
             EventType::Level,
             1,
             GAP_SOURCE_CODE,
@@ -1459,7 +1562,13 @@ fn atr_divergences(
         else {
             continue;
         };
+        let event_code = if subtype == 1 {
+            codes::DIVERGENCE_ATR_BULLISH
+        } else {
+            codes::DIVERGENCE_ATR_BEARISH
+        };
         events.push(EventRecord {
+            event_code,
             event_type: EventType::Divergence,
             event_subtype_code: subtype,
             source_code: ATR_SOURCE_CODE,
@@ -1477,6 +1586,7 @@ fn atr_divergences(
 #[cfg(test)]
 mod tests {
     use super::{ExtendedEventConfig, ExtendedEventSeries};
+    use crate::events::{EventType, codes};
     use crate::readings::{ExtendedConfig, ExtendedReadings, Readings, ReadingsConfig};
     use quantrule_data::Candle;
 
@@ -1726,6 +1836,28 @@ mod tests {
                 .events()
                 .iter()
                 .any(|event| event.source_code == 37 && event.event_subtype_code == 10)
+        );
+    }
+
+    #[test]
+    fn a_stale_extreme_is_a_distinct_event() {
+        let mut candles: Vec<Candle> = (0..40)
+            .map(|index| candle(index, 100.0, 100.5, 99.5, 100.0, 10.0))
+            .collect();
+        candles[0] = candle(0, 100.0, 110.0, 99.0, 100.0, 10.0);
+        let events = compute(&candles);
+        assert!(
+            events.events().iter().any(|event| {
+                event.event_code == codes::SIGNAL_EXTREME_STALE
+                    && event.event_type == EventType::Signal
+            }),
+            "the stale extreme was not published"
+        );
+        assert!(
+            !events.events().iter().any(|event| {
+                event.event_code == codes::SIGNAL_EXTREME_STALE && event.occurred_bar_index == 0
+            }),
+            "the fresh extreme was misclassified as stale"
         );
     }
 

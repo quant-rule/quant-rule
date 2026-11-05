@@ -90,6 +90,7 @@ impl DmiEventSeries {
                 continue;
             };
             events.push(EventRecord {
+                event_code: crate::events::codes::SIGNAL_DI_CROSS,
                 event_type: EventType::Signal,
                 event_subtype_code: SignalSubtype::SeriesCrossover.code(),
                 source_code: DI_PLUS_SOURCE_CODE,

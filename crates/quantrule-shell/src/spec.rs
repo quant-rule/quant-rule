@@ -46,6 +46,7 @@ impl std::error::Error for SpecParseError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct EventCode {
+    pub(crate) code: u16,
     pub(crate) event_type: EventType,
     pub(crate) subtype: u8,
     pub(crate) source: u16,
@@ -207,6 +208,7 @@ fn parse_event(value: &Value, registry: &Registry) -> Result<SpecEvent, SpecPars
         None => 0,
     };
     Ok(SpecEvent {
+        event_code: code.code,
         event_type: code.event_type,
         subtype: code.subtype,
         source: code.source,
@@ -282,6 +284,13 @@ impl Registry {
                 field(event, "id", "a registry event")?,
                 "a registry event id",
             )?;
+            let code = as_u64(
+                field(event, "code", "a registry event")?,
+                "a registry event code",
+            )?;
+            let code = u16::try_from(code).map_err(|_| {
+                SpecParseError::new(format!("the registry event {id} has a bad code"))
+            })?;
             let event_type = as_u64(
                 field(event, "event_type", "a registry event")?,
                 "a registry event type",
@@ -323,6 +332,7 @@ impl Registry {
             map.insert(
                 id.to_string(),
                 EventCode {
+                    code,
                     event_type,
                     subtype,
                     source,

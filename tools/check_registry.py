@@ -30,7 +30,7 @@ INDICATOR_KEYS = {
     "parameters", "outputs", "availability", "events", "tests", "status",
 }
 EVENT_KEYS = {
-    "id", "event_type", "subtype", "source", "indicator", "role", "claim",
+    "id", "code", "event_type", "subtype", "source", "indicator", "role", "claim",
     "formula", "parameters", "tests", "status", "sources", "precedence",
 }
 PARAMETER_KEYS = {
@@ -188,6 +188,7 @@ def check(registry: Any) -> list[str]:
         if not isinstance(affects, list) or not affects or any(value not in AFFECTS for value in affects):
             errors.append(f"{label}.affects is invalid")
 
+    event_codes: set[int] = set()
     for index, event in enumerate(events):
         label = f"events[{index}]"
         if not isinstance(event, dict):
@@ -197,6 +198,13 @@ def check(registry: Any) -> list[str]:
         ident = event.get("id")
         if not isinstance(ident, str) or not ident:
             errors.append(f"{label}.id must be a non-empty string")
+        code = event.get("code")
+        if not isinstance(code, int) or code < 1:
+            errors.append(f"{label}.code must be a positive integer")
+        elif code in event_codes:
+            errors.append(f"{label}.code duplicate: {code}")
+        else:
+            event_codes.add(code)
         event_type = event.get("event_type")
         if event_type not in SUBTYPE_RANGE:
             errors.append(f"{label}.event_type is invalid")
@@ -353,12 +361,12 @@ def render_markdown(registry: dict[str, Any]) -> str:
     lines.append("")
     lines.append("## Events")
     lines.append("")
-    lines.append("| ID | Type | Subtype | Sources | Indicator | Role | Status | Claim |")
-    lines.append("|---|---:|---:|---|---|---|---|---|")
+    lines.append("| ID | Code | Type | Subtype | Sources | Indicator | Role | Status | Claim |")
+    lines.append("|---|---:|---:|---:|---|---|---|---|---|")
     for event in registry["events"]:
         sources = event.get("sources", [event["source"]])
         lines.append(
-            f"| `{event['id']}` | {event['event_type']} | {event['subtype']} | "
+            f"| `{event['id']}` | {event['code']} | {event['event_type']} | {event['subtype']} | "
             f"{'/'.join(str(source) for source in sources)} | {event['indicator']} | "
             f"{event['role']} | {event['status']} | {cell(event['claim'])} |"
         )

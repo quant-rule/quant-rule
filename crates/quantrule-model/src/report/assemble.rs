@@ -669,6 +669,7 @@ mod tests {
         event_subtype_code: u8,
     ) -> EventRecord {
         EventRecord {
+            event_code: 0,
             event_type,
             event_subtype_code,
             source_code: 1,

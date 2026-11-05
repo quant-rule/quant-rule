@@ -29,7 +29,7 @@ pub const MAX_ACTIVE_EVENTS: usize = 256;
 /// The maximum vote threshold.
 pub const MAX_MIN_VOTES: usize = 64;
 
-type EventIndex = BTreeMap<(u8, u8, u16), Vec<(usize, i8)>>;
+type EventIndex = BTreeMap<u16, Vec<(usize, i8)>>;
 
 /// The role a registry event declares.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +59,8 @@ impl SpecEventRole {
 pub struct SpecEventCode {
     /// The registry event identifier.
     pub id: String,
+    /// The stable registry event code.
+    pub code: u16,
     /// The registry role.
     pub role: SpecEventRole,
     /// The event type.
@@ -628,11 +630,7 @@ fn evaluate_conditions(
     let mut index: EventIndex = BTreeMap::new();
     for event in events {
         index
-            .entry((
-                event.event_type.code(),
-                event.event_subtype_code,
-                event.source_code,
-            ))
+            .entry(event.event_code)
             .or_default()
             .push((event.available_bar_index, event.direction_code));
     }
@@ -672,8 +670,7 @@ fn evaluate_expression(
 ) -> bool {
     match expression {
         SpecExpression::Event(event) => {
-            let key = (event.event_type.code(), event.subtype, event.source);
-            let Some(entries) = index.get(&key) else {
+            let Some(entries) = index.get(&event.event_code) else {
                 return false;
             };
             let start = bar.saturating_sub(event.within_bars);
@@ -707,29 +704,22 @@ fn predict(
 ) -> PredictionSeries {
     let mut sides = BTreeMap::new();
     for event in &spec.prediction.long {
-        sides.insert((event.event_type.code(), event.subtype, event.source), 1_i8);
+        sides.insert(event.code, 1_i8);
     }
     for event in &spec.prediction.short {
-        sides.insert(
-            (event.event_type.code(), event.subtype, event.source),
-            -1_i8,
-        );
+        sides.insert(event.code, -1_i8);
     }
-    let direction_events: BTreeSet<(u8, u8, u16)> = spec
+    let direction_events: BTreeSet<u16> = spec
         .prediction
         .events
         .iter()
-        .map(|event| (event.event_type.code(), event.subtype, event.source))
+        .map(|event| event.code)
         .collect();
     let mut long = vec![0_u16; timeframe.len()];
     let mut short = vec![0_u16; timeframe.len()];
     let mut seen = BTreeSet::new();
     for event in events {
-        let key = (
-            event.event_type.code(),
-            event.event_subtype_code,
-            event.source_code,
-        );
+        let key = event.event_code;
         let contribution = match spec.prediction.kind {
             PredictionKind::Vote => sides.get(&key).copied(),
             PredictionKind::Direction => direction_events
@@ -740,7 +730,7 @@ fn predict(
             continue;
         };
         let bar = event.available_bar_index;
-        if bar >= timeframe.len() || !seen.insert((bar, key.0, key.1, key.2)) {
+        if bar >= timeframe.len() || !seen.insert((bar, key)) {
             continue;
         }
         if side > 0 {
@@ -805,7 +795,7 @@ fn extended_is_valid(config: crate::readings::ExtendedConfig) -> bool {
 mod tests {
     use super::{
         ModelSpecV2, PredictionKind, SPEC_V2_SCHEMA, SpecEventCode, SpecEventRole, SpecPrediction,
-        SpecRun, SpecV2Error,
+        SpecRun, SpecV2Error, predict,
     };
     use crate::events::EventType;
     use crate::input::{MarketStateConfig, TimeframeInput};
@@ -841,8 +831,18 @@ mod tests {
     }
 
     fn event(id: &str, role: SpecEventRole, subtype: u8, source: u16) -> SpecEventCode {
+        let code = match id {
+            "signal.rsi_threshold" => crate::events::codes::SIGNAL_RSI_THRESHOLD,
+            "signal.ema_pair_cross" => crate::events::codes::SIGNAL_EMA_PAIR_CROSS,
+            "signal.session_open" => crate::events::codes::SIGNAL_SESSION_OPEN,
+            "signal.relative_strength_cross" => {
+                crate::events::codes::SIGNAL_RELATIVE_STRENGTH_CROSS
+            }
+            _ => 0,
+        };
         SpecEventCode {
             id: id.to_string(),
+            code,
             role,
             event_type: EventType::Signal,
             subtype,
@@ -887,6 +887,103 @@ mod tests {
             }],
             config,
         )
+    }
+
+    #[test]
+    fn same_tuple_events_remain_distinct_by_event_code() {
+        use crate::events::EventRecord;
+
+        let candles = candles(40);
+        let run = run(&candles);
+        let timeframe = run.timeframe(300).expect("the timeframe is present");
+        let event = |code| SpecEventCode {
+            id: format!("event-{code}"),
+            code,
+            role: SpecEventRole::Signal,
+            event_type: EventType::Signal,
+            subtype: 10,
+            source: 37,
+        };
+        let first = event(crate::events::codes::SIGNAL_CANDLE_MOMENTUM);
+        let second = event(crate::events::codes::SIGNAL_CANDLE_MARUBOZU);
+        let spec = ModelSpecV2 {
+            schema: SPEC_V2_SCHEMA.to_string(),
+            id: "M2.distinct".to_string(),
+            family: "M2".to_string(),
+            instrument: "XAU".to_string(),
+            timeframes: vec![300],
+            evaluation_timeframe_secs: 300,
+            readings: MarketStateConfig::default(),
+            active_events: vec![first.clone(), second.clone()],
+            prediction: SpecPrediction {
+                kind: PredictionKind::Direction,
+                long: Vec::new(),
+                short: Vec::new(),
+                events: vec![first, second],
+                min_votes: 2,
+            },
+            conditions: Vec::new(),
+            session: None,
+            panel_instruments: Vec::new(),
+        };
+        let record = |code| EventRecord {
+            event_code: code,
+            event_type: EventType::Signal,
+            event_subtype_code: 10,
+            source_code: 37,
+            timeframe_secs: 300,
+            occurred_bar_index: 0,
+            available_bar_index: 0,
+            direction_code: 1,
+            reference_code: None,
+            primary_value: Some(1.0),
+            reference_value: None,
+        };
+        let prediction = predict(
+            &spec,
+            timeframe,
+            &[
+                record(spec.prediction.events[0].code),
+                record(spec.prediction.events[1].code),
+            ],
+        );
+        assert_eq!(prediction.long_votes[0], 2);
+        assert_eq!(prediction.value(0), Some(1));
+    }
+
+    #[test]
+    fn a_level_condition_matches_every_registered_source() {
+        let candles = candles(400);
+        let run = run(&candles);
+        let timeframe = run.timeframe(300).expect("the timeframe is present");
+        let non_ema20 = timeframe
+            .events()
+            .iter()
+            .find(|event| {
+                event.event_code == crate::events::codes::LEVEL_TEST && event.source_code != 1
+            })
+            .copied()
+            .expect("the synthetic series produced a non-EMA20 level test");
+        let mut spec = spec();
+        spec.conditions = vec![SpecCondition {
+            id: "level_test".to_string(),
+            expression: SpecExpression::Event(SpecEvent {
+                event_code: crate::events::codes::LEVEL_TEST,
+                event_type: EventType::Level,
+                subtype: 1,
+                source: 1,
+                timeframe_secs: 300,
+                direction: None,
+                within_bars: 0,
+            }),
+        }];
+        let result = SpecRun::compute(&spec, run, &[]).expect("the level spec run");
+        let evaluation = result.conditions().expect("the condition evaluation");
+        assert!(
+            evaluation.conditions[0].values[non_ema20.available_bar_index],
+            "the level condition missed source {}",
+            non_ema20.source_code
+        );
     }
 
     #[test]
@@ -986,6 +1083,7 @@ mod tests {
         spec.conditions = vec![SpecCondition {
             id: "session_open".to_string(),
             expression: SpecExpression::Event(SpecEvent {
+                event_code: crate::events::codes::SIGNAL_SESSION_OPEN,
                 event_type: EventType::Signal,
                 subtype: 23,
                 source: 50,
@@ -1032,6 +1130,7 @@ mod tests {
         spec.conditions = vec![SpecCondition {
             id: "relative_strength".to_string(),
             expression: SpecExpression::Event(SpecEvent {
+                event_code: crate::events::codes::SIGNAL_RELATIVE_STRENGTH_CROSS,
                 event_type: EventType::Signal,
                 subtype: 22,
                 source: 45,
@@ -1130,6 +1229,7 @@ mod edge_tests {
     fn spec() -> ModelSpecV2 {
         let event = super::SpecEventCode {
             id: "signal.rsi_threshold".to_string(),
+            code: crate::events::codes::SIGNAL_RSI_THRESHOLD,
             role: super::SpecEventRole::Signal,
             event_type: crate::events::EventType::Signal,
             subtype: 1,
