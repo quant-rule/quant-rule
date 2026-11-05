@@ -29,6 +29,7 @@ pub mod readings;
 pub mod report;
 pub mod retention;
 pub mod run;
+pub mod sessions;
 pub mod state;
 pub mod timeframe;
 
@@ -36,4 +37,4 @@ pub mod timeframe;
 ///
 /// It must match `docs/registry/indicators.json`; a registry change updates
 /// both in the same pull request.
-pub const REGISTRY_VERSION: &str = "2026-11-05.7";
+pub const REGISTRY_VERSION: &str = "2026-11-05.8";

@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.7",
+  "version": "2026-11-05.8",
   "indicators": [
     {
       "id": "ema",
@@ -1367,6 +1367,154 @@
         "dispersion"
       ],
       "availability": "common panel timestamps",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "session",
+      "code": 42,
+      "name": "Session state",
+      "taxonomy": "session",
+      "role": "context",
+      "claim": "The session code and age describe the local session.",
+      "formula": "local=UTC+zone offset; session_code=1 if start<=local_hour<end else 0; age=local_hour-start",
+      "inputs": [
+        "timestamp"
+      ],
+      "parameters": [
+        "model.session.london_start",
+        "model.session.london_end",
+        "model.session.new_york_start",
+        "model.session.new_york_end"
+      ],
+      "outputs": [
+        "session_code",
+        "session_age"
+      ],
+      "availability": "bar timestamp",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "opening_range",
+      "code": 43,
+      "name": "Opening range",
+      "taxonomy": "session",
+      "role": "context",
+      "claim": "The first bars of a session define an opening range.",
+      "formula": "ORH=max(H,first k bars); ORL=min(L,first k bars); ORR=(ORH-ORL)/ATR",
+      "inputs": [
+        "high",
+        "low",
+        "atr"
+      ],
+      "parameters": [
+        "model.session.opening_range_bars"
+      ],
+      "outputs": [
+        "opening_range_high",
+        "opening_range_low",
+        "opening_range_atr"
+      ],
+      "availability": "session start and ATR",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "overnight_intraday",
+      "code": 44,
+      "name": "Overnight/intraday",
+      "taxonomy": "session",
+      "role": "context",
+      "claim": "The overnight return and the intraday return decompose the session move.",
+      "formula": "ON=(O_session-C_prev_session)/ATR; ID=(C-O_session)/ATR",
+      "inputs": [
+        "open",
+        "close",
+        "atr"
+      ],
+      "parameters": [
+        "model.session.opening_range_bars"
+      ],
+      "outputs": [
+        "overnight_return",
+        "intraday_return"
+      ],
+      "availability": "prior session close and ATR",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "session_range",
+      "code": 45,
+      "name": "Session range",
+      "taxonomy": "session",
+      "role": "context",
+      "claim": "The running session high-low in ATR describes the session range.",
+      "formula": "SR=(session_high-session_low)/ATR",
+      "inputs": [
+        "high",
+        "low",
+        "atr"
+      ],
+      "parameters": [
+        "model.session.opening_range_bars"
+      ],
+      "outputs": [
+        "session_range_atr"
+      ],
+      "availability": "session start and ATR",
+      "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "calendar_bucket",
+      "code": 46,
+      "name": "Calendar bucket",
+      "taxonomy": "calendar",
+      "role": "diagnostic",
+      "claim": "The local day-of-week and month code describes the calendar bucket.",
+      "formula": "bucket=weekday*100+month",
+      "inputs": [
+        "timestamp"
+      ],
+      "parameters": [
+        "model.session.london_start"
+      ],
+      "outputs": [
+        "calendar_bucket"
+      ],
+      "availability": "bar timestamp",
       "events": [],
       "tests": [
         "causality",
@@ -4108,6 +4256,66 @@
       "path": "fixed",
       "type": "integer",
       "default": 14,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.session.opening_range_bars",
+      "path": "fixed",
+      "type": "integer",
+      "default": 2,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.session.london_start",
+      "path": "fixed",
+      "type": "integer",
+      "default": 8,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.session.london_end",
+      "path": "fixed",
+      "type": "integer",
+      "default": 16,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.session.new_york_start",
+      "path": "fixed",
+      "type": "integer",
+      "default": 9,
+      "unit": "bars",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.session.new_york_end",
+      "path": "fixed",
+      "type": "integer",
+      "default": 16,
       "unit": "bars",
       "configurable": false,
       "affects": [

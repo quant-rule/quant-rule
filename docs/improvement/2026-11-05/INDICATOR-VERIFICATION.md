@@ -157,11 +157,11 @@ spec. `Status` = planned → docs → code → tested → wired → verified.
 | 30 | breadth | 39 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
 | 31 | co_movement | 40 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
 | 32 | dispersion | 41 | 9 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
-| 33 | session | 42 | 10 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 34 | opening_range | 43 | 10 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 35 | overnight_intraday | 44 | 10 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 36 | session_range | 45 | 10 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
-| 37 | calendar_bucket | 46 | 10 | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | planned |
+| 33 | session | 42 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 34 | opening_range | 43 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 35 | overnight_intraday | 44 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 36 | session_range | 45 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
+| 37 | calendar_bucket | 46 | 10 | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | code |
 
 ## 4. Verification table B — test and math checklist
 
@@ -204,11 +204,11 @@ statistics), `Cmd` verification command, `Sign` human/Validator sign-off.
 | 30 | breadth | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test breadth` | ☐ |
 | 31 | co_movement | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test co_movement` | ☐ |
 | 32 | dispersion | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test dispersion` | ☐ |
-| 33 | session | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test session` | ☐ |
-| 34 | opening_range | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test opening_range` | ☐ |
-| 35 | overnight_intraday | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test overnight_intraday` | ☐ |
-| 36 | session_range | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test session_range` | ☐ |
-| 37 | calendar_bucket | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | `cargo test calendar_bucket` | ☐ |
+| 33 | session | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test session` | ☐ |
+| 34 | opening_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test opening_range` | ☐ |
+| 35 | overnight_intraday | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test overnight_intraday` | ☐ |
+| 36 | session_range | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test session_range` | ☐ |
+| 37 | calendar_bucket | ☑ | ☑ | ☑ | ☑ | ☑ | ☐ | ☐ | ☐ | ☑ | `cargo test calendar_bucket` | ☐ |
 
 ## 5. Verification commands
 
