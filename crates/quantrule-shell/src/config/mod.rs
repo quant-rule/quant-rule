@@ -17,6 +17,7 @@ mod model_v4;
 pub(crate) use model_v4::effective_json;
 mod policy;
 mod portfolio;
+mod qualification;
 mod read;
 mod run;
 mod strategy;
@@ -25,5 +26,10 @@ mod strategy;
 mod tests;
 
 pub(crate) use error::ConfigError;
+#[cfg(test)]
+pub(crate) use qualification::{Correction, CostModel, Dimension, MultipleTesting, Operator};
+pub(crate) use qualification::{
+    Criteria, Criterion, EvidenceArtifact, Partition, load as load_qualification,
+};
 pub(crate) use run::RunConfig;
 pub(crate) use strategy::{StrategyConfig, load as load_strategy};

@@ -1,6 +1,6 @@
 # Qualification Criteria — Evidence, Verdicts, and Human Acceptance
 
-- Status: Current; approved 2026-11-06
+- Status: Current; approved 2026-11-06; implemented 2026-11-06
 - Applies to: the Qualification Engine and the `qualify` command
 - Related: [`engine-artifacts.md`](engine-artifacts.md),
   [`command-surface.md`](../../architecture/command-surface.md),
@@ -75,6 +75,12 @@ The `qualify` command consumes two explicit inputs:
       "evidence_artifact": "portfolio",
       "evidence_field": "metrics.max_drawdown"
     }
+  ],
+  "not_applicable": [
+    {
+      "dimension": "walk_forward",
+      "reason": "no sequential folds are declared"
+    }
   ]
 }
 ```
@@ -83,6 +89,42 @@ The criteria file is written **before** the run. A threshold that is changed
 after the result is known is a new hypothesis and a new criteria file, not an
 edit to this one. The engine records the criteria file's content identity in its
 provenance.
+
+The optional `not_applicable` array records a dimension that does not apply to
+the hypothesis and why. It is not a criterion status; every criterion still has
+exactly one of `pass`, `fail`, or `insufficient_evidence`. A dimension may not
+appear both as a criterion and as not applicable.
+
+A required partition is satisfied when the evidence period overlaps the
+partition window. The record carries the evidence period and the exact overlap,
+so a reader can judge how much of the partition was read. `strategy_validation`
+and `portfolio_dev` share the 2024 window; the period alone cannot distinguish
+them, so the run manifest and the criteria must name the intended partition.
+
+### Evidence fields
+
+`evidence_field` is a dotted path into the named artifact. The first segment is
+the artifact document, and the rest are object keys or array indices:
+
+| `evidence_artifact` | Document | Required prefix |
+|---|---|---|
+| `backtest` | `manifest.json` | `manifest.` |
+| `portfolio` | `portfolio/metrics.json` | `metrics.` |
+| `execution` | `execution/provenance.json` | `provenance.` |
+| `model` | `model/result.json` | `result.` |
+
+An absent key, a null, or a path that crosses a scalar is `insufficient_evidence`
+with a stable reason code. A criterion that names an unsupported artifact or a
+field without the required prefix is a criteria-file error, not a verdict.
+
+The supported operators are `>`, `>=`, `<`, `<=`, `==`, and `!=`. The supported
+cost model is `execution-and-portfolio`; the execution and portfolio artifacts
+must carry `fee_rate`, `slippage_bps`, `commission_rate`, and `funding_rate`.
+`multiple_testing` declares `primary_cells`, `trials`, `correction`, and
+`family_alpha` before the run. The engine validates the declaration and records
+the strictest adjusted alpha (`family_alpha / primary_cells` for Holm and
+Bonferroni, `family_alpha` for none). It does not invent a p-value that the
+result artifacts do not publish.
 
 The account envelope in `policy.json` supplies the account currency, initial
 cash, performance target, evaluation days, drawdown ceiling, leverage, position
@@ -114,7 +156,11 @@ recorded as `not_applicable` with a reason; it is not silently omitted.
 | `prop_firm_limits` | Does the result fit the intended account rules? | Daily loss, maximum loss, profit target, consistency rule, time limit. | Only when declared |
 
 The engine does not choose these dimensions. The human names the mandatory ones
-and their thresholds in the criteria file.
+and their thresholds in the criteria file. The engine validates the declared
+criteria and the not-applicable declarations; it does not infer whether an
+omitted dimension applies. Completeness of the protocol is the human's
+responsibility, and an incomplete protocol is not evidence of a complete
+qualification.
 
 ## 4. Verdict semantics
 
@@ -169,15 +215,26 @@ an edge, is safe, or is accepted.
 |---|---|
 | `schema` | `quantrule.qualification-result/v1`. |
 | `stage` | `qualification`. |
+| `id` | The criteria file's `id`. |
 | `verdict` | `pass`, `fail`, or `insufficient_evidence`. |
 | `criteria` | One object per criterion, in the criteria file's order: `id`, `dimension`, `mandatory`, `status`, `observed`, `threshold`, `operator`, `evidence_artifact`, `evidence_field`, `reason_code`. |
-| `reasons` | Stable reason codes with the criterion id. The shell maps codes to words. |
-| `evidence` | The backtest manifest, data version, config identity, code revision, partitions, costs, and seed. |
+| `reasons` | One `criterion_id` and `code` for every criterion that is not `pass`, in criteria order. The shell maps codes to words. |
+| `evidence` | The backtest manifest identity and content hash, data version, config identity, code revision, period, partitions and required-partition coverage, costs, seed, sample counts, multiple-testing declaration, and stage provenance. |
+| `not_applicable` | The human's not-applicable dimensions and reasons. |
 | `human_decision` | `null` from the engine. The human records the decision separately. |
 
-`criteria.csv` carries the same rows in the same order. `qualification.md` is a
-deterministic rendering of the record. A reason code is stable and does not
-embed a number that belongs in `observed` or `threshold`.
+`criteria.csv` carries the same rows in the same order with the header
+`id,dimension,mandatory,status,observed,threshold,operator,evidence_artifact,evidence_field,reason_code`.
+`qualification.md` is a deterministic rendering of the record. A reason code is
+stable and does not embed a number that belongs in `observed` or `threshold`.
+
+The stable reason codes are `operator_satisfied`, `operator_not_satisfied`,
+`missing_measurement`, `non_numeric_measurement`, `required_partition_missing`,
+`minimum_trades_not_met`, and `trade_count_unavailable`.
+
+Before evaluating a criterion, the engine checks that the manifest and every
+stage provenance are present and that each `provenance_hash` matches the bytes on
+disk. A missing or tampered artifact is a refusal, not a criterion result.
 
 ## 7. Human acceptance
 
@@ -222,17 +279,21 @@ and multiple-testing corrections. The following rules apply:
 
 ## 9. Verification
 
-- A unit test covers each verdict path: all pass, one fail, one missing mandatory
-  criterion, and a diagnostic-only failure.
-- A test proves `fail` takes precedence over `insufficient_evidence`.
-- A test proves a missing measurement is `insufficient_evidence`, not zero or a
-  pass.
-- A golden fixture fixes a qualification record and its criteria table.
-- A boundary test proves the strategy cannot read a qualification record or an
-  analytics metric.
-- A determinism test runs `qualify` twice over the same evidence and criteria and
-  compares every artifact byte for byte.
-- A test proves the engine writes `human_decision: null` and never writes
-  `decision.md`.
+The implementation is covered by:
+
+- Unit tests for every verdict path: all pass, one fail, one missing mandatory
+  criterion, a diagnostic-only failure, fail precedence, a valid zero, and both
+  evidence gates.
+- `qualification_writes_the_bundle_and_matches_the_golden_fixture`, which fixes
+  the record, the criteria table, the Markdown rendering, and the provenance.
+- `qualification_fail_takes_precedence_over_missing_evidence`.
+- `qualification_missing_partition_is_insufficient`.
+- `qualification_missing_measurement_is_insufficient_not_zero`.
+- `qualification_is_byte_deterministic`.
+- `qualification_refuses_a_tampered_provenance`.
+- `qualification_writes_the_bundle_and_matches_the_golden_fixture` asserts
+  `human_decision: null` and that `decision.md` does not exist.
+- `the_strategy_input_exposes_only_identity_and_progression` forbids a
+  qualification record, verdict, or analytics metric in the strategy input.
 - The command surface checker proves that `qualify` is listed only when the
   command, help entry, README row, tutorial, and artifact contract all exist.

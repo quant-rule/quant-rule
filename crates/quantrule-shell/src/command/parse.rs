@@ -12,6 +12,7 @@ use super::execution::parse_execution_arguments;
 use super::fetch::parse_fetch_arguments;
 use super::policy::parse_policy_arguments;
 use super::portfolio::parse_portfolio_arguments;
+use super::qualify::parse_qualify_arguments;
 use super::report_run::parse_report_arguments;
 use super::strategy::parse_strategy_arguments;
 use super::types::{Command, HelpTopic, ModelArgs, ParseError, WindowMode};
@@ -64,6 +65,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "backtest" => {
             let arguments = tokenize(rest)?;
             parse_backtest_arguments(&arguments).map(Some)
+        }
+        "qualify" => {
+            let arguments = tokenize(rest)?;
+            parse_qualify_arguments(&arguments).map(Some)
         }
         "fetch" => {
             let arguments = tokenize(rest)?;

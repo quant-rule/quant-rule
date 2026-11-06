@@ -154,7 +154,7 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
         })?;
         let schema = crate::spec::schema_of(&text)
             .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
-        let spec_hash = content_hash(text.as_bytes());
+        let spec_hash = crate::fingerprint::fnv1a(text.as_bytes());
         let file = spec_path
             .file_name()
             .and_then(|name| name.to_str())
@@ -618,17 +618,6 @@ fn spec_v2_provenance(
     })
 }
 
-fn content_hash(bytes: &[u8]) -> String {
-    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-    const PRIME: u64 = 0x0000_0100_0000_01b3;
-    let mut hash = OFFSET;
-    for byte in bytes {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(PRIME);
-    }
-    format!("{hash:016x}")
-}
-
 fn session_zone_label(zone: quantrule_model::sessions::SessionZone) -> &'static str {
     match zone {
         quantrule_model::sessions::SessionZone::Utc => "utc",
@@ -659,7 +648,7 @@ fn panel_provenance(
                 let source = parsed.panel_sources.get(name).map_or("", String::as_str);
                 let path = resolve_spec_path(spec_path, source);
                 let hash = fs::read(&path)
-                    .map(|bytes| content_hash(&bytes))
+                    .map(|bytes| crate::fingerprint::fnv1a(&bytes))
                     .unwrap_or_default();
                 json!({
                     "instrument": name,

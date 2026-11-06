@@ -1,0 +1,27 @@
+{
+  "schema": "quantrule.qualification/v1",
+  "id": "Q-FIXTURE-BAD-OPERATOR",
+  "evidence": {
+    "required_partitions": ["portfolio_holdout"],
+    "minimum_trades": 1,
+    "cost_model": "execution-and-portfolio",
+    "multiple_testing": {
+      "primary_cells": 1,
+      "trials": 1,
+      "correction": "none",
+      "family_alpha": 0.05
+    }
+  },
+  "criteria": [
+    {
+      "id": "bad-operator",
+      "dimension": "drawdown",
+      "mandatory": true,
+      "metric": "max_drawdown",
+      "operator": "=>",
+      "threshold": 0.2,
+      "evidence_artifact": "portfolio",
+      "evidence_field": "metrics.max_drawdown"
+    }
+  ]
+}

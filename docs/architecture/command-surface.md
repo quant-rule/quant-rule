@@ -51,7 +51,7 @@ the policy and the engine configuration files; it does not decide a trade.
 | 3 | Strategy Engine | Model measurements, strategy config, position state | Decisions/signals and their as-of rationale | `strategy explain`, `strategy run` | Implemented |
 | 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, and rejections | `execution run` | Implemented |
 | 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | `portfolio replay` | Implemented |
-| 6 | **Qualification Engine** | Evidence bundle and human-owned acceptance criteria | Qualification record and verdict | `qualify` | Planned |
+| 6 | **Qualification Engine** | Evidence bundle and human-owned acceptance criteria | Qualification record and verdict | `qualify` | Implemented |
 | 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | `analytics evaluate` | Planned |
 | — | Backtest orchestration | Run config and strategy config | Stage bundles and a run manifest | `backtest run` | Implemented |
 
@@ -96,7 +96,7 @@ the distinction.
 | `execution run` | Execution | Implemented | Decisions bundle, run config with execution and sizing | Fills bundle |
 | `portfolio replay` | Portfolio | Implemented | Fills bundle, run config | Portfolio bundle |
 | `backtest run` | Orchestration | Implemented | Run config, strategy config | Stage bundles and a run manifest |
-| `qualify` | Qualification | Planned | Evidence bundle, qualification criteria | Qualification record and verdict |
+| `qualify` | Qualification | Implemented | Evidence bundle, qualification criteria | Qualification record and verdict |
 | `analytics evaluate` | Analytics | Planned | Result artifacts | Metrics bundle |
 
 The current shell also accepts `quit` as a shell meta-command. It is not a
@@ -120,6 +120,12 @@ portfolio bundle. A metric that is undefined is `null`, never zero.
 interleaves the strategy, execution, and portfolio engines so the strategy sees
 the position execution actually holds. It writes the same stage bundles as the
 standalone commands and a manifest with every stage provenance hash.
+
+`qualify` consumes the backtest bundle and the human-owned criteria. It checks
+the manifest and every stage provenance hash, resolves each criterion against the
+named artifact field, applies the fixed verdict precedence, and writes the
+qualification bundle. It writes `human_decision: null` and never writes
+`decision.md`; acceptance remains a separate human act.
 
 ## 4. Artifact and provenance rule
 
@@ -221,12 +227,12 @@ The command surface is delivered in the S3.x sequence, one stage at a time:
 
 | Phase | Deliverable | Status |
 |---:|---|---|
-| 1 | Command and artifact contracts, qualification criteria, drift checker | Implemented and verified locally; publication pending |
-| 2 | Strategy commands and decisions artifact | Implemented and verified locally; publication pending |
-| 3 | Execution command and fills artifact | Implemented and verified locally; publication pending |
-| 4 | Portfolio command and performance artifact | Implemented and verified locally; publication pending |
-| 5 | Backtest orchestration command | Implemented and verified locally; publication pending |
-| 6 | Qualification command and record | Planned |
+| 1 | Command and artifact contracts, qualification criteria, drift checker | Merged |
+| 2 | Strategy commands and decisions artifact | Merged |
+| 3 | Execution command and fills artifact | Merged |
+| 4 | Portfolio command and performance artifact | Merged |
+| 5 | Backtest orchestration command | Merged |
+| 6 | Qualification command and record | Implemented and verified locally; publication pending |
 | 7 | Analytics evaluation command | Planned |
 | 8 | Independent stage verification and closure | Planned |
 

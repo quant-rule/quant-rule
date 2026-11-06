@@ -1,10 +1,10 @@
 # S3.x Command Surface — Stage-Isolated Pipeline Access
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved; Phases 1–4 merged; Phase 5 implemented and verified locally; publication pending
+- Status: Approved; Phases 1–5 merged; Phase 6 implemented and verified locally; publication pending
 - Issue: none (human-approved slug; no issue number is invented)
-- Branch: `docs/s3-command-contracts`
-- Worktree: `s3-command-contracts` (OpenCode task worktree)
+- Branch: one task branch per phase; current `feat/s3-qualification-command`
+- Worktree: `s3-qualification-command` (OpenCode task worktree)
 - Claim type: command, artifact, and qualification contract; no model or strategy
   behavior change in Phase 1; no edge claim
 - Approval: human instruction "PROCEED WITH THE FULL IMPLEMENTATION" after the
@@ -543,4 +543,66 @@ independent review is claimed. The Quant Validator record is not claimed, and th
 PR states the reason it is not applicable to a model or strategy behavior change.
 
 Phase 5 is verified locally. Publication (commit, push, and pull request) is
+pending human authorization.
+
+## 18. Phase 6 verification record
+
+Observed in the Phase 6 worktree on 2026-11-06:
+
+| Check | Result |
+|---|---|
+| `cargo test --workspace` | 1,279 passed, 0 failed, 8 ignored. |
+| `cargo clippy --all-targets -- -D warnings` | Pass. |
+| `cargo fmt --all -- --check` | Pass. |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | Pass. |
+| `python3 tools/check_command_surface.py` | Pass; 14 implemented, 1 planned, 14 README rows, 6 tutorial files. |
+| `python3 tools/check_registry.py` | Pass; 46 indicators, 143 events, 101 parameters. |
+| `python3 tools/check_validation.py` | Pass; 189 claims. |
+| `python3 tools/check_verification.py` | Pass; row=1091 family=329 tool=332 n/a=327. |
+| `python3 tools/check_verification_matrix.py` | Pass; 46 indicators, 143 events. |
+| `python3 tools/check_event_emitters.py` | Pass; 143 registered codes. |
+| `python3 tools/check_links.py` | Pass; 579 Markdown files. |
+| `python3 tools/check_terms.py` | Pass; 348 files. |
+| `python3 tools/check_legacy.py` | Pass; 676 current files. |
+| `python3 tools/check_file_size.py` | Pass. |
+| `git diff --check` | Pass. |
+
+Behavior evidence:
+
+- `qualify` writes `qualification.json`, `criteria.csv`, `qualification.md`, and
+  `provenance.json` under `<out>/qualification/`.
+- The pass fixture records three mandatory passes and one diagnostic failure;
+  the verdict is `pass`, `human_decision` is `null`, and `decision.md` is absent.
+- The fail fixture records one mandatory `fail` and one mandatory
+  `insufficient_evidence`; the verdict is `fail`.
+- A required partition without overlap turns every would-be pass into
+  `insufficient_evidence` with `required_partition_missing`.
+- A missing measurement records `observed: null` and
+  `insufficient_evidence`, never zero.
+- Criteria that resolve `execution/provenance.json` and `model/result.json`
+  fields pass on the fixture, so the evidence-field paths cover every supported
+  artifact.
+- Two runs over the same evidence and criteria produce byte-identical
+  qualification bundles.
+- A tampered stage provenance is refused before evaluation.
+- An invalid criteria file is refused before a bundle is written.
+- The golden fixture fixes the record, the criteria table, the Markdown
+  rendering, and the provenance.
+- The strategy boundary test forbids a qualification record, verdict, or
+  analytics metric in the strategy input.
+- A unit test compares every embedded partition window with
+  `data/partitions.json`, so the workflow contract and the engine cannot drift.
+
+The command evaluates the evidence and writes a verdict; it does not add a
+signal formula, event definition, strategy rule, or statistical input to the
+signal path. The criteria file is human-owned and is fingerprinted as the stage
+`config_id`.
+
+No independent Code Reviewer or Quant Validator pass has been performed. The
+agent performed the implementation and the self-review in one session; no
+independent review is claimed. The Quant Validator record is not claimed because
+the change adds an evaluation stage and does not alter the model or strategy
+signal path.
+
+Phase 6 is verified locally. Publication (commit, push, and pull request) is
 pending human authorization.

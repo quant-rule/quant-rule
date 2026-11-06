@@ -95,4 +95,5 @@ diff -r target/backtest-lab-a/backtest target/backtest-lab-b/backtest
 - A non-empty backtest target is refused. A failed run can leave stage
   directories without `manifest.json`; choose a fresh target.
 - The result is a backtest, not a profitability claim or an edge verdict.
-  Qualification and analytics are the remaining planned stages.
+  Qualification is available with `qualify`; analytics is the remaining planned
+  stage.

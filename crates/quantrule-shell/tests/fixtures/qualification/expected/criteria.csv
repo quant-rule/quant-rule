@@ -1,0 +1,5 @@
+id,dimension,mandatory,status,observed,threshold,operator,evidence_artifact,evidence_field,reason_code
+trade-count,trade_count,true,pass,1,1,>=,portfolio,metrics.trades,operator_satisfied
+drawdown,drawdown,true,pass,0.02696674483544992,0.2,<=,portfolio,metrics.max_drawdown,operator_satisfied
+zero-win-rate,consistency,true,pass,0,0,==,portfolio,metrics.win_rate,operator_satisfied
+return-sign,out_of_sample,false,fail,-0.02461275898231363,0,>,portfolio,metrics.total_return,operator_not_satisfied

@@ -128,6 +128,13 @@ mod boundary_tests {
             "pub quantity",
             "pub diagnosis",
             "diagnosis_",
+            "pub qualification",
+            "pub verdict",
+            "pub analytics",
+            "pub human_decision",
+            "qualification_",
+            "verdict_",
+            "analytics_",
         ] {
             assert!(
                 !source.contains(forbidden),
