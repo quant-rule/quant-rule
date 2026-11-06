@@ -181,7 +181,7 @@ pub(crate) fn load(path: &Path) -> Result<(StrategyConfig, String), ConfigError>
     let value: Value = serde_json::from_str(&text)
         .map_err(|error| ConfigError::invalid_json(file, &error.to_string()))?;
     let config = parse(&value, file)?;
-    Ok((config, fingerprint(text.as_bytes())))
+    Ok((config, crate::fingerprint::fnv1a(text.as_bytes())))
 }
 
 /// Parses and validates one strategy document.
@@ -587,18 +587,6 @@ fn integer(file: &str, path: &str, value: &Value) -> Result<i64, ConfigError> {
     value
         .as_i64()
         .ok_or_else(|| ConfigError::wrong_type(file, path, "an integer", &read::observed(value)))
-}
-
-/// A stable FNV-1a fingerprint of the configuration bytes.
-fn fingerprint(bytes: &[u8]) -> String {
-    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-    const PRIME: u64 = 0x0000_0100_0000_01b3;
-    let mut hash = OFFSET;
-    for byte in bytes {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(PRIME);
-    }
-    format!("{hash:016x}")
 }
 
 #[cfg(test)]

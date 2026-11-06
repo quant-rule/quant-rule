@@ -148,6 +148,19 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "qualify",
+        usage: "qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]",
+        summary: "Evaluate an evidence bundle against human-owned qualification criteria.",
+        output: "the verdict and criterion counts, or a JSON envelope; <out>/qualification/ holds qualification.json, criteria.csv, qualification.md, and provenance.json",
+        notes: &[
+            "The evidence bundle is the backtest run output directory.",
+            "If --out is omitted, the bundle is written beside the evidence bundle.",
+            "The engine writes human_decision: null; the human records acceptance separately.",
+            "A missing measurement is insufficient evidence, never zero or a pass.",
+            "A fail takes precedence over insufficient evidence.",
+        ],
+    },
+    CommandHelp {
         name: "fetch",
         usage: "fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]",
         summary: "Fetch a Dukascopy range and write the accepted candles as CSV.",
@@ -247,12 +260,13 @@ mod tests {
             "execution run",
             "portfolio replay",
             "backtest run",
+            "qualify",
             "fetch",
             "help",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 13);
+        assert_eq!(COMMANDS.len(), 14);
     }
 
     #[test]

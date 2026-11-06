@@ -1,0 +1,27 @@
+{
+  "schema": "quantrule.qualification/v1",
+  "id": "Q-FIXTURE-MISSING",
+  "evidence": {
+    "required_partitions": ["portfolio_holdout"],
+    "minimum_trades": 1,
+    "cost_model": "execution-and-portfolio",
+    "multiple_testing": {
+      "primary_cells": 1,
+      "trials": 1,
+      "correction": "none",
+      "family_alpha": 0.05
+    }
+  },
+  "criteria": [
+    {
+      "id": "missing-measurement",
+      "dimension": "consistency",
+      "mandatory": true,
+      "metric": "no_such_metric",
+      "operator": ">",
+      "threshold": 0.0,
+      "evidence_artifact": "portfolio",
+      "evidence_field": "metrics.no_such_metric"
+    }
+  ]
+}

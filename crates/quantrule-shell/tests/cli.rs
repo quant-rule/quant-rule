@@ -203,6 +203,7 @@ fn help_lists_only_the_surviving_commands() {
         "execution run",
         "portfolio replay",
         "backtest run",
+        "qualify",
         "fetch",
         "help",
     ] {

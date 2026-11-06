@@ -360,9 +360,12 @@ hash. The backtest provenance lists the four stage source artifacts.
 
 ## 9. Qualification stage
 
+- Status: Implemented 2026-11-06.
+
 The qualification stage consumes an evidence bundle and the human-owned
 qualification criteria. It publishes a qualification record. It does not write
-the human's acceptance decision.
+the human's acceptance decision. The criteria fingerprint is the stage
+`config_id`; the backtest manifest hash is the evidence identity.
 
 ### 9.1 Command
 
@@ -386,16 +389,24 @@ qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir
 |---|---|
 | `schema` | `quantrule.qualification-result/v1`. |
 | `stage` | `qualification`. |
+| `id` | The criteria file's `id`. |
 | `verdict` | `pass`, `fail`, or `insufficient_evidence`. |
 | `criteria` | One object per criterion: `id`, `dimension`, `mandatory`, `status`, `observed`, `threshold`, `operator`, `evidence_artifact`, `evidence_field`, `reason_code`. |
-| `reasons` | Stable reason codes with the criterion id. |
-| `evidence` | The backtest manifest, data version, config identity, code revision, partitions, costs, and seed. |
+| `reasons` | One `criterion_id` and `code` for every criterion that is not `pass`. |
+| `evidence` | The backtest manifest identity and hash, data version, config identity, code revision, period, partitions and required-partition coverage, costs, seed, sample counts, multiple-testing declaration, and stage provenance. |
+| `not_applicable` | The human's not-applicable dimensions and reasons. |
 | `human_decision` | `null` from the engine. The human records acceptance separately. |
 
-`criteria.csv` carries the same criterion rows in the same order.
+`criteria.csv` carries the same criterion rows in the same order. The header is
+`id,dimension,mandatory,status,observed,threshold,operator,evidence_artifact,evidence_field,reason_code`.
 `qualification.md` is a deterministic rendering of the record. The verdict
-semantics and the required dimensions are in
-[`qualification-criteria.md`](qualification-criteria.md).
+semantics, the artifact field prefixes, the reason codes, and the required
+dimensions are in [`qualification-criteria.md`](qualification-criteria.md).
+
+The reader refuses a bundle whose manifest, stage provenance, portfolio metrics,
+or declared cost fields are missing or malformed, and a bundle whose stage
+provenance hash does not match the manifest. A missing measurement inside a
+present artifact is a criterion result, not a refusal.
 
 ## 10. Analytics stage
 

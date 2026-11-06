@@ -1,0 +1,37 @@
+{
+  "schema": "quantrule.qualification/v1",
+  "id": "Q-FIXTURE-CROSS-ARTIFACT",
+  "evidence": {
+    "required_partitions": ["portfolio_holdout"],
+    "minimum_trades": 1,
+    "cost_model": "execution-and-portfolio",
+    "multiple_testing": {
+      "primary_cells": 1,
+      "trials": 1,
+      "correction": "none",
+      "family_alpha": 0.05
+    }
+  },
+  "criteria": [
+    {
+      "id": "slippage",
+      "dimension": "cost_sensitivity",
+      "mandatory": true,
+      "metric": "slippage_bps",
+      "operator": ">=",
+      "threshold": 0.0,
+      "evidence_artifact": "execution",
+      "evidence_field": "provenance.execution.slippage_bps"
+    },
+    {
+      "id": "model-bars",
+      "dimension": "data_quality",
+      "mandatory": true,
+      "metric": "bars",
+      "operator": ">",
+      "threshold": 0.0,
+      "evidence_artifact": "model",
+      "evidence_field": "result.timeframes.0.bars"
+    }
+  ]
+}

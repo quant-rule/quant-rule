@@ -17,6 +17,7 @@ use crate::csv::SourceError;
 use crate::execution::ExecutionRunError;
 use crate::fetch::FetchRunError;
 use crate::portfolio::PortfolioRunError;
+use crate::qualification::QualificationRunError;
 use crate::render_report::BundleError;
 use crate::source::{DateRange, Symbol};
 use crate::strategy::StrategyRunError;
@@ -46,6 +47,8 @@ pub(crate) enum Command {
     PortfolioReplay(PortfolioReplayArgs),
     /// Run the coupled model, strategy, execution, and portfolio stages.
     BacktestRun(BacktestRunArgs),
+    /// Evaluate an evidence bundle against human-owned qualification criteria.
+    Qualify(QualifyArgs),
     /// Fetch a Dukascopy range and write a CSV.
     Fetch(FetchArgs),
     /// Print the command reference, one command, or a reference topic.
@@ -169,6 +172,19 @@ pub(crate) struct BacktestRunArgs {
     pub(crate) json: bool,
 }
 
+/// A parsed `qualify` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct QualifyArgs {
+    /// The backtest evidence bundle.
+    pub(crate) evidence: PathBuf,
+    /// The human-owned qualification criteria.
+    pub(crate) criteria: PathBuf,
+    /// The output root, or the evidence bundle's parent.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print a JSON envelope.
+    pub(crate) json: bool,
+}
+
 /// A parsed `fetch` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FetchArgs {
@@ -207,6 +223,8 @@ pub(crate) enum ParseError {
     Portfolio(String),
     /// A backtest command is invalid.
     Backtest(String),
+    /// A qualification command is invalid.
+    Qualification(String),
     /// A fetch command is invalid.
     Fetch(String),
     /// A help topic is invalid.
@@ -229,6 +247,7 @@ impl fmt::Display for ParseError {
             | Self::Execution(message)
             | Self::Portfolio(message)
             | Self::Backtest(message)
+            | Self::Qualification(message)
             | Self::Fetch(message)
             | Self::Help(message) => formatter.write_str(message),
         }
@@ -308,6 +327,8 @@ pub(crate) enum RunError {
     Portfolio(PortfolioRunError),
     /// The backtest command failed.
     Backtest(BacktestRunError),
+    /// The qualification command failed.
+    Qualification(QualificationRunError),
     /// The bundle could not be written.
     Bundle(BundleError),
     /// The fetch failed.
@@ -328,6 +349,7 @@ impl fmt::Display for RunError {
             Self::Execution(error) => error.fmt(formatter),
             Self::Portfolio(error) => error.fmt(formatter),
             Self::Backtest(error) => error.fmt(formatter),
+            Self::Qualification(error) => error.fmt(formatter),
             Self::Bundle(error) => error.fmt(formatter),
             Self::Fetch(error) => error.fmt(formatter),
             Self::Help(message) => formatter.write_str(message),
@@ -346,6 +368,7 @@ impl std::error::Error for RunError {
             Self::Execution(error) => Some(error),
             Self::Portfolio(error) => Some(error),
             Self::Backtest(error) => Some(error),
+            Self::Qualification(error) => Some(error),
             Self::Bundle(error) => Some(error),
             Self::Fetch(error) => Some(error),
             Self::Output(error) => Some(error),

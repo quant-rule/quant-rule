@@ -85,6 +85,16 @@ backtest run
   note:   If --out is omitted, the run configuration's output_root is used.
   note:   The manifest records every stage provenance and its content hash.
 
+qualify
+  usage:  qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]
+  does:   Evaluate an evidence bundle against human-owned qualification criteria.
+  output: the verdict and criterion counts, or a JSON envelope; <out>/qualification/ holds qualification.json, criteria.csv, qualification.md, and provenance.json
+  note:   The evidence bundle is the backtest run output directory.
+  note:   If --out is omitted, the bundle is written beside the evidence bundle.
+  note:   The engine writes human_decision: null; the human records acceptance separately.
+  note:   A missing measurement is insufficient evidence, never zero or a pass.
+  note:   A fail takes precedence over insufficient evidence.
+
 fetch
   usage:  fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]
   does:   Fetch a Dukascopy range and write the accepted candles as CSV.

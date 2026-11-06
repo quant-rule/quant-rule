@@ -441,7 +441,7 @@ fn stage_info(
             message: "config identity is missing".to_owned(),
         })?
         .to_owned();
-    let hash = fingerprint(text.as_bytes());
+    let hash = crate::fingerprint::fnv1a(text.as_bytes());
     Ok(StageInfo {
         stage,
         artifact,
@@ -507,24 +507,13 @@ fn backtest_provenance_bytes(
     Ok(bytes)
 }
 
-fn fingerprint(bytes: &[u8]) -> String {
-    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-    const PRIME: u64 = 0x0000_0100_0000_01b3;
-    let mut hash = OFFSET;
-    for byte in bytes {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(PRIME);
-    }
-    format!("{hash:016x}")
-}
-
 #[cfg(test)]
 mod tests {
-    use super::fingerprint;
+    use crate::fingerprint::fnv1a;
 
     #[test]
     fn the_provenance_fingerprint_is_stable() {
-        assert_eq!(fingerprint(b"abc"), fingerprint(b"abc"));
-        assert_ne!(fingerprint(b"abc"), fingerprint(b"abd"));
+        assert_eq!(fnv1a(b"abc"), fnv1a(b"abc"));
+        assert_ne!(fnv1a(b"abc"), fnv1a(b"abd"));
     }
 }

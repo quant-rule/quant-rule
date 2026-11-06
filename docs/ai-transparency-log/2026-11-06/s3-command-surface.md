@@ -233,3 +233,40 @@ authorization. The work is local to the task branch `docs/s3-command-contracts`.
   failed run can leave stage directories without an available backtest bundle.
 - Publication (push, pull request, merge, tag, or release) is pending human
   authorization. The work is local to the task branch.
+
+## 11. Phase 6 — qualification engine
+
+- Intent and boundary: add the Qualification Engine and `qualify`. The command
+  reads a backtest bundle and human-owned criteria, checks the manifest and stage
+  provenance hashes, evaluates each criterion, and writes the qualification
+  bundle. It never writes `decision.md`, declares an edge, or changes a model or
+  strategy rule.
+- Implemented: `crates/quantrule-shell/src/config/qualification/`, the
+  qualification stage under `crates/quantrule-shell/src/qualification/`, the
+  `qualify` command parser and wiring, the shared FNV fingerprint module, help,
+  README, the qualification lab, the criteria fixtures and golden bundle, the
+  strategy boundary-test guard, and the Phase 6 plan record.
+- Verification: `cargo test --workspace` 1,279 passed, 0 failed, 8 ignored;
+  clippy, fmt, doc, every model gate, links, terms, legacy, file size, and
+  `git diff --check` pass. The command-surface checker reports 14 implemented and
+  1 planned. The integration test asserts the bundle layout, the golden record
+  and table, all three verdict paths, fail precedence, the partition and sample
+  gates, missing-measurement handling, byte determinism, the tampered-provenance
+  refusal, the invalid-criteria refusal, `human_decision: null`, the absence of
+  `decision.md`, and the embedded partition windows against
+  `data/partitions.json`.
+- Corrections: the criteria parser exceeded the 1,000-line limit and was split
+  into the type vocabulary and the parser along that seam. The first re-export
+  list carried test-only types into the non-test build and failed the lint gate;
+  those re-exports are now test-only. A needless explicit lifetime and an unused
+  operator helper were removed. The `format!` expected-value argument needed an
+  explicit borrow for `ConfigError::range`.
+- Learning: the criteria file is a protocol, not a result. A partition or sample
+  gate may downgrade a `pass`, but it must not overwrite a `fail`, because the
+  documented precedence puts fail first. The manifest and stage provenance hashes
+  must be checked before any criterion is evaluated; otherwise a tampered
+  artifact could produce a clean-looking verdict. The criteria fingerprint is the
+  stage `config_id`, while the run configuration identity stays in the evidence
+  block.
+- Publication (push, pull request, merge, tag, or release) is pending human
+  authorization. The work is local to the task branch.
