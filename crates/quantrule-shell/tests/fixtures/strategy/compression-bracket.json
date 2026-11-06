@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.strategy/v1",
+  "id": "S-BRACKET",
+  "engine": "compression_bracket",
+  "execution_timeframe": "5m",
+  "context_timeframes": [],
+  "time_stop_bars": 12,
+  "require_contiguous": true,
+  "risk": {
+    "stop_atr_multiple": 2.0,
+    "reward_to_risk": 1.5
+  },
+  "event": {
+    "timeframe": "5m",
+    "event_type": 3,
+    "subtype": 8,
+    "source": 5
+  },
+  "entry_valid_bars": 1
+}

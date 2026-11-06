@@ -59,6 +59,7 @@ the command registry, and the implemented/planned status are in
 | Architecture baseline decision | Why the kata and characteristics are the baseline, and what alternatives were rejected. | [`../adr/2026-10-31/adopt-architecture-baseline.md`](../adr/2026-10-31/adopt-architecture-baseline.md) |
 | Command surface | The stage table, command registry, discovery contract, and the Qualification Engine boundary. | [`command-surface.md`](command-surface.md) |
 | Engine artifacts | The stage bundle, provenance, and handoff contract. | [`../config/2026-11-06/engine-artifacts.md`](../config/2026-11-06/engine-artifacts.md) |
+| Strategy configuration | `quantrule.strategy/v1`, both generic engines, and the decision record. | [`../config/2026-11-06/strategy-config.md`](../config/2026-11-06/strategy-config.md) |
 | Qualification criteria | The human-owned criteria, verdict semantics, and human acceptance boundary. | [`../config/2026-11-06/qualification-criteria.md`](../config/2026-11-06/qualification-criteria.md) |
 | Model contract | The flat readings, discrete states, confirmed levels, events, progression, context, and the numeric output fields. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
 | Policy contract | The human-owned policy envelope and the cross-config rules. | [`../config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md) |

@@ -7,7 +7,7 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]
 
-mod command;
+pub(crate) mod command;
 mod config;
 mod csv;
 mod export;
@@ -19,6 +19,7 @@ mod render_flat;
 mod render_report;
 mod source;
 mod spec;
+mod strategy;
 
 use std::ffi::OsString;
 use std::io::{self, Write};

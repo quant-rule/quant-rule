@@ -125,6 +125,19 @@ pub(crate) fn write_bundle(
     artifacts: &[(&str, Vec<u8>)],
     provenance: &[u8],
 ) -> Result<(), BundleError> {
+    write_stage_bundle(root, artifacts, provenance, "report.json")
+}
+
+/// Writes one stage bundle, with its marker artifact last.
+///
+/// The marker is the artifact whose presence makes the bundle available. The
+/// model report uses `report.json`; a strategy bundle uses `decisions.ndjson`.
+pub(crate) fn write_stage_bundle(
+    root: &Path,
+    artifacts: &[(&str, Vec<u8>)],
+    provenance: &[u8],
+    marker: &str,
+) -> Result<(), BundleError> {
     ensure_available(root)?;
     let created = !root.exists();
     if created {
@@ -147,11 +160,11 @@ pub(crate) fn write_bundle(
 
     let result = (|| {
         write("provenance.json", provenance)?;
-        for (name, bytes) in artifacts.iter().filter(|(name, _)| *name != "report.json") {
+        for (name, bytes) in artifacts.iter().filter(|(name, _)| *name != marker) {
             write(name, bytes)?;
         }
-        if let Some((_, bytes)) = artifacts.iter().find(|(name, _)| *name == "report.json") {
-            write("report.json", bytes)?;
+        if let Some((_, bytes)) = artifacts.iter().find(|(name, _)| *name == marker) {
+            write(marker, bytes)?;
         }
         Ok(())
     })();

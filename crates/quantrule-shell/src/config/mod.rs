@@ -19,9 +19,11 @@ mod policy;
 mod portfolio;
 mod read;
 mod run;
+mod strategy;
 
 #[cfg(test)]
 mod tests;
 
 pub(crate) use error::ConfigError;
 pub(crate) use run::RunConfig;
+pub(crate) use strategy::{StrategyConfig, load as load_strategy};

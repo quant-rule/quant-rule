@@ -17,7 +17,7 @@ use quantrule_model::sessions::SessionReadings;
 /// The per-bar readings and states for every ladder timeframe.
 pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
     let mut csv = String::from(
-        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,extended_rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength,obv,obv_ma,obv_slope,cmf,cmf_slope,mfi,ad_line,ad_ma,extended_atr_ratio,atr_slope,vol_regime,range_expansion,mar_fast,mar_slow,mar_ratio,keltner_upper,keltner_lower,keltner_position,donchian_upper,donchian_lower,donchian_position,structure_state,last_pivot_high,last_pivot_low,level_touches,level_age,aroon_up,aroon_down,aroon_osc,body_ratio,upper_wick_ratio,lower_wick_ratio,close_position,pattern_code,pattern_direction,gap_atr,gap_filled,path_efficiency,direction_changes,bars_since_high,bars_since_low,drawdown_atr,range_position\n",
+        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,macd_histogram_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,extended_rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength,obv,obv_ma,obv_slope,cmf,cmf_slope,mfi,ad_line,ad_ma,extended_atr_ratio,atr_slope,vol_regime,range_expansion,mar_fast,mar_slow,mar_ratio,keltner_upper,keltner_lower,keltner_position,donchian_upper,donchian_lower,donchian_position,structure_state,last_pivot_high,last_pivot_low,level_touches,level_age,aroon_up,aroon_down,aroon_osc,body_ratio,upper_wick_ratio,lower_wick_ratio,close_position,pattern_code,pattern_direction,gap_atr,gap_filled,path_efficiency,direction_changes,bars_since_high,bars_since_low,drawdown_atr,range_position\n",
     );
     for &timeframe_secs in ladder {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
@@ -64,6 +64,7 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
                 optional(ema_stack(ema_fast, ema_mid, ema_slow).map(f64::from)),
                 optional(rsi.map(rsi_zone).map(f64::from)),
                 optional(macd_state(macd_line, macd_signal).map(f64::from)),
+                optional(histogram_state(macd.histogram.get(bar)).map(f64::from)),
                 optional(adx_state.adx_regime.map(f64::from)),
                 optional(adx_state.adx_slope.map(f64::from)),
                 optional(adx_state.di_state.map(f64::from)),
@@ -421,6 +422,17 @@ fn macd_state(line: Option<f64>, signal: Option<f64>) -> Option<i8> {
     }
 }
 
+fn histogram_state(histogram: Option<f64>) -> Option<i8> {
+    let histogram = histogram?;
+    if histogram > 0.0 {
+        Some(1)
+    } else if histogram < 0.0 {
+        Some(-1)
+    } else {
+        Some(0)
+    }
+}
+
 /// The per-bar condition values for a spec run.
 pub(super) fn conditions_csv(
     evaluation: &quantrule_model::spec::SpecEvaluation,
@@ -584,5 +596,6 @@ mod tests {
         assert!(unique.contains("extended_atr_ratio"));
         assert!(unique.contains("rvol_ratio"));
         assert!(unique.contains("extended_rvol_ratio"));
+        assert!(unique.contains("macd_histogram_state"));
     }
 }

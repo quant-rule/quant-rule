@@ -17,6 +17,8 @@ use quantrule_model::timeframe::ModelStates;
 /// One event as the strategy sees it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EventView {
+    /// The stable registry event code.
+    pub event_code: u16,
     /// The event type code: 1 Level, 2 Divergence, 3 Signal.
     pub event_type: u8,
     /// The event subtype code.
@@ -180,6 +182,7 @@ fn view(
 
 fn event_view(event: &EventRecord) -> EventView {
     EventView {
+        event_code: event.event_code,
         event_type: event.event_type.code(),
         subtype: event.event_subtype_code,
         source: event.source_code,
@@ -295,6 +298,16 @@ mod tests {
             "pub readiness",
             "pub momentum",
             "pub cross_timeframe",
+            "pub atr",
+            "pub rsi",
+            "pub ema",
+            "pub rvol",
+            "pub cash",
+            "pub equity",
+            "pub pnl",
+            "pub fill",
+            "pub quantity",
+            "pub order",
         ] {
             assert!(!source.contains(forbidden), "the input exposes {forbidden}");
         }

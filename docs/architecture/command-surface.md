@@ -48,7 +48,7 @@ the policy and the engine configuration files; it does not decide a trade.
 |---:|---|---|---|---|---|
 | 1 | Data Engine | Raw OHLCV | Normalized candles, timeframes, gaps, quality | `candles`, `candles-tolerant`, `timeframes`, `fetch` | Implemented |
 | 2 | Model Engine | Candles/timeframes and model config | Readings, discrete states, confirmed levels, events, progression, context | `events`, `report model` | Implemented |
-| 3 | Strategy Engine | Model measurements, strategy config, position state | Decisions/signals and their as-of rationale | `strategy explain`, `strategy run` | Planned |
+| 3 | Strategy Engine | Model measurements, strategy config, position state | Decisions/signals and their as-of rationale | `strategy explain`, `strategy run` | Implemented |
 | 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, and rejections | `execution run` | Planned |
 | 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | `portfolio replay` | Planned |
 | 6 | **Qualification Engine** | Evidence bundle and human-owned acceptance criteria | Qualification record and verdict | `qualify` | Planned |
@@ -91,8 +91,8 @@ the distinction.
 | `report model` | Model | Implemented | `--config <run.json>` and options | Model bundle |
 | `policy check` | Configuration | Implemented | `--config <run.json>` | Validation line |
 | `help` | Shell | Implemented | `[<command>\|all\|glossary]` | Plain text |
-| `strategy explain` | Strategy | Planned | Model bundle, strategy config, bar index | One decision and its as-of evidence |
-| `strategy run` | Strategy | Planned | Model bundle, strategy config | Decisions bundle |
+| `strategy explain` | Strategy | Implemented | Model bundle, strategy config, bar index | One decision and its as-of evidence |
+| `strategy run` | Strategy | Implemented | Model bundle, strategy config | Decisions bundle |
 | `execution run` | Execution | Planned | Decisions bundle, run config with execution and sizing | Fills bundle |
 | `portfolio replay` | Portfolio | Planned | Fills bundle, run config | Portfolio bundle |
 | `backtest run` | Orchestration | Planned | Run config, strategy config | Stage bundles and a run manifest |
@@ -101,6 +101,11 @@ the distinction.
 
 The current shell also accepts `quit` as a shell meta-command. It is not a
 pipeline command and is not part of the stage contract.
+
+`strategy run` supports the event-composite engine standalone. The
+compression-bracket engine needs the fill side that execution supplies, so it is
+available through `strategy explain` for one decision until the backtest runner
+reaches the stage.
 
 ## 4. Artifact and provenance rule
 
@@ -203,7 +208,7 @@ The command surface is delivered in the S3.x sequence, one stage at a time:
 | Phase | Deliverable | Status |
 |---:|---|---|
 | 1 | Command and artifact contracts, qualification criteria, drift checker | Implemented and verified locally; publication pending |
-| 2 | Strategy commands and decisions artifact | Planned |
+| 2 | Strategy commands and decisions artifact | Implemented and verified locally; publication pending |
 | 3 | Execution command and fills artifact | Planned |
 | 4 | Portfolio command and performance artifact | Planned |
 | 5 | Backtest orchestration command | Planned |

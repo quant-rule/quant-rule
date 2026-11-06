@@ -250,6 +250,7 @@ mod tests {
 
     fn event(upper: Option<f64>, lower: Option<f64>, bar: usize) -> EventView {
         EventView {
+            event_code: 18,
             event_type: 3,
             subtype: 8,
             source: 5,

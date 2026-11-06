@@ -516,6 +516,7 @@ mod tests {
         .expect("the config is valid");
         let mut input = input();
         input.timeframes[0].events = vec![crate::strategy::event_input::EventView {
+            event_code: 0,
             event_type: 3,
             subtype: 6,
             source: 16,
@@ -593,6 +594,7 @@ mod tests {
 
     fn event(direction: i8) -> crate::strategy::event_input::EventView {
         crate::strategy::event_input::EventView {
+            event_code: 0,
             event_type: 3,
             subtype: 6,
             source: 16,

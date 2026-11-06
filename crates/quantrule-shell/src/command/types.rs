@@ -8,6 +8,7 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+use quantrule_backtest::intent::StrategyPosition;
 use quantrule_data::Timeframe;
 
 use crate::config::ConfigError;
@@ -15,6 +16,7 @@ use crate::csv::SourceError;
 use crate::fetch::FetchRunError;
 use crate::render_report::BundleError;
 use crate::source::{DateRange, Symbol};
+use crate::strategy::StrategyRunError;
 
 /// A parsed shell command.
 #[derive(Debug, PartialEq, Eq)]
@@ -31,6 +33,10 @@ pub(crate) enum Command {
     Report(ReportArgs),
     /// Validate the policy and every engine config against it.
     PolicyCheck(PolicyCheckArgs),
+    /// Explain one strategy decision from a model bundle.
+    StrategyExplain(StrategyExplainArgs),
+    /// Write the strategy decisions bundle for one model bundle.
+    StrategyRun(StrategyRunArgs),
     /// Fetch a Dukascopy range and write a CSV.
     Fetch(FetchArgs),
     /// Print the command reference, one command, or a reference topic.
@@ -89,6 +95,32 @@ pub(crate) struct PolicyCheckArgs {
     pub(crate) config: PathBuf,
 }
 
+/// A parsed `strategy explain` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StrategyExplainArgs {
+    /// The completed model bundle.
+    pub(crate) model: PathBuf,
+    /// The strategy configuration.
+    pub(crate) strategy: PathBuf,
+    /// The zero-based execution bar.
+    pub(crate) bar: usize,
+    /// The position the runner supplies to the strategy.
+    pub(crate) position: StrategyPosition,
+}
+
+/// A parsed `strategy run` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StrategyRunArgs {
+    /// The completed model bundle.
+    pub(crate) model: PathBuf,
+    /// The strategy configuration.
+    pub(crate) strategy: PathBuf,
+    /// The output root, or the model bundle's parent.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print a JSON envelope of the artifact paths.
+    pub(crate) json: bool,
+}
+
 /// A parsed `fetch` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FetchArgs {
@@ -119,6 +151,8 @@ pub(crate) enum ParseError {
     Report(String),
     /// A policy command is invalid.
     Policy(String),
+    /// A strategy command is invalid.
+    Strategy(String),
     /// A fetch command is invalid.
     Fetch(String),
     /// A help topic is invalid.
@@ -137,6 +171,7 @@ impl fmt::Display for ParseError {
             Self::Window(message)
             | Self::Report(message)
             | Self::Policy(message)
+            | Self::Strategy(message)
             | Self::Fetch(message)
             | Self::Help(message) => formatter.write_str(message),
         }
@@ -208,6 +243,8 @@ pub(crate) enum RunError {
     Source(SourceError),
     /// The report could not be built.
     Report(ReportError),
+    /// The strategy command failed.
+    Strategy(StrategyRunError),
     /// The bundle could not be written.
     Bundle(BundleError),
     /// The fetch failed.
@@ -224,6 +261,7 @@ impl fmt::Display for RunError {
             Self::Config(error) => error.fmt(formatter),
             Self::Source(error) => error.fmt(formatter),
             Self::Report(error) => error.fmt(formatter),
+            Self::Strategy(error) => error.fmt(formatter),
             Self::Bundle(error) => error.fmt(formatter),
             Self::Fetch(error) => error.fmt(formatter),
             Self::Help(message) => formatter.write_str(message),
@@ -238,6 +276,7 @@ impl std::error::Error for RunError {
             Self::Config(error) => Some(error),
             Self::Source(error) => Some(error),
             Self::Report(error) => Some(error),
+            Self::Strategy(error) => Some(error),
             Self::Bundle(error) => Some(error),
             Self::Fetch(error) => Some(error),
             Self::Output(error) => Some(error),

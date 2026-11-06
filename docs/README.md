@@ -44,7 +44,8 @@ linked below.
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |
-| M1.0 model lab tutorial | Current; uses only the eight current shell commands | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
+| M1.0 model lab tutorial | Current; covers the data and model surface | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
+| Strategy lab tutorial | Current; `report model`, `strategy explain`, `strategy run` | `docs/tutorials/2026-11-06/strategy-lab.md` |
 | Indicator verification matrix | Current; 46 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 143 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |
@@ -58,6 +59,7 @@ linked below.
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
 | MACD reading and events | Current | `docs/config/2026-11-03/model-macd.md` |
 | Engine artifacts | Current; stage bundle, provenance, and handoff contract | `docs/config/2026-11-06/engine-artifacts.md` |
+| Strategy configuration | Current; `quantrule.strategy/v1`, both generic engines, and the decision record | `docs/config/2026-11-06/strategy-config.md` |
 | Qualification criteria | Current; human-owned criteria, verdict semantics, and human acceptance | `docs/config/2026-11-06/qualification-criteria.md` |
 | Improvement run contract | S3.x target; no current run uses it | `docs/workflows/run-contract.md` |
 

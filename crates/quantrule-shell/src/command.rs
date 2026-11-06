@@ -12,7 +12,8 @@ mod help;
 mod parse;
 mod policy;
 mod report_run;
-mod types;
+mod strategy;
+pub(crate) mod types;
 
 #[cfg(test)]
 mod tests;
@@ -21,6 +22,7 @@ pub(crate) use self::dispatch::{execute, parse_argv};
 pub(crate) use self::parse::{parse, parse_help_arguments, parse_model_arguments};
 pub(crate) use self::policy::{parse_policy_arguments, run_policy_check};
 pub(crate) use self::report_run::{parse_report_arguments, run_report};
+pub(crate) use self::strategy::{parse_strategy_arguments, run_explain, run_run};
 pub(crate) use self::types::{Command, ParseError};
 
 use self::data::{run_candles, run_candles_tolerant, run_timeframes};
