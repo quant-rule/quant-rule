@@ -43,7 +43,7 @@ requests. It compares four sources:
 
 | Command | Observed result |
 |---|---|
-| `python3 tools/check_registry.py` | `registry ok: 46 indicators, 143 events, 110 parameters` |
+| `python3 tools/check_registry.py` | `registry ok: 46 indicators, 143 events, 101 parameters` |
 | `cargo test -p quantrule-model --lib` | `573 passed; 0 failed; 0 ignored` |
 | `cargo test -p quantrule-model --test event_validation` | `8 passed; 0 failed; 1 ignored` |
 | `cargo test -p quantrule-model readings::extended::tests::vwap_is_the_volume_weighted_typical_price` | `1 passed; 0 failed` |
@@ -60,6 +60,9 @@ determinism, golden, and edge tests for the extended readings.
 | Unique events | 143 | Registry `events` |
 | Event references from indicators | 148 | Five events are shared by two indicators |
 | Parameters | 110 | Registry `parameters` |
+
+> Current registry (2026-11-06): 101 parameters. This audit snapshot records the
+> count observed on 2026-11-05; the later parameter cleanup removed nine.
 | Checklist rows `tested` | 37/37 | Table A and Table B checks are ticked |
 | Checklist rows `verified` | 37/37 | Human signed rows 1–37 on 2026-11-05: 36 event-producing indicators wired and spec-usable, 1 reading-only |
 
@@ -254,8 +257,10 @@ definition meaningless.
 becomes `verified`.
 
 **Status.** Fixed (P7): the human signed rows 1–37 on 2026-11-05; the agent
-recorded the signature. The checklist is 37/37 `verified`: 36 event-producing
-indicators are wired and spec-usable, and row 37 is reading-only.
+recorded the signature. The checklist is 37/37 signed: 36 event-producing
+indicators are wired and spec-usable, and row 37 is reading-only. Table B's
+checks are family-level; the 46-row per-indicator matrix remains the current
+verification target.
 
 ### F-03 — The v1 spec cannot configure the M2 model
 
@@ -305,7 +310,7 @@ code 15.
 
 **Status.** Fixed (P7): `volume_oscillator` was removed from `rvol.outputs` and
 remains owned by indicator 15. `check_registry.py` reports 46 indicators, 143
-events, and 110 parameters.
+events, and 101 parameters.
 
 ### F-05 — Absorption formula mismatch
 
@@ -455,11 +460,15 @@ Option (a) is a separate, larger audit.
 
 | Check | Command | Expected |
 |---|---|---|
-| Registry integrity | `python3 tools/check_registry.py` | `registry ok: 46 indicators, 143 events, 110 parameters` |
+| Registry integrity | `python3 tools/check_registry.py` | `registry ok: 46 indicators, 143 events, 101 parameters` |
 | Model library tests | `cargo test -p quantrule-model --lib` | 573 passed |
 | Event validation | `cargo test -p quantrule-model --test event_validation` | 8 passed, 1 ignored |
 | VWAP formula | `cargo test -p quantrule-model readings::extended::tests::vwap_is_the_volume_weighted_typical_price` | 1 passed |
-| Checklist state | `INDICATOR-VERIFICATION.md` tables A and B | 37/37 tested; 0/37 signed |
+| Checklist state | `INDICATOR-VERIFICATION.md` tables A and B | 37/37 tested; 0/37 signed at the audit date |
+
+> Correction (2026-11-06): the human signed rows 1–37 on 2026-11-05. The
+> signature records acceptance; Table B's checks remain family-level, not a
+> 46-row per-indicator proof. Current status is in `INDICATOR-VERIFICATION.md`.
 
 These commands were run on 2026-11-05 in the `docs/410-m2-model-programme`
 worktree. The results are recorded here as observed, not projected.

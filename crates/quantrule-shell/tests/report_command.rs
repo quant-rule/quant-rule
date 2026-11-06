@@ -193,12 +193,100 @@ fn the_spec_v2_bundle_adds_conditions_and_prediction() {
     assert!(session.starts_with("bar,timestamp,session_code"));
     assert!(session.contains("calendar_bucket"));
     assert!(session.lines().count() > 1, "session.csv must carry rows");
+    assert_eq!(
+        session
+            .lines()
+            .nth(1)
+            .and_then(|line| line.split(',').nth(2)),
+        Some("0"),
+        "outside-session rows must publish session_code 0"
+    );
 
     let provenance =
         String::from_utf8(read(&bundle.join("provenance.json"))).expect("provenance is UTF-8");
     assert!(provenance.contains("\"id\":\"M2.1\""));
     assert!(provenance.contains("\"session_events\""));
     assert!(provenance.contains("\"panel_events\""));
+    let provenance_json: serde_json::Value =
+        serde_json::from_str(&provenance).expect("provenance is JSON");
+    let panel_sources = provenance_json["spec"]["panel_sources"]
+        .as_array()
+        .expect("panel sources");
+    assert!(panel_sources.iter().any(|source| {
+        source["path"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("state_m1.csv"))
+            && source["content_hash"]
+                .as_str()
+                .is_some_and(|hash| !hash.is_empty())
+    }));
+}
+
+#[test]
+fn a_direction_prediction_is_recorded_as_direction() {
+    let out = output_dir("spec-v2-direction");
+    let config = fixture("config-run/run.json");
+    let spec = fixture("config-run/spec-v2-direction.json");
+    assert_success(&run(&[
+        "report",
+        "model",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--spec",
+        spec.to_str().expect("the spec path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]));
+
+    let provenance: serde_json::Value =
+        serde_json::from_slice(&read(&out.join("model").join("provenance.json")))
+            .expect("provenance is JSON");
+    let prediction = &provenance["spec"]["prediction"];
+    assert_eq!(prediction["kind"], "direction");
+    assert_eq!(prediction["events"][0], "signal.ema_pair_cross");
+    assert!(prediction["long"].as_array().is_some_and(Vec::is_empty));
+    assert!(prediction["short"].as_array().is_some_and(Vec::is_empty));
+}
+
+#[test]
+fn two_model_specs_with_disjoint_active_events_stay_disjoint() {
+    let config = fixture("config-run/run.json");
+    let mut codes = Vec::new();
+    for (name, spec_name) in [("rsi", "spec-v2-rsi.json"), ("ema", "spec-v2-ema.json")] {
+        let out = output_dir(&format!("isolation-{name}"));
+        let spec = fixture(&format!("config-run/{spec_name}"));
+        assert_success(&run(&[
+            "report",
+            "model",
+            "--config",
+            config.to_str().expect("the config path is UTF-8"),
+            "--spec",
+            spec.to_str().expect("the spec path is UTF-8"),
+            "--out",
+            out.to_str().expect("the output path is UTF-8"),
+        ]));
+        let csv = String::from_utf8(read(&out.join("model").join("events.csv")))
+            .expect("events.csv is UTF-8");
+        let mut lines = csv.lines();
+        lines.next();
+        codes.push(
+            lines
+                .map(|line| {
+                    line.split(',')
+                        .nth(2)
+                        .expect("an event_code column")
+                        .parse::<u16>()
+                        .expect("a numeric event code")
+                })
+                .collect::<std::collections::BTreeSet<_>>(),
+        );
+    }
+    assert!(codes[0].contains(&8), "the RSI threshold event is missing");
+    assert!(codes[1].contains(&9), "the EMA pair event is missing");
+    assert!(
+        codes[0].is_disjoint(&codes[1]),
+        "the two active-event selections overlap"
+    );
 }
 
 #[test]

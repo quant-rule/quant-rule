@@ -7,8 +7,8 @@
 //! file. No candle is read and no output is written here: a config error
 //! leaves the filesystem untouched.
 //!
-//! The strategy and analytics files left with the four-axis cutover. S3.x adds
-//! a strategy file back when the flat strategy context exists.
+//! The current run has no strategy or analytics file. S3.x adds a strategy
+//! file back when the flat strategy context exists.
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -147,12 +147,12 @@ impl RunConfig {
             ("portfolio_id", self.portfolio_id.as_deref(), "P"),
         ] {
             if let Some(identity) = value
-                && !identity.starts_with(prefix)
+                && !has_identity_shape(identity, prefix)
             {
                 return Err(ConfigError::range(
                     file_name(&self.paths.run),
                     &format!("$.{field}"),
-                    &format!("an identity starting with {prefix}"),
+                    &format!("<prefix><major>.<minor> with prefix {prefix}"),
                     identity,
                 ));
             }
@@ -444,6 +444,20 @@ fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
         hash = hash.wrapping_mul(PRIME);
     }
     Ok(format!("{hash:016x}"))
+}
+
+/// Whether `identity` is `<prefix><major>.<minor>` with decimal components.
+fn has_identity_shape(identity: &str, prefix: &str) -> bool {
+    let Some(rest) = identity.strip_prefix(prefix) else {
+        return false;
+    };
+    let Some((major, minor)) = rest.split_once('.') else {
+        return false;
+    };
+    !major.is_empty()
+        && !minor.is_empty()
+        && major.bytes().all(|byte| byte.is_ascii_digit())
+        && minor.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 /// The file's own name, for an error message that never prints its path.

@@ -71,15 +71,15 @@ There are deliberately no news, weekend, session, or daily-loss fields.
 
 ## Strategy
 
-The ladder-context strategy, its axis weights, its as-of context, and the
-retired strategy-schema parsers were removed with the four-axis cutover. The
+The ladder-context strategy, its composite weights, its as-of context, and the
+retired strategy-schema parsers were removed with the retired-architecture cutover. The
 generic bracket and event-composite engines remain in `quantrule-backtest`
 for S3.x, but no strategy file is loaded and no strategy command is reachable
 from the current shell.
 
 S3.x defines the replacement multi-timeframe context over the published events,
 states, confirmed levels, and progression values. It does not restore the old
-axis scores.
+composite scores.
 
 ## Portfolio
 

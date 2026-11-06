@@ -13,7 +13,7 @@
 A model spec declares a timeframe ladder, one evaluation timeframe, and named
 conditions over the model's published events and discrete states. It configures
 a measurement run; it is not a strategy. It carries no entry, exit, position,
-cash, or P&L field, and it cannot read a raw candle, an indicator value, an axis
+cash, or P&L field, and it cannot read a raw candle, an indicator value, a composite
 score, or a statistic.
 
 The shell parses JSON. The model receives resolved numeric codes, so the model

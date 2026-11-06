@@ -29,7 +29,10 @@ CLAIM_KEYS = {
     "predictive_status",
 }
 CONSTRUCT_STATUSES = {"covered", "defect", "pending"}
-REQUIRED = {"id", "kind", "construct_tests", "primary_outcome", "predictive_status"}
+REQUIRED = {
+    "id", "kind", "construct_tests", "construct_status", "primary_outcome",
+    "predictive_status",
+}
 KINDS = {"indicator", "event"}
 STATUSES = {"pending", "pass", "no_edge", "defect", "inconclusive", "not_applicable"}
 OUTCOMES = {
@@ -114,6 +117,8 @@ def check(registry: dict[str, Any], validation: dict[str, Any]) -> list[str]:
                     errors.append(f"{label}.construct_tests names a missing function: {test}")
         if "construct_status" in claim and claim["construct_status"] not in CONSTRUCT_STATUSES:
             errors.append(f"{label}.construct_status is invalid")
+        if claim.get("construct_status") != "covered":
+            errors.append(f"{label}.construct_status must be covered")
         outcome = claim.get("primary_outcome")
         if outcome not in OUTCOMES:
             errors.append(f"{label}.primary_outcome is invalid")

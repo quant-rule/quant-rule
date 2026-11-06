@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-06.2",
+  "version": "2026-11-06.3",
   "indicators": [
     {
       "id": "ema",
@@ -1634,7 +1634,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "A bar range intersects a confirmed or dynamic level; the touch is followed by a path reaction — the target is reached before the stop — more often than a matched barrier baseline.",
+      "claim": "A bar range intersects a confirmed or dynamic level; the touch is followed by a path reaction \u2014 the target is reached before the stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
         "model.level.references",
         "model.level.test_atr"
@@ -1662,7 +1662,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "A close crosses a level; the cross is followed by a path continuation — the target is reached before the stop — more often than a matched barrier baseline.",
+      "claim": "A close crosses a level; the cross is followed by a path continuation \u2014 the target is reached before the stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
         "model.level.references",
         "model.level.test_atr"
@@ -1690,7 +1690,7 @@
       "source": 1,
       "indicator": "pivots",
       "role": "signal",
-      "claim": "A close crosses a level and finishes beyond it; the break is followed by a path continuation — the continuation target is reached before the reversal stop — more often than a matched barrier baseline.",
+      "claim": "A close crosses a level and finishes beyond it; the break is followed by a path continuation \u2014 the continuation target is reached before the reversal stop \u2014 more often than a matched barrier baseline.",
       "parameters": [
         "model.level.references",
         "model.level.break_atr"
@@ -1868,9 +1868,7 @@
       "indicator": "rsi",
       "role": "signal",
       "claim": "An RSI zone change is followed by a momentum shift more often than the base rate.",
-      "parameters": [
-        "model.signal.rsi_levels"
-      ],
+      "parameters": [],
       "tests": [
         "event",
         "causality",

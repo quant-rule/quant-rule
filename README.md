@@ -7,8 +7,8 @@ no library to embed.
 
 The current model is **M1.0**: a flat per-timeframe measurement of readings,
 discrete states, confirmed levels, events, progression, and context. It publishes
-numbers, nulls, and stable codes. It carries no axis score, no composite direction
-vote, no dashboard, and no cross-timeframe aggregate.
+numbers, nulls, and stable codes. It carries no composite score, no composite direction
+vote, no composite view, and no cross-timeframe aggregate.
 
 The current shell surface is deliberately small: data inspection, event records,
 the flat model report, policy validation, source fetch, and help. Strategy,
@@ -43,9 +43,9 @@ one command and exits with the command's status:
 | `fetch` | `<symbol> <start> <end> [--timeframe <1m\|5m\|15m\|1h>] [--csv <path>]` | The CSV path and the accepted/rejected counts |
 | `help` | `[<command>\|all\|glossary]` | The command map, one contract, or the glossary |
 
-`events` and `report model` use the data engine's default ladder M1, M5, M15, H1.
-`events` uses the default model configuration; `report model` uses the configured
-run.
+`events` uses the data engine's default ladder M1, M5, M15, H1 and the default
+model configuration. `report model` uses the configured run's ladder and model
+configuration.
 
 ### Examples
 
@@ -140,14 +140,19 @@ contains:
 | `panel.csv` | Panel readings when a v2 spec declares a panel |
 | `session.csv` | Session readings, including `calendar_bucket`, when a v2 spec declares a session |
 
-A `--spec` run adds `conditions.csv`; a `quantrule.model-spec/v2` run also adds
-`prediction.csv`, `panel.csv`, and `session.csv` when declared. A bundle is
-available if and only if its `report.json` exists;
+`readings.csv` keeps the context ratios as `atr_ratio` and `rvol_ratio`. The
+extended ratio columns are named `extended_atr_ratio` and
+`extended_rvol_ratio`, so a CSV consumer cannot confuse the two.
+
+A v1 `--spec` run adds `conditions.csv`. A `quantrule.model-spec/v2` run adds
+`prediction.csv`; it adds `conditions.csv` when conditions are declared, and
+`panel.csv`/`session.csv` when those are declared. A bundle is available if and
+only if its `report.json` exists;
 the writer writes every other artifact first and `report.json` last, and removes a
 partial bundle on failure.
 
 The JSON envelope carries `model_version`, `view_contract` (`2026-11-05`),
-`data_version`, `requested_period`, and `flat_report`. The result carries no axes,
+`data_version`, `requested_period`, and `flat_report`. The result carries no composite views,
 no cross-timeframe aggregate, no charts, and no confidence field.
 
 ## Determinism
@@ -171,7 +176,7 @@ fetch leaves no partial file under the requested name. A result above the batch 
 prints a warning on stderr.
 
 The current fetch surface writes CSV only. The old PNG chart option was removed with
-the four-axis chart surface.
+the retired chart surface.
 
 ## Repository layout
 
@@ -208,9 +213,9 @@ directories are exempt and remain in Git.
 
 ## History
 
-The four-axis model, the dashboard, the market state, the consensus view, the
-cross-timeframe aggregate, the analytics crate, the SQLite store, the research
-export, the lab tooling, and the old shell commands were retired in P3 of
+The retired composite model, dashboard, market-state, consensus, aggregate,
+analytics, database-store, and research-export surfaces, the lab tooling, and
+the old shell commands were retired in P3 of
 [`docs/execution-plans/2026-11-05/467-clean-current-architecture.md`](docs/execution-plans/2026-11-05/467-clean-current-architecture.md).
 Their evidence remains in ADRs, audits, improvement records, execution plans,
 release notes, reports, and Git history. The boundary is indexed in

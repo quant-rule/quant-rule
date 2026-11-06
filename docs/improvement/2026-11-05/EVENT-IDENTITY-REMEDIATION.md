@@ -29,6 +29,9 @@
 | `cargo clippy --workspace --all-targets -- -D warnings` | pass |
 | `cargo doc --workspace --no-deps` | pass, no warnings |
 | `python3 tools/check_registry.py` | 46 indicators, 143 events, 110 parameters |
+
+> Current registry (2026-11-06): 101 parameters. This record keeps the count
+> observed when the event-identity remediation ran.
 | `python3 tools/check_links.py` | 538 files, no broken links |
 | `python3 tools/check_terms.py` | 334 files, no banned terms |
 | `python3 tools/research/coverage.py` | 15 cells, 46 indicators, 143 events |

@@ -1,8 +1,8 @@
 //! The strategy configuration error.
 //!
 //! The generic bracket and event engines validate the values they are built
-//! with. The axis-ladder strategy and its configuration left with the four-axis
-//! cutover; only the errors those two generic engines can return remain.
+//! with. The multi-timeframe strategy context is S3.x work; only the errors the
+//! two generic engines can return remain.
 
 use std::fmt;
 

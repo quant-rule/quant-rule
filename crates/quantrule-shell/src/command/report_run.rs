@@ -13,7 +13,7 @@ use quantrule_model::input::MarketStateConfig;
 use quantrule_model::panel::PanelInstrument;
 use quantrule_model::report::FlatReport;
 use quantrule_model::run::ModelRun;
-use quantrule_model::spec::v2::{ModelSpecV2, SpecRun};
+use quantrule_model::spec::v2::{ModelSpecV2, PredictionKind, SpecRun};
 use quantrule_model::spec::{ModelSpec, SpecEvaluation};
 use serde_json::{Value, json};
 
@@ -200,6 +200,7 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
                     .collect();
                 let run = SpecRun::compute(&parsed.spec, model, &panel)
                     .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
+                let panel_sources = panel_provenance(spec_path, &parsed, &config.data.data_version);
                 model_bundle_with_spec(
                     &config,
                     &out,
@@ -211,6 +212,7 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
                         run: &run,
                         file,
                         hash: spec_hash,
+                        panel_sources,
                     },
                 )?
             }
@@ -266,6 +268,8 @@ pub(super) enum SpecRunArtifacts<'a> {
         file: String,
         /// The spec content fingerprint.
         hash: String,
+        /// The panel source identities, including the evaluated instrument.
+        panel_sources: Vec<Value>,
     },
 }
 
@@ -414,7 +418,8 @@ fn model_bundle_with(
             run,
             file,
             hash,
-        } => spec_v2_provenance(spec, run, file, hash),
+            panel_sources,
+        } => spec_v2_provenance(spec, run, file, hash, panel_sources),
     });
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "model",
@@ -489,7 +494,13 @@ fn spec_provenance(spec: &ModelSpec, evaluation: &SpecEvaluation, file: &str, ha
     })
 }
 
-fn spec_v2_provenance(spec: &ModelSpecV2, run: &SpecRun, file: &str, hash: &str) -> Value {
+fn spec_v2_provenance(
+    spec: &ModelSpecV2,
+    run: &SpecRun,
+    file: &str,
+    hash: &str,
+    panel_sources: &[Value],
+) -> Value {
     let extended = spec.readings.extended();
     let prediction = run.prediction();
     let long = prediction
@@ -502,6 +513,32 @@ fn spec_v2_provenance(spec: &ModelSpecV2, run: &SpecRun, file: &str, hash: &str)
         .iter()
         .filter(|votes| **votes > 0)
         .count();
+    let (kind, long_events, short_events, direction_events) = match spec.prediction.kind {
+        PredictionKind::Vote => (
+            "vote",
+            spec.prediction
+                .long
+                .iter()
+                .map(|event| event.id.clone())
+                .collect::<Vec<_>>(),
+            spec.prediction
+                .short
+                .iter()
+                .map(|event| event.id.clone())
+                .collect::<Vec<_>>(),
+            Vec::new(),
+        ),
+        PredictionKind::Direction => (
+            "direction",
+            Vec::new(),
+            Vec::new(),
+            spec.prediction
+                .events
+                .iter()
+                .map(|event| event.id.clone())
+                .collect::<Vec<_>>(),
+        ),
+    };
     json!({
         "schema": spec.schema,
         "id": spec.id,
@@ -549,9 +586,10 @@ fn spec_v2_provenance(spec: &ModelSpecV2, run: &SpecRun, file: &str, hash: &str)
         },
         "active_events": spec.active_events.iter().map(|event| event.id.clone()).collect::<Vec<_>>(),
         "prediction": {
-            "kind": "vote",
-            "long": spec.prediction.long.iter().map(|event| event.id.clone()).collect::<Vec<_>>(),
-            "short": spec.prediction.short.iter().map(|event| event.id.clone()).collect::<Vec<_>>(),
+            "kind": kind,
+            "long": long_events,
+            "short": short_events,
+            "events": direction_events,
             "min_votes": spec.prediction.min_votes,
             "bars": prediction.len(),
             "long_bars": long,
@@ -559,6 +597,7 @@ fn spec_v2_provenance(spec: &ModelSpecV2, run: &SpecRun, file: &str, hash: &str)
             "flat_bars": prediction.values.iter().filter(|value| **value == 0).count(),
         },
         "panel": spec.panel_instruments,
+        "panel_sources": panel_sources,
         "session": spec.session.map(|session| json!({
             "zone": session_zone_label(session.zone),
             "start_hour": session.start_hour,
@@ -596,6 +635,42 @@ fn session_zone_label(zone: quantrule_model::sessions::SessionZone) -> &'static 
         quantrule_model::sessions::SessionZone::London => "london",
         quantrule_model::sessions::SessionZone::NewYork => "new_york",
     }
+}
+
+fn panel_provenance(
+    spec_path: &Path,
+    parsed: &crate::spec::v2::ParsedModelSpecV2,
+    data_version: &str,
+) -> Vec<Value> {
+    parsed
+        .spec
+        .panel_instruments
+        .iter()
+        .map(|name| {
+            if name == &parsed.spec.instrument {
+                json!({
+                    "instrument": name,
+                    "role": "evaluated_instrument",
+                    "source": "run-config",
+                    "data_version": data_version,
+                    "content_hash": null,
+                })
+            } else {
+                let source = parsed.panel_sources.get(name).map_or("", String::as_str);
+                let path = resolve_spec_path(spec_path, source);
+                let hash = fs::read(&path)
+                    .map(|bytes| content_hash(&bytes))
+                    .unwrap_or_default();
+                json!({
+                    "instrument": name,
+                    "role": "panel",
+                    "path": source,
+                    "data_version": format!("content:{hash}"),
+                    "content_hash": hash,
+                })
+            }
+        })
+        .collect()
 }
 
 fn load_panel_series(

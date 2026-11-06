@@ -1,0 +1,16 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M2.2",
+  "family": "M2",
+  "instrument": "EURUSD",
+  "timeframes": [3600],
+  "readings": {
+    "ema": {"fast": 20, "mid": 50, "slow": 200}
+  },
+  "active_events": ["signal.ema_pair_cross"],
+  "prediction": {
+    "kind": "direction",
+    "events": ["signal.ema_pair_cross"],
+    "min_votes": 1
+  }
+}

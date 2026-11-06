@@ -17,7 +17,7 @@ use quantrule_model::sessions::SessionReadings;
 /// The per-bar readings and states for every ladder timeframe.
 pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
     let mut csv = String::from(
-        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength,obv,obv_ma,obv_slope,cmf,cmf_slope,mfi,ad_line,ad_ma,atr_ratio,atr_slope,vol_regime,range_expansion,mar_fast,mar_slow,mar_ratio,keltner_upper,keltner_lower,keltner_position,donchian_upper,donchian_lower,donchian_position,structure_state,last_pivot_high,last_pivot_low,level_touches,level_age,aroon_up,aroon_down,aroon_osc,body_ratio,upper_wick_ratio,lower_wick_ratio,close_position,pattern_code,pattern_direction,gap_atr,gap_filled,path_efficiency,direction_changes,bars_since_high,bars_since_low,drawdown_atr,range_position\n",
+        "timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_fast,ema_mid,ema_slow,rsi,atr,rvol,macd_line,macd_signal,macd_histogram,adx,di_plus,di_minus,ema_stack,rsi_zone,macd_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr_ratio,rvol_ratio,context_code,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,extended_rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength,obv,obv_ma,obv_slope,cmf,cmf_slope,mfi,ad_line,ad_ma,extended_atr_ratio,atr_slope,vol_regime,range_expansion,mar_fast,mar_slow,mar_ratio,keltner_upper,keltner_lower,keltner_position,donchian_upper,donchian_lower,donchian_position,structure_state,last_pivot_high,last_pivot_low,level_touches,level_age,aroon_up,aroon_down,aroon_osc,body_ratio,upper_wick_ratio,lower_wick_ratio,close_position,pattern_code,pattern_direction,gap_atr,gap_filled,path_efficiency,direction_changes,bars_since_high,bars_since_low,drawdown_atr,range_position\n",
     );
     for &timeframe_secs in ladder {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
@@ -511,7 +511,7 @@ mod tests {
         let candles = candles()[..3].to_vec();
         let series = |values: [Option<f64>; 3]| ReadingSeries::new(values.to_vec());
         let sessions = SessionReadings {
-            session_code: series([Some(1.0), Some(1.0), None]),
+            session_code: series([Some(1.0), Some(1.0), Some(0.0)]),
             session_age: series([Some(0.0), Some(1.0), None]),
             opening_range_high: series([Some(101.0), Some(101.0), None]),
             opening_range_low: series([Some(99.0), Some(99.0), None]),
@@ -566,5 +566,23 @@ mod tests {
         for csv in [readings, events, levels, legs] {
             assert!(!csv.contains("NaN"), "a CSV contains NaN");
         }
+    }
+
+    #[test]
+    fn readings_csv_headers_are_unique() {
+        let candles = candles();
+        let run = ModelRun::compute(
+            &[TimeframeInput::new(300, &candles)],
+            &MarketStateConfig::default(),
+        );
+        let readings = readings_csv(&run, &[300]);
+        let header = readings.lines().next().expect("the header");
+        let columns: Vec<&str> = header.split(',').collect();
+        let unique: std::collections::BTreeSet<&str> = columns.iter().copied().collect();
+        assert_eq!(columns.len(), unique.len(), "duplicate reading header");
+        assert!(unique.contains("atr_ratio"));
+        assert!(unique.contains("extended_atr_ratio"));
+        assert!(unique.contains("rvol_ratio"));
+        assert!(unique.contains("extended_rvol_ratio"));
     }
 }

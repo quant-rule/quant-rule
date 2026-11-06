@@ -276,10 +276,14 @@ fn portfolio_rejects_a_missing_drawdown_limit() {
 }
 
 #[test]
-fn model_v4_reads_events_progression_and_rejects_4h() {
+fn model_v4_reads_events_and_progression() {
     let config = model::parse(&model_v4_object(), "model.json").expect("the v4 config loads");
     assert_eq!(config.max_timeframe_secs(), 3_600);
     assert!(config.is_overridden(Timeframe::M5));
+    assert_eq!(
+        config.events_for(300).signal.ema_pairs,
+        [(9, 21), (21, 55), (9, 55)]
+    );
 
     assert_rejected(
         model::parse(
@@ -292,6 +296,38 @@ fn model_v4_reads_events_progression_and_rejects_4h() {
         ),
         Range,
         "$.defaults.ema.periods",
+    );
+}
+
+#[test]
+fn model_v4_rejects_a_4h_override() {
+    assert_rejected(
+        model::parse(
+            &set(
+                model_v4_object(),
+                &["timeframes"],
+                json!({"4h": {"ema": {"periods": [9, 21, 55]}}}),
+            ),
+            "model.json",
+        ),
+        Range,
+        "$.timeframes.4h",
+    );
+}
+
+#[test]
+fn model_v4_rejects_ema_pairs_outside_the_configured_triple() {
+    assert_rejected(
+        model::parse(
+            &set(
+                model_v4_object(),
+                &["defaults", "events", "signal", "ema_pairs"],
+                json!([[20, 50], [50, 200], [20, 300]]),
+            ),
+            "model.json",
+        ),
+        Range,
+        "$.defaults.events.signal.ema_pairs[2]",
     );
 }
 
@@ -347,6 +383,16 @@ fn run_rejects_a_bad_identity_prefix() {
 }
 
 #[test]
+fn run_rejects_an_identity_without_a_major_minor_shape() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    for identity in ["M", "Mfoo", "M1", "M1.", "M1.0.0", "M1.x"] {
+        let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
+        config.model_id = Some(identity.to_string());
+        assert_rejected(config.validate_identities(), Range, "$.model_id");
+    }
+}
+
+#[test]
 fn the_example_config_loads_and_resolves() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../config/examples/btcusd-2024/run.json");
@@ -389,6 +435,10 @@ fn a_cross_config_mismatch_is_rejected() {
     config.portfolio = portfolio;
 
     assert!(config.validate_cross().is_ok());
+
+    config.data.available_timeframes.push(Timeframe::H4);
+    assert_rejected(config.validate_cross(), Range, "$.available_timeframes");
+    config.data.available_timeframes.pop();
 
     config.policy.universe.timeframes = vec![Timeframe::M15, Timeframe::H4];
     assert_rejected(

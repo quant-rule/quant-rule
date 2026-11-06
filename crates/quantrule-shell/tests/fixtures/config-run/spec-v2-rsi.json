@@ -1,0 +1,14 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M2.10",
+  "family": "M2",
+  "instrument": "EURUSD",
+  "timeframes": [60],
+  "active_events": ["signal.rsi_threshold"],
+  "prediction": {
+    "kind": "vote",
+    "long": ["signal.rsi_threshold"],
+    "short": [],
+    "min_votes": 1
+  }
+}

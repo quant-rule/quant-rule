@@ -248,12 +248,14 @@ The output is the standard model bundle plus:
 | `panel.csv` | The panel readings, one row per common timestamp and instrument: `timestamp,instrument,is_leader,relative_strength,leader_return,lead_lag,breadth,co_movement,dispersion`; written only when the spec declares a panel |
 | `session.csv` | The session readings, one row per evaluation bar: `bar,timestamp,session_code,session_age,opening_range_high,opening_range_low,opening_range_atr,session_range_atr,session_vwap,overnight_return,intraday_return,calendar_bucket`; written only when the spec declares a session |
 | `events.csv` | The active-event projection of the base, extended, session, and panel batches; the stable `event_code` is the identity column |
-| `provenance.json` | The spec schema, id, family, instrument, file hash, readings, extended readings, active events, prediction definition, panel order, session, event counts, and conditions |
+| `provenance.json` | The spec schema, id, family, instrument, file hash, readings, extended readings, active events, prediction definition (kind, events, and applicable vote lists), panel order and panel source content hashes, session, event counts, and conditions |
 
 `readings.csv`, `levels.csv`, `legs.csv`, and `result.json` remain the standard
 model artifacts. A missing panel or session reading is an empty CSV cell, never a
-zero. `calendar_bucket` is `weekday * 100 + month` and is published for every
-evaluation bar, not only in-session bars.
+zero. `session_code` is the exception to “missing”: it is `1` inside the session
+and `0` outside, so outside is distinct from unavailable. `calendar_bucket` is
+`weekday * 100 + month` and is published for every evaluation bar, not only
+in-session bars.
 
 ## 9. Determinism and causality
 

@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.validation/v1",
-  "version": "2026-11-06.2",
+  "version": "2026-11-06.3",
   "claims": [
     {
       "id": "absorption",
@@ -9,7 +9,8 @@
         "absorption_flags_a_small_range_near_vwap"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "ad_line",
@@ -18,7 +19,8 @@
         "ad_line_accumulates_money_flow"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "adx",
@@ -27,7 +29,8 @@
         "readings_golden::every_scalar_reading_matches_the_golden_values"
       ],
       "primary_outcome": "path_directional",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "aroon",
@@ -36,7 +39,8 @@
         "aroon_reads_a_rising_series"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "atr",
@@ -45,7 +49,8 @@
         "readings_golden::every_scalar_reading_matches_the_golden_values"
       ],
       "primary_outcome": "volatility",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "atr_term",
@@ -54,7 +59,8 @@
         "atr_term_is_available_after_the_slow_window"
       ],
       "primary_outcome": "volatility",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "bars_since_extreme",
@@ -63,7 +69,8 @@
         "path_reads_efficiency_and_extremes"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "bos_choch",
@@ -72,7 +79,8 @@
         "event_validation::bos_and_choch_are_classified"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "breadth",
@@ -81,7 +89,8 @@
         "breadth_and_dispersion_are_common"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "calendar_bucket",
@@ -90,7 +99,8 @@
         "london_session_and_opening_range"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "candle_anatomy",
@@ -99,7 +109,8 @@
         "candle_anatomy_reads_the_bar"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "candle_pattern",
@@ -108,7 +119,8 @@
         "candle_pattern_flags_an_engulfing_bar"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "cmf",
@@ -117,7 +129,8 @@
         "cmf_is_one_when_every_close_is_the_high"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "co_movement",
@@ -126,7 +139,8 @@
         "co_movement_is_high_for_aligned_series"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "context",
@@ -135,7 +149,8 @@
         "context_golden::the_context_matches_the_golden_fixture"
       ],
       "primary_outcome": "volatility",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "direction_changes",
@@ -144,7 +159,8 @@
         "direction_changes_counts_sign_flips"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "dispersion",
@@ -153,7 +169,8 @@
         "breadth_and_dispersion_are_common"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "dmi",
@@ -162,7 +179,8 @@
         "readings_golden::every_scalar_reading_matches_the_golden_values"
       ],
       "primary_outcome": "path_directional",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "donchian",
@@ -171,7 +189,8 @@
         "keltner_and_donchian_publish_bands"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "drawdown_atr",
@@ -180,7 +199,8 @@
         "path_reads_efficiency_and_extremes"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "ema",
@@ -189,7 +209,8 @@
         "readings_golden::every_scalar_reading_matches_the_golden_values"
       ],
       "primary_outcome": "path_directional",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "gap",
@@ -198,7 +219,8 @@
         "gap_reads_the_open_jump"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "keltner",
@@ -207,7 +229,8 @@
         "keltner_and_donchian_publish_bands"
       ],
       "primary_outcome": "volatility",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "lead_lag",
@@ -216,7 +239,8 @@
         "lead_lag_reads_the_leader"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "level_strength",
@@ -225,7 +249,8 @@
         "structure_and_levels_publish_when_history_exists"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "macd",
@@ -234,7 +259,8 @@
         "readings_golden::every_scalar_reading_matches_the_golden_values"
       ],
       "primary_outcome": "path_directional",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "mar",
@@ -243,7 +269,8 @@
         "range_and_mar_read_the_window"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "mfi",
@@ -252,7 +279,8 @@
         "mfi_is_one_hundred_when_every_bar_rises"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "obv",
@@ -261,7 +289,8 @@
         "obv_accumulates_signed_volume"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "opening_range",
@@ -270,7 +299,8 @@
         "london_session_and_opening_range"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "overnight_intraday",
@@ -279,7 +309,8 @@
         "overnight_and_intraday_returns_read_the_session"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "path_efficiency",
@@ -288,7 +319,8 @@
         "path_reads_efficiency_and_extremes"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "pivots",
@@ -297,7 +329,8 @@
         "readings_golden::the_fixture_covers_every_reading_and_both_pivot_scales"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "progression",
@@ -306,7 +339,8 @@
         "progression_golden::the_per_bar_fixture_matches_the_computed_series"
       ],
       "primary_outcome": "progression",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "range_expansion",
@@ -315,7 +349,8 @@
         "range_and_mar_read_the_window"
       ],
       "primary_outcome": "volatility",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "range_position",
@@ -324,7 +359,8 @@
         "path_reads_efficiency_and_extremes"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "relative_strength",
@@ -333,7 +369,8 @@
         "relative_strength_ranks_the_faster_instrument"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "rsi",
@@ -342,7 +379,8 @@
         "readings_golden::every_scalar_reading_matches_the_golden_values"
       ],
       "primary_outcome": "path_directional",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "rvol",
@@ -351,7 +389,8 @@
         "rvol_reads_the_volume_ratio"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "session",
@@ -360,7 +399,8 @@
         "london_session_and_opening_range"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "session_range",
@@ -369,7 +409,8 @@
         "session_range_reads_the_session_high_low"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "swing_structure",
@@ -378,7 +419,8 @@
         "structure_and_levels_publish_when_history_exists"
       ],
       "primary_outcome": "structure",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "volume_climax",
@@ -387,7 +429,8 @@
         "climax_flags_a_high_volume_wide_bar"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "volume_oscillator",
@@ -396,7 +439,8 @@
         "volume_oscillator_reads_the_fast_slow_gap"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "volume_profile",
@@ -405,7 +449,8 @@
         "profile_poc_is_the_highest_volume_bin"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "vwap",
@@ -414,7 +459,8 @@
         "vwap_is_the_volume_weighted_typical_price"
       ],
       "primary_outcome": "participation",
-      "predictive_status": "pending"
+      "predictive_status": "pending",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.ad_regular_bearish",
@@ -427,7 +473,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.ad_regular_bullish",
@@ -440,7 +487,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.atr_bearish",
@@ -453,7 +501,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.atr_bullish",
@@ -466,7 +515,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.breadth_regular_bearish",
@@ -479,7 +529,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.breadth_regular_bullish",
@@ -492,7 +543,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.climax_bearish",
@@ -505,7 +557,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.climax_bullish",
@@ -518,7 +571,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.cmf_hidden_bearish",
@@ -531,7 +585,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.cmf_hidden_bullish",
@@ -544,7 +599,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.cmf_regular_bearish",
@@ -557,7 +613,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.cmf_regular_bullish",
@@ -570,7 +627,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.lead_lag_bearish",
@@ -583,7 +641,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.lead_lag_bullish",
@@ -596,7 +655,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.mfi_hidden_bearish",
@@ -609,7 +669,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.mfi_hidden_bullish",
@@ -622,7 +683,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.mfi_regular_bearish",
@@ -635,7 +697,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.mfi_regular_bullish",
@@ -648,7 +711,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.obv_hidden_bearish",
@@ -661,7 +725,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.obv_hidden_bullish",
@@ -674,7 +739,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.obv_regular_bearish",
@@ -687,7 +753,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.obv_regular_bullish",
@@ -700,7 +767,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.profile_poc_bearish",
@@ -713,7 +781,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.profile_poc_bullish",
@@ -726,7 +795,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.rs_regular_bearish",
@@ -739,7 +809,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.rs_regular_bullish",
@@ -752,7 +823,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.rsi_hidden_bearish",
@@ -765,7 +837,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.rsi_hidden_bullish",
@@ -778,7 +851,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.rsi_regular_bearish",
@@ -791,7 +865,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.rsi_regular_bullish",
@@ -804,7 +879,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.rvol_bearish",
@@ -817,7 +893,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.rvol_bullish",
@@ -830,7 +907,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.vwap_hidden_bearish",
@@ -843,7 +921,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.vwap_hidden_bullish",
@@ -856,7 +935,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.vwap_regular_bearish",
@@ -869,7 +949,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "divergence.vwap_regular_bullish",
@@ -882,7 +963,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "level.absorption_test",
@@ -891,7 +973,8 @@
         "extended::tests::absorption_wick_and_profile_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.bos",
@@ -900,7 +983,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.break",
@@ -913,7 +997,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "level.choch",
@@ -922,7 +1007,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.cross",
@@ -935,7 +1021,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "level.donchian_break",
@@ -944,7 +1031,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.donchian_test",
@@ -953,7 +1041,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.gap_fill",
@@ -962,7 +1051,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.gap_test",
@@ -971,7 +1061,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.keltner_break",
@@ -980,7 +1071,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.keltner_test",
@@ -989,7 +1081,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.opening_range_break",
@@ -998,7 +1091,8 @@
         "session::tests::session_level_events_are_published"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.opening_range_test",
@@ -1007,7 +1101,8 @@
         "session::tests::the_opening_range_test_fires_on_a_touch"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.profile_poc_test",
@@ -1016,7 +1111,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.profile_va_break",
@@ -1025,7 +1121,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.profile_va_reentry",
@@ -1034,7 +1131,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.profile_vah_test",
@@ -1043,7 +1141,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.profile_val_test",
@@ -1052,7 +1151,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.session_vwap_test",
@@ -1061,7 +1161,8 @@
         "session::tests::session_level_events_are_published"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.strength_test",
@@ -1070,7 +1171,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.structure_break",
@@ -1079,7 +1181,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.test",
@@ -1092,7 +1195,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "level.vwap_break",
@@ -1101,7 +1205,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.vwap_cross",
@@ -1110,7 +1215,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.vwap_test",
@@ -1119,7 +1225,8 @@
         "level_events_golden::the_level_events_match_the_golden_fixture"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "level.wick_test",
@@ -1128,7 +1235,8 @@
         "extended::tests::absorption_wick_and_profile_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.absorption_break",
@@ -1141,7 +1249,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.absorption_rejection",
@@ -1154,7 +1263,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.ad_cross",
@@ -1167,7 +1277,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.aroon_cross",
@@ -1176,7 +1287,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.aroon_osc",
@@ -1185,7 +1297,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.atr_compression",
@@ -1194,7 +1307,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.atr_expansion",
@@ -1203,7 +1317,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.atr_regime",
@@ -1212,7 +1327,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.breadth_cross",
@@ -1221,7 +1337,8 @@
         "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.candle_doji",
@@ -1230,7 +1347,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.candle_marubozu",
@@ -1239,7 +1357,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.candle_momentum",
@@ -1248,7 +1367,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.candle_rejection",
@@ -1257,7 +1377,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.climax_continuation",
@@ -1270,7 +1391,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.climax_reversal",
@@ -1283,7 +1405,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.cmf_cross",
@@ -1296,7 +1419,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.cmf_threshold",
@@ -1305,7 +1429,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.co_movement_cross",
@@ -1314,7 +1439,8 @@
         "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.compression_breakout",
@@ -1327,7 +1453,8 @@
       "horizon_bars": 20,
       "target_atr": 4.0,
       "stop_atr": 4.0,
-      "baseline": "coiling_barrier"
+      "baseline": "coiling_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.compression_range",
@@ -1340,7 +1467,8 @@
       "horizon_bars": 1,
       "target_atr": 4.0,
       "stop_atr": 1.0,
-      "baseline": "matched_non_coiling_completion"
+      "baseline": "matched_non_coiling_completion",
+      "construct_status": "covered"
     },
     {
       "id": "signal.compression_range_onset",
@@ -1353,7 +1481,8 @@
       "horizon_bars": 1,
       "target_atr": 4.0,
       "stop_atr": 1.0,
-      "baseline": "matched_non_coiling_completion"
+      "baseline": "matched_non_coiling_completion",
+      "construct_status": "covered"
     },
     {
       "id": "signal.di_cross",
@@ -1366,7 +1495,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.direction_changes",
@@ -1375,7 +1505,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.dispersion_cross",
@@ -1384,7 +1515,8 @@
         "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.donchian_breakout",
@@ -1393,7 +1525,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.donchian_position",
@@ -1402,7 +1535,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.drawdown_recovery",
@@ -1411,7 +1545,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.drawdown_threshold",
@@ -1420,7 +1555,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.ema_pair_cross",
@@ -1433,7 +1569,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.ema_stack_change",
@@ -1446,7 +1583,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.rsi_zone_change",
@@ -1459,7 +1597,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.extreme_new",
@@ -1468,7 +1607,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.extreme_stale",
@@ -1477,7 +1617,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.gap_continuation",
@@ -1486,7 +1627,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.gap_fade",
@@ -1495,7 +1637,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.keltner_breakout",
@@ -1504,7 +1647,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.keltner_position",
@@ -1513,7 +1657,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.lead_lag_cross",
@@ -1522,7 +1667,8 @@
         "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.macd_histogram_slope_flip",
@@ -1535,7 +1681,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.macd_line_signal_cross",
@@ -1548,7 +1695,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.macd_zero_cross",
@@ -1561,7 +1709,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.mar_regime",
@@ -1570,7 +1719,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.mfi_threshold",
@@ -1583,7 +1733,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.mfi_zone",
@@ -1592,7 +1743,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.obv_cross",
@@ -1605,7 +1757,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.obv_slope",
@@ -1614,7 +1767,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.opening_range_breakout",
@@ -1623,7 +1777,8 @@
         "session::tests::opening_range_breakout_and_overnight_continuation_are_published"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.opening_range_fade",
@@ -1632,7 +1787,8 @@
         "session::tests::session_fade_and_range_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.overnight_continuation",
@@ -1645,7 +1801,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.overnight_fade",
@@ -1658,7 +1815,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.path_efficiency",
@@ -1667,7 +1825,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.pattern_engulfing",
@@ -1676,7 +1835,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.pattern_hammer",
@@ -1685,7 +1845,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.pattern_inside",
@@ -1694,7 +1855,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.pattern_outside",
@@ -1703,7 +1865,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.pattern_star",
@@ -1712,7 +1875,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.pattern_three_crows",
@@ -1721,7 +1885,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.pattern_three_soldiers",
@@ -1730,7 +1895,8 @@
         "signals::tests::atr_candle_pattern_and_gap_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.profile_concentration",
@@ -1739,7 +1905,8 @@
         "extended::tests::absorption_wick_and_profile_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.profile_poc_cross",
@@ -1752,7 +1919,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.profile_skew",
@@ -1761,7 +1929,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.profile_va_breakout",
@@ -1774,7 +1943,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.range_contraction",
@@ -1783,7 +1953,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.range_expansion",
@@ -1792,7 +1963,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.range_position",
@@ -1801,7 +1973,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.relative_strength_cross",
@@ -1810,7 +1983,8 @@
         "panel::tests::panel_divergences_and_crosses_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.rsi_threshold",
@@ -1823,7 +1997,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.rvol_contraction",
@@ -1832,7 +2007,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.rvol_expansion",
@@ -1845,7 +2021,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.rvol_ratio",
@@ -1858,7 +2035,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.session_close",
@@ -1867,7 +2045,8 @@
         "session::tests::session_open_and_close_are_published"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.session_open",
@@ -1876,7 +2055,8 @@
         "session::tests::session_open_and_close_are_published"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.session_range_contraction",
@@ -1895,7 +2075,8 @@
         "session::tests::session_fade_and_range_events_are_exercised"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.strength_change",
@@ -1904,7 +2085,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.structure_change",
@@ -1913,7 +2095,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.trend_continuation",
@@ -1926,7 +2109,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.volume_oscillator_cross",
@@ -1935,7 +2119,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     },
     {
       "id": "signal.vwap_reclaim",
@@ -1948,7 +2133,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.vwap_rejection",
@@ -1961,7 +2147,8 @@
       "horizon_bars": 20,
       "target_atr": 1.0,
       "stop_atr": 1.0,
-      "baseline": "matched_barrier"
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
     },
     {
       "id": "signal.vwap_slope",
@@ -1970,7 +2157,8 @@
         "event_validation::extended_and_session_events_match_their_fixtures"
       ],
       "primary_outcome": "none",
-      "predictive_status": "not_applicable"
+      "predictive_status": "not_applicable",
+      "construct_status": "covered"
     }
   ]
 }

@@ -1,4 +1,4 @@
-//! The v10 compression-bracket strategy.
+//! The compression-bracket strategy engine.
 //!
 //! The rule reads the neutral compression-range event on the execution
 //! timeframe and places a two-sided stop-entry bracket at the published range
@@ -16,7 +16,7 @@ use super::decision::{BracketEntry, Decision, Exit, ExitReason};
 use super::event_input::EventView;
 use super::input::StrategyInput;
 
-/// The v10 compression-bracket configuration.
+/// The compression-bracket strategy configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CompressionBracketConfig {
     event_timeframe_secs: u64,
@@ -127,7 +127,7 @@ pub struct CompressionBracketInput<'a> {
     pub events: &'a [EventView],
 }
 
-/// The v10 compression-bracket strategy.
+/// The compression-bracket strategy.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CompressionBracketStrategy {
     config: CompressionBracketConfig,

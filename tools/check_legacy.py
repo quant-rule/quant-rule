@@ -9,7 +9,9 @@ aliases; it is allowlisted explicitly.
 
 The M2.x research evidence under ``config/research/`` predates the cutover and
 still names retired schemas. It is historical evidence, not a current run
-config, and is the only remaining pending path.
+config, and is the only remaining pending path. The scan covers current Rust
+source, README/docs, and config files; negative tests that prove retired
+schemas or commands are rejected are allowlisted explicitly.
 """
 
 from __future__ import annotations
@@ -29,11 +31,16 @@ SCAN = [
     ROOT / "config/defaults",
     ROOT / "config/examples",
     ROOT / "config/research",
+    ROOT / "crates",
 ]
 
 # The alias registry must name the old labels to map them.
+# Negative assertions that prove retired schemas are rejected.
 ALLOWLIST = {
-    "docs/model/2026-11-05/model-families.md",
+    "docs/registry/history.md",
+    "crates/quantrule-shell/tests/architecture.rs",
+    "crates/quantrule-shell/src/config/tests.rs",
+    "crates/quantrule-shell/tests/fixtures/config-run/model-v3.json",
 }
 
 # M2.x research evidence predates the cutover and references retired files.

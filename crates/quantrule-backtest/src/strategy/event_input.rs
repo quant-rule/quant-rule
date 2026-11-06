@@ -1,4 +1,4 @@
-//! The event/state snapshot a v8 strategy may read.
+//! The event/state snapshot a strategy may read.
 //!
 //! The snapshot carries one closed model bar per included timeframe: the bar
 //! identity, the discrete states, the events that became knowable within the
@@ -14,7 +14,7 @@ use quantrule_model::events::EventRecord;
 use quantrule_model::run::ModelRun;
 use quantrule_model::timeframe::ModelStates;
 
-/// One event as the v8 strategy sees it.
+/// One event as the strategy sees it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EventView {
     /// The event type code: 1 Level, 2 Divergence, 3 Signal.

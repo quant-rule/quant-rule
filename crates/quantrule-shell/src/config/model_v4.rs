@@ -58,6 +58,8 @@ pub(super) fn parse_v4(
         "$.defaults.events",
         defaults_object,
         EventSettings::DEFAULT,
+        readings,
+        ReadingsConfig::default(),
     )?;
     let progression = v4_progression(
         file,
@@ -121,8 +123,14 @@ pub(super) fn parse_v4(
             )?;
             let (override_readings, macd_active) =
                 v3_readings(file, &path, override_object, readings)?;
-            let override_events =
-                v4_events(file, &format!("{path}.events"), override_object, events)?;
+            let override_events = v4_events(
+                file,
+                &format!("{path}.events"),
+                override_object,
+                events,
+                override_readings,
+                readings,
+            )?;
             let override_progression = v4_progression(
                 file,
                 &format!("{path}.progression"),
@@ -146,9 +154,15 @@ fn v4_events(
     path: &str,
     parent: &serde_json::Map<String, Value>,
     inherited: EventSettings,
+    readings: ReadingsConfig,
+    inherited_readings: ReadingsConfig,
 ) -> Result<EventSettings, ConfigError> {
     let Some(value) = parent.get("events") else {
-        return Ok(inherited);
+        let mut settings = inherited;
+        if readings != inherited_readings {
+            settings.signal.ema_pairs = role_pairs(readings);
+        }
+        return Ok(settings);
     };
     let events = read::object(file, path, value)?;
     read::check_fields(file, path, events, &["level", "divergence", "signal"])?;
@@ -164,6 +178,10 @@ fn v4_events(
             settings.divergence,
         )?;
     }
+    let explicit_pairs = events
+        .get("signal")
+        .and_then(Value::as_object)
+        .is_some_and(|signal| signal.contains_key("ema_pairs"));
     if let Some(signal_value) = events.get("signal") {
         settings.signal = v4_signal(
             file,
@@ -172,7 +190,45 @@ fn v4_events(
             settings.signal,
         )?;
     }
+    if explicit_pairs {
+        validate_ema_pairs(
+            file,
+            &format!("{path}.signal.ema_pairs"),
+            settings.signal,
+            readings,
+        )?;
+    } else if readings != inherited_readings {
+        settings.signal.ema_pairs = role_pairs(readings);
+    }
     Ok(settings)
+}
+
+fn role_pairs(readings: ReadingsConfig) -> [(usize, usize); 3] {
+    [
+        (readings.ema_fast, readings.ema_mid),
+        (readings.ema_mid, readings.ema_slow),
+        (readings.ema_fast, readings.ema_slow),
+    ]
+}
+
+fn validate_ema_pairs(
+    file: &str,
+    path: &str,
+    settings: SignalSettings,
+    readings: ReadingsConfig,
+) -> Result<(), ConfigError> {
+    let allowed = [readings.ema_fast, readings.ema_mid, readings.ema_slow];
+    for (index, (fast, slow)) in settings.ema_pairs.iter().enumerate() {
+        if !allowed.contains(fast) || !allowed.contains(slow) {
+            return Err(ConfigError::range(
+                file,
+                &format!("{path}[{index}]"),
+                "periods from the configured EMA triple",
+                &format!("{fast}/{slow}"),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn v4_level(
