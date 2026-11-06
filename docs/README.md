@@ -43,8 +43,9 @@ linked below.
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |
 | M1.0 model lab tutorial | Current; uses only the eight current shell commands | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
-| Indicator verification matrix | Current; 46 rows, generated from registry and claims | `docs/model/2026-11-06/indicator-verification.md` |
-| Event verification matrix | Current; 143 rows, generated from registry and claims | `docs/model/2026-11-06/event-verification.md` |
+| Indicator verification matrix | Current; 46 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
+| Event verification matrix | Current; 143 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
+| Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |
 
 ## Current run contracts
 
@@ -70,6 +71,7 @@ rejects them with an unknown-field error; S3.x adds a strategy file back.
 | M3.x model programme | Preflight `underpowered`; no development run; validation not opened | [`docs/improvement/2026-11-05/M3-PREFLIGHT.md`](improvement/2026-11-05/M3-PREFLIGHT.md) |
 | M2.x model charter | Approved 2026-11-05; strategy tier closed | [`docs/governance/2026-11-05/M2-CHARTER.md`](governance/2026-11-05/M2-CHARTER.md) |
 | Current-surface audit verification | Merged in PR #496; per-row indicator/event matrix pending | [`docs/reports/2026-11-06/current-surface-audit-verification.md`](reports/2026-11-06/current-surface-audit-verification.md) |
+| Indicator/event verification evidence | Scope map: 33 row-level, 1410 family-level, 332 tool gates, 304 N/A | [`docs/reports/2026-11-06/indicator-event-verification.md`](reports/2026-11-06/indicator-event-verification.md) |
 
 Pre-reset experiment records under `docs/improvement/` are historical. They are not
 improvement runs under the current run contract and are not imported as baselines.
@@ -105,8 +107,9 @@ surface.
 | Tool | Purpose | Path |
 |---|---|---|
 | Progression replay oracle | Regenerates and checks the per-bar Progression and retained-leg golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
+| Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `tools/build_verification.py` |
 | Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
-| Registry, validation, matrix, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
+| Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
 
 The experiment matrix runner, improvement run store, and research model-cell runner
 are historical. They target the retired backtest surface and are not current

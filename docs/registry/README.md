@@ -30,6 +30,7 @@ docs/registry/
   schema.json        JSON Schema for the registry file
   indicators.json    indicators, events, parameters, and codes
   validation.json    one validation claim per active indicator and event
+  verification.json  one evidence map per active indicator and event
   indicators.md      generated human-readable table
   history.md         current-vs-history boundary and deletion inventory
   deletion-manifest.md   file-by-file P0.1 deletion boundary
@@ -153,6 +154,23 @@ pass.
 
 The check fails on drift; it is not a warning. `check_validation.py`
 additionally resolves every `construct_tests` entry to a Rust function name.
+
+### 5.1 Verification evidence
+
+`verification.json` maps every active indicator and event to the eleven evidence
+classes: formula, causality, determinism, golden, edge, availability,
+no-double-count, precedence, math, spec, and emitter. Each class carries a
+scope:
+
+- `row` — the test names the row's indicator or event;
+- `family` — the test exercises the family that contains the row;
+- `tool` — a repository gate covers every row;
+- `n/a` — the class does not apply.
+
+`tools/check_verification.py` rejects a missing class, an unknown scope, a
+missing Rust test, a row scope that does not name its row, or an unknown tool
+gate. `family` means family-level evidence; it is not displayed as per-row
+proof.
 
 ## 6. Scope
 

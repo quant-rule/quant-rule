@@ -1,0 +1,375 @@
+#!/usr/bin/env python3
+"""Build the verification manifest and the indicator/event matrices.
+
+The manifest is the evidence map. Scope values are:
+
+- ``row``: the test names the row's indicator or event;
+- ``family``: the test exercises the family that contains the row;
+- ``tool``: a repository gate covers every row;
+- ``n/a``: the class does not apply.
+
+Usage:
+    python3 tools/build_verification.py --write
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from collections import defaultdict
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+REGISTRY = ROOT / "docs/registry/indicators.json"
+VALIDATION = ROOT / "docs/registry/validation.json"
+MANIFEST = ROOT / "docs/registry/verification.json"
+INDICATORS_DOC = ROOT / "docs/model/2026-11-06/indicator-verification.md"
+EVENTS_DOC = ROOT / "docs/model/2026-11-06/event-verification.md"
+
+AREAS = {
+    "Base": [
+        "ema",
+        "rsi",
+        "atr",
+        "macd",
+        "context",
+        "progression",
+        "adx",
+        "dmi",
+    ],
+    "1 Volume-weighted price": ["vwap"],
+    "2 Volume by price": ["volume_profile"],
+    "3 Participation": ["rvol", "volume_climax", "absorption", "volume_oscillator"],
+    "4 Volume-price flow": ["obv", "cmf", "mfi", "ad_line"],
+    "5 Volatility structure": ["atr_term", "range_expansion", "mar", "keltner"],
+    "6 Structure": [
+        "pivots",
+        "donchian",
+        "swing_structure",
+        "level_strength",
+        "aroon",
+        "bos_choch",
+    ],
+    "7 Candle anatomy and gaps": ["candle_anatomy", "candle_pattern", "gap"],
+    "8 Path and duration": [
+        "path_efficiency",
+        "direction_changes",
+        "bars_since_extreme",
+        "drawdown_atr",
+        "range_position",
+    ],
+    "9 Cross-asset": [
+        "relative_strength",
+        "lead_lag",
+        "breadth",
+        "co_movement",
+        "dispersion",
+    ],
+    "10 Calendar and session": [
+        "session",
+        "opening_range",
+        "overnight_intraday",
+        "session_range",
+        "calendar_bucket",
+    ],
+}
+AREA_OF = {indicator: area for area, ids in AREAS.items() for indicator in ids}
+
+PANEL = {"relative_strength", "lead_lag", "breadth", "co_movement", "dispersion"}
+SESSION = {"session", "opening_range", "overnight_intraday", "session_range", "calendar_bucket"}
+BASE = set(AREAS["Base"])
+
+CLASSES = [
+    "formula",
+    "causality",
+    "determinism",
+    "golden",
+    "edge",
+    "availability",
+    "no_double_count",
+    "precedence",
+    "math",
+    "spec",
+    "emitter",
+]
+
+
+def evidence(scope: str, *tests: str) -> dict[str, object]:
+    return {"scope": scope, "tests": list(tests)}
+
+
+def indicator_family(indicator: str) -> str:
+    if indicator in PANEL:
+        return "panel"
+    if indicator in SESSION:
+        return "session"
+    if indicator == "progression":
+        return "progression"
+    if indicator == "context":
+        return "context"
+    if indicator in BASE:
+        return "base"
+    return "extended"
+
+
+def indicator_tests(indicator: str) -> dict[str, dict[str, object]]:
+    family = indicator_family(indicator)
+    family_tests = {
+        "base": {
+            "causality": ("hardening::every_prefix_keeps_the_output_lengths_and_ranges",),
+            "determinism": ("hardening::the_model_run_is_deterministic_across_repeated_runs",),
+            "golden": ("readings_golden::every_scalar_reading_matches_the_golden_values",),
+            "edge": ("hardening::every_prefix_keeps_the_output_lengths_and_ranges",),
+        },
+        "extended": {
+            "causality": ("extended_readings_golden::appending_bars_does_not_change_past_readings",),
+            "determinism": ("extended_readings_golden::repeated_computation_is_identical",),
+            "golden": ("extended_readings_golden::the_extended_readings_match_the_golden_fixture",),
+            "edge": ("edge_cases::an_empty_series_publishes_no_readings",),
+        },
+        "panel": {
+            "causality": ("panel_readings_golden::appending_bars_does_not_change_past_panel_readings",),
+            "determinism": ("panel_readings_golden::repeated_panel_computation_is_identical",),
+            "golden": ("panel_readings_golden::the_panel_readings_match_the_golden_fixture",),
+            "edge": ("edge_cases::a_one_bar_panel_and_session_are_safe",),
+        },
+        "session": {
+            "causality": ("session_readings_golden::appending_bars_does_not_change_past_session_readings",),
+            "determinism": ("session_readings_golden::repeated_session_computation_is_identical",),
+            "golden": ("session_readings_golden::the_session_readings_match_the_golden_fixture",),
+            "edge": ("edge_cases::a_one_bar_panel_and_session_are_safe",),
+        },
+        "progression": {
+            "causality": ("progression_golden::every_prefix_matches_the_full_series",),
+            "determinism": ("progression_golden::the_per_bar_fixture_matches_the_computed_series",),
+            "golden": ("progression_golden::the_per_bar_fixture_matches_the_computed_series",),
+            "edge": ("edge_cases::an_empty_series_publishes_no_readings",),
+        },
+        "context": {
+            "causality": ("context_golden::later_candles_do_not_change_earlier_context",),
+            "determinism": ("context_golden::the_context_is_deterministic",),
+            "golden": ("context_golden::the_context_matches_the_golden_fixture",),
+            "edge": ("edge_cases::an_empty_series_publishes_no_readings",),
+        },
+    }[family]
+    return family_tests
+
+
+def event_golden(event: dict[str, object]) -> tuple[str, ...]:
+    event_type = int(event["event_type"])
+    source = int(event["source"])
+    if event_type == 1:
+        return ("level_events_golden::the_level_events_match_the_golden_fixture",)
+    if event_type == 2:
+        return ("divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales",)
+    if source >= 19:
+        return ("event_validation::extended_and_session_events_match_their_fixtures",)
+    return ("signal_events_golden::the_signal_events_match_the_golden_fixture",)
+
+
+def row_scope(test: str, ident: str) -> str:
+    suffix = ident.split(".")[-1].replace("_", "").lower()
+    return "row" if suffix and suffix in test.replace("_", "").lower() else "family"
+
+
+def indicator_entry(indicator: dict[str, object], claims: dict[str, dict[str, object]]) -> dict[str, object]:
+    ident = str(indicator["id"])
+    claim = claims.get(ident, {})
+    tests = list(claim.get("construct_tests", []))
+    formula_scope = row_scope(tests[0], ident) if tests else "family"
+    family_tests = indicator_tests(ident)
+    has_events = any(event["indicator"] == ident for event in event_registry)
+    evidence_map = {
+        "formula": evidence(formula_scope, *tests) if tests else evidence("n/a"),
+        "causality": evidence("family", *family_tests["causality"]),
+        "determinism": evidence("family", *family_tests["determinism"]),
+        "golden": evidence("family", *family_tests["golden"]),
+        "edge": evidence("family", *family_tests["edge"]),
+        "availability": evidence("n/a"),
+        "no_double_count": evidence("n/a"),
+        "precedence": evidence("n/a"),
+        "math": evidence("tool", "check_registry.py", "check_validation.py"),
+        "spec": evidence("family", "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint")
+        if has_events
+        else evidence("n/a"),
+        "emitter": evidence("n/a"),
+    }
+    return {"id": ident, "kind": "indicator", "evidence": evidence_map}
+
+
+def event_entry(event: dict[str, object], claims: dict[str, dict[str, object]]) -> dict[str, object]:
+    ident = str(event["id"])
+    claim = claims.get(ident, {})
+    tests = list(claim.get("construct_tests", []))
+    formula_scope = row_scope(tests[0], ident) if tests else "family"
+    event_type = int(event["event_type"])
+    evidence_map = {
+        "formula": evidence(formula_scope, *tests) if tests else evidence("n/a"),
+        "causality": evidence("family", "event_validation::appending_bars_does_not_change_past_events"),
+        "determinism": evidence("family", "event_validation::repeated_model_runs_publish_the_same_events"),
+        "golden": evidence("family", *event_golden(event)),
+        "edge": evidence("family", "edge_cases::an_empty_series_publishes_no_readings"),
+        "availability": evidence("family", "event_validation::every_batch_respects_availability_and_order"),
+        "no_double_count": evidence("family", "event_validation::one_occurrence_is_recorded_once"),
+        "precedence": evidence(
+            "family", "event_validation::level_events_follow_the_reference_order"
+        )
+        if event_type == 1
+        else evidence("n/a"),
+        "math": evidence("tool", "check_registry.py"),
+        "spec": evidence("family", "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"),
+        "emitter": evidence("tool", "check_event_emitters.py"),
+    }
+    return {"id": ident, "kind": "event", "evidence": evidence_map}
+
+
+def cell(entry: dict[str, object], name: str) -> str:
+    scope = entry["evidence"][name]["scope"]  # type: ignore[index]
+    return {"row": "✅", "family": "◐", "tool": "✅", "n/a": "—"}.get(scope, "☐")
+
+
+def write_indicators(manifest: dict[str, object]) -> None:
+    entries = {entry["id"]: entry for entry in manifest["indicators"]}  # type: ignore[index]
+    counts = defaultdict(lambda: [0, 0, 0])
+    for event in event_registry:
+        counts[event["indicator"]][int(event["event_type"]) - 1] += 1
+    lines = [
+        "# Indicator Verification Matrix",
+        "",
+        "- Date: 2026-11-06 (UTC)",
+        "- Status: Generated from `docs/registry/verification.json`",
+        "- Claim type: evidence map; no edge claim",
+        "",
+        "`✅` row-level or tool gate; `◐` family-level evidence; `—` not applicable.",
+        "",
+        "| # | Indicator | Code | Area | L/D/S | Registry | Construct test | Predictive | F | C | D | G | E | A | N | P | M | Status |",
+        "|---:|---|---:|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for number, indicator in enumerate(sorted(indicator_registry, key=lambda item: item["code"]), 1):
+        ident = indicator["id"]
+        entry = entries[ident]
+        claim = claims.get(ident, {})
+        l, d, s = counts[ident]
+        tests = ", ".join(claim.get("construct_tests", [])) or "—"
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    str(number),
+                    f"`{ident}`",
+                    str(indicator["code"]),
+                    AREA_OF.get(ident, "—"),
+                    f"{l}/{d}/{s}",
+                    "✅",
+                    tests.replace("|", "\\|"),
+                    str(claim.get("predictive_status", "—")),
+                    cell(entry, "formula"),
+                    cell(entry, "causality"),
+                    cell(entry, "determinism"),
+                    cell(entry, "golden"),
+                    cell(entry, "edge"),
+                    cell(entry, "availability"),
+                    cell(entry, "no_double_count"),
+                    cell(entry, "precedence"),
+                    cell(entry, "math"),
+                    "partial (family)" if any(cell(entry, c) == "◐" for c in CLASSES if c not in {"formula", "math", "emitter"}) else "covered",
+                ]
+            )
+            + " |"
+        )
+    lines += ["", "## Area totals", "", "| Area | Indicators | L | D | S | Total |", "|---|---:|---:|---:|---:|---:|"]
+    for area, ids in AREAS.items():
+        l = d = s = 0
+        for ident in ids:
+            l += counts[ident][0]
+            d += counts[ident][1]
+            s += counts[ident][2]
+        lines.append(f"| {area} | {len(ids)} | {l} | {d} | {s} | {l + d + s} |")
+    lines.append(
+        f"| **Total** | **{len(indicator_registry)}** | **{sum(v[0] for v in counts.values())}** | **{sum(v[1] for v in counts.values())}** | **{sum(v[2] for v in counts.values())}** | **{len(event_registry)}** |"
+    )
+    INDICATORS_DOC.write_text("\n".join(lines) + "\n")
+
+
+def write_events(manifest: dict[str, object]) -> None:
+    entries = {entry["id"]: entry for entry in manifest["events"]}  # type: ignore[index]
+    lines = [
+        "# Event Verification Matrix",
+        "",
+        "- Date: 2026-11-06 (UTC)",
+        "- Status: Generated from `docs/registry/verification.json`",
+        "- Claim type: evidence map; no edge claim",
+        "",
+        "`✅` row-level or tool gate; `◐` family-level evidence; `—` not applicable. `event_code` is the identity column.",
+        "",
+        "| Event ID | Code | Type | Subtype | Sources | Role | Formula | Indicator | Construct test | Predictive | Emitter | Causality | Determinism | Availability | Dedupe | Precedence | Spec | Status |",
+        "|---|---:|---:|---:|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for event in sorted(event_registry, key=lambda item: item["code"]):
+        ident = event["id"]
+        entry = entries[ident]
+        claim = claims.get(ident, {})
+        tests = ", ".join(claim.get("construct_tests", [])) or "—"
+        sources = ",".join(str(value) for value in event.get("sources", [event.get("source")]))
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    f"`{ident}`",
+                    str(event["code"]),
+                    str(event["event_type"]),
+                    str(event["subtype"]),
+                    sources,
+                    str(event["role"]),
+                    str(event.get("formula", "")).replace("|", "\\|"),
+                    f"`{event['indicator']}`",
+                    tests.replace("|", "\\|"),
+                    str(claim.get("predictive_status", "—")),
+                    cell(entry, "emitter"),
+                    cell(entry, "causality"),
+                    cell(entry, "determinism"),
+                    cell(entry, "availability"),
+                    cell(entry, "no_double_count"),
+                    cell(entry, "precedence"),
+                    cell(entry, "spec"),
+                    "partial (family)" if any(cell(entry, c) == "◐" for c in CLASSES if c not in {"formula", "math", "emitter"}) else "covered",
+                ]
+            )
+            + " |"
+        )
+    EVENTS_DOC.write_text("\n".join(lines) + "\n")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--write", action="store_true", help="write the manifest and matrices")
+    args = parser.parse_args()
+    if not args.write:
+        parser.print_help()
+        return 0
+
+    registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    validation = json.loads(VALIDATION.read_text(encoding="utf-8"))
+    global indicator_registry, event_registry, claims
+    indicator_registry = registry["indicators"]
+    event_registry = registry["events"]
+    claims = {claim["id"]: claim for claim in validation["claims"]}
+    manifest = {
+        "schema": "quantrule.verification/v1",
+        "version": "2026-11-06.1",
+        "indicators": [indicator_entry(indicator, claims) for indicator in indicator_registry],
+        "events": [event_entry(event, claims) for event in event_registry],
+    }
+    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
+    write_indicators(manifest)
+    write_events(manifest)
+    print(
+        f"wrote verification: {len(manifest['indicators'])} indicators, "
+        f"{len(manifest['events'])} events"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

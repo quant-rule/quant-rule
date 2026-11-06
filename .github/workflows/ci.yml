@@ -54,6 +54,9 @@ jobs:
       - name: Verification matrices
         run: python3 tools/check_verification_matrix.py
 
+      - name: Verification evidence
+        run: python3 tools/check_verification.py
+
       - name: Event emitters
         run: python3 tools/check_event_emitters.py
 
