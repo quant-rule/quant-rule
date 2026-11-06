@@ -1,9 +1,13 @@
 # Improvement tooling
 
+> Status: historical / S3.x target. The M1.0 shell has no `backtest` command. The
+> run store is retained for the tiered S3.x workflow; the current model programme
+> uses `report model` and `tools/research`.
+
 Python 3 standard-library tooling for the improvement run store. The scripts are
 offline and deterministic: they never read the wall clock, never use randomness,
 and sort every collection before writing. They record and validate evidence; the
-shell still runs the backtest.
+S3.x shell runs the backtest. The M1.0 shell does not expose it.
 
 | Script | Purpose |
 |---|---|

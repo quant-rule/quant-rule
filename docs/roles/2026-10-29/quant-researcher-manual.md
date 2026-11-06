@@ -1,7 +1,9 @@
 # Quant Researcher Manual
 
 - Date: 2026-10-29 (UTC)
-- Status: Current
+- Status: Historical (pre-M1.0); this manual describes the retired
+  strategy/backtest pipeline. The role definition in `AGENTS.md` section 10
+  remains normative.
 - Normative source:
   [`AGENTS.md` section 10](../../../AGENTS.md#10-agentic-engineering-and-role-definitions)
 - Companion: [Quant roles](quant-roles.md),
@@ -9,7 +11,8 @@
 - Scope: candles-only, rule-based signals. Statistical, machine-learning, and
   neural-network signal generation are out of scope.
 - Claim type: procedural. This manual makes no profitability claim.
-- Shell entry: `help roles` for the role map; `help tutorial` for the pipeline.
+- Shell entry: none; the current shell does not expose `help roles` or
+  `help tutorial`.
 
 This is the operating manual for the Quant Researcher role. `AGENTS.md` section
 10 is normative; if this manual disagrees with it, `AGENTS.md` wins. The

@@ -2,8 +2,8 @@
 
 - Date: 2026-11-03 (UTC)
 - Issue: [#347](https://github.com/quant-rule/quant-rule/issues/347)
-- Status: Implemented; opt-in on the legacy model path, active in `config/defaults/model.json`
-- Contract: [`docs/model/2026-11-03/model-v3.md`](../../registry/history.md)
+- Status: Implemented; active by default in `config/defaults/model.json`
+- Contract: [`docs/model/2026-11-05/model-m1.0.md`](../../model/2026-11-05/model-m1.0.md)
 
 ## 1. Formula
 
@@ -37,9 +37,9 @@ Defaults: `fast = 12`, `slow = 26`, `signal = 9`.
 ```
 
 `active` is optional and defaults to `true` when the block is present. The block
-is optional; a model config without it keeps MACD disabled for the legacy v2
-path. `config/defaults/model.json` enables it for new runs. Per-timeframe
-overrides are supported:
+is optional; a model config without a `macd` block keeps MACD disabled.
+`config/defaults/model.json` enables it for new runs. Per-timeframe overrides
+are supported:
 
 ```json
 {
@@ -99,8 +99,7 @@ remaining model records.
 
 ## 7. Limitations
 
-- MACD is opt-in on the legacy v2 model path; enabling it changes event counts
-  and the model report. The v3 path enables it by default.
-- The independent axis/dashboard goldens intentionally use MACD disabled so they
-  keep testing the legacy path without a mixed change.
+- The current `quantrule.model/v4` config enables MACD by default; a
+  per-timeframe override can disable it.
+- Disabling MACD changes the signal event counts and the model report.
 - Funding and execution are unaffected; MACD is a model reading only.

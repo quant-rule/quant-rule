@@ -13,9 +13,10 @@ candles-tolerant
 
 timeframes
   usage:  timeframes <csv-path>
-  does:   Build M5, M15, and H1 from one M1 CSV and print every retained series.
+  does:   Build every supported timeframe from one M1 CSV and print every retained series.
   output: NDJSON candles per timeframe, then partial-bucket and gap records
   note:   The data engine owns aggregation, ordering, and gap detection.
+  note:   The supported data timeframes are 1m, 5m, 15m, 1h, and 4h; the model ceiling is 1h.
 
 events
   usage:  events <csv-path> [--window full|latest]
@@ -30,7 +31,7 @@ report model
   output: the artifact paths, or report.json with --json
   note:   The bundle is written under <out>/model and is refused if the directory is not empty.
   note:   The bundle carries readings, states, levels, events, progression, and context; it carries no axis or cross-timeframe aggregate.
-  note:   A spec adds conditions.csv and prediction.csv.
+  note:   A spec adds conditions.csv; a v2 spec can also add prediction.csv, panel.csv, and session.csv.
 
 policy check
   usage:  policy check --config <run.json>

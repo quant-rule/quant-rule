@@ -1,6 +1,7 @@
 # Data Configuration v3 — Available Timeframes
 
 - Date: 2026-10-30 (UTC)
+- Updated: 2026-11-06 for the M1.0 current-surface cleanup
 - Status: Implemented (#230, PR #239)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#230](https://github.com/quant-rule/quant-rule/issues/230)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
@@ -8,9 +9,9 @@
 
 ## 1. Purpose
 
-`data.json` owns the source and the **available** timeframes the data engine can
-build. The strategy owns the **active** ladder, which is a subset of the available
-timeframes.
+`data.json` owns the source, the **available** timeframes the data engine can
+build, and the ladder the model runs. The current shell has no strategy file; the
+model runs every available timeframe, subject to the model ceiling.
 
 ## 2. Shape
 
@@ -51,14 +52,15 @@ timeframes.
 - The list is ascending by duration.
 - The list has no duplicates.
 - `1m` is present because the source is M1.
-- Every active strategy timeframe is in the available list.
-- Every active strategy timeframe is in the policy universe.
+- Every policy universe timeframe is in the available list.
+- Every model override names an available timeframe.
+- The execution fill timeframe is in the available list and the policy universe.
 - The source cadence must be one minute. Native M5/M15/H1/H4 files are rejected.
 - A sparse M1 file is accepted while at least one adjacent pair is one minute
   apart. A single row is accepted because its cadence cannot be measured.
 - A candle timestamp is a UTC Unix second in 1970-01-01T00:00:00Z through
   9999-12-31T23:59:59Z. The data engine rejects a value outside that range, so
-  downstream bucket, context, and runner arithmetic is bounded.
+  downstream bucket and context arithmetic is bounded.
 
 ## 5. 4h construction
 
@@ -69,9 +71,7 @@ timeframes.
 
 ## 6. Ownership
 
-- `data.json` says what can be built.
-- `strategy.json` says what is active.
+- `data.json` says what can be built and which ladder the model runs.
 - `model.json` says how each available timeframe is measured.
-- `execution.json` fills on `strategy.ladder[0]`.
-
-The active ladder is not duplicated in `data.json`.
+- `execution.json` is validated but is not run by the current shell.
+- No strategy file or strategy ladder is part of the current run.

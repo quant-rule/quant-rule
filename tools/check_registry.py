@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Validate the indicator and parameter registry and its generated table.
 
-The registry is documentation metadata, not a runtime config source. This
-checker fails when the JSON is malformed, a code is duplicated, an event
+The registry is documentation metadata, not a user-editable runtime config
+source. This checker fails when the JSON is malformed, the schema file and the
+hard-coded shape disagree, a code is duplicated or diverges from the Rust
+constants, the registry version diverges from the model crate, an event
 references an unknown source, a default config disagrees with the registry, or
 the generated Markdown is stale.
 
@@ -15,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,6 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "docs/registry/indicators.json"
 MARKDOWN = ROOT / "docs/registry/indicators.md"
 SCHEMA = ROOT / "docs/registry/schema.json"
+MODEL_CODES = ROOT / "crates/quantrule-model/src/events/codes.rs"
+MODEL_LIB = ROOT / "crates/quantrule-model/src/lib.rs"
 
 ROOT_KEYS = {"schema", "version", "indicators", "events", "parameters", "codes"}
 INDICATOR_KEYS = {
@@ -56,12 +61,12 @@ TAXONOMIES = {
     "participation", "flow", "price_action", "path", "cross_asset", "session",
     "calendar",
 }
-AFFECTS = {"model", "strategy", "policy", "execution", "portfolio", "analytics"}
+AFFECTS = {"model", "policy", "execution", "portfolio", "benchmark"}
 PARAMETER_TYPES = {
     "integer", "number", "boolean", "string", "array<integer>", "array<number>",
     "array<string>", "array<array<integer>>", "object",
 }
-UNITS = {"bars", "fraction", "atr", "seconds", "bps", "currency", "period", "none"}
+UNITS = {"bars", "records", "fraction", "atr", "seconds", "bps", "currency", "period", "none"}
 TEST_KINDS = {
     "golden", "causality", "determinism", "edge_cases", "property", "event",
     "boundary", "benchmark",
@@ -104,6 +109,8 @@ def check(registry: Any) -> list[str]:
         return errors
 
     errors.extend(check_codes(codes))
+    errors.extend(check_schema_file())
+    errors.extend(check_model_codes(registry))
 
     indicator_ids: set[str] = set()
     indicator_codes: set[int] = set()
@@ -294,6 +301,69 @@ def check_codes(codes: dict[str, Any]) -> list[str]:
     return errors
 
 
+def check_schema_file() -> list[str]:
+    """Keep the published schema and the hard-coded checks in step."""
+    errors: list[str] = []
+    schema = load(SCHEMA)
+    if not isinstance(schema, dict):
+        return ["schema.json must be an object"]
+    required = set(schema.get("required", []))
+    properties = set(schema.get("properties", {}))
+    if required != ROOT_KEYS:
+        errors.append(f"schema.json required keys diverge: {sorted(required ^ ROOT_KEYS)}")
+    if properties != ROOT_KEYS:
+        errors.append(f"schema.json properties diverge: {sorted(properties ^ ROOT_KEYS)}")
+    if schema.get("additionalProperties") is not False:
+        errors.append("schema.json must set additionalProperties false")
+    defs = schema.get("$defs", {})
+    if not isinstance(defs, dict):
+        return errors + ["schema.json $defs must be an object"]
+    for name, expected in (("indicator", INDICATOR_KEYS), ("event", EVENT_REQUIRED)):
+        actual = set(defs.get(name, {}).get("required", []))
+        if actual != expected:
+            errors.append(
+                f"schema.json {name} required keys diverge: {sorted(actual ^ expected)}"
+            )
+    parameter_required = set(defs.get("parameter", {}).get("required", []))
+    if parameter_required != PARAMETER_REQUIRED:
+        errors.append(
+            "schema.json parameter required keys diverge: "
+            f"{sorted(parameter_required ^ PARAMETER_REQUIRED)}"
+        )
+    return errors
+
+
+def check_model_codes(registry: dict[str, Any]) -> list[str]:
+    """Compare the registry identity to the Rust constants that publish it."""
+    errors: list[str] = []
+    source = MODEL_CODES.read_text(encoding="utf-8")
+    constants = {
+        match.group(1): int(match.group(2))
+        for match in re.finditer(r"pub const ([A-Z0-9_]+): u16 = (\d+);", source)
+    }
+    for event in registry.get("events", []):
+        expected = event["id"].upper().replace(".", "_")
+        if expected not in constants:
+            errors.append(f"model codes are missing {expected} for {event['id']}")
+        elif constants[expected] != event["code"]:
+            errors.append(
+                f"model code {expected} is {constants[expected]}, registry is {event['code']}"
+            )
+    count = re.search(r"pub const COUNT: usize = (\d+);", source)
+    if count is None or int(count.group(1)) != len(registry.get("events", [])):
+        errors.append("model event COUNT does not match the registry event count")
+
+    library = MODEL_LIB.read_text(encoding="utf-8")
+    match = re.search(r'REGISTRY_VERSION: &str = "([^"]+)"', library)
+    if match is None:
+        errors.append("model REGISTRY_VERSION was not found")
+    elif match.group(1) != registry.get("version"):
+        errors.append(
+            f"model REGISTRY_VERSION {match.group(1)} != registry {registry.get('version')}"
+        )
+    return errors
+
+
 def check_defaults(registry: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     parameters = {entry["id"]: entry for entry in registry.get("parameters", []) if isinstance(entry, dict) and "id" in entry}
@@ -308,7 +378,9 @@ def check_defaults(registry: dict[str, Any]) -> list[str]:
         if not parameter.get("configurable"):
             continue
         path = parameter.get("path", "")
-        if path in ("fixed",) or path.startswith(("weights", "entry.", "risk.", "benchmark.")):
+        if path == "fixed":
+            if parameter.get("configurable"):
+                errors.append(f"{ident}: a fixed parameter cannot be configurable")
             continue
         config_name = identify_config(ident)
         if config_name is None:

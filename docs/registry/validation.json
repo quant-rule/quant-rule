@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.validation/v1",
-  "version": "2026-11-05.3",
+  "version": "2026-11-06.1",
   "claims": [
     {
       "id": "absorption",
@@ -69,7 +69,7 @@
       "id": "bos_choch",
       "kind": "indicator",
       "construct_tests": [
-        "event_validation::bos_and_choch"
+        "event_validation::bos_and_choch_are_classified"
       ],
       "primary_outcome": "structure",
       "predictive_status": "pending"
@@ -1869,7 +1869,7 @@
       "id": "signal.session_range_contraction",
       "kind": "event",
       "construct_tests": [
-        "defect::session_range_contraction"
+        "session::tests::session_fade_and_range_events_are_exercised"
       ],
       "primary_outcome": "none",
       "predictive_status": "not_applicable",

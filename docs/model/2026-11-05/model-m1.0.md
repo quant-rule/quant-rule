@@ -1,6 +1,7 @@
 # M1.0 — Flat Result, Configurable Events, and 1h Ceiling
 
 - Date: 2026-11-04 (UTC)
+- Updated: 2026-11-06 for the current-surface cleanup
 - Status: **Implemented; path validation no edge**
 - Model ID: `M1.0`
 - Family: `M1`
@@ -54,10 +55,15 @@ no chart projection, no prediction, and no confidence field. The per-timeframe
 result is the only model output; every cross-timeframe view is computed by a
 reporting consumer, and the strategy context is built by S3.x.
 
+The bounded per-timeframe event history keeps the newest 1,024 event records,
+not 1,024 bars. A bar can produce several events, so the bound counts records.
+The full event batch is never truncated.
+
 The shell publishes the same result through `report model` as a bundle:
 `summary.txt`, `report.json`, `result.json`, `readings.csv`, `events.csv`,
 `levels.csv`, `legs.csv`, and `provenance.json`. A model spec adds
-`conditions.csv` and, for a v2 spec, `prediction.csv`.
+`conditions.csv`; a v2 spec adds `prediction.csv` and writes `panel.csv` and
+`session.csv` when it declares a panel or a session.
 
 `report.json` carries the core Level, Divergence, and Signal event domain. The
 `events.csv` artifact and the `events` command carry the full registered and

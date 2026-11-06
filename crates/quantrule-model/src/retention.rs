@@ -106,7 +106,7 @@ mod tests {
 
     fn record(index: usize) -> EventRecord {
         EventRecord {
-            event_code: 0,
+            event_code: crate::events::codes::LEVEL_TEST,
             event_type: EventType::Signal,
             event_subtype_code: 1,
             source_code: 4,

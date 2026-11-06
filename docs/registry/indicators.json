@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-05.17",
+  "version": "2026-11-06.1",
   "indicators": [
     {
       "id": "ema",
@@ -4655,7 +4655,7 @@
       "path": "fixed",
       "type": "integer",
       "default": 1024,
-      "unit": "bars",
+      "unit": "records",
       "configurable": false,
       "affects": [
         "model"
@@ -4673,116 +4673,6 @@
         "model"
       ],
       "status": "active"
-    },
-    {
-      "id": "strategy.weights",
-      "path": "weights",
-      "type": "object",
-      "default": 1.0,
-      "unit": "none",
-      "configurable": true,
-      "affects": [
-        "strategy"
-      ],
-      "status": "experimental"
-    },
-    {
-      "id": "strategy.direction_min",
-      "path": "entry.execution.direction_min",
-      "type": "number",
-      "default": 0.1,
-      "unit": "none",
-      "configurable": true,
-      "affects": [
-        "strategy"
-      ],
-      "status": "experimental",
-      "min": -1.0,
-      "max": 1.0
-    },
-    {
-      "id": "strategy.momentum_min",
-      "path": "entry.execution.momentum_min",
-      "type": "number",
-      "default": 0.1,
-      "unit": "none",
-      "configurable": true,
-      "affects": [
-        "strategy"
-      ],
-      "status": "experimental",
-      "min": -1.0,
-      "max": 1.0
-    },
-    {
-      "id": "strategy.structure_min",
-      "path": "entry.execution.structure_min",
-      "type": "number",
-      "default": 0.0,
-      "unit": "none",
-      "configurable": true,
-      "affects": [
-        "strategy"
-      ],
-      "status": "experimental",
-      "min": -1.0,
-      "max": 1.0
-    },
-    {
-      "id": "strategy.context.share_min",
-      "path": "entry.context.direction.share_min",
-      "type": "number",
-      "default": 0.5,
-      "unit": "fraction",
-      "configurable": true,
-      "affects": [
-        "strategy"
-      ],
-      "status": "experimental",
-      "min": 0.0,
-      "max": 1.0
-    },
-    {
-      "id": "strategy.level.max_distance_fraction",
-      "path": "entry.level.max_distance_fraction",
-      "type": "number",
-      "default": 0.02,
-      "unit": "fraction",
-      "configurable": true,
-      "affects": [
-        "strategy"
-      ],
-      "status": "experimental",
-      "min": 0.0,
-      "max": 1.0
-    },
-    {
-      "id": "strategy.risk.stop_buffer_fraction",
-      "path": "risk.stop.buffer_fraction",
-      "type": "number",
-      "default": 0.005,
-      "unit": "fraction",
-      "configurable": true,
-      "affects": [
-        "strategy"
-      ],
-      "status": "experimental",
-      "min": 0.0,
-      "max": 1.0
-    },
-    {
-      "id": "strategy.risk.min_reward_to_risk",
-      "path": "risk.target.min_reward_to_risk",
-      "type": "number",
-      "default": 2.0,
-      "unit": "none",
-      "configurable": true,
-      "affects": [
-        "strategy"
-      ],
-      "status": "experimental",
-      "min": 0.1,
-      "max": 100.0
     },
     {
       "id": "policy.performance_target",
@@ -4978,18 +4868,6 @@
       "min": 0.0
     },
     {
-      "id": "analytics.relations",
-      "path": "relations",
-      "type": "boolean",
-      "default": true,
-      "unit": "none",
-      "configurable": false,
-      "affects": [
-        "analytics"
-      ],
-      "status": "retired"
-    },
-    {
       "id": "benchmark.seed",
       "path": "benchmark.seed",
       "type": "integer",
@@ -4997,7 +4875,7 @@
       "unit": "none",
       "configurable": false,
       "affects": [
-        "analytics"
+        "benchmark"
       ],
       "status": "active"
     },
@@ -5009,7 +4887,7 @@
       "unit": "none",
       "configurable": false,
       "affects": [
-        "analytics"
+        "benchmark"
       ],
       "status": "active",
       "min": 1
@@ -5795,9 +5673,6 @@
       "6": "RVOL",
       "7": "minor pivots",
       "8": "major pivots",
-      "9": "Direction (legacy)",
-      "10": "Structure (legacy)",
-      "11": "Momentum (legacy)",
       "12": "progression",
       "13": "MACD line",
       "14": "MACD signal",

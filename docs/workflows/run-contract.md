@@ -1,8 +1,9 @@
 # Improvement Run Contract
 
 - Date: 2026-11-01 (UTC)
-- Status: Current; schema `quantrule.improvement-run/v1` is implemented by the
-  run-store phase
+- Status: S3.x target; schema `quantrule.improvement-run/v1` is implemented by
+  the run-store phase. The M1.0 shell does not expose the `backtest` command;
+  the current model programme uses the research tooling and `report model`.
 - Scope: model, strategy, and portfolio runs
 - Tooling: `tools/improvement/` (Python)
 
@@ -180,8 +181,9 @@ record is not valid evidence if the freeze cannot be traced.
 
 ## Run execution
 
-`run.py` is the only command that creates a run folder. Its default
-`--command backtest` invokes the shell once. `--command claim-validation` runs the
+`run.py` is the only command that creates a run folder. In the S3.x target its
+default `--command backtest` invokes the shell once; the M1.0 shell does not
+expose that command. `--command claim-validation` runs the
 model claim-validation harness with the cells JSON named by `run_config`; this is
 the model-gate evidence path. The manifest, folder layout, results envelope, and
 artifact digests are the same.
@@ -350,8 +352,9 @@ matching verdict and reason.
 
 The run-store tooling lives in `tools/improvement/` and is written in Python. See
 [`tools/improvement/README.md`](../../tools/improvement/README.md) for the
-current scripts. It does not replace the shell: the shell still executes the
-backtest, and the tooling records, validates, and indexes the evidence.
+retained scripts. It does not replace the shell: the S3.x shell will execute
+the backtest, and the tooling records, validates, and indexes the evidence. The
+M1.0 shell does not expose it.
 
 | Tool | Responsibility |
 |---|---|
@@ -361,7 +364,7 @@ backtest, and the tooling records, validates, and indexes the evidence.
 | `gate_compare.py --dev <json> --validation <json> --out <dir>` | Combine two partition results; a validation-only cell does not pass |
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the published report |
 | `index.py --root data/improvement` | Rebuild `index.json` and `index.md` in deterministic order |
-| `model_confidence.py` | Axis hit rates and ordered buckets from `model-series` |
+| `model_confidence.py` | Event/state hit rates and ordered buckets from `model-series` |
 | `cleanup.py --check` | Report retired terms and legacy run paths; never delete or rewrite |
 | `common.py` | Shared schema, JSON, UTC, path, and process helpers |
 

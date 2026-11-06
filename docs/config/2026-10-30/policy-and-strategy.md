@@ -1,13 +1,13 @@
 # Policy Blueprint and Current Run Contracts
 
-- Date: 2026-10-30 (updated 2026-11-05 for the M1.0 cutover)
+- Date: 2026-10-30 (updated 2026-11-06 for the M1.0 current-surface cleanup)
 - Applies to: run schema `quantrule.run/v2`, policy `v1`, data `v3`, model
   `v4`, execution `v2`, portfolio `v1`
 - Related: `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md`
 
 ## Run composition
 
-`run.json` names the policy, the five current engine files, and the output root:
+`run.json` names the policy, the four engine files, and the output root:
 
 ```json
 {
@@ -61,11 +61,11 @@ are optional, but a present identity must carry its type prefix (`M`, `POL`,
 | `objective.performance_target` | Finite, `> 0`; evaluation target, never a signal |
 | `objective.evaluation_days` | Integer `1..=3650` |
 | `objective.max_drawdown` | `(0, 1]`; portfolio limit must be at most this and must halt |
-| `risk.max_position_fraction` | `(0, 1]`; fixed notional must be at most initial account × fraction; at each fill the runner caps the entry notional at current equity × leverage × fraction |
+| `risk.max_position_fraction` | `(0, 1]`; fixed notional must be at most initial account × fraction; at each fill the S3.x runner caps the entry notional at current equity × leverage × fraction |
 | `risk.max_leverage` | Exactly `1.0` in v1 |
 | `risk.max_open_positions` | Exactly `1` in v1 |
 | `universe.tickets` | Non-empty, unique, no whitespace; `data.instrument` must be present |
-| `universe.timeframes` | Non-empty, unique, ascending; subset of the data ladder; every active ladder member must be present |
+| `universe.timeframes` | Non-empty, unique, ascending; a subset of the data ladder; the execution fill timeframe must be present |
 
 There are deliberately no news, weekend, session, or daily-loss fields.
 

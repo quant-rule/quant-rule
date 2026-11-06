@@ -10,8 +10,8 @@ functions; see [`docs/roles/2026-10-30/`](../2026-10-30/) for those manuals.
 
 This page explains the three quant roles in plain language. `AGENTS.md` is the
 normative source; if the two disagree, `AGENTS.md` wins and this page is
-corrected. From the shell, `help roles` prints this map and `help tutorial`
-prints the pipeline map.
+corrected. The current shell does not expose `help roles` or `help tutorial`;
+this document is the role map.
 
 ## Why three roles
 

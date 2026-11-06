@@ -1,7 +1,7 @@
 # Improvement Registry
 
 - Date: 2026-11-03 (UTC)
-- Status: Current; committed summary is canonical
+- Status: Current committed record; the tiered run contract is S3.x and no current run uses it
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 This directory is the committed record of improvement runs. The run folders
