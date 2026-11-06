@@ -148,5 +148,6 @@ remediation issues and pull requests, not the audit document itself.
 
 - [Audit format](../audits/README.md)
 - [Audit Workflow roles](../roles/2026-10-30/audit-workflow-roles.md)
+- [Refactor Workflow](refactor-workflow.md)
 - [Improvement Workflow](improvement-workflow.md)
 - [`AGENTS.md` section 11](../../AGENTS.md)

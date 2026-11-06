@@ -16,8 +16,9 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | Releases | The notes for a tagged release. | `docs/releases/<YYYY-MM-DD>/<file>.md` |
 | Architecture decision records | A decision, the alternatives considered, and the consequences. | `docs/adr/<YYYY-MM-DD>/<file>.md` |
 | Audits | Read-only findings, evidence, and remediation options. | `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` |
+| Refactors | Read-only structural findings, evidence, and refactor options. | `docs/refactors/<YYYY-MM-DD>/<scope>-refactor.md` |
 | Governance | The improvement charter, green criteria, autonomy, and stop conditions. | `docs/governance/<YYYY-MM-DD>/<file>.md` |
-| Workflows | The living Audit Workflow, Improvement Workflow, and run contract. | `docs/workflows/<file>.md` |
+| Workflows | The living Audit Workflow, Refactor Workflow, Improvement Workflow, and run contract. | `docs/workflows/<file>.md` |
 | Improvement registry | The committed run index, baselines, invalidation tombstones, and run record template. | `docs/improvement/<file>.md` |
 
 The tutorial kind is defined in `AGENTS.md`; the current M1.0 lab tutorial is
@@ -95,6 +96,7 @@ improvement runs under the current run contract and are not imported as baseline
 | Workflow | Status | Path |
 |---|---|---|
 | Audit Workflow | Current | `docs/workflows/audit-workflow.md` |
+| Refactor Workflow | Current | `docs/workflows/refactor-workflow.md` |
 | Improvement Workflow | S3.x target; the M1.0 shell does not expose the tiered `backtest` command | `docs/workflows/improvement-workflow.md` |
 | Improvement run contract | S3.x target; no current run uses it | `docs/workflows/run-contract.md` |
 | Research Swarm Runbook | Current contract; no active campaign | `docs/workflows/research-swarm.md` |
@@ -109,6 +111,7 @@ improvement runs under the current run contract and are not imported as baseline
 | All three | [Quant roles overview](roles/2026-10-29/quant-roles.md) | Current role map and handoff chain |
 | Improvement Workflow | [Improvement Workflow roles](roles/2026-10-30/improvement-workflow-roles.md) | S3.x target; model-only current programme uses the research tooling |
 | Audit Workflow | [Audit Workflow roles](roles/2026-10-30/audit-workflow-roles.md) | Current |
+| Refactor Workflow | [Refactor Workflow roles](roles/2026-11-06/refactor-workflow-roles.md) | Current |
 
 ## Local workspace
 
@@ -125,6 +128,7 @@ surface.
 | Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
 | Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
 | Command-surface checker | Fails when `help.rs`, the README command table, the command registry, or a tutorial disagree; keeps planned commands out of the available surface. | `tools/check_command_surface.py` |
+| Structural fitness checker | Enforces module docs, engine purity, data allowlist, workflow indexing, dated docs directories, and naming rules; reports size, surface, and layout metrics. | `tools/check_structure.py` |
 
 The experiment matrix runner, improvement run store, and research model-cell runner
 are historical. They target the retired backtest surface and are not current
