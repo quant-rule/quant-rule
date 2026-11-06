@@ -8,7 +8,7 @@ QuantRule ships as a shell application, and that is the whole of it. The result 
 
 The system is deterministic. Given the same input data and the same configuration, it must produce the same output every time. Any behavior that depends on wall-clock time, unseeded randomness, or iteration order of unordered collections is a defect, not a limitation. See section 12.
 
-The system is improved through two explicit workflows: a human-owned policy and strategy blueprint, an Improvement Workflow (run, results, review, new hypothesis), an Audit Workflow (audit, remediation plan, execution, verification), an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop.
+The system is improved through explicit workflows: a human-owned policy and strategy blueprint, an Improvement Workflow (run, results, review, new hypothesis), an Audit Workflow (audit, remediation plan, execution, verification), a Refactor Workflow (structural assessment, refactor plan, behavior-neutral execution, equivalence verification), an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop.
 
 ## 2. Architecture and Data Flow
 
@@ -62,7 +62,7 @@ POLICY (human) > STRATEGY (human) > MODEL (measurement) > EXECUTION (fills) > PO
 - Execution fills decisions. It never decides direction.
 - Portfolio accounts. It never decides a signal.
 - Analytics evaluates. It never feeds a rule.
-- Audits, experiments, plans, the Audit Workflow, and the Improvement Workflow decide what to change; they never implement.
+- Audits, refactor assessments, experiments, plans, the Audit Workflow, the Refactor Workflow, and the Improvement Workflow decide what to change; the Engineering roles implement.
 
 Statistics is confined to evaluation and validation. No regression, correlation, p-value, optimization, fitted coefficient, percentile-driven entry/exit, or machine-learning model is part of the signal path. A model diagnostic may remain outside the signal path only if a boundary test proves the strategy cannot read it.
 
@@ -73,7 +73,7 @@ The analytical model's contract — the indicator and event definitions, the num
 - **Toolchain.** The implementation language is Rust. Verify the actual installed toolchain and configuration before relying on version-specific APIs or flags. Do not assume that a documented or planned feature has already been implemented.
 - **Formatting.** Format with `cargo fmt` and keep the result committed. Do not hand-format around rustfmt; if rustfmt output is wrong, change the rustfmt configuration deliberately and say so in the pull request.
 - **Lints.** `cargo clippy --all-targets` must be free of warnings. Do not suppress a clippy lint to make the build pass. If a lint is genuinely inapplicable, allow it at the narrowest possible scope with a comment explaining why.
-- **Naming.** `snake_case` for functions, modules, and files; `CamelCase` for types and traits; `SCREAMING_SNAKE_CASE` for constants and statics. Keep names descriptive of the domain (candle, timeframe, indicator, signal) rather than of the implementation.
+- **Naming.** `snake_case` for functions, modules, and files; `CamelCase` for types and traits; `SCREAMING_SNAKE_CASE` for constants and statics. Keep names descriptive of the domain (candle, timeframe, indicator, signal) rather than of the implementation. Do not add catch-all `utils`, `helpers`, `common`, `misc`, or `manager` modules. Use one term per concept across code, tests, docs, and commands; a rename is a reviewed change, not a drive-by edit.
 - **Errors.** Library code returns `Result` and uses explicit error types. `unwrap` and `expect` are not allowed in library code; they are acceptable in tests and in binary entry points where a failure is unrecoverable and the message states what to do next. Library code must not panic on invalid input.
 - **`unsafe`.** Not allowed without a written justification that explains the invariant being upheld and the consequences of violating it, plus explicit human approval.
 - **Dependencies.** Adding a dependency is a decision, not an implementation detail. It requires approval (section 14) and must be justified in the pull request. Do not add a crate to work around a problem the standard library or an existing dependency already solves.
@@ -148,8 +148,9 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/tutorials/<YYYY-MM-DD>/<file>.md` — end-to-end procedures that run the product through shell commands, including role labs.
   - `docs/adr/<YYYY-MM-DD>/<file>.md` — architecture decision records, describing the decision, the alternatives considered, and the consequences.
   - `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` — read-only findings, evidence, and remediation options. `docs/audits/README.md` is the index/template.
+  - `docs/refactors/<YYYY-MM-DD>/<scope>-refactor.md` — read-only structural findings, evidence, and refactor options. `docs/refactors/README.md` is the index/template.
   - `docs/governance/<YYYY-MM-DD>/<file>.md` — the improvement charter, green criteria, autonomy, and stop conditions.
-  - `docs/workflows/<file>.md` — the living workflow contracts: the Audit Workflow, the Improvement Workflow, and the run contract.
+  - `docs/workflows/<file>.md` — the living workflow contracts: the Audit Workflow, the Refactor Workflow, the Improvement Workflow, and the run contract.
   - `docs/improvement/<file>.md` — the committed improvement registry: run index, baselines, invalidation tombstones, and the run record template.
   - `docs/config/<YYYY-MM-DD>/<file>.md` — policy, strategy, and engine configuration contracts.
 - **Plans live in the repository.** An execution plan drafted outside the repository is a scratch copy, not the plan of record. Before implementation, it is written to `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` and committed. No implementation begins until that file exists.
@@ -274,6 +275,16 @@ block per finding. Evidence must be reproducible. Critical and Major findings
 carry at least two remediation options. The audit is read-only: it does not
 modify code, tests, issues, or PRs.
 
+### Refactor format
+
+A refactor assessment is one dated document under `docs/refactors/<YYYY-MM-DD>/`.
+It carries a findings table with `ID`, `Impact`, `Area`, `Finding`, `Evidence`,
+`Principle`, `Options`, `Recommended`, `Verification`, `Status`, and `Links`,
+plus a detail block per finding. Evidence must be reproducible. High and Medium
+findings carry at least two remediation options. The assessment is read-only: it
+does not modify code, tests, issues, or PRs. The full template is
+`docs/refactors/README.md`.
+
 ### Improvement run record format
 
 An improvement run is one dated folder under
@@ -345,15 +356,22 @@ Rules for the lifecycle:
 - The board is kept in step by workflows rather than by hand. The project's built-in workflows mark an item `Done` when its issue is closed, and close the issue when the item is marked `Done`. A repository workflow owns the `State`, `Item type`, and `Closed date` fields, and recomputes a container's `Status` from its sub-issues. The agent sets a leaf's `Todo`, `In Progress`, and `Start date`, and does not set what a workflow owns.
 - If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
 
-### Audit and improvement tracking
+### Audit, refactor, and improvement tracking
 
-Audit documents, improvement run records, and pre-reset experiment records are
-repository artifacts, not board items. The board tracks the remediation
-issues/sub-issues and their PRs. An audit finding has its own status in the audit
-document: `Open`, `Triaged`, `Planned`, `In progress`, `Fixed`, `Verified`,
-`Won't fix`, `Duplicate`, or `Stale`. The Planner moves a finding to
-`Triaged`/`Planned`; execution/PR moves it to `Fixed`; the Improvement Verifier
-alone moves it to `Verified`; the human alone decides `Won't fix`.
+Audit documents, refactor assessments, improvement run records, and pre-reset
+experiment records are repository artifacts, not board items. The board tracks
+the remediation issues/sub-issues and their PRs. An audit finding has its own
+status in the audit document: `Open`, `Triaged`, `Planned`, `In progress`,
+`Fixed`, `Verified`, `Won't fix`, `Duplicate`, or `Stale`. The Planner moves a
+finding to `Triaged`/`Planned`; execution/PR moves it to `Fixed`; the Improvement
+Verifier alone moves it to `Verified`; the human alone decides `Won't fix`.
+
+A refactor finding has its own status in the assessment: `Open`, `Triaged`,
+`Planned`, `In progress`, `Refactored`, `Verified`, `Deferred`, `Won't refactor`,
+`Duplicate`, or `Stale`. The Refactor Planner moves a finding to
+`Triaged`/`Planned`; execution/PR moves it to `Refactored`; the Refactor Verifier
+alone moves it to `Verified`; the human alone decides `Deferred` or
+`Won't refactor`.
 
 Improvement runs are tracked by the run contract in
 `docs/workflows/run-contract.md`, not by the board.
@@ -399,9 +417,11 @@ authorities.
 | Audit Workflow | Audit, Planner, Improvement Verifier | Audit, remediation plan, closure verification |
 | Improvement Workflow | Loop Governor, Result Analyst, Triage Officer | Run, results, review, new hypothesis |
 
-The **Engineering** and **Quant** swarms are the two delivery sides. The Audit
-Workflow and Improvement Workflow are cross-cutting oversight; they do not
-implement or approve. The human is above all four groups.
+The **Engineering** and **Quant** swarms are the two delivery sides. The Refactor
+Workflow is an Engineering workflow; its four roles specialize the Architect,
+Planner, Implementation, and Code Reviewer roles. The Audit Workflow and
+Improvement Workflow are cross-cutting oversight; they do not implement or
+approve. The human is above all four groups.
 
 ### Human Developer — Decision Owner
 
@@ -681,6 +701,27 @@ it for remediation.
 
 Boundaries: read-only; cannot verify its own audit or plan; no code or approval.
 
+### Refactor Workflow
+
+Purpose: Improve structure without changing observable behavior. The four roles
+below own the five stages: Refactor Assessment, Refactor Plan, Execution,
+Verification, and Loop Decision. They specialize the existing Architect,
+Planner, Implementation, and Code Reviewer roles.
+
+| Role | Responsibility | Boundary |
+|---|---|---|
+| Structure Auditor | Scan structure, capture the baseline, record reproducible findings | Read-only; no plan, code, or verification |
+| Refactor Planner | Verify findings, deduplicate, find the structural cause, write the plan and issues after approval | No implementation; no approval |
+| Refactor Implementer | Execute one approved behavior-neutral seam and update tests and docs | No scope expansion; no test weakening |
+| Refactor Verifier | Independently check equivalence, gates, and the named metric | Read-only; cannot verify its own work |
+
+Separation of duties: the Structure Auditor cannot plan, implement, or verify its
+own finding; the Refactor Planner cannot implement; the Refactor Implementer
+cannot move a finding to `Verified`; the Refactor Verifier cannot verify its own
+assessment, plan, or implementation. The human owns `Deferred` and
+`Won't refactor`. A refactor that changes model or strategy behavior is not a
+refactor; it goes to the owning workflow with the Quant roles.
+
 ### Role Assignment Rules
 
 Not every task needs every role.
@@ -695,7 +736,7 @@ Strategy or model behavior changes require the quant roles:
 - **Quant Developer** for any change to model or strategy implementation.
 - **Quant Validator** before a strategy result is called promising, before a model or strategy behavior change is merged, and before a release that changes signal generation.
 
-Docs-only, tooling-only, and refactors that do not change model or strategy output do not require quant roles.
+Docs-only, tooling-only, and refactors that do not change model or strategy output do not require quant roles. Architecture-sensitive refactors use the Structure Auditor, Refactor Planner, Refactor Implementer, and Refactor Verifier. A refactor that changes model or strategy behavior requires the Quant Researcher, Quant Developer, and Quant Validator; it is not a refactor.
 The quant roles specialize the existing roles; they do not replace the Software Architect, Test Engineer, Code Reviewer, Security and Privacy Reviewer, or Release / Operations Verifier.
 When one agent performs several quant roles, the orchestrator discloses the sequential passes; no claim of independent review is made.
 The human remains the final authority; a Quant Validator verdict is evidence, not approval.
@@ -710,7 +751,7 @@ not replace the Engineering, Quant, or human approval gates.
 
 Only one implementation agent should write to a given file or workstream at a time. Parallel investigation is permitted when scopes are non-overlapping, clearly assigned, and consistent with the approved plan. Separate sessions work in separate worktrees (section 7), so two of them do not contend for the same files.
 
-## 11. Audits, Improvement Runs, and Execution Plans
+## 11. Audits, Refactors, Improvement Runs, and Execution Plans
 
 An execution plan makes substantial work reviewable before implementation. It is separate from the permanent repository rules in this file.
 
@@ -760,6 +801,27 @@ Audit -> Remediation Plan -> Execution -> Verification. The full contract is
 A finding that changes model or strategy behavior also requires the Quant
 Researcher, Quant Developer, and Quant Validator; the Audit Workflow cannot close
 it alone.
+
+### Refactor workflow
+
+Refactor Assessment -> Refactor Plan -> Execution -> Verification -> Loop
+Decision. The full contract is `docs/workflows/refactor-workflow.md`.
+
+1. The Structure Auditor scans a fixed baseline read-only and writes
+   `docs/refactors/<date>/<scope>-refactor.md`.
+2. The Refactor Planner verifies each finding, marks stale or duplicate findings,
+   and writes an execution plan with a traceability table.
+3. The human approves the plan.
+4. The Refactor Implementer executes one seam per PR under section 13; a
+   behavior change stops the refactor and routes to the owning workflow.
+5. The Refactor Verifier independently checks equivalence, gates, and the named
+   metric, then moves the finding to `Verified`.
+6. The loop re-scans; it continues only within the approved campaign and budget,
+   otherwise it stops.
+
+A refactor never closes an audit finding, changes a model or strategy result, or
+fixes a defect. A structural cause found by an audit is routed to a refactor
+assessment; the Audit Workflow still closes its own finding.
 
 ### Improvement run record
 
@@ -895,12 +957,12 @@ QuantRule is a deterministic, rule-based system. A backtest that cannot be repro
 
 Follow these stages in order for planned work.
 
-### Stage 0 — Improvement intake
+### Stage 0 — Work intake
 
-The Improvement Workflow or the human defines the run or accepts the audit
-finding. The audit or run record exists; when the work changes code, the Planner
-has a plan and the human has approved it. No implementation starts before this
-gate.
+The Improvement Workflow or the human defines the run, accepts the audit finding,
+or approves a refactor campaign. The audit, run, or refactor assessment exists;
+when the work changes code, the Planner has a plan and the human has approved it.
+No implementation starts before this gate.
 
 ### Stage 1 — Read-only Preflight
 
@@ -971,13 +1033,15 @@ The report itself follows the response format in section 8.
 
 Stop without beginning an unrequested subsequent task.
 
-### Stage 6 — Audit closure and improvement workflow
+### Stage 6 — Audit, refactor, and improvement closure
 
-The Improvement Verifier checks the merged work against the finding, confirms
-the regression guard, and updates the finding to `Verified`. The Improvement
-Workflow records the run result and decides whether to re-run, change one tier,
-or stop. Unresolved findings stay open; no release with an open Critical finding
-unless the human records residual-risk acceptance.
+The Improvement Verifier checks the merged work against the audit finding,
+confirms the regression guard, and updates the finding to `Verified`. The Refactor
+Verifier checks the merged refactor against the assessment's equivalence and
+structural criteria and updates the finding to `Verified` or returns it for
+remediation. The Improvement Workflow records the run result and decides whether
+to re-run, change one tier, or stop. Unresolved findings stay open; no release
+with an open Critical finding unless the human records residual-risk acceptance.
 
 ## 14. Human Approval Gates
 
@@ -991,6 +1055,7 @@ Examples include:
 - Security, privacy, authorization, and data-retention decisions.
 - Schema changes and consequential migration or recovery decisions.
 - Changes to development methodology, Git conventions, or approval procedures.
+- A refactor campaign, a consequential module-boundary change, or structural debt accepted as `Deferred` or `Won't refactor`.
 - A policy or strategy blueprint change, a model/strategy/execution/portfolio/
   analytics contract change, or a new improvement run protocol.
 - A finding marked `Won't fix`, a release with an open Critical finding, or a

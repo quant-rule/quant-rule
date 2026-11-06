@@ -234,6 +234,7 @@ the reviewer and the human; the tooling does not accept them.
 
 - [Run contract](run-contract.md)
 - [Audit Workflow](audit-workflow.md)
+- [Refactor Workflow](refactor-workflow.md)
 - [Improvement Workflow roles](../roles/2026-10-30/improvement-workflow-roles.md)
 - [Improvement registry](../improvement/README.md)
 - [Workflow reset execution plan](../execution-plans/2026-11-01/workflow-reset.md)

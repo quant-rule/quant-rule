@@ -64,3 +64,10 @@ moves a finding to `Verified`, and only the human decides `Won't fix`.
 Quant findings additionally require Quant Researcher, Quant Developer, and Quant
 Validator evidence. The Audit Workflow cannot close them alone; a finding that
 changes model or strategy behavior is also a Quant change.
+
+## Related workflow
+
+A structural cause that is not itself a correctness defect is routed to the
+[Refactor Workflow](../../workflows/refactor-workflow.md) and its
+[roles](../2026-11-06/refactor-workflow-roles.md). The Audit Workflow still owns
+the defect finding and closes it independently.

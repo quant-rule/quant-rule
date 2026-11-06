@@ -74,16 +74,20 @@ values; that boundary is S3.x. The crate graph and the shell/engine boundary hav
 source-level guards.
 
 Fitness function: `cargo test`; golden fixtures; boundary tests; architecture
-guards; `cargo clippy --all-targets`. Current evidence: the P3 cutover suite passes
-at v0.3.0; the execution plan records the observed counts. The count is evidence of
-investment, not the goal: a passing test that does not reach the behavior proves
-nothing.
+guards; `cargo clippy --all-targets`; the structural checker. Current evidence:
+the P3 cutover suite passes at v0.3.0; the execution plan records the observed
+counts. The count is evidence of investment, not the goal: a passing test that
+does not reach the behavior proves nothing.
+
+The [Refactor Workflow](../workflows/refactor-workflow.md) owns the periodic
+structural assessment. It measures testability and modularity before and after a
+behavior-neutral change and keeps the structural checker honest.
 
 ## 5. Supporting characteristics
 
 | Characteristic | Type | What "good" means here | Fitness function | Current evidence |
 |---|---|---|---|---|
-| **Modularity** | Structural | One crate per pipeline responsibility; one-way dependencies; pure engines; the shell owns I/O. The backtest crate holds the strategy, execution, portfolio, and benchmark engines for S3.x. | Crate graph; source-level boundary guards; `cargo clippy --all-targets`; review. | Strong at crate level. The shell is about 12,000 non-integration-test lines and remains the watch item. |
+| **Modularity** | Structural | One crate per pipeline responsibility; one-way dependencies; pure engines; the shell owns I/O. The backtest crate holds the strategy, execution, portfolio, and benchmark engines for S3.x. | Crate graph; source-level boundary guards; `cargo clippy --all-targets`; structural report; review. | Strong at crate level. The shell remains the watch item; the structural report names its largest modules. |
 | **Simplicity and deployability** | Operational / structural | One local binary; local files; no service, UI, or server database. Keeps the product a tool, not a platform. | Release build; single binary; no network in tests. | Strong operationally; the command and configuration surface is broad. |
 | **Evolvability** | Structural | Contracts are versioned; a new capability arrives as a new command or configuration; model and strategy changes are pre-registered. Protects prior evidence. | Versioned schemas; migration tests; ADR and plan index; command contract tests. | Partial: strong process, expensive contract changes. |
 | **Discoverability** | Cross-cutting | Every command, argument, and output shape is reachable from help; output is fixed-width and deterministic. A capability that cannot be typed does not exist. | Help tests; `help all`; CLI tests. | Strong. Help and `help all` render from one command table and are tested. |
@@ -172,10 +176,15 @@ guarantee; release notes are the record for released runs.
 | Item | Observed |
 |---|---|
 | Workspace | Four crates; version 0.3.0; edition 2024; Rust 1.99.1 pinned |
-| Size | 56,397 Rust lines including integration tests; 50,645 outside `tests/`; the shell is 12,265 outside its integration tests |
-| Tests | The full workspace suite passes; the file-size gate passes |
+| Size | The structural report scans `src`: 192 Rust source files and 63,683 lines. The complete tree, including integration and inline tests, is 230 files and 75,412 lines; the shell is 23,367 lines across 77 files. |
+| Largest file | 973 lines at the preflight; the file-size gate remains at 1,000 |
+| Tests | The full workspace suite passes: 1,309 passed, 0 failed, 8 ignored; the file-size and structural gates pass |
 | Model report | The `report model` bundle over a fixture run |
 | Unsafe | Forbidden at every crate root |
+
+The structural report is the reproducible source for the size snapshot:
+`python3 tools/check_structure.py --report`. Hand-counted line totals are
+historical evidence, not a contract.
 
 ## 10. Watch items and review triggers
 
@@ -188,6 +197,10 @@ guarantee; release notes are the record for released runs.
   coverage.
 - **Contract changes.** A change to a command, configuration schema, report schema,
   or model version triggers a review of Evolvability and Auditability.
+- **Structural drift.** A file over 600 lines, a module with more than one
+  responsibility, a new cross-module import, or a structural checker finding
+  triggers a refactor assessment. The assessment, not a line count alone, decides
+  whether a seam is worth changing.
 - **New characteristic.** Keep the list short. A new driver needs a fitness function
   and a trade-off against the existing three; it does not get added by default.
 - **No edge.** If the loop concludes "no edge," the product's scope may shrink.
@@ -204,6 +217,7 @@ guarantee; release notes are the record for released runs.
 
 - `docs/architecture/README.md`
 - `docs/architecture/kata.md`
+- `docs/workflows/refactor-workflow.md`
 - `docs/adr/2026-10-31/adopt-architecture-baseline.md`
 - `AGENTS.md` sections 2, 3, 4, and 12
 - `docs/releases/2026-10-30/v0.3.0.md`

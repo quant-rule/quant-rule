@@ -238,6 +238,8 @@ the retired chart surface.
 | `docs/model/2026-11-05/` | Current model contract and model-family registry |
 | `docs/registry/` | Indicator/event registry, validation claims, and history boundary |
 | `docs/architecture/` | Living architecture baseline |
+| `docs/workflows/` | Living Audit, Refactor, and Improvement workflow contracts |
+| `docs/refactors/` | Read-only structural assessments and refactor findings |
 | `docs/execution-plans/` | Plans of record for substantial work |
 | `docs/ai-transparency-log/` | Material AI contributions and verification |
 
@@ -247,6 +249,7 @@ the retired chart surface.
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 python3 tools/check_file_size.py
+python3 tools/check_structure.py
 cargo test
 python3 tools/check_command_surface.py
 python3 tools/check_legacy.py
