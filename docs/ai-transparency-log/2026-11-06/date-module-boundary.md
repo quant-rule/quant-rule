@@ -4,16 +4,17 @@
 - Tool: DeepSeek V4.1 Flash through the OpenCode agent harness
 - Work item: #531 `Execute the fourth behavior-neutral refactor cycle`
 - Plan: [`docs/execution-plans/2026-11-06/date-module-boundary.md`](../../execution-plans/2026-11-06/date-module-boundary.md)
-- Status: approved; implementation started
+- Status: approved; implementation and local verification complete; PR and merge pending
 
 ## Intent and boundary
 
 The agent was asked to continue the Refactor Workflow after cycle 3 closed. It
 performed the read-only Structure Auditor pass at `9ac6565`, re-verified
-REF-2026-11-06-03, and wrote a proposed plan for moving the date-window types
-out of the source adapter. It did not change code, tests, fixtures, commands, or
-schemas. It did not commit, push, or open a pull request. The plan is `Proposed`
-and awaits human approval.
+REF-2026-11-06-03, and wrote a fourth-cycle plan. After human approval, it moved
+the date module to `crate::date`, updated the ten importers, removed the source
+declaration and re-export, and added the date-module guard. It did not change a
+fixture, command, schema, or behavior. It did not push, open a pull request, or
+merge.
 
 ## Work performed
 
@@ -28,6 +29,11 @@ and awaits human approval.
   cycle 3.
 - Ran `python3 tools/check_structure.py --report`.
 - Wrote the cycle-4 assessment and the proposed plan.
+- After approval, created issue #531, moved `source/date.rs` to `src/date.rs`,
+  updated the ten importers, removed the source declaration and re-export, and
+  added the date-module guard with its tests.
+- Ran the full gate and a clean-worktree verification pass at the implementation
+  commit.
 
 ## Verification and evidence
 
@@ -47,6 +53,15 @@ Commands actually run and observed results:
   `4173b5055814048597ee5e946da9b117e34dadf5f867de750aaa2f2cf15f085e`.
 - `python3 tools/check_structure.py --report` — 199 `src` files / 63,873 lines;
   34 files over 600, 7 over 800, 0 over 1,000.
+- `cargo test --workspace --no-fail-fast` — 1,312 passed, 0 failed, 8 ignored.
+- `python3 -m unittest discover -s tools -p 'test_check_structure.py'` — 21
+  tests pass, including the 4 date-module tests.
+- Old `crate::source` date references — 0; `source/date.rs` is absent;
+  `crate::date` is present.
+- Golden fixture hash `da7389...`, report bundle hash `59124f...`, and backtest
+  bundle hash `4173b505...` — unchanged.
+- Clean-worktree verifier pass at `d5ee617`: every gate passes; 1,312 passed, 0
+  failed, 8 ignored; all three hashes unchanged; the date guard passes.
 
 ## Learning and rejected suggestions
 
@@ -60,13 +75,18 @@ Commands actually run and observed results:
   tests are for the structural guard.
 - Combining REF-03 with the cycle-3 bundle move was rejected earlier. The date
   move is a separate, low-risk seam.
+- The move touched ten importers; the compiler found each one, and the guard now
+  rejects the old path. The `source/dukascopy` production and test imports were
+  the only source-internal uses.
 
 ## Limitations
 
-- One agent performed the Structure Auditor and Refactor Planner passes. These
+- One agent performed the Structure Auditor, Refactor Planner, Refactor
+  Implementer, and verifier passes, including the clean-worktree pass. These
   were sequential passes, not independent agents or independent model
   judgments.
-- The implementation and independent verification have not happened. The plan's
-  verification record is empty.
+- The pull request, merge, and post-merge independent verification have not
+  happened. The finding stays `In progress`; the plan's verification record
+  covers the local gate and the clean-worktree pass.
 - The structural report is a heuristic; the finding is supported by code
   references and review.

@@ -213,18 +213,17 @@ Its scope and done-when criteria are those in sections 3 and 6.
 
 ## 12. Verification record
 
-Fill in after the cycle is verified.
-
 | Check | Result |
 |---|---|
-| Date module complete | Pending |
-| Source declaration removed | Pending |
-| Guard and tests | Pending |
-| Test inventory | Pending |
-| Golden fixture hash | Pending |
-| Report bundle hash | Pending |
-| Backtest bundle hash | Pending |
-| Full gate | Pending |
-| Diff scope | Pending |
-| Assessment status | Pending |
-| Loop decision | Pending |
+| Date module complete | `src/date.rs` is 322 lines; `source/date.rs` is absent; `source/mod.rs` has no date declaration or re-export |
+| Source declaration removed | the `source` module exposes only source access; the date types are imported from `crate::date` |
+| Guard and tests | `date-module-coupling` added; 21 structure tests pass, including 4 date-module tests |
+| Test inventory | 1,312 passed, 0 failed, 8 ignored; unchanged |
+| Golden fixture hash | `da738931a8643bc2cc0db915174d713141e894614ee06f0087d9a3247497b5f1`; unchanged |
+| Report bundle hash | `59124f63a2741697c533e699eeaf191684d84811d354b7778518b4d03ef82512`; unchanged |
+| Backtest bundle hash | `4173b5055814048597ee5e946da9b117e34dadf5f867de750aaa2f2cf15f085e`; unchanged |
+| Full gate | fmt, clippy, test, doc, file size, structure, registry, validation, verification matrix, verification evidence, emitters, command surface, links, terms, legacy, oracle, progression, improvement, research, program, coverage, and diff check pass |
+| Clean-worktree verifier pass | at commit `d5ee617`: every gate passes; 1,312 passed, 0 failed, 8 ignored; all three hashes unchanged; the date guard passes. Sequential pass by the same agent, not an independent review |
+| Diff scope | 12 code files and 2 tool files; no fixture, expected-value, command, schema, error-string, or output change |
+| Assessment status | `In progress`; local and clean-worktree verification complete; post-merge verification pending |
+| Loop decision | pending the post-merge verifier pass and re-scan |
