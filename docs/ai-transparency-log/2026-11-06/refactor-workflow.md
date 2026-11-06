@@ -51,8 +51,18 @@ Commands actually run in the task worktree:
 - `python3 tools/oracle/progression_replay.py --check` — progression and ledger pass.
 - `git diff --check` — pass.
 
-The first structural assessment and the first refactor cycle are not yet
-implemented. Their evidence is recorded when those phases run.
+The first structural assessment is recorded at
+`docs/refactors/2026-11-06/current-structure-refactor.md`. The first cycle split
+`crates/quantrule-shell/src/command/report_run.rs` into `mod.rs`, `parse.rs`,
+`bundle.rs`, `provenance.rs`, and `spec.rs`. The largest new file is 275 lines
+and `mod.rs` is 144 lines. The full gate passes, the test inventory is unchanged
+at 1,309 passed and 8 ignored, the golden fixture hash is unchanged, and the
+`report model` bundle manifest hash is unchanged.
+
+The implementation and the verification pass were performed by the same agent.
+The sequential passes are disclosed; this is not an independent review. The
+finding remains `In progress` until the merged work is checked by a separate
+verifier pass.
 
 ## Learning and rejected suggestions
 
@@ -70,6 +80,12 @@ implemented. Their evidence is recorded when those phases run.
   remain.
 - A behavior change hidden inside a move was rejected as out of scope. The
   equivalence contract stops the cycle and routes it to the owning workflow.
+- The first extraction included the `run_report` doc comment in `parse.rs`;
+  clippy rejected the empty line after a doc comment. The comment was removed
+  from the parser module instead of suppressing the lint.
+- The first split missed `PathBuf` and `pipeline` imports in `bundle.rs` and used
+  the model crate path for `ParsedModelSpecV2`. The compiler caught each error;
+  the imports were corrected without changing logic.
 
 ## Limitations
 
