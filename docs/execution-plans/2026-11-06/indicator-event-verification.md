@@ -80,7 +80,7 @@ python3 tools/check_file_size.py
 
 ## 7. Execution record
 
-Implemented across `test/indicator-event-verification`, `test/row-level-verification-base`, `test/row-level-verification-base-events`, `test/per-row-extended-session-events`, and `test/per-row-indicator-contracts` on 2026-11-06.
+Implemented across `test/indicator-event-verification`, `test/row-level-verification-base`, `test/row-level-verification-base-events`, `test/per-row-extended-session-events`, `test/per-row-indicator-contracts`, and `test/per-row-event-core-group1` on 2026-11-06.
 
 - Added `docs/registry/verification.json` with 46 indicator and 143 event
   entries and all eleven evidence classes.
@@ -91,15 +91,16 @@ Implemented across `test/indicator-event-verification`, `test/row-level-verifica
 - Fixed the MACD histogram branch so a two-bar series cannot underflow at `bar - 2`, with a focused unit regression test.
 - Added `crates/quantrule-model/tests/per_row_extended_session_events.rs` for the 80 extended and session events covered by the checked-in event fixtures. Each row checks its golden record, availability, uniqueness, determinism, and prefix causality. The fixtures are regression locks, not independent oracles.
 - Added row contracts for all 46 indicators: extended readings, panel readings, session readings, MACD/ADX/DMI, and pivots. Each row checks the checked-in golden values, prefix causality, determinism, and empty/single/short safety. Added `base_flow_golden.csv` as the MACD/ADX/DMI regression lock.
+- Added row contracts for the first 11 uncovered events: compression breakout/range/onset, VWAP regular/hidden bullish divergence, profile concentration, climax reversal/continuation, and absorption test/break/rejection. The tests assert the full expected record, availability, uniqueness, determinism, and prefix causality.
 - Generated matrices now show `✅` row/tool evidence, `◐` family evidence, and
   `—` N/A. Status is `partial (family)` when any class is family-level.
-- Scope counts: 792 `row`, 651 `family`, 332 `tool`, 304 `n/a`.
+- Scope counts: 858 `row`, 585 `family`, 332 `tool`, 304 `n/a`.
 
 Observed gates:
 
 | Check | Result |
 |---|---|
-| `cargo test --workspace` | 1126 passed, 0 failed, 8 ignored |
+| `cargo test --workspace` | 1137 passed, 0 failed, 8 ignored |
 | `check_registry.py` | 46 indicators, 143 events, 101 parameters |
 | `check_validation.py` | 189 claims, construct coverage pass |
 | `check_verification.py` | 46 indicators, 143 events; scope counts above |
