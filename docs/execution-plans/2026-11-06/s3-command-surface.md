@@ -1,10 +1,10 @@
 # S3.x Command Surface — Stage-Isolated Pipeline Access
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved; Phases 1–6 merged; Phase 7 implemented and verified locally; publication pending
+- Status: Approved; Phases 1–7 merged; Phase 8 verified locally; publication pending; human acceptance pending
 - Issue: none (human-approved slug; no issue number is invented)
-- Branch: one task branch per phase; current `feat/s3-analytics-command`
-- Worktree: `s3-analytics-command` (OpenCode task worktree)
+- Branch: one task branch per phase; current `test/s3-closure-verification`
+- Worktree: `s3-closure-verification` (OpenCode task worktree)
 - Claim type: command, artifact, and qualification contract; no model or strategy
   behavior change in Phase 1; no edge claim
 - Approval: human instruction "PROCEED WITH THE FULL IMPLEMENTATION" after the
@@ -662,3 +662,130 @@ strategy signal path.
 
 Phase 7 is verified locally. Publication (commit, push, and pull request) is
 pending human authorization.
+
+## 20. Phase 8 closure record
+
+- Status: Verified locally on 2026-11-06; publication pending; human acceptance pending.
+- Scope: every S3.x stage command, its artifact and provenance handoff, its deterministic output, and the human acceptance boundary.
+
+### 20.1 Acceptance criteria
+
+| Criterion | Evidence | Result |
+|---|---|---|
+| Every stage has a command, help entry, README row, and tutorial. | `tools/check_command_surface.py` reports 15 implemented, 0 planned, 15 README rows, 8 tutorial files. `pipeline_surface::the_surface_help_lists_every_stage_command` lists every stage command. | Met. |
+| Every stage artifact has a documented schema and provenance. | `pipeline_surface::every_stage_runs_on_its_own_and_hands_off_its_artifact`; `the_coupled_run_reuses_the_stage_engines_and_artifacts`; the per-stage artifact tests; `docs/config/2026-11-06/engine-artifacts.md`. | Met. |
+| The Qualification Engine emits a verdict without replacing human acceptance. | Qualification pass, fail, insufficient, and missing-measurement tests; the pipeline test asserts `human_decision: null` and no `decision.md`; `qualification.md` records the pending human decision. | Met. |
+| `backtest run` orchestrates the stages but does not hide them. | The coupled bundle uses the four stage layouts; the coupled model is byte-identical to the standalone model; the manifest names four provenance hashes; the coupled provenance lists four source artifacts. | Met. |
+| All gates pass. | Section 20.3. | Met locally. |
+| Residual risks and the human acceptance boundary are recorded. | Sections 20.4 and 20.5. | Met. |
+
+### 20.2 Stage verification
+
+| Stage | Command | Independent run | Artifact and provenance |
+|---|---|---|---|
+| Data | `candles`, `candles-tolerant`, `timeframes`, `fetch` | `cli.rs`, `report_command.rs`, and the source tests; the fetch tests use no network. | Candle NDJSON and quality/aggregation reports; no bundle. |
+| Model | `report model` | `pipeline_surface` and `report_command.rs`. | `quantrule.model-result/v4` and `quantrule.provenance/v1`. |
+| Strategy | `strategy run` | `pipeline_surface` and `strategy_command.rs`. | `decisions.ndjson` and `quantrule.stage-provenance/v1`. |
+| Execution | `execution run` | `pipeline_surface` and `execution_command.rs`. | `orders.csv`, `fills.csv`, `rejections.csv`, and `quantrule.stage-provenance/v1`. |
+| Portfolio | `portfolio replay` | `pipeline_surface` and `portfolio_command.rs`. | Trades, equity, funding, risk events, metrics, and `quantrule.stage-provenance/v1`. |
+| Backtest | `backtest run` | `pipeline_surface` and `backtest_command.rs`. | `quantrule.backtest-manifest/v1`, four stage bundles, four provenance hashes. |
+| Qualification | `qualify` | `pipeline_surface` and `qualification_command.rs`. | `quantrule.qualification-result/v1`, `criteria.csv`, `qualification.md`, `human_decision: null`. |
+| Analytics | `analytics evaluate` | `pipeline_surface` and `analytics_command.rs`. | `quantrule.analytics-metrics/v1`, eight tables, summary, provenance; no verdict. |
+
+The handoff chain is explicit in the provenance:
+
+- Strategy names the model bundle as its source.
+- Execution names the decisions bundle as its source.
+- Portfolio names the fills bundle as its source.
+- The backtest manifest names all four stage provenances and their FNV hashes.
+- Qualification and analytics name the backtest manifest as their source.
+
+### 20.3 Verification record
+
+| Check | Result |
+|---|---|
+| `cargo test --workspace` | 1,309 passed, 0 failed, 8 ignored. |
+| `cargo clippy --all-targets -- -D warnings` | Pass. |
+| `cargo fmt --all -- --check` | Pass. |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | Pass. |
+| `python3 tools/check_command_surface.py` | Pass; 15 implemented, 0 planned, 15 README rows, 8 tutorial files. |
+| `python3 tools/check_registry.py` | Pass; 46 indicators, 143 events, 101 parameters. |
+| `python3 tools/check_validation.py` | Pass; 189 claims. |
+| `python3 tools/check_verification.py` | Pass; row=1091 family=329 tool=332 n/a=327. |
+| `python3 tools/check_verification_matrix.py` | Pass; 46 indicators, 143 events. |
+| `python3 tools/check_event_emitters.py` | Pass; 143 registered codes. |
+| `python3 tools/check_links.py` | Pass; 581 Markdown files. |
+| `python3 tools/check_terms.py` | Pass; 350 files. |
+| `python3 tools/check_legacy.py` | Pass; 696 current files. |
+| `python3 tools/check_file_size.py` | Pass. |
+| `git diff --check` | Pass. |
+
+The eight ignored tests are deliberate: two release-only benchmarks
+(`a_520k_m1_extended_range_benchmark`, `a_100k_history_benchmark`) and six
+fixture-regeneration helpers that would otherwise rewrite checked-in golden
+fixtures during a normal test run. The non-ignored golden assertions still run.
+
+Behavior evidence:
+
+- The standalone chain (`report model` -> `strategy run` -> `execution run` ->
+  `portfolio replay`) writes every stage bundle from explicit inputs.
+- The coupled chain (`backtest run` -> `qualify` -> `analytics evaluate`) writes
+  the same stage layouts, the manifest, the qualification bundle, and the
+  analytics bundle.
+- The standalone and coupled model bundles are byte-identical.
+- The standalone and coupled chains are each byte-identical across repeated
+  runs.
+- The standalone execution records `sizing_basis: initial_cash`; the coupled
+  execution records `sizing_basis: ledger_current`.
+- The qualification record writes `human_decision: null` and no `decision.md`.
+- The analytics bundle carries no verdict and no human decision.
+- The strategy boundary test forbids qualification, verdict, analytics, cash,
+  equity, PnL, fill, and position fields in the strategy input.
+
+### 20.4 Residual risks and known limitations
+
+- Qualification protocol completeness is the human's responsibility. The engine
+  validates the declared criteria and `not_applicable` entries but does not infer
+  whether an omitted dimension applies.
+- Partition coverage is an overlap, not proof that a whole partition was read.
+  `strategy_validation` and `portfolio_dev` share the 2024 window, so the period
+  alone cannot distinguish them; the run manifest and criteria must name the
+  intended partition.
+- Analytics does not synthesize `by_regime` or `by_instrument` because the
+  backtest bundle publishes no regime label or instrument identity. Inferential
+  metrics are not synthesized because the v1 evidence carries no fold or p-value
+  structure; qualification owns the multiple-testing declaration.
+- Standalone `strategy run` supports the event-composite engine only. The
+  compression-bracket engine needs the fill side and is available through
+  `strategy explain` for one decision or through `backtest run`.
+- Standalone `execution run` sizes entries from the run's initial cash; the
+  coupled runner sizes from the ledger's current equity. The two chains share
+  schemas and layouts but are not expected to be byte-identical beyond the model.
+- The qualification and analytics evaluators live in the shell's stage modules,
+  following the existing stage-command layout. The architecture guidance that
+  stage logic belongs in the owning crate is not fully applied; moving the pure
+  evaluators into a lower-level evaluation crate is a follow-up if that boundary
+  is required.
+- The shell enables `serde_json`'s `float_roundtrip` feature. It fixes decimal
+  round-trip for copied metrics but changes JSON number parsing behavior across
+  the shell.
+- No `model_validation` partition was opened and no edge claim is made. The
+  backtest, qualification, and analytics results are descriptive evidence, not a
+  profitability or live-trading claim.
+
+### 20.5 Review disclosure and human acceptance
+
+Two attempts to start a separate read-only AI review were interrupted by server
+restarts. The verification was therefore performed as a sequential self-review of
+the command surface, handoff provenance, determinism, boundary isolation,
+documentation, and tests. No independent agent review, Code Reviewer pass, Quant
+Validator pass, or human review is claimed.
+
+The human remains the final authority. The Qualification Engine writes
+`human_decision: null`; the human records acceptance in a separate `decision.md`.
+No command accepts a strategy, declares an edge, or authorizes a release. A
+`pass` may still be rejected for residual risk; a `fail` is a valid research
+result.
+
+Phase 8 is verified locally. Publication (commit, push, and pull request) and
+human acceptance are pending.

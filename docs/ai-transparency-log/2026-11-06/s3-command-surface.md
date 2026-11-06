@@ -306,3 +306,38 @@ authorization. The work is local to the task branch `docs/s3-command-contracts`.
   identity; the unsupported reason codes are the honest record.
 - Publication (push, pull request, merge, tag, or release) is pending human
   authorization. The work is local to the task branch.
+
+## 13. Phase 8 — closure verification
+
+- Intent and boundary: verify every stage command independently, the coupled run,
+  the artifact and provenance handoffs, determinism, and the human acceptance
+  boundary. Add the end-to-end pipeline test, the pipeline lab, and the closure
+  record. No model, strategy, or signal rule changed.
+- Implemented: `crates/quantrule-shell/tests/pipeline_surface.rs`, the pipeline
+  lab, the `docs/README.md` index row, the phase status updates, and the Phase 8
+  closure record.
+- Verification: `cargo test --workspace` 1,309 passed, 0 failed, 8 ignored;
+  clippy, fmt, doc, the command-surface checker (15 implemented, 0 planned, 15
+  README rows, 8 tutorial files), every model gate, links, terms, legacy, file
+  size, and `git diff --check` pass. The pipeline test asserts the standalone
+  stage layouts, the handoff provenance, the coupled stage reuse, the
+  qualification and analytics layouts, the absence of a verdict and a human
+  decision, the sizing-basis difference, and byte determinism for both chains.
+- Corrections: the first pipeline test did not assert the qualification and
+  analytics file lists; both were added. The coupled strategy and portfolio
+  bundles are not asserted to be byte-identical to the standalone chain because
+  the standalone strategy simulates its own position and the standalone
+  execution sizes from initial cash; the closure record documents the difference
+  instead of hiding it. Two attempts to start a separate read-only AI review were
+  interrupted by server restarts; the verification was completed as a sequential
+  self-review and the closure record discloses that no independent review is
+  claimed.
+- Learning: the coupled run's value is visible in the model bundle, which is
+  byte-identical to the standalone model, and in the execution sizing basis,
+  which is not. A closure test must assert the handoff chain and the documented
+  differences, not a false byte equality between chains with different position
+  and sizing semantics. The eight ignored tests are deliberate: two release-only
+  benchmarks and six fixture-regeneration helpers; the normal suite still runs
+  every golden assertion.
+- Publication (push, pull request, merge, tag, or release) is pending human
+  authorization. The work is local to the task branch.
