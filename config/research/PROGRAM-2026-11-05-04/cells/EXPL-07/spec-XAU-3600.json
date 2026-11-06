@@ -1,0 +1,46 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-07",
+  "family": "M3",
+  "instrument": "XAU",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "signal.rsi_threshold",
+    "level.wick_test",
+    "level.gap_fill",
+    "level.gap_test",
+    "signal.candle_momentum",
+    "signal.candle_rejection",
+    "signal.candle_doji",
+    "signal.candle_marubozu",
+    "signal.pattern_engulfing",
+    "signal.pattern_inside",
+    "signal.pattern_outside",
+    "signal.pattern_hammer",
+    "signal.pattern_star",
+    "signal.pattern_three_soldiers",
+    "signal.pattern_three_crows",
+    "signal.gap_continuation",
+    "signal.gap_fade"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.rsi_threshold"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.candle_momentum",
+      "when": {
+        "event": {
+          "id": "signal.candle_momentum",
+          "timeframe": 3600
+        }
+      }
+    }
+  ]
+}

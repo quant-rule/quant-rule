@@ -1,0 +1,31 @@
+{
+  "cell_id": "EXPL-06",
+  "kind": "exploratory",
+  "areas": [
+    6
+  ],
+  "indicators": [
+    "pivots",
+    "donchian",
+    "swing_structure",
+    "level_strength",
+    "aroon",
+    "bos_choch",
+    "ema",
+    "rsi",
+    "macd",
+    "adx",
+    "dmi"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

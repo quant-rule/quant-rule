@@ -1,0 +1,11 @@
+{
+  "schema": "quantrule.model-state-gate/v1",
+  "all": [
+    {
+      "column": "context_code",
+      "values": [
+        4
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "quantrule.model-state-gate/v1",
+  "all": [
+    {
+      "column": "adx_regime",
+      "values": [
+        1
+      ]
+    },
+    {
+      "column": "ema_stack",
+      "values": [
+        -1,
+        1
+      ]
+    }
+  ]
+}

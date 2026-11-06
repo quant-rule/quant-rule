@@ -1,0 +1,71 @@
+{
+  "schema": "quantrule.m2-areas/v1",
+  "areas": {
+    "1": [
+      "vwap"
+    ],
+    "2": [
+      "volume_profile"
+    ],
+    "3": [
+      "rvol",
+      "volume_climax",
+      "absorption",
+      "volume_oscillator"
+    ],
+    "4": [
+      "obv",
+      "cmf",
+      "mfi",
+      "ad_line"
+    ],
+    "5": [
+      "atr_term",
+      "range_expansion",
+      "mar",
+      "keltner",
+      "atr"
+    ],
+    "6": [
+      "pivots",
+      "donchian",
+      "swing_structure",
+      "level_strength",
+      "aroon",
+      "bos_choch",
+      "ema",
+      "rsi",
+      "macd",
+      "adx",
+      "dmi"
+    ],
+    "7": [
+      "candle_anatomy",
+      "candle_pattern",
+      "gap"
+    ],
+    "8": [
+      "path_efficiency",
+      "direction_changes",
+      "bars_since_extreme",
+      "drawdown_atr",
+      "range_position",
+      "context",
+      "progression"
+    ],
+    "9": [
+      "relative_strength",
+      "lead_lag",
+      "breadth",
+      "co_movement",
+      "dispersion"
+    ],
+    "10": [
+      "session",
+      "opening_range",
+      "overnight_intraday",
+      "session_range",
+      "calendar_bucket"
+    ]
+  }
+}

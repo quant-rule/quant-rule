@@ -1,0 +1,21 @@
+{
+  "cell_id": "EXPL-02",
+  "kind": "exploratory",
+  "areas": [
+    2
+  ],
+  "indicators": [
+    "volume_profile"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

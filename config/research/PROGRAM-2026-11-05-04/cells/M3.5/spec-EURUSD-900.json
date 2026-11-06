@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M3.5",
+  "family": "M3",
+  "instrument": "EURUSD",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.absorption_rejection"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.absorption_rejection"
+    ],
+    "min_votes": 1
+  }
+}

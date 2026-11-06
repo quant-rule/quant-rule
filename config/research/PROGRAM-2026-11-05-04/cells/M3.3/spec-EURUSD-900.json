@@ -1,0 +1,24 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M3.3",
+  "family": "M3",
+  "instrument": "EURUSD",
+  "timeframes": [
+    900
+  ],
+  "readings": {
+    "extended": {
+      "profile_window": 96
+    }
+  },
+  "active_events": [
+    "signal.profile_va_breakout"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.profile_va_breakout"
+    ],
+    "min_votes": 1
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-10",
+  "family": "M3",
+  "instrument": "EURUSD",
+  "timeframes": [
+    900
+  ],
+  "active_events": [
+    "signal.session_open",
+    "signal.session_close",
+    "signal.opening_range_breakout",
+    "signal.opening_range_fade",
+    "signal.overnight_continuation",
+    "signal.overnight_fade",
+    "signal.session_range_expansion",
+    "signal.session_range_contraction",
+    "level.session_vwap_test",
+    "level.opening_range_test",
+    "level.opening_range_break"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.overnight_continuation",
+      "signal.overnight_fade"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.session_open",
+      "when": {
+        "event": {
+          "id": "signal.session_open",
+          "timeframe": 3600
+        }
+      }
+    }
+  ],
+  "session": {
+    "zone": "london",
+    "start_hour": 8,
+    "end_hour": 16,
+    "opening_range_bars": 2
+  }
+}

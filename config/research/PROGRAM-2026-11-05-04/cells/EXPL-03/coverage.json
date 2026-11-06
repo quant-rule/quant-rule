@@ -1,0 +1,24 @@
+{
+  "cell_id": "EXPL-03",
+  "kind": "exploratory",
+  "areas": [
+    3
+  ],
+  "indicators": [
+    "rvol",
+    "volume_climax",
+    "absorption",
+    "volume_oscillator"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

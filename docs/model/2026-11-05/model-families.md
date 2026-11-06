@@ -42,7 +42,7 @@ accepted baseline; `M3.x` is the next family. `S3.x`, `P3.x`, `POL3.x`, and
 | `M2.3` | M2 model: cross-asset cell | new | Historical; `model_dev` no edge; not accepted | M2.x charter (P3); [P5 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
 | `M2.4` | M2 model: session and time cell | new | Historical; `model_dev` no edge; not accepted | M2.x charter (P3); [P5 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
 | `M2.5` | M2 model: all-area vote cell | new | Historical; `model_dev` no edge; not accepted | M2.x charter (P3); [P5 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
-| `M3.1`–`M3.5` | M3 model: state-conditioned event cells | new | Approved; not run | [M3 charter](../../governance/2026-11-05/M3-CHARTER.md) |
+| `M3.1`–`M3.5` | M3 model: state-conditioned event cells | new | Underpowered at the count gate; not run | [M3 preflight](../../improvement/2026-11-05/M3-PREFLIGHT.md) |
 | `S2.1+` | Strategies built on an accepted M2.x model | new | Closed until an M2.x baseline is accepted | P8 |
 
 `M2.1`–`M2.5` name the five **primary cells** before the run. P5 ran all five on

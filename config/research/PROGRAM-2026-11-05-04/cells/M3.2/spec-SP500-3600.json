@@ -1,0 +1,26 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M3.2",
+  "family": "M3",
+  "instrument": "SP500",
+  "timeframes": [
+    3600
+  ],
+  "readings": {
+    "extended": {
+      "vwap_window": 24
+    }
+  },
+  "active_events": [
+    "signal.vwap_reclaim",
+    "signal.vwap_rejection"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.vwap_reclaim",
+      "signal.vwap_rejection"
+    ],
+    "min_votes": 1
+  }
+}

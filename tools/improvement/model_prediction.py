@@ -39,6 +39,18 @@ from common import PARTITION_TIERS, write_json
 from path_validation import cluster_stats, control_p, lower, percentile
 
 SCHEMA = "quantrule.model-prediction/v1"
+STATE_SCHEMA = "quantrule.model-state-gate/v1"
+STATE_COLUMNS = frozenset(
+    {
+        "context_code",
+        "adx_regime",
+        "adx_slope",
+        "ema_stack",
+        "di_state",
+        "rsi_zone",
+        "macd_state",
+    }
+)
 DEFAULT_HORIZON = 20
 DEFAULT_TARGET_ATR = 2.0
 DEFAULT_STOP_ATR = 1.0
@@ -52,6 +64,7 @@ DEFAULT_MIN_INSTRUMENT_EVENTS = 30
 DEFAULT_MIN_INSTRUMENTS = 2
 DEFAULT_ALPHA = 0.05
 DEFAULT_PRIMARY_CELLS = 5
+DEFAULT_MIN_STATE_INCREMENT = 0.01
 
 
 @dataclass(frozen=True)
@@ -60,6 +73,18 @@ class BundleInput:
     predictions: Path
     readings: Path
     provenance: Path | None
+
+
+@dataclass(frozen=True)
+class StateClause:
+    column: str
+    values: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class StateGate:
+    clauses: tuple[StateClause, ...]
+    raw: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -82,6 +107,9 @@ class Entry:
     base_rate: float | None
     fold_base_rate: float | None
     hit_by_direction: dict[int, bool]
+    state_ok: bool = False
+    state_base_rate: float | None = None
+    state_fold_base_rate: float | None = None
 
 
 @dataclass
@@ -94,6 +122,8 @@ class BundleData:
     base: dict[int, dict[str, Any]]
     raw_predictions: int
     purged: int
+    state_base: dict[int, dict[str, Any]] | None = None
+    state_gate: StateGate | None = None
 
 
 def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
@@ -134,6 +164,17 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
         "--min-instrument-events", type=int, default=DEFAULT_MIN_INSTRUMENT_EVENTS
     )
     parser.add_argument("--min-instruments", type=int, default=DEFAULT_MIN_INSTRUMENTS)
+    parser.add_argument(
+        "--state-file",
+        default=None,
+        help="state-gate JSON applied to the prediction and the base",
+    )
+    parser.add_argument(
+        "--min-state-increment",
+        type=float,
+        default=DEFAULT_MIN_STATE_INCREMENT,
+        help="minimum state lift over the unconditional lift",
+    )
     parser.add_argument("--out", required=True)
     return parser.parse_args(argv)
 
@@ -199,6 +240,8 @@ def validate_arguments(args: argparse.Namespace) -> None:
         raise SystemExit("error: --min-lift must be in [0, 1]")
     if args.min_instrument_events < 0 or args.min_instruments < 1:
         raise SystemExit("error: instrument thresholds are invalid")
+    if not 0.0 <= args.min_state_increment <= 1.0:
+        raise SystemExit("error: --min-state-increment must be in [0, 1]")
     parse_split_bound(args.split_start, end=False)
     parse_split_bound(args.split_end, end=True)
 
@@ -230,7 +273,68 @@ def optional_int(value: Any) -> int | None:
     try:
         return int(value)
     except (TypeError, ValueError):
-        return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return int(number) if number.is_integer() else None
+
+
+def load_state_gate(path: str | Path) -> StateGate:
+    """Loads and validates a ``quantrule.model-state-gate/v1`` document."""
+    source = Path(path).expanduser()
+    try:
+        document = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"cannot read state gate {source}: {error}") from error
+    if not isinstance(document, dict):
+        raise ValueError("state gate must be a JSON object")
+    if document.get("schema") != STATE_SCHEMA:
+        raise ValueError(f"state gate schema must be {STATE_SCHEMA}")
+    raw_clauses = document.get("all")
+    if not isinstance(raw_clauses, list) or not raw_clauses:
+        raise ValueError("state gate all must be a non-empty list")
+    clauses: list[StateClause] = []
+    seen: set[str] = set()
+    for index, raw in enumerate(raw_clauses):
+        if not isinstance(raw, dict):
+            raise ValueError(f"state gate all[{index}] must be an object")
+        column = raw.get("column")
+        if not isinstance(column, str) or column not in STATE_COLUMNS:
+            raise ValueError(f"state gate all[{index}].column is not a published state")
+        if column in seen:
+            raise ValueError(f"state gate column {column!r} is repeated")
+        seen.add(column)
+        values = raw.get("values")
+        if (
+            not isinstance(values, list)
+            or not values
+            or not all(isinstance(value, int) and not isinstance(value, bool) for value in values)
+        ):
+            raise ValueError(f"state gate all[{index}].values must be a non-empty integer list")
+        if len(values) != len(set(values)):
+            raise ValueError(f"state gate all[{index}].values has duplicates")
+        clauses.append(StateClause(column, tuple(values)))
+    return StateGate(tuple(clauses), document)
+
+
+def state_matches(row: dict[str, Any], gate: StateGate | None) -> bool:
+    """Whether every state clause matches the row. A missing value does not."""
+    if gate is None:
+        return True
+    for clause in gate.clauses:
+        value = optional_int(row.get(clause.column))
+        if value is None or value not in clause.values:
+            return False
+    return True
+
+
+def validate_state_columns(rows: list[dict[str, Any]], gate: StateGate) -> None:
+    if not rows:
+        return
+    missing = [clause.column for clause in gate.clauses if clause.column not in rows[0]]
+    if missing:
+        raise ValueError(f"readings are missing state columns: {missing}")
 
 
 def read_predictions(path: Path) -> list[dict[str, Any]]:
@@ -276,17 +380,19 @@ def read_readings(path: Path) -> list[dict[str, Any]]:
                 low = float(row["low"])
             except (KeyError, TypeError, ValueError):
                 continue
-            rows.append(
-                {
-                    "timeframe_secs": timeframe,
-                    "bar": bar,
-                    "timestamp": optional_int(row.get("timestamp")),
-                    "close": close,
-                    "high": high,
-                    "low": low,
-                    "atr": optional_float(row.get("atr")),
-                }
-            )
+            entry = {
+                "timeframe_secs": timeframe,
+                "bar": bar,
+                "timestamp": optional_int(row.get("timestamp")),
+                "close": close,
+                "high": high,
+                "low": low,
+                "atr": optional_float(row.get("atr")),
+            }
+            for column in STATE_COLUMNS:
+                if column in row:
+                    entry[column] = row.get(column)
+            rows.append(entry)
     rows.sort(key=lambda value: value["bar"])
     return rows
 
@@ -423,12 +529,15 @@ def base_statistics(
     args: argparse.Namespace,
     split_start: int | None,
     split_end: int | None,
+    state_gate: StateGate | None = None,
 ) -> dict[str, Any]:
     hits = 0
     valid = 0
     valid_indices: list[int] = []
     by_year: dict[int, list[int]] = defaultdict(lambda: [0, 0])
     for index, row in enumerate(rows):
+        if not state_matches(row, state_gate):
+            continue
         outcome = outcome_for(rows, index, direction, args)
         if outcome is None:
             continue
@@ -485,6 +594,9 @@ def evaluate_bundle(
     rows = [row for row in readings if row["timeframe_secs"] == timeframe]
     if not rows:
         raise ValueError(f"{bundle.readings}: no readings for {timeframe}s")
+    state_gate = getattr(args, "state_gate", None)
+    if state_gate is not None:
+        validate_state_columns(rows, state_gate)
     index_by_bar = {row["bar"]: index for index, row in enumerate(rows)}
     split_start = parse_split_bound(args.split_start, end=False)
     split_end = parse_split_bound(args.split_end, end=True)
@@ -492,6 +604,16 @@ def evaluate_bundle(
         direction: base_statistics(rows, direction, args, split_start, split_end)
         for direction in (-1, 1)
     }
+    state_base = (
+        {
+            direction: base_statistics(
+                rows, direction, args, split_start, split_end, state_gate
+            )
+            for direction in (-1, 1)
+        }
+        if state_gate is not None
+        else None
+    )
     entries: list[Entry] = []
     raw = 0
     purged = 0
@@ -531,6 +653,12 @@ def evaluate_bundle(
         fold_base = None
         if year is not None:
             fold_base = base[direction]["by_year"].get(year, {}).get("rate")
+        state_ok = state_matches(rows[index], state_gate)
+        state_fold_base = None
+        if state_base is not None and year is not None:
+            state_fold_base = (
+                state_base[direction]["by_year"].get(year, {}).get("rate")
+            )
         entries.append(
             Entry(
                 bundle=bundle_index,
@@ -542,6 +670,11 @@ def evaluate_bundle(
                 base_rate=base[direction]["rate"],
                 fold_base_rate=fold_base,
                 hit_by_direction=hit_by_direction,
+                state_ok=state_ok,
+                state_base_rate=(
+                    state_base[direction]["rate"] if state_base is not None else None
+                ),
+                state_fold_base_rate=state_fold_base,
             )
         )
     return BundleData(
@@ -553,11 +686,29 @@ def evaluate_bundle(
         base=base,
         raw_predictions=raw,
         purged=purged,
+        state_base=state_base,
+        state_gate=state_gate,
     )
 
 
-def weighted_base(entries: list[Entry]) -> float | None:
-    values = [entry.base_rate for entry in entries if entry.base_rate is not None]
+def scoped_entries(entries: list[Entry], state_only: bool) -> list[Entry]:
+    return [entry for entry in entries if entry.state_ok] if state_only else entries
+
+
+def entry_base(entry: Entry, state_only: bool) -> float | None:
+    return entry.state_base_rate if state_only else entry.base_rate
+
+
+def entry_fold_base(entry: Entry, state_only: bool) -> float | None:
+    return entry.state_fold_base_rate if state_only else entry.fold_base_rate
+
+
+def weighted_base(entries: list[Entry], state_only: bool = False) -> float | None:
+    values = [
+        base
+        for entry in entries
+        if (base := entry_base(entry, state_only)) is not None
+    ]
     return sum(values) / len(values) if values else None
 
 
@@ -566,14 +717,16 @@ def evaluate_metrics(
     entries: list[Entry],
     args: argparse.Namespace,
     z: float,
+    state_only: bool = False,
 ) -> dict[str, Any]:
+    entries = scoped_entries(entries, state_only)
     stats = cluster_stats(
         [(entry.bundle, entry.bar, entry.outcome.hit) for entry in entries],
         args.horizon,
     )
     n = stats["n"]
     hits = sum(1 for entry in entries if entry.outcome.hit)
-    base = weighted_base(entries)
+    base = weighted_base(entries, state_only)
     hit_rate = stats["hit_rate"]
     lift = (
         hit_rate - base
@@ -599,6 +752,8 @@ def evaluate_metrics(
         index = bundle.index_by_bar.get(entry.bar - back_lag)
         if index is None:
             continue
+        if state_only and not state_matches(bundle.rows[index], bundle.state_gate):
+            continue
         outcome = outcome_for(bundle.rows, index, entry.direction, args)
         if outcome is None:
             continue
@@ -610,14 +765,14 @@ def evaluate_metrics(
         if back_rate is not None and base is not None
         else None
     )
-    random_draws = random_control(bundles, args)
+    random_draws = random_control(bundles, args, state_only)
     shuffle_draws = shuffle_control(entries, args)
+    raw_predictions = sum(bundle.raw_predictions for bundle in bundles)
     return {
+        "scope": "state" if state_only else "unconditional",
         "n": n,
-        "predictions": sum(bundle.raw_predictions for bundle in bundles),
-        "coverage": n / sum(bundle.raw_predictions for bundle in bundles)
-        if sum(bundle.raw_predictions for bundle in bundles)
-        else 0.0,
+        "predictions": raw_predictions,
+        "coverage": n / raw_predictions if raw_predictions else 0.0,
         "purged": sum(bundle.purged for bundle in bundles),
         "clusters": stats["clusters"],
         "hits": hits,
@@ -636,13 +791,17 @@ def evaluate_metrics(
         "back_lag_rate": back_rate,
         "back_lag_n": back_total,
         "back_lag_lift": back_lift,
-        "replication": positive_instruments(bundles, args),
-        "instruments": instrument_metrics(bundles, args),
-        "folds": fold_metrics(entries, args),
+        "replication": positive_instruments(bundles, args, state_only),
+        "instruments": instrument_metrics(bundles, args, state_only),
+        "folds": fold_metrics(entries, args, state_only),
     }
 
 
-def random_control(bundles: list[BundleData], args: argparse.Namespace) -> list[float | None]:
+def random_control(
+    bundles: list[BundleData],
+    args: argparse.Namespace,
+    state_only: bool = False,
+) -> list[float | None]:
     if args.random_draws == 0:
         return []
     rng = random.Random(args.seed)
@@ -652,10 +811,13 @@ def random_control(bundles: list[BundleData], args: argparse.Namespace) -> list[
         total = 0
         for bundle in bundles:
             counts = {direction: 0 for direction in (-1, 1)}
-            for entry in bundle.entries:
+            for entry in scoped_entries(bundle.entries, state_only):
                 counts[entry.direction] += 1
+            base = bundle.state_base if state_only else bundle.base
+            if base is None:
+                continue
             for direction, count in counts.items():
-                pool = bundle.base[direction]["valid_indices"]
+                pool = base[direction]["valid_indices"]
                 if count == 0 or not pool:
                     continue
                 sample = rng.sample(pool, min(count, len(pool)))
@@ -707,20 +869,25 @@ def mean_optional(values: list[float | None]) -> float | None:
     return sum(valid) / len(valid) if valid else None
 
 
-def positive_instruments(bundles: list[BundleData], args: argparse.Namespace) -> int:
+def positive_instruments(
+    bundles: list[BundleData], args: argparse.Namespace, state_only: bool = False
+) -> int:
     return sum(
         1
         for bundle in bundles
-        if instrument_metric(bundle, args)["positive"]
+        if instrument_metric(bundle, args, state_only)["positive"]
     )
 
 
-def instrument_metric(bundle: BundleData, args: argparse.Namespace) -> dict[str, Any]:
+def instrument_metric(
+    bundle: BundleData, args: argparse.Namespace, state_only: bool = False
+) -> dict[str, Any]:
+    entries = scoped_entries(bundle.entries, state_only)
     stats = cluster_stats(
-        [(0, entry.bar, entry.outcome.hit) for entry in bundle.entries],
+        [(0, entry.bar, entry.outcome.hit) for entry in entries],
         args.horizon,
     )
-    base = weighted_base(bundle.entries)
+    base = weighted_base(entries, state_only)
     hit_rate = stats["hit_rate"]
     lift = hit_rate - base if hit_rate is not None and base is not None else None
     return {
@@ -738,12 +905,22 @@ def instrument_metric(bundle: BundleData, args: argparse.Namespace) -> dict[str,
 
 
 def instrument_metrics(
-    bundles: list[BundleData], args: argparse.Namespace
+    bundles: list[BundleData],
+    args: argparse.Namespace,
+    state_only: bool = False,
 ) -> dict[str, dict[str, Any]]:
-    return {bundle.name: instrument_metric(bundle, args) for bundle in bundles}
+    return {
+        bundle.name: instrument_metric(bundle, args, state_only)
+        for bundle in bundles
+    }
 
 
-def fold_metrics(entries: list[Entry], args: argparse.Namespace) -> dict[str, dict[str, Any]]:
+def fold_metrics(
+    entries: list[Entry],
+    args: argparse.Namespace,
+    state_only: bool = False,
+) -> dict[str, dict[str, Any]]:
+    entries = scoped_entries(entries, state_only)
     grouped: dict[int, list[Entry]] = defaultdict(list)
     for entry in entries:
         year = year_of(entry.timestamp)
@@ -756,9 +933,9 @@ def fold_metrics(entries: list[Entry], args: argparse.Namespace) -> dict[str, di
             args.horizon,
         )
         base_values = [
-            entry.fold_base_rate
+            base
             for entry in values
-            if entry.fold_base_rate is not None
+            if (base := entry_fold_base(entry, state_only)) is not None
         ]
         base = sum(base_values) / len(base_values) if base_values else None
         hit_rate = stats["hit_rate"]
@@ -773,7 +950,11 @@ def fold_metrics(entries: list[Entry], args: argparse.Namespace) -> dict[str, di
 
 
 def grade(
-    metrics: dict[str, Any], args: argparse.Namespace, corrected_alpha: float
+    metrics: dict[str, Any],
+    args: argparse.Namespace,
+    corrected_alpha: float,
+    state_increment: float | None = None,
+    require_replication: bool = False,
 ) -> tuple[str, bool, dict[str, bool]]:
     n = metrics["n"]
     clusters = metrics["clusters"]
@@ -798,6 +979,9 @@ def grade(
         )
     )
     replication_ok = metrics["replication"] >= args.min_instruments
+    state_ok = (
+        state_increment is None or state_increment >= args.min_state_increment
+    )
     criteria = {
         "sample": sample_ok,
         "lift": lift_ok,
@@ -805,12 +989,14 @@ def grade(
         "back_lag": back_ok,
         "replication": replication_ok,
     }
+    if state_increment is not None:
+        criteria["state_increment"] = state_ok
     if not sample_ok or lift is None or lift <= 0.0:
         return "D", False, criteria
-    if not (lift_ok and controls_ok and back_ok):
+    if not (lift_ok and controls_ok and back_ok and state_ok):
         return "C", False, criteria
     if not replication_ok:
-        return "B", True, criteria
+        return "B", not require_replication, criteria
     return "A", True, criteria
 
 
@@ -820,6 +1006,7 @@ def spec_metadata(bundle: BundleInput) -> dict[str, Any]:
 
 def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     validate_arguments(args)
+    args.state_gate = load_state_gate(args.state_file) if args.state_file else None
     inputs = parse_bundles(args)
     z = NormalDist().inv_cdf(1.0 - args.alpha / (2.0 * args.primary_cells))
     corrected_alpha = args.alpha / args.primary_cells
@@ -831,8 +1018,28 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         raise SystemExit("error: bundles use different timeframes")
     timeframe = next(iter(timeframes))
     entries = [entry for bundle in bundles for entry in bundle.entries]
-    metrics = evaluate_metrics(bundles, entries, args, z)
-    letter, passed, criteria = grade(metrics, args, corrected_alpha)
+    unconditional_metrics = evaluate_metrics(bundles, entries, args, z)
+    if args.state_gate is not None:
+        metrics = evaluate_metrics(
+            bundles, entries, args, z, state_only=True
+        )
+        state_increment = (
+            metrics["lift"] - unconditional_metrics["lift"]
+            if metrics["lift"] is not None
+            and unconditional_metrics["lift"] is not None
+            else None
+        )
+        letter, passed, criteria = grade(
+            metrics,
+            args,
+            corrected_alpha,
+            state_increment,
+            require_replication=True,
+        )
+    else:
+        metrics = unconditional_metrics
+        state_increment = None
+        letter, passed, criteria = grade(metrics, args, corrected_alpha)
     spec = spec_metadata(inputs[0])
     spec_id = args.spec_id or spec.get("id")
     family = args.family or spec.get("family")
@@ -841,14 +1048,27 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         instrument = inputs[0].name
     limitations = [
         "Prediction evaluation only; no execution, position sizing, or P&L.",
-        "Base rate is direction-matched and unconditional within the evaluated partition.",
+        (
+            "State metrics use a direction-matched base within the declared state; "
+            "the unconditional metrics use the whole partition."
+            if args.state_gate is not None
+            else "Base rate is direction-matched and unconditional within the evaluated partition."
+        ),
         "Overlapping outcomes are clustered by entry bar with a horizon gap.",
         "The forward outcome is joined after the model run; it never enters the model.",
     ]
+    if args.state_gate is not None:
+        limitations.append(
+            "The state gate is applied at the prediction bar; no later state is read."
+        )
+        limitations.append("A state-gated cell promotes only at grade A.")
     if len(inputs) == 1:
         limitations.append("A single instrument cannot satisfy the replication criterion.")
     if args.random_draws == 0 or args.shuffle_draws == 0:
         limitations.append("One or both controls were disabled by zero draws.")
+    criteria = dict(criteria)
+    if args.state_gate is not None:
+        criteria["min_state_increment"] = args.min_state_increment
     return {
         "schema": SCHEMA,
         "spec_id": spec_id,
@@ -880,6 +1100,11 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             "control_alpha": corrected_alpha,
         },
         "criteria_status": criteria,
+        "state_gate": args.state_gate.raw if args.state_gate is not None else None,
+        "state_increment": state_increment,
+        "unconditional_metrics": (
+            unconditional_metrics if args.state_gate is not None else None
+        ),
         "metrics": metrics,
         "grade": letter,
         "verdict": "pass" if passed else "fail",
@@ -931,6 +1156,36 @@ def markdown(document: dict[str, Any]) -> str:
         "replication",
     ):
         lines.append(f"| {key} | {format_value(metrics.get(key))} |")
+    if document.get("state_gate"):
+        unconditional = document["unconditional_metrics"]
+        lines.extend(
+            [
+                "",
+                "## State Gate",
+                "",
+                f"- Gate: `{json.dumps(document['state_gate'], sort_keys=True)}`",
+                f"- State increment: {format_value(document['state_increment'])}",
+                "",
+                "| Metric | State | Unconditional |",
+                "|---|---:|---:|",
+            ]
+        )
+        for key in (
+            "n",
+            "clusters",
+            "hit_rate",
+            "base_rate",
+            "lift",
+            "lift_lcb",
+            "random_p",
+            "shuffle_p",
+            "back_lag_lift",
+            "replication",
+        ):
+            lines.append(
+                f"| {key} | {format_value(metrics.get(key))} | "
+                f"{format_value(unconditional.get(key))} |"
+            )
     lines.extend(
         [
             "",

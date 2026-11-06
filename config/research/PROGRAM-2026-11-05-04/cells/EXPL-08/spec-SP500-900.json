@@ -1,0 +1,41 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-08",
+  "family": "M3",
+  "instrument": "SP500",
+  "timeframes": [
+    900
+  ],
+  "active_events": [
+    "signal.compression_breakout",
+    "signal.compression_range",
+    "signal.compression_range_onset",
+    "signal.path_efficiency",
+    "signal.direction_changes",
+    "signal.extreme_new",
+    "signal.extreme_stale",
+    "signal.drawdown_threshold",
+    "signal.drawdown_recovery",
+    "signal.range_position"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.compression_breakout",
+      "signal.compression_range",
+      "signal.compression_range_onset"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.path_efficiency",
+      "when": {
+        "event": {
+          "id": "signal.path_efficiency",
+          "timeframe": 3600
+        }
+      }
+    }
+  ]
+}

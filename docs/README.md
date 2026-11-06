@@ -64,6 +64,7 @@ rejects them with an unknown-field error; S3.x adds a strategy file back.
 | Compression-breakout 4 ATR baseline | Accepted model baseline (human, 2026-11-04) | [`docs/improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-BASELINE-CANDIDATE.md) |
 | Compression-range next-bar resolution | Accepted model baseline (human, 2026-11-04) | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
 | M2.x model programme | P5 `no_edge`; P7 closeout complete; validation not opened | [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](execution-plans/2026-11-05/410-m2-model-programme.md) |
+| M3.x model programme | Preflight `underpowered`; no development run; validation not opened | [`docs/improvement/2026-11-05/M3-PREFLIGHT.md`](improvement/2026-11-05/M3-PREFLIGHT.md) |
 | M2.x model charter | Approved 2026-11-05; strategy tier closed | [`docs/governance/2026-11-05/M2-CHARTER.md`](governance/2026-11-05/M2-CHARTER.md) |
 
 Pre-reset experiment records under `docs/improvement/` are historical. They are not
@@ -121,14 +122,15 @@ record of what was released.
 
 | Program | Status | Plan |
 |---|---|---|
-| Clean current architecture | P0.1–P7 complete; P8a charter approved, P8b not started | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
+| Clean current architecture | P0.1–P8 complete; M3 preflight underpowered | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
 | P2 M1.0 naming | Merged; M1.0 contract, config identities, retired model parsers, legacy scan | `docs/execution-plans/2026-11-05/470-m1-naming.md` |
 | P3 four-axis removal | Merged in PR #484 at `84ad934` | `docs/execution-plans/2026-11-05/471-four-axis-removal.md` |
 | P4 config cleanup | Merged in PR #485 at `50549dd` | `docs/execution-plans/2026-11-05/472-config-cleanup.md` |
 | P5 panel/session artifacts | Merged in PR #486 at `392ce80` | `docs/execution-plans/2026-11-05/473-panel-session-artifacts.md` |
 | P6 checklist/docs | Implemented; row 37 wording, family-level tests, retired contracts | `docs/execution-plans/2026-11-05/474-checklist-docs.md` |
 | P7 verify/closeout | Implemented; full gate, oracle cleanup, M2 closeout verification | `docs/execution-plans/2026-11-05/475-verify-closeout.md` |
-| P8a M3.x charter | Approved 2026-11-06; P8b not started | `docs/governance/2026-11-05/M3-CHARTER.md` |
+| P8a M3.x charter | Approved 2026-11-06; P8b executed | `docs/governance/2026-11-05/M3-CHARTER.md` |
+| P8b M3.x programme | Underpowered at the count gate; no development run; validation closed | `docs/improvement/2026-11-05/M3-PREFLIGHT.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 
 ## Current architecture decisions
