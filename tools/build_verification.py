@@ -95,6 +95,62 @@ CLASSES = [
 ]
 
 
+
+ROW_INDICATOR_TESTS = {
+    "ema": {
+        "formula": ("per_row_base::ema_row_contract",),
+        "causality": ("per_row_base::ema_row_contract",),
+        "determinism": ("per_row_base::ema_row_contract",),
+        "golden": ("per_row_base::ema_row_contract",),
+        "edge": ("per_row_base::ema_row_contract",),
+    },
+    "rsi": {
+        "formula": ("per_row_base::rsi_row_contract",),
+        "causality": ("per_row_base::rsi_row_contract",),
+        "determinism": ("per_row_base::rsi_row_contract",),
+        "golden": ("per_row_base::rsi_row_contract",),
+        "edge": ("per_row_base::rsi_row_contract",),
+    },
+    "atr": {
+        "formula": ("per_row_base::atr_row_contract",),
+        "causality": ("per_row_base::atr_row_contract",),
+        "determinism": ("per_row_base::atr_row_contract",),
+        "golden": ("per_row_base::atr_row_contract",),
+        "edge": ("per_row_base::atr_row_contract",),
+    },
+    "macd": {
+        "formula": ("readings::macd::tests::the_line_is_the_fast_minus_the_slow_ema",),
+        "causality": ("readings::macd::tests::appended_bars_do_not_change_earlier_output",),
+        "determinism": ("readings::macd::tests::repeated_runs_are_identical",),
+        "edge": ("readings::macd::tests::short_and_invalid_inputs_are_all_null",),
+    },
+    "adx": {
+        "formula": ("readings::adx::tests::an_uptrend_has_positive_direction_and_strength",),
+        "causality": ("readings::adx::tests::the_series_is_causal",),
+        "determinism": ("readings::adx::tests::the_series_is_deterministic",),
+        "edge": ("readings::adx::tests::a_flat_series_is_null_not_zero",),
+    },
+    "dmi": {
+        "formula": ("events::dmi::tests::a_direction_change_emits_one_cross",),
+        "causality": ("events::dmi::tests::the_series_is_causal",),
+        "edge": ("events::dmi::tests::a_flat_series_has_no_event",),
+    },
+    "context": {
+        "formula": ("context_golden::the_context_matches_the_golden_fixture",),
+        "causality": ("context_golden::later_candles_do_not_change_earlier_context",),
+        "determinism": ("context_golden::the_context_is_deterministic",),
+        "golden": ("context_golden::the_context_matches_the_golden_fixture",),
+        "edge": ("context_golden::every_available_ratio_retains_a_value_when_the_code_is_null",),
+    },
+    "progression": {
+        "formula": ("progression::tests::the_series_length_matches_the_readings_length",),
+        "causality": ("progression::tests::later_bars_do_not_change_earlier_records",),
+        "determinism": ("progression::tests::repeated_runs_are_identical",),
+        "golden": ("progression_golden::the_per_bar_fixture_matches_the_computed_series",),
+        "edge": ("progression::tests::an_empty_series_has_no_bars_and_no_legs",),
+    },
+}
+
 def evidence(scope: str, *tests: str) -> dict[str, object]:
     return {"scope": scope, "tests": list(tests)}
 
@@ -195,6 +251,8 @@ def indicator_entry(indicator: dict[str, object], claims: dict[str, dict[str, ob
         else evidence("n/a"),
         "emitter": evidence("n/a"),
     }
+    for name, tests in ROW_INDICATOR_TESTS.get(ident, {}).items():
+        evidence_map[name] = evidence("row", *tests)
     return {"id": ident, "kind": "indicator", "evidence": evidence_map}
 
 
@@ -251,7 +309,8 @@ def write_indicators(manifest: dict[str, object]) -> None:
         entry = entries[ident]
         claim = claims.get(ident, {})
         l, d, s = counts[ident]
-        tests = ", ".join(claim.get("construct_tests", [])) or "—"
+        formula_tests = entry["evidence"]["formula"]["tests"]
+        tests = ", ".join(formula_tests) if formula_tests else "—"
         lines.append(
             "| "
             + " | ".join(
@@ -310,7 +369,8 @@ def write_events(manifest: dict[str, object]) -> None:
         ident = event["id"]
         entry = entries[ident]
         claim = claims.get(ident, {})
-        tests = ", ".join(claim.get("construct_tests", [])) or "—"
+        formula_tests = entry["evidence"]["formula"]["tests"]
+        tests = ", ".join(formula_tests) if formula_tests else "—"
         sources = ",".join(str(value) for value in event.get("sources", [event.get("source")]))
         lines.append(
             "| "

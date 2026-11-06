@@ -8,16 +8,16 @@
 
 | # | Indicator | Code | Area | L/D/S | Registry | Construct test | Predictive | F | C | D | G | E | A | N | P | M | Status |
 |---:|---|---:|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | `ema` | 1 | Base | 0/0/2 | ✅ | readings_golden::every_scalar_reading_matches_the_golden_values | pending | ◐ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
-| 2 | `rsi` | 2 | Base | 0/4/2 | ✅ | readings_golden::every_scalar_reading_matches_the_golden_values | pending | ◐ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
-| 3 | `atr` | 3 | Base | 0/0/0 | ✅ | readings_golden::every_scalar_reading_matches_the_golden_values | pending | ◐ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
+| 1 | `ema` | 1 | Base | 0/0/2 | ✅ | per_row_base::ema_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
+| 2 | `rsi` | 2 | Base | 0/4/2 | ✅ | per_row_base::rsi_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
+| 3 | `atr` | 3 | Base | 0/0/0 | ✅ | per_row_base::atr_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | covered |
 | 4 | `rvol` | 4 | 3 Participation | 0/2/3 | ✅ | rvol_reads_the_volume_ratio | pending | ✅ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
-| 5 | `macd` | 5 | Base | 0/0/3 | ✅ | readings_golden::every_scalar_reading_matches_the_golden_values | pending | ◐ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
+| 5 | `macd` | 5 | Base | 0/0/3 | ✅ | readings::macd::tests::the_line_is_the_fast_minus_the_slow_ema | pending | ✅ | ✅ | ✅ | ◐ | ✅ | — | — | — | ✅ | partial (family) |
 | 6 | `pivots` | 6 | 6 Structure | 3/0/0 | ✅ | readings_golden::the_fixture_covers_every_reading_and_both_pivot_scales | pending | ✅ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
-| 7 | `context` | 7 | Base | 0/0/3 | ✅ | context_golden::the_context_matches_the_golden_fixture | pending | ✅ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
-| 8 | `progression` | 8 | Base | 0/0/0 | ✅ | progression_golden::the_per_bar_fixture_matches_the_computed_series | pending | ✅ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
-| 9 | `adx` | 9 | Base | 0/0/1 | ✅ | readings_golden::every_scalar_reading_matches_the_golden_values | pending | ◐ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
-| 10 | `dmi` | 10 | Base | 0/0/1 | ✅ | readings_golden::every_scalar_reading_matches_the_golden_values | pending | ◐ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
+| 7 | `context` | 7 | Base | 0/0/3 | ✅ | context_golden::the_context_matches_the_golden_fixture | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
+| 8 | `progression` | 8 | Base | 0/0/0 | ✅ | progression::tests::the_series_length_matches_the_readings_length | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | covered |
+| 9 | `adx` | 9 | Base | 0/0/1 | ✅ | readings::adx::tests::an_uptrend_has_positive_direction_and_strength | pending | ✅ | ✅ | ✅ | ◐ | ✅ | — | — | — | ✅ | partial (family) |
+| 10 | `dmi` | 10 | Base | 0/0/1 | ✅ | events::dmi::tests::a_direction_change_emits_one_cross | pending | ✅ | ✅ | ◐ | ◐ | ✅ | — | — | — | ✅ | partial (family) |
 | 11 | `vwap` | 11 | 1 Volume-weighted price | 3/4/3 | ✅ | vwap_is_the_volume_weighted_typical_price | pending | ✅ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
 | 12 | `volume_profile` | 12 | 2 Volume by price | 5/2/4 | ✅ | profile_poc_is_the_highest_volume_bin | pending | ◐ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |
 | 13 | `volume_climax` | 13 | 3 Participation | 0/2/2 | ✅ | climax_flags_a_high_volume_wide_bar | pending | ◐ | ◐ | ◐ | ◐ | ◐ | — | — | — | ✅ | partial (family) |

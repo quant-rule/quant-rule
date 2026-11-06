@@ -86,15 +86,16 @@ Implemented on `test/indicator-event-verification` on 2026-11-06.
   entries and all eleven evidence classes.
 - Added `tools/build_verification.py` to regenerate the manifest and matrices.
 - Added `tools/check_verification.py` and wired it into CI.
+- Added the base row contracts in `crates/quantrule-model/tests/per_row_base.rs` and mapped EMA/RSI/ATR, MACD, ADX, DMI, context, and progression evidence to row-level tests.
 - Generated matrices now show `✅` row/tool evidence, `◐` family evidence, and
   `—` N/A. Status is `partial (family)` when any class is family-level.
-- Scope counts: 33 `row`, 1410 `family`, 332 `tool`, 304 `n/a`.
+- Scope counts: 67 `row`, 1376 `family`, 332 `tool`, 304 `n/a`.
 
 Observed gates:
 
 | Check | Result |
 |---|---|
-| `cargo test --workspace` | 984 passed, 0 failed, 7 ignored |
+| `cargo test --workspace` | 987 passed, 0 failed, 7 ignored |
 | `check_registry.py` | 46 indicators, 143 events, 101 parameters |
 | `check_validation.py` | 189 claims, construct coverage pass |
 | `check_verification.py` | 46 indicators, 143 events; scope counts above |

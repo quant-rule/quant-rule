@@ -12,12 +12,12 @@ the eleven evidence classes. The matrix documents are generated from it.
 
 | Scope | Cells | Meaning |
 |---|---:|---|
-| `row` | 33 | The test names the row's indicator or event |
-| `family` | 1410 | The test exercises the family that contains the row |
+| `row` | 67 | The test names the row's indicator or event |
+| `family` | 1376 | The test exercises the family that contains the row |
 | `tool` | 332 | A repository gate covers every row |
 | `n/a` | 304 | The class does not apply |
 
-The large `family` count is the honest result: the existing suites exercise
+The base EMA/RSI/ATR contracts and the existing MACD/ADX/DMI/context/progression tests are row-level; the large `family` count is the honest result: the existing suites exercise
 families, not one bespoke test per row. The matrix marks these cells `◐` and the
 status `partial (family)`, not `verified`.
 
