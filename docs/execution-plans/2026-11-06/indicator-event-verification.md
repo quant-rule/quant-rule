@@ -80,7 +80,7 @@ python3 tools/check_file_size.py
 
 ## 7. Execution record
 
-Implemented across `test/indicator-event-verification`, `test/row-level-verification-base`, and `test/row-level-verification-base-events` on 2026-11-06.
+Implemented across `test/indicator-event-verification`, `test/row-level-verification-base`, `test/row-level-verification-base-events`, and `test/per-row-extended-session-events` on 2026-11-06.
 
 - Added `docs/registry/verification.json` with 46 indicator and 143 event
   entries and all eleven evidence classes.
@@ -89,15 +89,16 @@ Implemented across `test/indicator-event-verification`, `test/row-level-verifica
 - Added the base row contracts in `crates/quantrule-model/tests/per_row_base.rs` and mapped EMA/RSI/ATR, MACD, ADX, DMI, context, and progression evidence to row-level tests.
 - Added `crates/quantrule-model/tests/per_row_base_events.rs` for the 16 base events. Each row covers formula, availability, dedupe, causality by prefix, and determinism; hidden bullish uses a dedicated series because the scalar fixture has no such pair.
 - Fixed the MACD histogram branch so a two-bar series cannot underflow at `bar - 2`, with a focused unit regression test.
+- Added `crates/quantrule-model/tests/per_row_extended_session_events.rs` for the 80 extended and session events covered by the checked-in event fixtures. Each row checks its golden record, availability, uniqueness, determinism, and prefix causality. The fixtures are regression locks, not independent oracles.
 - Generated matrices now show `✅` row/tool evidence, `◐` family evidence, and
   `—` N/A. Status is `partial (family)` when any class is family-level.
-- Scope counts: 146 `row`, 1297 `family`, 332 `tool`, 304 `n/a`.
+- Scope counts: 624 `row`, 819 `family`, 332 `tool`, 304 `n/a`.
 
 Observed gates:
 
 | Check | Result |
 |---|---|
-| `cargo test --workspace` | 1004 passed, 0 failed, 7 ignored |
+| `cargo test --workspace` | 1084 passed, 0 failed, 7 ignored |
 | `check_registry.py` | 46 indicators, 143 events, 101 parameters |
 | `check_validation.py` | 189 claims, construct coverage pass |
 | `check_verification.py` | 46 indicators, 143 events; scope counts above |

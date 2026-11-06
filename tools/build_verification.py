@@ -190,6 +190,32 @@ ROW_EVENT_CLASSES = (
     "availability",
     "no_double_count",
 )
+ROW_FIXTURE_EVENT_CLASSES = (
+    "formula",
+    "causality",
+    "determinism",
+    "golden",
+    "availability",
+    "no_double_count",
+)
+EVENT_FIXTURES = (
+    ROOT / "crates/quantrule-model/tests/fixtures/extended_events_golden.csv",
+    ROOT / "crates/quantrule-model/tests/fixtures/session_events_golden.csv",
+)
+
+
+def fixture_event_tests(events: list[dict[str, object]]) -> dict[str, tuple[str, ...]]:
+    by_code = {int(event["code"]): str(event["id"]) for event in events}
+    tests: dict[str, tuple[str, ...]] = {}
+    for path in EVENT_FIXTURES:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line or line.startswith("#") or line.startswith("bar,"):
+                continue
+            ident = by_code[int(line.split(",")[1])]
+            tests[ident] = (
+                f"per_row_extended_session_events::{ident.replace('.', '_')}_row_contract",
+            )
+    return tests
 
 
 def evidence(scope: str, *tests: str) -> dict[str, object]:
@@ -297,7 +323,11 @@ def indicator_entry(indicator: dict[str, object], claims: dict[str, dict[str, ob
     return {"id": ident, "kind": "indicator", "evidence": evidence_map}
 
 
-def event_entry(event: dict[str, object], claims: dict[str, dict[str, object]]) -> dict[str, object]:
+def event_entry(
+    event: dict[str, object],
+    claims: dict[str, dict[str, object]],
+    fixture_tests: dict[str, tuple[str, ...]],
+) -> dict[str, object]:
     ident = str(event["id"])
     claim = claims.get(ident, {})
     tests = list(claim.get("construct_tests", []))
@@ -323,6 +353,9 @@ def event_entry(event: dict[str, object], claims: dict[str, dict[str, object]]) 
     for name in ROW_EVENT_CLASSES:
         if ident in ROW_EVENT_TESTS:
             evidence_map[name] = evidence("row", *ROW_EVENT_TESTS[ident])
+    if ident in fixture_tests:
+        for name in ROW_FIXTURE_EVENT_CLASSES:
+            evidence_map[name] = evidence("row", *fixture_tests[ident])
     return {"id": ident, "kind": "event", "evidence": evidence_map}
 
 
@@ -459,11 +492,14 @@ def main() -> int:
     indicator_registry = registry["indicators"]
     event_registry = registry["events"]
     claims = {claim["id"]: claim for claim in validation["claims"]}
+    fixture_tests = fixture_event_tests(event_registry)
     manifest = {
         "schema": "quantrule.verification/v1",
-        "version": "2026-11-06.1",
+        "version": "2026-11-06.2",
         "indicators": [indicator_entry(indicator, claims) for indicator in indicator_registry],
-        "events": [event_entry(event, claims) for event in event_registry],
+        "events": [
+            event_entry(event, claims, fixture_tests) for event in event_registry
+        ],
     }
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
     write_indicators(manifest)
