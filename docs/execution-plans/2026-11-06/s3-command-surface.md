@@ -1,7 +1,7 @@
 # S3.x Command Surface — Stage-Isolated Pipeline Access
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved; Phase 1 implemented and verified locally; publication pending
+- Status: Approved; Phase 1 merged; Phase 2 implemented and verified locally; publication pending
 - Issue: none (human-approved slug; no issue number is invented)
 - Branch: `docs/s3-command-contracts`
 - Worktree: `s3-command-contracts` (OpenCode task worktree)
@@ -345,4 +345,54 @@ Drift-guard evidence:
   README returned the checker to 0.
 
 Phase 1 is verified locally. Publication (commit, push, and pull request) is
+pending human authorization.
+
+## 14. Phase 2 verification record
+
+Observed in the Phase 2 worktree on 2026-11-06:
+
+| Check | Result |
+|---|---|
+| `cargo test --workspace` | 1,196 passed, 0 failed, 8 ignored. |
+| `cargo clippy --all-targets -- -D warnings` | Pass. |
+| `cargo fmt --all -- --check` | Pass. |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | Pass. |
+| `python3 tools/check_command_surface.py` | Pass; 10 implemented, 5 planned, 10 README rows, 2 tutorial files. |
+| `python3 tools/check_registry.py` | Pass; 46 indicators, 143 events, 101 parameters. |
+| `python3 tools/check_validation.py` | Pass; 189 claims. |
+| `python3 tools/check_verification.py` | Pass; row=1091 family=329 tool=332 n/a=327. |
+| `python3 tools/check_verification_matrix.py` | Pass; 46 indicators, 143 events. |
+| `python3 tools/check_event_emitters.py` | Pass; 143 registered codes. |
+| `python3 tools/check_links.py` | Pass; 574 Markdown files. |
+| `python3 tools/check_terms.py` | Pass; 344 files. |
+| `python3 tools/check_legacy.py` | Pass; 640 current files. |
+| `python3 tools/check_file_size.py` | Pass. |
+| `git diff --check` | Pass (run before publication). |
+
+Behavior evidence:
+
+- `strategy explain` on `target/strategy-lab/model` at bar 21 prints an `enter`
+  decision with `side: long`, an ATR stop intent, and one event evidence record.
+- `strategy run` writes `decisions.ndjson`, `summary.txt`, and `provenance.json`;
+  two runs into separate roots are byte-identical.
+- The decision record carries no `fill`, `quantity`, `fee`, `cash`, `equity`, or
+  `pnl` key.
+- A non-empty strategy target is refused; a compression-bracket strategy is
+  refused by `strategy run` with the documented execution-feedback reason, while
+  `strategy explain` supports it for one decision.
+- The strategy bundle reader reads `readings.csv`, `events.csv`, and
+  `provenance.json`; it does not re-run the model or read a candle.
+
+The model bundle gained the already-published `macd_histogram_state` per-bar
+column so the strategy can read a state the model contract already publishes.
+The model values and event definitions are unchanged.
+
+No independent Code Reviewer or Quant Validator pass has been performed. The
+agent performed the implementation and the self-review in one session; no
+independent review is claimed. The change adds a stage command and an additive
+artifact column; it does not change a signal formula or event definition. The
+Quant Validator record is not claimed, and the PR states the reason it is not
+applicable to a model or strategy behavior change.
+
+Phase 2 is verified locally. Publication (commit, push, and pull request) is
 pending human authorization.

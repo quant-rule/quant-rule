@@ -159,7 +159,6 @@ fn rejects_deleted_commands() {
         "model-series data/example.csv",
         "backtest --config run.json",
         "strategy-run data/example.csv --strategy s.json",
-        "strategy explain --config run.json",
         "store list",
         "db bars",
         "research export data/example.csv",

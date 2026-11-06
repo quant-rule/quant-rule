@@ -134,7 +134,9 @@ The model bundle contains:
 An event record carries `event_code`, `event_type`, `event_subtype_code`,
 `source_code`, `timeframe_secs`, `occurred_bar_index`, `available_bar_index`,
 `direction_code`, `reference_code`, `primary_value`, and `reference_value`. The
-model publishes codes; the shell maps them to labels for display.
+model publishes codes; the shell maps them to labels for display. The per-bar
+`readings.csv` carries `macd_histogram_state` beside `macd_state`, so the
+strategy stage can read a state the model result already publishes.
 
 The model stage never publishes a label, a confidence, a composite score, a
 cross-timeframe aggregate, a strategy decision, a fill, or a P&L.
@@ -156,11 +158,13 @@ it. It does not know the fill price, quantity, fee, cash, or P&L.
 non-empty target. Without an execution artifact, `strategy run` tracks the
 strategy's intended position from its own decisions and starts flat; it is a
 decision preview, not a fill simulation. The full `backtest run` supplies the
-position execution actually holds.
+position execution actually holds. A standalone `strategy run` supports the
+event-composite engine; the compression-bracket engine needs the fill side from
+execution and is explain-only until the backtest runner supplies it.
 
-The strategy config schema is defined by the Phase 2 implementation. This
-document fixes the command and the decisions artifact, not the strategy rule
-language.
+The strategy config schema is `quantrule.strategy/v1`; its contract is in
+[`strategy-config.md`](strategy-config.md). This document fixes the command and
+the decisions artifact, not the rule language itself.
 
 ### 5.2 Decisions bundle
 

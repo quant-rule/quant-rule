@@ -6,6 +6,8 @@ QuantRule shell commands
   events <csv-path> [--window full|latest]                   Print the flat model's registered and extended event records.
   report model --config <run.json> [--spec <spec.json>] [--out <dir>] [--json] Write the flat per-timeframe model bundle for one configured run.
   policy check --config <run.json>                           Validate the policy and every engine config against it.
+  strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat|long|short] Print one strategy decision and its as-of evidence from a model bundle.
+  strategy run --model <model-bundle> --strategy <strategy.json> [--out <dir>] [--json] Write the strategy decisions bundle for one model bundle.
   fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>] Fetch a Dukascopy range and write the accepted candles as CSV.
   help [<command>|all|glossary]                              Print the command map, one command contract, or the glossary.
 

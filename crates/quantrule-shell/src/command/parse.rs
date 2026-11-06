@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use super::fetch::parse_fetch_arguments;
 use super::policy::parse_policy_arguments;
 use super::report_run::parse_report_arguments;
+use super::strategy::parse_strategy_arguments;
 use super::types::{Command, HelpTopic, ModelArgs, ParseError, WindowMode};
 
 /// Parses one command line.
@@ -44,6 +45,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "policy" => {
             let arguments = tokenize(rest)?;
             parse_policy_arguments(&arguments).map(Some)
+        }
+        "strategy" => {
+            let arguments = tokenize(rest)?;
+            parse_strategy_arguments(&arguments).map(Some)
         }
         "fetch" => {
             let arguments = tokenize(rest)?;

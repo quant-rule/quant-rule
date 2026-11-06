@@ -87,6 +87,29 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "strategy explain",
+        usage: "strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat|long|short]",
+        summary: "Print one strategy decision and its as-of evidence from a model bundle.",
+        output: "one JSON decision record with bar identity, position, intent, ATR, and evidence",
+        notes: &[
+            "The model bundle is the report model output directory.",
+            "The position argument is the strategy's own state, not a market reading.",
+            "The command supports the event-composite and compression-bracket engines.",
+        ],
+    },
+    CommandHelp {
+        name: "strategy run",
+        usage: "strategy run --model <model-bundle> --strategy <strategy.json> [--out <dir>] [--json]",
+        summary: "Write the strategy decisions bundle for one model bundle.",
+        output: "the artifact paths, or a JSON envelope; <out>/strategy/ holds decisions.ndjson, summary.txt, and provenance.json",
+        notes: &[
+            "The standalone sequence supports the event-composite engine.",
+            "A compression-bracket strategy needs the fill side from execution; use strategy explain for one decision.",
+            "If --out is omitted, the bundle is written beside the model bundle.",
+            "The bundle carries no fill, quantity, fee, cash, equity, or PnL.",
+        ],
+    },
+    CommandHelp {
         name: "fetch",
         usage: "fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]",
         summary: "Fetch a Dukascopy range and write the accepted candles as CSV.",
@@ -181,12 +204,14 @@ mod tests {
             "events",
             "report model",
             "policy check",
+            "strategy explain",
+            "strategy run",
             "fetch",
             "help",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 8);
+        assert_eq!(COMMANDS.len(), 10);
     }
 
     #[test]

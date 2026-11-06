@@ -39,6 +39,23 @@ policy check
   output: one `policy ok ...` line
   note:   The loader rejects a missing, malformed, or inconsistent config before any candle is read.
 
+strategy explain
+  usage:  strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat|long|short]
+  does:   Print one strategy decision and its as-of evidence from a model bundle.
+  output: one JSON decision record with bar identity, position, intent, ATR, and evidence
+  note:   The model bundle is the report model output directory.
+  note:   The position argument is the strategy's own state, not a market reading.
+  note:   The command supports the event-composite and compression-bracket engines.
+
+strategy run
+  usage:  strategy run --model <model-bundle> --strategy <strategy.json> [--out <dir>] [--json]
+  does:   Write the strategy decisions bundle for one model bundle.
+  output: the artifact paths, or a JSON envelope; <out>/strategy/ holds decisions.ndjson, summary.txt, and provenance.json
+  note:   The standalone sequence supports the event-composite engine.
+  note:   A compression-bracket strategy needs the fill side from execution; use strategy explain for one decision.
+  note:   If --out is omitted, the bundle is written beside the model bundle.
+  note:   The bundle carries no fill, quantity, fee, cash, equity, or PnL.
+
 fetch
   usage:  fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]
   does:   Fetch a Dukascopy range and write the accepted candles as CSV.

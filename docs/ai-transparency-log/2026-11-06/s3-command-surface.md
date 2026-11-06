@@ -118,3 +118,34 @@ Validator reproduction is applicable.
 
 Publication (push, pull request, merge, tag, or release) is pending human
 authorization. The work is local to the task branch `docs/s3-command-contracts`.
+
+## 7. Phase 2 — strategy commands
+
+- Intent and boundary: add `strategy explain` and `strategy run`, the
+  `quantrule.strategy/v1` parser, the model-bundle reader, and the decisions
+  bundle. The stage reads the model bundle; it does not re-run the model or read
+  a candle, fill, account, or P&L.
+- Implemented: `crates/quantrule-shell/src/config/strategy.rs`,
+  `crates/quantrule-shell/src/strategy/`, `crates/quantrule-shell/src/command/strategy.rs`,
+  the command wiring, help entries, README rows, strategy lab, and strategy
+  configuration contract. `EventView` now carries the stable `event_code`, and
+  `readings.csv` now carries the already-published `macd_histogram_state` column.
+- Verification: `cargo test --workspace` 1,196 passed, 0 failed, 8 ignored;
+  clippy, fmt, doc, all model gates, links, terms, legacy, file size, and
+  `git diff --check` pass. The command-surface checker reports 10 implemented and
+  5 planned. The integration test generates a real model bundle with
+  `report model`, then proves the explain output, the decisions bundle, byte
+  determinism, the non-empty-target refusal, and the bracket-run refusal.
+- Corrections: the first strategy test used an extended event subtype 10, which
+  the bounded event-composite engine does not accept; the test and fixture use a
+  base subtype instead. The first help fixtures predated the two commands and
+  were regenerated. The first command parser test still treated
+  `strategy explain` as a deleted command; the case was removed because the
+  command is now implemented.
+- Learning: the strategy stage could not honestly read a model bundle until the
+  per-bar `macd_histogram_state` was present; the model result already published
+  the state, so the fix is an additive artifact column, not a model behavior
+  change. The standalone bracket engine needs the fill side that execution owns,
+  so `strategy run` refuses it rather than inventing a side.
+- Publication (push, pull request, merge, tag, or release) is pending human
+  authorization. The work is local to the task branch.
