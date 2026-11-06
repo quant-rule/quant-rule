@@ -239,8 +239,8 @@ The command surface is delivered in the S3.x sequence, one stage at a time:
 | 4 | Portfolio command and performance artifact | Merged |
 | 5 | Backtest orchestration command | Merged |
 | 6 | Qualification command and record | Merged |
-| 7 | Analytics evaluation command | Implemented and verified locally; publication pending |
-| 8 | Independent stage verification and closure | Planned |
+| 7 | Analytics evaluation command | Merged |
+| 8 | Independent stage verification and closure | Implemented and verified locally; publication pending |
 
 Each phase adds only implemented commands to the discovery surfaces. The plan
 and traceability are in
