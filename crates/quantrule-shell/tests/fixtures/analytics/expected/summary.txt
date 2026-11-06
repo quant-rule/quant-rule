@@ -1,0 +1,26 @@
+QuantRule analytics evaluate
+data_version: test:v1
+config_id: 85fa1856498246b6
+period: 2025-01-01..2025-01-01
+trades: 1
+wins: 0
+losses: 1
+win_rate: 0
+profit_factor: 0
+average_trade: -246.12758982313497
+average_hold_bars: 11
+exposure: 0.21295050481740754
+total_return: -0.02461275898231363
+max_drawdown: 0.02696674483544992
+max_drawdown_duration_bars: 28
+initial_cash: 10000
+final_equity: 9753.872410176864
+gross_pnl: -226.26022890251596
+net_pnl: -246.12758982313497
+realized_pnl: -246.12758982313497
+unrealized_pnl: 0
+costs: execution_fees=0 commission=19.867360920619 funding_paid=0 funding_received=0 net_costs=19.867360920619
+decisions: hold=51 enter=1 enter_bracket=0 exit=0
+monthly_returns: 1
+tables: trades.csv monthly_returns.csv costs.csv decisions.csv by_timeframe.csv equity.csv funding.csv risk_events.csv
+unsupported: by_regime by_instrument

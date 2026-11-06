@@ -204,6 +204,7 @@ fn help_lists_only_the_surviving_commands() {
         "portfolio replay",
         "backtest run",
         "qualify",
+        "analytics evaluate",
         "fetch",
         "help",
     ] {

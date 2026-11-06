@@ -52,7 +52,7 @@ the policy and the engine configuration files; it does not decide a trade.
 | 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, and rejections | `execution run` | Implemented |
 | 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | `portfolio replay` | Implemented |
 | 6 | **Qualification Engine** | Evidence bundle and human-owned acceptance criteria | Qualification record and verdict | `qualify` | Implemented |
-| 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | `analytics evaluate` | Planned |
+| 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | `analytics evaluate` | Implemented |
 | — | Backtest orchestration | Run config and strategy config | Stage bundles and a run manifest | `backtest run` | Implemented |
 
 ### Terminology
@@ -97,7 +97,7 @@ the distinction.
 | `portfolio replay` | Portfolio | Implemented | Fills bundle, run config | Portfolio bundle |
 | `backtest run` | Orchestration | Implemented | Run config, strategy config | Stage bundles and a run manifest |
 | `qualify` | Qualification | Implemented | Evidence bundle, qualification criteria | Qualification record and verdict |
-| `analytics evaluate` | Analytics | Planned | Result artifacts | Metrics bundle |
+| `analytics evaluate` | Analytics | Implemented | Result artifacts | Metrics bundle |
 
 The current shell also accepts `quit` as a shell meta-command. It is not a
 pipeline command and is not part of the stage contract.
@@ -126,6 +126,12 @@ the manifest and every stage provenance hash, resolves each criterion against th
 named artifact field, applies the fixed verdict precedence, and writes the
 qualification bundle. It writes `human_decision: null` and never writes
 `decision.md`; acceptance remains a separate human act.
+
+`analytics evaluate` consumes the same backtest bundle and publishes descriptive
+metrics and evaluation tables. It aggregates the strategy decisions by timeframe
+and copies or derives the portfolio tables. It writes no verdict, no acceptance,
+and no strategy decision. A metric or table the evidence does not support is
+`null` or unsupported with a reason code.
 
 ## 4. Artifact and provenance rule
 
@@ -232,8 +238,8 @@ The command surface is delivered in the S3.x sequence, one stage at a time:
 | 3 | Execution command and fills artifact | Merged |
 | 4 | Portfolio command and performance artifact | Merged |
 | 5 | Backtest orchestration command | Merged |
-| 6 | Qualification command and record | Implemented and verified locally; publication pending |
-| 7 | Analytics evaluation command | Planned |
+| 6 | Qualification command and record | Merged |
+| 7 | Analytics evaluation command | Implemented and verified locally; publication pending |
 | 8 | Independent stage verification and closure | Planned |
 
 Each phase adds only implemented commands to the discovery surfaces. The plan

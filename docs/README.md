@@ -50,6 +50,7 @@ linked below.
 | Portfolio lab tutorial | Current; `report model`, `strategy run`, `execution run`, `portfolio replay` | `docs/tutorials/2026-11-06/portfolio-lab.md` |
 | Backtest lab tutorial | Current; the coupled `backtest run` and its stage bundles | `docs/tutorials/2026-11-06/backtest-lab.md` |
 | Qualification lab tutorial | Current; `qualify`, the criteria verdicts, and the human acceptance boundary | `docs/tutorials/2026-11-06/qualification-lab.md` |
+| Analytics lab tutorial | Current; `analytics evaluate`, the descriptive metrics, and the evaluation tables | `docs/tutorials/2026-11-06/analytics-lab.md` |
 | Indicator verification matrix | Current; 46 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 143 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |

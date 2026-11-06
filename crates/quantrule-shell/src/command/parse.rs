@@ -7,6 +7,7 @@
 
 use std::path::PathBuf;
 
+use super::analytics::parse_analytics_arguments;
 use super::backtest::parse_backtest_arguments;
 use super::execution::parse_execution_arguments;
 use super::fetch::parse_fetch_arguments;
@@ -69,6 +70,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "qualify" => {
             let arguments = tokenize(rest)?;
             parse_qualify_arguments(&arguments).map(Some)
+        }
+        "analytics" => {
+            let arguments = tokenize(rest)?;
+            parse_analytics_arguments(&arguments).map(Some)
         }
         "fetch" => {
             let arguments = tokenize(rest)?;

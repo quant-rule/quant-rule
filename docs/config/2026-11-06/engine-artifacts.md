@@ -410,8 +410,12 @@ present artifact is a criterion result, not a refusal.
 
 ## 10. Analytics stage
 
+- Status: Implemented 2026-11-06.
+
 The analytics stage consumes result artifacts and publishes descriptive metrics
-and evaluation tables. It does not produce a verdict or a strategy decision.
+and evaluation tables. It does not produce a verdict or a strategy decision. The
+shared backtest-bundle reader validates the manifest and every stage provenance
+hash before a metric is read.
 
 ### 10.1 Command
 
@@ -429,17 +433,37 @@ analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json]
   provenance.json
 ```
 
-`metrics.json` uses `quantrule.analytics-metrics/v1` and carries descriptive and
-inferential evaluation metrics: trade count, profit factor, win rate, average
-trade, average hold, exposure, drawdown, monthly returns, cost totals, and the
-per-timeframe, per-regime, and per-instrument tables the evidence supports. A
-metric that is not supported by the evidence is `null` with a reason code. No
-metric enters a strategy decision. The exact table set and column order are fixed
-by the Phase 7 implementation; the required metric families are fixed here.
+`metrics.json` uses `quantrule.analytics-metrics/v1`:
 
-`tables/` carries one CSV per declared dimension, with a stable header and row
-order. `summary.txt` is a fixed-order rendering of the metrics and the evidence
-identity.
+| Field | Rule |
+|---|---|
+| `schema` | `quantrule.analytics-metrics/v1`. |
+| `stage` | `analytics`. |
+| `evidence` | The backtest manifest identity and hash, data version, config identity, code revision, period, and seed. |
+| `metrics` | Trade count, win and loss counts, win rate, profit factor, average trade, average hold, exposure, drawdown and its duration, total return, initial cash, final equity, gross/net/realized/unrealized P&L, execution fees, commission, funding paid and received, net costs, halt state, monthly returns, and decision counts. |
+| `null_reasons` | One stable reason code for every null metric. |
+| `tables` | One entry per table: `name`, `path`, `columns`, and `rows`, in the declared order. |
+| `unsupported` | The tables the evidence cannot support, with a stable reason code. |
+
+The declared tables are `trades`, `monthly_returns`, `costs`, `decisions`,
+`by_timeframe`, `equity`, `funding`, and `risk_events`. The `by_regime` and
+`by_instrument` tables are not synthesized: the backtest bundle publishes no
+regime label and no instrument identity, so they are recorded as unsupported
+with `regime_label_not_published` and `instrument_identity_not_published`.
+`tables/` carries one CSV per declared table, with a stable header and row order.
+
+`summary.txt` is a fixed-order rendering of the metrics and the evidence
+identity. No metric enters a strategy decision, and the bundle carries no
+verdict, no acceptance, and no human decision.
+
+Inferential metrics are not synthesized: the v1 result bundle carries no fold or
+p-value structure. The qualification stage owns the multiple-testing declaration
+and its adjusted threshold. A later evidence contract that publishes folds or
+p-values can extend the analytics surface without changing the signal path.
+
+The shell enables `serde_json`'s `float_roundtrip` feature, so a portfolio
+decimal parses back to the same `f64` it was serialized from. A copied metric
+therefore does not drift in the last digit.
 
 ## 11. Handoff matrix
 
@@ -451,7 +475,7 @@ identity.
 | Portfolio | Fills bundle, run config, portfolio config | The fills schema or stage is unsupported, a fill is malformed, or a mark is missing. | Fills bundle, data version, portfolio config identity. |
 | Backtest | Run config, strategy config | Any stage above refuses, or a stage writes an artifact it did not declare. | All stage artifacts and their hashes. |
 | Qualification | Backtest bundle, qualification criteria | The backtest manifest is missing, a criterion names absent evidence, or a mandatory criterion has no evidence. | Backtest manifest, criteria identity, data version, partitions, costs, seed. |
-| Analytics | Backtest or portfolio bundle | The evidence schema or stage is unsupported, or a required table is absent. | Evidence bundle, data version, config identity. |
+| Analytics | Backtest bundle | The evidence schema or stage is unsupported, or a required table is absent. | Evidence bundle, data version, config identity. |
 
 A consumer records the input identity before it evaluates. It does not copy an
 upstream verdict into its own artifact.
