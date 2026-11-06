@@ -19,7 +19,7 @@ use quantrule_data::{
     format_utc_timestamp, parse_utc_timestamp,
 };
 
-use crate::source::DateBounds;
+use crate::date::DateBounds;
 
 /// The exact header required by the CSV source.
 const HEADER: &str = "Date,Open,High,Low,Close,Volume";

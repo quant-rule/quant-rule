@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
+use crate::date::DateBounds;
 use crate::fingerprint::fnv1a;
-use crate::source::DateBounds;
 
 /// The backtest manifest schema.
 pub(crate) const MANIFEST_SCHEMA: &str = "quantrule.backtest-manifest/v1";

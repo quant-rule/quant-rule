@@ -1,4 +1,4 @@
-//! Explicit UTC date windows for source requests.
+//! Explicit UTC date windows shared by configuration, source, and bundle readers.
 //!
 //! The shell accepts two date-only strings and converts them to a half-open
 //! second interval: the start is inclusive and the end is exclusive and is
