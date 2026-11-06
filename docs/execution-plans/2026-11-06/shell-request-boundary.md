@@ -245,17 +245,16 @@ Its scope and done-when criteria are those in sections 3 and 6.
 
 ## 12. Verification record
 
-Fill in after the cycle is verified.
-
 | Check | Result |
 |---|---|
-| Request module complete | Pending |
-| Stage imports removed | Pending |
-| Guard and tests | Pending |
-| Test inventory | Pending |
-| Golden fixture hash | Pending |
-| Bundle hash | Pending |
-| Full gate | Pending |
-| Diff scope | Pending |
-| Assessment status | Pending |
-| Loop decision | Pending |
+| Request module complete | `src/request.rs` 151 lines; `command/types.rs` 263 lines; all eleven structs and `ModelArgs::new` moved; `WindowMode` re-export removed |
+| Stage imports removed | 0 `crate::command::types` imports in the six stage directories; `backtest/run.rs:140` `model_bundle_from` remains as REF-2026-11-06-05 |
+| Guard and tests | `stage-request-coupling` added; 14 structure tests pass, including 3 new tests |
+| Test inventory | 1,309 passed, 0 failed, 8 ignored; unchanged |
+| Golden fixture hash | `da738931a8643bc2cc0db915174d713141e894614ee06f0087d9a3247497b5f1`; unchanged |
+| Bundle hash | `59124f63a2741697c533e699eeaf191684d84811d354b7778518b4d03ef82512`; unchanged and identical across two output directories |
+| Full gate | fmt, clippy, test, doc, file size, structure, registry, validation, verification matrix, verification evidence, emitters, command surface, links, terms, legacy, oracle, progression, improvement, research, program, coverage, and diff check pass |
+| Clean-worktree verifier pass | at commit `f6e8c22`: every gate passes; 1,309 passed, 0 failed, 8 ignored; fixture and bundle hashes unchanged; the stage-import guard passes. Sequential pass by the same agent, not an independent review |
+| Diff scope | 22 code files and 2 tool files; no fixture, expected-value, command, schema, error-string, or output change |
+| Assessment status | `In progress`; local and clean-worktree verification complete; post-merge verification pending |
+| Loop decision | pending the post-merge verifier pass and re-scan |

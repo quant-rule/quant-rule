@@ -4,16 +4,16 @@
 - Tool: DeepSeek V4.1 Flash through the OpenCode agent harness
 - Work item: #525 `Execute the second behavior-neutral refactor cycle`
 - Plan: [`docs/execution-plans/2026-11-06/shell-request-boundary.md`](../../execution-plans/2026-11-06/shell-request-boundary.md)
-- Status: approved; implementation started
+- Status: approved; implementation and local verification complete; PR and merge pending
 
 ## Intent and boundary
 
 The agent was asked to run the Refactor Workflow. It performed the read-only
 Structure Auditor pass on a fresh baseline, re-verified the carried findings,
-found one new High finding, and wrote a proposed second-cycle plan. It did not
-change code, tests, fixtures, commands, or schemas. It did not commit, push, or
-open a pull request. The plan is `Proposed` and awaits human approval before
-implementation.
+found one new High finding, and wrote a second-cycle plan. After human approval,
+it implemented the approved request-vocabulary move and added the narrow
+structural guard. It did not change a fixture, command, schema, or behavior. It
+did not push, open a pull request, or merge.
 
 ## Work performed
 
@@ -31,6 +31,12 @@ implementation.
   gate, while the production files are below it.
 - Created the task worktree and branch `refactor/shell-request-boundary`.
 - Wrote the re-scan assessment and the proposed cycle-2 plan.
+- After approval, created issue #525, moved the eleven request structs and
+  `ModelArgs::new` to `src/request.rs`, updated the command and stage imports,
+  removed the `WindowMode` re-export, and added the `stage-request-coupling`
+  guard with three tests.
+- Ran the full gate in the task worktree and a clean-worktree verification pass
+  at the implementation commit.
 
 ## Verification and evidence
 
@@ -42,16 +48,16 @@ Commands actually run and observed results:
 - `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` — pass.
 - `python3 tools/check_file_size.py` — pass.
 - `python3 tools/check_structure.py` — pass.
-- `python3 -m unittest discover -s tools -p 'test_check_structure.py'` — 11
-  tests pass.
+- `python3 -m unittest discover -s tools -p 'test_check_structure.py'` — 14
+  tests pass, including the three new stage-request tests.
 - `python3 tools/check_registry.py` — pass.
 - `python3 tools/check_validation.py` — pass.
 - `python3 tools/check_verification_matrix.py` — pass.
 - `python3 tools/check_verification.py` — pass.
 - `python3 tools/check_event_emitters.py` — pass.
 - `python3 tools/check_command_surface.py` — pass.
-- `python3 tools/check_links.py` — 588 Markdown files, no broken relative links.
-- `python3 tools/check_terms.py` — 356 files, no banned terms.
+- `python3 tools/check_links.py` — 591 Markdown files, no broken relative links.
+- `python3 tools/check_terms.py` — 358 files, no banned terms.
 - `python3 tools/check_legacy.py` — pass.
 - `python3 -m unittest discover -s tools/oracle -p 'test_*.py'` — 54 tests pass.
 - `python3 tools/oracle/progression_replay.py --check` — pass.
@@ -64,6 +70,9 @@ Commands actually run and observed results:
   `59124f63a2741697c533e699eeaf191684d84811d354b7778518b4d03ef82512`;
   a second output directory produced the same hash and `diff -r` reported
   identical bytes.
+- Clean-worktree verifier pass at `f6e8c22` (detached worktree): 1,309 passed, 0
+  failed, 8 ignored; fixture hash `da7389...`; bundle hash `59124f...`; every
+  gate passes; the stage-import guard passes.
 
 The production-only panic scan was a read-only Python check. It excluded
 `*_tests.rs`, files under `tests`, and lines after an inline `#[cfg(test)]`
@@ -89,14 +98,19 @@ therefore not evidence of a panic problem.
 - A guard that rejects every `crate::command` reference was rejected for this
   cycle because `backtest/run.rs:140` still calls the writer. The guard targets
   the request vocabulary and records REF-05 as the next seam.
+- The moved struct block was compared against the baseline file; the only
+  difference was the trailing blank line before the next module item. No field,
+  derive, visibility, or constructor changed.
 
 ## Limitations
 
-- One agent performed the Structure Auditor and Refactor Planner passes. These
-  were sequential passes, not independent agents or independent model
-  judgments.
-- The implementation and independent verification have not happened. The plan's
-  verification record is empty.
+- One agent performed the Structure Auditor, Refactor Planner, Refactor
+  Implementer, and local verifier passes. These were sequential passes, not
+  independent agents or independent model judgments. The clean-worktree pass
+  was run by the same agent at the implementation commit.
+- The pull request, merge, and post-merge independent verification have not
+  happened. The finding stays `In progress`; the plan's verification record
+  covers the local gate and the clean-worktree pass.
 - The re-scan covers the structural report, the shell module imports, the test
   sizes, and the documented boundaries. It is not a line-by-line review of every
   engine module; findings outside the campaign may still be discovered later.
