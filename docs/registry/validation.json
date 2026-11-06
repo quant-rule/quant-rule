@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.validation/v1",
-  "version": "2026-11-06.1",
+  "version": "2026-11-06.2",
   "claims": [
     {
       "id": "absorption",
@@ -1437,6 +1437,19 @@
     },
     {
       "id": "signal.ema_stack_change",
+      "kind": "event",
+      "construct_tests": [
+        "signal::tests::ema_stack_and_rsi_zone_changes_are_published"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.rsi_zone_change",
       "kind": "event",
       "construct_tests": [
         "signal::tests::ema_stack_and_rsi_zone_changes_are_published"

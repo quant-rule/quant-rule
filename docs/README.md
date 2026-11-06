@@ -36,7 +36,7 @@ the four-axis cutover.
 | Contract | Status | Path |
 |---|---|---|
 | M1.0 flat model | Current baseline; path gate no edge; compression baselines accepted | `docs/model/2026-11-05/model-m1.0.md` |
-| Indicator coverage | Implemented 2026-11-05: 46 indicators, 143 events (142 active plus one experimental), stable event codes; 188 validation claims and 54/54 construct cases | `docs/model/2026-11-05/indicator-coverage.md` |
+| Indicator coverage | Implemented 2026-11-05: 46 indicators, 143 active events, stable event codes; 189 validation claims and 54/54 construct cases | `docs/model/2026-11-05/indicator-coverage.md` |
 | Model and strategy families | Approved 2026-11-05; `M1.0` and the historical `S1.x` / `M2.x` maps | `docs/model/2026-11-05/model-families.md` |
 | Model spec v1 | Implemented; condition-only | `docs/model/2026-11-05/model-spec-v1.md` |
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
