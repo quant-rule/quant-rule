@@ -329,6 +329,16 @@ fn run_rejects_the_removed_strategy_and_analytics_files() {
 }
 
 #[test]
+fn run_rejects_the_removed_strategy_id() {
+    let value = set(run_object(), &["strategy_id"], json!("S1.0"));
+    assert_rejected(
+        run::parse(&value, "run.json"),
+        ConfigErrorKind::UnknownField,
+        "$.strategy_id",
+    );
+}
+
+#[test]
 fn run_rejects_a_bad_identity_prefix() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
     let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");

@@ -81,7 +81,8 @@ history records and shared engines remain.
 5. **A retired ID is never reused.** A failed cell keeps its ID and its failure
    record.
 6. **The prefix is carried in artifacts.** Spec `id`, run manifest, report
-   header, issue title, and branch slug use the prefixed ID.
+   header, issue title, and branch slug use the prefixed ID. The current run
+   manifest carries `M`, `POL`, `E`, and `P`; `S` returns with S3.x.
 7. **`M1.0` is the baseline, not a candidate.** The current model engine and its
    tests remain. It is the reference against which M2.x is compared.
 8. **`S2.x` stays closed** until the human accepts an M2.x model baseline. A
