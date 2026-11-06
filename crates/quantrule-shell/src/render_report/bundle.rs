@@ -132,6 +132,9 @@ pub(crate) fn write_bundle(
 ///
 /// The marker is the artifact whose presence makes the bundle available. The
 /// model report uses `report.json`; a strategy bundle uses `decisions.ndjson`.
+/// An artifact name may contain a relative subdirectory, as the analytics
+/// bundle's `tables/` entries do; the writer creates and, on failure, removes
+/// those directories.
 pub(crate) fn write_stage_bundle(
     root: &Path,
     artifacts: &[(&str, Vec<u8>)],
@@ -148,8 +151,29 @@ pub(crate) fn write_stage_bundle(
     }
 
     let mut written = Vec::new();
+    let mut created_dirs: Vec<PathBuf> = Vec::new();
     let mut write = |name: &str, bytes: &[u8]| -> Result<(), BundleError> {
         let path = root.join(name);
+        if let Some(parent) = path.parent() {
+            let mut missing = Vec::new();
+            let mut current = parent;
+            while current != root && !current.exists() {
+                missing.push(current.to_path_buf());
+                let Some(next) = current.parent() else {
+                    break;
+                };
+                current = next;
+            }
+            if !missing.is_empty() {
+                fs::create_dir_all(parent).map_err(|source| BundleError::CreateDirectory {
+                    path: parent.to_path_buf(),
+                    source,
+                })?;
+                for directory in missing.into_iter().rev() {
+                    created_dirs.push(directory);
+                }
+            }
+        }
         write_atomic(&path, bytes).map_err(|source| BundleError::Artifact {
             path: path.clone(),
             source,
@@ -172,6 +196,9 @@ pub(crate) fn write_stage_bundle(
     if result.is_err() {
         for path in written {
             let _ = fs::remove_file(path);
+        }
+        for directory in created_dirs.into_iter().rev() {
+            let _ = fs::remove_dir(directory);
         }
         if created {
             let _ = fs::remove_dir(root);

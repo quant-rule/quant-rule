@@ -7,7 +7,9 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]
 
+mod analytics;
 pub(crate) mod backtest;
+mod backtest_bundle;
 mod command;
 mod config;
 mod csv;

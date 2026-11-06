@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use quantrule_backtest::intent::StrategyPosition;
 use quantrule_data::Timeframe;
 
+use crate::analytics::AnalyticsRunError;
 use crate::backtest::BacktestRunError;
 use crate::config::ConfigError;
 use crate::csv::SourceError;
@@ -49,6 +50,8 @@ pub(crate) enum Command {
     BacktestRun(BacktestRunArgs),
     /// Evaluate an evidence bundle against human-owned qualification criteria.
     Qualify(QualifyArgs),
+    /// Publish descriptive analytics metrics and evaluation tables.
+    AnalyticsEvaluate(AnalyticsEvaluateArgs),
     /// Fetch a Dukascopy range and write a CSV.
     Fetch(FetchArgs),
     /// Print the command reference, one command, or a reference topic.
@@ -185,6 +188,17 @@ pub(crate) struct QualifyArgs {
     pub(crate) json: bool,
 }
 
+/// A parsed `analytics evaluate` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AnalyticsEvaluateArgs {
+    /// The backtest evidence bundle.
+    pub(crate) evidence: PathBuf,
+    /// The output root, or the evidence bundle's parent.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print a JSON envelope.
+    pub(crate) json: bool,
+}
+
 /// A parsed `fetch` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FetchArgs {
@@ -225,6 +239,8 @@ pub(crate) enum ParseError {
     Backtest(String),
     /// A qualification command is invalid.
     Qualification(String),
+    /// An analytics command is invalid.
+    Analytics(String),
     /// A fetch command is invalid.
     Fetch(String),
     /// A help topic is invalid.
@@ -248,6 +264,7 @@ impl fmt::Display for ParseError {
             | Self::Portfolio(message)
             | Self::Backtest(message)
             | Self::Qualification(message)
+            | Self::Analytics(message)
             | Self::Fetch(message)
             | Self::Help(message) => formatter.write_str(message),
         }
@@ -329,6 +346,8 @@ pub(crate) enum RunError {
     Backtest(BacktestRunError),
     /// The qualification command failed.
     Qualification(QualificationRunError),
+    /// The analytics command failed.
+    Analytics(AnalyticsRunError),
     /// The bundle could not be written.
     Bundle(BundleError),
     /// The fetch failed.
@@ -350,6 +369,7 @@ impl fmt::Display for RunError {
             Self::Portfolio(error) => error.fmt(formatter),
             Self::Backtest(error) => error.fmt(formatter),
             Self::Qualification(error) => error.fmt(formatter),
+            Self::Analytics(error) => error.fmt(formatter),
             Self::Bundle(error) => error.fmt(formatter),
             Self::Fetch(error) => error.fmt(formatter),
             Self::Help(message) => formatter.write_str(message),
@@ -369,6 +389,7 @@ impl std::error::Error for RunError {
             Self::Portfolio(error) => Some(error),
             Self::Backtest(error) => Some(error),
             Self::Qualification(error) => Some(error),
+            Self::Analytics(error) => Some(error),
             Self::Bundle(error) => Some(error),
             Self::Fetch(error) => Some(error),
             Self::Output(error) => Some(error),

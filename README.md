@@ -12,9 +12,9 @@ vote, no composite view, and no cross-timeframe aggregate.
 
 The current shell surface covers data inspection, event records, the flat model
 report, strategy decisions, execution fills, portfolio accounting, the coupled
-backtest, qualification, policy validation, source fetch, and help. Analytics
-remains the planned S3.x stage. The stage contract, the planned commands, and the
-implemented/planned status are in
+backtest, qualification, analytics, policy validation, source fetch, and help.
+Every pipeline stage is implemented. The stage contract and the command status
+are in
 [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
 Only the commands in the table below are available today.
 
@@ -47,6 +47,7 @@ one command and exits with the command's status:
 | `portfolio replay` | `--fills <execution-bundle> --config <run.json> [--out <dir>] [--json]` | The portfolio bundle, or its artifact paths |
 | `backtest run` | `--config <run.json> --strategy <strategy.json> [--out <dir>] [--json]` | The manifest and stage bundle paths |
 | `qualify` | `--evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]` | The verdict, criterion counts, and the qualification bundle |
+| `analytics evaluate` | `--evidence <backtest-bundle> [--out <dir>] [--json]` | The metrics, tables, and summary paths |
 | `policy check` | `--config <run.json>` | One `policy ok ...` line after every config check |
 | `fetch` | `<symbol> <start> <end> [--timeframe <1m\|5m\|15m\|1h>] [--csv <path>]` | The CSV path and the accepted/rejected counts |
 | `help` | `[<command>\|all\|glossary]` | The command map, one contract, or the glossary |
@@ -69,6 +70,7 @@ quantrule execution run --decisions target/report/strategy --config crates/quant
 quantrule portfolio replay --fills target/report/execution --config crates/quantrule-shell/tests/fixtures/config-run/run.json --out target/report
 quantrule backtest run --config crates/quantrule-shell/tests/fixtures/config-run/run.json --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json --out target/backtest
 quantrule qualify --evidence target/backtest/backtest --criteria crates/quantrule-shell/tests/fixtures/qualification/pass.json --out target/backtest
+quantrule analytics evaluate --evidence target/backtest/backtest --out target/backtest
 quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 1h --csv data/sources/XAUUSD_H1.csv
 ```
 
@@ -91,12 +93,17 @@ The stage table below is the target, not a promise that a command exists today.
 | 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, rejections | Implemented |
 | 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | Implemented |
 | 6 | Qualification Engine | Evidence bundle and human-owned criteria | Qualification record and verdict | Implemented |
-| 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | Planned |
+| 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | Implemented |
 
 The Qualification Engine evaluates the complete evidence set, not profitability
 alone. Its verdict is `pass`, `fail`, or `insufficient evidence`; the human makes
 the final acceptance decision. The criteria contract is in
 [`docs/config/2026-11-06/qualification-criteria.md`](docs/config/2026-11-06/qualification-criteria.md).
+
+The Analytics Engine publishes descriptive metrics and evaluation tables from
+the result artifacts. It writes no verdict, no acceptance, and no strategy
+decision. A metric or table the evidence does not support is `null` or
+unsupported with a reason code.
 
 ## The M1.0 model
 

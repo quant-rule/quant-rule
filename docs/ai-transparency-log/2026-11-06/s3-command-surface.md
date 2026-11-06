@@ -270,3 +270,39 @@ authorization. The work is local to the task branch `docs/s3-command-contracts`.
   block.
 - Publication (push, pull request, merge, tag, or release) is pending human
   authorization. The work is local to the task branch.
+
+## 12. Phase 7 — analytics evaluation
+
+- Intent and boundary: add `analytics evaluate` and the analytics bundle. The
+  command reads a backtest bundle, publishes descriptive metrics and evaluation
+  tables, and writes no verdict, no acceptance, and no strategy decision.
+- Implemented: the shared `backtest_bundle` manifest/hash reader, the analytics
+  stage under `crates/quantrule-shell/src/analytics/`, the `analytics evaluate`
+  command parser and wiring, nested table support in the stage-bundle writer,
+  help, README, the analytics lab, the golden metrics and tables, and the Phase 7
+  plan record.
+- Verification: `cargo test --workspace` 1,303 passed, 0 failed, 8 ignored;
+  clippy, fmt, doc, every model gate, links, terms, legacy, file size, and
+  `git diff --check` pass. The command-surface checker reports 15 implemented and
+  0 planned. The integration test asserts the bundle layout, the golden metrics
+  and tables, the decision counts, the table headers and row counts, byte
+  determinism, the missing-manifest, tampered-provenance, missing-table, and
+  unsupported-schema refusals, and the absence of a verdict and a human decision.
+- Corrections: the first analytics metric copy showed `exposure` one unit in the
+  last decimal place below the portfolio value. `serde_json`'s default float
+  parser did not round-trip that decimal; enabling the `float_roundtrip` feature
+  fixed the copy, and the qualification and golden tests still pass. The
+  qualification evidence reader was reduced to the shared manifest/hash reader
+  so the two stages cannot drift. The stage-bundle writer now creates and cleans
+  up nested table directories. A hard-coded metric count was removed from the
+  provenance rather than left to drift.
+- Learning: a descriptive stage can still change a number by parsing and
+  re-serializing it. Numeric round-trip is part of the determinism contract, not
+  a formatting detail. The backtest bundle's stage provenance hashes cover the
+  provenance files, not the data tables, so the analytics reader validates each
+  required table header and refuses a missing table instead of trusting the
+  manifest alone. The `by_regime` and `by_instrument` tables are not synthesized
+  because the current evidence does not publish a regime label or an instrument
+  identity; the unsupported reason codes are the honest record.
+- Publication (push, pull request, merge, tag, or release) is pending human
+  authorization. The work is local to the task branch.

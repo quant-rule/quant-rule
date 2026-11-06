@@ -161,6 +161,18 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "analytics evaluate",
+        usage: "analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json]",
+        summary: "Publish descriptive metrics and evaluation tables from a backtest bundle.",
+        output: "the metrics, tables, and summary paths, or a JSON envelope; <out>/analytics/ holds metrics.json, tables/, summary.txt, and provenance.json",
+        notes: &[
+            "The evidence bundle is the backtest run output directory.",
+            "If --out is omitted, the bundle is written beside the evidence bundle.",
+            "The command writes no verdict, no acceptance, and no strategy decision.",
+            "A metric or table the evidence does not support is null or unsupported with a reason code.",
+        ],
+    },
+    CommandHelp {
         name: "fetch",
         usage: "fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]",
         summary: "Fetch a Dukascopy range and write the accepted candles as CSV.",
@@ -261,12 +273,13 @@ mod tests {
             "portfolio replay",
             "backtest run",
             "qualify",
+            "analytics evaluate",
             "fetch",
             "help",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 14);
+        assert_eq!(COMMANDS.len(), 15);
     }
 
     #[test]

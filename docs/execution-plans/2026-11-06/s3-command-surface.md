@@ -1,10 +1,10 @@
 # S3.x Command Surface — Stage-Isolated Pipeline Access
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved; Phases 1–5 merged; Phase 6 implemented and verified locally; publication pending
+- Status: Approved; Phases 1–6 merged; Phase 7 implemented and verified locally; publication pending
 - Issue: none (human-approved slug; no issue number is invented)
-- Branch: one task branch per phase; current `feat/s3-qualification-command`
-- Worktree: `s3-qualification-command` (OpenCode task worktree)
+- Branch: one task branch per phase; current `feat/s3-analytics-command`
+- Worktree: `s3-analytics-command` (OpenCode task worktree)
 - Claim type: command, artifact, and qualification contract; no model or strategy
   behavior change in Phase 1; no edge claim
 - Approval: human instruction "PROCEED WITH THE FULL IMPLEMENTATION" after the
@@ -605,4 +605,60 @@ the change adds an evaluation stage and does not alter the model or strategy
 signal path.
 
 Phase 6 is verified locally. Publication (commit, push, and pull request) is
+pending human authorization.
+
+## 19. Phase 7 verification record
+
+Observed in the Phase 7 worktree on 2026-11-06:
+
+| Check | Result |
+|---|---|
+| `cargo test --workspace` | 1,303 passed, 0 failed, 8 ignored. |
+| `cargo clippy --all-targets -- -D warnings` | Pass. |
+| `cargo fmt --all -- --check` | Pass. |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | Pass. |
+| `python3 tools/check_command_surface.py` | Pass; 15 implemented, 0 planned, 15 README rows, 7 tutorial files. |
+| `python3 tools/check_registry.py` | Pass; 46 indicators, 143 events, 101 parameters. |
+| `python3 tools/check_validation.py` | Pass; 189 claims. |
+| `python3 tools/check_verification.py` | Pass; row=1091 family=329 tool=332 n/a=327. |
+| `python3 tools/check_verification_matrix.py` | Pass; 46 indicators, 143 events. |
+| `python3 tools/check_event_emitters.py` | Pass; 143 registered codes. |
+| `python3 tools/check_links.py` | Pass; 580 Markdown files. |
+| `python3 tools/check_terms.py` | Pass; 349 files. |
+| `python3 tools/check_legacy.py` | Pass; 695 current files. |
+| `python3 tools/check_file_size.py` | Pass. |
+| `git diff --check` | Pass. |
+
+Behavior evidence:
+
+- `analytics evaluate` writes `metrics.json`, `summary.txt`,
+  `provenance.json`, and the eight declared `tables/` CSVs under
+  `<out>/analytics/`.
+- The golden fixture fixes `metrics.json`, `summary.txt`, `provenance.json`, and
+  every table.
+- The fixture records one trade, 51 hold decisions, and one entry; the decision
+  counts and `by_timeframe.csv` match the strategy bundle.
+- The metric table and every table header and row count match the `tables`
+  manifest.
+- Two runs over the same evidence produce byte-identical analytics bundles.
+- A tampered stage provenance, a missing portfolio table, and an unsupported
+  portfolio-metrics schema are refused before a bundle is written.
+- The bundle carries no `verdict` and no `human_decision`.
+- `by_regime` and `by_instrument` are recorded as unsupported with stable reason
+  codes and are not synthesized.
+- The shell enables `serde_json`'s `float_roundtrip` feature, so the analytics
+  copy of a portfolio metric does not drift in the last digit.
+
+The shared backtest-bundle reader now owns the manifest and stage-hash check for
+both qualification and analytics. The analytics stage adds only artifact readers,
+the metric builder, the table builder, and the renderer. It writes no signal, no
+verdict, and no acceptance.
+
+No independent Code Reviewer or Quant Validator pass has been performed. The
+agent performed the implementation and the self-review in one session; no
+independent review is claimed. The Quant Validator record is not claimed because
+the change adds a descriptive evaluation stage and does not alter the model or
+strategy signal path.
+
+Phase 7 is verified locally. Publication (commit, push, and pull request) is
 pending human authorization.

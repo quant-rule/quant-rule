@@ -5,6 +5,7 @@
 //! the data engine. Each command family owns its argument grammar and its
 //! execution path behind this vocabulary.
 
+mod analytics;
 mod backtest;
 mod data;
 mod dispatch;
@@ -22,6 +23,7 @@ pub(crate) mod types;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use self::analytics::{parse_analytics_arguments, run_analytics};
 pub(crate) use self::backtest::{parse_backtest_arguments, run_backtest};
 pub(crate) use self::dispatch::{execute, parse_argv};
 pub(crate) use self::execution::{parse_execution_arguments, run_execution};

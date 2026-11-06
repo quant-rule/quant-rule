@@ -1,0 +1,2 @@
+trade_id,side,quantity,entry_bar,entry_time,entry_price,exit_bar,exit_time,exit_price,gross_pnl,execution_fees,commission,funding,net_pnl,return_fraction,hold_bars,exit_reason
+1,long,100.5329,19,1735695300,99.46989,30,1735698600,97.21928120524211,-226.26022890251596,0,19.867360920619,0,-246.12758982313497,-0.024612758982313496,11,stop
