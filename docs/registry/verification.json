@@ -7,33 +7,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base::ema_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "per_row_base::ema_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::the_model_run_is_deterministic_across_repeated_runs"
+            "per_row_base::ema_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base::ema_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "per_row_base::ema_row_contract"
           ]
         },
         "availability": {
@@ -72,33 +72,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base::rsi_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "per_row_base::rsi_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::the_model_run_is_deterministic_across_repeated_runs"
+            "per_row_base::rsi_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base::rsi_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "per_row_base::rsi_row_contract"
           ]
         },
         "availability": {
@@ -137,33 +137,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base::atr_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "per_row_base::atr_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::the_model_run_is_deterministic_across_repeated_runs"
+            "per_row_base::atr_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base::atr_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "per_row_base::atr_row_contract"
           ]
         },
         "availability": {
@@ -265,21 +265,21 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "readings::macd::tests::the_line_is_the_fast_minus_the_slow_ema"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "readings::macd::tests::appended_bars_do_not_change_earlier_output"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::the_model_run_is_deterministic_across_repeated_runs"
+            "readings::macd::tests::repeated_runs_are_identical"
           ]
         },
         "golden": {
@@ -289,9 +289,9 @@
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "readings::macd::tests::short_and_invalid_inputs_are_all_null"
           ]
         },
         "availability": {
@@ -401,27 +401,27 @@
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
             "context_golden::later_candles_do_not_change_earlier_context"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
             "context_golden::the_context_is_deterministic"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
             "context_golden::the_context_matches_the_golden_fixture"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "context_golden::every_available_ratio_retains_a_value_when_the_code_is_null"
           ]
         },
         "availability": {
@@ -462,31 +462,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "progression_golden::the_per_bar_fixture_matches_the_computed_series"
+            "progression::tests::the_series_length_matches_the_readings_length"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "progression_golden::every_prefix_matches_the_full_series"
+            "progression::tests::later_bars_do_not_change_earlier_records"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "progression_golden::the_per_bar_fixture_matches_the_computed_series"
+            "progression::tests::repeated_runs_are_identical"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
             "progression_golden::the_per_bar_fixture_matches_the_computed_series"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "progression::tests::an_empty_series_has_no_bars_and_no_legs"
           ]
         },
         "availability": {
@@ -523,21 +523,21 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "readings::adx::tests::an_uptrend_has_positive_direction_and_strength"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "readings::adx::tests::the_series_is_causal"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::the_model_run_is_deterministic_across_repeated_runs"
+            "readings::adx::tests::the_series_is_deterministic"
           ]
         },
         "golden": {
@@ -547,9 +547,9 @@
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "readings::adx::tests::a_flat_series_is_null_not_zero"
           ]
         },
         "availability": {
@@ -588,15 +588,15 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "events::dmi::tests::a_direction_change_emits_one_cross"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "events::dmi::tests::the_series_is_causal"
           ]
         },
         "determinism": {
@@ -612,9 +612,9 @@
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::every_prefix_keeps_the_output_lengths_and_ranges"
+            "events::dmi::tests::a_flat_series_has_no_event"
           ]
         },
         "availability": {
