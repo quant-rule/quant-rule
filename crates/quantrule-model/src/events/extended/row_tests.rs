@@ -5,7 +5,8 @@
 //! uniqueness, determinism, and prefix causality.
 
 use super::ExtendedEventConfig;
-use super::divergence::divergence_events;
+use super::divergence::{atr_divergences, divergence_events};
+use super::flow::flow_divergences;
 use super::participation::participation_events;
 use super::profile::profile_events;
 use crate::events::{EventRecord, EventType, codes};
@@ -415,5 +416,214 @@ fn signal_absorption_rejection_row_contract() {
             reference: 101.0,
         },
         |len| absorption_boundary_events(len, 100.0),
+    );
+}
+
+fn flow_divergence_events(
+    len: usize,
+    kind: PivotKind,
+    first: f64,
+    second: f64,
+    first_value: f64,
+    second_value: f64,
+) -> Vec<EventRecord> {
+    let candles = pivot_candles(kind, first, second, len);
+    let readings = Readings::compute(&candles);
+    let mut extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+    for series in [
+        &mut extended.obv,
+        &mut extended.cmf,
+        &mut extended.mfi,
+        &mut extended.ad_line,
+    ] {
+        *series = two_pivot_values(len, first_value, second_value);
+    }
+    let mut events = Vec::new();
+    flow_divergences(&readings, &extended, &event_config(), &mut events);
+    events
+}
+
+fn atr_divergence_events(
+    len: usize,
+    kind: PivotKind,
+    first: f64,
+    second: f64,
+    first_value: f64,
+    second_value: f64,
+) -> Vec<EventRecord> {
+    let candles = pivot_candles(kind, first, second, len);
+    let readings = Readings::compute(&candles);
+    let mut extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+    extended.atr_ratio = two_pivot_values(len, first_value, second_value);
+    let mut events = Vec::new();
+    atr_divergences(&readings, &extended, &event_config(), &mut events);
+    events
+}
+
+#[test]
+fn divergence_obv_regular_bullish_row_contract() {
+    assert_contract(
+        "obv regular bullish",
+        codes::DIVERGENCE_OBV_REGULAR_BULLISH,
+        30,
+        &[6, 15, 20, 21, 30],
+        Expected {
+            event_type: EventType::Divergence,
+            subtype: 1,
+            source: 24,
+            direction: 1,
+            occurred: 15,
+            available: 20,
+            primary: 98.0,
+            reference: 1.5,
+        },
+        |len| flow_divergence_events(len, PivotKind::Low, 99.0, 98.0, 0.5, 1.5),
+    );
+}
+
+#[test]
+fn divergence_obv_hidden_bearish_row_contract() {
+    assert_contract(
+        "obv hidden bearish",
+        codes::DIVERGENCE_OBV_HIDDEN_BEARISH,
+        30,
+        &[6, 15, 20, 21, 30],
+        Expected {
+            event_type: EventType::Divergence,
+            subtype: 4,
+            source: 24,
+            direction: -1,
+            occurred: 15,
+            available: 20,
+            primary: 100.5,
+            reference: 1.5,
+        },
+        |len| flow_divergence_events(len, PivotKind::High, 101.0, 100.5, 0.5, 1.5),
+    );
+}
+
+#[test]
+fn divergence_cmf_hidden_bullish_row_contract() {
+    assert_contract(
+        "cmf hidden bullish",
+        codes::DIVERGENCE_CMF_HIDDEN_BULLISH,
+        30,
+        &[6, 15, 20, 21, 30],
+        Expected {
+            event_type: EventType::Divergence,
+            subtype: 3,
+            source: 25,
+            direction: 1,
+            occurred: 15,
+            available: 20,
+            primary: 100.0,
+            reference: 0.5,
+        },
+        |len| flow_divergence_events(len, PivotKind::Low, 99.0, 100.0, 1.5, 0.5),
+    );
+}
+
+#[test]
+fn divergence_mfi_regular_bullish_row_contract() {
+    assert_contract(
+        "mfi regular bullish",
+        codes::DIVERGENCE_MFI_REGULAR_BULLISH,
+        30,
+        &[6, 15, 20, 21, 30],
+        Expected {
+            event_type: EventType::Divergence,
+            subtype: 1,
+            source: 26,
+            direction: 1,
+            occurred: 15,
+            available: 20,
+            primary: 98.0,
+            reference: 1.5,
+        },
+        |len| flow_divergence_events(len, PivotKind::Low, 99.0, 98.0, 0.5, 1.5),
+    );
+}
+
+#[test]
+fn divergence_mfi_regular_bearish_row_contract() {
+    assert_contract(
+        "mfi regular bearish",
+        codes::DIVERGENCE_MFI_REGULAR_BEARISH,
+        30,
+        &[6, 15, 20, 21, 30],
+        Expected {
+            event_type: EventType::Divergence,
+            subtype: 2,
+            source: 26,
+            direction: -1,
+            occurred: 15,
+            available: 20,
+            primary: 102.0,
+            reference: 0.5,
+        },
+        |len| flow_divergence_events(len, PivotKind::High, 101.0, 102.0, 1.5, 0.5),
+    );
+}
+
+#[test]
+fn divergence_mfi_hidden_bullish_row_contract() {
+    assert_contract(
+        "mfi hidden bullish",
+        codes::DIVERGENCE_MFI_HIDDEN_BULLISH,
+        30,
+        &[6, 15, 20, 21, 30],
+        Expected {
+            event_type: EventType::Divergence,
+            subtype: 3,
+            source: 26,
+            direction: 1,
+            occurred: 15,
+            available: 20,
+            primary: 100.0,
+            reference: 0.5,
+        },
+        |len| flow_divergence_events(len, PivotKind::Low, 99.0, 100.0, 1.5, 0.5),
+    );
+}
+
+#[test]
+fn divergence_ad_regular_bullish_row_contract() {
+    assert_contract(
+        "ad regular bullish",
+        codes::DIVERGENCE_AD_REGULAR_BULLISH,
+        30,
+        &[6, 15, 20, 21, 30],
+        Expected {
+            event_type: EventType::Divergence,
+            subtype: 1,
+            source: 27,
+            direction: 1,
+            occurred: 15,
+            available: 20,
+            primary: 98.0,
+            reference: 1.5,
+        },
+        |len| flow_divergence_events(len, PivotKind::Low, 99.0, 98.0, 0.5, 1.5),
+    );
+}
+
+#[test]
+fn divergence_atr_bearish_row_contract() {
+    assert_contract(
+        "atr bearish",
+        codes::DIVERGENCE_ATR_BEARISH,
+        30,
+        &[6, 15, 20, 21, 30],
+        Expected {
+            event_type: EventType::Divergence,
+            subtype: 2,
+            source: 28,
+            direction: -1,
+            occurred: 15,
+            available: 20,
+            primary: 102.0,
+            reference: 0.5,
+        },
+        |len| atr_divergence_events(len, PivotKind::High, 101.0, 102.0, 1.5, 0.5),
     );
 }
