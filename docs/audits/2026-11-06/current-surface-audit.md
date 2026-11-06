@@ -2,7 +2,7 @@
 
 - Date: 2026-11-06 (UTC)
 - Audit ID: `AUDIT-2026-11-06-current-surface`
-- Status: Published; findings open
+- Status: Published; all findings fixed in PR [#496](https://github.com/quant-rule/quant-rule/pull/496) at `dc82043`; independent verification pending
 - Baseline: `main` at `6ec84eb`
 - Scope: current shell surface, M1.0 model/event/registry contract, config
   loading, report/provenance artifacts, current docs, and gates
@@ -28,16 +28,16 @@ provenance gaps, and verification/doc overclaim.
 
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AUD-2026-11-06-01 | Major | shell/report | `readings.csv` has duplicate `atr_ratio` and `rvol_ratio` headers | `model_artifacts.rs:20`; generated bundle has 97 columns with two of each | A consumer reading by name silently gets the extended ratio instead of the context ratio | A. prefix extended columns; B. prefix context columns; C. document positional access | A | unique-header test; rerun bundle | Open | — |
-| AUD-2026-11-06-02 | Major | model/config | Custom `ema_pairs` are accepted but only 20/50/200 resolve, silently dropping `signal.ema_pair_cross` | `model_v4.rs:333-367`; `events/signal.rs:282-310,505-528`; custom pairs → 0 code-9 events, default pairs → 28 | A supported config silently disables a registered signal | A. resolve against configured periods; B. role selectors; C. standalone pair series | A | custom-pair event test; default unchanged | Open | — |
-| AUD-2026-11-06-03 | Major | model/spec v2 | `session_code` is null outside the session, not `0` | `sessions.rs:76,103,123-124,158`; `indicators.json:1471`; session CSV outside rows are empty | Outside-session is conflated with unavailable | A. publish 0 outside; B. change the contract to null | A | session CSV 0/1 test | Open | — |
-| AUD-2026-11-06-04 | Major | shell/provenance | A direction prediction is recorded as `kind: vote` and its event list is omitted | `report_run.rs:551-560`; direction run has correct `prediction.csv`, wrong provenance | A later reader cannot reconstruct the prediction kind | A. serialize the actual kind; B. normalize both shapes | A | direction provenance test | Open | — |
-| AUD-2026-11-06-05 | Major | shell/reproducibility | Panel source identity is absent from provenance | `report_run.rs:561`; changed panel data changes outputs but not `provenance.json` | A panel run is not reproducible from its record | A. record path/hash/version; B. require caller version; C. disable panel | A | changed-panel provenance test | Open | — |
-| AUD-2026-11-06-06 | Minor | model | RSI threshold crossing drops a cross from equality | `events/signal.rs:254-261`; `indicator-coverage.md:46`; test `signal/tests.rs:178-185` | A crossing from 30 to 31 is never emitted | A. use `previous <=`; B. change the contract | A | `[30,31]` emits; `[29,30]` does not | Open | — |
-| AUD-2026-11-06-07 | Minor | registry/model | `signal.rsi_zone_change` lists `rsi_levels` but hardcodes 30/70 | `indicators.json:1872`; `events/signal.rs:439-447` | Registry metadata overstates configurability | A. remove the parameter; B. implement configurable zone | A | registry check | Open | — |
-| AUD-2026-11-06-08 | Minor | tests/docs | 4h rejection is claimed but not tested | `config/tests.rs:279-295`; `model-m1.0.md:86` | The 4h ceiling can regress silently | A. add tests; B. remove the claim | A | fail-before/pass-after | Open | — |
-| AUD-2026-11-06-09 | Minor | docs | Docs contradict the tutorial and the report ladder | `docs/README.md:23-24` vs `:45`; `README.md:46-48` | Readers are told the tutorial does not exist and misread the ladder | A. correct both; B. leave history only | A | link/term check; manual read | Open | — |
-| AUD-2026-11-06-10 | Minor | docs/workflow | Retired axis vocabulary remains in current Rust comments; the legacy gate misses `crates/` | `events/signal.rs:160-162`; `timeframe.rs:272-274`; `kernel.rs:214`; `progression/leg.rs:687`; `check_legacy.py:23-32` | Legacy vocabulary survives and cannot be caught | A. scan source and fix comments; B. document the narrower scan | A | legacy scan over `crates/` | Open | — |
+| AUD-2026-11-06-01 | Major | shell/report | `readings.csv` has duplicate `atr_ratio` and `rvol_ratio` headers | `model_artifacts.rs:20`; generated bundle has 97 columns with two of each | A consumer reading by name silently gets the extended ratio instead of the context ratio | A. prefix extended columns; B. prefix context columns; C. document positional access | A | unique-header test; rerun bundle | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-02 | Major | model/config | Custom `ema_pairs` are accepted but only 20/50/200 resolve, silently dropping `signal.ema_pair_cross` | `model_v4.rs:333-367`; `events/signal.rs:282-310,505-528`; custom pairs → 0 code-9 events, default pairs → 28 | A supported config silently disables a registered signal | A. resolve against configured periods; B. role selectors; C. standalone pair series | A | custom-pair event test; default unchanged | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-03 | Major | model/spec v2 | `session_code` is null outside the session, not `0` | `sessions.rs:76,103,123-124,158`; `indicators.json:1471`; session CSV outside rows are empty | Outside-session is conflated with unavailable | A. publish 0 outside; B. change the contract to null | A | session CSV 0/1 test | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-04 | Major | shell/provenance | A direction prediction is recorded as `kind: vote` and its event list is omitted | `report_run.rs:551-560`; direction run has correct `prediction.csv`, wrong provenance | A later reader cannot reconstruct the prediction kind | A. serialize the actual kind; B. normalize both shapes | A | direction provenance test | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-05 | Major | shell/reproducibility | Panel source identity is absent from provenance | `report_run.rs:561`; changed panel data changes outputs but not `provenance.json` | A panel run is not reproducible from its record | A. record path/hash/version; B. require caller version; C. disable panel | A | changed-panel provenance test | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-06 | Minor | model | RSI threshold crossing drops a cross from equality | `events/signal.rs:254-261`; `indicator-coverage.md:46`; test `signal/tests.rs:178-185` | A crossing from 30 to 31 is never emitted | A. use `previous <=`; B. change the contract | A | `[30,31]` emits; `[29,30]` does not | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-07 | Minor | registry/model | `signal.rsi_zone_change` lists `rsi_levels` but hardcodes 30/70 | `indicators.json:1872`; `events/signal.rs:439-447` | Registry metadata overstates configurability | A. remove the parameter; B. implement configurable zone | A | registry check | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-08 | Minor | tests/docs | 4h rejection is claimed but not tested | `config/tests.rs:279-295`; `model-m1.0.md:86` | The 4h ceiling can regress silently | A. add tests; B. remove the claim | A | fail-before/pass-after | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-09 | Minor | docs | Docs contradict the tutorial and the report ladder | `docs/README.md:23-24` vs `:45`; `README.md:46-48` | Readers are told the tutorial does not exist and misread the ladder | A. correct both; B. leave history only | A | link/term check; manual read | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
+| AUD-2026-11-06-10 | Minor | docs/workflow | Retired axis vocabulary remains in current Rust comments; the legacy gate misses `crates/` | `events/signal.rs:160-162`; `timeframe.rs:272-274`; `kernel.rs:214`; `progression/leg.rs:687`; `check_legacy.py:23-32` | Legacy vocabulary survives and cannot be caught | A. scan source and fix comments; B. document the narrower scan | A | legacy scan over `crates/` | Fixed | [#496](https://github.com/quant-rule/quant-rule/pull/496) |
 
 ## Detail
 
@@ -77,9 +77,9 @@ with materially different panel files produce different `panel.csv` and
 
 ## Remediation evidence (branch)
 
-The fixes are implemented on `fix/current-surface-audit-remediation`. The
-finding status stays `Open` until the change is merged; this table records the
-branch evidence.
+The fixes are merged in PR [#496](https://github.com/quant-rule/quant-rule/pull/496)
+at `dc82043`. The findings are `Fixed`; independent Improvement Verifier
+closure is the next status.
 
 | ID | Branch fix | Regression evidence |
 |---|---|---|

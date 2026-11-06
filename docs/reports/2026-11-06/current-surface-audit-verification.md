@@ -2,16 +2,17 @@
 
 - Date: 2026-11-06 (UTC)
 - Branch: `fix/current-surface-audit-remediation`
+- Pull request: [#496](https://github.com/quant-rule/quant-rule/pull/496), merged at `dc82043`
 - Audit: [`docs/audits/2026-11-06/current-surface-audit.md`](../../audits/2026-11-06/current-surface-audit.md)
 - Plan: [`docs/execution-plans/2026-11-06/current-surface-audit-remediation.md`](../../execution-plans/2026-11-06/current-surface-audit-remediation.md)
 - Claim type: audit remediation and verification evidence; no edge claim
 
 ## 1. Verdict
 
-The ten current audit findings are implemented on this branch with regression
-evidence. The build and contract gates are green. The findings stay `Open` in
-the audit document until the branch is merged; `Fixed` is a post-merge status
-and `Verified` is the independent Improvement Verifier pass.
+The ten current audit findings are merged in PR [#496](https://github.com/quant-rule/quant-rule/pull/496)
+at `dc82043` with regression evidence. The build and contract gates are green.
+The findings are `Fixed`; `Verified` is the independent Improvement Verifier
+pass.
 
 The **per-indicator and per-event test matrix is not fully filled**. The 46-row
 and 143-row matrices exist and are checked for coverage of the registry, but the

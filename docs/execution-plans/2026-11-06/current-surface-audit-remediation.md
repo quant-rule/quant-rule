@@ -1,11 +1,12 @@
 # Current-Surface Audit Remediation
 
 - Date: 2026-11-06 (UTC)
-- Status: **Approved** by the human instruction "proceed with the full implementation" on 2026-11-06
+- Status: **Implemented and merged** in PR [#496](https://github.com/quant-rule/quant-rule/pull/496) at `dc82043`; human approval recorded 2026-11-06
 - Claim type: audit remediation, verification hardening, naming/legacy cleanup; no edge claim
 - Baseline: `main` at `6ec84eb`
 - Branch: `fix/current-surface-audit-remediation`
 - Worktree: `../current-surface-audit-remediation`
+- Pull request: [#496](https://github.com/quant-rule/quant-rule/pull/496)
 - Audit: [`docs/audits/2026-11-06/current-surface-audit.md`](../../audits/2026-11-06/current-surface-audit.md)
 
 ## 1. Intent
