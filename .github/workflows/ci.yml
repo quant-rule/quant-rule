@@ -37,6 +37,9 @@ jobs:
       - name: Lints
         run: cargo clippy --all-targets -- -D warnings
 
+      - name: File size
+        run: python3 tools/check_file_size.py
+
       - name: Tests
         run: cargo test
 

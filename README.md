@@ -192,6 +192,7 @@ the four-axis chart surface.
 ```bash
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
+python3 tools/check_file_size.py
 cargo test
 python3 tools/check_legacy.py
 python3 tools/check_registry.py
