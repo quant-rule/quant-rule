@@ -59,9 +59,10 @@ and `mod.rs` is 144 lines. The full gate passes, the test inventory is unchanged
 at 1,309 passed and 8 ignored, the golden fixture hash is unchanged, and the
 `report model` bundle manifest hash is unchanged.
 
-The implementation and the verification pass were performed by the same agent.
-The sequential passes are disclosed; this is not an independent review. The
-finding remains `In progress` until the merged work is checked by a separate
+A clean-worktree verifier pass at commit `ee11dec` re-ran the full gate and both
+hashes. The implementation and the verification pass were performed by the same
+agent. The sequential passes are disclosed; this is not an independent review.
+The finding remains `In progress` until the merged work is checked by a separate
 verifier pass.
 
 ## Learning and rejected suggestions

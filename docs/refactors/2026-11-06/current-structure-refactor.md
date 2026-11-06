@@ -160,12 +160,15 @@ planned in
 
 ## Loop decision
 
-Pending the first cycle verification. The implementation split `report_run` into
-five modules, with the largest at 275 lines and `mod.rs` at 144. The full gate
-passes and the fixture and bundle hashes are unchanged. The finding moves to
-`Refactored` after merge and `Verified` after the Refactor Verifier closes it;
-the assessment then re-scans and records whether the next finding is in scope or
-a new campaign begins.
+Pre-merge verification is complete. The implementation split `report_run` into
+five modules, with the largest at 275 lines and `mod.rs` at 144. A clean-worktree
+pass re-ran the full gate: 1,309 passed, 0 failed, 8 ignored; the fixture hash and
+the bundle manifest hash are unchanged. The pass was performed by the same agent
+and is disclosed as sequential, not independent.
+
+The finding remains `In progress` until the pull request is merged. It then
+moves to `Refactored`; a separate Refactor Verifier moves it to `Verified` and
+the assessment re-scans for the next cycle or a new campaign.
 
 ## Limitations
 
