@@ -7,7 +7,8 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]
 
-pub(crate) mod command;
+pub(crate) mod backtest;
+mod command;
 mod config;
 mod csv;
 mod execution;

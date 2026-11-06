@@ -230,13 +230,13 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
 }
 
 /// One written bundle and the bytes of its `report.json`.
-pub(super) struct BundleOutput {
-    pub(super) path: PathBuf,
-    pub(super) names: Vec<String>,
-    pub(super) json: Vec<u8>,
+pub(crate) struct BundleOutput {
+    pub(crate) path: PathBuf,
+    pub(crate) names: Vec<String>,
+    pub(crate) json: Vec<u8>,
 }
 
-pub(super) fn model_bundle_from(
+pub(crate) fn model_bundle_from(
     config: &RunConfig,
     out: &Path,
     model_run: &ModelRun,

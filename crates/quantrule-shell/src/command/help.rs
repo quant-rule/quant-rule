@@ -136,6 +136,18 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "backtest run",
+        usage: "backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--json]",
+        summary: "Run the coupled model, strategy, execution, and portfolio stages.",
+        output: "the manifest path and the stage bundle paths, or a JSON envelope; <out>/backtest/ holds model, strategy, execution, portfolio, manifest.json, and provenance.json",
+        notes: &[
+            "The strategy sees the position execution actually holds at each bar.",
+            "The stage bundles are the same artifacts the standalone commands write.",
+            "If --out is omitted, the run configuration's output_root is used.",
+            "The manifest records every stage provenance and its content hash.",
+        ],
+    },
+    CommandHelp {
         name: "fetch",
         usage: "fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]",
         summary: "Fetch a Dukascopy range and write the accepted candles as CSV.",
@@ -234,12 +246,13 @@ mod tests {
             "strategy run",
             "execution run",
             "portfolio replay",
+            "backtest run",
             "fetch",
             "help",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 12);
+        assert_eq!(COMMANDS.len(), 13);
     }
 
     #[test]

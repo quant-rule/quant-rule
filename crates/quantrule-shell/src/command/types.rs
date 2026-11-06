@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use quantrule_backtest::intent::StrategyPosition;
 use quantrule_data::Timeframe;
 
+use crate::backtest::BacktestRunError;
 use crate::config::ConfigError;
 use crate::csv::SourceError;
 use crate::execution::ExecutionRunError;
@@ -43,6 +44,8 @@ pub(crate) enum Command {
     ExecutionRun(ExecutionRunArgs),
     /// Replay an execution fills bundle into portfolio accounting.
     PortfolioReplay(PortfolioReplayArgs),
+    /// Run the coupled model, strategy, execution, and portfolio stages.
+    BacktestRun(BacktestRunArgs),
     /// Fetch a Dukascopy range and write a CSV.
     Fetch(FetchArgs),
     /// Print the command reference, one command, or a reference topic.
@@ -153,6 +156,19 @@ pub(crate) struct PortfolioReplayArgs {
     pub(crate) json: bool,
 }
 
+/// A parsed `backtest run` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct BacktestRunArgs {
+    /// The run configuration.
+    pub(crate) config: PathBuf,
+    /// The strategy configuration.
+    pub(crate) strategy: PathBuf,
+    /// The output root, or the run configuration's root.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print a JSON envelope of the artifact paths.
+    pub(crate) json: bool,
+}
+
 /// A parsed `fetch` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FetchArgs {
@@ -189,6 +205,8 @@ pub(crate) enum ParseError {
     Execution(String),
     /// A portfolio command is invalid.
     Portfolio(String),
+    /// A backtest command is invalid.
+    Backtest(String),
     /// A fetch command is invalid.
     Fetch(String),
     /// A help topic is invalid.
@@ -210,6 +228,7 @@ impl fmt::Display for ParseError {
             | Self::Strategy(message)
             | Self::Execution(message)
             | Self::Portfolio(message)
+            | Self::Backtest(message)
             | Self::Fetch(message)
             | Self::Help(message) => formatter.write_str(message),
         }
@@ -287,6 +306,8 @@ pub(crate) enum RunError {
     Execution(ExecutionRunError),
     /// The portfolio command failed.
     Portfolio(PortfolioRunError),
+    /// The backtest command failed.
+    Backtest(BacktestRunError),
     /// The bundle could not be written.
     Bundle(BundleError),
     /// The fetch failed.
@@ -306,6 +327,7 @@ impl fmt::Display for RunError {
             Self::Strategy(error) => error.fmt(formatter),
             Self::Execution(error) => error.fmt(formatter),
             Self::Portfolio(error) => error.fmt(formatter),
+            Self::Backtest(error) => error.fmt(formatter),
             Self::Bundle(error) => error.fmt(formatter),
             Self::Fetch(error) => error.fmt(formatter),
             Self::Help(message) => formatter.write_str(message),
@@ -323,6 +345,7 @@ impl std::error::Error for RunError {
             Self::Strategy(error) => Some(error),
             Self::Execution(error) => Some(error),
             Self::Portfolio(error) => Some(error),
+            Self::Backtest(error) => Some(error),
             Self::Bundle(error) => Some(error),
             Self::Fetch(error) => Some(error),
             Self::Output(error) => Some(error),

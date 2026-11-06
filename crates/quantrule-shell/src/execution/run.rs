@@ -301,28 +301,23 @@ pub(crate) fn run(
                 .unwrap_or_else(|| PathBuf::from("."))
         })
         .join("execution");
-    render_report::ensure_available(&root).map_err(ExecutionRunError::Bundle)?;
-
-    let summary = summary_bytes(&SummaryInput {
-        config: &config,
-        decisions: &decisions,
-        timeframe: fill_timeframe.code(),
+    let meta = ExecutionArtifactMeta {
+        data_version: &decisions.data_version,
+        config_id: &config.config_hash,
+        strategy_config_id: &decisions.config_id,
+        period_from: decisions.period_from.as_deref(),
+        period_to: decisions.period_to.as_deref(),
+        fill_timeframe: fill_timeframe.code(),
+        decision_bars: decisions.decisions.len(),
         bars: candles.len(),
-        orders: &final_orders,
-        fills: &fills,
-        rejections: &rejections,
         sizing,
-        max_notional,
-    });
-    let provenance = provenance_bytes(&config, &decisions, fill_timeframe.code(), max_notional)?;
-    let artifacts = [
-        ("orders.csv", orders_csv(&final_orders).into_bytes()),
-        ("fills.csv", fills_csv(&fills).into_bytes()),
-        ("rejections.csv", rejections_csv(&rejections).into_bytes()),
-        ("summary.txt", summary.into_bytes()),
-    ];
-    render_report::write_stage_bundle(&root, &artifacts, &provenance, "fills.csv")
-        .map_err(ExecutionRunError::Bundle)?;
+        sizing_basis: "initial_cash",
+        sizing_equity: Some(initial_cash),
+        max_notional: Some(max_notional),
+        fee_rate: config.execution.engine.fee_rate(),
+        slippage_bps: config.execution.engine.slippage_bps(),
+    };
+    write_bundle(&root, &final_orders, &fills, &rejections, &meta)?;
 
     if args.json {
         let value = json!({
@@ -427,31 +422,70 @@ fn rejections_csv(rejections: &[Rejection]) -> String {
     csv
 }
 
-#[derive(Clone, Copy)]
-struct SummaryInput<'a> {
-    config: &'a RunConfig,
-    decisions: &'a DecisionsBundle,
-    timeframe: &'a str,
-    bars: usize,
-    orders: &'a [OrderRecord],
-    fills: &'a [Fill],
-    rejections: &'a [Rejection],
-    sizing: quantrule_backtest::portfolio::SizingMode,
-    max_notional: f64,
+/// The identity and configuration an execution bundle records.
+pub(crate) struct ExecutionArtifactMeta<'a> {
+    /// The input candle identity.
+    pub(crate) data_version: &'a str,
+    /// The run configuration identity.
+    pub(crate) config_id: &'a str,
+    /// The strategy configuration identity.
+    pub(crate) strategy_config_id: &'a str,
+    /// The requested period start, as written.
+    pub(crate) period_from: Option<&'a str>,
+    /// The requested period end, as written.
+    pub(crate) period_to: Option<&'a str>,
+    /// The execution timeframe code.
+    pub(crate) fill_timeframe: &'a str,
+    /// The number of decision bars.
+    pub(crate) decision_bars: usize,
+    /// The number of candle bars.
+    pub(crate) bars: usize,
+    /// The sizing mode.
+    pub(crate) sizing: quantrule_backtest::portfolio::SizingMode,
+    /// How the sizing equity was selected.
+    pub(crate) sizing_basis: &'a str,
+    /// The fixed sizing equity, or `None` for the ledger's current equity.
+    pub(crate) sizing_equity: Option<f64>,
+    /// The fixed notional cap, or `None` for the ledger's dynamic cap.
+    pub(crate) max_notional: Option<f64>,
+    /// The execution fee rate.
+    pub(crate) fee_rate: f64,
+    /// The execution slippage in basis points.
+    pub(crate) slippage_bps: f64,
 }
 
-fn summary_bytes(input: &SummaryInput<'_>) -> String {
-    let SummaryInput {
-        config,
-        decisions,
-        timeframe,
-        bars,
-        orders,
-        fills,
-        rejections,
-        sizing,
-        max_notional,
-    } = *input;
+/// Writes the execution bundle from the collected records.
+///
+/// # Errors
+///
+/// Returns [`ExecutionRunError::Bundle`] when the target is unavailable, and
+/// [`ExecutionRunError::Json`] when an artifact cannot be encoded.
+pub(crate) fn write_bundle(
+    root: &Path,
+    orders: &[OrderRecord],
+    fills: &[Fill],
+    rejections: &[Rejection],
+    meta: &ExecutionArtifactMeta<'_>,
+) -> Result<(), ExecutionRunError> {
+    render_report::ensure_available(root).map_err(ExecutionRunError::Bundle)?;
+    let summary = summary_bytes(meta, orders, fills, rejections);
+    let provenance = provenance_bytes(meta)?;
+    let artifacts = [
+        ("orders.csv", orders_csv(orders).into_bytes()),
+        ("fills.csv", fills_csv(fills).into_bytes()),
+        ("rejections.csv", rejections_csv(rejections).into_bytes()),
+        ("summary.txt", summary.into_bytes()),
+    ];
+    render_report::write_stage_bundle(root, &artifacts, &provenance, "fills.csv")
+        .map_err(ExecutionRunError::Bundle)
+}
+
+fn summary_bytes(
+    meta: &ExecutionArtifactMeta<'_>,
+    orders: &[OrderRecord],
+    fills: &[Fill],
+    rejections: &[Rejection],
+) -> String {
     let mut pending = 0;
     let mut filled = 0;
     let mut rejected = 0;
@@ -486,14 +520,15 @@ fn summary_bytes(input: &SummaryInput<'_>) -> String {
     }
     let mut out = String::new();
     let _ = writeln!(out, "QuantRule execution run");
-    let _ = writeln!(out, "data_version: {}", decisions.data_version);
-    let _ = writeln!(out, "execution_config_id: {}", config.config_hash);
-    let _ = writeln!(out, "execution_timeframe: {timeframe}");
-    let _ = writeln!(out, "decision_bars: {}", decisions.decisions.len());
-    let _ = writeln!(out, "bars: {bars}");
-    let _ = writeln!(out, "sizing: {}", sizing_label(sizing));
-    let _ = writeln!(out, "initial_cash: {}", config.portfolio.initial_cash);
-    let _ = writeln!(out, "max_notional: {}", number(max_notional));
+    let _ = writeln!(out, "data_version: {}", meta.data_version);
+    let _ = writeln!(out, "execution_config_id: {}", meta.config_id);
+    let _ = writeln!(out, "execution_timeframe: {}", meta.fill_timeframe);
+    let _ = writeln!(out, "decision_bars: {}", meta.decision_bars);
+    let _ = writeln!(out, "bars: {}", meta.bars);
+    let _ = writeln!(out, "sizing: {}", sizing_label(meta.sizing));
+    let _ = writeln!(out, "sizing_basis: {}", meta.sizing_basis);
+    let _ = writeln!(out, "sizing_equity: {}", summary_number(meta.sizing_equity));
+    let _ = writeln!(out, "max_notional: {}", summary_number(meta.max_notional));
     let _ = writeln!(
         out,
         "orders: pending={pending} filled={filled} rejected={rejected}"
@@ -520,44 +555,44 @@ fn sizing_label(sizing: quantrule_backtest::portfolio::SizingMode) -> &'static s
     }
 }
 
-fn provenance_bytes(
-    config: &RunConfig,
-    decisions: &DecisionsBundle,
-    timeframe: &str,
-    max_notional: f64,
-) -> Result<Vec<u8>, ExecutionRunError> {
+fn provenance_bytes(meta: &ExecutionArtifactMeta<'_>) -> Result<Vec<u8>, ExecutionRunError> {
     let value = json!({
         "schema": "quantrule.stage-provenance/v1",
         "stage": "execution",
         "artifact": "fills",
-        "data_version": decisions.data_version.as_str(),
-        "config_id": config.config_hash.as_str(),
+        "data_version": meta.data_version,
+        "config_id": meta.config_id,
         "code_commit": "unknown",
         "source_artifacts": [{
             "stage": "strategy",
             "artifact": "decisions",
             "schema": "quantrule.stage-provenance/v1",
-            "data_version": decisions.data_version.as_str(),
-            "config_id": decisions.config_id.as_str(),
+            "data_version": meta.data_version,
+            "config_id": meta.strategy_config_id,
         }],
         "seed": Value::Null,
         "period": {
-            "from": decisions.period_from.as_deref(),
-            "to": decisions.period_to.as_deref(),
+            "from": meta.period_from,
+            "to": meta.period_to,
         },
         "artifacts": ["orders.csv", "fills.csv", "rejections.csv", "summary.txt", "provenance.json"],
         "execution": {
-            "fill_timeframe": timeframe,
-            "fee_rate": config.execution.engine.fee_rate(),
-            "slippage_bps": config.execution.engine.slippage_bps(),
-            "initial_cash": config.portfolio.initial_cash,
-            "sizing_equity": config.portfolio.initial_cash,
-            "max_notional": max_notional,
+            "fill_timeframe": meta.fill_timeframe,
+            "fee_rate": meta.fee_rate,
+            "slippage_bps": meta.slippage_bps,
+            "sizing": sizing_label(meta.sizing),
+            "sizing_basis": meta.sizing_basis,
+            "sizing_equity": meta.sizing_equity,
+            "max_notional": meta.max_notional,
         },
     });
     let mut bytes = serde_json::to_vec(&value).map_err(ExecutionRunError::Json)?;
     bytes.push(b'\n');
     Ok(bytes)
+}
+
+fn summary_number(value: Option<f64>) -> String {
+    value.map_or_else(|| "null".to_owned(), number)
 }
 
 fn order_side(side: OrderSide) -> &'static str {

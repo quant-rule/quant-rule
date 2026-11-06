@@ -8,8 +8,9 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use super::{
-    Command, ParseError, run_candles, run_candles_tolerant, run_events, run_execution, run_explain,
-    run_fetch, run_help, run_policy_check, run_portfolio, run_report, run_run, run_timeframes,
+    Command, ParseError, run_backtest, run_candles, run_candles_tolerant, run_events,
+    run_execution, run_explain, run_fetch, run_help, run_policy_check, run_portfolio, run_report,
+    run_run, run_timeframes,
 };
 
 /// Parses the already-split arguments after the binary name.
@@ -37,6 +38,7 @@ pub(crate) fn parse_argv(arguments: &[String]) -> Result<Option<Command>, ParseE
         "strategy" => super::parse_strategy_arguments(rest).map(Some),
         "execution" => super::parse_execution_arguments(rest).map(Some),
         "portfolio" => super::parse_portfolio_arguments(rest).map(Some),
+        "backtest" => super::parse_backtest_arguments(rest).map(Some),
         "fetch" => super::parse_fetch_arguments(rest).map(|args| Some(Command::Fetch(args))),
         "help" => super::parse_help_arguments(rest).map(|topic| Some(Command::Help(topic))),
         "quit" => {
@@ -77,6 +79,7 @@ pub(crate) fn execute(command: Command, stdout: &mut impl Write, stderr: &mut im
         Command::StrategyRun(args) => run_run(&args, stdout),
         Command::ExecutionRun(args) => run_execution(&args, stdout),
         Command::PortfolioReplay(args) => run_portfolio(&args, stdout),
+        Command::BacktestRun(args) => run_backtest(&args, stdout),
         Command::Fetch(args) => run_fetch(&args, stdout, stderr),
         Command::Help(topic) => run_help(&topic, stdout),
         Command::Quit => return 0,

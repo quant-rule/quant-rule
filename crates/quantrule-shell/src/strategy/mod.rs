@@ -5,7 +5,9 @@
 //! configuration. It does not read a candle, re-run the model, or touch
 //! execution, portfolio, or account state.
 
+pub(crate) mod artifacts;
 mod bundle;
 mod run;
 
-pub(crate) use run::{StrategyRunError, explain, run};
+pub(crate) use artifacts::{DecisionCounts, StrategyArtifactMeta};
+pub(crate) use run::{StrategyRunError, decision_record, explain, run};
