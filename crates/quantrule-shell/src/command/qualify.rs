@@ -6,8 +6,9 @@
 
 use std::path::PathBuf;
 
-use super::types::{Command, ParseError, QualifyArgs};
+use super::types::{Command, ParseError};
 use crate::qualification;
+use crate::request::QualifyArgs;
 
 const USAGE: &str = "usage: qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]";
 

@@ -10,8 +10,8 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-use crate::command::types::AnalyticsEvaluateArgs;
 use crate::render_report::{self, BundleError};
+use crate::request::AnalyticsEvaluateArgs;
 
 use super::evidence::{AnalyticsEvidence, AnalyticsEvidenceError};
 use super::metrics;

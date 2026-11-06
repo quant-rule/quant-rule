@@ -6,8 +6,9 @@
 
 use std::path::PathBuf;
 
-use super::types::{Command, ExecutionRunArgs, ParseError};
+use super::types::{Command, ParseError};
 use crate::execution;
+use crate::request::ExecutionRunArgs;
 
 const USAGE: &str =
     "usage: execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json]";

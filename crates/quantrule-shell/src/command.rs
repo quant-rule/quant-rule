@@ -39,6 +39,7 @@ use self::data::{run_candles, run_candles_tolerant, run_timeframes};
 use self::fetch::{parse_fetch_arguments, run_fetch};
 use self::help::run_help;
 use self::types::RunError;
+use crate::request::ModelArgs;
 
 /// Resolves the four timeframes the fetch command documents.
 ///
@@ -58,7 +59,7 @@ pub(crate) fn parse_native_timeframe(code: &str) -> Option<quantrule_data::Timef
 
 /// Prints the flat event batch for one CSV.
 pub(crate) fn run_events(
-    args: &types::ModelArgs,
+    args: &ModelArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), RunError> {
     let set = crate::pipeline::load_set(&args.path, args.window).map_err(RunError::Source)?;

@@ -6,8 +6,9 @@
 
 use std::path::PathBuf;
 
-use super::types::{AnalyticsEvaluateArgs, Command, ParseError};
+use super::types::{Command, ParseError};
 use crate::analytics;
+use crate::request::AnalyticsEvaluateArgs;
 
 const USAGE: &str = "usage: analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json]";
 

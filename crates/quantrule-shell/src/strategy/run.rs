@@ -21,9 +21,9 @@ use serde_json::{Value, json};
 
 use super::artifacts::{self, DecisionCounts, StrategyArtifactMeta};
 use super::bundle::{ModelBundle, ModelBundleError};
-use crate::command::types::{StrategyExplainArgs, StrategyRunArgs};
 use crate::config::{ConfigError, StrategyConfig};
 use crate::render_report::{self, BundleError};
+use crate::request::{StrategyExplainArgs, StrategyRunArgs};
 
 /// The strategy command failed.
 #[derive(Debug)]

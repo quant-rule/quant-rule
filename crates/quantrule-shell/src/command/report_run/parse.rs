@@ -5,7 +5,8 @@
 
 use std::path::PathBuf;
 
-use crate::command::types::{ParseError, ReportArgs};
+use crate::command::types::ParseError;
+use crate::request::ReportArgs;
 
 pub(crate) fn parse_report_arguments(arguments: &[String]) -> Result<ReportArgs, ParseError> {
     const USAGE: &str =

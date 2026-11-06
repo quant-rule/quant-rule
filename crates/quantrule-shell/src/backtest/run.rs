@@ -18,12 +18,12 @@ use quantrule_backtest::side::Side;
 use quantrule_backtest::strategy::{Decision, EventStrategyInput};
 use serde_json::{Value, json};
 
-use crate::command::types::{BacktestRunArgs, PortfolioReplayArgs};
 use crate::config::{ConfigError, RunConfig};
 use crate::execution::{ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution};
 use crate::pipeline::{self, PipelineError};
 use crate::portfolio::{self, PortfolioRunError};
 use crate::render_report::{self, BundleError};
+use crate::request::{BacktestRunArgs, PortfolioReplayArgs};
 use crate::strategy::{DecisionCounts, StrategyArtifactMeta, artifacts, decision_record};
 
 /// The backtest command failed.

@@ -6,8 +6,8 @@ that introduced this checker. A rule that needs a cleanup is reported as
 advisory instead of blocking the build.
 
 The report is the scan input for a refactor assessment. It measures size,
-surface, documentation, layout, and naming; it does not replace the assessment
-or the independent verifier.
+surface, module direction, documentation, layout, and naming; it does not
+replace the assessment or the independent verifier.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CRATES = ROOT / "crates"
 DOCS = ROOT / "docs"
 ENGINE_CRATES = ("quantrule-data", "quantrule-model", "quantrule-backtest")
+SHELL_STAGE_DIRS = ("analytics", "backtest", "execution", "portfolio", "qualification", "strategy")
 FORBIDDEN_ENGINE_IMPORTS = (
     "use std::fs",
     "use std::net",
@@ -154,6 +155,45 @@ def check_engine_purity(root: Path) -> list[Violation]:
     return violations
 
 
+def check_stage_request_coupling(root: Path) -> list[Violation]:
+    """Reject a stage module that imports the command request vocabulary.
+
+    The command layer depends on the stage modules. The reverse edge would make
+    a stage rebuild on a command change and would let a command-layer type leak
+    into the stage contract. The rule is narrow on purpose: the model-bundle
+    writer is a separate finding and is not covered here.
+    """
+    shell = root / "crates" / "quantrule-shell" / "src"
+    violations = []
+    for stage in SHELL_STAGE_DIRS:
+        directory = shell / stage
+        if not directory.exists():
+            continue
+        for path in sorted(directory.rglob("*.rs")):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            if "crate::command::types" in text:
+                violations.append(
+                    Violation(
+                        "stage-request-coupling",
+                        relative(root, path),
+                        "stage module must import request types from crate::request, "
+                        "not crate::command::types",
+                    )
+                )
+    request = shell / "request.rs"
+    if request.exists():
+        text = request.read_text(encoding="utf-8", errors="ignore")
+        if "crate::command" in text:
+            violations.append(
+                Violation(
+                    "stage-request-coupling",
+                    relative(root, request),
+                    "the request module must not import the command layer",
+                )
+            )
+    return violations
+
+
 def check_naming(root: Path) -> list[Violation]:
     violations = []
     for path in rust_sources(root):
@@ -255,6 +295,7 @@ def check_all(root: Path) -> list[Violation]:
     violations.extend(check_module_docs(root))
     violations.extend(check_unsafe_forbid(root))
     violations.extend(check_engine_purity(root))
+    violations.extend(check_stage_request_coupling(root))
     violations.extend(check_naming(root))
     violations.extend(check_dated_docs(root))
     violations.extend(workflow_index_violations(root))
