@@ -151,6 +151,70 @@ ROW_INDICATOR_TESTS = {
     },
 }
 
+ROW_INDICATOR_CONTRACTS = {
+    "vwap",
+    "volume_profile",
+    "rvol",
+    "volume_climax",
+    "absorption",
+    "volume_oscillator",
+    "obv",
+    "cmf",
+    "mfi",
+    "ad_line",
+    "atr_term",
+    "range_expansion",
+    "mar",
+    "keltner",
+    "donchian",
+    "swing_structure",
+    "level_strength",
+    "aroon",
+    "bos_choch",
+    "candle_anatomy",
+    "candle_pattern",
+    "gap",
+    "path_efficiency",
+    "direction_changes",
+    "bars_since_extreme",
+    "drawdown_atr",
+    "range_position",
+}
+ROW_PANEL_CONTRACTS = {
+    "relative_strength",
+    "lead_lag",
+    "breadth",
+    "co_movement",
+    "dispersion",
+}
+ROW_SESSION_CONTRACTS = {
+    "session",
+    "opening_range",
+    "overnight_intraday",
+    "session_range",
+    "calendar_bucket",
+}
+ROW_BASE_CONTRACTS = {
+    "macd": "per_row_base_remaining_indicators::macd_row_contract",
+    "adx": "per_row_base_remaining_indicators::adx_row_contract",
+    "dmi": "per_row_base_remaining_indicators::dmi_row_contract",
+    "pivots": "per_row_base::pivots_row_contract",
+}
+ROW_INDICATOR_CLASSES = ("formula", "causality", "determinism", "golden", "edge")
+
+
+def indicator_row_test(ident: str) -> tuple[str, ...]:
+    if ident in ROW_INDICATOR_CONTRACTS:
+        return (f"per_row_extended_indicators::{ident}_row_contract",)
+    if ident in ROW_PANEL_CONTRACTS:
+        return (f"per_row_panel_indicators::{ident}_row_contract",)
+    if ident in ROW_SESSION_CONTRACTS:
+        return (f"per_row_session_indicators::{ident}_row_contract",)
+    if ident in ROW_BASE_CONTRACTS:
+        return (ROW_BASE_CONTRACTS[ident],)
+    return ()
+
+
 ROW_EVENT_TESTS = {
     "level.test": ("per_row_base_events::level_test_row_contract",),
     "level.cross": ("per_row_base_events::level_cross_row_contract",),
@@ -320,6 +384,10 @@ def indicator_entry(indicator: dict[str, object], claims: dict[str, dict[str, ob
     }
     for name, tests in ROW_INDICATOR_TESTS.get(ident, {}).items():
         evidence_map[name] = evidence("row", *tests)
+    row_test = indicator_row_test(ident)
+    if row_test:
+        for name in ROW_INDICATOR_CLASSES:
+            evidence_map[name] = evidence("row", *row_test)
     return {"id": ident, "kind": "indicator", "evidence": evidence_map}
 
 
