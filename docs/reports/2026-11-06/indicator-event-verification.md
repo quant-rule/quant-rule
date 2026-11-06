@@ -1,7 +1,7 @@
 # Indicator and Event Verification Report
 
 - Date: 2026-11-06 (UTC)
-- Branch: `test/per-row-event-core-group3`
+- Branch: `test/model-base-golden-precedence`
 - Plan: [`docs/execution-plans/2026-11-06/indicator-event-verification.md`](../../execution-plans/2026-11-06/indicator-event-verification.md)
 - Claim type: verification evidence map; no signal-generation change, one debug-build underflow fixed, and no edge claim
 
@@ -12,18 +12,16 @@ the eleven evidence classes. The matrix documents are generated from it.
 
 | Scope | Cells | Meaning |
 |---|---:|---|
-| `row` | 1072 | The test names the row's indicator or event |
-| `family` | 371 | The test exercises the family that contains the row |
+| `row` | 1091 | The test names the row's indicator or event |
+| `family` | 329 | The test exercises the family that contains the row |
 | `tool` | 332 | A repository gate covers every row |
-| `n/a` | 304 | The class does not apply |
+| `n/a` | 327 | The class does not apply |
 
 All 46 indicators are row-level for formula, causality, determinism, golden, and
-edge. The 16 base events, the 80 extended/session events backed by the checked-in
-event fixtures, the first 11 uncovered event rows, the 14 flow/panel divergence
-rows, and the remaining candle/pattern/gap/panel/session events are row-level for
-their core classes. The remaining
-`family` count is the honest result: the remaining suites exercise families, not
-one bespoke test per row. The matrix marks these cells `◐` and the status
+edge. All 143 events are row-level for formula, causality, determinism, golden,
+availability, and dedupe. The 3 base level events are also row-level for
+precedence. The remaining `family` cells are event edge (143) and `spec` (186),
+explicitly accepted. The matrix marks these cells `◐` and the status
 `partial (family)`, not `verified`.
 
 ## 2. What is row-level
@@ -33,16 +31,18 @@ one bespoke test per row. The matrix marks these cells `◐` and the status
 - Registry math is row-level through `check_registry.py` and
   `check_validation.py`.
 - All 189 formula/construct cells are row-level. The 16 base events carry
-  row-level causality, determinism, availability, and dedupe evidence from
-  `per_row_base_events.rs`. The 80
+  row-level golden, causality, determinism, availability, and dedupe evidence
+  from `per_row_base_events.rs`. The 80
   extended and session events carry row-level golden, causality, determinism,
   availability, and dedupe evidence from `per_row_extended_session_events.rs`.
   The compression, VWAP divergence, profile concentration, climax, absorption,
   flow/panel divergence, candle/pattern/gap, panel cross, and session rows carry
   row-level evidence from `per_row_event_compression.rs` and the extended,
   panel, and session `row_tests` modules. All 143 events now carry row-level
-  formula, causality, determinism, availability, and dedupe evidence; 127 also
-  carry row-level golden evidence.
+  formula, causality, determinism, golden, availability, and dedupe evidence.
+  The 3 base level events carry row-level precedence evidence. The remaining
+  23 extended/session level events carry no pivot or EMA reference code, so
+  precedence is `n/a` for them rather than a false family claim.
   All 46 indicators carry row-level formula, causality, determinism, golden, and
   edge evidence from `per_row_base.rs`, `per_row_extended_indicators.rs`,
   `per_row_panel_indicators.rs`, `per_row_session_indicators.rs`, and

@@ -443,6 +443,27 @@ ROW_EVENT_GOLDEN = {
     "signal.overnight_continuation",
     "signal.overnight_fade",
     "signal.session_range_contraction",
+    "level.test",
+    "level.cross",
+    "level.break",
+    "divergence.rsi_regular_bullish",
+    "divergence.rsi_regular_bearish",
+    "divergence.rsi_hidden_bullish",
+    "divergence.rsi_hidden_bearish",
+    "signal.rsi_threshold",
+    "signal.ema_pair_cross",
+    "signal.ema_stack_change",
+    "signal.rsi_zone_change",
+    "signal.macd_line_signal_cross",
+    "signal.macd_histogram_slope_flip",
+    "signal.macd_zero_cross",
+    "signal.di_cross",
+    "signal.trend_continuation",
+}
+ROW_EVENT_PRECEDENCE = {
+    "level.test": "per_row_base_events::level_test_row_contract",
+    "level.cross": "per_row_base_events::level_cross_row_contract",
+    "level.break": "per_row_base_events::level_break_row_contract",
 }
 ROW_FIXTURE_EVENT_CLASSES = (
     "formula",
@@ -590,7 +611,6 @@ def event_entry(
     claim = claims.get(ident, {})
     tests = list(claim.get("construct_tests", []))
     formula_scope = row_scope(tests[0], ident) if tests else "family"
-    event_type = int(event["event_type"])
     evidence_map = {
         "formula": evidence(formula_scope, *tests) if tests else evidence("n/a"),
         "causality": evidence("family", "event_validation::appending_bars_does_not_change_past_events"),
@@ -599,10 +619,8 @@ def event_entry(
         "edge": evidence("family", "edge_cases::an_empty_series_publishes_no_readings"),
         "availability": evidence("family", "event_validation::every_batch_respects_availability_and_order"),
         "no_double_count": evidence("family", "event_validation::one_occurrence_is_recorded_once"),
-        "precedence": evidence(
-            "family", "event_validation::level_events_follow_the_reference_order"
-        )
-        if event_type == 1
+        "precedence": evidence("row", ROW_EVENT_PRECEDENCE[ident])
+        if ident in ROW_EVENT_PRECEDENCE
         else evidence("n/a"),
         "math": evidence("tool", "check_registry.py"),
         "spec": evidence("family", "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"),

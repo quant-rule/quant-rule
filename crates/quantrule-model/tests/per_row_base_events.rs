@@ -22,6 +22,13 @@ use quantrule_model::readings::{
     AdxSeries, MacdSeries, PivotScale, PivotSeries, ReadingSeries, Readings,
 };
 use std::collections::BTreeSet;
+
+mod common;
+
+use common::base_event_evidence::{
+    ExpectedRecord, assert_divergence_golden, assert_level_golden, assert_level_precedence,
+    assert_record,
+};
 use std::num::NonZeroU64;
 
 const FIXTURE: &str = include_str!("fixtures/readings_golden.csv");
@@ -158,6 +165,17 @@ fn assert_signal_event(
     assert_eq!(event.occurred_bar_index, occurred_bar_index);
     assert_eq!(event.available_bar_index, event.occurred_bar_index);
     event
+}
+
+fn assert_expected_signal(events: &[EventRecord], code: u16, expected: ExpectedRecord) {
+    let event = assert_signal_event(
+        events,
+        code,
+        expected.subtype,
+        expected.source,
+        expected.occurred,
+    );
+    assert_record(event, &expected, "signal row");
 }
 
 fn assert_one_occurrence(events: &[EventRecord], code: u16) {
@@ -300,6 +318,8 @@ fn level_test_row_contract() {
         1,
         &LEVEL_SOURCES,
     );
+    assert_level_golden(&events, codes::LEVEL_TEST, 1);
+    assert_level_precedence(&candles, &events, codes::LEVEL_TEST);
     assert_one_occurrence(&events, codes::LEVEL_TEST);
     assert_deterministic(level_events, "level events");
     assert_causal_prefixes(
@@ -320,6 +340,8 @@ fn level_cross_row_contract() {
         2,
         &LEVEL_SOURCES,
     );
+    assert_level_golden(&events, codes::LEVEL_CROSS, 2);
+    assert_level_precedence(&candles, &events, codes::LEVEL_CROSS);
     assert_one_occurrence(&events, codes::LEVEL_CROSS);
     assert_deterministic(level_events, "level events");
     assert_causal_prefixes(
@@ -340,6 +362,8 @@ fn level_break_row_contract() {
         3,
         &LEVEL_SOURCES,
     );
+    assert_level_golden(&events, codes::LEVEL_BREAK, 3);
+    assert_level_precedence(&candles, &events, codes::LEVEL_BREAK);
     assert_one_occurrence(&events, codes::LEVEL_BREAK);
     assert_deterministic(level_events, "level events");
     assert_causal_prefixes(
@@ -360,6 +384,7 @@ fn divergence_rsi_regular_bullish_row_contract() {
         1,
         &[divergence::RSI_SOURCE_CODE],
     );
+    assert_divergence_golden(&events, codes::DIVERGENCE_RSI_REGULAR_BULLISH, 1);
     assert_one_occurrence(&events, codes::DIVERGENCE_RSI_REGULAR_BULLISH);
     assert_deterministic(divergence_events, "divergence events");
     assert_causal_prefixes(
@@ -380,6 +405,7 @@ fn divergence_rsi_regular_bearish_row_contract() {
         2,
         &[divergence::RSI_SOURCE_CODE],
     );
+    assert_divergence_golden(&events, codes::DIVERGENCE_RSI_REGULAR_BEARISH, 2);
     assert_one_occurrence(&events, codes::DIVERGENCE_RSI_REGULAR_BEARISH);
     assert_deterministic(divergence_events, "divergence events");
     assert_causal_prefixes(
@@ -421,12 +447,28 @@ fn divergence_rsi_hidden_bullish_row_contract() {
     let mut atr = none(candles.len());
     atr[8] = Some(2.0);
     let events = divergence_events_with(&candles, &rsi, &atr);
-    assert_event(
+    let event = assert_event(
         &events,
         codes::DIVERGENCE_RSI_HIDDEN_BULLISH,
         EventType::Divergence,
         3,
         &[divergence::RSI_SOURCE_CODE],
+    );
+    assert_record(
+        event,
+        &ExpectedRecord {
+            event_type: EventType::Divergence,
+            subtype: 3,
+            source: divergence::RSI_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 8,
+            available: 10,
+            direction: 1,
+            reference_code: Some(1003),
+            primary: Some(0.25),
+            reference: Some(-10.0),
+        },
+        "rsi hidden bullish",
     );
     assert_one_occurrence(&events, codes::DIVERGENCE_RSI_HIDDEN_BULLISH);
     assert_deterministic(
@@ -451,6 +493,7 @@ fn divergence_rsi_hidden_bearish_row_contract() {
         4,
         &[divergence::RSI_SOURCE_CODE],
     );
+    assert_divergence_golden(&events, codes::DIVERGENCE_RSI_HIDDEN_BEARISH, 4);
     assert_one_occurrence(&events, codes::DIVERGENCE_RSI_HIDDEN_BEARISH);
     assert_deterministic(divergence_events, "divergence events");
     assert_causal_prefixes(
@@ -500,12 +543,21 @@ fn rsi_threshold_row_contract() {
     );
     let macd = MacdSeries::empty(2);
     let events = signal_events(&readings, &macd);
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_RSI_THRESHOLD,
-        1,
-        signal::RSI_SOURCE_CODE,
-        1,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 1,
+            source: signal::RSI_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 1,
+            available: 1,
+            direction: 1,
+            reference_code: None,
+            primary: Some(31.0),
+            reference: Some(30.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_RSI_THRESHOLD);
     assert_deterministic(|| signal_events(&readings, &macd), "rsi threshold");
@@ -525,12 +577,21 @@ fn ema_pair_cross_row_contract() {
     );
     let macd = MacdSeries::empty(2);
     let events = signal_events(&readings, &macd);
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_EMA_PAIR_CROSS,
-        2,
-        signal::EMA20_SOURCE_CODE,
-        1,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 2,
+            source: signal::EMA20_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 1,
+            available: 1,
+            direction: 1,
+            reference_code: Some(2),
+            primary: Some(102.0),
+            reference: Some(101.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_EMA_PAIR_CROSS);
     assert_deterministic(|| signal_events(&readings, &macd), "ema pair cross");
@@ -550,12 +611,21 @@ fn ema_stack_change_row_contract() {
     );
     let macd = MacdSeries::empty(3);
     let events = signal_events(&readings, &macd);
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_EMA_STACK_CHANGE,
-        3,
-        signal::EMA20_SOURCE_CODE,
-        2,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 3,
+            source: signal::EMA20_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 2,
+            available: 2,
+            direction: 1,
+            reference_code: None,
+            primary: Some(1.0),
+            reference: Some(0.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_EMA_STACK_CHANGE);
     assert_deterministic(|| signal_events(&readings, &macd), "ema stack change");
@@ -575,12 +645,21 @@ fn rsi_zone_change_row_contract() {
     );
     let macd = MacdSeries::empty(3);
     let events = signal_events(&readings, &macd);
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_RSI_ZONE_CHANGE,
-        3,
-        signal::RSI_SOURCE_CODE,
-        2,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 3,
+            source: signal::RSI_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 2,
+            available: 2,
+            direction: 1,
+            reference_code: None,
+            primary: Some(1.0),
+            reference: Some(0.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_RSI_ZONE_CHANGE);
     assert_deterministic(|| signal_events(&readings, &macd), "rsi zone change");
@@ -596,12 +675,21 @@ fn macd_line_signal_cross_row_contract() {
         vec![Some(2.0), Some(2.0), Some(1.0)],
     );
     let events = signal_events(&readings, &macd);
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_MACD_LINE_SIGNAL_CROSS,
-        2,
-        signal::MACD_LINE_SOURCE_CODE,
-        2,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 2,
+            source: signal::MACD_LINE_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 2,
+            available: 2,
+            direction: 1,
+            reference_code: Some(14),
+            primary: Some(2.0),
+            reference: Some(1.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_MACD_LINE_SIGNAL_CROSS);
     assert_deterministic(|| signal_events(&readings, &macd), "macd line/signal cross");
@@ -618,12 +706,21 @@ fn macd_histogram_slope_flip_row_contract() {
         histogram: series(vec![Some(1.0), Some(2.0), Some(1.0)]),
     };
     let events = signal_events(&readings, &macd);
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_MACD_HISTOGRAM_SLOPE_FLIP,
-        4,
-        signal::MACD_HISTOGRAM_SOURCE_CODE,
-        2,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 4,
+            source: signal::MACD_HISTOGRAM_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 2,
+            available: 2,
+            direction: -1,
+            reference_code: None,
+            primary: Some(-1.0),
+            reference: Some(1.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_MACD_HISTOGRAM_SLOPE_FLIP);
     assert_deterministic(
@@ -644,12 +741,21 @@ fn macd_zero_cross_row_contract() {
     let readings = readings_with(&candles, none(3), none(3), none(3), none(3), none(3));
     let macd = macd_with(vec![Some(-1.0), Some(-1.0), Some(1.0)], flat(3, 0.0));
     let events = signal_events(&readings, &macd);
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_MACD_ZERO_CROSS,
-        5,
-        signal::MACD_LINE_SOURCE_CODE,
-        2,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 5,
+            source: signal::MACD_LINE_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 2,
+            available: 2,
+            direction: 1,
+            reference_code: None,
+            primary: Some(1.0),
+            reference: Some(0.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_MACD_ZERO_CROSS);
     assert_deterministic(|| signal_events(&readings, &macd), "macd zero cross");
@@ -666,12 +772,21 @@ fn di_cross_row_contract() {
     );
     let config = DmiConfig::new(timeframe());
     let events = DmiEventSeries::compute(&adx, &config).events().to_vec();
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_DI_CROSS,
-        2,
-        dmi::DI_PLUS_SOURCE_CODE,
-        2,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 2,
+            source: dmi::DI_PLUS_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 2,
+            available: 2,
+            direction: 1,
+            reference_code: Some(18),
+            primary: Some(2.0),
+            reference: Some(1.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_DI_CROSS);
     assert_deterministic(
@@ -710,12 +825,21 @@ fn trend_continuation_row_contract() {
     let events = TrendContinuationSeries::compute(&readings, &macd, &adx, &config)
         .events()
         .to_vec();
-    assert_signal_event(
+    assert_expected_signal(
         &events,
         codes::SIGNAL_TREND_CONTINUATION,
-        6,
-        dmi::ADX_SOURCE_CODE,
-        3,
+        ExpectedRecord {
+            event_type: EventType::Signal,
+            subtype: 6,
+            source: dmi::ADX_SOURCE_CODE,
+            timeframe: TIMEFRAME,
+            occurred: 3,
+            available: 3,
+            direction: 1,
+            reference_code: None,
+            primary: Some(40.0),
+            reference: Some(25.0),
+        },
     );
     assert_one_occurrence(&events, codes::SIGNAL_TREND_CONTINUATION);
     assert_deterministic(

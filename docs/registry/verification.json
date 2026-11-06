@@ -3011,9 +3011,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "level_events_golden::the_level_events_match_the_golden_fixture"
+            "per_row_base_events::level_test_row_contract"
           ]
         },
         "edge": {
@@ -3035,9 +3035,9 @@
           ]
         },
         "precedence": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::level_events_follow_the_reference_order"
+            "per_row_base_events::level_test_row_contract"
           ]
         },
         "math": {
@@ -3083,9 +3083,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "level_events_golden::the_level_events_match_the_golden_fixture"
+            "per_row_base_events::level_cross_row_contract"
           ]
         },
         "edge": {
@@ -3107,9 +3107,9 @@
           ]
         },
         "precedence": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::level_events_follow_the_reference_order"
+            "per_row_base_events::level_cross_row_contract"
           ]
         },
         "math": {
@@ -3155,9 +3155,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "level_events_golden::the_level_events_match_the_golden_fixture"
+            "per_row_base_events::level_break_row_contract"
           ]
         },
         "edge": {
@@ -3179,9 +3179,9 @@
           ]
         },
         "precedence": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::level_events_follow_the_reference_order"
+            "per_row_base_events::level_break_row_contract"
           ]
         },
         "math": {
@@ -3227,9 +3227,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "per_row_base_events::divergence_rsi_regular_bullish_row_contract"
           ]
         },
         "edge": {
@@ -3297,9 +3297,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "per_row_base_events::divergence_rsi_regular_bearish_row_contract"
           ]
         },
         "edge": {
@@ -3367,9 +3367,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "per_row_base_events::divergence_rsi_hidden_bullish_row_contract"
           ]
         },
         "edge": {
@@ -3437,9 +3437,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "per_row_base_events::divergence_rsi_hidden_bearish_row_contract"
           ]
         },
         "edge": {
@@ -3507,9 +3507,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::rsi_threshold_row_contract"
           ]
         },
         "edge": {
@@ -3577,9 +3577,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::ema_pair_cross_row_contract"
           ]
         },
         "edge": {
@@ -3647,9 +3647,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::ema_stack_change_row_contract"
           ]
         },
         "edge": {
@@ -3717,9 +3717,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::rsi_zone_change_row_contract"
           ]
         },
         "edge": {
@@ -3787,9 +3787,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::macd_line_signal_cross_row_contract"
           ]
         },
         "edge": {
@@ -3857,9 +3857,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::macd_histogram_slope_flip_row_contract"
           ]
         },
         "edge": {
@@ -3927,9 +3927,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::macd_zero_cross_row_contract"
           ]
         },
         "edge": {
@@ -3997,9 +3997,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::di_cross_row_contract"
           ]
         },
         "edge": {
@@ -4067,9 +4067,9 @@
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "per_row_base_events::trend_continuation_row_contract"
           ]
         },
         "edge": {
@@ -4371,10 +4371,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -4443,10 +4441,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -4515,10 +4511,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -5077,10 +5071,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -5149,10 +5141,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -5221,10 +5211,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -5293,10 +5281,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -5365,10 +5351,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -6487,10 +6471,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8239,10 +8221,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8311,10 +8291,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8383,10 +8361,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8455,10 +8431,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8527,10 +8501,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8599,10 +8571,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8671,10 +8641,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8743,10 +8711,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -8815,10 +8781,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -12737,10 +12701,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -12809,10 +12771,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -12881,10 +12841,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -12953,10 +12911,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
@@ -13025,10 +12981,8 @@
           ]
         },
         "precedence": {
-          "scope": "family",
-          "tests": [
-            "event_validation::level_events_follow_the_reference_order"
-          ]
+          "scope": "n/a",
+          "tests": []
         },
         "math": {
           "scope": "tool",
