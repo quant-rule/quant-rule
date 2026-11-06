@@ -55,10 +55,9 @@ on `model_dev`; its pooled metrics matched the preserved P5 result exactly.
 
 Table B of [`INDICATOR-VERIFICATION.md`](INDICATOR-VERIFICATION.md) has all
 `F/C/D/G/E/A/N/P/M` cells ticked for 37 rows. The human signed rows 1–37 on
-2026-11-05; the agent recorded the signature and did not supply it. Every row is
-now `verified`: 36 event-producing indicators are wired and spec-usable, and
-row 37 (`calendar_bucket`) is verified as reading-only with no event to activate
-in a spec. F-02 is **Fixed**.
+2026-11-05; the agent recorded the signature and did not supply it. The rows are
+signed, not independently re-proven: 36 event-producing indicators are wired and
+spec-usable, and row 37 (`calendar_bucket`) is reading-only. F-02 is **Fixed**.
 
 ## 5. Legacy removal
 

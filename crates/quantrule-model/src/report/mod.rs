@@ -2,7 +2,7 @@
 //!
 //! [`FlatReport`] projects a completed [`crate::run::ModelRun`] onto readings,
 //! discrete states, confirmed levels, events, progression, and context. It
-//! carries no axis value, no consensus, no dashboard view, and no
+//! carries no composite value, no consensus, no dashboard view, and no
 //! cross-timeframe aggregate. The report is a pure projection; it never
 //! recomputes a reading or an event.
 

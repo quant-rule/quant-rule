@@ -1,7 +1,7 @@
 # Indicator Implementation Summary and Verification Checklist
 
 - Date: 2026-11-05 (UTC)
-- Status: **Approved — implementation contract**; 37/37 rows `verified` (human sign-off, 2026-11-05): 36 event-producing indicators wired and spec-usable, 1 reading-only
+- Status: **Approved — implementation contract**; 37 checklist rows signed by the human on 2026-11-05 (36 event-producing indicators wired and spec-usable, 1 reading-only). The signed rows are not a 46-row per-indicator proof; Table B records family-level checks. The 46-row indicator and 143-row event matrices are the current verification target.
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Coverage: [`docs/model/2026-11-05/indicator-coverage.md`](../../model/2026-11-05/indicator-coverage.md)
 - Phase 1 audit: [`docs/improvement/2026-11-05/INDICATOR-AUDIT.md`](INDICATOR-AUDIT.md)
@@ -239,7 +239,9 @@ fixtures.
 
 The `Sign` column is the human or Quant Validator signature. The human signed
 rows 1–37 on 2026-11-05; the agent recorded the signature and did not supply it.
-Every row is now `verified`: 36 event-producing indicators are wired and spec-usable, and row 37 is reading-only.
+The rows are signed, not independently re-proven: 36 event-producing indicators
+are wired and spec-usable, and row 37 is reading-only. Table B's checks are
+family-level, so the 46-row per-indicator matrix is still the current target.
 
 ## 5. Known gaps
 

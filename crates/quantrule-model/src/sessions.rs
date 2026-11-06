@@ -100,7 +100,7 @@ impl SessionReadings {
     #[must_use]
     pub fn compute(candles: &[Candle], readings: &Readings, config: &SessionConfig) -> Self {
         let len = candles.len();
-        let mut session_code = vec![None; len];
+        let mut session_code = vec![Some(0.0); len];
         let mut session_age = vec![None; len];
         let mut opening_range_high = vec![None; len];
         let mut opening_range_low = vec![None; len];
@@ -397,6 +397,15 @@ mod tests {
             previous = close;
         }
         candles
+    }
+
+    #[test]
+    fn outside_session_is_zero_and_inside_is_one() {
+        let candles = two_day_series();
+        let readings = Readings::compute_with_config(&candles, &ReadingsConfig::DEFAULT);
+        let sessions = SessionReadings::compute(&candles, &readings, &SessionConfig::london());
+        assert_eq!(sessions.session_code.get(0), Some(0.0));
+        assert_eq!(sessions.session_code.get(8), Some(1.0));
     }
 
     #[test]

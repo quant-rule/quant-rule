@@ -218,4 +218,20 @@ strategy, or architecture labels after P2–P7.
 5. P6 deletes old docs and tutorials.
 6. P7 runs the legacy scan and closeout.
 
+## 8. Naming aliases
+
+This is the only current-surface file that maps old names to current IDs. Other
+current docs, code, tests, and README tables use the prefixed ID only.
+
+| Old name | Current ID | Kind | Note |
+|---|---|---|---|
+| model v4 | `M1.0` | Model | Current model engine |
+| model v3 | historical model label | Model | Pre-family; not part of M1.x or M2.x |
+| strategy v6 | `S1.1` | Strategy | Confirmed-level breakout |
+| strategy v7 | `S1.2` | Strategy | Failed-level-test fade |
+| strategy v8 | `S1.3` | Strategy | Event composite |
+| strategy v9 | `S1.4` | Strategy | 1m compression breakout |
+| strategy v10 | `S1.5` | Strategy | Compression bracket family |
+
+
 No deletion starts before the P0 inventory is approved.

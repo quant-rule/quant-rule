@@ -684,9 +684,9 @@ mod tests {
 
     #[test]
     fn a_forming_leg_reports_reason_six_before_the_target_reason() {
-        // The origin is unconfirmed, so the axis reports reason 6 even when a
-        // target exists and degenerates. This is what makes reason 6 reachable
-        // on a leg created from a candidate, as §8.4 requires.
+        // The origin is unconfirmed, so the progression reports reason 6 even
+        // when a target exists and degenerates. This is what makes reason 6
+        // reachable on a leg created from a candidate, as §8.4 requires.
         let mut leg = active_leg(100.0, 100.0, 1, Some(1.0));
         leg.lifecycle = Lifecycle::Forming;
         leg.origin_confirmed = false;

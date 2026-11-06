@@ -187,7 +187,11 @@ impl TimeframeModel {
         let signal_events = SignalEventSeries::compute(
             &readings,
             &macd,
-            &SignalConfig::with_settings(timeframe_secs, event_settings.signal),
+            &SignalConfig::with_settings(timeframe_secs, event_settings.signal).with_ema_periods([
+                readings_config.ema_fast,
+                readings_config.ema_mid,
+                readings_config.ema_slow,
+            ]),
         );
         let dmi_events = if event_settings.signal.di_cross {
             DmiEventSeries::compute(&adx, &DmiConfig::new(timeframe_secs))
@@ -270,8 +274,8 @@ impl TimeframeModel {
             .copied()
             .collect();
         // Keep the detector append order within one availability/occurrence
-        // bar; the contract fixes the Level reference order and the
-        // Momentum-before-Structure signal order.
+        // bar; the contract fixes the level reference order and the signal
+        // detector order.
         events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
 
         let events = EventBatch::new(events);

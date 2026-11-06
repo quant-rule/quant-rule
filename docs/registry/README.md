@@ -125,9 +125,14 @@ Every `signal` and `context` entry has a claim. A `diagnostic` entry has
 event carries a predictive outcome, a horizon, a target, a stop, and a baseline.
 A `context` or `diagnostic` event carries `primary_outcome: "none"` and
 `predictive_status: "not_applicable"`; it is a construct claim, not an edge
-claim. `construct_tests` names the test that exercises the condition. The
+claim. `construct_tests` names the test that exercises the condition, and
+`construct_status` must be `covered` for the claim to pass the gate. The
 construct coverage, including the session-range defect found and fixed during
 P1b-2, is recorded in [`construct-gaps.md`](construct-gaps.md).
+
+`predictive_status: pending` is honest and allowed. It means the construct is
+covered but the forward claim has not been tested; it is never counted as a
+pass.
 
 ## 5. CI checks
 

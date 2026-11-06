@@ -12,7 +12,7 @@
 //! The model publishes readings, discrete states, confirmed levels, events,
 //! progression, and context per timeframe. It carries no axis score, no
 //! consensus, no dashboard view, and no cross-timeframe aggregate: those were
-//! the legacy four-axis architecture and are not part of M1.0.
+//! the retired composite architecture and are not part of M1.0.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -36,4 +36,4 @@ pub mod timeframe;
 ///
 /// It must match `docs/registry/indicators.json`; a registry change updates
 /// both in the same pull request.
-pub const REGISTRY_VERSION: &str = "2026-11-06.2";
+pub const REGISTRY_VERSION: &str = "2026-11-06.3";

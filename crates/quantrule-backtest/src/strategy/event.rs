@@ -1,4 +1,4 @@
-//! The v8 event-composite strategy and its bounded condition language.
+//! The event-composite strategy engine and its bounded condition language.
 //!
 //! A condition names one published event or one v3 discrete state on one
 //! timeframe. The entry is the conjunction of its conditions; at least one
@@ -21,7 +21,7 @@ use super::event_input::{EventStrategyInput, EventTimeframeView};
 /// The maximum number of conditions in one entry or exit list.
 pub const MAX_CONDITIONS: usize = 6;
 
-/// A v3 state a v8 condition may read.
+/// A state a condition may read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StateField {
     /// EMA stack state.
@@ -79,7 +79,7 @@ impl StateField {
     }
 }
 
-/// One v8 condition.
+/// One condition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Condition {
     /// A published event with the exact type, subtype, and source.
@@ -165,7 +165,7 @@ impl Condition {
     }
 }
 
-/// The v8 event-composite configuration.
+/// The event-composite strategy configuration.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EventCompositeConfig {
     window_bars: usize,
@@ -332,7 +332,7 @@ fn state_value(field: StateField, view: &EventTimeframeView) -> Option<i8> {
     }
 }
 
-/// The v8 event-composite strategy.
+/// The event-composite strategy.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EventCompositeStrategy {
     config: EventCompositeConfig,

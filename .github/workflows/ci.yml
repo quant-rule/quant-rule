@@ -51,6 +51,12 @@ jobs:
       - name: Registry
         run: python3 tools/check_registry.py
 
+      - name: Verification matrices
+        run: python3 tools/check_verification_matrix.py
+
+      - name: Event emitters
+        run: python3 tools/check_event_emitters.py
+
       - name: Validation claims
         run: python3 tools/check_validation.py
 

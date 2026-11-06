@@ -211,8 +211,7 @@ pub fn sign(value: f64) -> f64 {
     }
 }
 
-/// Buckets a Direction or Momentum primary value into the contract's compact
-/// state.
+/// Buckets a continuous primary value into the contract's compact state.
 ///
 /// Returns -1 below `-0.1`, 0 from `-0.1` through `+0.1` inclusive, and +1
 /// above `+0.1`. Returns `None` when the value is not finite, so a missing or

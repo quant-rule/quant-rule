@@ -5,8 +5,8 @@
 //! a display tail and renders it.
 //!
 //! The run publishes per-timeframe results only. It does not publish a
-//! cross-timeframe aggregate or a consensus vote: those were the legacy
-//! four-axis architecture. The module is pure: it reads the candles and
+//! cross-timeframe aggregate or a consensus vote: those were the retired
+//! composite architecture. The module is pure: it reads the candles and
 //! configuration it is given. It performs no I/O, reads no clock, and uses no
 //! randomness.
 

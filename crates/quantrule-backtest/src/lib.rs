@@ -8,8 +8,7 @@
 //! [`portfolio`] module holds the capital configuration, sizing, state, records,
 //! and the ledger.
 //!
-//! The axis ladder, its as-of context, and the runner left with the four-axis
-//! cutover. S3.x rebuilds the multi-timeframe strategy context on the flat model.
+//! The multi-timeframe strategy context and the runner are S3.x work.
 //!
 //! The crate is pure. It performs no I/O, reads no clock, uses no randomness,
 //! and keeps no global mutable state. The shell owns source access and

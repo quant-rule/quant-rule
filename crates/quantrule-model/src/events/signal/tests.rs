@@ -175,13 +175,36 @@ fn an_rsi_downward_crossing_emits_a_threshold_event() {
 }
 
 #[test]
+fn a_cross_from_equality_is_a_threshold_crossing() {
+    let candles = candles(&[100.0, 100.0]);
+    let readings = readings_with(
+        &candles,
+        none(2),
+        none(2),
+        none(2),
+        vec![Some(30.0), Some(31.0)],
+        none(2),
+    );
+    let series = signals(&candles, &readings);
+    let events = events_of(&series, SignalSubtype::ThresholdCrossing, RSI_SOURCE_CODE);
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].reference_value, Some(30.0));
+    assert_eq!(events[0].direction_code, 1);
+}
+
+#[test]
 fn a_close_exactly_on_a_threshold_is_not_a_crossing() {
-    for values in [vec![Some(30.0), Some(31.0)], vec![Some(29.0), Some(30.0)]] {
-        let candles = candles(&[100.0, 100.0]);
-        let readings = readings_with(&candles, none(2), none(2), none(2), values, none(2));
-        let series = signals(&candles, &readings);
-        assert!(events_of(&series, SignalSubtype::ThresholdCrossing, RSI_SOURCE_CODE).is_empty());
-    }
+    let candles = candles(&[100.0, 100.0]);
+    let readings = readings_with(
+        &candles,
+        none(2),
+        none(2),
+        none(2),
+        vec![Some(29.0), Some(30.0)],
+        none(2),
+    );
+    let series = signals(&candles, &readings);
+    assert!(events_of(&series, SignalSubtype::ThresholdCrossing, RSI_SOURCE_CODE).is_empty());
 }
 
 #[test]
@@ -230,6 +253,42 @@ fn custom_rsi_levels_replace_the_default_thresholds() {
     let events = events_of(&series, SignalSubtype::ThresholdCrossing, RSI_SOURCE_CODE);
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].reference_value, Some(40.0));
+}
+
+#[test]
+fn custom_ema_periods_map_pairs_to_the_configured_roles() {
+    let candles = candles(&[100.0, 100.0]);
+    let readings = readings_with(
+        &candles,
+        vec![Some(99.0), Some(102.0)],
+        vec![Some(100.0), Some(101.0)],
+        vec![Some(101.0), Some(100.0)],
+        none(2),
+        none(2),
+    );
+    let settings = SignalSettings {
+        ema_pairs: [(9, 21), (21, 55), (9, 55)],
+        ..SignalSettings::DEFAULT
+    };
+    let config = SignalConfig::with_settings(
+        NonZeroU64::new(300).expect("a non-zero timeframe"),
+        settings,
+    )
+    .with_ema_periods([9, 21, 55]);
+    let series = SignalEventSeries::compute(
+        &readings,
+        &crate::readings::MacdSeries::empty(readings.len()),
+        &config,
+    );
+    let events: Vec<_> = series
+        .events()
+        .iter()
+        .filter(|event| event.event_subtype_code == SignalSubtype::SeriesCrossover.code())
+        .collect();
+    assert_eq!(events.len(), 3);
+    assert_eq!(events[0].source_code, EMA20_SOURCE_CODE);
+    assert_eq!(events[1].source_code, super::EMA50_SOURCE_CODE);
+    assert_eq!(events[2].source_code, EMA20_SOURCE_CODE);
 }
 
 #[test]

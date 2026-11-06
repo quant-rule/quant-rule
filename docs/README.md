@@ -20,8 +20,8 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | Workflows | The living Audit Workflow, Improvement Workflow, and run contract. | `docs/workflows/<file>.md` |
 | Improvement registry | The committed run index, baselines, invalidation tombstones, and run record template. | `docs/improvement/<file>.md` |
 
-The tutorial kind remains defined in `AGENTS.md`; no current tutorial exists after
-the four-axis cutover.
+The tutorial kind is defined in `AGENTS.md`; the current M1.0 lab tutorial is
+linked below.
 
 ## Current architecture
 
@@ -36,13 +36,15 @@ the four-axis cutover.
 | Contract | Status | Path |
 |---|---|---|
 | M1.0 flat model | Current baseline; path gate no edge; compression baselines accepted | `docs/model/2026-11-05/model-m1.0.md` |
-| Indicator coverage | Implemented 2026-11-05: 46 indicators, 143 active events, stable event codes; 189 validation claims and 54/54 construct cases | `docs/model/2026-11-05/indicator-coverage.md` |
-| Model and strategy families | Approved 2026-11-05; `M1.0` and the historical `S1.x` / `M2.x` maps | `docs/model/2026-11-05/model-families.md` |
+| Indicator coverage | Implemented 2026-11-05: 46 indicators, 143 active events, stable event codes; 189 validation claims and 54/54 construct cases; predictive evidence pending | `docs/model/2026-11-05/indicator-coverage.md` |
+| Model families | Approved 2026-11-05; `M1.0`, historical `M2.x`, and the future `M3.x` map | `docs/model/2026-11-05/model-families.md` |
 | Model spec v1 | Implemented; condition-only | `docs/model/2026-11-05/model-spec-v1.md` |
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |
 | M1.0 model lab tutorial | Current; uses only the eight current shell commands | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
+| Indicator verification matrix | Current; 46 rows, generated from registry and claims | `docs/model/2026-11-06/indicator-verification.md` |
+| Event verification matrix | Current; 143 rows, generated from registry and claims | `docs/model/2026-11-06/event-verification.md` |
 
 ## Current run contracts
 
@@ -67,6 +69,7 @@ rejects them with an unknown-field error; S3.x adds a strategy file back.
 | M2.x model programme | P5 `no_edge`; P7 closeout complete; validation not opened | [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](execution-plans/2026-11-05/410-m2-model-programme.md) |
 | M3.x model programme | Preflight `underpowered`; no development run; validation not opened | [`docs/improvement/2026-11-05/M3-PREFLIGHT.md`](improvement/2026-11-05/M3-PREFLIGHT.md) |
 | M2.x model charter | Approved 2026-11-05; strategy tier closed | [`docs/governance/2026-11-05/M2-CHARTER.md`](governance/2026-11-05/M2-CHARTER.md) |
+| Current-surface audit verification | Implemented on branch; per-row indicator/event matrix pending | [`docs/reports/2026-11-06/current-surface-audit-verification.md`](reports/2026-11-06/current-surface-audit-verification.md) |
 
 Pre-reset experiment records under `docs/improvement/` are historical. They are not
 improvement runs under the current run contract and are not imported as baselines.
@@ -94,7 +97,7 @@ improvement runs under the current run contract and are not imported as baseline
 ## Local workspace
 
 `data/` is a local workspace. Only its README files are committed; candles,
-reports, and run artifacts stay local. There is no SQLite store in the current
+reports, and run artifacts stay local. There is no database store in the current
 surface.
 
 ## Developer tools
@@ -103,7 +106,7 @@ surface.
 |---|---|---|
 | Progression replay oracle | Regenerates and checks the per-bar Progression and retained-leg golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
 | Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
-| Registry, validation, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_links.py`, `tools/check_terms.py` |
+| Registry, validation, matrix, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
 
 The experiment matrix runner, improvement run store, and research model-cell runner
 are historical. They target the retired backtest surface and are not current
@@ -129,7 +132,7 @@ record of what was released.
 |---|---|---|
 | Clean current architecture | P0.1–P8 complete; M3 preflight underpowered | `docs/execution-plans/2026-11-05/467-clean-current-architecture.md` |
 | P2 M1.0 naming | Merged; M1.0 contract, config identities, retired model parsers, legacy scan | `docs/execution-plans/2026-11-05/470-m1-naming.md` |
-| P3 four-axis removal | Merged in PR #484 at `84ad934` | `docs/execution-plans/2026-11-05/471-four-axis-removal.md` |
+| P3 retired-surface removal | Merged in PR #484 at `84ad934` | `docs/execution-plans/2026-11-05/471-four-axis-removal.md` |
 | P4 config cleanup | Merged in PR #485 at `50549dd` | `docs/execution-plans/2026-11-05/472-config-cleanup.md` |
 | P5 panel/session artifacts | Merged in PR #486 at `392ce80` | `docs/execution-plans/2026-11-05/473-panel-session-artifacts.md` |
 | P6 checklist/docs | Implemented; row 37 wording, family-level tests, retired contracts | `docs/execution-plans/2026-11-05/474-checklist-docs.md` |
@@ -142,18 +145,14 @@ record of what was released.
 
 | Decision | Status | Path |
 |---|---|---|
-| Flat indicator/event model; axes removed from decisions | Accepted 2026-11-03 | `docs/adr/2026-11-03/flat-indicator-event-model.md` |
-| Four-axis analytical model | Retired 2026-11-05; retained as history | `docs/adr/2026-10-21/four-axis-analytical-model.md` |
-| SQLite per-bar store and research schema | Retired 2026-11-05; retained as history | `docs/adr/2026-10-24/sqlite-store.md` |
+| Flat indicator/event model; composite axes removed from decisions | Accepted 2026-11-03 | `docs/adr/2026-11-03/flat-indicator-event-model.md` |
 | History, retention, and display policy | Accepted | `docs/adr/2026-10-25/history-retention-and-display-policy.md` |
 | Market analysis and full-execution backtest boundaries | Accepted; partly superseded by the 2026-11-05 cutover | `docs/adr/2026-10-27/analysis-and-backtest-boundaries.md` |
 | Extended-range M1 window | Accepted | `docs/adr/2026-10-27/extended-range-window.md` |
-| Config-driven engines and per-engine reports | Historical | `docs/adr/2026-10-28/config-driven-engines-and-reports.md` |
 | Abstraction levels and engine boundaries | Accepted 2026-10-30 | `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md` |
 | Rule purity and statistics boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/rule-purity-and-statistics-boundary.md` |
 | Stateless strategy and the position parameter | Accepted 2026-10-30 | `docs/adr/2026-10-30/stateless-strategy-position-parameter.md` |
 | One-way timeframe ladder and trade-intent boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/one-way-timeframe-ladder.md` |
-| Retirement of the axis-agreement strategy | Accepted 2026-10-30 | `docs/adr/2026-10-30/axis-agreement-retirement.md` |
 | Trustworthy backtest kata and architecture characteristics | Accepted 2026-10-31 | `docs/adr/2026-10-31/adopt-architecture-baseline.md` |
 
 ## Reading a work item

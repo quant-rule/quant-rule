@@ -50,7 +50,7 @@ The result schema is `quantrule.model-result/v4`. It carries:
 - `events`;
 - `progression`.
 
-The result carries no axis score, no cross-timeframe aggregate, no consensus,
+The result carries no composite score, no cross-timeframe aggregate, no consensus,
 no chart projection, no prediction, and no confidence field. The per-timeframe
 result is the only model output; every cross-timeframe view is computed by a
 reporting consumer, and the strategy context is built by S3.x.
@@ -61,9 +61,12 @@ The full event batch is never truncated.
 
 The shell publishes the same result through `report model` as a bundle:
 `summary.txt`, `report.json`, `result.json`, `readings.csv`, `events.csv`,
-`levels.csv`, `legs.csv`, and `provenance.json`. A model spec adds
-`conditions.csv`; a v2 spec adds `prediction.csv` and writes `panel.csv` and
-`session.csv` when it declares a panel or a session.
+`levels.csv`, `legs.csv`, and `provenance.json`. A v1 spec adds
+`conditions.csv`. A v2 spec adds `prediction.csv`, adds `conditions.csv` when
+conditions are declared, and writes `panel.csv` and `session.csv` when it
+declares a panel or a session. `readings.csv` keeps the context ratios as
+`atr_ratio` and `rvol_ratio`; the extended ratios are `extended_atr_ratio` and
+`extended_rvol_ratio`.
 
 `report.json` carries the core Level, Divergence, and Signal event domain. The
 `events.csv` artifact and the `events` command carry the full registered and
@@ -75,7 +78,7 @@ extended event batch; the extended sources (19+) have their own CSV surface.
   unsupported-schema error.
 - `quantrule.model/v4` and `quantrule.model-result/v4` are the current
   file-format schemas.
-- The four-axis scores, dashboard, market state, consensus, cross-timeframe
+- The retired composite scores, dashboard, market state, consensus, cross-timeframe
   aggregate, and their shell commands are retired. They remain in Git history
   and in the audit, ADR, and improvement records.
 - The strategy context is not part of M1.0; S3.x builds it from the published

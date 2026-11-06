@@ -11,7 +11,6 @@
 //!
 //! Two generic, event-driven engines remain for S3.x: the bounded
 //! [`EventCompositeStrategy`] and the two-sided [`CompressionBracketStrategy`].
-//! The axis-ladder strategy left with the four-axis cutover.
 
 mod bracket;
 mod config;

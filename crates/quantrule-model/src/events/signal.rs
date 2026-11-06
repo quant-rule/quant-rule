@@ -113,6 +113,7 @@ impl SignalSubtype {
 pub struct SignalConfig {
     timeframe_secs: NonZeroU64,
     settings: SignalSettings,
+    ema_periods: [usize; 3],
 }
 
 impl SignalConfig {
@@ -122,6 +123,7 @@ impl SignalConfig {
         Self {
             timeframe_secs,
             settings: SignalSettings::DEFAULT,
+            ema_periods: [20, 50, 200],
         }
     }
 
@@ -131,7 +133,15 @@ impl SignalConfig {
         Self {
             timeframe_secs,
             settings,
+            ema_periods: [20, 50, 200],
         }
+    }
+
+    /// Uses the configured fast, middle, and slow EMA periods.
+    #[must_use]
+    pub const fn with_ema_periods(mut self, ema_periods: [usize; 3]) -> Self {
+        self.ema_periods = ema_periods;
+        self
     }
 
     /// Builds a configuration from a timeframe in seconds.
@@ -153,15 +163,20 @@ impl SignalConfig {
     pub const fn settings(self) -> SignalSettings {
         self.settings
     }
+
+    /// The configured fast, middle, and slow EMA periods.
+    #[must_use]
+    pub const fn ema_periods(self) -> [usize; 3] {
+        self.ema_periods
+    }
 }
 
 /// The Signal events detected over one readings series and its MACD series.
 ///
 /// The events are stored in bar order. Inside one bar the fixed order is RSI
-/// thresholds 30, 50, 70; EMA pairs 20/50, 50/200, 20/200; then Direction,
-/// Momentum, and Structure state changes. Distinct signal conditions can
-/// coincide on a bar; they are not duplicates because each names a different
-/// defined relationship.
+/// thresholds; EMA pairs; then the EMA-stack and RSI-zone state changes.
+/// Distinct signal conditions can coincide on a bar; they are not duplicates
+/// because each names a different defined relationship.
 ///
 /// # Examples
 ///
@@ -252,9 +267,9 @@ fn threshold_events(
     };
 
     for threshold in config.settings().rsi_levels {
-        let direction = if previous < threshold && current > threshold {
+        let direction = if previous <= threshold && current > threshold {
             1
-        } else if previous > threshold && current < threshold {
+        } else if previous >= threshold && current < threshold {
             -1
         } else {
             continue;
@@ -280,11 +295,17 @@ fn ema_events(
     events: &mut Vec<EventRecord>,
 ) {
     for (fast, slow) in config.settings().ema_pairs {
+        let Some(fast_role) = ema_role(config.ema_periods(), fast) else {
+            continue;
+        };
+        let Some(slow_role) = ema_role(config.ema_periods(), slow) else {
+            continue;
+        };
         let (Some(previous_fast), Some(previous_slow), Some(current_fast), Some(current_slow)) = (
-            ema_value(readings, fast, bar - 1),
-            ema_value(readings, slow, bar - 1),
-            ema_value(readings, fast, bar),
-            ema_value(readings, slow, bar),
+            ema_series(readings, fast_role).get(bar - 1),
+            ema_series(readings, slow_role).get(bar - 1),
+            ema_series(readings, fast_role).get(bar),
+            ema_series(readings, slow_role).get(bar),
         ) else {
             continue;
         };
@@ -299,8 +320,8 @@ fn ema_events(
         events.push(signal_event(
             crate::events::codes::SIGNAL_EMA_PAIR_CROSS,
             SignalSubtype::SeriesCrossover,
-            ema_source(fast),
-            Some(ema_reference(slow)),
+            ema_source(fast_role),
+            Some(ema_reference(slow_role)),
             Some(current_fast),
             Some(current_slow),
             direction,
@@ -501,30 +522,31 @@ fn signal_event(
     }
 }
 
-fn ema_value(readings: &Readings, period: usize, bar: usize) -> Option<f64> {
-    match period {
-        20 => readings.ema20.get(bar),
-        50 => readings.ema50.get(bar),
-        200 => readings.ema200.get(bar),
-        _ => None,
+fn ema_role(periods: [usize; 3], period: usize) -> Option<usize> {
+    periods.iter().position(|configured| *configured == period)
+}
+
+fn ema_series(readings: &Readings, role: usize) -> &crate::readings::ReadingSeries {
+    match role {
+        0 => &readings.ema20,
+        1 => &readings.ema50,
+        _ => &readings.ema200,
     }
 }
 
-fn ema_source(period: usize) -> u16 {
-    match period {
-        20 => EMA20_SOURCE_CODE,
-        50 => EMA50_SOURCE_CODE,
-        200 => EMA200_SOURCE_CODE,
-        _ => 0,
+fn ema_source(role: usize) -> u16 {
+    match role {
+        0 => EMA20_SOURCE_CODE,
+        1 => EMA50_SOURCE_CODE,
+        _ => EMA200_SOURCE_CODE,
     }
 }
 
-fn ema_reference(period: usize) -> u32 {
-    match period {
-        20 => EMA20_REFERENCE_CODE,
-        50 => EMA50_REFERENCE_CODE,
-        200 => EMA200_REFERENCE_CODE,
-        _ => 0,
+fn ema_reference(role: usize) -> u32 {
+    match role {
+        0 => EMA20_REFERENCE_CODE,
+        1 => EMA50_REFERENCE_CODE,
+        _ => EMA200_REFERENCE_CODE,
     }
 }
 
