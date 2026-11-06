@@ -4,7 +4,7 @@
 - Tool: DeepSeek V4.1 Flash through the OpenCode agent harness
 - Work item: #525 `Execute the second behavior-neutral refactor cycle`
 - Plan: [`docs/execution-plans/2026-11-06/shell-request-boundary.md`](../../execution-plans/2026-11-06/shell-request-boundary.md)
-- Status: PR #526 open; merge and post-merge verification pending
+- Status: cycle 2 merged and post-merge verified; cycle complete; cycle 3 not started
 
 ## Intent and boundary
 
@@ -12,8 +12,10 @@ The agent was asked to run the Refactor Workflow. It performed the read-only
 Structure Auditor pass on a fresh baseline, re-verified the carried findings,
 found one new High finding, and wrote a second-cycle plan. After human approval,
 it implemented the approved request-vocabulary move and added the narrow
-structural guard. It did not change a fixture, command, schema, or behavior. It
-did not push, open a pull request, or merge.
+structural guard. After further approval, it pushed the branch, opened PR #526,
+merged it at `1dd13ca`, and ran the post-merge verifier pass. It did not start a
+third cycle, change a fixture, command, schema, or behavior, or open a new
+campaign.
 
 ## Work performed
 
@@ -37,7 +39,8 @@ did not push, open a pull request, or merge.
   guard with three tests.
 - Ran the full gate in the task worktree and a clean-worktree verification pass
   at the implementation commit.
-- Pushed the branch and opened PR #526.
+- Pushed the branch, opened PR #526, merged it at `1dd13ca`, and ran the
+  post-merge verifier pass.
 
 ## Verification and evidence
 
@@ -74,6 +77,11 @@ Commands actually run and observed results:
 - Clean-worktree verifier pass at `f6e8c22` (detached worktree): 1,309 passed, 0
   failed, 8 ignored; fixture hash `da7389...`; bundle hash `59124f...`; every
   gate passes; the stage-import guard passes.
+- PR #526 merged at `1dd13ca`; CI `verify` passed at `cc67d89`; the merge tree is
+  identical to the verified branch head.
+- Post-merge verifier pass at `1dd13ca`: 1,309 passed, 0 failed, 8 ignored;
+  fixture hash `da7389...`; bundle hash `59124f...`; every gate passes; the
+  stage-import guard passes.
 
 The production-only panic scan was a read-only Python check. It excluded
 `*_tests.rs`, files under `tests`, and lines after an inline `#[cfg(test)]`
@@ -106,12 +114,12 @@ therefore not evidence of a panic problem.
 ## Limitations
 
 - One agent performed the Structure Auditor, Refactor Planner, Refactor
-  Implementer, and local verifier passes. These were sequential passes, not
-  independent agents or independent model judgments. The clean-worktree pass
-  was run by the same agent at the implementation commit.
-- The pull request, merge, and post-merge independent verification have not
-  happened. The finding stays `In progress`; the plan's verification record
-  covers the local gate and the clean-worktree pass.
+  Implementer, and verifier passes, including the post-merge pass. These were
+  sequential passes, not independent agents or independent model judgments. The
+  finding is `Verified` with that limitation.
+- The pull request merged and the post-merge pass is recorded. Cycle 3 has not
+  started; REF-2026-11-06-05 and REF-03 require a new campaign and an approved
+  plan.
 - The re-scan covers the structural report, the shell module imports, the test
   sizes, and the documented boundaries. It is not a line-by-line review of every
   engine module; findings outside the campaign may still be discovered later.

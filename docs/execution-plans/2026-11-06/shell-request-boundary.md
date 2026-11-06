@@ -1,10 +1,11 @@
 # Second Refactor Cycle — Move the Request Vocabulary Out of the Command Layer
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved
+- Status: Verified
 - Issue: #525 `Execute the second behavior-neutral refactor cycle`
 - Assessment: [`REF-2026-11-06-02`](../../refactors/2026-11-06/structure-cycle-2-refactor.md)
 - PR: [#526](https://github.com/quant-rule/quant-rule/pull/526)
+- Merge commit: `1dd13ca`
 - Branch: `refactor/shell-request-boundary`
 - Worktree: `../quant-rule--shell-request-boundary`
 - Claim type: behavior-neutral module move. No formula, event, strategy,
@@ -256,6 +257,8 @@ Its scope and done-when criteria are those in sections 3 and 6.
 | Bundle hash | `59124f63a2741697c533e699eeaf191684d84811d354b7778518b4d03ef82512`; unchanged and identical across two output directories |
 | Full gate | fmt, clippy, test, doc, file size, structure, registry, validation, verification matrix, verification evidence, emitters, command surface, links, terms, legacy, oracle, progression, improvement, research, program, coverage, and diff check pass |
 | Clean-worktree verifier pass | at commit `f6e8c22`: every gate passes; 1,309 passed, 0 failed, 8 ignored; fixture and bundle hashes unchanged; the stage-import guard passes. Sequential pass by the same agent, not an independent review |
+| Merge | PR #526 merged at `1dd13ca`; CI `verify` passed at `cc67d89`; the merge tree is identical to the verified branch head |
+| Post-merge verifier pass | at `1dd13ca`: every gate passes; 1,309 passed, 0 failed, 8 ignored; fixture and bundle hashes unchanged; the stage-import guard passes. Sequential pass by the same agent, not an independent review |
 | Diff scope | 22 code files and 2 tool files; no fixture, expected-value, command, schema, error-string, or output change |
-| Assessment status | `In progress`; local and clean-worktree verification complete; post-merge verification pending |
-| Loop decision | pending the post-merge verifier pass and re-scan |
+| Assessment status | `Verified` |
+| Loop decision | stop after cycle 2; REF-03 and REF-05 remain `Triaged` and require a new campaign and an approved plan |
