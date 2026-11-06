@@ -60,10 +60,11 @@ at 1,309 passed and 8 ignored, the golden fixture hash is unchanged, and the
 `report model` bundle manifest hash is unchanged.
 
 A clean-worktree verifier pass at commit `ee11dec` re-ran the full gate and both
-hashes. The implementation and the verification pass were performed by the same
-agent. The sequential passes are disclosed; this is not an independent review.
-The finding remains `In progress` until the merged work is checked by a separate
-verifier pass.
+hashes. PR #523 merged at `6088233`; a post-merge clean-worktree pass at that
+merge commit re-ran the full gate: 1,309 passed, 0 failed, 8 ignored, and both
+hashes unchanged. The implementation and the verification pass were performed by
+the same agent. The sequential passes are disclosed; this is not an independent
+review. The finding is recorded as `Verified` with that limitation.
 
 ## Learning and rejected suggestions
 
@@ -96,5 +97,9 @@ verifier pass.
 - The structural report is a heuristic, not a proof of cohesion. The first
   assessment must interpret it and record the evidence.
 - The tests prove behavior preservation only for the paths they exercise. The
-  first cycle must use the baseline manifest and the independent verifier before
-  a finding is marked `Verified`.
+  first cycle used the baseline manifest and a post-merge clean-worktree pass
+  before the finding was marked `Verified`. The pass was sequential, not an
+  independent agent review.
+- The next findings, `crate::command::types` coupling and the `config` to
+  `source` date coupling, are architecture-sensitive. They require a new
+  campaign and an approved plan; they were not folded into this cycle.

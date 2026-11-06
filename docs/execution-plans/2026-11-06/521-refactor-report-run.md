@@ -1,7 +1,7 @@
 # First Refactor Cycle — Split `report_run` by Its Seams
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved
+- Status: Verified
 - Issue: #521 `Execute the first behavior-neutral refactor cycle`
 - Assessment: [`REF-2026-11-06-01`](../../refactors/2026-11-06/current-structure-refactor.md)
 - Branch: `refactor/521-split-report-run`
@@ -163,6 +163,6 @@ Fill in when the cycle is verified.
 | Golden fixture hash | `da738931a8643bc2cc0db915174d713141e894614ee06f0087d9a3247497b5f1`; unchanged |
 | Bundle manifest hash | `9f4c9d263293a76350f30720830d1a32037deaec1f6a1981f256bb375aca1e54`; unchanged |
 | Full gate | fmt, clippy, test, doc, file size, structure, registry, validation, verification, emitters, command surface, links, terms, legacy, and oracle pass |
-| Independent verifier | a clean-worktree pass by the same agent re-ran the full gate and both hashes; the sequential pass is disclosed and does not claim independent review; a separate verifier is still pending |
-| Assessment status | `In progress`; moves to `Refactored` after merge and `Verified` after separate verifier closure |
-| Loop decision | pre-merge verification complete; final loop decision pending merge and separate verifier closure |
+| Independent verifier | post-merge clean-worktree pass at `6088233` re-ran the full gate and both hashes; the sequential pass is disclosed and does not claim independent review |
+| Assessment status | `Verified` |
+| Loop decision | stop after one cycle; the next findings are a new architecture-sensitive campaign |

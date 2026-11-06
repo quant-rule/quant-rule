@@ -31,7 +31,7 @@ before-state for the first cycle.
 
 | ID | Impact | Area | Finding | Evidence | Principle | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| REF-2026-11-06-01 | High | shell | `report_run.rs` mixes argument parsing, run orchestration, bundle assembly, provenance assembly, and panel loading | `wc -l crates/quantrule-shell/src/command/report_run.rs` = 856; `run_report`, `model_bundle_with`, `spec_provenance`, `panel_provenance`, `load_panel_series`, `parse_report_arguments` in one module | cohesion, atomicity | A split by existing seam; B move provenance only; C leave | A | file sizes, full gate, fixture and bundle hashes unchanged | In progress | #521 |
+| REF-2026-11-06-01 | High | shell | `report_run.rs` mixes argument parsing, run orchestration, bundle assembly, provenance assembly, and panel loading | `wc -l crates/quantrule-shell/src/command/report_run.rs` = 856; `run_report`, `model_bundle_with`, `spec_provenance`, `panel_provenance`, `load_panel_series`, `parse_report_arguments` in one module | cohesion, atomicity | A split by existing seam; B move provenance only; C leave | A | file sizes, full gate, fixture and bundle hashes unchanged | Verified | #521, PR #523 |
 | REF-2026-11-06-02 | High | shell | Domain modules import `crate::command::types`, so the adapter flow runs both ways | `analytics/run.rs:13`, `backtest/run.rs:21`, `execution/run.rs:23`, `portfolio/run.rs:22`, `qualification/run.rs:15`, `strategy/run.rs:24` | boundary, coupling | A neutral request module; B pass primitives; C leave | A, separate cycle | import guard and shell tests | Triaged | — |
 | REF-2026-11-06-03 | Medium | shell | `config` imports `source` date types, coupling two shell adapters | `crates/quantrule-shell/src/config/data.rs:13-14` imports `DateBounds` and `DateRangeError` | coupling, boundary | A move the date bounds to config; B shared date module; C leave | B, separate cycle | import guard and config tests | Triaged | — |
 | REF-2026-11-06-04 | Info | shell | The public surface is wide and the panic count is heuristic | structural report: 1,653 `pub` items, 789 `pub(crate)`, 315 `unwrap`/`expect` lines in non-test source | surface, panic hygiene | A compiler-based count and ratchet; B leave | A, later | clippy `unwrap_used`/`expect_used` on library targets or a reviewed ratchet | Triaged | — |
@@ -160,15 +160,16 @@ planned in
 
 ## Loop decision
 
-Pre-merge verification is complete. The implementation split `report_run` into
-five modules, with the largest at 275 lines and `mod.rs` at 144. A clean-worktree
-pass re-ran the full gate: 1,309 passed, 0 failed, 8 ignored; the fixture hash and
-the bundle manifest hash are unchanged. The pass was performed by the same agent
-and is disclosed as sequential, not independent.
+REF-2026-11-06-01 is `Verified` at merge commit `6088233`. The implementation
+split `report_run` into five modules, with the largest at 275 lines and `mod.rs`
+at 144. A post-merge clean-worktree pass re-ran the full gate: 1,309 passed, 0
+failed, 8 ignored; the fixture hash and the bundle manifest hash are unchanged.
+The pass was performed by the same agent and is disclosed as sequential, not
+independent.
 
-The finding remains `In progress` until the pull request is merged. It then
-moves to `Refactored`; a separate Refactor Verifier moves it to `Verified` and
-the assessment re-scans for the next cycle or a new campaign.
+The campaign stops after one cycle. The next findings, REF-2026-11-06-02 and
+REF-2026-11-06-03, are architecture-sensitive and require a new campaign and an
+approved plan. The assessment re-scans when that campaign opens.
 
 ## Limitations
 
