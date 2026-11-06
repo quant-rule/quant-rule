@@ -246,6 +246,39 @@ ROW_EVENT_TESTS = {
     "signal.trend_continuation": (
         "per_row_base_events::trend_continuation_row_contract",
     ),
+    "signal.compression_breakout": (
+        "per_row_event_compression::signal_compression_breakout_row_contract",
+    ),
+    "signal.compression_range": (
+        "per_row_event_compression::signal_compression_range_row_contract",
+    ),
+    "signal.compression_range_onset": (
+        "per_row_event_compression::signal_compression_range_onset_row_contract",
+    ),
+    "divergence.vwap_regular_bullish": (
+        "events::extended::row_tests::divergence_vwap_regular_bullish_row_contract",
+    ),
+    "divergence.vwap_hidden_bullish": (
+        "events::extended::row_tests::divergence_vwap_hidden_bullish_row_contract",
+    ),
+    "signal.profile_concentration": (
+        "events::extended::row_tests::signal_profile_concentration_row_contract",
+    ),
+    "signal.climax_reversal": (
+        "events::extended::row_tests::signal_climax_reversal_row_contract",
+    ),
+    "signal.climax_continuation": (
+        "events::extended::row_tests::signal_climax_continuation_row_contract",
+    ),
+    "level.absorption_test": (
+        "events::extended::row_tests::level_absorption_test_row_contract",
+    ),
+    "signal.absorption_break": (
+        "events::extended::row_tests::signal_absorption_break_row_contract",
+    ),
+    "signal.absorption_rejection": (
+        "events::extended::row_tests::signal_absorption_rejection_row_contract",
+    ),
 }
 ROW_EVENT_CLASSES = (
     "formula",
@@ -254,6 +287,19 @@ ROW_EVENT_CLASSES = (
     "availability",
     "no_double_count",
 )
+ROW_EVENT_GOLDEN = {
+    "signal.compression_breakout",
+    "signal.compression_range",
+    "signal.compression_range_onset",
+    "divergence.vwap_regular_bullish",
+    "divergence.vwap_hidden_bullish",
+    "signal.profile_concentration",
+    "signal.climax_reversal",
+    "signal.climax_continuation",
+    "level.absorption_test",
+    "signal.absorption_break",
+    "signal.absorption_rejection",
+}
 ROW_FIXTURE_EVENT_CLASSES = (
     "formula",
     "causality",
@@ -421,6 +467,8 @@ def event_entry(
     for name in ROW_EVENT_CLASSES:
         if ident in ROW_EVENT_TESTS:
             evidence_map[name] = evidence("row", *ROW_EVENT_TESTS[ident])
+    if ident in ROW_EVENT_GOLDEN:
+        evidence_map["golden"] = evidence("row", *ROW_EVENT_TESTS[ident])
     if ident in fixture_tests:
         for name in ROW_FIXTURE_EVENT_CLASSES:
             evidence_map[name] = evidence("row", *fixture_tests[ident])

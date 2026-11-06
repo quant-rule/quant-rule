@@ -198,6 +198,8 @@ mod shared;
 mod vwap;
 
 #[cfg(test)]
+mod row_tests;
+#[cfg(test)]
 mod tests;
 
 use self::divergence::{atr_divergences, divergence_events};

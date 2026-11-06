@@ -8,13 +8,14 @@
   row tests exposed and fixed a debug-build underflow in the MACD histogram
   branch. A second batch adds fixture-backed row contracts for extended and
   session events. A third batch adds golden/causality/determinism/edge row
-  contracts for every indicator.
+  contracts for every indicator. A fourth batch adds the first 11 uncovered
+  event rows with full expected records.
 - Verification: `check_verification.py` passes with 46 indicators and 143 events:
-  792 row scopes, 651 family scopes, 332 tool scopes, 304 N/A cells. Matrices
+  858 row scopes, 585 family scopes, 332 tool scopes, 304 N/A cells. Matrices
   are generated from the manifest and checked for registry coverage.
 - Learning: family-level tests are valid evidence for the invariant class, but
   they are not per-row proof. The manifest labels the scope instead of turning a
-  family check into a row-level claim. The remaining 651 family cells are the
+  family check into a row-level claim. The remaining 585 family cells are the
   explicit next work, not hidden behind a full-green matrix. The extended,
   session, and base-flow fixtures are regression locks rather than independent
   oracles; the test modules say so. The base event pass also exposed a real
