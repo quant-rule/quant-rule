@@ -12,9 +12,11 @@ vote, no composite view, and no cross-timeframe aggregate.
 
 The current shell surface is deliberately small: data inspection, event records,
 the flat model report, policy validation, source fetch, and help. Strategy,
-execution, portfolio, and backtest runs are future work; the execution and
-portfolio libraries and the generic bracket/event engines remain in the workspace
-for S3.x.
+execution, portfolio, and backtest runs are future work; their engines remain in
+the workspace for S3.x. The stage contract, the planned commands, and the
+implemented/planned status are in
+[`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
+Only the commands in the table below are available today.
 
 ## Build and run
 
@@ -57,6 +59,32 @@ quantrule report model --config crates/quantrule-shell/tests/fixtures/config-run
 quantrule report model --config crates/quantrule-shell/tests/fixtures/config-run/run.json --spec crates/quantrule-shell/tests/fixtures/config-run/spec.json --out target/report-spec
 quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 1h --csv data/sources/XAUUSD_H1.csv
 ```
+
+The command table is the complete current surface. A planned command is not
+listed here until it is implemented, documented in help, and demonstrated in a
+tutorial.
+
+## Pipeline stages
+
+The target is a stage-isolated surface: every stage can be run, stopped, and
+inspected on its own. The command names, inputs, outputs, and implemented/planned
+status are in [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
+The stage table below is the target, not a promise that a command exists today.
+
+| Stage | Engine | Input | Output | Status |
+|---:|---|---|---|---|
+| 1 | Data Engine | Raw OHLCV | Normalized candles, timeframes, gaps, quality | Implemented |
+| 2 | Model Engine | Candles/timeframes and model config | Readings, states, levels, events, progression, context | Implemented |
+| 3 | Strategy Engine | Model measurements, strategy config, position state | Decisions/signals and as-of rationale | Planned |
+| 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, rejections | Planned |
+| 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | Planned |
+| 6 | Qualification Engine | Evidence bundle and human-owned criteria | Qualification record and verdict | Planned |
+| 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | Planned |
+
+The Qualification Engine evaluates the complete evidence set, not profitability
+alone. Its verdict is `pass`, `fail`, or `insufficient evidence`; the human makes
+the final acceptance decision. The criteria contract is in
+[`docs/config/2026-11-06/qualification-criteria.md`](docs/config/2026-11-06/qualification-criteria.md).
 
 ## The M1.0 model
 
@@ -109,8 +137,10 @@ A run is described by `run.json`:
 | `portfolio.json` | `quantrule.portfolio/v1` | Capital, sizing, costs, and risk limits for S3.x |
 
 `strategy.json` and `analytics.json` are not part of the current run. The loader
-rejects them with an unknown-field error. The old model schema versions 1–3 are
-retired and rejected with an unsupported-schema error.
+rejects them with an unknown-field error. S3.x passes the strategy file and the
+qualification criteria as explicit command arguments; the run schema stays
+`quantrule.run/v2`. The old model schema versions 1–3 are retired and rejected
+with an unsupported-schema error.
 
 `config/defaults/` and `config/examples/` are the current config tree.
 `config/compression*`, `config/model-v4/`, and `config/research/` are accepted
@@ -184,8 +214,8 @@ the retired chart surface.
 |---|---|
 | `crates/quantrule-data` | Data engine: normalization, ladder construction, ordering, gaps |
 | `crates/quantrule-model` | Model engine: readings, states, levels, events, progression, context, flat report |
-| `crates/quantrule-backtest` | Execution, portfolio, and generic bracket/event engines for S3.x |
-| `crates/quantrule-shell` | The binary: parse, source access, model orchestration, and rendering |
+| `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines for S3.x |
+| `crates/quantrule-shell` | The binary: parse, source access, model orchestration, and rendering; S3.x adds the stage commands |
 | `docs/model/2026-11-05/` | Current model contract and model-family registry |
 | `docs/registry/` | Indicator/event registry, validation claims, and history boundary |
 | `docs/architecture/` | Living architecture baseline |
@@ -199,6 +229,7 @@ cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 python3 tools/check_file_size.py
 cargo test
+python3 tools/check_command_surface.py
 python3 tools/check_legacy.py
 python3 tools/check_registry.py
 python3 tools/check_validation.py
@@ -206,10 +237,12 @@ python3 tools/check_links.py
 python3 tools/check_terms.py
 ```
 
-The registry checks cover 46 indicators, 143 active events, 189 validation
-claims, and 54 construct cases. The legacy scan
-rejects retired model and strategy labels in the current surface; history
-directories are exempt and remain in Git.
+The command-surface check compares `help.rs`, the README command table, the
+command registry, and the tutorial invocations. A planned command must not appear
+in the available surface. The registry checks cover 46 indicators, 143 active
+events, 189 validation claims, and 54 construct cases. The legacy scan rejects
+retired model and strategy labels in the current surface; history directories are
+exempt and remain in Git.
 
 ## History
 
