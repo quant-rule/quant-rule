@@ -45,7 +45,8 @@ Excluded:
 - Any change to indicator formulas, event definitions, progression arithmetic, or strategy logic.
 - Renaming or deleting historical evidence, ADRs, audits, plans, logs, reports, or releases.
 - New dependencies.
-- Pushing, opening a pull request, merging, tagging, or releasing.
+- Merging, tagging, or releasing. The human authorized publishing the branch
+  and opening PR #491 after verification.
 
 ## 4. Assumptions and uncertainty
 
@@ -151,6 +152,7 @@ Observed on 2026-11-06 in the task worktree:
 | `python3 tools/check_terms.py` | pass; 324 files |
 | `python3 tools/check_legacy.py` | pass; 353 current files |
 | `git diff --check` | pass |
+| GitHub `verify` and `sync` checks on PR #491 | pass |
 
 Behavior evidence:
 
@@ -165,3 +167,10 @@ Deviations:
 - The strategy/backtest workflows and the three pre-M1.0 quant manuals are marked historical or S3.x rather than rewritten. This preserves the history while removing the false current status.
 - The `benchmark` parameters remain in the registry and are marked with the `benchmark` affect; they belong to the evaluation library, not to a strategy.
 - The registry and validation versions were bumped to `2026-11-06.1` because the registry content and claims changed.
+
+
+## 12. Publication record
+
+After verification the human authorized publishing the branch. The branch
+`chore/contract-cleanup` is pushed to `origin`, and PR #491 is open against
+`main`. No merge, tag, or release was performed.

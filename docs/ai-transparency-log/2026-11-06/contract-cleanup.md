@@ -73,4 +73,6 @@ The new ordering tests pass on `state_m1.csv` and the generated `events.csv`. Th
 - The first schema cleanup used a full JSON rewrite that produced a noisy diff; it was replaced with a minimal edit to the tracked schema.
 - The original architecture guard read the shell manifest, not the workspace manifest; that was confirmed and corrected.
 - The 2026-11-05 decision to keep `readings/**` as a whole allowed the four-axis role registry to survive. The current cleanup removes that module rather than broadening the keep rule.
-- No push, pull request, merge, tag, or release was performed. The work is on `chore/contract-cleanup` in the task worktree.
+- The human authorized publication after the commit. The branch is pushed to
+  `origin/chore/contract-cleanup`, PR #491 is open, and the `verify` and `sync`
+  GitHub checks pass. No merge, tag, or release was performed.
