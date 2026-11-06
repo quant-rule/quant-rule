@@ -12,10 +12,10 @@ use std::path::PathBuf;
 
 use quantrule_data::{CandleValues, CandleWindow, Timeframe, format_utc_timestamp};
 
+use crate::date::DateRange;
 use crate::export::{ExportError, PendingCsv};
 use crate::source::{
-    DateRange, FetchError, FetchFailure, FetchRequest, RetryPolicy, Symbol, Transport,
-    fetch_candles,
+    FetchError, FetchFailure, FetchRequest, RetryPolicy, Symbol, Transport, fetch_candles,
 };
 
 /// The files and selection a fetch should produce.

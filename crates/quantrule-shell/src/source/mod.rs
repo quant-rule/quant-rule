@@ -10,13 +10,11 @@
 //! undocumented, so the protocol details are isolated here and covered by
 //! fixture tests rather than by the model or the data engine.
 
-pub(crate) mod date;
 pub(crate) mod dukascopy;
 pub(crate) mod instrument;
 pub(crate) mod jsonp;
 pub(crate) mod transport;
 
-pub(crate) use date::{DateBounds, DateRange};
 pub(crate) use dukascopy::{FetchError, FetchFailure, FetchRequest, RetryPolicy, fetch_candles};
 pub(crate) use instrument::Symbol;
 pub(crate) use transport::{HttpTransport, Transport};

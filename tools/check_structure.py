@@ -209,6 +209,52 @@ def check_artifact_command_coupling(root: Path) -> list[Violation]:
     return violations
 
 
+def check_date_module_coupling(root: Path) -> list[Violation]:
+    """Reject the old `source` date-module path and its re-export.
+
+    The date window is shared by configuration, source, and bundle readers; it
+    is not a source protocol detail. The rule catches the declaration, the
+    re-export, and every importer of the old path.
+    """
+    shell = root / "crates" / "quantrule-shell" / "src"
+    violations = []
+    source_date = shell / "source" / "date.rs"
+    if source_date.exists():
+        violations.append(
+            Violation(
+                "date-module-coupling",
+                relative(root, source_date),
+                "the date module must live at crate::date, not under source",
+            )
+        )
+    source_mod = shell / "source" / "mod.rs"
+    if source_mod.exists():
+        text = source_mod.read_text(encoding="utf-8", errors="ignore")
+        if "mod date" in text or "date::{" in text:
+            violations.append(
+                Violation(
+                    "date-module-coupling",
+                    relative(root, source_mod),
+                    "source must not declare or re-export the date module",
+                )
+            )
+    for path in sorted(shell.rglob("*.rs")):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if (
+            "crate::source::date" in text
+            or "crate::source::DateBounds" in text
+            or "crate::source::DateRange" in text
+        ):
+            violations.append(
+                Violation(
+                    "date-module-coupling",
+                    relative(root, path),
+                    "date types must be imported from crate::date, not crate::source",
+                )
+            )
+    return violations
+
+
 def check_naming(root: Path) -> list[Violation]:
     violations = []
     for path in rust_sources(root):
@@ -312,6 +358,7 @@ def check_all(root: Path) -> list[Violation]:
     violations.extend(check_engine_purity(root))
     violations.extend(check_stage_command_coupling(root))
     violations.extend(check_artifact_command_coupling(root))
+    violations.extend(check_date_module_coupling(root))
     violations.extend(check_naming(root))
     violations.extend(check_dated_docs(root))
     violations.extend(workflow_index_violations(root))

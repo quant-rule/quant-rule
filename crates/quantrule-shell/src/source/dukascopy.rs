@@ -17,10 +17,10 @@ use std::time::Duration;
 
 use quantrule_data::{CandleValues, Timeframe};
 
-use super::date::DateRange;
 use super::instrument::Symbol;
 use super::jsonp::{JsonpError, PageRow, parse_jsonp};
 use super::transport::{GetRequest, Transport, TransportError};
+use crate::date::DateRange;
 
 /// The undocumented Dukascopy chart endpoint.
 const ENDPOINT: &str = "https://freeserv.dukascopy.com/2.0/index.php";
@@ -472,7 +472,7 @@ mod tests {
     use quantrule_data::{CandleValues, Timeframe};
 
     use super::{FetchError, FetchFailure, FetchRequest, FetchStats, RetryPolicy, fetch_candles};
-    use crate::source::date::DateRange;
+    use crate::date::DateRange;
     use crate::source::instrument::Symbol;
     use crate::source::transport::{GetRequest, HttpResponse, Transport, TransportError};
 

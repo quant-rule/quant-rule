@@ -13,6 +13,7 @@ mod backtest_bundle;
 mod command;
 mod config;
 mod csv;
+mod date;
 mod execution;
 mod export;
 mod fetch;

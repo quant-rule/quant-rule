@@ -16,7 +16,7 @@ use quantrule_model::run::ModelRun;
 
 use crate::config::RunConfig;
 use crate::csv::{self, SourceError};
-use crate::source::DateBounds;
+use crate::date::DateBounds;
 
 /// The input window shared by the model analysis commands.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

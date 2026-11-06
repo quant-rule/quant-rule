@@ -134,6 +134,50 @@ class StageCommandCouplingTests(unittest.TestCase):
             self.assertEqual(check_structure.check_artifact_command_coupling(root), [])
 
 
+class DateModuleCouplingTests(unittest.TestCase):
+    def test_old_date_path_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "crates" / "quantrule-shell" / "src" / "config" / "data.rs",
+                "use crate::source::date::DateRange;\n",
+            )
+            violations = check_structure.check_date_module_coupling(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].rule, "date-module-coupling")
+
+    def test_date_module_path_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "crates" / "quantrule-shell" / "src" / "config" / "data.rs",
+                "use crate::date::DateRange;\n",
+            )
+            self.assertEqual(check_structure.check_date_module_coupling(root), [])
+
+    def test_source_date_file_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "crates" / "quantrule-shell" / "src" / "source" / "date.rs",
+                "//! date\n",
+            )
+            violations = check_structure.check_date_module_coupling(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].rule, "date-module-coupling")
+
+    def test_source_date_reexport_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "crates" / "quantrule-shell" / "src" / "source" / "mod.rs",
+                "pub(crate) use date::{DateBounds, DateRange};\n",
+            )
+            violations = check_structure.check_date_module_coupling(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].rule, "date-module-coupling")
+
+
 class NamingTests(unittest.TestCase):
     def test_catch_all_module_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
