@@ -29,7 +29,7 @@
 `strategy` and `analytics` are not current run fields. The loader rejects them
 with an unknown-field error; S3.x adds a strategy file back. The identity fields
 are optional, but a present identity must carry its type prefix (`M`, `POL`,
-`S`, `E`, `P`).
+`E`, `P`). A strategy identity returns with the S3.x strategy file.
 
 ## Policy
 
