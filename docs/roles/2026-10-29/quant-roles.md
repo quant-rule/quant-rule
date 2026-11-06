@@ -11,7 +11,8 @@ functions; see [`docs/roles/2026-10-30/`](../2026-10-30/) for those manuals.
 This page explains the three quant roles in plain language. `AGENTS.md` is the
 normative source; if the two disagree, `AGENTS.md` wins and this page is
 corrected. The current shell does not expose `help roles` or `help tutorial`;
-this document is the role map.
+this document is the role map. The current model-only procedure is the
+[M1.0 model lab tutorial](../../tutorials/2026-11-06/m1.0-model-lab.md).
 
 ## Why three roles
 

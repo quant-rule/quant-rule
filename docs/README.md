@@ -42,6 +42,7 @@ the four-axis cutover.
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |
+| M1.0 model lab tutorial | Current; uses only the eight current shell commands | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
 
 ## Current run contracts
 
