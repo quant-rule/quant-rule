@@ -123,6 +123,19 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "portfolio replay",
+        usage: "portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [--json]",
+        summary: "Replay an execution fills bundle through portfolio accounting.",
+        output: "the artifact paths, or a JSON envelope; <out>/portfolio/ holds trades.csv, equity.csv, funding.csv, risk_events.csv, metrics.json, summary.txt, and provenance.json",
+        notes: &[
+            "The fills bundle is the execution run output directory.",
+            "The run config supplies the portfolio capital, sizing, costs, and risk rules.",
+            "If --out is omitted, the bundle is written beside the fills bundle.",
+            "The command marks the open position at each execution-timeframe close.",
+            "Undefined metrics are null, never zero.",
+        ],
+    },
+    CommandHelp {
         name: "fetch",
         usage: "fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]",
         summary: "Fetch a Dukascopy range and write the accepted candles as CSV.",
@@ -220,12 +233,13 @@ mod tests {
             "strategy explain",
             "strategy run",
             "execution run",
+            "portfolio replay",
             "fetch",
             "help",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 11);
+        assert_eq!(COMMANDS.len(), 12);
     }
 
     #[test]

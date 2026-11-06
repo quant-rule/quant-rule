@@ -15,6 +15,7 @@ mod export;
 mod fetch;
 mod labels;
 mod pipeline;
+mod portfolio;
 mod render;
 mod render_flat;
 mod render_report;

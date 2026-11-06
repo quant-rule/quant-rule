@@ -66,6 +66,16 @@ execution run
   note:   A standalone run sizes entries from the run's initial cash; it does not track equity.
   note:   The fill records carry no cash, equity, or PnL.
 
+portfolio replay
+  usage:  portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [--json]
+  does:   Replay an execution fills bundle through portfolio accounting.
+  output: the artifact paths, or a JSON envelope; <out>/portfolio/ holds trades.csv, equity.csv, funding.csv, risk_events.csv, metrics.json, summary.txt, and provenance.json
+  note:   The fills bundle is the execution run output directory.
+  note:   The run config supplies the portfolio capital, sizing, costs, and risk rules.
+  note:   If --out is omitted, the bundle is written beside the fills bundle.
+  note:   The command marks the open position at each execution-timeframe close.
+  note:   Undefined metrics are null, never zero.
+
 fetch
   usage:  fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]
   does:   Fetch a Dukascopy range and write the accepted candles as CSV.

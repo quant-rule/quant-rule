@@ -178,3 +178,30 @@ authorization. The work is local to the task branch `docs/s3-command-contracts`.
   handoff fails before a fill.
 - Publication (push, pull request, merge, tag, or release) is pending human
   authorization. The work is local to the task branch.
+
+## 9. Phase 4 — portfolio replay
+
+- Intent and boundary: add `portfolio replay`, the fills reader, and the
+  portfolio bundle. The stage reads the fills bundle and the run config; it does
+  not read a strategy decision, a model bundle, or a statistic.
+- Implemented: `crates/quantrule-shell/src/portfolio/fills.rs`,
+  `crates/quantrule-shell/src/portfolio/run.rs`,
+  `crates/quantrule-shell/src/command/portfolio.rs`, command wiring, help,
+  README, portfolio lab, and the Phase 4 plan record.
+- Verification: `cargo test --workspace` 1,220 passed, 0 failed, 8 ignored;
+  clippy, fmt, doc, all model gates, links, terms, legacy, file size, and
+  `git diff --check` pass. The command-surface checker reports 12 implemented and
+  3 planned. The integration test builds the model, strategy, execution, and
+  portfolio bundles, then proves the bundle shape, the accounting invariant,
+  byte determinism, the non-empty-target refusal, the data-version handoff, and
+  the null-metric rule on an empty fills bundle.
+- Corrections: the first fills parser borrowed each CSV field unnecessarily and
+  the first ledger construction cloned a `Copy` config; both were corrected for
+  the lint gate. The first help fixtures predated the command and were
+  regenerated.
+- Learning: the ledger's funding-before-fill and mark-at-close protocol is the
+  correct replay order; applying the mark before the fill would change drawdown
+  and commission. The empty fills case is the clean way to prove undefined
+  metrics stay null.
+- Publication (push, pull request, merge, tag, or release) is pending human
+  authorization. The work is local to the task branch.
