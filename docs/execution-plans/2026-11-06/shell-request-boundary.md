@@ -4,6 +4,7 @@
 - Status: Approved
 - Issue: #525 `Execute the second behavior-neutral refactor cycle`
 - Assessment: [`REF-2026-11-06-02`](../../refactors/2026-11-06/structure-cycle-2-refactor.md)
+- PR: [#526](https://github.com/quant-rule/quant-rule/pull/526)
 - Branch: `refactor/shell-request-boundary`
 - Worktree: `../quant-rule--shell-request-boundary`
 - Claim type: behavior-neutral module move. No formula, event, strategy,
@@ -237,7 +238,7 @@ Rollback is the branch. There is no migration, schema, or external state.
 ## 11. Traceability
 
 ```text
-REF-2026-11-06-02 -> #525 -> PR TBD -> verification record
+REF-2026-11-06-02 -> #525 -> #526 -> verification record
 ```
 
 The issue is [quant-rule/quant-rule#525](https://github.com/quant-rule/quant-rule/issues/525).

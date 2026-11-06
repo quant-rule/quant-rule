@@ -4,7 +4,7 @@
 - Tool: DeepSeek V4.1 Flash through the OpenCode agent harness
 - Work item: #525 `Execute the second behavior-neutral refactor cycle`
 - Plan: [`docs/execution-plans/2026-11-06/shell-request-boundary.md`](../../execution-plans/2026-11-06/shell-request-boundary.md)
-- Status: approved; implementation and local verification complete; PR and merge pending
+- Status: PR #526 open; merge and post-merge verification pending
 
 ## Intent and boundary
 
@@ -37,6 +37,7 @@ did not push, open a pull request, or merge.
   guard with three tests.
 - Ran the full gate in the task worktree and a clean-worktree verification pass
   at the implementation commit.
+- Pushed the branch and opened PR #526.
 
 ## Verification and evidence
 
