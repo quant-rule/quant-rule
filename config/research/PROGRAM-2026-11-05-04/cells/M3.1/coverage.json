@@ -1,0 +1,22 @@
+{
+  "cell_id": "M3.1",
+  "kind": "primary",
+  "areas": [],
+  "indicators": [
+    "adx"
+  ],
+  "events": [
+    "signal.trend_continuation"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

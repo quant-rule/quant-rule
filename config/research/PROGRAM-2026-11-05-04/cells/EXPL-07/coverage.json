@@ -1,0 +1,25 @@
+{
+  "cell_id": "EXPL-07",
+  "kind": "exploratory",
+  "areas": [
+    7
+  ],
+  "indicators": [
+    "candle_anatomy",
+    "candle_pattern",
+    "gap"
+  ],
+  "benchmark_events": [
+    "signal.rsi_threshold"
+  ],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

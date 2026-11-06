@@ -1,0 +1,21 @@
+{
+  "cell_id": "M3.5",
+  "kind": "primary",
+  "areas": [],
+  "indicators": [
+    "absorption"
+  ],
+  "events": [
+    "signal.absorption_rejection"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

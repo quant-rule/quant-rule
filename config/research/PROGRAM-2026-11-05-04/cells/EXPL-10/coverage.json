@@ -1,0 +1,25 @@
+{
+  "cell_id": "EXPL-10",
+  "kind": "exploratory",
+  "areas": [
+    10
+  ],
+  "indicators": [
+    "session",
+    "opening_range",
+    "overnight_intraday",
+    "session_range",
+    "calendar_bucket"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

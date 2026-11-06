@@ -1,0 +1,21 @@
+{
+  "cell_id": "M3.4",
+  "kind": "primary",
+  "areas": [],
+  "indicators": [
+    "volume_climax"
+  ],
+  "events": [
+    "signal.climax_reversal"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

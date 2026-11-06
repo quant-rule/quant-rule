@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M3.1",
+  "family": "M3",
+  "instrument": "BTC",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.trend_continuation"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.trend_continuation"
+    ],
+    "min_votes": 1
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "cell_id": "M3.2",
+  "kind": "primary",
+  "areas": [],
+  "indicators": [
+    "vwap"
+  ],
+  "events": [
+    "signal.vwap_reclaim",
+    "signal.vwap_rejection"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

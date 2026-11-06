@@ -1,0 +1,21 @@
+{
+  "cell_id": "M3.3",
+  "kind": "primary",
+  "areas": [],
+  "indicators": [
+    "volume_profile"
+  ],
+  "events": [
+    "signal.profile_va_breakout"
+  ],
+  "benchmark_events": [],
+  "instruments": [
+    "XAU",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframes": [
+    3600,
+    900
+  ]
+}

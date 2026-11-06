@@ -1,0 +1,51 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-03",
+  "family": "M3",
+  "instrument": "EURUSD",
+  "timeframes": [
+    900
+  ],
+  "active_events": [
+    "divergence.rvol_bullish",
+    "divergence.rvol_bearish",
+    "signal.rvol_expansion",
+    "signal.rvol_contraction",
+    "signal.rvol_ratio",
+    "divergence.climax_bullish",
+    "divergence.climax_bearish",
+    "signal.climax_reversal",
+    "signal.climax_continuation",
+    "level.absorption_test",
+    "signal.absorption_break",
+    "signal.absorption_rejection",
+    "signal.volume_oscillator_cross"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "divergence.rvol_bullish",
+      "divergence.rvol_bearish",
+      "signal.rvol_expansion",
+      "signal.rvol_ratio",
+      "divergence.climax_bullish",
+      "divergence.climax_bearish",
+      "signal.climax_reversal",
+      "signal.climax_continuation",
+      "signal.absorption_break",
+      "signal.absorption_rejection"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.volume_oscillator_cross",
+      "when": {
+        "event": {
+          "id": "signal.volume_oscillator_cross",
+          "timeframe": 3600
+        }
+      }
+    }
+  ]
+}

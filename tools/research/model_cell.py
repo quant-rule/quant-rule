@@ -51,6 +51,24 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--evaluator", default="tools/improvement/model_prediction.py")
     parser.add_argument("--repo-root", default=".")
+    parser.add_argument("--family", default="M2", help="model family passed to the evaluator")
+    parser.add_argument(
+        "--timeframe",
+        default=None,
+        help="timeframe seconds, or auto to read selection.json",
+    )
+    parser.add_argument("--selection", default=None, help="selection.json for auto")
+    parser.add_argument("--state-file", default=None, help="state-gate JSON")
+    parser.add_argument(
+        "--instruments",
+        default=None,
+        help="comma-separated instrument list; defaults to coverage.json or the M2 set",
+    )
+    parser.add_argument(
+        "--count-only",
+        action="store_true",
+        help="count state-matched predictions and clusters without evaluating outcomes",
+    )
     parser.add_argument("--horizon", type=int, default=20)
     parser.add_argument("--target-atr", type=float, default=2.0)
     parser.add_argument("--stop-atr", type=float, default=1.0)
@@ -76,6 +94,115 @@ def shell_binary(root: Path, requested: str | None) -> Path:
     raise SystemExit(
         "error: no quantrule binary found; build one or pass --qr target/release/quantrule"
     )
+
+
+def cell_instruments(cell_dir: Path, requested: str | None) -> list[str]:
+    if requested:
+        values = [value.strip() for value in requested.split(",") if value.strip()]
+        if not values:
+            raise SystemExit("error: --instruments is empty")
+        return values
+    coverage = cell_dir / "coverage.json"
+    if coverage.is_file():
+        try:
+            document = json.loads(coverage.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise SystemExit(f"error: cannot read {coverage}: {error}") from None
+        values = document.get("instruments")
+        if isinstance(values, list) and values and all(
+            isinstance(value, str) and value for value in values
+        ):
+            return values
+    return list(INSTRUMENTS)
+
+
+def resolve_timeframe(
+    value: str | None, cell_dir: Path, selection: str | None
+) -> int | None:
+    if value is None:
+        return None
+    if value == "auto":
+        path = (
+            Path(selection).expanduser()
+            if selection
+            else cell_dir.parents[1] / "selection.json"
+        )
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise SystemExit(f"error: cannot read selection {path}: {error}") from None
+        timeframe = document.get("timeframe_secs")
+        if not isinstance(timeframe, int) or timeframe <= 0:
+            raise SystemExit(f"error: {path} has no positive timeframe_secs")
+        return timeframe
+    try:
+        timeframe = int(value)
+    except ValueError:
+        raise SystemExit(f"error: --timeframe must be seconds or auto, got {value}") from None
+    if timeframe <= 0:
+        raise SystemExit("error: --timeframe must be positive")
+    return timeframe
+
+
+def cell_spec(cell_dir: Path, instrument: str, timeframe: int | None) -> Path:
+    name = (
+        f"spec-{instrument}.json"
+        if timeframe is None
+        else f"spec-{instrument}-{timeframe}.json"
+    )
+    return cell_dir / name
+
+
+def load_state_gate(path: Path):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "improvement"))
+    import model_prediction
+
+    return model_prediction.load_state_gate(path)
+
+
+def state_matches_row(row: dict[str, str], gate) -> bool:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "improvement"))
+    import model_prediction
+
+    return model_prediction.state_matches(row, gate)
+
+
+def count_bundle(
+    bundle: Path,
+    timeframe: int,
+    gate,
+    horizon: int,
+) -> dict[str, int]:
+    state_by_bar: dict[int, bool] = {}
+    with (bundle / "readings.csv").open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            try:
+                if int(row["timeframe_secs"]) != timeframe:
+                    continue
+                bar = int(row["bar"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            state_by_bar[bar] = state_matches_row(row, gate) if gate else True
+    bars: list[int] = []
+    with (bundle / "prediction.csv").open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            try:
+                if int(row["timeframe_secs"]) != timeframe:
+                    continue
+                bar = int(row["bar"])
+                prediction = int(row["prediction"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if prediction != 0 and state_by_bar.get(bar, False):
+                bars.append(bar)
+    bars.sort()
+    clusters = 0
+    previous: int | None = None
+    for bar in bars:
+        if previous is None or bar - previous >= horizon:
+            clusters += 1
+            previous = bar
+    return {"n": len(bars), "clusters": clusters}
 
 
 def run_command(
@@ -252,9 +379,20 @@ def main(argv: list[str] | None = None) -> int:
     partition, split_start, split_end, years = PARTITIONS[args.phase]
     qr = shell_binary(root, args.qr)
     cell_id = cell_dir.name
+    timeframe = resolve_timeframe(args.timeframe, cell_dir, args.selection)
+    if args.count_only and timeframe is None:
+        raise SystemExit("error: --count-only requires --timeframe")
+    instruments = cell_instruments(cell_dir, args.instruments)
+    state_path = None
+    if args.state_file:
+        state_path = Path(args.state_file).expanduser()
+        if not state_path.is_absolute():
+            state_path = root / state_path
+    gate = load_state_gate(state_path) if state_path is not None else None
     bundles: list[tuple[str, Path]] = []
-    for instrument in INSTRUMENTS:
-        spec = cell_dir / f"spec-{instrument}.json"
+    counts: dict[str, dict[str, int]] = {}
+    for instrument in instruments:
+        spec = cell_spec(cell_dir, instrument, timeframe)
         if not spec.is_file():
             raise SystemExit(f"error: spec not found: {spec}")
         yearly: list[tuple[int, Path]] = []
@@ -283,9 +421,44 @@ def main(argv: list[str] | None = None) -> int:
             if not (bundle / "prediction.csv").is_file():
                 raise SystemExit(f"error: prediction.csv not found under {bundle}")
             yearly.append((year, bundle))
+        if args.count_only:
+            values = [
+                count_bundle(bundle, timeframe, gate, args.horizon)
+                for _, bundle in yearly
+            ]
+            counts[instrument] = {
+                "n": sum(value["n"] for value in values),
+                "clusters": sum(value["clusters"] for value in values),
+            }
+            continue
         merged = out / instrument / "model"
         merge_bundles(merged, yearly)
         bundles.append((instrument, merged))
+    if args.count_only:
+        pooled = {
+            "n": sum(value["n"] for value in counts.values()),
+            "clusters": sum(value["clusters"] for value in counts.values()),
+        }
+        document = {
+            "schema": "quantrule.model-cell-count/v1",
+            "cell_id": cell_id,
+            "phase": args.phase,
+            "timeframe_secs": timeframe,
+            "state_file": str(state_path) if state_path is not None else None,
+            "instruments": instruments,
+            "years": list(years),
+            "counts": counts,
+            "pooled": pooled,
+        }
+        (out / "count.json").write_text(
+            json.dumps(document, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        print(
+            f"ok {cell_id} count timeframe={timeframe} n={pooled['n']} "
+            f"clusters={pooled['clusters']} -> {out}"
+        )
+        return 0
     digest = prediction_digest(bundles)
     evaluator = Path(args.evaluator).expanduser()
     if not evaluator.is_absolute():
@@ -297,7 +470,7 @@ def main(argv: list[str] | None = None) -> int:
         "--spec-id",
         cell_id,
         "--family",
-        "M2",
+        args.family,
         "--partition",
         partition,
         "--split-start",
@@ -319,6 +492,10 @@ def main(argv: list[str] | None = None) -> int:
         "--out",
         str(evaluation),
     ]
+    if timeframe is not None:
+        command.extend(["--timeframe", str(timeframe)])
+    if state_path is not None:
+        command.extend(["--state-file", str(state_path)])
     for instrument, bundle in bundles:
         command.extend(["--bundle", f"{instrument}={bundle}"])
     run_command(command, root, args.timeout, f"{cell_id} evaluation")
@@ -332,7 +509,6 @@ def main(argv: list[str] | None = None) -> int:
         f"verdict={document.get('verdict')} digest={digest[:12]}"
     )
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

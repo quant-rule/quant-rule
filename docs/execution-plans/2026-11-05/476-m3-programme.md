@@ -2,9 +2,12 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#476](https://github.com/quant-rule/quant-rule/issues/476)
-- Status: **Approved** by the human instruction "proceed" on 2026-11-06,
-  following the approved [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md)
-- Claim type: model programme implementation and development run; no edge claim
+- Status: **Verified** 2026-11-05; outcome `underpowered` at the count gate.
+  The development run, validation, and strategy tier were not reached and
+  remain closed. Approved by the human instruction "proceed" on 2026-11-06
+  following the approved charter
+- Claim type: model programme implementation and development preflight; no edge
+  claim
 - Charter: [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md)
 - Predecessor: [`476-m3-charter.md`](476-m3-charter.md)
 - AI transparency log:
@@ -178,3 +181,94 @@ the committed result is the run record.
 
 The three passes are sequential by the same agent. They are not independent
 agents or independent model judgments.
+
+## 11. Execution record
+
+Executed on `feat/476-m3-programme`, based on `8e8373b`.
+
+### Built
+
+- `tools/improvement/model_prediction.py`: state-gate parser, state-filtered
+  base and entries, state metrics, state increment, state-matched controls,
+  grade-A-only promotion, and Markdown state table.
+- `tools/research/model_cell.py`: per-cell instruments, per-timeframe specs,
+  `--timeframe auto`, `--state-file`, `--family`, and count-only mode.
+- `tools/research/coverage.py`: M3 coverage path; the M2 path is unchanged.
+- `tools/research/build_m3_program.py`: deterministic 15-cell programme builder.
+- `tools/research/select_timeframe.py`: count-only 1h/15m selector.
+- `config/research/PROGRAM-2026-11-05-04`: 10 exploratory cells, 5 primary
+  cells, 112 specs, state gates, current-schema run configs, and
+  `selection.json`.
+
+### Coverage
+
+```text
+ok PROGRAM-2026-11-05-04 cells=15 indicators=46 events=143
+```
+
+### Count gate
+
+| Cell | 1h n | 1h clusters | 15m n | 15m clusters | Passes |
+|---|---:|---:|---:|---:|---|
+| M3.1 | 1,226 | 911 | 5,059 | 3,782 | both |
+| M3.2 | 1,924 | 775 | 10,127 | 3,452 | both |
+| M3.3 | 3,025 | 1,007 | 11,626 | 3,208 | both |
+| M3.4 | 0 | 0 | 0 | 0 | neither |
+| M3.5 | 0 | 0 | 2 | 2 | neither |
+
+No timeframe passes every cell. The approved stop rule applies: **underpowered**.
+M3.1–M3.3 are not run alone, and M3.4/M3.5 are not tuned. No forward outcome was
+read, no development cell ran, `model_validation` was not opened, and the
+strategy tier remains closed.
+
+The raw event predictions confirm the sample issue rather than a code error:
+M3.4 has 1 raw prediction at 1h and 58 at 15m; M3.5 has 7 at 1h and 13 at 15m.
+The approved state gates remove almost all of them.
+
+### Verification
+
+| Check | Observed result |
+|---|---|
+| `cargo fmt --all -- --check` | Pass |
+| `cargo clippy --all-targets -- -D warnings` | Pass |
+| `cargo test` | 982 passed, 0 failed, 7 ignored across 28 suites |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | Pass |
+| `python3 -m unittest discover -s tools/improvement` | 79 passed |
+| `python3 -m unittest discover -s tools/research` | 43 passed |
+| M2 coverage | 15 cells, 46 indicators, 143 events, 60 specs |
+| M3 coverage | 15 cells, 46 indicators, 143 events, 112 specs |
+| `python3 tools/check_registry.py` | 46 indicators, 143 events, 110 parameters |
+| `python3 tools/check_validation.py` | 188 claims |
+| `python3 tools/check_links.py` | 545 Markdown files; no broken links |
+| `python3 tools/check_terms.py` | 323 files; no banned terms |
+| `python3 tools/check_legacy.py` | 353 current files in the scan set; no retired labels |
+| `git diff --check` | Pass |
+| Smoke run | One M3.2 XAU 2018 1h run produced the expected bundle |
+| Count selector | Exit 1 with `status: "underpowered"`; no timeframe selected |
+
+### Review
+
+The Quant Researcher pass confirmed the count gate applied the approved cells
+and did not select a post-hoc subset. The Quant Developer pass checked the state
+filter, state-matched base, state increment, grade-A promotion, count-only
+implementation, and the M2 regression path. The Quant Validator pass reproduced
+the coverage and count results and checked that no outcome, validation, or
+strategy data was read. The passes are sequential by the same agent, not
+independent reviews.
+
+The plan's "all 15 cells run" criterion was not reached because the approved
+count gate stopped the programme first. That stop is the recorded outcome; no
+cell result, baseline, or edge claim exists.
+
+## 12. Residual risk
+
+- The approved M3.4/M3.5 state/event pairs are structurally too rare to test on
+  this data; the result is `underpowered`, not `no_edge`.
+- M3.1–M3.3 clear the count gate but are not evidence of edge; they were not run
+  because the programme-level gate failed.
+- The state evaluator has unit tests but no development outcome evidence.
+- `model_validation` 2021–2022 remains unused for M3; prior compression reuse is
+  unchanged.
+- A new attempt needs a new premise and a new approved charter; the current
+  programme is stopped and is not re-registered with a different state/event
+  pairing.

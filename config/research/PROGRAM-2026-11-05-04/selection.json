@@ -1,0 +1,212 @@
+{
+  "schema": "quantrule.m3-selection/v1",
+  "program_id": "PROGRAM-2026-11-05-04",
+  "partition": "model_dev",
+  "rule": "1h if every primary cell has 200 state-matched predictions and 20 clusters, else 15m if every cell has them, else underpowered",
+  "criteria": {
+    "min_predictions": 200,
+    "min_clusters": 20
+  },
+  "selected_timeframe_secs": null,
+  "status": "underpowered",
+  "cells": {
+    "M3.1": {
+      "3600": {
+        "n": 1226,
+        "clusters": 911,
+        "instruments": {
+          "XAU": {
+            "n": 312,
+            "clusters": 232
+          },
+          "BTC": {
+            "n": 396,
+            "clusters": 294
+          },
+          "SP500": {
+            "n": 149,
+            "clusters": 113
+          },
+          "EURUSD": {
+            "n": 369,
+            "clusters": 272
+          }
+        }
+      },
+      "900": {
+        "n": 5059,
+        "clusters": 3782,
+        "instruments": {
+          "XAU": {
+            "n": 1304,
+            "clusters": 958
+          },
+          "BTC": {
+            "n": 1547,
+            "clusters": 1190
+          },
+          "SP500": {
+            "n": 817,
+            "clusters": 613
+          },
+          "EURUSD": {
+            "n": 1391,
+            "clusters": 1021
+          }
+        }
+      }
+    },
+    "M3.2": {
+      "3600": {
+        "n": 1924,
+        "clusters": 775,
+        "instruments": {
+          "XAU": {
+            "n": 962,
+            "clusters": 356
+          },
+          "SP500": {
+            "n": 328,
+            "clusters": 143
+          },
+          "EURUSD": {
+            "n": 634,
+            "clusters": 276
+          }
+        }
+      },
+      "900": {
+        "n": 10127,
+        "clusters": 3452,
+        "instruments": {
+          "XAU": {
+            "n": 4228,
+            "clusters": 1375
+          },
+          "SP500": {
+            "n": 2118,
+            "clusters": 809
+          },
+          "EURUSD": {
+            "n": 3781,
+            "clusters": 1268
+          }
+        }
+      }
+    },
+    "M3.3": {
+      "3600": {
+        "n": 3025,
+        "clusters": 1007,
+        "instruments": {
+          "XAU": {
+            "n": 1094,
+            "clusters": 378
+          },
+          "SP500": {
+            "n": 477,
+            "clusters": 148
+          },
+          "EURUSD": {
+            "n": 1454,
+            "clusters": 481
+          }
+        }
+      },
+      "900": {
+        "n": 11626,
+        "clusters": 3208,
+        "instruments": {
+          "XAU": {
+            "n": 4892,
+            "clusters": 1270
+          },
+          "SP500": {
+            "n": 2734,
+            "clusters": 816
+          },
+          "EURUSD": {
+            "n": 4000,
+            "clusters": 1122
+          }
+        }
+      }
+    },
+    "M3.4": {
+      "3600": {
+        "n": 0,
+        "clusters": 0,
+        "instruments": {
+          "XAU": {
+            "n": 0,
+            "clusters": 0
+          },
+          "SP500": {
+            "n": 0,
+            "clusters": 0
+          },
+          "EURUSD": {
+            "n": 0,
+            "clusters": 0
+          }
+        }
+      },
+      "900": {
+        "n": 0,
+        "clusters": 0,
+        "instruments": {
+          "XAU": {
+            "n": 0,
+            "clusters": 0
+          },
+          "SP500": {
+            "n": 0,
+            "clusters": 0
+          },
+          "EURUSD": {
+            "n": 0,
+            "clusters": 0
+          }
+        }
+      }
+    },
+    "M3.5": {
+      "3600": {
+        "n": 0,
+        "clusters": 0,
+        "instruments": {
+          "XAU": {
+            "n": 0,
+            "clusters": 0
+          },
+          "SP500": {
+            "n": 0,
+            "clusters": 0
+          },
+          "EURUSD": {
+            "n": 0,
+            "clusters": 0
+          }
+        }
+      },
+      "900": {
+        "n": 2,
+        "clusters": 2,
+        "instruments": {
+          "XAU": {
+            "n": 1,
+            "clusters": 1
+          },
+          "SP500": {
+            "n": 0,
+            "clusters": 0
+          },
+          "EURUSD": {
+            "n": 1,
+            "clusters": 1
+          }
+        }
+      }
+    }
+  }
+}

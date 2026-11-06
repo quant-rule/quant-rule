@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import json
+import argparse
 import tempfile
 import unittest
 from pathlib import Path
@@ -67,6 +68,118 @@ def write_bundle(root: Path, predictions: list[dict], readings: list[dict]) -> P
                 ]
             )
     return root
+
+
+def write_state_bundle(
+    root: Path,
+    predictions: list[dict],
+    readings: list[dict],
+) -> Path:
+    write_bundle(root, predictions, readings)
+    with (root / "readings.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            [
+                "timeframe_secs",
+                "bar",
+                "timestamp",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "atr",
+                "context_code",
+                "adx_regime",
+                "ema_stack",
+            ]
+        )
+        for row in readings:
+            writer.writerow(
+                [
+                    row["timeframe_secs"],
+                    row["bar"],
+                    row["timestamp"],
+                    row["close"],
+                    row["high"],
+                    row["low"],
+                    row["close"],
+                    1.0,
+                    row.get("atr", 1.0),
+                    row.get("context_code", ""),
+                    row.get("adx_regime", ""),
+                    row.get("ema_stack", ""),
+                ]
+            )
+    return root
+
+
+def state_dataset(count: int = 80, state_one_hits: bool = False) -> tuple[list[dict], list[dict]]:
+    prediction_by_bar: dict[int, int] = {}
+    state_by_bar: dict[int, int] = {}
+    for cycle in range(0, count, 8):
+        for offset, state, direction in (
+            (1, 2, 1),
+            (2, 2, -1),
+            (5, 1, 1),
+            (6, 1, -1),
+        ):
+            bar = cycle + offset
+            if bar < count:
+                prediction_by_bar[bar] = direction
+                state_by_bar[bar] = state
+    close_values: list[float] = []
+    close = 100.0
+    for bar in range(count + 2):
+        close_values.append(close)
+        direction = prediction_by_bar.get(bar)
+        if direction is None:
+            continue
+        state = state_by_bar[bar]
+        hit = state == 2 or state_one_hits
+        if hit:
+            close += 2.0 * direction
+        else:
+            close -= 2.0 * direction
+    readings = [
+        {
+            "timeframe_secs": 3600,
+            "bar": bar,
+            "timestamp": 1_700_000_000 + bar * 3600,
+            "close": close_values[bar],
+            "high": close_values[bar] + 0.5,
+            "low": close_values[bar] - 0.5,
+            "atr": 1.0,
+            "context_code": 2 if bar % 8 < 4 else 1,
+            "adx_regime": 1 if bar % 8 < 4 else 0,
+            "ema_stack": 1 if bar % 8 < 4 else -1,
+        }
+        for bar in range(count + 1)
+    ]
+    predictions = [
+        {
+            "timeframe_secs": 3600,
+            "bar": bar,
+            "timestamp": readings[bar]["timestamp"],
+            "prediction": direction,
+        }
+        for bar, direction in sorted(prediction_by_bar.items())
+    ]
+    return predictions, readings
+
+
+def write_state_file(root: Path, column: str = "context_code", values: list[int] | None = None) -> Path:
+    path = root / "state.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema": model_prediction.STATE_SCHEMA,
+                "all": [{"column": column, "values": values or [2]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 def known_edge(count: int = 80) -> tuple[list[dict], list[dict]]:
@@ -295,6 +408,180 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(document["metrics"]["n"], 0)
         self.assertEqual(document["grade"], "D")
         self.assertEqual(document["verdict"], "fail")
+
+
+class StateGateTests(unittest.TestCase):
+    def run_state_eval(
+        self,
+        root: Path,
+        state_file: Path,
+        min_instruments: int = 1,
+        out_name: str = "out",
+    ) -> dict:
+        out = root / out_name
+        code = model_prediction.main(
+            [
+                "--predictions",
+                str(root / "prediction.csv"),
+                "--readings",
+                str(root / "readings.csv"),
+                "--instrument",
+                "BTC",
+                "--partition",
+                "model_dev",
+                "--outcome",
+                "barrier",
+                "--horizon",
+                "1",
+                "--target-atr",
+                "2.0",
+                "--stop-atr",
+                "1.0",
+                "--cost-bps",
+                "0",
+                "--random-draws",
+                "50",
+                "--shuffle-draws",
+                "50",
+                "--min-events",
+                "10",
+                "--min-clusters",
+                "1",
+                "--min-instruments",
+                str(min_instruments),
+                "--min-instrument-events",
+                "1",
+                "--primary-cells",
+                "1",
+                "--state-file",
+                str(state_file),
+                "--out",
+                str(out),
+            ]
+        )
+        self.assertEqual(code, 0)
+        return json.loads((out / "model_prediction.json").read_text(encoding="utf-8"))
+
+    def test_parser_accepts_two_clauses_and_rejects_unknown_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = write_state_file(root, column="context_code", values=[2])
+            gate = model_prediction.load_state_gate(path)
+            self.assertEqual(len(gate.clauses), 1)
+            self.assertTrue(model_prediction.state_matches({"context_code": "2"}, gate))
+            self.assertTrue(model_prediction.state_matches({"context_code": "2.0"}, gate))
+            self.assertFalse(model_prediction.state_matches({}, gate))
+            self.assertFalse(model_prediction.state_matches({"context_code": "1"}, gate))
+            bad = root / "bad.json"
+            bad.write_text(
+                json.dumps(
+                    {
+                        "schema": model_prediction.STATE_SCHEMA,
+                        "all": [{"column": "not_a_state", "values": [2]}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaises(ValueError):
+                model_prediction.load_state_gate(bad)
+
+    def test_state_gate_filters_the_base_and_reports_increment(self) -> None:
+        predictions, readings = state_dataset()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_state_bundle(root, predictions, readings)
+            state_file = write_state_file(root)
+            document = self.run_state_eval(root, state_file)
+        metrics = document["metrics"]
+        unconditional = document["unconditional_metrics"]
+        self.assertEqual(metrics["scope"], "state")
+        self.assertEqual(metrics["n"], 20)
+        self.assertEqual(unconditional["n"], 40)
+        self.assertGreater(metrics["lift"], unconditional["lift"])
+        self.assertGreater(document["state_increment"], 0.0)
+        self.assertEqual(document["grade"], "A")
+        self.assertEqual(document["verdict"], "pass")
+        self.assertTrue(document["criteria_status"]["state_increment"])
+
+    def test_state_gated_grade_b_does_not_promote(self) -> None:
+        predictions, readings = state_dataset()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_state_bundle(root, predictions, readings)
+            state_file = write_state_file(root)
+            document = self.run_state_eval(root, state_file, min_instruments=2)
+        self.assertEqual(document["grade"], "B")
+        self.assertEqual(document["verdict"], "fail")
+        self.assertFalse(document["criteria_status"]["replication"])
+
+    def test_state_gate_is_deterministic(self) -> None:
+        predictions, readings = state_dataset()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_state_bundle(root, predictions, readings)
+            state_file = write_state_file(root)
+            first = self.run_state_eval(root, state_file, out_name="first")
+            second = self.run_state_eval(root, state_file, out_name="second")
+        self.assertEqual(first, second)
+
+    def test_missing_state_column_is_an_error(self) -> None:
+        predictions, readings = state_dataset()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_bundle(root, predictions, readings)
+            state_file = write_state_file(root)
+            code = model_prediction.main(
+                [
+                    "--predictions",
+                    str(root / "prediction.csv"),
+                    "--readings",
+                    str(root / "readings.csv"),
+                    "--instrument",
+                    "BTC",
+                    "--partition",
+                    "model_dev",
+                    "--outcome",
+                    "barrier",
+                    "--horizon",
+                    "1",
+                    "--state-file",
+                    str(state_file),
+                    "--out",
+                    str(root / "out"),
+                ]
+            )
+        self.assertEqual(code, 1)
+
+    def test_state_increment_is_a_required_gate(self) -> None:
+        metrics = {
+            "n": 300,
+            "clusters": 30,
+            "lift": 0.1,
+            "lift_lcb": 0.01,
+            "random_p": 0.001,
+            "shuffle_p": 0.001,
+            "back_lag_lift": 0.0,
+            "replication": 2,
+        }
+        args = argparse.Namespace(
+            min_events=200,
+            min_clusters=20,
+            min_lift=0.02,
+            min_instruments=2,
+            min_state_increment=0.01,
+        )
+        letter, passed, criteria = model_prediction.grade(
+            metrics, args, 0.01, state_increment=0.0, require_replication=True
+        )
+        self.assertEqual(letter, "C")
+        self.assertFalse(passed)
+        self.assertFalse(criteria["state_increment"])
+        letter, passed, criteria = model_prediction.grade(
+            metrics, args, 0.01, state_increment=0.02, require_replication=True
+        )
+        self.assertEqual(letter, "A")
+        self.assertTrue(passed)
+        self.assertTrue(criteria["state_increment"])
 
 
 if __name__ == "__main__":

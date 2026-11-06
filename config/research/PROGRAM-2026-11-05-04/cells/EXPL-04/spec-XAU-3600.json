@@ -1,0 +1,67 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-04",
+  "family": "M3",
+  "instrument": "XAU",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "divergence.obv_regular_bullish",
+    "divergence.obv_regular_bearish",
+    "divergence.obv_hidden_bullish",
+    "divergence.obv_hidden_bearish",
+    "signal.obv_cross",
+    "signal.obv_slope",
+    "divergence.cmf_regular_bullish",
+    "divergence.cmf_regular_bearish",
+    "divergence.cmf_hidden_bullish",
+    "divergence.cmf_hidden_bearish",
+    "signal.cmf_cross",
+    "signal.cmf_threshold",
+    "divergence.mfi_regular_bullish",
+    "divergence.mfi_regular_bearish",
+    "divergence.mfi_hidden_bullish",
+    "divergence.mfi_hidden_bearish",
+    "signal.mfi_threshold",
+    "signal.mfi_zone",
+    "divergence.ad_regular_bullish",
+    "divergence.ad_regular_bearish",
+    "signal.ad_cross"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "divergence.obv_regular_bullish",
+      "divergence.obv_regular_bearish",
+      "divergence.obv_hidden_bullish",
+      "divergence.obv_hidden_bearish",
+      "signal.obv_cross",
+      "divergence.cmf_regular_bullish",
+      "divergence.cmf_regular_bearish",
+      "divergence.cmf_hidden_bullish",
+      "divergence.cmf_hidden_bearish",
+      "signal.cmf_cross",
+      "divergence.mfi_regular_bullish",
+      "divergence.mfi_regular_bearish",
+      "divergence.mfi_hidden_bullish",
+      "divergence.mfi_hidden_bearish",
+      "signal.mfi_threshold",
+      "divergence.ad_regular_bullish",
+      "divergence.ad_regular_bearish",
+      "signal.ad_cross"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.obv_slope",
+      "when": {
+        "event": {
+          "id": "signal.obv_slope",
+          "timeframe": 3600
+        }
+      }
+    }
+  ]
+}

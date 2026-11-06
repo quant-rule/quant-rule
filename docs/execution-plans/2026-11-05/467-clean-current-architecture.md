@@ -2,9 +2,9 @@
 
 - Date: 2026-11-05 (UTC)
 - Issue: [#467](https://github.com/quant-rule/quant-rule/issues/467)
-- Status: **In progress**; P0.1–P7 merged; P8a charter approved by the human on
-  2026-11-06 in [`M3-CHARTER.md`](../../governance/2026-11-05/M3-CHARTER.md).
-  P8b is not authorized.
+- Status: **Complete**; P0.1–P8 executed. P8a charter approved on 2026-11-06;
+  P8b built the M3 programme and stopped at the count gate as `underpowered`.
+  No development run, validation, strategy, or portfolio result exists.
 - Claim type: repository cutover and model-boundary change
 - Predecessor: [`468-legacy-inventory.md`](468-legacy-inventory.md)
 - History index: [`docs/registry/history.md`](../../registry/history.md)
@@ -292,5 +292,10 @@ deletion.
   primary state cells, a count-only timeframe switch, a volume-admissibility
   rule, and the full correction/stop protocol. No programme, config, or run is
   created. See [`476-m3-charter.md`](476-m3-charter.md).
-- P8b: not started; it requires a separate human authorization to build and
-  run.
+- P8b: implemented on `feat/476-m3-programme`; the 15-cell programme, state
+  evaluator, runner, and coverage passed their gates, but the count-only switch
+  found no timeframe with 200 state-matched predictions and 20 clusters in
+  every primary cell. M3.4 and M3.5 are the failures. The programme stopped as
+  `underpowered` before the development run; validation and strategy remain
+  closed. See [`M3-PREFLIGHT.md`](../../improvement/2026-11-05/M3-PREFLIGHT.md)
+  and [`476-m3-programme.md`](476-m3-programme.md).

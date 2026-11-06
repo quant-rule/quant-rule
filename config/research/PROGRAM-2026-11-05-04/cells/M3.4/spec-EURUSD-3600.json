@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M3.4",
+  "family": "M3",
+  "instrument": "EURUSD",
+  "timeframes": [
+    3600
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.climax_reversal"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.climax_reversal"
+    ],
+    "min_votes": 1
+  }
+}

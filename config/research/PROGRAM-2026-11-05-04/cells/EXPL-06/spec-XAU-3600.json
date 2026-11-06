@@ -1,0 +1,72 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "EXPL-06",
+  "family": "M3",
+  "instrument": "XAU",
+  "timeframes": [
+    3600
+  ],
+  "active_events": [
+    "level.test",
+    "level.cross",
+    "level.break",
+    "divergence.rsi_regular_bullish",
+    "divergence.rsi_regular_bearish",
+    "divergence.rsi_hidden_bullish",
+    "divergence.rsi_hidden_bearish",
+    "signal.rsi_threshold",
+    "signal.ema_pair_cross",
+    "signal.ema_stack_change",
+    "signal.rsi_zone_change",
+    "signal.macd_line_signal_cross",
+    "signal.macd_histogram_slope_flip",
+    "signal.macd_zero_cross",
+    "signal.di_cross",
+    "signal.trend_continuation",
+    "level.donchian_test",
+    "level.donchian_break",
+    "level.structure_break",
+    "level.strength_test",
+    "signal.donchian_breakout",
+    "signal.donchian_position",
+    "signal.structure_change",
+    "signal.strength_change",
+    "signal.aroon_cross",
+    "signal.aroon_osc",
+    "level.bos",
+    "level.choch"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "level.test",
+      "level.cross",
+      "level.break",
+      "divergence.rsi_regular_bullish",
+      "divergence.rsi_regular_bearish",
+      "divergence.rsi_hidden_bullish",
+      "divergence.rsi_hidden_bearish",
+      "signal.rsi_threshold",
+      "signal.ema_pair_cross",
+      "signal.ema_stack_change",
+      "signal.rsi_zone_change",
+      "signal.macd_line_signal_cross",
+      "signal.macd_histogram_slope_flip",
+      "signal.macd_zero_cross",
+      "signal.di_cross",
+      "signal.trend_continuation"
+    ],
+    "min_votes": 1
+  },
+  "conditions": [
+    {
+      "id": "condition_signal.structure_change",
+      "when": {
+        "event": {
+          "id": "signal.structure_change",
+          "timeframe": 3600
+        }
+      }
+    }
+  ]
+}
