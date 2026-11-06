@@ -279,6 +279,48 @@ ROW_EVENT_TESTS = {
     "signal.absorption_rejection": (
         "events::extended::row_tests::signal_absorption_rejection_row_contract",
     ),
+    "divergence.obv_regular_bullish": (
+        "events::extended::row_tests::divergence_obv_regular_bullish_row_contract",
+    ),
+    "divergence.obv_hidden_bearish": (
+        "events::extended::row_tests::divergence_obv_hidden_bearish_row_contract",
+    ),
+    "divergence.cmf_hidden_bullish": (
+        "events::extended::row_tests::divergence_cmf_hidden_bullish_row_contract",
+    ),
+    "divergence.mfi_regular_bullish": (
+        "events::extended::row_tests::divergence_mfi_regular_bullish_row_contract",
+    ),
+    "divergence.mfi_regular_bearish": (
+        "events::extended::row_tests::divergence_mfi_regular_bearish_row_contract",
+    ),
+    "divergence.mfi_hidden_bullish": (
+        "events::extended::row_tests::divergence_mfi_hidden_bullish_row_contract",
+    ),
+    "divergence.ad_regular_bullish": (
+        "events::extended::row_tests::divergence_ad_regular_bullish_row_contract",
+    ),
+    "divergence.atr_bearish": (
+        "events::extended::row_tests::divergence_atr_bearish_row_contract",
+    ),
+    "divergence.rs_regular_bullish": (
+        "events::panel::row_tests::divergence_rs_regular_bullish_row_contract",
+    ),
+    "divergence.rs_regular_bearish": (
+        "events::panel::row_tests::divergence_rs_regular_bearish_row_contract",
+    ),
+    "divergence.lead_lag_bullish": (
+        "events::panel::row_tests::divergence_lead_lag_bullish_row_contract",
+    ),
+    "divergence.lead_lag_bearish": (
+        "events::panel::row_tests::divergence_lead_lag_bearish_row_contract",
+    ),
+    "divergence.breadth_regular_bullish": (
+        "events::panel::row_tests::divergence_breadth_regular_bullish_row_contract",
+    ),
+    "divergence.breadth_regular_bearish": (
+        "events::panel::row_tests::divergence_breadth_regular_bearish_row_contract",
+    ),
 }
 ROW_EVENT_CLASSES = (
     "formula",
@@ -299,6 +341,20 @@ ROW_EVENT_GOLDEN = {
     "level.absorption_test",
     "signal.absorption_break",
     "signal.absorption_rejection",
+    "divergence.obv_regular_bullish",
+    "divergence.obv_hidden_bearish",
+    "divergence.cmf_hidden_bullish",
+    "divergence.mfi_regular_bullish",
+    "divergence.mfi_regular_bearish",
+    "divergence.mfi_hidden_bullish",
+    "divergence.ad_regular_bullish",
+    "divergence.atr_bearish",
+    "divergence.rs_regular_bullish",
+    "divergence.rs_regular_bearish",
+    "divergence.lead_lag_bullish",
+    "divergence.lead_lag_bearish",
+    "divergence.breadth_regular_bullish",
+    "divergence.breadth_regular_bearish",
 }
 ROW_FIXTURE_EVENT_CLASSES = (
     "formula",

@@ -1,7 +1,7 @@
 # Indicator and Event Verification Report
 
 - Date: 2026-11-06 (UTC)
-- Branch: `test/per-row-event-core-group1`
+- Branch: `test/per-row-event-core-group2`
 - Plan: [`docs/execution-plans/2026-11-06/indicator-event-verification.md`](../../execution-plans/2026-11-06/indicator-event-verification.md)
 - Claim type: verification evidence map; no signal-generation change, one debug-build underflow fixed, and no edge claim
 
@@ -12,15 +12,15 @@ the eleven evidence classes. The matrix documents are generated from it.
 
 | Scope | Cells | Meaning |
 |---|---:|---|
-| `row` | 858 | The test names the row's indicator or event |
-| `family` | 585 | The test exercises the family that contains the row |
+| `row` | 942 | The test names the row's indicator or event |
+| `family` | 501 | The test exercises the family that contains the row |
 | `tool` | 332 | A repository gate covers every row |
 | `n/a` | 304 | The class does not apply |
 
 All 46 indicators are row-level for formula, causality, determinism, golden, and
 edge. The 16 base events, the 80 extended/session events backed by the checked-in
-event fixtures, and the first 11 uncovered event rows are row-level for their
-core classes. The remaining
+event fixtures, the first 11 uncovered event rows, and the 14 flow/panel divergence
+rows are row-level for their core classes. The remaining
 `family` count is the honest result: the remaining suites exercise families, not
 one bespoke test per row. The matrix marks these cells `◐` and the status
 `partial (family)`, not `verified`.
@@ -31,14 +31,15 @@ one bespoke test per row. The matrix marks these cells `◐` and the status
   all 143 registered codes are directly referenced or family-computed.
 - Registry math is row-level through `check_registry.py` and
   `check_validation.py`.
-- 155 formula/construct cells are row-level; the rest use a family construct test
+- 169 formula/construct cells are row-level; the rest use a family construct test
   and are marked `◐`. The 16 base events carry row-level causality, determinism,
   availability, and dedupe evidence from `per_row_base_events.rs`. The 80
   extended and session events carry row-level golden, causality, determinism,
   availability, and dedupe evidence from `per_row_extended_session_events.rs`.
-  The compression, VWAP divergence, profile concentration, climax, and absorption
-  rows carry row-level evidence from `per_row_event_compression.rs` and
-  `events::extended::row_tests`.
+  The compression, VWAP divergence, profile concentration, climax, absorption, and
+  flow/panel divergence rows carry row-level evidence from
+  `per_row_event_compression.rs`, `events::extended::row_tests`, and
+  `events::panel::row_tests`.
   All 46 indicators carry row-level formula, causality, determinism, golden, and
   edge evidence from `per_row_base.rs`, `per_row_extended_indicators.rs`,
   `per_row_panel_indicators.rs`, `per_row_session_indicators.rs`, and

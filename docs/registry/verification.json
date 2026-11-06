@@ -6727,27 +6727,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended::tests::divergence_sources_cover_their_events"
+            "events::extended::row_tests::divergence_obv_regular_bullish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::extended::row_tests::divergence_obv_regular_bullish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::extended::row_tests::divergence_obv_regular_bullish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::extended::row_tests::divergence_obv_regular_bullish_row_contract"
           ]
         },
         "edge": {
@@ -6757,15 +6757,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::extended::row_tests::divergence_obv_regular_bullish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::extended::row_tests::divergence_obv_regular_bullish_row_contract"
           ]
         },
         "precedence": {
@@ -6937,27 +6937,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended::tests::divergence_sources_cover_their_events"
+            "events::extended::row_tests::divergence_obv_hidden_bearish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::extended::row_tests::divergence_obv_hidden_bearish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::extended::row_tests::divergence_obv_hidden_bearish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::extended::row_tests::divergence_obv_hidden_bearish_row_contract"
           ]
         },
         "edge": {
@@ -6967,15 +6967,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::extended::row_tests::divergence_obv_hidden_bearish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::extended::row_tests::divergence_obv_hidden_bearish_row_contract"
           ]
         },
         "precedence": {
@@ -7287,27 +7287,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended::tests::divergence_sources_cover_their_events"
+            "events::extended::row_tests::divergence_cmf_hidden_bullish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::extended::row_tests::divergence_cmf_hidden_bullish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::extended::row_tests::divergence_cmf_hidden_bullish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::extended::row_tests::divergence_cmf_hidden_bullish_row_contract"
           ]
         },
         "edge": {
@@ -7317,15 +7317,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::extended::row_tests::divergence_cmf_hidden_bullish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::extended::row_tests::divergence_cmf_hidden_bullish_row_contract"
           ]
         },
         "precedence": {
@@ -7567,27 +7567,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended::tests::divergence_sources_cover_their_events"
+            "events::extended::row_tests::divergence_mfi_regular_bullish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::extended::row_tests::divergence_mfi_regular_bullish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::extended::row_tests::divergence_mfi_regular_bullish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::extended::row_tests::divergence_mfi_regular_bullish_row_contract"
           ]
         },
         "edge": {
@@ -7597,15 +7597,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::extended::row_tests::divergence_mfi_regular_bullish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::extended::row_tests::divergence_mfi_regular_bullish_row_contract"
           ]
         },
         "precedence": {
@@ -7637,27 +7637,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended::tests::divergence_sources_cover_their_events"
+            "events::extended::row_tests::divergence_mfi_regular_bearish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::extended::row_tests::divergence_mfi_regular_bearish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::extended::row_tests::divergence_mfi_regular_bearish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::extended::row_tests::divergence_mfi_regular_bearish_row_contract"
           ]
         },
         "edge": {
@@ -7667,15 +7667,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::extended::row_tests::divergence_mfi_regular_bearish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::extended::row_tests::divergence_mfi_regular_bearish_row_contract"
           ]
         },
         "precedence": {
@@ -7707,27 +7707,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended::tests::divergence_sources_cover_their_events"
+            "events::extended::row_tests::divergence_mfi_hidden_bullish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::extended::row_tests::divergence_mfi_hidden_bullish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::extended::row_tests::divergence_mfi_hidden_bullish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::extended::row_tests::divergence_mfi_hidden_bullish_row_contract"
           ]
         },
         "edge": {
@@ -7737,15 +7737,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::extended::row_tests::divergence_mfi_hidden_bullish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::extended::row_tests::divergence_mfi_hidden_bullish_row_contract"
           ]
         },
         "precedence": {
@@ -7987,27 +7987,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended::tests::divergence_sources_cover_their_events"
+            "events::extended::row_tests::divergence_ad_regular_bullish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::extended::row_tests::divergence_ad_regular_bullish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::extended::row_tests::divergence_ad_regular_bullish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::extended::row_tests::divergence_ad_regular_bullish_row_contract"
           ]
         },
         "edge": {
@@ -8017,15 +8017,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::extended::row_tests::divergence_ad_regular_bullish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::extended::row_tests::divergence_ad_regular_bullish_row_contract"
           ]
         },
         "precedence": {
@@ -8915,27 +8915,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended::tests::divergence_sources_cover_their_events"
+            "events::extended::row_tests::divergence_atr_bearish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::extended::row_tests::divergence_atr_bearish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::extended::row_tests::divergence_atr_bearish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::extended::row_tests::divergence_atr_bearish_row_contract"
           ]
         },
         "edge": {
@@ -8945,15 +8945,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::extended::row_tests::divergence_atr_bearish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::extended::row_tests::divergence_atr_bearish_row_contract"
           ]
         },
         "precedence": {
@@ -8985,27 +8985,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel::tests::panel_divergences_and_crosses_are_exercised"
+            "events::panel::row_tests::divergence_rs_regular_bullish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::panel::row_tests::divergence_rs_regular_bullish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::panel::row_tests::divergence_rs_regular_bullish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::panel::row_tests::divergence_rs_regular_bullish_row_contract"
           ]
         },
         "edge": {
@@ -9015,15 +9015,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::panel::row_tests::divergence_rs_regular_bullish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::panel::row_tests::divergence_rs_regular_bullish_row_contract"
           ]
         },
         "precedence": {
@@ -9055,27 +9055,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel::tests::panel_divergences_and_crosses_are_exercised"
+            "events::panel::row_tests::divergence_rs_regular_bearish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::panel::row_tests::divergence_rs_regular_bearish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::panel::row_tests::divergence_rs_regular_bearish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::panel::row_tests::divergence_rs_regular_bearish_row_contract"
           ]
         },
         "edge": {
@@ -9085,15 +9085,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::panel::row_tests::divergence_rs_regular_bearish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::panel::row_tests::divergence_rs_regular_bearish_row_contract"
           ]
         },
         "precedence": {
@@ -9125,27 +9125,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel::tests::panel_divergences_and_crosses_are_exercised"
+            "events::panel::row_tests::divergence_lead_lag_bullish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::panel::row_tests::divergence_lead_lag_bullish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::panel::row_tests::divergence_lead_lag_bullish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::panel::row_tests::divergence_lead_lag_bullish_row_contract"
           ]
         },
         "edge": {
@@ -9155,15 +9155,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::panel::row_tests::divergence_lead_lag_bullish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::panel::row_tests::divergence_lead_lag_bullish_row_contract"
           ]
         },
         "precedence": {
@@ -9195,27 +9195,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel::tests::panel_divergences_and_crosses_are_exercised"
+            "events::panel::row_tests::divergence_lead_lag_bearish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::panel::row_tests::divergence_lead_lag_bearish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::panel::row_tests::divergence_lead_lag_bearish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::panel::row_tests::divergence_lead_lag_bearish_row_contract"
           ]
         },
         "edge": {
@@ -9225,15 +9225,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::panel::row_tests::divergence_lead_lag_bearish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::panel::row_tests::divergence_lead_lag_bearish_row_contract"
           ]
         },
         "precedence": {
@@ -9265,27 +9265,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel::tests::panel_divergences_and_crosses_are_exercised"
+            "events::panel::row_tests::divergence_breadth_regular_bullish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::panel::row_tests::divergence_breadth_regular_bullish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::panel::row_tests::divergence_breadth_regular_bullish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::panel::row_tests::divergence_breadth_regular_bullish_row_contract"
           ]
         },
         "edge": {
@@ -9295,15 +9295,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::panel::row_tests::divergence_breadth_regular_bullish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::panel::row_tests::divergence_breadth_regular_bullish_row_contract"
           ]
         },
         "precedence": {
@@ -9335,27 +9335,27 @@
       "kind": "event",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel::tests::panel_divergences_and_crosses_are_exercised"
+            "events::panel::row_tests::divergence_breadth_regular_bearish_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::appending_bars_does_not_change_past_events"
+            "events::panel::row_tests::divergence_breadth_regular_bearish_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::repeated_model_runs_publish_the_same_events"
+            "events::panel::row_tests::divergence_breadth_regular_bearish_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "divergence_events_golden::the_divergence_events_match_the_golden_fixture_at_both_scales"
+            "events::panel::row_tests::divergence_breadth_regular_bearish_row_contract"
           ]
         },
         "edge": {
@@ -9365,15 +9365,15 @@
           ]
         },
         "availability": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::every_batch_respects_availability_and_order"
+            "events::panel::row_tests::divergence_breadth_regular_bearish_row_contract"
           ]
         },
         "no_double_count": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::one_occurrence_is_recorded_once"
+            "events::panel::row_tests::divergence_breadth_regular_bearish_row_contract"
           ]
         },
         "precedence": {

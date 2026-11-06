@@ -345,6 +345,9 @@ fn push_signal(
 }
 
 #[cfg(test)]
+mod row_tests;
+
+#[cfg(test)]
 mod tests {
     use super::PanelEventSeries;
     use crate::events::EventType;
