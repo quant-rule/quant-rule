@@ -1,7 +1,7 @@
 # Indicator and Event Verification Batch
 
 - Date: 2026-11-06 (UTC)
-- Status: **Approved** by the human instruction "aproved proceed" on 2026-11-06
+- Status: **Verified** on 2026-11-06; approved by the human instruction "aproved proceed" and evaluated against the merged evidence
 - Claim type: verification coverage and evidence mapping; no signal-generation change; one debug-build underflow fixed; no edge claim
 - Baseline: `main` at `ca12116`
 - Branch: `test/indicator-event-verification`
@@ -98,6 +98,8 @@ Implemented across `test/indicator-event-verification`, `test/row-level-verifica
 - Generated matrices now show `✅` row/tool evidence, `◐` family evidence, and
   `—` N/A. Status is `partial (family)` when any class is family-level.
 - Scope counts: 1091 `row`, 329 `family`, 332 `tool`, 327 `n/a`.
+- Accepted family: event edge 143, event `spec` 143, indicator `spec` 43.
+- Closure report: [`docs/reports/2026-11-06/model-verification-closure.md`](../../reports/2026-11-06/model-verification-closure.md).
 
 Observed gates:
 

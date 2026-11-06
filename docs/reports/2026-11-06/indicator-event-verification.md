@@ -64,11 +64,13 @@ explicitly accepted. The matrix marks these cells `◐` and the status
 
 `tools/build_verification.py --write` regenerates the manifest and matrices.
 
-## 4. Remaining work
+## 4. Closure
 
-The family-level cells need either a row-specific test or an explicit decision
-to accept family-level coverage for that class. The matrix is now truthful about
-the difference; it no longer presents family checks as per-row proof.
+Model verification is closed. The 329 remaining family cells are explicitly
+accepted: event edge 143, event `spec` 143, and indicator `spec` 43. The closure
+record is
+[`model-verification-closure.md`](../../reports/2026-11-06/model-verification-closure.md).
 
 Predictive claims remain mostly `pending`; no edge is claimed and
-`model_validation` was not opened.
+`model_validation` was not opened. Strategy, execution, portfolio, and backtest
+work is the separate S3.x phase.
