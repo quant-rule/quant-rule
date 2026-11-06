@@ -110,6 +110,19 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "execution run",
+        usage: "execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json]",
+        summary: "Turn a strategy decisions bundle into orders, fills, and rejections.",
+        output: "the artifact paths, or a JSON envelope; <out>/execution/ holds orders.csv, fills.csv, rejections.csv, summary.txt, and provenance.json",
+        notes: &[
+            "The decisions bundle is the strategy run output directory.",
+            "The run config supplies the fill timeframe, costs, and position sizing.",
+            "If --out is omitted, the bundle is written beside the decisions bundle.",
+            "A standalone run sizes entries from the run's initial cash; it does not track equity.",
+            "The fill records carry no cash, equity, or PnL.",
+        ],
+    },
+    CommandHelp {
         name: "fetch",
         usage: "fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]",
         summary: "Fetch a Dukascopy range and write the accepted candles as CSV.",
@@ -206,12 +219,13 @@ mod tests {
             "policy check",
             "strategy explain",
             "strategy run",
+            "execution run",
             "fetch",
             "help",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 10);
+        assert_eq!(COMMANDS.len(), 11);
     }
 
     #[test]

@@ -240,8 +240,13 @@ execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [-
 The run configuration supplies the data source, the execution timeframe, and the
 execution configuration. The decisions bundle supplies the decision records,
 including the decision-bar ATR(14) that execution needs for an ATR-based stop.
-The command refuses a decision artifact whose stage or schema is unsupported, and
-it refuses a decision whose timeframe is not the run's execution timeframe.
+The command refuses a decision artifact whose stage or schema is unsupported, a
+decision whose timeframe is not the run's execution timeframe, and a decisions
+data version that does not match the run's.
+
+A standalone execution run also refuses an `enter_bracket` decision: the bracket
+quantity depends on the side execution will fill, and the full runner must size
+it. The event-composite decisions produced by `strategy run` do not contain one.
 
 A standalone execution run replays a fixed decision sequence. A rejected entry
 does not re-run the strategy; the next decision still sees the position the

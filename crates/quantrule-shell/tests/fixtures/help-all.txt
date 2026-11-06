@@ -56,6 +56,16 @@ strategy run
   note:   If --out is omitted, the bundle is written beside the model bundle.
   note:   The bundle carries no fill, quantity, fee, cash, equity, or PnL.
 
+execution run
+  usage:  execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json]
+  does:   Turn a strategy decisions bundle into orders, fills, and rejections.
+  output: the artifact paths, or a JSON envelope; <out>/execution/ holds orders.csv, fills.csv, rejections.csv, summary.txt, and provenance.json
+  note:   The decisions bundle is the strategy run output directory.
+  note:   The run config supplies the fill timeframe, costs, and position sizing.
+  note:   If --out is omitted, the bundle is written beside the decisions bundle.
+  note:   A standalone run sizes entries from the run's initial cash; it does not track equity.
+  note:   The fill records carry no cash, equity, or PnL.
+
 fetch
   usage:  fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]
   does:   Fetch a Dukascopy range and write the accepted candles as CSV.
