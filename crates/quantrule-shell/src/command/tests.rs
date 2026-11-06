@@ -3,7 +3,9 @@
 use super::fetch::{parse_fetch_arguments, write_fetch_cap_warning};
 use super::parse::parse;
 use super::parse_argv;
-use super::types::{Command, FetchArgs, HelpTopic, ModelArgs, ParseError, WindowMode};
+use super::types::{Command, HelpTopic, ParseError};
+use crate::pipeline::WindowMode;
+use crate::request::{FetchArgs, ModelArgs};
 use crate::source::{DateRange, Symbol};
 use quantrule_data::Timeframe;
 use std::path::PathBuf;

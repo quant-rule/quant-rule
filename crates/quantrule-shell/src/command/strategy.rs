@@ -9,7 +9,8 @@ use std::path::PathBuf;
 use quantrule_backtest::intent::StrategyPosition;
 use quantrule_backtest::side::Side;
 
-use super::types::{Command, ParseError, StrategyExplainArgs, StrategyRunArgs};
+use super::types::{Command, ParseError};
+use crate::request::{StrategyExplainArgs, StrategyRunArgs};
 use crate::strategy;
 
 const EXPLAIN_USAGE: &str = "usage: strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat|long|short]";

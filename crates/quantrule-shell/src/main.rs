@@ -24,6 +24,7 @@ mod qualification;
 mod render;
 mod render_flat;
 mod render_report;
+mod request;
 mod source;
 mod spec;
 mod strategy;

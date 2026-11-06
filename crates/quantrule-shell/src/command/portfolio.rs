@@ -6,8 +6,9 @@
 
 use std::path::PathBuf;
 
-use super::types::{Command, ParseError, PortfolioReplayArgs};
+use super::types::{Command, ParseError};
 use crate::portfolio;
+use crate::request::PortfolioReplayArgs;
 
 const USAGE: &str =
     "usage: portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [--json]";

@@ -12,9 +12,9 @@ use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
-use crate::command::types::QualifyArgs;
 use crate::config::{ConfigError, EvidenceArtifact, load_qualification};
 use crate::render_report::{self, BundleError};
+use crate::request::QualifyArgs;
 
 use super::evaluate::{Status, evaluate, resolve};
 use super::evidence::{BacktestEvidence, EvidenceError, PartitionWindow};

@@ -16,7 +16,9 @@ use super::portfolio::parse_portfolio_arguments;
 use super::qualify::parse_qualify_arguments;
 use super::report_run::parse_report_arguments;
 use super::strategy::parse_strategy_arguments;
-use super::types::{Command, HelpTopic, ModelArgs, ParseError, WindowMode};
+use super::types::{Command, HelpTopic, ParseError};
+use crate::pipeline::WindowMode;
+use crate::request::ModelArgs;
 
 /// Parses one command line.
 ///

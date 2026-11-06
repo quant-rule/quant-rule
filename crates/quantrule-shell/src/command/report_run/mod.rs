@@ -10,9 +10,10 @@ use std::io::Write;
 use quantrule_model::panel::PanelInstrument;
 use quantrule_model::spec::v2::SpecRun;
 
-use super::types::{ReportArgs, ReportError, RunError};
+use super::types::{ReportError, RunError};
 use crate::config::RunConfig;
 use crate::pipeline;
+use crate::request::ReportArgs;
 
 mod bundle;
 mod model_artifacts;

@@ -11,8 +11,9 @@ use quantrule_data::{EXTENDED_SERIES, MAX_SERIES, Timeframe};
 
 use super::parse_native_timeframe;
 
-use super::types::{FetchArgs, ParseError, RunError};
+use super::types::{ParseError, RunError};
 use crate::fetch::{self, FetchOptions};
+use crate::request::FetchArgs;
 use crate::source::{DateRange, FetchRequest, HttpTransport, Symbol};
 
 /// Parses the arguments of a `fetch` command.

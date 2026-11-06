@@ -10,7 +10,8 @@ use std::path::Path;
 use crate::config::RunConfig;
 use crate::labels;
 
-use super::types::{PolicyCheckArgs, RunError};
+use super::types::RunError;
+use crate::request::PolicyCheckArgs;
 
 /// Parses the already-split arguments after `policy`.
 ///

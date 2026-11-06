@@ -6,8 +6,9 @@
 
 use std::path::PathBuf;
 
-use super::types::{BacktestRunArgs, Command, ParseError};
+use super::types::{Command, ParseError};
 use crate::backtest;
+use crate::request::BacktestRunArgs;
 
 const USAGE: &str =
     "usage: backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--json]";
