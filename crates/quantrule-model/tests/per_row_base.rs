@@ -5,7 +5,7 @@
 //! scalar readings golden table.
 
 use quantrule_data::Candle;
-use quantrule_model::readings::{ReadingSeries, Readings};
+use quantrule_model::readings::{PivotKind, PivotScale, PivotSeries, ReadingSeries, Readings};
 
 const FIXTURE: &str = include_str!("fixtures/readings_golden.csv");
 const HEADER: &str = "bar,timestamp,open,high,low,close,volume,ema20,ema50,ema200,rsi14,atr14,rvol20,minor_candidate_high,minor_candidate_low,minor_pivot_high,minor_pivot_low,minor_pivot_occurred_at,major_candidate_high,major_candidate_low,major_pivot_high,major_pivot_low,major_pivot_occurred_at";
@@ -17,6 +17,16 @@ struct Row {
     ema200: Option<f64>,
     rsi14: Option<f64>,
     atr14: Option<f64>,
+    minor_candidate_high: Option<f64>,
+    minor_candidate_low: Option<f64>,
+    minor_pivot_high: Option<f64>,
+    minor_pivot_low: Option<f64>,
+    minor_pivot_occurred_at: Option<usize>,
+    major_candidate_high: Option<f64>,
+    major_candidate_low: Option<f64>,
+    major_pivot_high: Option<f64>,
+    major_pivot_low: Option<f64>,
+    major_pivot_occurred_at: Option<usize>,
 }
 
 fn number(field: &str) -> Option<f64> {
@@ -24,6 +34,14 @@ fn number(field: &str) -> Option<f64> {
         None
     } else {
         Some(field.parse().expect("a fixture number"))
+    }
+}
+
+fn integer(field: &str) -> Option<usize> {
+    if field.is_empty() {
+        None
+    } else {
+        Some(field.parse().expect("a fixture integer"))
     }
 }
 
@@ -50,6 +68,16 @@ fn load() -> Vec<Row> {
                 ema200: number(fields[9]),
                 rsi14: number(fields[10]),
                 atr14: number(fields[11]),
+                minor_candidate_high: number(fields[13]),
+                minor_candidate_low: number(fields[14]),
+                minor_pivot_high: number(fields[15]),
+                minor_pivot_low: number(fields[16]),
+                minor_pivot_occurred_at: integer(fields[17]),
+                major_candidate_high: number(fields[18]),
+                major_candidate_low: number(fields[19]),
+                major_pivot_high: number(fields[20]),
+                major_pivot_low: number(fields[21]),
+                major_pivot_occurred_at: integer(fields[22]),
             }
         })
         .collect()
@@ -175,4 +203,136 @@ fn atr_row_contract() {
     assert_eq!(one.atr14.get(0), None);
     let short = Readings::compute(&all[..14]);
     assert!(short.atr14.values().iter().all(Option::is_none));
+}
+
+fn candidate_price(
+    pivots: &PivotSeries,
+    scale: PivotScale,
+    bar: usize,
+    kind: PivotKind,
+) -> Option<f64> {
+    pivots
+        .candidate(scale, bar)
+        .filter(|candidate| candidate.kind == kind)
+        .map(|candidate| candidate.price)
+}
+
+fn confirmed_pivot(
+    pivots: &PivotSeries,
+    scale: PivotScale,
+    bar: usize,
+    kind: PivotKind,
+) -> Option<(f64, usize)> {
+    pivots
+        .confirmed_at(scale, bar)
+        .filter(|pivot| pivot.kind == kind)
+        .map(|pivot| (pivot.price, pivot.occurred_at))
+}
+
+fn assert_pivot_matches(pivots: &PivotSeries, row: &Row) {
+    let bar = row.candle.series_index() as usize;
+    for (scale, label, candidate_high, candidate_low, pivot_high, pivot_low, pivot_occurred) in [
+        (
+            PivotScale::Minor,
+            "minor",
+            row.minor_candidate_high,
+            row.minor_candidate_low,
+            row.minor_pivot_high,
+            row.minor_pivot_low,
+            row.minor_pivot_occurred_at,
+        ),
+        (
+            PivotScale::Major,
+            "major",
+            row.major_candidate_high,
+            row.major_candidate_low,
+            row.major_pivot_high,
+            row.major_pivot_low,
+            row.major_pivot_occurred_at,
+        ),
+    ] {
+        assert_close(
+            candidate_price(pivots, scale, bar, PivotKind::High),
+            candidate_high,
+            &format!("{label} candidate high at {bar}"),
+        );
+        assert_close(
+            candidate_price(pivots, scale, bar, PivotKind::Low),
+            candidate_low,
+            &format!("{label} candidate low at {bar}"),
+        );
+        for (kind, expected_price, expected_occurred) in [
+            (PivotKind::High, pivot_high, pivot_occurred),
+            (PivotKind::Low, pivot_low, pivot_occurred),
+        ] {
+            match confirmed_pivot(pivots, scale, bar, kind) {
+                None => assert!(
+                    expected_price.is_none(),
+                    "{label} {kind:?} pivot at {bar}: expected {expected_price:?}"
+                ),
+                Some((price, occurred)) => {
+                    assert_close(
+                        Some(price),
+                        expected_price,
+                        &format!("{label} {kind:?} pivot at {bar}"),
+                    );
+                    assert_eq!(
+                        Some(occurred),
+                        expected_occurred,
+                        "{label} {kind:?} occurrence at {bar}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn assert_pivot_prefix(rows: &[Row], cutoff: usize) {
+    let all = candles(rows);
+    let full = Readings::compute(&all);
+    let prefix = Readings::compute(&all[..cutoff]);
+    for row in &rows[..cutoff] {
+        let bar = row.candle.series_index() as usize;
+        for scale in PivotScale::ALL {
+            for kind in [PivotKind::High, PivotKind::Low] {
+                assert_eq!(
+                    candidate_price(&prefix.pivots, scale, bar, kind),
+                    candidate_price(&full.pivots, scale, bar, kind),
+                    "candidate {scale:?} {kind:?} changed at {bar}/{cutoff}"
+                );
+                assert_eq!(
+                    confirmed_pivot(&prefix.pivots, scale, bar, kind),
+                    confirmed_pivot(&full.pivots, scale, bar, kind),
+                    "pivot {scale:?} {kind:?} changed at {bar}/{cutoff}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn pivots_row_contract() {
+    let rows = load();
+    let all = candles(&rows);
+    let readings = Readings::compute(&all);
+    for row in &rows {
+        assert_pivot_matches(&readings.pivots, row);
+    }
+    for cutoff in [61, 131, 201] {
+        assert_pivot_prefix(&rows, cutoff);
+    }
+    assert_eq!(
+        Readings::compute(&all).pivots,
+        readings.pivots,
+        "pivots are not deterministic"
+    );
+
+    let empty = PivotSeries::compute(&[]);
+    assert_eq!(empty.len(), 0);
+    let one = PivotSeries::compute(&all[..1]);
+    assert_eq!(one.len(), 1);
+    assert_eq!(one.candidate_count(PivotScale::Minor), 0);
+    assert_eq!(one.confirmed_count(PivotScale::Minor), 0);
+    let short = PivotSeries::compute(&all[..10]);
+    assert_eq!(short.len(), 10);
 }

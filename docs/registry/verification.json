@@ -202,31 +202,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "rvol_reads_the_volume_ratio"
+            "per_row_extended_indicators::rvol_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::rvol_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::rvol_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::rvol_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::rvol_row_contract"
           ]
         },
         "availability": {
@@ -267,31 +267,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "readings::macd::tests::the_line_is_the_fast_minus_the_slow_ema"
+            "per_row_base_remaining_indicators::macd_row_contract"
           ]
         },
         "causality": {
           "scope": "row",
           "tests": [
-            "readings::macd::tests::appended_bars_do_not_change_earlier_output"
+            "per_row_base_remaining_indicators::macd_row_contract"
           ]
         },
         "determinism": {
           "scope": "row",
           "tests": [
-            "readings::macd::tests::repeated_runs_are_identical"
+            "per_row_base_remaining_indicators::macd_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base_remaining_indicators::macd_row_contract"
           ]
         },
         "edge": {
           "scope": "row",
           "tests": [
-            "readings::macd::tests::short_and_invalid_inputs_are_all_null"
+            "per_row_base_remaining_indicators::macd_row_contract"
           ]
         },
         "availability": {
@@ -332,31 +332,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "readings_golden::the_fixture_covers_every_reading_and_both_pivot_scales"
+            "per_row_base::pivots_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_base::pivots_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_base::pivots_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_base::pivots_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_base::pivots_row_contract"
           ]
         },
         "availability": {
@@ -525,31 +525,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "readings::adx::tests::an_uptrend_has_positive_direction_and_strength"
+            "per_row_base_remaining_indicators::adx_row_contract"
           ]
         },
         "causality": {
           "scope": "row",
           "tests": [
-            "readings::adx::tests::the_series_is_causal"
+            "per_row_base_remaining_indicators::adx_row_contract"
           ]
         },
         "determinism": {
           "scope": "row",
           "tests": [
-            "readings::adx::tests::the_series_is_deterministic"
+            "per_row_base_remaining_indicators::adx_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base_remaining_indicators::adx_row_contract"
           ]
         },
         "edge": {
           "scope": "row",
           "tests": [
-            "readings::adx::tests::a_flat_series_is_null_not_zero"
+            "per_row_base_remaining_indicators::adx_row_contract"
           ]
         },
         "availability": {
@@ -590,31 +590,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "events::dmi::tests::a_direction_change_emits_one_cross"
+            "per_row_base_remaining_indicators::dmi_row_contract"
           ]
         },
         "causality": {
           "scope": "row",
           "tests": [
-            "events::dmi::tests::the_series_is_causal"
+            "per_row_base_remaining_indicators::dmi_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "hardening::the_model_run_is_deterministic_across_repeated_runs"
+            "per_row_base_remaining_indicators::dmi_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "readings_golden::every_scalar_reading_matches_the_golden_values"
+            "per_row_base_remaining_indicators::dmi_row_contract"
           ]
         },
         "edge": {
           "scope": "row",
           "tests": [
-            "events::dmi::tests::a_flat_series_has_no_event"
+            "per_row_base_remaining_indicators::dmi_row_contract"
           ]
         },
         "availability": {
@@ -655,31 +655,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "vwap_is_the_volume_weighted_typical_price"
+            "per_row_extended_indicators::vwap_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::vwap_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::vwap_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::vwap_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::vwap_row_contract"
           ]
         },
         "availability": {
@@ -718,33 +718,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "profile_poc_is_the_highest_volume_bin"
+            "per_row_extended_indicators::volume_profile_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::volume_profile_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::volume_profile_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::volume_profile_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::volume_profile_row_contract"
           ]
         },
         "availability": {
@@ -783,33 +783,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "climax_flags_a_high_volume_wide_bar"
+            "per_row_extended_indicators::volume_climax_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::volume_climax_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::volume_climax_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::volume_climax_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::volume_climax_row_contract"
           ]
         },
         "availability": {
@@ -850,31 +850,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "absorption_flags_a_small_range_near_vwap"
+            "per_row_extended_indicators::absorption_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::absorption_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::absorption_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::absorption_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::absorption_row_contract"
           ]
         },
         "availability": {
@@ -915,31 +915,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "volume_oscillator_reads_the_fast_slow_gap"
+            "per_row_extended_indicators::volume_oscillator_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::volume_oscillator_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::volume_oscillator_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::volume_oscillator_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::volume_oscillator_row_contract"
           ]
         },
         "availability": {
@@ -980,31 +980,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "obv_accumulates_signed_volume"
+            "per_row_extended_indicators::obv_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::obv_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::obv_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::obv_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::obv_row_contract"
           ]
         },
         "availability": {
@@ -1045,31 +1045,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "cmf_is_one_when_every_close_is_the_high"
+            "per_row_extended_indicators::cmf_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::cmf_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::cmf_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::cmf_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::cmf_row_contract"
           ]
         },
         "availability": {
@@ -1110,31 +1110,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "mfi_is_one_hundred_when_every_bar_rises"
+            "per_row_extended_indicators::mfi_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::mfi_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::mfi_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::mfi_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::mfi_row_contract"
           ]
         },
         "availability": {
@@ -1175,31 +1175,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "ad_line_accumulates_money_flow"
+            "per_row_extended_indicators::ad_line_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::ad_line_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::ad_line_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::ad_line_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::ad_line_row_contract"
           ]
         },
         "availability": {
@@ -1240,31 +1240,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "atr_term_is_available_after_the_slow_window"
+            "per_row_extended_indicators::atr_term_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::atr_term_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::atr_term_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::atr_term_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::atr_term_row_contract"
           ]
         },
         "availability": {
@@ -1303,33 +1303,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "range_and_mar_read_the_window"
+            "per_row_extended_indicators::range_expansion_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::range_expansion_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::range_expansion_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::range_expansion_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::range_expansion_row_contract"
           ]
         },
         "availability": {
@@ -1370,31 +1370,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "range_and_mar_read_the_window"
+            "per_row_extended_indicators::mar_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::mar_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::mar_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::mar_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::mar_row_contract"
           ]
         },
         "availability": {
@@ -1435,31 +1435,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "keltner_and_donchian_publish_bands"
+            "per_row_extended_indicators::keltner_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::keltner_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::keltner_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::keltner_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::keltner_row_contract"
           ]
         },
         "availability": {
@@ -1500,31 +1500,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "keltner_and_donchian_publish_bands"
+            "per_row_extended_indicators::donchian_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::donchian_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::donchian_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::donchian_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::donchian_row_contract"
           ]
         },
         "availability": {
@@ -1563,33 +1563,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "structure_and_levels_publish_when_history_exists"
+            "per_row_extended_indicators::swing_structure_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::swing_structure_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::swing_structure_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::swing_structure_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::swing_structure_row_contract"
           ]
         },
         "availability": {
@@ -1628,33 +1628,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "structure_and_levels_publish_when_history_exists"
+            "per_row_extended_indicators::level_strength_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::level_strength_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::level_strength_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::level_strength_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::level_strength_row_contract"
           ]
         },
         "availability": {
@@ -1695,31 +1695,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "aroon_reads_a_rising_series"
+            "per_row_extended_indicators::aroon_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::aroon_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::aroon_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::aroon_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::aroon_row_contract"
           ]
         },
         "availability": {
@@ -1758,33 +1758,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "event_validation::bos_and_choch_are_classified"
+            "per_row_extended_indicators::bos_choch_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::bos_choch_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::bos_choch_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::bos_choch_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::bos_choch_row_contract"
           ]
         },
         "availability": {
@@ -1825,31 +1825,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "candle_anatomy_reads_the_bar"
+            "per_row_extended_indicators::candle_anatomy_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::candle_anatomy_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::candle_anatomy_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::candle_anatomy_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::candle_anatomy_row_contract"
           ]
         },
         "availability": {
@@ -1890,31 +1890,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "candle_pattern_flags_an_engulfing_bar"
+            "per_row_extended_indicators::candle_pattern_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::candle_pattern_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::candle_pattern_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::candle_pattern_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::candle_pattern_row_contract"
           ]
         },
         "availability": {
@@ -1955,31 +1955,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "gap_reads_the_open_jump"
+            "per_row_extended_indicators::gap_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::gap_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::gap_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::gap_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::gap_row_contract"
           ]
         },
         "availability": {
@@ -2018,33 +2018,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "path_reads_efficiency_and_extremes"
+            "per_row_extended_indicators::path_efficiency_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::path_efficiency_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::path_efficiency_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::path_efficiency_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::path_efficiency_row_contract"
           ]
         },
         "availability": {
@@ -2085,31 +2085,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "direction_changes_counts_sign_flips"
+            "per_row_extended_indicators::direction_changes_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::direction_changes_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::direction_changes_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::direction_changes_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::direction_changes_row_contract"
           ]
         },
         "availability": {
@@ -2148,33 +2148,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "path_reads_efficiency_and_extremes"
+            "per_row_extended_indicators::bars_since_extreme_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::bars_since_extreme_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::bars_since_extreme_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::bars_since_extreme_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::bars_since_extreme_row_contract"
           ]
         },
         "availability": {
@@ -2213,33 +2213,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "path_reads_efficiency_and_extremes"
+            "per_row_extended_indicators::drawdown_atr_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::drawdown_atr_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::drawdown_atr_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::drawdown_atr_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::drawdown_atr_row_contract"
           ]
         },
         "availability": {
@@ -2278,33 +2278,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "path_reads_efficiency_and_extremes"
+            "per_row_extended_indicators::range_position_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::appending_bars_does_not_change_past_readings"
+            "per_row_extended_indicators::range_position_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::repeated_computation_is_identical"
+            "per_row_extended_indicators::range_position_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "extended_readings_golden::the_extended_readings_match_the_golden_fixture"
+            "per_row_extended_indicators::range_position_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "per_row_extended_indicators::range_position_row_contract"
           ]
         },
         "availability": {
@@ -2345,31 +2345,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "relative_strength_ranks_the_faster_instrument"
+            "per_row_panel_indicators::relative_strength_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::appending_bars_does_not_change_past_panel_readings"
+            "per_row_panel_indicators::relative_strength_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::repeated_panel_computation_is_identical"
+            "per_row_panel_indicators::relative_strength_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::the_panel_readings_match_the_golden_fixture"
+            "per_row_panel_indicators::relative_strength_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_panel_indicators::relative_strength_row_contract"
           ]
         },
         "availability": {
@@ -2410,31 +2410,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "lead_lag_reads_the_leader"
+            "per_row_panel_indicators::lead_lag_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::appending_bars_does_not_change_past_panel_readings"
+            "per_row_panel_indicators::lead_lag_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::repeated_panel_computation_is_identical"
+            "per_row_panel_indicators::lead_lag_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::the_panel_readings_match_the_golden_fixture"
+            "per_row_panel_indicators::lead_lag_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_panel_indicators::lead_lag_row_contract"
           ]
         },
         "availability": {
@@ -2475,31 +2475,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "breadth_and_dispersion_are_common"
+            "per_row_panel_indicators::breadth_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::appending_bars_does_not_change_past_panel_readings"
+            "per_row_panel_indicators::breadth_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::repeated_panel_computation_is_identical"
+            "per_row_panel_indicators::breadth_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::the_panel_readings_match_the_golden_fixture"
+            "per_row_panel_indicators::breadth_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_panel_indicators::breadth_row_contract"
           ]
         },
         "availability": {
@@ -2540,31 +2540,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "co_movement_is_high_for_aligned_series"
+            "per_row_panel_indicators::co_movement_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::appending_bars_does_not_change_past_panel_readings"
+            "per_row_panel_indicators::co_movement_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::repeated_panel_computation_is_identical"
+            "per_row_panel_indicators::co_movement_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::the_panel_readings_match_the_golden_fixture"
+            "per_row_panel_indicators::co_movement_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_panel_indicators::co_movement_row_contract"
           ]
         },
         "availability": {
@@ -2605,31 +2605,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "breadth_and_dispersion_are_common"
+            "per_row_panel_indicators::dispersion_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::appending_bars_does_not_change_past_panel_readings"
+            "per_row_panel_indicators::dispersion_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::repeated_panel_computation_is_identical"
+            "per_row_panel_indicators::dispersion_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "panel_readings_golden::the_panel_readings_match_the_golden_fixture"
+            "per_row_panel_indicators::dispersion_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_panel_indicators::dispersion_row_contract"
           ]
         },
         "availability": {
@@ -2670,31 +2670,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "london_session_and_opening_range"
+            "per_row_session_indicators::session_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::appending_bars_does_not_change_past_session_readings"
+            "per_row_session_indicators::session_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::repeated_session_computation_is_identical"
+            "per_row_session_indicators::session_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::the_session_readings_match_the_golden_fixture"
+            "per_row_session_indicators::session_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_session_indicators::session_row_contract"
           ]
         },
         "availability": {
@@ -2735,31 +2735,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "london_session_and_opening_range"
+            "per_row_session_indicators::opening_range_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::appending_bars_does_not_change_past_session_readings"
+            "per_row_session_indicators::opening_range_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::repeated_session_computation_is_identical"
+            "per_row_session_indicators::opening_range_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::the_session_readings_match_the_golden_fixture"
+            "per_row_session_indicators::opening_range_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_session_indicators::opening_range_row_contract"
           ]
         },
         "availability": {
@@ -2798,33 +2798,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "overnight_and_intraday_returns_read_the_session"
+            "per_row_session_indicators::overnight_intraday_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::appending_bars_does_not_change_past_session_readings"
+            "per_row_session_indicators::overnight_intraday_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::repeated_session_computation_is_identical"
+            "per_row_session_indicators::overnight_intraday_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::the_session_readings_match_the_golden_fixture"
+            "per_row_session_indicators::overnight_intraday_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_session_indicators::overnight_intraday_row_contract"
           ]
         },
         "availability": {
@@ -2865,31 +2865,31 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "session_range_reads_the_session_high_low"
+            "per_row_session_indicators::session_range_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::appending_bars_does_not_change_past_session_readings"
+            "per_row_session_indicators::session_range_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::repeated_session_computation_is_identical"
+            "per_row_session_indicators::session_range_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::the_session_readings_match_the_golden_fixture"
+            "per_row_session_indicators::session_range_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_session_indicators::session_range_row_contract"
           ]
         },
         "availability": {
@@ -2928,33 +2928,33 @@
       "kind": "indicator",
       "evidence": {
         "formula": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "london_session_and_opening_range"
+            "per_row_session_indicators::calendar_bucket_row_contract"
           ]
         },
         "causality": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::appending_bars_does_not_change_past_session_readings"
+            "per_row_session_indicators::calendar_bucket_row_contract"
           ]
         },
         "determinism": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::repeated_session_computation_is_identical"
+            "per_row_session_indicators::calendar_bucket_row_contract"
           ]
         },
         "golden": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "session_readings_golden::the_session_readings_match_the_golden_fixture"
+            "per_row_session_indicators::calendar_bucket_row_contract"
           ]
         },
         "edge": {
-          "scope": "family",
+          "scope": "row",
           "tests": [
-            "edge_cases::a_one_bar_panel_and_session_are_safe"
+            "per_row_session_indicators::calendar_bucket_row_contract"
           ]
         },
         "availability": {
