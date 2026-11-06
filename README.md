@@ -201,8 +201,8 @@ python3 tools/check_links.py
 python3 tools/check_terms.py
 ```
 
-The registry checks cover 46 indicators, 143 events (142 active plus one
-experimental), 188 validation claims, and 54 construct cases. The legacy scan
+The registry checks cover 46 indicators, 143 active events, 189 validation
+claims, and 54 construct cases. The legacy scan
 rejects retired model and strategy labels in the current surface; history
 directories are exempt and remain in Git.
 

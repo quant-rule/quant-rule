@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-06.1",
+  "version": "2026-11-06.2",
   "indicators": [
     {
       "id": "ema",
@@ -1876,7 +1876,7 @@
         "causality",
         "determinism"
       ],
-      "status": "experimental",
+      "status": "active",
       "formula": "zone(RSI) changes, where zone = -1 if RSI < 30, 0 if 30 <= RSI <= 70, +1 if RSI > 70"
     },
     {
