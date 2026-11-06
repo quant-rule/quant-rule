@@ -157,7 +157,6 @@ fn rejects_deleted_commands() {
         "axis data/example.csv direction",
         "legs data/example.csv",
         "model-series data/example.csv",
-        "backtest --config run.json",
         "strategy-run data/example.csv --strategy s.json",
         "store list",
         "db bars",

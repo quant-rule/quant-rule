@@ -228,8 +228,8 @@ configuration's portfolio block at the decision-bar close, then passes it to the
 execution engine. The execution engine never chooses direction or sizing, and the
 portfolio engine still owns cash and equity. A standalone execution run sizes
 from the run's initial cash; the full backtest run sizes from the ledger's
-current equity. The execution provenance records the portfolio config identity
-and the sizing equity used.
+current equity. The execution provenance records the portfolio config identity,
+the sizing basis, and the fixed sizing equity when the basis is initial cash.
 
 ### 6.1 Command
 
@@ -325,11 +325,15 @@ equity point or a zero prior equity is absent or `null`, never zero.
 
 ## 8. Backtest orchestration
 
+- Status: Implemented 2026-11-06.
+
 `backtest run` is an orchestration command, not a sixth engine. It runs the data
 and model stages, then interleaves the strategy, execution, and portfolio
 engines so the strategy sees the position execution actually holds. It writes the
 same stage bundles as the standalone commands and preserves each one. It adds no
-domain logic and hides no stage.
+domain logic and hides no stage. The coupled execution sizes each entry from the
+ledger's current equity and records `sizing_basis: ledger_current` in the
+execution bundle.
 
 ```text
 backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--json]
@@ -350,7 +354,9 @@ the data version, the config identity, the code revision, the seed, the stage
 order, the path and content hash of every stage provenance, and the strategy
 config identity. It carries no clock timestamp. The model bundle is the same
 bundle `report model` writes; the strategy, execution, and portfolio bundles are
-the same bundles their stage commands write.
+the same bundles their stage commands write. The manifest's `stages` array
+records each stage, its relative path, its provenance path, and its FNV content
+hash. The backtest provenance lists the four stage source artifacts.
 
 ## 9. Qualification stage
 

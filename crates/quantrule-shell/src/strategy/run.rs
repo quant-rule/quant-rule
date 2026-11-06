@@ -17,9 +17,9 @@ use quantrule_backtest::side::Side;
 use quantrule_backtest::strategy::{
     Decision, EventStrategyInput, EventTimeframeView, ExitReason, StateField,
 };
-use quantrule_data::format_utc_timestamp;
 use serde_json::{Value, json};
 
+use super::artifacts::{self, DecisionCounts, StrategyArtifactMeta};
 use super::bundle::{ModelBundle, ModelBundleError};
 use crate::command::types::{StrategyExplainArgs, StrategyRunArgs};
 use crate::config::{ConfigError, StrategyConfig};
@@ -228,7 +228,7 @@ pub(crate) fn run(args: &StrategyRunArgs, writer: &mut impl Write) -> Result<(),
 
     let mut position = StrategyPosition::flat();
     let mut records = Vec::with_capacity(bars.len());
-    let mut counts = Counts::default();
+    let mut counts = DecisionCounts::default();
     let mut first_open_time = None;
     let mut last_open_time = None;
     for (index, row) in bars.iter().enumerate() {
@@ -257,17 +257,25 @@ pub(crate) fn run(args: &StrategyRunArgs, writer: &mut impl Write) -> Result<(),
         }
     }
 
-    let summary = summary_bytes(
-        &config,
-        &bundle,
-        &config_id,
-        bars.len(),
-        first_open_time,
-        last_open_time,
-        &counts,
-    );
-    let decisions = decisions_ndjson(&records)?;
-    let provenance = provenance_bytes(&config, &bundle, &config_id)?;
+    let meta = StrategyArtifactMeta {
+        data_version: &bundle.data_version,
+        model_config_id: &bundle.config_id,
+        strategy_config_id: &config_id,
+        period_from: bundle.period_from.as_deref(),
+        period_to: bundle.period_to.as_deref(),
+        strategy_id: config.id.as_deref(),
+        engine: config.engine_name(),
+        execution_timeframe: config.execution_timeframe.code(),
+        context_timeframes: config
+            .context_timeframes
+            .iter()
+            .map(|timeframe| timeframe.code())
+            .collect(),
+    };
+    let summary =
+        artifacts::summary_bytes(&meta, bars.len(), first_open_time, last_open_time, &counts);
+    let decisions = artifacts::decisions_ndjson(&records)?;
+    let provenance = artifacts::provenance_bytes(&meta)?;
     let artifacts = [
         ("summary.txt", summary.into_bytes()),
         ("decisions.ndjson", decisions.into_bytes()),
@@ -294,103 +302,7 @@ pub(crate) fn run(args: &StrategyRunArgs, writer: &mut impl Write) -> Result<(),
     writer.flush().map_err(StrategyRunError::Output)
 }
 
-fn decisions_ndjson(records: &[Value]) -> Result<String, StrategyRunError> {
-    let mut text = String::new();
-    for record in records {
-        text.push_str(&serde_json::to_string(record).map_err(StrategyRunError::Json)?);
-        text.push('\n');
-    }
-    Ok(text)
-}
-
-fn summary_bytes(
-    config: &StrategyConfig,
-    bundle: &ModelBundle,
-    config_id: &str,
-    bars: usize,
-    first_open_time: Option<i64>,
-    last_open_time: Option<i64>,
-    counts: &Counts,
-) -> String {
-    let context = config
-        .context_timeframes
-        .iter()
-        .map(|timeframe| timeframe.code())
-        .collect::<Vec<_>>()
-        .join(" ");
-    format!(
-        "QuantRule strategy run\n\
-         strategy_id: {}\n\
-         engine: {}\n\
-         data_version: {}\n\
-         model_config_id: {}\n\
-         strategy_config_id: {config_id}\n\
-         execution_timeframe: {}\n\
-         context_timeframes: {context}\n\
-         bars: {bars}\n\
-         first_open_time: {}\n\
-         last_open_time: {}\n\
-         decisions: hold={} enter={} enter_bracket={} exit={}\n\
-         sides: long={} short={}\n\
-         reasons: entry={} bracket_entry={} event_condition={} time_stop={}\n",
-        config.id.as_deref().unwrap_or("(unnamed)"),
-        config.engine_name(),
-        bundle.data_version,
-        bundle.config_id,
-        config.execution_timeframe.code(),
-        first_open_time.map_or_else(|| "null".to_owned(), format_utc_timestamp),
-        last_open_time.map_or_else(|| "null".to_owned(), format_utc_timestamp),
-        counts.hold,
-        counts.enter,
-        counts.enter_bracket,
-        counts.exit,
-        counts.long,
-        counts.short,
-        counts.entry_reason,
-        counts.bracket_entry_reason,
-        counts.event_condition_reason,
-        counts.time_stop_reason,
-    )
-}
-
-fn provenance_bytes(
-    config: &StrategyConfig,
-    bundle: &ModelBundle,
-    config_id: &str,
-) -> Result<Vec<u8>, StrategyRunError> {
-    let value = json!({
-        "schema": "quantrule.stage-provenance/v1",
-        "stage": "strategy",
-        "artifact": "decisions",
-        "data_version": bundle.data_version,
-        "config_id": config_id,
-        "code_commit": "unknown",
-        "source_artifacts": [{
-            "stage": "model",
-            "artifact": "model",
-            "schema": "quantrule.provenance/v1",
-            "data_version": bundle.data_version,
-            "config_id": bundle.config_id,
-        }],
-        "seed": Value::Null,
-        "period": {
-            "from": bundle.period_from,
-            "to": bundle.period_to,
-        },
-        "artifacts": ["decisions.ndjson", "summary.txt", "provenance.json"],
-        "strategy": {
-            "id": config.id.as_deref(),
-            "engine": config.engine_name(),
-            "execution_timeframe": config.execution_timeframe.code(),
-            "context_timeframes": config.context_timeframes.iter().map(|timeframe| timeframe.code()).collect::<Vec<_>>(),
-        },
-    });
-    let mut bytes = serde_json::to_vec(&value).map_err(StrategyRunError::Json)?;
-    bytes.push(b'\n');
-    Ok(bytes)
-}
-
-fn decision_record(
+pub(crate) fn decision_record(
     config: &StrategyConfig,
     input: &EventStrategyInput,
     position: StrategyPosition,
@@ -712,47 +624,6 @@ fn state_field_label(field: StateField) -> &'static str {
         StateField::DiState => "di_state",
         StateField::ProgressionStage => "progression_stage",
         StateField::ProgressionLegDirection => "progression_leg_direction",
-    }
-}
-
-#[derive(Default)]
-struct Counts {
-    hold: usize,
-    enter: usize,
-    enter_bracket: usize,
-    exit: usize,
-    long: usize,
-    short: usize,
-    entry_reason: usize,
-    bracket_entry_reason: usize,
-    event_condition_reason: usize,
-    time_stop_reason: usize,
-}
-
-impl Counts {
-    fn observe(&mut self, decision: Decision) {
-        match decision {
-            Decision::Hold => self.hold += 1,
-            Decision::Enter(entry) => {
-                self.enter += 1;
-                self.entry_reason += 1;
-                match entry.side() {
-                    Side::Long => self.long += 1,
-                    Side::Short => self.short += 1,
-                }
-            }
-            Decision::EnterBracket(_) => {
-                self.enter_bracket += 1;
-                self.bracket_entry_reason += 1;
-            }
-            Decision::Exit(exit) => {
-                self.exit += 1;
-                match exit.reason {
-                    ExitReason::EventCondition => self.event_condition_reason += 1,
-                    ExitReason::TimeStop => self.time_stop_reason += 1,
-                }
-            }
-        }
     }
 }
 

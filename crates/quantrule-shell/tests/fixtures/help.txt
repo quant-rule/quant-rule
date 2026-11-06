@@ -10,6 +10,7 @@ QuantRule shell commands
   strategy run --model <model-bundle> --strategy <strategy.json> [--out <dir>] [--json] Write the strategy decisions bundle for one model bundle.
   execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json] Turn a strategy decisions bundle into orders, fills, and rejections.
   portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [--json] Replay an execution fills bundle through portfolio accounting.
+  backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--json] Run the coupled model, strategy, execution, and portfolio stages.
   fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>] Fetch a Dukascopy range and write the accepted candles as CSV.
   help [<command>|all|glossary]                              Print the command map, one command contract, or the glossary.
 

@@ -205,3 +205,31 @@ authorization. The work is local to the task branch `docs/s3-command-contracts`.
   metrics stay null.
 - Publication (push, pull request, merge, tag, or release) is pending human
   authorization. The work is local to the task branch.
+
+## 10. Phase 5 — backtest orchestration
+
+- Intent and boundary: add `backtest run`, the coupled runner, and the backtest
+  manifest. The command composes the existing stage engines; it does not add a
+  signal formula, event definition, or strategy rule.
+- Implemented: `crates/quantrule-shell/src/backtest/`, the command wiring,
+  shared strategy artifact rendering, shared execution bundle rendering, the
+  model bundle visibility change, help, README, backtest lab, and the Phase 5
+  plan record.
+- Verification: `cargo test --workspace` 1,229 passed, 0 failed, 8 ignored;
+  clippy, fmt, doc, all model gates, links, terms, legacy, file size, and
+  `git diff --check` pass. The command-surface checker reports 13 implemented and
+  2 planned. The integration test asserts the full stage layout, the four
+  manifest provenance hashes, the accounting invariant, byte determinism, the
+  non-empty-target refusal, and the missing-strategy error.
+- Corrections: the first backtest error wrapped the shell `RunError`, which
+  recursively contained the backtest error; the model error is now a message.
+  The first shared strategy artifact refactor left a `derive` on the test module;
+  it was removed. The help fixture and the CLI surviving-command test predated
+  the command and were updated.
+- Learning: the coupled runner must apply funding before the bar's fills, apply
+  the fills, mark the close, then ask the strategy with `engine.position_view()`.
+  This is the difference between a strategy that reacts to actual execution and
+  one that reacts to its own intended position. The manifest writes last; a
+  failed run can leave stage directories without an available backtest bundle.
+- Publication (push, pull request, merge, tag, or release) is pending human
+  authorization. The work is local to the task branch.
