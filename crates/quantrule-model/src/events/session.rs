@@ -407,6 +407,9 @@ fn overnight_events(
 }
 
 #[cfg(test)]
+mod row_tests;
+
+#[cfg(test)]
 mod tests {
     use super::SessionEventSeries;
     use crate::readings::{Readings, ReadingsConfig};

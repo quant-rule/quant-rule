@@ -13,26 +13,33 @@ use crate::events::{EventRecord, EventType, codes};
 use crate::readings::{ExtendedConfig, ExtendedReadings, PivotKind, ReadingSeries, Readings};
 use quantrule_data::Candle;
 
-struct Expected {
-    event_type: EventType,
-    subtype: u8,
-    source: u16,
-    direction: i8,
-    occurred: usize,
-    available: usize,
-    primary: f64,
-    reference: f64,
+pub(super) struct Expected {
+    pub(super) event_type: EventType,
+    pub(super) subtype: u8,
+    pub(super) source: u16,
+    pub(super) direction: i8,
+    pub(super) occurred: usize,
+    pub(super) available: usize,
+    pub(super) primary: f64,
+    pub(super) reference: f64,
 }
 
-fn candle(index: u64, open: f64, high: f64, low: f64, close: f64, volume: f64) -> Candle {
+pub(super) fn candle(
+    index: u64,
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+    volume: f64,
+) -> Candle {
     Candle::new(index, index as i64, open, high, low, close, Some(volume)).expect("valid candle")
 }
 
-fn series(len: usize, value: impl Fn(usize) -> Option<f64>) -> ReadingSeries {
+pub(super) fn series(len: usize, value: impl Fn(usize) -> Option<f64>) -> ReadingSeries {
     ReadingSeries::new((0..len).map(value).collect())
 }
 
-fn series_at(len: usize, values: &[(usize, f64)]) -> ReadingSeries {
+pub(super) fn series_at(len: usize, values: &[(usize, f64)]) -> ReadingSeries {
     let mut data = vec![None; len];
     for (bar, value) in values {
         if *bar < len {
@@ -79,11 +86,11 @@ fn two_pivot_values(len: usize, first: f64, second: f64) -> ReadingSeries {
     series_at(len, &[(5, first), (15, second)])
 }
 
-fn event_config() -> ExtendedEventConfig {
+pub(super) fn event_config() -> ExtendedEventConfig {
     ExtendedEventConfig::from_secs(3600).expect("timeframe")
 }
 
-fn assert_contract(
+pub(super) fn assert_contract(
     label: &str,
     code: u16,
     full_len: usize,

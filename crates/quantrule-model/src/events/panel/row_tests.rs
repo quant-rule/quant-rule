@@ -10,6 +10,7 @@ use quantrule_data::Candle;
 use std::collections::BTreeMap;
 
 struct Expected {
+    event_type: EventType,
     subtype: u8,
     source: u16,
     direction: i8,
@@ -138,7 +139,7 @@ fn assert_contract(
         .collect();
     assert!(!events.is_empty(), "{label} is missing");
     let event = events[0];
-    assert_eq!(event.event_type, EventType::Divergence);
+    assert_eq!(event.event_type, expected.event_type);
     assert_eq!(event.event_subtype_code, expected.subtype);
     assert_eq!(event.source_code, expected.source);
     assert_eq!(event.direction_code, expected.direction);
@@ -190,6 +191,7 @@ fn divergence_rs_regular_bullish_row_contract() {
         30,
         &[6, 15, 20, 21, 30],
         Expected {
+            event_type: EventType::Divergence,
             subtype: 1,
             source: 45,
             direction: 1,
@@ -210,6 +212,7 @@ fn divergence_rs_regular_bearish_row_contract() {
         30,
         &[6, 15, 20, 21, 30],
         Expected {
+            event_type: EventType::Divergence,
             subtype: 2,
             source: 45,
             direction: -1,
@@ -230,6 +233,7 @@ fn divergence_lead_lag_bullish_row_contract() {
         30,
         &[6, 15, 20, 21, 30],
         Expected {
+            event_type: EventType::Divergence,
             subtype: 1,
             source: 46,
             direction: 1,
@@ -250,6 +254,7 @@ fn divergence_lead_lag_bearish_row_contract() {
         30,
         &[6, 15, 20, 21, 30],
         Expected {
+            event_type: EventType::Divergence,
             subtype: 2,
             source: 46,
             direction: -1,
@@ -270,6 +275,7 @@ fn divergence_breadth_regular_bullish_row_contract() {
         30,
         &[6, 15, 20, 21, 30],
         Expected {
+            event_type: EventType::Divergence,
             subtype: 1,
             source: 47,
             direction: 1,
@@ -290,6 +296,7 @@ fn divergence_breadth_regular_bearish_row_contract() {
         30,
         &[6, 15, 20, 21, 30],
         Expected {
+            event_type: EventType::Divergence,
             subtype: 2,
             source: 47,
             direction: -1,
@@ -299,5 +306,170 @@ fn divergence_breadth_regular_bearish_row_contract() {
             reference: 0.5,
         },
         |len| panel_divergence_events(len, PivotKind::High, 101.0, 102.0, 1.5, 0.5),
+    );
+}
+
+fn flat_candles(len: usize) -> Vec<Candle> {
+    (0..len)
+        .map(|index| candle(index as u64, 100.0, 101.0, 99.0, 100.5))
+        .collect()
+}
+
+fn cross_events(len: usize, metric: &str) -> Vec<EventRecord> {
+    let candles = flat_candles(len);
+    let timestamps = candles.iter().map(Candle::timestamp).collect();
+    let mut readings = PanelInstrumentReadings {
+        relative_strength: vec![None; len],
+        leader_return: vec![None; len],
+        lead_lag: vec![None; len],
+        breadth: vec![None; len],
+        co_movement: vec![None; len],
+        dispersion: vec![None; len],
+    };
+    let series = match metric {
+        "rs" => &mut readings.relative_strength,
+        "lead" => &mut readings.leader_return,
+        "breadth" => &mut readings.breadth,
+        "co" => &mut readings.co_movement,
+        "dispersion" => &mut readings.dispersion,
+        _ => panic!("unknown metric {metric}"),
+    };
+    if len > 28 {
+        series[28] = Some(match metric {
+            "rs" => 0.0,
+            "lead" => 1.0,
+            "breadth" | "co" => 0.5,
+            _ => 0.5,
+        });
+    }
+    if len > 29 {
+        series[29] = Some(match metric {
+            "rs" => 0.1,
+            "lead" => 2.0,
+            "breadth" => 0.7,
+            "co" => 0.8,
+            _ => 1.5,
+        });
+    }
+    let mut instruments = BTreeMap::new();
+    instruments.insert("BTC".to_string(), readings);
+    let readings = PanelReadings {
+        timestamps,
+        instruments,
+    };
+    super::PanelEventSeries::compute(
+        &[PanelInstrument {
+            name: "BTC",
+            candles: &candles,
+        }],
+        &readings,
+        3_600,
+    )
+    .events("BTC")
+    .to_vec()
+}
+
+#[test]
+fn signal_relative_strength_cross_row_contract() {
+    assert_contract(
+        "relative strength cross",
+        codes::SIGNAL_RELATIVE_STRENGTH_CROSS,
+        30,
+        &[28, 29, 30],
+        Expected {
+            event_type: EventType::Signal,
+            subtype: 22,
+            source: 45,
+            direction: 1,
+            occurred: 29,
+            available: 29,
+            primary: 0.1,
+            reference: 0.0,
+        },
+        |len| cross_events(len, "rs"),
+    );
+}
+
+#[test]
+fn signal_lead_lag_cross_row_contract() {
+    assert_contract(
+        "lead-lag cross",
+        codes::SIGNAL_LEAD_LAG_CROSS,
+        30,
+        &[28, 29, 30],
+        Expected {
+            event_type: EventType::Signal,
+            subtype: 22,
+            source: 46,
+            direction: 1,
+            occurred: 29,
+            available: 29,
+            primary: 2.0,
+            reference: 1.0,
+        },
+        |len| cross_events(len, "lead"),
+    );
+}
+
+#[test]
+fn signal_breadth_cross_row_contract() {
+    assert_contract(
+        "breadth cross",
+        codes::SIGNAL_BREADTH_CROSS,
+        30,
+        &[28, 29, 30],
+        Expected {
+            event_type: EventType::Signal,
+            subtype: 22,
+            source: 47,
+            direction: 1,
+            occurred: 29,
+            available: 29,
+            primary: 0.7,
+            reference: 0.67,
+        },
+        |len| cross_events(len, "breadth"),
+    );
+}
+
+#[test]
+fn signal_co_movement_cross_row_contract() {
+    assert_contract(
+        "co-movement cross",
+        codes::SIGNAL_CO_MOVEMENT_CROSS,
+        30,
+        &[28, 29, 30],
+        Expected {
+            event_type: EventType::Signal,
+            subtype: 22,
+            source: 48,
+            direction: 1,
+            occurred: 29,
+            available: 29,
+            primary: 0.8,
+            reference: 0.7,
+        },
+        |len| cross_events(len, "co"),
+    );
+}
+
+#[test]
+fn signal_dispersion_cross_row_contract() {
+    assert_contract(
+        "dispersion cross",
+        codes::SIGNAL_DISPERSION_CROSS,
+        30,
+        &[28, 29, 30],
+        Expected {
+            event_type: EventType::Signal,
+            subtype: 22,
+            source: 49,
+            direction: 1,
+            occurred: 29,
+            available: 29,
+            primary: 1.5,
+            reference: 1.0,
+        },
+        |len| cross_events(len, "dispersion"),
     );
 }

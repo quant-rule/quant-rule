@@ -321,6 +321,72 @@ ROW_EVENT_TESTS = {
     "divergence.breadth_regular_bearish": (
         "events::panel::row_tests::divergence_breadth_regular_bearish_row_contract",
     ),
+    "level.wick_test": (
+        "events::extended::row_signal_tests::level_wick_test_row_contract",
+    ),
+    "signal.atr_compression": (
+        "events::extended::row_signal_tests::signal_atr_compression_row_contract",
+    ),
+    "signal.atr_expansion": (
+        "events::extended::row_signal_tests::signal_atr_expansion_row_contract",
+    ),
+    "signal.atr_regime": (
+        "events::extended::row_signal_tests::signal_atr_regime_row_contract",
+    ),
+    "signal.candle_momentum": (
+        "events::extended::row_signal_tests::signal_candle_momentum_row_contract",
+    ),
+    "signal.candle_rejection": (
+        "events::extended::row_signal_tests::signal_candle_rejection_row_contract",
+    ),
+    "signal.candle_marubozu": (
+        "events::extended::row_signal_tests::signal_candle_marubozu_row_contract",
+    ),
+    "signal.pattern_hammer": (
+        "events::extended::row_signal_tests::signal_pattern_hammer_row_contract",
+    ),
+    "signal.pattern_star": (
+        "events::extended::row_signal_tests::signal_pattern_star_row_contract",
+    ),
+    "signal.pattern_three_soldiers": (
+        "events::extended::row_signal_tests::signal_pattern_three_soldiers_row_contract",
+    ),
+    "signal.pattern_three_crows": (
+        "events::extended::row_signal_tests::signal_pattern_three_crows_row_contract",
+    ),
+    "signal.gap_continuation": (
+        "events::extended::row_signal_tests::signal_gap_continuation_row_contract",
+    ),
+    "signal.gap_fade": (
+        "events::extended::row_signal_tests::signal_gap_fade_row_contract",
+    ),
+    "signal.relative_strength_cross": (
+        "events::panel::row_tests::signal_relative_strength_cross_row_contract",
+    ),
+    "signal.lead_lag_cross": (
+        "events::panel::row_tests::signal_lead_lag_cross_row_contract",
+    ),
+    "signal.breadth_cross": (
+        "events::panel::row_tests::signal_breadth_cross_row_contract",
+    ),
+    "signal.co_movement_cross": (
+        "events::panel::row_tests::signal_co_movement_cross_row_contract",
+    ),
+    "signal.dispersion_cross": (
+        "events::panel::row_tests::signal_dispersion_cross_row_contract",
+    ),
+    "signal.opening_range_breakout": (
+        "events::session::row_tests::signal_opening_range_breakout_row_contract",
+    ),
+    "signal.overnight_continuation": (
+        "events::session::row_tests::signal_overnight_continuation_row_contract",
+    ),
+    "signal.overnight_fade": (
+        "events::session::row_tests::signal_overnight_fade_row_contract",
+    ),
+    "signal.session_range_contraction": (
+        "events::session::row_tests::signal_session_range_contraction_row_contract",
+    ),
 }
 ROW_EVENT_CLASSES = (
     "formula",
@@ -355,6 +421,28 @@ ROW_EVENT_GOLDEN = {
     "divergence.lead_lag_bearish",
     "divergence.breadth_regular_bullish",
     "divergence.breadth_regular_bearish",
+    "level.wick_test",
+    "signal.atr_compression",
+    "signal.atr_expansion",
+    "signal.atr_regime",
+    "signal.candle_momentum",
+    "signal.candle_rejection",
+    "signal.candle_marubozu",
+    "signal.pattern_hammer",
+    "signal.pattern_star",
+    "signal.pattern_three_soldiers",
+    "signal.pattern_three_crows",
+    "signal.gap_continuation",
+    "signal.gap_fade",
+    "signal.relative_strength_cross",
+    "signal.lead_lag_cross",
+    "signal.breadth_cross",
+    "signal.co_movement_cross",
+    "signal.dispersion_cross",
+    "signal.opening_range_breakout",
+    "signal.overnight_continuation",
+    "signal.overnight_fade",
+    "signal.session_range_contraction",
 }
 ROW_FIXTURE_EVENT_CLASSES = (
     "formula",
