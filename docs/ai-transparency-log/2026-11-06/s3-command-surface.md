@@ -149,3 +149,32 @@ authorization. The work is local to the task branch `docs/s3-command-contracts`.
   so `strategy run` refuses it rather than inventing a side.
 - Publication (push, pull request, merge, tag, or release) is pending human
   authorization. The work is local to the task branch.
+
+## 8. Phase 3 — execution command
+
+- Intent and boundary: add `execution run`, the strategy decisions reader, and
+  the execution bundle. The stage reads the decisions bundle and the run config;
+  it does not read a strategy config, a model bundle, a statistic, or a policy
+  decision.
+- Implemented: `crates/quantrule-shell/src/execution/decisions.rs`,
+  `crates/quantrule-shell/src/execution/run.rs`,
+  `crates/quantrule-shell/src/command/execution.rs`, command wiring, help,
+  README, execution lab, and the Phase 3 plan record.
+- Verification: `cargo test --workspace` 1,208 passed, 0 failed, 8 ignored;
+  clippy, fmt, doc, all model gates, links, terms, legacy, file size, and
+  `git diff --check` pass. The command-surface checker reports 11 implemented and
+  4 planned. The integration test builds the model and strategy bundles, then
+  proves the execution bundle shape, byte determinism, the non-empty-target
+  refusal, the data-version handoff, and the bracket-decision refusal.
+- Corrections: the first summary formatter mixed positional and named format
+  arguments and was replaced with `writeln!`; the first `summary_bytes` had nine
+  arguments and was grouped into `SummaryInput` to satisfy the lint. The first
+  iteration tried to zip a `TimeframeSeries` directly; the command now collects
+  the execution candles explicitly.
+- Learning: execution cannot size a bracket decision from the decision alone
+  because the side is unknown until a fill; the standalone command refuses it
+  and leaves it to the full runner. The decisions bundle's data version and bar
+  identity are both checked before any order is submitted, so a mismatched
+  handoff fails before a fill.
+- Publication (push, pull request, merge, tag, or release) is pending human
+  authorization. The work is local to the task branch.

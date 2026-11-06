@@ -13,6 +13,7 @@ use quantrule_data::Timeframe;
 
 use crate::config::ConfigError;
 use crate::csv::SourceError;
+use crate::execution::ExecutionRunError;
 use crate::fetch::FetchRunError;
 use crate::render_report::BundleError;
 use crate::source::{DateRange, Symbol};
@@ -37,6 +38,8 @@ pub(crate) enum Command {
     StrategyExplain(StrategyExplainArgs),
     /// Write the strategy decisions bundle for one model bundle.
     StrategyRun(StrategyRunArgs),
+    /// Turn a strategy decisions bundle into orders, fills, and rejections.
+    ExecutionRun(ExecutionRunArgs),
     /// Fetch a Dukascopy range and write a CSV.
     Fetch(FetchArgs),
     /// Print the command reference, one command, or a reference topic.
@@ -121,6 +124,19 @@ pub(crate) struct StrategyRunArgs {
     pub(crate) json: bool,
 }
 
+/// A parsed `execution run` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ExecutionRunArgs {
+    /// The strategy decisions bundle.
+    pub(crate) decisions: PathBuf,
+    /// The run configuration.
+    pub(crate) config: PathBuf,
+    /// The output root, or the decisions bundle's parent.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print a JSON envelope of the artifact paths.
+    pub(crate) json: bool,
+}
+
 /// A parsed `fetch` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FetchArgs {
@@ -153,6 +169,8 @@ pub(crate) enum ParseError {
     Policy(String),
     /// A strategy command is invalid.
     Strategy(String),
+    /// An execution command is invalid.
+    Execution(String),
     /// A fetch command is invalid.
     Fetch(String),
     /// A help topic is invalid.
@@ -172,6 +190,7 @@ impl fmt::Display for ParseError {
             | Self::Report(message)
             | Self::Policy(message)
             | Self::Strategy(message)
+            | Self::Execution(message)
             | Self::Fetch(message)
             | Self::Help(message) => formatter.write_str(message),
         }
@@ -245,6 +264,8 @@ pub(crate) enum RunError {
     Report(ReportError),
     /// The strategy command failed.
     Strategy(StrategyRunError),
+    /// The execution command failed.
+    Execution(ExecutionRunError),
     /// The bundle could not be written.
     Bundle(BundleError),
     /// The fetch failed.
@@ -262,6 +283,7 @@ impl fmt::Display for RunError {
             Self::Source(error) => error.fmt(formatter),
             Self::Report(error) => error.fmt(formatter),
             Self::Strategy(error) => error.fmt(formatter),
+            Self::Execution(error) => error.fmt(formatter),
             Self::Bundle(error) => error.fmt(formatter),
             Self::Fetch(error) => error.fmt(formatter),
             Self::Help(message) => formatter.write_str(message),
@@ -277,6 +299,7 @@ impl std::error::Error for RunError {
             Self::Source(error) => Some(error),
             Self::Report(error) => Some(error),
             Self::Strategy(error) => Some(error),
+            Self::Execution(error) => Some(error),
             Self::Bundle(error) => Some(error),
             Self::Fetch(error) => Some(error),
             Self::Output(error) => Some(error),

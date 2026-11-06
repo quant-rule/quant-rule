@@ -7,6 +7,7 @@
 
 mod data;
 mod dispatch;
+mod execution;
 mod fetch;
 mod help;
 mod parse;
@@ -19,6 +20,7 @@ pub(crate) mod types;
 mod tests;
 
 pub(crate) use self::dispatch::{execute, parse_argv};
+pub(crate) use self::execution::{parse_execution_arguments, run_execution};
 pub(crate) use self::parse::{parse, parse_help_arguments, parse_model_arguments};
 pub(crate) use self::policy::{parse_policy_arguments, run_policy_check};
 pub(crate) use self::report_run::{parse_report_arguments, run_report};

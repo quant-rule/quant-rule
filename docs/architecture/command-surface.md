@@ -49,7 +49,7 @@ the policy and the engine configuration files; it does not decide a trade.
 | 1 | Data Engine | Raw OHLCV | Normalized candles, timeframes, gaps, quality | `candles`, `candles-tolerant`, `timeframes`, `fetch` | Implemented |
 | 2 | Model Engine | Candles/timeframes and model config | Readings, discrete states, confirmed levels, events, progression, context | `events`, `report model` | Implemented |
 | 3 | Strategy Engine | Model measurements, strategy config, position state | Decisions/signals and their as-of rationale | `strategy explain`, `strategy run` | Implemented |
-| 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, and rejections | `execution run` | Planned |
+| 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, and rejections | `execution run` | Implemented |
 | 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | `portfolio replay` | Planned |
 | 6 | **Qualification Engine** | Evidence bundle and human-owned acceptance criteria | Qualification record and verdict | `qualify` | Planned |
 | 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | `analytics evaluate` | Planned |
@@ -93,7 +93,7 @@ the distinction.
 | `help` | Shell | Implemented | `[<command>\|all\|glossary]` | Plain text |
 | `strategy explain` | Strategy | Implemented | Model bundle, strategy config, bar index | One decision and its as-of evidence |
 | `strategy run` | Strategy | Implemented | Model bundle, strategy config | Decisions bundle |
-| `execution run` | Execution | Planned | Decisions bundle, run config with execution and sizing | Fills bundle |
+| `execution run` | Execution | Implemented | Decisions bundle, run config with execution and sizing | Fills bundle |
 | `portfolio replay` | Portfolio | Planned | Fills bundle, run config | Portfolio bundle |
 | `backtest run` | Orchestration | Planned | Run config, strategy config | Stage bundles and a run manifest |
 | `qualify` | Qualification | Planned | Evidence bundle, qualification criteria | Qualification record and verdict |
@@ -106,6 +106,11 @@ pipeline command and is not part of the stage contract.
 compression-bracket engine needs the fill side that execution supplies, so it is
 available through `strategy explain` for one decision until the backtest runner
 reaches the stage.
+
+`execution run` consumes the strategy decisions bundle and the run config. A
+standalone run sizes entries from the run's initial cash; it does not track
+equity. A bracket decision needs the runner's side-aware sizing and is refused
+with a clear error until the backtest runner supplies it.
 
 ## 4. Artifact and provenance rule
 
@@ -209,7 +214,7 @@ The command surface is delivered in the S3.x sequence, one stage at a time:
 |---:|---|---|
 | 1 | Command and artifact contracts, qualification criteria, drift checker | Implemented and verified locally; publication pending |
 | 2 | Strategy commands and decisions artifact | Implemented and verified locally; publication pending |
-| 3 | Execution command and fills artifact | Planned |
+| 3 | Execution command and fills artifact | Implemented and verified locally; publication pending |
 | 4 | Portfolio command and performance artifact | Planned |
 | 5 | Backtest orchestration command | Planned |
 | 6 | Qualification command and record | Planned |

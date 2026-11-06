@@ -1,7 +1,7 @@
 # S3.x Command Surface — Stage-Isolated Pipeline Access
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved; Phase 1 merged; Phase 2 implemented and verified locally; publication pending
+- Status: Approved; Phase 1 merged; Phase 2 merged; Phase 3 implemented and verified locally; publication pending
 - Issue: none (human-approved slug; no issue number is invented)
 - Branch: `docs/s3-command-contracts`
 - Worktree: `s3-command-contracts` (OpenCode task worktree)
@@ -395,4 +395,55 @@ Quant Validator record is not claimed, and the PR states the reason it is not
 applicable to a model or strategy behavior change.
 
 Phase 2 is verified locally. Publication (commit, push, and pull request) is
+pending human authorization.
+
+## 15. Phase 3 verification record
+
+Observed in the Phase 3 worktree on 2026-11-06:
+
+| Check | Result |
+|---|---|
+| `cargo test --workspace` | 1,208 passed, 0 failed, 8 ignored. |
+| `cargo clippy --all-targets -- -D warnings` | Pass. |
+| `cargo fmt --all -- --check` | Pass. |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | Pass. |
+| `python3 tools/check_command_surface.py` | Pass; 11 implemented, 4 planned, 11 README rows, 3 tutorial files. |
+| `python3 tools/check_registry.py` | Pass; 46 indicators, 143 events, 101 parameters. |
+| `python3 tools/check_validation.py` | Pass; 189 claims. |
+| `python3 tools/check_verification.py` | Pass; row=1091 family=329 tool=332 n/a=327. |
+| `python3 tools/check_verification_matrix.py` | Pass; 46 indicators, 143 events. |
+| `python3 tools/check_event_emitters.py` | Pass; 143 registered codes. |
+| `python3 tools/check_links.py` | Pass; 575 Markdown files. |
+| `python3 tools/check_terms.py` | Pass; 345 files. |
+| `python3 tools/check_legacy.py` | Pass; 645 current files. |
+| `python3 tools/check_file_size.py` | Pass. |
+| `git diff --check` | Pass (run before publication). |
+
+Behavior evidence:
+
+- `execution run` on the fixture decisions writes `orders.csv`, `fills.csv`,
+  `rejections.csv`, `summary.txt`, and `provenance.json`.
+- The fixture produces two fills: an entry at bar 19 and a stop-loss exit at bar
+  30; the rejection table is empty.
+- Two runs into separate roots are byte-identical.
+- A non-empty execution target is refused.
+- A decisions bundle whose `data_version` differs from the run's is refused.
+- A synthetic `enter_bracket` decision is refused with the side-aware sizing
+  reason.
+- The execution bundle carries no account cash balance, equity curve, or P&L;
+  the summary records the initial cash and notional cap used for sizing.
+
+The execution stage reads the strategy decisions bundle and the run config. It
+does not read a strategy config, a model bundle, a statistic, or a policy
+decision. A standalone run sizes entries from the run's initial cash; the full
+backtest runner supplies the ledger's current equity.
+
+No independent Code Reviewer or Quant Validator pass has been performed. The
+agent performed the implementation and the self-review in one session; no
+independent review is claimed. The change adds a stage command and writes the
+existing execution engine's records; it does not change a signal formula, event
+definition, or strategy rule. The Quant Validator record is not claimed, and the
+PR states the reason it is not applicable to a model or strategy behavior change.
+
+Phase 3 is verified locally. Publication (commit, push, and pull request) is
 pending human authorization.
