@@ -1,7 +1,7 @@
 # S3.x Command Surface — Stage-Isolated Pipeline Access
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved; Phase 1 merged; Phase 2 merged; Phase 3 implemented and verified locally; publication pending
+- Status: Approved; Phase 1 merged; Phase 2 merged; Phase 3 merged; Phase 4 implemented and verified locally; publication pending
 - Issue: none (human-approved slug; no issue number is invented)
 - Branch: `docs/s3-command-contracts`
 - Worktree: `s3-command-contracts` (OpenCode task worktree)
@@ -446,4 +446,51 @@ definition, or strategy rule. The Quant Validator record is not claimed, and the
 PR states the reason it is not applicable to a model or strategy behavior change.
 
 Phase 3 is verified locally. Publication (commit, push, and pull request) is
+pending human authorization.
+
+## 16. Phase 4 verification record
+
+Observed in the Phase 4 worktree on 2026-11-06:
+
+| Check | Result |
+|---|---|
+| `cargo test --workspace` | 1,220 passed, 0 failed, 8 ignored. |
+| `cargo clippy --all-targets -- -D warnings` | Pass. |
+| `cargo fmt --all -- --check` | Pass. |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | Pass. |
+| `python3 tools/check_command_surface.py` | Pass; 12 implemented, 3 planned, 12 README rows, 4 tutorial files. |
+| `python3 tools/check_registry.py` | Pass; 46 indicators, 143 events, 101 parameters. |
+| `python3 tools/check_validation.py` | Pass; 189 claims. |
+| `python3 tools/check_verification.py` | Pass; row=1091 family=329 tool=332 n/a=327. |
+| `python3 tools/check_verification_matrix.py` | Pass; 46 indicators, 143 events. |
+| `python3 tools/check_event_emitters.py` | Pass; 143 registered codes. |
+| `python3 tools/check_links.py` | Pass; 576 Markdown files. |
+| `python3 tools/check_terms.py` | Pass; 346 files. |
+| `python3 tools/check_legacy.py` | Pass; 650 current files. |
+| `python3 tools/check_file_size.py` | Pass. |
+| `git diff --check` | Pass (run before publication). |
+
+Behavior evidence:
+
+- `portfolio replay` on the fixture fills writes `trades.csv`, `equity.csv`,
+  `funding.csv`, `risk_events.csv`, `metrics.json`, `summary.txt`, and
+  `provenance.json`.
+- The fixture produces one closed trade with a stop exit and no funding charge;
+  `final_equity = initial_cash + net_pnl` holds.
+- An empty fills bundle produces zero trades and `win_rate`, `profit_factor`, and
+  `average_trade` as `null`, never zero.
+- Two runs into separate roots are byte-identical.
+- A non-empty portfolio target is refused.
+- A fills bundle whose `data_version` differs from the run's is refused.
+- The portfolio bundle carries account cash, equity, P&L, exposure, and drawdown;
+  the metrics are accounting measurements, not a profitability claim.
+
+No independent Code Reviewer or Quant Validator pass has been performed. The
+agent performed the implementation and the self-review in one session; no
+independent review is claimed. The change adds a stage command and writes the
+existing portfolio engine's records; it does not change a signal formula, event
+definition, or strategy rule. The Quant Validator record is not claimed, and the
+PR states the reason it is not applicable to a model or strategy behavior change.
+
+Phase 4 is verified locally. Publication (commit, push, and pull request) is
 pending human authorization.

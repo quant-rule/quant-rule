@@ -15,6 +15,7 @@ use crate::config::ConfigError;
 use crate::csv::SourceError;
 use crate::execution::ExecutionRunError;
 use crate::fetch::FetchRunError;
+use crate::portfolio::PortfolioRunError;
 use crate::render_report::BundleError;
 use crate::source::{DateRange, Symbol};
 use crate::strategy::StrategyRunError;
@@ -40,6 +41,8 @@ pub(crate) enum Command {
     StrategyRun(StrategyRunArgs),
     /// Turn a strategy decisions bundle into orders, fills, and rejections.
     ExecutionRun(ExecutionRunArgs),
+    /// Replay an execution fills bundle into portfolio accounting.
+    PortfolioReplay(PortfolioReplayArgs),
     /// Fetch a Dukascopy range and write a CSV.
     Fetch(FetchArgs),
     /// Print the command reference, one command, or a reference topic.
@@ -137,6 +140,19 @@ pub(crate) struct ExecutionRunArgs {
     pub(crate) json: bool,
 }
 
+/// A parsed `portfolio replay` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PortfolioReplayArgs {
+    /// The execution fills bundle.
+    pub(crate) fills: PathBuf,
+    /// The run configuration.
+    pub(crate) config: PathBuf,
+    /// The output root, or the fills bundle's parent.
+    pub(crate) out: Option<PathBuf>,
+    /// Whether to print a JSON envelope of the artifact paths.
+    pub(crate) json: bool,
+}
+
 /// A parsed `fetch` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FetchArgs {
@@ -171,6 +187,8 @@ pub(crate) enum ParseError {
     Strategy(String),
     /// An execution command is invalid.
     Execution(String),
+    /// A portfolio command is invalid.
+    Portfolio(String),
     /// A fetch command is invalid.
     Fetch(String),
     /// A help topic is invalid.
@@ -191,6 +209,7 @@ impl fmt::Display for ParseError {
             | Self::Policy(message)
             | Self::Strategy(message)
             | Self::Execution(message)
+            | Self::Portfolio(message)
             | Self::Fetch(message)
             | Self::Help(message) => formatter.write_str(message),
         }
@@ -266,6 +285,8 @@ pub(crate) enum RunError {
     Strategy(StrategyRunError),
     /// The execution command failed.
     Execution(ExecutionRunError),
+    /// The portfolio command failed.
+    Portfolio(PortfolioRunError),
     /// The bundle could not be written.
     Bundle(BundleError),
     /// The fetch failed.
@@ -284,6 +305,7 @@ impl fmt::Display for RunError {
             Self::Report(error) => error.fmt(formatter),
             Self::Strategy(error) => error.fmt(formatter),
             Self::Execution(error) => error.fmt(formatter),
+            Self::Portfolio(error) => error.fmt(formatter),
             Self::Bundle(error) => error.fmt(formatter),
             Self::Fetch(error) => error.fmt(formatter),
             Self::Help(message) => formatter.write_str(message),
@@ -300,6 +322,7 @@ impl std::error::Error for RunError {
             Self::Report(error) => Some(error),
             Self::Strategy(error) => Some(error),
             Self::Execution(error) => Some(error),
+            Self::Portfolio(error) => Some(error),
             Self::Bundle(error) => Some(error),
             Self::Fetch(error) => Some(error),
             Self::Output(error) => Some(error),

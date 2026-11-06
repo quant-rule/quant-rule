@@ -293,7 +293,9 @@ portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [-
 
 The run configuration supplies the data source, the portfolio configuration, and
 the mark-to-market rule. The fills bundle supplies the executed trades. The
-command refuses a fills artifact whose stage or schema is unsupported.
+command refuses a fills artifact whose stage or schema is unsupported, and it
+refuses a fills data version that does not match the run's. It marks each
+execution-timeframe close and records one equity point per UTC date.
 
 ### 7.2 Portfolio bundle
 

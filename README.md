@@ -11,10 +11,10 @@ numbers, nulls, and stable codes. It carries no composite score, no composite di
 vote, no composite view, and no cross-timeframe aggregate.
 
 The current shell surface covers data inspection, event records, the flat model
-report, strategy decisions, execution fills, policy validation, source fetch, and
-help. Portfolio and backtest runs are future work; their engines remain in the
-workspace for S3.x. The stage contract, the planned commands, and the
-implemented/planned status are in
+report, strategy decisions, execution fills, portfolio accounting, policy
+validation, source fetch, and help. Backtest runs are future work; the runner
+remains in the workspace for S3.x. The stage contract, the planned commands, and
+the implemented/planned status are in
 [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
 Only the commands in the table below are available today.
 
@@ -44,6 +44,7 @@ one command and exits with the command's status:
 | `strategy explain` | `--model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat\|long\|short]` | One JSON decision record and its as-of evidence |
 | `strategy run` | `--model <model-bundle> --strategy <strategy.json> [--out <dir>] [--json]` | The decisions bundle, or its artifact paths |
 | `execution run` | `--decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json]` | The execution bundle, or its artifact paths |
+| `portfolio replay` | `--fills <execution-bundle> --config <run.json> [--out <dir>] [--json]` | The portfolio bundle, or its artifact paths |
 | `policy check` | `--config <run.json>` | One `policy ok ...` line after every config check |
 | `fetch` | `<symbol> <start> <end> [--timeframe <1m\|5m\|15m\|1h>] [--csv <path>]` | The CSV path and the accepted/rejected counts |
 | `help` | `[<command>\|all\|glossary]` | The command map, one contract, or the glossary |
@@ -63,6 +64,7 @@ quantrule report model --config crates/quantrule-shell/tests/fixtures/config-run
 quantrule strategy explain --model target/report/model --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json --bar 21
 quantrule strategy run --model target/report/model --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json --out target/report
 quantrule execution run --decisions target/report/strategy --config crates/quantrule-shell/tests/fixtures/config-run/run.json --out target/report
+quantrule portfolio replay --fills target/report/execution --config crates/quantrule-shell/tests/fixtures/config-run/run.json --out target/report
 quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 1h --csv data/sources/XAUUSD_H1.csv
 ```
 
@@ -83,7 +85,7 @@ The stage table below is the target, not a promise that a command exists today.
 | 2 | Model Engine | Candles/timeframes and model config | Readings, states, levels, events, progression, context | Implemented |
 | 3 | Strategy Engine | Model measurements, strategy config, position state | Decisions/signals and as-of rationale | Implemented |
 | 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, rejections | Implemented |
-| 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | Planned |
+| 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | Implemented |
 | 6 | Qualification Engine | Evidence bundle and human-owned criteria | Qualification record and verdict | Planned |
 | 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | Planned |
 
