@@ -125,7 +125,7 @@ The naming registry does not authorize deletion. The removal list is in
 
 - **Keep:** history records (AI transparency logs, improvement run records,
   audits, execution plans, reports), the `M1.0` model engine and tests, and the
-  shared data/model/backtest/analytics/shell engines.
+  shared data/model/backtest/shell libraries.
 - **Remove later:** old strategy-specific configs, old strategy contract docs,
   old strategy-specific parsers, and old strategy-specific evaluation tools
   after a reference check.

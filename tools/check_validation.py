@@ -3,8 +3,9 @@
 
 The validation file is the bridge between the documentation registry and the
 verification harness. This checker fails when an active indicator or event has
-no claim, when a claim names an unknown or inactive registry entry, or when a
-signal/context event has no primary outcome.
+no claim, when a claim names an unknown or inactive registry entry, when a
+signal/context event has no primary outcome, or when a construct test does not
+resolve to a Rust test function.
 
 Usage:
     python3 tools/check_validation.py
@@ -13,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -66,6 +68,7 @@ def check(registry: dict[str, Any], validation: dict[str, Any]) -> list[str]:
         for event in registry.get("events", [])
         if event.get("status") == "active"
     }
+    rust_functions = rust_function_names()
     seen: set[str] = set()
     claimed_indicators: set[str] = set()
     claimed_events: set[str] = set()
@@ -105,6 +108,10 @@ def check(registry: dict[str, Any], validation: dict[str, Any]) -> list[str]:
             not isinstance(test, str) or not test for test in tests
         ):
             errors.append(f"{label}.construct_tests must be a non-empty string array")
+        elif isinstance(tests, list):
+            for test in tests:
+                if isinstance(test, str) and test.rsplit("::", 1)[-1] not in rust_functions:
+                    errors.append(f"{label}.construct_tests names a missing function: {test}")
         if "construct_status" in claim and claim["construct_status"] not in CONSTRUCT_STATUSES:
             errors.append(f"{label}.construct_status is invalid")
         outcome = claim.get("primary_outcome")
@@ -144,6 +151,21 @@ def check(registry: dict[str, Any], validation: dict[str, Any]) -> list[str]:
     return errors
 
 
+def rust_function_names() -> set[str]:
+    """Collect functions that carry a test attribute within the previous lines."""
+    names: set[str] = set()
+    for path in (ROOT / "crates").rglob("*.rs"):
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        for index, line in enumerate(lines):
+            match = re.match(r"\s*fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", line)
+            if match is None:
+                continue
+            prefix = "\n".join(lines[max(0, index - 3) : index])
+            if "#[test]" in prefix:
+                names.add(match.group(1))
+    return names
+
+
 def main() -> int:
     registry = load(REGISTRY)
     validation = load(VALIDATION)
@@ -152,9 +174,11 @@ def main() -> int:
         for error in errors:
             print(f"error: {error}", file=sys.stderr)
         return 1
+    active_events = sum(1 for event in registry["events"] if event.get("status") == "active")
     print(
         f"validation claims ok: {len(validation['claims'])} claims "
-        f"for {len(registry['indicators'])} indicators and {len(registry['events'])} events"
+        f"for {len(registry['indicators'])} indicators and {active_events} active events "
+        f"({len(registry['events'])} total)"
     )
     return 0
 

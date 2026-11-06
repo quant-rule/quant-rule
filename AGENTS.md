@@ -20,7 +20,7 @@ INPUT > DATA ENGINE > MODEL ENGINE > OUTPUT
 
 - **INPUT — data sources.** Candles originate from one or more historic sources. Sources are interchangeable; nothing upstream of the data engine may assume a particular vendor, format, or transport.
 - **DATA ENGINE — ingestion and processing.** Ingests candles from the shell, which performs the source access, then processes them and emits a time series of OHLCV candles per timeframe. The data engine owns candle normalization, timeframe construction, ordering, and gap handling. It knows nothing about indicators or strategies, and it never reaches for a source itself.
-- **MODEL ENGINE — the analytical model.** Takes the candle series as input and produces a market state. **Indicator readings** compute the calculation families: exponential moving averages, relative strength index, average true range, relative volume, MACD, and confirmed swing pivots. **Event detection** turns those readings into published numbers: three shared event types — **level**, **divergence**, and **signal** — plus discrete per-indicator states and progression legs. The model publishes per-timeframe results only; cross-timeframe reporting views are computed outside the model run by analytics/reporting. Every indicator and event has one definition, one role, and one claim in the registry; a reading may feed several events, and each event states its own definition. The model layer publishes numbers — continuous values, ordinal codes, and discrete codes — and never words; labels are a presentation mapping in the shell.
+- **MODEL ENGINE — the analytical model.** Takes the candle series as input and produces a market state. **Indicator readings** compute the calculation families: exponential moving averages, relative strength index, average true range, relative volume, MACD, and confirmed swing pivots. **Event detection** turns those readings into published numbers: three shared event types — **level**, **divergence**, and **signal** — plus discrete per-indicator states and progression legs. The model publishes per-timeframe results only; cross-timeframe reporting views are computed outside the model run by a reporting consumer. Every indicator and event has one definition, one role, and one claim in the registry; a reading may feed several events, and each event states its own definition. The model layer publishes numbers — continuous values, ordinal codes, and discrete codes — and never words; labels are a presentation mapping in the shell.
 - **OUTPUT — the market state.** The per-timeframe readings, states, confirmed levels, event records, progression legs, context, and coverage. Reports compute descriptive cross-timeframe views from those measurements; the strategy composes its own as-of context from events and states. The legacy Direction, Momentum, and Structure scores are retired and are not model outputs; the Progression series remains a published measurement.
 
 The shell is not a fifth stage. It wraps the pipeline: it feeds commands into it and renders what comes back out. The stages above describe data flow, and the shell is the only surface through which that flow is reached.
@@ -39,14 +39,16 @@ Invariants that the pipeline depends on:
 - Availability, not occurrence: a measurement that becomes knowable only later — a confirmed swing pivot, a divergence — records both when it occurred and when it became knowable, and it never reaches an earlier bar.
 - No double counting: a reading may feed more than one event, but each event states its own definition, and a correlated event is not a second vote. A strategy names each event it uses once.
 
-The Rust workspace holds one crate per pipeline stage, plus the research engine, with dependencies pointing one way:
+The Rust workspace holds one crate per pipeline stage, with dependencies pointing one way:
 
 - `crates/quantrule-data` — the data engine.
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
-- `crates/quantrule-backtest` — the strategy, execution, and portfolio engines and the deterministic runner, which depend on `quantrule-model` and `quantrule-data`.
+- `crates/quantrule-backtest` — the execution, portfolio, and generic strategy engines, which depend on `quantrule-model` and `quantrule-data`. The runner and the multi-timeframe strategy context are S3.x.
 - `crates/quantrule-shell` — the shell binary, which depends on `quantrule-model`, `quantrule-backtest`, and `quantrule-data`.
 
 The research engine (`quantrule-analytics`) was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.
+
+The current implementation publishes the model surface only. The shell exposes data inspection, the event batch, `report model`, `policy check`, source fetch, and help. Strategy, execution, portfolio, backtest, and analytics runs are the S3.x target; the backtest crate remains a library and no strategy or backtest command is reachable from the current shell.
 
 The decision stack above the pipeline is one-way:
 
@@ -111,7 +113,6 @@ When principles appear to conflict, follow the project's explicit architectural 
 
 - **Command.** `cargo test` must pass before a pull request is proposed. Do not weaken, remove, or skip a test to obtain a passing result.
 - **Unit tests** live next to the code they cover, in the same module. Integration tests live in the `tests/` directory of the crate that owns the code they cover, because a virtual workspace root holds no package and a root `tests/` directory is never compiled.
-- **Future paths.** The `cargo` commands above describe the layout the Rust workspace will use. Until the workspace exists, no test command applies, and no claim of a passing test run may be made.
 - **Causality tests.** An indicator or rule that consumes a series must have a test proving that its output for a given bar does not change when later bars are appended, changed, or removed. This is the direct test for the causality rule in section 3.
 - **Determinism tests.** Any computation that participates in signal generation must have a test asserting that the same input yields the same output across repeated runs, across a reordered collection, across a change in the iteration order of any unordered map or set it traverses, and across a different split or scheduling of the work. This is the direct test for section 12.
 - **Golden tests.** Indicator and rule output is compared against a checked-in fixture of expected values, so a numerical or structural regression fails loudly rather than silently. Fixtures are data, not code, and are regenerated deliberately — never casually — when an intentional change alters expected output.
@@ -120,7 +121,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **Strategy validation.** A claim that a rule is profitable reports in-sample and out-of-sample results, cost assumptions, and every variation tried. Out-of-sample evidence is required before the claim is called promising; a backtest on the tuning sample is not validation.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Model-layer tests.** Every indicator and every event has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
-- **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. The strategy explain command is tested as printed output. A boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
+- **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. For S3.x, the strategy explain command is tested as printed output, and a boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
 - **Audit regression guards.** A fix for an audit finding carries a regression test that fails before the fix and passes after it, or a written reason why a fail-before test is impossible.
 - **Improvement-run reproducibility.** A run record names the data versions, configs, partitions, costs, and matrix; the same manifest and config reproduce the same artifacts.
 - **Event tests.** An event appears only at or after the bar on which it became knowable, one underlying occurrence is never emitted twice, the level-event precedence is respected, and a divergence is never emitted before the pivot that confirms it has become knowable.
@@ -134,7 +135,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 
 ## 5. Documentation
 
-- **Rustdoc** on public items, with examples that compile. `cargo doc` must build without warnings. Until the Rust workspace exists, this command does not apply and no doc-build claim may be made.
+- **Rustdoc** on public items, with examples that compile. `cargo doc` must build without warnings.
 - **Module docs** with `//!` at the top of a module that explain the module's role and its boundary against neighboring modules.
 - **README** is updated in the same change as any user-facing behavior change.
 - **Command reference.** The command set is documented — the name of each command, its arguments, its output, and a worked example — in the README or under `docs/`. A change to a command's contract updates that reference in the same pull request.
@@ -637,7 +638,9 @@ Roles:
   analytics/data/no-edge and routes the work.
 
 The workflow runs the model, strategy, and portfolio tiers one at a time under
-the run contract in `docs/workflows/run-contract.md`.
+the run contract in `docs/workflows/run-contract.md`. The strategy and portfolio
+tiers are S3.x; the current model programme is executed with the research
+tooling and `report model`, not with a shell `backtest` command.
 
 Boundaries: the Improvement Workflow may run an approved protocol and recommend.
 It may not implement, change a config directly, accept a baseline, merge,

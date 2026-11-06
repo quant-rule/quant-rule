@@ -1,5 +1,8 @@
 # Experiment Matrix Runner
 
+> Status: historical / S3.x target. The M1.0 shell has no `backtest` command.
+> The runner is retained for the tiered S3.x workflow.
+
 `run-matrix.sh` runs one `backtest` per manifest cell, in manifest order, with an
 isolated output root. It is deterministic: it reads no clock, uses no randomness,
 and does not reorder the cells.

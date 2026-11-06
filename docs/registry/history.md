@@ -1,7 +1,8 @@
 # Current-Architecture History Index
 
 - Date: 2026-11-05 (UTC)
-- Status: Current boundary; P0.1–P7 complete; P8 not started
+- Updated: 2026-11-06 for the P8 closeout
+- Status: Current boundary; P0.1–P8 complete; M3 preflight underpowered
 - Freeze commit: `32e6fb2`
 - Manifest commit: `8acf857`
 - Work item: [#468](https://github.com/quant-rule/quant-rule/issues/468)
@@ -31,11 +32,12 @@ evidence remains. It is not a current architecture contract.
 | `crates/quantrule-model/src/spec/**` | Model-spec evaluation |
 | `crates/quantrule-model/src/timeframe.rs`, `run.rs`, `input.rs`, `kernel.rs` | Flat per-timeframe model and run |
 | `crates/quantrule-backtest/src/{execution,portfolio}/**` | Execution and portfolio engines |
+| `crates/quantrule-backtest/src/{strategy,benchmark}/**`, `intent.rs`, `side.rs` | Generic strategy, benchmark, and intent vocabulary retained for S3.x |
 | `crates/quantrule-shell/src/{config,command,source}` | Current shell surface |
 | `docs/registry/**` | Registry, validation, history |
 | `docs/model/2026-11-05/**` | Current model family and spec contracts |
 | `docs/architecture/**` | Current architecture |
-| `docs/workflows/**`, `docs/governance/**` | Current operating contracts |
+| `docs/workflows/**`, `docs/governance/**` | Current and S3.x operating contracts; each document states its own status |
 
 `docs/model/2026-11-05/model-m1.0.md` is the `M1.0` contract after the P2 rename.
 

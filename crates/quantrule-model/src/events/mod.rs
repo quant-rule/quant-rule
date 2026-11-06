@@ -6,10 +6,10 @@
 //! subtype, the source, the timeframe, the occurrence and availability bars, the
 //! direction, the reference, and the measured values.
 //!
-//! This module owns the shared record and the Level detector. Divergence and
-//! Signal are added by their own work items. The detectors are pure: they read
-//! candles, readings, and a configuration, and perform no I/O, read no clock, and
-//! use no randomness.
+//! This module owns the shared record and the event-type vocabulary. The
+//! detectors live in their own modules and are pure: they read candles,
+//! readings, and a configuration, and perform no I/O, read no clock, and use no
+//! randomness.
 
 pub mod codes;
 pub mod compression;
@@ -72,9 +72,7 @@ pub struct EventRecord {
     ///
     /// This is the event's identity. Type, subtype, and source describe the
     /// family, but several registered events share those three numbers; the
-    /// code distinguishes them. It is never reused after retirement. Code
-    /// [`codes::LEGACY_UNREGISTERED`] is reserved for legacy events outside
-    /// the typed registry.
+    /// code distinguishes them. It is never reused after retirement.
     pub event_code: u16,
     /// The event type.
     pub event_type: EventType,

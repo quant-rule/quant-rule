@@ -459,6 +459,21 @@ impl TimeframeModel {
         &self.extended_events
     }
 
+    /// The core and extended event batches as one availability-ordered view.
+    ///
+    /// The detectors append to two separate batches. A reporting consumer needs
+    /// one ordered stream, so this method merges them by availability bar and
+    /// then occurrence bar. The sort is stable, so records that share both keys
+    /// keep the detector append order.
+    #[must_use]
+    pub fn all_events(&self) -> Vec<EventRecord> {
+        let mut events = Vec::with_capacity(self.events.len() + self.extended_events.len());
+        events.extend_from_slice(self.events.as_slice());
+        events.extend_from_slice(self.extended_events.events());
+        events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
+        events
+    }
+
     /// The full event batch wrapper.
     #[must_use]
     pub const fn event_batch(&self) -> &EventBatch {

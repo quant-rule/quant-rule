@@ -1,6 +1,6 @@
 # Architecture Characteristics
 
-- Status: Current; approved 2026-10-31
+- Status: Current; approved 2026-10-31; updated 2026-11-06 for the current-surface cleanup
 - Companion: `docs/architecture/kata.md`
 - Decision: `docs/adr/2026-10-31/adopt-architecture-baseline.md`
 - Normative rules: `AGENTS.md` sections 2, 3, 4, and 12
@@ -43,7 +43,7 @@ properties that keep it. The distinction is analytical, not exclusive.
 | "the same candles and the same configuration produce the same bytes, every time" | Reproducibility (determinism) |
 | "no look-ahead"; events appear only when knowable | Temporal integrity (causality) |
 | "inspect engine by engine, and defend in a validation record"; refuse stale labs | Auditability (evidence traceability) |
-| "every reading, event, and rule has ... evidence"; boundaries must be provable | Testability (enabling) |
+| "every reading and event has ... evidence"; boundaries must be provable | Testability (enabling) |
 | "pure filters"; one-way dependencies; engines separate from the shell | Modularity |
 | "local, single-user, one process"; no server or GUI | Simplicity and deployability |
 | "revise it through a pre-registered experiment"; prior evidence remains valid | Evolvability |
@@ -57,7 +57,7 @@ sentence in the kata.
 | Characteristic | Type | What "good" means here | Fitness function | Current evidence |
 |---|---|---|---|---|
 | **Reproducibility (determinism)** | Custom / operational | Same candles + data version + configuration produce byte-identical artifacts, interactive or not. Pure engines; no clock, randomness, or I/O in the signal path; fixed accumulation order; ordered collections; atomic writes; provenance. | Determinism tests; byte-identical rerun tests; golden fixtures; lab identity checks. | Strong. Determinism and byte-identical rerun tests pass. The v0.2.0 release recorded a full-year run twice, with 29 files byte-identical across roots and on stdout. |
-| **Temporal integrity (causality)** | Custom / cross-cutting | No value at bar *t* depends on a later bar; every event appears only at or after its availability bar. Availability bars; as-of joins; confirmed pivots; immutable event records. | Causality and prefix tests per axis, event, and strategy; availability tests. | Strong. Causality, prefix, and availability tests cover the model and strategy suites. |
+| **Temporal integrity (causality)** | Custom / cross-cutting | No value at bar *t* depends on a later bar; every event appears only at or after its availability bar. Availability bars; as-of joins; confirmed pivots; immutable event records. | Causality and prefix tests per reading, event, and model run; availability tests. | Strong. Causality, prefix, availability, and merged-event-order tests cover the model suite. |
 | **Auditability (evidence traceability)** | Cross-cutting | Every result names its data version, config hash, model version, period, and artifacts; a bundle is refused when its target is not empty. Provenance; report bundle; ADR trail. | `provenance.json`; byte-identical rerun tests; report-bundle tests. | Strong for the current surface. |
 
 ## 4. Enabling characteristic: Testability
@@ -67,10 +67,11 @@ drivers credible: a reproducibility claim is only as good as the test that rerun
 the bytes, and a causality claim is only as good as the prefix test that appends
 future bars and asserts the past does not move. It is nonetheless non-negotiable.
 
-Every reading, event, and rule carries unit, fixed-expected-value, causality,
-determinism, and edge-case tests. The `StrategyInput` boundary has a test proving
-it exposes only bar identity and the published progression values. The crate graph
-and the shell/engine boundary have source-level guards.
+Every reading and event carries unit, fixed-expected-value, causality,
+determinism, and edge-case tests. The backtest crate's `StrategyInput` boundary
+has a test proving it exposes only bar identity and the published progression
+values; that boundary is S3.x. The crate graph and the shell/engine boundary have
+source-level guards.
 
 Fitness function: `cargo test`; golden fixtures; boundary tests; architecture
 guards; `cargo clippy --all-targets`. Current evidence: the P3 cutover suite passes

@@ -1,6 +1,7 @@
 # Indicator and Parameter Registry
 
 - Date: 2026-11-03 (UTC)
+- Updated: 2026-11-06 for the current-surface cleanup
 - Status: Populated 2026-11-03; CI check in `tools/check_registry.py`
 - Contract: [`docs/model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md)
 - ADR: [`docs/adr/2026-11-03/flat-indicator-event-model.md`](../adr/2026-11-03/flat-indicator-event-model.md)
@@ -8,17 +9,18 @@
 ## 1. Purpose
 
 The registry is the single documented index of every indicator, event, source
-code, and behaviour-affecting parameter in the model, policy, execution, and
-portfolio contracts.
+code, and behaviour-affecting parameter in the model, policy, execution,
+portfolio, and benchmark contracts.
 
 If a number can change a model value, an event, a strategy decision, a fill, a
 position, or a reported result, it belongs here. A number that is not in the
-registry must not affect the model or the strategy.
+registry must not affect the model or an approved strategy.
 
-The registry is documentation and validation metadata. It is not a runtime
-configuration source. The model and strategy read their JSON configs; the
-registry checks that those configs and the code defaults agree with the
-documented contract.
+The registry is documentation and validation metadata. It is not a
+user-editable runtime configuration source. The spec parser embeds it at compile
+time so event identifiers and roles cannot drift from the published registry.
+The engines read their JSON configs; the registry checks that those configs and
+the code defaults agree with the documented contract.
 
 ## 2. Files
 
@@ -88,9 +90,9 @@ by it.
 | `type` | `integer`, `number`, `boolean`, `string`, `array<...>`, or `object` |
 | `default` | Default value; must match the code |
 | `min`, `max`, `enum` | Allowed range or set, when applicable |
-| `unit` | `bars`, `fraction`, `atr`, `seconds`, `bps`, `currency`, or `none` |
+| `unit` | `bars`, `records`, `fraction`, `atr`, `seconds`, `bps`, `currency`, `period`, or `none` |
 | `configurable` | `true` when a run config may change it; `false` for a fixed formula constant |
-| `affects` | `model`, `strategy`, `policy`, `execution`, `portfolio`, `analytics` |
+| `affects` | `model`, `policy`, `execution`, `portfolio`, or `benchmark` |
 | `status` | `active`, `planned`, `retired`, or `experimental` |
 
 A fixed formula constant is listed with `configurable: false`. It is documented
@@ -131,19 +133,21 @@ P1b-2, is recorded in [`construct-gaps.md`](construct-gaps.md).
 
 `tools/check_registry.py` enforces:
 
-1. `indicators.json` validates against `schema.json`.
+1. The registry root and the per-entry required keys agree with `schema.json`,
+   and `schema.json` rejects additional properties.
 2. Indicator, event, source, and parameter IDs are unique.
-3. Numeric codes are unique and match the model contract.
-4. Every model, strategy, policy, execution, portfolio, and analytics config
-   field has a registry parameter entry.
+3. Event codes are unique, match `crates/quantrule-model/src/events/codes.rs`,
+   and `REGISTRY_VERSION` matches `crates/quantrule-model/src/lib.rs`.
+4. Every `configurable: true` parameter has a default config owner; a `fixed`
+   parameter is documented but not configurable.
 5. Every code default matches the registry default.
 6. Every event source is a registered indicator or series.
 7. Every `signal`/`context` event has a descriptive claim and at least one
-   validation test; every `diagnostic` event has `claim: "none"`.
-8. A strategy config cannot reference a `diagnostic` measurement.
-9. `indicators.md` is a current generation of `indicators.json`.
+   validation test kind; every `diagnostic` event has `claim: "none"`.
+8. `indicators.md` is a current generation of `indicators.json`.
 
-The check fails on drift; it is not a warning.
+The check fails on drift; it is not a warning. `check_validation.py`
+additionally resolves every `construct_tests` entry to a Rust function name.
 
 ## 6. Scope
 

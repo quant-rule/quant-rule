@@ -6,11 +6,6 @@
 //! code in every [`EventRecord`](crate::events::EventRecord), and the spec
 //! filters and votes by it. A code is never reused after retirement.
 
-/// A legacy event that predates the typed registry. The model still publishes
-/// it for backward compatibility, but no spec can select it and no new event
-/// may use this code.
-pub const LEGACY_UNREGISTERED: u16 = 0;
-
 /// `level.test`.
 pub const LEVEL_TEST: u16 = 1;
 /// `level.cross`.
@@ -461,15 +456,14 @@ pub const FAMILIES: &[(u16, u8, u8, &[u16])] = &[
 
 #[cfg(test)]
 mod tests {
-    use super::{ALL, COUNT, FAMILIES, LEGACY_UNREGISTERED};
+    use super::{ALL, COUNT, FAMILIES};
 
     #[test]
-    fn every_registered_event_code_is_unique_and_nonzero() {
+    fn every_registered_event_code_is_unique() {
         assert_eq!(ALL.len(), COUNT);
         assert_eq!(FAMILIES.len(), COUNT);
         let mut seen = std::collections::BTreeSet::new();
         for code in ALL {
-            assert_ne!(code, LEGACY_UNREGISTERED);
             assert!(seen.insert(code), "duplicate event code {code}");
         }
         for (code, _, _, _) in FAMILIES {

@@ -77,7 +77,9 @@ fn commands_do_not_rebuild_the_ladder_or_model_inputs() {
 
 #[test]
 fn the_legacy_analytics_crate_is_gone() {
-    let manifest = source("../Cargo.toml");
+    let manifest_path = crates_root().join("../Cargo.toml");
+    let manifest = fs::read_to_string(&manifest_path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", manifest_path.display()));
     assert!(!manifest.contains("quantrule-analytics"));
     assert!(!manifest.contains("analytics"));
 }

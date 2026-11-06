@@ -235,6 +235,36 @@ fn the_model_run_is_independent_of_timeframe_input_order() {
 }
 
 #[test]
+fn the_merged_event_batch_is_in_availability_order() {
+    let candles = load_candles();
+    let input = TimeframeInput {
+        timeframe_secs: 60,
+        candles: &candles,
+    };
+    let run = ModelRun::compute(&[input], &MarketStateConfig::default());
+    let timeframe = run.timeframe(60).expect("the fixture timeframe");
+
+    let events = timeframe.all_events();
+    assert_eq!(
+        events.len(),
+        timeframe.events().len() + timeframe.extended_events().len(),
+        "the merged batch must contain both source batches"
+    );
+
+    let mut previous: Option<(usize, usize)> = None;
+    for event in &events {
+        let key = (event.available_bar_index, event.occurred_bar_index);
+        if let Some(previous) = previous {
+            assert!(
+                previous <= key,
+                "the merged batch is not in availability order at {event:?}"
+            );
+        }
+        previous = Some(key);
+    }
+}
+
+#[test]
 fn the_model_run_is_deterministic_across_repeated_runs() {
     let candles = load_candles();
     let input = TimeframeInput {

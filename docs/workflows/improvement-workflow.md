@@ -1,7 +1,9 @@
 # Improvement Workflow
 
 - Date: 2026-11-01 (UTC)
-- Status: Current; approved by the 2026-11-01 workflow reset
+- Status: S3.x target; the M1.0 shell does not expose the tiered
+  `backtest` command. The current model programme uses the research tooling
+  and `report model`.
 - Scope: model, strategy, and portfolio improvement runs
 
 ## Purpose
@@ -44,7 +46,7 @@ not start while an earlier tier has no accepted baseline.
 
 ### Model trust grades
 
-Model evidence records one grade per published axis:
+Model evidence records one grade per published event/state family:
 
 | Grade | Meaning | Allowed use |
 |---|---|---|
@@ -53,7 +55,7 @@ Model evidence records one grade per published axis:
 | C | Diagnostic only; not trusted enough to gate a trade | Research and diagnosis only; cannot feed a strategy decision |
 | D | Fails a model check or the validation criteria | Blocks promotion; no strategy run until a new model hypothesis is accepted |
 
-A model run with any D axis stops the sequence. The next action is a model
+A model run with any D family stops the sequence. The next action is a model
 hypothesis, not a strategy run.
 
 ## Changed and frozen components
@@ -190,7 +192,7 @@ PR adds it.
 
 Stop and record the reason when:
 
-- a model axis grades D — do not start a strategy run; open a model hypothesis;
+- a model family grades D — do not start a strategy run; open a model hypothesis;
 - no strategy candidate is green on `strategy_validation` — record `no edge` and
   do not optimize a portfolio;
 - the portfolio holdout fails — do not accept a portfolio baseline; stop or
@@ -223,7 +225,8 @@ into a green one.
 
 The run-store tooling lives in `tools/improvement/` and is written in Python. It
 validates manifests, runs the shell, extracts evidence, and generates the index.
-The shell still executes the backtest; the tooling never computes a signal.
+In the S3.x target, the shell executes the backtest; the M1.0 shell does not.
+The tooling never computes a signal.
 Baseline acceptance and invalidation are recorded in the committed registry by
 the reviewer and the human; the tooling does not accept them.
 

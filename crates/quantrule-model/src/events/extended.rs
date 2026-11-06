@@ -121,6 +121,27 @@ pub struct ExtendedEventSeries {
     events: Vec<EventRecord>,
 }
 
+/// Removes duplicate occurrences while preserving distinct measured values.
+///
+/// The event code already identifies the type, subtype, and source. The key
+/// therefore adds the bar, direction, reference, and reference value. The
+/// reference value matters: one MFI threshold event code can fire for 20, 50,
+/// and 80 on the same bar, and each crossing is a distinct occurrence.
+fn deduplicate_occurrences(events: &mut Vec<EventRecord>) {
+    events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
+    let mut seen = BTreeSet::new();
+    events.retain(|event| {
+        seen.insert((
+            event.timeframe_secs,
+            event.event_code,
+            event.occurred_bar_index,
+            event.direction_code,
+            event.reference_code,
+            event.reference_value.map(f64::to_bits),
+        ))
+    });
+}
+
 impl ExtendedEventSeries {
     /// Computes every extended event over the candles and readings.
     #[must_use]
@@ -145,20 +166,7 @@ impl ExtendedEventSeries {
         flow_divergences(readings, extended, config, &mut events);
         atr_divergences(readings, extended, config, &mut events);
         crate::events::signals::compute(candles, readings, extended, config, &mut events);
-        events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
-        // The occurrence key is one event per timeframe, type, subtype, source,
-        // bar, direction, and reference. A reclaim and a rejection can describe
-        // the same bar; the first (reclaim) wins, so no occurrence is counted
-        // twice.
-        let mut seen = BTreeSet::new();
-        events.retain(|event| {
-            seen.insert((
-                event.timeframe_secs,
-                event.event_code,
-                event.occurred_bar_index,
-                event.reference_code,
-            ))
-        });
+        deduplicate_occurrences(&mut events);
         Self { events }
     }
 
@@ -1607,9 +1615,9 @@ fn atr_divergences(
 #[cfg(test)]
 mod tests {
     use super::{
-        ExtendedEventConfig, ExtendedEventSeries, atr_divergences, divergence_events,
-        flow_divergences, level_extended_events, participation_divergences, participation_events,
-        profile_events, vwap_events,
+        ExtendedEventConfig, ExtendedEventSeries, atr_divergences, deduplicate_occurrences,
+        divergence_events, flow_divergences, level_extended_events, participation_divergences,
+        participation_events, profile_events, push, vwap_events,
     };
     use crate::events::{EventRecord, EventType, codes};
     use crate::readings::{
@@ -1627,6 +1635,37 @@ mod tests {
         let extended = ExtendedReadings::compute(candles, &readings, &ExtendedConfig::DEFAULT);
         let config = ExtendedEventConfig::from_secs(3600).expect("timeframe");
         ExtendedEventSeries::compute(candles, &readings, &extended, &config)
+    }
+
+    fn mfi_event(reference: f64, direction: i8) -> EventRecord {
+        let mut events = Vec::new();
+        push(
+            &mut events,
+            codes::SIGNAL_MFI_THRESHOLD,
+            EventType::Signal,
+            15,
+            26,
+            3_600,
+            7,
+            direction,
+            Some(55.0),
+            Some(reference),
+        );
+        events.remove(0)
+    }
+
+    #[test]
+    fn distinct_threshold_crossings_on_one_bar_are_kept() {
+        let mut events = vec![mfi_event(20.0, 1), mfi_event(50.0, 1)];
+        deduplicate_occurrences(&mut events);
+        assert_eq!(events.len(), 2, "both threshold crossings must survive");
+    }
+
+    #[test]
+    fn exact_duplicate_occurrences_are_removed() {
+        let mut events = vec![mfi_event(20.0, 1), mfi_event(20.0, 1)];
+        deduplicate_occurrences(&mut events);
+        assert_eq!(events.len(), 1);
     }
 
     #[test]

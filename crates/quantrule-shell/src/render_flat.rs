@@ -21,11 +21,8 @@ use crate::labels;
 /// Returns the writer's error when a line cannot be written.
 pub(crate) fn write_event_batch(run: &ModelRun, writer: &mut impl Write) -> io::Result<()> {
     for timeframe in run.timeframes() {
-        for event in timeframe.events() {
-            write_line(&event_value(timeframe, event), writer)?;
-        }
-        for event in timeframe.extended_events().events() {
-            write_line(&event_value(timeframe, event), writer)?;
+        for event in timeframe.all_events() {
+            write_line(&event_value(timeframe, &event), writer)?;
         }
     }
     Ok(())

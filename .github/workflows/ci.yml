@@ -60,12 +60,14 @@ jobs:
       - name: Legacy labels
         run: python3 tools/check_legacy.py
 
-      - name: Improvement tooling
+      # Historical tooling retained for reproducibility; not part of the current shell surface.
+      - name: Historical improvement tooling
         run: |
           python3 -m py_compile tools/improvement/*.py tools/check_terms.py
           python3 -m unittest discover -s tools/improvement -p 'test_*.py'
 
-      - name: Research tooling and coverage
+      # Historical tooling retained for reproducibility; not part of the current shell surface.
+      - name: Historical research tooling and coverage
         run: |
           python3 -m py_compile tools/research/*.py
           python3 -m unittest discover -s tools/research -p 'test_*.py'

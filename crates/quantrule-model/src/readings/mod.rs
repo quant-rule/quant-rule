@@ -6,15 +6,13 @@
 //! readings publish one value per input candle; a value is `None` until the
 //! required history exists, and a measured zero is `Some(0.0)`.
 //!
-//! A reading is not owned by an axis. The [`roles`] module records each use of
-//! a reading, the consumer of that use, and the definition of that use. The
-//! axes, event detectors, and context diagnostic consume the same readings
-//! through those definitions.
+//! A reading is not owned by a consumer. The event detectors and the context
+//! diagnostic read the same series through their own definitions; no axis
+//! score or role registry is part of the current model.
 //!
-//! This module computes no axis, event, aggregate, or market-state value. The
-//! [`roles`] registry names those consumers and their contract codes, but the
-//! axis and event calculations live in their own modules. This module performs
-//! no I/O, reads no clock, and uses no randomness.
+//! This module computes no event, aggregate, or market-state value. The event
+//! and context calculations live in their own modules. This module performs no
+//! I/O, reads no clock, and uses no randomness.
 
 mod adx;
 mod atr;
@@ -25,8 +23,6 @@ mod pivots;
 mod rsi;
 mod rvol;
 mod series;
-
-pub mod roles;
 
 pub use adx::{AdxSeries, AdxState};
 pub use atr::atr;

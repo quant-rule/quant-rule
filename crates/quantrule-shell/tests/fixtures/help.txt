@@ -2,7 +2,7 @@ QuantRule shell commands
 
   candles <csv-path>                                         Read one M1 CSV strictly and print its retained candles as NDJSON.
   candles-tolerant <csv-path>                                Read one M1 CSV tolerantly and print the retained candles plus a quality report.
-  timeframes <csv-path>                                      Build M5, M15, and H1 from one M1 CSV and print every retained series.
+  timeframes <csv-path>                                      Build every supported timeframe from one M1 CSV and print every retained series.
   events <csv-path> [--window full|latest]                   Print the flat model's registered and extended event records.
   report model --config <run.json> [--spec <spec.json>] [--out <dir>] [--json] Write the flat per-timeframe model bundle for one configured run.
   policy check --config <run.json>                           Validate the policy and every engine config against it.

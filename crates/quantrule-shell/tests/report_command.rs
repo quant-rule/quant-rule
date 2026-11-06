@@ -1,8 +1,10 @@
 //! Binary-level tests for the config-driven `report model` command.
 //!
 //! The bundle is checked for its flat artifact set, the spec artifacts, the
-//! provenance boundary, and determinism. No test reads `data/` or the network.
+//! provenance boundary, and event ordering. No test reads `data/` or the
+//! network.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -90,6 +92,47 @@ fn the_model_bundle_has_the_flat_shape() {
         assert!(timeframe.get("events").is_some());
         assert!(timeframe.get("progression").is_some());
         assert!(timeframe.get("axes").is_none());
+    }
+}
+
+#[test]
+fn the_events_csv_is_in_availability_order() {
+    let out = output_dir("events-order");
+    let config = fixture("config-run/run.json");
+    assert_success(&run(&[
+        "report",
+        "model",
+        "--config",
+        config.to_str().expect("the config path is UTF-8"),
+        "--out",
+        out.to_str().expect("the output path is UTF-8"),
+    ]));
+
+    let csv = String::from_utf8(read(&out.join("model").join("events.csv")))
+        .expect("events.csv is UTF-8");
+    let mut lines = csv.lines();
+    let header = lines.next().expect("the header");
+    let columns: Vec<&str> = header.split(',').collect();
+    let timeframe = columns
+        .iter()
+        .position(|column| *column == "timeframe_secs")
+        .expect("a timeframe column");
+    let available = columns
+        .iter()
+        .position(|column| *column == "available_bar_index")
+        .expect("an availability column");
+
+    let mut previous: BTreeMap<String, u64> = BTreeMap::new();
+    for line in lines {
+        let fields: Vec<&str> = line.split(',').collect();
+        let timeframe = fields[timeframe].to_owned();
+        let available = fields[available].parse::<u64>().expect("a numeric bar");
+        if let Some(previous) = previous.insert(timeframe.clone(), available) {
+            assert!(
+                previous <= available,
+                "the {timeframe} rows are out of availability order: {previous} then {available}"
+            );
+        }
     }
 }
 

@@ -155,12 +155,7 @@ pub(super) fn events_csv(run: &ModelRun, ladder: &[u64]) -> String {
         let Some(timeframe) = run.timeframe(timeframe_secs) else {
             continue;
         };
-        for (event_index, event) in timeframe
-            .events()
-            .iter()
-            .chain(timeframe.extended_events().events())
-            .enumerate()
-        {
+        for (event_index, event) in timeframe.all_events().iter().enumerate() {
             let _ = writeln!(
                 csv,
                 "{},{},{},{},{},{},{},{},{},{},{},{},{}",

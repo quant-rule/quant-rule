@@ -36,7 +36,7 @@ the four-axis cutover.
 | Contract | Status | Path |
 |---|---|---|
 | M1.0 flat model | Current baseline; path gate no edge; compression baselines accepted | `docs/model/2026-11-05/model-m1.0.md` |
-| Indicator coverage | Implemented 2026-11-05: 46 indicators, 143 events, stable event codes; 188 validation claims and 54/54 construct cases | `docs/model/2026-11-05/indicator-coverage.md` |
+| Indicator coverage | Implemented 2026-11-05: 46 indicators, 143 events (142 active plus one experimental), stable event codes; 188 validation claims and 54/54 construct cases | `docs/model/2026-11-05/indicator-coverage.md` |
 | Model and strategy families | Approved 2026-11-05; `M1.0` and the historical `S1.x` / `M2.x` maps | `docs/model/2026-11-05/model-families.md` |
 | Model spec v1 | Implemented; condition-only | `docs/model/2026-11-05/model-spec-v1.md` |
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
@@ -51,7 +51,7 @@ the four-axis cutover.
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
 | MACD reading and events | Current | `docs/config/2026-11-03/model-macd.md` |
-| Improvement run contract | Current workflow contract; no run is current after M2 closeout | `docs/workflows/run-contract.md` |
+| Improvement run contract | S3.x target; no current run uses it | `docs/workflows/run-contract.md` |
 
 The current run does not reference `strategy.json` or `analytics.json`. The loader
 rejects them with an unknown-field error; S3.x adds a strategy file back.
@@ -75,19 +75,19 @@ improvement runs under the current run contract and are not imported as baseline
 | Workflow | Status | Path |
 |---|---|---|
 | Audit Workflow | Current | `docs/workflows/audit-workflow.md` |
-| Improvement Workflow | Current | `docs/workflows/improvement-workflow.md` |
-| Improvement run contract | Current | `docs/workflows/run-contract.md` |
+| Improvement Workflow | S3.x target; the M1.0 shell does not expose the tiered `backtest` command | `docs/workflows/improvement-workflow.md` |
+| Improvement run contract | S3.x target; no current run uses it | `docs/workflows/run-contract.md` |
 | Research Swarm Runbook | Current contract; no active campaign | `docs/workflows/research-swarm.md` |
 
 ## Current roles
 
 | Role | Manual | Status |
 |---|---|---|
-| Quant Researcher | [Quant Researcher Manual](roles/2026-10-29/quant-researcher-manual.md) | Current; normative in `AGENTS.md` section 10 |
-| Quant Developer | [Quant Developer Manual](roles/2026-10-29/quant-developer-manual.md) | Current; normative in `AGENTS.md` section 10 |
-| Quant Validator | [Quant Validator Manual](roles/2026-10-29/quant-validator-manual.md) | Current; normative in `AGENTS.md` section 10 |
-| All three | [Quant roles overview](roles/2026-10-29/quant-roles.md) | Current; role table and handoff chain |
-| Improvement Workflow | [Improvement Workflow roles](roles/2026-10-30/improvement-workflow-roles.md) | Current |
+| Quant Researcher | [Quant Researcher Manual](roles/2026-10-29/quant-researcher-manual.md) | Historical pre-M1.0 manual; the role definition in `AGENTS.md` section 10 remains normative |
+| Quant Developer | [Quant Developer Manual](roles/2026-10-29/quant-developer-manual.md) | Historical pre-M1.0 manual; the role definition in `AGENTS.md` section 10 remains normative |
+| Quant Validator | [Quant Validator Manual](roles/2026-10-29/quant-validator-manual.md) | Historical pre-M1.0 manual; the role definition in `AGENTS.md` section 10 remains normative |
+| All three | [Quant roles overview](roles/2026-10-29/quant-roles.md) | Current role map and handoff chain |
+| Improvement Workflow | [Improvement Workflow roles](roles/2026-10-30/improvement-workflow-roles.md) | S3.x target; model-only current programme uses the research tooling |
 | Audit Workflow | [Audit Workflow roles](roles/2026-10-30/audit-workflow-roles.md) | Current |
 
 ## Local workspace
@@ -105,7 +105,11 @@ surface.
 | Registry, validation, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_links.py`, `tools/check_terms.py` |
 
 The experiment matrix runner, improvement run store, and research model-cell runner
-are historical. They target the retired backtest surface and are not current tools.
+are historical. They target the retired backtest surface and are not current
+tools. Their retained status is recorded in
+[`tools/improvement/README.md`](../tools/improvement/README.md),
+[`tools/experiment/README.md`](../tools/experiment/README.md), and
+[`tools/research/README.md`](../tools/research/README.md).
 
 ## Releases
 
@@ -130,7 +134,7 @@ record of what was released.
 | P6 checklist/docs | Implemented; row 37 wording, family-level tests, retired contracts | `docs/execution-plans/2026-11-05/474-checklist-docs.md` |
 | P7 verify/closeout | Implemented; full gate, oracle cleanup, M2 closeout verification | `docs/execution-plans/2026-11-05/475-verify-closeout.md` |
 | P8a M3.x charter | Approved 2026-11-06; P8b executed | `docs/governance/2026-11-05/M3-CHARTER.md` |
-| P8b M3.x programme | Underpowered at the count gate; no development run; validation closed | `docs/improvement/2026-11-05/M3-PREFLIGHT.md` |
+| P8b M3.x programme | Underpowered at the count gate; no development run; validation not opened | `docs/improvement/2026-11-05/M3-PREFLIGHT.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 
 ## Current architecture decisions

@@ -2,6 +2,8 @@
 
 - Date: 2026-10-30 (UTC)
 - Updated: 2026-11-01 for the workflow reset
+- Status: S3.x target; the M1.0 shell does not expose the tiered
+  `backtest` command
 - Work item: `audit-improvement-workflow`
 - Workflow: [`docs/workflows/improvement-workflow.md`](../../workflows/improvement-workflow.md)
 - Contract: [`docs/workflows/run-contract.md`](../../workflows/run-contract.md)
@@ -56,7 +58,7 @@ implement, approve, or validate.
 
 | Tier | Changes | Frozen | Gate |
 |---|---|---|---|
-| Model | Model | Data, policy, strategy, execution, portfolio, analytics | Axis grades A/B on strategy-read axes; no D; C diagnostic only |
+| Model | Model | Data, policy, strategy, execution, portfolio, analytics | Model grades A/B on validated event/state families; no D; C diagnostic only |
 | Strategy | Strategy | Data, policy, accepted model, execution, portfolio, analytics | Green on the one-shot validation; Quant Validator record |
 | Portfolio | Execution, portfolio | Data, policy, accepted model, accepted strategy, analytics | Green on the one-shot holdout; Quant Validator record |
 

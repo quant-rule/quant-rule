@@ -167,24 +167,22 @@ fn assert_batch(events: &[EventRecord], bars: usize) {
             event.available_bar_index
         );
         assert_eq!(event.timeframe_secs, TIMEFRAME_SECS);
-        if event.event_code != quantrule_model::events::codes::LEGACY_UNREGISTERED {
-            let family = quantrule_model::events::codes::FAMILIES
-                .iter()
-                .find(|(code, _, _, _)| *code == event.event_code)
-                .unwrap_or_else(|| panic!("the event code {} is not registered", event.event_code));
-            assert_eq!(
-                (event.event_type.code(), event.event_subtype_code),
-                (family.1, family.2),
-                "the event code {} has the wrong family",
-                event.event_code
-            );
-            assert!(
-                family.3.contains(&event.source_code),
-                "the event code {} has the wrong source {}",
-                event.event_code,
-                event.source_code
-            );
-        }
+        let family = quantrule_model::events::codes::FAMILIES
+            .iter()
+            .find(|(code, _, _, _)| *code == event.event_code)
+            .unwrap_or_else(|| panic!("the event code {} is not registered", event.event_code));
+        assert_eq!(
+            (event.event_type.code(), event.event_subtype_code),
+            (family.1, family.2),
+            "the event code {} has the wrong family",
+            event.event_code
+        );
+        assert!(
+            family.3.contains(&event.source_code),
+            "the event code {} has the wrong source {}",
+            event.event_code,
+            event.source_code
+        );
         assert!(
             (-1..=1).contains(&event.direction_code),
             "the direction code is outside -1..=1: {event:?}"

@@ -4,6 +4,7 @@
 //! asserts on stdout, stderr, and exit status. No test reads `data/`, the
 //! network, or the wall clock.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -58,6 +59,28 @@ fn run_interactive(input: &str) -> Output {
 
 fn stdout_text(output: &Output) -> String {
     String::from_utf8(output.stdout.clone()).expect("stdout is valid UTF-8")
+}
+
+fn bundle_files(path: &Path) -> BTreeMap<String, Vec<u8>> {
+    let mut files = BTreeMap::new();
+    for entry in
+        fs::read_dir(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
+    {
+        let entry =
+            entry.unwrap_or_else(|error| panic!("read entry in {}: {error}", path.display()));
+        let path = entry.path();
+        if path.is_file() {
+            let name = path
+                .file_name()
+                .expect("a file name")
+                .to_string_lossy()
+                .into_owned();
+            let bytes =
+                fs::read(&path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+            files.insert(name, bytes);
+        }
+    }
+    files
 }
 
 fn stderr_text(output: &Output) -> String {
@@ -142,6 +165,25 @@ fn events_is_deterministic() {
     assert_success(&first);
     assert_success(&second);
     assert_eq!(first.stdout, second.stdout);
+}
+
+#[test]
+fn events_are_in_availability_order() {
+    let output = run(&["events", fixture("state_m1.csv").to_str().expect("UTF-8")]);
+    assert_success(&output);
+
+    let mut previous: BTreeMap<String, u64> = BTreeMap::new();
+    for line in stdout_text(&output).lines() {
+        let value: serde_json::Value = serde_json::from_str(line).expect("each line is JSON");
+        let timeframe = value["timeframe"].as_str().expect("a timeframe label");
+        let available = value["available_bar"].as_u64().expect("an available bar");
+        if let Some(previous) = previous.insert(timeframe.to_owned(), available) {
+            assert!(
+                previous <= available,
+                "the {timeframe} batch is out of availability order: {previous} then {available}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -308,10 +350,20 @@ fn report_model_is_deterministic() {
         assert_success(&output);
     }
 
-    for name in ["report.json", "result.json", "summary.txt", "events.csv"] {
+    let first_files = bundle_files(&first.join("model"));
+    let second_files = bundle_files(&second.join("model"));
+    assert!(!first_files.is_empty(), "the bundle must contain artifacts");
+    assert_eq!(
+        first_files.keys().collect::<Vec<_>>(),
+        second_files.keys().collect::<Vec<_>>(),
+        "the bundles contain different artifact names"
+    );
+    for (name, bytes) in &first_files {
         assert_eq!(
-            fs::read(first.join("model").join(name)).expect("first artifact"),
-            fs::read(second.join("model").join(name)).expect("second artifact"),
+            bytes,
+            second_files
+                .get(name)
+                .expect("the second bundle has the artifact"),
             "{name} differs across runs"
         );
     }

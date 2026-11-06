@@ -49,9 +49,12 @@ const COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "timeframes",
         usage: "timeframes <csv-path>",
-        summary: "Build M5, M15, and H1 from one M1 CSV and print every retained series.",
+        summary: "Build every supported timeframe from one M1 CSV and print every retained series.",
         output: "NDJSON candles per timeframe, then partial-bucket and gap records",
-        notes: &["The data engine owns aggregation, ordering, and gap detection."],
+        notes: &[
+            "The data engine owns aggregation, ordering, and gap detection.",
+            "The supported data timeframes are 1m, 5m, 15m, 1h, and 4h; the model ceiling is 1h.",
+        ],
     },
     CommandHelp {
         name: "events",
@@ -71,7 +74,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "The bundle is written under <out>/model and is refused if the directory is not empty.",
             "The bundle carries readings, states, levels, events, progression, and context; it carries no axis or cross-timeframe aggregate.",
-            "A spec adds conditions.csv and prediction.csv.",
+            "A spec adds conditions.csv; a v2 spec can also add prediction.csv, panel.csv, and session.csv.",
         ],
     },
     CommandHelp {
