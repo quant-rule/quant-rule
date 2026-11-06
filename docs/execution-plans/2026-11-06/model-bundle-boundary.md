@@ -1,8 +1,10 @@
 # Third Refactor Cycle — Move the Model-Bundle Writer Out of the Command Layer
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved
+- Status: Verified
 - Issue: #528 `Execute the third behavior-neutral refactor cycle`
+- PR: [#529](https://github.com/quant-rule/quant-rule/pull/529)
+- Merge commit: `5e9c4df`
 - Assessment: [`REF-2026-11-06-05`](../../refactors/2026-11-06/structure-cycle-3-refactor.md)
 - Branch: `refactor/model-bundle-boundary`
 - Worktree: `../quant-rule--model-bundle-boundary`
@@ -250,7 +252,7 @@ Rollback is the branch. There is no migration, schema, or external state.
 ## 11. Traceability
 
 ```text
-REF-2026-11-06-05 -> #528 -> PR TBD -> verification record
+REF-2026-11-06-05 -> #528 -> #529 -> verification record
 ```
 
 The issue is [quant-rule/quant-rule#528](https://github.com/quant-rule/quant-rule/issues/528).
@@ -270,6 +272,8 @@ Its scope and done-when criteria are those in sections 3 and 6.
 | Backtest bundle hash | `4173b5055814048597ee5e946da9b117e34dadf5f867de750aaa2f2cf15f085e`; unchanged |
 | Full gate | fmt, clippy, test, doc, file size, structure, registry, validation, verification matrix, verification evidence, emitters, command surface, links, terms, legacy, oracle, progression, improvement, research, program, coverage, and diff check pass |
 | Clean-worktree verifier pass | at commit `9dc160a`: every gate passes; 1,312 passed, 0 failed, 8 ignored; all three hashes unchanged; both command-coupling guards pass. Sequential pass by the same agent, not an independent review |
+| Merge | PR #529 merged at `5e9c4df`; CI `verify` and `sync` passed at `c0e7414`; the merge tree is identical to the verified branch head |
+| Post-merge verifier pass | at `5e9c4df`: every gate passes; 1,312 passed, 0 failed, 8 ignored; all three hashes unchanged; both command-coupling guards pass. Sequential pass by the same agent, not an independent review |
 | Diff scope | 11 code files and 2 tool files; no fixture, expected-value, command, schema, error-string, or output change |
-| Assessment status | `In progress`; local and clean-worktree verification complete; post-merge verification pending |
-| Loop decision | pending the post-merge verifier pass and re-scan |
+| Assessment status | `Verified` |
+| Loop decision | stop after cycle 3; REF-03 remains `Triaged` and requires a new campaign and an approved plan |
