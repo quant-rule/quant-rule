@@ -27,9 +27,11 @@
 ```
 
 `strategy` and `analytics` are not current run fields. The loader rejects them
-with an unknown-field error; S3.x adds a strategy file back. The identity fields
-are optional, but a present identity must carry its type prefix (`M`, `POL`,
-`E`, `P`). A strategy identity returns with the S3.x strategy file.
+with an unknown-field error. S3.x passes the strategy file and the qualification
+criteria as explicit command arguments; the run schema stays `quantrule.run/v2`.
+The identity fields are optional, but a present identity must carry its type
+prefix (`M`, `POL`, `E`, `P`). No strategy or analytics identity is part of the
+current run; adding one is a separate decision.
 
 ## Policy
 

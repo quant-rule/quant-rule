@@ -7,8 +7,9 @@
 //! file. No candle is read and no output is written here: a config error
 //! leaves the filesystem untouched.
 //!
-//! The current run has no strategy or analytics file. S3.x adds a strategy
-//! file back when the flat strategy context exists.
+//! The current run has no strategy or analytics file. S3.x passes the strategy
+//! file and the qualification criteria as explicit command arguments; the run
+//! schema stays `quantrule.run/v2`.
 
 use std::io;
 use std::path::{Path, PathBuf};

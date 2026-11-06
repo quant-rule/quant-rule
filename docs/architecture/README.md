@@ -27,10 +27,19 @@ INPUT (shell source access)
   → output (shell render: model report, event batch)
 ```
 
+The S3.x target extends the same pipeline one stage at a time:
+
+```text
+data → model → strategy → execution → portfolio → qualification
+                                      ↘ analytics
+```
+
 The shell is the only surface and the only impure layer. It parses a command, calls
 into the pipeline, and renders the result. The engines are pure and depend one way.
-Execution, portfolio, and the generic bracket/event engines remain libraries for
-S3.x; they are not reachable from the current shell surface.
+Strategy, execution, portfolio, and benchmark engines remain libraries for
+S3.x; they are not reachable from the current shell surface. The stage contract,
+the command registry, and the implemented/planned status are in
+[`command-surface.md`](command-surface.md).
 
 ## Crates
 
@@ -38,7 +47,7 @@ S3.x; they are not reachable from the current shell surface.
 |---|---|---|
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
-| `quantrule-backtest` | Execution, portfolio, and the generic bracket/event engines for S3.x. | `quantrule-data`, `quantrule-model` |
+| `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines for S3.x. | `quantrule-data`, `quantrule-model` |
 | `quantrule-shell` | The binary and only surface: parse, call, render; configuration load and source fetch. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
 
 ## Documents
@@ -48,6 +57,9 @@ S3.x; they are not reachable from the current shell surface.
 | Product kata | Why the product exists, for whom, what "done" means. Solution-agnostic. | [`kata.md`](kata.md) |
 | Architecture characteristics | Which non-domain properties shape the architecture, how each is measured, and what is deliberately not optimized. | [`characteristics.md`](characteristics.md) |
 | Architecture baseline decision | Why the kata and characteristics are the baseline, and what alternatives were rejected. | [`../adr/2026-10-31/adopt-architecture-baseline.md`](../adr/2026-10-31/adopt-architecture-baseline.md) |
+| Command surface | The stage table, command registry, discovery contract, and the Qualification Engine boundary. | [`command-surface.md`](command-surface.md) |
+| Engine artifacts | The stage bundle, provenance, and handoff contract. | [`../config/2026-11-06/engine-artifacts.md`](../config/2026-11-06/engine-artifacts.md) |
+| Qualification criteria | The human-owned criteria, verdict semantics, and human acceptance boundary. | [`../config/2026-11-06/qualification-criteria.md`](../config/2026-11-06/qualification-criteria.md) |
 | Model contract | The flat readings, discrete states, confirmed levels, events, progression, context, and the numeric output fields. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
 | Policy contract | The human-owned policy envelope and the cross-config rules. | [`../config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md) |
 | Report command | The `report model` bundle artifacts and the flat result envelope. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
@@ -59,10 +71,12 @@ S3.x; they are not reachable from the current shell surface.
    requirements.
 2. Read [`characteristics.md`](characteristics.md) for the measurable drivers, the
    style, the quantum, and the trade-offs.
-3. Read the [architecture baseline decision](../adr/2026-10-31/adopt-architecture-baseline.md)
+3. Read [`command-surface.md`](command-surface.md) for the stage contract, the
+   command registry, and the Qualification Engine boundary.
+4. Read the [architecture baseline decision](../adr/2026-10-31/adopt-architecture-baseline.md)
    for the decision and the rejected alternatives.
-4. Follow the links to the model, configuration, report, and research contracts for
-   the normative details.
+5. Follow the links to the model, configuration, artifact, qualification, report,
+   and research contracts for the normative details.
 
 ## Maintenance
 

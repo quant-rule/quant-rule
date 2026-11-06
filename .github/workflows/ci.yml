@@ -63,6 +63,9 @@ jobs:
       - name: Validation claims
         run: python3 tools/check_validation.py
 
+      - name: Command surface
+        run: python3 tools/check_command_surface.py
+
       - name: Documentation links
         run: python3 tools/check_links.py
 

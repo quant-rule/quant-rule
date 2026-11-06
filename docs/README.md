@@ -30,6 +30,8 @@ linked below.
 | System architecture entry point | Current | `docs/architecture/README.md` |
 | The Trustworthy Backtest Kata | Current | `docs/architecture/kata.md` |
 | Architecture characteristics | Current | `docs/architecture/characteristics.md` |
+| Command surface | Current; implemented/planned stage contract and drift gate | `docs/architecture/command-surface.md` |
+| S3.x command-surface plan | Approved 2026-11-06; Phase 1 implemented and verified locally, publication pending | `docs/execution-plans/2026-11-06/s3-command-surface.md` |
 
 ## Current model
 
@@ -55,10 +57,14 @@ linked below.
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
 | MACD reading and events | Current | `docs/config/2026-11-03/model-macd.md` |
+| Engine artifacts | Current; stage bundle, provenance, and handoff contract | `docs/config/2026-11-06/engine-artifacts.md` |
+| Qualification criteria | Current; human-owned criteria, verdict semantics, and human acceptance | `docs/config/2026-11-06/qualification-criteria.md` |
 | Improvement run contract | S3.x target; no current run uses it | `docs/workflows/run-contract.md` |
 
 The current run does not reference `strategy.json` or `analytics.json`. The loader
-rejects them with an unknown-field error; S3.x adds a strategy file back.
+rejects them with an unknown-field error. S3.x passes the strategy file and the
+qualification criteria as explicit command arguments; the run schema stays
+`quantrule.run/v2`.
 
 ## Current evidence
 
@@ -110,6 +116,7 @@ surface.
 | Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `tools/build_verification.py` |
 | Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
 | Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
+| Command-surface checker | Fails when `help.rs`, the README command table, the command registry, or a tutorial disagree; keeps planned commands out of the available surface. | `tools/check_command_surface.py` |
 
 The experiment matrix runner, improvement run store, and research model-cell runner
 are historical. They target the retired backtest surface and are not current

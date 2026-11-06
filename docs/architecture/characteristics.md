@@ -83,7 +83,7 @@ nothing.
 
 | Characteristic | Type | What "good" means here | Fitness function | Current evidence |
 |---|---|---|---|---|
-| **Modularity** | Structural | One crate per pipeline responsibility; one-way dependencies; pure engines; the shell owns I/O. The backtest crate holds execution, portfolio, and the generic event-driven engines for S3.x. | Crate graph; source-level boundary guards; `cargo clippy --all-targets`; review. | Strong at crate level. The shell is about 12,000 non-integration-test lines and remains the watch item. |
+| **Modularity** | Structural | One crate per pipeline responsibility; one-way dependencies; pure engines; the shell owns I/O. The backtest crate holds the strategy, execution, portfolio, and benchmark engines for S3.x. | Crate graph; source-level boundary guards; `cargo clippy --all-targets`; review. | Strong at crate level. The shell is about 12,000 non-integration-test lines and remains the watch item. |
 | **Simplicity and deployability** | Operational / structural | One local binary; local files; no service, UI, or server database. Keeps the product a tool, not a platform. | Release build; single binary; no network in tests. | Strong operationally; the command and configuration surface is broad. |
 | **Evolvability** | Structural | Contracts are versioned; a new capability arrives as a new command or configuration; model and strategy changes are pre-registered. Protects prior evidence. | Versioned schemas; migration tests; ADR and plan index; command contract tests. | Partial: strong process, expensive contract changes. |
 | **Discoverability** | Cross-cutting | Every command, argument, and output shape is reachable from help; output is fixed-width and deterministic. A capability that cannot be typed does not exist. | Help tests; `help all`; CLI tests. | Strong. Help and `help all` render from one command table and are tested. |
@@ -116,7 +116,7 @@ local tool.
 ```text
 shell (adapter: parse, fetch, render)
  └─ data → model
-     └─ backtest (execution, portfolio, generic bracket/event engines; S3.x)
+     └─ backtest (strategy, execution, portfolio, benchmark engines; S3.x)
 ```
 
 ### Crate map
@@ -125,7 +125,7 @@ shell (adapter: parse, fetch, render)
 |---|---|---|
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
-| `quantrule-backtest` | Execution, portfolio, and the generic bracket/event engines for S3.x. | `quantrule-data`, `quantrule-model` |
+| `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines for S3.x. | `quantrule-data`, `quantrule-model` |
 | `quantrule-shell` | The binary and only surface: parse, call, render; configuration load and source fetch. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
 
 ### Structural constraints
