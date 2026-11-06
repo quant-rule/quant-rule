@@ -43,13 +43,13 @@ assessment; both are unchanged.
 
 | ID | Impact | Area | Finding | Evidence | Principle | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| REF-2026-11-06-03 | Medium | shell | Date windows are owned by the `source` adapter and imported by non-source modules | `source/date.rs` is 322 lines and defines `DateRange`, `DateBounds`, and `DateRangeError`; 10 date-type references go through `crate::source`: `config/data.rs:13-14`, `csv.rs:22`, `backtest_bundle.rs:20`, `pipeline.rs:19`, `request.rs:14`, `fetch.rs:17`, `command/fetch.rs:17`, `command/tests.rs:9`, `source/dukascopy.rs:475`, `source/mod.rs:19` | boundary, coupling | A move `source/date.rs` to `crate::date`; B move only the bounds and error to `config`; C leave | A, this cycle | import guard and config/CSV/fetch tests | In progress | [#531](https://github.com/quant-rule/quant-rule/issues/531) |
+| REF-2026-11-06-03 | Medium | shell | Date windows are owned by the `source` adapter and imported by non-source modules | `source/date.rs` is 322 lines and defines `DateRange`, `DateBounds`, and `DateRangeError`; 10 date-type references go through `crate::source`: `config/data.rs:13-14`, `csv.rs:22`, `backtest_bundle.rs:20`, `pipeline.rs:19`, `request.rs:14`, `fetch.rs:17`, `command/fetch.rs:17`, `command/tests.rs:9`, `source/dukascopy.rs:475`, `source/mod.rs:19` | boundary, coupling | A move `source/date.rs` to `crate::date`; B move only the bounds and error to `config`; C leave | A, this cycle | import guard and config/CSV/fetch tests | Verified | [#531](https://github.com/quant-rule/quant-rule/issues/531), [#532](https://github.com/quant-rule/quant-rule/pull/532) |
 | REF-2026-11-06-04 | Info | shell | The public-surface and panic counts are heuristics, not findings | `check_structure.py` counts every `pub` line and every `unwrap`/`expect` line, including inline test modules; the shell has no executable `unwrap`/`expect` outside test modules | surface, panic hygiene | A compiler-based count and ratchet; B leave | B, no cycle | a clippy `unwrap_used`/`expect_used` pass would be a separate tooling decision | Triaged | cycle-2 assessment |
 | REF-2026-11-06-06 | Info | tests | Test suites are the files closest to the 1,000-line hard gate | `ledger_tests.rs` 973, `progression/tests.rs` 929, `per_row_base_events.rs` 867, `timeframe_set/tests.rs` 769, `extended/tests.rs` 699, `portfolio/tests.rs` 694 | readability | A split `ledger_tests.rs` by behavior when next touched; B leave | B, no cycle; split on the next ledger change if it would cross the gate | `wc -l` and the file-size gate | Triaged | cycle-2 assessment |
 
 REF-2026-11-06-02 and REF-2026-11-06-05 are `Verified` and are not re-opened.
 The Planner re-verified REF-03 against `9ac6565` and agreed the route shown.
-REF-03 is `In progress` under #531.
+REF-03 is `Verified` under #531 and PR #532.
 
 ### REF-2026-11-06-03 — Date windows are owned by the source adapter
 
@@ -124,16 +124,21 @@ in
 
 ## Loop decision
 
-Cycle 4 is implemented and locally verified at commit `d5ee617`. The finding
-stays `In progress` until the pull request merges; the Refactor Verifier then
-checks equivalence on the merged tree and moves it to `Verified`. The loop
-decision follows that pass and re-scans the new HEAD.
+REF-2026-11-06-03 is `Verified` at merge commit `c0bf790` (PR #532). The
+post-merge clean-tree pass re-ran the full gate: 1,312 passed, 0 failed, 8
+ignored; the fixture hash `da7389...`, report bundle hash `59124f...`, and
+backtest bundle hash `4173b505...` are unchanged; the date guard passes. The
+pass was performed by the same agent and is disclosed as sequential, not
+independent.
+
+The campaign stops after one cycle. No High or Medium finding remains; REF-04
+and REF-06 are observations. There is no next campaign.
 
 ## Limitations
 
 - One agent performed the Structure Auditor, Refactor Planner, Refactor
-  Implementer, and verifier passes. The passes are sequential, not independent;
-  the post-merge verifier role remains to be exercised.
+  Implementer, and verifier passes, including the post-merge pass. The passes are
+  sequential, not independent. The finding is `Verified` with that limitation.
 - The structural report is a heuristic. Cohesion and coupling findings are
   supported by code references and review, not by a metric alone.
 - The re-scan covers the structural report, the shell imports, the test sizes,
