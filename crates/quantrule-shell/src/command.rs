@@ -31,7 +31,7 @@ pub(crate) use self::parse::{parse, parse_help_arguments, parse_model_arguments}
 pub(crate) use self::policy::{parse_policy_arguments, run_policy_check};
 pub(crate) use self::portfolio::{parse_portfolio_arguments, run_portfolio};
 pub(crate) use self::qualify::{parse_qualify_arguments, run_qualify};
-pub(crate) use self::report_run::{model_bundle_from, parse_report_arguments, run_report};
+pub(crate) use self::report_run::{parse_report_arguments, run_report};
 pub(crate) use self::strategy::{parse_strategy_arguments, run_explain, run_run};
 pub(crate) use self::types::{Command, ParseError};
 

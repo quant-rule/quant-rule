@@ -1,4 +1,4 @@
-//! Bundle assembly for the `report model` command.
+//! Model-bundle assembly shared by the report and backtest commands.
 //!
 //! The module computes the flat report, renders every artifact, and writes the
 //! bundle. It does not parse arguments or choose the run input.
@@ -13,13 +13,14 @@ use quantrule_model::spec::v2::{ModelSpecV2, SpecRun};
 use quantrule_model::spec::{ModelSpec, SpecEvaluation};
 use serde_json::{Value, json};
 
+use super::error::ModelBundleError;
 use super::provenance::{config_files, policy_value, spec_provenance, spec_v2_provenance};
-use super::{model_artifacts, period_label};
-use crate::command::types::{ReportError, RunError};
+use super::{artifacts, period_label};
 use crate::config::RunConfig;
 use crate::pipeline;
 use crate::render_report::{self, Provenance};
 
+/// The paths and bytes of a written model bundle.
 pub(crate) struct BundleOutput {
     pub(crate) path: PathBuf,
     pub(crate) names: Vec<String>,
@@ -30,13 +31,13 @@ pub(crate) fn model_bundle_from(
     config: &RunConfig,
     out: &Path,
     model_run: &ModelRun,
-) -> Result<BundleOutput, RunError> {
+) -> Result<BundleOutput, ModelBundleError> {
     let ladder = pipeline::ladder_secs_for(&config.data.available_timeframes);
     model_bundle_with(config, out, model_run, &ladder, &config.model, None)
 }
 
 /// The spec artifacts a model bundle publishes.
-pub(super) enum SpecRunArtifacts<'a> {
+pub(crate) enum SpecRunArtifacts<'a> {
     /// v1 conditions only.
     V1 {
         /// The parsed v1 spec.
@@ -67,15 +68,15 @@ pub(super) enum SpecRunArtifacts<'a> {
 ///
 /// # Errors
 ///
-/// Returns a [`RunError`] when the report or an artifact fails.
-pub(super) fn model_bundle_with_spec(
+/// Returns a [`ModelBundleError`] when the report or an artifact fails.
+pub(crate) fn model_bundle_with_spec(
     config: &RunConfig,
     out: &Path,
     model_run: &ModelRun,
     ladder: &[u64],
     effective_model: &MarketStateConfig,
     spec: &SpecRunArtifacts<'_>,
-) -> Result<BundleOutput, RunError> {
+) -> Result<BundleOutput, ModelBundleError> {
     model_bundle_with(config, out, model_run, ladder, effective_model, Some(spec))
 }
 
@@ -86,9 +87,9 @@ fn model_bundle_with(
     ladder: &[u64],
     effective_model: &MarketStateConfig,
     spec: Option<&SpecRunArtifacts<'_>>,
-) -> Result<BundleOutput, RunError> {
+) -> Result<BundleOutput, ModelBundleError> {
     let bundle = out.join("model");
-    render_report::ensure_available(&bundle).map_err(RunError::Bundle)?;
+    render_report::ensure_available(&bundle).map_err(ModelBundleError::Bundle)?;
 
     let report = FlatReport::compute(model_run, ladder);
     if report
@@ -96,9 +97,9 @@ fn model_bundle_with(
         .iter()
         .all(|timeframe| timeframe.bars == 0)
     {
-        return Err(RunError::Report(ReportError::EmptyPeriod {
+        return Err(ModelBundleError::EmptyPeriod {
             period: period_label(config),
-        }));
+        });
     }
     let first_open_time = report
         .timeframes
@@ -113,14 +114,14 @@ fn model_bundle_with(
 
     let summary =
         render_report::summary_bytes(&report, &config.data.data_version, &period_label(config))
-            .map_err(RunError::Output)?;
+            .map_err(ModelBundleError::Output)?;
     let json = render_report::json_bytes(
         &report,
         &config.data.data_version,
         config.data.from.as_deref(),
         config.data.to.as_deref(),
     )
-    .map_err(RunError::Output)?;
+    .map_err(ModelBundleError::Output)?;
     let result = render_report::model_result_bytes(
         &report,
         ladder,
@@ -129,31 +130,31 @@ fn model_bundle_with(
         config.data.to.as_deref(),
         &crate::config::effective_json(effective_model),
     )
-    .map_err(RunError::Output)?;
-    let readings_csv = model_artifacts::readings_csv(model_run, ladder);
+    .map_err(ModelBundleError::Output)?;
+    let readings_csv = artifacts::readings_csv(model_run, ladder);
     let events_csv = match spec {
         Some(SpecRunArtifacts::V2 { run, .. }) => {
-            model_artifacts::spec_events_csv(run, run.active_events())
+            artifacts::spec_events_csv(run, run.active_events())
         }
-        _ => model_artifacts::events_csv(model_run, ladder),
+        _ => artifacts::events_csv(model_run, ladder),
     };
-    let levels_csv = model_artifacts::levels_csv(model_run, ladder);
+    let levels_csv = artifacts::levels_csv(model_run, ladder);
     let conditions_csv = match spec {
         Some(SpecRunArtifacts::V1 { evaluation, .. }) => {
-            Some(model_artifacts::conditions_csv(evaluation, model_run))
+            Some(artifacts::conditions_csv(evaluation, model_run))
         }
         Some(SpecRunArtifacts::V2 { run, .. }) => run
             .conditions()
-            .map(|evaluation| model_artifacts::conditions_csv(evaluation, model_run)),
+            .map(|evaluation| artifacts::conditions_csv(evaluation, model_run)),
         None => None,
     };
     let prediction_csv = match spec {
-        Some(SpecRunArtifacts::V2 { run, .. }) => Some(model_artifacts::prediction_csv(run)),
+        Some(SpecRunArtifacts::V2 { run, .. }) => Some(artifacts::prediction_csv(run)),
         _ => None,
     };
     let panel_csv = match spec {
         Some(SpecRunArtifacts::V2 { spec, run, .. }) => run.panel_readings().map(|readings| {
-            model_artifacts::panel_csv(
+            artifacts::panel_csv(
                 readings,
                 spec.panel_instruments.first().map_or("", String::as_str),
             )
@@ -166,11 +167,11 @@ fn model_bundle_with(
                 .base()
                 .timeframe(run.evaluation_timeframe_secs())
                 .map_or(&[][..], |timeframe| timeframe.candles());
-            model_artifacts::session_csv(candles, readings)
+            artifacts::session_csv(candles, readings)
         }),
         _ => None,
     };
-    let legs_csv = model_artifacts::legs_csv(model_run, ladder);
+    let legs_csv = artifacts::legs_csv(model_run, ladder);
 
     let mut name_list = vec![
         "summary.txt",
@@ -232,7 +233,7 @@ fn model_bundle_with(
         spec: spec_value,
         artifacts: &names,
     })
-    .map_err(RunError::Output)?;
+    .map_err(ModelBundleError::Output)?;
 
     let mut artifacts = vec![
         ("summary.txt", summary),
@@ -255,7 +256,8 @@ fn model_bundle_with(
     if let Some(session) = session_csv {
         artifacts.push(("session.csv", session.into_bytes()));
     }
-    render_report::write_bundle(&bundle, &artifacts, &provenance).map_err(RunError::Bundle)?;
+    render_report::write_bundle(&bundle, &artifacts, &provenance)
+        .map_err(ModelBundleError::Bundle)?;
     Ok(BundleOutput {
         path: bundle,
         names,

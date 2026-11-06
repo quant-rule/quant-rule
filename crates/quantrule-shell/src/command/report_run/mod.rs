@@ -12,19 +12,16 @@ use quantrule_model::spec::v2::SpecRun;
 
 use super::types::{ReportError, RunError};
 use crate::config::RunConfig;
+use crate::model_bundle::{
+    BundleOutput, SpecRunArtifacts, model_bundle_from, model_bundle_with_spec, panel_provenance,
+};
 use crate::pipeline;
 use crate::request::ReportArgs;
 
-mod bundle;
-mod model_artifacts;
 mod parse;
-mod provenance;
 mod spec;
 
-pub(crate) use bundle::model_bundle_from;
-use bundle::{BundleOutput, SpecRunArtifacts, model_bundle_with_spec};
 pub(crate) use parse::parse_report_arguments;
-use provenance::panel_provenance;
 use spec::{load_model, load_panel_series, pipeline_error, spec_timeframes};
 
 /// Loads the run configuration and writes the model bundle.
@@ -77,7 +74,8 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
                         file,
                         hash: spec_hash,
                     },
-                )?
+                )
+                .map_err(RunError::Model)?
             }
             "quantrule.model-spec/v2" => {
                 let parsed = crate::spec::v2::parse_model_spec_v2(&text)
@@ -109,7 +107,8 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
                         hash: spec_hash,
                         panel_sources,
                     },
-                )?
+                )
+                .map_err(RunError::Model)?
             }
             other => {
                 return Err(RunError::Report(ReportError::Spec(format!(
@@ -119,18 +118,9 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
         }
     } else {
         let model = load_model(&config)?;
-        model_bundle_from(&config, &out, &model)?
+        model_bundle_from(&config, &out, &model).map_err(RunError::Model)?
     };
     emit(writer, args.json, &bundle)
-}
-
-pub(super) fn period_label(config: &RunConfig) -> String {
-    match (&config.data.from, &config.data.to) {
-        (Some(from), Some(to)) => format!("{from}..{to}"),
-        (Some(from), None) => format!("{from}..open"),
-        (None, Some(to)) => format!("open..{to}"),
-        (None, None) => String::from("full file"),
-    }
 }
 
 fn emit(writer: &mut impl Write, json_stdout: bool, bundle: &BundleOutput) -> Result<(), RunError> {

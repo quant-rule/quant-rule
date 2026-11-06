@@ -1,4 +1,4 @@
-//! Provenance assembly for the `report model` bundle.
+//! Provenance assembly for the model bundle.
 //!
 //! The module turns the run configuration and the selected spec into the
 //! provenance record. It hashes panel sources but does not write the bundle.
@@ -170,7 +170,7 @@ fn session_zone_label(zone: quantrule_model::sessions::SessionZone) -> &'static 
     }
 }
 
-pub(super) fn panel_provenance(
+pub(crate) fn panel_provenance(
     spec_path: &Path,
     parsed: &crate::spec::v2::ParsedModelSpecV2,
     data_version: &str,
@@ -206,7 +206,7 @@ pub(super) fn panel_provenance(
         .collect()
 }
 
-pub(super) fn resolve_spec_path(spec_path: &Path, source: &str) -> PathBuf {
+pub(crate) fn resolve_spec_path(spec_path: &Path, source: &str) -> PathBuf {
     let path = PathBuf::from(source);
     if path.is_absolute() {
         path
