@@ -54,16 +54,16 @@ place as history, not rewritten.
 
 | ID | Impact | Area | Finding | Evidence | Principle | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| REF-2026-11-06-02 | High | shell | Stage modules import the command request vocabulary | 6 stage modules, 7 imports: `analytics/run.rs:13`, `backtest/run.rs:21`, `execution/run.rs:23`, `portfolio/run.rs:22`, `qualification/run.rs:15`, `strategy/run.rs:24`; `command/types.rs` is 399 lines and holds 11 argument structs at lines 78-214 | boundary, coupling | A move all argument structs to `crate::request`; B move only the seven crossing types; C leave | A, this cycle | import guard, full gate, fixture and bundle hashes unchanged | In progress | [#525](https://github.com/quant-rule/quant-rule/issues/525), [#526](https://github.com/quant-rule/quant-rule/pull/526) |
+| REF-2026-11-06-02 | High | shell | Stage modules import the command request vocabulary | 6 stage modules, 7 imports: `analytics/run.rs:13`, `backtest/run.rs:21`, `execution/run.rs:23`, `portfolio/run.rs:22`, `qualification/run.rs:15`, `strategy/run.rs:24`; `command/types.rs` is 399 lines and holds 11 argument structs at lines 78-214 | boundary, coupling | A move all argument structs to `crate::request`; B move only the seven crossing types; C leave | A, this cycle | import guard, full gate, fixture and bundle hashes unchanged | Verified | [#525](https://github.com/quant-rule/quant-rule/issues/525), [#526](https://github.com/quant-rule/quant-rule/pull/526) |
 | REF-2026-11-06-03 | Medium | shell | Date windows are owned by the `source` adapter and imported by non-source modules | `source/date.rs` defines `DateRange`, `DateBounds`, and `DateRangeError`; imported by `config/data.rs:13-14`, `csv.rs:22`, `backtest_bundle.rs:20`, and `pipeline.rs:19`; re-exported by `source/mod.rs:19` | boundary, coupling | A move `source/date.rs` to `crate::date`; B move only the bounds and error to `config`; C leave | A, separate cycle | import guard and config/CSV tests | Triaged | first assessment |
 | REF-2026-11-06-04 | Info | shell | The public-surface and panic counts are heuristics, not findings | `check_structure.py:298-309` counts every `pub` line and every `unwrap`/`expect` line, including inline test modules; the shell has no executable `unwrap`/`expect` outside test modules, and the model/backtest hits are doc examples or test modules | surface, panic hygiene | A compiler-based count and ratchet; B leave as an observation | B, no cycle | a clippy `unwrap_used`/`expect_used` pass would be a separate tooling decision | Triaged | first assessment |
 | REF-2026-11-06-05 | High | shell | The backtest stage calls the command-layer model-bundle writer | `backtest/run.rs:140` calls `crate::command::model_bundle_from`; defined at `command/report_run/bundle.rs:29`; re-exported by `command/report_run/mod.rs:23` and `command.rs:34` | boundary, atomicity | A move bundle assembly to `crate::model_bundle` with a neutral error; B move only `model_bundle_from` to `render_report`; C leave | A, separate cycle | stage-to-command import guard, full gate, bundle hashes, error-string tests | Triaged | — |
 | REF-2026-11-06-06 | Info | tests | Test suites are the files closest to the 1,000-line hard gate | `ledger_tests.rs` 973, `progression/tests.rs` 929, `per_row_base_events.rs` 867, `timeframe_set/tests.rs` 769, `extended/tests.rs` 699, `portfolio/tests.rs` 694 | readability | A split `ledger_tests.rs` by behavior when next touched; B leave | B, no cycle; split on the next ledger change if it would cross the gate | `wc -l` and the file-size gate | Triaged | — |
 
 The Planner re-verified every carried finding against `7e6ab31` and agreed the
-route shown. REF-02 is `In progress` under #525; REF-03 and REF-05 remain
-`Triaged` for a later campaign; REF-04 and REF-06 are observations with no
-cycle.
+route shown. REF-02 is `Verified` under #525 and PR #526; REF-03 and REF-05
+remain `Triaged` for a later campaign; REF-04 and REF-06 are observations with
+no cycle.
 
 REF-2026-11-06-01 remains `Verified` from the first cycle; it is not re-opened.
 Carried findings keep their IDs. The first assessment remains the historical
@@ -269,16 +269,21 @@ is proposed in
 
 ## Loop decision
 
-Cycle 2 is implemented and locally verified at commit `f6e8c22`. The finding
-stays `In progress` until the pull request merges; the Refactor Verifier then
-checks equivalence on the merged tree and moves it to `Verified`. The loop
-decision follows that pass and re-scans the new HEAD.
+REF-2026-11-06-02 is `Verified` at merge commit `1dd13ca` (PR #526). The
+post-merge clean-tree pass re-ran the full gate: 1,309 passed, 0 failed, 8
+ignored; the fixture hash `da7389...` and bundle hash `59124f...` are unchanged;
+the stage-request guard passes. The pass was performed by the same agent and is
+disclosed as sequential, not independent.
+
+The campaign stops after one cycle. REF-03 and REF-05 remain `Triaged` and
+require a new campaign and an approved plan; the next campaign decision belongs
+to the human.
 
 ## Limitations
 
 - One agent performed the Structure Auditor, Refactor Planner, Refactor
-  Implementer, and local verifier passes. The passes are sequential, not
-  independent; the post-merge verifier role remains to be exercised.
+  Implementer, and verifier passes, including the post-merge pass. The passes are
+  sequential, not independent. The finding is `Verified` with that limitation.
 - The structural report is a heuristic. Cohesion and coupling findings are
   supported by code references and review, not by a metric alone.
 - The first assessment's bundle hash method is unrecoverable; this assessment
