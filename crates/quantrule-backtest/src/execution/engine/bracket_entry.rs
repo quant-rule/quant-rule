@@ -11,10 +11,10 @@ use crate::intent::BracketIntent;
 use crate::portfolio::floored_steps;
 use crate::side::Side;
 
+use super::records::{filled_record, is_tradable, order_side};
 use super::{
     ExecutionBatch, ExecutionError, FillReason, Order, OrderRecord, OrderSide, OrderState,
     PendingBracket, Position, PositionState, RejectReason, Rejection, Trigger, bracket,
-    filled_record, is_tradable, order_side,
 };
 
 pub(super) fn bracket_entry_reject_reason(

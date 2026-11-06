@@ -166,14 +166,14 @@ least-worst fit for the drivers.
 
 ## 9. Current baseline
 
-Snapshot on 2026-10-31, measured in the task worktree. This is evidence, not a
+Snapshot on 2026-11-06, measured in the task worktree. This is evidence, not a
 guarantee; release notes are the record for released runs.
 
 | Item | Observed |
 |---|---|
 | Workspace | Four crates; version 0.3.0; edition 2024; Rust 1.99.1 pinned |
-| Size | 56,584 Rust lines including integration tests; 50,989 outside `tests/`; the shell is 12,132 outside its integration tests |
-| Tests | The P3 cutover suite passes; the execution plan records the observed counts |
+| Size | 56,397 Rust lines including integration tests; 50,645 outside `tests/`; the shell is 12,265 outside its integration tests |
+| Tests | The full workspace suite passes; the file-size gate passes |
 | Model report | The `report model` bundle over a fixture run |
 | Unsafe | Forbidden at every crate root |
 
