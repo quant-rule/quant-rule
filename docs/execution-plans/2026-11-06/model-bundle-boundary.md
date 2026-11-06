@@ -258,19 +258,18 @@ Its scope and done-when criteria are those in sections 3 and 6.
 
 ## 12. Verification record
 
-Fill in after the cycle is verified.
-
 | Check | Result |
 |---|---|
-| Model-bundle module complete | Pending |
-| Stage-to-command references | Pending |
-| Guard and tests | Pending |
-| Error strings | Pending |
-| Test inventory | Pending |
-| Golden fixture hash | Pending |
-| Report bundle hash | Pending |
-| Backtest bundle hash | Pending |
-| Full gate | Pending |
-| Diff scope | Pending |
-| Assessment status | Pending |
-| Loop decision | Pending |
+| Model-bundle module complete | `src/model_bundle/` is 1,256 lines across five files; `command/report_run/` contains only `mod.rs`, `parse.rs`, and `spec.rs`; `RunError::Model` exists; `RunError::Bundle` and `ReportError::EmptyPeriod` are removed |
+| Stage-to-command references | 0 in the six stage directories; 0 in `request.rs` and `model_bundle/` |
+| Guard and tests | `stage-command-coupling` and `artifact-command-coupling` added; 17 structure tests pass, including 6 stage/artifact tests |
+| Error strings | the `EmptyPeriod`, `BundleError`, and output unit tests pass; the CLI non-empty-output refusal test passes |
+| Test inventory | 1,312 passed, 0 failed, 8 ignored (1,309 plus 3 new error-message tests) |
+| Golden fixture hash | `da738931a8643bc2cc0db915174d713141e894614ee06f0087d9a3247497b5f1`; unchanged |
+| Report bundle hash | `59124f63a2741697c533e699eeaf191684d84811d354b7778518b4d03ef82512`; unchanged |
+| Backtest bundle hash | `4173b5055814048597ee5e946da9b117e34dadf5f867de750aaa2f2cf15f085e`; unchanged |
+| Full gate | fmt, clippy, test, doc, file size, structure, registry, validation, verification matrix, verification evidence, emitters, command surface, links, terms, legacy, oracle, progression, improvement, research, program, coverage, and diff check pass |
+| Clean-worktree verifier pass | at commit `9dc160a`: every gate passes; 1,312 passed, 0 failed, 8 ignored; all three hashes unchanged; both command-coupling guards pass. Sequential pass by the same agent, not an independent review |
+| Diff scope | 11 code files and 2 tool files; no fixture, expected-value, command, schema, error-string, or output change |
+| Assessment status | `In progress`; local and clean-worktree verification complete; post-merge verification pending |
+| Loop decision | pending the post-merge verifier pass and re-scan |

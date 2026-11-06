@@ -63,14 +63,14 @@ Both bundle hashes are unchanged from the post-merge pass. The backtest bundle c
 
 | ID | Impact | Area | Finding | Evidence | Principle | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| REF-2026-11-06-05 | High | shell | The backtest stage calls the command-layer model-bundle writer | `backtest/run.rs:140` calls `crate::command::model_bundle_from`; defined at `command/report_run/bundle.rs:29`; re-exported by `command/report_run/mod.rs:24` and `command.rs:34`; the writer covers `bundle.rs` 275, `provenance.rs` 261, and `model_artifacts.rs` 601 | boundary, atomicity | A move bundle assembly to `crate::model_bundle` with a neutral error; B move only `model_bundle_from` to `render_report`; C leave | A, this cycle | stage-to-command guard, full gate, report and backtest hashes, error-string tests | Planned | [#528](https://github.com/quant-rule/quant-rule/issues/528) |
+| REF-2026-11-06-05 | High | shell | The backtest stage calls the command-layer model-bundle writer | `backtest/run.rs:140` calls `crate::command::model_bundle_from`; defined at `command/report_run/bundle.rs:29`; re-exported by `command/report_run/mod.rs:24` and `command.rs:34`; the writer covers `bundle.rs` 275, `provenance.rs` 261, and `model_artifacts.rs` 601 | boundary, atomicity | A move bundle assembly to `crate::model_bundle` with a neutral error; B move only `model_bundle_from` to `render_report`; C leave | A, this cycle | stage-to-command guard, full gate, report and backtest hashes, error-string tests | In progress | [#528](https://github.com/quant-rule/quant-rule/issues/528) |
 | REF-2026-11-06-03 | Medium | shell | Date windows are owned by the `source` adapter and imported by non-source modules | `source/date.rs` defines `DateRange`, `DateBounds`, and `DateRangeError`; imported by `config/data.rs:13-14`, `csv.rs:22`, `backtest_bundle.rs:20`, and `pipeline.rs:19`; re-exported by `source/mod.rs:19` | boundary, coupling | A move `source/date.rs` to `crate::date`; B move only the bounds and error to `config`; C leave | A, separate cycle | import guard and config/CSV tests | Triaged | cycle-2 assessment |
 | REF-2026-11-06-04 | Info | shell | The public-surface and panic counts are heuristics, not findings | `check_structure.py` counts every `pub` line and every `unwrap`/`expect` line, including inline test modules; the shell has no executable `unwrap`/`expect` outside test modules, and the model/backtest hits are doc examples or test modules | surface, panic hygiene | A compiler-based count and ratchet; B leave as an observation | B, no cycle | a clippy `unwrap_used`/`expect_used` pass would be a separate tooling decision | Triaged | cycle-2 assessment |
 | REF-2026-11-06-06 | Info | tests | Test suites are the files closest to the 1,000-line hard gate | `ledger_tests.rs` 973, `progression/tests.rs` 929, `per_row_base_events.rs` 867, `timeframe_set/tests.rs` 769, `extended/tests.rs` 699, `portfolio/tests.rs` 694 | readability | A split `ledger_tests.rs` by behavior when next touched; B leave | B, no cycle; split on the next ledger change if it would cross the gate | `wc -l` and the file-size gate | Triaged | cycle-2 assessment |
 
 REF-2026-11-06-02 is `Verified` and is not re-opened. The Planner re-verified
 REF-05 and REF-03 against `172b65a` and agreed the routes shown. REF-05 is
-`Planned` under #528; REF-03 remains `Triaged` for a later campaign.
+`In progress` under #528; REF-03 remains `Triaged` for a later campaign.
 
 ### REF-2026-11-06-05 — The backtest stage calls the command-layer writer
 
@@ -197,14 +197,16 @@ extract the neutral error. The cycle is proposed in
 
 ## Loop decision
 
-Pending cycle-3 verification. The loop decision is recorded after the verifier
-checks the merged refactor and re-scans the new HEAD.
+Cycle 3 is implemented and locally verified at commit `9dc160a`. The finding
+stays `In progress` until the pull request merges; the Refactor Verifier then
+checks equivalence on the merged tree and moves it to `Verified`. The loop
+decision follows that pass and re-scans the new HEAD.
 
 ## Limitations
 
-- One agent performed the Structure Auditor and Refactor Planner passes. The
-  passes are sequential, not independent; the verifier role is exercised after
-  the cycle.
+- One agent performed the Structure Auditor, Refactor Planner, Refactor
+  Implementer, and verifier passes. The passes are sequential, not independent;
+  the post-merge verifier role remains to be exercised.
 - The structural report is a heuristic. Cohesion and coupling findings are
   supported by code references and review, not by a metric alone.
 - The backtest bundle hash is a new baseline. It is deterministic across two

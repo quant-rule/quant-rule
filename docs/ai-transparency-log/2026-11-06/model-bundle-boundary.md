@@ -4,16 +4,17 @@
 - Tool: DeepSeek V4.1 Flash through the OpenCode agent harness
 - Work item: #528 `Execute the third behavior-neutral refactor cycle`
 - Plan: [`docs/execution-plans/2026-11-06/model-bundle-boundary.md`](../../execution-plans/2026-11-06/model-bundle-boundary.md)
-- Status: approved; implementation started
+- Status: approved; implementation and local verification complete; PR and merge pending
 
 ## Intent and boundary
 
 The agent was asked to proceed with cycle 3 after cycle 2 was verified and
 closed. It performed the read-only Structure Auditor pass at `172b65a`,
-re-verified REF-2026-11-06-05, captured the baseline, and wrote a proposed plan
-for moving the model-bundle writer out of the command layer. It did not change
-code, tests, fixtures, commands, or schemas. It did not commit, push, or open a
-pull request. The plan is `Proposed` and awaits human approval.
+re-verified REF-2026-11-06-05, captured the baseline, and wrote a third-cycle
+plan. After human approval, it moved the model-bundle writer to
+`crate::model_bundle`, added `ModelBundleError`, updated the report and backtest
+callers, and broadened the structural guard. It did not change a fixture,
+command, schema, or behavior. It did not push, open a pull request, or merge.
 
 ## Work performed
 
@@ -28,6 +29,11 @@ pull request. The plan is `Proposed` and awaits human approval.
   identical bytes for each.
 - Ran `python3 tools/check_structure.py --report`.
 - Wrote the cycle-3 assessment and the proposed plan.
+- After approval, created issue #528, moved the bundle writer, provenance, and
+  artifacts to `src/model_bundle/`, added `ModelBundleError`, updated the
+  command and backtest callers, and added the two command-coupling guards.
+- Ran the full gate and a clean-worktree verification pass at the implementation
+  commit.
 
 ## Verification and evidence
 
@@ -49,6 +55,15 @@ Commands actually run and observed results:
   bytes.
 - `python3 tools/check_structure.py --report` — 197 `src` files / 63,774 lines;
   34 files over 600, 7 over 800, 0 over 1,000.
+- `cargo test --workspace --no-fail-fast` — 1,312 passed, 0 failed, 8 ignored
+  (1,309 plus 3 new model-bundle error tests).
+- `python3 -m unittest discover -s tools -p 'test_check_structure.py'` — 17
+  tests pass, including the 6 stage/artifact coupling tests.
+- Stage and artifact command references — 0.
+- Golden fixture hash `da7389...`, report bundle hash `59124f...`, and backtest
+  bundle hash `4173b505...` — unchanged.
+- Clean-worktree verifier pass at `9dc160a`: every gate passes; 1,312 passed, 0
+  failed, 8 ignored; all three hashes unchanged; both coupling guards pass.
 
 ## Learning and rejected suggestions
 
@@ -66,14 +81,20 @@ Commands actually run and observed results:
   plan adds a deterministic backtest-bundle hash.
 - A single cycle combining REF-05 and REF-03 was rejected. The date move is a
   separate, low-risk seam and belongs in its own cycle.
+- The first compile failed because `model_bundle_with_spec` was still
+  `pub(super)` after the move. Widening it to `pub(crate)` was the only
+  visibility change the command caller needed; the compiler caught it before
+  any test.
 
 ## Limitations
 
-- One agent performed the Structure Auditor and Refactor Planner passes. These
+- One agent performed the Structure Auditor, Refactor Planner, Refactor
+  Implementer, and verifier passes, including the clean-worktree pass. These
   were sequential passes, not independent agents or independent model
   judgments.
-- The implementation and independent verification have not happened. The plan's
-  verification record is empty.
+- The pull request, merge, and post-merge independent verification have not
+  happened. The finding stays `In progress`; the plan's verification record
+  covers the local gate and the clean-worktree pass.
 - The backtest bundle hash is new; it is reproducible but does not replace the
   command-level shell tests.
 - The structural report is a heuristic; the findings are supported by code
