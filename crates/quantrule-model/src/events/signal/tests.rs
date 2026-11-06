@@ -89,6 +89,38 @@ fn events_of(
 }
 
 #[test]
+fn a_two_bar_macd_series_does_not_reach_the_histogram_branch() {
+    use crate::readings::MacdSeries;
+
+    // Regression: bar 1 used to evaluate `bar - 2` before the histogram read
+    // and underflow in debug builds. A two-bar series must simply return.
+    let candles = candles(&[100.0; 2]);
+    let readings = readings_with(
+        &candles,
+        flat(2, 100.0),
+        flat(2, 100.0),
+        flat(2, 100.0),
+        flat(2, 50.0),
+        flat(2, 10.0),
+    );
+    let macd = MacdSeries {
+        line: series(vec![Some(0.1), Some(0.2)]),
+        signal: series(vec![Some(0.0), Some(0.1)]),
+        histogram: series(vec![Some(0.1), Some(0.1)]),
+    };
+
+    let series = SignalEventSeries::compute(&readings, &macd, &config());
+
+    assert!(
+        !series
+            .events()
+            .iter()
+            .any(|event| event.event_code == crate::events::codes::SIGNAL_MACD_HISTOGRAM_SLOPE_FLIP),
+        "two bars cannot establish a histogram slope"
+    );
+}
+
+#[test]
 fn macd_cross_zero_cross_and_histogram_flip_are_distinct() {
     use crate::readings::{MacdSeries, ReadingSeries};
 
