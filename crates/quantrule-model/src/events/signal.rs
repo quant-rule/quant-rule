@@ -387,8 +387,11 @@ fn macd_events(
         ));
     }
 
+    let Some(two_back_index) = bar.checked_sub(2) else {
+        return;
+    };
     let (Some(two_back), Some(previous), Some(current)) = (
-        macd.histogram.get(bar - 2),
+        macd.histogram.get(two_back_index),
         macd.histogram.get(bar - 1),
         macd.histogram.get(bar),
     ) else {

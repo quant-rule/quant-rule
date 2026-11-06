@@ -1,9 +1,9 @@
 # Indicator and Event Verification Report
 
 - Date: 2026-11-06 (UTC)
-- Branch: `test/indicator-event-verification`
+- Branch: `test/row-level-verification-base-events`
 - Plan: [`docs/execution-plans/2026-11-06/indicator-event-verification.md`](../../execution-plans/2026-11-06/indicator-event-verification.md)
-- Claim type: verification evidence map; no model behavior change and no edge claim
+- Claim type: verification evidence map; no signal-generation change, one debug-build underflow fixed, and no edge claim
 
 ## 1. Result
 
@@ -12,12 +12,12 @@ the eleven evidence classes. The matrix documents are generated from it.
 
 | Scope | Cells | Meaning |
 |---|---:|---|
-| `row` | 67 | The test names the row's indicator or event |
-| `family` | 1376 | The test exercises the family that contains the row |
+| `row` | 146 | The test names the row's indicator or event |
+| `family` | 1297 | The test exercises the family that contains the row |
 | `tool` | 332 | A repository gate covers every row |
 | `n/a` | 304 | The class does not apply |
 
-The base EMA/RSI/ATR contracts and the existing MACD/ADX/DMI/context/progression tests are row-level; the large `family` count is the honest result: the existing suites exercise
+The base EMA/RSI/ATR contracts, the 16 base event contracts, and the existing MACD/ADX/DMI/context/progression tests are row-level; the large `family` count is the honest result: the remaining suites exercise
 families, not one bespoke test per row. The matrix marks these cells `◐` and the
 status `partial (family)`, not `verified`.
 
@@ -27,8 +27,9 @@ status `partial (family)`, not `verified`.
   all 143 registered codes are directly referenced or family-computed.
 - Registry math is row-level through `check_registry.py` and
   `check_validation.py`.
-- 33 formula/construct cells are row-level because the test name contains the
-  row identifier; the rest use a family construct test and are marked `◐`.
+- 54 formula/construct cells are row-level; the rest use a family construct test
+  and are marked `◐`. The 16 base events also carry row-level causality,
+  determinism, availability, and dedupe evidence from `per_row_base_events.rs`.
 
 ## 3. Checker
 

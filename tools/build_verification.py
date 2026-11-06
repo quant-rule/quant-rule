@@ -151,6 +151,47 @@ ROW_INDICATOR_TESTS = {
     },
 }
 
+ROW_EVENT_TESTS = {
+    "level.test": ("per_row_base_events::level_test_row_contract",),
+    "level.cross": ("per_row_base_events::level_cross_row_contract",),
+    "level.break": ("per_row_base_events::level_break_row_contract",),
+    "divergence.rsi_regular_bullish": (
+        "per_row_base_events::divergence_rsi_regular_bullish_row_contract",
+    ),
+    "divergence.rsi_regular_bearish": (
+        "per_row_base_events::divergence_rsi_regular_bearish_row_contract",
+    ),
+    "divergence.rsi_hidden_bullish": (
+        "per_row_base_events::divergence_rsi_hidden_bullish_row_contract",
+    ),
+    "divergence.rsi_hidden_bearish": (
+        "per_row_base_events::divergence_rsi_hidden_bearish_row_contract",
+    ),
+    "signal.rsi_threshold": ("per_row_base_events::rsi_threshold_row_contract",),
+    "signal.ema_pair_cross": ("per_row_base_events::ema_pair_cross_row_contract",),
+    "signal.ema_stack_change": ("per_row_base_events::ema_stack_change_row_contract",),
+    "signal.rsi_zone_change": ("per_row_base_events::rsi_zone_change_row_contract",),
+    "signal.macd_line_signal_cross": (
+        "per_row_base_events::macd_line_signal_cross_row_contract",
+    ),
+    "signal.macd_histogram_slope_flip": (
+        "per_row_base_events::macd_histogram_slope_flip_row_contract",
+    ),
+    "signal.macd_zero_cross": ("per_row_base_events::macd_zero_cross_row_contract",),
+    "signal.di_cross": ("per_row_base_events::di_cross_row_contract",),
+    "signal.trend_continuation": (
+        "per_row_base_events::trend_continuation_row_contract",
+    ),
+}
+ROW_EVENT_CLASSES = (
+    "formula",
+    "causality",
+    "determinism",
+    "availability",
+    "no_double_count",
+)
+
+
 def evidence(scope: str, *tests: str) -> dict[str, object]:
     return {"scope": scope, "tests": list(tests)}
 
@@ -279,6 +320,9 @@ def event_entry(event: dict[str, object], claims: dict[str, dict[str, object]]) 
         "spec": evidence("family", "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"),
         "emitter": evidence("tool", "check_event_emitters.py"),
     }
+    for name in ROW_EVENT_CLASSES:
+        if ident in ROW_EVENT_TESTS:
+            evidence_map[name] = evidence("row", *ROW_EVENT_TESTS[ident])
     return {"id": ident, "kind": "event", "evidence": evidence_map}
 
 
