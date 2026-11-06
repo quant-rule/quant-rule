@@ -70,7 +70,7 @@ class EnginePurityTests(unittest.TestCase):
             self.assertEqual(check_structure.check_engine_purity(root), [])
 
 
-class StageRequestCouplingTests(unittest.TestCase):
+class StageCommandCouplingTests(unittest.TestCase):
     def test_stage_module_importing_command_types_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -78,9 +78,20 @@ class StageRequestCouplingTests(unittest.TestCase):
                 root / "crates" / "quantrule-shell" / "src" / "analytics" / "run.rs",
                 "use crate::command::types::AnalyticsEvaluateArgs;\n",
             )
-            violations = check_structure.check_stage_request_coupling(root)
+            violations = check_structure.check_stage_command_coupling(root)
             self.assertEqual(len(violations), 1)
-            self.assertEqual(violations[0].rule, "stage-request-coupling")
+            self.assertEqual(violations[0].rule, "stage-command-coupling")
+
+    def test_stage_module_importing_command_writer_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "crates" / "quantrule-shell" / "src" / "backtest" / "run.rs",
+                "use crate::command::model_bundle_from;\n",
+            )
+            violations = check_structure.check_stage_command_coupling(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].rule, "stage-command-coupling")
 
     def test_stage_module_importing_request_is_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -89,7 +100,7 @@ class StageRequestCouplingTests(unittest.TestCase):
                 root / "crates" / "quantrule-shell" / "src" / "analytics" / "run.rs",
                 "use crate::request::AnalyticsEvaluateArgs;\n",
             )
-            self.assertEqual(check_structure.check_stage_request_coupling(root), [])
+            self.assertEqual(check_structure.check_stage_command_coupling(root), [])
 
     def test_request_module_importing_command_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -98,9 +109,29 @@ class StageRequestCouplingTests(unittest.TestCase):
                 root / "crates" / "quantrule-shell" / "src" / "request.rs",
                 "use crate::command::types::Command;\n",
             )
-            violations = check_structure.check_stage_request_coupling(root)
+            violations = check_structure.check_artifact_command_coupling(root)
             self.assertEqual(len(violations), 1)
-            self.assertEqual(violations[0].rule, "stage-request-coupling")
+            self.assertEqual(violations[0].rule, "artifact-command-coupling")
+
+    def test_model_bundle_module_importing_command_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "crates" / "quantrule-shell" / "src" / "model_bundle" / "mod.rs",
+                "use crate::command::types::Command;\n",
+            )
+            violations = check_structure.check_artifact_command_coupling(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].rule, "artifact-command-coupling")
+
+    def test_model_bundle_module_importing_render_report_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "crates" / "quantrule-shell" / "src" / "model_bundle" / "mod.rs",
+                "use crate::render_report::BundleError;\n",
+            )
+            self.assertEqual(check_structure.check_artifact_command_coupling(root), [])
 
 
 class NamingTests(unittest.TestCase):

@@ -155,13 +155,12 @@ def check_engine_purity(root: Path) -> list[Violation]:
     return violations
 
 
-def check_stage_request_coupling(root: Path) -> list[Violation]:
-    """Reject a stage module that imports the command request vocabulary.
+def check_stage_command_coupling(root: Path) -> list[Violation]:
+    """Reject any command-layer reference in the six shell stage modules.
 
     The command layer depends on the stage modules. The reverse edge would make
-    a stage rebuild on a command change and would let a command-layer type leak
-    into the stage contract. The rule is narrow on purpose: the model-bundle
-    writer is a separate finding and is not covered here.
+    a stage rebuild on a command change and would let a command-layer type or
+    writer leak into the stage contract.
     """
     shell = root / "crates" / "quantrule-shell" / "src"
     violations = []
@@ -171,24 +170,40 @@ def check_stage_request_coupling(root: Path) -> list[Violation]:
             continue
         for path in sorted(directory.rglob("*.rs")):
             text = path.read_text(encoding="utf-8", errors="ignore")
-            if "crate::command::types" in text:
+            if "crate::command" in text:
                 violations.append(
                     Violation(
-                        "stage-request-coupling",
+                        "stage-command-coupling",
                         relative(root, path),
-                        "stage module must import request types from crate::request, "
-                        "not crate::command::types",
+                        "stage module must not reference the command layer",
                     )
                 )
-    request = shell / "request.rs"
-    if request.exists():
-        text = request.read_text(encoding="utf-8", errors="ignore")
+    return violations
+
+
+def check_artifact_command_coupling(root: Path) -> list[Violation]:
+    """Reject a command-layer import in a shared shell artifact module.
+
+    `request` and `model_bundle` are shared by the command layer and the stage
+    modules; importing `crate::command` from either would recreate the reverse
+    edge the stage rules remove.
+    """
+    shell = root / "crates" / "quantrule-shell" / "src"
+    targets = [shell / "request.rs"]
+    model_bundle = shell / "model_bundle"
+    if model_bundle.exists():
+        targets.extend(sorted(model_bundle.rglob("*.rs")))
+    violations = []
+    for path in targets:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
         if "crate::command" in text:
             violations.append(
                 Violation(
-                    "stage-request-coupling",
-                    relative(root, request),
-                    "the request module must not import the command layer",
+                    "artifact-command-coupling",
+                    relative(root, path),
+                    "shared artifact module must not import the command layer",
                 )
             )
     return violations
@@ -295,7 +310,8 @@ def check_all(root: Path) -> list[Violation]:
     violations.extend(check_module_docs(root))
     violations.extend(check_unsafe_forbid(root))
     violations.extend(check_engine_purity(root))
-    violations.extend(check_stage_request_coupling(root))
+    violations.extend(check_stage_command_coupling(root))
+    violations.extend(check_artifact_command_coupling(root))
     violations.extend(check_naming(root))
     violations.extend(check_dated_docs(root))
     violations.extend(workflow_index_violations(root))

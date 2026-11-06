@@ -20,6 +20,7 @@ use serde_json::{Value, json};
 
 use crate::config::{ConfigError, RunConfig};
 use crate::execution::{ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution};
+use crate::model_bundle::model_bundle_from;
 use crate::pipeline::{self, PipelineError};
 use crate::portfolio::{self, PortfolioRunError};
 use crate::render_report::{self, BundleError};
@@ -137,7 +138,7 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
     let root = out.join("backtest");
 
     let model_run = pipeline::run_model(&config).map_err(BacktestRunError::Pipeline)?;
-    crate::command::model_bundle_from(&config, &root, &model_run)
+    model_bundle_from(&config, &root, &model_run)
         .map_err(|error| BacktestRunError::Model(error.to_string()))?;
 
     let fill_timeframe = config.execution.fill_timeframe;

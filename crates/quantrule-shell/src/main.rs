@@ -18,6 +18,7 @@ mod export;
 mod fetch;
 mod fingerprint;
 mod labels;
+mod model_bundle;
 mod pipeline;
 mod portfolio;
 mod qualification;

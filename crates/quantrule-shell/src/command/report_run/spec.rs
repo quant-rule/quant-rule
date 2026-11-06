@@ -9,10 +9,9 @@ use crate::spec::v2::ParsedModelSpecV2;
 use quantrule_data::{Candle, Timeframe};
 use quantrule_model::run::ModelRun;
 
-use super::period_label;
-use super::provenance::resolve_spec_path;
 use crate::command::types::{ReportError, RunError};
 use crate::config::RunConfig;
+use crate::model_bundle::{ModelBundleError, period_label, resolve_spec_path};
 use crate::pipeline::{self, PipelineError};
 
 pub(super) fn load_panel_series(
@@ -87,7 +86,7 @@ pub(super) fn load_model(config: &RunConfig) -> Result<ModelRun, RunError> {
 pub(super) fn pipeline_error(config: &RunConfig, error: PipelineError) -> RunError {
     match error {
         PipelineError::Source(error) => RunError::Source(error),
-        PipelineError::EmptyPeriod => RunError::Report(ReportError::EmptyPeriod {
+        PipelineError::EmptyPeriod => RunError::Model(ModelBundleError::EmptyPeriod {
             period: period_label(config),
         }),
     }

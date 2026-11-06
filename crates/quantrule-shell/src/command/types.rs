@@ -16,9 +16,9 @@ use crate::config::ConfigError;
 use crate::csv::SourceError;
 use crate::execution::ExecutionRunError;
 use crate::fetch::FetchRunError;
+use crate::model_bundle::ModelBundleError;
 use crate::portfolio::PortfolioRunError;
 use crate::qualification::QualificationRunError;
-use crate::render_report::BundleError;
 use crate::request::{
     AnalyticsEvaluateArgs, BacktestRunArgs, ExecutionRunArgs, FetchArgs, ModelArgs,
     PolicyCheckArgs, PortfolioReplayArgs, QualifyArgs, ReportArgs, StrategyExplainArgs,
@@ -137,14 +137,9 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-/// A report-specific failure.
+/// A report spec failure.
 #[derive(Debug)]
 pub(crate) enum ReportError {
-    /// The requested period selected no candle.
-    EmptyPeriod {
-        /// The requested period as written.
-        period: String,
-    },
     /// The spec file could not be read.
     SpecRead {
         /// The spec path.
@@ -164,12 +159,6 @@ pub(crate) enum ReportError {
 impl fmt::Display for ReportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::EmptyPeriod { period } => {
-                write!(
-                    formatter,
-                    "no candle falls inside the requested period {period}"
-                )
-            }
             Self::SpecRead { path, source } => {
                 write!(formatter, "cannot read {}: {source}", path.display())
             }
@@ -198,8 +187,10 @@ pub(crate) enum RunError {
     Config(ConfigError),
     /// The source or data engine rejected the candles.
     Source(SourceError),
-    /// The report could not be built.
+    /// The report spec could not be read or parsed.
     Report(ReportError),
+    /// The model bundle could not be built.
+    Model(ModelBundleError),
     /// The strategy command failed.
     Strategy(StrategyRunError),
     /// The execution command failed.
@@ -212,8 +203,6 @@ pub(crate) enum RunError {
     Qualification(QualificationRunError),
     /// The analytics command failed.
     Analytics(AnalyticsRunError),
-    /// The bundle could not be written.
-    Bundle(BundleError),
     /// The fetch failed.
     Fetch(FetchRunError),
     /// A help topic is unknown.
@@ -228,13 +217,13 @@ impl fmt::Display for RunError {
             Self::Config(error) => error.fmt(formatter),
             Self::Source(error) => error.fmt(formatter),
             Self::Report(error) => error.fmt(formatter),
+            Self::Model(error) => error.fmt(formatter),
             Self::Strategy(error) => error.fmt(formatter),
             Self::Execution(error) => error.fmt(formatter),
             Self::Portfolio(error) => error.fmt(formatter),
             Self::Backtest(error) => error.fmt(formatter),
             Self::Qualification(error) => error.fmt(formatter),
             Self::Analytics(error) => error.fmt(formatter),
-            Self::Bundle(error) => error.fmt(formatter),
             Self::Fetch(error) => error.fmt(formatter),
             Self::Help(message) => formatter.write_str(message),
             Self::Output(error) => write!(formatter, "cannot write output: {error}"),
@@ -248,13 +237,13 @@ impl std::error::Error for RunError {
             Self::Config(error) => Some(error),
             Self::Source(error) => Some(error),
             Self::Report(error) => Some(error),
+            Self::Model(error) => Some(error),
             Self::Strategy(error) => Some(error),
             Self::Execution(error) => Some(error),
             Self::Portfolio(error) => Some(error),
             Self::Backtest(error) => Some(error),
             Self::Qualification(error) => Some(error),
             Self::Analytics(error) => Some(error),
-            Self::Bundle(error) => Some(error),
             Self::Fetch(error) => Some(error),
             Self::Output(error) => Some(error),
             Self::Help(_) => None,
