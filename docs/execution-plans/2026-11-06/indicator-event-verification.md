@@ -80,7 +80,7 @@ python3 tools/check_file_size.py
 
 ## 7. Execution record
 
-Implemented across `test/indicator-event-verification`, `test/row-level-verification-base`, `test/row-level-verification-base-events`, `test/per-row-extended-session-events`, `test/per-row-indicator-contracts`, `test/per-row-event-core-group1`, and `test/per-row-event-core-group2` on 2026-11-06.
+Implemented across `test/indicator-event-verification`, `test/row-level-verification-base`, `test/row-level-verification-base-events`, `test/per-row-extended-session-events`, `test/per-row-indicator-contracts`, `test/per-row-event-core-group1`, `test/per-row-event-core-group2`, and `test/per-row-event-core-group3` on 2026-11-06.
 
 - Added `docs/registry/verification.json` with 46 indicator and 143 event
   entries and all eleven evidence classes.
@@ -93,15 +93,16 @@ Implemented across `test/indicator-event-verification`, `test/row-level-verifica
 - Added row contracts for all 46 indicators: extended readings, panel readings, session readings, MACD/ADX/DMI, and pivots. Each row checks the checked-in golden values, prefix causality, determinism, and empty/single/short safety. Added `base_flow_golden.csv` as the MACD/ADX/DMI regression lock.
 - Added row contracts for the first 11 uncovered events: compression breakout/range/onset, VWAP regular/hidden bullish divergence, profile concentration, climax reversal/continuation, and absorption test/break/rejection. The tests assert the full expected record, availability, uniqueness, determinism, and prefix causality.
 - Added row contracts for 14 flow and panel divergence events: OBV, CMF, MFI, AD, ATR, relative strength, lead-lag, and breadth. The tests assert the full expected record, availability, uniqueness, determinism, and prefix causality.
+- Added row contracts for the remaining 22 events: wick test, ATR compression/expansion/regime, candle momentum/rejection/marubozu, four candle patterns, gap continuation/fade, five panel crosses, opening-range breakout, overnight continuation/fade, and session-range contraction. The tests assert the full expected record, availability, uniqueness, determinism, and prefix causality.
 - Generated matrices now show `✅` row/tool evidence, `◐` family evidence, and
   `—` N/A. Status is `partial (family)` when any class is family-level.
-- Scope counts: 942 `row`, 501 `family`, 332 `tool`, 304 `n/a`.
+- Scope counts: 1072 `row`, 371 `family`, 332 `tool`, 304 `n/a`.
 
 Observed gates:
 
 | Check | Result |
 |---|---|
-| `cargo test --workspace` | 1151 passed, 0 failed, 8 ignored |
+| `cargo test --workspace` | 1173 passed, 0 failed, 8 ignored |
 | `check_registry.py` | 46 indicators, 143 events, 101 parameters |
 | `check_validation.py` | 189 claims, construct coverage pass |
 | `check_verification.py` | 46 indicators, 143 events; scope counts above |
