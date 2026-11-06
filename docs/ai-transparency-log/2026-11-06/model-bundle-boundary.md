@@ -4,7 +4,7 @@
 - Tool: DeepSeek V4.1 Flash through the OpenCode agent harness
 - Work item: #528 `Execute the third behavior-neutral refactor cycle`
 - Plan: [`docs/execution-plans/2026-11-06/model-bundle-boundary.md`](../../execution-plans/2026-11-06/model-bundle-boundary.md)
-- Status: approved; implementation and local verification complete; PR and merge pending
+- Status: cycle 3 merged and post-merge verified; cycle complete; REF-03 not started
 
 ## Intent and boundary
 
@@ -13,8 +13,10 @@ closed. It performed the read-only Structure Auditor pass at `172b65a`,
 re-verified REF-2026-11-06-05, captured the baseline, and wrote a third-cycle
 plan. After human approval, it moved the model-bundle writer to
 `crate::model_bundle`, added `ModelBundleError`, updated the report and backtest
-callers, and broadened the structural guard. It did not change a fixture,
-command, schema, or behavior. It did not push, open a pull request, or merge.
+callers, and broadened the structural guard. After further approval, it pushed
+the branch, opened PR #529, merged it at `5e9c4df`, and ran the post-merge
+verifier pass. It did not change a fixture, command, schema, or behavior, and it
+did not start the REF-03 campaign.
 
 ## Work performed
 
@@ -34,6 +36,8 @@ command, schema, or behavior. It did not push, open a pull request, or merge.
   command and backtest callers, and added the two command-coupling guards.
 - Ran the full gate and a clean-worktree verification pass at the implementation
   commit.
+- Pushed the branch, opened PR #529, merged it at `5e9c4df`, and ran the
+  post-merge verifier pass.
 
 ## Verification and evidence
 
@@ -64,6 +68,10 @@ Commands actually run and observed results:
   bundle hash `4173b505...` — unchanged.
 - Clean-worktree verifier pass at `9dc160a`: every gate passes; 1,312 passed, 0
   failed, 8 ignored; all three hashes unchanged; both coupling guards pass.
+- PR #529 merged at `5e9c4df`; CI `verify` and `sync` passed at `c0e7414`; the
+  merge tree is identical to the verified branch head.
+- Post-merge verifier pass at `5e9c4df`: every gate passes; 1,312 passed, 0
+  failed, 8 ignored; all three hashes unchanged; both coupling guards pass.
 
 ## Learning and rejected suggestions
 
@@ -89,12 +97,11 @@ Commands actually run and observed results:
 ## Limitations
 
 - One agent performed the Structure Auditor, Refactor Planner, Refactor
-  Implementer, and verifier passes, including the clean-worktree pass. These
-  were sequential passes, not independent agents or independent model
-  judgments.
-- The pull request, merge, and post-merge independent verification have not
-  happened. The finding stays `In progress`; the plan's verification record
-  covers the local gate and the clean-worktree pass.
+  Implementer, and verifier passes, including the post-merge pass. These were
+  sequential passes, not independent agents or independent model judgments. The
+  finding is `Verified` with that limitation.
+- Cycle 3 is complete. REF-2026-11-06-03 has not started; it requires a new
+  campaign and an approved plan.
 - The backtest bundle hash is new; it is reproducible but does not replace the
   command-level shell tests.
 - The structural report is a heuristic; the findings are supported by code
