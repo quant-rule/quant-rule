@@ -66,7 +66,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--family",
-        choices=("M2", "M3", "M4"),
+        choices=("M2", "M3", "M4", "MR5"),
         default="M2",
         help="programme family layout",
     )
@@ -984,7 +984,16 @@ def markdown(document: dict[str, Any]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_arguments(argv)
-    if args.family == "M4":
+    if args.family == "MR5":
+        from coverage_mr5 import check_mr5, markdown_mr5
+
+        document = check_mr5(
+            Path(args.program).expanduser(),
+            Path(args.registry).expanduser(),
+            Path(args.inherit).expanduser() if args.inherit else None,
+        )
+        render = markdown_mr5
+    elif args.family == "M4":
         document = check_m4(
             Path(args.program).expanduser(),
             Path(args.registry).expanduser(),

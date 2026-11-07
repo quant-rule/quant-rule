@@ -155,6 +155,10 @@ def parse_model_prediction(out_dir: Path) -> ParseResult:
         "horizon": document.get("horizon"),
         "cost_bps": document.get("cost_bps"),
         "verdict": document.get("verdict"),
+        "condition_file": document.get("condition_file"),
+        "condition_sha256": document.get("condition_sha256"),
+        "model_config_sha256": document.get("model_config_sha256"),
+        "path": document.get("path"),
     }
     limitations = document.get("limitations", [])
     if not isinstance(limitations, list):

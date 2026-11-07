@@ -1,17 +1,20 @@
 # Research Programs
 
-- Status: M2.x and M3.x historical evidence; M4.x current model research programme
+- Status: M2.x–M4.x historical evidence; MR5.x current research platform
 
 The M2.x configs predate the flat-model cutover. Their `runs/**/run.json` files
 reference retired sibling files, so they are kept for reproducibility of the
 M2.x evidence, not as current run configs. The M3.x configs are retained for the
-underpowered preflight. The M4.x programme (`PROGRAM-2026-11-07-01`) is current;
-its run configs use the current sibling schemas and the M1.0 model. The current
-example runs are under `config/examples/`.
+underpowered preflight. The M4.x programme (`PROGRAM-2026-11-07-01`) is the last
+shared-model programme. The MR5.x platform (`reference-mr5` and the planned
+`PROGRAM-2026-11-08-01`) uses per-cell model configs, conditions, and the current
+sibling schemas. The current example runs are under `config/examples/`.
 
 A research program is a premise plus a finite set of pre-registered cells. The
 manifest is data; the runner and engine do the work. A program is not a
-parameter sweep and does not select a winner automatically.
+parameter sweep and does not select a winner automatically. An MR5 cell also
+carries `model.json` and `condition.json`; the model and condition variants are
+pre-registered, not tuned after a result.
 
 The contract is
 [`docs/governance/2026-11-04/research-mandate.md`](../../docs/governance/2026-11-04/research-mandate.md)
@@ -53,6 +56,17 @@ python3 tools/research/coverage.py \
   --program config/research/<PROGRAM-ID>/program.json \
   --family M4 \
   --inherit config/research/PROGRAM-2026-11-05-03/program.json
+
+# Check an MR5 grid that inherits the M2 exploratory surface.
+python3 tools/research/coverage.py \
+  --program config/research/<PROGRAM-ID>/program.json \
+  --family MR5 \
+  --inherit config/research/PROGRAM-2026-11-05-03/program.json
+
+# Build an MR5 grid from its declarative grid.json.
+python3 tools/research/build_mr5_program.py \
+  --grid config/research/<PROGRAM-ID>/grid.json \
+  --out config/research/<PROGRAM-ID>
 
 # Run one model cell (four instruments + one pooled evaluation).
 python3 tools/research/model_cell.py \

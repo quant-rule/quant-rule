@@ -1,8 +1,9 @@
 # Model, Strategy, Portfolio, Policy, and Execution Families — Naming Registry
 
 - Date: 2026-11-05 (UTC)
-- Updated: 2026-11-06 for the current-surface cleanup
-- Status: **Approved** (human, 2026-11-05)
+- Updated: 2026-11-08 for the research-family prefix (`MR`/`SR`/`PR`) and the
+  `-Cnn` configuration suffix
+- Status: **Approved** (human, 2026-11-05; research-prefix amendment 2026-11-08)
 - Scope: model, strategy, portfolio, policy, and execution identifiers
 - Claim type: naming and traceability contract; no edge claim
 
@@ -16,16 +17,24 @@ The rule is `<type><family>.<version>`:
 
 | Prefix | Kind | Example |
 |---|---|---|
-| `M` | Model | `M1.0`, `M3.1` |
-| `S` | Strategy | `S3.1` |
-| `E` | Execution | `E1.0`, `E3.1` |
-| `P` | Portfolio | `P1.0`, `P3.1` |
-| `POL` | Policy | `POL1.0`, `POL3.1` |
+| `M` | Model | `M1.0` |
+| `MR` | Model research family | `MR5.1` |
+| `SR` | Strategy research family | `SR1.1` |
+| `PR` | Portfolio research family | `PR1.1` |
+| `S` | Strategy | `S1.0` |
+| `E` | Execution | `E1.0` |
+| `P` | Portfolio | `P1.0` |
+| `POL` | Policy | `POL1.0` |
 
-`M1.0` is the only current model identity. `M2.1–M2.5` is historical with no
-accepted baseline; `M3.x` is historical and underpowered; `M4.x` is the latest
-model research family, with no accepted baseline. `S3.x`, `P3.x`, `POL3.x`, and
-`E3.x` are future and follow an accepted model baseline.
+`M1.0` is the only current model identity. `M2.1–M2.5`, `M3.x`, and `M4.x` are
+historical **model research families** run on `M1.0`; they are not model
+versions. From `MR5.x` onward, model research families carry the `MR` prefix so
+they cannot be confused with a model version. A research cell may carry a
+configuration suffix: `MR5.1-C01` is hypothesis 1, configuration variant 01.
+
+The registry history log records the alias mapping in
+[`docs/registry/history.md`](../../registry/history.md). `S3.x`, `P3.x`,
+`POL3.x`, and `E3.x` are future and follow an accepted model baseline.
 
 The **S3 command surface** is the stage-command delivery plan; it is not the
 `S3.x` strategy family. The two uses of "S3" are distinct: the command surface is
@@ -37,44 +46,48 @@ distinction in [`docs/workflows/README.md`](../../workflows/README.md).
 | ID | Meaning | Status | Record or contract |
 |---|---|---|---|
 | `M1.0` | Current model: flat indicator/event model | Baseline; path gate no edge; compression baselines accepted | [`model-m1.0.md`](model-m1.0.md) |
-| `M2.1` | M2 model: volume and participation cell | Historical; `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
-| `M2.2` | M2 model: structure and volatility cell | Historical; `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
-| `M2.3` | M2 model: cross-asset cell | Historical; `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
-| `M2.4` | M2 model: session and time cell | Historical; `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
-| `M2.5` | M2 model: all-area vote cell | Historical; `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
-| `M3.1`–`M3.5` | M3 model: state-conditioned event cells | Underpowered at the count gate; not run | [M3 preflight](../../improvement/2026-11-05/M3-PREFLIGHT.md) |
-| `M4.1`–`M4.5` | M4 model: location-conditioned directional event cells | Historical; `model_dev` no edge; not accepted | [M4 result](../../improvement/2026-11-07/M4-DEV-SWARM.md) |
-| `S3.x` | Strategies built on an accepted M3.x model | Future; S2.x remains closed | P8/S3.x |
+| `M2.1`–`M2.5` | Historical model research family 2: volume, structure, cross-asset, session, and all-area cells | `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
+| `M3.1`–`M3.5` | Historical model research family 3: state-conditioned event cells | Underpowered at the count gate; not run | [M3 preflight](../../improvement/2026-11-05/M3-PREFLIGHT.md) |
+| `M4.1`–`M4.5` | Historical model research family 4: location-conditioned directional event cells | `model_dev` no edge; not accepted | [M4 result](../../improvement/2026-11-07/M4-DEV-SWARM.md) |
+| `MR5.x-Cnn` | Model research family 5 on `M1.0`: mechanism hypotheses and configuration variants | Planned; not run | Pending MR5 charter |
+| `S3.x` | Strategies built on an accepted model baseline | Future; S2.x remains closed | P8/S3.x |
 | `E3.x`, `P3.x`, `POL3.x` | Execution, portfolio, and policy after an accepted S3 strategy | Future | S3.x |
 
-`M2.1`–`M2.5` name the five **primary cells** before the run. P5 ran all five on
-`model_dev`; none passed, so none is an accepted model version and validation
-was not opened. The cell ID is stable either way; a rejected cell is not
-renumbered.
+`M2.1`–`M2.5` name the five historical primary cells. They ran on `model_dev`;
+none passed, so none is an accepted model version and validation was not opened.
+The cell ID is stable either way; a rejected cell is not renumbered. The same
+rule applies to the M3 and M4 research families.
 
 ## 3. Naming rules
 
-1. **Type prefix is mandatory.** A model ID starts with `M`; a strategy ID
-   starts with `S`; execution starts with `E`; portfolio starts with `P`; policy
-   starts with `POL`.
-2. **Dot notation is `<family>.<version>`.** `M2.1` means model family 2,
-   version 1. `S3.1` means strategy family 3, version 1.
-3. **A model and a strategy never share an ID.** `M2.1` and `S2.1` are distinct.
-4. **Family numbers increase; versions increase within a family.** A family is
+1. **Type prefix is mandatory.** A model ID starts with `M`; a model research
+   family starts with `MR`; a strategy research family starts with `SR`; a
+   portfolio research family starts with `PR`; a strategy ID starts with `S`;
+   execution starts with `E`; portfolio starts with `P`; policy starts with
+   `POL`.
+2. **Dot notation is `<family>.<version>` for model/strategy/execution/portfolio/policy.** `M1.0` is model family 1, version 0. `MR5.1` is model research family 5, hypothesis 1.
+3. **A configuration suffix is `-Cnn`.** `MR5.1-C01` is hypothesis `MR5.1`,
+   configuration variant `01`. The suffix is not a new hypothesis; it is a
+   pre-registered parameter variant of the same hypothesis.
+4. **A model, a research family, and a strategy never share an ID.** `M1.0`,
+   `MR5.1`, and `S1.0` are distinct.
+5. **Family numbers increase; versions increase within a family.** A family is
    not renumbered after a version is published.
-5. **A retired ID is never reused.** A failed cell keeps its ID and its failure
+6. **A retired ID is never reused.** A failed cell keeps its ID and its failure
    record.
-6. **The prefix is carried in artifacts.** Spec `id`, run manifest, report
+7. **The prefix is carried in artifacts.** Spec `id`, run manifest, report
    header, issue title, and branch slug use the prefixed ID. The current run
-   manifest carries `M`, `POL`, `E`, and `P`; `S` returns with S3.x.
-7. **`M1.0` is the baseline, not a candidate.** The current model engine and its
-   tests remain. It is the reference against which M2.x is compared.
-8. **`S2.x` stays closed** until the human accepts an M2.x model baseline. A
-   strategy may not be used to rescue a failed model cell.
-9. **Current artifacts use the prefixed IDs only.** Historical names are mapped
-   once, in [`docs/registry/history.md`](../../registry/history.md); they are not
-   repeated in current contracts, code, tests, or README tables.
-10. **The registry history log is the source of truth for aliases.**
+   manifest carries `M`, `POL`, `E`, and `P`; `MR` returns with the model
+   research family; `S` returns with S3.x.
+8. **`M1.0` is the baseline, not a candidate.** The current model engine and its
+   tests remain. It is the reference against which every research family is
+   compared.
+9. **`S2.x` stays closed** until the human accepts a model baseline. A strategy
+   may not be used to rescue a failed model cell.
+10. **Current artifacts use the prefixed IDs only.** Historical names are mapped
+    once, in [`docs/registry/history.md`](../../registry/history.md); they are
+    not repeated in current contracts, code, tests, or README tables.
+11. **The registry history log is the source of truth for aliases.**
 
 ## 4. Why this scheme
 
@@ -84,18 +97,34 @@ renumbered.
 | Reuse old strategy version numbers | Collides with the existing strategy history | Rejected |
 | `model/2.1`, `strategy/2.1` paths | Unambiguous, but verbose in tables and run IDs | Not chosen; the prefix is shorter and survives a flat namespace |
 | Type-prefixed dot notation | Unambiguous, short, stable, and readable in a flat namespace | **Chosen** |
+| Research families under the model prefix (`M5.x`) | Reads as a model version and collides with a future `M5.0` | Rejected |
+| `M1.5.x` nested research | Still reads as a model version; needs a new grammar | Rejected |
+| Separate research prefix (`MR`, `SR`, `PR`) | Distinguishes research from the model/strategy/portfolio identities | **Chosen** |
+
+## 4.1 Research family grammar
+
+```text
+M1.0                  model contract
+MR5.1                 model research family 5, hypothesis 1
+MR5.1-C01             hypothesis 1, configuration variant 01
+PROGRAM-YYYY-MM-DD-NN programme identity
+```
+
+The model is always named explicitly in the programme and run records. A
+research family is not a model version, and a configuration variant is not a
+new hypothesis.
 
 ## 5. Where the IDs appear
 
 | Artifact | Field or position | Example |
 |---|---|---|
-| Model spec | `id`, `family` | `"id": "M2.1"`, `"family": "M2"` |
-| Model run record | `model_family`, `model_id` | `M2`, `M2.1` |
-| Program manifest | `program_id` | `PROGRAM-2026-11-05-01`; cells name `M2.x` |
-| Cell result | `cell_id`, `model_id` | `CELL-M2.1`, `M2.1` |
-| Report header | `Model` | `M2.1` |
-| Issue title | Prefix | `[M2.1] Volume and participation cell` |
-| Branch | Prefix in slug | `feat/410-m2-1-volume-participation` |
+| Model spec | `id`, `family` | `"id": "MR5.1-C01"`, `"family": "MR5"` |
+| Model run record | `model_family`, `model_id` | `MR5`, `MR5.1-C01` |
+| Program manifest | `program_id` | `PROGRAM-<date>-NN`; cells name `MR5.x-Cnn` |
+| Cell result | `cell_id`, `model_id` | `MR5.1-C01`, `MR5.1-C01` |
+| Report header | `Model` | `M1.0`; `Research family` `MR5.1-C01` |
+| Issue title | Prefix | `[MR5.1] Failed breakout at a confirmed level` |
+| Branch | Prefix in slug | `feat/mr5-failed-breakout` |
 
 The `program_id` keeps the existing `PROGRAM-YYYY-MM-DD-NN` form; the model ID
 lives in the cell and in the spec. A run ID keeps the existing `MODEL-...`,

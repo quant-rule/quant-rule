@@ -1,8 +1,8 @@
 # Current-Architecture History Index
 
 - Date: 2026-11-05 (UTC)
-- Updated: 2026-11-06 for the P8 closeout
-- Status: Current boundary; P0.1–P8 complete; M3 preflight underpowered
+- Updated: 2026-11-08 for the MR5 research-family aliases
+- Status: Current boundary; P0.1–P8 complete; M3 preflight underpowered; M4 no edge; MR5 planned
 - Freeze commit: `32e6fb2`
 - Manifest commit: `8acf857`
 - Work item: [#468](https://github.com/quant-rule/quant-rule/issues/468)
@@ -232,6 +232,16 @@ current docs, code, tests, and README tables use the prefixed ID only.
 | strategy v8 | `S1.3` | Strategy | Event composite |
 | strategy v9 | `S1.4` | Strategy | 1m compression breakout |
 | strategy v10 | `S1.5` | Strategy | Compression bracket family |
+| `M2.x` | `MR2.x` (historical) | Model research | Research family 2 on `M1.0`; historical IDs retained |
+| `M3.x` | `MR3.x` (historical) | Model research | Research family 3 on `M1.0`; historical IDs retained |
+| `M4.x` | `MR4.x` (historical) | Model research | Research family 4 on `M1.0`; historical IDs retained |
+| `MR5.x` | `MR5.x` | Model research | Research family 5 on `M1.0`; current forward convention |
+| `MR5.1-C01` | `MR5.1-C01` | Model research | Hypothesis 1, configuration variant 01 |
+
+The `M2.x`–`M4.x` records keep their original IDs. The `MR2`–`MR4` aliases are
+for cross-reference only; they are not written back into historical artifacts.
+The `MR` prefix separates research families from model versions: `M1.0` is the
+model, `MR5.1-C01` is a research cell on it.
 
 
 No deletion starts before the P0 inventory is approved.

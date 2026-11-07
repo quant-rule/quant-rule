@@ -1,0 +1,9 @@
+{
+  "schema": "quantrule.model/v4",
+  "defaults": {
+    "rsi": {
+      "period": 14,
+      "active": true
+    }
+  }
+}

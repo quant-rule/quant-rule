@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.1-C01",
+  "kind": "primary",
+  "events": [
+    "signal.rsi_threshold"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU"
+  ],
+  "timeframe": 900
+}
