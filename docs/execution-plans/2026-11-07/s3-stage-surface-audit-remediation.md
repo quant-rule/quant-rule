@@ -1,7 +1,7 @@
 # S3.x Stage-Surface Audit — Remediation Plan
 
 - Date: 2026-11-07 (UTC)
-- Status: Proposed; human approval pending
+- Status: Approved 2026-11-07; D1-D4 = A; execution in progress
 - Issue: none (the fix issues are created only after approval; no issue number is
   invented)
 - Audit: [`docs/audits/2026-11-07/s3-stage-surface-audit.md`](../../audits/2026-11-07/s3-stage-surface-audit.md)
@@ -240,7 +240,8 @@ Verifier alone moves it to `Verified`. `AUD-2026-11-07-03` stays `Won't fix`.
 
 ## 13. Approval
 
-This plan is `Proposed`. No fix issue, branch, commit, or code change for the
-remaining findings has been created. The human approves the plan, including
-D1-D4, before Stage 3 starts. The approval is recorded here and on the fix
-issues when they are opened.
+This plan is `Approved` on 2026-11-07. The human instruction is “proceed with
+the full remediation plan following your recommendations”, which selects
+D1 = A, D2 = A, D3 = A, and D4 = A. The fix issues are created after this
+approval; implementation follows the work breakdown. Approval authorizes only
+the scope in this plan, not an edge claim, a commit, a push, a PR, or a merge.
