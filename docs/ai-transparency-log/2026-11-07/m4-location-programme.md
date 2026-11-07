@@ -202,8 +202,9 @@ programme decision is `no_edge`. `model_validation` was not opened.
 
 - This is a single-agent Quant Developer and Quant Validator pass; it is not an
   independent review.
-- The run used the worktree's uncommitted changes on top of `ce85fd0`; the commit
-  ID is recorded when the branch is committed. The worktree is preserved.
+- The run executed from the worktree on top of `ce85fd0`; the evaluator gate,
+  configs, tests, and record are committed as `f8bce3d`. The local artifacts are
+  regenerated from the committed configs.
 - The validation partition remains closed. No baseline, strategy, execution,
   portfolio, or live claim is made.
 - The away-from-structure subset is not separately reported by the evaluator;
@@ -214,5 +215,6 @@ programme decision is `no_edge`. `model_validation` was not opened.
 ### Closeout
 
 The human accepted `no_edge` on 2026-11-07 and authorized the commit, push, PR,
-and merge with "proceed with everything". No M4 variant is re-registered; the
-location premise is retired for this programme.
+and merge with "proceed with everything". The code and record are committed as
+`f8bce3d`; no M4 variant is re-registered, and the location premise is retired
+for this programme.

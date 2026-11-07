@@ -88,7 +88,7 @@ count gate is an upper-bound power check, not an outcome read.
 | M4.5 specs | `997c6eeb3d927a339afba4e642a0812ac08a7c9b14e2c86b5923b1cad8c5ad45` |
 | Gate (`state.json`, all cells) | `2fdffaf04dd766deabb449b76710e3390f83649de10dc77203e1cb7ec5857988` |
 | Run configs | `0eaf0b825dbf16f7722c1da8515824bf835278cadaa06114708dedd775b7b4a7` |
-| Base commit | `ce85fd0`; the M4 evaluator gate, configs, tests, and record are the worktree changes at run time |
+| Run code commit | `f8bce3d`; base `ce85fd0`; the evaluator gate, configs, tests, and record are in this commit |
 | Model | `M1.0`; `quantrule.model/v4`; `quantrule.model-result/v4` |
 | Spec schema | `quantrule.model-spec/v2` |
 
@@ -185,9 +185,9 @@ unconditional event families remain weak at 15m after costs.
   pre-registered comparison; an explicit away base is future tooling.
 - The evaluator's `state_*` field names are historical. The M4 gate is a
   condition gate; the output schema was kept stable for the M3 records.
-- The run used the worktree's uncommitted evaluator gate, configs, tests, and
-  record on top of `ce85fd0`. The commit ID is recorded when the branch is
-  committed; the worktree is preserved until then.
+- The run executed from the worktree on top of `ce85fd0`; the evaluator gate,
+  configs, tests, and record are committed as `f8bce3d`. The local artifacts are
+  regenerated from the committed configs.
 - Same-agent Quant Developer and Quant Validator passes; not independent.
 - No strategy, execution, portfolio, or live result exists. A model gate is a
   filter, not a profitability claim.
