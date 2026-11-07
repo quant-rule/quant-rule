@@ -1,9 +1,9 @@
 # Improvement Workflow
 
 - Date: 2026-11-01 (UTC)
-- Status: S3.x target; the M1.0 shell does not expose the tiered
-  `backtest` command. The current model programme uses the research tooling
-  and `report model`.
+- Updated: 2026-11-07 for the S3 command surface and the tier runbooks
+- Status: Current; the S3 command surface is implemented, no tiered run has used
+  it yet, and human acceptance of the surface is pending
 - Scope: model, strategy, and portfolio improvement runs
 
 ## Purpose
@@ -44,6 +44,18 @@ not start while an earlier tier has no accepted baseline.
 | Strategy Run | Does the rule produce a cost-inclusive edge from the accepted model? | Strategy rule, strategy configuration, and strategy thesis | Data, policy, accepted model baseline, execution, portfolio, analytics | `strategy_dev` | `strategy_validation` | Pre-registered green criteria met on the one-shot validation; Quant Validator record; human accepts the strategy baseline |
 | Portfolio Run | Do execution and portfolio mechanics improve the account outcome from the accepted strategy? | Execution and portfolio configuration | Data, policy, accepted model baseline, accepted strategy baseline, analytics | `portfolio_dev` | `portfolio_holdout` | Pre-registered green criteria met on the one-shot holdout; Quant Validator record; human accepts the portfolio baseline |
 
+### Tier runbooks
+
+The tier table is the spine. The tier-specific questions, commands, and gates are
+in these runbooks:
+
+| Tier | Runbook |
+|---|---|
+| Model | [`model-research.md`](model-research.md) and [`model-change.md`](model-change.md) |
+| Strategy | [`strategy-research.md`](strategy-research.md) |
+| Portfolio | [`portfolio-research.md`](portfolio-research.md) |
+| Parallel cells | [`research-swarm.md`](research-swarm.md) |
+
 ### Model trust grades
 
 Model evidence records one grade per published event/state family:
@@ -74,9 +86,11 @@ hash.
 | Analytics | Frozen | Frozen | Frozen |
 
 - **Data is never a tier.** A data defect is fixed through the Audit Workflow and
-  gets a new data version; every affected baseline is then re-established.
+  gets a new data version; every affected baseline is then re-established. The
+  data process is [`data-lifecycle.md`](data-lifecycle.md).
 - **Policy is human-owned.** A policy change is not an improvement run; it
-  changes the envelope and requires a new baseline sequence.
+  changes the envelope and requires a new baseline sequence. The process is
+  [`policy-change.md`](policy-change.md).
 - **Analytics is measurement, never a performance lever.** If the measurement is
   wrong, fix it under the Audit Workflow before the run or invalidate the run.
 - **A change that spans tiers is split.** If a hypothesis needs a model and a
@@ -224,15 +238,23 @@ into a green one.
 | Run record template | [`docs/improvement/README.md`](../improvement/README.md) |
 
 The run-store tooling lives in `tools/improvement/` and is written in Python. It
-validates manifests, runs the shell, extracts evidence, and generates the index.
-In the S3.x target, the shell executes the backtest; the M1.0 shell does not.
-The tooling never computes a signal.
-Baseline acceptance and invalidation are recorded in the committed registry by
-the reviewer and the human; the tooling does not accept them.
+validates manifests, runs the current shell commands, extracts evidence, and
+generates the index. `run_current.py` is the current adapter; `run.py` is the
+historical adapter for the retired `backtest` command. The tooling never
+computes a signal. Baseline acceptance and invalidation are recorded in the
+committed registry by the reviewer and the human; the tooling does not accept
+them.
 
 ## Related documents
 
 - [Run contract](run-contract.md)
+- [Model research](model-research.md)
+- [Model change](model-change.md)
+- [Strategy research](strategy-research.md)
+- [Portfolio research](portfolio-research.md)
+- [Research swarm](research-swarm.md)
+- [Policy change](policy-change.md)
+- [Data lifecycle](data-lifecycle.md)
 - [Audit Workflow](audit-workflow.md)
 - [Refactor Workflow](refactor-workflow.md)
 - [Improvement Workflow roles](../roles/2026-10-30/improvement-workflow-roles.md)

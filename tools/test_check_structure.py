@@ -208,10 +208,25 @@ class LayoutTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             write(root / "docs" / "README.md", "# Docs\n")
+            write(root / "docs" / "workflows" / "README.md", "# Workflows\n")
             write(root / "docs" / "workflows" / "audit-workflow.md", "# Audit\n")
             violations = check_structure.workflow_index_violations(root)
-            self.assertEqual(len(violations), 1)
-            self.assertEqual(violations[0].rule, "workflow-index")
+            self.assertEqual(len(violations), 2)
+            self.assertTrue(all(violation.rule == "workflow-index" for violation in violations))
+
+    def test_workflow_document_indexed_in_both_places_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(root / "docs" / "README.md", "# Docs\n[audit](workflows/audit-workflow.md)\n")
+            write(root / "docs" / "workflows" / "README.md", "# Workflows\n[audit](audit-workflow.md)\n")
+            write(root / "docs" / "workflows" / "audit-workflow.md", "# Audit\n")
+            self.assertEqual(check_structure.workflow_index_violations(root), [])
+
+    def test_workflow_templates_directory_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "docs" / "workflows" / "templates").mkdir(parents=True)
+            self.assertEqual(check_structure.check_dated_docs(root), [])
 
     def test_data_allowlist_accepts_readmes_and_partitions(self) -> None:
         self.assertEqual(
@@ -234,6 +249,7 @@ class FullTreeTests(unittest.TestCase):
             make_engines(root)
             make_crate(root, "quantrule-shell", "//! shell\n\nfn main() {}\n")
             write(root / "docs" / "README.md", "# Docs\n\n[workflow](workflows/audit-workflow.md)\n")
+            write(root / "docs" / "workflows" / "README.md", "# Workflows\n\n[workflow](audit-workflow.md)\n")
             write(root / "docs" / "workflows" / "audit-workflow.md", "# Audit\n")
             self.assertEqual(check_structure.check_all(root), [])
 

@@ -6,7 +6,9 @@
   [`command-surface.md`](../../architecture/command-surface.md),
   [`policy-and-strategy.md`](../2026-10-30/policy-and-strategy.md),
   [`improvement-workflow.md`](../../workflows/improvement-workflow.md),
-  [`run-contract.md`](../../workflows/run-contract.md)
+  [`run-contract.md`](../../workflows/run-contract.md),
+  [`strategy-research.md`](../../workflows/strategy-research.md),
+  [`portfolio-research.md`](../../workflows/portfolio-research.md)
 - Claim type: qualification contract; no model, strategy, or edge claim.
 
 ## 1. Boundary

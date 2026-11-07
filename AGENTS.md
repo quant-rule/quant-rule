@@ -8,7 +8,7 @@ QuantRule ships as a shell application, and that is the whole of it. The result 
 
 The system is deterministic. Given the same input data and the same configuration, it must produce the same output every time. Any behavior that depends on wall-clock time, unseeded randomness, or iteration order of unordered collections is a defect, not a limitation. See section 12.
 
-The system is improved through explicit workflows: a human-owned policy and strategy blueprint, an Improvement Workflow (run, results, review, new hypothesis), an Audit Workflow (audit, remediation plan, execution, verification), a Refactor Workflow (structural assessment, refactor plan, behavior-neutral execution, equivalence verification), an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop.
+The system is improved through explicit workflows, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): a human-owned policy and strategy blueprint, an Improvement Workflow (run, results, review, new hypothesis), tier runbooks for model research, model change, strategy research, and portfolio/execution research, an Audit Workflow (audit, remediation plan, execution, verification), a Refactor Workflow (structural assessment, refactor plan, behavior-neutral execution, equivalence verification), a Policy Change Workflow, a Data Lifecycle Workflow, Requirements & Design, Release & Operations, Deprecation & Retirement, Recordkeeping, an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop. The change history is recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## 2. Architecture and Data Flow
 
@@ -43,12 +43,12 @@ The Rust workspace holds one crate per pipeline stage, with dependencies pointin
 
 - `crates/quantrule-data` — the data engine.
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
-- `crates/quantrule-backtest` — the execution, portfolio, and generic strategy engines, which depend on `quantrule-model` and `quantrule-data`. The runner and the multi-timeframe strategy context are S3.x.
+- `crates/quantrule-backtest` — the execution, portfolio, and generic strategy engines, which depend on `quantrule-model` and `quantrule-data`. The runner and the multi-timeframe strategy context are implemented.
 - `crates/quantrule-shell` — the shell binary, which depends on `quantrule-model`, `quantrule-backtest`, and `quantrule-data`.
 
 The research engine (`quantrule-analytics`) was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.
 
-The current implementation publishes the model surface only. The shell exposes data inspection, the event batch, `report model`, `policy check`, source fetch, and help. Strategy, execution, portfolio, backtest, and analytics runs are the S3.x target; the backtest crate remains a library and no strategy or backtest command is reachable from the current shell.
+The current implementation exposes every pipeline stage. The shell exposes data inspection (`candles`, `candles-tolerant`, `timeframes`, `fetch`), the event batch (`events`), the model report (`report model`), strategy decisions (`strategy explain`, `strategy run`), execution fills (`execution run`), portfolio accounting (`portfolio replay`), the coupled run (`backtest run`), qualification (`qualify`), analytics evaluation (`analytics evaluate`), policy validation (`policy check`), and help. The S3 command surface is implemented; no tiered improvement run has used it yet, and no strategy or portfolio baseline exists. The stage contract, command status, and discovery gate are in [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
 
 The decision stack above the pipeline is one-way:
 
@@ -91,6 +91,9 @@ The analytical model's contract — the indicator and event definitions, the num
 - **File size.** A source file stays under 1,000 lines where that is practical. A file that grows past it is split along its own seams, so that a cohesive module becomes several, unless a written justification says why it cannot be split. The line count is a prompt to look, not a target to hit: a cohesive module is not broken up for the sake of the count.
 - **Public API.** Public items carry rustdoc. Doc examples must compile. Public behavior changes require a doc comment update in the same change. The Rust public API is internal to the workspace; the product's public interface is the command set (section 2).
 - **Comments.** Explain why, not what. The code says what it does; the comment says why that way, and what would break if it changed.
+- **Workflow contract.** Every workflow is indexed in [`docs/workflows/README.md`](docs/workflows/README.md) and carries a `Status:` line. A new workflow, or a change to a workflow's stages, roles, gates, or green criteria, is a human-approved methodology change. A workflow document that is not indexed does not exist.
+- **Changelog.** [`CHANGELOG.md`](CHANGELOG.md) is the grouped release history, not a pull-request log. A meaningful user-facing or developer-facing change adds or updates an entry under `## [Unreleased]` in the release type that fits (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, or `Security`). A pull request that does not change user-facing or developer-facing behavior records “no changelog entry needed” and the reason. Do not add one row per issue or PR. Released sections are immutable; a correction is a new release or a dated addendum in the next release.
+- **Record identity.** A record carries its stable ID, its status, its owner, and its links. An ID is assigned once and never reused. A record that is not in the record map in [`docs/workflows/recordkeeping.md`](docs/workflows/recordkeeping.md) is a defect.
 
 ### Architecture Principles
 
@@ -121,7 +124,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **Strategy validation.** A claim that a rule is profitable reports in-sample and out-of-sample results, cost assumptions, and every variation tried. Out-of-sample evidence is required before the claim is called promising; a backtest on the tuning sample is not validation.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Model-layer tests.** Every indicator and every event has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
-- **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. For S3.x, the strategy explain command is tested as printed output, and a boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
+- **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. The strategy explain command is tested as printed output, and a boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
 - **Audit regression guards.** A fix for an audit finding carries a regression test that fails before the fix and passes after it, or a written reason why a fail-before test is impossible.
 - **Improvement-run reproducibility.** A run record names the data versions, configs, partitions, costs, and matrix; the same manifest and config reproduce the same artifacts.
 - **Event tests.** An event appears only at or after the bar on which it became knowable, one underlying occurrence is never emitted twice, the level-event precedence is respected, and a divergence is never emitted before the pivot that confirms it has become knowable.
@@ -150,9 +153,12 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` — read-only findings, evidence, and remediation options. `docs/audits/README.md` is the index/template.
   - `docs/refactors/<YYYY-MM-DD>/<scope>-refactor.md` — read-only structural findings, evidence, and refactor options. `docs/refactors/README.md` is the index/template.
   - `docs/governance/<YYYY-MM-DD>/<file>.md` — the improvement charter, green criteria, autonomy, and stop conditions.
-  - `docs/workflows/<file>.md` — the living workflow contracts: the Audit Workflow, the Refactor Workflow, the Improvement Workflow, and the run contract.
+  - `docs/workflows/<file>.md` — the living workflow contracts, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor, Improvement, Run Contract, Research Swarm, Model Research, Model Change, Strategy Research, Portfolio Research, Policy Change, Data Lifecycle, Requirements & Design, Release & Operations, Deprecation & Retirement, and Recordkeeping.
+  - `docs/workflows/templates/<file>.md` — the workflow and record templates. The workflow template is the skeleton for a new workflow document; the record templates are policy, data, release, deprecation, and requirements records.
+  - `docs/releases/README.md` — the release index and tag rule; `docs/releases/<YYYY-MM-DD>/<tag>.md` is the release note for one tagged release.
   - `docs/improvement/<file>.md` — the committed improvement registry: run index, baselines, invalidation tombstones, and the run record template.
   - `docs/config/<YYYY-MM-DD>/<file>.md` — policy, strategy, and engine configuration contracts.
+  - `CHANGELOG.md` — the grouped release history. Meaningful user-facing or developer-facing changes are recorded by release and type; the changelog is not a pull-request index.
 - **Plans live in the repository.** An execution plan drafted outside the repository is a scratch copy, not the plan of record. Before implementation, it is written to `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` and committed. No implementation begins until that file exists.
 - **Documentation follows the code.** A change that invalidates a documented behavior updates that document in the same pull request, not in a follow-up.
 - **No stale documentation.** If a document describes behavior that no longer exists, the change that removed the behavior removes the description.
@@ -238,14 +244,27 @@ Use Conventional Commit-style messages:
 
 Each commit should represent a coherent change. Do not amend shared commits, rebase published branches, force-push, or rewrite history without explicit authorization.
 
+### Release Tags
+
+- A release tag is `vMAJOR.MINOR.PATCH` and is annotated.
+- It is created from `main` after the release pull request merges, only when the full gate passes, `CHANGELOG.md` has the matching `## [<version>] - YYYY-MM-DD` section, the release note exists at `docs/releases/<YYYY-MM-DD>/<tag>.md`, no Critical audit finding is open on the changed path, and the human authorizes it.
+- A published tag is never moved, deleted, or reused. A bad release gets a new tag and a release note that supersedes the old one.
+- A local tag that was never pushed may be deleted before publication.
+- Historical tags are retained. Do not create new tags in their format without a human decision.
+- No date-based tags, no `latest`, and no tag per pull request.
+- The release index and the full rule are in [`docs/releases/README.md`](docs/releases/README.md).
+
 ### Pull Request Requirements
 
 A pull request must include:
 
 - **Summary:** What changed and why.
 - **Scope:** What is included and deliberately excluded.
+- **Workflow:** The workflow used, with a link to its document in `docs/workflows/`.
 - **Issue:** A link to the relevant issue, when one exists.
-- **Verification:** Commands actually executed and their observed results.
+- **Records:** The audit, refactor, run, programme, policy, data, release, or deprecation IDs that the change advances.
+- **Verification:** Commands actually executed and their observed results, in a table.
+- **Changelog:** The `CHANGELOG.md` release entry added or updated, or the reason no entry is needed.
 - **Quant validation:** The Quant Validator's record, or the reason the change does not require one, when the change alters model or strategy behavior.
 - **Risks:** Relevant security, data, migration, compatibility, or operational risks.
 - **AI transparency:** A reference to material AI contributions recorded in `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md`, when applicable.
@@ -302,7 +321,7 @@ Conventional Commit subject; body of at most five short lines saying what change
 
 ### Pull request format
 
-Summary (two or three sentences), `Closes #issue`, Changes (short bullets), Verification (short table or bullets with observed results), Risks (or "None"). Do not restate the issue, do not pad with prose. State the claim type in one line. When the change alters model or strategy behavior, include `Quant validation:` with the validator record or the reason it is not applicable.
+Summary (two or three sentences), `Closes #issue`, Workflow (the workflow used and its document), Records (the IDs advanced), Changes (short bullets), Verification (a table with the command and the observed result), Changelog (the release entry added or updated, or the reason none is needed), Risks (or "None"). Do not restate the issue, do not pad with prose. State the claim type in one line. When the change alters model or strategy behavior, include `Quant validation:` with the validator record or the reason it is not applicable. When the change is documentation or tooling only, state that no Quant Validator record is required and why.
 
 ### Response format
 
@@ -328,6 +347,7 @@ Creating a task branch and its worktree may be included in an approved execution
 - Creating or updating a pull request.
 - Merging or enabling automatic merging.
 - Creating releases or tags.
+- Moving, deleting, or reusing a published tag.
 - Deploying to any environment.
 - Deleting branches or performing destructive Git operations.
 
@@ -644,6 +664,26 @@ Boundaries:
 - Does not deploy, merge, publish a release, or modify external environments without explicit authorization.
 - Must distinguish local verification from staging or production evidence.
 
+### Data Steward Agent
+
+Purpose: Own the data input boundary: source onboarding, data version identity,
+quality gates, partition mapping, and the data-change record.
+
+Responsibilities:
+
+- Maintain `data/partitions.json`, the instrument aliases, and the data README.
+- Record the data version and coverage for every source.
+- Run the quality and admissibility checks before a run consumes the data.
+- Route a data defect to the Audit Workflow and a new data version.
+- Record the affected baselines and the re-baseline or retirement.
+
+Boundaries:
+
+- Does not decide a model or strategy hypothesis.
+- Does not accept a baseline or waive a data-quality gate.
+- Does not delete a source or artifact without explicit human authorization.
+- Does not let a data change rescue a failed hypothesis.
+
 ### Improvement Workflow
 
 Purpose: Own the improvement workflow and decide what should change next.
@@ -659,8 +699,9 @@ Roles:
 
 The workflow runs the model, strategy, and portfolio tiers one at a time under
 the run contract in `docs/workflows/run-contract.md`. The strategy and portfolio
-tiers are S3.x; the current model programme is executed with the research
-tooling and `report model`, not with a shell `backtest` command.
+tiers are gated by an accepted model baseline; the current model programme uses
+the research tooling and `report model`, and the current S3 commands are
+available for the first tiered run.
 
 Boundaries: the Improvement Workflow may run an approved protocol and recommend.
 It may not implement, change a config directly, accept a baseline, merge,
@@ -751,9 +792,32 @@ not replace the Engineering, Quant, or human approval gates.
 
 Only one implementation agent should write to a given file or workstream at a time. Parallel investigation is permitted when scopes are non-overlapping, clearly assigned, and consistent with the approved plan. Separate sessions work in separate worktrees (section 7), so two of them do not contend for the same files.
 
-## 11. Audits, Refactors, Improvement Runs, and Execution Plans
+## 11. Workflows, Audits, Refactors, Improvement Runs, and Execution Plans
 
 An execution plan makes substantial work reviewable before implementation. It is separate from the permanent repository rules in this file.
+
+### Workflow selection
+
+The workflow index is [`docs/workflows/README.md`](docs/workflows/README.md). Choose the workflow by the decision boundary, not by the file type:
+
+| If the change is… | Use |
+|---|---|
+| A defect, contract drift, test gap, or documentation defect | [Audit Workflow](docs/workflows/audit-workflow.md) |
+| A structural problem, coupling, file size, or duplication | [Refactor Workflow](docs/workflows/refactor-workflow.md) |
+| A model measurement, event, or family hypothesis | [Model Research](docs/workflows/model-research.md) |
+| An indicator, event, or model implementation change | [Model Change](docs/workflows/model-change.md) |
+| A strategy hypothesis | [Strategy Research](docs/workflows/strategy-research.md) |
+| An execution or portfolio mechanics hypothesis | [Portfolio Research](docs/workflows/portfolio-research.md) |
+| A policy envelope change | [Policy Change](docs/workflows/policy-change.md) |
+| A data source, version, or partition change | [Data Lifecycle](docs/workflows/data-lifecycle.md) |
+| A new command, report, or capability | [Requirements & Design](docs/workflows/requirements-design.md) |
+| A release, tag, rollback, or incident | [Release & Operations](docs/workflows/release-operations.md) |
+| Retiring a model, event, command, or data source | [Deprecation & Retirement](docs/workflows/deprecation-retirement.md) |
+| A record, ID, status, or changelog issue | [Recordkeeping](docs/workflows/recordkeeping.md) |
+| An improvement run, baseline, or invalidation | [Improvement Workflow](docs/workflows/improvement-workflow.md) + [Run Contract](docs/workflows/run-contract.md) |
+| Parallel pre-registered cells | [Research Swarm](docs/workflows/research-swarm.md) |
+
+The workflow status vocabulary is `Current`, `Target`, `Historical`, `Deprecated`, `Proposed`, and `Superseded`. A workflow document carries a `Status:` line and is listed in the index. A new workflow, or a change to a workflow's stages, roles, gates, or green criteria, requires human approval.
 
 ### Improvement workflow
 
@@ -959,10 +1023,14 @@ Follow these stages in order for planned work.
 
 ### Stage 0 — Work intake
 
-The Improvement Workflow or the human defines the run, accepts the audit finding,
-or approves a refactor campaign. The audit, run, or refactor assessment exists;
-when the work changes code, the Planner has a plan and the human has approved it.
-No implementation starts before this gate.
+The human or the owning workflow defines the work. Select the workflow from
+[`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor,
+Model Research, Model Change, Strategy Research, Portfolio Research, Policy
+Change, Data Lifecycle, Requirements & Design, Release & Operations,
+Deprecation & Retirement, Recordkeeping, or the Improvement Workflow. The audit,
+run, assessment, charter, or requirements record exists; when the work changes
+code, the Planner has a plan and the human has approved it. No implementation
+starts before this gate.
 
 ### Stage 1 — Read-only Preflight
 
@@ -1025,6 +1093,8 @@ Before reporting completion:
 - Confirm acceptance criteria and identify gaps.
 - Update the execution plan with evidence and outstanding risks.
 - Record the Quant Validator's verdict when the work changes model or strategy behavior.
+- Update the workflow status and the record map when a workflow changes.
+- Add or update the `CHANGELOG.md` release entry when the change is meaningful, or record why no entry is needed.
 - Update `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` for material AI contributions.
 - Move the issue to `Done` on the project board once the pull request is open (section 9).
 - Report changed files, tests, results, limitations, and any decisions still required.
@@ -1033,15 +1103,17 @@ The report itself follows the response format in section 8.
 
 Stop without beginning an unrequested subsequent task.
 
-### Stage 6 — Audit, refactor, and improvement closure
+### Stage 6 — Audit, refactor, improvement, and workflow closure
 
 The Improvement Verifier checks the merged work against the audit finding,
 confirms the regression guard, and updates the finding to `Verified`. The Refactor
 Verifier checks the merged refactor against the assessment's equivalence and
 structural criteria and updates the finding to `Verified` or returns it for
 remediation. The Improvement Workflow records the run result and decides whether
-to re-run, change one tier, or stop. Unresolved findings stay open; no release
-with an open Critical finding unless the human records residual-risk acceptance.
+to re-run, change one tier, or stop. The workflow owner updates the workflow
+status and the record map when a workflow changes. Unresolved findings stay open;
+no release with an open Critical finding unless the human records residual-risk
+acceptance.
 
 ## 14. Human Approval Gates
 
@@ -1055,6 +1127,7 @@ Examples include:
 - Security, privacy, authorization, and data-retention decisions.
 - Schema changes and consequential migration or recovery decisions.
 - Changes to development methodology, Git conventions, or approval procedures.
+- A new workflow, a workflow status change, or a change to a workflow's stages, roles, gates, or green criteria.
 - A refactor campaign, a consequential module-boundary change, or structural debt accepted as `Deferred` or `Won't refactor`.
 - A policy or strategy blueprint change, a model/strategy/execution/portfolio/
   analytics contract change, or a new improvement run protocol.

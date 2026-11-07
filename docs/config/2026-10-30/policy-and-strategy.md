@@ -27,11 +27,11 @@
 ```
 
 `strategy` and `analytics` are not current run fields. The loader rejects them
-with an unknown-field error. S3.x passes the strategy file and the qualification
-criteria as explicit command arguments; the run schema stays `quantrule.run/v2`.
-The identity fields are optional, but a present identity must carry its type
-prefix (`M`, `POL`, `E`, `P`). No strategy or analytics identity is part of the
-current run; adding one is a separate decision.
+with an unknown-field error. The strategy file and the qualification criteria are
+explicit command arguments; the run schema stays `quantrule.run/v2`. The identity
+fields are optional, but a present identity must carry its type prefix (`M`,
+`POL`, `E`, `P`). No strategy or analytics identity is part of the current run;
+adding one is a separate decision.
 
 ## Policy
 
@@ -63,7 +63,7 @@ current run; adding one is a separate decision.
 | `objective.performance_target` | Finite, `> 0`; evaluation target, never a signal |
 | `objective.evaluation_days` | Integer `1..=3650` |
 | `objective.max_drawdown` | `(0, 1]`; portfolio limit must be at most this and must halt |
-| `risk.max_position_fraction` | `(0, 1]`; fixed notional must be at most initial account × fraction; at each fill the S3.x runner caps the entry notional at current equity × leverage × fraction |
+| `risk.max_position_fraction` | `(0, 1]`; fixed notional must be at most initial account × fraction; at each fill the backtest runner caps the entry notional at current equity × leverage × fraction |
 | `risk.max_leverage` | Exactly `1.0` in v1 |
 | `risk.max_open_positions` | Exactly `1` in v1 |
 | `universe.tickets` | Non-empty, unique, no whitespace; `data.instrument` must be present |
@@ -74,14 +74,17 @@ There are deliberately no news, weekend, session, or daily-loss fields.
 ## Strategy
 
 The ladder-context strategy, its composite weights, its as-of context, and the
-retired strategy-schema parsers were removed with the retired-architecture cutover. The
-generic bracket and event-composite engines remain in `quantrule-backtest`
-for S3.x, but no strategy file is loaded and no strategy command is reachable
-from the current shell.
+retired strategy-schema parsers were removed with the retired-architecture
+cutover. The generic bracket and event-composite engines remain in
+`quantrule-backtest`. The current shell reaches them through
+`strategy explain`, `strategy run`, and `backtest run`.
 
-S3.x defines the replacement multi-timeframe context over the published events,
-states, confirmed levels, and progression values. It does not restore the old
-composite scores.
+The strategy is a deterministic rule over the published events, states, confirmed
+levels, progression values, and bar identity. It does not restore the old
+composite scores. The configuration contract is
+[`docs/config/2026-11-06/strategy-config.md`](../2026-11-06/strategy-config.md);
+the research process is
+[`docs/workflows/strategy-research.md`](../../workflows/strategy-research.md).
 
 ## Portfolio
 
@@ -116,11 +119,12 @@ composite scores.
 }
 ```
 
-Execution receives a `TradeIntent` from the strategy in the S3.x pipeline. The
-stop and target specifications live in the intent, not in the execution file or
-the execution config. Execution resolves them against the fill; it never stores
-or chooses a distance. The current shell loads and validates this config but
-does not run execution.
+Execution receives a `TradeIntent` from the strategy. The stop and target
+specifications live in the intent, not in the execution file or the execution
+config. Execution resolves them against the fill; it never stores or chooses a
+distance. The current shell reaches execution through `execution run` and the
+coupled `backtest run`. The research process is
+[`docs/workflows/portfolio-research.md`](../../workflows/portfolio-research.md).
 
 ## Portfolio accounting
 
@@ -168,3 +172,16 @@ quantrule events <csv-path>
 
 `policy check` is read-only: it reads no candles and writes no artifacts.
 `report model` reads the configured candles and writes the flat bundle.
+
+## Related workflows
+
+- [`policy-change.md`](../../workflows/policy-change.md) — the human-owned
+  envelope change process.
+- [`strategy-research.md`](../../workflows/strategy-research.md) — the strategy
+  tier.
+- [`portfolio-research.md`](../../workflows/portfolio-research.md) — the
+  execution and portfolio tier.
+- [`data-lifecycle.md`](../../workflows/data-lifecycle.md) — source, version,
+  partition, and admissibility.
+- [`model-change.md`](../../workflows/model-change.md) — indicator and event
+  implementation.

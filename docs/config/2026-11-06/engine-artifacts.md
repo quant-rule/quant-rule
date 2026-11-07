@@ -1,11 +1,14 @@
 # Engine Artifacts — Stage Inputs, Outputs, and Provenance
 
 - Status: Current; approved 2026-11-06
-- Applies to: the S3.x stage commands and the existing data and model commands
+- Applies to: the current stage commands and the existing data and model commands
 - Related: [`command-surface.md`](../../architecture/command-surface.md),
   [`qualification-criteria.md`](qualification-criteria.md),
   [`policy-and-strategy.md`](../2026-10-30/policy-and-strategy.md),
-  [`model-m1.0.md`](../../model/2026-11-05/model-m1.0.md)
+  [`model-m1.0.md`](../../model/2026-11-05/model-m1.0.md),
+  [`model-research.md`](../../workflows/model-research.md),
+  [`strategy-research.md`](../../workflows/strategy-research.md),
+  [`portfolio-research.md`](../../workflows/portfolio-research.md)
 - Claim type: artifact contract; no model, strategy, or edge claim.
 
 ## 1. Rules

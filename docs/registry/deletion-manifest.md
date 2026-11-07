@@ -92,7 +92,7 @@ remove them by accident.
 | `crates/quantrule-model/src/{panel,sessions,spec,timeframe,run,input,kernel}.rs` | Flat model and spec |
 | `crates/quantrule-model/src/report/flat.rs` | Flat report projection |
 | `crates/quantrule-backtest/src/{execution,portfolio}/**` | Execution and portfolio engines |
-| `crates/quantrule-backtest/src/strategy/{bracket,event}.rs` | Generic bracket and event-composite engines for S3.x |
+| `crates/quantrule-backtest/src/strategy/{bracket,event}.rs` | Generic bracket and event-composite engines |
 | `crates/quantrule-shell/src/{config,command,source}/**` after P3/P4 | Surviving shell surface |
 | `config/defaults/**`, `config/research/**` | Current configs |
 | `config/compression-range/**`, `config/compression-range-5m/**`, `config/compression-range-onset-5m/**` | Accepted M1.0 evidence, subject to D4 |

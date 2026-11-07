@@ -18,6 +18,26 @@ are in
 [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
 Only the commands in the table below are available today.
 
+The S3 command surface is implemented. No tiered improvement run has used it yet,
+and no strategy or portfolio baseline exists. The current status of the model,
+strategy, portfolio, data, and tooling is in
+[`docs/README.md`](docs/README.md).
+
+## Documentation
+
+| Document | What it answers |
+|---|---|
+| [`docs/README.md`](docs/README.md) | Global documentation index and current status |
+| [`docs/workflows/README.md`](docs/workflows/README.md) | Workflow index, selection guide, status vocabulary, and record map |
+| [`docs/architecture/README.md`](docs/architecture/README.md) | Architecture baseline, pipeline, and reading order |
+| [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md) | Stage contract, command registry, and discovery gate |
+| [`docs/model/2026-11-05/model-m1.0.md`](docs/model/2026-11-05/model-m1.0.md) | M1.0 model contract |
+| [`docs/config/2026-10-30/policy-and-strategy.md`](docs/config/2026-10-30/policy-and-strategy.md) | Policy, strategy, execution, and portfolio contracts |
+| [`docs/registry/README.md`](docs/registry/README.md) | Indicator, event, parameter, validation, and verification registry |
+| [`docs/improvement/README.md`](docs/improvement/README.md) | Run index, baselines, invalidation tombstones, and run record template |
+| [`docs/releases/README.md`](docs/releases/README.md) | Release index, tag rule, historical tags, and release-note template |
+| [`CHANGELOG.md`](CHANGELOG.md) | Grouped release history for meaningful user-facing or developer-facing changes |
+
 ## Build and run
 
 ```bash
@@ -152,12 +172,12 @@ A run is described by `run.json`:
 | `policy.json` | `quantrule.policy/v1` | Human-owned account, objective, risk, and universe envelope |
 | `data.json` | `quantrule.data/v3` | Source path, data version, period, and available ladder |
 | `model.json` | `quantrule.model/v4` | M1.0 reading, event, and progression settings |
-| `execution.json` | `quantrule.execution/v2` | Fill mechanics and costs for S3.x |
+| `execution.json` | `quantrule.execution/v2` | Fill mechanics and costs |
 | `portfolio.json` | `quantrule.portfolio/v2` | Capital, sizing, costs, and risk limits; both directions are always available |
 
 `strategy.json` and `analytics.json` are not part of the current run. The loader
-rejects them with an unknown-field error. S3.x passes the strategy file and the
-qualification criteria as explicit command arguments; the run schema stays
+rejects them with an unknown-field error. The strategy file and the qualification
+criteria are explicit command arguments; the run schema stays
 `quantrule.run/v2`. The old model schema versions 1–3 are retired and rejected
 with an unsupported-schema error.
 
@@ -233,15 +253,17 @@ the retired chart surface.
 |---|---|
 | `crates/quantrule-data` | Data engine: normalization, ladder construction, ordering, gaps |
 | `crates/quantrule-model` | Model engine: readings, states, levels, events, progression, context, flat report |
-| `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines for S3.x |
-| `crates/quantrule-shell` | The binary: parse, source access, model orchestration, and rendering; S3.x adds the stage commands |
+| `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines |
+| `crates/quantrule-shell` | The binary: parse, source access, stage orchestration, and rendering |
 | `docs/model/2026-11-05/` | Current model contract and model-family registry |
 | `docs/registry/` | Indicator/event registry, validation claims, and history boundary |
 | `docs/architecture/` | Living architecture baseline |
-| `docs/workflows/` | Living Audit, Refactor, and Improvement workflow contracts |
+| `docs/workflows/` | Living workflow contracts, indexed by `docs/workflows/README.md` |
 | `docs/refactors/` | Read-only structural assessments and refactor findings |
 | `docs/execution-plans/` | Plans of record for substantial work |
 | `docs/ai-transparency-log/` | Material AI contributions and verification |
+| `docs/releases/` | Release notes, the release index, and the tag rule |
+| `CHANGELOG.md` | Grouped release history for meaningful changes |
 
 ## Development
 
@@ -250,6 +272,10 @@ cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 python3 tools/check_file_size.py
 python3 tools/check_structure.py
+python3 tools/check_workflows.py
+python3 tools/check_changelog.py
+python3 tools/check_releases.py
+python3 tools/check_partitions.py
 cargo test
 python3 tools/check_command_surface.py
 python3 tools/check_legacy.py
@@ -281,4 +307,5 @@ release notes, reports, and Git history. The boundary is indexed in
 - Tick data, order books, machine learning, and statistical signal generation.
 - A server, GUI, embedded library, live trading, or multi-tenancy.
 - A profitability claim from a single backtest.
-- Rebuilding the strategy/portfolio surface before S3.x.
+- Treating a model measurement, a qualification verdict, or a green backtest as
+  an accepted edge.

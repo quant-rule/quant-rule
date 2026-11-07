@@ -293,8 +293,11 @@ def check_dated_docs(root: Path) -> list[Violation]:
     violations = []
     if not docs.exists():
         return violations
+    templates = docs / "workflows" / "templates"
     for directory in sorted(docs.glob("*/*")):
         if not directory.is_dir():
+            continue
+        if directory == templates:
             continue
         if not DATE_DIR.match(directory.name):
             violations.append(
@@ -308,21 +311,31 @@ def check_dated_docs(root: Path) -> list[Violation]:
 
 
 def workflow_index_violations(root: Path) -> list[Violation]:
-    index = root / "docs" / "README.md"
     workflows = root / "docs" / "workflows"
-    if not index.exists() or not workflows.exists():
+    if not workflows.exists():
         return []
-    text = index.read_text(encoding="utf-8", errors="ignore")
+    indexes = [
+        root / "docs" / "README.md",
+        root / "docs" / "workflows" / "README.md",
+    ]
+    texts = [
+        (path, path.read_text(encoding="utf-8", errors="ignore"))
+        for path in indexes
+        if path.exists()
+    ]
     violations = []
     for path in sorted(workflows.glob("*.md")):
-        if path.name not in text:
-            violations.append(
-                Violation(
-                    "workflow-index",
-                    relative(root, path),
-                    "workflow document is not listed in docs/README.md",
+        if path.name == "README.md":
+            continue
+        for index, text in texts:
+            if path.name not in text:
+                violations.append(
+                    Violation(
+                        "workflow-index",
+                        relative(root, path),
+                        f"workflow document is not listed in {relative(root, index)}",
+                    )
                 )
-            )
     return violations
 
 

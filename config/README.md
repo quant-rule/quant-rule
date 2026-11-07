@@ -16,8 +16,9 @@ interchangeable, and only the first kind is a current run config.
 A current `run.json` names exactly five engine files:
 `policy`, `data`, `model`, `execution`, and `portfolio`, plus `output_root` and
 the optional identity fields. `strategy` and `analytics` are retired fields; the
-loader rejects them with an unknown-field error. The current model schema is
-`quantrule.model/v4`; model schemas 1–3 are rejected.
+loader rejects them with an unknown-field error. The strategy file and the
+qualification criteria are explicit command arguments, not run fields. The
+current model schema is `quantrule.model/v4`; model schemas 1–3 are rejected.
 
 ## Accepted model evidence
 

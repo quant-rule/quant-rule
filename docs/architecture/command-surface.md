@@ -229,7 +229,7 @@ contract change reserved to the human.
 
 ## 8. Sequence
 
-The command surface is delivered in the S3.x sequence, one stage at a time:
+The command surface was delivered in phases, one stage at a time:
 
 | Phase | Deliverable | Status |
 |---:|---|---|

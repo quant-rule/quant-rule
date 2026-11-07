@@ -24,8 +24,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 IMPROVEMENT_DIR = Path(__file__).resolve().parent
 PARTITIONS_PATH = REPO_ROOT / "data" / "partitions.json"
 
-MANIFEST_SCHEMA = "quantrule.improvement-run/v1"
+MANIFEST_SCHEMA = "quantrule.improvement-run/v2"
 RESULT_SCHEMA = "quantrule.improvement-result/v1"
+RESULT_SCHEMA_V2 = "quantrule.improvement-result/v2"
 EVIDENCE_SCHEMA = "quantrule.improvement-evidence/v1"
 INDEX_SCHEMA = "quantrule.improvement-index/v1"
 CONFIG_SCHEMA = "quantrule.improvement-config/v1"
@@ -193,7 +194,7 @@ def _nonempty_string(value: Any) -> bool:
 def validate_manifest(manifest: Any) -> list[str]:
     """Return every schema error for an improvement run manifest.
 
-    The checks follow ``quantrule.improvement-run/v1``. They are ordered by
+    The checks follow ``quantrule.improvement-run/v2``. They are ordered by
     field so two runs over the same bad manifest print identical errors.
     """
     if not isinstance(manifest, dict):
@@ -325,6 +326,30 @@ def validate_manifest(manifest: Any) -> list[str]:
     elif not _nonempty_string(run_config):
         errors.append("run_config: must be a non-empty path")
 
+    strategy_config = manifest.get("strategy_config")
+    qualification_criteria = manifest.get("qualification_criteria")
+    if tier in ("strategy", "portfolio"):
+        if "strategy_config" not in manifest:
+            errors.append("strategy_config: required for a strategy or portfolio run")
+        if "qualification_criteria" not in manifest:
+            errors.append(
+                "qualification_criteria: required for a strategy or portfolio run"
+            )
+    for field, value in (
+        ("strategy_config", strategy_config),
+        ("qualification_criteria", qualification_criteria),
+    ):
+        if value is not None and not _nonempty_string(value):
+            errors.append(f"{field}: must be a non-empty path when present")
+
+    analytics = manifest.get("analytics")
+    if analytics is not None and not isinstance(analytics, bool):
+        errors.append("analytics: must be a boolean when present")
+
+    command = manifest.get("command")
+    if command is not None and command not in ("backtest run", "report model"):
+        errors.append("command: must be 'backtest run' or 'report model' when present")
+
     if "output_root" in manifest and manifest["output_root"] is not None:
         if not _nonempty_string(manifest["output_root"]):
             errors.append("output_root: must be a non-empty path when present")
@@ -455,10 +480,12 @@ def markdown_cell(value: Any) -> str:
 
 
 def portfolio_metrics(report: Any) -> tuple[dict[str, Any], list[str]]:
-    """Extract the portfolio summary fields evidence and comparison share.
+    """Extract the portfolio metrics fields evidence and comparison share.
 
-    The returned ``return`` is the report's ``summary.total_return``. Missing
-    fields stay null and produce a note rather than a zero.
+    The function accepts the current analytics bundle (``metrics`` object), the
+    current portfolio bundle (top-level fields), and the historical report
+    (``summary`` object). Missing fields stay null and produce a note rather than
+    a zero.
     """
     fields = (
         "return",
@@ -468,6 +495,7 @@ def portfolio_metrics(report: Any) -> tuple[dict[str, Any], list[str]]:
         "win_rate",
         "halted",
         "final_equity",
+        "exposure",
         "time_to_target_days",
         "target_reached",
         "max_drawdown_peak_to_trough_days",
@@ -481,37 +509,46 @@ def portfolio_metrics(report: Any) -> tuple[dict[str, Any], list[str]]:
     notes: list[str] = []
     if not isinstance(report, dict):
         return values, ["portfolio report is not a JSON object"]
-    summary = report.get("summary")
-    if not isinstance(summary, dict):
-        return values, ["portfolio report has no summary object"]
+
+    if isinstance(report.get("metrics"), dict):
+        source = report["metrics"]
+        prefix = "metrics"
+    elif isinstance(report.get("summary"), dict):
+        source = report["summary"]
+        prefix = "summary"
+    else:
+        source = report
+        prefix = "report"
 
     sources = {
-        "return": "total_return",
-        "max_drawdown": "max_drawdown",
-        "trades": "trades",
-        "profit_factor": "profit_factor",
-        "win_rate": "win_rate",
-        "halted": "halted",
-        "final_equity": "final_equity",
-        "time_to_target_days": "time_to_target_days",
-        "target_reached": "target_reached",
-        "max_drawdown_peak_to_trough_days": "max_drawdown_peak_to_trough_days",
-        "max_drawdown_recovery_days": "max_drawdown_recovery_days",
-        "longest_underwater_days": "longest_underwater_days",
-        "benchmark_buy_and_hold_return": "benchmark_buy_and_hold_return",
-        "benchmark_random_median_return": "benchmark_random_median_return",
-        "strategy_percentile_vs_random": "strategy_percentile_vs_random",
+        "return": ("total_return",),
+        "max_drawdown": ("max_drawdown",),
+        "trades": ("trade_count", "trades"),
+        "profit_factor": ("profit_factor",),
+        "win_rate": ("win_rate",),
+        "halted": ("halted",),
+        "final_equity": ("final_equity",),
+        "exposure": ("exposure",),
+        "time_to_target_days": ("time_to_target_days",),
+        "target_reached": ("target_reached",),
+        "max_drawdown_peak_to_trough_days": ("max_drawdown_peak_to_trough_days",),
+        "max_drawdown_recovery_days": ("max_drawdown_recovery_days",),
+        "longest_underwater_days": ("longest_underwater_days",),
+        "benchmark_buy_and_hold_return": ("benchmark_buy_and_hold_return",),
+        "benchmark_random_median_return": ("benchmark_random_median_return",),
+        "strategy_percentile_vs_random": ("strategy_percentile_vs_random",),
     }
-    for field, key in sources.items():
-        if key not in summary:
-            notes.append(f"summary.{key} is missing")
+    for field, keys in sources.items():
+        key = next((candidate for candidate in keys if candidate in source), None)
+        if key is None:
+            notes.append(f"{prefix}.{keys[0]} is missing")
             continue
-        value = summary[key]
+        value = source[key]
         if field in ("halted", "target_reached"):
             if isinstance(value, bool) or value is None:
                 values[field] = value
             else:
-                notes.append(f"summary.{key} is not a boolean")
+                notes.append(f"{prefix}.{key} is not a boolean")
         elif is_number(value):
             values[field] = value
         elif value is None and field in (
@@ -520,7 +557,7 @@ def portfolio_metrics(report: Any) -> tuple[dict[str, Any], list[str]]:
         ):
             values[field] = None
         else:
-            notes.append(f"summary.{key} is not a finite number")
+            notes.append(f"{prefix}.{key} is not a finite number")
     return values, notes
 
 

@@ -54,8 +54,8 @@ hypothesis, revise it through a pre-registered experiment, or stop with "no edge
    never labels or a single composite score.
 3. Evaluate the human-owned policy and strategy through execution and portfolio
    accounting, with explicit costs; no look-ahead, no statistics in the signal path.
-   The execution and portfolio libraries exist; the strategy surface arrives with
-   S3.x.
+   The strategy, execution, and portfolio surfaces are implemented; the next step
+   is an accepted model baseline and a pre-registered strategy hypothesis.
 4. Produce the flat model report bundle with provenance; every artifact
    deterministic.
 5. Expose every capability as a discoverable shell command; a capability that
