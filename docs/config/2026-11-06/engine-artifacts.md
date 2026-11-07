@@ -210,9 +210,17 @@ progression condition would be a new approved rule-language change, not an
 undocumented extension.
 
 A diagnostic reading never appears in the evidence list. A statistical value
-never appears in a decision record. The strategy input boundary test proves that
-the strategy cannot read a diagnostic, a raw indicator, a fill, a position, cash,
-or P&L.
+never appears in a decision record. The strategy input carries the published
+event batch; the configuration parser and the engine reject an unregistered or
+diagnostic identity, and the compression bracket is restricted to the registered
+range event. A boundary test shows that a diagnostic event in the input cannot
+satisfy a registered condition. The strategy input carries no raw indicator, fill,
+position, cash, or P&L.
+
+The standalone and coupled strategy paths consume the same merged event batch
+(`all_events()`), including the core and extended batches. The event-composite
+language names only the base subtypes `1..=7`; the compression bracket names the
+registered range event `(3,8,5)`.
 
 `summary.txt` carries the counts by decision, side, and reason, the data version,
 the config identity, and the model source. It carries no fill or P&L.
@@ -493,8 +501,9 @@ upstream verdict into its own artifact.
 - A determinism test runs the command twice over the same input and compares
   every artifact byte for byte.
 - A boundary test proves a later stage cannot read a field that belongs to an
-  earlier stage's private state, and that the strategy cannot read a diagnostic,
-  a statistical value, a fill, a position, cash, or P&L.
+  earlier stage's private state, and that the strategy configuration/engine
+  rejects a diagnostic identity; the strategy input carries no raw indicator,
+  statistical value, fill, position, cash, or P&L.
 - The command surface checker proves that every implemented command that writes
   a bundle has a documented artifact, and that no planned command is listed as
   available.

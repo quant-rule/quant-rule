@@ -418,6 +418,82 @@ fn the_standalone_and_coupled_strategy_decisions_agree_on_the_signal() {
 }
 
 #[test]
+fn an_extended_event_reaches_both_strategy_paths() {
+    let root = output_dir("extended-event-parity");
+    fs::create_dir_all(&root).expect("the parity root is created");
+    let strategy = root.join("extended-event.json");
+    fs::write(
+        &strategy,
+        r#"{
+  "schema": "quantrule.strategy/v1",
+  "id": "AUD-02-EXTENDED",
+  "engine": "event_composite",
+  "execution_timeframe": "5m",
+  "context_timeframes": ["15m"],
+  "event_window_bars": 1,
+  "time_stop_bars": 0,
+  "require_contiguous": true,
+  "risk": { "stop_atr_multiple": 2.0, "reward_to_risk": 1.5 },
+  "entry": [
+    { "kind": "event", "timeframe": "5m", "event_type": 1, "subtype": 3, "source": 19, "direction": 1 }
+  ],
+  "exit": []
+}"#,
+    )
+    .expect("the extended-event strategy is written");
+
+    let config = fixture("config-run/run.json");
+    let standalone = root.join("standalone");
+    fs::create_dir_all(&standalone).expect("the standalone root is created");
+    assert_success(&run(&[
+        "report",
+        "model",
+        "--config",
+        arg(&config),
+        "--out",
+        arg(&standalone),
+    ]));
+    assert_success(&run(&[
+        "strategy",
+        "run",
+        "--model",
+        arg(&standalone.join("model")),
+        "--strategy",
+        arg(&strategy),
+        "--out",
+        arg(&standalone),
+    ]));
+
+    let coupled = root.join("coupled");
+    assert_success(&run(&[
+        "backtest",
+        "run",
+        "--config",
+        arg(&config),
+        "--strategy",
+        arg(&strategy),
+        "--out",
+        arg(&coupled),
+    ]));
+
+    let standalone = decisions(&standalone.join("strategy/decisions.ndjson"));
+    let coupled = decisions(&coupled.join("backtest/strategy/decisions.ndjson"));
+    assert_eq!(standalone.len(), coupled.len());
+    assert!(
+        standalone
+            .iter()
+            .any(|decision| decision["decision"] == "enter"),
+        "the extended level event must fire in the standalone path"
+    );
+    for (standalone, coupled) in standalone.iter().zip(coupled.iter()) {
+        assert_eq!(standalone["bar_index"], coupled["bar_index"]);
+        assert_eq!(standalone["decision"], coupled["decision"]);
+        assert_eq!(standalone["side"], coupled["side"]);
+        assert_eq!(standalone["reason"], coupled["reason"]);
+    }
+}
+
+#[test]
 fn the_standalone_pipeline_is_byte_deterministic() {
     let root = output_dir("standalone-deterministic");
     let first = root.join("a");

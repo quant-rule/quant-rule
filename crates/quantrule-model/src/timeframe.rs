@@ -123,6 +123,7 @@ pub struct TimeframeModel {
     context: ContextSeries,
     events: EventBatch,
     extended_events: ExtendedEventSeries,
+    merged_events: Vec<EventRecord>,
     event_history: EventHistory,
     levels: Vec<ConfirmedLevel>,
 }
@@ -278,6 +279,11 @@ impl TimeframeModel {
         // detector order.
         events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
 
+        let mut merged_events = Vec::with_capacity(events.len() + extended_events.len());
+        merged_events.extend_from_slice(&events);
+        merged_events.extend_from_slice(extended_events.events());
+        merged_events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
+
         let events = EventBatch::new(events);
         let event_history = EventHistory::from_batch(&events);
         let registry = ConfirmedLevelRegistry::from_pivots(&readings.pivots);
@@ -299,6 +305,7 @@ impl TimeframeModel {
             context,
             events,
             extended_events,
+            merged_events,
             event_history,
             levels,
         })
@@ -470,12 +477,8 @@ impl TimeframeModel {
     /// then occurrence bar. The sort is stable, so records that share both keys
     /// keep the detector append order.
     #[must_use]
-    pub fn all_events(&self) -> Vec<EventRecord> {
-        let mut events = Vec::with_capacity(self.events.len() + self.extended_events.len());
-        events.extend_from_slice(self.events.as_slice());
-        events.extend_from_slice(self.extended_events.events());
-        events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
-        events
+    pub fn all_events(&self) -> &[EventRecord] {
+        self.merged_events.as_slice()
     }
 
     /// The full event batch wrapper.

@@ -252,7 +252,7 @@ fn the_merged_event_batch_is_in_availability_order() {
     );
 
     let mut previous: Option<(usize, usize)> = None;
-    for event in &events {
+    for event in events {
         let key = (event.available_bar_index, event.occurred_bar_index);
         if let Some(previous) = previous {
             assert!(
