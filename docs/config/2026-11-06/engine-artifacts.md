@@ -217,10 +217,12 @@ range event. A boundary test shows that a diagnostic event in the input cannot
 satisfy a registered condition. The strategy input carries no raw indicator, fill,
 position, cash, or P&L.
 
-The standalone and coupled strategy paths consume the same merged event batch
-(`all_events()`), including the core and extended batches. The event-composite
-language names only the base subtypes `1..=7`; the compression bracket names the
-registered range event `(3,8,5)`.
+The standalone and coupled strategy paths consume the same merged event set
+(`all_events()`), including the core and extended events. The bundle reader
+re-sorts the evidence rows by event code for display; the engines match by
+identity and are order-independent. The event-composite language names only the
+base subtypes `1..=7`; the compression bracket names the registered range event
+`(3,8,5)`.
 
 `summary.txt` carries the counts by decision, side, and reason, the data version,
 the config identity, and the model source. It carries no fill or P&L.

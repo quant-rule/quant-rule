@@ -1,7 +1,7 @@
 # S3.x Stage-Surface Audit — Remediation Plan
 
 - Date: 2026-11-07 (UTC)
-- Status: Merged 2026-11-07 at `e8f99cc`; verification remediation in progress on `fix/audit-verification-remediation`; findings `Fixed`, not yet `Verified`
+- Status: Merged 2026-11-07 at `e8f99cc`; verification remediation merged in PR #538 at `08dd260`; findings `Fixed`, not yet `Verified`
 - Issue: none (the fix issues are created only after approval; no issue number is
   invented)
 - Audit: [`docs/audits/2026-11-07/s3-stage-surface-audit.md`](../../audits/2026-11-07/s3-stage-surface-audit.md)
@@ -141,14 +141,14 @@ S1-S4 run under the Quant roles; S5-S8 are Engineering/Test/Docs work.
 
 | Finding | Sub-issue | PR | Verification |
 |---|---|---|---|
-| `AUD-2026-11-07-01` | S1 | #536 | Timeframe/context regression tests; full gate; Quant Validator record |
-| `AUD-2026-11-07-02` | S3 | #536 | Cross-path decision equality test, including the extended `(1,3,19)` event; full gate; Quant Validator record |
-| `AUD-2026-11-07-04` | S2 | #536 | Registry/role rejection tests, registry role test, bracket whitelist; full gate; Quant Validator record |
-| `AUD-2026-11-07-05` | S4 | #536 | Event-window conversion tests and documented rounding; full gate; Quant Validator record |
+| `AUD-2026-11-07-01` | S1 | #536, #538 | Timeframe/context regression tests, including the missing execution/context unit tests and the missing-context shell guard; full gate; Quant Validator record |
+| `AUD-2026-11-07-02` | S3 | #536, #538 | Cross-path decision equality test, including the extended `(1,3,19)` event; full gate; Quant Validator record |
+| `AUD-2026-11-07-04` | S2 | #536, #538 | Registry/role rejection tests, registry role test, bracket whitelist; full gate; Quant Validator record |
+| `AUD-2026-11-07-05` | S4 | #536, #538 | Event-window conversion tests and documented rounding; full gate; Quant Validator record |
 | `AUD-2026-11-07-06` | S5 | #536 | Manifest field test; full gate |
 | `AUD-2026-11-07-07` | S7 | #536 | Status/doc read; link and term checks |
-| `AUD-2026-11-07-08` | S6 | #536 | Snapshot and both-engine decision causality tests; full gate |
-| `AUD-2026-11-07-09` | S8 | #536 | Non-empty-root refusal test |
+| `AUD-2026-11-07-08` | S6 | #536, #538 | Snapshot and both-engine decision causality tests; full gate |
+| `AUD-2026-11-07-09` | S8 | #536, #538 | Non-empty-root refusal test, including the no-stage assertion |
 | `AUD-2026-11-07-10` | S7 | #536 | Evidence-table read; term check |
 
 A finding moves to `Planned` when this plan is approved, `In progress` when its
@@ -256,7 +256,7 @@ recorded in section 7, not in separate commits.
 
 | Sub-issue | Implementation | Verification |
 |---|---|---|
-| S1 | Shared `strategy::context::validate_context` checks the strategy execution timeframe, published context timeframes, and condition timeframes; `strategy explain`/`run` and `backtest run` use it. The coupled runner rejects a declared/run mismatch before the model bundle is written. | `backtest_rejects_a_strategy_execution_timeframe_mismatch`; `backtest_rejects_a_condition_outside_execution_and_context`; existing strategy tests unchanged. |
+| S1 | Shared `strategy::context::validate_context` checks the strategy execution timeframe, published context timeframes, and condition timeframes; `strategy explain`/`run` and `backtest run` use it. The coupled runner rejects a declared/run mismatch before the model bundle is written. | `backtest_rejects_a_strategy_execution_timeframe_mismatch`; `backtest_rejects_a_condition_outside_execution_and_context`; `backtest_rejects_a_missing_context_timeframe`; `strategy::context::tests`; existing strategy tests unchanged. |
 | S2 | Build-time registry table generated from `docs/registry/indicators.json`; unregistered and diagnostic identities are rejected; the compression bracket is restricted to `(3,8,5)`. The build script uses the workspace's existing `serde_json` crate as a build-dependency; no new external crate is added. | `an_unregistered_event_condition_is_rejected`; `a_diagnostic_identity_is_not_strategy_readable`; `a_diagnostic_event_is_rejected_as_the_bracket_event`; `an_unregistered_event_is_rejected_as_the_bracket_event`; observed shell errors for the old unregistered and diagnostic configs. |
 | S3 | `EventStrategyInput` reads `timeframe.all_events()`, matching the `events.csv` standalone path. | `the_standalone_and_coupled_strategy_decisions_agree_on_the_signal`; `an_extended_event_reaches_both_strategy_paths`. |
 | S4 | `context_window_bars` converts the execution-bar window to each context timeframe; the bundle reader and the coupled input use it; the rounded conversion is documented. | `the_context_window_is_expressed_in_execution_bars`; `the_context_view_window_is_converted_from_execution_bars`; the existing 5m/15m fixture is unchanged because its window is one bar. |
@@ -271,12 +271,14 @@ Gate evidence:
 |---|---|
 | `cargo fmt --all -- --check` | pass |
 | `cargo clippy --all-targets -- -D warnings` | pass |
-| `cargo test --workspace` | 1,328 passed, 0 failed, 8 ignored |
+| `cargo test --workspace` | 1,333 passed, 0 failed, 8 ignored |
 | `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | pass |
-| Contract checks and structure check | pass; 603 Markdown files, 365 term-check files, 706 legacy files |
+| Contract checks and structure check | pass; 603 Markdown files, 365 term-check files, 740 legacy files |
 | `git diff --check` | pass |
 | Guard probe: pre-fix event stream | With `EventStrategyInput` reverted to `timeframe.events()`, `an_extended_event_reaches_both_strategy_paths` fails `enter` vs `hold` |
 | Guard probe: pre-fix window | With `with_view` using the raw window, `the_context_view_window_is_converted_from_execution_bars` fails at oldest event 14 (required at least 19) |
+| Guard probe: missing context | With `validate_context` removed, `backtest_rejects_a_missing_context_timeframe` fails because the run succeeds |
+| Guard probe: root | `backtest_refuses_an_unrelated_file_in_the_root` asserts the refusal leaves no stage directory or manifest |
 
 The analytics and qualification golden fixtures were regenerated because the
 manifest gained `strategy_config_id`; only the manifest hash moved. The decision
@@ -284,14 +286,14 @@ and accounting values are unchanged.
 
 Outstanding before a finding can be `Verified`:
 
-- An independent Quant Validator record for S1-S4.
-- An independent Code Reviewer pass.
+- A fresh Quant Validator record for S1-S4 on the final verification commit.
+- A fresh Code Reviewer pass after the review fixes.
 - The Improvement Verifier's closure check.
-- The merged-tree gate passes; the findings are `Fixed`, not yet `Verified`.
+- The findings are `Fixed`, not yet `Verified`.
 
 Deviation from section 7: the implementation is on one remediation branch rather
 than one branch per sub-issue. The changes are separable by sub-issue for commit
-review; no PR has been opened.
+review; PRs #536 and #538 were opened and merged.
 
 ## 15. Sequential review record
 
@@ -353,24 +355,57 @@ are separate sessions, not human reviews, and not independent model judgments.
   documentation had stale or broken statements, and `all_events()` allocated a
   merged vector per bar in the coupled loop.
 
-Resolutions in this change set:
+Resolutions in this change set (PR #538, merged at `08dd260`):
 
 - F1: `TimeframeModel` caches the merged event batch; `all_events()` returns a
   slice, so the coupled strategy input no longer allocates per bar.
-- F2: the follow-up is prepared as one focused change set; publication is
-  pending.
+- F2: the follow-up merged in PR #538 at `08dd260`.
 - F3/F4: `an_extended_event_reaches_both_strategy_paths` uses the extended
   `(1,3,19)` event and fails on the pre-fix stream (`enter` vs `hold`);
   `the_context_view_window_is_converted_from_execution_bars` asserts the
   converted boundary and fails when the conversion is removed (oldest event 14,
   required at least 19); `the_snapshot_boundary_keeps_both_engine_decisions_causal`
-  exercises both engines and asserts `Enter`; `a_diagnostic_identity_is_not_strategy_readable`
-  checks the registry role.
+  exercises both engines; the event-composite arm asserts `Enter` and the bracket
+  arm is `Hold` on this fixture, so only the event-composite arm is non-trivial;
+  `a_diagnostic_identity_is_not_strategy_readable` checks the registry role.
 - F5-F8: the strategy table, execution-timeframe coupling, window rounding,
   artifact-boundary wording, and the audit's historical baseline paragraph were
   corrected.
 - The redundant per-context `MissingTimeframe` loop in `backtest run` was removed
   because `validate_context` already checks every context timeframe.
+
+### Fresh review on merged `08dd260`
+
+A fresh read-only Quant Validator subagent and a fresh read-only Code Reviewer
+subagent reviewed `08dd260`. They are separate sessions, not human reviews, and
+not independent model judgments.
+
+- Quant Validator: `pass with residual risks`. Causality, determinism, the input
+  boundary, the fixture decisions and accounting values, and the full gate pass;
+  the two fail-before probes were reproduced. Residual risks: the bracket
+  causality arm is `Hold` on this fixture; the standalone context-window path has
+  no direct fail-before test; the `EventDiagnostic` branch is defensive; the
+  view-order documentation is imprecise.
+- Code Reviewer: `changes requested`. No correctness defect; stale status text
+  remained, and the missing execution/context branches had no regression test.
+
+Resolutions after that review:
+
+- Status text in the audit, plan, and AI log now records the PR #538 merge.
+- `strategy/context.rs` unit tests cover the missing execution, missing context,
+  execution mismatch, and condition-outside-context branches.
+- `backtest_rejects_a_missing_context_timeframe` builds a run whose data ladder
+  omits `1h` and asserts the shared validator refuses the strategy before a
+  bundle; it fails when `validate_context` is removed.
+- `backtest_rejects_a_strategy_execution_timeframe_mismatch` now uses a valid
+  15m/1h strategy, so the mismatch is the only defect.
+- `backtest_refuses_an_unrelated_file_in_the_root` asserts no stage directory or
+  manifest exists after the refusal.
+- The strategy contract states the registry/role rejection and the bracket
+  `(3,8,5)` restriction; the artifact contract says the paths share the merged
+  event set and that evidence re-sorting is display-only.
+- The bracket causality arm is documented as `Hold` on the fixture.
+- The `EventDiagnostic` branch carries a comment explaining its defensive role.
 
 Residual risks:
 
@@ -384,11 +419,20 @@ Residual risks:
   vector; the coupled loop no longer allocates it per bar.
 - The AUD-04 diagnostic-input test passes before the fix because identity matching
   is exact; it is a boundary assertion, not the fail-before guard.
+- The bracket causality arm is invariant across later bars but `Hold` on this
+  fixture; a firing bracket fixture would exercise a non-trivial decision.
+- The standalone context-window path uses the same `context_window_bars` helper
+  but has no direct fail-before test.
+- The missing execution branch is covered by the shared validator unit test, not
+  by a shell run, because the config contract keeps the run's fill timeframe in
+  the data ladder.
+- The bundle reader re-sorts evidence by event code for display; decisions are
+  identity-based and order-independent.
 - The findings remain `Fixed`, not `Verified`, until the committed tree passes a
   fresh independent verifier.
 
 ### Outstanding
 
-- A fresh Quant Validator record for S1-S4 on the committed follow-up tree.
-- A fresh Code Reviewer pass on the committed follow-up tree.
+- A fresh Quant Validator record for S1-S4 on the final verification commit.
+- A fresh Code Reviewer pass on the final verification commit.
 - The Improvement Verifier's closure check.

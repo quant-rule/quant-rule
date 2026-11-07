@@ -152,8 +152,45 @@ Verification on the follow-up tree: `cargo fmt --all -- --check`, `cargo clippy
 check, and `git diff --check` pass. The two fail-before probes above were run by
 temporarily reverting the specific code path and then restoring it.
 
-The findings remain `Fixed`, not `Verified`. A fresh Quant Validator record, a
-fresh Code Reviewer pass, and the Improvement Verifier closure check on the
-committed tree remain outstanding. This change set is committed and published on
-`fix/audit-verification-remediation` under the human authorization for this
-verification remediation; the PR and merge follow after CI.
+The findings remain `Fixed`, not `Verified`. This change set was merged in PR
+[#538](https://github.com/quant-rule/quant-rule/pull/538) at `08dd260`.
+
+## Addendum — fresh review on the merged tree (2026-11-07)
+
+A fresh read-only Quant Validator subagent reviewed `08dd260` and returned `pass
+with residual risks`: causality, determinism, the input boundary, fixture
+decisions and accounting, and the full gate pass; the two fail-before probes were
+reproduced. Residual risks: the bracket causality arm is `Hold` on the fixture,
+the standalone context-window path has no direct fail-before test, the
+`EventDiagnostic` branch is defensive, and the view-order documentation is
+imprecise.
+
+A fresh read-only Code Reviewer subagent returned `changes requested`. It found
+no correctness defect in the merged code, but the governance records still
+described the follow-up as unmerged, and the missing execution/context timeframe
+branches had no regression test.
+
+Corrections:
+
+- Four `strategy/context.rs` unit tests cover the missing execution timeframe,
+  missing context timeframe, execution mismatch, and condition-outside-context
+  branches.
+- `backtest_rejects_a_missing_context_timeframe` builds a run whose data ladder
+  omits `1h`; it fails when `validate_context` is removed.
+- `backtest_rejects_a_strategy_execution_timeframe_mismatch` now uses a valid
+  15m/1h strategy so the mismatch is the only defect.
+- `backtest_refuses_an_unrelated_file_in_the_root` asserts no stage directory or
+  manifest exists after the refusal.
+- The bracket causality arm is documented as `Hold` on the fixture; the
+  `EventDiagnostic` branch carries a defensive-code comment.
+- The strategy contract states the registry/role rejection and the bracket
+  `(3,8,5)` restriction; the artifact contract says evidence re-sorting is
+  display-only.
+- The audit, plan, and this log now record the PR #538 merge.
+
+The findings remain `Fixed`. A final Quant Validator record, a final Code
+Reviewer pass, and the Improvement Verifier closure on the final commit remain
+outstanding. Verification after the review corrections: `cargo fmt --all --
+--check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace`
+(1,333 passed, 0 failed, 8 ignored), `cargo doc` with `-D warnings`, the contract
+checks, the structure check, and `git diff --check` pass.

@@ -47,6 +47,40 @@ fn strategy_with(name: &str, edit: impl FnOnce(&mut serde_json::Value)) -> PathB
     path
 }
 
+fn run_config_without_timeframe(name: &str, available: &[&str]) -> PathBuf {
+    let source = fixture("config-run");
+    let target = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/p3-backtest-tests")
+        .join(name);
+    fs::create_dir_all(&target).expect("the config directory is created");
+    for file in [
+        "run.json",
+        "model.json",
+        "execution.json",
+        "portfolio.json",
+        "policy.json",
+    ] {
+        fs::copy(source.join(file), target.join(file))
+            .unwrap_or_else(|error| panic!("copy {file}: {error}"));
+    }
+    let mut data: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(source.join("data.json")).expect("data.json is readable"),
+    )
+    .expect("data.json is JSON");
+    data["available_timeframes"] = serde_json::json!(available);
+    let source_csv = fixture("state_m1.csv")
+        .canonicalize()
+        .expect("the fixture CSV is present");
+    data["source"]["path"] =
+        serde_json::json!(source_csv.to_str().expect("the fixture CSV path is UTF-8"));
+    fs::write(
+        target.join("data.json"),
+        serde_json::to_vec_pretty(&data).expect("data.json is JSON"),
+    )
+    .expect("data.json is written");
+    target.join("run.json")
+}
+
 fn run(args: &[&str]) -> Output {
     Command::new(BIN)
         .args(args)
@@ -249,6 +283,8 @@ fn backtest_rejects_a_strategy_execution_timeframe_mismatch() {
     let strategy = strategy_with("strategy-15m-mismatch.json", |value| {
         value["execution_timeframe"] = serde_json::json!("15m");
         value["context_timeframes"] = serde_json::json!(["1h"]);
+        value["entry"][0]["timeframe"] = serde_json::json!("15m");
+        value["exit"][0]["timeframe"] = serde_json::json!("15m");
     });
     let out = output_dir("backtest-timeframe-mismatch");
     let config = fixture("config-run/run.json");
@@ -296,6 +332,33 @@ fn backtest_rejects_a_condition_outside_execution_and_context() {
 }
 
 #[test]
+fn backtest_rejects_a_missing_context_timeframe() {
+    let config =
+        run_config_without_timeframe("backtest-missing-context-config", &["1m", "5m", "15m"]);
+    let strategy = strategy_with("strategy-missing-context.json", |value| {
+        value["context_timeframes"] = serde_json::json!(["1h"]);
+        value["entry"][0]["timeframe"] = serde_json::json!("5m");
+        value["exit"][0]["timeframe"] = serde_json::json!("5m");
+    });
+    let out = output_dir("backtest-missing-context");
+    let output = run(&backtest_args(
+        config.to_str().expect("the config path is UTF-8"),
+        strategy.to_str().expect("the strategy path is UTF-8"),
+        out.to_str().expect("the output path is UTF-8"),
+    ));
+    assert_failure(&output);
+    assert!(
+        stderr(&output).contains("the model does not publish the timeframe 3600s"),
+        "observed: {}",
+        stderr(&output)
+    );
+    assert!(
+        !out.join("backtest/model").exists(),
+        "the run must fail before a bundle is written"
+    );
+}
+
+#[test]
 fn backtest_refuses_an_unrelated_file_in_the_root() {
     let out = output_dir("backtest-root-unrelated");
     fs::create_dir_all(out.join("backtest")).expect("the root is created");
@@ -312,6 +375,16 @@ fn backtest_refuses_an_unrelated_file_in_the_root() {
     assert_eq!(
         fs::read(out.join("backtest/junk.txt")).expect("the junk file remains"),
         b"junk"
+    );
+    for stage in ["model", "strategy", "execution", "portfolio"] {
+        assert!(
+            !out.join("backtest").join(stage).exists(),
+            "the {stage} stage must not be written"
+        );
+    }
+    assert!(
+        !out.join("backtest/manifest.json").exists(),
+        "the manifest must not be written"
     );
 }
 

@@ -108,6 +108,9 @@ disjunction of exit conditions. Each condition names a published timeframe.
 | `field` | A published state field: `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_regime`, `adx_slope`, `di_state`, `progression_stage`, or `progression_leg_direction`. |
 | `value` | The exact state code the condition requires. |
 
+The parser rejects an event identity that is not in the registry and any
+identity whose registered role is `diagnostic`.
+
 The event-composite engine allows only the seven base event subtypes. The
 extended and session event subtypes are published by the model bundle but are
 not part of the bounded event-composite language; a rule that needs them is a
@@ -141,7 +144,8 @@ The bracket engine reads the neutral compression-range event and places a
 two-sided stop entry at the published high and low. The event timeframe must
 equal the execution timeframe; the bracket reads the execution view. Execution
 chooses the side when a boundary fills. The strategy does not know the side in
-advance.
+advance. The bracket event must be the registered compression-range identity
+`(3,8,5)`; an unregistered, diagnostic, or other event identity is rejected.
 
 `strategy explain` supports the bracket engine for one decision. `strategy run`
 refuses it with a clear error because a standalone decision sequence cannot know

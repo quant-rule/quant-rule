@@ -2,7 +2,7 @@
 
 - Date: 2026-11-07 (UTC)
 - Audit ID: `AUDIT-2026-11-07-s3-stage-surface`
-- Status: Published; findings 01, 02, and 04–10 `Fixed` in PR #536 at `e8f99cc`; `AUD-2026-11-07-03` `Won't fix` by the human decision of 2026-11-07; independent verification pending
+- Status: Published; findings 01, 02, and 04–10 `Fixed` in PR #536 at `e8f99cc` and PR #538 at `08dd260`; `AUD-2026-11-07-03` `Won't fix` by the human decision of 2026-11-07; independent verification pending
 - Baseline: `main` at `fbc38a0`
 - Scope: the S3.x strategy, execution, portfolio, backtest, qualification, and
   analytics commands and engines; their artifacts, provenance, boundary tests,
@@ -24,13 +24,14 @@
 `AUD-2026-11-07-03` is `Won't fix` by the human decision of 2026-11-07: the
 `allow_short` rule is removed from the current contract, so a short fill is now
 the expected behavior. The other nine findings are `Fixed` in PR
-[#536](https://github.com/quant-rule/quant-rule/pull/536) at `e8f99cc`;
-independent Improvement Verifier closure is pending.
+[#536](https://github.com/quant-rule/quant-rule/pull/536) at `e8f99cc`; the
+verification guards are in PR
+[#538](https://github.com/quant-rule/quant-rule/pull/538) at `08dd260`.
+Independent Improvement Verifier closure is pending.
 
 The first Independent Verifier pass returned `Not verified`. The AUD-02, AUD-04,
-AUD-05, and AUD-08 guards were strengthened on
-`fix/audit-verification-remediation`; that follow-up is not yet merged, so the
-findings stay `Fixed` until it lands and the verifier reruns.
+AUD-05, and AUD-08 guards were strengthened in PR #538; the findings stay
+`Fixed` until the fresh verifier pass completes.
 
 The S3.x stages run, their gates pass, and their bundles are byte-deterministic
 on the fixture. The strategy handoff is not consistent: the coupled runner
@@ -318,7 +319,7 @@ A; the backtest root is the run bundle and the rule is written at the run level.
 
 #### Verification
 
-A `backtest` root containing an unrelated file is refused before any stage is written. The current tree exits 0 and leaves the file.
+A `backtest` root containing an unrelated file is refused before any stage is written; the test also asserts that no model bundle or stage directory exists.
 
 #### Links
 
@@ -468,21 +469,23 @@ does not require a different behavior or the impact is limited.
 ## Remediation evidence
 
 The nine open findings were fixed in PR
-[#536](https://github.com/quant-rule/quant-rule/pull/536), merged at `e8f99cc`.
-The merged `main` tree passes the full gate: 1,323 tests, 0 failed, 8 ignored;
+[#536](https://github.com/quant-rule/quant-rule/pull/536), merged at `e8f99cc`;
+the verification guards were strengthened in PR
+[#538](https://github.com/quant-rule/quant-rule/pull/538), merged at `08dd260`.
+The merged `main` tree passes the full gate: 1,333 tests, 0 failed, 8 ignored;
 fmt, clippy, doc, the contract checks, the structure check, and
 `git diff --check`.
 
 | ID | Fix | Regression guard |
 |---|---|---|
-| `AUD-2026-11-07-01` | Shared strategy timeframe/context validation; the coupled runner rejects a mismatch before the model bundle. | `backtest_rejects_a_strategy_execution_timeframe_mismatch`; `backtest_rejects_a_condition_outside_execution_and_context`. |
+| `AUD-2026-11-07-01` | Shared strategy timeframe/context validation; the coupled runner rejects a mismatch before the model bundle. | `backtest_rejects_a_strategy_execution_timeframe_mismatch`; `backtest_rejects_a_condition_outside_execution_and_context`; `backtest_rejects_a_missing_context_timeframe`; `strategy::context::tests`. |
 | `AUD-2026-11-07-02` | Both strategy paths use `all_events()`; one canonical event set. | `the_standalone_and_coupled_strategy_decisions_agree_on_the_signal`; `an_extended_event_reaches_both_strategy_paths`. |
 | `AUD-2026-11-07-04` | Build-time registry validation; unregistered and diagnostic identities rejected; bracket restricted to `(3,8,5)`. | `an_unregistered_event_condition_is_rejected`; `a_diagnostic_event_is_rejected_as_the_bracket_event`; `a_diagnostic_identity_is_not_strategy_readable`. |
 | `AUD-2026-11-07-05` | The execution-bar window is converted to each context timeframe; the rounded conversion is documented. | `the_context_window_is_expressed_in_execution_bars`; `the_context_view_window_is_converted_from_execution_bars`; `strategy-config.md` window contract. |
 | `AUD-2026-11-07-06` | The manifest records `strategy_config_id`. | `backtest_writes_the_stage_bundles` manifest assertion. |
 | `AUD-2026-11-07-07` | Current S3.x status lines and index corrected. | `check_links.py`; `check_terms.py`. |
 | `AUD-2026-11-07-08` | Later-bar causality test for the strategy snapshot and both engine decisions. | `later_bars_do_not_change_an_earlier_snapshot`; `the_snapshot_boundary_keeps_both_engine_decisions_causal`. |
-| `AUD-2026-11-07-09` | The backtest root is checked before the model write. | `backtest_refuses_an_unrelated_file_in_the_root`. |
+| `AUD-2026-11-07-09` | The backtest root is checked before the model write. | `backtest_refuses_an_unrelated_file_in_the_root`, which also asserts that no stage directory or manifest exists. |
 | `AUD-2026-11-07-10` | The evidence table lists only the emitted event/state kinds. | Manual read; `check_terms.py`. |
 
 ## Status and next stage
@@ -495,9 +498,10 @@ changes, and the Quant Validator record, then moves each finding to `Verified` o
 returns it for remediation.
 
 The fixes are in PR [#536](https://github.com/quant-rule/quant-rule/pull/536),
-merged at `e8f99cc`; the plan is PR
-[#535](https://github.com/quant-rule/quant-rule/pull/535), and the removal is PR
-[#534](https://github.com/quant-rule/quant-rule/pull/534). The audit did not
-create the fix issues; no issue number was invented. The `allow_short` removal is
-recorded in
+merged at `e8f99cc`, and the verification guards are in PR
+[#538](https://github.com/quant-rule/quant-rule/pull/538), merged at `08dd260`;
+the plan is PR [#535](https://github.com/quant-rule/quant-rule/pull/535), and the
+removal is PR [#534](https://github.com/quant-rule/quant-rule/pull/534). The audit
+did not create the fix issues; no issue number was invented. The `allow_short`
+removal is recorded in
 [`docs/execution-plans/2026-11-07/remove-allow-short.md`](../../execution-plans/2026-11-07/remove-allow-short.md).
