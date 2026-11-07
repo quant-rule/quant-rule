@@ -21,6 +21,7 @@ use serde_json::{Value, json};
 
 use super::artifacts::{self, DecisionCounts, StrategyArtifactMeta};
 use super::bundle::{ModelBundle, ModelBundleError};
+use super::context::StrategyContextError;
 use crate::config::{ConfigError, StrategyConfig};
 use crate::render_report::{self, BundleError};
 use crate::request::{StrategyExplainArgs, StrategyRunArgs};
@@ -44,11 +45,8 @@ pub(crate) enum StrategyRunError {
         /// The available bars.
         bars: usize,
     },
-    /// A condition names a timeframe the strategy input does not carry.
-    ConditionTimeframeNotInContext {
-        /// The condition timeframe in seconds.
-        timeframe_secs: u64,
-    },
+    /// The strategy's timeframes do not fit the published model.
+    Context(StrategyContextError),
     /// The engine cannot produce a standalone decision sequence.
     UnsupportedEngine {
         /// The engine name.
@@ -71,16 +69,13 @@ impl fmt::Display for StrategyRunError {
             Self::Model(error) => error.fmt(formatter),
             Self::MissingTimeframe { timeframe_secs } => write!(
                 formatter,
-                "the model bundle does not publish the execution timeframe {timeframe_secs}s"
+                "the model does not publish the timeframe {timeframe_secs}s"
             ),
             Self::BarOutOfRange { bar, bars } => write!(
                 formatter,
                 "bar {bar} is outside the execution timeframe's {bars} published bars"
             ),
-            Self::ConditionTimeframeNotInContext { timeframe_secs } => write!(
-                formatter,
-                "a strategy condition names {timeframe_secs}s, but it is not the execution timeframe or a configured context timeframe"
-            ),
+            Self::Context(error) => error.fmt(formatter),
             Self::UnsupportedEngine { engine, reason } => {
                 write!(
                     formatter,
@@ -102,34 +97,18 @@ impl std::error::Error for StrategyRunError {
             Self::Bundle(error) => Some(error),
             Self::Json(error) => Some(error),
             Self::Output(error) => Some(error),
+            Self::Context(error) => Some(error),
             Self::MissingTimeframe { .. }
             | Self::BarOutOfRange { .. }
-            | Self::ConditionTimeframeNotInContext { .. }
             | Self::UnsupportedEngine { .. } => None,
         }
     }
 }
 
-fn validate_context(config: &StrategyConfig, bundle: &ModelBundle) -> Result<(), StrategyRunError> {
-    let execution = u64::from(config.execution_timeframe.seconds());
-    let mut allowed = vec![execution];
-    for timeframe in &config.context_timeframes {
-        let seconds = u64::from(timeframe.seconds());
-        if !bundle.contains_timeframe(seconds) {
-            return Err(StrategyRunError::MissingTimeframe {
-                timeframe_secs: seconds,
-            });
-        }
-        allowed.push(seconds);
+impl From<StrategyContextError> for StrategyRunError {
+    fn from(error: StrategyContextError) -> Self {
+        Self::Context(error)
     }
-    for timeframe in config.condition_timeframes() {
-        if !allowed.contains(&timeframe) {
-            return Err(StrategyRunError::ConditionTimeframeNotInContext {
-                timeframe_secs: timeframe,
-            });
-        }
-    }
-    Ok(())
 }
 
 /// Prints one decision and its as-of evidence.
@@ -145,7 +124,9 @@ pub(crate) fn explain(
     let (config, _) =
         crate::config::load_strategy(&args.strategy).map_err(StrategyRunError::Config)?;
     let bundle = ModelBundle::load(&args.model).map_err(StrategyRunError::Model)?;
-    validate_context(&config, &bundle)?;
+    super::context::validate_context(&config, None, |timeframe| {
+        bundle.contains_timeframe(timeframe)
+    })?;
     let execution = u64::from(config.execution_timeframe.seconds());
     let bars = bundle
         .bars(execution)
@@ -197,7 +178,9 @@ pub(crate) fn run(args: &StrategyRunArgs, writer: &mut impl Write) -> Result<(),
         });
     }
     let bundle = ModelBundle::load(&args.model).map_err(StrategyRunError::Model)?;
-    validate_context(&config, &bundle)?;
+    super::context::validate_context(&config, None, |timeframe| {
+        bundle.contains_timeframe(timeframe)
+    })?;
     let execution = u64::from(config.execution_timeframe.seconds());
     let bars = bundle
         .bars(execution)

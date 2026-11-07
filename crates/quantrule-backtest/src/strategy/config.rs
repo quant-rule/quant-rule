@@ -29,10 +29,16 @@ pub enum StrategyConfigError {
     EventSubtype,
     /// The event source code is outside 1..54.
     EventSource,
+    /// The event identity is not registered.
+    EventNotRegistered,
+    /// The event is registered as diagnostic and is not readable by a strategy.
+    EventDiagnostic,
     /// The event direction is outside -1..1.
     EventDirection,
     /// A state value is outside its field's range.
     EventStateValue,
+    /// The compression-bracket event is not the registered range event.
+    CompressionEventNotRange,
     /// The compression-bracket time stop is zero.
     CompressionTimeStop,
     /// The compression-bracket entry window is zero.
@@ -62,10 +68,23 @@ impl fmt::Display for StrategyConfigError {
                 write!(formatter, "the event subtype code is outside its range")
             }
             Self::EventSource => write!(formatter, "the event source code must be in 1..=54"),
+            Self::EventNotRegistered => {
+                write!(formatter, "the event identity is not registered")
+            }
+            Self::EventDiagnostic => {
+                write!(
+                    formatter,
+                    "a diagnostic event is not readable by a strategy"
+                )
+            }
             Self::EventDirection => write!(formatter, "the event direction must be in -1..=1"),
             Self::EventStateValue => {
                 write!(formatter, "a state value is outside its field's range")
             }
+            Self::CompressionEventNotRange => write!(
+                formatter,
+                "the compression bracket must use the registered compression-range event"
+            ),
             Self::CompressionTimeStop => {
                 write!(formatter, "the compression time stop must be non-zero")
             }

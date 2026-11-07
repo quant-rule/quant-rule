@@ -26,6 +26,27 @@ fn output_dir(name: &str) -> PathBuf {
     path
 }
 
+fn strategy_with(name: &str, edit: impl FnOnce(&mut serde_json::Value)) -> PathBuf {
+    let source = fixture("strategy/event-composite.json");
+    let text = fs::read_to_string(&source)
+        .unwrap_or_else(|error| panic!("read {}: {error}", source.display()));
+    let mut value: serde_json::Value =
+        serde_json::from_str(&text).expect("the strategy fixture is JSON");
+    edit(&mut value);
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/p3-backtest-tests")
+        .join(name);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("the strategy directory is created");
+    }
+    fs::write(
+        &path,
+        serde_json::to_vec(&value).expect("the strategy is JSON"),
+    )
+    .expect("the strategy is written");
+    path
+}
+
 fn run(args: &[&str]) -> Output {
     Command::new(BIN)
         .args(args)
@@ -160,6 +181,13 @@ fn backtest_writes_the_stage_bundles() {
             "every stage needs a provenance hash"
         );
     }
+    let strategy_provenance: serde_json::Value =
+        serde_json::from_slice(&files["strategy/provenance.json"])
+            .expect("the strategy provenance is JSON");
+    assert_eq!(
+        manifest["strategy_config_id"], strategy_provenance["config_id"],
+        "the manifest must name the strategy config identity"
+    );
 
     let provenance: serde_json::Value =
         serde_json::from_slice(&files["provenance.json"]).expect("the provenance is JSON");
@@ -214,6 +242,77 @@ fn backtest_refuses_a_non_empty_target() {
     let second = run(&args);
     assert_failure(&second);
     assert!(stderr(&second).contains("must be absent or empty"));
+}
+
+#[test]
+fn backtest_rejects_a_strategy_execution_timeframe_mismatch() {
+    let strategy = strategy_with("strategy-15m-mismatch.json", |value| {
+        value["execution_timeframe"] = serde_json::json!("15m");
+        value["context_timeframes"] = serde_json::json!(["1h"]);
+    });
+    let out = output_dir("backtest-timeframe-mismatch");
+    let config = fixture("config-run/run.json");
+    let output = run(&backtest_args(
+        config.to_str().expect("the config path is UTF-8"),
+        strategy.to_str().expect("the strategy path is UTF-8"),
+        out.to_str().expect("the output path is UTF-8"),
+    ));
+    assert_failure(&output);
+    assert!(
+        stderr(&output).contains("declares execution timeframe 900s"),
+        "observed: {}",
+        stderr(&output)
+    );
+    assert!(
+        !out.join("backtest/model").exists(),
+        "the run must fail before a bundle is written"
+    );
+}
+
+#[test]
+fn backtest_rejects_a_condition_outside_execution_and_context() {
+    let strategy = strategy_with("strategy-condition-outside-context.json", |value| {
+        value["context_timeframes"] = serde_json::json!([]);
+        value["entry"][0]["timeframe"] = serde_json::json!("15m");
+        value["exit"][0]["timeframe"] = serde_json::json!("15m");
+    });
+    let out = output_dir("backtest-condition-outside-context");
+    let config = fixture("config-run/run.json");
+    let output = run(&backtest_args(
+        config.to_str().expect("the config path is UTF-8"),
+        strategy.to_str().expect("the strategy path is UTF-8"),
+        out.to_str().expect("the output path is UTF-8"),
+    ));
+    assert_failure(&output);
+    assert!(
+        stderr(&output).contains("a strategy condition names 900s"),
+        "observed: {}",
+        stderr(&output)
+    );
+    assert!(
+        !out.join("backtest/model").exists(),
+        "the run must fail before a bundle is written"
+    );
+}
+
+#[test]
+fn backtest_refuses_an_unrelated_file_in_the_root() {
+    let out = output_dir("backtest-root-unrelated");
+    fs::create_dir_all(out.join("backtest")).expect("the root is created");
+    fs::write(out.join("backtest/junk.txt"), b"junk").expect("the junk file is written");
+    let config = fixture("config-run/run.json");
+    let strategy = fixture("strategy/event-composite.json");
+    let output = run(&backtest_args(
+        config.to_str().expect("the config path is UTF-8"),
+        strategy.to_str().expect("the strategy path is UTF-8"),
+        out.to_str().expect("the output path is UTF-8"),
+    ));
+    assert_failure(&output);
+    assert!(stderr(&output).contains("must be absent or empty"));
+    assert_eq!(
+        fs::read(out.join("backtest/junk.txt")).expect("the junk file remains"),
+        b"junk"
+    );
 }
 
 #[test]

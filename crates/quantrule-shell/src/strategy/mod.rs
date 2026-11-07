@@ -7,7 +7,9 @@
 
 pub(crate) mod artifacts;
 mod bundle;
+mod context;
 mod run;
 
 pub(crate) use artifacts::{DecisionCounts, StrategyArtifactMeta};
+pub(crate) use context::{StrategyContextError, validate_context};
 pub(crate) use run::{StrategyRunError, decision_record, explain, run};

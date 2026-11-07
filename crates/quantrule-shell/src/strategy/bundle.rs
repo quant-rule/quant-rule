@@ -11,7 +11,9 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use quantrule_backtest::strategy::{EventStrategyInput, EventTimeframeView, EventView};
+use quantrule_backtest::strategy::{
+    EventStrategyInput, EventTimeframeView, EventView, context_window_bars,
+};
 use quantrule_model::context::ContextBar;
 use quantrule_model::timeframe::ModelStates;
 use serde_json::Value;
@@ -198,10 +200,12 @@ impl ModelBundle {
                 continue;
             }
             let context_row = &context_bars[position - 1];
+            let context_window =
+                context_window_bars(window_bars, execution_timeframe_secs, context);
             timeframes.push(view(
                 context_row,
-                window_bars,
-                self.events_for(context, context_row.bar, window_bars),
+                context_window,
+                self.events_for(context, context_row.bar, context_window),
             ));
         }
 
