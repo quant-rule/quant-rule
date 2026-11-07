@@ -1,7 +1,7 @@
 # S3.x Stage-Surface Audit — Remediation Plan
 
 - Date: 2026-11-07 (UTC)
-- Status: Committed locally 2026-11-07 (`cb08c11`); D1-D4 = A; sequential review recorded; independent Quant Validator/Code Reviewer, push, PR, and merge pending
+- Status: PRs #534/#535/#536 open 2026-11-07; checks pass; merge and independent verification pending
 - Issue: none (the fix issues are created only after approval; no issue number is
   invented)
 - Audit: [`docs/audits/2026-11-07/s3-stage-surface-audit.md`](../../audits/2026-11-07/s3-stage-surface-audit.md)
@@ -141,15 +141,15 @@ S1-S4 run under the Quant roles; S5-S8 are Engineering/Test/Docs work.
 
 | Finding | Sub-issue | PR | Verification |
 |---|---|---|---|
-| `AUD-2026-11-07-01` | S1 | pending | Timeframe/context regression tests; full gate; Quant Validator record |
-| `AUD-2026-11-07-02` | S3 | pending | Cross-path decision equality test; full gate; Quant Validator record |
-| `AUD-2026-11-07-04` | S2 | pending | Registry/role rejection tests; `EventStrategyInput` boundary test; full gate; Quant Validator record |
-| `AUD-2026-11-07-05` | S4 | pending | Event-window contract test; full gate; Quant Validator record |
-| `AUD-2026-11-07-06` | S5 | pending | Manifest field test; full gate |
-| `AUD-2026-11-07-07` | S7 | pending | Status/doc read; link and term checks |
-| `AUD-2026-11-07-08` | S6 | pending | Causality test fails before the guard; passes after |
-| `AUD-2026-11-07-09` | S8 | pending | Non-empty-root refusal test |
-| `AUD-2026-11-07-10` | S7 | pending | Evidence-table read; term check |
+| `AUD-2026-11-07-01` | S1 | #536 | Timeframe/context regression tests; full gate; Quant Validator record |
+| `AUD-2026-11-07-02` | S3 | #536 | Cross-path decision equality test; full gate; Quant Validator record |
+| `AUD-2026-11-07-04` | S2 | #536 | Registry/role rejection tests; `EventStrategyInput` boundary test; full gate; Quant Validator record |
+| `AUD-2026-11-07-05` | S4 | #536 | Event-window contract test; full gate; Quant Validator record |
+| `AUD-2026-11-07-06` | S5 | #536 | Manifest field test; full gate |
+| `AUD-2026-11-07-07` | S7 | #536 | Status/doc read; link and term checks |
+| `AUD-2026-11-07-08` | S6 | #536 | Causality test fails before the guard; passes after |
+| `AUD-2026-11-07-09` | S8 | #536 | Non-empty-root refusal test |
+| `AUD-2026-11-07-10` | S7 | #536 | Evidence-table read; term check |
 
 A finding moves to `Planned` when this plan is approved, `In progress` when its
 sub-issue starts, and `Fixed` only after the fix is merged. The Improvement
@@ -249,9 +249,10 @@ the scope in this plan, not an edge claim, a commit, a push, a PR, or a merge.
 ## 14. Implementation record
 
 Observed on `fix/s3-audit-remediation` based on `2f04ca2` on 2026-11-07. The
-work is committed locally as `cb08c11`; it is not pushed or merged. The code and
-test changes are one review batch because several sub-issues share files; the
-sub-issue split is recorded in section 7, not in separate commits.
+work is committed as `cb08c11` and published in PR #536, stacked on PR #535 and
+PR #534; it is not merged. The code and test changes are one review batch
+because several sub-issues share files; the sub-issue split is recorded in
+section 7, not in separate commits.
 
 | Sub-issue | Implementation | Verification |
 |---|---|---|
@@ -283,8 +284,8 @@ Outstanding before a fix can be `Fixed`/`Verified`:
 
 - An independent Quant Validator record for S1-S4.
 - An independent Code Reviewer pass.
-- A push and a pull request; the local commit is a batch, not a per-sub-issue
-  split.
+- Merge PRs #534 → #535 → #536 in order, retargeting the stacked bases to `main`
+  after each merge. The local fix commit is a batch, not a per-sub-issue split.
 - The merged-tree gate.
 - The audit findings remain `Open` until the merged fix exists; S1-S8 are
   implementation evidence, not closure evidence.
@@ -332,5 +333,5 @@ independent Code Reviewer or Quant Validator reviews.
 
 - An independent Quant Validator record for S1-S4.
 - An independent Code Reviewer pass.
-- A push, a pull request, and the merged-tree gate. The local commit is a batch,
-  not a per-sub-issue split.
+- Merge PRs #534 → #535 → #536 in order, retargeting the stacked bases to `main`
+  after each merge. The local commit is a batch, not a per-sub-issue split.
