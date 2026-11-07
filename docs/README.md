@@ -42,7 +42,7 @@ repeating a status.
 | Improvement workflow | Current; the S3 surface is implemented, no tiered run has used it yet, human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
-| Release tags | `v0.5.0` is the latest release; historical tags are retained; the next release is `v0.6.0` when accepted. |
+| Release tags | `v0.6.0` is the latest release; historical tags are retained; the next release is not yet scheduled. |
 | Changelog | Grouped release history; `[Unreleased]` holds the pending workflow reset. |
 | Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path; the historical research scripts and the old improvement adapter are retained for reproducibility. |
 
@@ -109,7 +109,7 @@ criteria are explicit command arguments; the run schema stays
 | M2.x model charter | Approved 2026-11-05; strategy tier closed | [`docs/governance/2026-11-05/M2-CHARTER.md`](governance/2026-11-05/M2-CHARTER.md) |
 | Current-surface audit verification | Merged in PR #496; per-row indicator/event matrix pending | [`docs/reports/2026-11-06/current-surface-audit-verification.md`](reports/2026-11-06/current-surface-audit-verification.md) |
 | Indicator/event verification evidence | Scope map: 33 row-level, 1410 family-level, 332 tool gates, 304 N/A | [`docs/reports/2026-11-06/indicator-event-verification.md`](reports/2026-11-06/indicator-event-verification.md) |
-| Workflow documentation reset verification | Verified locally; publication and human acceptance pending | [`docs/reports/2026-11-07/workflow-verification.md`](reports/2026-11-07/workflow-verification.md) |
+| Workflow documentation reset verification | Released in `v0.6.0`; verification record current | [`docs/reports/2026-11-07/workflow-verification.md`](reports/2026-11-07/workflow-verification.md) |
 
 Pre-reset experiment records under `docs/improvement/` are historical. They are not
 improvement runs under the current run contract and are not imported as baselines.
@@ -185,6 +185,7 @@ earlier harnesses). The boundary is recorded in
 | Release | Tag | Notes |
 |---|---|---|
 | Release index and tag rule | — | [`docs/releases/README.md`](releases/README.md) |
+| Workflow documentation reset | `v0.6.0` | [`docs/releases/2026-11-07/v0.6.0.md`](releases/2026-11-07/v0.6.0.md) |
 | Workflow reset baseline | `v0.5.0` | [`docs/releases/2026-11-01/v0.5.0.md`](releases/2026-11-01/v0.5.0.md) |
 | Lab Summary and Help | `v0.3.0` | [`docs/releases/2026-10-30/v0.3.0.md`](releases/2026-10-30/v0.3.0.md) |
 | MVP v1 | `v0.2.0` | [`docs/releases/2026-10-28/v0.2.0.md`](releases/2026-10-28/v0.2.0.md) |
@@ -207,7 +208,7 @@ record of what was released. Historical tags `v0.4.0-exp-baseline` and
 | P8a M3.x charter | Approved 2026-11-06; P8b executed | `docs/governance/2026-11-05/M3-CHARTER.md` |
 | P8b M3.x programme | Underpowered at the count gate; no development run; validation not opened | `docs/improvement/2026-11-05/M3-PREFLIGHT.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
-| Workflow documentation reset | Implemented and verified locally; publication and human acceptance pending | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
+| Workflow documentation reset | Released in `v0.6.0` (PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
 
 ## Current architecture decisions
 

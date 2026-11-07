@@ -30,6 +30,19 @@ class ChangelogCheckerTests(unittest.TestCase):
             self.assertEqual(check_changelog.check(root), [])
             self.assertEqual(check_changelog.counts(root), (1, 1))
 
+    def test_empty_unreleased_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "CHANGELOG.md",
+                changelog(
+                    "## [Unreleased]\n\n"
+                    "## [0.6.0] - 2026-11-07\n\n### Added\n\n- Release.\n"
+                ),
+            )
+            self.assertEqual(check_changelog.check(root), [])
+            self.assertEqual(check_changelog.counts(root), (2, 1))
+
     def test_valid_release_changelog_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

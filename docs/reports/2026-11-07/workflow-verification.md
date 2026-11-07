@@ -1,7 +1,8 @@
 # Workflow Documentation Reset — Verification
 
 - Date: 2026-11-07 (UTC)
-- Status: Published (PR #542); CI green; human acceptance pending
+- Status: Released in `v0.6.0`; CI green
+- Release: [`v0.6.0`](../../releases/2026-11-07/v0.6.0.md)
 - Pull request: [#542](https://github.com/quant-rule/quant-rule/pull/542)
 - Plan: [`docs/execution-plans/2026-11-07/workflow-documentation-reset.md`](../../execution-plans/2026-11-07/workflow-documentation-reset.md)
 - Audit: [`docs/audits/2026-11-07/workflow-status-audit.md`](../../audits/2026-11-07/workflow-status-audit.md)
@@ -50,6 +51,7 @@ accounting rule, or policy threshold changed.
 | Fixture evidence | `python3 tools/improvement/evidence.py /tmp/opencode/workflow-run-test` | `ok STRATEGY-2026-11-07-01 evidence -> .../evidence.json` | Pass |
 | Whitespace | `git diff --check` | clean | Pass |
 | GitHub CI (PR #542) | `verify` and `Project sync` | both pass | Pass |
+| Release `v0.6.0` | `python3 tools/check_releases.py` | release note and changelog aligned | Pass |
 
 ## 3. Acceptance criteria
 
@@ -70,7 +72,7 @@ accounting rule, or policy threshold changed.
 | The issue and PR templates exist | `.github/ISSUE_TEMPLATE/`; `.github/pull_request_template.md` | Met |
 | The workflow lab tutorial exists | `docs/tutorials/2026-11-07/workflow-lab.md` | Met |
 | No model, strategy, execution, portfolio, or policy behavior changed | Diff review; Rust tests unchanged | Met |
-| Human acceptance | Pending | Pending |
+| Human acceptance | Workflow program accepted by merge of PR #542; S3 surface acceptance remains separate | Met for this program |
 
 ## 4. Residual risks and limitations
 

@@ -112,6 +112,8 @@ def parse(root: Path) -> tuple[list[str], list[dict[str, object]]]:
         seen.add(name)
         types = release["types"]
         if not types:
+            if name == "Unreleased":
+                continue
             problems.append(f"release [{name}] has no type section")
             continue
         release_entries = 0
@@ -119,7 +121,7 @@ def parse(root: Path) -> tuple[list[str], list[dict[str, object]]]:
             if not values:
                 problems.append(f"release [{name}] has an empty '### {kind}' section")
             release_entries += len(values)
-        if release_entries == 0:
+        if release_entries == 0 and name != "Unreleased":
             problems.append(f"release [{name}] has no entries")
         date = release["date"]
         if name != "Unreleased" and isinstance(date, str):

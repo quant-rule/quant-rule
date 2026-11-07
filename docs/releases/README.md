@@ -70,6 +70,9 @@ as history and are not treated as new releases. Do not delete or move them.
 The two historical markers are not release tags. New tags use the release
 format unless the human approves a named marker.
 
+The first post-baseline release is [`v0.6.0`](2026-11-07/v0.6.0.md) on
+2026-11-07. It is not in the historical table.
+
 ## 5. Changelog alignment
 
 - `## [Unreleased]` accumulates entries until a release.

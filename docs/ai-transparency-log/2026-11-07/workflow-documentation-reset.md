@@ -171,9 +171,8 @@ mechanics, portfolio accounting, or policy thresholds.
 
 - The branch was published as [PR #542](https://github.com/quant-rule/quant-rule/pull/542),
   closing [issue #541](https://github.com/quant-rule/quant-rule/issues/541).
-- The `verify` and `Project sync` checks pass. The PR is mergeable.
-- The board items for the issue and the PR are `In Progress`; they move to
-  `Done` when the PR merges.
+- The `verify` and `Project sync` checks pass. The PR merged at `ccbb5b4`.
+- The board items for the issue and the PR are `Done`.
 
 ### Limitations
 
@@ -182,4 +181,37 @@ mechanics, portfolio accounting, or policy thresholds.
 - The run-store adapter is verified on shell fixtures, not on a production data
   pack.
 - The S3 human acceptance remains pending.
+
+## Entry 3 — Release v0.6.0
+
+### Intent and boundary
+
+Prepare and tag the first post-reset release, `v0.6.0`. The release records the
+workflow documentation reset and the current S3 status. It does not change
+model, strategy, execution, portfolio, or policy behavior.
+
+### Work performed
+
+- Moved the `[Unreleased]` entries to `## [0.6.0] - 2026-11-07` and added a new
+  empty `[Unreleased]` section.
+- Added the release note at `docs/releases/2026-11-07/v0.6.0.md`.
+- Updated `docs/README.md`, `docs/releases/README.md`, the execution plan, the
+  verification record, and the audit findings.
+- Updated the changelog checker to allow an empty `[Unreleased]` section.
+- Kept the historical tags unchanged.
+
+### Verification and evidence
+
+- `python3 tools/check_changelog.py`: 2 releases, 13 entries.
+- `python3 tools/check_releases.py`: release note and changelog aligned.
+- The full gate and the end-to-end smoke test pass.
+- The tag is created after the release pull request merges; the tag target is the
+  release merge commit on `main`.
+
+### Learning
+
+- An empty `[Unreleased]` section is normal immediately after a release; the
+  checker must allow it while still requiring entries in versioned releases.
+- Historical tags are part of the release history and are never moved or
+  deleted. A release tag is a new identity, not a rewrite of an old one.
 
