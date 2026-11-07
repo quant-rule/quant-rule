@@ -51,6 +51,7 @@ def empty_portfolio_summary() -> dict[str, Any]:
         "win_rate": None,
         "halted": None,
         "final_equity": None,
+        "exposure": None,
         "time_to_target_days": None,
         "target_reached": None,
         "max_drawdown_peak_to_trough_days": None,
@@ -114,8 +115,15 @@ def main(argv: list[str] | None = None) -> int:
         source_name = "artifacts/model/report.json"
         summary = empty_model_summary()
     else:
-        source = artifacts / "portfolio" / "report.json"
-        source_name = "artifacts/portfolio/report.json"
+        candidates = (
+            ("artifacts/analytics/metrics.json", artifacts / "analytics" / "metrics.json"),
+            ("artifacts/portfolio/metrics.json", artifacts / "portfolio" / "metrics.json"),
+            ("artifacts/portfolio/report.json", artifacts / "portfolio" / "report.json"),
+        )
+        source_name, source = next(
+            ((name, path) for name, path in candidates if path.is_file()),
+            candidates[-1],
+        )
         summary = empty_portfolio_summary()
 
     if not source.is_file():
@@ -132,12 +140,30 @@ def main(argv: list[str] | None = None) -> int:
             summary, extraction_notes = portfolio_metrics(report)
         notes.extend(extraction_notes)
 
+    qualification = None
+    qualification_path = artifacts / "qualification" / "qualification.json"
+    if qualification_path.is_file():
+        try:
+            record = read_json(qualification_path)
+        except ToolError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 1
+        if isinstance(record, dict):
+            qualification = {
+                "verdict": record.get("verdict"),
+                "human_decision": record.get("human_decision"),
+                "reasons": record.get("reasons"),
+            }
+        else:
+            notes.append("artifacts/qualification/qualification.json is not an object")
+
     document = {
         "schema": EVIDENCE_SCHEMA,
         "run_id": run_id,
         "tier": tier,
         "source": source_name if source.is_file() else None,
         "summary": summary,
+        "qualification": qualification,
         "notes": notes,
     }
     destination = artifacts / "evidence.json"

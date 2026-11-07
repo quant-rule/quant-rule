@@ -53,7 +53,7 @@ The result schema is `quantrule.model-result/v4`. It carries:
 The result carries no composite score, no cross-timeframe aggregate, no consensus,
 no chart projection, no prediction, and no confidence field. The per-timeframe
 result is the only model output; every cross-timeframe view is computed by a
-reporting consumer, and the strategy context is built by S3.x.
+reporting consumer, and the strategy context is built by the strategy stage.
 
 The bounded per-timeframe event history keeps the newest 1,024 event records,
 not 1,024 bars. A bar can produce several events, so the bound counts records.
@@ -81,8 +81,11 @@ extended event batch; the extended sources (19+) have their own CSV surface.
 - The retired composite scores, dashboard, market state, consensus, cross-timeframe
   aggregate, and their shell commands are retired. They remain in Git history
   and in the audit, ADR, and improvement records.
-- The strategy context is not part of M1.0; S3.x builds it from the published
-  events and states.
+- The strategy context is not part of M1.0; the strategy stage builds it from the
+  published events and states. The research process is
+  [`docs/workflows/model-research.md`](../../workflows/model-research.md), and
+  the implementation process is
+  [`docs/workflows/model-change.md`](../../workflows/model-change.md).
 
 ## 4. Verification
 

@@ -26,6 +26,11 @@ The rule is `<type><family>.<version>`:
 accepted baseline; `M3.x` is the next family. `S3.x`, `P3.x`, `POL3.x`, and
 `E3.x` are future and follow an accepted M3.x baseline.
 
+The **S3 command surface** is the stage-command delivery plan; it is not the
+`S3.x` strategy family. The two uses of "S3" are distinct: the command surface is
+current, the strategy family remains future. The workflow index records the
+distinction in [`docs/workflows/README.md`](../../workflows/README.md).
+
 ## 2. Registry
 
 | ID | Meaning | Status | Record or contract |
@@ -94,14 +99,27 @@ The `program_id` keeps the existing `PROGRAM-YYYY-MM-DD-NN` form; the model ID
 lives in the cell and in the spec. A run ID keeps the existing `MODEL-...`,
 `STRATEGY-...`, or `PORTFOLIO-...` form and records the family in its manifest.
 
-## 6. Legacy boundary
+## 6. Family lifecycle
+
+| Stage | Meaning | Workflow |
+|---|---|---|
+| Exploratory | A premise is tested for coverage and hypothesis generation; no ranking, no validation | [`model-research.md`](../../workflows/model-research.md) |
+| Primary | A pre-registered confirmatory cell | [`model-research.md`](../../workflows/model-research.md) |
+| Accepted baseline | The human accepts a grade-A/B family as the model baseline | [`improvement-workflow.md`](../../workflows/improvement-workflow.md) |
+| Strategy input | A strategy may read the accepted signal/context families | [`strategy-research.md`](../../workflows/strategy-research.md) |
+| Retired | The family is no longer used; its ID and history remain | [`deprecation-retirement.md`](../../workflows/deprecation-retirement.md) |
+
+An implementation change to a family is a
+[`model-change.md`](../../workflows/model-change.md) change, not a research run.
+
+## 7. Legacy boundary
 
 The naming registry does not authorize deletion. Historical records stay in
 their existing history directories and are indexed by
 [`docs/registry/history.md`](../../registry/history.md). Current docs, code,
 tests, configs, and README tables use only the prefixed IDs in this document.
 
-## 7. Approval
+## 8. Approval
 
 - Approved by: human, 2026-11-05
 - Scope: the naming scheme and the current ID registry

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Validate one improvement run manifest against quantrule.improvement-run/v1.
+"""Validate one improvement run manifest against quantrule.improvement-run/v2.
 
 The command is read-only. It prints ``ok <run_id>`` on success and every schema
 defect to stderr on failure, then exits 1. Partition names are read from
 ``data/partitions.json`` so a manifest cannot cite an undeclared partition.
+The v1 schema is historical and is rejected for a new run.
 """
 
 from __future__ import annotations
@@ -19,9 +20,10 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="validate.py",
         description=(
-            "Validate a quantrule.improvement-run/v1 manifest. The check covers "
+            "Validate a quantrule.improvement-run/v2 manifest. The check covers "
             "required fields, run-id shape and tier prefix, UTC creation time, "
-            "the changed/frozen split, the declared partition, and holdout use."
+            "the changed/frozen split, the declared partition, holdout use, and "
+            "the strategy and qualification paths for the strategy and portfolio tiers."
         ),
         epilog=(
             "Example: python3 tools/improvement/validate.py "

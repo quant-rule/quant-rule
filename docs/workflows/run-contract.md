@@ -1,9 +1,9 @@
 # Improvement Run Contract
 
 - Date: 2026-11-01 (UTC)
-- Status: S3.x target; schema `quantrule.improvement-run/v1` is implemented by
-  the run-store phase. The M1.0 shell does not expose the `backtest` command;
-  the current model programme uses the research tooling and `report model`.
+- Updated: 2026-11-07 for the S3 command surface and manifest v2
+- Status: Current; `quantrule.improvement-run/v2` is current, v1 is historical,
+  and no tiered run has used the contract yet
 - Scope: model, strategy, and portfolio runs
 - Tooling: `tools/improvement/` (Python)
 
@@ -111,12 +111,13 @@ still recorded in the run folder.
 
 The manifest is the run's identity. It is written once, before the first
 artifact, and is not edited afterwards. The source file is staged outside the
-canonical run folder; `run.py` creates the run folder and copies the manifest
-into it unchanged. The schema is `quantrule.improvement-run/v1`.
+canonical run folder; `run_current.py` creates the run folder and copies the
+manifest into it unchanged. The schema is `quantrule.improvement-run/v2`; v1 is
+historical and is rejected for a new run.
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `schema` | string | yes | `quantrule.improvement-run/v1` |
+| `schema` | string | yes | `quantrule.improvement-run/v2` |
 | `run_id` | string | yes | Tier-Date-Sequence; must match the folder name |
 | `tier` | string | yes | `model`, `strategy`, or `portfolio` |
 | `hypothesis` | string | yes | One falsifiable sentence |
@@ -125,6 +126,10 @@ into it unchanged. The schema is `quantrule.improvement-run/v1`.
 | `frozen` | array | yes | The tiers held fixed; must not contain `changed` |
 | `partition` | string | yes | A partition declared in `data/partitions.json` |
 | `run_config` | string | yes | Path to the shell run configuration |
+| `strategy_config` | string | strategy/portfolio | Path to the strategy file |
+| `qualification_criteria` | string | strategy/portfolio | Path to the qualification criteria |
+| `command` | string | no | `backtest run` or `report model`; default `backtest run` |
+| `analytics` | boolean | no | Run `analytics evaluate`; default `true` |
 | `code_commit` | string | yes | Repository commit at run start |
 | `seed` | integer | yes | Non-negative deterministic seed |
 | `green_criteria` | object | yes | The pass/fail rule, recorded before the run |
@@ -146,7 +151,9 @@ always frozen by the contract and do not appear in `frozen`.
 The validator refuses a `changed` value that differs from `tier`, a `frozen` list
 that contains `changed`, a duplicate entry, an unknown tier, an undeclared
 partition, a non-UTC `created_utc`, a negative `seed`, an empty
-`green_criteria`, or a holdout declaration that does not match the partition.
+`green_criteria`, a holdout declaration that does not match the partition, a
+strategy or portfolio run without `strategy_config` or
+`qualification_criteria`, a non-boolean `analytics`, or an unknown `command`.
 
 A manifest that marks a tier frozen must name the accepted baseline that froze it
 in `baseline` or in `decision.md`, or record a fixed control in `config/`. The run
@@ -156,7 +163,7 @@ record is not valid evidence if the freeze cannot be traced.
 
 ```json
 {
-  "schema": "quantrule.improvement-run/v1",
+  "schema": "quantrule.improvement-run/v2",
   "run_id": "STRATEGY-2026-11-02-01",
   "tier": "strategy",
   "hypothesis": "Level-retest entries improve cost-adjusted return over the accepted ladder-context baseline.",
@@ -165,6 +172,10 @@ record is not valid evidence if the freeze cannot be traced.
   "frozen": ["model", "portfolio"],
   "partition": "strategy_dev",
   "run_config": "config/examples/btcusd-2024/run.json",
+  "strategy_config": "config/examples/btcusd-2024/strategy.json",
+  "qualification_criteria": "config/examples/btcusd-2024/qualification.json",
+  "command": "backtest run",
+  "analytics": true,
   "code_commit": "42307b7",
   "seed": 0,
   "green_criteria": {
@@ -181,44 +192,47 @@ record is not valid evidence if the freeze cannot be traced.
 
 ## Run execution
 
-`run.py` is the only command that creates a run folder. In the S3.x target its
-default `--command backtest` invokes the shell once; the M1.0 shell does not
-expose that command. `--command claim-validation` runs the
-model claim-validation harness with the cells JSON named by `run_config`; this is
-the model-gate evidence path. The manifest, folder layout, results envelope, and
-artifact digests are the same.
+`run_current.py` is the current command that creates a run folder. It invokes the
+S3 command surface, not the retired `backtest` command. The historical `run.py`
+is retained for reproducibility only.
 
 It:
 
-1. validates the manifest;
+1. validates the v2 manifest;
 2. refuses a non-empty output root;
 3. copies `manifest.json` unchanged;
-4. copies the `run_config` and every sibling `*.json` into `config/`, and writes
-   `config/sources.json` with the source paths and copy status;
+4. copies the `run_config`, the strategy config, the qualification criteria, and
+   every sibling `*.json` into `config/`, and writes `config/sources.json` with
+   the source paths and copy status;
 5. creates `artifacts/` and the starting `review.md` and `decision.md` templates;
-6. invokes the shell once:
+6. invokes the current commands:
 
    ```text
-   <qr> backtest --config <run_config> --out <root>/artifacts --json
+   <qr> backtest run --config <run_config> --strategy <strategy_config> --out <root>/artifacts --json
+   <qr> qualify --evidence <root>/artifacts/backtest --criteria <qualification_criteria> --out <root>/artifacts --json
+   <qr> analytics evaluate --evidence <root>/artifacts/backtest --out <root>/artifacts --json
    ```
 
-7. writes `results.json` with the command, exit code, captured stdout and
+   The strategy and qualification steps are required for strategy and portfolio
+   tiers. A model run may use `report model` or `backtest run` without a strategy
+   config.
+
+7. writes `results.json` with every command, exit code, captured stdout and
    stderr, parsed stdout JSON, and a sorted artifact inventory with SHA-256
    digests;
 8. refreshes `data/improvement/index.json` and `index.md` on success.
 
-A non-zero shell exit is a failure. The run stays in the store and the index is
-not refreshed. A failure is not a partially successful run.
+A non-zero exit is a failure. The run stays in the store and the index is not
+refreshed. A failure is not a partially successful run.
 
-`evidence.py <run-dir>` then writes `artifacts/evidence.json` from the published
-report. Strategy and portfolio runs extract `return` (`summary.total_return`),
-`max_drawdown`, `trades`, `profit_factor`, `win_rate`, `halted`, `final_equity`,
-`time_to_target_days`, `target_reached`, `max_drawdown_peak_to_trough_days`,
-`max_drawdown_recovery_days`, `longest_underwater_days`,
-`benchmark_buy_and_hold_return`, `benchmark_random_median_return`, and
-`strategy_percentile_vs_random`. A model run records the model version, view
-contract, data version, requested period, ladder, and per-timeframe coverage. A missing report
-leaves the field null and adds a note; it is never replaced by zero.
+`evidence.py <run-dir>` then writes `artifacts/evidence.json` from the current
+bundles. A model run reads `artifacts/model/report.json` and records the model
+version, view contract, data version, requested period, ladder, and per-timeframe
+coverage. A strategy or portfolio run reads `artifacts/portfolio/metrics.json`
+and records return, max drawdown, trades, profit factor, win rate, exposure,
+halt state, final equity, drawdown duration, and the available benchmark fields.
+A qualification run reads `artifacts/qualification/qualification.json`. A
+missing measurement is null with a note; it is never replaced by zero.
 
 ## Index
 
@@ -352,14 +366,15 @@ matching verdict and reason.
 
 The run-store tooling lives in `tools/improvement/` and is written in Python. See
 [`tools/improvement/README.md`](../../tools/improvement/README.md) for the
-retained scripts. It does not replace the shell: the S3.x shell will execute
-the backtest, and the tooling records, validates, and indexes the evidence. The
-M1.0 shell does not expose it.
+current adapter and the retained scripts. It does not replace the shell: the
+shell executes `backtest run`, `qualify`, and `analytics evaluate`, and the
+tooling records, validates, and indexes the evidence.
 
 | Tool | Responsibility |
 |---|---|
-| `validate.py <manifest>` | Validate the schema, run ID, tier, changed/frozen split, partition, UTC timestamp, seed, green criteria, and holdout declaration; reject an invalid manifest |
-| `run.py <manifest> [--qr PATH]` | Validate, create the run folder, copy provenance, invoke the shell, write `results.json`, and refresh the index |
+| `validate.py <manifest>` | Validate the v2 schema, run ID, tier, changed/frozen split, partition, UTC timestamp, seed, green criteria, and holdout declaration; reject an invalid manifest |
+| `run_current.py <manifest> [--qr PATH]` | Validate, create the run folder, copy provenance, invoke the current S3 commands, write `results.json`, and refresh the index |
+| `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
 | `claim_validation.py --cells <json> --out <dir>` | Grade states and events with forward outcomes, base rates, and corrected bounds |
 | `gate_compare.py --dev <json> --validation <json> --out <dir>` | Combine two partition results; a validation-only cell does not pass |
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the published report |

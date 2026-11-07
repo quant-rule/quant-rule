@@ -5,7 +5,8 @@
 - Commands: `strategy explain`, `strategy run`
 - Related: [`engine-artifacts.md`](engine-artifacts.md),
   [`command-surface.md`](../../architecture/command-surface.md),
-  [`policy-and-strategy.md`](../2026-10-30/policy-and-strategy.md)
+  [`policy-and-strategy.md`](../2026-10-30/policy-and-strategy.md),
+  [`strategy-research.md`](../../workflows/strategy-research.md)
 - Claim type: strategy configuration and decision artifact; no edge or
   profitability claim.
 
@@ -14,8 +15,10 @@
 The strategy file is human-owned. It names the thesis as a deterministic rule over
 published model measurements, and it never contains an indicator formula, a
 statistic, a fill price, a fee, cash, equity, or P&L. The strategy command reads a
-completed model bundle and writes decisions; execution and portfolio remain later
-stages.
+completed model bundle and writes decisions; execution and portfolio are later
+stages, reached through `execution run`, `portfolio replay`, or the coupled
+`backtest run`. The research process is
+[`strategy-research.md`](../../workflows/strategy-research.md).
 
 The file is separate from `run.json`. The run schema stays `quantrule.run/v2`,
 and the strategy command takes the strategy file explicitly.

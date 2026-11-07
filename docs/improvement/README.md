@@ -1,7 +1,8 @@
 # Improvement Registry
 
 - Date: 2026-11-03 (UTC)
-- Status: Current committed record; the tiered run contract is S3.x and no current run uses it
+- Updated: 2026-11-07 for the S3 command surface and manifest v2
+- Status: Current committed record; `quantrule.improvement-run/v2` is current, v1 is historical, and no tiered run has used it yet
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 This directory is the committed record of improvement runs. The run folders

@@ -45,6 +45,26 @@ jobs:
           python3 -m unittest discover -s tools -p 'test_check_structure.py'
           python3 tools/check_structure.py
 
+      - name: Workflows
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_workflows.py'
+          python3 tools/check_workflows.py
+
+      - name: Changelog
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_changelog.py'
+          python3 tools/check_changelog.py
+
+      - name: Releases
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_releases.py'
+          python3 tools/check_releases.py
+
+      - name: Partitions
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_partitions.py'
+          python3 tools/check_partitions.py
+
       - name: Tests
         run: cargo test
 

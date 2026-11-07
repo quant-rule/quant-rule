@@ -1,9 +1,8 @@
 # Improvement Workflow Roles
 
 - Date: 2026-10-30 (UTC)
-- Updated: 2026-11-01 for the workflow reset
-- Status: S3.x target; the M1.0 shell does not expose the tiered
-  `backtest` command
+- Updated: 2026-11-07 for the S3 command surface
+- Status: Current; the S3 command surface is implemented, no tiered run has used it yet, and human acceptance is pending
 - Work item: `audit-improvement-workflow`
 - Workflow: [`docs/workflows/improvement-workflow.md`](../../workflows/improvement-workflow.md)
 - Contract: [`docs/workflows/run-contract.md`](../../workflows/run-contract.md)

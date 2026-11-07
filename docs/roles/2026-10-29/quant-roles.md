@@ -11,8 +11,12 @@ functions; see [`docs/roles/2026-10-30/`](../2026-10-30/) for those manuals.
 This page explains the three quant roles in plain language. `AGENTS.md` is the
 normative source; if the two disagree, `AGENTS.md` wins and this page is
 corrected. The current shell does not expose `help roles` or `help tutorial`;
-this document is the role map. The current model-only procedure is the
-[M1.0 model lab tutorial](../../tutorials/2026-11-06/m1.0-model-lab.md).
+this document is the role map. The current model procedure is the
+[M1.0 model lab tutorial](../../tutorials/2026-11-06/m1.0-model-lab.md). The
+tier runbooks are [`model-research.md`](../../workflows/model-research.md),
+[`model-change.md`](../../workflows/model-change.md),
+[`strategy-research.md`](../../workflows/strategy-research.md), and
+[`portfolio-research.md`](../../workflows/portfolio-research.md).
 
 ## Why three roles
 

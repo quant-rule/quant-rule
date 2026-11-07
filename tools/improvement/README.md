@@ -1,20 +1,23 @@
 # Improvement tooling
 
-> Status: historical / S3.x target. The M1.0 shell has no `backtest` command. The
-> run store is retained for the tiered S3.x workflow; the current model programme
-> uses `report model` and `tools/research`.
+> Status: current. `run_current.py` invokes the S3 command surface; `run.py` is
+> the historical adapter for the retired `backtest` command and is retained for
+> reproducibility only. The manifest schema is `quantrule.improvement-run/v2`;
+> v1 is historical and is rejected for a new run.
 
 Python 3 standard-library tooling for the improvement run store. The scripts are
 offline and deterministic: they never read the wall clock, never use randomness,
 and sort every collection before writing. They record and validate evidence; the
-S3.x shell runs the backtest. The M1.0 shell does not expose it.
+shell runs the model, strategy, execution, portfolio, qualification, and analytics
+stages.
 
 | Script | Purpose |
 |---|---|
-| `validate.py <manifest>` | Check a `quantrule.improvement-run/v1` manifest |
+| `validate.py <manifest>` | Check a `quantrule.improvement-run/v2` manifest |
 | `index.py --root data/improvement` | Rebuild `index.json` and `index.md` from run manifests |
-| `run.py <manifest> [--qr PATH]` | Validate, create the run folder, invoke the shell, write `results.json`, refresh the index |
-| `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the published report |
+| `run_current.py <manifest> [--qr PATH]` | Validate, create the run folder, invoke the current S3 commands, write `results.json`, refresh the index |
+| `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
+| `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the current model, portfolio, qualification, and analytics bundles |
 | `model_confidence.py --source CSV --timeframe TF` | Axis hit rates and ordered buckets from `model-series` |
 | `model_prediction.py --bundle NAME=DIR ...` | Forward/barrier model-prediction evaluation with base rate, controls, and grade |
 | `cleanup.py --check` | Report retired terms and legacy run paths |
@@ -26,7 +29,7 @@ Required fields:
 
 | Field | Rule |
 |---|---|
-| `schema` | `quantrule.improvement-run/v1` |
+| `schema` | `quantrule.improvement-run/v2` |
 | `run_id` | `MODEL-YYYY-MM-DD-NN`, `STRATEGY-...`, or `PORTFOLIO-...`; `NN` starts at `01` |
 | `tier` | `model`, `strategy`, or `portfolio`; must match the run-id prefix and `changed` |
 | `hypothesis` | Non-empty string |
@@ -39,6 +42,10 @@ Required fields:
 | `seed` | Non-negative integer |
 | `green_criteria` | Non-empty object recorded before the run |
 | `holdout_access` | `none` or `final` |
+| `strategy_config` | Required for a strategy or portfolio run; path to the strategy file |
+| `qualification_criteria` | Required for a strategy or portfolio run; path to the criteria file |
+| `analytics` | Optional boolean, default `true`; run `analytics evaluate` |
+| `command` | Optional; `backtest run` or `report model` |
 
 `output_root` is optional. A development partition requires
 `holdout_access: none`; `portfolio_holdout` requires `final`.
@@ -59,26 +66,37 @@ config and every sibling `*.json` into `config/`, records outside config paths i
 `config/sources.json`, creates `artifacts/`, and starts `review.md` and
 `decision.md` with `Verdict: pending`.
 
-The shell invocation is fixed:
+The current shell invocations are:
 
 ```text
-<qr> backtest --config <run_config> --out <root>/artifacts --json
+# Model run
+<qr> report model --config <run_config> --out <root>/artifacts --json
+
+# Strategy or portfolio run
+<qr> backtest run --config <run_config> --strategy <strategy_config> --out <root>/artifacts --json
+<qr> qualify --evidence <root>/artifacts/backtest --criteria <qualification_criteria> --out <root>/artifacts --json
+<qr> analytics evaluate --evidence <root>/artifacts/backtest --out <root>/artifacts --json
 ```
 
-`results.json` records the command, return code, raw stdout and stderr, parsed
+`results.json` records every command, return code, raw stdout and stderr, parsed
 stdout JSON, and a sorted inventory of `artifacts/` with SHA-256 digests. A
-non-zero shell exit is a failure and the index is not refreshed.
+non-zero exit is a failure and the index is not refreshed.
 
 ## Evidence
 
-Strategy and portfolio tiers read `artifacts/portfolio/report.json` and extract
-`return` (`summary.total_return`), `max_drawdown`, `trades`, `profit_factor`,
-`win_rate`, `halted`, and `final_equity`.
+Strategy and portfolio tiers read `artifacts/analytics/metrics.json` when it
+exists, then `artifacts/portfolio/metrics.json`, then the historical
+`artifacts/portfolio/report.json`. They extract return, max drawdown, trades,
+profit factor, win rate, halt state, final equity, exposure, drawdown duration,
+and the available benchmark fields.
 
 The model tier reads `artifacts/model/report.json` and reports `model_version`,
 `view_contract`, `data_version`, the requested period, the ladder, and per
 timeframe bars, missing bars, and coverage. It reports no confidence number the
 report did not publish.
+
+If `artifacts/qualification/qualification.json` exists, the evidence document
+also records the verdict, the human decision, and the reasons.
 
 A missing report leaves the summary fields null and adds a note.
 

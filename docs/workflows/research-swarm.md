@@ -1,7 +1,8 @@
 # Research Swarm Runbook
 
 - Date: 2026-11-05 (UTC)
-- Status: Current
+- Updated: 2026-11-07 to make the runbook tier-agnostic
+- Status: Current; no active campaign
 - Contract: [`docs/governance/2026-11-04/research-mandate.md`](../governance/2026-11-04/research-mandate.md)
 - M2.x programme: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Scope: concurrent research programs executed through the Improvement Workflow
@@ -11,6 +12,13 @@
 Run several pre-registered hypotheses concurrently without turning the search
 into an automatic optimizer. A swarm explores; the human promotes; validation is
 one-shot.
+
+This runbook is the execution mechanism for any tier. The model-specific
+exploration and confirmation modes are in
+[`model-research.md`](model-research.md); the strategy and portfolio runbooks are
+[`strategy-research.md`](strategy-research.md) and
+[`portfolio-research.md`](portfolio-research.md). The cell, worktree,
+concurrency, and aggregation rules below apply to every tier.
 
 A **program** is a premise plus a finite set of cells. A **cell** is one
 hypothesis, one config, one worktree, and one result.
@@ -29,8 +37,10 @@ another cell's result or change its config after seeing a result.
 
 ## 3. Model programme modes
 
-A model program has two modes. The mode is declared in the cell and in the
-program report; it is not inferred from a result.
+The model programme modes are the worked example of the tier-specific rules in
+[`model-research.md`](model-research.md). A model program has two modes. The mode
+is declared in the cell and in the program report; it is not inferred from a
+result.
 
 | Mode | Cells | Partition | Evidence | Ranked | Validation |
 |---|---|---|---|---|---|
@@ -220,3 +230,14 @@ premise and a new approved charter.
 - Report `no_edge`, `development_only`, `candidate`, or `accepted`.
 - Clean worktrees and branches only after the evidence is preserved.
 - Do not re-register a failed hypothesis as a variant.
+
+## 11. Related documents
+
+- [`model-research.md`](model-research.md)
+- [`strategy-research.md`](strategy-research.md)
+- [`portfolio-research.md`](portfolio-research.md)
+- [`improvement-workflow.md`](improvement-workflow.md)
+- [`run-contract.md`](run-contract.md)
+- [`../governance/2026-11-04/research-mandate.md`](../governance/2026-11-04/research-mandate.md)
+- [`../governance/2026-11-04/program-charter-template.md`](../governance/2026-11-04/program-charter-template.md)
+- [`../../AGENTS.md`](../../AGENTS.md)

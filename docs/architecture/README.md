@@ -27,7 +27,7 @@ INPUT (shell source access)
   → output (shell render: model report, event batch)
 ```
 
-The S3.x target extends the same pipeline one stage at a time:
+The current pipeline extends the same stages one at a time:
 
 ```text
 data → model → strategy → execution → portfolio → qualification
@@ -36,9 +36,8 @@ data → model → strategy → execution → portfolio → qualification
 
 The shell is the only surface and the only impure layer. It parses a command, calls
 into the pipeline, and renders the result. The engines are pure and depend one way.
-Strategy, execution, portfolio, and benchmark engines remain libraries for
-S3.x; they are not reachable from the current shell surface. The stage contract,
-the command registry, and the implemented/planned status are in
+Every stage is reachable from the current shell surface through its stage command.
+The stage contract, the command registry, and the implemented/planned status are in
 [`command-surface.md`](command-surface.md).
 
 ## Crates
@@ -47,7 +46,7 @@ the command registry, and the implemented/planned status are in
 |---|---|---|
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
-| `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines for S3.x. | `quantrule-data`, `quantrule-model` |
+| `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines. | `quantrule-data`, `quantrule-model` |
 | `quantrule-shell` | The binary and only surface: parse, call, render; configuration load and source fetch. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
 
 ## Documents
@@ -57,6 +56,8 @@ the command registry, and the implemented/planned status are in
 | Product kata | Why the product exists, for whom, what "done" means. Solution-agnostic. | [`kata.md`](kata.md) |
 | Architecture characteristics | Which non-domain properties shape the architecture, how each is measured, and what is deliberately not optimized. | [`characteristics.md`](characteristics.md) |
 | Architecture baseline decision | Why the kata and characteristics are the baseline, and what alternatives were rejected. | [`../adr/2026-10-31/adopt-architecture-baseline.md`](../adr/2026-10-31/adopt-architecture-baseline.md) |
+| Workflow index | The workflow contracts, selection guide, status vocabulary, and record map. | [`../workflows/README.md`](../workflows/README.md) |
+| Changelog | The grouped release history for meaningful user-facing or developer-facing changes. | [`../../CHANGELOG.md`](../../CHANGELOG.md) |
 | Command surface | The stage table, command registry, discovery contract, and the Qualification Engine boundary. | [`command-surface.md`](command-surface.md) |
 | Engine artifacts | The stage bundle, provenance, and handoff contract. | [`../config/2026-11-06/engine-artifacts.md`](../config/2026-11-06/engine-artifacts.md) |
 | Strategy configuration | `quantrule.strategy/v1`, both generic engines, and the decision record. | [`../config/2026-11-06/strategy-config.md`](../config/2026-11-06/strategy-config.md) |
@@ -74,9 +75,11 @@ the command registry, and the implemented/planned status are in
    style, the quantum, and the trade-offs.
 3. Read [`command-surface.md`](command-surface.md) for the stage contract, the
    command registry, and the Qualification Engine boundary.
-4. Read the [architecture baseline decision](../adr/2026-10-31/adopt-architecture-baseline.md)
+4. Read the [workflow index](../workflows/README.md) for the workflow that owns
+   the change you are making.
+5. Read the [architecture baseline decision](../adr/2026-10-31/adopt-architecture-baseline.md)
    for the decision and the rejected alternatives.
-5. Follow the links to the model, configuration, artifact, qualification, report,
+6. Follow the links to the model, configuration, artifact, qualification, report,
    and research contracts for the normative details.
 
 ## Maintenance

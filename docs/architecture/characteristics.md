@@ -70,12 +70,12 @@ future bars and asserts the past does not move. It is nonetheless non-negotiable
 Every reading and event carries unit, fixed-expected-value, causality,
 determinism, and edge-case tests. The backtest crate's `StrategyInput` boundary
 has a test proving it exposes only bar identity and the published progression
-values; that boundary is S3.x. The crate graph and the shell/engine boundary have
-source-level guards.
+values; that boundary is current. The crate graph and the shell/engine boundary
+have source-level guards.
 
 Fitness function: `cargo test`; golden fixtures; boundary tests; architecture
 guards; `cargo clippy --all-targets`; the structural checker. Current evidence:
-the P3 cutover suite passes at v0.3.0; the execution plan records the observed
+the current suite passes at 1,333 tests; the execution plan records the observed
 counts. The count is evidence of investment, not the goal: a passing test that
 does not reach the behavior proves nothing.
 
@@ -87,7 +87,7 @@ behavior-neutral change and keeps the structural checker honest.
 
 | Characteristic | Type | What "good" means here | Fitness function | Current evidence |
 |---|---|---|---|---|
-| **Modularity** | Structural | One crate per pipeline responsibility; one-way dependencies; pure engines; the shell owns I/O. The backtest crate holds the strategy, execution, portfolio, and benchmark engines for S3.x. | Crate graph; source-level boundary guards; `cargo clippy --all-targets`; structural report; review. | Strong at crate level. The shell remains the watch item; the structural report names its largest modules. |
+| **Modularity** | Structural | One crate per pipeline responsibility; one-way dependencies; pure engines; the shell owns I/O. The backtest crate holds the strategy, execution, portfolio, and benchmark engines. | Crate graph; source-level boundary guards; `cargo clippy --all-targets`; structural report; review. | Strong at crate level. The shell remains the watch item; the structural report names its largest modules. |
 | **Simplicity and deployability** | Operational / structural | One local binary; local files; no service, UI, or server database. Keeps the product a tool, not a platform. | Release build; single binary; no network in tests. | Strong operationally; the command and configuration surface is broad. |
 | **Evolvability** | Structural | Contracts are versioned; a new capability arrives as a new command or configuration; model and strategy changes are pre-registered. Protects prior evidence. | Versioned schemas; migration tests; ADR and plan index; command contract tests. | Partial: strong process, expensive contract changes. |
 | **Discoverability** | Cross-cutting | Every command, argument, and output shape is reachable from help; output is fixed-width and deterministic. A capability that cannot be typed does not exist. | Help tests; `help all`; CLI tests. | Strong. Help and `help all` render from one command table and are tested. |
@@ -120,7 +120,7 @@ local tool.
 ```text
 shell (adapter: parse, fetch, render)
  └─ data → model
-     └─ backtest (strategy, execution, portfolio, benchmark engines; S3.x)
+     └─ backtest (strategy, execution, portfolio, benchmark engines)
 ```
 
 ### Crate map
@@ -129,7 +129,7 @@ shell (adapter: parse, fetch, render)
 |---|---|---|
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
-| `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines for S3.x. | `quantrule-data`, `quantrule-model` |
+| `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines. | `quantrule-data`, `quantrule-model` |
 | `quantrule-shell` | The binary and only surface: parse, call, render; configuration load and source fetch. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
 
 ### Structural constraints

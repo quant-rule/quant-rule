@@ -181,6 +181,11 @@ in the registry.
 
 ## 7. Adding an indicator
 
+The full implementation process is
+[`docs/workflows/model-change.md`](../workflows/model-change.md). The research
+process that justifies the indicator is
+[`docs/workflows/model-research.md`](../workflows/model-research.md).
+
 1. Add the contract section and the registry entry together.
 2. Add the numeric codes and the source.
 3. Add the event definitions and their claims.
