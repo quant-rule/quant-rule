@@ -108,3 +108,52 @@ Publication: PR #534 (removal), PR #535 (plan), and PR #536 (remediation) were
 merged on 2026-11-07 at `812d58c`, `0c1c265`, and `e8f99cc`. The merged `main`
 tree passes the full gate: 1,323 tests, 0 failed, 8 ignored. Independent Quant
 Validator, Code Reviewer, and Improvement Verifier passes remain outstanding.
+
+## Addendum — verification remediation (2026-11-07)
+
+A separate Improvement Verifier pass on merged `main` at `9ec6ef9` returned
+`Not verified`. The AUD-02 parity test used a core event and passed on the
+pre-fix tree; the AUD-04 diagnostic-input test was a boundary assertion; the
+AUD-08 guard was snapshot-only; and the plan's Quant Validator and Code Reviewer
+passes were sequential same-agent passes, not independent records.
+
+A separate read-only Quant Validator subagent and a separate read-only Code
+Reviewer subagent reviewed the merged fixes and the follow-up guards. They are
+separate sessions, not human reviews, and not independent model judgments. The
+Quant Validator returned `pass with residual risks`; the Code Reviewer returned
+`changes requested` for the uncommitted state, two weak guards, documentation
+defects, and a per-bar allocation in `all_events()`.
+
+What changed in the follow-up:
+
+- `an_extended_event_reaches_both_strategy_paths` exercises the extended
+  `(1,3,19)` level event. With the pre-fix core-only stream it fails `enter` vs
+  `hold`; the fixed stream matches both paths.
+- `the_context_view_window_is_converted_from_execution_bars` asserts the 5m/15m
+  view reaches back only 7 context bars. With the conversion removed it fails at
+  oldest event 14; the fixed code starts at bar 19.
+- `the_snapshot_boundary_keeps_both_engine_decisions_causal` runs the
+  event-composite and compression-bracket engines on the bar-40 snapshot from
+  60 bars, 80 bars, and a changed later bar, and asserts an `Enter` decision.
+- `a_diagnostic_identity_is_not_strategy_readable` checks the registered
+  diagnostic role is not a strategy role.
+- `TimeframeModel` caches the merged core/extended event batch; `all_events()`
+  returns a slice, removing the per-bar allocation in the coupled loop. The
+  `render_flat` caller was adjusted for the slice.
+- The redundant per-context `MissingTimeframe` loop in `backtest run` was removed
+  because `validate_context` already validates every context timeframe.
+- The strategy table, execution-timeframe coupling, window rounding,
+  artifact-boundary wording, audit historical note, and the audit/plan evidence
+  were corrected.
+
+Verification on the follow-up tree: `cargo fmt --all -- --check`, `cargo clippy
+--all-targets -- -D warnings`, `cargo test --workspace` (1,328 passed, 0 failed,
+8 ignored), `cargo doc` with `-D warnings`, the contract checks, the structure
+check, and `git diff --check` pass. The two fail-before probes above were run by
+temporarily reverting the specific code path and then restoring it.
+
+The findings remain `Fixed`, not `Verified`. A fresh Quant Validator record, a
+fresh Code Reviewer pass, and the Improvement Verifier closure check on the
+committed tree remain outstanding. This change set is committed and published on
+`fix/audit-verification-remediation` under the human authorization for this
+verification remediation; the PR and merge follow after CI.

@@ -216,6 +216,11 @@ fn event_view(event: &EventRecord) -> EventView {
 #[cfg(test)]
 mod tests {
     use super::{EventStrategyInput, context_window_bars};
+    use crate::intent::{RiskPolicy, StrategyPosition};
+    use crate::strategy::{
+        CompressionBracketConfig, CompressionBracketInput, CompressionBracketStrategy, Condition,
+        Decision, EventCompositeConfig, EventCompositeStrategy,
+    };
     use quantrule_data::Candle;
     use quantrule_model::input::{MarketStateConfig, TimeframeInput};
     use quantrule_model::run::ModelRun;
@@ -298,6 +303,60 @@ mod tests {
     }
 
     #[test]
+    fn the_snapshot_boundary_keeps_both_engine_decisions_causal() {
+        fn event_decision(snapshot: &EventStrategyInput) -> Decision {
+            let config = EventCompositeConfig::new(
+                1,
+                0,
+                &[Condition::Event {
+                    timeframe_secs: 300,
+                    event_type: 1,
+                    subtype: 3,
+                    source: 19,
+                    direction: 1,
+                }],
+                &[],
+            )
+            .expect("the event-composite config is valid");
+            EventCompositeStrategy::new(config, RiskPolicy::default(), true)
+                .decide(snapshot, StrategyPosition::flat())
+        }
+
+        fn bracket_decision(snapshot: &EventStrategyInput) -> Decision {
+            let view = snapshot
+                .timeframe(300)
+                .expect("the execution timeframe is present");
+            let input = CompressionBracketInput {
+                execution_timeframe_secs: 300,
+                execution_bar_index: snapshot.execution_bar_index,
+                execution_open_time: snapshot.execution_open_time,
+                execution_contiguous: true,
+                events: &view.events,
+            };
+            let config = CompressionBracketConfig::new(300, 3, 8, 5, 1, 20)
+                .expect("the compression-range config is valid");
+            CompressionBracketStrategy::new(config, RiskPolicy::default(), true)
+                .decide(&input, StrategyPosition::flat())
+        }
+
+        let short =
+            EventStrategyInput::from_model_run(&run_with(60), 300, 40, 20).with_contiguous(true);
+        let full =
+            EventStrategyInput::from_model_run(&run_with(80), 300, 40, 20).with_contiguous(true);
+        let changed =
+            EventStrategyInput::from_model_run(&run_with_changed_later_bar(80, 60), 300, 40, 20)
+                .with_contiguous(true);
+        let decisions = [
+            (event_decision(&short), bracket_decision(&short)),
+            (event_decision(&full), bracket_decision(&full)),
+            (event_decision(&changed), bracket_decision(&changed)),
+        ];
+        assert!(matches!(decisions[0].0, Decision::Enter(_)));
+        assert_eq!(decisions[0], decisions[1]);
+        assert_eq!(decisions[0], decisions[2]);
+    }
+
+    #[test]
     fn the_snapshot_carries_identity_states_and_events() {
         let run = run();
         let input = EventStrategyInput::from_model_run(&run, 300, 20, 5);
@@ -309,8 +368,7 @@ mod tests {
         assert!(view.states.ema_stack.is_none());
     }
 
-    #[test]
-    fn an_explicit_context_view_is_sorted_by_timeframe() {
+    fn context_run() -> ModelRun {
         let candles_300 = (0..80)
             .map(|index| {
                 let close = 100.0 + index as f64 * 0.5;
@@ -341,13 +399,18 @@ mod tests {
                 .expect("the test candle is valid")
             })
             .collect::<Vec<_>>();
-        let run = ModelRun::compute(
+        ModelRun::compute(
             &[
                 TimeframeInput::new(300, &candles_300),
                 TimeframeInput::new(900, &candles_900),
             ],
             &MarketStateConfig::default(),
-        );
+        )
+    }
+
+    #[test]
+    fn an_explicit_context_view_is_sorted_by_timeframe() {
+        let run = context_run();
         let input = EventStrategyInput::from_model_run(&run, 300, 20, 5)
             .with_view(&run, 900, 6, 5)
             .with_view(&run, 300, 20, 5);
@@ -357,6 +420,28 @@ mod tests {
             .map(|view| view.timeframe_secs)
             .collect();
         assert_eq!(timeframes, vec![300, 900]);
+    }
+
+    #[test]
+    fn the_context_view_window_is_converted_from_execution_bars() {
+        let run = context_run();
+        // 20 execution bars at 5m is 6,000 seconds: 7 context bars at 15m,
+        // rounded up. At context bar 25 the window therefore starts at bar 19.
+        let input =
+            EventStrategyInput::from_model_run(&run, 300, 25, 1).with_view(&run, 900, 25, 20);
+        let view = input
+            .timeframe(900)
+            .expect("the context timeframe is present");
+        let oldest = view
+            .events
+            .iter()
+            .map(|event| event.available_bar_index)
+            .min()
+            .expect("the converted context window contains events");
+        assert!(
+            oldest >= 19,
+            "the 20-bar 5m window must reach back only 7 15m bars, not 20; oldest event: {oldest}"
+        );
     }
 
     #[test]

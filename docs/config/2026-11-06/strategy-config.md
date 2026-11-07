@@ -62,7 +62,7 @@ and the strategy command takes the strategy file explicitly.
 | `schema` | Exactly `quantrule.strategy/v1`. |
 | `id` | Optional non-empty human label. It is recorded in the summary. |
 | `engine` | `event_composite` or `compression_bracket`. |
-| `execution_timeframe` | `1m`, `5m`, `15m`, or `1h`; the model ceiling is `1h`. |
+| `execution_timeframe` | `1m`, `5m`, `15m`, or `1h`; the model ceiling is `1h`. In a coupled `backtest run`, it must equal the run's `execution.fill_timeframe`; the runner rejects a mismatch. |
 | `context_timeframes` | Optional unique timeframes, ascending, different from the execution timeframe, and published by the model bundle. |
 | `event_window_bars` | Event-composite only; positive integer, default `1`. The window is in execution bars. |
 | `time_stop_bars` | Maximum holding period in execution bars; `0` disables it for the event-composite engine. A bracket requires a positive value. |
@@ -73,6 +73,12 @@ and the strategy command takes the strategy file explicitly.
 | `exit` | Event-composite only; zero to six conditions. |
 | `event` | Compression-bracket only; the event identity that publishes the range. |
 | `entry_valid_bars` | Compression-bracket only; exactly `1` in the current engine. |
+
+For a context timeframe, the execution-bar window is converted to the smallest
+context bar count that covers the same span, rounded up. A 20-bar 5m window on a
+1h context reads 2 context bars (120 minutes); the latest completed context bar
+may be up to one context bar old. The conversion is part of the window contract,
+not a separate per-timeframe setting.
 
 The parser rejects an unknown field, a duplicate condition, more than six
 conditions, an empty entry list, a condition without an entry event, and entry

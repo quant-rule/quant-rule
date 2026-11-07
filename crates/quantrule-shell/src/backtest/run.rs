@@ -166,13 +166,6 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
         .iter()
         .map(|timeframe| u64::from(timeframe.seconds()))
         .collect();
-    for timeframe_secs in &context {
-        if model_run.timeframe(*timeframe_secs).is_none() {
-            return Err(BacktestRunError::MissingTimeframe {
-                timeframe_secs: *timeframe_secs,
-            });
-        }
-    }
     let policy_fraction = config.policy.risk.max_position_fraction;
     let leverage = config.portfolio.leverage;
 

@@ -1,7 +1,7 @@
 # S3.x Stage-Surface Audit — Remediation Plan
 
 - Date: 2026-11-07 (UTC)
-- Status: Merged 2026-11-07 at `e8f99cc`; independent verification pending
+- Status: Merged 2026-11-07 at `e8f99cc`; verification remediation in progress on `fix/audit-verification-remediation`; findings `Fixed`, not yet `Verified`
 - Issue: none (the fix issues are created only after approval; no issue number is
   invented)
 - Audit: [`docs/audits/2026-11-07/s3-stage-surface-audit.md`](../../audits/2026-11-07/s3-stage-surface-audit.md)
@@ -142,12 +142,12 @@ S1-S4 run under the Quant roles; S5-S8 are Engineering/Test/Docs work.
 | Finding | Sub-issue | PR | Verification |
 |---|---|---|---|
 | `AUD-2026-11-07-01` | S1 | #536 | Timeframe/context regression tests; full gate; Quant Validator record |
-| `AUD-2026-11-07-02` | S3 | #536 | Cross-path decision equality test; full gate; Quant Validator record |
-| `AUD-2026-11-07-04` | S2 | #536 | Registry/role rejection tests; `EventStrategyInput` boundary test; full gate; Quant Validator record |
-| `AUD-2026-11-07-05` | S4 | #536 | Event-window contract test; full gate; Quant Validator record |
+| `AUD-2026-11-07-02` | S3 | #536 | Cross-path decision equality test, including the extended `(1,3,19)` event; full gate; Quant Validator record |
+| `AUD-2026-11-07-04` | S2 | #536 | Registry/role rejection tests, registry role test, bracket whitelist; full gate; Quant Validator record |
+| `AUD-2026-11-07-05` | S4 | #536 | Event-window conversion tests and documented rounding; full gate; Quant Validator record |
 | `AUD-2026-11-07-06` | S5 | #536 | Manifest field test; full gate |
 | `AUD-2026-11-07-07` | S7 | #536 | Status/doc read; link and term checks |
-| `AUD-2026-11-07-08` | S6 | #536 | Causality test fails before the guard; passes after |
+| `AUD-2026-11-07-08` | S6 | #536 | Snapshot and both-engine decision causality tests; full gate |
 | `AUD-2026-11-07-09` | S8 | #536 | Non-empty-root refusal test |
 | `AUD-2026-11-07-10` | S7 | #536 | Evidence-table read; term check |
 
@@ -257,11 +257,11 @@ recorded in section 7, not in separate commits.
 | Sub-issue | Implementation | Verification |
 |---|---|---|
 | S1 | Shared `strategy::context::validate_context` checks the strategy execution timeframe, published context timeframes, and condition timeframes; `strategy explain`/`run` and `backtest run` use it. The coupled runner rejects a declared/run mismatch before the model bundle is written. | `backtest_rejects_a_strategy_execution_timeframe_mismatch`; `backtest_rejects_a_condition_outside_execution_and_context`; existing strategy tests unchanged. |
-| S2 | Build-time registry table generated from `docs/registry/indicators.json`; unregistered and diagnostic identities are rejected; the compression bracket is restricted to `(3,8,5)`. The build script uses the workspace's existing `serde_json` crate as a build-dependency; no new external crate is added. | `an_unregistered_event_condition_is_rejected`; `a_diagnostic_event_in_the_input_cannot_satisfy_the_rule`; `a_diagnostic_event_is_rejected_as_the_bracket_event`; `an_unregistered_event_is_rejected_as_the_bracket_event`; observed shell errors for the old unregistered and diagnostic configs. |
-| S3 | `EventStrategyInput` reads `timeframe.all_events()`, matching the `events.csv` standalone path. | `the_standalone_and_coupled_strategy_decisions_agree_on_the_signal`. |
-| S4 | `context_window_bars` converts the execution-bar window to each context timeframe; the bundle reader and the coupled input use it. | `the_context_window_is_expressed_in_execution_bars`; existing 5m/15m fixture unchanged because its window is one bar. |
+| S2 | Build-time registry table generated from `docs/registry/indicators.json`; unregistered and diagnostic identities are rejected; the compression bracket is restricted to `(3,8,5)`. The build script uses the workspace's existing `serde_json` crate as a build-dependency; no new external crate is added. | `an_unregistered_event_condition_is_rejected`; `a_diagnostic_identity_is_not_strategy_readable`; `a_diagnostic_event_is_rejected_as_the_bracket_event`; `an_unregistered_event_is_rejected_as_the_bracket_event`; observed shell errors for the old unregistered and diagnostic configs. |
+| S3 | `EventStrategyInput` reads `timeframe.all_events()`, matching the `events.csv` standalone path. | `the_standalone_and_coupled_strategy_decisions_agree_on_the_signal`; `an_extended_event_reaches_both_strategy_paths`. |
+| S4 | `context_window_bars` converts the execution-bar window to each context timeframe; the bundle reader and the coupled input use it; the rounded conversion is documented. | `the_context_window_is_expressed_in_execution_bars`; `the_context_view_window_is_converted_from_execution_bars`; the existing 5m/15m fixture is unchanged because its window is one bar. |
 | S5 | `strategy_config_id` is written to the backtest manifest. | `backtest_writes_the_stage_bundles` asserts it matches the strategy provenance. |
-| S6 | A causality test compares a bar-40 snapshot from 60 bars, 80 bars, and a run with a changed later bar; all are equal. | `later_bars_do_not_change_an_earlier_snapshot`. |
+| S6 | A causality test compares a bar-40 snapshot from 60 bars, 80 bars, and a run with a changed later bar; a second test compares both engine decisions on those snapshots. | `later_bars_do_not_change_an_earlier_snapshot`; `the_snapshot_boundary_keeps_both_engine_decisions_causal`. |
 | S7 | S3.x status lines and the evidence table were corrected; historical phase lines remain. | `check_links.py`, `check_terms.py`; manual read. |
 | S8 | The backtest root is checked with `ensure_available` before the model write. | `backtest_refuses_an_unrelated_file_in_the_root`. |
 
@@ -271,10 +271,12 @@ Gate evidence:
 |---|---|
 | `cargo fmt --all -- --check` | pass |
 | `cargo clippy --all-targets -- -D warnings` | pass |
-| `cargo test --workspace` | 1,323 passed, 0 failed, 8 ignored |
+| `cargo test --workspace` | 1,328 passed, 0 failed, 8 ignored |
 | `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | pass |
 | Contract checks and structure check | pass; 603 Markdown files, 365 term-check files, 706 legacy files |
 | `git diff --check` | pass |
+| Guard probe: pre-fix event stream | With `EventStrategyInput` reverted to `timeframe.events()`, `an_extended_event_reaches_both_strategy_paths` fails `enter` vs `hold` |
+| Guard probe: pre-fix window | With `with_view` using the raw window, `the_context_view_window_is_converted_from_execution_bars` fails at oldest event 14 (required at least 19) |
 
 The analytics and qualification golden fixtures were regenerated because the
 manifest gained `strategy_config_id`; only the manifest hash moved. The decision
@@ -312,6 +314,10 @@ independent Code Reviewer or Quant Validator reviews.
 - Residual risks: the registry table is generated at build time; a family with
   mixed roles is merged with diagnostic dominance; the extended event stream is
   visible to the input but no current engine can act on a diagnostic identity.
+- The `EventDiagnostic` branch is defensive: every registered diagnostic subtype
+  is outside the event-composite `1..=7` range, and the bracket rejects a
+  diagnostic through the `(3,8,5)` whitelist. The fail-before guards are the
+  unregistered-condition and bracket-whitelist tests.
 - Verdict: pass as a local contract-correction review; no edge claim and no
   independent validation.
 
@@ -326,8 +332,63 @@ independent Code Reviewer or Quant Validator reviews.
   the batch is on one remediation branch rather than one branch per sub-issue; no
   independent review is claimed.
 
+### Follow-up verification review (separate subagent passes)
+
+After PR #537, a separate Improvement Verifier pass returned `Not verified`: the
+AUD-02 parity guard used a core event and passed pre-fix, the AUD-04
+diagnostic-input test was a boundary assertion rather than a fail-before guard,
+the AUD-08 guard was snapshot-only, and the plan's sequential reviews were not
+independent.
+
+A separate read-only Quant Validator subagent and a separate read-only Code
+Reviewer subagent then reviewed the merged fixes and the follow-up guards. They
+are separate sessions, not human reviews, and not independent model judgments.
+
+- Quant Validator: `pass with residual risks`. No model formula, event
+  definition, strategy formula, or validation partition changed; the fixture
+  decisions and accounting values are unchanged; the full gate passes. Residual
+  risks: the follow-up was uncommitted and two guards were weak.
+- Code Reviewer: `changes requested`. No correctness defect in the merged fixes;
+  the follow-up was uncommitted, two new guards did not exercise the defect, the
+  documentation had stale or broken statements, and `all_events()` allocated a
+  merged vector per bar in the coupled loop.
+
+Resolutions in this change set:
+
+- F1: `TimeframeModel` caches the merged event batch; `all_events()` returns a
+  slice, so the coupled strategy input no longer allocates per bar.
+- F2: the follow-up is prepared as one focused change set; publication is
+  pending.
+- F3/F4: `an_extended_event_reaches_both_strategy_paths` uses the extended
+  `(1,3,19)` event and fails on the pre-fix stream (`enter` vs `hold`);
+  `the_context_view_window_is_converted_from_execution_bars` asserts the
+  converted boundary and fails when the conversion is removed (oldest event 14,
+  required at least 19); `the_snapshot_boundary_keeps_both_engine_decisions_causal`
+  exercises both engines and asserts `Enter`; `a_diagnostic_identity_is_not_strategy_readable`
+  checks the registry role.
+- F5-F8: the strategy table, execution-timeframe coupling, window rounding,
+  artifact-boundary wording, and the audit's historical baseline paragraph were
+  corrected.
+- The redundant per-context `MissingTimeframe` loop in `backtest run` was removed
+  because `validate_context` already checks every context timeframe.
+
+Residual risks:
+
+- The registry table is generated at build time; a family with mixed roles is
+  merged with diagnostic dominance.
+- The `EventDiagnostic` branch is defensive: every registered diagnostic subtype
+  is outside the event-composite `1..=7` range, and the bracket rejects a
+  diagnostic through the `(3,8,5)` whitelist. The fail-before guards are the
+  unregistered-condition and bracket-whitelist tests.
+- The merged-event cache increases each timeframe's retained memory by one event
+  vector; the coupled loop no longer allocates it per bar.
+- The AUD-04 diagnostic-input test passes before the fix because identity matching
+  is exact; it is a boundary assertion, not the fail-before guard.
+- The findings remain `Fixed`, not `Verified`, until the committed tree passes a
+  fresh independent verifier.
+
 ### Outstanding
 
-- An independent Quant Validator record for S1-S4.
-- An independent Code Reviewer pass.
+- A fresh Quant Validator record for S1-S4 on the committed follow-up tree.
+- A fresh Code Reviewer pass on the committed follow-up tree.
 - The Improvement Verifier's closure check.

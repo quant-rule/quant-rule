@@ -63,3 +63,27 @@ pub fn is_registered(event_type: u8, subtype: u8, source: u16) -> bool {
 pub const fn is_strategy_role(role: EventRole) -> bool {
     matches!(role, EventRole::Signal | EventRole::Context)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{COMPRESSION_RANGE_EVENT, EventRole, is_strategy_role, lookup};
+
+    #[test]
+    fn the_compression_range_event_is_registered_as_a_signal() {
+        let identity = lookup(
+            COMPRESSION_RANGE_EVENT.0,
+            COMPRESSION_RANGE_EVENT.1,
+            COMPRESSION_RANGE_EVENT.2,
+        )
+        .expect("the compression range event is registered");
+        assert_eq!(identity.role, EventRole::Signal);
+        assert!(is_strategy_role(identity.role));
+    }
+
+    #[test]
+    fn a_diagnostic_identity_is_not_strategy_readable() {
+        let identity = lookup(3, 21, 41).expect("the diagnostic identity is registered");
+        assert_eq!(identity.role, EventRole::Diagnostic);
+        assert!(!is_strategy_role(identity.role));
+    }
+}
