@@ -32,4 +32,6 @@ pub(crate) use qualification::{
     Criteria, Criterion, EvidenceArtifact, Partition, load as load_qualification,
 };
 pub(crate) use run::RunConfig;
+#[cfg(test)]
+pub(crate) use strategy::parse as parse_strategy;
 pub(crate) use strategy::{StrategyConfig, load as load_strategy};

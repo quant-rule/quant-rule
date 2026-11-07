@@ -352,6 +352,9 @@ mod tests {
             (event_decision(&changed), bracket_decision(&changed)),
         ];
         assert!(matches!(decisions[0].0, Decision::Enter(_)));
+        // The fixture publishes no compression-range event, so the bracket arm
+        // is Hold; the equality below still proves its decision is invariant.
+        assert!(matches!(decisions[0].1, Decision::Hold));
         assert_eq!(decisions[0], decisions[1]);
         assert_eq!(decisions[0], decisions[2]);
     }

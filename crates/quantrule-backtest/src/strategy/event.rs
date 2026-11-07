@@ -303,6 +303,10 @@ fn validate_condition(condition: Condition) -> Result<(), super::config::Strateg
                 return Err(StrategyConfigError::EventNotRegistered);
             };
             if identity.role == super::registry::EventRole::Diagnostic {
+                // Defense in depth: every active diagnostic subtype is outside
+                // the event-composite 1..=7 range today, so this branch is
+                // unreachable through the parser. It stays so a future
+                // diagnostic in the bounded range cannot become a trigger.
                 return Err(StrategyConfigError::EventDiagnostic);
             }
             if !(-1..=1).contains(&direction) {
