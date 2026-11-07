@@ -30,7 +30,6 @@ fn config() -> PortfolioConfig {
         },
         leverage: 1.0,
         max_open_positions: 1,
-        allow_short: true,
         commission: CommissionConfig::new(0.001, CommissionBase::Equity, CommissionPer::Operation)
             .expect("the commission is valid"),
         funding: FundingConfig::new(0.0001, FundingInterval::H8).expect("the funding is valid"),
@@ -545,10 +544,7 @@ fn the_halt_latches_once_and_blocks_entries() {
     approx(event.equity, 7_890.0);
     approx(event.peak_equity, 10_000.0);
     approx(event.limit, 0.20);
-    assert_eq!(
-        ledger.size_entry(Side::Long, 79.0),
-        Err(SizingRejection::Halted)
-    );
+    assert_eq!(ledger.size_entry(79.0), Err(SizingRejection::Halted));
 
     ledger.mark(1, 900, 70.0).expect("the mark is valid");
     assert_eq!(ledger.risk_events().len(), 1);

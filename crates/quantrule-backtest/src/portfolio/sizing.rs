@@ -9,10 +9,9 @@
 //! bar's open, so the realized notional can differ from the sizing notional. The
 //! runner separately caps the fill quantity at current equity × leverage × the
 //! policy position fraction; this module computes the unconstrained quantity.
+//! Sizing is side-independent: the engine always operates in both directions.
 
 use std::fmt;
-
-use crate::side::Side;
 
 use super::config::PortfolioConfigError;
 
@@ -25,19 +24,18 @@ use super::config::PortfolioConfigError;
 ///
 /// ```
 /// use quantrule_backtest::portfolio::SizingMode;
-/// use quantrule_backtest::side::Side;
 ///
 /// let fixed = SizingMode::FixedNotional {
 ///     notional: 10_000.0,
 ///     quantity_step: 0.0001,
 /// };
-/// assert_eq!(fixed.size(Side::Long, 10_000.0, 200.0, true)?, 50.0);
+/// assert_eq!(fixed.size(10_000.0, 200.0)?, 50.0);
 ///
 /// let fraction = SizingMode::EquityFraction {
 ///     fraction: 0.5,
 ///     quantity_step: 1.0,
 /// };
-/// assert_eq!(fraction.size(Side::Long, 10_000.0, 200.0, true)?, 25.0);
+/// assert_eq!(fraction.size(10_000.0, 200.0)?, 25.0);
 /// # Ok::<(), quantrule_backtest::portfolio::SizingRejection>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -110,19 +108,14 @@ impl SizingMode {
     ///
     /// The quantity is `notional / price` or `(equity * fraction) / price`,
     /// floored to the step. The result is never zero: a quantity below one step
-    /// returns [`SizingRejection::BelowOneStep`].
+    /// returns [`SizingRejection::BelowOneStep`]. The rule is side-independent;
+    /// the engine always operates in both directions.
     ///
     /// # Errors
     ///
-    /// Returns a rejection when the equity or price is invalid, a short is not
-    /// allowed, the mode is invalid, or the result is below one step.
-    pub fn size(
-        &self,
-        side: Side,
-        equity: f64,
-        price: f64,
-        allow_short: bool,
-    ) -> Result<f64, SizingRejection> {
+    /// Returns a rejection when the equity or price is invalid, the mode is
+    /// invalid, or the result is below one step.
+    pub fn size(&self, equity: f64, price: f64) -> Result<f64, SizingRejection> {
         if !equity.is_finite() {
             return Err(SizingRejection::NonFiniteEquity);
         }
@@ -134,9 +127,6 @@ impl SizingMode {
         }
         if price <= 0.0 {
             return Err(SizingRejection::NonPositivePrice);
-        }
-        if matches!(side, Side::Short) && !allow_short {
-            return Err(SizingRejection::ShortNotAllowed);
         }
 
         let (raw, step) = match *self {
@@ -273,8 +263,6 @@ pub enum SizingRejection {
     NonFinitePrice,
     /// The price is zero or negative.
     NonPositivePrice,
-    /// A short entry was requested while `allow_short` is false.
-    ShortNotAllowed,
     /// The fixed notional is not a finite number.
     NonFiniteNotional,
     /// The fixed notional is zero or negative.
@@ -307,7 +295,6 @@ impl SizingRejection {
             Self::NegativeEquity => "negative_equity",
             Self::NonFinitePrice => "non_finite_price",
             Self::NonPositivePrice => "non_positive_price",
-            Self::ShortNotAllowed => "short_not_allowed",
             Self::NonFiniteNotional => "non_finite_notional",
             Self::NonPositiveNotional => "non_positive_notional",
             Self::NonFiniteFraction => "non_finite_fraction",
@@ -327,7 +314,6 @@ impl fmt::Display for SizingRejection {
             Self::NegativeEquity => write!(formatter, "the equity must not be negative"),
             Self::NonFinitePrice => write!(formatter, "the price must be finite"),
             Self::NonPositivePrice => write!(formatter, "the price must be positive"),
-            Self::ShortNotAllowed => write!(formatter, "a short entry is not allowed"),
             Self::NonFiniteNotional => write!(formatter, "the fixed notional must be finite"),
             Self::NonPositiveNotional => write!(formatter, "the fixed notional must be positive"),
             Self::NonFiniteFraction => write!(formatter, "the equity fraction must be finite"),

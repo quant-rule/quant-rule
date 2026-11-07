@@ -483,7 +483,6 @@ fn provenance_bytes(
             "initial_cash": config.portfolio.initial_cash,
             "sizing": sizing_label(config.portfolio.sizing),
             "leverage": config.portfolio.leverage,
-            "allow_short": config.portfolio.allow_short,
             "commission_rate": config.portfolio.commission.rate(),
             "funding_rate": config.portfolio.funding.rate(),
             "execution_timeframe": timeframe,

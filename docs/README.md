@@ -61,7 +61,7 @@ linked below.
 
 | Contract | Status | Path |
 |---|---|---|
-| Policy blueprint | Current; `run v2`, `policy v1`, data schema 3, model schema 4, `execution v2`, `portfolio v1` | `docs/config/2026-10-30/policy-and-strategy.md` |
+| Policy blueprint | Current; `run v2`, `policy v1`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
 | MACD reading and events | Current | `docs/config/2026-11-03/model-macd.md` |

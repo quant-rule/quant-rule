@@ -7,7 +7,7 @@
 ## Evidence
 
 - Data version: test:v1
-- Config identity: 85fa1856498246b6
+- Config identity: a33e5b259c77dc8b
 - Code revision: unknown
 - Period: 2025-01-01..2025-01-01
 - Partitions: portfolio_holdout

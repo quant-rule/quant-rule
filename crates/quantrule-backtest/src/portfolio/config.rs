@@ -5,7 +5,7 @@
 //! Every field is validated before the ledger is built; a configuration that
 //! fails validation is never used.
 //!
-//! The JSON schema is `quantrule.portfolio/v1`, documented in
+//! The JSON schema is `quantrule.portfolio/v2`, documented in
 //! `docs/config/2026-10-30/policy-and-strategy.md`. The shell parses the JSON and
 //! builds these values; the engine performs no I/O.
 
@@ -501,7 +501,6 @@ impl MarkToMarket {
 ///     },
 ///     leverage: 1.0,
 ///     max_open_positions: 1,
-///     allow_short: true,
 ///     commission: CommissionConfig::new(
 ///         0.001,
 ///         CommissionBase::Equity,
@@ -527,8 +526,6 @@ pub struct PortfolioConfig {
     pub leverage: f64,
     /// The maximum number of open positions; exactly `1` in v1.
     pub max_open_positions: u32,
-    /// Whether a short entry is allowed.
-    pub allow_short: bool,
     /// The commission charged on every fill.
     pub commission: CommissionConfig,
     /// The periodic funding charge.
@@ -572,19 +569,19 @@ impl PortfolioConfig {
     ///
     /// This delegates to [`SizingMode::size`]. The quantity is floored to the
     /// configured step; a quantity below one step is a rejection, never a zero.
+    /// The rule is side-independent; the engine always operates in both
+    /// directions.
     ///
     /// # Errors
     ///
     /// Returns a [`super::sizing::SizingRejection`] when the equity or price is
-    /// invalid, a short is not allowed, or the result is below one quantity
-    /// step.
+    /// invalid or the result is below one quantity step.
     pub fn size_entry(
         &self,
-        side: crate::side::Side,
         equity: f64,
         price: f64,
     ) -> Result<f64, super::sizing::SizingRejection> {
-        self.sizing.size(side, equity, price, self.allow_short)
+        self.sizing.size(equity, price)
     }
 }
 

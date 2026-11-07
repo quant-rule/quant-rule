@@ -225,7 +225,6 @@ pub(crate) fn run(
     let mut engine =
         ExecutionEngine::new(config.execution.engine).map_err(ExecutionRunError::Execution)?;
     let initial_cash = config.portfolio.initial_cash;
-    let allow_short = config.portfolio.allow_short;
     let sizing = config.portfolio.sizing;
     let quantity_step = sizing.quantity_step();
     let max_notional = config.portfolio.initial_cash
@@ -246,9 +245,7 @@ pub(crate) fn run(
         let (intent, quantity, step) = match decision.kind {
             DecisionKind::Hold => (OrderIntent::Hold, None, None),
             DecisionKind::Enter(intent) => {
-                let quantity = sizing
-                    .size(intent.side, initial_cash, candle.close(), allow_short)
-                    .ok();
+                let quantity = sizing.size(initial_cash, candle.close()).ok();
                 (
                     OrderIntent::Enter {
                         intent,

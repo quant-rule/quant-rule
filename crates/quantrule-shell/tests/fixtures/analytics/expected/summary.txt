@@ -1,6 +1,6 @@
 QuantRule analytics evaluate
 data_version: test:v1
-config_id: 85fa1856498246b6
+config_id: a33e5b259c77dc8b
 period: 2025-01-01..2025-01-01
 trades: 1
 wins: 0

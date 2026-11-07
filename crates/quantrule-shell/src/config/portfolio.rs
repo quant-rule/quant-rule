@@ -35,14 +35,13 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<PortfolioConfig, Config
             "sizing",
             "leverage",
             "max_open_positions",
-            "allow_short",
             "commission",
             "funding",
             "max_drawdown",
             "mark_to_market",
         ],
     )?;
-    read::schema(file, object, "quantrule.portfolio/v1")?;
+    read::schema(file, object, "quantrule.portfolio/v2")?;
 
     let initial_cash = read::number(
         file,
@@ -110,12 +109,6 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<PortfolioConfig, Config
         )
     })?;
 
-    let allow_short = read::boolean(
-        file,
-        "$.allow_short",
-        read::field(file, ROOT, object, "allow_short")?,
-    )?;
-
     let commission = commission(file, read::field(file, ROOT, object, "commission")?)?;
     let funding = funding(file, read::field(file, ROOT, object, "funding")?)?;
     let max_drawdown = max_drawdown(file, read::field(file, ROOT, object, "max_drawdown")?)?;
@@ -140,7 +133,6 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<PortfolioConfig, Config
         sizing,
         leverage,
         max_open_positions,
-        allow_short,
         commission,
         funding,
         max_drawdown,
