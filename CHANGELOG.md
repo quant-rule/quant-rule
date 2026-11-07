@@ -13,6 +13,8 @@ are not treated as releases.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-07
+
 ### Added
 
 - Workflow index, tier runbooks for model research, model change, strategy
