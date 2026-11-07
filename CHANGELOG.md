@@ -19,6 +19,9 @@ are not treated as releases.
   the first command or tool for each workflow.
 - The workflow lab now shows the command-level selection table and the model
   research/swarm quick path.
+- The model-prediction condition gate accepts the published `level_touches`
+  reading and integer `min`/`max` bounds, enabling a location-conditioned model
+  evaluation without a Rust model change.
 
 ## [0.6.0] - 2026-11-07
 

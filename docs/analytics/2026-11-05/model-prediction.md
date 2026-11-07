@@ -96,6 +96,27 @@ lift = hit_rate - base_rate
 The prediction outcome is compared with the same forward rule that the base
 uses, so the lift is not an artefact of a different outcome definition.
 
+### 5.1 Condition gate
+
+The evaluator accepts an optional `quantrule.model-state-gate/v1` document
+(`--state-file`). A clause names a published `readings.csv` column and either a
+`values` list or a numeric `min`/`max` bound:
+
+```json
+{"schema":"quantrule.model-state-gate/v1","all":[{"column":"level_touches","min":1}]}
+```
+
+The accepted columns are `context_code`, `adx_regime`, `adx_slope`,
+`ema_stack`, `di_state`, `rsi_zone`, `macd_state`, and `level_touches`. A null
+reading does not match. A clause with `values` may not also carry `min` or
+`max`; `min` must not exceed `max`.
+
+With a gate, the evaluator publishes `metrics.scope = "state"`, a
+condition-matched base, the unconditional metrics, and
+`state_increment = state_lift - unconditional_lift`. Controls are drawn inside
+the condition. The field names retain the historical `state_*` prefix; the M4
+programme uses the same mechanism with `level_touches`, a location condition.
+
 ## 6. Controls and uncertainty
 
 | Control | Method |
@@ -202,6 +223,7 @@ from `model_prediction.json`.
 | Outcome, cost, stop-first tie, short history | `tools/improvement/test_model_prediction.py` |
 | Known edge passes; lagged prediction fails; empty prediction fails safely | `tools/improvement/test_model_prediction.py` |
 | Determinism, per-instrument, per-year | `tools/improvement/test_model_prediction.py` |
+| Condition gate: bounds, null, empty, all-bar, determinism | `tools/improvement/test_model_prediction.py` |
 | Adapter parsing | `tools/research/test_adapters.py` |
 
 Observed on 2026-11-05 in the `feat/455-prediction-evaluator` worktree:
@@ -215,8 +237,9 @@ python3 -m unittest discover -s tools/research -p 'test_*.py'     -> 33 passed
 
 - The evaluator is a filter, not proof of a live edge. It does not model fills,
   position sizing, funding, borrow, or portfolio constraints.
-- The base rate is unconditional within the partition; a state-conditioned base
-  remains a later model-gate refinement.
+- The default base rate is unconditional within the partition; the optional
+  condition gate supplies a state- or location-matched base and the matching
+  increment.
 - The Wilson fallback is used only when every prediction is its own cluster; the
   `lcb_method` field makes that visible.
 - A single instrument can grade `B`; the M2 programme requires replication before

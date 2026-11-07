@@ -1,0 +1,9 @@
+{
+  "schema": "quantrule.model-state-gate/v1",
+  "all": [
+    {
+      "column": "level_touches",
+      "min": 1
+    }
+  ]
+}

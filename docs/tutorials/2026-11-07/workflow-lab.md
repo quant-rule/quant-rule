@@ -54,9 +54,9 @@ Program Charter -> cells on model_dev -> aggregate -> human promotes
   indicator/event coverage.
 - A cell runs `report model` (or the research cell runner); the promoted cell
   runs `model_validation` once.
-- `tools/research/README.md` marks the batch scripts historical/retained for the
-  M2.x/M3.x records. Verify or refresh them against the current S3 surface before
-  a new campaign.
+- `tools/research/README.md` records the current M4.x research path and the
+  retained M2.x/M3.x records. The M4.x campaign refreshed the run configs to the
+  current S3 sibling schemas and added the inherited-coverage check.
 - The Run Contract records each run; the human accepts a baseline or records
   `no_edge`.
 

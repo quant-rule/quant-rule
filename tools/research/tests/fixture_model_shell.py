@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -47,6 +48,9 @@ def main() -> int:
     out = Path(args.out).expanduser()
     model = out / "model"
     model.mkdir(parents=True, exist_ok=True)
+    (model / "args.json").write_text(
+        json.dumps(sys.argv[1:]), encoding="utf-8"
+    )
     start = start_timestamp(Path(args.config)) if args.config else 1_515_000_000
     directions = predictions()
     close = [100.0]
@@ -92,6 +96,7 @@ def main() -> int:
                 "close",
                 "volume",
                 "atr",
+                "level_touches",
             ]
         )
         for index in range(BARS):
@@ -106,6 +111,7 @@ def main() -> int:
                     close[index],
                     1.0,
                     1.0,
+                    1 if index % 8 < 4 else 0,
                 ]
             )
     return 0
