@@ -104,6 +104,7 @@ Corrections during implementation:
 No independent Quant Validator or Code Reviewer pass is claimed. The plan's
 Quant Validator requirement for S1-S4 and the merged-tree gate remain open.
 
-Publication: PR #536 (`fix/s3-audit-remediation`) is stacked on PR #535 (the
-plan) and PR #534 (the removal). All three CI checks pass. No merge was
-performed.
+Publication: PR #534 (removal), PR #535 (plan), and PR #536 (remediation) were
+merged on 2026-11-07 at `812d58c`, `0c1c265`, and `e8f99cc`. The merged `main`
+tree passes the full gate: 1,323 tests, 0 failed, 8 ignored. Independent Quant
+Validator, Code Reviewer, and Improvement Verifier passes remain outstanding.
