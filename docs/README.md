@@ -35,7 +35,7 @@ repeating a status.
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Command surface | 15 implemented commands, 0 planned; the discovery gate passes. |
-| Model | `M1.0` current; 46 indicators, 143 active events, 189 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered. |
+| Model | `M1.0` current; 46 indicators, 143 active events, 189 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. |
@@ -62,7 +62,7 @@ repeating a status.
 |---|---|---|
 | M1.0 flat model | Current baseline; path gate no edge; compression baselines accepted | `docs/model/2026-11-05/model-m1.0.md` |
 | Indicator coverage | Implemented 2026-11-05: 46 indicators, 143 active events, stable event codes; 189 validation claims and 54/54 construct cases; predictive evidence pending | `docs/model/2026-11-05/indicator-coverage.md` |
-| Model families | Approved 2026-11-05; `M1.0`, historical `M2.x`, and the future `M3.x` map | `docs/model/2026-11-05/model-families.md` |
+| Model families | Approved 2026-11-05; `M1.0`, historical `M2.x`/`M3.x`/`M4.x`, and the future `S3.x` map | `docs/model/2026-11-05/model-families.md` |
 | Model spec v1 | Implemented; condition-only | `docs/model/2026-11-05/model-spec-v1.md` |
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
@@ -107,6 +107,8 @@ criteria are explicit command arguments; the run schema stays
 | Compression-range next-bar resolution | Accepted model baseline (human, 2026-11-04) | [`docs/improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md`](improvement/2026-11-04/COMPRESSION-RANGE-CANDIDATE.md) |
 | M2.x model programme | P5 `no_edge`; P7 closeout complete; validation not opened | [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](execution-plans/2026-11-05/410-m2-model-programme.md) |
 | M3.x model programme | Preflight `underpowered`; no development run; validation not opened | [`docs/improvement/2026-11-05/M3-PREFLIGHT.md`](improvement/2026-11-05/M3-PREFLIGHT.md) |
+| M4.x model programme | Development `no_edge`; five primary cells; validation not opened | [`docs/improvement/2026-11-07/M4-DEV-SWARM.md`](improvement/2026-11-07/M4-DEV-SWARM.md) |
+| M4.x model charter | Approved 2026-11-07; strategy tier closed | [`docs/governance/2026-11-07/M4-CHARTER.md`](governance/2026-11-07/M4-CHARTER.md) |
 | M2.x model charter | Approved 2026-11-05; strategy tier closed | [`docs/governance/2026-11-05/M2-CHARTER.md`](governance/2026-11-05/M2-CHARTER.md) |
 | Current-surface audit verification | Merged in PR #496; per-row indicator/event matrix pending | [`docs/reports/2026-11-06/current-surface-audit-verification.md`](reports/2026-11-06/current-surface-audit-verification.md) |
 | Indicator/event verification evidence | Scope map: 33 row-level, 1410 family-level, 332 tool gates, 304 N/A | [`docs/reports/2026-11-06/indicator-event-verification.md`](reports/2026-11-06/indicator-event-verification.md) |
@@ -208,6 +210,7 @@ record of what was released. Historical tags `v0.4.0-exp-baseline` and
 | P7 verify/closeout | Implemented; full gate, oracle cleanup, M2 closeout verification | `docs/execution-plans/2026-11-05/475-verify-closeout.md` |
 | P8a M3.x charter | Approved 2026-11-06; P8b executed | `docs/governance/2026-11-05/M3-CHARTER.md` |
 | P8b M3.x programme | Underpowered at the count gate; no development run; validation not opened | `docs/improvement/2026-11-05/M3-PREFLIGHT.md` |
+| M4.x model programme | Development `no_edge`; five primary cells; validation not opened | `docs/governance/2026-11-07/M4-CHARTER.md`; `docs/improvement/2026-11-07/M4-DEV-SWARM.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 | Workflow documentation reset | Released in `v0.6.0` (PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
 

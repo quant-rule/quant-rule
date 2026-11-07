@@ -92,6 +92,7 @@ def write_state_bundle(
                 "context_code",
                 "adx_regime",
                 "ema_stack",
+                "level_touches",
             ]
         )
         for row in readings:
@@ -109,6 +110,7 @@ def write_state_bundle(
                     row.get("context_code", ""),
                     row.get("adx_regime", ""),
                     row.get("ema_stack", ""),
+                    row.get("level_touches", ""),
                 ]
             )
     return root
@@ -153,6 +155,7 @@ def state_dataset(count: int = 80, state_one_hits: bool = False) -> tuple[list[d
             "context_code": 2 if bar % 8 < 4 else 1,
             "adx_regime": 1 if bar % 8 < 4 else 0,
             "ema_stack": 1 if bar % 8 < 4 else -1,
+            "level_touches": 2 if bar % 8 < 4 else 0,
         }
         for bar in range(count + 1)
     ]
@@ -175,6 +178,31 @@ def write_state_file(root: Path, column: str = "context_code", values: list[int]
             {
                 "schema": model_prediction.STATE_SCHEMA,
                 "all": [{"column": column, "values": values or [2]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def write_bound_gate(
+    root: Path,
+    column: str = "level_touches",
+    *,
+    min_value: int | None = None,
+    max_value: int | None = None,
+) -> Path:
+    clause: dict[str, object] = {"column": column}
+    if min_value is not None:
+        clause["min"] = min_value
+    if max_value is not None:
+        clause["max"] = max_value
+    path = root / "state.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema": model_prediction.STATE_SCHEMA,
+                "all": [clause],
             }
         ),
         encoding="utf-8",
@@ -484,6 +512,94 @@ class StateGateTests(unittest.TestCase):
             )
             with self.assertRaises(ValueError):
                 model_prediction.load_state_gate(bad)
+
+    def test_parser_accepts_level_touches_bounds(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gate = model_prediction.load_state_gate(write_bound_gate(root, min_value=1))
+            self.assertFalse(model_prediction.state_matches({"level_touches": "0"}, gate))
+            self.assertFalse(model_prediction.state_matches({"level_touches": ""}, gate))
+            self.assertFalse(model_prediction.state_matches({}, gate))
+            self.assertTrue(model_prediction.state_matches({"level_touches": "1"}, gate))
+            self.assertTrue(model_prediction.state_matches({"level_touches": "1.0"}, gate))
+            self.assertTrue(model_prediction.state_matches({"level_touches": "2"}, gate))
+            gate = model_prediction.load_state_gate(
+                write_bound_gate(root, min_value=1, max_value=2)
+            )
+            self.assertFalse(model_prediction.state_matches({"level_touches": "0"}, gate))
+            self.assertTrue(model_prediction.state_matches({"level_touches": "2"}, gate))
+            self.assertFalse(model_prediction.state_matches({"level_touches": "3"}, gate))
+
+    def test_parser_rejects_invalid_bounds(self) -> None:
+        invalid = (
+            {"column": "level_touches", "values": [1], "min": 1},
+            {"column": "level_touches"},
+            {"column": "level_touches", "min": 1.5},
+            {"column": "level_touches", "min": True},
+            {"column": "level_touches", "min": 2, "max": 1},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for index, clause in enumerate(invalid):
+                path = root / f"bad-{index}.json"
+                path.write_text(
+                    json.dumps(
+                        {
+                            "schema": model_prediction.STATE_SCHEMA,
+                            "all": [clause],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                with self.assertRaises(ValueError):
+                    model_prediction.load_state_gate(path)
+
+    def test_level_gate_filters_the_base_and_reports_increment(self) -> None:
+        predictions, readings = state_dataset()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_state_bundle(root, predictions, readings)
+            state_file = write_bound_gate(root, min_value=1)
+            document = self.run_state_eval(root, state_file)
+        metrics = document["metrics"]
+        unconditional = document["unconditional_metrics"]
+        self.assertEqual(metrics["scope"], "state")
+        self.assertEqual(metrics["n"], 20)
+        self.assertGreater(metrics["lift"], unconditional["lift"])
+        self.assertGreater(document["state_increment"], 0.0)
+        self.assertEqual(document["grade"], "A")
+
+    def test_level_gate_can_match_every_bar(self) -> None:
+        predictions, readings = state_dataset()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_state_bundle(root, predictions, readings)
+            state_file = write_bound_gate(root, min_value=0)
+            document = self.run_state_eval(root, state_file)
+        self.assertEqual(
+            document["metrics"]["n"], document["unconditional_metrics"]["n"]
+        )
+        self.assertEqual(document["state_increment"], 0.0)
+
+    def test_level_gate_can_remove_every_bar(self) -> None:
+        predictions, readings = state_dataset()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_state_bundle(root, predictions, readings)
+            state_file = write_bound_gate(root, min_value=99)
+            document = self.run_state_eval(root, state_file)
+        self.assertEqual(document["metrics"]["n"], 0)
+        self.assertEqual(document["grade"], "D")
+
+    def test_level_gate_is_deterministic(self) -> None:
+        predictions, readings = state_dataset()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_state_bundle(root, predictions, readings)
+            state_file = write_bound_gate(root, min_value=1)
+            first = self.run_state_eval(root, state_file, out_name="first")
+            second = self.run_state_eval(root, state_file, out_name="second")
+        self.assertEqual(first, second)
 
     def test_state_gate_filters_the_base_and_reports_increment(self) -> None:
         predictions, readings = state_dataset()

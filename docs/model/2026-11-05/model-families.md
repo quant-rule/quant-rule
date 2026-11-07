@@ -23,8 +23,9 @@ The rule is `<type><family>.<version>`:
 | `POL` | Policy | `POL1.0`, `POL3.1` |
 
 `M1.0` is the only current model identity. `M2.1–M2.5` is historical with no
-accepted baseline; `M3.x` is the next family. `S3.x`, `P3.x`, `POL3.x`, and
-`E3.x` are future and follow an accepted M3.x baseline.
+accepted baseline; `M3.x` is historical and underpowered; `M4.x` is the latest
+model research family, with no accepted baseline. `S3.x`, `P3.x`, `POL3.x`, and
+`E3.x` are future and follow an accepted model baseline.
 
 The **S3 command surface** is the stage-command delivery plan; it is not the
 `S3.x` strategy family. The two uses of "S3" are distinct: the command surface is
@@ -42,6 +43,7 @@ distinction in [`docs/workflows/README.md`](../../workflows/README.md).
 | `M2.4` | M2 model: session and time cell | Historical; `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
 | `M2.5` | M2 model: all-area vote cell | Historical; `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
 | `M3.1`–`M3.5` | M3 model: state-conditioned event cells | Underpowered at the count gate; not run | [M3 preflight](../../improvement/2026-11-05/M3-PREFLIGHT.md) |
+| `M4.1`–`M4.5` | M4 model: location-conditioned directional event cells | Historical; `model_dev` no edge; not accepted | [M4 result](../../improvement/2026-11-07/M4-DEV-SWARM.md) |
 | `S3.x` | Strategies built on an accepted M3.x model | Future; S2.x remains closed | P8/S3.x |
 | `E3.x`, `P3.x`, `POL3.x` | Execution, portfolio, and policy after an accepted S3 strategy | Future | S3.x |
 

@@ -49,6 +49,7 @@ STATE_COLUMNS = frozenset(
         "di_state",
         "rsi_zone",
         "macd_state",
+        "level_touches",
     }
 )
 DEFAULT_HORIZON = 20
@@ -78,7 +79,9 @@ class BundleInput:
 @dataclass(frozen=True)
 class StateClause:
     column: str
-    values: tuple[int, ...]
+    values: tuple[int, ...] | None = None
+    min_value: int | None = None
+    max_value: int | None = None
 
 
 @dataclass(frozen=True)
@@ -281,7 +284,13 @@ def optional_int(value: Any) -> int | None:
 
 
 def load_state_gate(path: str | Path) -> StateGate:
-    """Loads and validates a ``quantrule.model-state-gate/v1`` document."""
+    """Loads and validates a ``quantrule.model-state-gate/v1`` document.
+
+    A clause carries either an integer ``values`` list or a numeric ``min`` and
+    ``max`` bound. The bounded form is what lets a continuous published reading,
+    such as ``level_touches``, act as a condition without inventing a discrete
+    state column.
+    """
     source = Path(path).expanduser()
     try:
         document = json.loads(source.read_text(encoding="utf-8"))
@@ -306,15 +315,42 @@ def load_state_gate(path: str | Path) -> StateGate:
             raise ValueError(f"state gate column {column!r} is repeated")
         seen.add(column)
         values = raw.get("values")
+        min_value = raw.get("min")
+        max_value = raw.get("max")
+        if values is not None:
+            if min_value is not None or max_value is not None:
+                raise ValueError(
+                    f"state gate all[{index}] cannot combine values with min or max"
+                )
+            if (
+                not isinstance(values, list)
+                or not values
+                or not all(
+                    isinstance(value, int) and not isinstance(value, bool)
+                    for value in values
+                )
+            ):
+                raise ValueError(
+                    f"state gate all[{index}].values must be a non-empty integer list"
+                )
+            if len(values) != len(set(values)):
+                raise ValueError(f"state gate all[{index}].values has duplicates")
+            clauses.append(StateClause(column, tuple(values)))
+            continue
+        if min_value is None and max_value is None:
+            raise ValueError(f"state gate all[{index}] needs values, min, or max")
+        for label, bound in (("min", min_value), ("max", max_value)):
+            if bound is not None and (
+                not isinstance(bound, int) or isinstance(bound, bool)
+            ):
+                raise ValueError(f"state gate all[{index}].{label} must be an integer")
         if (
-            not isinstance(values, list)
-            or not values
-            or not all(isinstance(value, int) and not isinstance(value, bool) for value in values)
+            min_value is not None
+            and max_value is not None
+            and min_value > max_value
         ):
-            raise ValueError(f"state gate all[{index}].values must be a non-empty integer list")
-        if len(values) != len(set(values)):
-            raise ValueError(f"state gate all[{index}].values has duplicates")
-        clauses.append(StateClause(column, tuple(values)))
+            raise ValueError(f"state gate all[{index}] min must not exceed max")
+        clauses.append(StateClause(column, None, min_value, max_value))
     return StateGate(tuple(clauses), document)
 
 
@@ -324,7 +360,13 @@ def state_matches(row: dict[str, Any], gate: StateGate | None) -> bool:
         return True
     for clause in gate.clauses:
         value = optional_int(row.get(clause.column))
-        if value is None or value not in clause.values:
+        if value is None:
+            return False
+        if clause.values is not None and value not in clause.values:
+            return False
+        if clause.min_value is not None and value < clause.min_value:
+            return False
+        if clause.max_value is not None and value > clause.max_value:
             return False
     return True
 

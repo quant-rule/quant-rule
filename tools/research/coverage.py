@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
-"""Check the M2.x coverage matrix and its frozen cell specs.
+"""Check the research coverage matrix and its frozen cell specs.
 
 The checker reads the program manifest, the committed area map, the registry,
-and every cell's `coverage.json` and `spec-<instrument>.json`. It proves that:
-
-- the program has ten exploratory and five primary cells;
-- every cell has one spec for each panel instrument;
-- each cell's indicators and events match its declared areas;
-- the prediction references only active signal events;
-- panel and session context are present where the area requires them;
-- every registry indicator and every registry event is covered at least once.
+and every cell's `coverage.json` and specs. It supports the M2 full matrix, the
+M3 state matrix, and the M4 primary matrix whose exploratory coverage is
+inherited from M2.
 
 It is read-only. It does not run the model and does not open validation.
 
 Usage:
     python3 tools/research/coverage.py \
         --program config/research/PROGRAM-2026-11-05-03/program.json
+    python3 tools/research/coverage.py \
+        --program config/research/PROGRAM-2026-11-07-01/program.json \
+        --family M4 \
+        --inherit config/research/PROGRAM-2026-11-05-03/program.json
+
+The file is slightly over the 1,000-line guideline after the M4 inherited
+coverage path. The M2, M3, and M4 checks share the registry, area, spec, and
+report helpers; splitting only the M4 path would duplicate or invert those
+dependencies, so the split is deferred to a dedicated refactor of the shared
+coverage kernel.
 """
 
 from __future__ import annotations
@@ -37,7 +42,9 @@ DATA_FILES = {
 }
 PRIMARY_IDS = ["M2.1", "M2.2", "M2.3", "M2.4", "M2.5"]
 PRIMARY_IDS_M3 = ["M3.1", "M3.2", "M3.3", "M3.4", "M3.5"]
+PRIMARY_IDS_M4 = ["M4.1", "M4.2", "M4.3", "M4.4", "M4.5"]
 M3_TIMEFRAMES = (3600, 900)
+M4_TIMEFRAME = 900
 STATE_SCHEMA = "quantrule.model-state-gate/v1"
 STATE_COLUMNS = {
     "context_code",
@@ -59,9 +66,14 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--family",
-        choices=("M2", "M3"),
+        choices=("M2", "M3", "M4"),
         default="M2",
         help="programme family layout",
+    )
+    parser.add_argument(
+        "--inherit",
+        default=None,
+        help="programme whose coverage is inherited (M4)",
     )
     parser.add_argument("--out", default=None, help="write coverage.json and .md here")
     return parser.parse_args(argv)
@@ -700,6 +712,214 @@ def check_m3(
     return document
 
 
+def check_m4(
+    program_path: Path,
+    registry_path: Path,
+    inherit_path: Path | None = None,
+    repo_root: Path | None = None,
+) -> dict[str, Any]:
+    """Checks the M4 programme: five location-conditioned cells.
+
+    The M4 surface adds no indicator or event, so the exploratory coverage is
+    inherited from the M2 programme rather than re-run. This checker proves the
+    five primary cells, their single signal event, their 15m specs, and their
+    ``level_touches`` gate, then checks the inherited M2 matrix.
+    """
+    root = (repo_root or Path.cwd()).resolve()
+    loaded = program_module.load_program(program_path, repo_root=root)
+    indicators, events = load_registry(registry_path)
+    published_readings = {
+        output
+        for indicator in indicators.values()
+        for output in indicator.get("outputs", [])
+        if isinstance(output, str)
+    }
+    errors: list[str] = []
+    cells: list[dict[str, Any]] = []
+    if "level_touches" not in published_readings:
+        errors.append("level_touches is not a published reading")
+    primary = [cell for cell in loaded.cells if cell.primary]
+    if len(loaded.cells) != 5:
+        errors.append(f"program has {len(loaded.cells)} cells; expected 5")
+    if sorted(cell.cell_id for cell in primary) != PRIMARY_IDS_M4:
+        errors.append("primary cell ids must be " + ", ".join(PRIMARY_IDS_M4))
+    spec_count = 0
+    for cell in primary:
+        cell_dir = root / cell.config_dir
+        coverage_path = cell_dir / "coverage.json"
+        if not coverage_path.is_file():
+            errors.append(f"{cell.cell_id}: coverage.json is missing")
+            continue
+        coverage = read_json(coverage_path)
+        if coverage.get("cell_id") != cell.cell_id:
+            errors.append(f"{cell.cell_id}: coverage.cell_id does not match")
+        if coverage.get("kind") != "primary":
+            errors.append(f"{cell.cell_id}: coverage.kind must be primary")
+        expected_events = coverage.get("events")
+        if (
+            not isinstance(expected_events, list)
+            or len(expected_events) != 1
+            or not all(isinstance(event, str) for event in expected_events)
+        ):
+            errors.append(f"{cell.cell_id}: coverage.events must be one event id")
+            expected_events = []
+        event_id = expected_events[0] if expected_events else None
+        event = events.get(event_id) if event_id else None
+        if event is None:
+            errors.append(f"{cell.cell_id}: event {event_id!r} is not registered")
+        elif event.get("role") != "signal":
+            errors.append(f"{cell.cell_id}: event {event_id!r} is not a signal event")
+        gate_path = cell_dir / "state.json"
+        if not gate_path.is_file():
+            errors.append(f"{cell.cell_id}: state.json is missing")
+        else:
+            gate = read_json(gate_path)
+            if gate.get("schema") != STATE_SCHEMA:
+                errors.append(f"{cell.cell_id}: state.json schema is not {STATE_SCHEMA}")
+            clauses = gate.get("all")
+            if not isinstance(clauses, list) or len(clauses) != 1:
+                errors.append(f"{cell.cell_id}: state.json must have one clause")
+            else:
+                clause = clauses[0]
+                if not isinstance(clause, dict):
+                    errors.append(f"{cell.cell_id}: state.json clause is not an object")
+                else:
+                    if clause.get("column") != "level_touches":
+                        errors.append(
+                            f"{cell.cell_id}: gate column must be level_touches"
+                        )
+                    if clause.get("min") != 1:
+                        errors.append(f"{cell.cell_id}: gate min must be 1")
+                    if "values" in clause:
+                        errors.append(
+                            f"{cell.cell_id}: gate must not combine values with min"
+                        )
+        instruments = coverage.get("instruments", INSTRUMENTS)
+        if (
+            not isinstance(instruments, list)
+            or not instruments
+            or not all(
+                isinstance(item, str) and item in INSTRUMENTS for item in instruments
+            )
+        ):
+            errors.append(f"{cell.cell_id}: instruments must be a known list")
+            instruments = list(INSTRUMENTS)
+        if coverage.get("timeframe") != M4_TIMEFRAME:
+            errors.append(f"{cell.cell_id}: timeframe must be {M4_TIMEFRAME}")
+        cell_active: set[str] = set()
+        for instrument in instruments:
+            path = cell_dir / f"spec-{instrument}-{M4_TIMEFRAME}.json"
+            if not path.is_file():
+                errors.append(f"{path}: spec is missing")
+                continue
+            spec_count += 1
+            spec = read_json(path)
+            if spec.get("schema") != "quantrule.model-spec/v2":
+                errors.append(f"{path}: schema is not quantrule.model-spec/v2")
+            if spec.get("family") != "M4":
+                errors.append(f"{path}: family is not M4")
+            if spec.get("id") != cell.cell_id:
+                errors.append(f"{path}: id does not match {cell.cell_id}")
+            if spec.get("instrument") != instrument:
+                errors.append(f"{path}: instrument does not match the file name")
+            if spec.get("timeframes") != [M4_TIMEFRAME]:
+                errors.append(f"{path}: timeframes must be [{M4_TIMEFRAME}]")
+            active = spec.get("active_events")
+            if not isinstance(active, list) or not all(
+                isinstance(item, str) for item in active
+            ):
+                errors.append(f"{path}: active_events must be a string list")
+                active = []
+            if len(active) != len(set(active)):
+                errors.append(f"{path}: active_events has duplicates")
+            if event_id is not None and set(active) != {event_id}:
+                errors.append(f"{path}: active_events must be exactly [{event_id}]")
+            cell_active.update(active)
+            prediction = spec.get("prediction")
+            if not isinstance(prediction, dict):
+                errors.append(f"{path}: prediction must be an object")
+                prediction = {}
+            if prediction.get("kind") != "direction":
+                errors.append(f"{path}: prediction.kind must be direction")
+            if prediction.get("events") != [event_id]:
+                errors.append(f"{path}: prediction.events must be [{event_id}]")
+            if prediction.get("min_votes") != 1:
+                errors.append(f"{path}: prediction.min_votes must be 1")
+        cells.append(
+            {
+                "cell_id": cell.cell_id,
+                "kind": "primary",
+                "events": expected_events,
+                "active_events": sorted(cell_active),
+                "instruments": instruments,
+                "timeframe": M4_TIMEFRAME,
+                "gate": {"column": "level_touches", "min": 1},
+            }
+        )
+    inherited = None
+    if inherit_path is None:
+        errors.append("--inherit is required for M4")
+    else:
+        inherit = Path(inherit_path).expanduser()
+        if not inherit.is_absolute():
+            inherit = root / inherit
+        inherited_document = check(inherit, registry_path, root)
+        if not inherited_document["ok"]:
+            errors.append("inherited coverage is not ok")
+        if inherited_document["counts"]["indicators"] != len(indicators):
+            errors.append("inherited indicator count does not match the registry")
+        if inherited_document["counts"]["events"] != len(events):
+            errors.append("inherited event count does not match the registry")
+        inherited = inherited_document["program_id"]
+    document = {
+        "schema": SCHEMA,
+        "program_id": loaded.program_id,
+        "family": "M4",
+        "ok": not errors,
+        "counts": {
+            "cells": len(loaded.cells),
+            "primary": len(primary),
+            "indicators": len(indicators),
+            "events": len(events),
+            "specs": spec_count,
+        },
+        "inherited": inherited,
+        "cells": cells,
+        "errors": errors,
+    }
+    return document
+
+
+def markdown_m4(document: dict[str, Any]) -> str:
+    lines = [
+        "# M4.x Coverage",
+        "",
+        f"- Program: `{document['program_id']}`",
+        f"- Status: **{'ok' if document['ok'] else 'failed'}**",
+        f"- Inherited: `{document.get('inherited') or '-'}`",
+        f"- Primary cells: {document['counts']['primary']}",
+        f"- Indicators: {document['counts']['indicators']}; events: {document['counts']['events']}; specs: {document['counts']['specs']}",
+        "",
+        "| Cell | Kind | Instruments | Timeframe | Events | Gate |",
+        "|---|---|---|---:|---|---|",
+    ]
+    for cell in document["cells"]:
+        gate = cell["gate"]
+        lines.append(
+            f"| {cell['cell_id']} | {cell['kind']} | "
+            f"{','.join(cell['instruments'])} | {cell['timeframe']} | "
+            f"{','.join(cell['events'])} | "
+            f"{gate['column']} >= {gate['min']} |"
+        )
+    lines.extend(["", "## Errors", ""])
+    if document["errors"]:
+        lines.extend(f"- {error}" for error in document["errors"])
+    else:
+        lines.append("- None.")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def markdown_m3(document: dict[str, Any]) -> str:
     lines = [
         "# M3.x Coverage",
@@ -764,7 +984,14 @@ def markdown(document: dict[str, Any]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_arguments(argv)
-    if args.family == "M3":
+    if args.family == "M4":
+        document = check_m4(
+            Path(args.program).expanduser(),
+            Path(args.registry).expanduser(),
+            Path(args.inherit).expanduser() if args.inherit else None,
+        )
+        render = markdown_m4
+    elif args.family == "M3":
         document = check_m3(
             Path(args.program).expanduser(), Path(args.registry).expanduser()
         )
@@ -782,10 +1009,14 @@ def main(argv: list[str] | None = None) -> int:
         )
         (out / "coverage.md").write_text(render(document), encoding="utf-8")
     if document["ok"]:
-        print(
+        message = (
             f"ok {document['program_id']} cells={document['counts']['cells']} "
-            f"indicators={document['counts']['indicators']} events={document['counts']['events']}"
+            f"indicators={document['counts']['indicators']} "
+            f"events={document['counts']['events']}"
         )
+        if document.get("inherited"):
+            message += f" inherited={document['inherited']}"
+        print(message)
         return 0
     for error in document["errors"]:
         print(f"error: {error}", file=sys.stderr)

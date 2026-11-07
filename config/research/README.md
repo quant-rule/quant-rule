@@ -1,11 +1,13 @@
 # Research Programs
 
-- Status: Historical M2.x evidence after the P3 cutover
+- Status: M2.x and M3.x historical evidence; M4.x current model research programme
 
-These configs predate the flat-model cutover. Their `runs/**/run.json` files
-reference the retired `strategy.json` and `analytics.json` files, so the current
-loader rejects them. They are kept for reproducibility of the M2.x evidence, not
-as current run configs. The current example runs are under `config/examples/`.
+The M2.x configs predate the flat-model cutover. Their `runs/**/run.json` files
+reference retired sibling files, so they are kept for reproducibility of the
+M2.x evidence, not as current run configs. The M3.x configs are retained for the
+underpowered preflight. The M4.x programme (`PROGRAM-2026-11-07-01`) is current;
+its run configs use the current sibling schemas and the M1.0 model. The current
+example runs are under `config/examples/`.
 
 A research program is a premise plus a finite set of pre-registered cells. The
 manifest is data; the runner and engine do the work. A program is not a
@@ -45,6 +47,12 @@ python3 tools/research/program.py --program config/research/<PROGRAM-ID>/program
 # Check the event and indicator coverage of the matrix.
 python3 tools/research/coverage.py \
   --program config/research/<PROGRAM-ID>/program.json
+
+# Check an M4 programme that inherits the M2 exploratory surface.
+python3 tools/research/coverage.py \
+  --program config/research/<PROGRAM-ID>/program.json \
+  --family M4 \
+  --inherit config/research/PROGRAM-2026-11-05-03/program.json
 
 # Run one model cell (four instruments + one pooled evaluation).
 python3 tools/research/model_cell.py \

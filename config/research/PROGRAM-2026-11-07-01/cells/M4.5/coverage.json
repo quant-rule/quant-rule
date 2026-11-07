@@ -1,0 +1,19 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "M4.5",
+  "kind": "primary",
+  "events": [
+    "signal.ema_stack_change"
+  ],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "gate": {
+    "column": "level_touches",
+    "min": 1
+  }
+}

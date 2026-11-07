@@ -1,8 +1,8 @@
 # Research tooling
 
-> Status: historical / S3.x target. The scripts are retained for the M2.x and
-> M3.x programme records and the reproducibility checks in CI. They are not part
-> of the M1.0 shell surface; the current model surface is `report model` and
+> Status: current for the M4.x research programme; retained for the M2.x and M3.x
+> programme records and the reproducibility checks in CI. The scripts are not
+> part of the M1.0 shell surface; the current model surface is `report model` and
 > `events`.
 
 The package validates programme manifests, resolves programme cells, runs the

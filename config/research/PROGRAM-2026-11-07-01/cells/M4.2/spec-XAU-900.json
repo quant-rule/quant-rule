@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "M4.2",
+  "family": "M4",
+  "instrument": "XAU",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.macd_histogram_slope_flip"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.macd_histogram_slope_flip"
+    ],
+    "min_votes": 1
+  }
+}

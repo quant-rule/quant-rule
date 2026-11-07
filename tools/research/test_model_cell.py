@@ -91,6 +91,53 @@ class ModelCellTests(unittest.TestCase):
         self.assertIn(document["grade"], {"A", "B"})
         self.assertEqual(document["verdict"], "pass")
 
+    def test_state_gate_is_not_passed_to_the_model(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cell, qr = make_cell(root)
+            state = cell / "state.json"
+            state.write_text(
+                json.dumps(
+                    {
+                        "schema": "quantrule.model-state-gate/v1",
+                        "all": [{"column": "level_touches", "min": 1}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            out = root / "out"
+            code = model_cell.main(
+                [
+                    "--cell-dir",
+                    str(cell),
+                    "--phase",
+                    "dev",
+                    "--out",
+                    str(out),
+                    "--runs-dir",
+                    str(cell.parent.parent / "runs"),
+                    "--qr",
+                    str(qr),
+                    "--evaluator",
+                    str(EVALUATOR),
+                    "--repo-root",
+                    str(cell.parent.parent),
+                    "--primary-cells",
+                    "5",
+                    "--seed",
+                    "0",
+                    "--state-file",
+                    str(state),
+                ]
+            )
+            self.assertEqual(code, 0)
+            args = json.loads(
+                (out / "XAU" / "2018" / "model" / "args.json").read_text()
+            )
+            self.assertNotIn("--state-file", args)
+            self.assertIn("--config", args)
+            self.assertIn("--spec", args)
+
     def test_validation_uses_the_validation_years(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

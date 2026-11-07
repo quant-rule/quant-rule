@@ -13,6 +13,7 @@ import coverage
 ROOT = Path(__file__).resolve().parents[2]
 PROGRAM = ROOT / "config/research/PROGRAM-2026-11-05-03/program.json"
 PROGRAM_M3 = ROOT / "config/research/PROGRAM-2026-11-05-04/program.json"
+PROGRAM_M4 = ROOT / "config/research/PROGRAM-2026-11-07-01/program.json"
 REGISTRY = ROOT / "docs/registry/indicators.json"
 
 
@@ -41,6 +42,17 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(document["counts"]["specs"], 112)
         self.assertEqual(document["missing_indicators"], [])
         self.assertEqual(document["missing_events"], [])
+
+    def test_the_committed_m4_program_is_covered(self) -> None:
+        document = coverage.check_m4(PROGRAM_M4, REGISTRY, PROGRAM, ROOT)
+        self.assertTrue(document["ok"], document["errors"])
+        self.assertEqual(document["family"], "M4")
+        self.assertEqual(document["counts"]["cells"], 5)
+        self.assertEqual(document["counts"]["primary"], 5)
+        self.assertEqual(document["counts"]["indicators"], 46)
+        self.assertEqual(document["counts"]["events"], 143)
+        self.assertEqual(document["counts"]["specs"], 20)
+        self.assertEqual(document["inherited"], "PROGRAM-2026-11-05-03")
 
     def test_an_unused_registry_event_is_reported(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
