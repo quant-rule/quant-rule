@@ -273,15 +273,15 @@ fn path_command(
 
 /// Parses the optional one- or two-word help topic.
 ///
-/// `all` and `glossary` are reserved topics. Any other topic must name a
-/// command in the help metadata.
+/// `all`, `glossary`, and `workflows` are reserved topics. Any other topic must
+/// name a command in the help metadata.
 ///
 /// # Errors
 ///
 /// Returns [`ParseError::Usage`] for more than two words, and
 /// [`ParseError::Help`] for a name that is not a command.
 pub(crate) fn parse_help_arguments(arguments: &[String]) -> Result<HelpTopic, ParseError> {
-    const USAGE: &str = "usage: help [<command>|all|glossary]";
+    const USAGE: &str = "usage: help [<command>|all|glossary|workflows]";
     if arguments.len() > 2 {
         return Err(ParseError::Usage(USAGE.to_owned()));
     }
@@ -292,10 +292,11 @@ pub(crate) fn parse_help_arguments(arguments: &[String]) -> Result<HelpTopic, Pa
         match arguments[0].as_str() {
             "all" => return Ok(HelpTopic::All),
             "glossary" => return Ok(HelpTopic::Glossary),
+            "workflows" => return Ok(HelpTopic::Workflows),
             _ => {}
         }
     }
-    if matches!(arguments[0].as_str(), "all" | "glossary") {
+    if matches!(arguments[0].as_str(), "all" | "glossary" | "workflows") {
         return Err(ParseError::Usage(USAGE.to_owned()));
     }
     let name = arguments.join(" ");

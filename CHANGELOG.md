@@ -13,6 +13,13 @@ are not treated as releases.
 
 ## [Unreleased]
 
+### Added
+
+- `help workflows` in the shell: an intention-to-workflow selection guide with
+  the first command or tool for each workflow.
+- The workflow lab now shows the command-level selection table and the model
+  research/swarm quick path.
+
 ## [0.6.0] - 2026-11-07
 
 ### Added

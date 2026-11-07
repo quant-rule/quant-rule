@@ -90,7 +90,7 @@ the distinction.
 | `events` | Model | Implemented | `<csv-path> [--window full\|latest]` | Event records |
 | `report model` | Model | Implemented | `--config <run.json>` and options | Model bundle |
 | `policy check` | Configuration | Implemented | `--config <run.json>` | Validation line |
-| `help` | Shell | Implemented | `[<command>\|all\|glossary]` | Plain text |
+| `help` | Shell | Implemented | `[<command>\|all\|glossary\|workflows]` | Plain text |
 | `strategy explain` | Strategy | Implemented | Model bundle, strategy config, bar index | One decision and its as-of evidence |
 | `strategy run` | Strategy | Implemented | Model bundle, strategy config | Decisions bundle |
 | `execution run` | Execution | Implemented | Decisions bundle, run config with execution and sizing | Fills bundle |
@@ -163,7 +163,7 @@ A command exists only when all five surfaces agree:
 
 | Surface | What it carries |
 |---|---|
-| `help.rs` | The command name, usage, summary, output shape, and contract notes. `help`, `help <command>`, and `help all` render from this registry. |
+| `help.rs` | The command name, usage, summary, output shape, and contract notes. `help`, `help <command>`, and `help all` render from this registry; the glossary and workflow topics are static text. |
 | README command table | The current command set and a one-line output description. |
 | Tutorial | At least one runnable invocation of the command, with the expected output shape. |
 | Command registry table | The stage, status, input, and output of the command. |

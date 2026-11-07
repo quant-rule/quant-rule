@@ -112,6 +112,7 @@ fetch
   note:   The CSV is written atomically; an empty result leaves no file.
 
 help
-  usage:  help [<command>|all|glossary]
-  does:   Print the command map, one command contract, or the glossary.
+  usage:  help [<command>|all|glossary|workflows]
+  does:   Print the command map, one command contract, or a reference topic.
   output: plain text
+  note:   The workflows topic maps an intention to a workflow and its first command.

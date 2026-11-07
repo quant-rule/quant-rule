@@ -14,7 +14,8 @@ QuantRule shell commands
   qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json] Evaluate an evidence bundle against human-owned qualification criteria.
   analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json] Publish descriptive metrics and evaluation tables from a backtest bundle.
   fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>] Fetch a Dukascopy range and write the accepted candles as CSV.
-  help [<command>|all|glossary]                              Print the command map, one command contract, or the glossary.
+  help [<command>|all|glossary|workflows]                    Print the command map, one command contract, or a reference topic.
 
 Type help <command> for the full contract, help all for every contract,
-or help glossary for the precise-term glossary.
+help glossary for the precise-term glossary, or help workflows for the
+workflow selection guide.

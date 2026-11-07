@@ -68,6 +68,7 @@ repeating a status.
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |
 | M1.0 model lab tutorial | Current; covers the data and model surface | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
+| Workflow lab tutorial | Current; workflow selection, stage commands, and the current run adapter | `docs/tutorials/2026-11-07/workflow-lab.md` |
 | Strategy lab tutorial | Current; `report model`, `strategy explain`, `strategy run` | `docs/tutorials/2026-11-06/strategy-lab.md` |
 | Execution lab tutorial | Current; `report model`, `strategy run`, `execution run` | `docs/tutorials/2026-11-06/execution-lab.md` |
 | Portfolio lab tutorial | Current; `report model`, `strategy run`, `execution run`, `portfolio replay` | `docs/tutorials/2026-11-06/portfolio-lab.md` |

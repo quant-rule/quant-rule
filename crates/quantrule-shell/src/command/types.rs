@@ -72,6 +72,8 @@ pub(crate) enum HelpTopic {
     All,
     /// The precise-term glossary.
     Glossary,
+    /// The workflow selection guide.
+    Workflows,
     /// One command, named by one or two words.
     Command(String),
 }

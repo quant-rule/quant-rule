@@ -70,7 +70,7 @@ one command and exits with the command's status:
 | `analytics evaluate` | `--evidence <backtest-bundle> [--out <dir>] [--json]` | The metrics, tables, and summary paths |
 | `policy check` | `--config <run.json>` | One `policy ok ...` line after every config check |
 | `fetch` | `<symbol> <start> <end> [--timeframe <1m\|5m\|15m\|1h>] [--csv <path>]` | The CSV path and the accepted/rejected counts |
-| `help` | `[<command>\|all\|glossary]` | The command map, one contract, or the glossary |
+| `help` | `[<command>\|all\|glossary\|workflows]` | The command map, one contract, the glossary, or the workflow selection guide |
 
 `events` uses the data engine's default ladder M1, M5, M15, H1 and the default
 model configuration. `report model` uses the configured run's ladder and model
@@ -92,6 +92,7 @@ quantrule backtest run --config crates/quantrule-shell/tests/fixtures/config-run
 quantrule qualify --evidence target/backtest/backtest --criteria crates/quantrule-shell/tests/fixtures/qualification/pass.json --out target/backtest
 quantrule analytics evaluate --evidence target/backtest/backtest --out target/backtest
 quantrule fetch gold 2025-01-01 2025-12-31 --timeframe 1h --csv data/sources/XAUUSD_H1.csv
+quantrule help workflows
 ```
 
 The command table is the complete current surface. A planned command is not
