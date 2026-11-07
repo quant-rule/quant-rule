@@ -1,7 +1,7 @@
 # S3.x Stage-Surface Audit — Remediation Plan
 
 - Date: 2026-11-07 (UTC)
-- Status: PRs #534/#535/#536 open 2026-11-07; checks pass; merge and independent verification pending
+- Status: Merged 2026-11-07 at `e8f99cc`; independent verification pending
 - Issue: none (the fix issues are created only after approval; no issue number is
   invented)
 - Audit: [`docs/audits/2026-11-07/s3-stage-surface-audit.md`](../../audits/2026-11-07/s3-stage-surface-audit.md)
@@ -249,10 +249,10 @@ the scope in this plan, not an edge claim, a commit, a push, a PR, or a merge.
 ## 14. Implementation record
 
 Observed on `fix/s3-audit-remediation` based on `2f04ca2` on 2026-11-07. The
-work is committed as `cb08c11` and published in PR #536, stacked on PR #535 and
-PR #534; it is not merged. The code and test changes are one review batch
-because several sub-issues share files; the sub-issue split is recorded in
-section 7, not in separate commits.
+work is committed as `cb08c11`, published in PR #536, and merged at `e8f99cc`;
+the plan is PR #535 and the removal is PR #534. The code and test changes are one
+review batch because several sub-issues share files; the sub-issue split is
+recorded in section 7, not in separate commits.
 
 | Sub-issue | Implementation | Verification |
 |---|---|---|
@@ -280,15 +280,12 @@ The analytics and qualification golden fixtures were regenerated because the
 manifest gained `strategy_config_id`; only the manifest hash moved. The decision
 and accounting values are unchanged.
 
-Outstanding before a fix can be `Fixed`/`Verified`:
+Outstanding before a finding can be `Verified`:
 
 - An independent Quant Validator record for S1-S4.
 - An independent Code Reviewer pass.
-- Merge PRs #534 → #535 → #536 in order, retargeting the stacked bases to `main`
-  after each merge. The local fix commit is a batch, not a per-sub-issue split.
-- The merged-tree gate.
-- The audit findings remain `Open` until the merged fix exists; S1-S8 are
-  implementation evidence, not closure evidence.
+- The Improvement Verifier's closure check.
+- The merged-tree gate passes; the findings are `Fixed`, not yet `Verified`.
 
 Deviation from section 7: the implementation is on one remediation branch rather
 than one branch per sub-issue. The changes are separable by sub-issue for commit
@@ -333,5 +330,4 @@ independent Code Reviewer or Quant Validator reviews.
 
 - An independent Quant Validator record for S1-S4.
 - An independent Code Reviewer pass.
-- Merge PRs #534 → #535 → #536 in order, retargeting the stacked bases to `main`
-  after each merge. The local commit is a batch, not a per-sub-issue split.
+- The Improvement Verifier's closure check.
