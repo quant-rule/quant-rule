@@ -230,7 +230,7 @@ fn help_lists_only_the_surviving_commands() {
 }
 
 #[test]
-fn help_all_and_glossary_are_stable_topics() {
+fn help_topics_are_stable() {
     let all = run(&["help", "all"]);
     assert_success(&all);
     assert_eq!(stdout_text(&all), fixture_text("help-all.txt"));
@@ -238,6 +238,10 @@ fn help_all_and_glossary_are_stable_topics() {
     let glossary = run(&["help", "glossary"]);
     assert_success(&glossary);
     assert_eq!(stdout_text(&glossary), fixture_text("help-glossary.txt"));
+
+    let workflows = run(&["help", "workflows"]);
+    assert_success(&workflows);
+    assert_eq!(stdout_text(&workflows), fixture_text("help-workflows.txt"));
 }
 
 #[test]

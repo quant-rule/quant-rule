@@ -1,0 +1,43 @@
+Workflow selection
+
+Choose the workflow by your intention, not by the command you happen to know.
+The full contracts are in docs/workflows/README.md.
+
+  If you want to...                          Workflow                   Start with
+  Find or fix a defect                       Audit                      audit document, then remediation plan
+  Restructure without behavior change        Refactor                   refactor assessment, then plan
+  Inspect candles or timeframes              Data Lifecycle             candles, candles-tolerant, timeframes
+  Inspect events or the model report         Model Research             events, report model
+  Experiment with model configs/events       Model Research + Swarm     report model; tools/research
+  Add or change an indicator/event           Model Change               registry, validation, verification
+  Test a strategy rule                       Strategy Research          strategy explain/run, backtest run
+  Test execution/portfolio mechanics         Portfolio Research         execution run, portfolio replay
+  Change the policy envelope                 Policy Change              policy check
+  Change a data source/version/partition     Data Lifecycle             fetch, data/partitions.json
+  Add a command, report, or capability       Requirements & Design      plan first
+  Release, tag, rollback, or incident        Release & Operations       release note, CHANGELOG.md
+  Retire a model/event/command/source        Deprecation & Retirement   history, invalidation
+  Record a finding/run/baseline/status       Recordkeeping              docs/workflows/recordkeeping.md
+  Run a pre-registered improvement           Improvement Workflow       Run Contract
+  Make a run valid evidence                  Run Contract               manifest, results, review, decision
+  Run parallel pre-registered cells          Research Swarm             coordinator + cell agents
+
+Model research quick path:
+  1. State the premise and screen it (data admissibility, sample size).
+  2. Write a Program Charter; the human approves the cells and partitions.
+  3. Run the cells on model_dev; one cell per config and output.
+  4. Aggregate; the human promotes at most the declared primary cells.
+  5. Run model_validation once; grade A/B/C/D; accept or record no_edge.
+
+Rules:
+  - Strategy Research starts only after an accepted model baseline.
+  - Portfolio Research starts only after an accepted strategy baseline.
+  - Policy is human-owned; it is not a research tier.
+  - No automatic optimizer. Exploratory cells are not ranked and never open validation.
+  - There is no `swarm` shell command. The swarm is an operating procedure; use
+    the stage commands and tools/research for the cells.
+  - Stage commands: report model, strategy run, execution run, portfolio replay,
+    backtest run, qualify, analytics evaluate.
+
+Full index: docs/workflows/README.md
+Worked lab: docs/tutorials/2026-11-07/workflow-lab.md

@@ -8,22 +8,57 @@
 ## 1. Choose the workflow
 
 Read [`docs/workflows/README.md`](../../workflows/README.md). The workflow is
-chosen by the decision boundary, not by the file you expect to edit:
+chosen by the decision boundary, not by the file you expect to edit. The same
+guide is available in the shell:
 
-| If the change is… | Use |
-|---|---|
-| A defect | Audit |
-| A structural problem | Refactor |
-| A model hypothesis | Model Research |
-| An indicator or event implementation | Model Change |
-| A strategy hypothesis | Strategy Research |
-| An execution or portfolio hypothesis | Portfolio Research |
-| A policy envelope change | Policy Change |
-| A data source or partition change | Data Lifecycle |
-| A new command or capability | Requirements & Design |
-| A release or incident | Release & Operations |
-| A retirement | Deprecation & Retirement |
-| A record or changelog issue | Recordkeeping |
+```bash
+quantrule help workflows
+```
+
+| If you want to… | Use | First command or tool |
+|---|---|---|
+| Find or fix a defect | Audit | audit document, then remediation plan |
+| Restructure without behavior change | Refactor | refactor assessment, then plan |
+| Inspect candles or timeframes | Data Lifecycle | `candles`, `candles-tolerant`, `timeframes` |
+| Inspect events or the model report | Model Research | `events`, `report model` |
+| Experiment with model configs or events | Model Research + Research Swarm | `report model`; `tools/research/` |
+| Add or change an indicator or event | Model Change | registry, validation, verification gates |
+| Test a strategy rule | Strategy Research | `strategy explain`, `strategy run`, `backtest run` |
+| Test execution or portfolio mechanics | Portfolio Research | `execution run`, `portfolio replay`, `backtest run` |
+| Change the policy envelope | Policy Change | `policy check` |
+| Change a data source, version, or partition | Data Lifecycle | `fetch`, `data/partitions.json` |
+| Add a command, report, or capability | Requirements & Design | plan first |
+| Release, tag, rollback, or incident | Release & Operations | release note, `CHANGELOG.md` |
+| Retire a model, event, command, or source | Deprecation & Retirement | history, invalidation |
+| Record a finding, run, baseline, or status | Recordkeeping | `docs/workflows/recordkeeping.md` |
+| Run a pre-registered improvement | Improvement Workflow | Run Contract |
+| Make a run valid evidence | Run Contract | manifest, results, review, decision |
+| Run parallel pre-registered cells | Research Swarm | coordinator + cell agents |
+
+### Model research and the swarm
+
+There is **no `swarm` shell command**. The swarm is an operating procedure: a
+coordinator creates pre-registered cells, and each cell is one hypothesis, one
+config, one worktree or output directory, and one result.
+
+```text
+Program Charter -> cells on model_dev -> aggregate -> human promotes
+-> model_validation once -> grade A/B/C/D -> baseline or no_edge
+```
+
+- The charter is [`program-charter-template.md`](../../governance/2026-11-04/program-charter-template.md).
+- The coordinator checks the program with `tools/research/program.py --check`.
+- Config-only cells can use `tools/research/batch.py --phase dev --mode config`;
+  code-bearing cells get one worktree per cell.
+- `tools/research/report.py` aggregates; `tools/research/coverage.py` checks
+  indicator/event coverage.
+- A cell runs `report model` (or the research cell runner); the promoted cell
+  runs `model_validation` once.
+- `tools/research/README.md` marks the batch scripts historical/retained for the
+  M2.x/M3.x records. Verify or refresh them against the current S3 surface before
+  a new campaign.
+- The Run Contract records each run; the human accepts a baseline or records
+  `no_edge`.
 
 This lab runs a strategy tier on the shell fixtures. It is a command and artifact
 lab, not a research claim.
@@ -176,6 +211,7 @@ Stop and route to the owning workflow when:
 
 ## 7. Related documents
 
+- `quantrule help workflows` — the in-shell selection guide.
 - [`docs/workflows/README.md`](../../workflows/README.md)
 - [`docs/workflows/improvement-workflow.md`](../../workflows/improvement-workflow.md)
 - [`docs/workflows/run-contract.md`](../../workflows/run-contract.md)

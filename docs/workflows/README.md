@@ -20,6 +20,9 @@ create a second root agent-instructions file.
 The current status of the pipeline, model, strategy, portfolio, and tooling is
 in [`docs/README.md`](../README.md). This index records workflow status only.
 
+The shell's `help workflows` topic is the in-shell selection guide. It maps an
+intention to a workflow and its first command; the full contracts are here.
+
 Historical records are indexed by [`docs/README.md`](../README.md). The change
 history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 

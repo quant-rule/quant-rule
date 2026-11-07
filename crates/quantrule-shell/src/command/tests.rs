@@ -142,6 +142,10 @@ fn parses_help_topics() {
         Ok(Some(Command::Help(HelpTopic::Glossary)))
     );
     assert_eq!(
+        parse("help workflows"),
+        Ok(Some(Command::Help(HelpTopic::Workflows)))
+    );
+    assert_eq!(
         parse("help report model"),
         Ok(Some(Command::Help(HelpTopic::Command(
             "report model".to_owned()

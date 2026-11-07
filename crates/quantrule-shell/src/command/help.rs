@@ -9,7 +9,7 @@ mod topics;
 
 use std::io::Write;
 
-use topics::render_glossary;
+use topics::{render_glossary, render_workflows};
 
 use super::types::{HelpTopic, RunError};
 
@@ -184,10 +184,10 @@ const COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "help",
-        usage: "help [<command>|all|glossary]",
-        summary: "Print the command map, one command contract, or the glossary.",
+        usage: "help [<command>|all|glossary|workflows]",
+        summary: "Print the command map, one command contract, or a reference topic.",
         output: "plain text",
-        notes: &[],
+        notes: &["The workflows topic maps an intention to a workflow and its first command."],
     },
 ];
 
@@ -207,6 +207,7 @@ pub(crate) fn run_help(topic: &HelpTopic, writer: &mut impl Write) -> Result<(),
         HelpTopic::Short => write_short(writer),
         HelpTopic::All => write_all(writer),
         HelpTopic::Glossary => render_glossary(writer),
+        HelpTopic::Workflows => render_workflows(writer),
         HelpTopic::Command(name) => {
             let command = COMMANDS
                 .iter()
@@ -230,7 +231,11 @@ fn write_short(writer: &mut impl Write) -> std::io::Result<()> {
         writer,
         "Type help <command> for the full contract, help all for every contract,"
     )?;
-    writeln!(writer, "or help glossary for the precise-term glossary.")
+    writeln!(
+        writer,
+        "help glossary for the precise-term glossary, or help workflows for the"
+    )?;
+    writeln!(writer, "workflow selection guide.")
 }
 
 fn write_all(writer: &mut impl Write) -> std::io::Result<()> {
