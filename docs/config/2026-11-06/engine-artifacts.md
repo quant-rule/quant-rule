@@ -204,8 +204,10 @@ The evidence list carries only published signal/context inputs:
 |---|---|
 | `event` | `event_code`, `event_type`, `subtype`, `source`, `occurred_bar`, `available_bar`, `direction`. |
 | `state` | `timeframe_secs`, `field`, `value`, `bar_index`. |
-| `level` | `reference_code`, `price`, `occurred_at`, `available_at`. |
-| `progression` | `stage_code`, `leg_direction`, `bar_index`. |
+
+The current rule language emits event and state evidence only. A level or
+progression condition would be a new approved rule-language change, not an
+undocumented extension.
 
 A diagnostic reading never appears in the evidence list. A statistical value
 never appears in a decision record. The strategy input boundary test proves that

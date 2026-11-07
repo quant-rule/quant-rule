@@ -24,7 +24,10 @@ use crate::pipeline::{self, PipelineError};
 use crate::portfolio::{self, PortfolioRunError};
 use crate::render_report::{self, BundleError};
 use crate::request::{BacktestRunArgs, PortfolioReplayArgs};
-use crate::strategy::{DecisionCounts, StrategyArtifactMeta, artifacts, decision_record};
+use crate::strategy::{
+    DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
+    validate_context,
+};
 
 /// The backtest command failed.
 #[derive(Debug)]
@@ -35,6 +38,8 @@ pub(crate) enum BacktestRunError {
     StrategyConfig(ConfigError),
     /// The model stage failed.
     Pipeline(PipelineError),
+    /// The strategy's timeframes do not fit the model and run.
+    Context(StrategyContextError),
     /// The model bundle could not be written.
     Model(String),
     /// A strategy artifact could not be encoded.
@@ -78,6 +83,7 @@ impl fmt::Display for BacktestRunError {
             Self::Pipeline(PipelineError::EmptyPeriod) => {
                 formatter.write_str("the requested period selected no candle")
             }
+            Self::Context(error) => error.fmt(formatter),
             Self::Model(message) => formatter.write_str(message),
             Self::StrategyArtifact(error) => error.fmt(formatter),
             Self::Execution(error) => error.fmt(formatter),
@@ -105,6 +111,7 @@ impl std::error::Error for BacktestRunError {
             Self::Config(error) | Self::StrategyConfig(error) => Some(error),
             Self::Pipeline(PipelineError::Source(error)) => Some(error),
             Self::Pipeline(PipelineError::EmptyPeriod) => None,
+            Self::Context(error) => Some(error),
             Self::Model(_) => None,
             Self::StrategyArtifact(error) => Some(error),
             Self::Execution(error) => Some(error),
@@ -135,13 +142,18 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
         .clone()
         .unwrap_or_else(|| config.output_root.clone());
     let root = out.join("backtest");
-
-    let model_run = pipeline::run_model(&config).map_err(BacktestRunError::Pipeline)?;
-    model_bundle_from(&config, &root, &model_run)
-        .map_err(|error| BacktestRunError::Model(error.to_string()))?;
+    render_report::ensure_available(&root).map_err(BacktestRunError::Bundle)?;
 
     let fill_timeframe = config.execution.fill_timeframe;
     let execution = u64::from(fill_timeframe.seconds());
+    let model_run = pipeline::run_model(&config).map_err(BacktestRunError::Pipeline)?;
+    validate_context(&strategy_config, Some(execution), |timeframe| {
+        model_run.timeframe(timeframe).is_some()
+    })
+    .map_err(BacktestRunError::Context)?;
+    model_bundle_from(&config, &root, &model_run)
+        .map_err(|error| BacktestRunError::Model(error.to_string()))?;
+
     let timeframe = model_run
         .timeframe(execution)
         .ok_or(BacktestRunError::MissingTimeframe {
@@ -346,7 +358,7 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
         stage_info(&root, "execution", "fills")?,
         stage_info(&root, "portfolio", "portfolio")?,
     ];
-    let manifest = manifest_bytes(&config, &stages)?;
+    let manifest = manifest_bytes(&config, &strategy_config_id, &stages)?;
     let provenance = backtest_provenance_bytes(&config, &stages)?;
     crate::export::write_atomic(&root.join("provenance.json"), &provenance)
         .map_err(BacktestRunError::Export)?;
@@ -451,12 +463,17 @@ fn stage_info(
     })
 }
 
-fn manifest_bytes(config: &RunConfig, stages: &[StageInfo]) -> Result<Vec<u8>, BacktestRunError> {
+fn manifest_bytes(
+    config: &RunConfig,
+    strategy_config_id: &str,
+    stages: &[StageInfo],
+) -> Result<Vec<u8>, BacktestRunError> {
     let value = json!({
         "schema": "quantrule.backtest-manifest/v1",
         "run": config.name,
         "data_version": config.data.data_version,
         "config_id": config.config_hash,
+        "strategy_config_id": strategy_config_id,
         "code_commit": "unknown",
         "seed": Value::Null,
         "period": {

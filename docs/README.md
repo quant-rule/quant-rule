@@ -32,7 +32,7 @@ linked below.
 | The Trustworthy Backtest Kata | Current | `docs/architecture/kata.md` |
 | Architecture characteristics | Current | `docs/architecture/characteristics.md` |
 | Command surface | Current; implemented/planned stage contract and drift gate | `docs/architecture/command-surface.md` |
-| S3.x command-surface plan | Approved 2026-11-06; Phase 1 implemented and verified locally, publication pending | `docs/execution-plans/2026-11-06/s3-command-surface.md` |
+| S3.x command-surface plan | Approved 2026-11-06; all phases merged; human acceptance pending | `docs/execution-plans/2026-11-06/s3-command-surface.md` |
 
 ## Current model
 

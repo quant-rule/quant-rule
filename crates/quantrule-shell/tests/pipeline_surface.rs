@@ -137,6 +137,14 @@ fn read_text(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
+fn decisions(path: &Path) -> Vec<Value> {
+    read_text(path)
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| serde_json::from_str(line).expect("the decision is JSON"))
+        .collect()
+}
+
 fn assert_files(root: &Path, expected: &[&str]) {
     assert_eq!(
         file_names(root),
@@ -388,6 +396,25 @@ fn the_coupled_run_reuses_the_stage_engines_and_artifacts() {
         analytics_provenance["source_artifacts"][0]["stage"],
         "backtest"
     );
+}
+
+#[test]
+fn the_standalone_and_coupled_strategy_decisions_agree_on_the_signal() {
+    let root = output_dir("decision-parity");
+    let standalone = root.join("standalone");
+    let coupled = root.join("coupled");
+    standalone_chain(&standalone);
+    coupled_chain(&coupled);
+
+    let standalone = decisions(&standalone.join("strategy/decisions.ndjson"));
+    let coupled = decisions(&coupled.join("backtest/strategy/decisions.ndjson"));
+    assert_eq!(standalone.len(), coupled.len());
+    for (standalone, coupled) in standalone.iter().zip(coupled.iter()) {
+        assert_eq!(standalone["bar_index"], coupled["bar_index"]);
+        assert_eq!(standalone["decision"], coupled["decision"]);
+        assert_eq!(standalone["side"], coupled["side"]);
+        assert_eq!(standalone["reason"], coupled["reason"]);
+    }
 }
 
 #[test]

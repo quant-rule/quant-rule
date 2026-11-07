@@ -114,6 +114,8 @@ impl EventStrategyInput {
     ///
     /// Returns `self` unchanged when the timeframe or bar is absent. Views stay
     /// ordered by timeframe, so the result does not depend on insertion order.
+    /// The execution-bar window is converted to the context timeframe's bars so
+    /// one published window means the same span on every timeframe.
     #[must_use]
     pub fn with_view(
         mut self,
@@ -129,8 +131,10 @@ impl EventStrategyInput {
         {
             return self;
         }
+        let context_window =
+            context_window_bars(window_bars, self.execution_timeframe_secs, timeframe_secs);
         if let Some(timeframe) = run.timeframe(timeframe_secs)
-            && let Some(view) = view(timeframe, bar_index, window_bars)
+            && let Some(view) = view(timeframe, bar_index, context_window)
         {
             self.timeframes.push(view);
             self.timeframes.sort_by_key(|view| view.timeframe_secs);
@@ -154,6 +158,20 @@ impl EventStrategyInput {
     }
 }
 
+/// Converts an execution-bar window to a context timeframe's bar count.
+///
+/// `execution_bars` is the published window in execution bars. A context bar
+/// covers `context_secs`, so the count is rounded up to cover the whole window.
+/// A zero timeframe or window still produces at least one bar.
+#[must_use]
+pub fn context_window_bars(execution_bars: usize, execution_secs: u64, context_secs: u64) -> usize {
+    let bars = (execution_bars as u64)
+        .saturating_mul(execution_secs)
+        .div_ceil(context_secs.max(1))
+        .max(1);
+    usize::try_from(bars).unwrap_or(usize::MAX)
+}
+
 fn view(
     timeframe: &quantrule_model::timeframe::TimeframeModel,
     bar_index: usize,
@@ -169,7 +187,7 @@ fn view(
         progression_stage: bar.progression.stage_code,
         progression_leg_direction: bar.progression.leg_direction,
         events: timeframe
-            .events()
+            .all_events()
             .iter()
             .filter(|event| {
                 event.available_bar_index <= bar_index && event.available_bar_index >= window_start
@@ -197,13 +215,13 @@ fn event_view(event: &EventRecord) -> EventView {
 
 #[cfg(test)]
 mod tests {
-    use super::EventStrategyInput;
+    use super::{EventStrategyInput, context_window_bars};
     use quantrule_data::Candle;
     use quantrule_model::input::{MarketStateConfig, TimeframeInput};
     use quantrule_model::run::ModelRun;
 
-    fn run() -> ModelRun {
-        let candles = (0..80)
+    fn run_with(len: usize) -> ModelRun {
+        let candles = (0..len)
             .map(|index| {
                 let close = 100.0 + index as f64 * 0.5;
                 Candle::new(
@@ -222,6 +240,61 @@ mod tests {
             &[TimeframeInput::new(300, &candles)],
             &MarketStateConfig::default(),
         )
+    }
+
+    fn run_with_changed_later_bar(len: usize, changed: usize) -> ModelRun {
+        let candles = (0..len)
+            .map(|index| {
+                let close = if index == changed {
+                    200.0
+                } else {
+                    100.0 + index as f64 * 0.5
+                };
+                Candle::new(
+                    index as u64,
+                    index as i64 * 300,
+                    close,
+                    close + 1.0,
+                    close - 1.0,
+                    close,
+                    Some(1.0),
+                )
+                .expect("the test candle is valid")
+            })
+            .collect::<Vec<_>>();
+        ModelRun::compute(
+            &[TimeframeInput::new(300, &candles)],
+            &MarketStateConfig::default(),
+        )
+    }
+
+    fn run() -> ModelRun {
+        run_with(80)
+    }
+
+    #[test]
+    fn the_context_window_is_expressed_in_execution_bars() {
+        assert_eq!(context_window_bars(20, 300, 3_600), 2);
+        assert_eq!(context_window_bars(20, 300, 900), 7);
+        assert_eq!(context_window_bars(20, 300, 60), 100);
+        assert_eq!(context_window_bars(60, 60, 3_600), 1);
+        assert_eq!(context_window_bars(0, 300, 900), 1);
+    }
+
+    #[test]
+    fn later_bars_do_not_change_an_earlier_snapshot() {
+        let short = run_with(60);
+        let full = run_with(80);
+        let changed = run_with_changed_later_bar(80, 60);
+        let short_snapshot = EventStrategyInput::from_model_run(&short, 300, 40, 20);
+        assert_eq!(
+            short_snapshot,
+            EventStrategyInput::from_model_run(&full, 300, 40, 20)
+        );
+        assert_eq!(
+            short_snapshot,
+            EventStrategyInput::from_model_run(&changed, 300, 40, 20)
+        );
     }
 
     #[test]

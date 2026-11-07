@@ -61,3 +61,49 @@ change strategy behavior (01, 02, 04, 05).
   proposals, not decisions.
 - The plan does not create or predict GitHub issue numbers; the fix issues are
   created only after approval.
+
+## Addendum — implementation (2026-11-07)
+
+The human approved the plan with D1-D4 = A and asked to proceed with the full
+remediation. The implementation is on `fix/s3-audit-remediation`, based on the
+approved plan commit. It is committed locally as `cb08c11`; it is not pushed or
+merged.
+
+What was implemented:
+
+- S1: a shared strategy context validator used by `strategy explain`, `strategy
+  run`, and `backtest run`; the coupled runner rejects a declared/run timeframe
+  mismatch and a condition outside execution plus context.
+- S2: a build-time registry table generated from `docs/registry/indicators.json`;
+  unregistered and diagnostic identities are rejected; the compression bracket is
+  restricted to the registered `(3,8,5)` range event.
+- S3: `EventStrategyInput` now reads `timeframe.all_events()`, matching the
+  standalone bundle reader.
+- S4: the execution-bar window is converted to each context timeframe's bars.
+- S5: the backtest manifest records `strategy_config_id`.
+- S6: a later-bar causality test for the strategy snapshot.
+- S7: the stale status lines and the evidence table were corrected.
+- S8: the backtest root is checked before the model bundle is written.
+
+Verification: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`,
+`cargo test --workspace` (1,323 passed, 0 failed, 8 ignored), `cargo doc` with
+`-D warnings`, the contract checks, the structure check, and `git diff --check`
+pass. The analytics and qualification goldens moved only in the manifest hash.
+
+Corrections during implementation:
+
+- The first registry build assumed `(event_type, subtype, source)` was unique. It
+  is not: the registry groups several event codes under one family identity. The
+  build now merges a family's roles with diagnostic dominance, then a signal, then
+  context; the table remains one row per identity.
+- The first registry lookup passed a `u8` source where the table uses `u16`; the
+  engine converts before the lookup.
+- The old diagnostic/unregistered configs were re-run against the new shell: both
+  are rejected before a model read.
+
+No independent Quant Validator or Code Reviewer pass is claimed. The plan's
+Quant Validator requirement for S1-S4 and the merged-tree gate remain open.
+
+Publication: PR #536 (`fix/s3-audit-remediation`) is stacked on PR #535 (the
+plan) and PR #534 (the removal). All three CI checks pass. No merge was
+performed.

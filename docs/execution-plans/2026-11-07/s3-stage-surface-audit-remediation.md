@@ -1,7 +1,7 @@
 # S3.x Stage-Surface Audit — Remediation Plan
 
 - Date: 2026-11-07 (UTC)
-- Status: Approved 2026-11-07; D1-D4 = A; execution in progress
+- Status: PRs #534/#535/#536 open 2026-11-07; checks pass; merge and independent verification pending
 - Issue: none (the fix issues are created only after approval; no issue number is
   invented)
 - Audit: [`docs/audits/2026-11-07/s3-stage-surface-audit.md`](../../audits/2026-11-07/s3-stage-surface-audit.md)
@@ -141,15 +141,15 @@ S1-S4 run under the Quant roles; S5-S8 are Engineering/Test/Docs work.
 
 | Finding | Sub-issue | PR | Verification |
 |---|---|---|---|
-| `AUD-2026-11-07-01` | S1 | pending | Timeframe/context regression tests; full gate; Quant Validator record |
-| `AUD-2026-11-07-02` | S3 | pending | Cross-path decision equality test; full gate; Quant Validator record |
-| `AUD-2026-11-07-04` | S2 | pending | Registry/role rejection tests; `EventStrategyInput` boundary test; full gate; Quant Validator record |
-| `AUD-2026-11-07-05` | S4 | pending | Event-window contract test; full gate; Quant Validator record |
-| `AUD-2026-11-07-06` | S5 | pending | Manifest field test; full gate |
-| `AUD-2026-11-07-07` | S7 | pending | Status/doc read; link and term checks |
-| `AUD-2026-11-07-08` | S6 | pending | Causality test fails before the guard; passes after |
-| `AUD-2026-11-07-09` | S8 | pending | Non-empty-root refusal test |
-| `AUD-2026-11-07-10` | S7 | pending | Evidence-table read; term check |
+| `AUD-2026-11-07-01` | S1 | #536 | Timeframe/context regression tests; full gate; Quant Validator record |
+| `AUD-2026-11-07-02` | S3 | #536 | Cross-path decision equality test; full gate; Quant Validator record |
+| `AUD-2026-11-07-04` | S2 | #536 | Registry/role rejection tests; `EventStrategyInput` boundary test; full gate; Quant Validator record |
+| `AUD-2026-11-07-05` | S4 | #536 | Event-window contract test; full gate; Quant Validator record |
+| `AUD-2026-11-07-06` | S5 | #536 | Manifest field test; full gate |
+| `AUD-2026-11-07-07` | S7 | #536 | Status/doc read; link and term checks |
+| `AUD-2026-11-07-08` | S6 | #536 | Causality test fails before the guard; passes after |
+| `AUD-2026-11-07-09` | S8 | #536 | Non-empty-root refusal test |
+| `AUD-2026-11-07-10` | S7 | #536 | Evidence-table read; term check |
 
 A finding moves to `Planned` when this plan is approved, `In progress` when its
 sub-issue starts, and `Fixed` only after the fix is merged. The Improvement
@@ -245,3 +245,93 @@ the full remediation plan following your recommendations”, which selects
 D1 = A, D2 = A, D3 = A, and D4 = A. The fix issues are created after this
 approval; implementation follows the work breakdown. Approval authorizes only
 the scope in this plan, not an edge claim, a commit, a push, a PR, or a merge.
+
+## 14. Implementation record
+
+Observed on `fix/s3-audit-remediation` based on `2f04ca2` on 2026-11-07. The
+work is committed as `cb08c11` and published in PR #536, stacked on PR #535 and
+PR #534; it is not merged. The code and test changes are one review batch
+because several sub-issues share files; the sub-issue split is recorded in
+section 7, not in separate commits.
+
+| Sub-issue | Implementation | Verification |
+|---|---|---|
+| S1 | Shared `strategy::context::validate_context` checks the strategy execution timeframe, published context timeframes, and condition timeframes; `strategy explain`/`run` and `backtest run` use it. The coupled runner rejects a declared/run mismatch before the model bundle is written. | `backtest_rejects_a_strategy_execution_timeframe_mismatch`; `backtest_rejects_a_condition_outside_execution_and_context`; existing strategy tests unchanged. |
+| S2 | Build-time registry table generated from `docs/registry/indicators.json`; unregistered and diagnostic identities are rejected; the compression bracket is restricted to `(3,8,5)`. The build script uses the workspace's existing `serde_json` crate as a build-dependency; no new external crate is added. | `an_unregistered_event_condition_is_rejected`; `a_diagnostic_event_in_the_input_cannot_satisfy_the_rule`; `a_diagnostic_event_is_rejected_as_the_bracket_event`; `an_unregistered_event_is_rejected_as_the_bracket_event`; observed shell errors for the old unregistered and diagnostic configs. |
+| S3 | `EventStrategyInput` reads `timeframe.all_events()`, matching the `events.csv` standalone path. | `the_standalone_and_coupled_strategy_decisions_agree_on_the_signal`. |
+| S4 | `context_window_bars` converts the execution-bar window to each context timeframe; the bundle reader and the coupled input use it. | `the_context_window_is_expressed_in_execution_bars`; existing 5m/15m fixture unchanged because its window is one bar. |
+| S5 | `strategy_config_id` is written to the backtest manifest. | `backtest_writes_the_stage_bundles` asserts it matches the strategy provenance. |
+| S6 | A causality test compares a bar-40 snapshot from 60 bars, 80 bars, and a run with a changed later bar; all are equal. | `later_bars_do_not_change_an_earlier_snapshot`. |
+| S7 | S3.x status lines and the evidence table were corrected; historical phase lines remain. | `check_links.py`, `check_terms.py`; manual read. |
+| S8 | The backtest root is checked with `ensure_available` before the model write. | `backtest_refuses_an_unrelated_file_in_the_root`. |
+
+Gate evidence:
+
+| Check | Observed |
+|---|---|
+| `cargo fmt --all -- --check` | pass |
+| `cargo clippy --all-targets -- -D warnings` | pass |
+| `cargo test --workspace` | 1,323 passed, 0 failed, 8 ignored |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps` | pass |
+| Contract checks and structure check | pass; 603 Markdown files, 365 term-check files, 706 legacy files |
+| `git diff --check` | pass |
+
+The analytics and qualification golden fixtures were regenerated because the
+manifest gained `strategy_config_id`; only the manifest hash moved. The decision
+and accounting values are unchanged.
+
+Outstanding before a fix can be `Fixed`/`Verified`:
+
+- An independent Quant Validator record for S1-S4.
+- An independent Code Reviewer pass.
+- Merge PRs #534 → #535 → #536 in order, retargeting the stacked bases to `main`
+  after each merge. The local fix commit is a batch, not a per-sub-issue split.
+- The merged-tree gate.
+- The audit findings remain `Open` until the merged fix exists; S1-S8 are
+  implementation evidence, not closure evidence.
+
+Deviation from section 7: the implementation is on one remediation branch rather
+than one branch per sub-issue. The changes are separable by sub-issue for commit
+review; no PR has been opened.
+
+## 15. Sequential review record
+
+These passes were performed by one agent in the same session. They are **not**
+independent Code Reviewer or Quant Validator reviews.
+
+### Quant Validator (sequential)
+
+- Scope: S1-S4, the findings that change strategy behavior. No model formula,
+  event definition, strategy formula, or validation partition was opened.
+- S1 rejects inconsistent configurations before a bundle; a valid fixture run is
+  unchanged.
+- S2 rejects unregistered/diagnostic identities and restricts the bracket to the
+  registered range event; the fixture uses a registered identity and still runs.
+- S3 uses one event set; the standalone/coupled decision parity test passes.
+- S4 converts the window in execution-bar terms; the one-bar fixture is unchanged
+  and the conversion test covers 20 bars at 5m/1h.
+- Causality: `later_bars_do_not_change_an_earlier_snapshot`; execution and
+  strategy determinism tests remain green.
+- Residual risks: the registry table is generated at build time; a family with
+  mixed roles is merged with diagnostic dominance; the extended event stream is
+  visible to the input but no current engine can act on a diagnostic identity.
+- Verdict: pass as a local contract-correction review; no edge claim and no
+  independent validation.
+
+### Code Reviewer (sequential)
+
+- The full diff was reviewed: shared context validation, registry build script
+  and table, event-stream change, window conversion, manifest field, tests,
+  goldens, and docs.
+- No unrelated change was found. The golden fixture updates move only the
+  manifest hash; the analytics and qualification values are unchanged.
+- Residual risks: the build now depends on the repository registry at build time;
+  the batch is on one remediation branch rather than one branch per sub-issue; no
+  independent review is claimed.
+
+### Outstanding
+
+- An independent Quant Validator record for S1-S4.
+- An independent Code Reviewer pass.
+- Merge PRs #534 → #535 → #536 in order, retargeting the stacked bases to `main`
+  after each merge. The local commit is a batch, not a per-sub-issue split.

@@ -298,6 +298,13 @@ fn validate_condition(condition: Condition) -> Result<(), super::config::Strateg
             if !(1..=54).contains(&source) {
                 return Err(StrategyConfigError::EventSource);
             }
+            let Some(identity) = super::registry::lookup(event_type, subtype, u16::from(source))
+            else {
+                return Err(StrategyConfigError::EventNotRegistered);
+            };
+            if identity.role == super::registry::EventRole::Diagnostic {
+                return Err(StrategyConfigError::EventDiagnostic);
+            }
             if !(-1..=1).contains(&direction) {
                 return Err(StrategyConfigError::EventDirection);
             }
@@ -497,6 +504,61 @@ mod tests {
             &[],
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn an_unregistered_event_condition_is_rejected() {
+        let result = EventCompositeConfig::new(
+            3,
+            0,
+            &[Condition::Event {
+                timeframe_secs: 900,
+                event_type: 3,
+                subtype: 1,
+                source: 2,
+                direction: 1,
+            }],
+            &[],
+        );
+        assert_eq!(
+            result,
+            Err(crate::strategy::StrategyConfigError::EventNotRegistered)
+        );
+    }
+
+    #[test]
+    fn a_diagnostic_event_in_the_input_cannot_satisfy_the_rule() {
+        let config = EventCompositeConfig::new(
+            3,
+            0,
+            &[Condition::Event {
+                timeframe_secs: 900,
+                event_type: 3,
+                subtype: 1,
+                source: 4,
+                direction: 1,
+            }],
+            &[],
+        )
+        .expect("the config is valid");
+        let mut input = input();
+        input.timeframes[0].events = vec![crate::strategy::event_input::EventView {
+            event_code: 120,
+            event_type: 3,
+            subtype: 21,
+            source: 41,
+            direction: 1,
+            occurred_bar_index: 10,
+            available_bar_index: 10,
+            reference_code: None,
+            primary_value: Some(0.55),
+            reference_value: Some(0.5),
+        }];
+        let strategy = EventCompositeStrategy::new(config, RiskPolicy::default(), true);
+        assert_eq!(
+            strategy.decide(&input, StrategyPosition::flat()),
+            Decision::Hold
+        );
     }
 
     #[test]

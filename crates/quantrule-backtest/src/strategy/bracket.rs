@@ -33,8 +33,8 @@ impl CompressionBracketConfig {
     /// # Errors
     ///
     /// Returns [`StrategyConfigError`] when the timeframe is zero, the event
-    /// code is outside its registered range, the entry window is zero, or the
-    /// time stop is zero.
+    /// identity is not the registered compression-range event, the entry window
+    /// is zero, or the time stop is zero.
     pub fn new(
         event_timeframe_secs: u64,
         event_type: u8,
@@ -54,6 +54,9 @@ impl CompressionBracketConfig {
         }
         if !(1..=54).contains(&event_source) {
             return Err(StrategyConfigError::EventSource);
+        }
+        if (event_type, event_subtype, event_source) != super::registry::COMPRESSION_RANGE_EVENT {
+            return Err(StrategyConfigError::CompressionEventNotRange);
         }
         if entry_valid_bars != 1 {
             // The pre-registered rule places the bracket for the next bar
@@ -275,6 +278,30 @@ mod tests {
 
     fn flat() -> StrategyPosition {
         StrategyPosition::flat()
+    }
+
+    #[test]
+    fn the_registered_compression_range_event_is_accepted() {
+        assert!(
+            CompressionBracketConfig::new(60, 3, 8, 5, 1, 20).is_ok(),
+            "the registered range event must be usable"
+        );
+    }
+
+    #[test]
+    fn a_diagnostic_event_is_rejected_as_the_bracket_event() {
+        assert_eq!(
+            CompressionBracketConfig::new(60, 3, 21, 41, 1, 20),
+            Err(crate::strategy::StrategyConfigError::CompressionEventNotRange)
+        );
+    }
+
+    #[test]
+    fn an_unregistered_event_is_rejected_as_the_bracket_event() {
+        assert_eq!(
+            CompressionBracketConfig::new(60, 1, 1, 2, 1, 20),
+            Err(crate::strategy::StrategyConfigError::CompressionEventNotRange)
+        );
     }
 
     #[test]

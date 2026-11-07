@@ -1,7 +1,9 @@
 # S3.x Command Surface — Stage-Isolated Pipeline Access
 
 - Date: 2026-11-06 (UTC)
-- Status: Approved; Phases 1–7 merged; Phase 8 verified locally; publication pending; human acceptance pending
+- Status: Approved; all phases merged; Phase 8 verified locally; human acceptance pending
+- Publication note (2026-11-07): the phase pull requests merged the surface; the
+  per-phase “publication pending” lines below are historical records.
 - Issue: none (human-approved slug; no issue number is invented)
 - Branch: one task branch per phase; current `test/s3-closure-verification`
 - Worktree: `s3-closure-verification` (OpenCode task worktree)

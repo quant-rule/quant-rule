@@ -18,6 +18,7 @@ mod decision;
 mod event;
 mod event_input;
 mod input;
+pub mod registry;
 
 pub use crate::intent::{
     EntryStyle, RiskPolicy, RiskPolicyError, StopSpec, StrategyPosition, TargetSpec, TradeIntent,
@@ -29,5 +30,6 @@ pub use decision::{BracketEntry, Decision, Entry, Exit, ExitReason, Strategy};
 pub use event::{
     Condition, EventCompositeConfig, EventCompositeStrategy, MAX_CONDITIONS, StateField,
 };
-pub use event_input::{EventStrategyInput, EventTimeframeView, EventView};
+pub use event_input::{EventStrategyInput, EventTimeframeView, EventView, context_window_bars};
 pub use input::StrategyInput;
+pub use registry::{EventIdentity, EventRole};
