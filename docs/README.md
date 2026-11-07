@@ -43,7 +43,7 @@ repeating a status.
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v0.6.0` is the latest release; historical tags are retained; the next release is not yet scheduled. |
-| Changelog | Grouped release history; `[Unreleased]` holds the pending workflow reset. |
+| Changelog | Grouped release history; `[Unreleased]` is empty and `0.6.0` is the current release. |
 | Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path; the historical research scripts and the old improvement adapter are retained for reproducibility. |
 
 ## Current architecture
