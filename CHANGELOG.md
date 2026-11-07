@@ -22,6 +22,13 @@ are not treated as releases.
 - The model-prediction condition gate accepts the published `level_touches`
   reading and integer `min`/`max` bounds, enabling a location-conditioned model
   evaluation without a Rust model change.
+- The `MR`/`SR`/`PR` research-family prefix and the `-Cnn` configuration suffix;
+  historical `M2.x`–`M4.x` aliases remain in `docs/registry/history.md`.
+- Per-cell model configuration in the research runner, with the model config
+  hash recorded in provenance.
+- Sequence, confluence, freshness, and descriptive path evaluators for model
+  research; the MR5 inherited-coverage checker, grid builder, and reference
+  grid.
 
 ## [0.6.0] - 2026-11-07
 

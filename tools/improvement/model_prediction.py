@@ -50,6 +50,7 @@ STATE_COLUMNS = frozenset(
         "rsi_zone",
         "macd_state",
         "level_touches",
+        "condition",
     }
 )
 DEFAULT_HORIZON = 20

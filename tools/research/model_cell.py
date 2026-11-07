@@ -47,6 +47,11 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--phase", choices=sorted(PARTITIONS), default="dev")
     parser.add_argument("--out", required=True)
     parser.add_argument("--runs-dir", default=None)
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="cell model-config JSON; copied into each prepared run config",
+    )
     parser.add_argument("--qr", default=None, help="quantrule binary")
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--evaluator", default="tools/improvement/model_prediction.py")
@@ -59,6 +64,24 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--selection", default=None, help="selection.json for auto")
     parser.add_argument("--state-file", default=None, help="state-gate JSON")
+    parser.add_argument(
+        "--condition-file",
+        default=None,
+        help="pre-registered sequence/confluence/column condition JSON",
+    )
+    parser.add_argument(
+        "--path-menu",
+        default=None,
+        help="pre-registered exit menu JSON for the descriptive path report",
+    )
+    parser.add_argument(
+        "--condition-evaluator",
+        default="tools/improvement/model_condition.py",
+    )
+    parser.add_argument(
+        "--path-evaluator",
+        default="tools/improvement/model_path.py",
+    )
     parser.add_argument(
         "--instruments",
         default=None,
@@ -77,6 +100,51 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=3_600)
     return parser.parse_args(argv)
+
+
+def write_json(path: Path, document: Any) -> None:
+    path.write_text(
+        json.dumps(document, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def resolve_path(base: Path, value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else (base / path).resolve()
+
+
+def prepare_run_config(
+    run_path: Path, model_path: Path | None, out_dir: Path
+) -> Path:
+    """Copies a run config and its siblings so a cell can use its own model.
+
+    The copied data source path and every sibling reference are made explicit,
+    so the prepared config is independent of the shared research run directory.
+    The shell still reads the same schemas; only the model config differs.
+    """
+    run = json.loads(run_path.read_text(encoding="utf-8"))
+    base = run_path.parent
+    out_dir.mkdir(parents=True, exist_ok=True)
+    data_path = resolve_path(base, str(run["data"]))
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    source = data.get("source")
+    if isinstance(source, dict) and isinstance(source.get("path"), str):
+        source["path"] = str(resolve_path(data_path.parent, source["path"]))
+    write_json(out_dir / "data.json", data)
+    for key in ("execution", "portfolio", "policy"):
+        sibling = resolve_path(base, str(run[key]))
+        shutil.copy2(sibling, out_dir / f"{key}.json")
+    model_source = model_path if model_path is not None else resolve_path(base, str(run["model"]))
+    shutil.copy2(model_source, out_dir / "model.json")
+    run["data"] = "data.json"
+    run["model"] = "model.json"
+    run["execution"] = "execution.json"
+    run["portfolio"] = "portfolio.json"
+    run["policy"] = "policy.json"
+    run["output_root"] = str(out_dir.parent)
+    write_json(out_dir / "run.json", run)
+    return out_dir / "run.json"
 
 
 def shell_binary(root: Path, requested: str | None) -> Path:
@@ -226,6 +294,17 @@ def run_command(
         raise SystemExit(f"error: {label} failed ({completed.returncode}): {message}")
 
 
+def run_script(
+    python: str,
+    script: Path,
+    arguments: list[str],
+    root: Path,
+    timeout: int,
+    label: str,
+) -> None:
+    run_command([python, str(script), *arguments], root, timeout, label)
+
+
 def read_csv_rows(path: Path) -> tuple[list[str], list[list[str]]]:
     try:
         with path.open(newline="", encoding="utf-8") as handle:
@@ -251,6 +330,105 @@ def file_digest(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError as error:
         raise SystemExit(f"error: cannot read {path}: {error}") from None
+
+
+def source_bar_timestamps(bundle: Path) -> dict[int, int]:
+    """Maps a yearly bundle's bar index to its timestamp."""
+    header, rows = read_csv_rows(bundle / "readings.csv")
+    try:
+        bar_index = header.index("bar")
+        time_index = header.index("timestamp")
+    except ValueError as error:
+        raise SystemExit(f"error: readings header is missing bar/timestamp: {error}") from None
+    mapping: dict[int, int] = {}
+    for row in rows:
+        mapping[int(row[bar_index])] = int(row[time_index])
+    return mapping
+
+
+def remap_index(
+    value: str,
+    timeframe: int,
+    bar_to_timestamp: dict[int, int],
+    bar_by_time: dict[tuple[int, int], int],
+) -> int | None:
+    try:
+        bar = int(value)
+    except (TypeError, ValueError):
+        return None
+    timestamp = bar_to_timestamp.get(bar)
+    if timestamp is None:
+        return None
+    return bar_by_time.get((timeframe, timestamp))
+
+
+def merge_indexed_artifact(
+    sources: list[tuple[int, Path]],
+    filename: str,
+    bar_by_time: dict[tuple[int, int], int],
+    occurred_column: int,
+    available_column: int,
+) -> tuple[list[str], list[list[str]]] | None:
+    """Merges events/levels and remaps their yearly bar indices."""
+    header: list[str] | None = None
+    rows: list[list[str]] = []
+    found = False
+    for _, bundle in sources:
+        path = bundle / filename
+        if not path.is_file():
+            continue
+        found = True
+        source_header, source_rows = read_csv_rows(path)
+        if header is None:
+            header = source_header
+        elif source_header != header:
+            raise SystemExit(f"error: {filename} headers differ across years")
+        bar_to_timestamp = source_bar_timestamps(bundle)
+        for row in source_rows:
+            try:
+                timeframe = int(row[0])
+            except (TypeError, ValueError):
+                continue
+            occurred = remap_index(
+                row[occurred_column], timeframe, bar_to_timestamp, bar_by_time
+            )
+            available = remap_index(
+                row[available_column], timeframe, bar_to_timestamp, bar_by_time
+            )
+            if occurred is None or available is None:
+                continue
+            row = list(row)
+            row[occurred_column] = str(occurred)
+            row[available_column] = str(available)
+            rows.append(row)
+    if not found or header is None:
+        return None
+    rows.sort(key=lambda row: (int(row[0]), int(row[available_column]), int(row[1])))
+    return header, rows
+
+
+def merge_plain_artifact(
+    sources: list[tuple[int, Path]], filename: str, key_columns: tuple[int, ...]
+) -> tuple[list[str], list[list[str]]] | None:
+    """Merges a timestamp-keyed artifact (for example panel.csv)."""
+    header: list[str] | None = None
+    rows: list[list[str]] = []
+    found = False
+    for _, bundle in sources:
+        path = bundle / filename
+        if not path.is_file():
+            continue
+        found = True
+        source_header, source_rows = read_csv_rows(path)
+        if header is None:
+            header = source_header
+        elif source_header != header:
+            raise SystemExit(f"error: {filename} headers differ across years")
+        rows.extend(source_rows)
+    if not found or header is None:
+        return None
+    rows.sort(key=lambda row: tuple(int(row[index]) for index in key_columns))
+    return header, rows
 
 
 def merge_bundles(destination: Path, sources: list[tuple[int, Path]]) -> dict[str, Any]:
@@ -293,11 +471,30 @@ def merge_bundles(destination: Path, sources: list[tuple[int, Path]]) -> dict[st
         row[1] = str(merged_bar)
     write_csv_rows(destination / "readings.csv", readings_header, readings_rows)
     write_csv_rows(destination / "prediction.csv", prediction_header, prediction_rows)
+    artifact_counts: dict[str, int] = {}
+    for filename, occurred, available in (
+        ("events.csv", 6, 7),
+        ("levels.csv", 5, 6),
+    ):
+        merged_artifact = merge_indexed_artifact(
+            sources, filename, bar_by_time, occurred, available
+        )
+        if merged_artifact is None:
+            continue
+        artifact_header, artifact_rows = merged_artifact
+        write_csv_rows(destination / filename, artifact_header, artifact_rows)
+        artifact_counts[filename] = len(artifact_rows)
+    panel = merge_plain_artifact(sources, "panel.csv", (0,))
+    if panel is not None:
+        panel_header, panel_rows = panel
+        write_csv_rows(destination / "panel.csv", panel_header, panel_rows)
+        artifact_counts["panel.csv"] = len(panel_rows)
     manifest = {
         "schema": MERGE_SCHEMA,
         "years": [year for year, _ in sources],
         "readings_rows": len(readings_rows),
         "prediction_rows": len(prediction_rows),
+        "artifacts": artifact_counts,
         "sources": [
             {
                 "year": year,
@@ -376,6 +573,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     if not runs_dir.is_absolute():
         runs_dir = root / runs_dir
+    model_path = None
+    if args.model:
+        model_path = Path(args.model).expanduser()
+        if not model_path.is_absolute():
+            model_path = root / model_path
+        if not model_path.is_file():
+            raise SystemExit(f"error: model config not found: {model_path}")
+    elif (cell_dir / "model.json").is_file():
+        model_path = cell_dir / "model.json"
     partition, split_start, split_end, years = PARTITIONS[args.phase]
     qr = shell_binary(root, args.qr)
     cell_id = cell_dir.name
@@ -388,9 +594,32 @@ def main(argv: list[str] | None = None) -> int:
         state_path = Path(args.state_file).expanduser()
         if not state_path.is_absolute():
             state_path = root / state_path
+    condition_path = None
+    if args.condition_file:
+        condition_path = Path(args.condition_file).expanduser()
+        if not condition_path.is_absolute():
+            condition_path = root / condition_path
+        if not condition_path.is_file():
+            raise SystemExit(f"error: condition file not found: {condition_path}")
+    if state_path is not None and condition_path is not None:
+        raise SystemExit("error: --state-file and --condition-file are mutually exclusive")
+    path_menu = None
+    if args.path_menu:
+        path_menu = Path(args.path_menu).expanduser()
+        if not path_menu.is_absolute():
+            path_menu = root / path_menu
+        if not path_menu.is_file():
+            raise SystemExit(f"error: path menu not found: {path_menu}")
+    condition_evaluator = Path(args.condition_evaluator).expanduser()
+    if not condition_evaluator.is_absolute():
+        condition_evaluator = root / condition_evaluator
+    path_evaluator = Path(args.path_evaluator).expanduser()
+    if not path_evaluator.is_absolute():
+        path_evaluator = root / path_evaluator
     gate = load_state_gate(state_path) if state_path is not None else None
     bundles: list[tuple[str, Path]] = []
     counts: dict[str, dict[str, int]] = {}
+    generated_gate: Path | None = None
     for instrument in instruments:
         spec = cell_spec(cell_dir, instrument, timeframe)
         if not spec.is_file():
@@ -401,6 +630,8 @@ def main(argv: list[str] | None = None) -> int:
             if not run.is_file():
                 raise SystemExit(f"error: run config not found: {run}")
             year_out = out / instrument / str(year)
+            if model_path is not None:
+                run = prepare_run_config(run, model_path, year_out / "config")
             run_command(
                 [
                     str(qr),
@@ -421,7 +652,7 @@ def main(argv: list[str] | None = None) -> int:
             if not (bundle / "prediction.csv").is_file():
                 raise SystemExit(f"error: prediction.csv not found under {bundle}")
             yearly.append((year, bundle))
-        if args.count_only:
+        if args.count_only and condition_path is None:
             values = [
                 count_bundle(bundle, timeframe, gate, args.horizon)
                 for _, bundle in yearly
@@ -433,7 +664,39 @@ def main(argv: list[str] | None = None) -> int:
             continue
         merged = out / instrument / "model"
         merge_bundles(merged, yearly)
-        bundles.append((instrument, merged))
+        bundle = merged
+        if condition_path is not None:
+            conditioned = out / instrument / "conditioned"
+            run_script(
+                args.python,
+                condition_evaluator,
+                [
+                    "--bundle",
+                    str(merged),
+                    "--condition",
+                    str(condition_path),
+                    "--registry",
+                    str(root / "docs/registry/indicators.json"),
+                    "--out",
+                    str(conditioned),
+                ],
+                root,
+                args.timeout,
+                f"{cell_id} {instrument} condition",
+            )
+            bundle = conditioned
+            generated_gate = conditioned / "state.json"
+        if args.count_only:
+            count_gate = (
+                load_state_gate(generated_gate)
+                if generated_gate is not None
+                else gate
+            )
+            counts[instrument] = count_bundle(
+                bundle, timeframe, count_gate, args.horizon
+            )
+            continue
+        bundles.append((instrument, bundle))
     if args.count_only:
         pooled = {
             "n": sum(value["n"] for value in counts.values()),
@@ -444,7 +707,17 @@ def main(argv: list[str] | None = None) -> int:
             "cell_id": cell_id,
             "phase": args.phase,
             "timeframe_secs": timeframe,
-            "state_file": str(state_path) if state_path is not None else None,
+            "state_file": (
+                str(generated_gate)
+                if generated_gate is not None
+                else str(state_path)
+                if state_path is not None
+                else None
+            ),
+            "condition_file": str(condition_path) if condition_path is not None else None,
+            "model_config_sha256": (
+                file_digest(model_path) if model_path is not None else None
+            ),
             "instruments": instruments,
             "years": list(years),
             "counts": counts,
@@ -494,7 +767,9 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if timeframe is not None:
         command.extend(["--timeframe", str(timeframe)])
-    if state_path is not None:
+    if generated_gate is not None:
+        command.extend(["--state-file", str(generated_gate)])
+    elif state_path is not None:
         command.extend(["--state-file", str(state_path)])
     for instrument, bundle in bundles:
         command.extend(["--bundle", f"{instrument}={bundle}"])
@@ -502,6 +777,48 @@ def main(argv: list[str] | None = None) -> int:
     document = json.loads(
         (evaluation / "model_prediction.json").read_text(encoding="utf-8")
     )
+    if model_path is not None:
+        document["model_config_sha256"] = file_digest(model_path)
+        document["model_config_path"] = str(model_path)
+    if condition_path is not None:
+        document["condition_file"] = str(condition_path)
+        document["condition_sha256"] = file_digest(condition_path)
+    if path_menu is not None:
+        path_out = out / "path"
+        path_arguments = [
+            "--spec-id",
+            cell_id,
+            "--family",
+            args.family,
+            "--partition",
+            partition,
+            "--cost-bps",
+            str(args.cost_bps),
+            "--menu",
+            str(path_menu),
+            "--out",
+            str(path_out),
+        ]
+        if condition_path is not None:
+            path_arguments.extend(["--condition-column", "condition"])
+        for instrument, bundle in bundles:
+            path_arguments.extend(["--bundle", f"{instrument}={bundle}"])
+        run_script(
+            args.python,
+            path_evaluator,
+            path_arguments,
+            root,
+            args.timeout,
+            f"{cell_id} path",
+        )
+        path_document = json.loads(
+            (path_out / "path.json").read_text(encoding="utf-8")
+        )
+        document["path"] = {
+            "path": str(path_out / "path.json"),
+            "menu": path_document.get("menu"),
+            "summaries": path_document.get("summaries"),
+        }
     write_root_evaluation(out, document, digest, args.phase, years)
     print(
         f"ok {cell_id} phase={args.phase} instruments={len(bundles)} "

@@ -63,6 +63,71 @@ def run(cell: Path, qr: Path, out: Path, phase: str = "dev") -> int:
 
 
 class ModelCellTests(unittest.TestCase):
+    def test_prepare_run_config_uses_the_cell_model(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "runs/XAU/2018"
+            run_dir.mkdir(parents=True)
+            (run_dir / "data.json").write_text(
+                json.dumps(
+                    {
+                        "schema": "quantrule.data/v3",
+                        "source": {"kind": "csv", "path": "../../../sources/x.csv"},
+                        "instrument": "XAUUSD",
+                        "data_version": "test",
+                        "from": "2018-01-01",
+                        "to": "2018-12-31",
+                        "source_timeframe": "1m",
+                        "available_timeframes": ["1m", "15m"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_dir / "run.json").write_text(
+                json.dumps(
+                    {
+                        "schema": "quantrule.run/v2",
+                        "name": "test",
+                        "data": "data.json",
+                        "model": "model.json",
+                        "execution": "execution.json",
+                        "portfolio": "portfolio.json",
+                        "policy": "policy.json",
+                        "output_root": "old",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            for name, body in (
+                ("model.json", {"schema": "quantrule.model/v4", "defaults": {}}),
+                ("execution.json", {"schema": "quantrule.execution/v2"}),
+                ("portfolio.json", {"schema": "quantrule.portfolio/v2"}),
+                ("policy.json", {"schema": "quantrule.policy/v1"}),
+            ):
+                (run_dir / name).write_text(json.dumps(body), encoding="utf-8")
+            cell_model = root / "cell-model.json"
+            cell_model.write_text(
+                json.dumps(
+                    {
+                        "schema": "quantrule.model/v4",
+                        "defaults": {"rsi": {"period": 10, "active": True}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            out = root / "prepared"
+            prepared = model_cell.prepare_run_config(
+                run_dir / "run.json", cell_model, out
+            )
+            document = json.loads(prepared.read_text())
+            self.assertEqual(document["data"], "data.json")
+            self.assertEqual(document["model"], "model.json")
+            self.assertEqual(document["policy"], "policy.json")
+            data = json.loads((out / "data.json").read_text())
+            self.assertTrue(Path(data["source"]["path"]).is_absolute())
+            model = json.loads((out / "model.json").read_text())
+            self.assertEqual(model["defaults"]["rsi"]["period"], 10)
+
     def test_a_dry_run_is_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
