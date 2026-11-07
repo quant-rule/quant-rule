@@ -1,7 +1,7 @@
 # S3.x Stage-Surface Audit — Remediation Plan
 
 - Date: 2026-11-07 (UTC)
-- Status: Merged 2026-11-07 at `e8f99cc`; verification remediation merged in PR #538 at `08dd260`; findings `Fixed`, not yet `Verified`
+- Status: `Verified` 2026-11-07 on merged `main` at `99c4308`; `AUD-2026-11-07-03` `Won't fix`
 - Issue: none (the fix issues are created only after approval; no issue number is
   invented)
 - Audit: [`docs/audits/2026-11-07/s3-stage-surface-audit.md`](../../audits/2026-11-07/s3-stage-surface-audit.md)
@@ -280,20 +280,24 @@ Gate evidence:
 | Guard probe: missing context | With `validate_context` removed, `backtest_rejects_a_missing_context_timeframe` fails because the run succeeds |
 | Guard probe: root | `backtest_refuses_an_unrelated_file_in_the_root` asserts the refusal leaves no stage directory or manifest |
 
-The analytics and qualification golden fixtures were regenerated because the
-manifest gained `strategy_config_id`; only the manifest hash moved. The decision
-and accounting values are unchanged.
+The analytics and qualification golden fixtures were regenerated in PR #536
+because the manifest gained `strategy_config_id`; only the manifest hash moved.
+Across the whole remediation the config identity also moved with the approved
+`allow_short` removal in PR #534; the decision and accounting values are
+unchanged.
 
-Outstanding before a finding can be `Verified`:
+Verification closure:
 
-- A fresh Quant Validator record for S1-S4 on the final verification commit.
-- A fresh Code Reviewer pass after the review fixes.
-- The Improvement Verifier's closure check.
-- The findings are `Fixed`, not yet `Verified`.
+- Quant Validator on `08dd260` and the final delta `99c4308`: `pass with
+  residual risks`.
+- Code Reviewer on `99c4308`: `approve with residual risks`.
+- Improvement Verifier on `99c4308`: `Verified` for findings 01, 02, and 04–10;
+  `AUD-2026-11-07-03` confirmed `Won't fix`.
+- The findings are `Verified`.
 
 Deviation from section 7: the implementation is on one remediation branch rather
 than one branch per sub-issue. The changes are separable by sub-issue for commit
-review; PRs #536 and #538 were opened and merged.
+review; PRs #536, #538, and #539 were opened and merged.
 
 ## 15. Sequential review record
 
@@ -428,11 +432,29 @@ Residual risks:
   the data ladder.
 - The bundle reader re-sorts evidence by event code for display; decisions are
   identity-based and order-independent.
-- The findings remain `Fixed`, not `Verified`, until the committed tree passes a
-  fresh independent verifier.
 
-### Outstanding
+### Final review on merged `99c4308`
 
-- A fresh Quant Validator record for S1-S4 on the final verification commit.
-- A fresh Code Reviewer pass on the final verification commit.
-- The Improvement Verifier's closure check.
+- Quant Validator: `pass with residual risks`. The delta from `08dd260` is tests,
+  comments, and documentation only; no model formula, event definition, strategy
+  formula, or partition changed. The final gate is 1,333 passed, 0 failed, 8
+  ignored. The earlier record covers the model and strategy behavior.
+- Code Reviewer: `approve with residual risks`. The two previous blocking
+  findings (stale status text and missing-timeframe guards) are resolved; no
+  correctness defect, test weakening, or unrelated change was found. Two
+  non-blocking documentation nits were corrected in the status change.
+
+### Improvement Verifier closure
+
+The Improvement Verifier pass on `99c4308` returned `Verified` for
+`AUD-2026-11-07-01`, `-02`, `-04`, `-05`, `-06`, `-07`, `-08`, `-09`, and `-10`,
+and confirmed `AUD-2026-11-07-03` remains `Won't fix`. It reproduced the
+fail-before probes, ran the full gate, and accepted the separate Quant Validator
+and Code Reviewer records. The pass was a separate read-only subagent session,
+not a human review.
+
+### Closed
+
+The Audit Workflow's Verification stage is complete. The human remains the final
+acceptance authority for the residual risks recorded above; no edge or
+profitability claim is made.

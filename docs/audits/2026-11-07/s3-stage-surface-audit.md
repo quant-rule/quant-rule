@@ -2,15 +2,17 @@
 
 - Date: 2026-11-07 (UTC)
 - Audit ID: `AUDIT-2026-11-07-s3-stage-surface`
-- Status: Published; findings 01, 02, and 04–10 `Fixed` in PR #536 at `e8f99cc` and PR #538 at `08dd260`; `AUD-2026-11-07-03` `Won't fix` by the human decision of 2026-11-07; independent verification pending
+- Status: Published; findings 01, 02, and 04–10 `Verified` on 2026-11-07 on merged `main` at `99c4308`; `AUD-2026-11-07-03` `Won't fix` by the human decision of 2026-11-07
 - Baseline: `main` at `fbc38a0`
 - Scope: the S3.x strategy, execution, portfolio, backtest, qualification, and
   analytics commands and engines; their artifacts, provenance, boundary tests,
   determinism, and current documentation.
-- Limitations: one sequential audit pass; no independent agent or human review;
-  the live source path, the data engine, and the model formulas were not
-  re-audited except where the strategy handoff depends on them; the run data is
-  the repository fixture; no profitability or edge claim is made.
+- Limitations: one sequential audit pass; the audit itself had no independent
+  agent or human review, while the remediation and verification passes are
+  recorded in the plan and AI log; the live source path, the data engine, and the
+  model formulas were not re-audited except where the strategy handoff depends on
+  them; the run data is the repository fixture; no profitability or edge claim is
+  made.
 
 ## Summary
 
@@ -23,15 +25,16 @@
 
 `AUD-2026-11-07-03` is `Won't fix` by the human decision of 2026-11-07: the
 `allow_short` rule is removed from the current contract, so a short fill is now
-the expected behavior. The other nine findings are `Fixed` in PR
-[#536](https://github.com/quant-rule/quant-rule/pull/536) at `e8f99cc`; the
-verification guards are in PR
-[#538](https://github.com/quant-rule/quant-rule/pull/538) at `08dd260`.
-Independent Improvement Verifier closure is pending.
+the expected behavior. The other nine findings are `Verified` after the
+Improvement Verifier pass on merged `main` at `99c4308`; the fixes are in PRs
+[#536](https://github.com/quant-rule/quant-rule/pull/536),
+[#538](https://github.com/quant-rule/quant-rule/pull/538), and
+[#539](https://github.com/quant-rule/quant-rule/pull/539).
 
 The first Independent Verifier pass returned `Not verified`. The AUD-02, AUD-04,
-AUD-05, and AUD-08 guards were strengthened in PR #538; the findings stay
-`Fixed` until the fresh verifier pass completes.
+AUD-05, and AUD-08 guards and the review records were strengthened in PRs #538
+and #539, and the final pass returned `Verified`. The verifier pass is a separate
+read-only subagent session, not a human review.
 
 The S3.x stages run, their gates pass, and their bundles are byte-deterministic
 on the fixture. The strategy handoff is not consistent: the coupled runner
@@ -44,23 +47,27 @@ The existing gates do not catch these defects: every finding below is a
 semantic or cross-stage defect, and the gate suite is green on the baseline.
 
 > The paragraphs above describe the audit baseline. The handoff defects were
-> fixed in PR [#536](https://github.com/quant-rule/quant-rule/pull/536); the
-> current status is in the Summary and Remediation evidence sections.
+> fixed in PR [#536](https://github.com/quant-rule/quant-rule/pull/536) and the
+> verification guards in PRs [#538](https://github.com/quant-rule/quant-rule/pull/538)
+> and [#539](https://github.com/quant-rule/quant-rule/pull/539);
+> `AUD-2026-11-07-03` was removed by the human decision in PR #534 and is
+> `Won't fix`. The current status is in the Summary and Verification closure
+> sections.
 
 ## Findings
 
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AUD-2026-11-07-01 | Critical | backtest/strategy | `backtest run` evaluates the strategy on the run's `fill_timeframe`, ignores the strategy's `execution_timeframe`, and skips the condition/context validation that `strategy explain` and `strategy run` perform | `crates/quantrule-shell/src/backtest/run.rs:130-176`; `crates/quantrule-shell/src/strategy/run.rs:113-131`; observed 15m strategy run on 5m with a 15m provenance label; a 15m condition silently held while `strategy run` refused it | Silent run on the wrong timeframe; the decisions and their provenance disagree; a typo in a condition timeframe silently disables the strategy | A. Reject a mismatch and call the context validation before the run (recommended); B. make the runner use the strategy's declared execution timeframe; C. record both timeframes and document the override | A | A 15m strategy against a 5m run is refused; a condition timeframe outside execution plus context is refused | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
-| AUD-2026-11-07-02 | Critical | strategy/backtest | The standalone strategy reads `events.csv` (core, extended, and diagnostic events) while the coupled runner reads only the core `timeframe.events()`, so the same model bundle, strategy, and bar can produce different decisions | `crates/quantrule-shell/src/strategy/bundle.rs:374-418`; `crates/quantrule-shell/src/model_bundle/artifacts.rs:151-179`; `crates/quantrule-backtest/src/strategy/event_input.rs:157-181`; observed `strategy explain` `enter_bracket` at bar 41 against the coupled runner's `hold` | The coupled run cannot be reproduced from the model bundle it writes; the stage handoff contract is broken; one path sees evidence the other cannot | A. Use one merged event stream in both paths and gate roles (recommended); B. use core events only in both paths; C. publish an explicit strategy event view in the model bundle | A | `an_extended_event_reaches_both_strategy_paths` uses the extended level event `(1,3,19)`; the standalone path enters and the coupled path matches, while the pre-fix coupled path held | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
+| AUD-2026-11-07-01 | Critical | backtest/strategy | `backtest run` evaluates the strategy on the run's `fill_timeframe`, ignores the strategy's `execution_timeframe`, and skips the condition/context validation that `strategy explain` and `strategy run` perform | `crates/quantrule-shell/src/backtest/run.rs:130-176`; `crates/quantrule-shell/src/strategy/run.rs:113-131`; observed 15m strategy run on 5m with a 15m provenance label; a 15m condition silently held while `strategy run` refused it | Silent run on the wrong timeframe; the decisions and their provenance disagree; a typo in a condition timeframe silently disables the strategy | A. Reject a mismatch and call the context validation before the run (recommended); B. make the runner use the strategy's declared execution timeframe; C. record both timeframes and document the override | A | A 15m strategy against a 5m run is refused; a condition timeframe outside execution plus context is refused | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536), [#538](https://github.com/quant-rule/quant-rule/pull/538), [#539](https://github.com/quant-rule/quant-rule/pull/539) |
+| AUD-2026-11-07-02 | Critical | strategy/backtest | The standalone strategy reads `events.csv` (core, extended, and diagnostic events) while the coupled runner reads only the core `timeframe.events()`, so the same model bundle, strategy, and bar can produce different decisions | `crates/quantrule-shell/src/strategy/bundle.rs:374-418`; `crates/quantrule-shell/src/model_bundle/artifacts.rs:151-179`; `crates/quantrule-backtest/src/strategy/event_input.rs:157-181`; observed `strategy explain` `enter_bracket` at bar 41 against the coupled runner's `hold` | The coupled run cannot be reproduced from the model bundle it writes; the stage handoff contract is broken; one path sees evidence the other cannot | A. Use one merged event stream in both paths and gate roles (recommended); B. use core events only in both paths; C. publish an explicit strategy event view in the model bundle | A | `an_extended_event_reaches_both_strategy_paths` uses the extended level event `(1,3,19)`; the standalone path enters and the coupled path matches, while the pre-fix coupled path held | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536), [#538](https://github.com/quant-rule/quant-rule/pull/538), [#539](https://github.com/quant-rule/quant-rule/pull/539) |
 | AUD-2026-11-07-03 | Critical | portfolio/backtest | `allow_short: false` did not prevent a short fill: `portfolio replay` opened a short trade, and the coupled runner sized every bracket as long | `crates/quantrule-backtest/src/portfolio/ledger.rs:152-169,316-340`; `crates/quantrule-shell/src/backtest/run.rs:234-250`; observed `portfolio replay` trade `side=short`, `net_pnl=198.24` with `allow_short: false` in provenance | A disallowed short position and its P&L entered the account; the risk envelope was bypassed | A. The ledger refuses a disallowed short open and the runner rejects the lower bracket leg; B. add `allow_short` to the execution engine and reject the leg; C. refuse two-sided brackets when shorts are disallowed; D. human: remove the rule | Human: remove the rule | `portfolio replay` accepts a short fill under `portfolio/v2`; no `allow_short` field exists | `Won't fix` | [plan](../../execution-plans/2026-11-07/remove-allow-short.md) |
-| AUD-2026-11-07-04 | Major | strategy/config/registry | The strategy event selector is never validated against the registry: unregistered identities are accepted silently, diagnostic and non-compression events are accepted, and the cited boundary test guards `StrategyInput` rather than the `EventStrategyInput` the engines use | `crates/quantrule-shell/src/config/strategy.rs:456-501`; `crates/quantrule-backtest/src/strategy/event.rs:278-317`; `crates/quantrule-backtest/src/strategy/bracket.rs:49-56,202-228`; `crates/quantrule-backtest/src/strategy/input.rs:100-140`; observed unregistered `(1,1,2)` config all-holds and a diagnostic bracket decision | A typo silently disables a strategy; a diagnostic event can be the sole trigger of a decision; the "diagnostic never enters a decision" invariant is false; the boundary claim is untested | A. Validate against the registry at parse and restrict the bracket to the registered compression-range event (recommended); B. publish a role/engine code on the event and filter at the input; C. keep range checks and document human responsibility | A | Unregistered and diagnostic configs are rejected; the registry role test proves the diagnostic identity is not strategy-readable; the bracket whitelist is tested | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
-| AUD-2026-11-07-05 | Major | strategy/backtest | `event_window_bars` is documented in execution bars but applied to each timeframe's own bars, so a 20-bar window at 5m over a 1h context reads 20 hours instead of 100 minutes | `docs/config/2026-11-06/strategy-config.md:67`; `crates/quantrule-shell/src/strategy/bundle.rs:184-204,226-234`; `crates/quantrule-backtest/src/strategy/event_input.rs:160-170`; `crates/quantrule-shell/src/backtest/run.rs:152` | A context event can be much older than the human intended; the strategy's published meaning drifts | A. Convert the execution-bar window to each context timeframe (recommended); B. document the per-timeframe semantics and add tests; C. remove context events or make the window per timeframe explicit | A | `the_context_window_is_expressed_in_execution_bars` and `the_context_view_window_is_converted_from_execution_bars`; the strategy contract documents the rounded conversion | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
-| AUD-2026-11-07-06 | Minor | backtest/provenance | The backtest manifest omits the strategy config identity the artifact contract names | `docs/config/2026-11-06/engine-artifacts.md:352-359`; `crates/quantrule-shell/src/backtest/run.rs:manifest_bytes`; observed manifest keys `code_commit, config_id, data_version, period, run, schema, seed, stage_order, stages` | A manifest reader cannot identify the strategy config without opening the strategy provenance; the documented manifest is incomplete | A. Add `strategy_config_id` to the manifest (recommended); B. amend the contract to say the strategy identity is only in the stage provenance | A | Manifest test asserts the field and matches `strategy/provenance.json` `config_id` | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
-| AUD-2026-11-07-07 | Minor | docs | The S3.x status docs still say Phase 8 is unpublished, while the Phase 8 PR is merged on the baseline | `docs/execution-plans/2026-11-06/s3-command-surface.md:4,668,790`; `docs/architecture/command-surface.md:243`; `docs/README.md:35`; `git log` shows PR #515 merged at `5e2ab6c` | Readers and agents believe the surface is unpublished and Phase 1 is current | A. Update the current status lines and index (recommended); B. keep the historical phase records and add a dated status note at the top | A | Current status lines match Git; `check_links.py` and `check_terms.py` pass | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
-| AUD-2026-11-07-08 | Minor | tests | The strategy rule has no causality test that appending, changing, or removing later bars leaves an earlier decision unchanged; the execution engine has one, the strategy does not | `crates/quantrule-backtest/src/strategy/event.rs` test module; `crates/quantrule-backtest/src/strategy/bracket.rs:365` (determinism only); `crates/quantrule-shell/tests/strategy_command.rs` (command determinism); `AGENTS.md` §4 causality tests | The causality claim is not directly tested; a future stateful change can regress it silently | A. Add a causal test over `EventStrategyInput` and `CompressionBracketInput` (recommended); B. document why the stateless engine makes the test unnecessary | A | `later_bars_do_not_change_an_earlier_snapshot`; `the_snapshot_boundary_keeps_both_engine_decisions_causal` | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
-| AUD-2026-11-07-09 | Minor | backtest/output | `backtest run` does not refuse an existing non-empty `backtest` root when its stage directories are absent; it writes beside the pre-existing files | `crates/quantrule-shell/src/backtest/run.rs:138-142`; `crates/quantrule-shell/src/model_bundle/bundle.rs:90-92`; `crates/quantrule-shell/tests/backtest_command.rs:204-217`; observed `junk.txt` retained in a successful run | A target that is not a clean bundle can be mixed with new stage artifacts | A. Check `ensure_available(&root)` before the model write (recommended); B. document that only each stage directory is checked | A | A `backtest` root containing an unrelated file is refused | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
-| AUD-2026-11-07-10 | Minor | docs/strategy | The evidence table documents `level` and `progression` evidence kinds, but the strategy emits only `event` and `state`; no condition kind can produce the other two | `docs/config/2026-11-06/engine-artifacts.md:201-213`; `crates/quantrule-shell/src/strategy/run.rs:460-495`; `crates/quantrule-shell/src/config/strategy.rs:448-505` | A reader expects evidence and conditions the rule language does not support | A. Remove the unused kinds from the table (recommended); B. add the conditions and evidence as a new approved rule-language change | A | The evidence table lists only kinds the engine can emit; a search for `"kind":"level"` and `"kind":"progression"` returns none | Fixed | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
+| AUD-2026-11-07-04 | Major | strategy/config/registry | The strategy event selector is never validated against the registry: unregistered identities are accepted silently, diagnostic and non-compression events are accepted, and the cited boundary test guards `StrategyInput` rather than the `EventStrategyInput` the engines use | `crates/quantrule-shell/src/config/strategy.rs:456-501`; `crates/quantrule-backtest/src/strategy/event.rs:278-317`; `crates/quantrule-backtest/src/strategy/bracket.rs:49-56,202-228`; `crates/quantrule-backtest/src/strategy/input.rs:100-140`; observed unregistered `(1,1,2)` config all-holds and a diagnostic bracket decision | A typo silently disables a strategy; a diagnostic event can be the sole trigger of a decision; the "diagnostic never enters a decision" invariant is false; the boundary claim is untested | A. Validate against the registry at parse and restrict the bracket to the registered compression-range event (recommended); B. publish a role/engine code on the event and filter at the input; C. keep range checks and document human responsibility | A | Unregistered and diagnostic configs are rejected; the registry role test proves the diagnostic identity is not strategy-readable; the bracket whitelist is tested | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536), [#538](https://github.com/quant-rule/quant-rule/pull/538), [#539](https://github.com/quant-rule/quant-rule/pull/539) |
+| AUD-2026-11-07-05 | Major | strategy/backtest | `event_window_bars` is documented in execution bars but applied to each timeframe's own bars, so a 20-bar window at 5m over a 1h context reads 20 hours instead of 100 minutes | `docs/config/2026-11-06/strategy-config.md:67`; `crates/quantrule-shell/src/strategy/bundle.rs:184-204,226-234`; `crates/quantrule-backtest/src/strategy/event_input.rs:160-170`; `crates/quantrule-shell/src/backtest/run.rs:152` | A context event can be much older than the human intended; the strategy's published meaning drifts | A. Convert the execution-bar window to each context timeframe (recommended); B. document the per-timeframe semantics and add tests; C. remove context events or make the window per timeframe explicit | A | `the_context_window_is_expressed_in_execution_bars` and `the_context_view_window_is_converted_from_execution_bars`; the strategy contract documents the rounded conversion | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536), [#538](https://github.com/quant-rule/quant-rule/pull/538), [#539](https://github.com/quant-rule/quant-rule/pull/539) |
+| AUD-2026-11-07-06 | Minor | backtest/provenance | The backtest manifest omits the strategy config identity the artifact contract names | `docs/config/2026-11-06/engine-artifacts.md:352-359`; `crates/quantrule-shell/src/backtest/run.rs:manifest_bytes`; observed manifest keys `code_commit, config_id, data_version, period, run, schema, seed, stage_order, stages` | A manifest reader cannot identify the strategy config without opening the strategy provenance; the documented manifest is incomplete | A. Add `strategy_config_id` to the manifest (recommended); B. amend the contract to say the strategy identity is only in the stage provenance | A | Manifest test asserts the field and matches `strategy/provenance.json` `config_id` | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
+| AUD-2026-11-07-07 | Minor | docs | The S3.x status docs still say Phase 8 is unpublished, while the Phase 8 PR is merged on the baseline | `docs/execution-plans/2026-11-06/s3-command-surface.md:4,668,790`; `docs/architecture/command-surface.md:243`; `docs/README.md:35`; `git log` shows PR #515 merged at `5e2ab6c` | Readers and agents believe the surface is unpublished and Phase 1 is current | A. Update the current status lines and index (recommended); B. keep the historical phase records and add a dated status note at the top | A | Current status lines match Git; `check_links.py` and `check_terms.py` pass | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
+| AUD-2026-11-07-08 | Minor | tests | The strategy rule has no causality test that appending, changing, or removing later bars leaves an earlier decision unchanged; the execution engine has one, the strategy does not | `crates/quantrule-backtest/src/strategy/event.rs` test module; `crates/quantrule-backtest/src/strategy/bracket.rs:365` (determinism only); `crates/quantrule-shell/tests/strategy_command.rs` (command determinism); `AGENTS.md` §4 causality tests | The causality claim is not directly tested; a future stateful change can regress it silently | A. Add a causal test over `EventStrategyInput` and `CompressionBracketInput` (recommended); B. document why the stateless engine makes the test unnecessary | A | `later_bars_do_not_change_an_earlier_snapshot`; `the_snapshot_boundary_keeps_both_engine_decisions_causal` | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536), [#538](https://github.com/quant-rule/quant-rule/pull/538), [#539](https://github.com/quant-rule/quant-rule/pull/539) |
+| AUD-2026-11-07-09 | Minor | backtest/output | `backtest run` does not refuse an existing non-empty `backtest` root when its stage directories are absent; it writes beside the pre-existing files | `crates/quantrule-shell/src/backtest/run.rs:138-142`; `crates/quantrule-shell/src/model_bundle/bundle.rs:90-92`; `crates/quantrule-shell/tests/backtest_command.rs:204-217`; observed `junk.txt` retained in a successful run | A target that is not a clean bundle can be mixed with new stage artifacts | A. Check `ensure_available(&root)` before the model write (recommended); B. document that only each stage directory is checked | A | A `backtest` root containing an unrelated file is refused | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536), [#538](https://github.com/quant-rule/quant-rule/pull/538), [#539](https://github.com/quant-rule/quant-rule/pull/539) |
+| AUD-2026-11-07-10 | Minor | docs/strategy | The evidence table documents `level` and `progression` evidence kinds, but the strategy emits only `event` and `state`; no condition kind can produce the other two | `docs/config/2026-11-06/engine-artifacts.md:201-213`; `crates/quantrule-shell/src/strategy/run.rs:460-495`; `crates/quantrule-shell/src/config/strategy.rs:448-505` | A reader expects evidence and conditions the rule language does not support | A. Remove the unused kinds from the table (recommended); B. add the conditions and evidence as a new approved rule-language change | A | The evidence table lists only kinds the engine can emit; a search for `"kind":"level"` and `"kind":"progression"` returns none | Verified | [#536](https://github.com/quant-rule/quant-rule/pull/536) |
 
 ## Detail
 
@@ -471,7 +478,9 @@ does not require a different behavior or the impact is limited.
 The nine open findings were fixed in PR
 [#536](https://github.com/quant-rule/quant-rule/pull/536), merged at `e8f99cc`;
 the verification guards were strengthened in PR
-[#538](https://github.com/quant-rule/quant-rule/pull/538), merged at `08dd260`.
+[#538](https://github.com/quant-rule/quant-rule/pull/538), merged at `08dd260`;
+the review fixes are in PR
+[#539](https://github.com/quant-rule/quant-rule/pull/539), merged at `99c4308`.
 The merged `main` tree passes the full gate: 1,333 tests, 0 failed, 8 ignored;
 fmt, clippy, doc, the contract checks, the structure check, and
 `git diff --check`.
@@ -488,20 +497,36 @@ fmt, clippy, doc, the contract checks, the structure check, and
 | `AUD-2026-11-07-09` | The backtest root is checked before the model write. | `backtest_refuses_an_unrelated_file_in_the_root`, which also asserts that no stage directory or manifest exists. |
 | `AUD-2026-11-07-10` | The evidence table lists only the emitted event/state kinds. | Manual read; `check_terms.py`. |
 
+## Verification closure
+
+The Improvement Verifier pass on merged `main` at `99c4308` returned `Verified`
+for `AUD-2026-11-07-01`, `-02`, `-04`, `-05`, `-06`, `-07`, `-08`, `-09`, and
+`-10`, and confirmed `AUD-2026-11-07-03` remains `Won't fix`. The verifier
+reproduced the fail-before probes, ran the full gate (1,333 passed, 0 failed, 8
+ignored), and accepted the separate Quant Validator and Code Reviewer records
+(`pass with residual risks` and `approve with residual risks`). The pass was a
+separate read-only subagent session, not a human review; the human remains the
+final acceptance authority.
+
+Residual risks accepted by the verifier: the bracket causality arm is `Hold` on
+the fixture; the standalone context-window path has no direct fail-before test;
+the `EventDiagnostic` branch is defensive; the missing-execution branch is
+unit-tested only; and the qualification fixture's holdout label is synthetic.
+No edge or profitability claim is made.
+
 ## Status and next stage
 
-All findings are `Fixed`, except `AUD-2026-11-07-03`, which the human marked
+All findings are `Verified`, except `AUD-2026-11-07-03`, which the human marked
 `Won't fix` on 2026-11-07 by removing the `allow_short` rule. The Audit
-Workflow's next stage is Verification: the Improvement Verifier checks the merged
-fix, the regression guards, the diff, the tests, the absence of unrelated
-changes, and the Quant Validator record, then moves each finding to `Verified` or
-returns it for remediation.
+Workflow's Verification stage is complete. The human remains responsible for
+final acceptance and any residual-risk decision.
 
 The fixes are in PR [#536](https://github.com/quant-rule/quant-rule/pull/536),
-merged at `e8f99cc`, and the verification guards are in PR
-[#538](https://github.com/quant-rule/quant-rule/pull/538), merged at `08dd260`;
-the plan is PR [#535](https://github.com/quant-rule/quant-rule/pull/535), and the
-removal is PR [#534](https://github.com/quant-rule/quant-rule/pull/534). The audit
-did not create the fix issues; no issue number was invented. The `allow_short`
-removal is recorded in
+merged at `e8f99cc`; the verification guards are in PRs
+[#538](https://github.com/quant-rule/quant-rule/pull/538) at `08dd260` and
+[#539](https://github.com/quant-rule/quant-rule/pull/539) at `99c4308`; the plan
+is PR [#535](https://github.com/quant-rule/quant-rule/pull/535), and the removal
+is PR [#534](https://github.com/quant-rule/quant-rule/pull/534). The audit did not
+create the fix issues; no issue number was invented. The `allow_short` removal is
+recorded in
 [`docs/execution-plans/2026-11-07/remove-allow-short.md`](../../execution-plans/2026-11-07/remove-allow-short.md).
