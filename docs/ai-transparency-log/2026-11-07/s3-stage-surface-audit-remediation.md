@@ -4,9 +4,9 @@
 - Tool: OpenCode, DeepSeek V4.1 Flash
 - Work item: S3.x stage-surface audit remediation plan
 - Plan: `docs/execution-plans/2026-11-07/s3-stage-surface-audit-remediation.md`
-- Boundary: Planner stage only. Read-only verification of the audit findings;
-  one proposed plan document and this log. No code, test, issue, branch, commit,
-  push, PR, or merge for the remaining findings.
+- Boundary: Initial Planner entry only. Read-only verification of the audit
+  findings; one proposed plan document and this log. The later addenda record the
+  approved implementation, verification, and closure.
 
 ## Intent and boundary
 
@@ -152,7 +152,8 @@ Verification on the follow-up tree: `cargo fmt --all -- --check`, `cargo clippy
 check, and `git diff --check` pass. The two fail-before probes above were run by
 temporarily reverting the specific code path and then restoring it.
 
-The findings remain `Fixed`, not `Verified`. This change set was merged in PR
+At the time of this addendum the findings remained `Fixed`, not `Verified`. This
+change set was merged in PR
 [#538](https://github.com/quant-rule/quant-rule/pull/538) at `08dd260`.
 
 ## Addendum — fresh review on the merged tree (2026-11-07)
@@ -188,9 +189,30 @@ Corrections:
   display-only.
 - The audit, plan, and this log now record the PR #538 merge.
 
-The findings remain `Fixed`. A final Quant Validator record, a final Code
-Reviewer pass, and the Improvement Verifier closure on the final commit remain
-outstanding. Verification after the review corrections: `cargo fmt --all --
---check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace`
-(1,333 passed, 0 failed, 8 ignored), `cargo doc` with `-D warnings`, the contract
-checks, the structure check, and `git diff --check` pass.
+At the time of the review pass the findings remained `Fixed`.
+
+## Addendum — verification closure (2026-11-07)
+
+- Date and tool: 2026-11-07 (UTC), OpenCode with DeepSeek V4.1 Flash.
+- Intent and boundary: record the final independent records and the closure of
+  the S3.x stage-surface audit remediation. The final passes were read-only; the
+  status update is documentation only. No model or strategy behavior changed.
+- Evidence: the final Quant Validator pass on merged `main` at `99c4308`
+  returned `pass with residual risks`; the final Code Reviewer pass returned
+  `approve with residual risks`; the Improvement Verifier returned `Verified` for
+  `AUD-2026-11-07-01`, `-02`, `-04`, `-05`, `-06`, `-07`, `-08`, `-09`, and
+  `-10`, and confirmed `AUD-2026-11-07-03` remains `Won't fix`. The verifier
+  reproduced the fail-before probes and ran the full gate: 1,333 passed, 0
+  failed, 8 ignored; fmt, clippy, doc, the contract checks, the structure check,
+  and `git diff --check` pass.
+- Learning: the first verification pass was right to reject guards that passed
+  pre-fix. The extended-event and converted-window probes are the direct evidence
+  that the guards exercise the defects. The remaining residual risks are the
+  bracket causality arm being `Hold` on the fixture, the standalone
+  context-window path sharing the tested helper without its own fail-before test,
+  the defensive `EventDiagnostic` branch, the unit-only missing-execution branch,
+  and the synthetic holdout label.
+- Limits: the Quant Validator, Code Reviewer, and Improvement Verifier passes
+  were separate read-only subagent sessions, not human reviews and not
+  independent model judgments. The human remains the final acceptance authority;
+  no edge or profitability claim is made.
