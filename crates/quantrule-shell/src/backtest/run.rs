@@ -14,7 +14,6 @@ use quantrule_backtest::execution::{
     ExecutionEngine, ExecutionError, Fill, OrderIntent, OrderRecord, Rejection,
 };
 use quantrule_backtest::portfolio::{PortfolioLedger, PortfolioLedgerError};
-use quantrule_backtest::side::Side;
 use quantrule_backtest::strategy::{Decision, EventStrategyInput};
 use serde_json::{Value, json};
 
@@ -219,7 +218,7 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
         let (intent, quantity, quantity_step) = match decision {
             Decision::Hold => (OrderIntent::Hold, None, None),
             Decision::Enter(entry) => {
-                let quantity = ledger.size_entry(entry.side(), candle.close()).ok();
+                let quantity = ledger.size_entry(candle.close()).ok();
                 (
                     OrderIntent::Enter {
                         intent: entry.intent,
@@ -232,10 +231,9 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
                 )
             }
             Decision::EnterBracket(entry) => {
-                // The bracket side is not known until the fill. Size the
-                // notional as a long entry; execution applies the same
+                // Sizing is side-independent; execution applies the same
                 // quantity to either boundary.
-                let quantity = ledger.size_entry(Side::Long, candle.close()).ok();
+                let quantity = ledger.size_entry(candle.close()).ok();
                 (
                     OrderIntent::EnterBracket {
                         intent: entry.intent,

@@ -1,5 +1,5 @@
 {
-  "schema": "quantrule.portfolio/v1",
+  "schema": "quantrule.portfolio/v2",
   "id": "P1.0",
   "initial_cash": 10000.0,
   "currency": "USD",
@@ -10,7 +10,6 @@
   },
   "leverage": 1.0,
   "max_open_positions": 1,
-  "allow_short": true,
   "commission": {
     "rate": 0.001,
     "base": "equity",

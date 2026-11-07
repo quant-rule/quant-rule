@@ -142,11 +142,11 @@ impl PortfolioLedger {
     ///
     /// Returns a [`SizingRejection`] when the ledger is halted or the sizing
     /// rule rejects the entry.
-    pub fn size_entry(&self, side: Side, price: f64) -> Result<f64, SizingRejection> {
+    pub fn size_entry(&self, price: f64) -> Result<f64, SizingRejection> {
         if self.state.halted {
             return Err(SizingRejection::Halted);
         }
-        self.config.size_entry(side, self.state.equity, price)
+        self.config.size_entry(self.state.equity, price)
     }
 
     /// Applies one fill to cash and the open position.

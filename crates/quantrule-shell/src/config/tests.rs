@@ -98,7 +98,7 @@ fn execution_object() -> Value {
 
 fn portfolio_object() -> Value {
     json!({
-        "schema": "quantrule.portfolio/v1",
+        "schema": "quantrule.portfolio/v2",
         "initial_cash": 10000.0,
         "currency": "USD",
         "sizing": {
@@ -108,7 +108,6 @@ fn portfolio_object() -> Value {
         },
         "leverage": 1.0,
         "max_open_positions": 1,
-        "allow_short": true,
         "commission": {"rate": 0.001, "base": "equity", "per": "operation"},
         "funding": {"rate": 0.0001, "interval_hours": 8},
         "max_drawdown": {"limit": 0.2, "action": "halt"},
@@ -261,6 +260,17 @@ fn portfolio_matches_the_contract() {
     let valid = portfolio::parse(&portfolio_object(), "portfolio.json").expect("valid portfolio");
     assert_eq!(valid.initial_cash, 10_000.0);
     assert_eq!(valid.max_open_positions, 1);
+}
+
+#[test]
+fn portfolio_rejects_the_removed_allow_short_field() {
+    let mut value = portfolio_object();
+    value["allow_short"] = json!(true);
+    assert_rejected(
+        portfolio::parse(&value, "portfolio.json"),
+        ConfigErrorKind::UnknownField,
+        "$.allow_short",
+    );
 }
 
 #[test]

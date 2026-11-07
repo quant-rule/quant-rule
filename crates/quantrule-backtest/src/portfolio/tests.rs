@@ -26,7 +26,6 @@ fn config() -> PortfolioConfig {
         },
         leverage: 1.0,
         max_open_positions: 1,
-        allow_short: true,
         commission: commission(),
         funding: funding(),
         max_drawdown: drawdown(),
@@ -42,7 +41,6 @@ fn valid_config_validates_and_exposes_its_values() {
     assert_eq!(config.currency, Currency::Usd);
     assert_eq!(config.leverage, 1.0);
     assert_eq!(config.max_open_positions, 1);
-    assert!(config.allow_short);
     assert_eq!(config.commission.rate(), 0.001);
     assert_eq!(config.commission.base(), CommissionBase::Equity);
     assert_eq!(config.commission.per(), CommissionPer::Operation);
@@ -333,20 +331,11 @@ fn mark_to_market_accepts_only_bar_close() {
 }
 
 #[test]
-fn fixed_notional_sizes_a_long() {
+fn fixed_notional_sizes_an_entry() {
     let config = config();
     let quantity = config
-        .size_entry(Side::Long, 10_000.0, 200.0)
+        .size_entry(10_000.0, 200.0)
         .expect("the entry is sizeable");
-    assert_eq!(quantity, 50.0);
-}
-
-#[test]
-fn fixed_notional_sizes_a_short() {
-    let config = config();
-    let quantity = config
-        .size_entry(Side::Short, 10_000.0, 200.0)
-        .expect("the short is sizeable");
     assert_eq!(quantity, 50.0);
 }
 
@@ -354,10 +343,10 @@ fn fixed_notional_sizes_a_short() {
 fn fixed_notional_ignores_the_equity() {
     let config = config();
     let low = config
-        .size_entry(Side::Long, 1_000.0, 200.0)
+        .size_entry(1_000.0, 200.0)
         .expect("the entry is sizeable");
     let high = config
-        .size_entry(Side::Long, 100_000.0, 200.0)
+        .size_entry(100_000.0, 200.0)
         .expect("the entry is sizeable");
     assert_eq!(low, high);
 }
@@ -370,7 +359,7 @@ fn equity_fraction_scales_with_equity() {
         quantity_step: 1.0,
     };
     let quantity = config
-        .size_entry(Side::Long, 10_000.0, 200.0)
+        .size_entry(10_000.0, 200.0)
         .expect("the entry is sizeable");
     assert_eq!(quantity, 25.0);
 }
@@ -383,7 +372,7 @@ fn equity_fraction_with_zero_equity_is_below_one_step() {
         quantity_step: 1.0,
     };
     assert_eq!(
-        config.size_entry(Side::Long, 0.0, 200.0),
+        config.size_entry(0.0, 200.0),
         Err(SizingRejection::BelowOneStep {
             raw: 0.0,
             step: 1.0
@@ -399,7 +388,7 @@ fn quantity_floors_to_the_step() {
         quantity_step: 3.0,
     };
     let quantity = config
-        .size_entry(Side::Long, 1_000.0, 100.0)
+        .size_entry(1_000.0, 100.0)
         .expect("the entry is sizeable");
     assert_eq!(quantity, 9.0);
 }
@@ -412,7 +401,7 @@ fn exact_step_boundaries_are_not_lost_to_binary_rounding() {
         quantity_step: 0.1,
     };
     let quantity = config
-        .size_entry(Side::Long, 1_000.0, 5.0)
+        .size_entry(1_000.0, 5.0)
         .expect("the exact boundary is sizeable");
     assert_eq!(quantity, 0.6);
 
@@ -421,7 +410,7 @@ fn exact_step_boundaries_are_not_lost_to_binary_rounding() {
         quantity_step: 0.1,
     };
     let quantity = config
-        .size_entry(Side::Long, 1_000.0, 3.0)
+        .size_entry(1_000.0, 3.0)
         .expect("the exact boundary is sizeable");
     assert_eq!(quantity, 0.1);
 }
@@ -445,7 +434,7 @@ fn exact_step_boundaries_at_small_and_non_grid_steps() {
             quantity_step: step,
         };
         let quantity = config
-            .size_entry(Side::Long, 1_000.0, 1.0)
+            .size_entry(1_000.0, 1.0)
             .expect("the exact boundary is sizeable");
         assert_eq!(quantity, expected, "notional={notional}, step={step}");
     }
@@ -457,7 +446,7 @@ fn exact_step_boundaries_at_small_and_non_grid_steps() {
     };
     assert!(
         matches!(
-            config.size_entry(Side::Long, 1_000.0, 1.0),
+            config.size_entry(1_000.0, 1.0),
             Err(SizingRejection::BelowOneStep { .. })
         ),
         "a quantity below one step must reject"
@@ -472,7 +461,7 @@ fn quantity_below_one_step_is_rejected() {
         quantity_step: 1.0,
     };
     assert_eq!(
-        config.size_entry(Side::Long, 10.0, 100.0),
+        config.size_entry(10.0, 100.0),
         Err(SizingRejection::BelowOneStep {
             raw: 0.1,
             step: 1.0
@@ -484,7 +473,7 @@ fn quantity_below_one_step_is_rejected() {
 fn zero_price_is_rejected() {
     let config = config();
     assert_eq!(
-        config.size_entry(Side::Long, 10_000.0, 0.0),
+        config.size_entry(10_000.0, 0.0),
         Err(SizingRejection::NonPositivePrice)
     );
 }
@@ -493,7 +482,7 @@ fn zero_price_is_rejected() {
 fn negative_price_is_rejected() {
     let config = config();
     assert_eq!(
-        config.size_entry(Side::Long, 10_000.0, -1.0),
+        config.size_entry(10_000.0, -1.0),
         Err(SizingRejection::NonPositivePrice)
     );
 }
@@ -502,7 +491,7 @@ fn negative_price_is_rejected() {
 fn non_finite_price_is_rejected() {
     let config = config();
     assert_eq!(
-        config.size_entry(Side::Long, 10_000.0, f64::NAN),
+        config.size_entry(10_000.0, f64::NAN),
         Err(SizingRejection::NonFinitePrice)
     );
 }
@@ -511,7 +500,7 @@ fn non_finite_price_is_rejected() {
 fn negative_equity_is_rejected() {
     let config = config();
     assert_eq!(
-        config.size_entry(Side::Long, -1.0, 100.0),
+        config.size_entry(-1.0, 100.0),
         Err(SizingRejection::NegativeEquity)
     );
 }
@@ -520,32 +509,21 @@ fn negative_equity_is_rejected() {
 fn non_finite_equity_is_rejected() {
     let config = config();
     assert_eq!(
-        config.size_entry(Side::Long, f64::NAN, 100.0),
+        config.size_entry(f64::NAN, 100.0),
         Err(SizingRejection::NonFiniteEquity)
     );
-}
-
-#[test]
-fn short_is_rejected_when_not_allowed() {
-    let mut config = config();
-    config.allow_short = false;
-    assert_eq!(
-        config.size_entry(Side::Short, 10_000.0, 200.0),
-        Err(SizingRejection::ShortNotAllowed)
-    );
-    assert!(config.size_entry(Side::Long, 10_000.0, 200.0).is_ok());
 }
 
 #[test]
 fn sizing_is_deterministic() {
     let config = config();
     let first = config
-        .size_entry(Side::Long, 10_000.0, 123.45)
+        .size_entry(10_000.0, 123.45)
         .expect("the entry is sizeable");
     for _ in 0..100 {
         assert_eq!(
             config
-                .size_entry(Side::Long, 10_000.0, 123.45)
+                .size_entry(10_000.0, 123.45)
                 .expect("the entry is sizeable"),
             first
         );
@@ -672,10 +650,6 @@ fn config_errors_display_a_deterministic_message() {
 
 #[test]
 fn sizing_rejections_display_a_deterministic_message() {
-    assert_eq!(
-        SizingRejection::ShortNotAllowed.to_string(),
-        "a short entry is not allowed"
-    );
     assert_eq!(
         SizingRejection::BelowOneStep {
             raw: 0.5,

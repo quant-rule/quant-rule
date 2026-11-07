@@ -3,7 +3,8 @@
 //! Each test builds the model, strategy, and execution artifacts with the real
 //! commands, then replays the fills through the portfolio ledger. The tests
 //! assert the bundle shape, the accounting invariant, determinism, the
-//! non-empty-target refusal, the data-version handoff, and the null metric rule.
+//! non-empty-target refusal, the data-version handoff, the null metric rule, and
+//! short-fill acceptance.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -307,4 +308,62 @@ fn replay_reports_undefined_metrics_as_null() {
         fs::read_to_string(out.join("portfolio").join("summary.txt")).expect("summary is readable");
     assert!(summary.contains("win_rate: null"));
     assert!(summary.contains("profit_factor: null"));
+}
+
+#[test]
+fn replay_accepts_a_short_fill() {
+    let (fills, _) = build_fills("portfolio-short-source");
+    let bundle = output_dir("portfolio-short-bundle");
+    fs::create_dir_all(&bundle).expect("the bundle directory is created");
+    fs::copy(
+        fills.join("provenance.json"),
+        bundle.join("provenance.json"),
+    )
+    .expect("the provenance copy");
+
+    let text = fs::read_to_string(fills.join("fills.csv")).expect("the fills are readable");
+    let mut short_fills = String::new();
+    for (index, line) in text.lines().enumerate() {
+        if index == 0 {
+            short_fills.push_str(line);
+            short_fills.push('\n');
+            continue;
+        }
+        let fields: Vec<&str> = line.split(',').collect();
+        let side = if index == 1 { "sell" } else { "buy" };
+        let reference: f64 = fields[3].parse().expect("the reference price");
+        let slippage: f64 = fields[5].parse().expect("the slippage");
+        let price = if side == "sell" {
+            reference - slippage
+        } else {
+            reference + slippage
+        };
+        short_fills.push_str(&format!(
+            "{},{side},{},{},{price:.12},{},{},{},{},{}\n",
+            fields[0], fields[2], fields[3], fields[5], fields[6], fields[7], fields[8], fields[9]
+        ));
+    }
+    fs::write(bundle.join("fills.csv"), short_fills).expect("the short fills are written");
+
+    let config = fixture("config-run/run.json");
+    let out = output_dir("portfolio-short-output");
+    let output = run(&replay_args(
+        bundle.to_str().expect("the bundle path is UTF-8"),
+        config.to_str().expect("the config path is UTF-8"),
+        out.to_str().expect("the output path is UTF-8"),
+    ));
+    assert_success(&output);
+
+    let trades = fs::read_to_string(out.join("portfolio").join("trades.csv"))
+        .expect("the trades are readable");
+    let side = trades
+        .lines()
+        .nth(1)
+        .and_then(|line| line.split(',').nth(1))
+        .expect("the first trade side");
+    assert_eq!(side, "short");
+
+    let provenance = fs::read_to_string(out.join("portfolio").join("provenance.json"))
+        .expect("the provenance is readable");
+    assert!(!provenance.contains("allow_short"));
 }

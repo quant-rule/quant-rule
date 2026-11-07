@@ -153,7 +153,7 @@ A run is described by `run.json`:
 | `data.json` | `quantrule.data/v3` | Source path, data version, period, and available ladder |
 | `model.json` | `quantrule.model/v4` | M1.0 reading, event, and progression settings |
 | `execution.json` | `quantrule.execution/v2` | Fill mechanics and costs for S3.x |
-| `portfolio.json` | `quantrule.portfolio/v1` | Capital, sizing, costs, and risk limits for S3.x |
+| `portfolio.json` | `quantrule.portfolio/v2` | Capital, sizing, costs, and risk limits; both directions are always available |
 
 `strategy.json` and `analytics.json` are not part of the current run. The loader
 rejects them with an unknown-field error. S3.x passes the strategy file and the

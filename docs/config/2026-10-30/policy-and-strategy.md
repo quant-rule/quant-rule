@@ -1,8 +1,8 @@
 # Policy Blueprint and Current Run Contracts
 
-- Date: 2026-10-30 (updated 2026-11-06 for the M1.0 current-surface cleanup)
+- Date: 2026-10-30 (updated 2026-11-07 for the portfolio v2 rule removal)
 - Applies to: run schema `quantrule.run/v2`, policy `v1`, data `v3`, model
-  `v4`, execution `v2`, portfolio `v1`
+  `v4`, execution `v2`, portfolio `v2`
 - Related: `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md`
 
 ## Run composition
@@ -85,7 +85,7 @@ composite scores.
 
 ## Portfolio
 
-`portfolio.json` uses `quantrule.portfolio/v1` and owns capital and accounting:
+`portfolio.json` uses `quantrule.portfolio/v2` and owns capital and accounting:
 
 | Field | Rule |
 |---|---|
@@ -94,7 +94,6 @@ composite scores.
 | `sizing` | `fixed_notional` or `equity_fraction`; positive notional/fraction and `quantity_step` |
 | `leverage` | Exactly `1.0` |
 | `max_open_positions` | Exactly `1` |
-| `allow_short` | Boolean |
 | `commission` | `rate >= 0`, `base` `equity`, `per` `operation` |
 | `funding` | `rate` finite, `interval_hours` in the supported set |
 | `max_drawdown` | Optional `(0, 1]` limit; action `halt`; checked after an entry, an exit, a funding charge, and a mark |

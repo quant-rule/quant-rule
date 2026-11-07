@@ -41,6 +41,10 @@ historical evidence; the current shell does not load them.
 cutover and reference the retired strategy/analytics files. They are historical
 evidence, not a current run set.
 
+The current portfolio contract is `quantrule.portfolio/v2`. The historical
+research configs retain `quantrule.portfolio/v1` and the retired `allow_short`
+field as evidence of the prior contract; the current shell does not load them.
+
 ## Deleted
 
 `config/v5-swing/` and the example `strategy.json`/`analytics.json` files were
