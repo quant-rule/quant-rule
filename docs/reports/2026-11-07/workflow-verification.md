@@ -1,7 +1,8 @@
 # Workflow Documentation Reset — Verification
 
 - Date: 2026-11-07 (UTC)
-- Status: Verified locally; publication and human acceptance pending
+- Status: Published (PR #542); CI green; human acceptance pending
+- Pull request: [#542](https://github.com/quant-rule/quant-rule/pull/542)
 - Plan: [`docs/execution-plans/2026-11-07/workflow-documentation-reset.md`](../../execution-plans/2026-11-07/workflow-documentation-reset.md)
 - Audit: [`docs/audits/2026-11-07/workflow-status-audit.md`](../../audits/2026-11-07/workflow-status-audit.md)
 - AI log: [`docs/ai-transparency-log/2026-11-07/workflow-documentation-reset.md`](../../ai-transparency-log/2026-11-07/workflow-documentation-reset.md)
@@ -48,6 +49,7 @@ accounting rule, or policy threshold changed.
 | Fixture adapter | `python3 tools/improvement/run_current.py /tmp/opencode/workflow-run-test-manifest.json --qr target/debug/quantrule` | `ok STRATEGY-2026-11-07-01 -> /tmp/opencode/workflow-run-test` | Pass |
 | Fixture evidence | `python3 tools/improvement/evidence.py /tmp/opencode/workflow-run-test` | `ok STRATEGY-2026-11-07-01 evidence -> .../evidence.json` | Pass |
 | Whitespace | `git diff --check` | clean | Pass |
+| GitHub CI (PR #542) | `verify` and `Project sync` | both pass | Pass |
 
 ## 3. Acceptance criteria
 

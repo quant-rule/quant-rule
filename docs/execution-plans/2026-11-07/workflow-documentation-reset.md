@@ -1,8 +1,9 @@
 # Workflow Documentation Reset — Execution Plan
 
 - Date: 2026-11-07 (UTC)
-- Status: **Verified locally** (2026-11-07); publication and human acceptance pending
-- Issue: none assigned yet; the parent issue is created after approval
+- Status: **Published** (2026-11-07); CI green; human acceptance pending
+- Issue: [#541](https://github.com/quant-rule/quant-rule/issues/541)
+- Pull request: [#542](https://github.com/quant-rule/quant-rule/pull/542)
 - Branch: `docs/workflow-documentation-reset`
 - Worktree: `quant-rule--workflow-documentation-reset`
 - Claim type: documentation, workflow, tooling, and test-infrastructure change; no model, strategy, execution, portfolio, or policy behavior change; no edge claim
@@ -267,6 +268,8 @@ Observed locally on 2026-11-07:
 
 The full record is
 [`docs/reports/2026-11-07/workflow-verification.md`](../../reports/2026-11-07/workflow-verification.md).
+The branch was published as [PR #542](https://github.com/quant-rule/quant-rule/pull/542);
+the `verify` and `Project sync` checks pass.
 
 ## 13. Traceability
 

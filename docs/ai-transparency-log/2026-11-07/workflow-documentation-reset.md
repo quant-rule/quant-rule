@@ -167,6 +167,14 @@ mechanics, portfolio accounting, or policy thresholds.
   duplicated the GitHub Project and obscured the release history. The revised
   changelog is grouped by release and records only meaningful changes.
 
+### Publication
+
+- The branch was published as [PR #542](https://github.com/quant-rule/quant-rule/pull/542),
+  closing [issue #541](https://github.com/quant-rule/quant-rule/issues/541).
+- The `verify` and `Project sync` checks pass. The PR is mergeable.
+- The board items for the issue and the PR are `In Progress`; they move to
+  `Done` when the PR merges.
+
 ### Limitations
 
 - No independent Code Reviewer or Quant Validator pass is claimed. The change is
