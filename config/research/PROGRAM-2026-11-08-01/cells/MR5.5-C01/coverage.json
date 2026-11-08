@@ -1,0 +1,17 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.5-C01",
+  "kind": "primary",
+  "events": [
+    "signal.rsi_threshold"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "An RSI threshold crossing at a confluence of at least two independent published levels carries directional information."
+}

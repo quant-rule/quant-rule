@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.1-C01",
+  "kind": "primary",
+  "events": [
+    "level.cross"
+  ],
+  "condition_events": [
+    "level.break",
+    "level.cross"
+  ],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A confirmed-level break that closes back on the original side within three bars predicts a reversal."
+}

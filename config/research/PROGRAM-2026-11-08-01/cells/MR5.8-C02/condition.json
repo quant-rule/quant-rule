@@ -1,0 +1,11 @@
+{
+  "schema": "quantrule.model-condition/v1",
+  "kind": "sequence",
+  "first_event": "level.gap_test",
+  "second_event": "level.cross",
+  "within_bars": 3,
+  "same_level": false,
+  "level_tolerance_atr": 0.0,
+  "direction": "any",
+  "close_side": "any"
+}

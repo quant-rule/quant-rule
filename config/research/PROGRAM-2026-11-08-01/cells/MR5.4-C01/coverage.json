@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.4-C01",
+  "kind": "primary",
+  "events": [
+    "level.test"
+  ],
+  "condition_events": [
+    "level.break",
+    "level.test"
+  ],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A broken level that is retested as the new side within eight bars predicts continuation."
+}

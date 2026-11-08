@@ -1,0 +1,17 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.9-C03",
+  "kind": "exploratory",
+  "events": [
+    "signal.compression_breakout"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A compression breakout with participation expansion carries directional information."
+}

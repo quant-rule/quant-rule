@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.8-C03",
+  "kind": "exploratory",
+  "events": [
+    "level.cross"
+  ],
+  "condition_events": [
+    "level.gap_test",
+    "level.cross"
+  ],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A gap test followed by a level cross within five bars carries directional information."
+}

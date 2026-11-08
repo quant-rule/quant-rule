@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "MR5.5-C01",
+  "family": "MR5",
+  "instrument": "SP500",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.rsi_threshold"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.rsi_threshold"
+    ],
+    "min_votes": 1
+  }
+}

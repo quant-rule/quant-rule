@@ -1,0 +1,257 @@
+{
+  "schema": "quantrule.research-grid/v1",
+  "program_id": "PROGRAM-2026-11-08-01",
+  "premise": "Event sequences, independent-level confluence, freshness, and path expectancy carry forward information that single-bar event votes did not. The model is M1.0; MR5 is a research family, not a model version.",
+  "economic_rationale": "Confirmed levels concentrate resting liquidity and stop orders. A failed break, a retest, a confluence of independent references, and a fresh level are liquidity interactions with a counterparty; the path report shows whether the reaction is asymmetric enough to matter after costs.",
+  "tier": "model",
+  "changed": "model",
+  "frozen": [
+    "strategy",
+    "portfolio"
+  ],
+  "partition_dev": "model_dev",
+  "partition_validation": "model_validation",
+  "timeframe": 900,
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "costs": {
+    "commission_bps": 4,
+    "slippage_bps": 2,
+    "funding": 0
+  },
+  "green_criteria": {
+    "min_events": 200,
+    "min_clusters": 20,
+    "min_lift": 0.02,
+    "lift_lcb": "> 0",
+    "random_p": "<= 0.01",
+    "shuffle_p": "<= 0.01",
+    "back_lag": "pass",
+    "replication": ">= 2 instruments",
+    "state_increment": ">= 0.01",
+    "promotion": "grade A"
+  },
+  "correction": {
+    "method": "bonferroni",
+    "primary_cells": 5
+  },
+  "max_parallel": 20,
+  "iteration_cap": 1,
+  "validation_access": "one_shot",
+  "stop_rule": "Stop when no primary base cell reaches grade A, a validation cell fails, the count gate cannot reach 200 condition-matched predictions and 20 clusters in every primary base cell, a shared prerequisite is missing, or the human stops it. Do not re-register a variant with a different event, timeframe, horizon, target, stop, filter, cost, instrument set, condition, or threshold.",
+  "base_model": "config/research/PROGRAM-2026-11-07-01/runs/shared/model.json",
+  "runs_source": "config/research/PROGRAM-2026-11-07-01/runs",
+  "path_menu": [
+    {"target_atr": 2.0, "stop_atr": 1.0, "horizon": 20},
+    {"target_atr": 1.0, "stop_atr": 1.0, "horizon": 20},
+    {"target_atr": 3.0, "stop_atr": 1.0, "horizon": 40}
+  ],
+  "hypotheses": [
+    {
+      "id": "MR5.1",
+      "primary": true,
+      "hypothesis": "A confirmed-level break that closes back on the original side within three bars predicts a reversal.",
+      "events": ["level.cross"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_event": "level.break",
+        "second_event": "level.cross",
+        "within_bars": 3,
+        "same_level": true,
+        "level_tolerance_atr": 0.0,
+        "direction": "opposite",
+        "close_side": "original"
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"within_bars": 2}},
+        {"suffix": "C03", "model": {}, "condition": {"within_bars": 5}}
+      ]
+    },
+    {
+      "id": "MR5.2",
+      "primary": true,
+      "hypothesis": "A confirmed-level break followed by a retest that holds within five bars predicts continuation.",
+      "events": ["level.test"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_event": "level.break",
+        "second_event": "level.test",
+        "within_bars": 5,
+        "same_level": true,
+        "level_tolerance_atr": 0.0,
+        "direction": "any",
+        "close_side": "breakout"
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"within_bars": 3}},
+        {"suffix": "C03", "model": {}, "condition": {"within_bars": 8}}
+      ]
+    },
+    {
+      "id": "MR5.3",
+      "primary": true,
+      "hypothesis": "A level test that fails and crosses back within five bars predicts the reversal.",
+      "events": ["level.cross"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_event": "level.test",
+        "second_event": "level.cross",
+        "within_bars": 5,
+        "same_level": true,
+        "level_tolerance_atr": 0.0,
+        "direction": "opposite",
+        "close_side": "any"
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"within_bars": 3}},
+        {"suffix": "C03", "model": {}, "condition": {"within_bars": 8}}
+      ]
+    },
+    {
+      "id": "MR5.4",
+      "primary": true,
+      "hypothesis": "A broken level that is retested as the new side within eight bars predicts continuation.",
+      "events": ["level.test"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_event": "level.break",
+        "second_event": "level.test",
+        "within_bars": 8,
+        "same_level": true,
+        "level_tolerance_atr": 0.0,
+        "direction": "any",
+        "close_side": "any"
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"within_bars": 5}},
+        {"suffix": "C03", "model": {}, "condition": {"within_bars": 12}}
+      ]
+    },
+    {
+      "id": "MR5.5",
+      "primary": true,
+      "hypothesis": "An RSI threshold crossing at a confluence of at least two independent published levels carries directional information.",
+      "events": ["signal.rsi_threshold"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "confluence",
+        "references": ["vwap", "poc", "last_pivot_high", "last_pivot_low"],
+        "min_count": 2,
+        "within_atr": 0.5
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"within_atr": 0.35}},
+        {"suffix": "C03", "model": {}, "condition": {"within_atr": 0.75}}
+      ]
+    },
+    {
+      "id": "MR5.6",
+      "primary": false,
+      "hypothesis": "A DI cross at a fresh confirmed level carries directional information; older levels decay.",
+      "events": ["signal.di_cross"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "column",
+        "column": "level_touches",
+        "min": 1,
+        "level_age_max": 24
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"level_age_max": 12}},
+        {"suffix": "C03", "model": {}, "condition": {"level_age_max": 48}}
+      ]
+    },
+    {
+      "id": "MR5.7",
+      "primary": false,
+      "hypothesis": "A participation expansion confirmed by a trend-continuation event within five bars carries directional information.",
+      "events": ["signal.rvol_expansion"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_event": "signal.trend_continuation",
+        "second_event": "signal.rvol_expansion",
+        "within_bars": 5,
+        "same_level": false,
+        "level_tolerance_atr": 0.0,
+        "direction": "same",
+        "close_side": "any"
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"within_bars": 3}},
+        {"suffix": "C03", "model": {}, "condition": {"within_bars": 8}}
+      ]
+    },
+    {
+      "id": "MR5.8",
+      "primary": false,
+      "hypothesis": "A gap test followed by a level cross within five bars carries directional information.",
+      "events": ["level.cross"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_event": "level.gap_test",
+        "second_event": "level.cross",
+        "within_bars": 5,
+        "same_level": false,
+        "level_tolerance_atr": 0.0,
+        "direction": "any",
+        "close_side": "any"
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"within_bars": 3}},
+        {"suffix": "C03", "model": {}, "condition": {"within_bars": 8}}
+      ]
+    },
+    {
+      "id": "MR5.9",
+      "primary": false,
+      "hypothesis": "A compression breakout with participation expansion carries directional information.",
+      "events": ["signal.compression_breakout"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "column",
+        "column": "rvol_ratio",
+        "min": 1.0
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"min": 1.2}},
+        {"suffix": "C03", "model": {}, "condition": {"min": 0.8}}
+      ]
+    },
+    {
+      "id": "MR5.10",
+      "primary": false,
+      "hypothesis": "The path and expectancy of a DI cross differ across volatility regimes; the path report is the evidence.",
+      "events": ["signal.di_cross"],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "column",
+        "column": "atr",
+        "min": 1.0
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}},
+        {"suffix": "C02", "model": {}, "condition": {"min": 1.2}},
+        {"suffix": "C03", "model": {}, "condition": {"min": 0.8}}
+      ]
+    }
+  ]
+}
