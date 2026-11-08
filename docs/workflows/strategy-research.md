@@ -2,6 +2,7 @@
 
 - Date: 2026-11-07 (UTC)
 - Status: Current
+- Updated: 2026-11-08 — feasibility preflight gate (human-approved)
 - Scope: strategy hypotheses, strategy configuration, strategy development, and strategy validation
 - Owner: Quant Researcher (hypothesis), Quant Developer (configuration and implementation), Quant Validator (independent reproduction)
 - Contract: [`improvement-workflow.md`](improvement-workflow.md), [`run-contract.md`](run-contract.md), [`docs/config/2026-11-06/strategy-config.md`](../config/2026-11-06/strategy-config.md)
@@ -44,7 +45,7 @@ Do not use it when:
 ## 3. Stages
 
 ```text
-Hypothesis -> Design -> Implement -> Development -> Freeze -> Validation -> Accept/Retire
+Hypothesis -> Design -> Implement -> Feasibility -> Development -> Freeze -> Validation -> Accept/Retire
 ```
 
 | Stage | Question | Owner | Output | Gate |
@@ -52,6 +53,7 @@ Hypothesis -> Design -> Implement -> Development -> Freeze -> Validation -> Acce
 | 1. Hypothesis | What is the rule, the thesis, and the falsifier? | Quant Researcher | Hypothesis note | Human accepts the premise |
 | 2. Design | Which published events/states does it read, and what is the rule budget? | Quant Researcher + Quant Developer | Strategy design | Model baseline and event roles are valid |
 | 3. Implement | Does the strategy config parse and explain one decision? | Quant Developer | `strategy.json`, tests | `strategy explain` and `strategy run` pass |
+| 3.5 Feasibility | Can the declared stop/target pay after costs without a win rate above 50%? | Quant Validator | `feasibility.json` | Net target > 0; breakeven win rate <= 50%; every timeframe <= 1h |
 | 4. Development | Does the rule produce a cost-inclusive result on `strategy_dev`? | Quant Developer | Decisions, backtest, qualification | Green criteria on the development partition |
 | 5. Freeze | Is the candidate frozen by config hash? | Quant Researcher | Frozen candidate | No post-hoc change |
 | 6. Validation | Does the frozen candidate survive `strategy_validation` once? | Coordinator + Quant Validator | Validation result | Quant Validator record; human accepts or rejects |
@@ -92,6 +94,39 @@ The strategy configuration contract is
 
 ## 6. Development and validation
 
+### Feasibility preflight
+
+Before the first backtest cell, the Quant Validator runs the deterministic
+feasibility preflight on the declared rule and data:
+
+```bash
+python3 tools/improvement/feasibility.py \
+  --strategy config/strategy/<name>.json \
+  --data config/<run>/<cell>/data.json \
+  --cost-bps 6 \
+  --out <run>/artifacts/preflight/<cell>
+```
+
+The screen reads only the strategy risk block, the data config, and the raw
+candles. It does not read a backtest result. It computes:
+
+```text
+cost_atr = round-trip cost bps / median ATR(14) as bps of price
+net target = target ATR - cost_atr
+net stop = stop ATR + cost_atr
+breakeven win rate = net stop / (net stop + net target)
+```
+
+A hypothesis passes only when the net target is positive and the breakeven win
+rate is at most 50% after the declared cost. Every execution and context
+timeframe must be at or below 1 hour. A fail stops the hypothesis before the
+first cell; the result is `infeasible`, not `no_edge`, and no backtest compute
+is spent.
+
+A human may approve an exception before the run, with the reason and the
+expected win-rate evidence recorded in the charter. The exception is not a
+post-hoc waiver.
+
 | Partition | Window | Use |
 |---|---|---|
 | `strategy_dev` | 2018-01-01..2022-12-31 | Strategy candidates |
@@ -110,6 +145,7 @@ The strategy configuration contract is
 quantrule strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index>
 quantrule strategy run --model <model-bundle> --strategy <strategy.json> --out <dir>
 quantrule backtest run --config <run.json> --strategy <strategy.json> --out <dir>
+python3 tools/improvement/feasibility.py --strategy <strategy.json> --data <data.json> --cost-bps <bps> --out <dir>
 quantrule qualify --evidence <backtest-bundle> --criteria <qualification.json> --out <dir>
 quantrule analytics evaluate --evidence <backtest-bundle> --out <dir>
 ```
@@ -130,6 +166,7 @@ A strategy run is green when:
   pass/fail rule were pre-registered;
 - the model baseline is accepted and the rule reads only `signal` and `context`;
 - the rule complexity budget is respected;
+- the feasibility preflight passes before the first backtest cell;
 - the development result is cost-inclusive and stable across the declared cells;
 - the candidate is frozen before validation;
 - the one-shot validation meets the pre-registered criteria;
@@ -178,6 +215,7 @@ Stop and record the reason when:
 - there is no accepted model baseline;
 - the rule reads a diagnostic or an unregistered event;
 - the rule needs a new engine or condition language;
+- the feasibility preflight fails or the hypothesis needs a win rate above 50%;
 - the candidate is not green on `strategy_dev`;
 - the one-shot validation fails;
 - a threshold, cost, split, or criterion changed after a result was seen;

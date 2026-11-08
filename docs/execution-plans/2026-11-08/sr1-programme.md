@@ -1,7 +1,7 @@
 # SR1 — Failed Compression Breakout Fade
 
 - Date: 2026-11-08 (UTC)
-- Status: **Proposed** — no implementation until the human approves the premise and the engine addition
+- Status: **Stopped early — infeasible** (2026-11-08); 10/15 cells completed; validation not opened
 - Charter: [`SR1-CHARTER.md`](../../governance/2026-11-08/SR1-CHARTER.md)
 - Tier: strategy
 - Model baseline: `MODEL-2026-11-04-04..05` (1m 4 ATR compression expansion, accepted)
@@ -193,8 +193,25 @@ Stop and report if:
 
 ## 12. Approval
 
-- Status: **Proposed**
-- Proposed by: Quant Researcher (agent pass)
-- Approval required: the strategy premise, the `contrarian` engine addition, the
-  15% drawdown ceiling, the PF thresholds, and the 2024 one-shot access later.
-- No implementation or run before approval.
+- Status: **Approved** (human, 2026-11-08)
+- Approved by: Human
+- Scope: the fade premise, the `contrarian` engine addition, the development
+  criteria, the 15% drawdown ceiling, and the later one-shot 2024 request.
+- Not authorized: the 2024 validation run before a frozen candidate and a
+  separate human approval.
+
+## 13. Stopped early
+
+- Result: stopped after 10 of 15 cells (BTCUSD and ETHUSD 2018–2022). Every
+  completed cell halted at the 15% drawdown ceiling.
+- Structural reason: the 4 ATR stop / 1 ATR target needs an 80% win rate at
+  zero cost and about 88% at 6 bps on BTCUSD 1m. On XAUUSD 1m the 1 ATR target
+  is smaller than the 6 bps round-trip cost. The hypothesis cannot be rescued
+  by a filter or a parameter change.
+- Not run: the XAUUSD cells, the 9 bps sensitivity, and the pooled aggregate.
+  Running them would spend compute without changing the decision.
+- New gate: a strategy hypothesis must pass the feasibility preflight
+  (`tools/improvement/feasibility.py`) before any backtest cell. The gate
+  requires a positive net target and a breakeven win rate at or below 50%
+  after the declared costs.
+- Validation: the 2024 partition was not opened. No candidate was frozen.

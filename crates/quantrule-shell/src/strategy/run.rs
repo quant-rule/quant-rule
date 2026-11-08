@@ -490,6 +490,7 @@ fn condition_matches(
             subtype,
             source,
             direction,
+            contrarian: _,
         } => input
             .timeframe(u64::from(timeframe_secs))
             .is_some_and(|view| {
@@ -525,6 +526,7 @@ fn condition_evidence(
             subtype,
             source,
             direction,
+            contrarian: _,
         } => input
             .timeframe(u64::from(timeframe_secs))
             .map(|view| {

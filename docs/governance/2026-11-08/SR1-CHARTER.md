@@ -1,7 +1,7 @@
 # SR1 Charter — Failed Compression Breakout Fade
 
 - Date: 2026-11-08 (UTC)
-- Status: **Proposed** — authorizes nothing until the human approves
+- Status: **Approved** (human, 2026-11-08)
 - Plan: [`sr1-programme.md`](../../execution-plans/2026-11-08/sr1-programme.md)
 - Tier: strategy
 - Model baseline: `MODEL-2026-11-04-04..05` (1m 4 ATR compression expansion)
@@ -117,8 +117,23 @@ variant.
 
 ## 10. Approval
 
-- Approved by: —
-- Approved on: —
+- Approved by: Human
+- Approved on: 2026-11-08 (UTC)
 - Scope: the fade premise, the `contrarian` engine addition, the development
   criteria, the 15% drawdown ceiling, and the later one-shot 2024 request
-- Not authorized until approved: implementation, development run, validation
+- Not authorized: the 2024 validation run before a frozen candidate and a
+  separate human approval
+
+## 11. Result
+
+- Outcome: **stopped early — infeasible** on 2026-11-08. Ten of fifteen cells
+  completed (BTCUSD and ETHUSD 2018–2022); every completed cell halted at the
+  15% drawdown ceiling.
+- Structural reason: the 4 ATR stop / 1 ATR target needs an 80% win rate before
+  costs and about 88% at 6 bps on BTCUSD 1m. On XAUUSD 1m the 1 ATR target is
+  smaller than the 6 bps round-trip cost.
+- Not run: the XAUUSD cells, the 9 bps sensitivity, and the pooled aggregate.
+- Validation: `strategy_validation` 2024 was not opened.
+- Gate: a future strategy hypothesis must pass the feasibility preflight
+  before any backtest cell; see
+  [`tools/improvement/feasibility.py`](../../../tools/improvement/feasibility.py).

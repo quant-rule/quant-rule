@@ -95,6 +95,8 @@ pub enum Condition {
         /// The required direction. Zero matches either sign and takes the
         /// matched event's direction; a nonzero value filters exactly.
         direction: i8,
+        /// Whether the entry takes the opposite side of the matched event.
+        contrarian: bool,
     },
     /// A v3 state with the exact value.
     State {
@@ -146,6 +148,7 @@ impl Condition {
             subtype,
             source,
             direction,
+            contrarian,
             ..
         } = self
         else {
@@ -160,7 +163,13 @@ impl Condition {
                     && event.direction != 0
                     && (direction == 0 || event.direction == direction)
             })
-            .map(|event| event.direction)
+            .map(|event| {
+                if contrarian {
+                    -event.direction
+                } else {
+                    event.direction
+                }
+            })
             .collect()
     }
 }
@@ -285,6 +294,7 @@ fn validate_condition(condition: Condition) -> Result<(), super::config::Strateg
             subtype,
             source,
             direction,
+            contrarian: _,
         } => {
             if timeframe_secs == 0 {
                 return Err(StrategyConfigError::EventTimeframe);
@@ -521,6 +531,7 @@ mod tests {
                 subtype: 1,
                 source: 2,
                 direction: 1,
+                contrarian: false,
             }],
             &[],
         );
@@ -541,6 +552,7 @@ mod tests {
                 subtype: 1,
                 source: 4,
                 direction: 1,
+                contrarian: false,
             }],
             &[],
         )
@@ -576,6 +588,7 @@ mod tests {
                 subtype: 6,
                 source: 16,
                 direction: 1,
+                contrarian: false,
             }],
             &[],
         )
@@ -601,6 +614,33 @@ mod tests {
     }
 
     #[test]
+    fn a_contrarian_event_entry_opens_the_opposite_side() {
+        for (event_direction, expected) in [(1, Side::Short), (-1, Side::Long)] {
+            let config = EventCompositeConfig::new(
+                3,
+                0,
+                &[Condition::Event {
+                    timeframe_secs: 900,
+                    event_type: 3,
+                    subtype: 6,
+                    source: 16,
+                    direction: 0,
+                    contrarian: true,
+                }],
+                &[],
+            )
+            .expect("the config is valid");
+            let strategy = EventCompositeStrategy::new(config, RiskPolicy::default(), true);
+            let mut input = input();
+            input.timeframes[0].events = vec![event(event_direction)];
+            let Decision::Enter(entry) = strategy.decide(&input, StrategyPosition::flat()) else {
+                panic!("the contrarian entry must fire");
+            };
+            assert_eq!(entry.side(), expected);
+        }
+    }
+
+    #[test]
     fn a_conflicting_entry_is_rejected() {
         let result = EventCompositeConfig::new(
             3,
@@ -612,6 +652,7 @@ mod tests {
                     subtype: 6,
                     source: 16,
                     direction: 1,
+                    contrarian: false,
                 },
                 Condition::Event {
                     timeframe_secs: 900,
@@ -619,6 +660,7 @@ mod tests {
                     subtype: 2,
                     source: 17,
                     direction: -1,
+                    contrarian: false,
                 },
             ],
             &[],
@@ -637,6 +679,7 @@ mod tests {
                 subtype: 6,
                 source: 16,
                 direction: 1,
+                contrarian: false,
             }],
             &[Condition::State {
                 timeframe_secs: 900,
@@ -683,6 +726,7 @@ mod tests {
                 subtype: 6,
                 source: 16,
                 direction: 0,
+                contrarian: false,
             }],
             &[],
         )
@@ -726,6 +770,7 @@ mod tests {
                 subtype: 6,
                 source: 16,
                 direction: 1,
+                contrarian: false,
             }],
             &[],
         )
@@ -762,6 +807,7 @@ mod tests {
                 subtype: 6,
                 source: 16,
                 direction: 0,
+                contrarian: false,
             }],
             &[],
         )

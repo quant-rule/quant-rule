@@ -465,6 +465,7 @@ fn parse_condition(file: &str, path: &str, value: &Value) -> Result<Condition, C
                     "subtype",
                     "source",
                     "direction",
+                    "contrarian",
                 ],
             )?;
             let timeframe = parse_timeframe(
@@ -492,12 +493,17 @@ fn parse_condition(file: &str, path: &str, value: &Value) -> Result<Condition, C
                 &format!("{path}.direction"),
                 read::field(file, path, object, "direction")?,
             )?;
+            let contrarian = match object.get("contrarian") {
+                Some(value) => read::boolean(file, &format!("{path}.contrarian"), value)?,
+                None => false,
+            };
             Ok(Condition::Event {
                 timeframe_secs: timeframe.seconds(),
                 event_type,
                 subtype,
                 source,
                 direction,
+                contrarian,
             })
         }
         "state" => {
@@ -591,7 +597,7 @@ fn integer(file: &str, path: &str, value: &Value) -> Result<i64, ConfigError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{SCHEMA, parse};
+    use super::{Condition, SCHEMA, parse};
     use serde_json::json;
 
     fn valid() -> serde_json::Value {
@@ -622,6 +628,77 @@ mod tests {
         assert_eq!(config.context_timeframes.len(), 2);
         assert_eq!(config.entry_conditions().len(), 1);
         assert_eq!(config.exit_conditions().len(), 1);
+    }
+
+    #[test]
+    fn a_contrarian_event_condition_parses() {
+        let config = parse(
+            &json!({
+                "schema": SCHEMA,
+                "engine": "event_composite",
+                "execution_timeframe": "1m",
+                "event_window_bars": 1,
+                "time_stop_bars": 20,
+                "require_contiguous": true,
+                "risk": { "stop_atr_multiple": 4.0, "reward_to_risk": 0.25 },
+                "entry": [
+                    {
+                        "kind": "event",
+                        "timeframe": "1m",
+                        "event_type": 3,
+                        "subtype": 7,
+                        "source": 5,
+                        "direction": 0,
+                        "contrarian": true
+                    }
+                ],
+                "exit": []
+            }),
+            "strategy.json",
+        )
+        .expect("the contrarian config parses");
+        assert!(matches!(
+            config.entry_conditions()[0],
+            Condition::Event {
+                contrarian: true,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn a_contrarian_state_condition_is_rejected() {
+        let mut value = valid();
+        value["entry"] = json!([
+            { "kind": "event", "timeframe": "5m", "event_type": 3, "subtype": 1, "source": 4, "direction": 1 },
+            { "kind": "state", "timeframe": "5m", "field": "ema_stack", "value": 1, "contrarian": true }
+        ]);
+        let error = parse(&value, "strategy.json").expect_err("a state cannot be contrarian");
+        assert!(error.to_string().contains("contrarian"));
+    }
+
+    #[test]
+    fn a_contrarian_bracket_event_is_rejected() {
+        let error = parse(
+            &json!({
+                "schema": SCHEMA,
+                "engine": "compression_bracket",
+                "execution_timeframe": "5m",
+                "time_stop_bars": 12,
+                "risk": { "stop_atr_multiple": 2.0, "reward_to_risk": 1.5 },
+                "event": {
+                    "timeframe": "5m",
+                    "event_type": 3,
+                    "subtype": 8,
+                    "source": 5,
+                    "contrarian": true
+                },
+                "entry_valid_bars": 1
+            }),
+            "strategy.json",
+        )
+        .expect_err("the bracket engine has no contrarian side");
+        assert!(error.to_string().contains("contrarian"));
     }
 
     #[test]

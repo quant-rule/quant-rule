@@ -179,6 +179,13 @@ fn view(
 ) -> Option<EventTimeframeView> {
     let bar = timeframe.bar(bar_index)?;
     let window_start = bar_index.saturating_sub(window_bars.saturating_sub(1));
+    // `all_events` is sorted by availability, so the window is one contiguous
+    // slice. A linear scan here makes every execution bar rescan the whole
+    // event batch, which is quadratic on a 1-minute series with hundreds of
+    // thousands of events.
+    let all_events = timeframe.all_events();
+    let start = all_events.partition_point(|event| event.available_bar_index < window_start);
+    let end = all_events.partition_point(|event| event.available_bar_index <= bar_index);
     Some(EventTimeframeView {
         timeframe_secs: timeframe.timeframe_secs(),
         bar_index,
@@ -186,14 +193,7 @@ fn view(
         states: bar.states,
         progression_stage: bar.progression.stage_code,
         progression_leg_direction: bar.progression.leg_direction,
-        events: timeframe
-            .all_events()
-            .iter()
-            .filter(|event| {
-                event.available_bar_index <= bar_index && event.available_bar_index >= window_start
-            })
-            .map(event_view)
-            .collect(),
+        events: all_events[start..end].iter().map(event_view).collect(),
         context: timeframe.context().get(bar_index),
     })
 }
@@ -215,7 +215,7 @@ fn event_view(event: &EventRecord) -> EventView {
 
 #[cfg(test)]
 mod tests {
-    use super::{EventStrategyInput, context_window_bars};
+    use super::{EventStrategyInput, context_window_bars, event_view};
     use crate::intent::{RiskPolicy, StrategyPosition};
     use crate::strategy::{
         CompressionBracketConfig, CompressionBracketInput, CompressionBracketStrategy, Condition,
@@ -287,6 +287,42 @@ mod tests {
     }
 
     #[test]
+    fn the_snapshot_event_window_matches_the_linear_selection() {
+        let run = run();
+        let timeframe = run.timeframe(300).expect("the timeframe is present");
+        assert!(
+            timeframe
+                .all_events()
+                .windows(2)
+                .all(|pair| pair[0].available_bar_index <= pair[1].available_bar_index),
+            "the event batch must be sorted by availability for the window slice"
+        );
+        for bar_index in 0..timeframe.len() {
+            for window_bars in [1, 3, 20] {
+                let snapshot =
+                    EventStrategyInput::from_model_run(&run, 300, bar_index, window_bars);
+                let view = snapshot
+                    .timeframe(300)
+                    .expect("the execution timeframe is present");
+                let window_start = bar_index.saturating_sub(window_bars - 1);
+                let expected: Vec<_> = timeframe
+                    .all_events()
+                    .iter()
+                    .filter(|event| {
+                        event.available_bar_index <= bar_index
+                            && event.available_bar_index >= window_start
+                    })
+                    .map(event_view)
+                    .collect();
+                assert_eq!(
+                    view.events, expected,
+                    "bar {bar_index}, window {window_bars}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn later_bars_do_not_change_an_earlier_snapshot() {
         let short = run_with(60);
         let full = run_with(80);
@@ -314,6 +350,7 @@ mod tests {
                     subtype: 3,
                     source: 19,
                     direction: 1,
+                    contrarian: false,
                 }],
                 &[],
             )

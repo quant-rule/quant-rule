@@ -43,11 +43,28 @@ are not treated as releases.
 - The MR7 opening-range sweep grid (15 cells) and its `no_edge` result.
 - The research report applies a declared mean-net-R path gate before naming a
   candidate.
+- An optional `contrarian` boolean on an event-composite event entry: the
+  entry takes the opposite side of the matched event while the event identity
+  and evidence stay unchanged. The default is `false`; the parser rejects the
+  field on a state condition and on the compression-bracket engine.
+- The SR1 compression-breakout fade strategy config, 15-cell development
+  matrix, 9 bps sensitivity configs, and per-cell qualification criteria.
+- A deterministic strategy feasibility preflight
+  (`tools/improvement/feasibility.py`) and its Strategy Research gate: a
+  hypothesis whose target is below its round-trip cost, whose breakeven win
+  rate exceeds 50% after costs, or whose timeframe exceeds 1 hour is rejected
+  before any backtest cell. The SR1 development run stopped early as
+  infeasible after 10 of 15 cells; the completed cells all halted, and the 4:1
+  payoff failed the preflight.
 
 ### Fixed
 
 - The model condition evaluator accepts float `min`/`max` bounds for continuous
   readings such as `rvol_ratio` and `atr`; integer `values` is unchanged.
+- The strategy event snapshot selects its event window by binary search over
+  the availability-sorted event batch instead of rescanning the full batch on
+  every execution bar. The selected events are unchanged; a one-year 1-minute
+  cell no longer spends its runtime in a quadratic scan.
 
 ## [0.6.0] - 2026-11-07
 

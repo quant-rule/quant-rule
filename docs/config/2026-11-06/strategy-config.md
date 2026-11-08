@@ -108,11 +108,13 @@ disjunction of exit conditions. Each condition names a published timeframe.
 | `subtype` | The registered subtype, `1..=7` for the event-composite engine. |
 | `source` | The registered source code, `1..=54`. |
 | `direction` | `-1`, `0`, or `+1`. Zero matches either direction and takes the matched event's side. |
+| `contrarian` | Optional boolean on an event condition, default `false`. When `true`, the entry side is the opposite of the matched event direction; the event identity and evidence are unchanged. |
 | `field` | A published state field: `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_regime`, `adx_slope`, `di_state`, `progression_stage`, or `progression_leg_direction`. |
 | `value` | The exact state code the condition requires. |
 
-The parser rejects an event identity that is not in the registry and any
-identity whose registered role is `diagnostic`.
+The parser rejects an event identity that is not in the registry, any
+identity whose registered role is `diagnostic`, and a `contrarian` field on a
+state condition or on the bracket engine.
 
 The event-composite engine allows only the seven base event subtypes. The
 extended and session event subtypes are published by the model bundle but are

@@ -125,6 +125,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Model-layer tests.** Every indicator and every event has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
 - **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. The strategy explain command is tested as printed output, and a boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
+- **Feasibility preflight tests.** The preflight has unit tests for the ATR and cost arithmetic, the pass and fail verdicts, a 4:1 fade that fails, a cost-negative target that fails, a 1:2 design that passes, and a timeframe above 1 hour that fails. The tool reads no backtest outcome; a regression test on the recorded SR1 config proves the 4:1 fade is rejected.
 - **Audit regression guards.** A fix for an audit finding carries a regression test that fails before the fix and passes after it, or a written reason why a fail-before test is impossible.
 - **Improvement-run reproducibility.** A run record names the data versions, configs, partitions, costs, and matrix; the same manifest and config reproduce the same artifacts.
 - **Event tests.** An event appears only at or after the bar on which it became knowable, one underlying occurrence is never emitted twice, the level-event precedence is respected, and a divergence is never emitted before the pivot that confirms it has become knowable.
@@ -614,6 +615,7 @@ Purpose: Independently audit and reproduce results, and decide whether the evide
 
 Responsibilities:
 
+- Run the deterministic feasibility preflight before any strategy backtest. Fail the preflight, and stop the hypothesis before execution, when the net target is not positive, the breakeven win rate after the declared costs exceeds 50%, or the execution or context timeframe exceeds 1 hour, unless the human approves a recorded exception before the run.
 - Reproduce from the recorded data version and configuration.
 - Check look-ahead bias, survivorship bias, data snooping, split leakage, and unrealistic costs.
 - Verify fees, slippage, fills, risk controls, drawdown, exposure, and capacity.
@@ -625,6 +627,7 @@ Boundaries:
 - Read-only by default; does not modify the work it reviews.
 - No self-validation, no waiving controls, no approving a trade-off.
 - No changing evaluation criteria to turn a failure into a pass.
+- No post-hoc waiver of the feasibility preflight; an exception is approved before the run and recorded in the charter.
 - No statistical, machine-learning, or neural-network signal generation; statistics serves audit only.
 
 ### Security and Privacy Reviewer Agent
