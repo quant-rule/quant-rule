@@ -29,6 +29,12 @@ are not treated as releases.
 - Sequence, confluence, freshness, and descriptive path evaluators for model
   research; the MR5 inherited-coverage checker, grid builder, and reference
   grid.
+- Event-family sequence conditions (`first_events` / `second_events`), a strict
+  ordering gap, and a confirmed-level filter on the confirming bar.
+- Per-hypothesis timeframes, a configurable family/run prefix, and synthesized
+  run configs for an extra instrument in the research grid builder.
+- The MR6 ordered-confirmation grid (15 cells, five primary, reverse-order
+  controls) and its `no_edge` development result.
 
 ### Fixed
 

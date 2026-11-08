@@ -189,6 +189,132 @@ class ConditionTests(unittest.TestCase):
             gate = json.loads((out / "state.json").read_text())
             self.assertEqual(gate["all"][0]["column"], "condition")
 
+    def test_sequence_accepts_event_family_lists(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            readings = base_readings()
+            readings[4]["close"] = 100.5
+            write_readings(root, readings)
+            write_events(
+                root,
+                [
+                    {"code": 3, "bar": 2, "direction": 1, "reference_code": "1001", "reference_value": 101.0},
+                    {"code": 2, "bar": 4, "direction": -1, "reference_code": "1001", "reference_value": 101.0},
+                ],
+            )
+            condition = write_condition(
+                root,
+                {
+                    "schema": model_condition.SCHEMA,
+                    "kind": "sequence",
+                    "first_events": ["level.test", "level.break"],
+                    "second_events": ["level.cross"],
+                    "within_bars": 3,
+                    "same_level": True,
+                    "direction": "opposite",
+                    "close_side": "original",
+                },
+            )
+            out = root / "out"
+            code = model_condition.main(
+                ["--bundle", str(root), "--condition", str(condition), "--registry", str(REGISTRY), "--out", str(out)]
+            )
+            self.assertEqual(code, 0)
+            document = json.loads((out / "condition.json").read_text())
+            self.assertEqual(document["condition_bars"], 1)
+
+    def test_sequence_min_gap_excludes_the_same_bar(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_readings(root, base_readings())
+            write_events(
+                root,
+                [
+                    {"code": 3, "bar": 4, "direction": 1, "reference_code": "1001", "reference_value": 101.0},
+                    {"code": 2, "bar": 4, "direction": 1, "reference_code": "1001", "reference_value": 101.0},
+                ],
+            )
+            for suffix, gap, expected in (("same", 0, 1), ("ordered", 1, 0)):
+                condition = write_condition(
+                    root,
+                    {
+                        "schema": model_condition.SCHEMA,
+                        "kind": "sequence",
+                        "first_events": ["level.break"],
+                        "second_events": ["level.cross"],
+                        "within_bars": 3,
+                        "min_gap_bars": gap,
+                        "direction": "same",
+                        "close_side": "any",
+                    },
+                )
+                out = root / suffix
+                code = model_condition.main(
+                    ["--bundle", str(root), "--condition", str(condition), "--registry", str(REGISTRY), "--out", str(out)]
+                )
+                self.assertEqual(code, 0)
+                document = json.loads((out / "condition.json").read_text())
+                self.assertEqual(document["condition_bars"], expected, suffix)
+
+    def test_sequence_level_filter_uses_the_second_bar(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            readings = base_readings()
+            readings[3]["level_touches"] = 0
+            readings[3]["level_age"] = 99
+            readings[4]["level_touches"] = 2
+            readings[4]["level_age"] = 2
+            write_readings(root, readings)
+            write_events(
+                root,
+                [
+                    {"code": 3, "bar": 2, "direction": 1},
+                    {"code": 2, "bar": 3, "direction": 1},
+                    {"code": 3, "bar": 2, "direction": 1},
+                    {"code": 2, "bar": 4, "direction": 1},
+                ],
+            )
+            condition = write_condition(
+                root,
+                {
+                    "schema": model_condition.SCHEMA,
+                    "kind": "sequence",
+                    "first_events": ["level.break"],
+                    "second_events": ["level.cross"],
+                    "within_bars": 3,
+                    "min_gap_bars": 1,
+                    "direction": "same",
+                    "level_touches_min": 1,
+                    "level_age_max": 4,
+                },
+            )
+            out = root / "out"
+            code = model_condition.main(
+                ["--bundle", str(root), "--condition", str(condition), "--registry", str(REGISTRY), "--out", str(out)]
+            )
+            self.assertEqual(code, 0)
+            header, rows = model_condition.read_csv(out / "readings.csv")
+            index = header.index("condition")
+            by_bar = {int(row[1]): int(row[index]) for row in rows}
+            self.assertEqual([bar for bar, value in by_bar.items() if value == 1], [4])
+
+    def test_sequence_rejects_mixed_event_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            condition = write_condition(
+                root,
+                {
+                    "schema": model_condition.SCHEMA,
+                    "kind": "sequence",
+                    "first_event": "level.break",
+                    "first_events": ["level.test"],
+                    "second_event": "level.cross",
+                    "within_bars": 3,
+                },
+            )
+            with self.assertRaises(SystemExit):
+                model_condition.load_condition(condition)
+
     def test_confluence_counts_independent_references(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

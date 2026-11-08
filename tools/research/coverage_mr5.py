@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""MR5 coverage: mechanism cells on model M1.0 with configuration variants.
+"""MR research coverage: mechanism cells on model M1.0 with configuration variants.
 
-MR5 adds no indicator or event. The exploratory surface is inherited from the
-M2 programme; this checker proves that every MR5 cell has a model config, a
+The MR families add no indicator or event. The exploratory surface is inherited
+from the M2 programme; this checker proves that every cell has a model config, a
 spec for each instrument, a registered signal event, and a condition or state
 gate, and that the inherited M2 matrix still covers all 46 indicators and 143
-events.
+events. `family` selects the MR5 or MR6 cell prefix; each cell declares its own
+timeframe, so a family may mix 15m and 5m cells.
 """
 
 from __future__ import annotations
@@ -17,8 +18,8 @@ from typing import Any
 import coverage
 import program as program_module
 
-MR5_CELL = re.compile(r"^MR5\.(\d+)-C(\d{2})$")
-MR5_TIMEFRAME = 900
+MR_CELL = re.compile(r"^(?P<family>MR\d+)\.(?P<number>\d+)-C(?P<variant>\d{2})$")
+KNOWN_INSTRUMENTS = {"XAU", "BTC", "SP500", "EURUSD", "ETH"}
 CONDITION_SCHEMA = "quantrule.model-condition/v1"
 
 
@@ -27,6 +28,7 @@ def check_mr5(
     registry_path: Path,
     inherit_path: Path | None = None,
     repo_root: Path | None = None,
+    family: str = "MR5",
 ) -> dict[str, Any]:
     root = (repo_root or Path.cwd()).resolve()
     loaded = program_module.load_program(program_path, repo_root=root)
@@ -40,9 +42,11 @@ def check_mr5(
         errors.append("correction.primary_cells must equal the primary cell count")
     spec_count = 0
     for cell in loaded.cells:
-        match = MR5_CELL.match(cell.cell_id)
+        match = MR_CELL.match(cell.cell_id)
         if not match:
-            errors.append(f"{cell.cell_id}: cell id must match MR5.<n>-C<nn>")
+            errors.append(f"{cell.cell_id}: cell id must match {family}.<n>-C<nn>")
+        elif match.group("family") != family:
+            errors.append(f"{cell.cell_id}: cell id must use the {family} family")
         cell_dir = root / cell.config_dir
         if not cell_dir.is_dir():
             errors.append(f"{cell.cell_id}: config_dir does not exist")
@@ -84,19 +88,21 @@ def check_mr5(
         for event_id in condition_events:
             if event_id not in events:
                 errors.append(f"{cell.cell_id}: condition event {event_id!r} is not registered")
-        instruments = record.get("instruments", coverage.INSTRUMENTS)
+        instruments = record.get("instruments", list(coverage.INSTRUMENTS))
         if (
             not isinstance(instruments, list)
             or not instruments
             or not all(
-                isinstance(item, str) and item in coverage.INSTRUMENTS
+                isinstance(item, str) and item in KNOWN_INSTRUMENTS
                 for item in instruments
             )
         ):
             errors.append(f"{cell.cell_id}: instruments must be a known list")
             instruments = list(coverage.INSTRUMENTS)
-        if record.get("timeframe") != MR5_TIMEFRAME:
-            errors.append(f"{cell.cell_id}: timeframe must be {MR5_TIMEFRAME}")
+        timeframe = record.get("timeframe")
+        if not isinstance(timeframe, int) or isinstance(timeframe, bool) or timeframe <= 0:
+            errors.append(f"{cell.cell_id}: timeframe must be a positive integer")
+            timeframe = 0
         gate = cell_dir / "condition.json"
         if not gate.is_file():
             gate = cell_dir / "state.json"
@@ -112,7 +118,7 @@ def check_mr5(
             elif document.get("schema") != coverage.STATE_SCHEMA:
                 errors.append(f"{cell.cell_id}: state schema is not {coverage.STATE_SCHEMA}")
         for instrument in instruments:
-            path = cell_dir / f"spec-{instrument}-{MR5_TIMEFRAME}.json"
+            path = cell_dir / f"spec-{instrument}-{timeframe}.json"
             if not path.is_file():
                 errors.append(f"{path}: spec is missing")
                 continue
@@ -120,14 +126,14 @@ def check_mr5(
             spec = coverage.read_json(path)
             if spec.get("schema") != "quantrule.model-spec/v2":
                 errors.append(f"{path}: schema is not quantrule.model-spec/v2")
-            if spec.get("family") != "MR5":
-                errors.append(f"{path}: family is not MR5")
+            if spec.get("family") != family:
+                errors.append(f"{path}: family is not {family}")
             if spec.get("id") != cell.cell_id:
                 errors.append(f"{path}: id does not match {cell.cell_id}")
             if spec.get("instrument") != instrument:
                 errors.append(f"{path}: instrument does not match the file name")
-            if spec.get("timeframes") != [MR5_TIMEFRAME]:
-                errors.append(f"{path}: timeframes must be [{MR5_TIMEFRAME}]")
+            if spec.get("timeframes") != [timeframe]:
+                errors.append(f"{path}: timeframes must be [{timeframe}]")
             spec_events = spec.get("active_events")
             if not isinstance(spec_events, list) or not all(
                 isinstance(event, str) for event in spec_events
@@ -152,7 +158,7 @@ def check_mr5(
                 "primary": cell.primary,
                 "events": expected_events,
                 "instruments": instruments,
-                "timeframe": MR5_TIMEFRAME,
+                "timeframe": timeframe,
                 "gate": gate.name,
             }
         )
@@ -174,7 +180,7 @@ def check_mr5(
     document = {
         "schema": coverage.SCHEMA,
         "program_id": loaded.program_id,
-        "family": "MR5",
+        "family": family,
         "ok": not errors,
         "counts": {
             "cells": len(loaded.cells),
@@ -192,7 +198,7 @@ def check_mr5(
 
 def markdown_mr5(document: dict[str, Any]) -> str:
     lines = [
-        "# MR5 Coverage",
+        f"# {document['family']} Coverage",
         "",
         f"- Program: `{document['program_id']}`",
         f"- Status: **{'ok' if document['ok'] else 'failed'}**",

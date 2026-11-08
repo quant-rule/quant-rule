@@ -1,0 +1,41 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "MR6.3-C02",
+  "family": "MR6",
+  "instrument": "BTC",
+  "timeframes": [
+    300
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.absorption_break",
+    "signal.absorption_rejection",
+    "signal.climax_continuation",
+    "signal.climax_reversal",
+    "signal.cmf_cross",
+    "signal.di_cross",
+    "signal.ema_pair_cross",
+    "signal.ema_stack_change",
+    "signal.macd_histogram_slope_flip",
+    "signal.macd_line_signal_cross",
+    "signal.macd_zero_cross",
+    "signal.mfi_threshold",
+    "signal.rvol_expansion",
+    "signal.rvol_ratio",
+    "signal.trend_continuation"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.rvol_expansion",
+      "signal.rvol_ratio",
+      "signal.cmf_cross",
+      "signal.mfi_threshold",
+      "signal.climax_reversal",
+      "signal.climax_continuation",
+      "signal.absorption_break",
+      "signal.absorption_rejection"
+    ],
+    "min_votes": 1
+  }
+}

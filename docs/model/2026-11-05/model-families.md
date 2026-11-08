@@ -50,6 +50,7 @@ distinction in [`docs/workflows/README.md`](../../workflows/README.md).
 | `M3.1`–`M3.5` | Historical model research family 3: state-conditioned event cells | Underpowered at the count gate; not run | [M3 preflight](../../improvement/2026-11-05/M3-PREFLIGHT.md) |
 | `M4.1`–`M4.5` | Historical model research family 4: location-conditioned directional event cells | `model_dev` no edge; not accepted | [M4 result](../../improvement/2026-11-07/M4-DEV-SWARM.md) |
 | `MR5.1`–`MR5.10` | Model research family 5 on `M1.0`: mechanism and path cells | `model_dev` no edge; not accepted | [MR5 result](../../improvement/2026-11-08/MR5-DEV-SWARM.md) |
+| `MR6.1`–`MR6.5` | Model research family 6 on `M1.0`: ordered trend/momentum → participation confirmation, reverse-order controls, and a level arm | `model_dev` no edge; not accepted | [MR6 result](../../improvement/2026-11-08/MR6-DEV-SWARM.md) |
 | `S3.x` | Strategies built on an accepted model baseline | Future; S2.x remains closed | P8/S3.x |
 | `E3.x`, `P3.x`, `POL3.x` | Execution, portfolio, and policy after an accepted S3 strategy | Future | S3.x |
 

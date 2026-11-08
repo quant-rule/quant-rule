@@ -3,8 +3,8 @@
 
 The checker reads the program manifest, the committed area map, the registry,
 and every cell's `coverage.json` and specs. It supports the M2 full matrix, the
-M3 state matrix, and the M4 primary matrix whose exploratory coverage is
-inherited from M2.
+M3 state matrix, the M4 primary matrix whose exploratory coverage is inherited
+from M2, and the MR5/MR6 mechanism families whose coverage is also inherited.
 
 It is read-only. It does not run the model and does not open validation.
 
@@ -66,7 +66,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--family",
-        choices=("M2", "M3", "M4", "MR5"),
+        choices=("M2", "M3", "M4", "MR5", "MR6"),
         default="M2",
         help="programme family layout",
     )
@@ -984,13 +984,14 @@ def markdown(document: dict[str, Any]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_arguments(argv)
-    if args.family == "MR5":
+    if args.family in {"MR5", "MR6"}:
         from coverage_mr5 import check_mr5, markdown_mr5
 
         document = check_mr5(
             Path(args.program).expanduser(),
             Path(args.registry).expanduser(),
             Path(args.inherit).expanduser() if args.inherit else None,
+            family=args.family,
         )
         render = markdown_mr5
     elif args.family == "M4":

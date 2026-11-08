@@ -7,7 +7,9 @@ candles. It reads the model's published readings, events, and levels, applies a
 pre-registered rule, and writes a conditioned readings bundle plus a gate:
 
 - `sequence`: event A, then event B within N bars, optionally at the same level,
-  with an optional direction and close-side rule;
+  with an optional direction and close-side rule; A and B may be event families
+  (`first_events` / `second_events`), and the confirming bar may be filtered to a
+  confirmed fresh level (`level_touches_min` / `level_age_max`);
 - `confluence`: at least K independent published references within X ATR;
 - `column`: a published reading bounded by values or a min/max range, including
   `level_age` and `level_touches` freshness conditions.
@@ -36,11 +38,16 @@ SEQUENCE_FIELDS = {
     "timeframe_secs",
     "first_event",
     "second_event",
+    "first_events",
+    "second_events",
     "within_bars",
+    "min_gap_bars",
     "same_level",
     "level_tolerance_atr",
     "direction",
     "close_side",
+    "level_touches_min",
+    "level_age_max",
 }
 CONFLUENCE_FIELDS = {
     "kind",
@@ -149,6 +156,26 @@ def optional_int(value: Any) -> int | None:
     return int(number)
 
 
+def event_id_list(document: dict[str, Any], path: Path, singular: str, plural: str) -> list[str]:
+    single = document.get(singular)
+    multiple = document.get(plural)
+    if single is not None and multiple is not None:
+        raise SystemExit(f"error: {path} must not set both {singular} and {plural}")
+    if multiple is not None:
+        if (
+            not isinstance(multiple, list)
+            or not multiple
+            or not all(isinstance(value, str) and value for value in multiple)
+        ):
+            raise SystemExit(f"error: {path} {plural} must be a non-empty string list")
+        if len(set(multiple)) != len(multiple):
+            raise SystemExit(f"error: {path} {plural} must not contain duplicates")
+        return list(multiple)
+    if isinstance(single, str) and single:
+        return [single]
+    raise SystemExit(f"error: {path} {singular} or {plural} must name events")
+
+
 def load_condition(path: Path) -> dict[str, Any]:
     document = read_json(path)
     if not isinstance(document, dict):
@@ -169,13 +196,30 @@ def load_condition(path: Path) -> dict[str, Any]:
     if unknown:
         raise SystemExit(f"error: {path} has unknown fields: {unknown}")
     if kind == "sequence":
-        for field in ("first_event", "second_event"):
-            value = document.get(field)
-            if not isinstance(value, str) or not value:
-                raise SystemExit(f"error: {path} {field} must be a non-empty event id")
+        event_id_list(document, path, "first_event", "first_events")
+        event_id_list(document, path, "second_event", "second_events")
         within = document.get("within_bars")
         if not isinstance(within, int) or isinstance(within, bool) or within < 0:
             raise SystemExit(f"error: {path} within_bars must be a non-negative integer")
+        min_gap = document.get("min_gap_bars", 0)
+        if not isinstance(min_gap, int) or isinstance(min_gap, bool) or min_gap < 0:
+            raise SystemExit(f"error: {path} min_gap_bars must be a non-negative integer")
+        if min_gap > within:
+            raise SystemExit(f"error: {path} min_gap_bars must not exceed within_bars")
+        layout_touches = document.get("level_touches_min")
+        if layout_touches is not None and (
+            not isinstance(layout_touches, int)
+            or isinstance(layout_touches, bool)
+            or layout_touches < 1
+        ):
+            raise SystemExit(f"error: {path} level_touches_min must be a positive integer")
+        level_age = document.get("level_age_max")
+        if level_age is not None and (
+            not isinstance(level_age, int)
+            or isinstance(level_age, bool)
+            or level_age < 0
+        ):
+            raise SystemExit(f"error: {path} level_age_max must be a non-negative integer")
         direction = document.get("direction", "any")
         if direction not in DIRECTIONS:
             raise SystemExit(f"error: {path} direction must be one of {sorted(DIRECTIONS)}")
@@ -211,12 +255,15 @@ def load_condition(path: Path) -> dict[str, Any]:
 def event_rows(
     path: Path,
     code_by_id: dict[str, int],
-    event_id: str,
+    event_ids: list[str],
     timeframe: int,
 ) -> dict[int, list[dict[str, Any]]]:
-    code = code_by_id.get(event_id)
-    if code is None:
-        raise SystemExit(f"error: event {event_id!r} is not registered")
+    requested: dict[int, str] = {}
+    for event_id in event_ids:
+        code = code_by_id.get(event_id)
+        if code is None:
+            raise SystemExit(f"error: event {event_id!r} is not registered")
+        requested[code] = event_id
     header, rows = read_csv(path)
     try:
         code_index = header.index("event_code")
@@ -233,7 +280,8 @@ def event_rows(
         try:
             if int(row[timeframe_index]) != timeframe:
                 continue
-            if int(row[code_index]) != code:
+            event_id = requested.get(int(row[code_index]))
+            if event_id is None:
                 continue
             available = int(row[available_index])
             occurred = int(row[occurred_index])
@@ -242,6 +290,7 @@ def event_rows(
             continue
         by_bar.setdefault(available, []).append(
             {
+                "event_id": event_id,
                 "bar": available,
                 "occurred": occurred,
                 "direction": direction,
@@ -253,8 +302,10 @@ def event_rows(
         values.sort(
             key=lambda value: (
                 value["occurred"],
+                value["event_id"],
                 value["reference_code"],
                 value["reference_value"] if value["reference_value"] is not None else 0.0,
+                value["direction"],
             )
         )
     return by_bar
@@ -300,24 +351,39 @@ def sequence_condition(
     code_by_id: dict[str, int],
     timeframe: int,
 ) -> tuple[dict[int, int], int]:
-    first = event_rows(events_path, code_by_id, str(spec["first_event"]), timeframe)
-    second = event_rows(events_path, code_by_id, str(spec["second_event"]), timeframe)
+    first_ids = event_id_list(spec, Path("condition"), "first_event", "first_events")
+    second_ids = event_id_list(spec, Path("condition"), "second_event", "second_events")
+    first = event_rows(events_path, code_by_id, first_ids, timeframe)
+    second = event_rows(events_path, code_by_id, second_ids, timeframe)
     within = int(spec.get("within_bars", 0))
+    min_gap = int(spec.get("min_gap_bars", 0))
     same = bool(spec.get("same_level", False))
     tolerance = float(spec.get("level_tolerance_atr", 0.0))
     direction = str(spec.get("direction", "any"))
     close_side = str(spec.get("close_side", "any"))
+    level_touches_min = spec.get("level_touches_min")
+    level_age_max = spec.get("level_age_max")
     condition: dict[int, int] = {}
     matches = 0
     for bar in sorted(second):
         row = readings.get(bar)
         if row is None:
             continue
+        if level_touches_min is not None:
+            touches = optional_int(row.get("level_touches"))
+            if touches is None or touches < int(level_touches_min):
+                continue
+        if level_age_max is not None:
+            age = optional_int(row.get("level_age"))
+            if age is None or age > int(level_age_max):
+                continue
         close = optional_number(row.get("close"))
         atr = optional_number(row.get("atr"))
         for second_event in second[bar]:
             matched = False
-            for first_bar in range(max(0, bar - within), bar + 1):
+            start = max(0, bar - within)
+            end = bar - min_gap
+            for first_bar in range(start, end + 1):
                 for first_event in first.get(first_bar, []):
                     if direction == "same" and second_event["direction"] != first_event["direction"]:
                         continue
