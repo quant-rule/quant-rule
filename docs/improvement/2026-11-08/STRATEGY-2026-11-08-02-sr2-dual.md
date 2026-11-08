@@ -131,6 +131,9 @@ target, timeframe, or filter.
 
 ## 10. Links
 
+- [SR2-A BTCUSD robustness audit](SR2-BTC-AUDIT.md) — the BTC lead is fragile
+  and concentrated; no candidate.
+
 - [Charter](../../governance/2026-11-08/SR2-CHARTER.md)
 - [Plan](../../execution-plans/2026-11-08/sr2-dual-design.md)
 - [AI transparency log](../../ai-transparency-log/2026-11-08/sr2-dual-design.md)

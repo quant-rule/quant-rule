@@ -1,7 +1,7 @@
 # Baselines
 
 - Date: 2026-11-05 (UTC)
-- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; the EURUSD DST-aware session spike stopped with no edge; the v5 1h swing gate stopped with no edge; the v5 Phase 2 price-only spike stopped with no edge and the volume family is blocked by data quality; the M2.x 1h direction programme stopped with no edge; the M3.x state-conditioned preflight stopped as underpowered; the M4.x location-conditioned programme stopped with no edge; the MR5.x mechanism/path grid stopped with no edge; the MR6.x ordered family-confirmation grid stopped with no edge; the MR7.x opening-range sweep/reclaim grid stopped with no edge; the SR1 compression-breakout fade stopped early as infeasible; the SR2 dual fade stopped with no edge; no strategy or portfolio baseline
+- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; the EURUSD DST-aware session spike stopped with no edge; the v5 1h swing gate stopped with no edge; the v5 Phase 2 price-only spike stopped with no edge and the volume family is blocked by data quality; the M2.x 1h direction programme stopped with no edge; the M3.x state-conditioned preflight stopped as underpowered; the M4.x location-conditioned programme stopped with no edge; the MR5.x mechanism/path grid stopped with no edge; the MR6.x ordered family-confirmation grid stopped with no edge; the MR7.x opening-range sweep/reclaim grid stopped with no edge; the SR1 compression-breakout fade stopped early as infeasible; the SR2 dual fade stopped with no edge; the SR2-A BTCUSD audit found a fragile lead; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -42,6 +42,11 @@ by the agent that ran or reviewed the result.
 | Strategy | `STRATEGY-2026-11-08-01` | — | 2026-11-08 | 1m compression-breakout fade; stopped after 10/15 cells; the 4:1 payoff fails the feasibility screen; validation not opened | — | Not accepted — infeasible |
 | Strategy | `STRATEGY-2026-11-08-02` | — | 2026-11-08 | Dual fade: 1h 1:3 and 15m 1:4; 30 cells; both designs failed the development criteria; 9 bps and validation not opened | — | Not accepted — no edge |
 | Portfolio | — | — | — | — | — | None accepted |
+
+The SR2-A BTCUSD audit (`SR2-BTC-AUDIT`) did not accept a baseline. The BTC lead
+is concentrated in the top five trades, is not statistically significant, and
+is about 0.1%/month at the 5% ceiling; see
+[the audit record](2026-11-08/SR2-BTC-AUDIT.md).
 
 ## Rules
 
