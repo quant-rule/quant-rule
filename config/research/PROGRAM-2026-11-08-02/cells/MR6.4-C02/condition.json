@@ -1,0 +1,29 @@
+{
+  "schema": "quantrule.model-condition/v1",
+  "kind": "sequence",
+  "first_events": [
+    "signal.rvol_expansion",
+    "signal.rvol_ratio",
+    "signal.cmf_cross",
+    "signal.mfi_threshold",
+    "signal.climax_reversal",
+    "signal.climax_continuation",
+    "signal.absorption_break",
+    "signal.absorption_rejection"
+  ],
+  "second_events": [
+    "signal.ema_pair_cross",
+    "signal.ema_stack_change",
+    "signal.macd_line_signal_cross",
+    "signal.macd_histogram_slope_flip",
+    "signal.macd_zero_cross",
+    "signal.di_cross",
+    "signal.trend_continuation"
+  ],
+  "within_bars": 3,
+  "min_gap_bars": 1,
+  "same_level": false,
+  "level_tolerance_atr": 0.0,
+  "direction": "same",
+  "close_side": "any"
+}

@@ -1,0 +1,40 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "MR6.2-C01",
+  "family": "MR6",
+  "instrument": "EURUSD",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.absorption_break",
+    "signal.absorption_rejection",
+    "signal.climax_continuation",
+    "signal.climax_reversal",
+    "signal.cmf_cross",
+    "signal.di_cross",
+    "signal.ema_pair_cross",
+    "signal.ema_stack_change",
+    "signal.macd_histogram_slope_flip",
+    "signal.macd_line_signal_cross",
+    "signal.macd_zero_cross",
+    "signal.mfi_threshold",
+    "signal.rvol_expansion",
+    "signal.rvol_ratio",
+    "signal.trend_continuation"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.ema_pair_cross",
+      "signal.ema_stack_change",
+      "signal.macd_line_signal_cross",
+      "signal.macd_histogram_slope_flip",
+      "signal.macd_zero_cross",
+      "signal.di_cross",
+      "signal.trend_continuation"
+    ],
+    "min_votes": 1
+  }
+}

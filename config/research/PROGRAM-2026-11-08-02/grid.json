@@ -1,0 +1,408 @@
+{
+  "schema": "quantrule.research-grid/v1",
+  "program_id": "PROGRAM-2026-11-08-02",
+  "family": "MR6",
+  "run_prefix": "mr6",
+  "premise": "The order of independent confirmation matters: a trend or momentum event followed within a short window by an independent participation event in the same direction carries directional information, while the reverse order does not. The model is M1.0; MR6 is a research family, not a model version.",
+  "economic_rationale": "A trend reading states that the auction has chosen a side. An independent participation reading states that new volume is entering on that side. When participation follows the trend, the later event is evidence that the move is being accepted by a second, non-price family; when participation leads, the trend event is only a lagging description of the same volume. The ordered test separates acceptance from description, and the reverse-order cells are the control that falsifies the order premise if they pass. MR6.5 adds a confirmed level because location is the obvious confound: participation at a level can be absorption rather than acceptance.",
+  "tier": "model",
+  "changed": "model",
+  "frozen": [
+    "strategy",
+    "portfolio"
+  ],
+  "partition_dev": "model_dev",
+  "partition_validation": "model_validation",
+  "timeframe": 900,
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD",
+    "ETH"
+  ],
+  "extra_instruments": [
+    {
+      "code": "ETH",
+      "template": "XAU",
+      "instrument": "ETHUSD",
+      "source": "ETHUSD_M1_2018-01-01_2024-12-31.csv"
+    }
+  ],
+  "costs": {
+    "commission_bps": 4,
+    "slippage_bps": 2,
+    "funding": 0
+  },
+  "green_criteria": {
+    "min_events": 200,
+    "min_clusters": 20,
+    "min_lift": 0.02,
+    "lift_lcb": "> 0",
+    "random_p": "<= 0.01",
+    "shuffle_p": "<= 0.01",
+    "back_lag": "pass",
+    "replication": ">= 2 instruments",
+    "state_increment": ">= 0.01",
+    "promotion": "grade A"
+  },
+  "correction": {
+    "method": "bonferroni",
+    "primary_cells": 5
+  },
+  "max_parallel": 1,
+  "iteration_cap": 1,
+  "validation_access": "one_shot",
+  "stop_rule": "Stop when no primary base cell reaches grade A, the count gate cannot reach 200 condition-matched predictions and 20 clusters in every primary base cell, the reverse-order control falsifies the order premise by passing, a shared prerequisite is missing, or the human stops it. Do not re-register a variant with a different event, timeframe, horizon, target, stop, filter, cost, instrument set, condition, or threshold.",
+  "base_model": "config/research/PROGRAM-2026-11-07-01/runs/shared/model.json",
+  "runs_source": "config/research/PROGRAM-2026-11-08-01/runs",
+  "path_menu": [
+    {
+      "target_atr": 2.0,
+      "stop_atr": 1.0,
+      "horizon": 20
+    },
+    {
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "horizon": 20
+    },
+    {
+      "target_atr": 3.0,
+      "stop_atr": 1.0,
+      "horizon": 40
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "MR6.1",
+      "primary": true,
+      "timeframe": 900,
+      "hypothesis": "A trend or momentum event followed within five bars by an independent participation event in the same direction carries directional information.",
+      "events": [
+        "signal.rvol_expansion",
+        "signal.rvol_ratio",
+        "signal.cmf_cross",
+        "signal.mfi_threshold",
+        "signal.climax_reversal",
+        "signal.climax_continuation",
+        "signal.absorption_break",
+        "signal.absorption_rejection"
+      ],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_events": [
+          "signal.ema_pair_cross",
+          "signal.ema_stack_change",
+          "signal.macd_line_signal_cross",
+          "signal.macd_histogram_slope_flip",
+          "signal.macd_zero_cross",
+          "signal.di_cross",
+          "signal.trend_continuation"
+        ],
+        "second_events": [
+          "signal.rvol_expansion",
+          "signal.rvol_ratio",
+          "signal.cmf_cross",
+          "signal.mfi_threshold",
+          "signal.climax_reversal",
+          "signal.climax_continuation",
+          "signal.absorption_break",
+          "signal.absorption_rejection"
+        ],
+        "within_bars": 5,
+        "min_gap_bars": 1,
+        "same_level": false,
+        "level_tolerance_atr": 0.0,
+        "direction": "same",
+        "close_side": "any"
+      },
+      "variants": [
+        {
+          "suffix": "C01",
+          "model": {},
+          "condition": {}
+        },
+        {
+          "suffix": "C02",
+          "model": {},
+          "condition": {
+            "within_bars": 3
+          }
+        },
+        {
+          "suffix": "C03",
+          "model": {},
+          "condition": {
+            "within_bars": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "MR6.2",
+      "primary": true,
+      "timeframe": 900,
+      "hypothesis": "An independent participation event followed within five bars by a trend or momentum event in the same direction carries directional information; this is the reverse-order control, and a pass falsifies the order premise.",
+      "events": [
+        "signal.ema_pair_cross",
+        "signal.ema_stack_change",
+        "signal.macd_line_signal_cross",
+        "signal.macd_histogram_slope_flip",
+        "signal.macd_zero_cross",
+        "signal.di_cross",
+        "signal.trend_continuation"
+      ],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_events": [
+          "signal.rvol_expansion",
+          "signal.rvol_ratio",
+          "signal.cmf_cross",
+          "signal.mfi_threshold",
+          "signal.climax_reversal",
+          "signal.climax_continuation",
+          "signal.absorption_break",
+          "signal.absorption_rejection"
+        ],
+        "second_events": [
+          "signal.ema_pair_cross",
+          "signal.ema_stack_change",
+          "signal.macd_line_signal_cross",
+          "signal.macd_histogram_slope_flip",
+          "signal.macd_zero_cross",
+          "signal.di_cross",
+          "signal.trend_continuation"
+        ],
+        "within_bars": 5,
+        "min_gap_bars": 1,
+        "same_level": false,
+        "level_tolerance_atr": 0.0,
+        "direction": "same",
+        "close_side": "any"
+      },
+      "variants": [
+        {
+          "suffix": "C01",
+          "model": {},
+          "condition": {}
+        },
+        {
+          "suffix": "C02",
+          "model": {},
+          "condition": {
+            "within_bars": 3
+          }
+        },
+        {
+          "suffix": "C03",
+          "model": {},
+          "condition": {
+            "within_bars": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "MR6.3",
+      "primary": true,
+      "timeframe": 300,
+      "hypothesis": "The 15m ordered confirmation survives at 5m: a trend or momentum event followed within five bars by an independent participation event in the same direction carries directional information.",
+      "events": [
+        "signal.rvol_expansion",
+        "signal.rvol_ratio",
+        "signal.cmf_cross",
+        "signal.mfi_threshold",
+        "signal.climax_reversal",
+        "signal.climax_continuation",
+        "signal.absorption_break",
+        "signal.absorption_rejection"
+      ],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_events": [
+          "signal.ema_pair_cross",
+          "signal.ema_stack_change",
+          "signal.macd_line_signal_cross",
+          "signal.macd_histogram_slope_flip",
+          "signal.macd_zero_cross",
+          "signal.di_cross",
+          "signal.trend_continuation"
+        ],
+        "second_events": [
+          "signal.rvol_expansion",
+          "signal.rvol_ratio",
+          "signal.cmf_cross",
+          "signal.mfi_threshold",
+          "signal.climax_reversal",
+          "signal.climax_continuation",
+          "signal.absorption_break",
+          "signal.absorption_rejection"
+        ],
+        "within_bars": 5,
+        "min_gap_bars": 1,
+        "same_level": false,
+        "level_tolerance_atr": 0.0,
+        "direction": "same",
+        "close_side": "any"
+      },
+      "variants": [
+        {
+          "suffix": "C01",
+          "model": {},
+          "condition": {}
+        },
+        {
+          "suffix": "C02",
+          "model": {},
+          "condition": {
+            "within_bars": 3
+          }
+        },
+        {
+          "suffix": "C03",
+          "model": {},
+          "condition": {
+            "within_bars": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "MR6.4",
+      "primary": true,
+      "timeframe": 300,
+      "hypothesis": "The 5m reverse-order control: an independent participation event followed within five bars by a trend or momentum event in the same direction carries directional information; a pass falsifies the order premise.",
+      "events": [
+        "signal.ema_pair_cross",
+        "signal.ema_stack_change",
+        "signal.macd_line_signal_cross",
+        "signal.macd_histogram_slope_flip",
+        "signal.macd_zero_cross",
+        "signal.di_cross",
+        "signal.trend_continuation"
+      ],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_events": [
+          "signal.rvol_expansion",
+          "signal.rvol_ratio",
+          "signal.cmf_cross",
+          "signal.mfi_threshold",
+          "signal.climax_reversal",
+          "signal.climax_continuation",
+          "signal.absorption_break",
+          "signal.absorption_rejection"
+        ],
+        "second_events": [
+          "signal.ema_pair_cross",
+          "signal.ema_stack_change",
+          "signal.macd_line_signal_cross",
+          "signal.macd_histogram_slope_flip",
+          "signal.macd_zero_cross",
+          "signal.di_cross",
+          "signal.trend_continuation"
+        ],
+        "within_bars": 5,
+        "min_gap_bars": 1,
+        "same_level": false,
+        "level_tolerance_atr": 0.0,
+        "direction": "same",
+        "close_side": "any"
+      },
+      "variants": [
+        {
+          "suffix": "C01",
+          "model": {},
+          "condition": {}
+        },
+        {
+          "suffix": "C02",
+          "model": {},
+          "condition": {
+            "within_bars": 3
+          }
+        },
+        {
+          "suffix": "C03",
+          "model": {},
+          "condition": {
+            "within_bars": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "MR6.5",
+      "primary": true,
+      "timeframe": 900,
+      "hypothesis": "A trend or momentum event followed within five bars by an independent participation event in the same direction at a confirmed level carries directional information; the level is the location-confound check.",
+      "events": [
+        "signal.rvol_expansion",
+        "signal.rvol_ratio",
+        "signal.cmf_cross",
+        "signal.mfi_threshold",
+        "signal.climax_reversal",
+        "signal.climax_continuation",
+        "signal.absorption_break",
+        "signal.absorption_rejection"
+      ],
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "sequence",
+        "first_events": [
+          "signal.ema_pair_cross",
+          "signal.ema_stack_change",
+          "signal.macd_line_signal_cross",
+          "signal.macd_histogram_slope_flip",
+          "signal.macd_zero_cross",
+          "signal.di_cross",
+          "signal.trend_continuation"
+        ],
+        "second_events": [
+          "signal.rvol_expansion",
+          "signal.rvol_ratio",
+          "signal.cmf_cross",
+          "signal.mfi_threshold",
+          "signal.climax_reversal",
+          "signal.climax_continuation",
+          "signal.absorption_break",
+          "signal.absorption_rejection"
+        ],
+        "within_bars": 5,
+        "min_gap_bars": 1,
+        "same_level": false,
+        "level_tolerance_atr": 0.0,
+        "direction": "same",
+        "close_side": "any",
+        "level_touches_min": 1
+      },
+      "variants": [
+        {
+          "suffix": "C01",
+          "model": {},
+          "condition": {}
+        },
+        {
+          "suffix": "C02",
+          "model": {},
+          "condition": {
+            "within_bars": 3
+          }
+        },
+        {
+          "suffix": "C03",
+          "model": {},
+          "condition": {
+            "within_bars": 8
+          }
+        }
+      ]
+    }
+  ],
+  "data_admissibility": "Participation uses relative-volume and flow events only: rvol_expansion, rvol_ratio, cmf_cross, mfi_threshold, climax_reversal, climax_continuation, absorption_break, absorption_rejection. The cumulative raw-volume OBV and AD crosses are excluded because the BTC and ETH sources change volume units within a year. See docs/improvement/2026-11-08/MR6-DATA-REVIEW.md."
+}

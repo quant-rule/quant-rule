@@ -1,0 +1,40 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR6.2-C02",
+  "kind": "exploratory",
+  "events": [
+    "signal.ema_pair_cross",
+    "signal.ema_stack_change",
+    "signal.macd_line_signal_cross",
+    "signal.macd_histogram_slope_flip",
+    "signal.macd_zero_cross",
+    "signal.di_cross",
+    "signal.trend_continuation"
+  ],
+  "condition_events": [
+    "signal.rvol_expansion",
+    "signal.rvol_ratio",
+    "signal.cmf_cross",
+    "signal.mfi_threshold",
+    "signal.climax_reversal",
+    "signal.climax_continuation",
+    "signal.absorption_break",
+    "signal.absorption_rejection",
+    "signal.ema_pair_cross",
+    "signal.ema_stack_change",
+    "signal.macd_line_signal_cross",
+    "signal.macd_histogram_slope_flip",
+    "signal.macd_zero_cross",
+    "signal.di_cross",
+    "signal.trend_continuation"
+  ],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD",
+    "ETH"
+  ],
+  "timeframe": 900,
+  "hypothesis": "An independent participation event followed within five bars by a trend or momentum event in the same direction carries directional information; this is the reverse-order control, and a pass falsifies the order premise."
+}
