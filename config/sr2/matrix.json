@@ -1,0 +1,320 @@
+{
+  "schema": "quantrule.strategy-matrix/v1",
+  "id": "SR2-DUAL",
+  "partition": "strategy_dev",
+  "strategy": {
+    "A": "config/strategy/sr2-fade-1h-1to3.json",
+    "B": "config/strategy/sr2-fade-15m-1to4.json"
+  },
+  "criteria": "config/qualification/SR2-DEV.json",
+  "costs": {
+    "base": {
+      "commission_bps_per_operation": 2.0,
+      "slippage_bps_per_fill": 1.0,
+      "round_trip_bps": 6.0
+    },
+    "sensitivity": {
+      "commission_bps_per_operation": 3.0,
+      "slippage_bps_per_fill": 1.5,
+      "round_trip_bps": 9.0
+    }
+  },
+  "designs": {
+    "A": {
+      "id": "A-1H-1TO3",
+      "timeframe": "1h",
+      "stop_atr": 1.0,
+      "target_atr": 3.0
+    },
+    "B": {
+      "id": "B-15M-1TO4",
+      "timeframe": "15m",
+      "stop_atr": 1.0,
+      "target_atr": 4.0
+    }
+  },
+  "green_criteria": {
+    "total_return": "> 0",
+    "profit_factor": "> 1.10",
+    "max_drawdown": "<= 0.10",
+    "minimum_trades": 600,
+    "activity": "average at least one closed trade per trading day across the portfolio",
+    "active_days_share": ">= 0.60",
+    "positive_instruments": ">= 2 of 3",
+    "positive_folds": ">= 3 of 5",
+    "cost_sensitivity_profit_factor": "> 1.0 at 9 bps round trip",
+    "reproducibility": "byte-identical rerun"
+  },
+  "cells": [
+    {
+      "design": "A",
+      "cell_id": "btc-2018",
+      "instrument": "BTCUSD",
+      "fold": 2018,
+      "run_config": "config/sr2/runs/A/btc-2018/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2018/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "btc-2019",
+      "instrument": "BTCUSD",
+      "fold": 2019,
+      "run_config": "config/sr2/runs/A/btc-2019/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2019/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "btc-2020",
+      "instrument": "BTCUSD",
+      "fold": 2020,
+      "run_config": "config/sr2/runs/A/btc-2020/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2020/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "btc-2021",
+      "instrument": "BTCUSD",
+      "fold": 2021,
+      "run_config": "config/sr2/runs/A/btc-2021/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2021/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "btc-2022",
+      "instrument": "BTCUSD",
+      "fold": 2022,
+      "run_config": "config/sr2/runs/A/btc-2022/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2022/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "eur-2018",
+      "instrument": "EURUSD",
+      "fold": 2018,
+      "run_config": "config/sr2/runs/A/eur-2018/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/eur-2018/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "eur-2019",
+      "instrument": "EURUSD",
+      "fold": 2019,
+      "run_config": "config/sr2/runs/A/eur-2019/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/eur-2019/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "eur-2020",
+      "instrument": "EURUSD",
+      "fold": 2020,
+      "run_config": "config/sr2/runs/A/eur-2020/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/eur-2020/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "eur-2021",
+      "instrument": "EURUSD",
+      "fold": 2021,
+      "run_config": "config/sr2/runs/A/eur-2021/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/eur-2021/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "eur-2022",
+      "instrument": "EURUSD",
+      "fold": 2022,
+      "run_config": "config/sr2/runs/A/eur-2022/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/eur-2022/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "xau-2018",
+      "instrument": "XAUUSD",
+      "fold": 2018,
+      "run_config": "config/sr2/runs/A/xau-2018/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/xau-2018/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "xau-2019",
+      "instrument": "XAUUSD",
+      "fold": 2019,
+      "run_config": "config/sr2/runs/A/xau-2019/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/xau-2019/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "xau-2020",
+      "instrument": "XAUUSD",
+      "fold": 2020,
+      "run_config": "config/sr2/runs/A/xau-2020/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/xau-2020/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "xau-2021",
+      "instrument": "XAUUSD",
+      "fold": 2021,
+      "run_config": "config/sr2/runs/A/xau-2021/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/xau-2021/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "A",
+      "cell_id": "xau-2022",
+      "instrument": "XAUUSD",
+      "fold": 2022,
+      "run_config": "config/sr2/runs/A/xau-2022/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/xau-2022/run.json",
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "btc-2018",
+      "instrument": "BTCUSD",
+      "fold": 2018,
+      "run_config": "config/sr2/runs/B/btc-2018/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/btc-2018/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "btc-2019",
+      "instrument": "BTCUSD",
+      "fold": 2019,
+      "run_config": "config/sr2/runs/B/btc-2019/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/btc-2019/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "btc-2020",
+      "instrument": "BTCUSD",
+      "fold": 2020,
+      "run_config": "config/sr2/runs/B/btc-2020/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/btc-2020/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "btc-2021",
+      "instrument": "BTCUSD",
+      "fold": 2021,
+      "run_config": "config/sr2/runs/B/btc-2021/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/btc-2021/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "btc-2022",
+      "instrument": "BTCUSD",
+      "fold": 2022,
+      "run_config": "config/sr2/runs/B/btc-2022/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/btc-2022/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "eur-2018",
+      "instrument": "EURUSD",
+      "fold": 2018,
+      "run_config": "config/sr2/runs/B/eur-2018/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/eur-2018/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "eur-2019",
+      "instrument": "EURUSD",
+      "fold": 2019,
+      "run_config": "config/sr2/runs/B/eur-2019/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/eur-2019/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "eur-2020",
+      "instrument": "EURUSD",
+      "fold": 2020,
+      "run_config": "config/sr2/runs/B/eur-2020/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/eur-2020/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "eur-2021",
+      "instrument": "EURUSD",
+      "fold": 2021,
+      "run_config": "config/sr2/runs/B/eur-2021/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/eur-2021/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "eur-2022",
+      "instrument": "EURUSD",
+      "fold": 2022,
+      "run_config": "config/sr2/runs/B/eur-2022/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/eur-2022/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "xau-2018",
+      "instrument": "XAUUSD",
+      "fold": 2018,
+      "run_config": "config/sr2/runs/B/xau-2018/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/xau-2018/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "xau-2019",
+      "instrument": "XAUUSD",
+      "fold": 2019,
+      "run_config": "config/sr2/runs/B/xau-2019/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/xau-2019/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "xau-2020",
+      "instrument": "XAUUSD",
+      "fold": 2020,
+      "run_config": "config/sr2/runs/B/xau-2020/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/xau-2020/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "xau-2021",
+      "instrument": "XAUUSD",
+      "fold": 2021,
+      "run_config": "config/sr2/runs/B/xau-2021/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/xau-2021/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    },
+    {
+      "design": "B",
+      "cell_id": "xau-2022",
+      "instrument": "XAUUSD",
+      "fold": 2022,
+      "run_config": "config/sr2/runs/B/xau-2022/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/B/xau-2022/run.json",
+      "strategy_config": "config/strategy/sr2-fade-15m-1to4.json"
+    }
+  ]
+}

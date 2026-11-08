@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr2-A-eur-2021",
+  "policy": "../../../policies/A/policy-EURUSD.json",
+  "data": "data.json",
+  "model": "../../../model-compression.json",
+  "execution": "../../../execution-1h.json",
+  "portfolio": "../../../portfolio.json",
+  "output_root": "../../../../../data/improvement/2026-11-08/SR2-DUAL/artifacts/A/eur-2021",
+  "model_timeframes": [
+    "1h"
+  ]
+}

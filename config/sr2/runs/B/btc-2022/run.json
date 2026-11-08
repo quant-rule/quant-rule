@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr2-B-btc-2022",
+  "policy": "../../../policies/B/policy-BTCUSD.json",
+  "data": "data.json",
+  "model": "../../../model-compression.json",
+  "execution": "../../../execution-15m.json",
+  "portfolio": "../../../portfolio.json",
+  "output_root": "../../../../../data/improvement/2026-11-08/SR2-DUAL/artifacts/B/btc-2022",
+  "model_timeframes": [
+    "15m"
+  ]
+}

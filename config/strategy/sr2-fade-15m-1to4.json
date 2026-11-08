@@ -1,0 +1,25 @@
+{
+  "schema": "quantrule.strategy/v1",
+  "id": "SR2-FADE-15M-1TO4",
+  "engine": "event_composite",
+  "execution_timeframe": "15m",
+  "event_window_bars": 1,
+  "time_stop_bars": 20,
+  "require_contiguous": true,
+  "risk": {
+    "stop_atr_multiple": 1.0,
+    "reward_to_risk": 4.0
+  },
+  "entry": [
+    {
+      "kind": "event",
+      "timeframe": "15m",
+      "event_type": 3,
+      "subtype": 7,
+      "source": 5,
+      "direction": 0,
+      "contrarian": true
+    }
+  ],
+  "exit": []
+}

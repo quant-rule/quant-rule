@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr2-A-xau-2021-9bps",
+  "policy": "../../../policies/A/policy-XAUUSD.json",
+  "data": "../../../runs/A/xau-2021/data.json",
+  "model": "../../../model-compression.json",
+  "execution": "../../../execution-1h-9bps.json",
+  "portfolio": "../../../portfolio-9bps.json",
+  "output_root": "../../../../../data/improvement/2026-11-08/SR2-DUAL/artifacts-9bps/A/xau-2021",
+  "model_timeframes": [
+    "1h"
+  ]
+}

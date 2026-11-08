@@ -56,6 +56,17 @@ are not treated as releases.
   before any backtest cell. The SR1 development run stopped early as
   infeasible after 10 of 15 cells; the completed cells all halted, and the 4:1
   payoff failed the preflight.
+- The SR2 dual-design fade configs and its 30-cell development run: 1h with a
+  1 ATR stop / 3 ATR target and 15m with a 1 ATR stop / 4 ATR target, both on
+  BTCUSD/EURUSD/XAUUSD. Both designs returned `no_edge`; the 9 bps sensitivity
+  and the 2024 validation were not opened.
+
+### Changed
+
+- `run.json` accepts an optional `model_timeframes` ladder. The model computes
+  only the selected timeframes while the data engine still builds the full data
+  ladder; the selected timeframe's model output is unchanged. The SR2 cells
+  dropped from minutes to seconds.
 
 ### Fixed
 
