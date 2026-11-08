@@ -213,8 +213,12 @@ python3 tools/research/report.py \
   --out data/research/PROGRAM-2026-11-08-03/program-results
 ```
 
-## 11. Human gate
+## 11. Human decision
 
-The human reviews every cell, the control finding, and the `no_edge` decision.
-No cell is promoted. The validation partition remains closed, and the strategy
-tier remains closed.
+- Human instruction: "proceed" with the recommended closure, 2026-11-08 (UTC).
+- Decision recorded: `no_edge` accepted; no candidate; validation remains closed.
+- Model: `M1.1` remains current; the two opening-range events are
+  measurement-only with `pending` claims; no promotion and no deprecation.
+- Research: model research on this premise is stopped. A new programme requires
+  a new premise and a new approved charter.
+- Strategy tier: closed; no strategy or portfolio baseline.

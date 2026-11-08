@@ -120,3 +120,10 @@ instrument change is made after seeing a result.
   Quant Developer, Quant Validator, Data Steward, Statistical Methodologist,
   Test, and Code Reviewer passes are sequential role-specific passes by the same
   agent; no separate agent independently reproduced the run.
+
+## Closeout
+
+- Human instruction on 2026-11-08 (UTC): "proceed" with the recommended closure.
+- Recorded decision: MR7 is accepted as `no_edge`; `M1.1` remains current and
+  measurement-only; model research on this premise is stopped; validation and
+  the strategy tier remain closed.
