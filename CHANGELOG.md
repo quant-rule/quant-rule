@@ -56,6 +56,11 @@ are not treated as releases.
   before any backtest cell. The SR1 development run stopped early as
   infeasible after 10 of 15 cells; the completed cells all halted, and the 4:1
   payoff failed the preflight.
+- The SR2-A BTCUSD robustness audit and its read-only analysis tool: the
+  positive BTC lead survives 9 bps and the 5% drawdown run in sign, but is
+  concentrated in the top five trades, is not statistically significant, and is
+  about 0.1%/month at the 5% ceiling. The audit generates condition hypotheses
+  but no candidate.
 - The SR2 dual-design fade configs and its 30-cell development run: 1h with a
   1 ATR stop / 3 ATR target and 15m with a 1 ATR stop / 4 ATR target, both on
   BTCUSD/EURUSD/XAUUSD. Both designs returned `no_edge`; the 9 bps sensitivity

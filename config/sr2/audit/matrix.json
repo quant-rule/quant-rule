@@ -1,0 +1,56 @@
+{
+  "schema": "quantrule.strategy-matrix/v1",
+  "id": "SR2-BTC-AUDIT",
+  "partition": "strategy_dev",
+  "strategy": "config/strategy/sr2-fade-1h-1to3.json",
+  "cells": [
+    {
+      "cell_id": "btc-2018",
+      "run_config": "config/sr2/audit/runs/A/btc-2018/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2018/run.json",
+      "instrument": "BTCUSD",
+      "fold": 2018,
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "cell_id": "btc-2019",
+      "run_config": "config/sr2/audit/runs/A/btc-2019/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2019/run.json",
+      "instrument": "BTCUSD",
+      "fold": 2019,
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "cell_id": "btc-2020",
+      "run_config": "config/sr2/audit/runs/A/btc-2020/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2020/run.json",
+      "instrument": "BTCUSD",
+      "fold": 2020,
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "cell_id": "btc-2021",
+      "run_config": "config/sr2/audit/runs/A/btc-2021/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2021/run.json",
+      "instrument": "BTCUSD",
+      "fold": 2021,
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    },
+    {
+      "cell_id": "btc-2022",
+      "run_config": "config/sr2/audit/runs/A/btc-2022/run.json",
+      "sensitivity_run_config": "config/sr2/runs-9bps/A/btc-2022/run.json",
+      "instrument": "BTCUSD",
+      "fold": 2022,
+      "strategy_config": "config/strategy/sr2-fade-1h-1to3.json"
+    }
+  ],
+  "costs": {
+    "base_bps": 6.0,
+    "sensitivity_bps": 9.0
+  },
+  "drawdown": {
+    "base": 0.1,
+    "sensitivity": 0.05
+  }
+}
