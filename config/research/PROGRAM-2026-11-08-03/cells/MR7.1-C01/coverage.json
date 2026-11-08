@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR7.1-C01",
+  "kind": "primary",
+  "events": [
+    "signal.opening_range_sweep"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD",
+    "ETH",
+    "COPPER",
+    "TSLA"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A sweep of the completed two-bar opening range that closes back inside predicts a reversal at 15m."
+}

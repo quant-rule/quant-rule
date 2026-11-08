@@ -508,7 +508,13 @@ fn parse_session(value: Option<&Value>) -> Result<Option<SessionConfig>, SpecPar
     let object = as_object(value, "session")?;
     allow_only(
         object,
-        &["zone", "start_hour", "end_hour", "opening_range_bars"],
+        &[
+            "zone",
+            "start_hour",
+            "end_hour",
+            "opening_range_bars",
+            "sweep_atr",
+        ],
         "session",
     )?;
     let mut config = SessionConfig::london();
@@ -536,6 +542,12 @@ fn parse_session(value: Option<&Value>) -> Result<Option<SessionConfig>, SpecPar
         config.opening_range_bars =
             usize::try_from(as_u64(value, "session.opening_range_bars")?)
                 .map_err(|_| SpecParseError::new("session.opening_range_bars is too large"))?;
+    }
+    config.sweep_atr = optional_f64(object, "sweep_atr", config.sweep_atr)?;
+    if !config.sweep_atr.is_finite() || config.sweep_atr < 0.0 {
+        return Err(SpecParseError::new(
+            "session.sweep_atr must be finite and non-negative",
+        ));
     }
     Ok(Some(config))
 }

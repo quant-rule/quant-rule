@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR7.2-C02",
+  "kind": "exploratory",
+  "events": [
+    "signal.opening_range_sweep"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD",
+    "ETH",
+    "COPPER",
+    "TSLA"
+  ],
+  "timeframe": 3600,
+  "hypothesis": "The opening-range sweep/reclaim mechanism survives at 1h, where the 6 bps cost is a smaller fraction of ATR."
+}

@@ -2159,6 +2159,34 @@
       "primary_outcome": "none",
       "predictive_status": "not_applicable",
       "construct_status": "covered"
+    },
+    {
+      "id": "signal.opening_range_sweep",
+      "kind": "event",
+      "construct_tests": [
+        "events::session::row_tests::signal_opening_range_sweep_row_contract"
+      ],
+      "construct_status": "covered",
+      "primary_outcome": "reversal",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 2.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.opening_range_sweep_control",
+      "kind": "event",
+      "construct_tests": [
+        "events::session::row_tests::signal_opening_range_sweep_control_row_contract"
+      ],
+      "construct_status": "covered",
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 2.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier"
     }
   ]
 }

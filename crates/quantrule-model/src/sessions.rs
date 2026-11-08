@@ -33,6 +33,8 @@ pub struct SessionConfig {
     pub end_hour: u32,
     /// Bars in the opening range.
     pub opening_range_bars: usize,
+    /// Minimum sweep beyond the opening range, in ATR units.
+    pub sweep_atr: f64,
 }
 
 impl SessionConfig {
@@ -44,6 +46,7 @@ impl SessionConfig {
             start_hour: 8,
             end_hour: 16,
             opening_range_bars: 2,
+            sweep_atr: 0.0,
         }
     }
 
@@ -55,6 +58,7 @@ impl SessionConfig {
             start_hour: 9,
             end_hour: 16,
             opening_range_bars: 2,
+            sweep_atr: 0.0,
         }
     }
 
@@ -66,6 +70,7 @@ impl SessionConfig {
             start_hour: 0,
             end_hour: 24,
             opening_range_bars: 2,
+            sweep_atr: 0.0,
         }
     }
 }

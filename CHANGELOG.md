@@ -35,6 +35,14 @@ are not treated as releases.
   run configs for an extra instrument in the research grid builder.
 - The MR6 ordered-confirmation grid (15 cells, five primary, reverse-order
   controls) and its `no_edge` development result.
+- The `M1.1` opening-range sweep and no-reclaim control events, with the
+  `session.sweep_atr` spec field; the registry moves to 145 events and 191
+  validation claims.
+- `COPPERCMDUSD` and `TSLAUSUSD` as price-only instruments, with aliases
+  `COPPER` and `TSLA`; volume, participation, and flow events exclude them.
+- The MR7 opening-range sweep grid (15 cells) and its `no_edge` result.
+- The research report applies a declared mean-net-R path gate before naming a
+  candidate.
 
 ### Fixed
 

@@ -50,7 +50,7 @@
 | 40 | `co_movement` | 40 | 9 Cross-asset | 0/0/1 | ✅ | per_row_panel_indicators::co_movement_row_contract | not_applicable | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 41 | `dispersion` | 41 | 9 Cross-asset | 0/0/1 | ✅ | per_row_panel_indicators::dispersion_row_contract | not_applicable | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 42 | `session` | 42 | 10 Calendar and session | 1/0/2 | ✅ | per_row_session_indicators::session_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
-| 43 | `opening_range` | 43 | 10 Calendar and session | 2/0/2 | ✅ | per_row_session_indicators::opening_range_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
+| 43 | `opening_range` | 43 | 10 Calendar and session | 2/0/4 | ✅ | per_row_session_indicators::opening_range_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 44 | `overnight_intraday` | 44 | 10 Calendar and session | 0/0/2 | ✅ | per_row_session_indicators::overnight_intraday_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 45 | `session_range` | 45 | 10 Calendar and session | 0/0/2 | ✅ | per_row_session_indicators::session_range_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 46 | `calendar_bucket` | 46 | 10 Calendar and session | 0/0/0 | ✅ | per_row_session_indicators::calendar_bucket_row_contract | not_applicable | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | covered |
@@ -69,5 +69,5 @@
 | 7 Candle anatomy and gaps | 3 | 3 | 0 | 13 | 16 |
 | 8 Path and duration | 5 | 0 | 0 | 7 | 7 |
 | 9 Cross-asset | 5 | 0 | 6 | 5 | 11 |
-| 10 Calendar and session | 5 | 3 | 0 | 8 | 11 |
-| **Total** | **46** | **26** | **36** | **81** | **143** |
+| 10 Calendar and session | 5 | 3 | 0 | 10 | 13 |
+| **Total** | **46** | **26** | **36** | **83** | **145** |

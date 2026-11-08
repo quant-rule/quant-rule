@@ -147,6 +147,7 @@ pub(super) fn spec_v2_provenance(
             "start_hour": session.start_hour,
             "end_hour": session.end_hour,
             "opening_range_bars": session.opening_range_bars,
+            "sweep_atr": session.sweep_atr,
         })),
         "session_events": run.session_events().len(),
         "panel_events": run.panel_events().len(),

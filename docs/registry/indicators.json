@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-06.3",
+  "version": "2026-11-08.1",
   "indicators": [
     {
       "id": "ema",
@@ -1510,7 +1510,8 @@
         "atr"
       ],
       "parameters": [
-        "model.session.opening_range_bars"
+        "model.session.opening_range_bars",
+        "model.session.sweep_atr"
       ],
       "outputs": [
         "opening_range_high",
@@ -1522,7 +1523,9 @@
         "level.opening_range_test",
         "level.opening_range_break",
         "signal.opening_range_breakout",
-        "signal.opening_range_fade"
+        "signal.opening_range_fade",
+        "signal.opening_range_sweep",
+        "signal.opening_range_sweep_control"
       ],
       "tests": [
         "causality",
@@ -4314,6 +4317,48 @@
         "determinism"
       ],
       "status": "active"
+    },
+    {
+      "id": "signal.opening_range_sweep",
+      "code": 144,
+      "event_type": 3,
+      "subtype": 23,
+      "source": 51,
+      "indicator": "opening_range",
+      "role": "signal",
+      "claim": "A sweep of the completed opening range that closes back inside predicts a reversal.",
+      "formula": "after k bars: H>ORH+sweep*ATR and C<ORH -> -1, or L<ORL-sweep*ATR and C>ORL -> +1; if both sides sweep, the larger excursion wins and an exact tie emits no event",
+      "parameters": [
+        "model.session.opening_range_bars",
+        "model.session.sweep_atr"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal.opening_range_sweep_control",
+      "code": 145,
+      "event_type": 3,
+      "subtype": 23,
+      "source": 51,
+      "indicator": "opening_range",
+      "role": "signal",
+      "claim": "A sweep of the completed opening range that closes outside is the continuation control for the reclaim event.",
+      "formula": "after k bars: H>ORH+sweep*ATR and C>=ORH -> +1, or L<ORL-sweep*ATR and C<=ORL -> -1; the same larger-excursion tie-break applies",
+      "parameters": [
+        "model.session.opening_range_bars",
+        "model.session.sweep_atr"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active"
     }
   ],
   "parameters": [
@@ -5568,6 +5613,19 @@
         "model"
       ],
       "status": "active"
+    },
+    {
+      "id": "model.session.sweep_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.0,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active",
+      "min": 0.0
     },
     {
       "id": "model.session.london_start",

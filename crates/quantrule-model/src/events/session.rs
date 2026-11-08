@@ -109,7 +109,15 @@ impl SessionEventSeries {
                 );
             }
             if inside && complete {
-                opening_range_events(candles, sessions, config, timeframe_secs, bar, &mut events);
+                opening_range_events(
+                    candles,
+                    sessions,
+                    atr,
+                    config,
+                    timeframe_secs,
+                    bar,
+                    &mut events,
+                );
                 opening_range_levels(
                     candles,
                     sessions,
@@ -312,6 +320,7 @@ fn opening_range_levels(
 fn opening_range_events(
     candles: &[Candle],
     sessions: &SessionReadings,
+    atr: Option<f64>,
     config: &SessionConfig,
     timeframe_secs: u64,
     bar: usize,
@@ -360,6 +369,83 @@ fn opening_range_events(
             );
         }
     }
+    opening_range_sweep_events(candles, sessions, atr, config, timeframe_secs, bar, events);
+}
+
+/// Classifies a bar that trades beyond the completed opening range.
+///
+/// The reclaim and the no-reclaim control are separate event codes so a model
+/// spec can predict one without the other. If both sides trade beyond the range,
+/// the larger excursion wins; an exact tie emits no event, because the bar has
+/// no single directional side.
+fn opening_range_sweep_events(
+    candles: &[Candle],
+    sessions: &SessionReadings,
+    atr: Option<f64>,
+    config: &SessionConfig,
+    timeframe_secs: u64,
+    bar: usize,
+    events: &mut Vec<EventRecord>,
+) {
+    let Some(atr) = atr.filter(|value| *value > 0.0) else {
+        return;
+    };
+    let Some(age) = sessions.session_age.get(bar) else {
+        return;
+    };
+    if age < config.opening_range_bars as f64 {
+        return;
+    }
+    let (Some(high), Some(low)) = (
+        sessions.opening_range_high.get(bar),
+        sessions.opening_range_low.get(bar),
+    ) else {
+        return;
+    };
+    if bar == 0 {
+        return;
+    }
+    let candle = candles[bar];
+    let previous = candles[bar - 1];
+    let threshold = config.sweep_atr.max(0.0) * atr;
+    let high_excursion = candle.high() - high;
+    let low_excursion = low - candle.low();
+    let high_sweep = high_excursion > 0.0 && high_excursion >= threshold && previous.high() <= high;
+    let low_sweep = low_excursion > 0.0 && low_excursion >= threshold && previous.low() >= low;
+    if !high_sweep && !low_sweep {
+        return;
+    }
+    let (level, high_side) = if high_sweep && (!low_sweep || high_excursion > low_excursion) {
+        (high, true)
+    } else if low_sweep && (!high_sweep || low_excursion > high_excursion) {
+        (low, false)
+    } else {
+        return;
+    };
+    let close = candle.close();
+    let (code, direction) = if high_side {
+        if close < level {
+            (codes::SIGNAL_OPENING_RANGE_SWEEP, -1)
+        } else {
+            (codes::SIGNAL_OPENING_RANGE_SWEEP_CONTROL, 1)
+        }
+    } else if close > level {
+        (codes::SIGNAL_OPENING_RANGE_SWEEP, 1)
+    } else {
+        (codes::SIGNAL_OPENING_RANGE_SWEEP_CONTROL, -1)
+    };
+    push(
+        events,
+        code,
+        EventType::Signal,
+        SESSION_SIGNAL_SUBTYPE,
+        OPENING_RANGE_SOURCE_CODE,
+        timeframe_secs,
+        bar,
+        direction,
+        Some(close),
+        Some(level),
+    );
 }
 
 fn overnight_events(
@@ -498,6 +584,35 @@ mod tests {
         assert!(events.events().iter().any(|event| {
             event.source_code == 52 && event.direction_code == 1 && event.occurred_bar_index == 32
         }));
+    }
+
+    #[test]
+    fn opening_range_sweep_and_control_are_published() {
+        for (close, code, direction) in [
+            (104.5, crate::events::codes::SIGNAL_OPENING_RANGE_SWEEP, -1),
+            (
+                105.5,
+                crate::events::codes::SIGNAL_OPENING_RANGE_SWEEP_CONTROL,
+                1,
+            ),
+        ] {
+            let mut candles = series(2);
+            let timestamp = candles[14].timestamp();
+            candles[14] = Candle::new(14, timestamp, 104.5, 105.0, 104.0, 104.5, Some(10.0))
+                .expect("the inside candle is valid");
+            let timestamp = candles[15].timestamp();
+            candles[15] = Candle::new(15, timestamp, 104.5, 106.0, 104.0, close, Some(10.0))
+                .expect("the sweep candle is valid");
+            let events = events(&candles);
+            assert!(
+                events.events().iter().any(|event| {
+                    event.event_code == code
+                        && event.direction_code == direction
+                        && event.available_bar_index == 15
+                }),
+                "the sweep event at close {close} was not published"
+            );
+        }
     }
 
     #[test]
