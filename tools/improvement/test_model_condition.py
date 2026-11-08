@@ -39,6 +39,7 @@ def write_readings(root: Path, rows: list[dict[str, object]]) -> Path:
                 "val",
                 "last_pivot_high",
                 "last_pivot_low",
+                "rvol_ratio",
             ]
         )
         for row in rows:
@@ -61,6 +62,7 @@ def write_readings(root: Path, rows: list[dict[str, object]]) -> Path:
                     row.get("val", ""),
                     row.get("last_pivot_high", ""),
                     row.get("last_pivot_low", ""),
+                    row.get("rvol_ratio", 1.0),
                 ]
             )
     with (root / "prediction.csv").open("w", newline="", encoding="utf-8") as handle:
@@ -237,6 +239,32 @@ class ConditionTests(unittest.TestCase):
                 age = int(row[header.index("level_age")])
                 expected = 1 if touches == 1 and age <= 1 else 0
                 self.assertEqual(int(row[index]), expected)
+
+    def test_column_supports_float_bounds(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            readings = base_readings()
+            for bar, ratio in enumerate([0.8, 1.0, 1.2] * 4):
+                readings[bar]["rvol_ratio"] = ratio
+            write_readings(root, readings)
+            condition = write_condition(
+                root,
+                {
+                    "schema": model_condition.SCHEMA,
+                    "kind": "column",
+                    "column": "rvol_ratio",
+                    "min": 1.1,
+                },
+            )
+            out = root / "out"
+            code = model_condition.main(
+                ["--bundle", str(root), "--condition", str(condition), "--out", str(out)]
+            )
+            self.assertEqual(code, 0)
+            header, rows = model_condition.read_csv(out / "readings.csv")
+            index = header.index("condition")
+            selected = [int(row[1]) for row in rows if row[index] == "1"]
+            self.assertEqual(selected, [2, 5, 8, 11])
 
     def test_a_later_bar_does_not_change_a_past_match(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

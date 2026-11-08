@@ -1,0 +1,21 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "MR5.8-C03",
+  "family": "MR5",
+  "instrument": "SP500",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "level.cross",
+    "level.gap_test"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "level.cross"
+    ],
+    "min_votes": 1
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.10-C03",
+  "kind": "exploratory",
+  "events": [
+    "signal.di_cross"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "The path and expectancy of a DI cross differ across volatility regimes; the path report is the evidence."
+}

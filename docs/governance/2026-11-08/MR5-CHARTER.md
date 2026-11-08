@@ -1,7 +1,8 @@
 # MR5 Model Research Charter — Mechanism and Path Programme
 
 - Date: 2026-11-08 (UTC)
-- Status: **Proposed** — not approved; no cell, build, or validation is authorized
+- Status: **Approved** (human, 2026-11-08); development `no_edge`; validation
+  not opened
 - Programme ID: `PROGRAM-2026-11-08-01` (planned)
 - Owner: human
 - Coordinator: OpenCode `mr5-platform`
@@ -228,7 +229,8 @@ condition, or threshold. A new programme needs a new premise and a new charter.
 
 ## 12. Human approval
 
-This charter is **Proposed**. It authorizes nothing until approved.
+The human approved this charter on 2026-11-08. The development grid ran and
+stopped at `no_edge`; validation remains closed.
 
 | Decision | Proposed |
 |---|---|
@@ -245,11 +247,12 @@ On approval, this charter authorizes the grid build, the count gate, and the
 30-cell exploratory round. It does not authorize validation, the strategy tier,
 or a model engine change.
 
-- Approved by: —
-- Approved on: —
+- Approved by: Human
+- Approved on: 2026-11-08 (UTC)
 - Scope: the premise, hypotheses, grid, correction, budget, and stop rule
 - Not authorized: `model_validation`; the strategy, execution, or portfolio
   tier; a post-hoc variant; a model engine change
+- Development result: `no_edge`; no candidate; validation not opened
 
 ## 13. What this charter does not authorize
 

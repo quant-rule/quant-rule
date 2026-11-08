@@ -1,0 +1,6 @@
+{
+  "schema": "quantrule.model-condition/v1",
+  "kind": "column",
+  "column": "atr",
+  "min": 1.0
+}

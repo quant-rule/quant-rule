@@ -1,7 +1,7 @@
 # MR5 Programme — Phase 2 Execution Plan
 
 - Date: 2026-11-08 (UTC)
-- Status: **Proposed** — starts only after the human approves the MR5 charter
+- Status: **Verified** (2026-11-08) — 30 cells run; `no_edge`; validation not opened
 - Work item: task slug `mr5-platform`; Phase 2 slug `mr5-programme`
 - Charter: [`MR5-CHARTER.md`](../../governance/2026-11-08/MR5-CHARTER.md)
 - Power worksheet: [`MR5-POWER.md`](../../improvement/2026-11-08/MR5-POWER.md)

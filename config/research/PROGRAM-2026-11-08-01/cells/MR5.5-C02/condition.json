@@ -1,0 +1,12 @@
+{
+  "schema": "quantrule.model-condition/v1",
+  "kind": "confluence",
+  "references": [
+    "vwap",
+    "poc",
+    "last_pivot_high",
+    "last_pivot_low"
+  ],
+  "min_count": 2,
+  "within_atr": 0.35
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "MR5.4-C03",
+  "family": "MR5",
+  "instrument": "XAU",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "level.break",
+    "level.test"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "level.test"
+    ],
+    "min_votes": 1
+  }
+}

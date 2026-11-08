@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.2-C03",
+  "kind": "exploratory",
+  "events": [
+    "level.test"
+  ],
+  "condition_events": [
+    "level.break",
+    "level.test"
+  ],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A confirmed-level break followed by a retest that holds within five bars predicts continuation."
+}

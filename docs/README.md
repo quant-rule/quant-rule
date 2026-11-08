@@ -35,7 +35,7 @@ repeating a status.
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Command surface | 15 implemented commands, 0 planned; the discovery gate passes. |
-| Model | `M1.0` current; 46 indicators, 143 active events, 189 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` platform delivered, research charter proposed. |
+| Model | `M1.0` current; 46 indicators, 143 active events, 189 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. |
@@ -110,6 +110,7 @@ criteria are explicit command arguments; the run schema stays
 | M4.x model programme | Development `no_edge`; five primary cells; validation not opened | [`docs/improvement/2026-11-07/M4-DEV-SWARM.md`](improvement/2026-11-07/M4-DEV-SWARM.md) |
 | M4.x model charter | Approved 2026-11-07; strategy tier closed | [`docs/governance/2026-11-07/M4-CHARTER.md`](governance/2026-11-07/M4-CHARTER.md) |
 | MR5.x platform | `MR`/`-Cnn` naming, per-cell model config, sequence/confluence/path evaluators, reference grid | [`docs/execution-plans/2026-11-08/mr5-platform.md`](execution-plans/2026-11-08/mr5-platform.md) |
+| MR5.x model programme | Development `no_edge`; 30 cells; no primary passed; validation not opened | [`docs/improvement/2026-11-08/MR5-DEV-SWARM.md`](improvement/2026-11-08/MR5-DEV-SWARM.md) |
 | MR5.x power worksheet | Five primary base cells recommended; ten needs fresh data | [`docs/improvement/2026-11-08/MR5-POWER.md`](improvement/2026-11-08/MR5-POWER.md) |
 | MR5.x data review | Validation reuse disclosed; ETH optional; fresh instrument via Data Lifecycle | [`docs/improvement/2026-11-08/MR5-DATA-REVIEW.md`](improvement/2026-11-08/MR5-DATA-REVIEW.md) |
 | MR5.x charter | Proposed; 10 × 3 grid; five primary base cells | [`docs/governance/2026-11-08/MR5-CHARTER.md`](governance/2026-11-08/MR5-CHARTER.md) |
@@ -216,7 +217,7 @@ record of what was released. Historical tags `v0.4.0-exp-baseline` and
 | P8a M3.x charter | Approved 2026-11-06; P8b executed | `docs/governance/2026-11-05/M3-CHARTER.md` |
 | P8b M3.x programme | Underpowered at the count gate; no development run; validation not opened | `docs/improvement/2026-11-05/M3-PREFLIGHT.md` |
 | M4.x model programme | Development `no_edge`; five primary cells; validation not opened | `docs/governance/2026-11-07/M4-CHARTER.md`; `docs/improvement/2026-11-07/M4-DEV-SWARM.md` |
-| MR5.x model platform | Platform delivered; research charter proposed; no grid run | `docs/execution-plans/2026-11-08/mr5-platform.md`; `docs/governance/2026-11-08/MR5-CHARTER.md` |
+| MR5.x model programme | Development `no_edge`; 30 cells; validation not opened | `docs/execution-plans/2026-11-08/mr5-programme.md`; `docs/improvement/2026-11-08/MR5-DEV-SWARM.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 | Workflow documentation reset | Released in `v0.6.0` (PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
 

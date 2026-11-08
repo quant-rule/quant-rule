@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "MR5.9-C02",
+  "family": "MR5",
+  "instrument": "EURUSD",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.compression_breakout"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.compression_breakout"
+    ],
+    "min_votes": 1
+  }
+}

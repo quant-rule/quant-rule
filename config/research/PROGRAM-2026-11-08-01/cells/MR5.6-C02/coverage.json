@@ -1,0 +1,17 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.6-C02",
+  "kind": "exploratory",
+  "events": [
+    "signal.di_cross"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A DI cross at a fresh confirmed level carries directional information; older levels decay."
+}

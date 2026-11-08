@@ -1,0 +1,21 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "MR5.2-C03",
+  "family": "MR5",
+  "instrument": "BTC",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "level.break",
+    "level.test"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "level.test"
+    ],
+    "min_votes": 1
+  }
+}

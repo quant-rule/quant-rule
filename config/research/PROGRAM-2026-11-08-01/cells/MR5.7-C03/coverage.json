@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR5.7-C03",
+  "kind": "exploratory",
+  "events": [
+    "signal.rvol_expansion"
+  ],
+  "condition_events": [
+    "signal.trend_continuation",
+    "signal.rvol_expansion"
+  ],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A participation expansion confirmed by a trend-continuation event within five bars carries directional information."
+}

@@ -392,15 +392,18 @@ def column_condition(
     condition: dict[int, int] = {}
     matches = 0
     for bar, row in readings.items():
-        value = optional_int(row.get(column))
-        if value is None:
-            continue
-        if values is not None and value not in values:
-            continue
-        if minimum is not None and value < int(minimum):
-            continue
-        if maximum is not None and value > int(maximum):
-            continue
+        if values is not None:
+            value = optional_int(row.get(column))
+            if value is None or value not in values:
+                continue
+        else:
+            value = optional_number(row.get(column))
+            if value is None:
+                continue
+            if minimum is not None and value < float(minimum):
+                continue
+            if maximum is not None and value > float(maximum):
+                continue
         if level_age_max is not None:
             age = optional_int(row.get("level_age"))
             if age is None or age > int(level_age_max):

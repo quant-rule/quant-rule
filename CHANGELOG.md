@@ -30,6 +30,11 @@ are not treated as releases.
   research; the MR5 inherited-coverage checker, grid builder, and reference
   grid.
 
+### Fixed
+
+- The model condition evaluator accepts float `min`/`max` bounds for continuous
+  readings such as `rvol_ratio` and `atr`; integer `values` is unchanged.
+
 ## [0.6.0] - 2026-11-07
 
 ### Added

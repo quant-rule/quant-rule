@@ -1,0 +1,11 @@
+{
+  "schema": "quantrule.model-condition/v1",
+  "kind": "sequence",
+  "first_event": "signal.trend_continuation",
+  "second_event": "signal.rvol_expansion",
+  "within_bars": 5,
+  "same_level": false,
+  "level_tolerance_atr": 0.0,
+  "direction": "same",
+  "close_side": "any"
+}

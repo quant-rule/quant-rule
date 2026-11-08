@@ -1,0 +1,21 @@
+{
+  "schema": "quantrule.model-spec/v2",
+  "id": "MR5.7-C02",
+  "family": "MR5",
+  "instrument": "EURUSD",
+  "timeframes": [
+    900
+  ],
+  "readings": {},
+  "active_events": [
+    "signal.rvol_expansion",
+    "signal.trend_continuation"
+  ],
+  "prediction": {
+    "kind": "direction",
+    "events": [
+      "signal.rvol_expansion"
+    ],
+    "min_votes": 1
+  }
+}

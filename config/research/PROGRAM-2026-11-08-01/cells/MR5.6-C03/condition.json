@@ -1,0 +1,7 @@
+{
+  "schema": "quantrule.model-condition/v1",
+  "kind": "column",
+  "column": "level_touches",
+  "min": 1,
+  "level_age_max": 48
+}
