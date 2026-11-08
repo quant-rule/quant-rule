@@ -17,6 +17,7 @@ stages.
 | `index.py --root data/improvement` | Rebuild `index.json` and `index.md` from run manifests |
 | `run_current.py <manifest> [--qr PATH]` | Validate, create the run folder, invoke the current S3 commands, write `results.json`, refresh the index |
 | `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
+| `feasibility.py --strategy ... --data ... --cost-bps ...` | Deterministic preflight: reject a hypothesis whose target is below its round-trip cost or whose breakeven win rate exceeds 50%, and any timeframe above 1 hour |
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the current model, portfolio, qualification, and analytics bundles |
 | `model_confidence.py --source CSV --timeframe TF` | Axis hit rates and ordered buckets from `model-series` |
 | `model_prediction.py --bundle NAME=DIR ...` | Forward/barrier model-prediction evaluation with base rate, controls, and grade |
@@ -138,3 +139,28 @@ retired terms on purpose.
 - The store is local data. `data/partitions.json` is ignored by the current
   `.gitignore` rule that admits only `data/**/README.md`; it is created but not
   tracked until that rule changes.
+
+## Feasibility preflight
+
+A strategy hypothesis is screened before the first backtest cell:
+
+```text
+python3 tools/improvement/feasibility.py \
+  --strategy config/strategy/<name>.json \
+  --data config/<run>/<cell>/data.json \
+  --cost-bps 6 \
+  --out <run>/artifacts/preflight/<cell>
+```
+
+The tool reads the strategy risk block, the data config, and the raw candles.
+It computes `cost_atr` from the median ATR(14), the net target and stop, and the
+breakeven win rate after the declared round-trip cost. It does not read a
+backtest result. A hypothesis passes only when the net target is positive and
+the breakeven win rate is at most 50%; every execution and context timeframe
+must be at or below 1 hour. A fail stops the hypothesis before compute is spent.
+
+The tests run from this directory:
+
+```text
+python3 -m unittest test_feasibility -v
+```

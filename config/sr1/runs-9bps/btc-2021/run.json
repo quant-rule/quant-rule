@@ -1,0 +1,10 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr1-btc-2021-9bps",
+  "policy": "../../policy-BTCUSD.json",
+  "data": "../../runs/btc-2021/data.json",
+  "model": "../../model-compression.json",
+  "execution": "../../execution-9bps.json",
+  "portfolio": "../../portfolio-9bps.json",
+  "output_root": "../../../../data/improvement/2026-11-08/SR1-FADE-1M/artifacts-9bps/btc-2021"
+}

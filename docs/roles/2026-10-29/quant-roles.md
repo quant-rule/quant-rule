@@ -35,7 +35,7 @@ must disclose that the passes were sequential.
 |---|---|---|---|---|
 | **Quant Researcher** | The hypothesis, experiment protocol, evaluation metrics, and interpretation | A market question, data coverage, the model contract | A rule-based hypothesis, a pre-registered protocol, a validation request | Write production code, change thresholds after seeing results, or approve its own conclusions |
 | **Quant Developer** | The implementation, tests, determinism, and performance | The approved protocol, model contract, and configuration schemas | Code, tests, a reproducible run configuration, reported deviations | Change the hypothesis, thresholds, or evaluation criteria to improve results, or call its own work validated |
-| **Quant Validator** | Independent reproduction and the evidence verdict | The recorded data version, configuration, and candidate result | A validation record: commands, observed results, limitations, and verdict | Modify the work it reviews, waive a control, or change the criteria to turn a failure into a pass |
+| **Quant Validator** | The feasibility preflight, independent reproduction, and the evidence verdict | The strategy risk block, data config, recorded data version, configuration, and candidate result | A feasibility report; a validation record: commands, observed results, limitations, and verdict | Modify the work it reviews, waive a control, waive a failed preflight after the run, or change the criteria to turn a failure into a pass |
 
 ## Role manuals
 
@@ -78,6 +78,8 @@ with findings; it does not repair it.
 | Bug fix that does not change model or strategy output | Not required | Required | Not required |
 | Documentation or tooling only | Not required | Not required | Not required |
 | Release that changes signal generation | Required when a claim is made | Required | Required |
+
+The Quant Validator runs the feasibility preflight before the first backtest cell. A hypothesis whose net target is not positive, whose breakeven win rate after the declared costs exceeds 50%, or whose timeframe exceeds 1 hour is rejected before compute is spent; a human-approved exception is recorded in the charter before the run.
 
 The Quant Validator is required before a strategy result is called promising,
 before a model or strategy behavior change is merged, and before a release that

@@ -1,7 +1,7 @@
 # Run Index
 
 - Date: 2026-11-08 (UTC)
-- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, and the MR7.x no-edge opening-range sweep grid appended
+- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, and the SR1.x stopped compression-breakout fade appended
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 The local `data/improvement/` store was reset after the 2026-11-03 records, so
@@ -41,6 +41,7 @@ view for the local store.
 | `PROGRAM-2026-11-08-01` | 2026-11-08 | model | MR5.x mechanism/path grid; 10 hypotheses × 3 configs; no primary passed | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-08/MR5-DEV-SWARM.md) |
 | `PROGRAM-2026-11-08-02` | 2026-11-08 | model | MR6.x ordered family confirmation; 5 hypotheses × 3 configs; no primary passed | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-08/MR6-DEV-SWARM.md) |
 | `PROGRAM-2026-11-08-03` | 2026-11-08 | model | MR7.x opening-range sweep/reclaim; 5 hypotheses × 3 configs; no primary passed | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-08/MR7-DEV-SWARM.md) |
+| `STRATEGY-2026-11-08-01` | 2026-11-08 | strategy | 1m compression-breakout fade; 10/15 cells; stopped by the feasibility screen | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | stopped — infeasible | [record](2026-11-08/STRATEGY-2026-11-08-01-sr1-fade.md) |
 | `PROGRAM-2026-11-04-05` | 2026-11-04 | model | V5 Phase 2 price-only spike; three candidates no edge; volume blocked | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/V5-PHASE2-SPIKE.md) |
 | `STRATEGY-2026-11-04-02` | 2026-11-04 | strategy | 1m compression bracket; all folds halted | strategy | model, portfolio | MODEL-2026-11-04-06..07 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-02-compression-bracket.md) |
 | `STRATEGY-2026-11-04-01` | 2026-11-04 | strategy | Directional 1m compression strategy | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-01-compression-strategy.md) |

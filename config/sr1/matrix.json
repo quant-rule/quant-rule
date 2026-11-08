@@ -1,0 +1,136 @@
+{
+  "schema": "quantrule.strategy-matrix/v1",
+  "id": "SR1-FADE-1M",
+  "partition": "strategy_dev",
+  "strategy": "config/strategy/sr1-fade-1m.json",
+  "criteria": "config/qualification/SR1-DEV.json",
+  "costs": {
+    "base": {
+      "commission_bps_per_operation": 2.0,
+      "slippage_bps_per_fill": 1.0,
+      "round_trip_bps": 6.0
+    },
+    "sensitivity": {
+      "commission_bps_per_operation": 3.0,
+      "slippage_bps_per_fill": 1.5,
+      "round_trip_bps": 9.0
+    }
+  },
+  "green_criteria": {
+    "total_return": "> 0",
+    "profit_factor": "> 1.10",
+    "max_drawdown": "<= 0.15",
+    "minimum_trades": 600,
+    "positive_instruments": ">= 2 of 3",
+    "positive_folds": ">= 3 of 5",
+    "cost_sensitivity_profit_factor": "> 1.0 at 9 bps round trip",
+    "reproducibility": "byte-identical rerun"
+  },
+  "cells": [
+    {
+      "id": "btc-2018",
+      "instrument": "BTCUSD",
+      "fold": 2018,
+      "run_config": "config/sr1/runs/btc-2018/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/btc-2018/run.json"
+    },
+    {
+      "id": "btc-2019",
+      "instrument": "BTCUSD",
+      "fold": 2019,
+      "run_config": "config/sr1/runs/btc-2019/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/btc-2019/run.json"
+    },
+    {
+      "id": "btc-2020",
+      "instrument": "BTCUSD",
+      "fold": 2020,
+      "run_config": "config/sr1/runs/btc-2020/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/btc-2020/run.json"
+    },
+    {
+      "id": "btc-2021",
+      "instrument": "BTCUSD",
+      "fold": 2021,
+      "run_config": "config/sr1/runs/btc-2021/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/btc-2021/run.json"
+    },
+    {
+      "id": "btc-2022",
+      "instrument": "BTCUSD",
+      "fold": 2022,
+      "run_config": "config/sr1/runs/btc-2022/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/btc-2022/run.json"
+    },
+    {
+      "id": "eth-2018",
+      "instrument": "ETHUSD",
+      "fold": 2018,
+      "run_config": "config/sr1/runs/eth-2018/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/eth-2018/run.json"
+    },
+    {
+      "id": "eth-2019",
+      "instrument": "ETHUSD",
+      "fold": 2019,
+      "run_config": "config/sr1/runs/eth-2019/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/eth-2019/run.json"
+    },
+    {
+      "id": "eth-2020",
+      "instrument": "ETHUSD",
+      "fold": 2020,
+      "run_config": "config/sr1/runs/eth-2020/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/eth-2020/run.json"
+    },
+    {
+      "id": "eth-2021",
+      "instrument": "ETHUSD",
+      "fold": 2021,
+      "run_config": "config/sr1/runs/eth-2021/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/eth-2021/run.json"
+    },
+    {
+      "id": "eth-2022",
+      "instrument": "ETHUSD",
+      "fold": 2022,
+      "run_config": "config/sr1/runs/eth-2022/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/eth-2022/run.json"
+    },
+    {
+      "id": "xau-2018",
+      "instrument": "XAUUSD",
+      "fold": 2018,
+      "run_config": "config/sr1/runs/xau-2018/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/xau-2018/run.json"
+    },
+    {
+      "id": "xau-2019",
+      "instrument": "XAUUSD",
+      "fold": 2019,
+      "run_config": "config/sr1/runs/xau-2019/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/xau-2019/run.json"
+    },
+    {
+      "id": "xau-2020",
+      "instrument": "XAUUSD",
+      "fold": 2020,
+      "run_config": "config/sr1/runs/xau-2020/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/xau-2020/run.json"
+    },
+    {
+      "id": "xau-2021",
+      "instrument": "XAUUSD",
+      "fold": 2021,
+      "run_config": "config/sr1/runs/xau-2021/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/xau-2021/run.json"
+    },
+    {
+      "id": "xau-2022",
+      "instrument": "XAUUSD",
+      "fold": 2022,
+      "run_config": "config/sr1/runs/xau-2022/run.json",
+      "sensitivity_run_config": "config/sr1/runs-9bps/xau-2022/run.json"
+    }
+  ]
+}
