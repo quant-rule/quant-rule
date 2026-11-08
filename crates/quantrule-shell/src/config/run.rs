@@ -50,6 +50,8 @@ pub(crate) struct RunConfig {
     pub(crate) policy: PolicyConfig,
     /// The data engine's source and ladder.
     pub(crate) data: DataConfig,
+    /// The optional model ladder. `None` means the full data ladder.
+    pub(crate) model_ladder: Option<Vec<Timeframe>>,
     /// The model engine's configuration.
     pub(crate) model: MarketStateConfig,
     /// The execution engine's configuration and fill policy.
@@ -131,6 +133,7 @@ impl RunConfig {
             portfolio_id: run.portfolio_id,
             policy,
             data,
+            model_ladder: run.model_timeframes,
             model,
             execution,
             portfolio,
@@ -182,6 +185,27 @@ impl RunConfig {
                     &format!("$.timeframes.{}", timeframe.code()),
                     "a timeframe from the available data ladder",
                     timeframe.code(),
+                ));
+            }
+        }
+
+        if let Some(ladder) = &self.model_ladder {
+            for timeframe in ladder {
+                if !self.data.available_timeframes.contains(timeframe) {
+                    return Err(ConfigError::inconsistent(
+                        file_name(&self.paths.run),
+                        "$.model_timeframes",
+                        "timeframes from the available data ladder",
+                        timeframe.code(),
+                    ));
+                }
+            }
+            if !ladder.contains(&self.execution.fill_timeframe) {
+                return Err(ConfigError::inconsistent(
+                    file_name(&self.paths.run),
+                    "$.model_timeframes",
+                    "a ladder that contains the execution fill timeframe",
+                    self.execution.fill_timeframe.code(),
                 ));
             }
         }
@@ -329,6 +353,7 @@ pub(super) struct RunFile {
     model: String,
     execution: String,
     portfolio: String,
+    pub(super) model_timeframes: Option<Vec<Timeframe>>,
     pub(super) output_root: String,
 }
 
@@ -350,6 +375,7 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             "model",
             "execution",
             "portfolio",
+            "model_timeframes",
             "output_root",
         ],
     )?;
@@ -384,6 +410,10 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             read::field(file, ROOT, object, "portfolio")?,
         )?
         .to_owned(),
+        model_timeframes: object
+            .get("model_timeframes")
+            .map(|value| parse_model_timeframes(file, value))
+            .transpose()?,
         output_root: read::non_empty_string(
             file,
             "$.output_root",
@@ -391,6 +421,35 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
         )?
         .to_owned(),
     })
+}
+
+fn parse_model_timeframes(file: &str, value: &Value) -> Result<Vec<Timeframe>, ConfigError> {
+    let values = read::array(file, "$.model_timeframes", value)?;
+    if values.is_empty() {
+        return Err(ConfigError::range(
+            file,
+            "$.model_timeframes",
+            "a non-empty ascending timeframe list",
+            "[]",
+        ));
+    }
+    let mut timeframes: Vec<Timeframe> = Vec::with_capacity(values.len());
+    for (index, item) in values.iter().enumerate() {
+        let path = read::index("$.model_timeframes", index);
+        let timeframe = data::timeframe(file, &path, item)?;
+        if let Some(previous) = timeframes.last()
+            && previous.seconds() >= timeframe.seconds()
+        {
+            return Err(ConfigError::range(
+                file,
+                "$.model_timeframes",
+                "strictly ascending, without duplicates",
+                &read::observed(value),
+            ));
+        }
+        timeframes.push(timeframe);
+    }
+    Ok(timeframes)
 }
 
 fn optional_identity(

@@ -385,6 +385,26 @@ fn run_rejects_the_removed_strategy_id() {
 }
 
 #[test]
+fn run_accepts_an_optional_model_ladder() {
+    let value = set(run_object(), &["model_timeframes"], json!(["1m", "1h"]));
+    let parsed = run::parse(&value, "run.json").expect("the ladder parses");
+    assert_eq!(
+        parsed.model_timeframes,
+        Some(vec![Timeframe::M1, Timeframe::H1])
+    );
+}
+
+#[test]
+fn run_rejects_an_unsorted_model_ladder() {
+    let value = set(run_object(), &["model_timeframes"], json!(["1h", "1m"]));
+    assert_rejected(
+        run::parse(&value, "run.json"),
+        ConfigErrorKind::Range,
+        "$.model_timeframes",
+    );
+}
+
+#[test]
 fn run_rejects_a_bad_identity_prefix() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
     let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
@@ -423,6 +443,18 @@ fn the_config_run_fixture_loads() {
     let config = run::RunConfig::load(&path).expect("the fixture config is valid");
     assert_eq!(config.name, "fixture");
     assert_eq!(config.execution.fill_timeframe, Timeframe::M5);
+}
+
+#[test]
+fn a_model_ladder_must_be_in_the_data_ladder_and_contain_execution() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
+    config.model_ladder = Some(vec![Timeframe::H4]);
+    assert_rejected(config.validate_cross(), Inconsistent, "$.model_timeframes");
+    config.model_ladder = Some(vec![Timeframe::M15]);
+    assert_rejected(config.validate_cross(), Inconsistent, "$.model_timeframes");
+    config.model_ladder = Some(vec![Timeframe::M5, Timeframe::H1]);
+    assert!(config.validate_cross().is_ok());
 }
 
 #[test]
