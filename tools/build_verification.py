@@ -378,6 +378,12 @@ ROW_EVENT_TESTS = {
     "signal.opening_range_breakout": (
         "events::session::row_tests::signal_opening_range_breakout_row_contract",
     ),
+    "signal.opening_range_sweep": (
+        "events::session::row_tests::signal_opening_range_sweep_row_contract",
+    ),
+    "signal.opening_range_sweep_control": (
+        "events::session::row_tests::signal_opening_range_sweep_control_row_contract",
+    ),
     "signal.overnight_continuation": (
         "events::session::row_tests::signal_overnight_continuation_row_contract",
     ),
@@ -440,6 +446,8 @@ ROW_EVENT_GOLDEN = {
     "signal.co_movement_cross",
     "signal.dispersion_cross",
     "signal.opening_range_breakout",
+    "signal.opening_range_sweep",
+    "signal.opening_range_sweep_control",
     "signal.overnight_continuation",
     "signal.overnight_fade",
     "signal.session_range_contraction",

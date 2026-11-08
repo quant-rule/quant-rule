@@ -35,7 +35,7 @@ repeating a status.
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Command surface | 15 implemented commands, 0 planned; the discovery gate passes. |
-| Model | `M1.0` current; 46 indicators, 143 active events, 189 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge. |
+| Model | `M1.1` current; 46 indicators, 145 active events, 191 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. |
@@ -60,14 +60,15 @@ repeating a status.
 
 | Contract | Status | Path |
 |---|---|---|
-| M1.0 flat model | Current baseline; path gate no edge; compression baselines accepted | `docs/model/2026-11-05/model-m1.0.md` |
-| Indicator coverage | Implemented 2026-11-05: 46 indicators, 143 active events, stable event codes; 189 validation claims and 54/54 construct cases; predictive evidence pending | `docs/model/2026-11-05/indicator-coverage.md` |
-| Model families | Approved 2026-11-05; amended 2026-11-08 for `MR` research families; `M1.0`, historical `M2.x`–`M4.x`, current `MR5.x` and `MR6.x`, and the future `S3.x` map | `docs/model/2026-11-05/model-families.md` |
+| M1.0 flat model | Historical baseline; path gate no edge; compression baselines accepted | `docs/model/2026-11-05/model-m1.0.md` |
+| M1.1 opening-range sweep | Current model; adds the opening-range sweep and control events; MR7 no edge | `docs/model/2026-11-08/model-m1.1.md` |
+| Indicator coverage | Implemented 2026-11-05; updated 2026-11-08: 46 indicators, 145 active events, stable event codes; 191 validation claims and 54/54 construct cases; predictive evidence pending | `docs/model/2026-11-05/indicator-coverage.md` |
+| Model families | Approved 2026-11-05; amended 2026-11-08 for `MR` research families; `M1.1` current, `M1.0` historical, `M2.x`–`M4.x` historical, `MR5.x`–`MR7.x` research, and the future `S3.x` map | `docs/model/2026-11-05/model-families.md` |
 | Model spec v1 | Implemented; condition-only | `docs/model/2026-11-05/model-spec-v1.md` |
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |
-| M1.0 model lab tutorial | Current; covers the data and model surface | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
+| M1.0 model lab tutorial | Current for the base surface; M1.1 adds the opening-range sweep pair | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
 | Workflow lab tutorial | Current; workflow selection, stage commands, and the current run adapter | `docs/tutorials/2026-11-07/workflow-lab.md` |
 | Strategy lab tutorial | Current; `report model`, `strategy explain`, `strategy run` | `docs/tutorials/2026-11-06/strategy-lab.md` |
 | Execution lab tutorial | Current; `report model`, `strategy run`, `execution run` | `docs/tutorials/2026-11-06/execution-lab.md` |
@@ -118,6 +119,9 @@ criteria are explicit command arguments; the run schema stays
 | MR6.x power worksheet | Five primary base cells; family-level pairing; count gate first | [`docs/improvement/2026-11-08/MR6-POWER.md`](improvement/2026-11-08/MR6-POWER.md) |
 | MR6.x data review | Relative-volume participation admitted; cumulative OBV/AD excluded; ETH included | [`docs/improvement/2026-11-08/MR6-DATA-REVIEW.md`](improvement/2026-11-08/MR6-DATA-REVIEW.md) |
 | MR6.x charter | Approved; 5 × 3 grid; five primary base cells; reverse-order controls | [`docs/governance/2026-11-08/MR6-CHARTER.md`](governance/2026-11-08/MR6-CHARTER.md) |
+| MR7.x model programme | Development `no_edge`; 15 cells; control positive but not reversing; validation not opened | [`docs/improvement/2026-11-08/MR7-DEV-SWARM.md`](improvement/2026-11-08/MR7-DEV-SWARM.md) |
+| MR7.x charter | Approved; 5 × 3 grid; five primary base cells; no-reclaim control; path gate | [`docs/governance/2026-11-08/MR7-CHARTER.md`](governance/2026-11-08/MR7-CHARTER.md) |
+| MR7.x data review | COPPERCMDUSD and TSLAUSUSD price-only; volume excluded | [`docs/improvement/2026-11-08/MR7-DATA-REVIEW.md`](improvement/2026-11-08/MR7-DATA-REVIEW.md) |
 | M2.x model charter | Approved 2026-11-05; strategy tier closed | [`docs/governance/2026-11-05/M2-CHARTER.md`](governance/2026-11-05/M2-CHARTER.md) |
 | Current-surface audit verification | Merged in PR #496; per-row indicator/event matrix pending | [`docs/reports/2026-11-06/current-surface-audit-verification.md`](reports/2026-11-06/current-surface-audit-verification.md) |
 | Indicator/event verification evidence | Scope map: 33 row-level, 1410 family-level, 332 tool gates, 304 N/A | [`docs/reports/2026-11-06/indicator-event-verification.md`](reports/2026-11-06/indicator-event-verification.md) |
@@ -157,7 +161,7 @@ of workflow status; this page does not repeat it.
 | Quant Researcher | [Quant Researcher Manual](roles/2026-10-29/quant-researcher-manual.md) | Historical pre-M1.0 manual; the role definition in `AGENTS.md` section 10 remains normative |
 | Quant Developer | [Quant Developer Manual](roles/2026-10-29/quant-developer-manual.md) | Historical pre-M1.0 manual; the role definition in `AGENTS.md` section 10 remains normative |
 | Quant Validator | [Quant Validator Manual](roles/2026-10-29/quant-validator-manual.md) | Historical pre-M1.0 manual; the role definition in `AGENTS.md` section 10 remains normative |
-| Statistical Methodologist | `AGENTS.md` section 10 (Quant Researcher specialization) | Current; MR6 power/MDE and multiple-testing worksheet |
+| Statistical Methodologist | `AGENTS.md` section 10 (Quant Researcher specialization) | Current; MR7 power/MDE and multiple-testing worksheet |
 | All three | [Quant roles overview](roles/2026-10-29/quant-roles.md) | Current role map and handoff chain |
 | Improvement Workflow | [Improvement Workflow roles](roles/2026-10-30/improvement-workflow-roles.md) | Current; the S3 surface is implemented, no tiered run has used it yet |
 | Audit Workflow | [Audit Workflow roles](roles/2026-10-30/audit-workflow-roles.md) | Current |
@@ -223,6 +227,7 @@ record of what was released. Historical tags `v0.4.0-exp-baseline` and
 | M4.x model programme | Development `no_edge`; five primary cells; validation not opened | `docs/governance/2026-11-07/M4-CHARTER.md`; `docs/improvement/2026-11-07/M4-DEV-SWARM.md` |
 | MR5.x model programme | Development `no_edge`; 30 cells; validation not opened | `docs/execution-plans/2026-11-08/mr5-programme.md`; `docs/improvement/2026-11-08/MR5-DEV-SWARM.md` |
 | MR6.x model programme | Development `no_edge`; 15 cells; validation not opened | `docs/execution-plans/2026-11-08/mr6-programme.md`; `docs/improvement/2026-11-08/MR6-DEV-SWARM.md` |
+| MR7.x model programme | Development `no_edge`; 15 cells; validation not opened | `docs/execution-plans/2026-11-08/mr7-programme.md`; `docs/improvement/2026-11-08/MR7-DEV-SWARM.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 | Workflow documentation reset | Released in `v0.6.0` (PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
 

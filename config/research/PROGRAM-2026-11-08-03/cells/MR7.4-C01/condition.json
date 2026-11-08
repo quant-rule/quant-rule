@@ -1,0 +1,6 @@
+{
+  "schema": "quantrule.model-condition/v1",
+  "kind": "column",
+  "column": "rvol_ratio",
+  "min": 1.5
+}

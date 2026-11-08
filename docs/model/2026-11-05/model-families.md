@@ -45,12 +45,14 @@ distinction in [`docs/workflows/README.md`](../../workflows/README.md).
 
 | ID | Meaning | Status | Record or contract |
 |---|---|---|---|
-| `M1.0` | Current model: flat indicator/event model | Baseline; path gate no edge; compression baselines accepted | [`model-m1.0.md`](model-m1.0.md) |
+| `M1.0` | Historical model: flat indicator/event model | Superseded by `M1.1`; path gate no edge; compression baselines accepted | [`model-m1.0.md`](model-m1.0.md) |
+| `M1.1` | Current model: `M1.0` plus opening-range sweep/control events | Model change; MR7 development `no_edge` | [`model-m1.1.md`](../2026-11-08/model-m1.1.md) |
 | `M2.1`–`M2.5` | Historical model research family 2: volume, structure, cross-asset, session, and all-area cells | `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
 | `M3.1`–`M3.5` | Historical model research family 3: state-conditioned event cells | Underpowered at the count gate; not run | [M3 preflight](../../improvement/2026-11-05/M3-PREFLIGHT.md) |
 | `M4.1`–`M4.5` | Historical model research family 4: location-conditioned directional event cells | `model_dev` no edge; not accepted | [M4 result](../../improvement/2026-11-07/M4-DEV-SWARM.md) |
 | `MR5.1`–`MR5.10` | Model research family 5 on `M1.0`: mechanism and path cells | `model_dev` no edge; not accepted | [MR5 result](../../improvement/2026-11-08/MR5-DEV-SWARM.md) |
 | `MR6.1`–`MR6.5` | Model research family 6 on `M1.0`: ordered trend/momentum → participation confirmation, reverse-order controls, and a level arm | `model_dev` no edge; not accepted | [MR6 result](../../improvement/2026-11-08/MR6-DEV-SWARM.md) |
+| `MR7.1`–`MR7.5` | Model research family 7 on `M1.1`: opening-range sweep/reclaim, no-reclaim control, and cost-aware path gate | `model_dev` no edge; not accepted | [MR7 result](../../improvement/2026-11-08/MR7-DEV-SWARM.md) |
 | `S3.x` | Strategies built on an accepted model baseline | Future; S2.x remains closed | P8/S3.x |
 | `E3.x`, `P3.x`, `POL3.x` | Execution, portfolio, and policy after an accepted S3 strategy | Future | S3.x |
 

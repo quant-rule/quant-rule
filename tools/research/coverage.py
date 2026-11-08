@@ -46,6 +46,10 @@ PRIMARY_IDS_M4 = ["M4.1", "M4.2", "M4.3", "M4.4", "M4.5"]
 M3_TIMEFRAMES = (3600, 900)
 M4_TIMEFRAME = 900
 STATE_SCHEMA = "quantrule.model-state-gate/v1"
+LATER_EVENTS = {
+    "signal.opening_range_sweep",
+    "signal.opening_range_sweep_control",
+}
 STATE_COLUMNS = {
     "context_code",
     "adx_regime",
@@ -66,7 +70,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--family",
-        choices=("M2", "M3", "M4", "MR5", "MR6"),
+        choices=("M2", "M3", "M4", "MR5", "MR6", "MR7"),
         default="M2",
         help="programme family layout",
     )
@@ -255,11 +259,12 @@ def check(
             if unknown:
                 errors.append(f"{path}: unknown active events {unknown}")
             if set(active) != expected_active:
-                missing = sorted(expected_active - set(active))
-                extra = sorted(set(active) - expected_active)
-                errors.append(
-                    f"{path}: event set mismatch; missing {missing}, extra {extra}"
-                )
+                missing = sorted(expected_active - set(active) - LATER_EVENTS)
+                extra = sorted(set(active) - expected_active - LATER_EVENTS)
+                if missing or extra:
+                    errors.append(
+                        f"{path}: event set mismatch; missing {missing}, extra {extra}"
+                    )
             if active != base.get("active_events"):
                 errors.append(f"{path}: active_events differ between instruments")
             prediction = spec.get("prediction")
@@ -370,7 +375,7 @@ def check(
             }
         )
     missing_indicators = sorted(set(indicators) - seen_indicators)
-    missing_events = sorted(set(events) - seen_events)
+    missing_events = sorted(set(events) - seen_events - LATER_EVENTS)
     if missing_indicators:
         errors.append(f"uncovered indicators: {missing_indicators}")
     if missing_events:
@@ -384,7 +389,7 @@ def check(
             "exploratory": len(exploratory),
             "primary": len(primary),
             "indicators": len(indicators),
-            "events": len(events),
+            "events": len(events) - len(LATER_EVENTS),
             "specs": len(loaded.cells) * len(INSTRUMENTS),
         },
         "cells": cells,
@@ -517,11 +522,12 @@ def check_m3(
                 if unknown:
                     errors.append(f"{path}: unknown active events {unknown}")
                 if set(active) != expected_active:
-                    missing = sorted(expected_active - set(active))
-                    extra = sorted(set(active) - expected_active)
-                    errors.append(
-                        f"{path}: event set mismatch; missing {missing}, extra {extra}"
-                    )
+                    missing = sorted(expected_active - set(active) - LATER_EVENTS)
+                    extra = sorted(set(active) - expected_active - LATER_EVENTS)
+                    if missing or extra:
+                        errors.append(
+                            f"{path}: event set mismatch; missing {missing}, extra {extra}"
+                        )
                 prediction = spec.get("prediction")
                 if not isinstance(prediction, dict):
                     errors.append(f"{path}: prediction must be an object")
@@ -686,7 +692,7 @@ def check_m3(
             }
         )
     missing_indicators = sorted(set(indicators) - seen_indicators)
-    missing_events = sorted(set(events) - seen_events)
+    missing_events = sorted(set(events) - seen_events - LATER_EVENTS)
     if missing_indicators:
         errors.append(f"uncovered indicators: {missing_indicators}")
     if missing_events:
@@ -701,7 +707,7 @@ def check_m3(
             "exploratory": len(exploratory),
             "primary": len(primary),
             "indicators": len(indicators),
-            "events": len(events),
+            "events": len(events) - len(LATER_EVENTS),
             "specs": spec_count,
         },
         "cells": cells,
@@ -868,7 +874,7 @@ def check_m4(
             errors.append("inherited coverage is not ok")
         if inherited_document["counts"]["indicators"] != len(indicators):
             errors.append("inherited indicator count does not match the registry")
-        if inherited_document["counts"]["events"] != len(events):
+        if inherited_document["counts"]["events"] != len(events) - len(LATER_EVENTS):
             errors.append("inherited event count does not match the registry")
         inherited = inherited_document["program_id"]
     document = {
@@ -880,7 +886,7 @@ def check_m4(
             "cells": len(loaded.cells),
             "primary": len(primary),
             "indicators": len(indicators),
-            "events": len(events),
+            "events": len(events) - len(LATER_EVENTS),
             "specs": spec_count,
         },
         "inherited": inherited,
@@ -984,7 +990,7 @@ def markdown(document: dict[str, Any]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_arguments(argv)
-    if args.family in {"MR5", "MR6"}:
+    if args.family in {"MR5", "MR6", "MR7"}:
         from coverage_mr5 import check_mr5, markdown_mr5
 
         document = check_mr5(

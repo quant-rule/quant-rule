@@ -1,0 +1,20 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR7.3-C02",
+  "kind": "exploratory",
+  "events": [
+    "signal.opening_range_sweep"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD",
+    "ETH",
+    "COPPER",
+    "TSLA"
+  ],
+  "timeframe": 900,
+  "hypothesis": "A four-bar opening range defines a more significant session level; the sweep/reclaim edge is stronger than at two bars."
+}

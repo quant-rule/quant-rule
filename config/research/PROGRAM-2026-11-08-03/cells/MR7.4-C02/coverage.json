@@ -1,0 +1,18 @@
+{
+  "schema": "quantrule.coverage/v1",
+  "cell_id": "MR7.4-C02",
+  "kind": "exploratory",
+  "events": [
+    "signal.opening_range_sweep"
+  ],
+  "condition_events": [],
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD",
+    "ETH"
+  ],
+  "timeframe": 900,
+  "hypothesis": "The sweep/reclaim edge is stronger when relative volume expands on the confirming bar; the cell uses only the relative-volume-admissible instruments."
+}

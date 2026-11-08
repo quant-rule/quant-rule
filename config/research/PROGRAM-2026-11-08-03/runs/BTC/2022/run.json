@@ -1,0 +1,14 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "mr7-btc-2022",
+  "model_id": "M1.1",
+  "policy_id": "POL1.0",
+  "execution_id": "E1.0",
+  "portfolio_id": "P1.0",
+  "data": "data.json",
+  "model": "../../shared/model.json",
+  "execution": "../../shared/execution.json",
+  "portfolio": "../../shared/portfolio.json",
+  "policy": "../policy.json",
+  "output_root": "../../../../../../data/research/PROGRAM-2026-11-08-03/tmp"
+}

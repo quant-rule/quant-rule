@@ -77,6 +77,17 @@ fn fade_candles() -> Vec<Candle> {
     candles
 }
 
+fn sweep_candles(close: f64) -> Vec<Candle> {
+    let mut candles = series(2);
+    let timestamp = candles[14].timestamp();
+    candles[14] = Candle::new(14, timestamp, 104.5, 105.0, 104.0, 104.5, Some(10.0))
+        .expect("the inside candle is valid");
+    let timestamp = candles[15].timestamp();
+    candles[15] = Candle::new(15, timestamp, 104.5, 106.0, 104.0, close, Some(10.0))
+        .expect("the sweep candle is valid");
+    candles
+}
+
 fn contraction_candles() -> Vec<Candle> {
     let mut candles = fade_candles();
     let previous_close = candles[31].close();
@@ -204,6 +215,50 @@ fn signal_opening_range_breakout_row_contract() {
             direction: 1,
             occurred: 11,
             available: 11,
+            primary: 105.5,
+            reference: 105.0,
+        },
+        |len| events(&candles[..len]).events().to_vec(),
+    );
+}
+
+#[test]
+fn signal_opening_range_sweep_row_contract() {
+    let candles = sweep_candles(104.5);
+    assert_contract(
+        "opening range sweep",
+        codes::SIGNAL_OPENING_RANGE_SWEEP,
+        candles.len(),
+        &[14, 15, 16, 24],
+        Expected {
+            event_type: EventType::Signal,
+            subtype: 23,
+            source: 51,
+            direction: -1,
+            occurred: 15,
+            available: 15,
+            primary: 104.5,
+            reference: 105.0,
+        },
+        |len| events(&candles[..len]).events().to_vec(),
+    );
+}
+
+#[test]
+fn signal_opening_range_sweep_control_row_contract() {
+    let candles = sweep_candles(105.5);
+    assert_contract(
+        "opening range sweep control",
+        codes::SIGNAL_OPENING_RANGE_SWEEP_CONTROL,
+        candles.len(),
+        &[14, 15, 16, 24],
+        Expected {
+            event_type: EventType::Signal,
+            subtype: 23,
+            source: 51,
+            direction: 1,
+            occurred: 15,
+            available: 15,
             primary: 105.5,
             reference: 105.0,
         },

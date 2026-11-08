@@ -13,7 +13,13 @@ import report
 from test_program import cell, document, write
 
 
-def result(path: Path, verdict: str, lift: float, model: bool = False) -> None:
+def result(
+    path: Path,
+    verdict: str,
+    lift: float,
+    model: bool = False,
+    path_mean_net_r: float | None = None,
+) -> None:
     path.mkdir(parents=True, exist_ok=True)
     metrics = {
         "n": 100,
@@ -32,6 +38,16 @@ def result(path: Path, verdict: str, lift: float, model: bool = False) -> None:
                 "replication": 2,
             }
         )
+    if path_mean_net_r is not None:
+        metrics["path"] = {
+            "menu": [{"target_atr": 2.0, "stop_atr": 1.0, "horizon": 20}],
+            "summaries": [
+                {
+                    "key": "2.0/1.0x20",
+                    "summary": {"mean_net_r": path_mean_net_r},
+                }
+            ],
+        }
     document_value = {
         "schema": "quantrule.research-cell-result/v1",
         "program_id": "PROGRAM-2026-11-04-90",
@@ -106,6 +122,22 @@ class ReportTests(unittest.TestCase):
         self.assertIn("| Hit | Base |", text)
         self.assertIn("| Random p | Shuffle p | Rep |", text)
         self.assertIn("| CELL-01 | yes | pass", text)
+
+    def test_path_gate_rejects_a_hit_rate_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            value = three_cell_program()
+            value["green_criteria"]["path_mean_net_r"] = "> 0"
+            path = write(root, value)
+            loaded = program.load_program(path, repo_root=root)
+            results = root / "results"
+            result(results / "CELL-01", "pass", 0.06, model=True, path_mean_net_r=-0.5)
+            result(results / "CELL-02", "pass", 0.06, model=True, path_mean_net_r=0.1)
+            result(results / "CELL-03", "fail", 0.01)
+            document_value = report.build(loaded, results)
+            self.assertTrue(document_value["path_gate_required"])
+            self.assertEqual(document_value["candidate"], "CELL-02")
+            self.assertIn("Path R", report.markdown(document_value))
 
     def test_correction_is_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

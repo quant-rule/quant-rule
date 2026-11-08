@@ -6,13 +6,17 @@
     "ETHUSD",
     "XAUUSD",
     "EURUSD",
-    "ESANDP500"
+    "ESANDP500",
+    "COPPERCMDUSD",
+    "TSLAUSUSD"
   ],
   "aliases": {
     "BTC": "BTCUSD",
     "ETH": "ETHUSD",
     "XAU": "XAUUSD",
-    "SP500": "ESANDP500"
+    "SP500": "ESANDP500",
+    "COPPER": "COPPERCMDUSD",
+    "TSLA": "TSLAUSUSD"
   },
   "excluded_windows": [
     {
@@ -33,7 +37,9 @@
         "ETHUSD",
         "XAUUSD",
         "EURUSD",
-        "ESANDP500"
+        "ESANDP500",
+        "COPPERCMDUSD",
+        "TSLAUSUSD"
       ]
     },
     "model_validation": {
@@ -47,7 +53,9 @@
         "ETHUSD",
         "XAUUSD",
         "EURUSD",
-        "ESANDP500"
+        "ESANDP500",
+        "COPPERCMDUSD",
+        "TSLAUSUSD"
       ]
     },
     "strategy_dev": {
@@ -61,7 +69,9 @@
         "ETHUSD",
         "XAUUSD",
         "EURUSD",
-        "ESANDP500"
+        "ESANDP500",
+        "COPPERCMDUSD",
+        "TSLAUSUSD"
       ]
     },
     "strategy_validation": {
@@ -75,7 +85,9 @@
         "ETHUSD",
         "XAUUSD",
         "EURUSD",
-        "ESANDP500"
+        "ESANDP500",
+        "COPPERCMDUSD",
+        "TSLAUSUSD"
       ]
     },
     "portfolio_dev": {
@@ -89,7 +101,9 @@
         "ETHUSD",
         "XAUUSD",
         "EURUSD",
-        "ESANDP500"
+        "ESANDP500",
+        "COPPERCMDUSD",
+        "TSLAUSUSD"
       ]
     },
     "portfolio_holdout": {
@@ -103,7 +117,9 @@
         "ETHUSD",
         "XAUUSD",
         "EURUSD",
-        "ESANDP500"
+        "ESANDP500",
+        "COPPERCMDUSD",
+        "TSLAUSUSD"
       ],
       "holdout": true
     }

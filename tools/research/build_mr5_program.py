@@ -85,6 +85,10 @@ def load_grid(path: Path) -> dict[str, Any]:
     family = document.get("family", DEFAULT_FAMILY)
     if not isinstance(family, str) or not re.fullmatch(r"MR\d+", family):
         raise SystemExit(f"error: {path} family must look like MR5 or MR6")
+    if document.get("model_id") is not None and (
+        not isinstance(document.get("model_id"), str) or not document["model_id"]
+    ):
+        raise SystemExit(f"error: {path} model_id must be a non-empty string")
     timeframe = document.get("timeframe", DEFAULT_TIMEFRAME)
     if not isinstance(timeframe, int) or isinstance(timeframe, bool) or timeframe <= 0:
         raise SystemExit(f"error: {path} timeframe must be a positive integer")
@@ -138,6 +142,16 @@ def load_grid(path: Path) -> dict[str, Any]:
             raise SystemExit(f"error: {hypothesis_id} timeframe must be a positive integer")
         if not isinstance(hypothesis.get("events"), list) or not hypothesis["events"]:
             raise SystemExit(f"error: {hypothesis_id} events must be a non-empty list")
+        hypothesis_horizon = hypothesis.get("horizon", 20)
+        if (
+            not isinstance(hypothesis_horizon, int)
+            or isinstance(hypothesis_horizon, bool)
+            or hypothesis_horizon <= 0
+        ):
+            raise SystemExit(f"error: {hypothesis_id} horizon must be a positive integer")
+        hypothesis_session = hypothesis.get("session", {})
+        if not isinstance(hypothesis_session, dict):
+            raise SystemExit(f"error: {hypothesis_id} session must be an object")
         if not isinstance(hypothesis.get("variants"), list) or not hypothesis["variants"]:
             raise SystemExit(f"error: {hypothesis_id} variants must be a non-empty list")
     return document
@@ -250,6 +264,8 @@ def build_program(grid: dict[str, Any], out: Path, repo_root: Path) -> None:
             document["output_root"] = PROGRAM_ID.sub(
                 str(grid["program_id"]), str(document.get("output_root", ""))
             )
+            if grid.get("model_id"):
+                document["model_id"] = str(grid["model_id"])
             write_json(run_path, document)
         for data_path in sorted((out / "runs").rglob("data.json")):
             document = json.loads(data_path.read_text(encoding="utf-8"))
@@ -267,6 +283,7 @@ def build_program(grid: dict[str, Any], out: Path, repo_root: Path) -> None:
     cells = []
     for hypothesis in grid["hypotheses"]:
         timeframe = int(hypothesis.get("timeframe", default_timeframe))
+        horizon = int(hypothesis.get("horizon", 20))
         for variant in hypothesis["variants"]:
             identifier = cell_id(family, hypothesis, variant)
             cell_dir = out / "cells" / identifier
@@ -276,6 +293,9 @@ def build_program(grid: dict[str, Any], out: Path, repo_root: Path) -> None:
                 hypothesis.get("condition", {}), variant.get("condition", {})
             )
             write_json(cell_dir / "condition.json", condition)
+            session = deep_merge(
+                hypothesis.get("session", {}), variant.get("session", {})
+            )
             instruments = hypothesis.get(
                 "instruments", grid.get("instruments", list(INSTRUMENTS))
             )
@@ -297,23 +317,23 @@ def build_program(grid: dict[str, Any], out: Path, repo_root: Path) -> None:
                 },
             )
             for instrument in instruments:
-                write_json(
-                    cell_dir / f"spec-{instrument}-{timeframe}.json",
-                    {
-                        "schema": "quantrule.model-spec/v2",
-                        "id": identifier,
-                        "family": family,
-                        "instrument": instrument,
-                        "timeframes": [timeframe],
-                        "readings": {},
-                        "active_events": active_events,
-                        "prediction": {
-                            "kind": "direction",
-                            "events": hypothesis["events"],
-                            "min_votes": 1,
-                        },
+                spec = {
+                    "schema": "quantrule.model-spec/v2",
+                    "id": identifier,
+                    "family": family,
+                    "instrument": instrument,
+                    "timeframes": [timeframe],
+                    "readings": {},
+                    "active_events": active_events,
+                    "prediction": {
+                        "kind": "direction",
+                        "events": hypothesis["events"],
+                        "min_votes": 1,
                     },
-                )
+                }
+                if session:
+                    spec["session"] = session
+                write_json(cell_dir / f"spec-{instrument}-{timeframe}.json", spec)
             command = [
                 "python3",
                 "tools/research/model_cell.py",
@@ -334,7 +354,7 @@ def build_program(grid: dict[str, Any], out: Path, repo_root: Path) -> None:
                 "--condition-file",
                 "{config}/condition.json",
                 "--horizon",
-                "20",
+                str(horizon),
                 "--target-atr",
                 "2.0",
                 "--stop-atr",

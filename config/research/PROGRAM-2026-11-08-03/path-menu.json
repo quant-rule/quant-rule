@@ -1,0 +1,17 @@
+[
+  {
+    "target_atr": 2.0,
+    "stop_atr": 1.0,
+    "horizon": 20
+  },
+  {
+    "target_atr": 1.0,
+    "stop_atr": 1.0,
+    "horizon": 20
+  },
+  {
+    "target_atr": 3.0,
+    "stop_atr": 1.0,
+    "horizon": 40
+  }
+]

@@ -70,7 +70,8 @@ is rejected; the parser never guesses at an extension.
     "zone": "london",
     "start_hour": 8,
     "end_hour": 16,
-    "opening_range_bars": 2
+    "opening_range_bars": 2,
+    "sweep_atr": 0.0
   }
 }
 ```
@@ -89,6 +90,11 @@ is rejected; the parser never guesses at an extension.
 | `conditions` | array | no | Optional v1-style conditions over the combined event set |
 | `panel` | object | no | Optional cross-asset sources |
 | `session` | object | no | Optional session calendar |
+
+The optional `session` object accepts `zone` (`utc`, `london`, or `new_york`),
+`start_hour`, `end_hour`, `opening_range_bars`, and `sweep_atr`. `sweep_atr` is a
+non-negative ATR multiple; it sets the minimum sweep beyond the opening range
+for the opening-range sweep and control events. The default is `0.0`.
 
 Unknown fields are rejected. The v2 spec is single-timeframe; cross-timeframe is
 a later schema.

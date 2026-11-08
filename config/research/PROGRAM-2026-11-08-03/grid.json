@@ -1,0 +1,207 @@
+{
+  "schema": "quantrule.research-grid/v1",
+  "program_id": "PROGRAM-2026-11-08-03",
+  "family": "MR7",
+  "run_prefix": "mr7",
+  "model_id": "M1.1",
+  "premise": "A sweep of the completed opening range that closes back inside is a stop-run and reclaim at a session extreme; the reclaim carries a reversal edge that a generic failed breakout does not, while a sweep that closes outside is the continuation control. The model is M1.1; MR7 is a research family, not a model version.",
+  "economic_rationale": "The opening range is the first auction of the session and a dense cluster of early stops. A bar that trades beyond it and closes back inside is evidence that the sweep was rejected; the counterparty who sold the high or bought the low is trapped. A sweep that closes outside is the continuation control: if it also reverses, the reclaim is not the mechanism. MR5 and MR6 found the only positive directional evidence in level/liquidity interaction, not in trend or participation families; MR7 isolates that evidence in one event and adds a cost-aware path gate.",
+  "tier": "model",
+  "changed": "model",
+  "frozen": [
+    "strategy",
+    "portfolio"
+  ],
+  "partition_dev": "model_dev",
+  "partition_validation": "model_validation",
+  "timeframe": 900,
+  "instruments": [
+    "XAU",
+    "BTC",
+    "SP500",
+    "EURUSD",
+    "ETH",
+    "COPPER",
+    "TSLA"
+  ],
+  "extra_instruments": [
+    {
+      "code": "COPPER",
+      "template": "XAU",
+      "instrument": "COPPERCMDUSD",
+      "source": "COPPERCMDUSD_M1_2018-01-01_2024-12-31.csv"
+    },
+    {
+      "code": "TSLA",
+      "template": "XAU",
+      "instrument": "TSLAUSUSD",
+      "source": "TSLAUSUSD_M1_2018-01-01_2024-12-31.csv"
+    }
+  ],
+  "costs": {
+    "commission_bps": 4,
+    "slippage_bps": 2,
+    "funding": 0
+  },
+  "green_criteria": {
+    "min_events": 200,
+    "min_clusters": 20,
+    "min_lift": 0.02,
+    "lift_lcb": "> 0",
+    "random_p": "<= 0.01",
+    "shuffle_p": "<= 0.01",
+    "back_lag": "pass",
+    "replication": ">= 2 instruments",
+    "state_increment": ">= 0.01",
+    "promotion": "grade A",
+    "path_mean_net_r": "> 0"
+  },
+  "correction": {
+    "method": "bonferroni",
+    "primary_cells": 5
+  },
+  "max_parallel": 1,
+  "iteration_cap": 1,
+  "validation_access": "one_shot",
+  "stop_rule": "Stop when no primary base cell passes the hit-rate and path gates, the count gate cannot reach 200 condition-matched predictions and 20 clusters in every primary base cell, the no-reclaim control also reverses, a shared prerequisite is missing, or the human stops it. Do not re-register a variant with a different event, timeframe, horizon, target, stop, filter, cost, instrument set, condition, or threshold.",
+  "base_model": "config/research/PROGRAM-2026-11-07-01/runs/shared/model.json",
+  "runs_source": "config/research/PROGRAM-2026-11-08-02/runs",
+  "path_menu": [
+    {"target_atr": 2.0, "stop_atr": 1.0, "horizon": 20},
+    {"target_atr": 1.0, "stop_atr": 1.0, "horizon": 20},
+    {"target_atr": 3.0, "stop_atr": 1.0, "horizon": 40}
+  ],
+  "hypotheses": [
+    {
+      "id": "MR7.1",
+      "primary": true,
+      "timeframe": 900,
+      "horizon": 20,
+      "hypothesis": "A sweep of the completed two-bar opening range that closes back inside predicts a reversal at 15m.",
+      "events": ["signal.opening_range_sweep"],
+      "session": {
+        "zone": "london",
+        "start_hour": 8,
+        "end_hour": 16,
+        "opening_range_bars": 2,
+        "sweep_atr": 0.0
+      },
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "column",
+        "column": "atr",
+        "min": 0.0
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}, "session": {}},
+        {"suffix": "C02", "model": {}, "condition": {}, "session": {"sweep_atr": 0.1}},
+        {"suffix": "C03", "model": {}, "condition": {}, "session": {"sweep_atr": 0.2}}
+      ]
+    },
+    {
+      "id": "MR7.2",
+      "primary": true,
+      "timeframe": 3600,
+      "horizon": 20,
+      "hypothesis": "The opening-range sweep/reclaim mechanism survives at 1h, where the 6 bps cost is a smaller fraction of ATR.",
+      "events": ["signal.opening_range_sweep"],
+      "session": {
+        "zone": "london",
+        "start_hour": 8,
+        "end_hour": 16,
+        "opening_range_bars": 2,
+        "sweep_atr": 0.0
+      },
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "column",
+        "column": "atr",
+        "min": 0.0
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}, "session": {}},
+        {"suffix": "C02", "model": {}, "condition": {}, "session": {"sweep_atr": 0.1}},
+        {"suffix": "C03", "model": {}, "condition": {}, "session": {"sweep_atr": 0.2}}
+      ]
+    },
+    {
+      "id": "MR7.3",
+      "primary": true,
+      "timeframe": 900,
+      "horizon": 20,
+      "hypothesis": "A four-bar opening range defines a more significant session level; the sweep/reclaim edge is stronger than at two bars.",
+      "events": ["signal.opening_range_sweep"],
+      "session": {
+        "zone": "london",
+        "start_hour": 8,
+        "end_hour": 16,
+        "opening_range_bars": 4,
+        "sweep_atr": 0.0
+      },
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "column",
+        "column": "atr",
+        "min": 0.0
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}, "session": {}},
+        {"suffix": "C02", "model": {}, "condition": {}, "session": {"sweep_atr": 0.1}},
+        {"suffix": "C03", "model": {}, "condition": {}, "session": {"sweep_atr": 0.2}}
+      ]
+    },
+    {
+      "id": "MR7.4",
+      "primary": true,
+      "timeframe": 900,
+      "horizon": 20,
+      "hypothesis": "The sweep/reclaim edge is stronger when relative volume expands on the confirming bar; the cell uses only the relative-volume-admissible instruments.",
+      "events": ["signal.opening_range_sweep"],
+      "instruments": ["XAU", "BTC", "SP500", "EURUSD", "ETH"],
+      "session": {
+        "zone": "london",
+        "start_hour": 8,
+        "end_hour": 16,
+        "opening_range_bars": 2,
+        "sweep_atr": 0.0
+      },
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "column",
+        "column": "rvol_ratio",
+        "min": 1.5
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}, "session": {}},
+        {"suffix": "C02", "model": {}, "condition": {"min": 1.2}, "session": {}},
+        {"suffix": "C03", "model": {}, "condition": {"min": 1.8}, "session": {}}
+      ]
+    },
+    {
+      "id": "MR7.5",
+      "primary": true,
+      "timeframe": 900,
+      "horizon": 20,
+      "hypothesis": "Control: a sweep of the completed opening range that closes outside continues; if it also reverses, the reclaim premise is falsified.",
+      "events": ["signal.opening_range_sweep_control"],
+      "session": {
+        "zone": "london",
+        "start_hour": 8,
+        "end_hour": 16,
+        "opening_range_bars": 2,
+        "sweep_atr": 0.0
+      },
+      "condition": {
+        "schema": "quantrule.model-condition/v1",
+        "kind": "column",
+        "column": "atr",
+        "min": 0.0
+      },
+      "variants": [
+        {"suffix": "C01", "model": {}, "condition": {}, "session": {}},
+        {"suffix": "C02", "model": {}, "condition": {}, "session": {"sweep_atr": 0.1}},
+        {"suffix": "C03", "model": {}, "condition": {}, "session": {"sweep_atr": 0.2}}
+      ]
+    }
+  ]
+}

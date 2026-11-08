@@ -53,6 +53,22 @@ def numeric(value: Any) -> float | None:
     return None
 
 
+def path_mean_net_r(record: dict[str, Any] | None) -> float | None:
+    path = metric(record, "path")
+    if not isinstance(path, dict):
+        return None
+    summaries = path.get("summaries")
+    if not isinstance(summaries, list) or not summaries:
+        return None
+    first = summaries[0]
+    if not isinstance(first, dict):
+        return None
+    summary = first.get("summary")
+    if not isinstance(summary, dict):
+        return None
+    return numeric(summary.get("mean_net_r"))
+
+
 def rank_value(record: dict[str, Any] | None) -> float:
     for key in ("lift_lcb", "average_instrument_return", "profit_factor"):
         value = numeric(metric(record, key))
@@ -80,6 +96,7 @@ def correction(program: program_module.Program) -> dict[str, Any]:
 
 
 def build(program: program_module.Program, results: Path) -> dict[str, Any]:
+    path_required = str(program.green_criteria.get("path_mean_net_r", "")).strip() == "> 0"
     rows = []
     for cell in program.cells:
         record = read_result(results / cell.cell_id / "cell-result.json")
@@ -89,6 +106,7 @@ def build(program: program_module.Program, results: Path) -> dict[str, Any]:
         else:
             verdict = str(record.get("verdict", "fail"))
             limitations = [str(item) for item in record.get("limitations", [])]
+        mean_net_r = path_mean_net_r(record)
         rows.append(
             {
                 "cell_id": cell.cell_id,
@@ -96,11 +114,20 @@ def build(program: program_module.Program, results: Path) -> dict[str, Any]:
                 "primary": cell.primary,
                 "verdict": verdict,
                 "metrics": record.get("metrics", {}) if record else {},
+                "path_mean_net_r": mean_net_r,
+                "path_gate": (mean_net_r is not None and mean_net_r > 0.0)
+                if path_required
+                else None,
                 "limitations": limitations,
             }
         )
     primary = [row for row in rows if row["primary"]]
-    passing = [row for row in primary if row["verdict"] == "pass"]
+    passing = [
+        row
+        for row in primary
+        if row["verdict"] == "pass"
+        and (not path_required or row["path_gate"] is True)
+    ]
     passing.sort(key=lambda row: rank_value(row), reverse=True)
     decision = (
         "candidate — human review required; no validation opened"
@@ -116,6 +143,7 @@ def build(program: program_module.Program, results: Path) -> dict[str, Any]:
         "partition_validation": program.partition_validation,
         "validation_access": program.validation_access,
         "correction": correction(program),
+        "path_gate_required": path_required,
         "cells": rows,
         "primary": primary,
         "candidate": passing[0]["cell_id"] if passing else None,
@@ -148,14 +176,19 @@ def markdown(document: dict[str, Any]) -> str:
         numeric(metric(row, "hit_rate")) is not None
         for row in document["cells"]
     )
+    path_required = bool(document.get("path_gate_required"))
     if model_mode:
-        lines.extend(
-            [
-                "| Cell | Primary | Verdict | n | Clusters | Hit | Base | Lift | "
-                "LCB | Random p | Shuffle p | Rep | Grade |",
-                "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
-            ]
+        header = (
+            "| Cell | Primary | Verdict | n | Clusters | Hit | Base | Lift | "
+            "LCB |"
         )
+        separator = "|---|---|---|---:|---:|---:|---:|---:|---:|"
+        if path_required:
+            header += " Path R |"
+            separator += "---:|"
+        header += " Random p | Shuffle p | Rep | Grade |"
+        separator += "---:|---:|---:|---|"
+        lines.extend([header, separator])
     else:
         lines.extend(
             [
@@ -166,9 +199,12 @@ def markdown(document: dict[str, Any]) -> str:
     for row in document["cells"]:
         metrics = row["metrics"]
         if model_mode:
+            path_cell = (
+                f" {fmt(row.get('path_mean_net_r'))} |" if path_required else ""
+            )
             lines.append(
                 "| {cell} | {primary} | {verdict} | {n} | {clusters} | {hit} | "
-                "{base} | {lift} | {lcb} | {random} | {shuffle} | {rep} | {grade} |".format(
+                "{base} | {lift} | {lcb} |{path} {random} | {shuffle} | {rep} | {grade} |".format(
                     cell=row["cell_id"],
                     primary="yes" if row["primary"] else "no",
                     verdict=row["verdict"],
@@ -178,6 +214,7 @@ def markdown(document: dict[str, Any]) -> str:
                     base=fmt(metrics.get("base_rate")),
                     lift=fmt(metrics.get("lift")),
                     lcb=fmt(metrics.get("lift_lcb")),
+                    path=path_cell,
                     random=fmt(metrics.get("random_p")),
                     shuffle=fmt(metrics.get("shuffle_p")),
                     rep=fmt(metrics.get("replication")),

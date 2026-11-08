@@ -19,8 +19,13 @@ import coverage
 import program as program_module
 
 MR_CELL = re.compile(r"^(?P<family>MR\d+)\.(?P<number>\d+)-C(?P<variant>\d{2})$")
-KNOWN_INSTRUMENTS = {"XAU", "BTC", "SP500", "EURUSD", "ETH"}
+KNOWN_INSTRUMENTS = {"XAU", "BTC", "SP500", "EURUSD", "ETH", "COPPER", "TSLA"}
 CONDITION_SCHEMA = "quantrule.model-condition/v1"
+LATER_EVENTS = {
+    "signal.opening_range_sweep",
+    "signal.opening_range_sweep_control",
+}
+FAMILY_NEW_EVENTS = {"MR7": LATER_EVENTS}
 
 
 def check_mr5(
@@ -157,25 +162,41 @@ def check_mr5(
                 "cell_id": cell.cell_id,
                 "primary": cell.primary,
                 "events": expected_events,
+                "condition_events": condition_events,
                 "instruments": instruments,
                 "timeframe": timeframe,
                 "gate": gate.name,
             }
         )
     inherited = None
+    covered_events: set[str] = set()
     if inherit_path is None:
-        errors.append("--inherit is required for MR5")
+        errors.append(f"--inherit is required for {family}")
     else:
         inherit = Path(inherit_path).expanduser()
         if not inherit.is_absolute():
             inherit = root / inherit
         inherited_document = coverage.check(inherit, registry_path, root)
-        if not inherited_document["ok"]:
-            errors.append("inherited coverage is not ok")
+        new_events = FAMILY_NEW_EVENTS.get(family, set())
+        relevant_errors = [
+            error
+            for error in inherited_document.get("errors", [])
+            if not any(event in error for event in LATER_EVENTS)
+        ]
+        for error in relevant_errors:
+            errors.append(f"inherited: {error}")
         if inherited_document["counts"]["indicators"] != len(indicators):
             errors.append("inherited indicator count does not match the registry")
-        if inherited_document["counts"]["events"] != len(events):
+        if inherited_document["counts"]["events"] != len(events) - len(LATER_EVENTS):
             errors.append("inherited event count does not match the registry")
+        covered_events = {
+            event_id
+            for cell in cells
+            for key in ("events", "condition_events")
+            for event_id in cell[key]
+        }
+        for event_id in sorted(new_events - covered_events):
+            errors.append(f"{event_id}: new event is not covered by {family}")
         inherited = inherited_document["program_id"]
     document = {
         "schema": coverage.SCHEMA,
@@ -186,7 +207,7 @@ def check_mr5(
             "cells": len(loaded.cells),
             "primary": len(primary),
             "indicators": len(indicators),
-            "events": len(events),
+            "events": len(events) - len(LATER_EVENTS - covered_events),
             "specs": spec_count,
         },
         "inherited": inherited,

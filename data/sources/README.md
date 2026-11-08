@@ -17,3 +17,7 @@ repository.
   explicit.
 - The current BTCUSD 2024 example is a slice of
   `BTCUSD_M1_2018-01-01_2024-12-31.csv`.
+- `COPPERCMDUSD` and `TSLAUSUSD` are admitted for price-only model research;
+  COPPER volume is zero on most rows and TSLA volume is unit-unstable in 2020,
+  so volume, participation, and flow events must not use them. See
+  [`DATA-2026-11-08-MR7-01`](../../docs/config/2026-11-08/data-change-MR7-01.md).
