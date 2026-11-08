@@ -144,6 +144,17 @@ strategy stage can read a state the model result already publishes.
 The model stage never publishes a label, a confidence, a composite score, a
 cross-timeframe aggregate, a strategy decision, a fill, or a P&L.
 
+### 4.1 Model ladder subset
+
+`run.json` accepts an optional `model_timeframes` list. When present, the model
+computes only those timeframes; the data engine still builds the full
+`available_timeframes` ladder from the source. The list must be strictly
+ascending, a subset of the data ladder, and contain the execution fill
+timeframe. A strategy that reads only its execution timeframe can use this to
+avoid computing unused views; the selected timeframe's model output and
+provenance are unchanged. The SR2 dual-design run used it to reduce a cell from
+minutes to seconds.
+
 ## 5. Strategy stage
 
 The strategy stage consumes the model bundle, a strategy configuration, and its

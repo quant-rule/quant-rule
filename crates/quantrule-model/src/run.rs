@@ -55,3 +55,46 @@ impl ModelRun {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ModelRun;
+    use crate::input::{MarketStateConfig, TimeframeInput};
+    use quantrule_data::Candle;
+
+    fn candles(count: usize, secs: u64, step: f64) -> Vec<Candle> {
+        (0..count)
+            .map(|index| {
+                let close = 100.0 + index as f64 * step;
+                Candle::new(
+                    index as u64,
+                    index as i64 * secs as i64,
+                    close,
+                    close + 1.0,
+                    close - 1.0,
+                    close,
+                    Some(1.0),
+                )
+                .expect("the test candle is valid")
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_selected_timeframe_is_independent_of_the_model_ladder() {
+        let m1 = candles(600, 60, 0.01);
+        let h1 = candles(300, 3_600, 0.5);
+        let full = ModelRun::compute(
+            &[
+                TimeframeInput::new(60, &m1),
+                TimeframeInput::new(3_600, &h1),
+            ],
+            &MarketStateConfig::default(),
+        );
+        let selected = ModelRun::compute(
+            &[TimeframeInput::new(3_600, &h1)],
+            &MarketStateConfig::default(),
+        );
+        assert_eq!(full.timeframe(3_600), selected.timeframe(3_600));
+    }
+}

@@ -2,7 +2,7 @@
 
 - Date: 2026-11-03 (UTC)
 - Updated: 2026-11-07 for the S3 command surface and manifest v2
-- Status: Current committed record; `quantrule.improvement-run/v2` is current, v1 is historical; the SR1 strategy development run (`STRATEGY-2026-11-08-01`) is the first v2 run recorded; it stopped early as infeasible
+- Status: Current committed record; `quantrule.improvement-run/v2` is current, v1 is historical; the SR1 strategy development run (`STRATEGY-2026-11-08-01`) was the first v2 run recorded; it stopped early as infeasible, and the SR2 dual-design run (`STRATEGY-2026-11-08-02`) recorded no edge
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 This directory is the committed record of improvement runs. The run folders

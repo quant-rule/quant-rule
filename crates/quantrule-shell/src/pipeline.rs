@@ -124,7 +124,11 @@ pub(crate) fn model_run_from_set_with_ladder(
 
 /// Loads the configured run and computes its model over the active ladder.
 pub(crate) fn run_model(config: &RunConfig) -> Result<ModelRun, PipelineError> {
-    run_model_with_ladder(config, &config.data.available_timeframes)
+    let ladder: &[Timeframe] = match &config.model_ladder {
+        Some(ladder) => ladder,
+        None => &config.data.available_timeframes,
+    };
+    run_model_with_ladder(config, ladder)
 }
 
 /// Loads the configured run and computes its model over an explicit ladder.
