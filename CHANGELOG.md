@@ -96,6 +96,9 @@ are not treated as releases.
 - The SR8-H3-BUFFER programme: one-shot 2023 BTC buffer for the frozen H3 rule.
   2023 1h coverage is 61.3%, below the 95% gate; H3 long has 0 trades and H3
   short 4. Verdict: buffer ineligible; no no-edge conclusion; 2024 not opened.
+- The SR8-A-H3-ARCHIVE check: the Dukascopy 2023 archive has 525,600 rows but
+  38,948 flat zero-volume placeholders; only 61.4% of 1h hours are genuine. The
+  archive is rejected, no H3 run is made, and 2024 remains closed.
 
 ### Changed
 

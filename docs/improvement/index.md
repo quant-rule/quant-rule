@@ -1,7 +1,7 @@
 # Run Index
 
 - Date: 2026-11-08 (UTC)
-- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, the SR1.x stopped compression-breakout fade, the SR2.x dual-design no-edge run, the SR2-A BTCUSD robustness audit, the SR2/SR3 feature programme, the SR4 multi-instrument stack fade, the SR5 absorption count gate, the SR6 VWAP rejection development run, the SR7 BTC+ETH H3 cross-section, and the SR8 2023 buffer test appended
+- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, the SR1.x stopped compression-breakout fade, the SR2.x dual-design no-edge run, the SR2-A BTCUSD robustness audit, the SR2/SR3 feature programme, the SR4 multi-instrument stack fade, the SR5 absorption count gate, the SR6 VWAP rejection development run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, and the SR8-A 2023 archive data rejection appended
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 The local `data/improvement/` store was reset after the 2026-11-03 records, so
@@ -79,6 +79,7 @@ view for the local store.
 | `SR6-VWAP` | 2026-11-09 | 15m VWAP rejection with 1h stack context; V1/V2/V3 × 2018–2022 | no candidate — V1 net/PF/drawdown fail; every cell halted; 2024 not opened | [record](2026-11-09/SR6-VWAP.md) |
 | `SR7-H3-CRYPTO` | 2026-11-09 | BTC+ETH H3 1h fade cross-section; 20 cells | no candidate — H3 long 27 trades/5.62% DD; H3 short PF 1.067/ETH negative; 2024 not opened | [record](2026-11-09/SR7-H3-CRYPTO.md) |
 | `SR8-H3-BUFFER` | 2026-11-09 | 2023 BTC one-shot buffer for the frozen H3 rule | buffer ineligible — 2023 1h coverage 61.3%; 0 long / 4 short trades; 2024 not opened | [record](2026-11-09/SR8-H3-BUFFER.md) |
+| `SR8-A-H3-ARCHIVE` | 2026-11-09 | Dukascopy 2023 archive source check before the H3 buffer | archive rejected — 38,948 flat placeholders, 61.4% genuine coverage; no H3 run; 2024 not opened | [record](2026-11-09/SR8-A-H3-ARCHIVE.md) |
 
 
 
