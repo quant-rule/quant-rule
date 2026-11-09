@@ -18,6 +18,7 @@ stages.
 | `run_current.py <manifest> [--qr PATH]` | Validate, create the run folder, invoke the current S3 commands, write `results.json`, refresh the index |
 | `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
 | `feasibility.py --strategy ... --data ... --cost-bps ...` | Deterministic preflight: reject a hypothesis whose target is below its round-trip cost or whose breakeven win rate exceeds 50%, and any timeframe above 1 hour |
+| `dukascopy_archive.py --symbol ... --year ... --out ...` | Rebuild a one-minute CSV from the Dukascopy historical archive; reports full hours and flat zero-volume placeholders so row coverage is not mistaken for market coverage |
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the current model, portfolio, qualification, and analytics bundles |
 | `model_confidence.py --source CSV --timeframe TF` | Axis hit rates and ordered buckets from `model-series` |
 | `model_prediction.py --bundle NAME=DIR ...` | Forward/barrier model-prediction evaluation with base rate, controls, and grade |

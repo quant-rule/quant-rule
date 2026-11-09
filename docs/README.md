@@ -39,11 +39,11 @@ repeating a status.
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. |
-| Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, and the SR8 2023 buffer test are recorded; no baseline accepted; human acceptance pending. |
+| Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, and the SR8-A 2023 archive data rejection are recorded; no baseline accepted; human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v0.6.0` is the latest release; historical tags are retained; the next release is not yet scheduled. |
-| Changelog | Grouped release history; `[Unreleased]` carries the SR2/SR3/SR4/SR5/SR6/SR7/SR8 entries and `0.6.0` is the current release. |
+| Changelog | Grouped release history; `[Unreleased]` carries the SR2/SR3/SR4/SR5/SR6/SR7/SR8/SR8-A entries and `0.6.0` is the current release. |
 | Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path; the historical research scripts and the old improvement adapter are retained for reproducibility. |
 
 ## Current architecture
