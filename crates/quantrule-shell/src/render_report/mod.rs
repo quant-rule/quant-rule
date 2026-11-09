@@ -77,18 +77,29 @@ fn write_coverage(out: &mut impl Write, report: &FlatReport) -> io::Result<()> {
     writeln!(out, "[coverage]")?;
     writeln!(
         out,
-        "{:<10} {:>8} {:>9} {:>8} {:>7} {:<21} last",
-        "timeframe", "bars", "expected", "missing", "share", "first"
+        "{:<10} {:>8} {:>9} {:>8} {:>7} {:>9} {:>8} {:>7} {:<21} last",
+        "timeframe",
+        "bars",
+        "expected",
+        "missing",
+        "share",
+        "s_expected",
+        "s_missing",
+        "s_share",
+        "first"
     )?;
     for timeframe in &report.timeframes {
         writeln!(
             out,
-            "{:<10} {:>8} {:>9} {:>8} {:>7} {:<21} {}",
+            "{:<10} {:>8} {:>9} {:>8} {:>7} {:>9} {:>8} {:>7} {:<21} {}",
             labels::timeframe_label(timeframe.timeframe_secs),
             timeframe.bars,
             timeframe.expected_bars,
             timeframe.missing_bars,
             opt_share(timeframe.coverage_share),
+            timeframe.session_expected_bars,
+            timeframe.session_missing_bars,
+            opt_share(timeframe.session_coverage_share),
             opt_time(timeframe.first_open_time),
             opt_time(timeframe.last_open_time)
         )?;

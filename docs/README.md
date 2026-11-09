@@ -91,6 +91,7 @@ repeating a status.
 | Policy blueprint | Current; `run v2`, `policy v1`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
+| Session coverage | Current; optional weekly calendar and session-aware coverage | `docs/config/2026-11-09/data-change-SESSION-COVERAGE-01.md` |
 | MACD reading and events | Current | `docs/config/2026-11-03/model-macd.md` |
 | Engine artifacts | Current; stage bundle, provenance, and handoff contract | `docs/config/2026-11-06/engine-artifacts.md` |
 | Strategy configuration | Current; `quantrule.strategy/v1`, both generic engines, and the decision record | `docs/config/2026-11-06/strategy-config.md` |

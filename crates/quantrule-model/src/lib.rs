@@ -17,6 +17,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod calendar;
 pub mod context;
 pub mod events;
 pub mod input;

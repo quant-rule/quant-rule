@@ -9,6 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use quantrule_data::Timeframe;
+use quantrule_model::calendar::TradingCalendar;
 use serde_json::{Value, json};
 
 use super::error::ConfigErrorKind;
@@ -194,6 +195,44 @@ fn data_matches_the_contract() {
     assert_eq!(valid.max_candles, 600_000);
     assert_eq!(valid.from.as_deref(), Some("2025-01-01"));
     assert_eq!(valid.to.as_deref(), Some("2025-12-31"));
+}
+
+#[test]
+fn data_parses_the_declared_session() {
+    let always = data::parse(&data_object(), "data.json", Path::new("config"))
+        .expect("an absent session is 24x7");
+    assert_eq!(always.session, TradingCalendar::always());
+
+    let mut weekly_value = data_object();
+    weekly_value["session"] = json!({
+        "kind": "weekly",
+        "open_weekday": "Sunday",
+        "open_time": "22:00",
+        "close_weekday": "Friday",
+        "close_time": "21:00",
+        "holidays": ["2025-01-01"]
+    });
+    let weekly = data::parse(&weekly_value, "data.json", Path::new("config"))
+        .expect("a weekly session parses");
+    assert!(matches!(weekly.session, TradingCalendar::Weekly { .. }));
+    assert_ne!(weekly.session, TradingCalendar::always());
+}
+
+#[test]
+fn data_rejects_a_bad_session() {
+    for session in [
+        json!("always"),
+        json!({"kind": "weekly", "open_weekday": "Funday", "open_time": "22:00", "close_weekday": "Friday", "close_time": "21:00", "holidays": []}),
+        json!({"kind": "weekly", "open_weekday": "Sunday", "open_time": "25:00", "close_weekday": "Friday", "close_time": "21:00", "holidays": []}),
+        json!({"kind": "weekly", "open_weekday": "Sunday", "open_time": "22:00", "close_weekday": "Friday", "close_time": "21:00", "holidays": ["2025-02-30"]}),
+    ] {
+        let mut value = data_object();
+        value["session"] = session;
+        assert!(
+            data::parse(&value, "data.json", Path::new("config")).is_err(),
+            "the bad session must be rejected"
+        );
+    }
 }
 
 #[test]
