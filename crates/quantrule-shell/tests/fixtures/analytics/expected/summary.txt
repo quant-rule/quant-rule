@@ -22,5 +22,9 @@ unrealized_pnl: 0
 costs: execution_fees=0 commission=19.867360920619 funding_paid=0 funding_received=0 net_costs=19.867360920619
 decisions: hold=51 enter=1 enter_bracket=0 exit=0
 monthly_returns: 1
-tables: trades.csv monthly_returns.csv costs.csv decisions.csv by_timeframe.csv equity.csv funding.csv risk_events.csv
+benchmark_buy_and_hold: return=-0.033629395852119215 max_drawdown=0.031691906528934055 final_equity=9663.706041478808
+benchmark_random_timing: paths=1000 seed=0 return_p50=-0.011818674155049447 drawdown_p50=0.011818674155049447 strategy_percentile=0 probability_random_beats_strategy=1
+benchmark_alpha_vs_buy_and_hold: 0.009016636869805583
+benchmark_assumptions: initial_cash=10000 commission_rate=0.001 max_drawdown_limit=null execution_fees_replayed=false
+tables: trades.csv monthly_returns.csv costs.csv benchmarks.csv decisions.csv by_timeframe.csv equity.csv funding.csv risk_events.csv
 unsupported: by_regime by_instrument

@@ -97,7 +97,7 @@ the distinction.
 | `portfolio replay` | Portfolio | Implemented | Fills bundle, run config | Portfolio bundle |
 | `backtest run` | Orchestration | Implemented | Run config, strategy config | Stage bundles and a run manifest |
 | `qualify` | Qualification | Implemented | Evidence bundle, qualification criteria | Qualification record and verdict |
-| `analytics evaluate` | Analytics | Implemented | Result artifacts | Metrics bundle |
+| `analytics evaluate` | Analytics | Implemented | Result artifacts | Metrics and benchmark bundle |
 
 The current shell also accepts `quit` as a shell meta-command. It is not a
 pipeline command and is not part of the stage contract.

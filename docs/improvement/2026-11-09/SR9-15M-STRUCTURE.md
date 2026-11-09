@@ -60,8 +60,8 @@ candidate and is not promoted. The other controls are negative or underpowered.
 
 Control cost sensitivity: the break-only BTC long at 9 bps has 30 trades,
 +$795.69, PF 1.747, max drawdown 2.87%, and 4 of 5 years positive (2020 is
-negative). It remains a control; the result is a lead for a future pre-registered
-programme, not a candidate accepted here.
+negative). It remains a control; the cross-venue check did not reproduce it, so
+it is not a lead for a new programme and is not a candidate accepted here.
 
 ## 4. Criteria
 
@@ -99,10 +99,13 @@ variant of this one.
 ## 7. Recommendation
 
 Stop the 15m structure-transition campaign. Do not promote the break-only BTC
-long control. The 9 bps control is a lead for a future pre-registered programme,
-not a candidate accepted here. A future programme may test a less restrictive
-entry or a different structure-transition definition, but it must declare its
-cells, criteria, and out-of-sample plan before running.
+long control. A dense Binance BTCUSDT cross-venue check did not reproduce the
+control: 2018–2022 is 65 trades, −$389.64, PF 0.871, and 2023 is 8 trades,
+−$202.50, PF 0.229. The Dukascopy result is not venue-robust and is not a lead
+for a new programme. A future programme needs a new premise, not another filter
+cut on this one, and must declare its cells, criteria, and out-of-sample plan
+before running. The cross-venue record is
+[`BINANCE-BTCUSDT.md`](BINANCE-BTCUSDT.md).
 
 ## 8. Limitations
 

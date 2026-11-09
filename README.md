@@ -67,7 +67,7 @@ one command and exits with the command's status:
 | `portfolio replay` | `--fills <execution-bundle> --config <run.json> [--out <dir>] [--json]` | The portfolio bundle, or its artifact paths |
 | `backtest run` | `--config <run.json> --strategy <strategy.json> [--out <dir>] [--json]` | The manifest and stage bundle paths |
 | `qualify` | `--evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]` | The verdict, criterion counts, and the qualification bundle |
-| `analytics evaluate` | `--evidence <backtest-bundle> [--out <dir>] [--json]` | The metrics, tables, and summary paths |
+| `analytics evaluate` | `--evidence <backtest-bundle> [--out <dir>] [--json]` | The metrics, benchmarks, tables, and summary paths |
 | `policy check` | `--config <run.json>` | One `policy ok ...` line after every config check |
 | `fetch` | `<symbol> <start> <end> [--timeframe <1m\|5m\|15m\|1h>] [--csv <path>]` | The CSV path and the accepted/rejected counts |
 | `help` | `[<command>\|all\|glossary\|workflows]` | The command map, one contract, the glossary, or the workflow selection guide |
@@ -114,17 +114,19 @@ The stage table below is the target, not a promise that a command exists today.
 | 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, rejections | Implemented |
 | 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | Implemented |
 | 6 | Qualification Engine | Evidence bundle and human-owned criteria | Qualification record and verdict | Implemented |
-| 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | Implemented |
+| 7 | Analytics Engine | Result artifacts | Descriptive metrics, buy-and-hold/random-timing benchmarks, and evaluation tables | Implemented |
 
 The Qualification Engine evaluates the complete evidence set, not profitability
 alone. Its verdict is `pass`, `fail`, or `insufficient evidence`; the human makes
 the final acceptance decision. The criteria contract is in
 [`docs/config/2026-11-06/qualification-criteria.md`](docs/config/2026-11-06/qualification-criteria.md).
 
-The Analytics Engine publishes descriptive metrics and evaluation tables from
-the result artifacts. It writes no verdict, no acceptance, and no strategy
-decision. A metric or table the evidence does not support is `null` or
-unsupported with a reason code.
+The Analytics Engine publishes descriptive metrics, buy-and-hold and matched
+random-timing benchmarks, and evaluation tables from the result artifacts. It
+writes no verdict, no acceptance, and no strategy decision. A metric or table the
+evidence does not support is `null` or unsupported with a reason code. The
+benchmark contract is
+[`docs/config/2026-11-09/analytics-benchmarks.md`](docs/config/2026-11-09/analytics-benchmarks.md).
 
 ## The M1.0 model
 
@@ -246,7 +248,10 @@ fetch leaves no partial file under the requested name. A result above the batch 
 prints a warning on stderr.
 
 The current fetch surface writes CSV only. The old PNG chart option was removed with
-the retired chart surface.
+the retired chart surface. A dense Binance BTCUSDT cross-venue source is built
+with `tools/data/binance_klines.py`; it is a research input, not a replacement
+for the shell fetch surface. Trade charts are rendered from recorded bundles with
+`tools/charts/trade_charts.py`.
 
 ## Repository layout
 
@@ -256,6 +261,8 @@ the retired chart surface.
 | `crates/quantrule-model` | Model engine: readings, states, levels, events, progression, context, flat report |
 | `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines |
 | `crates/quantrule-shell` | The binary: parse, source access, stage orchestration, and rendering |
+| `tools/data/` | Binance archive importer and source coverage audit |
+| `tools/charts/` | Deterministic trade-chart renderer for recorded bundles |
 | `docs/model/2026-11-05/` | Current model contract and model-family registry |
 | `docs/registry/` | Indicator/event registry, validation claims, and history boundary |
 | `docs/architecture/` | Living architecture baseline |

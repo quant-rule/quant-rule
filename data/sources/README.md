@@ -23,6 +23,11 @@ repository.
   explicit.
 - The current BTCUSD 2024 example is a slice of
   `BTCUSD_M1_2018-01-01_2024-12-31.csv`.
+- `BTCUSDT_M1_2018-01-01_2025-12-31.csv` is the Binance spot series, imported
+  with `tools/data/binance_klines.py` from 96 checksum-verified monthly files.
+  It is USDT-quoted, not USD; the 2023 basis against Dukascopy is recorded in
+  [`DATA-2026-11-09-BINANCE-BTCUSDT-01`](../../docs/config/2026-11-09/data-change-BINANCE-BTCUSDT-01.md).
+  It is a cross-venue robustness source, not a replacement for BTCUSD.
 - `COPPERCMDUSD` and `TSLAUSUSD` are admitted for price-only model research;
   COPPER volume is zero on most rows and TSLA volume is unit-unstable in 2020,
   so volume, participation, and flow events must not use them. See

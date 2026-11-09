@@ -33,6 +33,29 @@ writes to them:
 Their content is evidence, not a current surface. A cleanup is a separate,
 explicitly authorized change.
 
+## Archived local evidence
+
+On 2026-11-09, large historical directories were moved to
+`/home/zantgo/quant-rule-archive/2026-11-09/` and left in place as symlinks. The
+original paths still resolve; the repository listing and `du` no longer carry
+the full payload. The cleanup record is
+[`docs/reports/2026-11-09/local-data-cleanup.md`](../docs/reports/2026-11-09/local-data-cleanup.md).
+
+| Path | Archive |
+|---|---|
+| `model-v4/` | `data/model-v4/` |
+| `model-gate/` | `data/model-gate/` |
+| `session-spike/` | `data/session-spike/` |
+| `prediction-pilot/` | `data/prediction-pilot/` |
+| `macd-pilot/` | `data/macd-pilot/` |
+| `path-pilot/` | `data/path-pilot/` |
+| `structure-pilot/` | `data/structure-pilot/` |
+| `improvement/2026-11-08/STRATEGY-2026-11-08-01/` | the same relative path |
+| `improvement/2026-11-08/STRATEGY-2026-11-08-02/` | the same relative path |
+| `improvement/2026-11-08/SR3-FEATURES/` | the same relative path |
+| `improvement/2026-11-09/SR4-STACK-FADE/` | the same relative path |
+| `improvement/2026-11-09/SR6-VWAP/` | the same relative path |
+
 ## Rules
 
 1. Nothing sits at the root except this file and `partitions.json`.

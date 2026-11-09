@@ -13,6 +13,7 @@ use std::fmt::Write as _;
 
 use quantrule_data::Timeframe;
 
+use super::benchmarks::{self, BenchmarkSummary};
 use super::evidence::{
     AnalyticsEvidence, DecisionKind, DecisionReason, DecisionSide, EQUITY_HEADER, FUNDING_HEADER,
     PortfolioSnapshot, RISK_EVENTS_HEADER, TRADES_HEADER, row_count,
@@ -78,6 +79,8 @@ impl DecisionCounts {
 pub(crate) struct AnalyticsMetrics {
     /// The decision counts across every timeframe.
     pub(crate) decisions: DecisionCounts,
+    /// The evaluation benchmarks.
+    pub(crate) benchmarks: BenchmarkSummary,
     /// Stable reasons for every null metric.
     pub(crate) null_reasons: BTreeMap<&'static str, &'static str>,
     /// The tables, in the fixed declared order.
@@ -93,6 +96,8 @@ pub(crate) fn build(evidence: &AnalyticsEvidence) -> AnalyticsMetrics {
     tables.push(copy_table("trades", TRADES_HEADER, &evidence.trades_csv));
     tables.push(monthly_returns_table(&evidence.portfolio.monthly_returns));
     tables.push(costs_table(&evidence.portfolio));
+    let benchmarks = benchmarks::BenchmarkSummary::build(evidence);
+    tables.push(benchmarks.table());
     let decisions = decision_tables(&evidence.decisions);
     tables.push(decisions.table);
     tables.push(decisions.by_timeframe);
@@ -106,6 +111,7 @@ pub(crate) fn build(evidence: &AnalyticsEvidence) -> AnalyticsMetrics {
 
     AnalyticsMetrics {
         decisions: decisions.counts,
+        benchmarks,
         null_reasons: null_reasons(&evidence.portfolio),
         tables,
         unsupported: vec![

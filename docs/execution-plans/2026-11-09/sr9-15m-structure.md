@@ -131,8 +131,10 @@ Break-only control:
 The break-only BTC long is the only positive control with 30 trades; it is not a
 candidate and is not promoted. The other controls are negative or underpowered.
 At 9 bps it has 30 trades, +$795.69, PF 1.747, max drawdown 2.87%, and 4 of 5
-years positive (2020 negative); it remains a control and a lead for a future
-programme, not a candidate.
+years positive (2020 negative); it remains a control, not a candidate. A dense
+Binance BTCUSDT cross-venue check did not reproduce it (2018–2022 65 trades,
+−$389.64, PF 0.871; 2023 8 trades, −$202.50, PF 0.229), so it is not a lead for a
+new programme.
 
 Verdict: `no_candidate_underpowered`. The premise is not supported by enough
 trades; this is not a clean no-edge conclusion. 2024 remains closed.

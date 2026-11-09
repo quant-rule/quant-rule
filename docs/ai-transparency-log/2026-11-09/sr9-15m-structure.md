@@ -66,7 +66,9 @@ The full per-year results are in the local run record and the campaign summary.
 
 - Ran the break-only BTC long control at 9 bps for 2018–2022: 30 trades,
   +$795.69, PF 1.747, max drawdown 2.87%, 4 of 5 years positive (2020 negative).
-- The 9 bps control remains a control, not a candidate; it is a lead for a future
-  pre-registered programme.
+- The 9 bps control remains a control, not a candidate. A later dense Binance
+  BTCUSDT cross-venue check did not reproduce it (2018–2022 65 trades, −$389.64,
+  PF 0.871; 2023 8 trades, −$202.50, PF 0.229), so it is not a lead for a new
+  programme.
 - Corrected the committed `config/sr9/data` source paths from four parent levels
   to three so the configs rerun from `config/sr9/data`.

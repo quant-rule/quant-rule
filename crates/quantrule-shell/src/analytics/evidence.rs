@@ -2,14 +2,21 @@
 //!
 //! The shared [`BundleManifest`] reader validates the manifest and every stage
 //! provenance hash. This module adds the portfolio metrics, the portfolio
-//! tables, and the strategy decision records. It does not rerun a stage, read a
-//! candle, or write a verdict.
+//! tables, the strategy decision records, the recorded execution-timeframe
+//! candles, and the trade records. The candles and trades are read only for the
+//! evaluation benchmarks; no stage is rerun and no verdict is written.
 
 use std::fmt;
 use std::path::PathBuf;
 
+use quantrule_backtest::portfolio::TradeRecord;
+use quantrule_data::Candle;
 use serde_json::{Map, Value};
 
+use super::evidence_parse::{
+    dominant_decision_timeframe, dominant_readings_timeframe, parse_candles, parse_commission_rate,
+    parse_decisions, parse_trades,
+};
 use crate::backtest_bundle::{BundleError, BundleManifest};
 
 /// The portfolio metrics schema.
@@ -169,7 +176,7 @@ impl DecisionKind {
         }
     }
 
-    fn from_code(code: &str) -> Option<Self> {
+    pub(crate) fn from_code(code: &str) -> Option<Self> {
         match code {
             "hold" => Some(Self::Hold),
             "enter" => Some(Self::Enter),
@@ -199,7 +206,7 @@ impl DecisionSide {
         }
     }
 
-    fn from_code(code: &str) -> Option<Self> {
+    pub(crate) fn from_code(code: &str) -> Option<Self> {
         match code {
             "long" => Some(Self::Long),
             "short" => Some(Self::Short),
@@ -233,7 +240,7 @@ impl DecisionReason {
         }
     }
 
-    fn from_code(code: &str) -> Option<Self> {
+    pub(crate) fn from_code(code: &str) -> Option<Self> {
         match code {
             "entry" => Some(Self::Entry),
             "bracket_entry" => Some(Self::BracketEntry),
@@ -274,6 +281,12 @@ pub(crate) struct AnalyticsEvidence {
     pub(crate) risk_events_csv: String,
     /// The strategy decisions, in file order.
     pub(crate) decisions: Vec<DecisionRecord>,
+    /// The recorded execution-timeframe candles, oldest first.
+    pub(crate) candles: Vec<Candle>,
+    /// The closed trades, in file order.
+    pub(crate) trades: Vec<TradeRecord>,
+    /// The portfolio commission rate recorded in the stage provenance.
+    pub(crate) commission_rate: f64,
 }
 
 impl AnalyticsEvidence {
@@ -318,6 +331,16 @@ impl AnalyticsEvidence {
             .map_err(AnalyticsEvidenceError::Bundle)?;
         let decisions = parse_decisions(&decisions_text)?;
 
+        let readings_text = bundle
+            .read_string("model/readings.csv")
+            .map_err(AnalyticsEvidenceError::Bundle)?;
+        let execution_secs = dominant_decision_timeframe(&decisions)
+            .or_else(|| dominant_readings_timeframe(&readings_text))
+            .unwrap_or(0);
+        let candles = parse_candles(&readings_text, execution_secs)?;
+        let trades = parse_trades(&trades_csv)?;
+        let commission_rate = parse_commission_rate(&bundle)?;
+
         Ok(Self {
             bundle,
             portfolio,
@@ -326,6 +349,9 @@ impl AnalyticsEvidence {
             funding_csv,
             risk_events_csv,
             decisions,
+            candles,
+            trades,
+            commission_rate,
         })
     }
 }
@@ -400,95 +426,11 @@ fn parse_monthly_returns(
     Ok(returns)
 }
 
-fn parse_decisions(text: &str) -> Result<Vec<DecisionRecord>, AnalyticsEvidenceError> {
-    let path = "strategy/decisions.ndjson";
-    let mut decisions = Vec::new();
-    for (index, line) in text.lines().enumerate() {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let value: Value = serde_json::from_str(line)
-            .map_err(|error| invalid(path, &format!("line {} is not JSON: {error}", index + 1)))?;
-        let object = value
-            .as_object()
-            .ok_or_else(|| invalid(path, &format!("line {} must be an object", index + 1)))?;
-        let schema = object
-            .get("schema")
-            .and_then(Value::as_str)
-            .ok_or_else(|| invalid(path, &format!("line {} has no schema", index + 1)))?;
-        if schema != DECISION_SCHEMA {
-            return Err(AnalyticsEvidenceError::UnsupportedSchema {
-                path: PathBuf::from(path),
-                expected: DECISION_SCHEMA,
-                observed: schema.to_owned(),
-            });
-        }
-        let timeframe_secs = object
-            .get("timeframe_secs")
-            .and_then(Value::as_u64)
-            .filter(|secs| *secs > 0)
-            .ok_or_else(|| {
-                invalid(
-                    path,
-                    &format!(
-                        "line {} timeframe_secs must be a positive integer",
-                        index + 1
-                    ),
-                )
-            })?;
-        let decision_code = object
-            .get("decision")
-            .and_then(Value::as_str)
-            .ok_or_else(|| invalid(path, &format!("line {} has no decision", index + 1)))?;
-        let decision = DecisionKind::from_code(decision_code).ok_or_else(|| {
-            invalid(
-                path,
-                &format!("line {} has unknown decision '{decision_code}'", index + 1),
-            )
-        })?;
-        let side = match object.get("side") {
-            None | Some(Value::Null) => None,
-            Some(Value::String(code)) => Some(DecisionSide::from_code(code).ok_or_else(|| {
-                invalid(
-                    path,
-                    &format!("line {} has unknown side '{code}'", index + 1),
-                )
-            })?),
-            Some(_) => {
-                return Err(invalid(
-                    path,
-                    &format!("line {} side must be a string or null", index + 1),
-                ));
-            }
-        };
-        let reason = match object.get("reason") {
-            None | Some(Value::Null) => None,
-            Some(Value::String(code)) => {
-                Some(DecisionReason::from_code(code).ok_or_else(|| {
-                    invalid(
-                        path,
-                        &format!("line {} has unknown reason '{code}'", index + 1),
-                    )
-                })?)
-            }
-            Some(_) => {
-                return Err(invalid(
-                    path,
-                    &format!("line {} reason must be a string or null", index + 1),
-                ));
-            }
-        };
-        decisions.push(DecisionRecord {
-            timeframe_secs,
-            decision,
-            side,
-            reason,
-        });
-    }
-    Ok(decisions)
-}
-
-fn validate_header(path: &str, text: &str, expected: &str) -> Result<(), AnalyticsEvidenceError> {
+pub(crate) fn validate_header(
+    path: &str,
+    text: &str,
+    expected: &str,
+) -> Result<(), AnalyticsEvidenceError> {
     let Some(first) = text.lines().next() else {
         return Err(invalid(path, "the table is empty"));
     };
@@ -501,7 +443,7 @@ fn validate_header(path: &str, text: &str, expected: &str) -> Result<(), Analyti
     Ok(())
 }
 
-fn as_object<'a>(
+pub(crate) fn as_object<'a>(
     path: &str,
     value: &'a Value,
 ) -> Result<&'a Map<String, Value>, AnalyticsEvidenceError> {
@@ -521,7 +463,7 @@ fn required_str<'a>(
         .ok_or_else(|| invalid(path, &format!("{name} must be a string")))
 }
 
-fn required_number(
+pub(crate) fn required_number(
     path: &str,
     object: &Map<String, Value>,
     name: &str,
@@ -580,7 +522,7 @@ fn required_bool(
         .ok_or_else(|| invalid(path, &format!("{name} must be a boolean")))
 }
 
-fn invalid(path: &str, message: &str) -> AnalyticsEvidenceError {
+pub(crate) fn invalid(path: &str, message: &str) -> AnalyticsEvidenceError {
     AnalyticsEvidenceError::Invalid {
         path: PathBuf::from(path),
         message: message.to_owned(),
@@ -601,8 +543,11 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        DecisionKind, DecisionReason, DecisionSide, EQUITY_HEADER, parse_decisions,
+        DecisionKind, DecisionReason, DecisionSide, EQUITY_HEADER, TRADES_HEADER,
         parse_portfolio_metrics, row_count, validate_header,
+    };
+    use crate::analytics::evidence_parse::{
+        dominant_readings_timeframe, parse_candles, parse_decisions, parse_trades,
     };
 
     #[test]
@@ -674,5 +619,58 @@ mod tests {
     fn a_table_row_count_excludes_the_header_and_blank_lines() {
         assert_eq!(row_count("a,b\n1,2\n3,4\n"), 2);
         assert_eq!(row_count("a,b\n"), 0);
+    }
+    #[test]
+    fn candles_are_filtered_by_timeframe_and_sorted() {
+        let text = concat!(
+            "timeframe_secs,bar,timestamp,open,high,low,close,volume\n",
+            "900,0,120,10,11,9,10.5,1\n",
+            "300,0,60,20,21,19,20.5,2\n",
+            "900,1,180,10.5,12,10,11,3\n",
+        );
+        let candles = parse_candles(text, 900).expect("the candles parse");
+        assert_eq!(candles.len(), 2);
+        assert_eq!(candles[0].timestamp(), 120);
+        assert_eq!(candles[1].timestamp(), 180);
+    }
+
+    #[test]
+    fn an_invalid_candle_is_rejected() {
+        let text = concat!(
+            "timeframe_secs,bar,timestamp,open,high,low,close,volume\n",
+            "900,0,120,10,9,11,10.5,1\n",
+        );
+        let error = parse_candles(text, 900).expect_err("the candle is invalid");
+        assert!(error.to_string().contains("not a valid candle"));
+    }
+
+    #[test]
+    fn the_dominant_readings_timeframe_is_the_most_frequent() {
+        let text = concat!(
+            "timeframe_secs,bar,timestamp,open,high,low,close,volume\n",
+            "900,0,120,10,11,9,10.5,1\n",
+            "900,1,180,10,11,9,10.5,1\n",
+            "300,0,60,10,11,9,10.5,1\n",
+        );
+        assert_eq!(dominant_readings_timeframe(text), Some(900));
+    }
+
+    #[test]
+    fn a_trade_row_parses_into_a_trade_record() {
+        let row = "1,long,1.5,2,100,10.0,8,700,11.0,1.5,0.1,0.2,0.0,1.2,0.12,6,target";
+        let text = format!("{TRADES_HEADER}\n{row}\n");
+        let trades = parse_trades(&text).expect("the trade parses");
+        assert_eq!(trades.len(), 1);
+        assert_eq!(trades[0].trade_id, 1);
+        assert_eq!(trades[0].hold_bars, 6);
+        assert_eq!(trades[0].return_fraction, Some(0.12));
+    }
+
+    #[test]
+    fn an_unknown_trade_side_is_rejected() {
+        let row = "1,sideways,1.5,2,100,10.0,8,700,11.0,1.5,0.1,0.2,0.0,1.2,0.12,6,target";
+        let text = format!("{TRADES_HEADER}\n{row}\n");
+        let error = parse_trades(&text).expect_err("the side is unknown");
+        assert!(error.to_string().contains("unknown side"));
     }
 }
