@@ -262,7 +262,7 @@ for the shell fetch surface. Trade charts are rendered from recorded bundles wit
 | `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines |
 | `crates/quantrule-shell` | The binary: parse, source access, stage orchestration, and rendering |
 | `tools/data/` | Binance archive importer and source coverage audit |
-| `tools/charts/` | Deterministic trade-chart renderer for recorded bundles |
+| `tools/charts/` | Deterministic trade-chart renderer and click annotator |
 | `tools/trades/` | Per-trade 250-bar context, annotations, and exit-quality evaluation |
 | `docs/model/2026-11-05/` | Current model contract and model-family registry |
 | `docs/registry/` | Indicator/event registry, validation claims, and history boundary |
