@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr7-h3-long-ethusd-2019-9bps",
+  "policy": "../../../../policies/1h/policy-ETHUSD.json",
+  "data": "../../../../runs/h3-long/ETHUSD/2019/data.json",
+  "model": "../../../../model-compression.json",
+  "execution": "../../../../execution-1h-9bps.json",
+  "portfolio": "../../../../portfolio-5pct-9bps.json",
+  "model_timeframes": [
+    "1h"
+  ],
+  "output_root": "../../../../../../data/improvement/2026-11-09/SR7-H3-CRYPTO/artifacts-9bps/h3-long/ETHUSD/2019"
+}

@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr7-h3-short-btcusd-2018",
+  "policy": "../../../../policies/1h/policy-BTCUSD.json",
+  "data": "data.json",
+  "model": "../../../../model-compression.json",
+  "execution": "../../../../execution-1h.json",
+  "portfolio": "../../../../portfolio-5pct.json",
+  "model_timeframes": [
+    "1h"
+  ],
+  "output_root": "../../../../../../data/improvement/2026-11-09/SR7-H3-CRYPTO/artifacts/h3-short/BTCUSD/2018"
+}

@@ -89,6 +89,10 @@ are not treated as releases.
   context on BTCUSD, 30 base cells. V1 long and short are negative with PF
   0.966/0.853 and every cell breaches 5% drawdown. Verdict: no candidate; 9 bps
   and 2024 not opened.
+- The SR7-H3-CRYPTO programme: BTCUSD+ETHUSD H3 1h fade, 20 base cells. H3
+  long is +$2,289 with PF 2.098 and 5/5 positive years but 27 trades and 5.62%
+  drawdown; H3 short is PF 1.067 with 1/5 years and a negative ETH side.
+  Verdict: no candidate; 9 bps and 2024 not opened.
 
 ### Changed
 
