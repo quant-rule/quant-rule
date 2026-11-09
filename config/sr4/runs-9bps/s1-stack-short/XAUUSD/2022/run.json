@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr4-s1-stack-short-xauusd-2022-9bps",
+  "policy": "../../../../policies/1h/policy-XAUUSD.json",
+  "data": "../../../../runs/s1-stack-short/XAUUSD/2022/data.json",
+  "model": "../../../../model-compression.json",
+  "execution": "../../../../execution-1h-9bps.json",
+  "portfolio": "../../../../portfolio-5pct-9bps.json",
+  "model_timeframes": [
+    "1h"
+  ],
+  "output_root": "../../../../../../data/improvement/2026-11-09/SR4-STACK-FADE/artifacts-9bps/s1-stack-short/XAUUSD/2022"
+}

@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr4-s1-stack-long-btcusd-2020-9bps",
+  "policy": "../../../../policies/1h/policy-BTCUSD.json",
+  "data": "../../../../runs/s1-stack-long/BTCUSD/2020/data.json",
+  "model": "../../../../model-compression.json",
+  "execution": "../../../../execution-1h-9bps.json",
+  "portfolio": "../../../../portfolio-5pct-9bps.json",
+  "model_timeframes": [
+    "1h"
+  ],
+  "output_root": "../../../../../../data/improvement/2026-11-09/SR4-STACK-FADE/artifacts-9bps/s1-stack-long/BTCUSD/2020"
+}
