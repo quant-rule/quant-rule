@@ -67,3 +67,11 @@ now draws both: a long trade shows a green BUY entry and a red SELL exit; a shor
 trade shows a red SELL entry and a green BUY exit. The labels name the action.
 All 30 Dukascopy and 73 Binance charts were regenerated, and the chart tests
 include the long and short action mapping.
+
+## Follow-up — model EMA source
+
+The chart previously computed EMA 10/50/200 itself. The model uses EMA 20/50/200
+(`ema_fast`, `ema_mid`, `ema_slow`), so the chart's fast line did not match the
+model. The renderer now reads the three model columns directly and rejects a
+readings file without them. All charts were regenerated and the chart manifest
+records the EMA source and periods.

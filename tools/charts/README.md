@@ -29,8 +29,9 @@ Output:
   charts/index.csv
 ```
 
-Each chart contains OHLC candles, volume, EMA 10/50/200, BUY/SELL entry and
-exit markers, and the recorded stop/target levels when the execution bundle has them. A chart has
+Each chart contains OHLC candles, volume, the model EMA 20/50/200
+(`ema_fast`, `ema_mid`, `ema_slow`), BUY/SELL entry and exit markers, and the
+recorded stop/target levels when the execution bundle has them. A chart has
 at most 1,000 candles and is centered on the trade entry. Windows with no trade
 are not saved.
 
@@ -43,5 +44,5 @@ PNG SHA-256. The same inputs produce the same PNG bytes.
 python3 -m unittest discover -s tools/charts -p 'test_*.py'
 ```
 
-The rendering tests are skipped when Pillow is unavailable; the window, EMA, and
-business-rule tests still run.
+The rendering tests are skipped when Pillow is unavailable; the window, model
+EMA, and business-rule tests still run.

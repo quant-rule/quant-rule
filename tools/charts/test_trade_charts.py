@@ -15,8 +15,9 @@ from trade_charts import (
     Bar,
     Run,
     Trade,
-    ema,
     find_stop_target,
+    load_run,
+    model_ema_series,
     trade_actions,
     window_bounds,
 )
@@ -42,10 +43,37 @@ def make_run(root: Path) -> Path:
     base = 1_600_000_000
     for bar in range(200):
         price = 10_000 + bar * 2
-        readings.append([900, bar, base + bar * 900, price, price + 50, price - 50, price + 10, 100 + bar])
+        close = price + 10
+        readings.append(
+            [
+                900,
+                bar,
+                base + bar * 900,
+                price,
+                price + 50,
+                price - 50,
+                close,
+                100 + bar,
+                close - 100,
+                close - 50,
+                close - 200,
+            ]
+        )
     write_csv(
         run / "backtest" / "model" / "readings.csv",
-        ["timeframe_secs", "bar", "timestamp", "open", "high", "low", "close", "volume"],
+        [
+            "timeframe_secs",
+            "bar",
+            "timestamp",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "ema_fast",
+            "ema_mid",
+            "ema_slow",
+        ],
         readings,
     )
     trades = [
@@ -105,6 +133,9 @@ def run_for_test(root: Path) -> Run:
                 low=9_950 + bar * 2,
                 close=10_010 + bar * 2,
                 volume=100 + bar,
+                ema_fast=10_010 + bar * 2 - 100,
+                ema_mid=10_010 + bar * 2 - 50,
+                ema_slow=10_010 + bar * 2 - 200,
             )
             for bar in range(200)
         ],
@@ -143,16 +174,35 @@ class WindowTest(unittest.TestCase):
         self.assertEqual((start, end), (19_000, 20_000))
 
 
-class EmaTest(unittest.TestCase):
-    def test_ema_is_none_before_the_period(self) -> None:
-        values = ema([1.0, 2.0, 3.0, 4.0], 3)
-        self.assertEqual(values[:2], [None, None])
-        self.assertIsNotNone(values[2])
+class ModelEmaTest(unittest.TestCase):
+    def test_readings_provide_the_model_ema_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_path = make_run(Path(directory))
+            run = load_run(run_path, "15m")
+            self.assertEqual(run.bars[0].ema_fast, 10_010 - 100)
+            self.assertEqual(run.bars[0].ema_mid, 10_010 - 50)
+            self.assertEqual(run.bars[0].ema_slow, 10_010 - 200)
 
-    def test_ema_is_causal(self) -> None:
-        full = ema([1.0, 2.0, 3.0, 4.0], 3)
-        prefix = ema([1.0, 2.0, 3.0], 3)
-        self.assertEqual(full[:3], prefix)
+    def test_model_ema_series_uses_the_three_published_periods(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run = run_for_test(Path(directory))
+            series = model_ema_series(run.bars)
+            self.assertEqual(sorted(series), [20, 50, 200])
+            self.assertEqual(series[20][0], run.bars[0].ema_fast)
+            self.assertEqual(series[50][0], run.bars[0].ema_mid)
+            self.assertEqual(series[200][0], run.bars[0].ema_slow)
+
+    def test_missing_model_ema_columns_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_path = make_run(Path(directory))
+            readings = run_path / "backtest" / "model" / "readings.csv"
+            lines = readings.read_text(encoding="utf-8").splitlines()
+            header = lines[0].split(",")
+            keep = [index for index, name in enumerate(header) if name not in {"ema_fast", "ema_mid", "ema_slow"}]
+            rewritten = [",".join(line.split(",")[index] for index in keep) for line in lines]
+            readings.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_run(run_path, "15m")
 
 
 class StopTargetTest(unittest.TestCase):
@@ -199,6 +249,8 @@ class RenderTest(unittest.TestCase):
                 self.assertTrue((root / "first" / "charts" / record["file"]).is_file())
             manifest = json.loads((root / "first" / "charts" / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["schema"], "quantrule.trade-charts/v1")
+            self.assertEqual(manifest["ema_source"], "model.readings.ema_fast/ema_mid/ema_slow")
+            self.assertEqual(manifest["ema_periods"], {"fast": 20, "mid": 50, "slow": 200})
             self.assertEqual(len(manifest["charts"]), 3)
             index = (root / "first" / "charts" / "index.csv").read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(index), 4)

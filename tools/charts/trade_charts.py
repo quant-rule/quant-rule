@@ -3,8 +3,8 @@
 
 The tool reads the model readings and portfolio trades that the shell already
 wrote, selects up to 1,000 candles around each trade entry, and draws the chart
-with volume, EMA 10/50/200, entry/exit markers, and stop/target lines when the
-execution bundle records them. It is an evaluation and review tool: it reads a
+with volume, the model EMA 20/50/200, entry/exit markers, and stop/target lines
+when the execution bundle records them. It is an evaluation and review tool: it reads a
 recorded result and never computes a model, strategy, or decision.
 
 Usage:
@@ -47,6 +47,9 @@ class Bar:
     low: float
     close: float
     volume: float
+    ema_fast: float | None
+    ema_mid: float | None
+    ema_slow: float | None
 
 
 @dataclass(frozen=True)
@@ -83,9 +86,9 @@ class Theme:
     grid: str
     up: str
     down: str
-    ema10: str
-    ema50: str
-    ema200: str
+    ema_fast: str
+    ema_mid: str
+    ema_slow: str
     entry_long: str
     entry_short: str
     stop: str
@@ -101,9 +104,9 @@ LIGHT = Theme(
     grid="#d9dee5",
     up="#0a8f5b",
     down="#c0392b",
-    ema10="#d97706",
-    ema50="#2563eb",
-    ema200="#7c3aed",
+    ema_fast="#d97706",
+    ema_mid="#2563eb",
+    ema_slow="#7c3aed",
     entry_long="#047857",
     entry_short="#b91c1c",
     stop="#dc2626",
@@ -118,9 +121,9 @@ DARK = Theme(
     grid="#2b3542",
     up="#34d399",
     down="#f87171",
-    ema10="#fbbf24",
-    ema50="#60a5fa",
-    ema200="#c084fc",
+    ema_fast="#fbbf24",
+    ema_mid="#60a5fa",
+    ema_slow="#c084fc",
     entry_long="#34d399",
     entry_short="#f87171",
     stop="#fb7185",
@@ -146,8 +149,16 @@ def load_run(path: Path, timeframe: str) -> Run:
         raise ValueError(f"missing readings: {readings_path}")
     if not trades_path.is_file():
         raise ValueError(f"missing trades: {trades_path}")
+    readings = read_csv(readings_path)
+    required = {"ema_fast", "ema_mid", "ema_slow"}
+    missing = required - set(readings[0]) if readings else required
+    if missing:
+        raise ValueError(
+            f"readings is missing the model EMA columns {sorted(missing)}; "
+            "the chart must render the model EMAs, not recompute them"
+        )
     bars: list[Bar] = []
-    for row in read_csv(readings_path):
+    for row in readings:
         if row["timeframe_secs"] != str(seconds):
             continue
         bars.append(
@@ -159,6 +170,9 @@ def load_run(path: Path, timeframe: str) -> Run:
                 low=float(row["low"]),
                 close=float(row["close"]),
                 volume=float(row["volume"]),
+                ema_fast=optional_float(row["ema_fast"]),
+                ema_mid=optional_float(row["ema_mid"]),
+                ema_slow=optional_float(row["ema_slow"]),
             )
         )
     bars.sort(key=lambda bar: bar.timestamp)
@@ -196,19 +210,18 @@ def load_runs(base: Path, run_glob: str, timeframe: str) -> list[Run]:
     return runs
 
 
-def ema(values: list[float], period: int) -> list[float | None]:
-    """Compute a causal EMA seeded with the first close, as the chart display."""
-    if not values:
-        return []
-    if period <= 0:
-        raise ValueError("EMA period must be positive")
-    seed = 2.0 / (period + 1.0)
-    current = values[0]
-    result: list[float | None] = []
-    for index, value in enumerate(values):
-        current = value if index == 0 else current + seed * (value - current)
-        result.append(current if index >= period - 1 else None)
-    return result
+def optional_float(value: str) -> float | None:
+    """Parse an optional numeric CSV field."""
+    return None if value in ("", "null") else float(value)
+
+
+def model_ema_series(bars: list[Bar]) -> dict[int, list[float | None]]:
+    """Return the model's published fast, medium, and slow EMA series."""
+    return {
+        20: [bar.ema_fast for bar in bars],
+        50: [bar.ema_mid for bar in bars],
+        200: [bar.ema_slow for bar in bars],
+    }
 
 
 def window_bounds(entry_index: int, length: int, maximum: int = MAX_CANDLES) -> tuple[int, int]:
@@ -353,8 +366,7 @@ def draw_chart(
     entry_index = bar_index[trade.entry_bar]
     start, end = window_bounds(entry_index, len(run.bars), maximum)
     window = run.bars[start:end]
-    closes = [bar.close for bar in run.bars]
-    emas = {period: ema(closes, period) for period in (10, 50, 200)}
+    emas = model_ema_series(run.bars)
     stop, target = find_stop_target(run, trade)
 
     width, height = 2_400, 1_600
@@ -426,7 +438,7 @@ def draw_chart(
         )
 
     # EMA lines.
-    ema_colors = {10: theme.ema10, 50: theme.ema50, 200: theme.ema200}
+    ema_colors = {20: theme.ema_fast, 50: theme.ema_mid, 200: theme.ema_slow}
     for period, color in ema_colors.items():
         points = []
         for position, bar in enumerate(window):
@@ -533,11 +545,12 @@ def draw_chart(
     legend_y = 164
     for offset, (period, color) in enumerate(ema_colors.items()):
         last_value = next((value for value in reversed(emas[period][:end]) if value is not None), None)
-        legend_x = left + offset * 360
+        legend_x = left + offset * 400
         draw.line((legend_x, legend_y, legend_x + 42, legend_y), fill=color, width=4)
         suffix = f"  {format_price(last_value)}" if last_value is not None else ""
-        draw.text((legend_x + 52, legend_y - 13), f"EMA {period}{suffix}", fill=color, font=font(20, bold=True))
-    draw.text((left + 1_080, legend_y - 13), "Volume", fill=theme.muted, font=font(20))
+        role = {20: "fast", 50: "mid", 200: "slow"}[period]
+        draw.text((legend_x + 52, legend_y - 13), f"EMA {period} ({role}){suffix}", fill=color, font=font(20, bold=True))
+    draw.text((left + 1_230, legend_y - 13), "Volume", fill=theme.muted, font=font(20))
     draw.line((left, volume_bottom + 58, width - right, volume_bottom + 58), fill=theme.grid, width=1)
     draw.text(
         (left, volume_bottom + 74),
@@ -612,6 +625,8 @@ def render(
         "run_glob": run_glob,
         "timeframe": timeframe,
         "max_candles": maximum,
+        "ema_source": "model.readings.ema_fast/ema_mid/ema_slow",
+        "ema_periods": {"fast": 20, "mid": 50, "slow": 200},
         "theme": theme_name,
         "title": title,
         "strategy": strategy,
