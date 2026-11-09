@@ -4,7 +4,9 @@
 The tool reads the recorded SR2-A BTCUSD cells and writes a feature table, a
 summary of the conditions present in the top trades, and 1,000-candle PNGs for
 the largest trades. It is read-only over the backtest record. Statistics is
-evaluation only; nothing here enters a model, a strategy, or a decision.
+evaluation only; nothing here enters a model, a strategy, or a decision. The
+attribution functions use the standard library; chart rendering requires
+Pillow and imports it lazily.
 
 Usage:
     python3 tools/improvement/sr2_feature_audit.py \
@@ -23,8 +25,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
-from PIL import Image, ImageDraw
 
 CELLS = tuple(f"btc-{year}" for year in range(2018, 2023))
 CANDLES = 1_000
@@ -192,6 +192,13 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def draw_chart(
     cell: str, trade: dict[str, Any], data: dict[str, Any], rows: list[dict[str, Any]], out: Path
 ) -> Path:
+    try:
+        from PIL import Image, ImageDraw
+    except ModuleNotFoundError as error:
+        raise SystemExit(
+            "chart rendering requires Pillow; install it with 'pip install Pillow'"
+        ) from error
+
     bars = [data["readings"][bar] for bar in sorted(data["readings"])]
     index = next(
         (position for position, row in enumerate(bars) if int(row["bar"]) == trade["decision_bar"]),
