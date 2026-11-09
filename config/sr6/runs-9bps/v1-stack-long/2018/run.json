@@ -1,0 +1,14 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr6-v1-stack-long-2018-9bps",
+  "policy": "../../../policies/15m/policy-BTCUSD.json",
+  "data": "../../../runs/v1-stack-long/2018/data.json",
+  "model": "../../../model-compression.json",
+  "execution": "../../../execution-15m-9bps.json",
+  "portfolio": "../../../portfolio-5pct-9bps.json",
+  "model_timeframes": [
+    "15m",
+    "1h"
+  ],
+  "output_root": "../../../../../data/improvement/2026-11-09/SR6-VWAP/artifacts-9bps/v1-stack-long/2018"
+}
