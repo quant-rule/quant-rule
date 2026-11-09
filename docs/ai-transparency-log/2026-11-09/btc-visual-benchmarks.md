@@ -59,3 +59,11 @@
 - No edge is claimed from the Dukascopy control or the Binance check.
 - The Binance series is USDT-quoted and is not spliced into BTCUSD.
 - The benchmark percentile is descriptive, not a p-value.
+
+## Follow-up — chart exit markers
+
+The first chart set drew the entry marker but not the exit marker. The renderer
+now draws both: a long trade shows a green BUY entry and a red SELL exit; a short
+trade shows a red SELL entry and a green BUY exit. The labels name the action.
+All 30 Dukascopy and 73 Binance charts were regenerated, and the chart tests
+include the long and short action mapping.
