@@ -2187,6 +2187,20 @@
       "target_atr": 2.0,
       "stop_atr": 1.0,
       "baseline": "matched_barrier"
+    },
+    {
+      "id": "signal.breakout_retest_hold",
+      "kind": "event",
+      "construct_tests": [
+        "retest::tests::breakout_retest_hold_row_contract"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 4.0,
+      "stop_atr": 4.0,
+      "baseline": "breakout_only",
+      "construct_status": "covered"
     }
   ]
 }

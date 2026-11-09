@@ -19,6 +19,10 @@ are not treated as releases.
   fields in the model report. Weekends and declared holidays no longer count as
   missing bars for session-bound instruments; the existing span coverage is
   retained.
+- The `signal.breakout_retest_hold` event: a compression breakout followed by a
+  4-bar retest within 0.2 ATR that closes back on the breakout side. It is a
+  signal event with code 146, subtype 24, source 5; the break-only event is the
+  control.
 - The `vol_regime` and `structure_state` context states. `vol_regime` is the
   persistent 0/1/2 volatility regime; `structure_state` is the confirmed major
   +1/0/-1 swing structure. Both are strategy-readable and leave existing event

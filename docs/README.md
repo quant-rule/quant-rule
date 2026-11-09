@@ -68,6 +68,7 @@ repeating a status.
 | `rvol_regime` context state | Current; low below 1.4, normal 1.4–2.0, high at or above 2.0; no event changes | `docs/model/2026-11-08/rvol-regime.md` |
 | `vol_regime` context state | Current; compressed at or below 0.7, normal below 1.3, expanded at or above 1.3; no event changes | `docs/model/2026-11-09/vol-regime.md` |
 | `structure_state` context state | Current; confirmed major HH/HL, LH/LL, or mixed; no event changes | `docs/model/2026-11-09/structure-state.md` |
+| `signal.breakout_retest_hold` | Current; compression breakout plus a 4-bar retest within 0.2 ATR that closes back on the breakout side | `docs/model/2026-11-09/breakout-retest-hold.md` |
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |

@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-08.1",
+  "version": "2026-11-09.1",
   "indicators": [
     {
       "id": "ema",
@@ -253,7 +253,8 @@
       "events": [
         "signal.compression_breakout",
         "signal.compression_range",
-        "signal.compression_range_onset"
+        "signal.compression_range_onset",
+        "signal.breakout_retest_hold"
       ],
       "tests": [
         "golden",
@@ -4360,6 +4361,33 @@
         "determinism"
       ],
       "status": "active"
+    },
+    {
+      "id": "signal.breakout_retest_hold",
+      "code": 146,
+      "event_type": 3,
+      "subtype": 24,
+      "source": 5,
+      "indicator": "context",
+      "role": "signal",
+      "claim": "A compression breakout followed by a retest that holds has a higher forward continuation rate than the breakout alone after costs.",
+      "parameters": [
+        "model.signal.compression_breakout",
+        "model.signal.compression_coiling_bars",
+        "model.signal.compression_break_atr",
+        "model.signal.compression_rvol_min",
+        "model.context.atr_ratio_period",
+        "model.context.rvol_period",
+        "model.context.threshold"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism",
+        "edge_cases"
+      ],
+      "status": "active",
+      "formula": "breakout at b0; within 4 bars the bar range touches the boundary within 0.2*ATR and closes beyond it in the breakout direction; a close through the boundary against the breakout before the hold invalidates the break"
     }
   ],
   "parameters": [
@@ -5719,7 +5747,8 @@
       "20": "gap",
       "21": "path",
       "22": "cross-asset",
-      "23": "session"
+      "23": "session",
+      "24": "breakout retest hold"
     },
     "sources": {
       "1": "EMA fast",

@@ -13143,6 +13143,76 @@
           ]
         }
       }
+    },
+    {
+      "id": "signal.breakout_retest_hold",
+      "kind": "event",
+      "evidence": {
+        "formula": {
+          "scope": "row",
+          "tests": [
+            "retest::tests::breakout_retest_hold_row_contract"
+          ]
+        },
+        "causality": {
+          "scope": "row",
+          "tests": [
+            "retest::tests::breakout_retest_hold_row_contract"
+          ]
+        },
+        "determinism": {
+          "scope": "row",
+          "tests": [
+            "retest::tests::breakout_retest_hold_row_contract"
+          ]
+        },
+        "golden": {
+          "scope": "row",
+          "tests": [
+            "retest::tests::breakout_retest_hold_row_contract"
+          ]
+        },
+        "edge": {
+          "scope": "family",
+          "tests": [
+            "edge_cases::an_empty_series_publishes_no_readings"
+          ]
+        },
+        "availability": {
+          "scope": "row",
+          "tests": [
+            "retest::tests::breakout_retest_hold_row_contract"
+          ]
+        },
+        "no_double_count": {
+          "scope": "row",
+          "tests": [
+            "retest::tests::breakout_retest_hold_row_contract"
+          ]
+        },
+        "precedence": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "math": {
+          "scope": "tool",
+          "tests": [
+            "check_registry.py"
+          ]
+        },
+        "spec": {
+          "scope": "family",
+          "tests": [
+            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+          ]
+        },
+        "emitter": {
+          "scope": "tool",
+          "tests": [
+            "check_event_emitters.py"
+          ]
+        }
+      }
     }
   ]
 }

@@ -19,6 +19,7 @@ use crate::events::divergence::{DivergenceConfig, DivergenceEventSeries};
 use crate::events::dmi::{DmiConfig, DmiEventSeries};
 use crate::events::extended::{ExtendedEventConfig, ExtendedEventSeries};
 use crate::events::level::{LevelEventConfig, LevelEventSeries};
+use crate::events::retest::BreakoutRetestHoldSeries;
 use crate::events::signal::{SignalConfig, SignalEventSeries};
 use crate::events::trend::{TrendContinuationConfig, TrendContinuationSeries};
 use crate::input::{MarketStateConfig, TimeframeInput};
@@ -235,6 +236,11 @@ impl TimeframeModel {
         } else {
             CompressionBreakoutSeries::empty()
         };
+        let retest_events = if event_settings.signal.compression_breakout {
+            BreakoutRetestHoldSeries::compute(input.candles, &readings, &compression_events)
+        } else {
+            BreakoutRetestHoldSeries::empty()
+        };
 
         let range_events = if event_settings.signal.compression_range {
             CompressionRangeSeries::compute(
@@ -277,6 +283,7 @@ impl TimeframeModel {
             .chain(dmi_events.events())
             .chain(trend_events.events())
             .chain(compression_events.events())
+            .chain(retest_events.events())
             .chain(range_events.events())
             .chain(onset_events.events())
             .copied()

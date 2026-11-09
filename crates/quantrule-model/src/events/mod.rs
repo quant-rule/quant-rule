@@ -18,6 +18,7 @@ pub mod dmi;
 pub mod extended;
 pub mod level;
 pub mod panel;
+pub mod retest;
 pub mod session;
 pub mod signal;
 pub mod signals;
