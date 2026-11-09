@@ -111,6 +111,10 @@ are not treated as releases.
 - The SR8-A-H3-ARCHIVE check: the Dukascopy 2023 archive has 525,600 rows but
   38,948 flat zero-volume placeholders; only 61.4% of 1h hours are genuine. The
   archive is rejected, no H3 run is made, and 2024 remains closed.
+- The SR9-15M-STRUCTURE campaign: 15m structure-transition on BTCUSD, XAUUSD,
+  and EURUSD. All six primary cells are below 30 trades and five have PF below
+  1.0; the break-only BTC long control is positive but is not promoted. Verdict:
+  no candidate, underpowered; 9 bps and 2024 not opened.
 
 ### Changed
 

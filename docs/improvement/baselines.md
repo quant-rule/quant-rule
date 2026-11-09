@@ -1,7 +1,7 @@
 # Baselines
 
 - Date: 2026-11-05 (UTC)
-- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; the EURUSD DST-aware session spike stopped with no edge; the v5 1h swing gate stopped with no edge; the v5 Phase 2 price-only spike stopped with no edge and the volume family is blocked by data quality; the M2.x 1h direction programme stopped with no edge; the M3.x state-conditioned preflight stopped as underpowered; the M4.x location-conditioned programme stopped with no edge; the MR5.x mechanism/path grid stopped with no edge; the MR6.x ordered family-confirmation grid stopped with no edge; the MR7.x opening-range sweep/reclaim grid stopped with no edge; the SR1 compression-breakout fade stopped early as infeasible; the SR2 dual fade stopped with no edge; the SR2-A BTCUSD audit found a fragile lead; the SR3 feature-filtered fade produced no candidate; the SR4 multi-instrument stack fade found a BTC-only result; the SR5 absorption count gate stopped as underpowered; the SR6 VWAP rejection run produced no candidate; the SR7 BTC+ETH H3 cross-section produced no candidate; the SR8 2023 buffer was data-ineligible; the SR8-A archive was rejected as flat placeholders; no strategy or portfolio baseline
+- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; the EURUSD DST-aware session spike stopped with no edge; the v5 1h swing gate stopped with no edge; the v5 Phase 2 price-only spike stopped with no edge and the volume family is blocked by data quality; the M2.x 1h direction programme stopped with no edge; the M3.x state-conditioned preflight stopped as underpowered; the M4.x location-conditioned programme stopped with no edge; the MR5.x mechanism/path grid stopped with no edge; the MR6.x ordered family-confirmation grid stopped with no edge; the MR7.x opening-range sweep/reclaim grid stopped with no edge; the SR1 compression-breakout fade stopped early as infeasible; the SR2 dual fade stopped with no edge; the SR2-A BTCUSD audit found a fragile lead; the SR3 feature-filtered fade produced no candidate; the SR4 multi-instrument stack fade found a BTC-only result; the SR5 absorption count gate stopped as underpowered; the SR6 VWAP rejection run produced no candidate; the SR7 BTC+ETH H3 cross-section produced no candidate; the SR8 2023 buffer was data-ineligible; the SR8-A archive was rejected as flat placeholders; the SR9 15m structure campaign produced no candidate; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -48,6 +48,7 @@ by the agent that ran or reviewed the result.
 | Strategy | `SR7-H3-CRYPTO` | — | 2026-11-09 | BTC+ETH H3 1h fade; 20 cells; H3 long 27 trades/5.62% DD; H3 short PF 1.067, 1/5 years, ETH negative; 9 bps and validation not opened | — | Not accepted — no candidate |
 | Strategy | `SR8-H3-BUFFER` | — | 2026-11-09 | 2023 BTC one-shot buffer; 1h coverage 61.3%, 0 long / 4 short trades; ineligible; 2024 not opened | — | Not accepted — buffer ineligible |
 | Strategy | `SR8-A-H3-ARCHIVE` | — | 2026-11-09 | Dukascopy 2023 archive; 100% row coverage but 38,948 flat placeholders and 61.4% genuine coverage; no H3 run; 2024 not opened | — | Not accepted — archive rejected |
+| Strategy | `SR9-15M-STRUCTURE` | — | 2026-11-09 | 15m structure-transition; 6 primary cells; 9–16 trades each, five PF below 1.0; break-only control BTC long 30 trades/PF 1.862 but not promoted; 9 bps and 2024 not opened | — | Not accepted — underpowered |
 | Portfolio | — | — | — | — | — | None accepted |
 
 The SR2-A BTCUSD audit (`SR2-BTC-AUDIT`) did not accept a baseline. The BTC lead
@@ -87,6 +88,11 @@ The SR8-A archive check (`SR8-A-H3-ARCHIVE`) rejected the Dukascopy 2023
 archive: its 100% row coverage is built from flat zero-volume placeholders, and
 only 61.4% of hours are genuine. No H3 run was made and 2024 was not opened; see
 [the programme record](2026-11-09/SR8-A-H3-ARCHIVE.md).
+
+The SR9 15m structure campaign (`SR9-15M-STRUCTURE`) produced no candidate: all
+six primary cells are below the 30-trade floor and five have PF below 1.0. The
+break-only BTC long control is positive but is not promoted. See
+[the programme record](2026-11-09/SR9-15M-STRUCTURE.md).
 
 ## Rules
 

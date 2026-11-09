@@ -1,0 +1,55 @@
+{
+  "schema": "quantrule.strategy/v1",
+  "id": "sr9-long",
+  "engine": "event_composite",
+  "execution_timeframe": "15m",
+  "event_window_bars": 1,
+  "time_stop_bars": 50,
+  "require_contiguous": false,
+  "risk": {
+    "stop_atr_multiple": 1.0,
+    "reward_to_risk": 6.0
+  },
+  "entry": [
+    {
+      "kind": "event",
+      "timeframe": "15m",
+      "event_type": 3,
+      "subtype": 24,
+      "source": 5,
+      "direction": 1
+    },
+    {
+      "kind": "state",
+      "timeframe": "15m",
+      "field": "structure_state",
+      "value": 1
+    },
+    {
+      "kind": "state",
+      "timeframe": "15m",
+      "field": "ema_stack",
+      "value": 1
+    },
+    {
+      "kind": "state",
+      "timeframe": "15m",
+      "field": "macd_state",
+      "value": 1
+    },
+    {
+      "kind": "state",
+      "timeframe": "15m",
+      "field": "vol_regime",
+      "value": 1
+    }
+  ],
+  "exit": [
+    {
+      "kind": "state",
+      "timeframe": "15m",
+      "field": "structure_state",
+      "value": -1
+    }
+  ]
+}
