@@ -78,6 +78,7 @@ pub(crate) fn metrics_json_bytes(
                 "enter_bracket": metrics.decisions.enter_bracket,
                 "exit": metrics.decisions.exit,
             },
+            "benchmarks": metrics.benchmarks.json(),
         },
         "null_reasons": &metrics.null_reasons,
         "tables": metrics.tables.iter().map(|table| json!({
@@ -181,6 +182,9 @@ pub(crate) fn summary_bytes(evidence: &AnalyticsEvidence, metrics: &AnalyticsMet
         metrics.decisions.exit,
     );
     let _ = writeln!(out, "monthly_returns: {}", portfolio.monthly_returns.len());
+    for line in metrics.benchmarks.summary_lines() {
+        let _ = writeln!(out, "{line}");
+    }
     let _ = writeln!(out, "tables: {tables}");
     let _ = writeln!(out, "unsupported: {unsupported}");
     out

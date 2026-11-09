@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr9-btcusdt-2021-9bps",
+  "policy": "../../policies/15m/policy-multi.json",
+  "data": "../../data/BTCUSDT-2021.json",
+  "model": "../../model-compression.json",
+  "execution": "../../execution-15m-9bps.json",
+  "portfolio": "../../portfolio-5pct-9bps.json",
+  "model_timeframes": [
+    "15m"
+  ],
+  "output_root": "../../../../data/improvement/2026-11-09/BINANCE-BTCUSDT/artifacts/2021/9bps"
+}

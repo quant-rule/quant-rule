@@ -13,6 +13,25 @@ are not treated as releases.
 
 ## [Unreleased]
 
+### Added
+
+- The Binance BTCUSDT public-archive importer and coverage audit, with 96
+  checksum-verified monthly files covering 2018–2025. The source is admitted for
+  cross-venue robustness outside the formal partitions; 2023 remains excluded.
+- `analytics evaluate` now publishes buy-and-hold and matched random-timing
+  benchmarks in `analytics/benchmarks.csv` and `analytics/metrics.json`, with an
+  explicit seed, path count, cost assumptions, and null reasons.
+- A deterministic 15m trade-chart tool that renders one 1,000-candle chart per
+  trade, with OHLC, volume, EMA 10/50/200, entry/exit markers, and a manifest.
+- A local data-cleanup record: large historical evidence is archived outside the
+  working tree and reachable through the original `data/` symlinks.
+
+### Changed
+
+- The BTC 15m break-only long control is not promoted. On the dense Binance
+  BTCUSDT series, 2018–2022 is 65 trades, −$389.64, PF 0.871, and 2023 is 8
+  trades, −$202.50, PF 0.229; the Dukascopy lead is not venue-robust.
+
 ## [0.7.0] - 2026-11-09
 
 ### Added

@@ -14,7 +14,8 @@ use serde_json::Value;
 
 const BIN: &str = env!("CARGO_BIN_EXE_quantrule");
 
-const TABLES: [&str; 8] = [
+const TABLES: [&str; 9] = [
+    "benchmarks.csv",
     "by_timeframe.csv",
     "costs.csv",
     "decisions.csv",
@@ -306,7 +307,7 @@ fn analytics_json_prints_the_envelope() {
     assert_success(&output);
     let value: Value = serde_json::from_str(stdout(&output).trim()).expect("one JSON object");
     assert_eq!(value["trade_count"], 1);
-    assert_eq!(value["table_count"], 8);
+    assert_eq!(value["table_count"], 9);
     assert!(value["metrics"].as_str().is_some());
     assert!(value["tables"].as_str().is_some());
 }

@@ -4,7 +4,9 @@
 //! artifacts. It writes no verdict, no acceptance, and no strategy decision.
 //! No metric it publishes may enter a strategy or model input.
 
+mod benchmarks;
 mod evidence;
+mod evidence_parse;
 mod metrics;
 mod render;
 mod run;

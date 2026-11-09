@@ -48,10 +48,11 @@ const QUALIFICATION_FILES: [&str; 4] = [
     "qualification.json",
     "qualification.md",
 ];
-const ANALYTICS_FILES: [&str; 11] = [
+const ANALYTICS_FILES: [&str; 12] = [
     "metrics.json",
     "provenance.json",
     "summary.txt",
+    "tables/benchmarks.csv",
     "tables/by_timeframe.csv",
     "tables/costs.csv",
     "tables/decisions.csv",

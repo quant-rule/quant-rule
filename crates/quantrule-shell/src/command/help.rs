@@ -163,12 +163,13 @@ const COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "analytics evaluate",
         usage: "analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json]",
-        summary: "Publish descriptive metrics and evaluation tables from a backtest bundle.",
-        output: "the metrics, tables, and summary paths, or a JSON envelope; <out>/analytics/ holds metrics.json, tables/, summary.txt, and provenance.json",
+        summary: "Publish descriptive metrics, benchmarks, and evaluation tables from a backtest bundle.",
+        output: "the metrics, benchmarks, tables, and summary paths, or a JSON envelope; <out>/analytics/ holds metrics.json, tables/ (including benchmarks.csv), summary.txt, and provenance.json",
         notes: &[
             "The evidence bundle is the backtest run output directory.",
             "If --out is omitted, the bundle is written beside the evidence bundle.",
             "The command writes no verdict, no acceptance, and no strategy decision.",
+            "Benchmarks are buy-and-hold and a seeded matched random-timing null; they are descriptive and never enter a strategy.",
             "A metric or table the evidence does not support is null or unsupported with a reason code.",
         ],
     },

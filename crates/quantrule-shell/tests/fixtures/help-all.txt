@@ -97,11 +97,12 @@ qualify
 
 analytics evaluate
   usage:  analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json]
-  does:   Publish descriptive metrics and evaluation tables from a backtest bundle.
-  output: the metrics, tables, and summary paths, or a JSON envelope; <out>/analytics/ holds metrics.json, tables/, summary.txt, and provenance.json
+  does:   Publish descriptive metrics, benchmarks, and evaluation tables from a backtest bundle.
+  output: the metrics, benchmarks, tables, and summary paths, or a JSON envelope; <out>/analytics/ holds metrics.json, tables/ (including benchmarks.csv), summary.txt, and provenance.json
   note:   The evidence bundle is the backtest run output directory.
   note:   If --out is omitted, the bundle is written beside the evidence bundle.
   note:   The command writes no verdict, no acceptance, and no strategy decision.
+  note:   Benchmarks are buy-and-hold and a seeded matched random-timing null; they are descriptive and never enter a strategy.
   note:   A metric or table the evidence does not support is null or unsupported with a reason code.
 
 fetch

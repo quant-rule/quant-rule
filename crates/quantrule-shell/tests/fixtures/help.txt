@@ -12,7 +12,7 @@ QuantRule shell commands
   portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [--json] Replay an execution fills bundle through portfolio accounting.
   backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--json] Run the coupled model, strategy, execution, and portfolio stages.
   qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json] Evaluate an evidence bundle against human-owned qualification criteria.
-  analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json] Publish descriptive metrics and evaluation tables from a backtest bundle.
+  analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json] Publish descriptive metrics, benchmarks, and evaluation tables from a backtest bundle.
   fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>] Fetch a Dukascopy range and write the accepted candles as CSV.
   help [<command>|all|glossary|workflows]                    Print the command map, one command contract, or a reference topic.
 
