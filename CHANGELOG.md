@@ -80,6 +80,11 @@ are not treated as releases.
   are positive but BTC-only; EURUSD and XAUUSD are negative on every variant and
   side, and the BTC cells breach 5% drawdown. Verdict: no candidate; 9 bps and
   2024 not opened.
+- The SR5 absorption-rejection programme and its count gate: 15m
+  `signal.absorption_rejection` with a 1h EMA-stack context on BTCUSD. A1 has 14
+  long and 12 short events over 2018–2022, below the 30-per-side gate; the
+  event-only control is 30/32. Verdict: underpowered; no backtest, 9 bps, or
+  2024 access.
 
 ### Changed
 
