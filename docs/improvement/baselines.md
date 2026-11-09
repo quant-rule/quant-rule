@@ -1,7 +1,7 @@
 # Baselines
 
 - Date: 2026-11-05 (UTC)
-- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; the EURUSD DST-aware session spike stopped with no edge; the v5 1h swing gate stopped with no edge; the v5 Phase 2 price-only spike stopped with no edge and the volume family is blocked by data quality; the M2.x 1h direction programme stopped with no edge; the M3.x state-conditioned preflight stopped as underpowered; the M4.x location-conditioned programme stopped with no edge; the MR5.x mechanism/path grid stopped with no edge; the MR6.x ordered family-confirmation grid stopped with no edge; the MR7.x opening-range sweep/reclaim grid stopped with no edge; the SR1 compression-breakout fade stopped early as infeasible; the SR2 dual fade stopped with no edge; the SR2-A BTCUSD audit found a fragile lead; the SR3 feature-filtered fade produced no candidate; the SR4 multi-instrument stack fade found a BTC-only result; the SR5 absorption count gate stopped as underpowered; the SR6 VWAP rejection run produced no candidate; no strategy or portfolio baseline
+- Status: Accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; the compression bracket program stopped after the barrier path diagnostic; the directional event-family program stopped at the model gate; the divergence-at-pivot program stopped at the model gate; the cross-timeframe trend-agreement program stopped at the model gate; the progression early-stage program was inconclusive (78 pre-flight events, below 200); the v4 directional strategy foundation is stopped; the session/liquidity spike stopped with no edge; the EURUSD DST-aware session spike stopped with no edge; the v5 1h swing gate stopped with no edge; the v5 Phase 2 price-only spike stopped with no edge and the volume family is blocked by data quality; the M2.x 1h direction programme stopped with no edge; the M3.x state-conditioned preflight stopped as underpowered; the M4.x location-conditioned programme stopped with no edge; the MR5.x mechanism/path grid stopped with no edge; the MR6.x ordered family-confirmation grid stopped with no edge; the MR7.x opening-range sweep/reclaim grid stopped with no edge; the SR1 compression-breakout fade stopped early as infeasible; the SR2 dual fade stopped with no edge; the SR2-A BTCUSD audit found a fragile lead; the SR3 feature-filtered fade produced no candidate; the SR4 multi-instrument stack fade found a BTC-only result; the SR5 absorption count gate stopped as underpowered; the SR6 VWAP rejection run produced no candidate; the SR7 BTC+ETH H3 cross-section produced no candidate; no strategy or portfolio baseline
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 A baseline is the accepted run that the next tier is compared against. There is
@@ -45,6 +45,7 @@ by the agent that ran or reviewed the result.
 | Strategy | `SR4-STACK-FADE` | — | 2026-11-09 | Multi-instrument stack-aligned 1h fade; 90 cells; S1 pooled positive but BTC-only (1/3 instruments); BTC cells breach 5% drawdown; 9 bps and validation not opened | — | Not accepted — no candidate |
 | Strategy | `SR5-ABSORPTION` | — | 2026-11-09 | 15m absorption rejection with 1h stack; count gate 5 long / 8 short, below 30 per side; no backtest; 9 bps and validation not opened | — | Not accepted — underpowered |
 | Strategy | `SR6-VWAP` | — | 2026-11-09 | 15m VWAP rejection with 1h stack; 30 cells; V1 long/short negative, PF below 1.10, every cell halted; 9 bps and validation not opened | — | Not accepted — no candidate |
+| Strategy | `SR7-H3-CRYPTO` | — | 2026-11-09 | BTC+ETH H3 1h fade; 20 cells; H3 long 27 trades/5.62% DD; H3 short PF 1.067, 1/5 years, ETH negative; 9 bps and validation not opened | — | Not accepted — no candidate |
 | Portfolio | — | — | — | — | — | None accepted |
 
 The SR2-A BTCUSD audit (`SR2-BTC-AUDIT`) did not accept a baseline. The BTC lead
@@ -70,6 +71,11 @@ threshold, so no backtest was run; see
 The SR6 VWAP programme (`SR6-VWAP`) did not accept a baseline. V1 long and
 short are negative with PF below 1.10, and every cell breached the 5% drawdown
 ceiling; see [the programme record](2026-11-09/SR6-VWAP.md).
+
+The SR7 H3 cross-section (`SR7-H3-CRYPTO`) did not accept a baseline. H3 long
+is positive in all five pooled years but has 27 trades and a 5.62% drawdown;
+H3 short has PF 1.067, one positive year, and a negative ETH side; see
+[the programme record](2026-11-09/SR7-H3-CRYPTO.md).
 
 ## Rules
 

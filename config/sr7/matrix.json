@@ -1,0 +1,247 @@
+{
+  "schema": "quantrule.strategy-matrix/v1",
+  "id": "SR7-H3-CRYPTO",
+  "partition": "strategy_dev",
+  "instruments": [
+    "BTCUSD",
+    "ETHUSD"
+  ],
+  "variants": {
+    "h3-long": {
+      "side": "long",
+      "primary": false
+    },
+    "h3-short": {
+      "side": "short",
+      "primary": false
+    }
+  },
+  "cells": [
+    {
+      "cell_id": "h3-long-btcusd-2018",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "BTCUSD",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-long/BTCUSD/2018/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/BTCUSD/2018/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-btcusd-2019",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "BTCUSD",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-long/BTCUSD/2019/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/BTCUSD/2019/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-btcusd-2020",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "BTCUSD",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-long/BTCUSD/2020/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/BTCUSD/2020/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-btcusd-2021",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "BTCUSD",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-long/BTCUSD/2021/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/BTCUSD/2021/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-btcusd-2022",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "BTCUSD",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-long/BTCUSD/2022/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/BTCUSD/2022/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-ethusd-2018",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "ETHUSD",
+      "year": 2018,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-long/ETHUSD/2018/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/ETHUSD/2018/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-ethusd-2019",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "ETHUSD",
+      "year": 2019,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-long/ETHUSD/2019/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/ETHUSD/2019/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-ethusd-2020",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "ETHUSD",
+      "year": 2020,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-long/ETHUSD/2020/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/ETHUSD/2020/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-ethusd-2021",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "ETHUSD",
+      "year": 2021,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-long/ETHUSD/2021/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/ETHUSD/2021/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-long-ethusd-2022",
+      "variant": "h3-long",
+      "side": "long",
+      "instrument": "ETHUSD",
+      "year": 2022,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-long/ETHUSD/2022/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-long/ETHUSD/2022/run.json",
+      "strategy_config": "config/strategy/sr7-h3-long.json"
+    },
+    {
+      "cell_id": "h3-short-btcusd-2018",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "BTCUSD",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-short/BTCUSD/2018/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/BTCUSD/2018/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-btcusd-2019",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "BTCUSD",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-short/BTCUSD/2019/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/BTCUSD/2019/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-btcusd-2020",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "BTCUSD",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-short/BTCUSD/2020/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/BTCUSD/2020/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-btcusd-2021",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "BTCUSD",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-short/BTCUSD/2021/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/BTCUSD/2021/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-btcusd-2022",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "BTCUSD",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr7/runs/h3-short/BTCUSD/2022/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/BTCUSD/2022/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-ethusd-2018",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "ETHUSD",
+      "year": 2018,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-short/ETHUSD/2018/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/ETHUSD/2018/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-ethusd-2019",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "ETHUSD",
+      "year": 2019,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-short/ETHUSD/2019/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/ETHUSD/2019/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-ethusd-2020",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "ETHUSD",
+      "year": 2020,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-short/ETHUSD/2020/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/ETHUSD/2020/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-ethusd-2021",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "ETHUSD",
+      "year": 2021,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-short/ETHUSD/2021/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/ETHUSD/2021/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    },
+    {
+      "cell_id": "h3-short-ethusd-2022",
+      "variant": "h3-short",
+      "side": "short",
+      "instrument": "ETHUSD",
+      "year": 2022,
+      "primary": true,
+      "run_config": "config/sr7/runs/h3-short/ETHUSD/2022/run.json",
+      "sensitivity_run_config": "config/sr7/runs-9bps/h3-short/ETHUSD/2022/run.json",
+      "strategy_config": "config/strategy/sr7-h3-short.json"
+    }
+  ],
+  "costs": {
+    "base_bps": 6.0,
+    "sensitivity_bps": 9.0
+  },
+  "drawdown": 0.05,
+  "minimum_pooled_trades_per_side": 30
+}
