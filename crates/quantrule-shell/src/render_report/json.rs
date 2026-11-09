@@ -123,6 +123,8 @@ fn latest_value(latest: &quantrule_model::report::FlatLatest) -> Value {
             "adx_slope": latest.states.adx_slope,
             "di_state": latest.states.di_state,
             "rvol_regime": latest.states.rvol_regime,
+            "vol_regime": latest.states.vol_regime,
+            "structure_state": latest.states.structure_state,
         },
         "context": context_value(&latest.context),
     })

@@ -40,6 +40,10 @@ pub enum StateField {
     DiState,
     /// Relative-volume regime.
     RvolRegime,
+    /// Volatility regime.
+    VolRegime,
+    /// Confirmed major structure state.
+    StructureState,
     /// Progression stage.
     ProgressionStage,
     /// Progression leg direction.
@@ -59,6 +63,8 @@ impl StateField {
             "adx_slope" => Some(Self::AdxSlope),
             "di_state" => Some(Self::DiState),
             "rvol_regime" => Some(Self::RvolRegime),
+            "vol_regime" => Some(Self::VolRegime),
+            "structure_state" => Some(Self::StructureState),
             "progression_stage" => Some(Self::ProgressionStage),
             "progression_leg_direction" => Some(Self::ProgressionLegDirection),
             _ => None,
@@ -76,8 +82,10 @@ impl StateField {
             | Self::AdxSlope
             | Self::DiState
             | Self::RvolRegime
+            | Self::StructureState
             | Self::ProgressionLegDirection => value >= -1 && value <= 1,
             Self::AdxRegime => value >= 0 && value <= 1,
+            Self::VolRegime => value >= 0 && value <= 2,
             Self::ProgressionStage => value >= 0 && value <= 5,
         }
     }
@@ -352,6 +360,8 @@ fn state_value(field: StateField, view: &EventTimeframeView) -> Option<i8> {
         StateField::AdxSlope => view.states.adx_slope,
         StateField::DiState => view.states.di_state,
         StateField::RvolRegime => view.states.rvol_regime,
+        StateField::VolRegime => view.states.vol_regime,
+        StateField::StructureState => view.states.structure_state,
         StateField::ProgressionStage => view.progression_stage,
         StateField::ProgressionLegDirection => view.progression_leg_direction,
     }
@@ -478,6 +488,50 @@ mod tests {
     use crate::strategy::event_input::{EventStrategyInput, EventTimeframeView};
     use quantrule_model::timeframe::ModelStates;
 
+    #[test]
+    fn the_context_state_fields_parse_and_validate() {
+        assert_eq!(
+            StateField::from_code("vol_regime"),
+            Some(StateField::VolRegime)
+        );
+        assert_eq!(
+            StateField::from_code("structure_state"),
+            Some(StateField::StructureState)
+        );
+        assert!(StateField::VolRegime.accepts(0));
+        assert!(StateField::VolRegime.accepts(2));
+        assert!(!StateField::VolRegime.accepts(-1));
+        assert!(!StateField::VolRegime.accepts(3));
+        assert!(StateField::StructureState.accepts(-1));
+        assert!(StateField::StructureState.accepts(1));
+        assert!(!StateField::StructureState.accepts(2));
+    }
+
+    #[test]
+    fn the_context_states_match_exact_codes() {
+        let input = input();
+        let vol = Condition::State {
+            timeframe_secs: 900,
+            field: StateField::VolRegime,
+            value: 1,
+        };
+        let structure = Condition::State {
+            timeframe_secs: 900,
+            field: StateField::StructureState,
+            value: 1,
+        };
+        assert!(vol.matches(&input));
+        assert!(structure.matches(&input));
+        assert!(
+            !Condition::State {
+                timeframe_secs: 900,
+                field: StateField::VolRegime,
+                value: 2,
+            }
+            .matches(&input)
+        );
+    }
+
     fn states() -> ModelStates {
         ModelStates {
             ema_stack: Some(1),
@@ -488,6 +542,8 @@ mod tests {
             adx_slope: Some(1),
             di_state: Some(1),
             rvol_regime: Some(1),
+            vol_regime: Some(1),
+            structure_state: Some(1),
         }
     }
 

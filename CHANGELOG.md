@@ -15,6 +15,10 @@ are not treated as releases.
 
 ### Added
 
+- The `vol_regime` and `structure_state` context states. `vol_regime` is the
+  persistent 0/1/2 volatility regime; `structure_state` is the confirmed major
+  +1/0/-1 swing structure. Both are strategy-readable and leave existing event
+  values unchanged.
 - `help workflows` in the shell: an intention-to-workflow selection guide with
   the first command or tool for each workflow.
 - The workflow lab now shows the command-level selection table and the model

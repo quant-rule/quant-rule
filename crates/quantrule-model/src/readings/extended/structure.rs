@@ -172,28 +172,7 @@ pub(super) fn structure_series(
         if let (Some(high), Some(prior_high), Some(low), Some(prior_low)) =
             (last_high, previous_high, last_low, previous_low)
         {
-            let high_state = if high > prior_high {
-                1
-            } else if high < prior_high {
-                -1
-            } else {
-                0
-            };
-            let low_state = if low > prior_low {
-                1
-            } else if low < prior_low {
-                -1
-            } else {
-                0
-            };
-            let state = if high_state == 1 && low_state == 1 {
-                1.0
-            } else if high_state == -1 && low_state == -1 {
-                -1.0
-            } else {
-                0.0
-            };
-            result.structure_state[bar] = Some(state);
+            result.structure_state[bar] = Some(structure_code(high, prior_high, low, prior_low));
         }
         if let Some(atr) = atr_fast {
             let tolerance = config.level_atr * atr;
@@ -238,4 +217,51 @@ pub(super) fn structure_series(
         }
     }
     result
+}
+
+/// The confirmed major structure code: +1 HH/HL, -1 LH/LL, 0 mixed or equal.
+fn structure_code(high: f64, prior_high: f64, low: f64, prior_low: f64) -> f64 {
+    let high_state = if high > prior_high {
+        1
+    } else if high < prior_high {
+        -1
+    } else {
+        0
+    };
+    let low_state = if low > prior_low {
+        1
+    } else if low < prior_low {
+        -1
+    } else {
+        0
+    };
+    if high_state == 1 && low_state == 1 {
+        1.0
+    } else if high_state == -1 && low_state == -1 {
+        -1.0
+    } else {
+        0.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::structure_code;
+
+    #[test]
+    fn equal_highs_and_lows_are_mixed_not_directional() {
+        assert_eq!(structure_code(10.0, 10.0, 5.0, 5.0), 0.0);
+        assert_eq!(structure_code(10.0, 9.0, 5.0, 5.0), 0.0);
+        assert_eq!(structure_code(10.0, 10.0, 6.0, 5.0), 0.0);
+    }
+
+    #[test]
+    fn higher_highs_and_higher_lows_are_up() {
+        assert_eq!(structure_code(11.0, 10.0, 6.0, 5.0), 1.0);
+    }
+
+    #[test]
+    fn lower_highs_and_lower_lows_are_down() {
+        assert_eq!(structure_code(9.0, 10.0, 4.0, 5.0), -1.0);
+    }
 }
