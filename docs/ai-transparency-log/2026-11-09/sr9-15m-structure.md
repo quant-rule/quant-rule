@@ -61,3 +61,12 @@ The full per-year results are in the local run record and the campaign summary.
 - Did not open 2024.
 - Did not claim independent Quant Validator review; the passes were sequential
   same-agent passes.
+
+## Follow-up — 2026-11-09
+
+- Ran the break-only BTC long control at 9 bps for 2018–2022: 30 trades,
+  +$795.69, PF 1.747, max drawdown 2.87%, 4 of 5 years positive (2020 negative).
+- The 9 bps control remains a control, not a candidate; it is a lead for a future
+  pre-registered programme.
+- Corrected the committed `config/sr9/data` source paths from four parent levels
+  to three so the configs rerun from `config/sr9/data`.

@@ -113,9 +113,9 @@ control, or open 2024.
 | EURUSD short | 11 | −$107.96 | 0.000 | 0.42% | 0.0% |
 
 All primary cells are below the 30-trade floor. Five of six have PF below 1.0;
-the BTC short PF 1.128 has only 12 trades. The 9 bps sensitivity was not run
-because the primary cells failed the sample floor at 6 bps; a higher cost cannot
-make an underpowered cell testable.
+the BTC short PF 1.128 has only 12 trades. The primary 9 bps sensitivity was not
+run because the primary cells failed the sample floor at 6 bps; a higher cost
+cannot make an underpowered cell testable.
 
 Break-only control:
 
@@ -130,6 +130,9 @@ Break-only control:
 
 The break-only BTC long is the only positive control with 30 trades; it is not a
 candidate and is not promoted. The other controls are negative or underpowered.
+At 9 bps it has 30 trades, +$795.69, PF 1.747, max drawdown 2.87%, and 4 of 5
+years positive (2020 negative); it remains a control and a lead for a future
+programme, not a candidate.
 
 Verdict: `no_candidate_underpowered`. The premise is not supported by enough
 trades; this is not a clean no-edge conclusion. 2024 remains closed.
