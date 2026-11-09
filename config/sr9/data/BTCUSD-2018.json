@@ -2,7 +2,7 @@
   "schema": "quantrule.data/v3",
   "source": {
     "kind": "csv",
-    "path": "../../../../data/sources/BTCUSD_M1_2018-01-01_2024-12-31.csv"
+    "path": "../../../data/sources/BTCUSD_M1_2018-01-01_2024-12-31.csv"
   },
   "data_version": "dukascopy-bid-btcusd-m1-2018-01-01_2018-12-31-session-v1",
   "from": "2018-01-01",

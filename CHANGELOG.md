@@ -113,8 +113,9 @@ are not treated as releases.
   archive is rejected, no H3 run is made, and 2024 remains closed.
 - The SR9-15M-STRUCTURE campaign: 15m structure-transition on BTCUSD, XAUUSD,
   and EURUSD. All six primary cells are below 30 trades and five have PF below
-  1.0; the break-only BTC long control is positive but is not promoted. Verdict:
-  no candidate, underpowered; 9 bps and 2024 not opened.
+  1.0; the break-only BTC long control is positive at 6 and 9 bps (30 trades,
+  PF 1.746, max drawdown 2.87%) but is not promoted. Verdict: no candidate,
+  underpowered; 2024 not opened.
 
 ### Changed
 
@@ -125,6 +126,8 @@ are not treated as releases.
 
 ### Fixed
 
+- The SR9 data configs resolve the source path from `config/sr9/data` with three
+  parent levels; the previous path skipped one too many and could not rerun.
 - The event-composite strategy accepts registered signal subtypes above 7; it
   previously rejected `signal.vwap_rejection` (subtype 14) even though the
   registry marks it a signal. Diagnostics remain rejected.

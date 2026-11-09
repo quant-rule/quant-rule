@@ -58,19 +58,24 @@ Break-only control, 6 bps:
 The break-only BTC long is the only positive control with 30 trades; it is not a
 candidate and is not promoted. The other controls are negative or underpowered.
 
+Control cost sensitivity: the break-only BTC long at 9 bps has 30 trades,
++$795.69, PF 1.747, max drawdown 2.87%, and 4 of 5 years positive (2020 is
+negative). It remains a control; the result is a lead for a future pre-registered
+programme, not a candidate accepted here.
+
 ## 4. Criteria
 
 | Criterion | Result |
 |---|---|
 | Each primary cell ≥30 trades | fail (9–16) |
 | PF > 1.1 at 6 bps | fail (one 1.128, five below) |
-| PF > 1.0 at 9 bps | not run — sample floor failed |
+| PF > 1.0 at 9 bps (primary) | not run — sample floor failed; break-only BTC long control 9 bps PF 1.747 |
 | Max DD ≤5% | pass (all ≤2.68%) |
 | No halt | pass |
 | 2/3 instruments positive per side | fail |
 
-The stop rule fires on the sample floor. The 9 bps sensitivity was not run
-because a higher cost cannot make an underpowered cell testable.
+The stop rule fires on the sample floor. The primary 9 bps sensitivity was not
+run because a higher cost cannot make an underpowered cell testable.
 
 ## 5. What the result says
 
@@ -94,16 +99,17 @@ variant of this one.
 ## 7. Recommendation
 
 Stop the 15m structure-transition campaign. Do not promote the break-only BTC
-long control. A future programme may test a less restrictive entry or a
-different structure-transition definition, but it must declare its cells,
-criteria, and out-of-sample plan before running.
+long control. The 9 bps control is a lead for a future pre-registered programme,
+not a candidate accepted here. A future programme may test a less restrictive
+entry or a different structure-transition definition, but it must declare its
+cells, criteria, and out-of-sample plan before running.
 
 ## 8. Limitations
 
 - The runs are per instrument-year; aggregate PF is computed from trades and
   drawdown is the worst year, not a single continuous equity curve.
 - BTC 15m coverage is below 95% in three years; XAU/EUR have two marginal years.
-- 9 bps sensitivity was not run after the sample-floor stop.
+- Primary 9 bps sensitivity was not run after the sample-floor stop; the break-only BTC long control was run at 9 bps.
 - Quant Researcher, Quant Developer, and Quant Validator were sequential
   same-agent passes, not independent agents.
 
