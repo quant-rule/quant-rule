@@ -1,6 +1,6 @@
 # Strategy Configuration and Decisions
 
-- Status: Current; implemented 2026-11-06
+- Status: Current; implemented 2026-11-06; updated 2026-11-08 for the `rvol_regime` state
 - Schema: `quantrule.strategy/v1`
 - Commands: `strategy explain`, `strategy run`
 - Related: [`engine-artifacts.md`](engine-artifacts.md),
@@ -109,7 +109,7 @@ disjunction of exit conditions. Each condition names a published timeframe.
 | `source` | The registered source code, `1..=54`. |
 | `direction` | `-1`, `0`, or `+1`. Zero matches either direction and takes the matched event's side. |
 | `contrarian` | Optional boolean on an event condition, default `false`. When `true`, the entry side is the opposite of the matched event direction; the event identity and evidence are unchanged. |
-| `field` | A published state field: `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_regime`, `adx_slope`, `di_state`, `progression_stage`, or `progression_leg_direction`. |
+| `field` | A published state field: `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_regime`, `adx_slope`, `di_state`, `rvol_regime`, `progression_stage`, or `progression_leg_direction`. |
 | `value` | The exact state code the condition requires. |
 
 The parser rejects an event identity that is not in the registry, any

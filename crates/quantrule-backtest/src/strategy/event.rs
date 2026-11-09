@@ -38,6 +38,8 @@ pub enum StateField {
     AdxSlope,
     /// DI direction.
     DiState,
+    /// Relative-volume regime.
+    RvolRegime,
     /// Progression stage.
     ProgressionStage,
     /// Progression leg direction.
@@ -56,6 +58,7 @@ impl StateField {
             "adx_regime" => Some(Self::AdxRegime),
             "adx_slope" => Some(Self::AdxSlope),
             "di_state" => Some(Self::DiState),
+            "rvol_regime" => Some(Self::RvolRegime),
             "progression_stage" => Some(Self::ProgressionStage),
             "progression_leg_direction" => Some(Self::ProgressionLegDirection),
             _ => None,
@@ -72,6 +75,7 @@ impl StateField {
             | Self::MacdHistogramState
             | Self::AdxSlope
             | Self::DiState
+            | Self::RvolRegime
             | Self::ProgressionLegDirection => value >= -1 && value <= 1,
             Self::AdxRegime => value >= 0 && value <= 1,
             Self::ProgressionStage => value >= 0 && value <= 5,
@@ -348,6 +352,7 @@ fn state_value(field: StateField, view: &EventTimeframeView) -> Option<i8> {
         StateField::AdxRegime => view.states.adx_regime,
         StateField::AdxSlope => view.states.adx_slope,
         StateField::DiState => view.states.di_state,
+        StateField::RvolRegime => view.states.rvol_regime,
         StateField::ProgressionStage => view.progression_stage,
         StateField::ProgressionLegDirection => view.progression_leg_direction,
     }
@@ -483,6 +488,7 @@ mod tests {
             adx_regime: Some(1),
             adx_slope: Some(1),
             di_state: Some(1),
+            rvol_regime: Some(1),
         }
     }
 

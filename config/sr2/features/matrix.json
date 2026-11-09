@@ -1,0 +1,474 @@
+{
+  "schema": "quantrule.strategy-matrix/v1",
+  "id": "SR3-FEATURES",
+  "instrument": "BTCUSD",
+  "partition": "strategy_dev",
+  "variants": {
+    "h1-long": {
+      "timeframe": "1h",
+      "model_ladder": [
+        "1h"
+      ],
+      "primary": true
+    },
+    "h1-short": {
+      "timeframe": "1h",
+      "model_ladder": [
+        "1h"
+      ],
+      "primary": true
+    },
+    "h2-long": {
+      "timeframe": "15m",
+      "model_ladder": [
+        "15m",
+        "1h"
+      ],
+      "primary": true
+    },
+    "h2-short": {
+      "timeframe": "15m",
+      "model_ladder": [
+        "15m",
+        "1h"
+      ],
+      "primary": true
+    },
+    "h3-long": {
+      "timeframe": "1h",
+      "model_ladder": [
+        "1h"
+      ],
+      "primary": false
+    },
+    "h3-short": {
+      "timeframe": "1h",
+      "model_ladder": [
+        "1h"
+      ],
+      "primary": false
+    },
+    "h4-long": {
+      "timeframe": "1h",
+      "model_ladder": [
+        "1h"
+      ],
+      "primary": false
+    },
+    "h4-short": {
+      "timeframe": "1h",
+      "model_ladder": [
+        "1h"
+      ],
+      "primary": false
+    }
+  },
+  "cells": [
+    {
+      "variant": "h1-long",
+      "cell_id": "h1-long-2018",
+      "year": 2018,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-long/2018/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-long/2018/run.json",
+      "strategy_config": "config/strategy/sr3-h1-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-long",
+      "cell_id": "h1-long-2019",
+      "year": 2019,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-long/2019/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-long/2019/run.json",
+      "strategy_config": "config/strategy/sr3-h1-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-long",
+      "cell_id": "h1-long-2020",
+      "year": 2020,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-long/2020/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-long/2020/run.json",
+      "strategy_config": "config/strategy/sr3-h1-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-long",
+      "cell_id": "h1-long-2021",
+      "year": 2021,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-long/2021/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-long/2021/run.json",
+      "strategy_config": "config/strategy/sr3-h1-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-long",
+      "cell_id": "h1-long-2022",
+      "year": 2022,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-long/2022/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-long/2022/run.json",
+      "strategy_config": "config/strategy/sr3-h1-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-short",
+      "cell_id": "h1-short-2018",
+      "year": 2018,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-short/2018/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-short/2018/run.json",
+      "strategy_config": "config/strategy/sr3-h1-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-short",
+      "cell_id": "h1-short-2019",
+      "year": 2019,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-short/2019/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-short/2019/run.json",
+      "strategy_config": "config/strategy/sr3-h1-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-short",
+      "cell_id": "h1-short-2020",
+      "year": 2020,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-short/2020/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-short/2020/run.json",
+      "strategy_config": "config/strategy/sr3-h1-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-short",
+      "cell_id": "h1-short-2021",
+      "year": 2021,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-short/2021/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-short/2021/run.json",
+      "strategy_config": "config/strategy/sr3-h1-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h1-short",
+      "cell_id": "h1-short-2022",
+      "year": 2022,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h1-short/2022/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h1-short/2022/run.json",
+      "strategy_config": "config/strategy/sr3-h1-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h2-long",
+      "cell_id": "h2-long-2018",
+      "year": 2018,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-long/2018/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-long/2018/run.json",
+      "strategy_config": "config/strategy/sr3-h2-long.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-long",
+      "cell_id": "h2-long-2019",
+      "year": 2019,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-long/2019/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-long/2019/run.json",
+      "strategy_config": "config/strategy/sr3-h2-long.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-long",
+      "cell_id": "h2-long-2020",
+      "year": 2020,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-long/2020/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-long/2020/run.json",
+      "strategy_config": "config/strategy/sr3-h2-long.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-long",
+      "cell_id": "h2-long-2021",
+      "year": 2021,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-long/2021/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-long/2021/run.json",
+      "strategy_config": "config/strategy/sr3-h2-long.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-long",
+      "cell_id": "h2-long-2022",
+      "year": 2022,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-long/2022/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-long/2022/run.json",
+      "strategy_config": "config/strategy/sr3-h2-long.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-short",
+      "cell_id": "h2-short-2018",
+      "year": 2018,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-short/2018/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-short/2018/run.json",
+      "strategy_config": "config/strategy/sr3-h2-short.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-short",
+      "cell_id": "h2-short-2019",
+      "year": 2019,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-short/2019/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-short/2019/run.json",
+      "strategy_config": "config/strategy/sr3-h2-short.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-short",
+      "cell_id": "h2-short-2020",
+      "year": 2020,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-short/2020/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-short/2020/run.json",
+      "strategy_config": "config/strategy/sr3-h2-short.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-short",
+      "cell_id": "h2-short-2021",
+      "year": 2021,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-short/2021/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-short/2021/run.json",
+      "strategy_config": "config/strategy/sr3-h2-short.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h2-short",
+      "cell_id": "h2-short-2022",
+      "year": 2022,
+      "primary": true,
+      "run_config": "config/sr2/features/runs/h2-short/2022/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h2-short/2022/run.json",
+      "strategy_config": "config/strategy/sr3-h2-short.json",
+      "timeframe": "15m"
+    },
+    {
+      "variant": "h3-long",
+      "cell_id": "h3-long-2018",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-long/2018/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-long/2018/run.json",
+      "strategy_config": "config/strategy/sr3-h3-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-long",
+      "cell_id": "h3-long-2019",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-long/2019/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-long/2019/run.json",
+      "strategy_config": "config/strategy/sr3-h3-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-long",
+      "cell_id": "h3-long-2020",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-long/2020/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-long/2020/run.json",
+      "strategy_config": "config/strategy/sr3-h3-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-long",
+      "cell_id": "h3-long-2021",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-long/2021/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-long/2021/run.json",
+      "strategy_config": "config/strategy/sr3-h3-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-long",
+      "cell_id": "h3-long-2022",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-long/2022/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-long/2022/run.json",
+      "strategy_config": "config/strategy/sr3-h3-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-short",
+      "cell_id": "h3-short-2018",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-short/2018/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-short/2018/run.json",
+      "strategy_config": "config/strategy/sr3-h3-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-short",
+      "cell_id": "h3-short-2019",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-short/2019/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-short/2019/run.json",
+      "strategy_config": "config/strategy/sr3-h3-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-short",
+      "cell_id": "h3-short-2020",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-short/2020/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-short/2020/run.json",
+      "strategy_config": "config/strategy/sr3-h3-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-short",
+      "cell_id": "h3-short-2021",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-short/2021/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-short/2021/run.json",
+      "strategy_config": "config/strategy/sr3-h3-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h3-short",
+      "cell_id": "h3-short-2022",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h3-short/2022/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h3-short/2022/run.json",
+      "strategy_config": "config/strategy/sr3-h3-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-long",
+      "cell_id": "h4-long-2018",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-long/2018/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-long/2018/run.json",
+      "strategy_config": "config/strategy/sr3-h4-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-long",
+      "cell_id": "h4-long-2019",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-long/2019/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-long/2019/run.json",
+      "strategy_config": "config/strategy/sr3-h4-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-long",
+      "cell_id": "h4-long-2020",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-long/2020/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-long/2020/run.json",
+      "strategy_config": "config/strategy/sr3-h4-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-long",
+      "cell_id": "h4-long-2021",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-long/2021/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-long/2021/run.json",
+      "strategy_config": "config/strategy/sr3-h4-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-long",
+      "cell_id": "h4-long-2022",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-long/2022/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-long/2022/run.json",
+      "strategy_config": "config/strategy/sr3-h4-long.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-short",
+      "cell_id": "h4-short-2018",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-short/2018/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-short/2018/run.json",
+      "strategy_config": "config/strategy/sr3-h4-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-short",
+      "cell_id": "h4-short-2019",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-short/2019/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-short/2019/run.json",
+      "strategy_config": "config/strategy/sr3-h4-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-short",
+      "cell_id": "h4-short-2020",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-short/2020/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-short/2020/run.json",
+      "strategy_config": "config/strategy/sr3-h4-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-short",
+      "cell_id": "h4-short-2021",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-short/2021/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-short/2021/run.json",
+      "strategy_config": "config/strategy/sr3-h4-short.json",
+      "timeframe": "1h"
+    },
+    {
+      "variant": "h4-short",
+      "cell_id": "h4-short-2022",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr2/features/runs/h4-short/2022/run.json",
+      "sensitivity_run_config": "config/sr2/features/runs-9bps/h4-short/2022/run.json",
+      "strategy_config": "config/strategy/sr3-h4-short.json",
+      "timeframe": "1h"
+    }
+  ],
+  "costs": {
+    "base_bps": 6.0,
+    "sensitivity_bps": 9.0
+  },
+  "drawdown": 0.05,
+  "minimum_trades": 30
+}

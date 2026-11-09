@@ -312,6 +312,7 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, ModelBundle
     let adx_regime = table.column("adx_regime")?;
     let adx_slope = table.column("adx_slope")?;
     let di_state = table.column("di_state")?;
+    let rvol_regime = table.optional_column("rvol_regime");
     let progression_stage = table.column("progression_stage_code")?;
     let progression_direction = table.column("progression_leg_direction")?;
     let atr = table.column("atr")?;
@@ -332,6 +333,10 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, ModelBundle
             adx_regime: table.optional_i8(row, adx_regime, index)?,
             adx_slope: table.optional_i8(row, adx_slope, index)?,
             di_state: table.optional_i8(row, di_state, index)?,
+            rvol_regime: match rvol_regime {
+                Some(column) => table.optional_i8(row, column, index)?,
+                None => None,
+            },
         };
         let context = ContextBar {
             atr_ratio: table.optional_f64(row, atr_ratio, index)?,
@@ -473,6 +478,13 @@ impl Table {
                 path: PathBuf::from("the model bundle"),
                 message: format!("the required column '{name}' is missing"),
             })
+    }
+
+    /// A column that older bundles may not carry. A missing column reads as a
+    /// null state, so a strategy that does not use it can still replay an old
+    /// bundle.
+    fn optional_column(&self, name: &str) -> Option<usize> {
+        self.header.iter().position(|column| column == name)
     }
 
     fn field<'a>(&self, row: &'a [String], column: usize, _number: usize) -> &'a str {
@@ -623,12 +635,22 @@ fn parse_value<T: std::str::FromStr>(
 
 #[cfg(test)]
 mod tests {
-    use super::ModelBundle;
+    use super::{ModelBundle, Table};
 
     #[test]
     fn a_missing_bundle_is_reported() {
         let error = ModelBundle::load(std::path::Path::new("target/no-such-model-bundle"))
             .expect_err("the bundle does not exist");
         assert!(error.to_string().contains("cannot read"));
+    }
+
+    #[test]
+    fn an_old_bundle_without_the_rvol_regime_column_is_readable() {
+        let table = Table {
+            header: vec!["bar".to_owned()],
+            rows: Vec::new(),
+        };
+        assert_eq!(table.optional_column("bar"), Some(0));
+        assert_eq!(table.optional_column("rvol_regime"), None);
     }
 }

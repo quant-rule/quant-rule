@@ -108,6 +108,8 @@ pub struct FlatStates {
     pub adx_slope: Option<i8>,
     /// Sign of `+DI - -DI`.
     pub di_state: Option<i8>,
+    /// Relative-volume regime: -1 below 1.4, 0 from 1.4 to 2.0, +1 at or above 2.0.
+    pub rvol_regime: Option<i8>,
 }
 
 /// The volatility and participation context.
@@ -327,6 +329,9 @@ impl FlatTimeframe {
                     adx_regime: adx_state.adx_regime,
                     adx_slope: adx_state.adx_slope,
                     di_state: adx_state.di_state,
+                    rvol_regime: timeframe
+                        .states_at(bar)
+                        .and_then(|states| states.rvol_regime),
                 },
                 context: FlatContext {
                     atr_ratio: context.atr_ratio,

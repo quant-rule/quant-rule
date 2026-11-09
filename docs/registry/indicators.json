@@ -110,7 +110,7 @@
       "name": "Relative volume",
       "taxonomy": "participation",
       "role": "context",
-      "claim": "Fast and slow relative volume describe participation; an expansion or contraction is a context for a directional claim.",
+      "claim": "Fast and slow relative volume describe participation; the RVOL regime is a context state (low below 1.4, normal 1.4-2.0, high at or above 2.0), not a direction.",
       "formula": "RV5=V/mean(V,5); RV20=V/mean(V,20); RV50=V/mean(V,50); RR=RV5/RV50; VO=(mean(V,5)-mean(V,20))/mean(V,20)",
       "inputs": [
         "volume"
@@ -125,7 +125,8 @@
         "rvol",
         "rvol_fast",
         "rvol_slow",
-        "rvol_ratio"
+        "rvol_ratio",
+        "rvol_regime"
       ],
       "availability": "n closed bars with volume",
       "events": [

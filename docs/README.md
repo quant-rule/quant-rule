@@ -39,11 +39,11 @@ repeating a status.
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. |
-| Improvement workflow | Current; the S3 surface is implemented, no tiered run has used it yet, human acceptance pending. |
+| Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs and the SR3 feature programme are recorded; no baseline accepted; human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v0.6.0` is the latest release; historical tags are retained; the next release is not yet scheduled. |
-| Changelog | Grouped release history; `[Unreleased]` is empty and `0.6.0` is the current release. |
+| Changelog | Grouped release history; `[Unreleased]` carries the SR2/SR3 feature entries and `0.6.0` is the current release. |
 | Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path; the historical research scripts and the old improvement adapter are retained for reproducibility. |
 
 ## Current architecture
@@ -64,7 +64,8 @@ repeating a status.
 | M1.1 opening-range sweep | Current model; adds the opening-range sweep and control events; MR7 no edge | `docs/model/2026-11-08/model-m1.1.md` |
 | Indicator coverage | Implemented 2026-11-05; updated 2026-11-08: 46 indicators, 145 active events, stable event codes; 191 validation claims and 54/54 construct cases; predictive evidence pending | `docs/model/2026-11-05/indicator-coverage.md` |
 | Model families | Approved 2026-11-05; amended 2026-11-08 for `MR` research families; `M1.1` current, `M1.0` historical, `M2.x`–`M4.x` historical, `MR5.x`–`MR7.x` research, and the future `S3.x` map | `docs/model/2026-11-05/model-families.md` |
-| Model spec v1 | Implemented; condition-only | `docs/model/2026-11-05/model-spec-v1.md` |
+| Model spec v1 | Implemented; condition-only; includes the `rvol_regime` state | `docs/model/2026-11-05/model-spec-v1.md` |
+| `rvol_regime` context state | Current; low below 1.4, normal 1.4–2.0, high at or above 2.0; no event changes | `docs/model/2026-11-08/rvol-regime.md` |
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |
