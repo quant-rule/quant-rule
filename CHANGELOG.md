@@ -22,7 +22,7 @@ are not treated as releases.
   benchmarks in `analytics/benchmarks.csv` and `analytics/metrics.json`, with an
   explicit seed, path count, cost assumptions, and null reasons.
 - A deterministic 15m trade-chart tool that renders one 1,000-candle chart per
-  trade, with OHLC, volume, EMA 10/50/200, entry/exit markers, and a manifest.
+  trade, with OHLC, volume, model EMA 20/50/200, entry/exit markers, and a manifest.
 - A local data-cleanup record: large historical evidence is archived outside the
   working tree and reachable through the original `data/` symlinks.
 
@@ -34,6 +34,8 @@ are not treated as releases.
 
 ### Fixed
 
+- Trade charts now render the model's `ema_fast`/`ema_mid`/`ema_slow`
+  (20/50/200) instead of a chart-side EMA 10/50/200 calculation.
 - Trade charts now draw the exit marker and label the exit action (`SELL` for a
   long, `BUY` for a short); previously only the entry marker was visible.
 
