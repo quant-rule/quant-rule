@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from absorption_count import as_of, gate_report, merge_counts, side_of
+from absorption_count import as_of, gate_report, is_target_event, merge_counts, side_of
 
 
 class AbsorptionCountTests(unittest.TestCase):
@@ -14,6 +14,18 @@ class AbsorptionCountTests(unittest.TestCase):
         self.assertEqual(as_of(closes, 9000), 1)
         self.assertEqual(as_of(closes, 10800), 2)
         self.assertIsNone(as_of(closes, 3599))
+
+    def test_only_the_absorption_rejection_code_is_counted(self) -> None:
+        base = {
+            "timeframe_secs": "900",
+            "event_code": "52",
+            "event_type_code": "3",
+            "event_subtype_code": "12",
+            "source_code": "22",
+        }
+        self.assertTrue(is_target_event(base))
+        self.assertFalse(is_target_event({**base, "event_code": "51"}))
+        self.assertFalse(is_target_event({**base, "timeframe_secs": "3600"}))
 
     def test_side_mapping(self) -> None:
         self.assertEqual(side_of(1), "long")

@@ -2,7 +2,9 @@
 """Count absorption-rejection events and their 1h stack context.
 
 The tool is read-only over a `report model` bundle. It reads `events.csv` and
-`readings.csv`, keeps the 15m `signal.absorption_rejection` events, and joins
+`readings.csv`, keeps the 15m `signal.absorption_rejection` events by their
+unique event code (52; the shared type/subtype/source also covers the separate
+`signal.absorption_break` event), and joins
 each event's available bar to the latest closed 1h bar using the same
 close-time rule as the strategy context. It writes a deterministic JSON count
 report and exits non-zero when the count gate fails.
@@ -29,6 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+EVENT_CODE = 52
 EVENT_TYPE = 3
 EVENT_SUBTYPE = 12
 EVENT_SOURCE = 22
@@ -89,16 +92,21 @@ def as_of(closes: list[int], at: int) -> int | None:
     return None if index < 0 else index
 
 
+def is_target_event(row: dict[str, str]) -> bool:
+    """The unique event identity, not the shared type/subtype/source triple."""
+    return (
+        int(row["timeframe_secs"]) == EXECUTION_SECS
+        and int(row["event_code"]) == EVENT_CODE
+    )
+
+
 def count_events(bundle: Path) -> dict[str, Any]:
     closes, contexts = context_rows(bundle)
     executions = execution_rows(bundle)
     events = [
         row
         for row in read_csv(bundle / "events.csv")
-        if int(row["timeframe_secs"]) == EXECUTION_SECS
-        and int(row["event_type_code"]) == EVENT_TYPE
-        and int(row["event_subtype_code"]) == EVENT_SUBTYPE
-        and int(row["source_code"]) == EVENT_SOURCE
+        if is_target_event(row)
     ]
     categories = ("all", "a1", "a2", "a3")
     totals = {name: {"long": 0, "short": 0} for name in categories}
@@ -144,7 +152,12 @@ def count_events(bundle: Path) -> dict[str, Any]:
         "schema": "quantrule.absorption-count/v1",
         "execution_timeframe_secs": EXECUTION_SECS,
         "context_timeframe_secs": CONTEXT_SECS,
-        "event": {"event_type": EVENT_TYPE, "subtype": EVENT_SUBTYPE, "source": EVENT_SOURCE},
+        "event": {
+            "code": EVENT_CODE,
+            "event_type": EVENT_TYPE,
+            "subtype": EVENT_SUBTYPE,
+            "source": EVENT_SOURCE,
+        },
         "totals": totals,
         "by_year": {year: by_year[year] for year in sorted(by_year)},
         "events": len(events),
@@ -174,7 +187,12 @@ def merge_counts(counts: list[dict[str, Any]]) -> dict[str, Any]:
         "schema": "quantrule.absorption-count/v1",
         "execution_timeframe_secs": EXECUTION_SECS,
         "context_timeframe_secs": CONTEXT_SECS,
-        "event": {"event_type": EVENT_TYPE, "subtype": EVENT_SUBTYPE, "source": EVENT_SOURCE},
+        "event": {
+            "code": EVENT_CODE,
+            "event_type": EVENT_TYPE,
+            "subtype": EVENT_SUBTYPE,
+            "source": EVENT_SOURCE,
+        },
         "totals": totals,
         "by_year": {year: by_year[year] for year in sorted(by_year)},
         "events": events,

@@ -75,7 +75,7 @@ view for the local store.
 | `SR2-BTC-FEATURES` | 2026-11-08 | SR2-A top-trade attribution and feature filters | pattern supports a stack-aligned low-RVOL fade; 2019 remains negative; no strategy run | [record](2026-11-08/SR2-BTC-FEATURES.md) |
 | `SR3-FEATURES` | 2026-11-08 | Feature-filtered BTCUSD fade; 8 variants × 2018–2022 | no candidate — 1h sides underpowered, 15m entry negative, 2024 not opened | [record](2026-11-08/SR3-FEATURES.md) |
 | `SR4-STACK-FADE` | 2026-11-09 | Multi-instrument stack-aligned 1h fade; 3 rules × 3 instruments × 2 sides × 2018–2022 | no candidate — BTC-only; S1 fails 2-of-3 instruments and 5% drawdown; 2024 not opened | [record](2026-11-09/SR4-STACK-FADE.md) |
-| `SR5-ABSORPTION` | 2026-11-09 | 15m absorption rejection with 1h stack context; count gate before backtest | underpowered — A1 14 long / 12 short, below 30 per side; no backtest; 2024 not opened | [record](2026-11-09/SR5-ABSORPTION.md) |
+| `SR5-ABSORPTION` | 2026-11-09 | 15m absorption rejection with 1h stack context; count gate before backtest | underpowered — A1 5 long / 8 short, below 30 per side; no backtest; 2024 not opened | [record](2026-11-09/SR5-ABSORPTION.md) |
 
 
 

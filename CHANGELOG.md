@@ -81,9 +81,9 @@ are not treated as releases.
   side, and the BTC cells breach 5% drawdown. Verdict: no candidate; 9 bps and
   2024 not opened.
 - The SR5 absorption-rejection programme and its count gate: 15m
-  `signal.absorption_rejection` with a 1h EMA-stack context on BTCUSD. A1 has 14
-  long and 12 short events over 2018–2022, below the 30-per-side gate; the
-  event-only control is 30/32. Verdict: underpowered; no backtest, 9 bps, or
+  `signal.absorption_rejection` with a 1h EMA-stack context on BTCUSD. A1 has 5
+  long and 8 short events over 2018–2022, below the 30-per-side gate; the
+  event-only control is 15/17. Verdict: underpowered; no backtest, 9 bps, or
   2024 access.
 
 ### Changed
@@ -95,6 +95,9 @@ are not treated as releases.
 
 ### Fixed
 
+- The SR5 absorption count gate now filters on the unique event code 52; the
+  first gate also matched `signal.absorption_break` (code 51). The corrected A1
+  count is 5 long / 8 short; the underpowered verdict is unchanged.
 - The model condition evaluator accepts float `min`/`max` bounds for continuous
   readings such as `rvol_ratio` and `atr`; integer `values` is unchanged.
 - The strategy event snapshot selects its event window by binary search over
