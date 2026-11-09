@@ -230,9 +230,7 @@ fn parse_state(value: &Value) -> Result<SpecState, SpecParseError> {
         "a state name",
     )?;
     let state = state_field(name).ok_or_else(|| {
-        SpecParseError::new(format!(
-            "the state {name} is not ema_stack, rsi_zone, macd_state, macd_histogram_state, adx_regime, adx_slope, or di_state"
-        ))
+        SpecParseError::new(format!("the state {name} is not a registered state field"))
     })?;
     let timeframe_secs = as_u64(
         field(object, "timeframe", "a state expression")?,
@@ -261,6 +259,8 @@ fn state_field(name: &str) -> Option<SpecStateField> {
         "adx_slope" => Some(SpecStateField::AdxSlope),
         "di_state" => Some(SpecStateField::DiState),
         "rvol_regime" => Some(SpecStateField::RvolRegime),
+        "vol_regime" => Some(SpecStateField::VolRegime),
+        "structure_state" => Some(SpecStateField::StructureState),
         _ => None,
     }
 }
@@ -483,6 +483,18 @@ mod tests {
             ],
             &MarketStateConfig::default(),
         )
+    }
+
+    #[test]
+    fn the_context_states_are_registered() {
+        assert_eq!(
+            super::state_field("vol_regime"),
+            Some(SpecStateField::VolRegime)
+        );
+        assert_eq!(
+            super::state_field("structure_state"),
+            Some(SpecStateField::StructureState)
+        );
     }
 
     #[test]

@@ -719,6 +719,42 @@ mod tests {
     }
 
     #[test]
+    fn vol_and_structure_state_conditions_parse() {
+        let mut value = valid();
+        value["exit"] = json!([
+            { "kind": "state", "timeframe": "5m", "field": "vol_regime", "value": 1 },
+            { "kind": "state", "timeframe": "5m", "field": "structure_state", "value": -1 }
+        ]);
+        let config = parse(&value, "strategy.json").expect("the context states parse");
+        assert!(matches!(
+            config.exit_conditions()[0],
+            Condition::State {
+                field: StateField::VolRegime,
+                value: 1,
+                ..
+            }
+        ));
+        assert!(matches!(
+            config.exit_conditions()[1],
+            Condition::State {
+                field: StateField::StructureState,
+                value: -1,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn a_vol_regime_value_outside_its_bounds_is_rejected() {
+        let mut value = valid();
+        value["exit"] = json!([
+            { "kind": "state", "timeframe": "5m", "field": "vol_regime", "value": 3 }
+        ]);
+        let error = parse(&value, "strategy.json").expect_err("the value is outside 0..=2");
+        assert!(error.to_string().contains("outside its field's range"));
+    }
+
+    #[test]
     fn a_valid_compression_bracket_config_parses() {
         let config = parse(
             &json!({

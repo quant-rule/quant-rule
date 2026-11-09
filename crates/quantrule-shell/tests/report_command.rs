@@ -92,6 +92,9 @@ fn the_model_bundle_has_the_flat_shape() {
         assert!(timeframe.get("events").is_some());
         assert!(timeframe.get("progression").is_some());
         assert!(timeframe.get("axes").is_none());
+        let states = &timeframe["latest"]["states"];
+        assert!(states.get("vol_regime").is_some());
+        assert!(states.get("structure_state").is_some());
     }
 }
 

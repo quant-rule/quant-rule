@@ -110,6 +110,11 @@ pub struct FlatStates {
     pub di_state: Option<i8>,
     /// Relative-volume regime: -1 below 1.4, 0 from 1.4 to 2.0, +1 at or above 2.0.
     pub rvol_regime: Option<i8>,
+    /// Volatility regime: 0 compressed, 1 normal, 2 expanded.
+    pub vol_regime: Option<i8>,
+    /// Confirmed major structure: +1 higher highs and higher lows, -1 lower
+    /// highs and lower lows, 0 mixed or unavailable.
+    pub structure_state: Option<i8>,
 }
 
 /// The volatility and participation context.
@@ -332,6 +337,12 @@ impl FlatTimeframe {
                     rvol_regime: timeframe
                         .states_at(bar)
                         .and_then(|states| states.rvol_regime),
+                    vol_regime: timeframe
+                        .states_at(bar)
+                        .and_then(|states| states.vol_regime),
+                    structure_state: timeframe
+                        .states_at(bar)
+                        .and_then(|states| states.structure_state),
                 },
                 context: FlatContext {
                     atr_ratio: context.atr_ratio,

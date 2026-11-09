@@ -595,6 +595,8 @@ fn state_value(states: quantrule_model::timeframe::ModelStates, field: StateFiel
         StateField::AdxSlope => states.adx_slope,
         StateField::DiState => states.di_state,
         StateField::RvolRegime => states.rvol_regime,
+        StateField::VolRegime => states.vol_regime,
+        StateField::StructureState => states.structure_state,
         StateField::ProgressionStage | StateField::ProgressionLegDirection => None,
     }
 }
@@ -609,6 +611,8 @@ fn state_field_label(field: StateField) -> &'static str {
         StateField::AdxSlope => "adx_slope",
         StateField::DiState => "di_state",
         StateField::RvolRegime => "rvol_regime",
+        StateField::VolRegime => "vol_regime",
+        StateField::StructureState => "structure_state",
         StateField::ProgressionStage => "progression_stage",
         StateField::ProgressionLegDirection => "progression_leg_direction",
     }

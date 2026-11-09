@@ -108,7 +108,7 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
                 optional(extended.ad_ma.get(bar)),
                 optional(extended.atr_ratio.get(bar)),
                 optional(extended.atr_slope.get(bar)),
-                optional(extended.vol_regime.get(bar)),
+                optional(states.and_then(|states| states.vol_regime).map(f64::from)),
                 optional(extended.range_expansion.get(bar)),
                 optional(extended.mar_fast.get(bar)),
                 optional(extended.mar_slow.get(bar)),
@@ -119,7 +119,11 @@ pub(super) fn readings_csv(run: &ModelRun, ladder: &[u64]) -> String {
                 optional(extended.donchian_upper.get(bar)),
                 optional(extended.donchian_lower.get(bar)),
                 optional(extended.donchian_position.get(bar)),
-                optional(extended.structure_state.get(bar)),
+                optional(
+                    states
+                        .and_then(|states| states.structure_state)
+                        .map(f64::from),
+                ),
                 optional(extended.last_pivot_high.get(bar)),
                 optional(extended.last_pivot_low.get(bar)),
                 optional(extended.level_touches.get(bar)),

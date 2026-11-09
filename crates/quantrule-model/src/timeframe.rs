@@ -88,6 +88,11 @@ pub struct ModelStates {
     pub di_state: Option<i8>,
     /// Relative-volume regime: -1 below 1.4, 0 from 1.4 to 2.0, +1 at or above 2.0.
     pub rvol_regime: Option<i8>,
+    /// Volatility regime: 0 compressed, 1 normal, 2 expanded.
+    pub vol_regime: Option<i8>,
+    /// Confirmed major structure: +1 higher highs and higher lows, -1 lower
+    /// highs and lower lows, 0 mixed or unavailable.
+    pub structure_state: Option<i8>,
 }
 
 /// The complete published model state for one closed bar.
@@ -419,6 +424,7 @@ impl TimeframeModel {
         }
         Some(model_states(
             &self.readings,
+            &self.extended,
             &self.macd,
             &self.adx,
             bar,
@@ -440,6 +446,7 @@ impl TimeframeModel {
             readings: ModelReadings::at(&self.readings, &self.adx, bar),
             states: model_states(
                 &self.readings,
+                &self.extended,
                 &self.macd,
                 &self.adx,
                 bar,
@@ -513,6 +520,7 @@ impl TimeframeModel {
 
 fn model_states(
     readings: &Readings,
+    extended: &ExtendedReadings,
     macd: &MacdSeries,
     adx: &AdxSeries,
     bar: usize,
@@ -543,6 +551,44 @@ fn model_states(
         adx_slope: adx_state.adx_slope,
         di_state: adx_state.di_state,
         rvol_regime: readings.rvol20.get(bar).map(rvol_regime_code),
+        vol_regime: extended.vol_regime.get(bar).and_then(volatility_state_code),
+        structure_state: extended
+            .structure_state
+            .get(bar)
+            .and_then(structure_state_code),
+    }
+}
+
+/// Converts the extended volatility code to the published 0/1/2 state.
+///
+/// The extended series carries these codes as `f64` because every extended
+/// reading shares one series type. Anything outside 0/1/2 is unavailable
+/// rather than rounded.
+fn volatility_state_code(value: f64) -> Option<i8> {
+    if value == 0.0 {
+        Some(0)
+    } else if value == 1.0 {
+        Some(1)
+    } else if value == 2.0 {
+        Some(2)
+    } else {
+        None
+    }
+}
+
+/// Converts the extended structure code to the published -1/0/+1 state.
+///
+/// Anything outside the three contract codes is unavailable rather than
+/// rounded.
+fn structure_state_code(value: f64) -> Option<i8> {
+    if value == -1.0 {
+        Some(-1)
+    } else if value == 0.0 {
+        Some(0)
+    } else if value == 1.0 {
+        Some(1)
+    } else {
+        None
     }
 }
 
@@ -590,7 +636,27 @@ fn sign_state(value: f64) -> i8 {
 
 #[cfg(test)]
 mod tests {
-    use super::rvol_regime_code;
+    use super::{rvol_regime_code, structure_state_code, volatility_state_code};
+
+    #[test]
+    fn the_volatility_state_mapping_rejects_non_codes() {
+        assert_eq!(volatility_state_code(0.0), Some(0));
+        assert_eq!(volatility_state_code(1.0), Some(1));
+        assert_eq!(volatility_state_code(2.0), Some(2));
+        assert_eq!(volatility_state_code(-1.0), None);
+        assert_eq!(volatility_state_code(0.5), None);
+        assert_eq!(volatility_state_code(f64::NAN), None);
+    }
+
+    #[test]
+    fn the_structure_state_mapping_rejects_non_codes() {
+        assert_eq!(structure_state_code(-1.0), Some(-1));
+        assert_eq!(structure_state_code(0.0), Some(0));
+        assert_eq!(structure_state_code(1.0), Some(1));
+        assert_eq!(structure_state_code(2.0), None);
+        assert_eq!(structure_state_code(0.5), None);
+        assert_eq!(structure_state_code(f64::NAN), None);
+    }
 
     #[test]
     fn rvol_regime_uses_the_contract_thresholds() {

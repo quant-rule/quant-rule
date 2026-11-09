@@ -313,6 +313,8 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, ModelBundle
     let adx_slope = table.column("adx_slope")?;
     let di_state = table.column("di_state")?;
     let rvol_regime = table.optional_column("rvol_regime");
+    let vol_regime = table.optional_column("vol_regime");
+    let structure_state = table.optional_column("structure_state");
     let progression_stage = table.column("progression_stage_code")?;
     let progression_direction = table.column("progression_leg_direction")?;
     let atr = table.column("atr")?;
@@ -334,6 +336,14 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, ModelBundle
             adx_slope: table.optional_i8(row, adx_slope, index)?,
             di_state: table.optional_i8(row, di_state, index)?,
             rvol_regime: match rvol_regime {
+                Some(column) => table.optional_i8(row, column, index)?,
+                None => None,
+            },
+            vol_regime: match vol_regime {
+                Some(column) => table.optional_i8(row, column, index)?,
+                None => None,
+            },
+            structure_state: match structure_state {
                 Some(column) => table.optional_i8(row, column, index)?,
                 None => None,
             },

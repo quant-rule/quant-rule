@@ -64,8 +64,10 @@ repeating a status.
 | M1.1 opening-range sweep | Current model; adds the opening-range sweep and control events; MR7 no edge | `docs/model/2026-11-08/model-m1.1.md` |
 | Indicator coverage | Implemented 2026-11-05; updated 2026-11-08: 46 indicators, 145 active events, stable event codes; 191 validation claims and 54/54 construct cases; predictive evidence pending | `docs/model/2026-11-05/indicator-coverage.md` |
 | Model families | Approved 2026-11-05; amended 2026-11-08 for `MR` research families; `M1.1` current, `M1.0` historical, `M2.x`–`M4.x` historical, `MR5.x`–`MR7.x` research, and the future `S3.x` map | `docs/model/2026-11-05/model-families.md` |
-| Model spec v1 | Implemented; condition-only; includes the `rvol_regime` state | `docs/model/2026-11-05/model-spec-v1.md` |
+| Model spec v1 | Implemented; condition-only; includes the `rvol_regime`, `vol_regime`, and `structure_state` states | `docs/model/2026-11-05/model-spec-v1.md` |
 | `rvol_regime` context state | Current; low below 1.4, normal 1.4–2.0, high at or above 2.0; no event changes | `docs/model/2026-11-08/rvol-regime.md` |
+| `vol_regime` context state | Current; compressed at or below 0.7, normal below 1.3, expanded at or above 1.3; no event changes | `docs/model/2026-11-09/vol-regime.md` |
+| `structure_state` context state | Current; confirmed major HH/HL, LH/LL, or mixed; no event changes | `docs/model/2026-11-09/structure-state.md` |
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |

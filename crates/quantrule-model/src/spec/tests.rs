@@ -129,6 +129,30 @@ fn validate_accepts_a_bounded_spec() {
 }
 
 #[test]
+fn a_spec_can_read_the_volatility_and_structure_states() {
+    let spec = spec(vec![condition(
+        "regime",
+        SpecExpression::All(vec![
+            SpecExpression::State(SpecState {
+                state: SpecStateField::VolRegime,
+                timeframe_secs: M5,
+                equals: 1,
+            }),
+            SpecExpression::State(SpecState {
+                state: SpecStateField::StructureState,
+                timeframe_secs: M5,
+                equals: 0,
+            }),
+        ]),
+    )]);
+    assert_eq!(spec.validate(), Ok(()));
+
+    let candles = m5_candles(400);
+    let evaluation = spec.evaluate(&run(&candles)).expect("the spec evaluates");
+    assert_eq!(evaluation.bars, candles.len());
+}
+
+#[test]
 fn a_spec_can_read_the_rvol_regime() {
     let spec = spec(vec![condition(
         "rvol",

@@ -151,7 +151,7 @@ fn write_latest(out: &mut impl Write, report: &FlatReport) -> io::Result<()> {
     writeln!(out, "[latest]")?;
     writeln!(
         out,
-        "{:<10} {:<21} {:>11} {:>11} {:>11} {:>9} {:>9} {:>9} {:>9} {:>9} {:>4} {:>4} {:>4} {:>5} {:>6} {:>7}",
+        "{:<10} {:<21} {:>11} {:>11} {:>11} {:>9} {:>9} {:>9} {:>9} {:>9} {:>4} {:>4} {:>4} {:>5} {:>6} {:>5} {:>6} {:>7}",
         "timeframe",
         "open_time",
         "ema_fast",
@@ -167,14 +167,18 @@ fn write_latest(out: &mut impl Write, report: &FlatReport) -> io::Result<()> {
         "macd",
         "adx_r",
         "adx_s",
+        "vol",
+        "struct",
         "context"
     )?;
     for timeframe in &report.timeframes {
         let Some(latest) = &timeframe.latest else {
             writeln!(
                 out,
-                "{:<10} {:<21} {:>11} {:>11} {:>11} {:>9} {:>9} {:>9} {:>9} {:>9} {:>4} {:>4} {:>4} {:>5} {:>6} {:>7}",
+                "{:<10} {:<21} {:>11} {:>11} {:>11} {:>9} {:>9} {:>9} {:>9} {:>9} {:>4} {:>4} {:>4} {:>5} {:>6} {:>5} {:>6} {:>7}",
                 labels::timeframe_label(timeframe.timeframe_secs),
+                "-",
+                "-",
                 "-",
                 "-",
                 "-",
@@ -195,7 +199,7 @@ fn write_latest(out: &mut impl Write, report: &FlatReport) -> io::Result<()> {
         };
         writeln!(
             out,
-            "{:<10} {:<21} {:>11} {:>11} {:>11} {:>9} {:>9} {:>9} {:>9} {:>9} {:>4} {:>4} {:>4} {:>5} {:>6} {:>7}",
+            "{:<10} {:<21} {:>11} {:>11} {:>11} {:>9} {:>9} {:>9} {:>9} {:>9} {:>4} {:>4} {:>4} {:>5} {:>6} {:>5} {:>6} {:>7}",
             labels::timeframe_label(timeframe.timeframe_secs),
             format_utc_timestamp(latest.open_time),
             opt_float(latest.readings.ema_fast),
@@ -211,6 +215,8 @@ fn write_latest(out: &mut impl Write, report: &FlatReport) -> io::Result<()> {
             opt_code(latest.states.macd_state),
             opt_code(latest.states.adx_regime),
             opt_code(latest.states.adx_slope),
+            opt_code(latest.states.vol_regime),
+            opt_code(latest.states.structure_state),
             latest.context.context_code.map_or_else(
                 || "-".to_owned(),
                 |code| labels::context_label(code).to_owned()
