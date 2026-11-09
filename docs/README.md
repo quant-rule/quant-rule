@@ -39,11 +39,11 @@ repeating a status.
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. |
-| Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs and the SR3 feature programme are recorded; no baseline accepted; human acceptance pending. |
+| Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, and the SR4 multi-instrument fade are recorded; no baseline accepted; human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v0.6.0` is the latest release; historical tags are retained; the next release is not yet scheduled. |
-| Changelog | Grouped release history; `[Unreleased]` carries the SR2/SR3 feature entries and `0.6.0` is the current release. |
+| Changelog | Grouped release history; `[Unreleased]` carries the SR2/SR3/SR4 entries and `0.6.0` is the current release. |
 | Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path; the historical research scripts and the old improvement adapter are retained for reproducibility. |
 
 ## Current architecture

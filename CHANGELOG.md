@@ -75,6 +75,11 @@ are not treated as releases.
   variants, 40 base cells, and 30 9 bps sensitivity cells. The 1h sides are
   positive at 6 and 9 bps but have 9–21 trades per side; the 15m entry is
   negative; H4 long reaches 5.04%. Verdict: no candidate; 2024 not opened.
+- The SR4-STACK-FADE multi-instrument programme: three 1h rules × BTCUSD,
+  EURUSD, and XAUUSD × two sides × 2018–2022, 90 base cells. The pooled S1 sides
+  are positive but BTC-only; EURUSD and XAUUSD are negative on every variant and
+  side, and the BTC cells breach 5% drawdown. Verdict: no candidate; 9 bps and
+  2024 not opened.
 
 ### Changed
 
