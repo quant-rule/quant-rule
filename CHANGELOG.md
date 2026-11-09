@@ -25,6 +25,9 @@ are not treated as releases.
   trade, with OHLC, volume, model EMA 20/50/200, entry/exit markers, and a manifest.
 - A local data-cleanup record: large historical evidence is archived outside the
   working tree and reachable through the original `data/` symlinks.
+- The `tools/trades/` context exporter, annotation mapper, and exit-quality
+  table. Each trade gets a 250-bar entry/exit window with all readings, events,
+  decisions, orders, and fills; the post-fill window is separate.
 
 ### Changed
 

@@ -52,6 +52,13 @@ sits at the 3.2nd percentile of 1,000 matched random-timing paths.
 - The benchmark null replays commission and sizing, not execution fees, funding,
   or the drawdown halt.
 
+## Research artifacts
+
+- `data/improvement/2026-11-09/BINANCE-BTCUSDT/context/<year>/` — 250-bar entry/exit context for each trade.
+- `data/improvement/2026-11-09/BINANCE-BTCUSDT/annotations/2018/` — example annotation contexts for the marked 2018 trade.
+- `data/improvement/2026-11-09/BINANCE-BTCUSDT/exit_quality.csv` — 73-trade exit-quality table.
+- [`exit-quality-initial.md`](../../reports/2026-11-09/exit-quality-initial.md) — exploratory exit-quality read.
+
 ## Records
 
 - Data change: `DATA-2026-11-09-BINANCE-BTCUSDT-01`
