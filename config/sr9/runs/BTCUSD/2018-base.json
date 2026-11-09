@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr9-btcusd-2018-base",
+  "policy": "../../policies/15m/policy-multi.json",
+  "data": "../../data/BTCUSD-2018.json",
+  "model": "../../model-compression.json",
+  "execution": "../../execution-15m.json",
+  "portfolio": "../../portfolio-5pct.json",
+  "model_timeframes": [
+    "15m"
+  ],
+  "output_root": "../../../../data/improvement/2026-11-09/SR9-15M-STRUCTURE/artifacts/BTCUSD/2018/base"
+}

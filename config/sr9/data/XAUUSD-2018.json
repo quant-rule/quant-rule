@@ -1,0 +1,25 @@
+{
+  "schema": "quantrule.data/v3",
+  "source": {
+    "kind": "csv",
+    "path": "../../../../data/sources/XAUUSD_M1_2018-01-01_2024-12-31.csv"
+  },
+  "data_version": "dukascopy-bid-xauusd-m1-2018-01-01_2018-12-31-session-v1",
+  "from": "2018-01-01",
+  "to": "2018-12-31",
+  "source_timeframe": "1m",
+  "available_timeframes": [
+    "1m",
+    "15m"
+  ],
+  "session": {
+    "kind": "weekly",
+    "open_weekday": "Sunday",
+    "open_time": "22:00",
+    "close_weekday": "Friday",
+    "close_time": "21:00",
+    "holidays": []
+  },
+  "max_candles": 600000,
+  "instrument": "XAUUSD"
+}
