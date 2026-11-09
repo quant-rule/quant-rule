@@ -252,6 +252,21 @@ class RenderTest(unittest.TestCase):
             self.assertEqual(manifest["ema_source"], "model.readings.ema_fast/ema_mid/ema_slow")
             self.assertEqual(manifest["ema_periods"], {"fast": 20, "mid": 50, "slow": 200})
             self.assertEqual(len(manifest["charts"]), 3)
+            chart = manifest["charts"][0]
+            for key in (
+                "plot_left",
+                "plot_width",
+                "price_top",
+                "price_bottom",
+                "price_low",
+                "price_high",
+                "window_start_bar",
+                "window_end_bar",
+                "bars",
+                "timeframe_secs",
+            ):
+                self.assertIn(key, chart)
+            self.assertEqual(len(chart["bars"]), chart["candles"])
             index = (root / "first" / "charts" / "index.csv").read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(index), 4)
 

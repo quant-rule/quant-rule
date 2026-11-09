@@ -82,6 +82,7 @@ repeating a status.
 | Analytics lab tutorial | Current; `analytics evaluate`, the descriptive metrics, and the evaluation tables | `docs/tutorials/2026-11-06/analytics-lab.md` |
 | Pipeline lab tutorial | Current; every stage independently, the coupled run, qualification, analytics, and determinism | `docs/tutorials/2026-11-06/pipeline-lab.md` |
 | Trade context lab tutorial | Current; 250-bar entry/exit context, annotations, and exit-quality evaluation | `docs/tutorials/2026-11-09/trade-context.md` |
+| Chart annotator tutorial | Current; local click-to-annotate page for entry/exit marks | `docs/tutorials/2026-11-09/chart-annotator.md` |
 | Indicator verification matrix | Current; 46 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 143 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |

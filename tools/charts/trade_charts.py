@@ -581,6 +581,17 @@ def draw_chart(
         "candles": len(window),
         "width": width,
         "height": height,
+        "timeframe_secs": TF_SECONDS[timeframe],
+        "plot_left": left,
+        "plot_width": plot_width,
+        "plot_right": width - right,
+        "price_top": top,
+        "price_bottom": price_bottom,
+        "price_low": price_low,
+        "price_high": price_high,
+        "window_start_bar": window[0].bar,
+        "window_end_bar": window[-1].bar,
+        "bars": [[bar.bar, bar.timestamp, bar.high, bar.low] for bar in window],
     }
 
 

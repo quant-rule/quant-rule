@@ -85,9 +85,10 @@ context/<year>-trade-<id>/
 ## 7. Annotations
 
 ```csv
-chart,marked_time_utc,action,quality,side,note
+chart,bar,marked_time_utc,action,quality,side,note
 ```
 
+- `bar` is optional for hand-written files and is written by the click annotator.
 - `action`: `entry` or `exit`.
 - `quality`: `good`, `bad`, or `neutral`.
 - `side`: `long` or `short`.

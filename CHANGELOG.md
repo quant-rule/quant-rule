@@ -28,6 +28,9 @@ are not treated as releases.
 - The `tools/trades/` context exporter, annotation mapper, and exit-quality
   table. Each trade gets a 250-bar entry/exit window with all readings, events,
   decisions, orders, and fills; the post-fill window is separate.
+- A local click-to-annotate chart page. It maps a click to the candle from the
+  chart manifest and writes `annotations.csv` directly, with no hand-edited CSV
+  and no pixel detection.
 
 ### Changed
 

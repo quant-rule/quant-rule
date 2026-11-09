@@ -35,8 +35,34 @@ recorded stop/target levels when the execution bundle has them. A chart has
 at most 1,000 candles and is centered on the trade entry. Windows with no trade
 are not saved.
 
-The manifest records the window, candle count, exact times and prices, and the
-PNG SHA-256. The same inputs produce the same PNG bytes.
+The manifest records the window, candle count, exact times and prices, the plot
+geometry, the per-bar high/low, and the PNG SHA-256. The same inputs produce the
+same bytes.
+
+## Click annotator
+
+```bash
+python3 tools/charts/annotate.py   --charts data/improvement/2026-11-09/BINANCE-BTCUSDT/charts   --out data/improvement/2026-11-09/BINANCE-BTCUSDT/annotations-2018.csv   --port 8765
+```
+
+Open `http://127.0.0.1:8765/`. Select a chart, press a marker key, then click the
+candle. The page writes `annotations.csv` directly; no hand-edited CSV and no
+pixel detection.
+
+| Key | Marker |
+|---:|---|
+| 1 | Good long entry: green filled circle |
+| 2 | Good long exit: red filled circle |
+| 3 | Bad long entry: green hollow circle |
+| 4 | Bad long exit: red hollow circle |
+| 5 | Good short entry: red filled square |
+| 6 | Good short exit: green filled square |
+| 7 | Bad short entry: red hollow square |
+| 8 | Bad short exit: green hollow square |
+
+The annotation CSV is the same schema consumed by
+`tools/trades/annotations.py`; the `bar` column is optional for hand-written
+files and is written by the click tool.
 
 ## Tests
 
