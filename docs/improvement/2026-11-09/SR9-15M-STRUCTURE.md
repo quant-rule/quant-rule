@@ -107,6 +107,12 @@ cut on this one, and must declare its cells, criteria, and out-of-sample plan
 before running. The cross-venue record is
 [`BINANCE-BTCUSDT.md`](BINANCE-BTCUSDT.md).
 
+## 7a. Trade context
+
+- `data/improvement/2026-11-09/SR9-15M-STRUCTURE/context/<year>/` — 250-bar entry/exit context for the 30 control trades.
+- `data/improvement/2026-11-09/SR9-15M-STRUCTURE/exit_quality.csv` — 30-trade exit-quality table.
+- [`exit-quality-initial.md`](../../reports/2026-11-09/exit-quality-initial.md) — exploratory exit-quality read.
+
 ## 8. Limitations
 
 - The runs are per instrument-year; aggregate PF is computed from trades and

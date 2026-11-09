@@ -81,6 +81,7 @@ repeating a status.
 | Qualification lab tutorial | Current; `qualify`, the criteria verdicts, and the human acceptance boundary | `docs/tutorials/2026-11-06/qualification-lab.md` |
 | Analytics lab tutorial | Current; `analytics evaluate`, the descriptive metrics, and the evaluation tables | `docs/tutorials/2026-11-06/analytics-lab.md` |
 | Pipeline lab tutorial | Current; every stage independently, the coupled run, qualification, analytics, and determinism | `docs/tutorials/2026-11-06/pipeline-lab.md` |
+| Trade context lab tutorial | Current; 250-bar entry/exit context, annotations, and exit-quality evaluation | `docs/tutorials/2026-11-09/trade-context.md` |
 | Indicator verification matrix | Current; 46 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 143 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |
@@ -98,6 +99,7 @@ repeating a status.
 | Strategy configuration | Current; `quantrule.strategy/v1`, both generic engines, and the decision record | `docs/config/2026-11-06/strategy-config.md` |
 | Qualification criteria | Current; human-owned criteria, verdict semantics, and human acceptance | `docs/config/2026-11-06/qualification-criteria.md` |
 | Analytics benchmarks | Current; buy-and-hold and matched random-timing evaluation output | `docs/config/2026-11-09/analytics-benchmarks.md` |
+| Trade context | Current; per-trade 250-bar entry/exit context, annotation mapping, and exit-quality table | `docs/config/2026-11-09/trade-context.md` |
 | Improvement run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical | `docs/workflows/run-contract.md` |
 
 The current run does not reference `strategy.json` or `analytics.json`. The loader
