@@ -93,6 +93,9 @@ are not treated as releases.
   long is +$2,289 with PF 2.098 and 5/5 positive years but 27 trades and 5.62%
   drawdown; H3 short is PF 1.067 with 1/5 years and a negative ETH side.
   Verdict: no candidate; 9 bps and 2024 not opened.
+- The SR8-H3-BUFFER programme: one-shot 2023 BTC buffer for the frozen H3 rule.
+  2023 1h coverage is 61.3%, below the 95% gate; H3 long has 0 trades and H3
+  short 4. Verdict: buffer ineligible; no no-edge conclusion; 2024 not opened.
 
 ### Changed
 
