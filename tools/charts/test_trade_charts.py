@@ -17,6 +17,7 @@ from trade_charts import (
     Trade,
     ema,
     find_stop_target,
+    trade_actions,
     window_bounds,
 )
 
@@ -50,6 +51,7 @@ def make_run(root: Path) -> Path:
     trades = [
         [1, "long", 1.0, 50, base + 50 * 900, 10_100, 60, base + 60 * 900, 10_300, 0, 0, 0, 0, 200.0, 0.02, 10, "target"],
         [2, "long", 1.0, 150, base + 150 * 900, 10_300, 170, base + 170 * 900, 10_200, 0, 0, 0, 0, -100.0, -0.01, 20, "stop"],
+        [3, "short", 1.0, 100, base + 100 * 900, 10_200, 110, base + 110 * 900, 10_100, 0, 0, 0, 0, 80.0, 0.008, 10, "target"],
     ]
     write_csv(
         run / "backtest" / "portfolio" / "trades.csv",
@@ -82,6 +84,8 @@ def make_run(root: Path) -> Path:
             [1, 50, base + 50 * 900, "sell", 1.0, "take_profit", "target", 10_400, "filled"],
             [2, 149, base + 149 * 900, "buy", 1.0, "entry", "market", "", "filled"],
             [3, 150, base + 150 * 900, "sell", 1.0, "stop_loss", "stop", 9_900, "filled"],
+            [4, 99, base + 99 * 900, "sell", 1.0, "entry", "market", "", "filled"],
+            [5, 100, base + 100 * 900, "buy", 1.0, "take_profit", "target", 10_100, "filled"],
         ],
     )
     return run
@@ -107,12 +111,21 @@ def run_for_test(root: Path) -> Run:
         trades=[
             Trade(1, "long", 50, 1_600_045_000, 10_100, 60, 1_600_054_000, 10_300, 200.0, 0.02, 10, "target"),
             Trade(2, "long", 150, 1_600_135_000, 10_300, 170, 1_600_153_000, 10_200, -100.0, -0.01, 20, "stop"),
+            Trade(3, "short", 100, 1_600_090_000, 10_200, 110, 1_600_099_000, 10_100, 80.0, 0.008, 10, "target"),
         ],
         orders=[
             {"submitted_bar": "50", "reason": "take_profit", "trigger_price": "10400"},
             {"submitted_bar": "150", "reason": "stop_loss", "trigger_price": "9900"},
         ],
     )
+
+
+class ActionTest(unittest.TestCase):
+    def test_long_entry_is_buy_and_exit_is_sell(self) -> None:
+        self.assertEqual(trade_actions(Trade(1, "long", 1, 2, 3.0, 4, 5, 6.0, 7.0, 0.1, 10, "target")), ("BUY", "SELL"))
+
+    def test_short_entry_is_sell_and_exit_is_buy(self) -> None:
+        self.assertEqual(trade_actions(Trade(1, "short", 1, 2, 3.0, 4, 5, 6.0, 7.0, 0.1, 10, "target")), ("SELL", "BUY"))
 
 
 class WindowTest(unittest.TestCase):
@@ -179,16 +192,16 @@ class RenderTest(unittest.TestCase):
                 "BTCUSD 15m",
                 "test control",
             )
-            self.assertEqual(len(first), 2)
-            self.assertEqual(len(second), 2)
+            self.assertEqual(len(first), 3)
+            self.assertEqual(len(second), 3)
             self.assertEqual([row["sha256"] for row in first], [row["sha256"] for row in second])
             for record in first:
                 self.assertTrue((root / "first" / "charts" / record["file"]).is_file())
             manifest = json.loads((root / "first" / "charts" / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["schema"], "quantrule.trade-charts/v1")
-            self.assertEqual(len(manifest["charts"]), 2)
+            self.assertEqual(len(manifest["charts"]), 3)
             index = (root / "first" / "charts" / "index.csv").read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(index), 3)
+            self.assertEqual(len(index), 4)
 
     def test_rejects_a_cap_above_one_thousand(self) -> None:
         from trade_charts import render

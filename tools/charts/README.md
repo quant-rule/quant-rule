@@ -29,8 +29,8 @@ Output:
   charts/index.csv
 ```
 
-Each chart contains OHLC candles, volume, EMA 10/50/200, entry/exit markers, and
-the recorded stop/target levels when the execution bundle has them. A chart has
+Each chart contains OHLC candles, volume, EMA 10/50/200, BUY/SELL entry and
+exit markers, and the recorded stop/target levels when the execution bundle has them. A chart has
 at most 1,000 candles and is centered on the trade entry. Windows with no trade
 are not saved.
 

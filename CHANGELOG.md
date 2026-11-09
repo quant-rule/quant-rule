@@ -32,6 +32,11 @@ are not treated as releases.
   BTCUSDT series, 2018–2022 is 65 trades, −$389.64, PF 0.871, and 2023 is 8
   trades, −$202.50, PF 0.229; the Dukascopy lead is not venue-robust.
 
+### Fixed
+
+- Trade charts now draw the exit marker and label the exit action (`SELL` for a
+  long, `BUY` for a short); previously only the entry marker was visible.
+
 ## [0.7.0] - 2026-11-09
 
 ### Added

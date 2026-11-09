@@ -265,6 +265,11 @@ def format_pnl(value: float) -> str:
     return f"{sign}${abs(value):,.2f}"
 
 
+def trade_actions(trade: Trade) -> tuple[str, str]:
+    """Return the entry and exit actions for a trade."""
+    return ("BUY", "SELL") if trade.side == "long" else ("SELL", "BUY")
+
+
 def hex_rgb(value: str) -> tuple[int, int, int]:
     """Convert ``#rrggbb`` to an RGB tuple."""
     value = value.lstrip("#")
@@ -439,8 +444,11 @@ def draw_chart(
         draw.line((entry_x, y(value), exit_x, y(value)), fill=color, width=3)
         draw.text((entry_x + 8, y(value) - 24), f"{label} {format_price(value)}", fill=color, font=font(18, bold=True))
 
-    # Entry and exit markers.
+    # Entry and exit markers. The exit is the opposite action: a long sells
+    # out, a short buys back. Both markers are drawn so the chart never shows
+    # only half of the round trip.
     entry_bar = window[entry_index - start]
+    entry_action, exit_action = trade_actions(trade)
     entry_color = theme.entry_long if trade.side == "long" else theme.entry_short
     marker_y = y(entry_bar.low) + 18 if trade.side == "long" else y(entry_bar.high) - 18
     direction = 1 if trade.side == "long" else -1
@@ -456,20 +464,44 @@ def draw_chart(
     draw_label(
         draw,
         (entry_x + 18, top + 16),
-        f"ENTRY {trade.side}  {format_time(trade.entry_time)}  @ {format_price(trade.entry_price)}",
+        f"ENTRY {entry_action} ({trade.side})  {format_time(trade.entry_time)}  @ {format_price(trade.entry_price)}",
         theme.annotation,
         theme.panel,
         font(22, bold=True),
     )
     if 0 <= exit_position < len(window):
-        dashed_line(draw, (exit_x, top), (exit_x, volume_bottom), theme.muted, width=2)
+        exit_bar = window[exit_position]
+        exit_color = theme.entry_short if trade.side == "long" else theme.entry_long
+        if trade.side == "long":
+            exit_marker_y = max(top + 30, y(exit_bar.high) - 18)
+            exit_points = (
+                (exit_x, exit_marker_y - 24),
+                (exit_x - 14, exit_marker_y),
+                (exit_x + 14, exit_marker_y),
+            )
+        else:
+            exit_marker_y = min(price_bottom - 30, y(exit_bar.low) + 18)
+            exit_points = (
+                (exit_x, exit_marker_y + 24),
+                (exit_x - 14, exit_marker_y),
+                (exit_x + 14, exit_marker_y),
+            )
+        draw.polygon(exit_points, fill=exit_color)
+        dashed_line(draw, (exit_x, top), (exit_x, volume_bottom), exit_color, width=2)
+        exit_text = f"EXIT {exit_action} ({trade.exit_reason})  {format_time(trade.exit_time)}  @ {format_price(trade.exit_price)}"
+        exit_font = font(22, bold=True)
+        exit_width = draw.textlength(exit_text, font=exit_font)
+        if exit_x + 18 + exit_width + 16 <= width - right:
+            exit_label_x = exit_x + 18
+        else:
+            exit_label_x = max(left, exit_x - exit_width - 34)
         draw_label(
             draw,
-            (max(left, exit_x - 360), top + 96),
-            f"EXIT {trade.exit_reason}  {format_time(trade.exit_time)}  @ {format_price(trade.exit_price)}",
+            (exit_label_x, top + 96),
+            exit_text,
             theme.annotation,
             theme.panel,
-            font(22, bold=True),
+            exit_font,
         )
 
     # Header and summary.
