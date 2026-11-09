@@ -24,8 +24,14 @@ CONDITION_SCHEMA = "quantrule.model-condition/v1"
 LATER_EVENTS = {
     "signal.opening_range_sweep",
     "signal.opening_range_sweep_control",
+    "signal.breakout_retest_hold",
 }
-FAMILY_NEW_EVENTS = {"MR7": LATER_EVENTS}
+FAMILY_NEW_EVENTS = {
+    "MR7": {
+        "signal.opening_range_sweep",
+        "signal.opening_range_sweep_control",
+    }
+}
 
 
 def check_mr5(

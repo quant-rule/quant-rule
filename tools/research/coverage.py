@@ -49,6 +49,7 @@ STATE_SCHEMA = "quantrule.model-state-gate/v1"
 LATER_EVENTS = {
     "signal.opening_range_sweep",
     "signal.opening_range_sweep_control",
+    "signal.breakout_retest_hold",
 }
 STATE_COLUMNS = {
     "context_code",
