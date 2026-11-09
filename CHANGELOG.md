@@ -15,6 +15,10 @@ are not treated as releases.
 
 ### Added
 
+- An optional `session` calendar in `data.json` and session-aware coverage
+  fields in the model report. Weekends and declared holidays no longer count as
+  missing bars for session-bound instruments; the existing span coverage is
+  retained.
 - The `vol_regime` and `structure_state` context states. `vol_regime` is the
   persistent 0/1/2 volatility regime; `structure_state` is the confirmed major
   +1/0/-1 swing structure. Both are strategy-readable and leave existing event

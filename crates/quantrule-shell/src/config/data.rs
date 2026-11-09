@@ -8,9 +8,10 @@
 use std::path::{Path, PathBuf};
 
 use quantrule_data::{EXTENDED_SERIES, Timeframe};
+use quantrule_model::calendar::{CalendarError, TradingCalendar};
 use serde_json::Value;
 
-use crate::date::{DateBounds, DateRangeError};
+use crate::date::{DateBounds, DateRange, DateRangeError};
 
 use super::error::ConfigError;
 use super::read::{self, ROOT};
@@ -36,6 +37,8 @@ pub(crate) struct DataConfig {
     pub(crate) available_timeframes: Vec<Timeframe>,
     /// The refusal bound for each series.
     pub(crate) max_candles: usize,
+    /// The declared trading calendar; defaults to 24×7.
+    pub(crate) session: TradingCalendar,
 }
 
 /// The M1 source file.
@@ -62,6 +65,7 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
             "source_timeframe",
             "available_timeframes",
             "max_candles",
+            "session",
         ],
     )?;
     read::schema(file, object, "quantrule.data/v3")?;
@@ -120,6 +124,8 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         read::field(file, ROOT, object, "available_timeframes")?,
     )?;
 
+    let session = parse_session(file, object.get("session"))?;
+
     let max_candles = read::u64(
         file,
         "$.max_candles",
@@ -155,7 +161,166 @@ pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig
         source_timeframe,
         available_timeframes,
         max_candles,
+        session,
     })
+}
+
+/// Parses the optional session calendar. An absent value is 24×7.
+fn parse_session(file: &str, value: Option<&Value>) -> Result<TradingCalendar, ConfigError> {
+    let Some(value) = value else {
+        return Ok(TradingCalendar::always());
+    };
+    if value.is_null() {
+        return Ok(TradingCalendar::always());
+    }
+    if let Some(text) = value.as_str() {
+        if text == "24x7" {
+            return Ok(TradingCalendar::always());
+        }
+        return Err(ConfigError::range(
+            file,
+            "$.session",
+            "24x7 or a weekly session object",
+            text,
+        ));
+    }
+    let object = read::object(file, "$.session", value)?;
+    read::check_fields(
+        file,
+        "$.session",
+        object,
+        &[
+            "kind",
+            "open_weekday",
+            "open_time",
+            "close_weekday",
+            "close_time",
+            "holidays",
+        ],
+    )?;
+    let kind = read::string(
+        file,
+        "$.session.kind",
+        read::field(file, "$.session", object, "kind")?,
+    )?;
+    if kind != "weekly" {
+        return Err(ConfigError::range(file, "$.session.kind", "weekly", kind));
+    }
+    let open_weekday = parse_weekday(
+        file,
+        "$.session.open_weekday",
+        read::field(file, "$.session", object, "open_weekday")?,
+    )?;
+    let open_minute = parse_clock(
+        file,
+        "$.session.open_time",
+        read::field(file, "$.session", object, "open_time")?,
+    )?;
+    let close_weekday = parse_weekday(
+        file,
+        "$.session.close_weekday",
+        read::field(file, "$.session", object, "close_weekday")?,
+    )?;
+    let close_minute = parse_clock(
+        file,
+        "$.session.close_time",
+        read::field(file, "$.session", object, "close_time")?,
+    )?;
+    let holidays = parse_holidays(
+        file,
+        "$.session.holidays",
+        read::field(file, "$.session", object, "holidays")?,
+    )?;
+    TradingCalendar::weekly(
+        open_weekday,
+        open_minute,
+        close_weekday,
+        close_minute,
+        holidays,
+    )
+    .map_err(|error| match error {
+        CalendarError::Weekday(value) => {
+            ConfigError::range(file, "$.session", "a weekday in 0..=6", &value.to_string())
+        }
+        CalendarError::Minute(value) => ConfigError::range(
+            file,
+            "$.session",
+            "a minute in 0..=1439",
+            &value.to_string(),
+        ),
+        CalendarError::EmptyWindow => ConfigError::range(
+            file,
+            "$.session",
+            "a non-empty session window",
+            "open equal to close",
+        ),
+    })
+}
+
+fn parse_weekday(file: &str, path: &str, value: &Value) -> Result<u8, ConfigError> {
+    let text = read::string(file, path, value)?;
+    let weekday = match text.to_ascii_lowercase().as_str() {
+        "sunday" | "sun" => 0,
+        "monday" | "mon" => 1,
+        "tuesday" | "tue" => 2,
+        "wednesday" | "wed" => 3,
+        "thursday" | "thu" => 4,
+        "friday" | "fri" => 5,
+        "saturday" | "sat" => 6,
+        _ => {
+            return Err(ConfigError::range(file, path, "a weekday name", text));
+        }
+    };
+    Ok(weekday)
+}
+
+fn parse_clock(file: &str, path: &str, value: &Value) -> Result<u16, ConfigError> {
+    let text = read::string(file, path, value)?;
+    let (hour, minute) = text
+        .split_once(':')
+        .ok_or_else(|| ConfigError::range(file, path, "a UTC time in HH:MM form", text))?;
+    if hour.len() != 2 || minute.len() != 2 {
+        return Err(ConfigError::range(
+            file,
+            path,
+            "a UTC time in HH:MM form",
+            text,
+        ));
+    }
+    let hour: u16 = hour
+        .parse()
+        .map_err(|_| ConfigError::range(file, path, "a UTC time in HH:MM form", text))?;
+    let minute: u16 = minute
+        .parse()
+        .map_err(|_| ConfigError::range(file, path, "a UTC time in HH:MM form", text))?;
+    if hour > 23 || minute > 59 {
+        return Err(ConfigError::range(
+            file,
+            path,
+            "a UTC time in HH:MM form",
+            text,
+        ));
+    }
+    Ok(hour * 60 + minute)
+}
+
+fn parse_holidays(file: &str, path: &str, value: &Value) -> Result<Vec<i64>, ConfigError> {
+    let items = read::array(file, path, value)?;
+    let mut holidays = Vec::with_capacity(items.len());
+    for (position, item) in items.iter().enumerate() {
+        let item_path = read::index(path, position);
+        let text = read::string(file, &item_path, item)?;
+        let range = DateRange::parse(text, text).map_err(|error| match error {
+            DateRangeError::InvalidDate { .. } => {
+                ConfigError::range(file, &item_path, "a UTC date in YYYY-MM-DD form", text)
+            }
+            DateRangeError::StartAfterEnd { .. } | DateRangeError::Overflow => {
+                ConfigError::range(file, &item_path, "a valid UTC date", text)
+            }
+        })?;
+        holidays.push(range.start_seconds().div_euclid(86_400));
+    }
+    Ok(holidays)
 }
 
 /// Resolves a timeframe code exactly as written.

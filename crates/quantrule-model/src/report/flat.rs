@@ -6,6 +6,7 @@
 //! of a completed [`crate::run::ModelRun`]; it never recomputes a reading or an
 //! event.
 
+use crate::calendar::TradingCalendar;
 use crate::events::{EventRecord, EventType};
 use crate::levels::ConfirmedLevel;
 use crate::progression::{ProgressionBar, ProgressionLeg};
@@ -33,6 +34,12 @@ pub struct FlatTimeframe {
     pub missing_bars: usize,
     /// `bars / expected_bars` in `0..=1`, or `None`.
     pub coverage_share: Option<f64>,
+    /// The expected bars inside the declared trading session, or zero.
+    pub session_expected_bars: usize,
+    /// The missing bars inside the declared trading session, or zero.
+    pub session_missing_bars: usize,
+    /// `bars / session_expected_bars` in `0..=1`, or `None`.
+    pub session_coverage_share: Option<f64>,
     /// The first closed bar's open time, or `None`.
     pub first_open_time: Option<i64>,
     /// The last closed bar's open time, or `None`.
@@ -266,9 +273,19 @@ pub struct FlatLeg {
 pub const RECENT_EVENT_LIMIT: usize = 200;
 
 impl FlatReport {
-    /// Projects a completed model run onto the flat report.
+    /// Projects a completed model run onto the flat report with a 24×7 calendar.
     #[must_use]
     pub fn compute(run: &ModelRun, ladder: &[u64]) -> Self {
+        Self::compute_with_session(run, ladder, &TradingCalendar::always())
+    }
+
+    /// Projects a completed model run onto the flat report with a declared calendar.
+    #[must_use]
+    pub fn compute_with_session(
+        run: &ModelRun,
+        ladder: &[u64],
+        calendar: &TradingCalendar,
+    ) -> Self {
         let mut ladder = ladder.to_vec();
         ladder.sort_unstable();
         ladder.dedup();
@@ -277,7 +294,7 @@ impl FlatReport {
             .map(|&timeframe_secs| {
                 run.timeframe(timeframe_secs).map_or_else(
                     || FlatTimeframe::absent(timeframe_secs),
-                    FlatTimeframe::compute,
+                    |timeframe| FlatTimeframe::compute(timeframe, calendar),
                 )
             })
             .collect();
@@ -286,7 +303,7 @@ impl FlatReport {
 }
 
 impl FlatTimeframe {
-    fn compute(timeframe: &TimeframeModel) -> Self {
+    fn compute(timeframe: &TimeframeModel, calendar: &TradingCalendar) -> Self {
         let bars = timeframe.len();
         let first_open_time = timeframe.candle(0).map(|candle| candle.timestamp());
         let last_open_time = timeframe
@@ -298,6 +315,14 @@ impl FlatTimeframe {
             last_open_time,
             timeframe.timeframe_secs(),
         );
+        let (session_expected_bars, session_missing_bars, session_coverage_share) =
+            session_coverage(
+                bars,
+                first_open_time,
+                last_open_time,
+                timeframe.timeframe_secs(),
+                calendar,
+            );
         let latest = bars.checked_sub(1).and_then(|bar| {
             let candle = timeframe.candle(bar)?;
             let readings = timeframe.readings();
@@ -381,6 +406,9 @@ impl FlatTimeframe {
             expected_bars,
             missing_bars,
             coverage_share,
+            session_expected_bars,
+            session_missing_bars,
+            session_coverage_share,
             first_open_time,
             last_open_time,
             latest,
@@ -397,6 +425,9 @@ impl FlatTimeframe {
             expected_bars: 0,
             missing_bars: 0,
             coverage_share: None,
+            session_expected_bars: 0,
+            session_missing_bars: 0,
+            session_coverage_share: None,
             first_open_time: None,
             last_open_time: None,
             latest: None,
@@ -600,6 +631,29 @@ fn coverage(
     (expected_bars, missing_bars, coverage_share)
 }
 
+/// Counts the bars expected inside the declared trading session.
+fn session_coverage(
+    bars: usize,
+    first_open_time: Option<i64>,
+    last_open_time: Option<i64>,
+    timeframe_secs: u64,
+    calendar: &TradingCalendar,
+) -> (usize, usize, Option<f64>) {
+    let (Some(first), Some(last)) = (first_open_time, last_open_time) else {
+        return (0, 0, None);
+    };
+    if timeframe_secs == 0 {
+        return (0, 0, None);
+    }
+    let expected = calendar.expected_bars(first, last, timeframe_secs);
+    if expected == 0 {
+        return (0, 0, None);
+    }
+    let missing = expected.saturating_sub(bars);
+    let share = Some((bars as f64 / expected as f64).min(1.0));
+    (expected, missing, share)
+}
+
 fn ema_stack(fast: Option<f64>, mid: Option<f64>, slow: Option<f64>) -> Option<i8> {
     let (fast, mid, slow) = (fast?, mid?, slow?);
     if fast > mid && mid > slow {
@@ -639,5 +693,48 @@ fn rsi_zone(rsi: f64) -> i8 {
         1
     } else {
         0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{coverage, session_coverage};
+    use crate::calendar::TradingCalendar;
+
+    #[test]
+    fn span_coverage_is_inclusive() {
+        assert_eq!(coverage(2, Some(0), Some(3_600), 3_600), (2, 0, Some(1.0)));
+        assert_eq!(coverage(1, Some(0), Some(3_600), 3_600), (2, 1, Some(0.5)));
+        assert_eq!(coverage(0, None, None, 3_600), (0, 0, None));
+    }
+
+    #[test]
+    fn session_coverage_excludes_closed_bars() {
+        let sunday_2200 = 1_704_664_800;
+        let monday_0000 = sunday_2200 + 2 * 3_600;
+        let calendar =
+            TradingCalendar::weekly(0, 22 * 60, 5, 21 * 60, Vec::new()).expect("a valid calendar");
+        assert_eq!(
+            session_coverage(3, Some(sunday_2200), Some(monday_0000), 3_600, &calendar),
+            (3, 0, Some(1.0))
+        );
+        assert_eq!(
+            session_coverage(2, Some(sunday_2200), Some(monday_0000), 3_600, &calendar),
+            (3, 1, Some(2.0 / 3.0))
+        );
+        let saturday = sunday_2200 + 5 * 86_400 + 14 * 3_600;
+        assert_eq!(
+            session_coverage(1, Some(saturday), Some(saturday), 3_600, &calendar),
+            (0, 0, None)
+        );
+    }
+
+    #[test]
+    fn a_24x7_session_matches_the_span() {
+        let calendar = TradingCalendar::always();
+        assert_eq!(
+            session_coverage(2, Some(0), Some(3_600), 3_600, &calendar),
+            (2, 0, Some(1.0))
+        );
     }
 }

@@ -1,7 +1,7 @@
 # Data Configuration v3 — Available Timeframes
 
 - Date: 2026-10-30 (UTC)
-- Updated: 2026-11-06 for the M1.0 current-surface cleanup
+- Updated: 2026-11-09 for the optional session calendar and session-aware coverage
 - Status: Implemented (#230, PR #239)
 - Issues: [#228](https://github.com/quant-rule/quant-rule/issues/228), [#230](https://github.com/quant-rule/quant-rule/issues/230)
 - Plan: [`docs/execution-plans/2026-10-30/228-unified-timeframe-ladder.md`](../../execution-plans/2026-10-30/228-unified-timeframe-ladder.md)
@@ -26,6 +26,7 @@ model runs every available timeframe, subject to the model ceiling.
   "data_version": "dukascopy-bid-eurusd-m1-2025",
   "source_timeframe": "1m",
   "available_timeframes": ["1m", "5m", "15m", "1h", "4h"],
+  "session": "24x7",
   "from": "2025-01-01",
   "to": "2025-12-31",
   "max_candles": 600000
@@ -46,6 +47,7 @@ model runs every available timeframe, subject to the model ceiling.
 | `from` | Inclusive UTC date or `null` |
 | `to` | Inclusive UTC date or `null` |
 | `max_candles` | `1..=600000` |
+| `session` | Optional; `"24x7"` or a weekly object. Absent means 24×7. |
 
 ## 4. Validation
 
@@ -69,7 +71,38 @@ model runs every available timeframe, subject to the model ceiling.
 - The first and last buckets may be partial when the date range cuts them.
 - 4h is derived from M1; the source is never re-read per timeframe.
 
-## 6. Ownership
+## 6. Session-aware coverage
+
+The model report keeps the span coverage and adds a session-aware coverage:
+
+| Field | Meaning |
+|---|---|
+| `session_expected_bars` | Bars expected inside the declared session |
+| `session_missing_bars` | `session_expected_bars - bars`, never negative |
+| `session_coverage_share` | `bars / session_expected_bars`, clamped to 0..=1 |
+
+A weekly session is half-open: the open minute is expected and the close minute
+is not. Weekdays are `Sunday`..`Saturday`; times are UTC `HH:MM`; holidays are
+UTC dates that close the whole day.
+
+```json
+{
+  "session": {
+    "kind": "weekly",
+    "open_weekday": "Sunday",
+    "open_time": "22:00",
+    "close_weekday": "Friday",
+    "close_time": "21:00",
+    "holidays": ["2025-01-01"]
+  }
+}
+```
+
+For BTCUSD the session is `"24x7"`. For XAUUSD and EURUSD the weekly session is
+the default market window; a data version that uses a different provider
+calendar must declare it. Holidays are part of the data version identity.
+
+## 7. Ownership
 
 - `data.json` says what can be built and which ladder the model runs.
 - `model.json` says how each available timeframe is measured.

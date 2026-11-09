@@ -91,7 +91,7 @@ fn model_bundle_with(
     let bundle = out.join("model");
     render_report::ensure_available(&bundle).map_err(ModelBundleError::Bundle)?;
 
-    let report = FlatReport::compute(model_run, ladder);
+    let report = FlatReport::compute_with_session(model_run, ladder, &config.data.session);
     if report
         .timeframes
         .iter()
