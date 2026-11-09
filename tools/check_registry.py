@@ -72,7 +72,7 @@ TEST_KINDS = {
     "boundary", "benchmark",
 }
 SOURCE_RANGE = range(1, 55)
-SUBTYPE_RANGE = {1: range(1, 6), 2: range(1, 5), 3: range(1, 24)}
+SUBTYPE_RANGE = {1: range(1, 6), 2: range(1, 5), 3: range(1, 25)}
 
 
 def load(path: Path) -> Any:

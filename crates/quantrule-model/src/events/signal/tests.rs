@@ -562,6 +562,7 @@ fn the_signal_codes_are_the_contract_codes() {
     assert_eq!(SignalSubtype::SeriesCrossover.code(), 2);
     assert_eq!(SignalSubtype::CompactStateChange.code(), 3);
     assert_eq!(SignalSubtype::TrendContinuation.code(), 6);
+    assert_eq!(SignalSubtype::BreakoutRetestHold.code(), 24);
     assert_eq!(super::RSI_THRESHOLDS, [30.0, 50.0, 70.0]);
     assert_eq!(super::EMA_PAIRS.len(), 3);
 }

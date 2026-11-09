@@ -631,6 +631,25 @@ mod tests {
     }
 
     #[test]
+    fn the_breakout_retest_hold_event_parses() {
+        let mut value = valid();
+        value["entry"] = json!([
+            { "kind": "event", "timeframe": "5m", "event_type": 3, "subtype": 24, "source": 5, "direction": 1 }
+        ]);
+        let config = parse(&value, "strategy.json").expect("the registered retest event parses");
+        assert!(matches!(
+            config.entry_conditions()[0],
+            Condition::Event {
+                event_type: 3,
+                subtype: 24,
+                source: 5,
+                direction: 1,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn a_contrarian_event_condition_parses() {
         let config = parse(
             &json!({
