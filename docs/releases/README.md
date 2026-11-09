@@ -71,7 +71,8 @@ The two historical markers are not release tags. New tags use the release
 format unless the human approves a named marker.
 
 The first post-baseline release is [`v0.6.0`](2026-11-07/v0.6.0.md) on
-2026-11-07. It is not in the historical table.
+2026-11-07. It is not in the historical table. The latest release is
+[`v0.7.0`](2026-11-09/v0.7.0.md) on 2026-11-09.
 
 ## 5. Changelog alignment
 

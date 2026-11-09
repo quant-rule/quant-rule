@@ -13,6 +13,8 @@ are not treated as releases.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-09
+
 ### Added
 
 - An optional `session` calendar in `data.json` and session-aware coverage

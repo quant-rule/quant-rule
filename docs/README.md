@@ -42,8 +42,8 @@ repeating a status.
 | Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, and the SR9 15m structure campaign are recorded; no baseline accepted; human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
-| Release tags | `v0.6.0` is the latest release; historical tags are retained; the next release is not yet scheduled. |
-| Changelog | Grouped release history; `[Unreleased]` carries the SR2/SR3/SR4/SR5/SR6/SR7/SR8/SR8-A/SR9 entries and `0.6.0` is the current release. |
+| Release tags | `v0.7.0` is the latest release; `v0.6.0` is the previous release; historical tags are retained. |
+| Changelog | Grouped release history; `0.7.0` is the current release; the SR2–SR9 entries are in its section. |
 | Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path; the historical research scripts and the old improvement adapter are retained for reproducibility. |
 
 ## Current architecture
@@ -207,6 +207,7 @@ earlier harnesses). The boundary is recorded in
 | Release | Tag | Notes |
 |---|---|---|
 | Release index and tag rule | — | [`docs/releases/README.md`](releases/README.md) |
+| Model states, session coverage, and SR9 | `v0.7.0` | [`docs/releases/2026-11-09/v0.7.0.md`](releases/2026-11-09/v0.7.0.md) |
 | Workflow documentation reset | `v0.6.0` | [`docs/releases/2026-11-07/v0.6.0.md`](releases/2026-11-07/v0.6.0.md) |
 | Workflow reset baseline | `v0.5.0` | [`docs/releases/2026-11-01/v0.5.0.md`](releases/2026-11-01/v0.5.0.md) |
 | Lab Summary and Help | `v0.3.0` | [`docs/releases/2026-10-30/v0.3.0.md`](releases/2026-10-30/v0.3.0.md) |
