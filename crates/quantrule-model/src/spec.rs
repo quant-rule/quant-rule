@@ -116,11 +116,13 @@ pub enum SpecStateField {
     AdxSlope,
     /// The DI state.
     DiState,
+    /// The relative-volume regime.
+    RvolRegime,
 }
 
 impl SpecStateField {
     /// Every state field, in a fixed order.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::EmaStack,
         Self::RsiZone,
         Self::MacdState,
@@ -128,6 +130,7 @@ impl SpecStateField {
         Self::AdxRegime,
         Self::AdxSlope,
         Self::DiState,
+        Self::RvolRegime,
     ];
 
     /// The state value at one model bar, or `None` when it is unavailable.
@@ -141,6 +144,7 @@ impl SpecStateField {
             Self::AdxRegime => states.adx_regime,
             Self::AdxSlope => states.adx_slope,
             Self::DiState => states.di_state,
+            Self::RvolRegime => states.rvol_regime,
         }
     }
 
@@ -155,6 +159,7 @@ impl SpecStateField {
             Self::AdxRegime => (0, 1),
             Self::AdxSlope => (-1, 1),
             Self::DiState => (-1, 1),
+            Self::RvolRegime => (-1, 1),
         }
     }
 }

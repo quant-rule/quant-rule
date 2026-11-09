@@ -65,6 +65,16 @@ are not treated as releases.
   1 ATR stop / 3 ATR target and 15m with a 1 ATR stop / 4 ATR target, both on
   BTCUSD/EURUSD/XAUUSD. Both designs returned `no_edge`; the 9 bps sensitivity
   and the 2024 validation were not opened.
+- The `rvol_regime` model context state: `-1` below 1.4, `0` from 1.4 to 2.0,
+  and `+1` at or above 2.0. It is published in `readings.csv` and `report.json`
+  and is readable as a strategy state; no event value changes.
+- The SR2-BTC-FEATURES top-trade attribution tool and record: 139 decision-bar
+  feature rows, five 1,000-candle charts, and the stack-aligned low-RVOL fade
+  hypothesis. The 2019 loss persists in every filter subset.
+- The SR3-FEATURES feature-filtered BTCUSD fade programme: eight 2018–2022
+  variants, 40 base cells, and 30 9 bps sensitivity cells. The 1h sides are
+  positive at 6 and 9 bps but have 9–21 trades per side; the 15m entry is
+  negative; H4 long reaches 5.04%. Verdict: no candidate; 2024 not opened.
 
 ### Changed
 

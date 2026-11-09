@@ -1,6 +1,7 @@
 # Model spec v1
 
 - Date: 2026-11-05 (UTC)
+- Updated: 2026-11-08 — added the `rvol_regime` state; no other shape changes.
 - Status: **Approved** — the schema name and the Rust-evaluator split are the
   programme decisions; this document fixes the v1 shape.
 - Contract: `quantrule.model-spec/v1`
@@ -99,13 +100,13 @@ the bar it became knowable.
 
 | Field | Type | Required | Rule |
 |---|---|---|---|
-| `state` | string | yes | `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_regime`, `adx_slope`, or `di_state` |
+| `state` | string | yes | `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_regime`, `adx_slope`, `di_state`, or `rvol_regime` |
 | `timeframe` | positive integer | yes | Must be in the ladder |
 | `equals` | integer | yes | Within the state's code range |
 
 | State | Codes |
 |---|---|
-| `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_slope`, `di_state` | -1, 0, 1 |
+| `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_slope`, `di_state`, `rvol_regime` | -1, 0, 1 |
 | `adx_regime` | 0, 1 |
 
 A state is read from the as-of bar of its timeframe. A missing state is false;

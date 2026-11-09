@@ -1,0 +1,39 @@
+{
+  "schema": "quantrule.qualification/v1",
+  "id": "Q-SR3-DEV",
+  "evidence": {
+    "required_partitions": [
+      "strategy_dev"
+    ],
+    "minimum_trades": 1,
+    "cost_model": "execution-and-portfolio",
+    "multiple_testing": {
+      "primary_cells": 4,
+      "trials": 8,
+      "correction": "bonferroni",
+      "family_alpha": 0.05
+    }
+  },
+  "criteria": [
+    {
+      "id": "drawdown-ceiling",
+      "dimension": "drawdown",
+      "mandatory": true,
+      "metric": "max_drawdown",
+      "operator": "<=",
+      "threshold": 0.05,
+      "evidence_artifact": "portfolio",
+      "evidence_field": "metrics.max_drawdown"
+    },
+    {
+      "id": "trade-presence",
+      "dimension": "trade_count",
+      "mandatory": true,
+      "metric": "trades",
+      "operator": ">=",
+      "threshold": 1,
+      "evidence_artifact": "portfolio",
+      "evidence_field": "metrics.trades"
+    }
+  ]
+}

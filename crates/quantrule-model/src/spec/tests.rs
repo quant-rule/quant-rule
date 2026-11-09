@@ -129,6 +129,25 @@ fn validate_accepts_a_bounded_spec() {
 }
 
 #[test]
+fn a_spec_can_read_the_rvol_regime() {
+    let spec = spec(vec![condition(
+        "rvol",
+        SpecExpression::State(SpecState {
+            state: SpecStateField::RvolRegime,
+            timeframe_secs: M5,
+            equals: -1,
+        }),
+    )]);
+    assert_eq!(spec.validate(), Ok(()));
+
+    let candles = m5_candles(400);
+    let evaluation = spec.evaluate(&run(&candles)).expect("the spec evaluates");
+    assert_eq!(evaluation.bars, candles.len());
+    assert_eq!(evaluation.conditions.len(), 1);
+    assert_eq!(evaluation.conditions[0].values.len(), candles.len());
+}
+
+#[test]
 fn evaluate_publishes_one_series_per_condition() {
     let candles = m5_candles(400);
     let run = run(&candles);

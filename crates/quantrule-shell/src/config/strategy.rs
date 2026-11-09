@@ -597,7 +597,7 @@ fn integer(file: &str, path: &str, value: &Value) -> Result<i64, ConfigError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Condition, SCHEMA, parse};
+    use super::{Condition, SCHEMA, StateField, parse};
     use serde_json::json;
 
     fn valid() -> serde_json::Value {
@@ -699,6 +699,23 @@ mod tests {
         )
         .expect_err("the bracket engine has no contrarian side");
         assert!(error.to_string().contains("contrarian"));
+    }
+
+    #[test]
+    fn an_rvol_regime_state_condition_parses() {
+        let mut value = valid();
+        value["exit"] = json!([
+            { "kind": "state", "timeframe": "5m", "field": "rvol_regime", "value": -1 }
+        ]);
+        let config = parse(&value, "strategy.json").expect("the rvol regime state parses");
+        assert!(matches!(
+            config.exit_conditions()[0],
+            Condition::State {
+                field: StateField::RvolRegime,
+                value: -1,
+                ..
+            }
+        ));
     }
 
     #[test]

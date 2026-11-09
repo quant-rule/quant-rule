@@ -260,6 +260,7 @@ fn state_field(name: &str) -> Option<SpecStateField> {
         "adx_regime" => Some(SpecStateField::AdxRegime),
         "adx_slope" => Some(SpecStateField::AdxSlope),
         "di_state" => Some(SpecStateField::DiState),
+        "rvol_regime" => Some(SpecStateField::RvolRegime),
         _ => None,
     }
 }

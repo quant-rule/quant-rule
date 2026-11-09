@@ -86,6 +86,8 @@ pub struct ModelStates {
     pub adx_slope: Option<i8>,
     /// Sign of `+DI - -DI`.
     pub di_state: Option<i8>,
+    /// Relative-volume regime: -1 below 1.4, 0 from 1.4 to 2.0, +1 at or above 2.0.
+    pub rvol_regime: Option<i8>,
 }
 
 /// The complete published model state for one closed bar.
@@ -540,6 +542,17 @@ fn model_states(
         adx_regime: adx_state.adx_regime,
         adx_slope: adx_state.adx_slope,
         di_state: adx_state.di_state,
+        rvol_regime: readings.rvol20.get(bar).map(rvol_regime_code),
+    }
+}
+
+fn rvol_regime_code(value: f64) -> i8 {
+    if value < 1.4 {
+        -1
+    } else if value >= 2.0 {
+        1
+    } else {
+        0
     }
 }
 
@@ -572,5 +585,18 @@ fn sign_state(value: f64) -> i8 {
         -1
     } else {
         0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rvol_regime_code;
+
+    #[test]
+    fn rvol_regime_uses_the_contract_thresholds() {
+        assert_eq!(rvol_regime_code(1.39), -1);
+        assert_eq!(rvol_regime_code(1.4), 0);
+        assert_eq!(rvol_regime_code(1.99), 0);
+        assert_eq!(rvol_regime_code(2.0), 1);
     }
 }

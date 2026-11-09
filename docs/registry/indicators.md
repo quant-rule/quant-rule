@@ -11,7 +11,7 @@
 | `ema` | 1 | trend | signal | active | The relative position of the fast, middle, and slow EMA describes directional alignment; a stack state is followed by a directional move more often than the base rate. |
 | `rsi` | 2 | momentum | signal | active | RSI threshold crossings mark momentum shifts; the forward return after a crossing differs from the base rate. |
 | `atr` | 3 | volatility | context | active | ATR and ATR ratio describe volatility context; they do not predict direction. |
-| `rvol` | 4 | participation | context | active | Fast and slow relative volume describe participation; an expansion or contraction is a context for a directional claim. |
+| `rvol` | 4 | participation | context | active | Fast and slow relative volume describe participation; the RVOL regime is a context state (low below 1.4, normal 1.4-2.0, high at or above 2.0), not a direction. |
 | `macd` | 5 | trend | signal | active | MACD line/signal and histogram changes mark trend and momentum shifts; forward outcomes differ from the base rate. |
 | `pivots` | 6 | structure | signal | active | Confirmed pivots define price levels; a level test is followed by a path reaction more often than a matched barrier baseline. |
 | `context` | 7 | volatility | context | active | ATR ratio and RVOL ratio define a regime; they condition other signals but do not predict direction alone. |
