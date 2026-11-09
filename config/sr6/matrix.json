@@ -1,0 +1,376 @@
+{
+  "schema": "quantrule.strategy-matrix/v1",
+  "id": "SR6-VWAP",
+  "partition": "strategy_dev",
+  "instrument": "BTCUSD",
+  "variants": {
+    "v1-stack-long": {
+      "rule": "v1-stack",
+      "side": "long",
+      "primary": true
+    },
+    "v1-stack-short": {
+      "rule": "v1-stack",
+      "side": "short",
+      "primary": true
+    },
+    "v2-stack-adx-long": {
+      "rule": "v2-stack-adx",
+      "side": "long",
+      "primary": false
+    },
+    "v2-stack-adx-short": {
+      "rule": "v2-stack-adx",
+      "side": "short",
+      "primary": false
+    },
+    "v3-event-long": {
+      "rule": "v3-event",
+      "side": "long",
+      "primary": false
+    },
+    "v3-event-short": {
+      "rule": "v3-event",
+      "side": "short",
+      "primary": false
+    }
+  },
+  "cells": [
+    {
+      "cell_id": "v1-stack-long-2018",
+      "variant": "v1-stack-long",
+      "rule": "v1-stack",
+      "side": "long",
+      "year": 2018,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-long/2018/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-long/2018/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-long.json"
+    },
+    {
+      "cell_id": "v1-stack-long-2019",
+      "variant": "v1-stack-long",
+      "rule": "v1-stack",
+      "side": "long",
+      "year": 2019,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-long/2019/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-long/2019/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-long.json"
+    },
+    {
+      "cell_id": "v1-stack-long-2020",
+      "variant": "v1-stack-long",
+      "rule": "v1-stack",
+      "side": "long",
+      "year": 2020,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-long/2020/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-long/2020/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-long.json"
+    },
+    {
+      "cell_id": "v1-stack-long-2021",
+      "variant": "v1-stack-long",
+      "rule": "v1-stack",
+      "side": "long",
+      "year": 2021,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-long/2021/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-long/2021/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-long.json"
+    },
+    {
+      "cell_id": "v1-stack-long-2022",
+      "variant": "v1-stack-long",
+      "rule": "v1-stack",
+      "side": "long",
+      "year": 2022,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-long/2022/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-long/2022/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-long.json"
+    },
+    {
+      "cell_id": "v1-stack-short-2018",
+      "variant": "v1-stack-short",
+      "rule": "v1-stack",
+      "side": "short",
+      "year": 2018,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-short/2018/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-short/2018/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-short.json"
+    },
+    {
+      "cell_id": "v1-stack-short-2019",
+      "variant": "v1-stack-short",
+      "rule": "v1-stack",
+      "side": "short",
+      "year": 2019,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-short/2019/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-short/2019/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-short.json"
+    },
+    {
+      "cell_id": "v1-stack-short-2020",
+      "variant": "v1-stack-short",
+      "rule": "v1-stack",
+      "side": "short",
+      "year": 2020,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-short/2020/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-short/2020/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-short.json"
+    },
+    {
+      "cell_id": "v1-stack-short-2021",
+      "variant": "v1-stack-short",
+      "rule": "v1-stack",
+      "side": "short",
+      "year": 2021,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-short/2021/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-short/2021/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-short.json"
+    },
+    {
+      "cell_id": "v1-stack-short-2022",
+      "variant": "v1-stack-short",
+      "rule": "v1-stack",
+      "side": "short",
+      "year": 2022,
+      "primary": true,
+      "run_config": "config/sr6/runs/v1-stack-short/2022/run.json",
+      "sensitivity_run_config": "config/sr6/runs-9bps/v1-stack-short/2022/run.json",
+      "strategy_config": "config/strategy/sr6-v1-stack-short.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-long-2018",
+      "variant": "v2-stack-adx-long",
+      "rule": "v2-stack-adx",
+      "side": "long",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-long/2018/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-long.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-long-2019",
+      "variant": "v2-stack-adx-long",
+      "rule": "v2-stack-adx",
+      "side": "long",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-long/2019/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-long.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-long-2020",
+      "variant": "v2-stack-adx-long",
+      "rule": "v2-stack-adx",
+      "side": "long",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-long/2020/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-long.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-long-2021",
+      "variant": "v2-stack-adx-long",
+      "rule": "v2-stack-adx",
+      "side": "long",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-long/2021/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-long.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-long-2022",
+      "variant": "v2-stack-adx-long",
+      "rule": "v2-stack-adx",
+      "side": "long",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-long/2022/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-long.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-short-2018",
+      "variant": "v2-stack-adx-short",
+      "rule": "v2-stack-adx",
+      "side": "short",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-short/2018/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-short.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-short-2019",
+      "variant": "v2-stack-adx-short",
+      "rule": "v2-stack-adx",
+      "side": "short",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-short/2019/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-short.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-short-2020",
+      "variant": "v2-stack-adx-short",
+      "rule": "v2-stack-adx",
+      "side": "short",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-short/2020/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-short.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-short-2021",
+      "variant": "v2-stack-adx-short",
+      "rule": "v2-stack-adx",
+      "side": "short",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-short/2021/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-short.json"
+    },
+    {
+      "cell_id": "v2-stack-adx-short-2022",
+      "variant": "v2-stack-adx-short",
+      "rule": "v2-stack-adx",
+      "side": "short",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr6/runs/v2-stack-adx-short/2022/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v2-stack-adx-short.json"
+    },
+    {
+      "cell_id": "v3-event-long-2018",
+      "variant": "v3-event-long",
+      "rule": "v3-event",
+      "side": "long",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-long/2018/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-long.json"
+    },
+    {
+      "cell_id": "v3-event-long-2019",
+      "variant": "v3-event-long",
+      "rule": "v3-event",
+      "side": "long",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-long/2019/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-long.json"
+    },
+    {
+      "cell_id": "v3-event-long-2020",
+      "variant": "v3-event-long",
+      "rule": "v3-event",
+      "side": "long",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-long/2020/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-long.json"
+    },
+    {
+      "cell_id": "v3-event-long-2021",
+      "variant": "v3-event-long",
+      "rule": "v3-event",
+      "side": "long",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-long/2021/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-long.json"
+    },
+    {
+      "cell_id": "v3-event-long-2022",
+      "variant": "v3-event-long",
+      "rule": "v3-event",
+      "side": "long",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-long/2022/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-long.json"
+    },
+    {
+      "cell_id": "v3-event-short-2018",
+      "variant": "v3-event-short",
+      "rule": "v3-event",
+      "side": "short",
+      "year": 2018,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-short/2018/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-short.json"
+    },
+    {
+      "cell_id": "v3-event-short-2019",
+      "variant": "v3-event-short",
+      "rule": "v3-event",
+      "side": "short",
+      "year": 2019,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-short/2019/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-short.json"
+    },
+    {
+      "cell_id": "v3-event-short-2020",
+      "variant": "v3-event-short",
+      "rule": "v3-event",
+      "side": "short",
+      "year": 2020,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-short/2020/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-short.json"
+    },
+    {
+      "cell_id": "v3-event-short-2021",
+      "variant": "v3-event-short",
+      "rule": "v3-event",
+      "side": "short",
+      "year": 2021,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-short/2021/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-short.json"
+    },
+    {
+      "cell_id": "v3-event-short-2022",
+      "variant": "v3-event-short",
+      "rule": "v3-event",
+      "side": "short",
+      "year": 2022,
+      "primary": false,
+      "run_config": "config/sr6/runs/v3-event-short/2022/run.json",
+      "sensitivity_run_config": null,
+      "strategy_config": "config/strategy/sr6-v3-event-short.json"
+    }
+  ],
+  "costs": {
+    "base_bps": 6.0,
+    "sensitivity_bps": 9.0
+  },
+  "drawdown": 0.05,
+  "minimum_trades_per_side": 30
+}

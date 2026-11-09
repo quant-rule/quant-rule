@@ -85,6 +85,10 @@ are not treated as releases.
   long and 8 short events over 2018–2022, below the 30-per-side gate; the
   event-only control is 15/17. Verdict: underpowered; no backtest, 9 bps, or
   2024 access.
+- The SR6-VWAP programme: 15m `signal.vwap_rejection` with a 1h EMA-stack
+  context on BTCUSD, 30 base cells. V1 long and short are negative with PF
+  0.966/0.853 and every cell breaches 5% drawdown. Verdict: no candidate; 9 bps
+  and 2024 not opened.
 
 ### Changed
 
@@ -95,6 +99,9 @@ are not treated as releases.
 
 ### Fixed
 
+- The event-composite strategy accepts registered signal subtypes above 7; it
+  previously rejected `signal.vwap_rejection` (subtype 14) even though the
+  registry marks it a signal. Diagnostics remain rejected.
 - The SR5 absorption count gate now filters on the unique event code 52; the
   first gate also matched `signal.absorption_break` (code 51). The corrected A1
   count is 5 long / 8 short; the underpowered verdict is unchanged.

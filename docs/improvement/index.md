@@ -1,7 +1,7 @@
 # Run Index
 
 - Date: 2026-11-08 (UTC)
-- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, the SR1.x stopped compression-breakout fade, the SR2.x dual-design no-edge run, the SR2-A BTCUSD robustness audit, the SR2/SR3 feature programme, the SR4 multi-instrument stack fade, and the SR5 absorption count gate appended
+- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, the SR1.x stopped compression-breakout fade, the SR2.x dual-design no-edge run, the SR2-A BTCUSD robustness audit, the SR2/SR3 feature programme, the SR4 multi-instrument stack fade, the SR5 absorption count gate, and the SR6 VWAP rejection development run appended
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 The local `data/improvement/` store was reset after the 2026-11-03 records, so
@@ -76,6 +76,7 @@ view for the local store.
 | `SR3-FEATURES` | 2026-11-08 | Feature-filtered BTCUSD fade; 8 variants × 2018–2022 | no candidate — 1h sides underpowered, 15m entry negative, 2024 not opened | [record](2026-11-08/SR3-FEATURES.md) |
 | `SR4-STACK-FADE` | 2026-11-09 | Multi-instrument stack-aligned 1h fade; 3 rules × 3 instruments × 2 sides × 2018–2022 | no candidate — BTC-only; S1 fails 2-of-3 instruments and 5% drawdown; 2024 not opened | [record](2026-11-09/SR4-STACK-FADE.md) |
 | `SR5-ABSORPTION` | 2026-11-09 | 15m absorption rejection with 1h stack context; count gate before backtest | underpowered — A1 5 long / 8 short, below 30 per side; no backtest; 2024 not opened | [record](2026-11-09/SR5-ABSORPTION.md) |
+| `SR6-VWAP` | 2026-11-09 | 15m VWAP rejection with 1h stack context; V1/V2/V3 × 2018–2022 | no candidate — V1 net/PF/drawdown fail; every cell halted; 2024 not opened | [record](2026-11-09/SR6-VWAP.md) |
 
 
 

@@ -306,7 +306,7 @@ fn validate_condition(condition: Condition) -> Result<(), super::config::Strateg
             if !(1..=3).contains(&event_type) {
                 return Err(StrategyConfigError::EventType);
             }
-            if !(1..=7).contains(&subtype) {
+            if subtype == 0 {
                 return Err(StrategyConfigError::EventSubtype);
             }
             if !(1..=54).contains(&source) {
@@ -317,10 +317,9 @@ fn validate_condition(condition: Condition) -> Result<(), super::config::Strateg
                 return Err(StrategyConfigError::EventNotRegistered);
             };
             if identity.role == super::registry::EventRole::Diagnostic {
-                // Defense in depth: every active diagnostic subtype is outside
-                // the event-composite 1..=7 range today, so this branch is
-                // unreachable through the parser. It stays so a future
-                // diagnostic in the bounded range cannot become a trigger.
+                // The registry is the authority on the exact identity; this
+                // check keeps a diagnostic from becoming a trigger even when
+                // its subtype falls inside the accepted range.
                 return Err(StrategyConfigError::EventDiagnostic);
             }
             if !(-1..=1).contains(&direction) {
@@ -524,6 +523,45 @@ mod tests {
             &[],
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn a_registered_signal_subtype_above_seven_is_accepted() {
+        let result = EventCompositeConfig::new(
+            3,
+            0,
+            &[Condition::Event {
+                timeframe_secs: 900,
+                event_type: 3,
+                subtype: 14,
+                source: 19,
+                direction: 1,
+                contrarian: false,
+            }],
+            &[],
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn a_registered_diagnostic_subtype_is_rejected() {
+        let result = EventCompositeConfig::new(
+            3,
+            0,
+            &[Condition::Event {
+                timeframe_secs: 900,
+                event_type: 3,
+                subtype: 21,
+                source: 41,
+                direction: 1,
+                contrarian: false,
+            }],
+            &[],
+        );
+        assert_eq!(
+            result,
+            Err(crate::strategy::StrategyConfigError::EventDiagnostic)
+        );
     }
 
     #[test]

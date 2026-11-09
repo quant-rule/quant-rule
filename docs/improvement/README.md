@@ -1,8 +1,8 @@
 # Improvement Registry
 
 - Date: 2026-11-03 (UTC)
-- Updated: 2026-11-09 for the SR5 absorption count gate
-- Status: Current committed record; `quantrule.improvement-run/v2` is current, v1 is historical; the SR1 strategy development run (`STRATEGY-2026-11-08-01`) was the first v2 run recorded; it stopped early as infeasible, the SR2 dual-design run (`STRATEGY-2026-11-08-02`) recorded no edge, the SR2-A BTCUSD robustness audit is recorded, the SR2/SR3 feature programme is recorded as a research analysis, SR4 recorded a BTC-only no-candidate, and SR5 stopped as underpowered at the count gate
+- Updated: 2026-11-09 for the SR6 VWAP rejection development run
+- Status: Current committed record; `quantrule.improvement-run/v2` is current, v1 is historical; the SR1 strategy development run (`STRATEGY-2026-11-08-01`) was the first v2 run recorded; it stopped early as infeasible, the SR2 dual-design run (`STRATEGY-2026-11-08-02`) recorded no edge, the SR2-A BTCUSD robustness audit is recorded, the SR2/SR3 feature programme is recorded as a research analysis, SR4 recorded a BTC-only no-candidate, SR5 stopped as underpowered at the count gate, and SR6 recorded a no-candidate VWAP rejection run
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 This directory is the committed record of improvement runs. The run folders
