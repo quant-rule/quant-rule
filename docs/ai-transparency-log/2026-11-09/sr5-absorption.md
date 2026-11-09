@@ -31,28 +31,30 @@ before any backtest.
 
 | Check | Observed |
 |---|---|
-| A1 count | 14 long, 12 short |
-| A2 count | 7 long, 8 short |
-| A3 event-only count | 30 long, 32 short |
+| A1 count | 5 long, 8 short |
+| A2 count | 1 long, 6 short |
+| A3 event-only count | 15 long, 17 short |
 | Count gate | fail; threshold 30 per side |
-| A1 by year | 2018 0/0; 2019 11/4; 2020 2/2; 2021 0/0; 2022 1/6 |
+| A1 by year | 2018 0/0; 2019 3/3; 2020 1/1; 2021 0/0; 2022 1/4 |
 | Model bundles | 5 / 5 per-year 15m/1h bundles |
-| Count tool tests | 3 pass |
+| Count tool tests | 5 pass |
 | Backtest | not run; count gate failed |
 | 9 bps | not run |
 | 2024 | not opened |
 | Rust gates | `cargo fmt`, `cargo test`, `cargo clippy`, `cargo doc` pass |
-| Python gates | 135 improvement tests pass |
+| Python gates | 136 improvement tests pass |
 | Documentation | registry, links, changelog, structure, workflows, partitions pass |
 
 ## Learning
 
 - The absorption-rejection event is too rare when filtered by the 1h stack:
-  14 long / 12 short over five years.
-- The event-only control is only at the threshold (30/32), and it is clustered:
+  5 long / 8 short over five years.
+- The event-only control is also below the gate (15/17), and it is clustered:
   2019 carries most of the A1 events; 2018 and 2021 have none.
-- The 1h ADX control is smaller still (7/8).
+- The 1h ADX control is smaller still (1/6).
 - The count gate avoided spending 30 backtest cells on an underpowered event.
+- The first gate counted the shared type/subtype/source, which also matched
+  `signal.absorption_break` (51). The corrected gate filters on event code 52.
 
 ## Rejected or corrected
 

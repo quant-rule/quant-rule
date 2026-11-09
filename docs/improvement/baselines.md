@@ -43,7 +43,7 @@ by the agent that ran or reviewed the result.
 | Strategy | `STRATEGY-2026-11-08-02` | — | 2026-11-08 | Dual fade: 1h 1:3 and 15m 1:4; 30 cells; both designs failed the development criteria; 9 bps and validation not opened | — | Not accepted — no edge |
 | Strategy | `SR3-FEATURES` | — | 2026-11-08 | Feature-filtered BTCUSD fade; 8 variants × 2018–2022; 1h sides positive at 6 and 9 bps but 9–21 trades per side; 15m entry negative; H4 long 5.04%; validation not opened | — | Not accepted — no candidate |
 | Strategy | `SR4-STACK-FADE` | — | 2026-11-09 | Multi-instrument stack-aligned 1h fade; 90 cells; S1 pooled positive but BTC-only (1/3 instruments); BTC cells breach 5% drawdown; 9 bps and validation not opened | — | Not accepted — no candidate |
-| Strategy | `SR5-ABSORPTION` | — | 2026-11-09 | 15m absorption rejection with 1h stack; count gate 14 long / 12 short, below 30 per side; no backtest; 9 bps and validation not opened | — | Not accepted — underpowered |
+| Strategy | `SR5-ABSORPTION` | — | 2026-11-09 | 15m absorption rejection with 1h stack; count gate 5 long / 8 short, below 30 per side; no backtest; 9 bps and validation not opened | — | Not accepted — underpowered |
 | Portfolio | — | — | — | — | — | None accepted |
 
 The SR2-A BTCUSD audit (`SR2-BTC-AUDIT`) did not accept a baseline. The BTC lead
@@ -62,7 +62,7 @@ variant and side; the result is BTC-only, and the BTC cells breach the 5%
 drawdown ceiling; see [the programme record](2026-11-09/SR4-STACK-FADE.md).
 
 The SR5 absorption programme (`SR5-ABSORPTION`) did not reach a baseline. The
-count gate found 14 long and 12 short A1 events, below the 30-per-side
+count gate found 5 long and 8 short A1 events, below the 30-per-side
 threshold, so no backtest was run; see
 [the programme record](2026-11-09/SR5-ABSORPTION.md).
 

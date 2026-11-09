@@ -122,13 +122,13 @@ not retried with a new variant under the same premise.
 
 | Check | Observed |
 |---|---|
-| A1 count | 14 long, 12 short |
-| A2 count | 7 long, 8 short |
-| A3 event-only count | 30 long, 32 short |
+| A1 count | 5 long, 8 short |
+| A2 count | 1 long, 6 short |
+| A3 event-only count | 15 long, 17 short |
 | Count gate | fail; threshold 30 per side |
-| A1 by year | 2018 0/0; 2019 11/4; 2020 2/2; 2021 0/0; 2022 1/6 |
+| A1 by year | 2018 0/0; 2019 3/3; 2020 1/1; 2021 0/0; 2022 1/4 |
 | Backtest | not run; count gate failed |
 | 9 bps | not run |
 | 2024 | not opened |
 
-The programme stops as underpowered. The event-only control is not promoted.
+The first gate also counted `signal.absorption_break` (code 51); the corrected gate filters on event code 52. The programme stops as underpowered. The event-only control is not promoted.

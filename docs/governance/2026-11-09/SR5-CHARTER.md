@@ -167,7 +167,7 @@ A2 and A3 are not promoted to primary after an A1 failure.
 
 | Field | Value |
 |---|---|
-| Verdict | `underpowered` — A1 has 14 long / 12 short, below the 30-per-side gate |
+| Verdict | `underpowered` — A1 has 5 long / 8 short, below the 30-per-side gate |
 | Accepted baseline | none |
 | Registry | `docs/improvement/2026-11-09/SR5-ABSORPTION.md` |
 | Evidence | local run record `data/improvement/2026-11-09/SR5-ABSORPTION/` |
@@ -175,8 +175,9 @@ A2 and A3 are not promoted to primary after an A1 failure.
 
 ### Result
 
-- A1 count: 14 long, 12 short.
-- A2 count: 7 long, 8 short.
-- A3 event-only count: 30 long, 32 short.
-- 2018 and 2021 have zero A1 events; 2019 carries 15 of the 26 A1 events.
+- A1 count: 5 long, 8 short.
+- A2 count: 1 long, 6 short.
+- A3 event-only count: 15 long, 17 short.
+- 2018 and 2021 have zero A1 events; 2019 carries 6 of the 13 A1 events.
+- The first gate also counted `signal.absorption_break` (code 51); the corrected gate filters on event code 52.
 - No backtest, no 9 bps, no 2024.
