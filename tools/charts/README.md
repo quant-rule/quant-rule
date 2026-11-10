@@ -64,6 +64,11 @@ The annotation CSV is the same schema consumed by
 `tools/trades/annotations.py`; the `bar` column is optional for hand-written
 files and is written by the click tool.
 
+`Ctrl+Z` (or `Cmd+Z` on macOS), or the **Undo** button, reverses the last save
+or delete made in the current server session. Repeated presses walk back
+through the session's changes. The undo history is in memory only, so a server
+restart clears it.
+
 ## Tests
 
 ```bash

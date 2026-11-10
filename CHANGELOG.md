@@ -50,6 +50,8 @@ are not treated as releases.
   the same forward and barrier measurements to a declared event identity and
   window, with an all-bars control. It rejects event subtypes the strategy
   engine cannot read.
+- Undo for the click annotator: `Ctrl+Z`, `Cmd+Z`, or the **Undo** button
+  reverses the last save or delete in the current server session.
 
 ### Changed
 

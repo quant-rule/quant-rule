@@ -42,7 +42,13 @@ are drawn on top and stored separately.
 The table below the chart lists the annotations for the current chart. The `×`
 button removes one. The CSV is rewritten atomically after every change.
 
-## 4. Export the state
+## 4. Undo a mistake
+
+Press `Ctrl+Z` (or `Cmd+Z` on macOS), or click **Undo**, to reverse the last
+save or delete. Repeated presses walk back through the session's changes. The
+undo history is kept in memory only, so restarting the server clears it.
+
+## 5. Export the state
 
 Run the existing context exporter against the same bundle:
 
@@ -56,7 +62,7 @@ python3 tools/trades/annotations.py \
 The click tool writes the optional `bar` column; `annotations.py` accepts it and
 maps the timestamp to the same bar.
 
-## 5. One file per bundle
+## 6. One file per bundle
 
 Use one annotation file per year/feed because the export command receives one
 backtest bundle. For example:
@@ -67,7 +73,7 @@ BINANCE-BTCUSDT/annotations-2019.csv
 SR9-15M-STRUCTURE/annotations-2019.csv
 ```
 
-## 6. Determinism
+## 7. Determinism
 
 The click tool writes rows sorted by chart, bar, action, and side. Re-running
 the export is deterministic. The chart images are not modified.

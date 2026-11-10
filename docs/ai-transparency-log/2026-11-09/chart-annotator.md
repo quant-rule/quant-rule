@@ -39,6 +39,31 @@ does not change the chart image, a trade, a model, or a strategy.
   optional addition.
 - The trailing stop is a separate hypothesis. It was not implemented here.
 
+## Follow-up — undo
+
+Requested after the first annotation pass: `Ctrl+Z` should erase the last choice.
+
+- Added an in-memory undo history to the annotator server, bounded to 100
+  entries.
+- A save records the row it replaced; a delete records the removed row.
+- Undo removes a newly added row, restores the row a save replaced, or re-adds a
+  deleted row.
+- Added `/api/annotations/undo`, a visible **Undo** button, and `Ctrl+Z`/`Cmd+Z`
+  handling.
+- Added unit tests for add, overwrite, delete, multi-step, empty, and bounded
+  history.
+- Smoke-tested the live endpoint through save, undo, overwrite, delete, and
+  restore.
+
+The history is session-local; a server restart clears it. The change is tooling
+only and does not touch model or strategy behavior.
+
+## Verification (undo follow-up)
+
+- `python3 -m unittest discover -s tools/charts -p 'test_*.py'` — 23 pass.
+- Live endpoint smoke: save, undo, overwrite, delete, restore, empty undo — pass.
+- Repository checks — pass (recorded in the handoff).
+
 ## Not claimed
 
 - No model or strategy behavior change.

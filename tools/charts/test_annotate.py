@@ -93,5 +93,71 @@ class AnnotationStoreTest(unittest.TestCase):
             self.assertEqual(header, "chart,bar,marked_time_utc,action,quality,side,note")
 
 
+class UndoTest(unittest.TestCase):
+    def row(self, bar: int = 10, quality: str = "good") -> dict:
+        return annotate.validate_annotation(
+            {
+                "chart": "chart.png",
+                "bar": bar,
+                "action": "entry",
+                "quality": quality,
+                "side": "long",
+            },
+            manifest(),
+        )
+
+    def test_undo_new_save_removes_it(self) -> None:
+        row = self.row()
+        history: list[dict] = []
+        rows = annotate.upsert([], row)
+        annotate.record_save(history, annotate.annotation_key(row), None)
+        self.assertEqual(annotate.undo_last(rows, history), [])
+        self.assertEqual(history, [])
+
+    def test_undo_save_restores_the_replaced_row(self) -> None:
+        previous = self.row(quality="good")
+        replacement = self.row(quality="bad")
+        history: list[dict] = []
+        rows = annotate.upsert([], previous)
+        rows = annotate.upsert(rows, replacement)
+        annotate.record_save(history, annotate.annotation_key(replacement), previous)
+        rows = annotate.undo_last(rows, history)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["quality"], "good")
+
+    def test_undo_delete_restores_the_row(self) -> None:
+        row = self.row()
+        history: list[dict] = []
+        removed = annotate.find_annotation([row], annotate.annotation_key(row))
+        rows = annotate.delete([row], row)
+        annotate.record_delete(history, removed)
+        rows = annotate.undo_last(rows, history)
+        self.assertEqual(rows, [row])
+
+    def test_undo_walks_back_multiple_changes(self) -> None:
+        first = self.row(bar=10)
+        second = self.row(bar=11)
+        history: list[dict] = []
+        rows = annotate.upsert([], first)
+        annotate.record_save(history, annotate.annotation_key(first), None)
+        rows = annotate.upsert(rows, second)
+        annotate.record_save(history, annotate.annotation_key(second), None)
+        rows = annotate.undo_last(rows, history)
+        self.assertEqual([item["bar"] for item in rows], ["10"])
+        rows = annotate.undo_last(rows, history)
+        self.assertEqual(rows, [])
+
+    def test_empty_history_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            annotate.undo_last([], [])
+
+    def test_history_is_bounded(self) -> None:
+        history: list[dict] = []
+        for index in range(annotate.UNDO_LIMIT + 5):
+            annotate.push_history(history, {"kind": "delete", "row": {"bar": str(index)}})
+        self.assertEqual(len(history), annotate.UNDO_LIMIT)
+        self.assertEqual(history[0]["row"]["bar"], "5")
+
+
 if __name__ == "__main__":
     unittest.main()
