@@ -14,7 +14,7 @@
 | 4 | `rvol` | 4 | 3 Participation | 0/2/3 | ✅ | per_row_extended_indicators::rvol_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 5 | `macd` | 5 | Base | 0/0/3 | ✅ | per_row_base_remaining_indicators::macd_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 6 | `pivots` | 6 | 6 Structure | 3/0/0 | ✅ | per_row_base::pivots_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
-| 7 | `context` | 7 | Base | 0/0/3 | ✅ | context_golden::the_context_matches_the_golden_fixture | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
+| 7 | `context` | 7 | Base | 0/0/4 | ✅ | context_golden::the_context_matches_the_golden_fixture | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 8 | `progression` | 8 | Base | 0/0/0 | ✅ | progression::tests::the_series_length_matches_the_readings_length | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | covered |
 | 9 | `adx` | 9 | Base | 0/0/1 | ✅ | per_row_base_remaining_indicators::adx_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 10 | `dmi` | 10 | Base | 0/0/1 | ✅ | per_row_base_remaining_indicators::dmi_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
@@ -54,20 +54,23 @@
 | 44 | `overnight_intraday` | 44 | 10 Calendar and session | 0/0/2 | ✅ | per_row_session_indicators::overnight_intraday_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 45 | `session_range` | 45 | 10 Calendar and session | 0/0/2 | ✅ | per_row_session_indicators::session_range_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 46 | `calendar_bucket` | 46 | 10 Calendar and session | 0/0/0 | ✅ | per_row_session_indicators::calendar_bucket_row_contract | not_applicable | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | covered |
+| 47 | `pivot_sequence` | 47 | 6 Structure | 0/0/2 | ✅ | per_row_extended_indicators::pivot_sequence_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
+| 48 | `fibonacci` | 48 | 6 Structure | 1/0/0 | ✅ | per_row_extended_indicators::fibonacci_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
+| 49 | `horizontal_band` | 49 | 6 Structure | 1/0/0 | ✅ | per_row_extended_indicators::horizontal_band_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 
 ## Area totals
 
 | Area | Indicators | L | D | S | Total |
 |---|---:|---:|---:|---:|---:|
-| Base | 8 | 0 | 4 | 12 | 16 |
+| Base | 8 | 0 | 4 | 13 | 17 |
 | 1 Volume-weighted price | 1 | 3 | 4 | 3 | 10 |
 | 2 Volume by price | 1 | 5 | 2 | 4 | 11 |
 | 3 Participation | 4 | 1 | 4 | 8 | 13 |
 | 4 Volume-price flow | 4 | 0 | 14 | 7 | 21 |
 | 5 Volatility structure | 4 | 2 | 2 | 8 | 12 |
-| 6 Structure | 6 | 9 | 0 | 6 | 15 |
+| 6 Structure | 9 | 11 | 0 | 8 | 19 |
 | 7 Candle anatomy and gaps | 3 | 3 | 0 | 13 | 16 |
 | 8 Path and duration | 5 | 0 | 0 | 7 | 7 |
 | 9 Cross-asset | 5 | 0 | 6 | 5 | 11 |
 | 10 Calendar and session | 5 | 3 | 0 | 10 | 13 |
-| **Total** | **46** | **26** | **36** | **83** | **145** |
+| **Total** | **49** | **28** | **36** | **86** | **150** |

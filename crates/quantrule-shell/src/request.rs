@@ -50,7 +50,7 @@ pub(crate) struct PolicyCheckArgs {
 }
 
 /// A parsed `strategy explain` command.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct StrategyExplainArgs {
     /// The completed model bundle.
     pub(crate) model: PathBuf,

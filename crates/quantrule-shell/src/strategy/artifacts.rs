@@ -57,6 +57,8 @@ pub(crate) struct DecisionCounts {
     pub(crate) event_condition_reason: usize,
     /// Time-stop exit reason count.
     pub(crate) time_stop_reason: usize,
+    /// Giveback exit reason count.
+    pub(crate) giveback_reason: usize,
 }
 
 impl DecisionCounts {
@@ -81,6 +83,7 @@ impl DecisionCounts {
                 match exit.reason {
                     ExitReason::EventCondition => self.event_condition_reason += 1,
                     ExitReason::TimeStop => self.time_stop_reason += 1,
+                    ExitReason::Giveback => self.giveback_reason += 1,
                 }
             }
         }
@@ -142,11 +145,12 @@ pub(crate) fn summary_bytes(
     let _ = writeln!(out, "sides: long={} short={}", counts.long, counts.short);
     let _ = writeln!(
         out,
-        "reasons: entry={} bracket_entry={} event_condition={} time_stop={}",
+        "reasons: entry={} bracket_entry={} event_condition={} time_stop={} giveback={}",
         counts.entry_reason,
         counts.bracket_entry_reason,
         counts.event_condition_reason,
-        counts.time_stop_reason
+        counts.time_stop_reason,
+        counts.giveback_reason
     );
     out
 }

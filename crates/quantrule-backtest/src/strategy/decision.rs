@@ -92,6 +92,8 @@ pub enum ExitReason {
     EventCondition,
     /// The strategy's maximum holding period elapsed.
     TimeStop,
+    /// The position gave back a configured fraction of its favorable excursion.
+    Giveback,
 }
 
 /// The decision a strategy makes for one closed bar.

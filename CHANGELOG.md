@@ -31,6 +31,14 @@ are not treated as releases.
 - A local click-to-annotate chart page. It maps a click to the candle from the
   chart manifest and writes `annotations.csv` directly, with no hand-edited CSV
   and no pixel detection.
+- The `M1.2` model structure extensions: confirmed pivot-sequence counts and
+  lower-high/lower-low events, causal Fibonacci retracements and level tests,
+  and multi-touch horizontal support/resistance bands and level tests. The
+  readings CSV grows to 121 columns and every annotation context carries them.
+  The registry is `2026-11-10.1` with 49 indicators and 150 events.
+- Strategy position excursions: entry price/ATR, unrealized ATR, MFE, MAE, and a
+  configurable giveback exit with an arming threshold. The strategy still sees
+  no cash, equity, P&L, fill, order, or quantity.
 
 ### Changed
 

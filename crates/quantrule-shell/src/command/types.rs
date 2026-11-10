@@ -27,7 +27,7 @@ use crate::request::{
 use crate::strategy::StrategyRunError;
 
 /// A parsed shell command.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum Command {
     /// Read a CSV source strictly and print the retained window.
     Candles(PathBuf),

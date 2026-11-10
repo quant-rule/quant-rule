@@ -75,6 +75,8 @@ pub struct ExtendedEventConfig {
     reclaim_bars: usize,
     level_atr: f64,
     path_window: usize,
+    fib_test_atr: f64,
+    band_atr: f64,
 }
 
 impl ExtendedEventConfig {
@@ -86,6 +88,8 @@ impl ExtendedEventConfig {
             reclaim_bars: 6,
             level_atr: 0.2,
             path_window: 20,
+            fib_test_atr: 0.2,
+            band_atr: 0.25,
         }
     }
 
@@ -93,6 +97,20 @@ impl ExtendedEventConfig {
     #[must_use]
     pub const fn with_path_window(mut self, path_window: usize) -> Self {
         self.path_window = path_window;
+        self
+    }
+
+    /// Uses the configured Fibonacci test tolerance.
+    #[must_use]
+    pub const fn with_fib_test_atr(mut self, fib_test_atr: f64) -> Self {
+        self.fib_test_atr = fib_test_atr;
+        self
+    }
+
+    /// Uses the configured horizontal-band tolerance.
+    #[must_use]
+    pub const fn with_band_atr(mut self, band_atr: f64) -> Self {
+        self.band_atr = band_atr;
         self
     }
 
@@ -160,6 +178,9 @@ impl ExtendedEventSeries {
             participation_events(candles, readings, extended, config, bar, &mut events);
             flow_events(candles, extended, config, bar, &mut events);
             level_extended_events(candles, readings, extended, config, bar, &mut events);
+            structure_sequence_events(readings, extended, config, bar, &mut events);
+            fibonacci_events(candles, readings, extended, config, bar, &mut events);
+            band_events(candles, readings, extended, config, bar, &mut events);
         }
         divergence_events(readings, extended, config, &mut events);
         participation_divergences(readings, extended, config, &mut events);
@@ -189,12 +210,15 @@ impl ExtendedEventSeries {
     }
 }
 
+mod band;
 mod divergence;
+mod fibonacci;
 mod flow;
 mod levels;
 mod participation;
 mod profile;
 mod shared;
+mod structure;
 mod vwap;
 
 #[cfg(test)]
@@ -204,12 +228,15 @@ mod row_tests;
 #[cfg(test)]
 mod tests;
 
+use self::band::band_events;
 use self::divergence::{atr_divergences, divergence_events};
+use self::fibonacci::fibonacci_events;
 use self::flow::{flow_divergences, flow_events};
 use self::levels::level_extended_events;
 use self::participation::{participation_divergences, participation_events};
 use self::profile::profile_events;
+use self::structure::structure_sequence_events;
 use self::vwap::vwap_events;
 
 pub(crate) use divergence::divergence_subtype;
-pub(crate) use shared::{cross_down_value, cross_up_value, push};
+pub(crate) use shared::{cross_down_value, cross_up_value, push, push_with_reference};

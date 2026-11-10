@@ -1,7 +1,7 @@
 # Indicator Coverage — 10 OHLCV Information Areas
 
 - Date: 2026-11-05 (UTC)
-- Status: **Implemented** — 46 indicators, 145 active events, 102 parameters; event codes 1–145; 37 checklist rows signed (36 event-producing indicators wired and spec-usable, 1 reading-only); spec v2 implemented; validation claims present (191), predictive evidence pending; the 46-row indicator and 145-row event matrices are the current verification target; `M1.1` adds the opening-range sweep pair
+- Status: **Implemented** — 49 indicators, 150 active events, 106 parameters; event codes 1–150; 37 checklist rows signed (36 event-producing indicators wired and spec-usable, 1 reading-only); spec v2 implemented; validation claims present (199), predictive evidence pending; the 49-row indicator and 150-row event matrices are the current verification target; `M1.2` adds pivot sequence, Fibonacci, and horizontal-band structure
 - Scope: 10 information areas, 36 new indicators, 10 existing indicators
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Plan: [`docs/execution-plans/2026-11-05/405-indicator-platform.md`](../../execution-plans/2026-11-05/405-indicator-platform.md)
@@ -88,7 +88,7 @@ covered. The registry never invents a meaningless event to fill a cell.
 | 22 | `mar` | `MAR=mean(abs(C-C_prev)/C_prev,n)`; `MR=MAR5/MAR20` | none | none | `cross_up(MR,1.5)`; `cross_down(MR,0.7)` | diagnostic |
 | 23 | `keltner` | `K=EMA(C,20)`; `U=K+2ATR`; `L=K-2ATR`; `KP=(C-L)/(U-L)` | `test(C,U)`; `C>U` break | none | `C>U`; `C<L`; `cross_up(KP,0.8)`; `cross_down(KP,0.2)` | context/signal |
 
-## 8. Area 6 — Structure (10/10)
+## 8. Area 6 — Structure (13/13)
 
 | Code | Indicator | Reading formula | Level event | Divergence event | Signal event | Role |
 |---:|---|---|---|---|---|---|
@@ -98,6 +98,9 @@ covered. The registry never invents a meaningless event to fill a cell.
 | 26 | `level_strength` | `T=count(confirmed major levels within 0.2ATR of H or L, lookback)`; `age=bars since the youngest such level` | `T>=2` test/break | none | `cross_up(T,2)` | context |
 | 27 | `aroon` | `AU=100*(n-bars_since_high)/n`; `AD=100*(n-bars_since_low)/n`; `AO=AU-AD` | none | none | `cross_up(AU,70)`; `cross_down(AD,30)`; `cross_up(AO,0)` | context |
 | 28 | `bos_choch` | `BOS=C>last_pivot_high in up structure`; `CHOCH=C>last_pivot_high in down structure`; mirrors | BOS/CHOCH event | none | `SS` direction change | signal/context |
+| 47 | `pivot_sequence` | count consecutive confirmed major lower/higher highs and lower/higher lows | none | none | `lower_high_count>=2`; `lower_low_count>=2` | signal |
+| 48 | `fibonacci` | last confirmed major leg; fixed ratios 0.236/0.382/0.5/0.618/0.786; position and nearest ATR | `test` of a ratio within 0.2 ATR | none | `level.fib_test` | signal |
+| 49 | `horizontal_band` | cluster confirmed major levels within 0.25 ATR; largest cluster, nearest close tie-break | `test` of the band within 0.25 ATR | none | `level.band_test` | signal |
 
 ## 9. Area 7 — Candle anatomy and gaps (10/10)
 
@@ -171,7 +174,8 @@ New: 11 `vwap`, 12 `volume_profile`, 13 `volume_climax`, 14 `absorption`, 15
 `direction_changes`, 34 `bars_since_extreme`, 35 `drawdown_atr`, 36
 `range_position`, 37 `relative_strength`, 38 `lead_lag`, 39 `breadth`, 40
 `co_movement`, 41 `dispersion`, 42 `session`, 43 `opening_range`, 44
-`overnight_intraday`, 45 `session_range`, 46 `calendar_bucket`.
+`overnight_intraday`, 45 `session_range`, 46 `calendar_bucket`, 47
+`pivot_sequence`, 48 `fibonacci`, 49 `horizontal_band`.
 
 ### 14.2 Source codes
 
@@ -184,7 +188,7 @@ Existing 1–18 are preserved. New: 19 `vwap`, 20 `volume_profile`, 21
 `drawdown_atr`, 44 `range_position`, 45 `relative_strength`, 46 `lead_lag`,
 47 `breadth`, 48 `co_movement`, 49 `dispersion`, 50 `session`, 51
 `opening_range`, 52 `overnight_intraday`, 53 `session_range`, 54
-`calendar_bucket`.
+`calendar_bucket`, 55 `pivot sequence`, 56 `Fibonacci`, 57 `horizontal band`.
 
 ### 14.3 Signal subtypes
 

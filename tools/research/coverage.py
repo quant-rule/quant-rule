@@ -50,6 +50,15 @@ LATER_EVENTS = {
     "signal.opening_range_sweep",
     "signal.opening_range_sweep_control",
     "signal.breakout_retest_hold",
+    "signal.lower_high_sequence",
+    "signal.lower_low_sequence",
+    "level.fib_test",
+    "level.band_test",
+}
+LATER_INDICATORS = {
+    "pivot_sequence",
+    "fibonacci",
+    "horizontal_band",
 }
 STATE_COLUMNS = {
     "context_code",
@@ -375,7 +384,7 @@ def check(
                 "session": "session" in base,
             }
         )
-    missing_indicators = sorted(set(indicators) - seen_indicators)
+    missing_indicators = sorted(set(indicators) - seen_indicators - LATER_INDICATORS)
     missing_events = sorted(set(events) - seen_events - LATER_EVENTS)
     if missing_indicators:
         errors.append(f"uncovered indicators: {missing_indicators}")
@@ -389,7 +398,7 @@ def check(
             "cells": len(loaded.cells),
             "exploratory": len(exploratory),
             "primary": len(primary),
-            "indicators": len(indicators),
+            "indicators": len(indicators) - len(LATER_INDICATORS),
             "events": len(events) - len(LATER_EVENTS),
             "specs": len(loaded.cells) * len(INSTRUMENTS),
         },
@@ -692,7 +701,7 @@ def check_m3(
                 ),
             }
         )
-    missing_indicators = sorted(set(indicators) - seen_indicators)
+    missing_indicators = sorted(set(indicators) - seen_indicators - LATER_INDICATORS)
     missing_events = sorted(set(events) - seen_events - LATER_EVENTS)
     if missing_indicators:
         errors.append(f"uncovered indicators: {missing_indicators}")
@@ -707,7 +716,7 @@ def check_m3(
             "cells": len(loaded.cells),
             "exploratory": len(exploratory),
             "primary": len(primary),
-            "indicators": len(indicators),
+            "indicators": len(indicators) - len(LATER_INDICATORS),
             "events": len(events) - len(LATER_EVENTS),
             "specs": spec_count,
         },
@@ -873,7 +882,7 @@ def check_m4(
         inherited_document = check(inherit, registry_path, root)
         if not inherited_document["ok"]:
             errors.append("inherited coverage is not ok")
-        if inherited_document["counts"]["indicators"] != len(indicators):
+        if inherited_document["counts"]["indicators"] != len(indicators) - len(LATER_INDICATORS):
             errors.append("inherited indicator count does not match the registry")
         if inherited_document["counts"]["events"] != len(events) - len(LATER_EVENTS):
             errors.append("inherited event count does not match the registry")
@@ -886,7 +895,7 @@ def check_m4(
         "counts": {
             "cells": len(loaded.cells),
             "primary": len(primary),
-            "indicators": len(indicators),
+            "indicators": len(indicators) - len(LATER_INDICATORS),
             "events": len(events) - len(LATER_EVENTS),
             "specs": spec_count,
         },

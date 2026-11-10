@@ -35,7 +35,7 @@ repeating a status.
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Command surface | 15 implemented commands, 0 planned; the discovery gate passes. |
-| Model | `M1.1` current; 46 indicators, 145 active events, 191 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
+| Model | `M1.2` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. A dense Binance BTCUSDT cross-venue source exists outside the partitions. |
@@ -61,9 +61,10 @@ repeating a status.
 | Contract | Status | Path |
 |---|---|---|
 | M1.0 flat model | Historical baseline; path gate no edge; compression baselines accepted | `docs/model/2026-11-05/model-m1.0.md` |
-| M1.1 opening-range sweep | Current model; adds the opening-range sweep and control events; MR7 no edge | `docs/model/2026-11-08/model-m1.1.md` |
-| Indicator coverage | Implemented 2026-11-05; updated 2026-11-08: 46 indicators, 145 active events, stable event codes; 191 validation claims and 54/54 construct cases; predictive evidence pending | `docs/model/2026-11-05/indicator-coverage.md` |
-| Model families | Approved 2026-11-05; amended 2026-11-08 for `MR` research families; `M1.1` current, `M1.0` historical, `M2.x`–`M4.x` historical, `MR5.x`–`MR7.x` research, and the future `S3.x` map | `docs/model/2026-11-05/model-families.md` |
+| M1.1 opening-range sweep | Historical model; adds the opening-range sweep and control events; MR7 no edge | `docs/model/2026-11-08/model-m1.1.md` |
+| M1.2 structure extensions | Current model; pivot sequence, Fibonacci retracements, and horizontal bands; predictive evidence pending | `docs/model/2026-11-10/model-m1.2.md` |
+| Indicator coverage | Implemented 2026-11-05; updated 2026-11-10: 49 indicators, 150 active events, stable event codes; 199 validation claims; predictive evidence pending | `docs/model/2026-11-05/indicator-coverage.md` |
+| Model families | Approved 2026-11-05; amended 2026-11-10; `M1.2` current, `M1.0`/`M1.1` historical, `M2.x`–`M4.x` historical, `MR5.x`–`MR7.x` research, and the future `S3.x` map | `docs/model/2026-11-05/model-families.md` |
 | Model spec v1 | Implemented; condition-only; includes the `rvol_regime`, `vol_regime`, and `structure_state` states | `docs/model/2026-11-05/model-spec-v1.md` |
 | `rvol_regime` context state | Current; low below 1.4, normal 1.4–2.0, high at or above 2.0; no event changes | `docs/model/2026-11-08/rvol-regime.md` |
 | `vol_regime` context state | Current; compressed at or below 0.7, normal below 1.3, expanded at or above 1.3; no event changes | `docs/model/2026-11-09/vol-regime.md` |
@@ -101,6 +102,7 @@ repeating a status.
 | Qualification criteria | Current; human-owned criteria, verdict semantics, and human acceptance | `docs/config/2026-11-06/qualification-criteria.md` |
 | Analytics benchmarks | Current; buy-and-hold and matched random-timing evaluation output | `docs/config/2026-11-09/analytics-benchmarks.md` |
 | Trade context | Current; per-trade 250-bar entry/exit context, annotation mapping, and exit-quality table | `docs/config/2026-11-09/trade-context.md` |
+| Strategy position excursions | Current; entry price/ATR, unrealized, MFE/MAE, giveback exit | `docs/config/2026-11-10/strategy-position-excursions.md` |
 | Improvement run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical | `docs/workflows/run-contract.md` |
 
 The current run does not reference `strategy.json` or `analytics.json`. The loader

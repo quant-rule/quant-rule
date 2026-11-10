@@ -52,7 +52,7 @@ impl CompressionBracketConfig {
         if !(1..=23).contains(&event_subtype) {
             return Err(StrategyConfigError::EventSubtype);
         }
-        if !(1..=54).contains(&event_source) {
+        if !(1..=57).contains(&event_source) {
             return Err(StrategyConfigError::EventSource);
         }
         if (event_type, event_subtype, event_source) != super::registry::COMPRESSION_RANGE_EVENT {

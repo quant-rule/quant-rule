@@ -210,7 +210,8 @@ the decisions artifact, not the rule language itself.
 An entry intent carries the side, the entry style (`market` or `bracket`), the
 stop specification, the target specification, and the last bar on which the
 intent is valid. A bracket entry carries the two boundary prices. An exit intent
-carries `event_condition` or `time_stop`. The strategy never sets a fill price.
+carries `event_condition`, `time_stop`, or `giveback`. The strategy never sets a
+fill price.
 
 The evidence list carries only published signal/context inputs:
 

@@ -69,6 +69,8 @@ and the strategy command takes the strategy file explicitly.
 | `context_timeframes` | Optional unique timeframes, ascending, different from the execution timeframe, and published by the model bundle. |
 | `event_window_bars` | Event-composite only; positive integer, default `1`. The window is in execution bars. |
 | `time_stop_bars` | Maximum holding period in execution bars; `0` disables it for the event-composite engine. A bracket requires a positive value. |
+| `giveback_atr` | Event-composite only; positive entry-ATR threshold. When set, the strategy exits after the position gives back at least this much of its favorable excursion. |
+| `giveback_arm_atr` | Event-composite only; non-negative entry-ATR favorable excursion required before the giveback exit can fire; default `0`. |
 | `require_contiguous` | Boolean, default `true`. A decision requires the execution bar to follow the previous one at the execution cadence. |
 | `risk.stop_atr_multiple` | Positive finite ATR stop multiple. |
 | `risk.reward_to_risk` | Positive finite target multiple of the stop distance. |
@@ -106,7 +108,7 @@ disjunction of exit conditions. Each condition names a published timeframe.
 | `timeframe` | A timeframe published by the model bundle. |
 | `event_type` | `1` Level, `2` Divergence, or `3` Signal. |
 | `subtype` | The registered subtype, `1..=7` for the event-composite engine. |
-| `source` | The registered source code, `1..=54`. |
+| `source` | The registered source code, `1..=57`. |
 | `direction` | `-1`, `0`, or `+1`. Zero matches either direction and takes the matched event's side. |
 | `contrarian` | Optional boolean on an event condition, default `false`. When `true`, the entry side is the opposite of the matched event direction; the event identity and evidence are unchanged. |
 | `field` | A published state field: `ema_stack`, `rsi_zone`, `macd_state`, `macd_histogram_state`, `adx_regime`, `adx_slope`, `di_state`, `rvol_regime`, `vol_regime`, `structure_state`, `progression_stage`, or `progression_leg_direction`. |
@@ -180,7 +182,7 @@ It prints one JSON object:
 | `position_after` | The intended position after the decision. A bracket entry remains `flat` until execution fills it. |
 | `decision` | `hold`, `enter`, `enter_bracket`, or `exit`. |
 | `side` | `long`, `short`, or `null`. |
-| `reason` | `entry`, `bracket_entry`, `event_condition`, `time_stop`, or `null`. |
+| `reason` | `entry`, `bracket_entry`, `event_condition`, `time_stop`, `giveback`, or `null`. |
 | `intent` | The entry or exit request, or `null`. |
 | `atr14` | The decision bar's ATR(14), used by execution to resolve an ATR stop. The strategy decision logic does not read it. |
 | `evidence` | The as-of event and state references that justified the decision. |

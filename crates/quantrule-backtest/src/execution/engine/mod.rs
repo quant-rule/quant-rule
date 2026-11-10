@@ -185,6 +185,7 @@ pub struct ExecutionEngine {
     config: ExecutionConfig,
     next_bar: usize,
     last_bar: Option<(usize, i64)>,
+    last_close: Option<f64>,
     position: PositionState,
     pending: Option<PendingOrder>,
     pending_bracket: Option<PendingBracket>,
@@ -213,6 +214,7 @@ impl ExecutionEngine {
             config,
             next_bar: 0,
             last_bar: None,
+            last_close: None,
             position: PositionState::Flat,
             pending: None,
             pending_bracket: None,
@@ -248,6 +250,7 @@ impl ExecutionEngine {
         let time = bar.timestamp();
         self.next_bar += 1;
         self.last_bar = Some((index, time));
+        self.last_close = Some(bar.close());
 
         let mut batch = ExecutionBatch::default();
 
@@ -281,6 +284,9 @@ impl ExecutionEngine {
 
         if self.position.is_open() {
             self.apply_bracket(bar, index, time, &mut batch)?;
+            if let PositionState::Open(position) = &mut self.position {
+                update_excursions(position, bar);
+            }
         }
 
         Ok(batch)
@@ -590,10 +596,21 @@ impl ExecutionEngine {
                     .last_bar
                     .map(|(bar, _)| bar.saturating_sub(position.entry_bar) as u64)
                     .unwrap_or(0);
+                let unrealized_atr = match (self.last_close, position.entry_atr) {
+                    (Some(close), Some(atr)) if atr > 0.0 => {
+                        Some((close - position.entry_price) / atr * f64::from(position.side.code()))
+                    }
+                    _ => None,
+                };
                 StrategyPosition {
                     side: Some(position.side),
                     entry_bar: Some(position.entry_bar),
                     bars_held,
+                    entry_price: Some(position.entry_price),
+                    entry_atr: position.entry_atr,
+                    unrealized_atr,
+                    mfe_atr: Some(position.mfe_atr),
+                    mae_atr: Some(position.mae_atr),
                 }
             }
             PositionState::Flat => StrategyPosition::flat(),
@@ -611,6 +628,24 @@ impl ExecutionEngine {
         self.next_fill_id += 1;
         fill_id
     }
+}
+
+fn update_excursions(position: &mut Position, bar: &Candle) {
+    let Some(atr) = position.entry_atr.filter(|atr| *atr > 0.0) else {
+        return;
+    };
+    let favorable = if position.is_long() {
+        bar.high() - position.entry_price
+    } else {
+        position.entry_price - bar.low()
+    } / atr;
+    let adverse = if position.is_long() {
+        position.entry_price - bar.low()
+    } else {
+        bar.high() - position.entry_price
+    } / atr;
+    position.mfe_atr = position.mfe_atr.max(favorable.max(0.0));
+    position.mae_atr = position.mae_atr.max(adverse.max(0.0));
 }
 
 mod entry;

@@ -203,6 +203,8 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyConfig, ConfigE
             "context_timeframes",
             "event_window_bars",
             "time_stop_bars",
+            "giveback_atr",
+            "giveback_arm_atr",
             "require_contiguous",
             "risk",
             "entry",
@@ -267,7 +269,7 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyConfig, ConfigE
                 .map(|value| parse_conditions(file, "$.exit", value))
                 .transpose()?
                 .unwrap_or_default();
-            let config =
+            let mut config =
                 EventCompositeConfig::new(event_window_bars, time_stop_bars, &entry, &exit)
                     .map_err(|error| {
                         ConfigError::range(
@@ -277,6 +279,23 @@ pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyConfig, ConfigE
                             &error.to_string(),
                         )
                     })?;
+            if let Some(value) = object.get("giveback_atr") {
+                let giveback_atr = read::number(file, "$.giveback_atr", value)?;
+                let arm = match object.get("giveback_arm_atr") {
+                    Some(value) => read::number(file, "$.giveback_arm_atr", value)?,
+                    None => 0.0,
+                };
+                config = config
+                    .with_giveback_atr(giveback_atr, arm)
+                    .map_err(|error| {
+                        ConfigError::range(
+                            file,
+                            "$.giveback_atr",
+                            "a valid giveback exit",
+                            &error.to_string(),
+                        )
+                    })?;
+            }
             StrategyEngine::EventComposite(config)
         }
         "compression_bracket" => {
@@ -597,7 +616,7 @@ fn integer(file: &str, path: &str, value: &Value) -> Result<i64, ConfigError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Condition, SCHEMA, StateField, parse};
+    use super::{Condition, SCHEMA, StateField, StrategyEngine, parse};
     use serde_json::json;
 
     fn valid() -> serde_json::Value {
@@ -628,6 +647,19 @@ mod tests {
         assert_eq!(config.context_timeframes.len(), 2);
         assert_eq!(config.entry_conditions().len(), 1);
         assert_eq!(config.exit_conditions().len(), 1);
+    }
+
+    #[test]
+    fn a_giveback_exit_config_parses() {
+        let mut value = valid();
+        value["giveback_atr"] = json!(1.0);
+        value["giveback_arm_atr"] = json!(0.5);
+        let config = parse(&value, "strategy.json").expect("the giveback config parses");
+        let StrategyEngine::EventComposite(event) = config.engine else {
+            panic!("the event-composite engine");
+        };
+        assert_eq!(event.giveback_atr(), Some(1.0));
+        assert_eq!(event.giveback_arm_atr(), 0.5);
     }
 
     #[test]

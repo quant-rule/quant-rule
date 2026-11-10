@@ -344,6 +344,7 @@ fn exit_reason_label(reason: ExitReason) -> &'static str {
     match reason {
         ExitReason::EventCondition => "event_condition",
         ExitReason::TimeStop => "time_stop",
+        ExitReason::Giveback => "giveback",
     }
 }
 
@@ -447,7 +448,11 @@ fn evidence(config: &StrategyConfig, input: &EventStrategyInput, decision: Decis
             .iter()
             .flat_map(|condition| condition_evidence(*condition, input))
             .collect(),
-        Decision::Exit(exit) if exit.reason == ExitReason::TimeStop => Vec::new(),
+        Decision::Exit(exit)
+            if matches!(exit.reason, ExitReason::TimeStop | ExitReason::Giveback) =>
+        {
+            Vec::new()
+        }
         Decision::Exit(_) => config
             .exit_conditions()
             .iter()
