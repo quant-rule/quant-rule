@@ -59,6 +59,12 @@ are not treated as releases.
   negative; no candidate and 2024 remains closed.
 - Undo for the click annotator: `Ctrl+Z`, `Cmd+Z`, or the **Undo** button
   reverses the last save or delete in the current server session.
+- The simulation-run harness (`tools/simulation/`) and the
+  `simulation-research` workflow. A run selects deterministic M1.3 windows,
+  renders clean charts, writes hindsight good/bad marks in the annotator schema,
+  reviews the candle-shape context, and checks the extracted rule on 2020–2022
+  with an unfiltered control and a 6 bps proxy. It is exploration only; a
+  survivor goes to Strategy Research. The local store is `data/simulation/`.
 
 ### Changed
 

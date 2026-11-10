@@ -162,6 +162,7 @@ of workflow status; this page does not repeat it.
 | Research swarm | `docs/workflows/research-swarm.md` |
 | Model research | `docs/workflows/model-research.md` |
 | Model change | `docs/workflows/model-change.md` |
+| Simulation research | `docs/workflows/simulation-research.md` |
 | Strategy research | `docs/workflows/strategy-research.md` |
 | Portfolio research | `docs/workflows/portfolio-research.md` |
 | Policy change | `docs/workflows/policy-change.md` |
@@ -196,6 +197,7 @@ store in the current surface.
 | Tool | Purpose | Path |
 |---|---|---|
 | Progression replay oracle | Regenerates and checks the per-bar Progression and retained-leg golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
+| Simulation harness | Selects M1.3 windows, renders clean charts, writes hindsight marks, and reviews them; exploration only. | [`tools/simulation/README.md`](../tools/simulation/README.md) |
 | Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `tools/build_verification.py` |
 | Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
 | Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
@@ -248,6 +250,7 @@ record of what was released. Historical tags `v0.4.0-exp-baseline` and
 | MR7.x model programme | Development `no_edge`; 15 cells; validation not opened | `docs/execution-plans/2026-11-08/mr7-programme.md`; `docs/improvement/2026-11-08/MR7-DEV-SWARM.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 | Workflow documentation reset | Released in `v0.6.0` (PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
+| Simulation runs | Approved 2026-11-10; execution started | `docs/execution-plans/2026-11-10/simulation-runs.md` |
 
 ## Current architecture decisions
 

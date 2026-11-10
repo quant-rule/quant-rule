@@ -1,0 +1,2 @@
+timeframe_secs,reference_code,scale_code,kind_code,price,occurred_bar_index,available_bar_index,distance_atr
+900,1,1,-1,100.0,10,15,0.0

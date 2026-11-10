@@ -37,6 +37,7 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 | [`research-swarm.md`](research-swarm.md) | How do pre-registered cells run concurrently? | Quant execution | Current | Yes; no active campaign |
 | [`model-research.md`](model-research.md) | Which model measurement deserves promotion? | Quant tier | Current | Yes |
 | [`model-change.md`](model-change.md) | How is an indicator or event implemented and registered? | Quant implementation | Current | Yes |
+| [`simulation-research.md`](simulation-research.md) | What pattern does a chart-first, hindsight-marked sample imply? | Quant exploration | Current | Yes; development partition only |
 | [`strategy-research.md`](strategy-research.md) | Does a rule produce a cost-inclusive edge? | Quant tier | Current | Gated by a model baseline |
 | [`portfolio-research.md`](portfolio-research.md) | Do execution and accounting improve the account outcome? | Quant tier | Current | Gated by a strategy baseline |
 | [`policy-change.md`](policy-change.md) | Does the human-owned envelope change? | Governance | Current | Yes |
@@ -54,6 +55,7 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 | A structural problem, coupling, file size, or duplication | [Refactor Workflow](refactor-workflow.md) |
 | A model measurement, event, or family hypothesis | [Model Research](model-research.md) |
 | An indicator, event, or model implementation change | [Model Change](model-change.md) |
+| A chart-first, hindsight-labeled hypothesis | [Simulation Research](simulation-research.md) |
 | A strategy hypothesis | [Strategy Research](strategy-research.md) |
 | An execution or portfolio mechanics hypothesis | [Portfolio Research](portfolio-research.md) |
 | A policy envelope change | [Policy Change](policy-change.md) |
@@ -72,6 +74,9 @@ POLICY (human-owned, outside the tiers)
    |
    v
 DATA (versioned, validated) --> MODEL RESEARCH --> MODEL CHANGE (if needed) --> MODEL BASELINE (human)
+                                      |
+                                      v
+                                 SIMULATION RESEARCH (exploration, no claim)
                                       |
                                       v
                                  STRATEGY RESEARCH --> STRATEGY BASELINE (human)
