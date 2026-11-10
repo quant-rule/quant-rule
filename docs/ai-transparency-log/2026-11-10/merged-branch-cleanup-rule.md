@@ -19,7 +19,8 @@ task worktree and delete its local and remote task branches before reporting
 completion. The rule is repeated in the branch-worktree instructions, the
 evidence/handoff stage, the workflow-closure stage, and the response format so a
 merged task cannot be reported as `No action` while its worktree or branch
-remains. `CHANGELOG.md` records the process change.
+remains. The completion line is `Clean up` while cleanup remains; `No action`
+is reserved for after cleanup. `CHANGELOG.md` records the process change.
 
 ## Verification
 

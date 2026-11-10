@@ -57,8 +57,8 @@ are not treated as releases.
 
 - Merged-task cleanup is mandatory: `AGENTS.md` now requires removing the task
   worktree and deleting its local and remote branches before a task is reported
-  complete. `No action` is not allowed while a merged task's worktree or branch
-  remains.
+  complete. The completion report says `Clean up` while cleanup remains;
+  `No action` is reserved for after cleanup.
 - The BTC 15m break-only long control is not promoted. On the dense Binance
   BTCUSDT series, 2018–2022 is 65 trades, −$389.64, PF 0.871, and 2023 is 8
   trades, −$202.50, PF 0.229; the Dukascopy lead is not venue-robust.
