@@ -1,10 +1,10 @@
 # M1.3 Quant Validation — Sequence and Fibonacci Corrections
 
 - Date: 2026-11-10 (UTC)
-- Status: Sequential Quant Validator pass; not an independent review; PR #579 open
+- Status: Sequential Quant Validator pass; not an independent review; PR #579 merged as `68606dc`
 - Model: `M1.3`
 - Registry: `2026-11-10.2`
-- Baseline: `dda51d8` plus `5bf7152` and `d3a6b42`; PR #579
+- Baseline: `dda51d8` plus `5bf7152` and `d3a6b42`; merged as `68606dc`; PR #579
 - Audit: [`model-structures-audit.md`](../../audits/2026-11-10/model-structures-audit.md)
   (`AUDIT-2026-11-10-model-structures`)
 - Plan: [`audit-model-structures-remediation.md`](../../execution-plans/2026-11-10/audit-model-structures-remediation.md)
@@ -34,7 +34,7 @@ model value change.
 | Event config | `ExtendedEventConfig::from_secs(3600)` in the unit tests; `300` in the model fixture |
 | Data partition | repository fixture only; no 2024, validation, or holdout access |
 | Seed/randomness | none |
-| Code state | `fix/audit-m12-remediation` at `d3a6b42`; PR #579 |
+| Code state | `fix/audit-m12-remediation` at `d3a6b42`; merged as `68606dc`; PR #579 |
 
 ## 3. Observed results
 
@@ -132,8 +132,9 @@ randomness, I/O, or unordered iteration.
 - The full 2018–2019 backtest and annotation-zone reports were not re-run; the
   fixture and unit/integration gates are the validation input. No strategy
   result is claimed.
-- The validation was run on the PR branch at `d3a6b42`. The merge commit must
-  be added before the Improvement Verifier closes the findings.
+- The validation was run on the PR branch at `d3a6b42`; the merged code state is
+  `68606dc` and is unchanged from that commit. The closure verification is
+  recorded in [`model-m1.3-audit-verification.md`](model-m1.3-audit-verification.md).
 - The 2024 partition was not accessed.
 
 ## 7. Verdict
@@ -153,3 +154,5 @@ findings remain subject to the Improvement Verifier and human acceptance.
 - Model contract: [`model-m1.3.md`](../../model/2026-11-10/model-m1.3.md)
 - Invalidations: [`INVALIDATIONS.md`](../../improvement/INVALIDATIONS.md)
 - AI log: [`audit-model-structures-remediation.md`](../../ai-transparency-log/2026-11-10/audit-model-structures-remediation.md)
+
+Post-merge note (2026-11-10): PR #579 merged as `68606dc`; `git diff d3a6b42..68606dc -- crates tools config data` is empty, so the validated code state is the merged code state. The audit closure verification is in the linked report.

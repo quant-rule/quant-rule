@@ -33,3 +33,5 @@ deleted, this table is the tombstone that says what was removed and why.
 | 2026-11-03 | worktree | `data/improvement/2026-11-01/STRATEGY-2026-11-01-01..15` | Invalidated by the model v3 contract and the 10% policy; the strategies used the retired axes and a 20% drawdown envelope | `MODEL-2026-11-03-01..02` |
 | 2026-11-10 | worktree | `docs/improvement/2026-11-10/SR10.md` | Invalidated by `M1.3`: the SR10 entries used the M1.2 `level.fib_test` endpoint event set; M1.3 corrects the event to a bar-range intersection with one event per tested level | — (development only; no rerun) |
 | 2026-11-10 | worktree | `docs/improvement/2026-11-10/SR11.md` | Invalidated by `M1.3`: the SR11 entries used the M1.2 `level.fib_test` endpoint event set; M1.3 corrects the event to a bar-range intersection with one event per tested level | — (development only; no rerun) |
+
+2026-11-10 note: the SR10/SR11 rows above were recorded in `d3a6b42` and merged as `68606dc`; the `worktree` value is retained as the pre-commit placeholder.
