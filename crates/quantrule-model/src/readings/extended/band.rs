@@ -17,7 +17,7 @@ pub(super) struct BandReadings {
     pub(super) position: Vec<Option<f64>>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 struct LevelPoint {
     price: f64,
     available_at: usize,
@@ -62,49 +62,8 @@ pub(super) fn band_series(
             continue;
         };
         let tolerance = config.band_atr * atr;
-        let mut points = active.clone();
-        if points.len() < 2 {
-            continue;
-        }
-        points.sort_by(|left, right| left.price.total_cmp(&right.price));
-        let mut clusters: Vec<Vec<LevelPoint>> = Vec::new();
-        for point in points {
-            match clusters.last_mut() {
-                Some(cluster)
-                    if (point.price - cluster.last().expect("cluster is non-empty").price)
-                        .abs()
-                        <= tolerance =>
-                {
-                    cluster.push(point);
-                }
-                _ => clusters.push(vec![point]),
-            }
-        }
         let close = candle.close();
-        let mut best: Option<Vec<LevelPoint>> = None;
-        for cluster in clusters {
-            if cluster.len() < 2 {
-                continue;
-            }
-            let center =
-                cluster.iter().map(|point| point.price).sum::<f64>() / cluster.len() as f64;
-            let better = match &best {
-                None => true,
-                Some(current) => {
-                    let current_center =
-                        current.iter().map(|point| point.price).sum::<f64>() / current.len() as f64;
-                    cluster.len() > current.len()
-                        || (cluster.len() == current.len()
-                            && ((center - close).abs() < (current_center - close).abs()
-                                || ((center - close).abs() == (current_center - close).abs()
-                                    && center < current_center)))
-                }
-            };
-            if better {
-                best = Some(cluster);
-            }
-        }
-        let Some(band) = best else {
+        let Some(band) = select_band(&active, close, tolerance) else {
             continue;
         };
         let upper = band
@@ -116,11 +75,9 @@ pub(super) fn band_series(
             .map(|point| point.price)
             .fold(f64::INFINITY, f64::min);
         let center = band.iter().map(|point| point.price).sum::<f64>() / band.len() as f64;
-        let youngest = band
-            .iter()
-            .map(|point| point.available_at)
-            .max()
-            .expect("band is non-empty");
+        let Some(youngest) = band.iter().map(|point| point.available_at).max() else {
+            continue;
+        };
         let width = upper - lower;
         result.upper[bar] = Some(upper);
         result.lower[bar] = Some(lower);
@@ -133,4 +90,105 @@ pub(super) fn band_series(
         }
     }
     result
+}
+
+/// Selects the band cluster: largest first, then nearest center to close,
+/// then the lower center. A cluster needs at least two levels.
+fn select_band(points: &[LevelPoint], close: f64, tolerance: f64) -> Option<Vec<LevelPoint>> {
+    if points.len() < 2 {
+        return None;
+    }
+    let mut sorted = points.to_vec();
+    sorted.sort_by(|left, right| left.price.total_cmp(&right.price));
+    let mut clusters: Vec<Vec<LevelPoint>> = Vec::new();
+    for point in sorted {
+        let joins = clusters.last().is_some_and(|cluster| {
+            cluster
+                .last()
+                .is_some_and(|last| (point.price - last.price).abs() <= tolerance)
+        });
+        if joins {
+            if let Some(cluster) = clusters.last_mut() {
+                cluster.push(point);
+            }
+        } else {
+            clusters.push(vec![point]);
+        }
+    }
+    let mut best: Option<Vec<LevelPoint>> = None;
+    for cluster in clusters {
+        if cluster.len() < 2 {
+            continue;
+        }
+        let center = cluster.iter().map(|point| point.price).sum::<f64>() / cluster.len() as f64;
+        let better = match &best {
+            None => true,
+            Some(current) => {
+                let current_center =
+                    current.iter().map(|point| point.price).sum::<f64>() / current.len() as f64;
+                cluster.len() > current.len()
+                    || (cluster.len() == current.len()
+                        && ((center - close).abs() < (current_center - close).abs()
+                            || ((center - close).abs() == (current_center - close).abs()
+                                && center < current_center)))
+            }
+        };
+        if better {
+            best = Some(cluster);
+        }
+    }
+    best
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LevelPoint, select_band};
+
+    fn points(prices: &[f64]) -> Vec<LevelPoint> {
+        prices
+            .iter()
+            .map(|price| LevelPoint {
+                price: *price,
+                available_at: 0,
+            })
+            .collect()
+    }
+
+    fn prices(band: &[LevelPoint]) -> Vec<f64> {
+        band.iter().map(|point| point.price).collect()
+    }
+
+    #[test]
+    fn horizontal_band_largest_cluster_wins() {
+        let band =
+            select_band(&points(&[100.0, 100.1, 100.2, 90.0]), 100.0, 0.25).expect("a band exists");
+        assert_eq!(prices(&band), [100.0, 100.1, 100.2]);
+    }
+
+    #[test]
+    fn horizontal_band_ties_go_to_nearest_close() {
+        let band =
+            select_band(&points(&[90.0, 90.1, 100.0, 100.1]), 100.0, 0.25).expect("a band exists");
+        assert_eq!(prices(&band), [100.0, 100.1]);
+    }
+
+    #[test]
+    fn horizontal_band_equal_centers_go_to_lower() {
+        let band =
+            select_band(&points(&[90.0, 90.2, 100.0, 100.2]), 95.1, 0.25).expect("a band exists");
+        assert_eq!(prices(&band), [90.0, 90.2]);
+    }
+
+    #[test]
+    fn horizontal_band_requires_two_levels() {
+        assert!(select_band(&points(&[100.0]), 100.0, 0.25).is_none());
+        assert!(select_band(&points(&[100.0, 110.0]), 100.0, 0.25).is_none());
+    }
+
+    #[test]
+    fn horizontal_band_equal_levels_form_a_zero_width_cluster() {
+        let band =
+            select_band(&points(&[90.0, 90.0, 100.0, 100.0]), 100.0, 0.25).expect("a band exists");
+        assert_eq!(prices(&band), [100.0, 100.0]);
+    }
 }

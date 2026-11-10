@@ -697,3 +697,68 @@ fn absorption_wick_and_profile_events_are_exercised() {
             .any(|event| event.event_code == codes::SIGNAL_PROFILE_CONCENTRATION)
     );
 }
+
+fn fibonacci_candles() -> Vec<Candle> {
+    let mut mids = Vec::new();
+    for index in 0..=10 {
+        mids.push(110.0 - index as f64);
+    }
+    for index in 0..=19 {
+        mids.push(101.0 + index as f64);
+    }
+    for index in 0..=28 {
+        mids.push(119.0 - index as f64);
+    }
+    let mut candles: Vec<Candle> = mids
+        .iter()
+        .enumerate()
+        .map(|(index, mid)| candle(index as u64, *mid, *mid + 0.5, *mid - 0.5, *mid, 10.0))
+        .collect();
+    candles[36] = candle(36, 115.0, 116.5, 114.0, 115.0, 10.0);
+    candles
+}
+
+#[test]
+fn a_fibonacci_level_inside_the_bar_range_is_tested() {
+    let candles = fibonacci_candles();
+    let events = compute(&candles);
+    let event = events
+        .events()
+        .iter()
+        .find(|event| event.event_code == codes::LEVEL_FIB_TEST && event.available_bar_index == 36)
+        .expect("the bar spans the 0.236 level");
+    assert_eq!(event.reference_code, Some(236));
+    assert_eq!(event.direction_code, 1);
+    assert!((event.reference_value.expect("level") - 115.544).abs() < 1e-9);
+}
+
+#[test]
+fn every_tested_fibonacci_level_emits_an_event() {
+    let mut candles = fibonacci_candles();
+    candles[36] = candle(36, 110.0, 116.5, 103.5, 110.0, 10.0);
+    let events = compute(&candles);
+    let mut ratios: Vec<u32> = events
+        .events()
+        .iter()
+        .filter(|event| {
+            event.event_code == codes::LEVEL_FIB_TEST && event.available_bar_index == 36
+        })
+        .filter_map(|event| event.reference_code)
+        .collect();
+    ratios.sort_unstable();
+    assert_eq!(ratios, [236, 382, 500, 618, 786]);
+}
+
+#[test]
+fn a_fibonacci_level_outside_the_bar_range_is_not_tested() {
+    let mut candles = fibonacci_candles();
+    candles[36] = candle(36, 118.0, 118.5, 117.5, 118.0, 10.0);
+    let events = compute(&candles);
+    assert!(
+        events
+            .events()
+            .iter()
+            .all(|event| event.event_code != codes::LEVEL_FIB_TEST
+                || event.available_bar_index != 36)
+    );
+}

@@ -107,7 +107,7 @@ disjunction of exit conditions. Each condition names a published timeframe.
 | `kind` | `event` or `state`. |
 | `timeframe` | A timeframe published by the model bundle. |
 | `event_type` | `1` Level, `2` Divergence, or `3` Signal. |
-| `subtype` | The registered subtype, `1..=7` for the event-composite engine. |
+| `subtype` | The registered subtype. The engine accepts any registered subtype, not only `1..=7`. |
 | `source` | The registered source code, `1..=57`. |
 | `direction` | `-1`, `0`, or `+1`. Zero matches either direction and takes the matched event's side. |
 | `contrarian` | Optional boolean on an event condition, default `false`. When `true`, the entry side is the opposite of the matched event direction; the event identity and evidence are unchanged. |
@@ -118,10 +118,12 @@ The parser rejects an event identity that is not in the registry, any
 identity whose registered role is `diagnostic`, and a `contrarian` field on a
 state condition or on the bracket engine.
 
-The event-composite engine allows only the seven base event subtypes. The
-extended and session event subtypes are published by the model bundle but are
-not part of the bounded event-composite language; a rule that needs them is a
-new engine or a new approved condition language, not a silent extension.
+The event-composite engine accepts any registered event identity whose role is
+`signal` or `context`. It rejects an identity that is not in the registry and
+any identity whose role is `diagnostic`. The source is `1..=57`; the event type
+is `1..=3`. The engine is bounded by the registered identity and role, not by a
+subtype range: the earlier `1..=7` limit was removed in SR6, and extended events
+with a registered identity are part of the language.
 
 ## 4. Compression bracket
 

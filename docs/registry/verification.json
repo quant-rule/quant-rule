@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.verification/v1",
-  "version": "2026-11-10.1",
+  "version": "2026-11-10.2",
   "indicators": [
     {
       "id": "ema",
@@ -3021,8 +3021,10 @@
           ]
         },
         "availability": {
-          "scope": "n/a",
-          "tests": []
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::pivot_sequence_availability_starts_at_two_confirmed_pivots"
+          ]
         },
         "no_double_count": {
           "scope": "n/a",
@@ -3058,7 +3060,8 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::fibonacci_row_contract"
+            "per_row_extended_indicators::fibonacci_row_contract",
+            "readings::extended::tests::fibonacci_reads_the_confirmed_major_leg"
           ]
         },
         "causality": {
@@ -3082,12 +3085,16 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::fibonacci_row_contract"
+            "per_row_extended_indicators::fibonacci_row_contract",
+            "readings::extended::tests::fibonacci_levels_publish_without_atr_but_distance_is_null",
+            "readings::extended::tests::fibonacci_nulls_a_zero_span_leg"
           ]
         },
         "availability": {
-          "scope": "n/a",
-          "tests": []
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::fibonacci_availability_starts_at_both_confirmed_anchors"
+          ]
         },
         "no_double_count": {
           "scope": "n/a",
@@ -3123,7 +3130,11 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::horizontal_band_row_contract"
+            "per_row_extended_indicators::horizontal_band_row_contract",
+            "readings::extended::tests::horizontal_band_selects_the_largest_nearest_cluster",
+            "readings::extended::band::tests::horizontal_band_largest_cluster_wins",
+            "readings::extended::band::tests::horizontal_band_ties_go_to_nearest_close",
+            "readings::extended::band::tests::horizontal_band_equal_centers_go_to_lower"
           ]
         },
         "causality": {
@@ -3147,12 +3158,17 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::horizontal_band_row_contract"
+            "per_row_extended_indicators::horizontal_band_row_contract",
+            "readings::extended::tests::horizontal_band_is_null_without_two_levels_or_atr",
+            "readings::extended::band::tests::horizontal_band_requires_two_levels",
+            "readings::extended::band::tests::horizontal_band_equal_levels_form_a_zero_width_cluster"
           ]
         },
         "availability": {
-          "scope": "n/a",
-          "tests": []
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::horizontal_band_availability_starts_at_two_confirmed_levels"
+          ]
         },
         "no_double_count": {
           "scope": "n/a",
@@ -13444,9 +13460,9 @@
           ]
         },
         "availability": {
-          "scope": "row",
+          "scope": "family",
           "tests": [
-            "per_row_extended_session_events::signal_lower_high_sequence_row_contract"
+            "event_validation::sequence_events_record_the_pivot_occurrence_and_availability"
           ]
         },
         "no_double_count": {
@@ -13514,9 +13530,9 @@
           ]
         },
         "availability": {
-          "scope": "row",
+          "scope": "family",
           "tests": [
-            "per_row_extended_session_events::signal_lower_low_sequence_row_contract"
+            "event_validation::sequence_events_record_the_pivot_occurrence_and_availability"
           ]
         },
         "no_double_count": {
@@ -13556,7 +13572,9 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "per_row_extended_session_events::level_fib_test_row_contract"
+            "per_row_extended_session_events::level_fib_test_row_contract",
+            "events::extended::tests::a_fibonacci_level_inside_the_bar_range_is_tested",
+            "events::extended::tests::every_tested_fibonacci_level_emits_an_event"
           ]
         },
         "causality": {
@@ -13580,7 +13598,8 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "edge_cases::an_empty_series_publishes_no_readings",
+            "events::extended::tests::a_fibonacci_level_outside_the_bar_range_is_not_tested"
           ]
         },
         "availability": {

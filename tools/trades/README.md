@@ -92,8 +92,10 @@ python3 tools/trades/annotation_zones.py \
 
 The zone is `radius` bars before the mark, the mark, and `radius` bars after. The
 tool publishes `zones.csv`, `summary.json`, and `summary.md`. EMA taps,
-Fibonacci tests, band tests, pivot-sequence counts, and 4/16/50-bar forward
-returns are descriptive; the zone includes bars after the mark and is not a
+Fibonacci close proximity (`fib_nearest_atr <= fib_atr`), band close-inside
+(the close is inside the selected band), pivot-sequence counts, and 4/16/50-bar
+forward returns are descriptive; they are not the model's `level.fib_test` or
+`level.band_test` events. The zone includes bars after the mark and is not a
 causal signal.
 
 ## Tests

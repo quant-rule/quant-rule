@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use quantrule_data::Candle;
 use quantrule_model::events::EventRecord;
 use quantrule_model::events::EventType;
+use quantrule_model::events::codes;
 use quantrule_model::events::panel::PanelEventSeries;
 use quantrule_model::events::session::SessionEventSeries;
 use quantrule_model::input::{MarketStateConfig, TimeframeInput};
@@ -415,6 +416,43 @@ fn level_events_follow_the_reference_order() {
     let candles = load_candles();
     let model = model(&candles);
     assert_level_precedence(&candles, model.events());
+}
+
+#[test]
+fn sequence_events_record_the_pivot_occurrence_and_availability() {
+    let candles = load_candles();
+    let model = model(&candles);
+    let sequence_codes = [
+        codes::SIGNAL_LOWER_HIGH_SEQUENCE,
+        codes::SIGNAL_LOWER_LOW_SEQUENCE,
+    ];
+    let mut count = 0_usize;
+    for event in model.extended_events().events() {
+        if !sequence_codes.contains(&event.event_code) {
+            continue;
+        }
+        count += 1;
+        let pivot = model
+            .readings()
+            .pivots
+            .confirmed_at(PivotScale::Major, event.available_bar_index)
+            .unwrap_or_else(|| {
+                panic!(
+                    "sequence event at {} has no confirming major pivot",
+                    event.available_bar_index
+                )
+            });
+        assert_eq!(event.occurred_bar_index, pivot.occurred_at);
+        assert_eq!(event.available_bar_index, pivot.available_at);
+        assert_eq!(
+            event.available_bar_index,
+            event.occurred_bar_index + PivotScale::Major.lookback()
+        );
+    }
+    assert!(
+        count >= 2,
+        "the fixture should cover both sequence directions"
+    );
 }
 
 #[test]

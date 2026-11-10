@@ -53,9 +53,9 @@ context/<year>-trade-<id>/
 
 ## 4. `context.csv`
 
-- Every column of `model/readings.csv`, unchanged. This includes the `M1.2`
-  pivot-sequence, Fibonacci, and horizontal-band columns, so every annotation
-  context carries the new indicators.
+- Every column of `model/readings.csv`, unchanged. This includes the
+  `M1.2`/`M1.3` pivot-sequence, Fibonacci, and horizontal-band columns, so every
+  annotation context carries the new indicators.
 - The last row is the decision bar.
 - At most `--window` rows (default 250); all available rows when history is
   shorter.

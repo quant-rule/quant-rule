@@ -6,6 +6,11 @@
 - Model: `M1.2`
 - Claim type: descriptive annotation analysis; no strategy or edge claim.
 
+> **2026-11-10 correction:** the close-based features formerly labelled
+> "Fibonacci test" and "Band test" are renamed `fib_close_proximity` and
+> `band_close_inside`. They are not the model events `level.fib_test` or
+> `level.band_test`; the reported numbers are unchanged.
+
 ## 1. Method
 
 The mark is treated as a zone, not one candle:
@@ -22,8 +27,8 @@ Feature definitions:
 | Feature | Definition |
 |---|---|
 | EMA tap | A zone bar's high or low is within `0.2 × ATR` of the EMA |
-| Fibonacci test | A zone bar has `fib_nearest_atr <= 0.2` |
-| Band test | A zone close is inside the selected band |
+| Fibonacci close proximity | A zone bar's close has `fib_nearest_atr <= 0.2` |
+| Band close-inside | A zone close is inside the selected band |
 | Pivot 2+ | The zone contains a count of at least two consecutive same-kind confirmed pivots |
 | Forward return | Side-adjusted close change from the mark close at 4, 16, and 50 bars |
 
@@ -32,7 +37,7 @@ changed.
 
 ## 2. Overall groups
 
-| Group | n | EMA tap | Fib test | Band test | 50-bar return | 50-bar hit |
+| Group | n | EMA tap | Fib close | Band inside | 50-bar return | 50-bar hit |
 |---|---:|---:|---:|---:|---:|---:|
 | Long entry | 488 | 91.2% | 85.7% | 15.0% | +1.43% | 75.4% |
 | Long exit | 488 | 71.9% | 59.8% | 12.9% | −0.48% | 61.9% |
@@ -45,7 +50,7 @@ with a negative return.
 
 ## 3. 2018 versus 2019
 
-| Group | n | EMA tap | Fib test | 50-bar return | 50-bar hit |
+| Group | n | EMA tap | Fib close | 50-bar return | 50-bar hit |
 |---|---:|---:|---:|---:|---:|
 | 2018 long entry | 177 | 90.4% | 77.4% | +2.44% | 78.5% |
 | 2018 long exit | 176 | 72.2% | 60.8% | −0.56% | 56.8% |
@@ -96,12 +101,12 @@ marks. It is more common at short exits (lower-high 34.2%) and long exits
    sufficient entry trigger.
 
 2. **Fibonacci levels are entry-side features.** 85.7% of both entry groups have
-   a Fibonacci test in the zone, versus 59.8% of long exits and 56.5% of short
-   exits. The nearest level at the mark is about 0.22–0.25 ATR from price on
+   a Fibonacci close-proximity feature in the zone, versus 59.8% of long exits
+   and 56.5% of short exits. The nearest level at the mark is about 0.22–0.25 ATR from price on
    entries, versus 1.38–1.61 ATR on exits.
 
 3. **Horizontal bands are not the entry trigger in this set.** Only 12.9–16.8%
-   of marks test a band. The selected band center is about one ATR from entry
+   of marks have a close inside a band. The selected band center is about one ATR from entry
    price, but 4.26 ATR above long exits and 2.62 ATR below short exits. The band
    looks more like an extension/target reference than an entry zone.
 

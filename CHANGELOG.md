@@ -58,9 +58,26 @@ are not treated as releases.
 - The BTC 15m break-only long control is not promoted. On the dense Binance
   BTCUSDT series, 2018–2022 is 65 trades, −$389.64, PF 0.871, and 2023 is 8
   trades, −$202.50, PF 0.229; the Dukascopy lead is not venue-robust.
+- The model identity is `M1.3` with registry `2026-11-10.2`. It corrects the
+  M1.2 sequence-event occurrence bar, makes `level.fib_test` a bar-range
+  intersection with one event per tested level, and fixes the Fibonacci/band
+  tolerances as model constants; M1.2 remains historical.
+- The annotation-zone close-based features are renamed `fib_close_proximity`
+  and `band_close_inside` and are documented as distinct from the model's
+  `level.fib_test` and `level.band_test` events.
 
 ### Fixed
 
+- Pivot-sequence events now record the confirmed pivot's occurrence bar
+  separately from its confirmation availability bar.
+- `level.fib_test` now detects a level the bar trades through, not only a level
+  near the candle high or low, and emits one event per tested level.
+- Spec v2 now rejects the fixed `fib_test_atr` and `band_atr` overrides, and the
+  model validates both tolerances for programmatic callers.
+- The strategy contract now describes the registered-subtype rule the
+  event-composite validator actually enforces.
+- The `band` reading no longer uses `expect` in library code; an empty cluster
+  or band publishes null instead of panicking.
 - Trade charts now render the model's `ema_fast`/`ema_mid`/`ema_slow`
   (20/50/200) instead of a chart-side EMA 10/50/200 calculation.
 - Trade charts now draw the exit marker and label the exit action (`SELL` for a

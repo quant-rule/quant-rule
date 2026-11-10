@@ -54,9 +54,9 @@
 | 44 | `overnight_intraday` | 44 | 10 Calendar and session | 0/0/2 | ✅ | per_row_session_indicators::overnight_intraday_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 45 | `session_range` | 45 | 10 Calendar and session | 0/0/2 | ✅ | per_row_session_indicators::session_range_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
 | 46 | `calendar_bucket` | 46 | 10 Calendar and session | 0/0/0 | ✅ | per_row_session_indicators::calendar_bucket_row_contract | not_applicable | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | covered |
-| 47 | `pivot_sequence` | 47 | 6 Structure | 0/0/2 | ✅ | per_row_extended_indicators::pivot_sequence_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
-| 48 | `fibonacci` | 48 | 6 Structure | 1/0/0 | ✅ | per_row_extended_indicators::fibonacci_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
-| 49 | `horizontal_band` | 49 | 6 Structure | 1/0/0 | ✅ | per_row_extended_indicators::horizontal_band_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | partial (family) |
+| 47 | `pivot_sequence` | 47 | 6 Structure | 0/0/2 | ✅ | per_row_extended_indicators::pivot_sequence_row_contract | pending | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | partial (family) |
+| 48 | `fibonacci` | 48 | 6 Structure | 1/0/0 | ✅ | per_row_extended_indicators::fibonacci_row_contract, readings::extended::tests::fibonacci_reads_the_confirmed_major_leg | pending | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | partial (family) |
+| 49 | `horizontal_band` | 49 | 6 Structure | 1/0/0 | ✅ | per_row_extended_indicators::horizontal_band_row_contract, readings::extended::tests::horizontal_band_selects_the_largest_nearest_cluster, readings::extended::band::tests::horizontal_band_largest_cluster_wins, readings::extended::band::tests::horizontal_band_ties_go_to_nearest_close, readings::extended::band::tests::horizontal_band_equal_centers_go_to_lower | pending | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | partial (family) |
 
 ## Area totals
 

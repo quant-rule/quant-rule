@@ -809,6 +809,8 @@ fn extended_is_valid(config: crate::readings::ExtendedConfig) -> bool {
         && config.candle_wick > 0.0
         && config.candle_close > 0.0
         && config.gap_atr > 0.0
+        && (0.0..=2.0).contains(&config.fib_test_atr)
+        && (0.0..=2.0).contains(&config.band_atr)
 }
 
 #[cfg(test)]

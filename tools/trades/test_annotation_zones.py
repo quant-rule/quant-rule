@@ -89,11 +89,11 @@ class ZoneTest(unittest.TestCase):
             )
         )
 
-    def test_fib_and_band_tests_use_the_zone(self) -> None:
-        self.assertTrue(annotation_zones.fib_test([row(1, fib_nearest_atr=0.1)], 0.2))
-        self.assertFalse(annotation_zones.fib_test([row(1, fib_nearest_atr=0.3)], 0.2))
-        self.assertTrue(annotation_zones.band_test([row(1, close=100.0)]))
-        self.assertFalse(annotation_zones.band_test([row(1, close=103.0)]))
+    def test_fib_and_band_close_features_use_the_zone(self) -> None:
+        self.assertTrue(annotation_zones.fib_close_proximity([row(1, fib_nearest_atr=0.1)], 0.2))
+        self.assertFalse(annotation_zones.fib_close_proximity([row(1, fib_nearest_atr=0.3)], 0.2))
+        self.assertTrue(annotation_zones.band_close_inside([row(1, close=100.0)]))
+        self.assertFalse(annotation_zones.band_close_inside([row(1, close=103.0)]))
 
     def test_forward_returns_are_side_adjusted(self) -> None:
         mark = row(5, close=100.0)

@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-10.1",
+  "version": "2026-11-10.2",
   "indicators": [
     {
       "id": "ema",
@@ -1722,7 +1722,7 @@
       ],
       "parameters": [
         "model.level.lookback",
-        "model.band.cluster_atr",
+        "model.band.atr",
         "model.band.min_touches"
       ],
       "outputs": [
@@ -4514,7 +4514,7 @@
       "source": 55,
       "indicator": "pivot_sequence",
       "role": "signal",
-      "claim": "A second or third consecutive confirmed lower high is followed by a bearish continuation more often than the base rate.",
+      "claim": "A second or later consecutive confirmed lower high is followed by a bearish continuation more often than the base rate.",
       "formula": "confirmed major high at bar AND lower_high_count>=2",
       "parameters": [
         "model.pivots.major"
@@ -4537,7 +4537,7 @@
       "source": 55,
       "indicator": "pivot_sequence",
       "role": "signal",
-      "claim": "A second or third consecutive confirmed lower low is followed by a bearish continuation more often than the base rate.",
+      "claim": "A second or later consecutive confirmed lower low is followed by a bearish continuation more often than the base rate.",
       "formula": "confirmed major low at bar AND lower_low_count>=2",
       "parameters": [
         "model.pivots.major"
@@ -4561,7 +4561,7 @@
       "indicator": "fibonacci",
       "role": "signal",
       "claim": "A test of a Fibonacci retracement level of the last confirmed major swing leg is followed by a reaction in the leg direction more often than the base rate.",
-      "formula": "abs(H-L_fib)<=test_atr*ATR or abs(L-L_fib)<=test_atr*ATR; emit the nearest tested ratio",
+      "formula": "H>=L_fib-test_atr*ATR and L<=L_fib+test_atr*ATR for each ratio; emit each tested ratio",
       "parameters": [
         "model.fibonacci.test_atr"
       ],
@@ -4586,7 +4586,7 @@
       "claim": "A test of a multi-touch horizontal band is followed by a reaction away from the band more often than a single-level baseline.",
       "formula": "H>=lower-band_atr*ATR AND L<=upper+band_atr*ATR",
       "parameters": [
-        "model.band.cluster_atr",
+        "model.band.atr",
         "model.level.lookback",
         "model.band.min_touches"
       ],
@@ -5948,7 +5948,7 @@
       "status": "active"
     },
     {
-      "id": "model.band.cluster_atr",
+      "id": "model.band.atr",
       "path": "fixed",
       "type": "number",
       "default": 0.25,
