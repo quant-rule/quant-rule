@@ -1,0 +1,32 @@
+{
+  "schema": "quantrule.strategy/v1",
+  "engine": "event_composite",
+  "execution_timeframe": "15m",
+  "require_contiguous": false,
+  "risk": {
+    "stop_atr_multiple": 1.0,
+    "reward_to_risk": 2.0
+  },
+  "id": "sr12-h1-4-short-time",
+  "event_window_bars": 2,
+  "time_stop_bars": 20,
+  "entry": [
+    {
+      "kind": "event",
+      "timeframe": "15m",
+      "event_type": 1,
+      "subtype": 3,
+      "source": 19,
+      "direction": 1,
+      "contrarian": true
+    },
+    {
+      "kind": "event",
+      "timeframe": "15m",
+      "event_type": 1,
+      "subtype": 2,
+      "source": 19,
+      "direction": -1
+    }
+  ]
+}

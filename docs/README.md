@@ -138,6 +138,10 @@ criteria are explicit command arguments; the run schema stays
 | Indicator/event verification evidence | Scope map: 33 row-level, 1410 family-level, 332 tool gates, 304 N/A | [`docs/reports/2026-11-06/indicator-event-verification.md`](reports/2026-11-06/indicator-event-verification.md) |
 | Workflow documentation reset verification | Released in `v0.6.0`; verification record current | [`docs/reports/2026-11-07/workflow-verification.md`](reports/2026-11-07/workflow-verification.md) |
 | 2018–2019 annotation zone analysis | Descriptive; EMA/Fibonacci zone profile and 2018 vs 2019 comparison | [`docs/reports/2026-11-10/annotation-zone-analysis.md`](reports/2026-11-10/annotation-zone-analysis.md) |
+| SR10 EMA/Fibonacci exit study | Stopped early; 2018 primary failed; no candidate; 2024 closed | [`docs/improvement/2026-11-10/SR10.md`](improvement/2026-11-10/SR10.md) |
+| SR11 trend-aligned EMA/Fibonacci entry | Completed; no candidate; EMA/Fibonacci line stopped; 2024 closed | [`docs/improvement/2026-11-10/SR11.md`](improvement/2026-11-10/SR11.md) |
+| SR11 raw-edge diagnostic | No positive raw edge; entry flat to negative before costs; controls not beaten | [`docs/reports/2026-11-10/sr11-raw-edge.md`](reports/2026-11-10/sr11-raw-edge.md) |
+| SR12 failed break/reclaim and band fade | H1 engine-blocked; H2 no candidate; sizing confirms no edge; 2024 closed | [`docs/improvement/2026-11-10/SR12.md`](improvement/2026-11-10/SR12.md) |
 
 Pre-reset experiment records under `docs/improvement/` are historical. They are not
 improvement runs under the current run contract and are not imported as baselines.

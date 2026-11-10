@@ -10,4 +10,33 @@ model or shell cells, and checks exploratory coverage. Every cell may carry its
 own model config and a sequence/confluence/column condition; the path report is
 descriptive. The scripts are offline and deterministic: they take dates from the
 manifest, never the wall clock, sort the collections they write, and never
-compute a signal.
+compute a trading signal.
+
+## Raw-edge diagnostic
+
+`raw_edge.py` is an evaluation tool, not a programme runner. It reconstructs a
+published entry signal from a model bundle's events and readings, enters at the
+next bar open, and measures forward returns, MFE/MAE, and barrier outcomes with
+no stop, target, halt, or position state. It writes `raw_edge.json` and
+`raw_edge.md` only; it does not produce a strategy, execution, or portfolio
+artifact and it never feeds a result back into a rule.
+
+```sh
+python3 tools/research/raw_edge.py --model <model-bundle> --out <dir>
+```
+
+`test_raw_edge.py` covers the forward arithmetic, the short-side mirror, the
+same-bar stop-first tie, the signal variants, and the bundle parsing.
+
+`event_edge.py` generalizes the screen to a configurable event signal. It reads a
+small signal spec, matches the listed event identities and optional states within
+the window, and writes the same forward and barrier measurements with an
+all-bars control. It enforces the event-composite subtype range (1–7) so a spec
+cannot silently rely on an event the strategy engine cannot read.
+
+```sh
+python3 tools/research/event_edge.py --spec <signal.json> --model <model-bundle> --out <dir>
+```
+
+`test_event_edge.py` covers spec validation, the event-identity parsing, the
+window matching, the direction filter, and the control output.
