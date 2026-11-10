@@ -17,6 +17,7 @@ import argparse
 import csv
 import json
 import sys
+import threading
 import webbrowser
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -29,6 +30,7 @@ ANNOTATIONS_HEADER = ["chart", "bar", "marked_time_utc", "action", "quality", "s
 ACTIONS = {"entry", "exit"}
 QUALITIES = {"good", "bad", "neutral"}
 SIDES = {"long", "short"}
+UNDO_LIMIT = 100
 
 CLASSES = [
     {"key": "1", "action": "entry", "quality": "good", "side": "long", "label": "Good long entry", "color": "#0a8f5b", "shape": "circle", "filled": True},
@@ -176,30 +178,78 @@ def validate_annotation(value: dict[str, Any], manifest: dict[str, Any]) -> dict
     }
 
 
-def upsert(rows: list[dict[str, str]], row: dict[str, str]) -> list[dict[str, str]]:
-    """Replace an annotation with the same chart/bar/action/side."""
-    key = (row["chart"], row["bar"], row["action"], row["side"])
-    remaining = [
-        item
-        for item in rows
-        if (item["chart"], item["bar"], item["action"], item["side"]) != key
-    ]
-    return remaining + [row]
-
-
-def delete(rows: list[dict[str, str]], value: dict[str, Any]) -> list[dict[str, str]]:
-    """Delete an annotation by chart/bar/action/side."""
-    key = (
+def annotation_key(value: dict[str, Any]) -> tuple[str, str, str, str]:
+    """Return the identity of an annotation."""
+    return (
         str(value.get("chart", "")),
         str(value.get("bar", "")),
         str(value.get("action", "")),
         str(value.get("side", "")),
     )
-    return [
-        item
-        for item in rows
-        if (item["chart"], item["bar"], item["action"], item["side"]) != key
-    ]
+
+
+def find_annotation(
+    rows: list[dict[str, str]], key: tuple[str, str, str, str]
+) -> dict[str, str] | None:
+    """Find the annotation with the given identity."""
+    return next((row for row in rows if annotation_key(row) == key), None)
+
+
+def upsert(rows: list[dict[str, str]], row: dict[str, str]) -> list[dict[str, str]]:
+    """Replace an annotation with the same chart/bar/action/side."""
+    key = annotation_key(row)
+    remaining = [item for item in rows if annotation_key(item) != key]
+    return remaining + [row]
+
+
+def delete_key(
+    rows: list[dict[str, str]], key: tuple[str, str, str, str]
+) -> list[dict[str, str]]:
+    """Delete the annotation with the given identity."""
+    return [item for item in rows if annotation_key(item) != key]
+
+
+def delete(rows: list[dict[str, str]], value: dict[str, Any]) -> list[dict[str, str]]:
+    """Delete an annotation by chart/bar/action/side."""
+    return delete_key(rows, annotation_key(value))
+
+
+def push_history(history: list[dict[str, Any]], entry: dict[str, Any]) -> None:
+    """Record one reversible change, keeping the history bounded."""
+    history.append(entry)
+    if len(history) > UNDO_LIMIT:
+        del history[0]
+
+
+def record_save(
+    history: list[dict[str, Any]],
+    key: tuple[str, str, str, str],
+    previous: dict[str, str] | None,
+) -> None:
+    """Record a save and the row it replaced, if any."""
+    push_history(history, {"kind": "save", "key": key, "previous": previous})
+
+
+def record_delete(history: list[dict[str, Any]], row: dict[str, str]) -> None:
+    """Record a delete so the row can be restored."""
+    push_history(history, {"kind": "delete", "row": row})
+
+
+def undo_last(
+    rows: list[dict[str, str]], history: list[dict[str, Any]]
+) -> list[dict[str, str]]:
+    """Reverse the most recent save or delete."""
+    if not history:
+        raise ValueError("nothing to undo")
+    entry = history.pop()
+    if entry["kind"] == "save":
+        previous = entry["previous"]
+        if previous is None:
+            return delete_key(rows, entry["key"])
+        return upsert(rows, previous)
+    if entry["kind"] == "delete":
+        return upsert(rows, entry["row"])
+    raise ValueError(f"unknown undo entry {entry['kind']!r}")
 
 
 HTML = r"""<!doctype html>
@@ -234,9 +284,10 @@ button.mode { display: inline-flex; gap: 6px; align-items: center; }
   <h1>Chart annotator</h1>
   <button id="prev">←</button>
   <button id="next">→</button>
+  <button id="undo" title="Undo the last annotation (Ctrl+Z)">Undo</button>
   <select id="chart-select"></select>
   <span id="trade-meta"></span>
-  <span class="help">1–8 select marker · click candle to save · ←/→ change chart</span>
+  <span class="help">1–8 select marker · click candle to save · Ctrl+Z undo · ←/→ change chart</span>
 </header>
 <div id="modes" style="padding:10px 14px; display:flex; gap:6px; flex-wrap:wrap; background:#fff; border-bottom:1px solid #d9dee5;"></div>
 <div id="wrap"><img id="chart" alt="chart"><svg id="overlay" viewBox="0 0 2400 1600" preserveAspectRatio="none"></svg></div>
@@ -321,6 +372,18 @@ async function reload() {
   state.annotations = await (await fetch("/api/annotations")).json();
   render();
 }
+async function undo() {
+  const response = await fetch("/api/annotations/undo", {method:"POST"});
+  if (!response.ok) {
+    let message = "Nothing to undo";
+    try { message = (await response.json()).error || message; } catch (_) {}
+    $("status").textContent = message;
+    return;
+  }
+  state.annotations = await response.json();
+  render();
+  $("status").textContent = "Undid the last annotation · click a candle to save the selected marker";
+}
 async function save(bar) {
   if (!state.mode) return;
   const r = record();
@@ -340,8 +403,16 @@ $("chart").addEventListener("click", (event) => {
 });
 $("prev").onclick = () => { state.index = (state.index - 1 + state.manifest.charts.length) % state.manifest.charts.length; render(); };
 $("next").onclick = () => { state.index = (state.index + 1) % state.manifest.charts.length; render(); };
+$("undo").onclick = undo;
 $("chart-select").onchange = (event) => { state.index = parseInt(event.target.value, 10); render(); };
 document.addEventListener("keydown", (event) => {
+  if (event.ctrlKey || event.metaKey) {
+    if (!event.shiftKey && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      undo();
+    }
+    return;
+  }
   if (event.key >= "1" && event.key <= "8") { state.mode = state.manifest.classes.find((c) => c.key === event.key); renderModes(); }
   if (event.key === "ArrowLeft") $("prev").click();
   if (event.key === "ArrowRight") $("next").click();
@@ -368,6 +439,8 @@ class AnnotatorHandler(BaseHTTPRequestHandler):
     charts_dir: Path
     out_path: Path
     rows: list[dict[str, str]]
+    history: list[dict[str, Any]]
+    lock: threading.Lock
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -394,7 +467,9 @@ class AnnotatorHandler(BaseHTTPRequestHandler):
             self.send_json(self.manifest)
             return
         if path == "/api/annotations":
-            self.send_json(self.rows)
+            with self.lock:
+                rows = list(self.rows)
+            self.send_json(rows)
             return
         if path.startswith("/charts/"):
             name = Path(unquote(path.removeprefix("/charts/"))).name
@@ -413,22 +488,55 @@ class AnnotatorHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
-        if path not in {"/api/annotations", "/api/annotations/delete"}:
+        if path not in {
+            "/api/annotations",
+            "/api/annotations/delete",
+            "/api/annotations/undo",
+        }:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         length = int(self.headers.get("content-length", "0"))
         try:
-            value = json.loads(self.rfile.read(length) or b"{}")
-            if path.endswith("/delete"):
-                self.rows[:] = delete(self.rows, value)
-            else:
-                row = validate_annotation(value, self.manifest)
-                self.rows[:] = upsert(self.rows, row)
-            write_annotations(self.out_path, self.rows)
-        except (ValueError, json.JSONDecodeError) as error:
+            value = {} if path.endswith("/undo") else json.loads(self.rfile.read(length) or b"{}")
+        except ValueError as error:
             self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
             return
-        self.send_json(self.rows)
+        with self.lock:
+            before_rows = list(self.rows)
+            before_history = list(self.history)
+            try:
+                if path.endswith("/undo"):
+                    if not self.history:
+                        self.send_json({"error": "nothing to undo"}, HTTPStatus.CONFLICT)
+                        return
+                    self.rows[:] = undo_last(self.rows, self.history)
+                elif path.endswith("/delete"):
+                    removed = find_annotation(self.rows, annotation_key(value))
+                    if removed is not None:
+                        self.rows[:] = delete(self.rows, value)
+                        record_delete(self.history, removed)
+                else:
+                    row = validate_annotation(value, self.manifest)
+                    key = annotation_key(row)
+                    previous = find_annotation(self.rows, key)
+                    self.rows[:] = upsert(self.rows, row)
+                    record_save(self.history, key, previous)
+                write_annotations(self.out_path, self.rows)
+            except ValueError as error:
+                self.rows[:] = before_rows
+                self.history[:] = before_history
+                self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+                return
+            except OSError as error:
+                self.rows[:] = before_rows
+                self.history[:] = before_history
+                self.send_json(
+                    {"error": f"could not write annotations: {error}"},
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+                return
+            result = list(self.rows)
+        self.send_json(result)
 
 
 def main(argv: list[str]) -> int:
@@ -459,6 +567,8 @@ def main(argv: list[str]) -> int:
             "charts_dir": args.charts,
             "out_path": args.out,
             "rows": rows,
+            "history": [],
+            "lock": threading.Lock(),
         },
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)

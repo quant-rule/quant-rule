@@ -75,3 +75,21 @@ Excluded:
 
 The click page is implemented and smoke-tested. The trailing-stop hypothesis is
 not implemented; it remains a separate Strategy Research question.
+
+## Follow-up — undo
+
+Requested after the first annotation pass: `Ctrl+Z` must reverse the last choice.
+
+- Added a session-local undo history for saves and deletes.
+- Added `/api/annotations/undo`, an **Undo** button, and `Ctrl+Z`/`Cmd+Z`.
+- Added unit coverage for add, overwrite, delete, multi-step, empty, and bounded
+  history.
+- Added a live endpoint smoke test for save, undo, overwrite, delete, restore,
+  and empty undo.
+- No model or strategy behavior change.
+
+| Verification | Result |
+|---|---|
+| `python3 -m unittest discover -s tools/charts -p 'test_*.py'` | 23 pass |
+| Live endpoint smoke: save, undo, overwrite, delete, restore, empty undo | pass |
+| Repository checks | pass |
