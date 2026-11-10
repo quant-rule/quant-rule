@@ -76,8 +76,8 @@ ZONE_COLUMNS = [
     "ema_tap_mid",
     "ema_tap_slow",
     "ema_tap_any",
-    "fib_test",
-    "band_test",
+    "fib_close_proximity",
+    "band_close_inside",
     "fwd_4",
     "fwd_16",
     "fwd_50",
@@ -141,13 +141,13 @@ def ema_tap(
     return False
 
 
-def fib_test(rows: list[dict[str, str]], tolerance_atr: float) -> bool:
-    """Whether any zone bar is within the Fibonacci tolerance."""
+def fib_close_proximity(rows: list[dict[str, str]], tolerance_atr: float) -> bool:
+    """Whether any zone bar close is within the Fibonacci tolerance."""
     values = [number(row, "fib_nearest_atr") for row in rows]
     return any(value is not None and value <= tolerance_atr for value in values)
 
 
-def band_test(rows: list[dict[str, str]]) -> bool:
+def band_close_inside(rows: list[dict[str, str]]) -> bool:
     """Whether any zone bar closes inside the selected band."""
     for row in rows:
         close = number(row, "close")
@@ -254,8 +254,8 @@ def mark_features(
     features["ema_tap_any"] = bool(
         features["ema_tap_fast"] or features["ema_tap_mid"] or features["ema_tap_slow"]
     )
-    features["fib_test"] = fib_test(zone, fib_atr)
-    features["band_test"] = band_test(zone)
+    features["fib_close_proximity"] = fib_close_proximity(zone, fib_atr)
+    features["band_close_inside"] = band_close_inside(zone)
     return features
 
 
@@ -317,8 +317,8 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "ema_tap_fast_rate": rate([row["ema_tap_fast"] for row in items]),
             "ema_tap_mid_rate": rate([row["ema_tap_mid"] for row in items]),
             "ema_tap_slow_rate": rate([row["ema_tap_slow"] for row in items]),
-            "fib_test_rate": rate([row["fib_test"] for row in items]),
-            "band_test_rate": rate([row["band_test"] for row in items]),
+            "fib_close_proximity_rate": rate([row["fib_close_proximity"] for row in items]),
+            "band_close_inside_rate": rate([row["band_close_inside"] for row in items]),
             "fwd_4_median": median([row["fwd_4"] for row in items]),
             "fwd_16_median": median([row["fwd_16"] for row in items]),
             "fwd_50_median": median([row["fwd_50"] for row in items]),
@@ -406,7 +406,7 @@ def write_markdown(path: Path, summary: dict[str, Any], radius: int) -> None:
         f"- Zone radius: {radius} bars each side of the mark",
         f"- Annotations: {summary['count']}",
         "",
-        "| Group | n | EMA tap | Fib test | Band test | 4-bar | 16-bar | 50-bar | 50-bar hit |",
+        "| Group | n | EMA tap | Fib close | Band inside | 4-bar | 16-bar | 50-bar | 50-bar hit |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for key in sorted(summary["groups"]):
@@ -415,8 +415,8 @@ def write_markdown(path: Path, summary: dict[str, Any], radius: int) -> None:
         hit = entry.get("fwd_50_hit")
         lines.append(
             f"| {key.replace('|', ' ')} | {entry['count']} | "
-            f"{fmt(entry['ema_tap_any_rate'])} | {fmt(entry['fib_test_rate'])} | "
-            f"{fmt(entry['band_test_rate'])} | {fmt(entry['fwd_4_median'])} | "
+            f"{fmt(entry['ema_tap_any_rate'])} | {fmt(entry['fib_close_proximity_rate'])} | "
+            f"{fmt(entry['band_close_inside_rate'])} | {fmt(entry['fwd_4_median'])} | "
             f"{fmt(entry['fwd_16_median'])} | {fmt(entry['fwd_50_median'])} | "
             f"{fmt(hit)} |"
         )
@@ -424,7 +424,9 @@ def write_markdown(path: Path, summary: dict[str, Any], radius: int) -> None:
         "",
         "A positive entry return and a negative exit return are favorable. The",
         "zone includes bars after the mark, so this table is descriptive, not a",
-        "causal signal.",
+        "causal signal. `Fib close` is `fib_nearest_atr <= fib_atr`; `Band",
+        "inside` is a close inside the selected band. Neither is the model's",
+        "`level.fib_test` or `level.band_test` event.",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

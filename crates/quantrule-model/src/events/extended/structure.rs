@@ -1,9 +1,11 @@
 //! Confirmed pivot-sequence events.
 //!
 //! A sequence event is emitted only on the confirmation bar of the pivot that
-//! extends the sequence. A reading that stays constant between pivots does not
-//! re-emit. The detector reads confirmed major pivots only, so a candidate or a
-//! future pivot can never affect an earlier event.
+//! extends the sequence. Its `occurred_bar_index` is the pivot's occurrence bar
+//! and its `available_bar_index` is the confirmation bar. A reading that stays
+//! constant between pivots does not re-emit. The detector reads confirmed major
+//! pivots only, so a candidate or a future pivot can never affect an earlier
+//! event.
 
 use super::*;
 
@@ -27,13 +29,14 @@ pub(super) fn structure_sequence_events(
             if let Some(count) = extended.lower_high_count.get(bar)
                 && count >= 2.0
             {
-                push(
+                push_confirmed(
                     events,
                     codes::SIGNAL_LOWER_HIGH_SEQUENCE,
                     EventType::Signal,
                     19,
                     PIVOT_SEQUENCE_SOURCE_CODE,
                     timeframe,
+                    pivot.occurred_at,
                     bar,
                     -1,
                     Some(count),
@@ -45,13 +48,14 @@ pub(super) fn structure_sequence_events(
             if let Some(count) = extended.lower_low_count.get(bar)
                 && count >= 2.0
             {
-                push(
+                push_confirmed(
                     events,
                     codes::SIGNAL_LOWER_LOW_SEQUENCE,
                     EventType::Signal,
                     19,
                     PIVOT_SEQUENCE_SOURCE_CODE,
                     timeframe,
+                    pivot.occurred_at,
                     bar,
                     -1,
                     Some(count),

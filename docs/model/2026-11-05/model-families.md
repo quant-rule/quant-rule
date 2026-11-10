@@ -2,7 +2,7 @@
 
 - Date: 2026-11-05 (UTC)
 - Updated: 2026-11-08 for the research-family prefix (`MR`/`SR`/`PR`) and the
-  `-Cnn` configuration suffix
+  `-Cnn` configuration suffix; 2026-11-10 for the `M1.3` audit correction
 - Status: **Approved** (human, 2026-11-05; research-prefix amendment 2026-11-08)
 - Scope: model, strategy, portfolio, policy, and execution identifiers
 - Claim type: naming and traceability contract; no edge claim
@@ -26,7 +26,7 @@ The rule is `<type><family>.<version>`:
 | `P` | Portfolio | `P1.0` |
 | `POL` | Policy | `POL1.0` |
 
-`M1.2` is the current model identity. `M2.1–M2.5`, `M3.x`, and `M4.x` are
+`M1.3` is the current model identity. `M2.1–M2.5`, `M3.x`, and `M4.x` are
 historical **model research families** run on `M1.0`; they are not model
 versions. From `MR5.x` onward, model research families carry the `MR` prefix so
 they cannot be confused with a model version. A research cell may carry a
@@ -47,7 +47,8 @@ distinction in [`docs/workflows/README.md`](../../workflows/README.md).
 |---|---|---|---|
 | `M1.0` | Historical model: flat indicator/event model | Superseded by `M1.1`; path gate no edge; compression baselines accepted | [`model-m1.0.md`](model-m1.0.md) |
 | `M1.1` | `M1.0` plus opening-range sweep/control events | Model change; MR7 development `no_edge` | [`model-m1.1.md`](../2026-11-08/model-m1.1.md) |
-| `M1.2` | Current model: `M1.1` plus pivot sequence, Fibonacci, and horizontal-band structure | Model change; validation pending | [`model-m1.2.md`](../2026-11-10/model-m1.2.md) |
+| `M1.2` | `M1.1` plus pivot sequence, Fibonacci, and horizontal-band structure | Historical; corrected by `M1.3` after `AUDIT-2026-11-10-model-structures` | [`model-m1.2.md`](../2026-11-10/model-m1.2.md) |
+| `M1.3` | Current model: `M1.2` plus the audit corrections to sequence occurrence, Fibonacci tests, and fixed tolerances | Model behavior correction; validation pending | [`model-m1.3.md`](../2026-11-10/model-m1.3.md) |
 | `M2.1`–`M2.5` | Historical model research family 2: volume, structure, cross-asset, session, and all-area cells | `model_dev` no edge; not accepted | [M2 result](../../improvement/2026-11-05/M2-DEV-SWARM.md) |
 | `M3.1`–`M3.5` | Historical model research family 3: state-conditioned event cells | Underpowered at the count gate; not run | [M3 preflight](../../improvement/2026-11-05/M3-PREFLIGHT.md) |
 | `M4.1`–`M4.5` | Historical model research family 4: location-conditioned directional event cells | `model_dev` no edge; not accepted | [M4 result](../../improvement/2026-11-07/M4-DEV-SWARM.md) |

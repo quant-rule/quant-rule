@@ -117,6 +117,29 @@ fn a_registered_signal_subtype_above_seven_is_accepted() {
 }
 
 #[test]
+fn the_new_structure_events_are_registered_strategy_events() {
+    for (event_type, subtype, source) in [(1, 1, 56), (1, 1, 57), (3, 19, 55)] {
+        let result = EventCompositeConfig::new(
+            3,
+            0,
+            &[Condition::Event {
+                timeframe_secs: 900,
+                event_type,
+                subtype,
+                source,
+                direction: 1,
+                contrarian: false,
+            }],
+            &[],
+        );
+        assert!(
+            result.is_ok(),
+            "event ({event_type}, {subtype}, {source}) should be accepted"
+        );
+    }
+}
+
+#[test]
 fn a_registered_diagnostic_subtype_is_rejected() {
     let result = EventCompositeConfig::new(
         3,

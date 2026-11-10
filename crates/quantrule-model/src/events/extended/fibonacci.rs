@@ -33,35 +33,29 @@ pub(super) fn fibonacci_events(
         extended.fib_618.get(bar),
         extended.fib_786.get(bar),
     ];
-    let mut tested: Option<(u32, f64, f64)> = None;
+    let event_direction = if direction > 0.0 { 1 } else { -1 };
     for (reference_code, level) in ratios
         .into_iter()
         .zip(levels)
         .filter_map(|(code, level)| level.map(|level| (code, level)))
     {
-        let touch = (candle.high() - level)
-            .abs()
-            .min((candle.low() - level).abs());
-        if touch <= tolerance {
-            let distance = (candle.close() - level).abs();
-            if tested.is_none_or(|(_, _, best)| distance < best) {
-                tested = Some((reference_code, level, distance));
-            }
+        // A test is a bar-range intersection with the level tolerance band.
+        // Testing only the high and low misses a level the bar traded through
+        // and closed on; the band test uses the same intersection definition.
+        if candle.high() >= level - tolerance && candle.low() <= level + tolerance {
+            push_with_reference(
+                events,
+                codes::LEVEL_FIB_TEST,
+                EventType::Level,
+                1,
+                FIBONACCI_SOURCE_CODE,
+                config.timeframe_secs(),
+                bar,
+                event_direction,
+                Some(reference_code),
+                Some(candle.close()),
+                Some(level),
+            );
         }
-    }
-    if let Some((reference_code, level, _)) = tested {
-        push_with_reference(
-            events,
-            codes::LEVEL_FIB_TEST,
-            EventType::Level,
-            1,
-            FIBONACCI_SOURCE_CODE,
-            config.timeframe_secs(),
-            bar,
-            if direction > 0.0 { 1 } else { -1 },
-            Some(reference_code),
-            Some(candle.close()),
-            Some(level),
-        );
     }
 }

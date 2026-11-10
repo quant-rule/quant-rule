@@ -463,6 +463,30 @@ fn range_position_row_contract() {
 }
 
 #[test]
+fn pivot_sequence_availability_starts_at_two_confirmed_pivots() {
+    let candles = load_candles();
+    let extended = compute(&candles);
+    assert!(extended.lower_high_count.get(28).is_none());
+    assert!(extended.lower_high_count.get(29).is_some());
+}
+
+#[test]
+fn fibonacci_availability_starts_at_both_confirmed_anchors() {
+    let candles = load_candles();
+    let extended = compute(&candles);
+    assert!(extended.fib_direction.get(19).is_none());
+    assert!(extended.fib_direction.get(20).is_some());
+}
+
+#[test]
+fn horizontal_band_availability_starts_at_two_confirmed_levels() {
+    let candles = load_candles();
+    let extended = compute(&candles);
+    assert!(extended.band_upper.get(36).is_none());
+    assert!(extended.band_upper.get(37).is_some());
+}
+
+#[test]
 fn pivot_sequence_row_contract() {
     assert_extended_indicator("pivot_sequence", |extended| {
         vec![

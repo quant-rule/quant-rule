@@ -55,3 +55,11 @@ result was changed.
 - No causal signal, no strategy change, no profitability or edge claim.
 - No validation partition, no 2024 access.
 - The marks are hindsight labels; the zone includes bars after the mark.
+
+## Correction — 2026-11-10
+
+The close-based zone features originally labelled "Fibonacci test" and "Band
+test" are renamed `fib_close_proximity` and `band_close_inside`. They are not
+the model events `level.fib_test` / `level.band_test`: the first is
+`fib_nearest_atr <= fib_atr`, and the second is a close inside the selected
+band. The reported rates are unchanged; the report now states the definitions.

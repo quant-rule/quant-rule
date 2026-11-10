@@ -407,3 +407,17 @@ fn candle_with_close(index: usize, timestamp: i64, close: f64) -> Candle {
     )
     .expect("the generated candle is valid")
 }
+
+#[test]
+fn extended_fixed_tolerances_are_range_checked() {
+    use super::extended_is_valid;
+    use crate::readings::ExtendedConfig;
+
+    let mut config = ExtendedConfig::DEFAULT;
+    assert!(extended_is_valid(config));
+    config.fib_test_atr = -0.1;
+    assert!(!extended_is_valid(config));
+    config.fib_test_atr = 0.2;
+    config.band_atr = 2.1;
+    assert!(!extended_is_valid(config));
+}

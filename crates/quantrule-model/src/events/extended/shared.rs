@@ -41,14 +41,71 @@ pub(crate) fn push_with_reference(
     primary: Option<f64>,
     reference: Option<f64>,
 ) {
+    push_record(
+        events,
+        event_code,
+        event_type,
+        subtype,
+        source,
+        timeframe,
+        bar,
+        bar,
+        direction,
+        reference_code,
+        primary,
+        reference,
+    );
+}
+
+/// Appends an event whose occurrence and availability bars differ.
+///
+/// Confirmed-pivot measurements use this constructor: the pivot extreme
+/// occurred earlier, but the event is not knowable until the pivot confirms.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn push_confirmed(
+    events: &mut Vec<EventRecord>,
+    event_code: u16,
+    event_type: EventType,
+    subtype: u8,
+    source: u16,
+    timeframe: u64,
+    occurred: usize,
+    available: usize,
+    direction: i8,
+    primary: Option<f64>,
+    reference: Option<f64>,
+) {
+    push_record(
+        events, event_code, event_type, subtype, source, timeframe, occurred, available, direction,
+        None, primary, reference,
+    );
+}
+
+// The single EventRecord constructor. Keeping the field mapping in one place
+// prevents the occurrence and availability bars from drifting apart again.
+#[allow(clippy::too_many_arguments)]
+fn push_record(
+    events: &mut Vec<EventRecord>,
+    event_code: u16,
+    event_type: EventType,
+    subtype: u8,
+    source: u16,
+    timeframe: u64,
+    occurred: usize,
+    available: usize,
+    direction: i8,
+    reference_code: Option<u32>,
+    primary: Option<f64>,
+    reference: Option<f64>,
+) {
     events.push(EventRecord {
         event_code,
         event_type,
         event_subtype_code: subtype,
         source_code: source,
         timeframe_secs: timeframe,
-        occurred_bar_index: bar,
-        available_bar_index: bar,
+        occurred_bar_index: occurred,
+        available_bar_index: available,
         direction_code: direction,
         reference_code,
         primary_value: primary,

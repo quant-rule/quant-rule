@@ -1,7 +1,7 @@
 //! Extended reading tests.
 
 use super::{ExtendedConfig, ExtendedReadings};
-use crate::readings::{Readings, ReadingsConfig};
+use crate::readings::{PivotSeries, ReadingSeries, Readings, ReadingsConfig};
 use quantrule_data::Candle;
 
 fn candle(index: u64, open: f64, high: f64, low: f64, close: f64, volume: f64) -> Candle {
@@ -469,4 +469,202 @@ fn direction_changes_counts_sign_flips() {
         .get(19)
         .expect("the window is measurable");
     assert!((value - 0.9).abs() < 1e-9, "direction changes {value}");
+}
+
+fn fibonacci_candles() -> Vec<Candle> {
+    let mut mids = Vec::new();
+    for index in 0..=10 {
+        mids.push(110.0 - index as f64);
+    }
+    for index in 0..=19 {
+        mids.push(101.0 + index as f64);
+    }
+    for index in 0..=28 {
+        mids.push(119.0 - index as f64);
+    }
+    let mut candles: Vec<Candle> = mids
+        .iter()
+        .enumerate()
+        .map(|(index, mid)| candle(index as u64, *mid, *mid + 0.5, *mid - 0.5, *mid, 10.0))
+        .collect();
+    candles[36] = candle(36, 115.0, 116.5, 114.0, 115.0, 10.0);
+    candles
+}
+
+fn band_pivot_candles() -> Vec<Candle> {
+    let mut mids = vec![0.0; 70];
+    for (index, mid) in mids.iter_mut().enumerate() {
+        *mid = if index <= 10 {
+            95.0 + index as f64 * 0.51
+        } else if index <= 25 {
+            100.1 - (index - 10) as f64 * (10.1 / 15.0)
+        } else if index <= 40 {
+            90.0 + (index - 25) as f64 * (10.0 / 15.0)
+        } else if index <= 55 {
+            100.0 - (index - 40) as f64 * (5.0 / 15.0)
+        } else {
+            95.0 + (index - 55) as f64 * (5.0 / 14.0)
+        };
+    }
+    let mut candles: Vec<Candle> = mids
+        .iter()
+        .enumerate()
+        .map(|(index, mid)| candle(index as u64, *mid, *mid + 0.05, *mid - 0.05, *mid, 10.0))
+        .collect();
+    candles[60] = candle(60, 100.10, 100.15, 100.05, 100.10, 10.0);
+    candles
+}
+
+fn manual_readings(candles: &[Candle], atr: f64) -> Readings {
+    let len = candles.len();
+    let null = || ReadingSeries::new(vec![None; len]);
+    Readings {
+        ema20: null(),
+        ema50: null(),
+        ema200: null(),
+        rsi14: null(),
+        atr14: ReadingSeries::new(vec![Some(atr); len]),
+        rvol20: null(),
+        pivots: PivotSeries::compute(candles),
+    }
+}
+
+#[test]
+fn fibonacci_reads_the_confirmed_major_leg() {
+    let candles = fibonacci_candles();
+    let extended =
+        ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+
+    assert!(extended.fib_direction.get(15).is_none());
+    assert_eq!(extended.fib_direction.get(35), Some(1.0));
+    assert_eq!(extended.fib_low.get(35), Some(99.5));
+    assert_eq!(extended.fib_high.get(35), Some(120.5));
+    assert!((extended.fib_236.get(35).expect("236") - 115.544).abs() < 1e-9);
+    assert!((extended.fib_618.get(35).expect("618") - 107.522).abs() < 1e-9);
+    assert!(
+        (extended.fib_position.get(35).expect("position") - (115.0 - 99.5) / 21.0).abs() < 1e-9
+    );
+    assert_eq!(extended.fib_nearest_ratio.get(35), Some(0.236));
+    assert!(extended.fib_nearest_atr.get(35).is_some());
+}
+
+#[test]
+fn horizontal_band_selects_the_largest_nearest_cluster() {
+    let candles = band_pivot_candles();
+    let readings = manual_readings(&candles, 1.0);
+    let extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+
+    assert!(extended.band_upper.get(44).is_none());
+    let upper = extended.band_upper.get(45).expect("upper");
+    let lower = extended.band_lower.get(45).expect("lower");
+    assert!((upper - 100.15).abs() < 1e-9);
+    assert!((lower - 100.05).abs() < 1e-9);
+    assert!((extended.band_center.get(45).expect("center") - 100.10).abs() < 1e-9);
+    assert_eq!(extended.band_touches.get(45), Some(2.0));
+    assert_eq!(extended.band_age.get(45), Some(0.0));
+
+    assert!((extended.band_width_atr.get(60).expect("width") - 0.1).abs() < 1e-9);
+    assert!((extended.band_position.get(60).expect("position") - 0.5).abs() < 1e-9);
+    assert_eq!(extended.band_age.get(60), Some(15.0));
+}
+
+#[test]
+fn horizontal_band_is_null_without_two_levels_or_atr() {
+    let candles = band_pivot_candles();
+    let readings = manual_readings(&candles, 0.0);
+    let extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+    assert!(extended.band_upper.get(60).is_none());
+    assert!(extended.band_lower.get(60).is_none());
+    assert!(extended.band_center.get(60).is_none());
+}
+
+#[test]
+fn fibonacci_levels_publish_without_atr_but_distance_is_null() {
+    let candles = fibonacci_candles();
+    let readings = manual_readings(&candles, 0.0);
+    let extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+    assert_eq!(extended.fib_direction.get(35), Some(1.0));
+    assert!(extended.fib_236.get(35).is_some());
+    assert!(extended.fib_nearest_atr.get(35).is_none());
+}
+
+#[test]
+fn new_readings_keep_length_and_finite_values() {
+    for len in [0_usize, 1, 5, 10, 50, 100] {
+        let candles: Vec<Candle> = (0..len)
+            .map(|index| {
+                let mid = 100.0 + (index as f64 * 0.3).sin() * 2.0;
+                candle(index as u64, mid, mid + 0.5, mid - 0.5, mid, 10.0)
+            })
+            .collect();
+        let readings = readings(&candles);
+        let extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+        for series in [
+            &extended.lower_high_count,
+            &extended.lower_low_count,
+            &extended.higher_high_count,
+            &extended.higher_low_count,
+            &extended.fib_direction,
+            &extended.fib_low,
+            &extended.fib_high,
+            &extended.fib_236,
+            &extended.fib_382,
+            &extended.fib_500,
+            &extended.fib_618,
+            &extended.fib_786,
+            &extended.fib_position,
+            &extended.fib_nearest_ratio,
+            &extended.fib_nearest_atr,
+            &extended.band_upper,
+            &extended.band_lower,
+            &extended.band_center,
+            &extended.band_touches,
+            &extended.band_age,
+            &extended.band_width_atr,
+            &extended.band_position,
+        ] {
+            assert_eq!(series.len(), len);
+            for value in series.values() {
+                assert!(value.is_none_or(|value| value.is_finite()));
+            }
+        }
+    }
+}
+
+fn zero_span_candles() -> Vec<Candle> {
+    let mut mids = Vec::new();
+    for index in 0..=9 {
+        mids.push(95.0 + index as f64 * 0.49);
+    }
+    mids.push(99.5);
+    for index in 0..=4 {
+        mids.push(99.5 - (index + 1) as f64 * 0.3);
+    }
+    for index in 0..=8 {
+        mids.push(99.0 + index as f64 * 0.5);
+    }
+    mids.push(100.5);
+    for index in 0..=4 {
+        mids.push(101.0 + (index + 1) as f64 * 0.5);
+    }
+    let mut candles: Vec<Candle> = mids
+        .iter()
+        .enumerate()
+        .map(|(index, mid)| candle(index as u64, *mid, *mid + 0.5, *mid - 0.5, *mid, 10.0))
+        .collect();
+    candles[10] = candle(10, 99.5, 100.0, 99.0, 99.5, 10.0);
+    candles[25] = candle(25, 100.5, 101.0, 100.0, 100.5, 10.0);
+    candles
+}
+
+#[test]
+fn fibonacci_nulls_a_zero_span_leg() {
+    let candles = zero_span_candles();
+    let extended =
+        ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+    assert!(extended.fib_direction.get(29).is_some());
+    assert!(extended.fib_direction.get(30).is_none());
+    assert!(extended.fib_low.get(30).is_none());
+    assert!(extended.fib_high.get(30).is_none());
+    assert!(extended.fib_236.get(30).is_none());
 }

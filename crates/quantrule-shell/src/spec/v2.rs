@@ -293,8 +293,6 @@ fn parse_extended(value: &Value) -> Result<ExtendedConfig, SpecParseError> {
             "candle_wick",
             "candle_close",
             "gap_atr",
-            "fib_test_atr",
-            "band_atr",
         ],
         "readings.extended",
     )?;
@@ -335,8 +333,6 @@ fn parse_extended(value: &Value) -> Result<ExtendedConfig, SpecParseError> {
     config.candle_wick = optional_f64(object, "candle_wick", config.candle_wick)?;
     config.candle_close = optional_f64(object, "candle_close", config.candle_close)?;
     config.gap_atr = optional_f64(object, "gap_atr", config.gap_atr)?;
-    config.fib_test_atr = optional_f64(object, "fib_test_atr", config.fib_test_atr)?;
-    config.band_atr = optional_f64(object, "band_atr", config.band_atr)?;
     Ok(config)
 }
 
@@ -682,6 +678,18 @@ mod tests {
                 .signal
                 .compression_breakout
         );
+    }
+
+    #[test]
+    fn a_v2_fixture_rejects_fixed_extended_tolerances() {
+        for field in ["fib_test_atr", "band_atr"] {
+            let document = FIXTURE.replace(
+                "{\"vwap_window\": 12, \"profile_window\": 48}",
+                &format!("{{\"vwap_window\": 12, \"profile_window\": 48, \"{field}\": 0.2}}"),
+            );
+            let error = parse_model_spec_v2(&document).expect_err("the fixed tolerance");
+            assert!(error.to_string().contains(field), "{field}: {error}");
+        }
     }
 
     #[test]

@@ -369,9 +369,9 @@ fn validate_condition(condition: Condition) -> Result<(), super::config::Strateg
                 return Err(StrategyConfigError::EventNotRegistered);
             };
             if identity.role == super::registry::EventRole::Diagnostic {
-                // The registry is the authority on the exact identity; this
-                // check keeps a diagnostic from becoming a trigger even when
-                // its subtype falls inside the accepted range.
+                // The registry is the authority on the exact identity and role;
+                // this check keeps a diagnostic from becoming a trigger even
+                // when its subtype is registered.
                 return Err(StrategyConfigError::EventDiagnostic);
             }
             if !(-1..=1).contains(&direction) {

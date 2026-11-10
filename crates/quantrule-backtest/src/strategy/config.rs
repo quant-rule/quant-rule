@@ -25,7 +25,7 @@ pub enum StrategyConfigError {
     EventTimeframe,
     /// The event type code is outside 1..3.
     EventType,
-    /// The event subtype code is outside its registered range.
+    /// The event subtype code is zero; a registered subtype is required.
     EventSubtype,
     /// The event source code is outside 1..57.
     EventSource,
@@ -67,7 +67,7 @@ impl fmt::Display for StrategyConfigError {
             Self::EventTimeframe => write!(formatter, "the condition timeframe must be non-zero"),
             Self::EventType => write!(formatter, "the event type code must be in 1..=3"),
             Self::EventSubtype => {
-                write!(formatter, "the event subtype code is outside its range")
+                write!(formatter, "the event subtype code must be non-zero")
             }
             Self::EventSource => write!(formatter, "the event source code must be in 1..=57"),
             Self::EventNotRegistered => {

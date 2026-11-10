@@ -239,4 +239,6 @@ use self::structure::structure_sequence_events;
 use self::vwap::vwap_events;
 
 pub(crate) use divergence::divergence_subtype;
-pub(crate) use shared::{cross_down_value, cross_up_value, push, push_with_reference};
+pub(crate) use shared::{
+    cross_down_value, cross_up_value, push, push_confirmed, push_with_reference,
+};

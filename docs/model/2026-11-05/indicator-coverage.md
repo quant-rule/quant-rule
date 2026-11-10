@@ -1,7 +1,7 @@
 # Indicator Coverage — 10 OHLCV Information Areas
 
 - Date: 2026-11-05 (UTC)
-- Status: **Implemented** — 49 indicators, 150 active events, 106 parameters; event codes 1–150; 37 checklist rows signed (36 event-producing indicators wired and spec-usable, 1 reading-only); spec v2 implemented; validation claims present (199), predictive evidence pending; the 49-row indicator and 150-row event matrices are the current verification target; `M1.2` adds pivot sequence, Fibonacci, and horizontal-band structure
+- Status: **Implemented** — 49 indicators, 150 active events, 106 parameters; event codes 1–150; 37 checklist rows signed (36 event-producing indicators wired and spec-usable, 1 reading-only); spec v2 implemented; validation claims present (199), predictive evidence pending; the 49-row indicator and 150-row event matrices are the current verification target; `M1.3` adds the audit corrections to pivot sequence, Fibonacci, and horizontal-band structure
 - Scope: 10 information areas, 36 new indicators, 10 existing indicators
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Plan: [`docs/execution-plans/2026-11-05/405-indicator-platform.md`](../../execution-plans/2026-11-05/405-indicator-platform.md)
