@@ -11,6 +11,7 @@ strategy, decision, or portfolio result.
 | `trade_context.py` | Per-trade entry/exit context, post-fill window, events, decision, orders, fills, summary |
 | `annotations.py` | The same context for human-marked timestamps |
 | `exit_quality.py` | One row per trade with MFE/MAE, exit efficiency, and post-exit continuation |
+| `annotation_zones.py` | Zone features and grouped summary for human-marked entry/exit points |
 
 ## Trade context
 
@@ -78,6 +79,22 @@ python3 tools/trades/exit_quality.py \
 The table covers captured return, trade MFE/MAE, exit efficiency, the state at the
 exit decision bar, and post-exit MFE/MAE over 5/10/20/50 bars. Post-exit values are
 descriptive and never enter a strategy.
+
+## Annotation zones
+
+```bash
+python3 tools/trades/annotation_zones.py \
+  --contexts data/improvement/2026-11-09/BINANCE-BTCUSDT/annotations/human-2018-v12 \
+             data/improvement/2026-11-09/BINANCE-BTCUSDT/annotations/human-2019-v12 \
+  --out data/improvement/2026-11-09/BINANCE-BTCUSDT/annotations/zones-2026-11-10 \
+  --radius 3
+```
+
+The zone is `radius` bars before the mark, the mark, and `radius` bars after. The
+tool publishes `zones.csv`, `summary.json`, and `summary.md`. EMA taps,
+Fibonacci tests, band tests, pivot-sequence counts, and 4/16/50-bar forward
+returns are descriptive; the zone includes bars after the mark and is not a
+causal signal.
 
 ## Tests
 
