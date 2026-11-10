@@ -106,7 +106,7 @@ provenance.
 `codes` records the stable numeric registries: event types, event subtypes,
 sources, roles, scales, target bases, lifecycle, stages, and unavailable reasons.
 A code is never reused after retirement. The 2026-11-05 extension reserves source
-codes 19–54 and signal subtypes 10–23 for the indicator-completeness programme.
+codes 19–57 and signal subtypes 10–23 for the indicator-completeness programme.
 
 ## 4. Role and claim rules
 

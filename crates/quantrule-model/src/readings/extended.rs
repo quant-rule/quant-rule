@@ -78,6 +78,10 @@ pub struct ExtendedConfig {
     pub candle_close: f64,
     /// Gap threshold in ATR.
     pub gap_atr: f64,
+    /// Fibonacci level test tolerance in ATR.
+    pub fib_test_atr: f64,
+    /// Horizontal band cluster tolerance in ATR.
+    pub band_atr: f64,
 }
 
 impl ExtendedConfig {
@@ -116,6 +120,8 @@ impl ExtendedConfig {
         candle_wick: 0.6,
         candle_close: 0.8,
         gap_atr: 0.5,
+        fib_test_atr: 0.2,
+        band_atr: 0.25,
     };
 }
 
@@ -212,6 +218,50 @@ pub struct ExtendedReadings {
     pub donchian_position: ReadingSeries,
     /// +1 HH/HL, -1 LH/LL, 0 mixed.
     pub structure_state: ReadingSeries,
+    /// Consecutive confirmed major lower highs.
+    pub lower_high_count: ReadingSeries,
+    /// Consecutive confirmed major lower lows.
+    pub lower_low_count: ReadingSeries,
+    /// Consecutive confirmed major higher highs.
+    pub higher_high_count: ReadingSeries,
+    /// Consecutive confirmed major higher lows.
+    pub higher_low_count: ReadingSeries,
+    /// Fibonacci leg direction: +1 up, -1 down.
+    pub fib_direction: ReadingSeries,
+    /// Fibonacci leg low.
+    pub fib_low: ReadingSeries,
+    /// Fibonacci leg high.
+    pub fib_high: ReadingSeries,
+    /// 0.236 retracement level.
+    pub fib_236: ReadingSeries,
+    /// 0.382 retracement level.
+    pub fib_382: ReadingSeries,
+    /// 0.500 retracement level.
+    pub fib_500: ReadingSeries,
+    /// 0.618 retracement level.
+    pub fib_618: ReadingSeries,
+    /// 0.786 retracement level.
+    pub fib_786: ReadingSeries,
+    /// Position in the leg: 0 at the start, 1 at the end.
+    pub fib_position: ReadingSeries,
+    /// Nearest Fibonacci ratio.
+    pub fib_nearest_ratio: ReadingSeries,
+    /// Distance to the nearest Fibonacci level in ATR.
+    pub fib_nearest_atr: ReadingSeries,
+    /// Horizontal band upper edge.
+    pub band_upper: ReadingSeries,
+    /// Horizontal band lower edge.
+    pub band_lower: ReadingSeries,
+    /// Horizontal band center.
+    pub band_center: ReadingSeries,
+    /// Number of confirmed levels in the band.
+    pub band_touches: ReadingSeries,
+    /// Age in bars of the youngest level in the band.
+    pub band_age: ReadingSeries,
+    /// Band width in ATR.
+    pub band_width_atr: ReadingSeries,
+    /// Position inside the band.
+    pub band_position: ReadingSeries,
     /// The latest confirmed major pivot high.
     pub last_pivot_high: ReadingSeries,
     /// The latest confirmed major pivot low.
@@ -307,6 +357,28 @@ impl ExtendedReadings {
             donchian_lower: null(),
             donchian_position: null(),
             structure_state: null(),
+            lower_high_count: null(),
+            lower_low_count: null(),
+            higher_high_count: null(),
+            higher_low_count: null(),
+            fib_direction: null(),
+            fib_low: null(),
+            fib_high: null(),
+            fib_236: null(),
+            fib_382: null(),
+            fib_500: null(),
+            fib_618: null(),
+            fib_786: null(),
+            fib_position: null(),
+            fib_nearest_ratio: null(),
+            fib_nearest_atr: null(),
+            band_upper: null(),
+            band_lower: null(),
+            band_center: null(),
+            band_touches: null(),
+            band_age: null(),
+            band_width_atr: null(),
+            band_position: null(),
             last_pivot_high: null(),
             last_pivot_low: null(),
             level_touches: null(),
@@ -376,6 +448,8 @@ impl ExtendedReadings {
         ) = participation_series(candles, readings, config, &vwap, &profile.poc);
         let flow = flow_series(candles, config);
         let structure = structure_series(candles, readings, config);
+        let fibonacci = fibonacci_series(candles, readings);
+        let band = band_series(candles, readings, config);
         let anatomy = anatomy_series(candles, readings, config);
         Self {
             vwap: ReadingSeries::new(vwap),
@@ -423,6 +497,28 @@ impl ExtendedReadings {
             donchian_lower: ReadingSeries::new(structure.donchian_lower),
             donchian_position: ReadingSeries::new(structure.donchian_position),
             structure_state: ReadingSeries::new(structure.structure_state),
+            lower_high_count: ReadingSeries::new(structure.lower_high_count),
+            lower_low_count: ReadingSeries::new(structure.lower_low_count),
+            higher_high_count: ReadingSeries::new(structure.higher_high_count),
+            higher_low_count: ReadingSeries::new(structure.higher_low_count),
+            fib_direction: ReadingSeries::new(fibonacci.direction),
+            fib_low: ReadingSeries::new(fibonacci.low),
+            fib_high: ReadingSeries::new(fibonacci.high),
+            fib_236: ReadingSeries::new(fibonacci.level_236),
+            fib_382: ReadingSeries::new(fibonacci.level_382),
+            fib_500: ReadingSeries::new(fibonacci.level_500),
+            fib_618: ReadingSeries::new(fibonacci.level_618),
+            fib_786: ReadingSeries::new(fibonacci.level_786),
+            fib_position: ReadingSeries::new(fibonacci.position),
+            fib_nearest_ratio: ReadingSeries::new(fibonacci.nearest_ratio),
+            fib_nearest_atr: ReadingSeries::new(fibonacci.nearest_atr),
+            band_upper: ReadingSeries::new(band.upper),
+            band_lower: ReadingSeries::new(band.lower),
+            band_center: ReadingSeries::new(band.center),
+            band_touches: ReadingSeries::new(band.touches),
+            band_age: ReadingSeries::new(band.age),
+            band_width_atr: ReadingSeries::new(band.width_atr),
+            band_position: ReadingSeries::new(band.position),
             last_pivot_high: ReadingSeries::new(structure.last_pivot_high),
             last_pivot_low: ReadingSeries::new(structure.last_pivot_low),
             level_touches: ReadingSeries::new(structure.level_touches),
@@ -449,6 +545,8 @@ impl ExtendedReadings {
 }
 
 mod anatomy;
+mod band;
+mod fibonacci;
 mod flow;
 mod participation;
 mod profile;
@@ -460,6 +558,8 @@ mod vwap;
 mod tests;
 
 use self::anatomy::anatomy_series;
+use self::band::band_series;
+use self::fibonacci::fibonacci_series;
 use self::flow::flow_series;
 use self::participation::participation_series;
 use self::profile::ProfileSeries;

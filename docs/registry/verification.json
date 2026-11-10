@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.verification/v1",
-  "version": "2026-11-06.2",
+  "version": "2026-11-10.1",
   "indicators": [
     {
       "id": "ema",
@@ -2979,6 +2979,201 @@
         "spec": {
           "scope": "n/a",
           "tests": []
+        },
+        "emitter": {
+          "scope": "n/a",
+          "tests": []
+        }
+      }
+    },
+    {
+      "id": "pivot_sequence",
+      "kind": "indicator",
+      "evidence": {
+        "formula": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::pivot_sequence_row_contract"
+          ]
+        },
+        "causality": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::pivot_sequence_row_contract"
+          ]
+        },
+        "determinism": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::pivot_sequence_row_contract"
+          ]
+        },
+        "golden": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::pivot_sequence_row_contract"
+          ]
+        },
+        "edge": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::pivot_sequence_row_contract"
+          ]
+        },
+        "availability": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "no_double_count": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "precedence": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "math": {
+          "scope": "tool",
+          "tests": [
+            "check_registry.py",
+            "check_validation.py"
+          ]
+        },
+        "spec": {
+          "scope": "family",
+          "tests": [
+            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+          ]
+        },
+        "emitter": {
+          "scope": "n/a",
+          "tests": []
+        }
+      }
+    },
+    {
+      "id": "fibonacci",
+      "kind": "indicator",
+      "evidence": {
+        "formula": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::fibonacci_row_contract"
+          ]
+        },
+        "causality": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::fibonacci_row_contract"
+          ]
+        },
+        "determinism": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::fibonacci_row_contract"
+          ]
+        },
+        "golden": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::fibonacci_row_contract"
+          ]
+        },
+        "edge": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::fibonacci_row_contract"
+          ]
+        },
+        "availability": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "no_double_count": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "precedence": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "math": {
+          "scope": "tool",
+          "tests": [
+            "check_registry.py",
+            "check_validation.py"
+          ]
+        },
+        "spec": {
+          "scope": "family",
+          "tests": [
+            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+          ]
+        },
+        "emitter": {
+          "scope": "n/a",
+          "tests": []
+        }
+      }
+    },
+    {
+      "id": "horizontal_band",
+      "kind": "indicator",
+      "evidence": {
+        "formula": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::horizontal_band_row_contract"
+          ]
+        },
+        "causality": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::horizontal_band_row_contract"
+          ]
+        },
+        "determinism": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::horizontal_band_row_contract"
+          ]
+        },
+        "golden": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::horizontal_band_row_contract"
+          ]
+        },
+        "edge": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_indicators::horizontal_band_row_contract"
+          ]
+        },
+        "availability": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "no_double_count": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "precedence": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "math": {
+          "scope": "tool",
+          "tests": [
+            "check_registry.py",
+            "check_validation.py"
+          ]
+        },
+        "spec": {
+          "scope": "family",
+          "tests": [
+            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+          ]
         },
         "emitter": {
           "scope": "n/a",
@@ -13011,25 +13206,25 @@
         "formula": {
           "scope": "row",
           "tests": [
-            "per_row_extended_session_events::signal_opening_range_sweep_row_contract"
+            "events::session::row_tests::signal_opening_range_sweep_row_contract"
           ]
         },
         "causality": {
           "scope": "row",
           "tests": [
-            "per_row_extended_session_events::signal_opening_range_sweep_row_contract"
+            "events::session::row_tests::signal_opening_range_sweep_row_contract"
           ]
         },
         "determinism": {
           "scope": "row",
           "tests": [
-            "per_row_extended_session_events::signal_opening_range_sweep_row_contract"
+            "events::session::row_tests::signal_opening_range_sweep_row_contract"
           ]
         },
         "golden": {
           "scope": "row",
           "tests": [
-            "per_row_extended_session_events::signal_opening_range_sweep_row_contract"
+            "events::session::row_tests::signal_opening_range_sweep_row_contract"
           ]
         },
         "edge": {
@@ -13041,13 +13236,13 @@
         "availability": {
           "scope": "row",
           "tests": [
-            "per_row_extended_session_events::signal_opening_range_sweep_row_contract"
+            "events::session::row_tests::signal_opening_range_sweep_row_contract"
           ]
         },
         "no_double_count": {
           "scope": "row",
           "tests": [
-            "per_row_extended_session_events::signal_opening_range_sweep_row_contract"
+            "events::session::row_tests::signal_opening_range_sweep_row_contract"
           ]
         },
         "precedence": {
@@ -13155,21 +13350,91 @@
           ]
         },
         "causality": {
+          "scope": "family",
+          "tests": [
+            "event_validation::appending_bars_does_not_change_past_events"
+          ]
+        },
+        "determinism": {
+          "scope": "family",
+          "tests": [
+            "event_validation::repeated_model_runs_publish_the_same_events"
+          ]
+        },
+        "golden": {
+          "scope": "family",
+          "tests": [
+            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+          ]
+        },
+        "edge": {
+          "scope": "family",
+          "tests": [
+            "edge_cases::an_empty_series_publishes_no_readings"
+          ]
+        },
+        "availability": {
+          "scope": "family",
+          "tests": [
+            "event_validation::every_batch_respects_availability_and_order"
+          ]
+        },
+        "no_double_count": {
+          "scope": "family",
+          "tests": [
+            "event_validation::one_occurrence_is_recorded_once"
+          ]
+        },
+        "precedence": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "math": {
+          "scope": "tool",
+          "tests": [
+            "check_registry.py"
+          ]
+        },
+        "spec": {
+          "scope": "family",
+          "tests": [
+            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+          ]
+        },
+        "emitter": {
+          "scope": "tool",
+          "tests": [
+            "check_event_emitters.py"
+          ]
+        }
+      }
+    },
+    {
+      "id": "signal.lower_high_sequence",
+      "kind": "event",
+      "evidence": {
+        "formula": {
           "scope": "row",
           "tests": [
-            "retest::tests::breakout_retest_hold_row_contract"
+            "per_row_extended_session_events::signal_lower_high_sequence_row_contract"
+          ]
+        },
+        "causality": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::signal_lower_high_sequence_row_contract"
           ]
         },
         "determinism": {
           "scope": "row",
           "tests": [
-            "retest::tests::breakout_retest_hold_row_contract"
+            "per_row_extended_session_events::signal_lower_high_sequence_row_contract"
           ]
         },
         "golden": {
           "scope": "row",
           "tests": [
-            "retest::tests::breakout_retest_hold_row_contract"
+            "per_row_extended_session_events::signal_lower_high_sequence_row_contract"
           ]
         },
         "edge": {
@@ -13181,13 +13446,223 @@
         "availability": {
           "scope": "row",
           "tests": [
-            "retest::tests::breakout_retest_hold_row_contract"
+            "per_row_extended_session_events::signal_lower_high_sequence_row_contract"
           ]
         },
         "no_double_count": {
           "scope": "row",
           "tests": [
-            "retest::tests::breakout_retest_hold_row_contract"
+            "per_row_extended_session_events::signal_lower_high_sequence_row_contract"
+          ]
+        },
+        "precedence": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "math": {
+          "scope": "tool",
+          "tests": [
+            "check_registry.py"
+          ]
+        },
+        "spec": {
+          "scope": "family",
+          "tests": [
+            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+          ]
+        },
+        "emitter": {
+          "scope": "tool",
+          "tests": [
+            "check_event_emitters.py"
+          ]
+        }
+      }
+    },
+    {
+      "id": "signal.lower_low_sequence",
+      "kind": "event",
+      "evidence": {
+        "formula": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::signal_lower_low_sequence_row_contract"
+          ]
+        },
+        "causality": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::signal_lower_low_sequence_row_contract"
+          ]
+        },
+        "determinism": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::signal_lower_low_sequence_row_contract"
+          ]
+        },
+        "golden": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::signal_lower_low_sequence_row_contract"
+          ]
+        },
+        "edge": {
+          "scope": "family",
+          "tests": [
+            "edge_cases::an_empty_series_publishes_no_readings"
+          ]
+        },
+        "availability": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::signal_lower_low_sequence_row_contract"
+          ]
+        },
+        "no_double_count": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::signal_lower_low_sequence_row_contract"
+          ]
+        },
+        "precedence": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "math": {
+          "scope": "tool",
+          "tests": [
+            "check_registry.py"
+          ]
+        },
+        "spec": {
+          "scope": "family",
+          "tests": [
+            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+          ]
+        },
+        "emitter": {
+          "scope": "tool",
+          "tests": [
+            "check_event_emitters.py"
+          ]
+        }
+      }
+    },
+    {
+      "id": "level.fib_test",
+      "kind": "event",
+      "evidence": {
+        "formula": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_fib_test_row_contract"
+          ]
+        },
+        "causality": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_fib_test_row_contract"
+          ]
+        },
+        "determinism": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_fib_test_row_contract"
+          ]
+        },
+        "golden": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_fib_test_row_contract"
+          ]
+        },
+        "edge": {
+          "scope": "family",
+          "tests": [
+            "edge_cases::an_empty_series_publishes_no_readings"
+          ]
+        },
+        "availability": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_fib_test_row_contract"
+          ]
+        },
+        "no_double_count": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_fib_test_row_contract"
+          ]
+        },
+        "precedence": {
+          "scope": "n/a",
+          "tests": []
+        },
+        "math": {
+          "scope": "tool",
+          "tests": [
+            "check_registry.py"
+          ]
+        },
+        "spec": {
+          "scope": "family",
+          "tests": [
+            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+          ]
+        },
+        "emitter": {
+          "scope": "tool",
+          "tests": [
+            "check_event_emitters.py"
+          ]
+        }
+      }
+    },
+    {
+      "id": "level.band_test",
+      "kind": "event",
+      "evidence": {
+        "formula": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_band_test_row_contract"
+          ]
+        },
+        "causality": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_band_test_row_contract"
+          ]
+        },
+        "determinism": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_band_test_row_contract"
+          ]
+        },
+        "golden": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_band_test_row_contract"
+          ]
+        },
+        "edge": {
+          "scope": "family",
+          "tests": [
+            "edge_cases::an_empty_series_publishes_no_readings"
+          ]
+        },
+        "availability": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_band_test_row_contract"
+          ]
+        },
+        "no_double_count": {
+          "scope": "row",
+          "tests": [
+            "per_row_extended_session_events::level_band_test_row_contract"
           ]
         },
         "precedence": {

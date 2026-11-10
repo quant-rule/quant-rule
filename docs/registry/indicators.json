@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.registry/v1",
-  "version": "2026-11-09.1",
+  "version": "2026-11-10.1",
   "indicators": [
     {
       "id": "ema",
@@ -1621,6 +1621,123 @@
       ],
       "availability": "bar timestamp",
       "events": [],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "pivot_sequence",
+      "code": 47,
+      "name": "Confirmed pivot sequence",
+      "taxonomy": "structure",
+      "role": "signal",
+      "claim": "A sequence of two or more consecutive confirmed major lower highs or lower lows is followed by a directional continuation more often than the base rate.",
+      "formula": "LH[n]=H[p]<H[p-1]; count consecutive LH or LL confirmed major pivots; event at count>=2",
+      "inputs": [
+        "high",
+        "low"
+      ],
+      "parameters": [
+        "model.pivots.major"
+      ],
+      "outputs": [
+        "lower_high_count",
+        "lower_low_count",
+        "higher_high_count",
+        "higher_low_count"
+      ],
+      "availability": "confirmation bar of the latest pivot in the sequence",
+      "events": [
+        "signal.lower_high_sequence",
+        "signal.lower_low_sequence"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "fibonacci",
+      "code": 48,
+      "name": "Fibonacci retracement",
+      "taxonomy": "structure",
+      "role": "signal",
+      "claim": "A test of a Fibonacci retracement level of the last confirmed major swing leg is followed by a reaction in the leg direction more often than the base rate.",
+      "formula": "leg=latest confirmed major pivot and prior confirmed major pivot of the opposite kind; levels(r)=H-r(H-L) up or L+r(H-L) down for r in {0.236,0.382,0.5,0.618,0.786}",
+      "inputs": [
+        "high",
+        "low",
+        "close",
+        "atr"
+      ],
+      "parameters": [
+        "model.fibonacci.ratios",
+        "model.fibonacci.test_atr"
+      ],
+      "outputs": [
+        "fib_direction",
+        "fib_low",
+        "fib_high",
+        "fib_236",
+        "fib_382",
+        "fib_500",
+        "fib_618",
+        "fib_786",
+        "fib_position",
+        "fib_nearest_ratio",
+        "fib_nearest_atr"
+      ],
+      "availability": "confirmation bar of both leg pivots",
+      "events": [
+        "level.fib_test"
+      ],
+      "tests": [
+        "causality",
+        "determinism",
+        "golden",
+        "edge_cases"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "horizontal_band",
+      "code": 49,
+      "name": "Horizontal support/resistance band",
+      "taxonomy": "structure",
+      "role": "signal",
+      "claim": "A test of a multi-touch horizontal band is followed by a reaction away from the band more often than a single-level baseline.",
+      "formula": "cluster confirmed major levels with gap<=band_atr*ATR; choose largest cluster, tie-break nearest close then lower center; band=[min,max]",
+      "inputs": [
+        "high",
+        "low",
+        "close",
+        "atr"
+      ],
+      "parameters": [
+        "model.level.lookback",
+        "model.band.cluster_atr",
+        "model.band.min_touches"
+      ],
+      "outputs": [
+        "band_upper",
+        "band_lower",
+        "band_center",
+        "band_touches",
+        "band_age",
+        "band_width_atr",
+        "band_position"
+      ],
+      "availability": "two confirmed major levels in the lookback",
+      "events": [
+        "level.band_test"
+      ],
       "tests": [
         "causality",
         "determinism",
@@ -4388,6 +4505,100 @@
       ],
       "status": "active",
       "formula": "breakout at b0; within 4 bars the bar range touches the boundary within 0.2*ATR and closes beyond it in the breakout direction; a close through the boundary against the breakout before the hold invalidates the break"
+    },
+    {
+      "id": "signal.lower_high_sequence",
+      "code": 147,
+      "event_type": 3,
+      "subtype": 19,
+      "source": 55,
+      "indicator": "pivot_sequence",
+      "role": "signal",
+      "claim": "A second or third consecutive confirmed lower high is followed by a bearish continuation more often than the base rate.",
+      "formula": "confirmed major high at bar AND lower_high_count>=2",
+      "parameters": [
+        "model.pivots.major"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        55
+      ]
+    },
+    {
+      "id": "signal.lower_low_sequence",
+      "code": 148,
+      "event_type": 3,
+      "subtype": 19,
+      "source": 55,
+      "indicator": "pivot_sequence",
+      "role": "signal",
+      "claim": "A second or third consecutive confirmed lower low is followed by a bearish continuation more often than the base rate.",
+      "formula": "confirmed major low at bar AND lower_low_count>=2",
+      "parameters": [
+        "model.pivots.major"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        55
+      ]
+    },
+    {
+      "id": "level.fib_test",
+      "code": 149,
+      "event_type": 1,
+      "subtype": 1,
+      "source": 56,
+      "indicator": "fibonacci",
+      "role": "signal",
+      "claim": "A test of a Fibonacci retracement level of the last confirmed major swing leg is followed by a reaction in the leg direction more often than the base rate.",
+      "formula": "abs(H-L_fib)<=test_atr*ATR or abs(L-L_fib)<=test_atr*ATR; emit the nearest tested ratio",
+      "parameters": [
+        "model.fibonacci.test_atr"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        56
+      ]
+    },
+    {
+      "id": "level.band_test",
+      "code": 150,
+      "event_type": 1,
+      "subtype": 1,
+      "source": 57,
+      "indicator": "horizontal_band",
+      "role": "signal",
+      "claim": "A test of a multi-touch horizontal band is followed by a reaction away from the band more often than a single-level baseline.",
+      "formula": "H>=lower-band_atr*ATR AND L<=upper+band_atr*ATR",
+      "parameters": [
+        "model.band.cluster_atr",
+        "model.level.lookback",
+        "model.band.min_touches"
+      ],
+      "tests": [
+        "event",
+        "causality",
+        "determinism"
+      ],
+      "status": "active",
+      "sources": [
+        57
+      ]
     }
   ],
   "parameters": [
@@ -5703,6 +5914,66 @@
         "model"
       ],
       "status": "active"
+    },
+    {
+      "id": "model.fibonacci.ratios",
+      "path": "fixed",
+      "type": "array<number>",
+      "default": [
+        0.236,
+        0.382,
+        0.5,
+        0.618,
+        0.786
+      ],
+      "unit": "fraction",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.fibonacci.test_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.2,
+      "min": 0,
+      "max": 2,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.band.cluster_atr",
+      "path": "fixed",
+      "type": "number",
+      "default": 0.25,
+      "min": 0,
+      "max": 2,
+      "unit": "atr",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "model.band.min_touches",
+      "path": "fixed",
+      "type": "integer",
+      "default": 2,
+      "min": 2,
+      "max": 20,
+      "unit": "records",
+      "configurable": false,
+      "affects": [
+        "model"
+      ],
+      "status": "active"
     }
   ],
   "codes": {
@@ -5801,7 +6072,10 @@
       "51": "opening range",
       "52": "overnight/intraday",
       "53": "session range",
-      "54": "calendar bucket"
+      "54": "calendar bucket",
+      "55": "pivot sequence",
+      "56": "Fibonacci",
+      "57": "horizontal band"
     },
     "roles": {
       "1": "signal",

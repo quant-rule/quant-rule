@@ -17,6 +17,10 @@ pub(super) struct StructureReadings {
     pub(super) donchian_lower: Vec<Option<f64>>,
     pub(super) donchian_position: Vec<Option<f64>>,
     pub(super) structure_state: Vec<Option<f64>>,
+    pub(super) lower_high_count: Vec<Option<f64>>,
+    pub(super) lower_low_count: Vec<Option<f64>>,
+    pub(super) higher_high_count: Vec<Option<f64>>,
+    pub(super) higher_low_count: Vec<Option<f64>>,
     pub(super) last_pivot_high: Vec<Option<f64>>,
     pub(super) last_pivot_low: Vec<Option<f64>>,
     pub(super) level_touches: Vec<Option<f64>>,
@@ -76,6 +80,10 @@ pub(super) fn structure_series(
         donchian_lower: null(),
         donchian_position: null(),
         structure_state: null(),
+        lower_high_count: null(),
+        lower_low_count: null(),
+        higher_high_count: null(),
+        higher_low_count: null(),
         last_pivot_high: null(),
         last_pivot_low: null(),
         level_touches: null(),
@@ -94,6 +102,8 @@ pub(super) fn structure_series(
     let mut last_low: Option<f64> = None;
     let mut previous_high: Option<f64> = None;
     let mut previous_low: Option<f64> = None;
+    let mut confirmed_highs: Vec<f64> = Vec::new();
+    let mut confirmed_lows: Vec<f64> = Vec::new();
 
     for bar in 0..len {
         let atr_fast = readings.atr14.get(bar);
@@ -160,15 +170,21 @@ pub(super) fn structure_series(
                 PivotKind::High => {
                     previous_high = last_high;
                     last_high = Some(pivot.price);
+                    confirmed_highs.push(pivot.price);
                 }
                 PivotKind::Low => {
                     previous_low = last_low;
                     last_low = Some(pivot.price);
+                    confirmed_lows.push(pivot.price);
                 }
             }
         }
         result.last_pivot_high[bar] = last_high;
         result.last_pivot_low[bar] = last_low;
+        result.lower_high_count[bar] = sequence_count(&confirmed_highs, true);
+        result.higher_high_count[bar] = sequence_count(&confirmed_highs, false);
+        result.lower_low_count[bar] = sequence_count(&confirmed_lows, true);
+        result.higher_low_count[bar] = sequence_count(&confirmed_lows, false);
         if let (Some(high), Some(prior_high), Some(low), Some(prior_low)) =
             (last_high, previous_high, last_low, previous_low)
         {
@@ -219,6 +235,29 @@ pub(super) fn structure_series(
     result
 }
 
+/// The number of consecutive strictly lower or higher confirmed pivots.
+///
+/// Fewer than two confirmed pivots is unavailable, not zero. An equal pivot
+/// breaks the sequence.
+fn sequence_count(values: &[f64], lower: bool) -> Option<f64> {
+    if values.len() < 2 {
+        return None;
+    }
+    let mut count = 0_u32;
+    for pair in values.windows(2).rev() {
+        let continues = if lower {
+            pair[1] < pair[0]
+        } else {
+            pair[1] > pair[0]
+        };
+        if !continues {
+            break;
+        }
+        count = count.saturating_add(1);
+    }
+    Some(f64::from(count))
+}
+
 /// The confirmed major structure code: +1 HH/HL, -1 LH/LL, 0 mixed or equal.
 fn structure_code(high: f64, prior_high: f64, low: f64, prior_low: f64) -> f64 {
     let high_state = if high > prior_high {
@@ -246,7 +285,22 @@ fn structure_code(high: f64, prior_high: f64, low: f64, prior_low: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::structure_code;
+    use super::{sequence_count, structure_code};
+
+    #[test]
+    fn a_sequence_needs_two_confirmed_pivots() {
+        assert_eq!(sequence_count(&[], true), None);
+        assert_eq!(sequence_count(&[10.0], true), None);
+    }
+
+    #[test]
+    fn lower_and_higher_counts_are_consecutive_and_strict() {
+        assert_eq!(sequence_count(&[10.0, 9.0, 8.0], true), Some(2.0));
+        assert_eq!(sequence_count(&[10.0, 9.0, 10.0, 9.0], true), Some(1.0));
+        assert_eq!(sequence_count(&[8.0, 9.0, 10.0], false), Some(2.0));
+        assert_eq!(sequence_count(&[10.0, 10.0, 9.0], true), Some(1.0));
+        assert_eq!(sequence_count(&[10.0, 10.0, 9.0], false), Some(0.0));
+    }
 
     #[test]
     fn equal_highs_and_lows_are_mixed_not_directional() {

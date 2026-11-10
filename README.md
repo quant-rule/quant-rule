@@ -296,8 +296,8 @@ python3 tools/check_terms.py
 
 The command-surface check compares `help.rs`, the README command table, the
 command registry, and the tutorial invocations. A planned command must not appear
-in the available surface. The registry checks cover 46 indicators, 143 active
-events, 189 validation claims, and 54 construct cases. The legacy scan rejects
+in the available surface. The registry checks cover 49 indicators, 150 active
+events, 199 validation claims, and 54 construct cases. The legacy scan rejects
 retired model and strategy labels in the current surface; history directories are
 exempt and remain in Git.
 

@@ -210,6 +210,12 @@ fn position_view_reports_the_entry_bar_and_bars_held() {
     assert_eq!(view.side, Some(Side::Long));
     assert_eq!(view.entry_bar, Some(1));
     assert_eq!(view.bars_held, 0);
+    approx(view.entry_price.expect("entry price"), 100.02);
+    assert_eq!(view.entry_atr, Some(1.0));
+    approx(view.unrealized_atr.expect("unrealized"), 0.48);
+    approx(view.mfe_atr.expect("mfe"), 0.98);
+    approx(view.mae_atr.expect("mae"), 0.52);
+    approx(view.giveback_atr().expect("giveback"), 0.5);
 
     let third = candle(2, 1800, 100.5, 101.0, 99.5, 100.8, Some(10.0));
     step(&mut engine, &third, Some(1.0), OrderIntent::Hold);
@@ -217,9 +223,27 @@ fn position_view_reports_the_entry_bar_and_bars_held() {
     assert_eq!(view.side, Some(Side::Long));
     assert_eq!(view.entry_bar, Some(1));
     assert_eq!(view.bars_held, 1);
+    approx(view.unrealized_atr.expect("unrealized"), 0.78);
+    approx(view.giveback_atr().expect("giveback"), 0.2);
 
     let fourth = candle(3, 2700, 100.8, 101.0, 100.0, 100.5, Some(10.0));
     step(&mut engine, &fourth, Some(1.0), OrderIntent::Hold);
     let view = engine.position_view();
     assert_eq!(view.bars_held, 2);
+}
+
+#[test]
+fn position_view_reports_short_excursions() {
+    let mut engine = test_engine();
+    let (first, second) = entry_series();
+    step(&mut engine, &first, Some(1.0), enter(0, 0, Side::Short));
+    step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
+
+    let view = engine.position_view();
+    assert_eq!(view.side, Some(Side::Short));
+    approx(view.entry_price.expect("entry price"), 99.98);
+    approx(view.unrealized_atr.expect("unrealized"), -0.52);
+    approx(view.mfe_atr.expect("mfe"), 0.48);
+    approx(view.mae_atr.expect("mae"), 1.02);
+    approx(view.giveback_atr().expect("giveback"), 1.0);
 }

@@ -1,6 +1,6 @@
 {
   "schema": "quantrule.validation/v1",
-  "version": "2026-11-06.3",
+  "version": "2026-11-10.1",
   "claims": [
     {
       "id": "absorption",
@@ -2200,6 +2200,92 @@
       "target_atr": 4.0,
       "stop_atr": 4.0,
       "baseline": "breakout_only",
+      "construct_status": "covered"
+    },
+    {
+      "id": "pivot_sequence",
+      "kind": "indicator",
+      "construct_tests": [
+        "per_row_extended_indicators::pivot_sequence_row_contract"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending",
+      "construct_status": "covered"
+    },
+    {
+      "id": "fibonacci",
+      "kind": "indicator",
+      "construct_tests": [
+        "per_row_extended_indicators::fibonacci_row_contract"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending",
+      "construct_status": "covered"
+    },
+    {
+      "id": "horizontal_band",
+      "kind": "indicator",
+      "construct_tests": [
+        "per_row_extended_indicators::horizontal_band_row_contract"
+      ],
+      "primary_outcome": "structure",
+      "predictive_status": "pending",
+      "construct_status": "covered"
+    },
+    {
+      "id": "signal.lower_high_sequence",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
+    },
+    {
+      "id": "signal.lower_low_sequence",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
+    },
+    {
+      "id": "level.fib_test",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
+      "construct_status": "covered"
+    },
+    {
+      "id": "level.band_test",
+      "kind": "event",
+      "construct_tests": [
+        "event_validation::extended_and_session_events_match_their_fixtures"
+      ],
+      "primary_outcome": "path_directional",
+      "predictive_status": "pending",
+      "horizon_bars": 20,
+      "target_atr": 1.0,
+      "stop_atr": 1.0,
+      "baseline": "matched_barrier",
       "construct_status": "covered"
     }
   ]

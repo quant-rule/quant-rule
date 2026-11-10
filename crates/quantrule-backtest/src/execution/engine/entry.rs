@@ -214,7 +214,8 @@ impl ExecutionEngine {
             stop_price,
             target_price,
         )
-        .map_err(ExecutionError::Position)?;
+        .map_err(ExecutionError::Position)?
+        .with_entry_atr(pending.atr14);
         let fill_id = self.next_fill_id();
         self.position = PositionState::Open(position);
         batch.orders.push(filled_record(

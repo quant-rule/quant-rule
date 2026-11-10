@@ -42,6 +42,12 @@ pub struct Position {
     pub stop_price: f64,
     /// The target price.
     pub target_price: f64,
+    /// The ATR at entry, when an ATR-based bracket was used.
+    pub entry_atr: Option<f64>,
+    /// Maximum favorable excursion since entry, in entry ATR.
+    pub mfe_atr: f64,
+    /// Maximum adverse excursion since entry, in entry ATR.
+    pub mae_atr: f64,
 }
 
 impl Position {
@@ -114,7 +120,17 @@ impl Position {
             entry_time,
             stop_price,
             target_price,
+            entry_atr: None,
+            mfe_atr: 0.0,
+            mae_atr: 0.0,
         })
+    }
+
+    /// Adds the entry ATR used for excursion normalization.
+    #[must_use]
+    pub const fn with_entry_atr(mut self, entry_atr: Option<f64>) -> Self {
+        self.entry_atr = entry_atr;
+        self
     }
 
     /// Whether the position is long.

@@ -217,7 +217,7 @@ impl TargetSpec {
 /// assert_eq!(open.entry_bar, Some(7));
 /// assert_eq!(open.bars_held, 0);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StrategyPosition {
     /// The open side, or `None` when flat.
     pub side: Option<Side>,
@@ -225,6 +225,16 @@ pub struct StrategyPosition {
     pub entry_bar: Option<usize>,
     /// The number of closed bars since entry, when a position is open.
     pub bars_held: u64,
+    /// The entry fill price, when a position is open.
+    pub entry_price: Option<f64>,
+    /// The ATR at the entry bar, fixed for the trade.
+    pub entry_atr: Option<f64>,
+    /// Side-adjusted unrealized move in entry ATR.
+    pub unrealized_atr: Option<f64>,
+    /// Maximum favorable excursion since entry, in entry ATR.
+    pub mfe_atr: Option<f64>,
+    /// Maximum adverse excursion since entry, in entry ATR.
+    pub mae_atr: Option<f64>,
 }
 
 impl Default for StrategyPosition {
@@ -241,6 +251,11 @@ impl StrategyPosition {
             side: None,
             entry_bar: None,
             bars_held: 0,
+            entry_price: None,
+            entry_atr: None,
+            unrealized_atr: None,
+            mfe_atr: None,
+            mae_atr: None,
         }
     }
 
@@ -251,6 +266,11 @@ impl StrategyPosition {
             side: Some(side),
             entry_bar: Some(entry_bar),
             bars_held: 0,
+            entry_price: None,
+            entry_atr: None,
+            unrealized_atr: None,
+            mfe_atr: None,
+            mae_atr: None,
         }
     }
 
@@ -261,7 +281,39 @@ impl StrategyPosition {
             side: Some(side),
             entry_bar: None,
             bars_held: 0,
+            entry_price: None,
+            entry_atr: None,
+            unrealized_atr: None,
+            mfe_atr: None,
+            mae_atr: None,
         }
+    }
+
+    /// Adds the execution-reported excursion fields.
+    #[must_use]
+    pub const fn with_excursions(
+        mut self,
+        entry_price: f64,
+        entry_atr: f64,
+        unrealized_atr: f64,
+        mfe_atr: f64,
+        mae_atr: f64,
+    ) -> Self {
+        self.entry_price = Some(entry_price);
+        self.entry_atr = Some(entry_atr);
+        self.unrealized_atr = Some(unrealized_atr);
+        self.mfe_atr = Some(mfe_atr);
+        self.mae_atr = Some(mae_atr);
+        self
+    }
+
+    /// The giveback from the maximum favorable excursion, or `None` when the
+    /// position has no excursion data.
+    #[must_use]
+    pub fn giveback_atr(self) -> Option<f64> {
+        let mfe = self.mfe_atr?;
+        let unrealized = self.unrealized_atr?;
+        Some((mfe - unrealized).max(0.0))
     }
 
     /// Whether the position is flat.

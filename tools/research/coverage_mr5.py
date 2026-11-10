@@ -25,7 +25,12 @@ LATER_EVENTS = {
     "signal.opening_range_sweep",
     "signal.opening_range_sweep_control",
     "signal.breakout_retest_hold",
+    "signal.lower_high_sequence",
+    "signal.lower_low_sequence",
+    "level.fib_test",
+    "level.band_test",
 }
+LATER_INDICATORS = {"pivot_sequence", "fibonacci", "horizontal_band"}
 FAMILY_NEW_EVENTS = {
     "MR7": {
         "signal.opening_range_sweep",
@@ -191,7 +196,7 @@ def check_mr5(
         ]
         for error in relevant_errors:
             errors.append(f"inherited: {error}")
-        if inherited_document["counts"]["indicators"] != len(indicators):
+        if inherited_document["counts"]["indicators"] != len(indicators) - len(LATER_INDICATORS):
             errors.append("inherited indicator count does not match the registry")
         if inherited_document["counts"]["events"] != len(events) - len(LATER_EVENTS):
             errors.append("inherited event count does not match the registry")
@@ -212,7 +217,7 @@ def check_mr5(
         "counts": {
             "cells": len(loaded.cells),
             "primary": len(primary),
-            "indicators": len(indicators),
+            "indicators": len(indicators) - len(LATER_INDICATORS),
             "events": len(events) - len(LATER_EVENTS - covered_events),
             "specs": spec_count,
         },

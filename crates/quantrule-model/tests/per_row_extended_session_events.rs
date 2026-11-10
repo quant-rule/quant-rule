@@ -660,3 +660,23 @@ fn level_opening_range_test_row_contract() {
 fn level_opening_range_break_row_contract() {
     assert_row(Family::Session, codes::LEVEL_OPENING_RANGE_BREAK);
 }
+
+#[test]
+fn signal_lower_high_sequence_row_contract() {
+    assert_row(Family::Extended, codes::SIGNAL_LOWER_HIGH_SEQUENCE);
+}
+
+#[test]
+fn signal_lower_low_sequence_row_contract() {
+    assert_row(Family::Extended, codes::SIGNAL_LOWER_LOW_SEQUENCE);
+}
+
+#[test]
+fn level_fib_test_row_contract() {
+    assert_row(Family::Extended, codes::LEVEL_FIB_TEST);
+}
+
+#[test]
+fn level_band_test_row_contract() {
+    assert_row(Family::Extended, codes::LEVEL_BAND_TEST);
+}

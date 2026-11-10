@@ -71,7 +71,7 @@ TEST_KINDS = {
     "golden", "causality", "determinism", "edge_cases", "property", "event",
     "boundary", "benchmark",
 }
-SOURCE_RANGE = range(1, 55)
+SOURCE_RANGE = range(1, 58)
 SUBTYPE_RANGE = {1: range(1, 6), 2: range(1, 5), 3: range(1, 25)}
 
 

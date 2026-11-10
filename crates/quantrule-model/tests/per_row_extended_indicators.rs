@@ -461,3 +461,49 @@ fn range_position_row_contract() {
         vec![("range_position", extended.range_position.clone())]
     });
 }
+
+#[test]
+fn pivot_sequence_row_contract() {
+    assert_extended_indicator("pivot_sequence", |extended| {
+        vec![
+            ("lower_high_count", extended.lower_high_count.clone()),
+            ("lower_low_count", extended.lower_low_count.clone()),
+            ("higher_high_count", extended.higher_high_count.clone()),
+            ("higher_low_count", extended.higher_low_count.clone()),
+        ]
+    });
+}
+
+#[test]
+fn fibonacci_row_contract() {
+    assert_extended_indicator("fibonacci", |extended| {
+        vec![
+            ("fib_direction", extended.fib_direction.clone()),
+            ("fib_low", extended.fib_low.clone()),
+            ("fib_high", extended.fib_high.clone()),
+            ("fib_236", extended.fib_236.clone()),
+            ("fib_382", extended.fib_382.clone()),
+            ("fib_500", extended.fib_500.clone()),
+            ("fib_618", extended.fib_618.clone()),
+            ("fib_786", extended.fib_786.clone()),
+            ("fib_position", extended.fib_position.clone()),
+            ("fib_nearest_ratio", extended.fib_nearest_ratio.clone()),
+            ("fib_nearest_atr", extended.fib_nearest_atr.clone()),
+        ]
+    });
+}
+
+#[test]
+fn horizontal_band_row_contract() {
+    assert_extended_indicator("horizontal_band", |extended| {
+        vec![
+            ("band_upper", extended.band_upper.clone()),
+            ("band_lower", extended.band_lower.clone()),
+            ("band_center", extended.band_center.clone()),
+            ("band_touches", extended.band_touches.clone()),
+            ("band_age", extended.band_age.clone()),
+            ("band_width_atr", extended.band_width_atr.clone()),
+            ("band_position", extended.band_position.clone()),
+        ]
+    });
+}

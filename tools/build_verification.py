@@ -47,6 +47,9 @@ AREAS = {
         "pivots",
         "donchian",
         "swing_structure",
+        "pivot_sequence",
+        "fibonacci",
+        "horizontal_band",
         "level_strength",
         "aroon",
         "bos_choch",
@@ -168,6 +171,9 @@ ROW_INDICATOR_CONTRACTS = {
     "keltner",
     "donchian",
     "swing_structure",
+    "pivot_sequence",
+    "fibonacci",
+    "horizontal_band",
     "level_strength",
     "aroon",
     "bos_choch",
@@ -393,6 +399,18 @@ ROW_EVENT_TESTS = {
     "signal.session_range_contraction": (
         "events::session::row_tests::signal_session_range_contraction_row_contract",
     ),
+    "signal.lower_high_sequence": (
+        "per_row_extended_session_events::signal_lower_high_sequence_row_contract",
+    ),
+    "signal.lower_low_sequence": (
+        "per_row_extended_session_events::signal_lower_low_sequence_row_contract",
+    ),
+    "level.fib_test": (
+        "per_row_extended_session_events::level_fib_test_row_contract",
+    ),
+    "level.band_test": (
+        "per_row_extended_session_events::level_band_test_row_contract",
+    ),
 }
 ROW_EVENT_CLASSES = (
     "formula",
@@ -467,6 +485,10 @@ ROW_EVENT_GOLDEN = {
     "signal.macd_zero_cross",
     "signal.di_cross",
     "signal.trend_continuation",
+    "signal.lower_high_sequence",
+    "signal.lower_low_sequence",
+    "level.fib_test",
+    "level.band_test",
 }
 ROW_EVENT_PRECEDENCE = {
     "level.test": "per_row_base_events::level_test_row_contract",

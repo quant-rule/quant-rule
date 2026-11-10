@@ -27,7 +27,7 @@ pub enum StrategyConfigError {
     EventType,
     /// The event subtype code is outside its registered range.
     EventSubtype,
-    /// The event source code is outside 1..54.
+    /// The event source code is outside 1..57.
     EventSource,
     /// The event identity is not registered.
     EventNotRegistered,
@@ -43,6 +43,8 @@ pub enum StrategyConfigError {
     CompressionTimeStop,
     /// The compression-bracket entry window is zero.
     CompressionEntryWindow,
+    /// The giveback threshold or arm is outside its valid range.
+    GivebackAtr,
 }
 
 impl fmt::Display for StrategyConfigError {
@@ -67,7 +69,7 @@ impl fmt::Display for StrategyConfigError {
             Self::EventSubtype => {
                 write!(formatter, "the event subtype code is outside its range")
             }
-            Self::EventSource => write!(formatter, "the event source code must be in 1..=54"),
+            Self::EventSource => write!(formatter, "the event source code must be in 1..=57"),
             Self::EventNotRegistered => {
                 write!(formatter, "the event identity is not registered")
             }
@@ -91,6 +93,10 @@ impl fmt::Display for StrategyConfigError {
             Self::CompressionEntryWindow => {
                 write!(formatter, "the compression entry window must be one bar")
             }
+            Self::GivebackAtr => write!(
+                formatter,
+                "giveback_atr must be positive and giveback_arm_atr must be non-negative"
+            ),
         }
     }
 }

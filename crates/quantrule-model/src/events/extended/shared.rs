@@ -18,6 +18,29 @@ pub(crate) fn push(
     primary: Option<f64>,
     reference: Option<f64>,
 ) {
+    push_with_reference(
+        events, event_code, event_type, subtype, source, timeframe, bar, direction, None, primary,
+        reference,
+    );
+}
+
+// A private constructor that mirrors the EventRecord fields one-for-one.
+// Grouping them into synthetic structs would obscure the mapping, so the
+// argument count is intentional.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn push_with_reference(
+    events: &mut Vec<EventRecord>,
+    event_code: u16,
+    event_type: EventType,
+    subtype: u8,
+    source: u16,
+    timeframe: u64,
+    bar: usize,
+    direction: i8,
+    reference_code: Option<u32>,
+    primary: Option<f64>,
+    reference: Option<f64>,
+) {
     events.push(EventRecord {
         event_code,
         event_type,
@@ -27,7 +50,7 @@ pub(crate) fn push(
         occurred_bar_index: bar,
         available_bar_index: bar,
         direction_code: direction,
-        reference_code: None,
+        reference_code,
         primary_value: primary,
         reference_value: reference,
     });

@@ -9,7 +9,7 @@ use quantrule_model::readings::{ExtendedConfig, ExtendedReadings, Readings, Read
 
 const CANDLES_FIXTURE: &str = include_str!("fixtures/readings_golden.csv");
 const READINGS_FIXTURE: &str = include_str!("fixtures/extended_readings_golden.csv");
-const HEADER: &str = "bar,timestamp,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength,obv,obv_ma,obv_slope,cmf,cmf_slope,mfi,ad_line,ad_ma,atr_ratio,atr_slope,vol_regime,range_expansion,mar_fast,mar_slow,mar_ratio,keltner_upper,keltner_lower,keltner_position,donchian_upper,donchian_lower,donchian_position,structure_state,last_pivot_high,last_pivot_low,level_touches,level_age,aroon_up,aroon_down,aroon_osc,body_ratio,upper_wick_ratio,lower_wick_ratio,close_position,pattern_code,pattern_direction,gap_atr,gap_filled,path_efficiency,direction_changes,bars_since_high,bars_since_low,drawdown_atr,range_position";
+const HEADER: &str = "bar,timestamp,vwap,vwap_distance_atr,vwap_slope,vwap_band_upper,vwap_band_lower,poc,vah,val,poc_distance_atr,va_position,profile_skew,profile_concentration,poc_migration,rvol_fast,rvol_slow,rvol_ratio,volume_oscillator,climax_flag,climax_direction,climax_strength,absorption_flag,absorption_direction,absorption_strength,obv,obv_ma,obv_slope,cmf,cmf_slope,mfi,ad_line,ad_ma,atr_ratio,atr_slope,vol_regime,range_expansion,mar_fast,mar_slow,mar_ratio,keltner_upper,keltner_lower,keltner_position,donchian_upper,donchian_lower,donchian_position,structure_state,lower_high_count,lower_low_count,higher_high_count,higher_low_count,fib_direction,fib_low,fib_high,fib_236,fib_382,fib_500,fib_618,fib_786,fib_position,fib_nearest_ratio,fib_nearest_atr,band_upper,band_lower,band_center,band_touches,band_age,band_width_atr,band_position,last_pivot_high,last_pivot_low,level_touches,level_age,aroon_up,aroon_down,aroon_osc,body_ratio,upper_wick_ratio,lower_wick_ratio,close_position,pattern_code,pattern_direction,gap_atr,gap_filled,path_efficiency,direction_changes,bars_since_high,bars_since_low,drawdown_atr,range_position";
 const CUTOFF: usize = 200;
 
 const CANDLES_HEADER: &str = "bar,timestamp,open,high,low,close,volume,ema20,ema50,ema200,rsi14,atr14,rvol20,minor_candidate_high,minor_candidate_low,minor_pivot_high,minor_pivot_low,minor_pivot_occurred_at,major_candidate_high,major_candidate_low,major_pivot_high,major_pivot_low,major_pivot_occurred_at";
@@ -114,6 +114,28 @@ fn render(candles: &[Candle], extended: &ExtendedReadings) -> String {
             optional(extended.donchian_lower.get(bar)),
             optional(extended.donchian_position.get(bar)),
             optional(extended.structure_state.get(bar)),
+            optional(extended.lower_high_count.get(bar)),
+            optional(extended.lower_low_count.get(bar)),
+            optional(extended.higher_high_count.get(bar)),
+            optional(extended.higher_low_count.get(bar)),
+            optional(extended.fib_direction.get(bar)),
+            optional(extended.fib_low.get(bar)),
+            optional(extended.fib_high.get(bar)),
+            optional(extended.fib_236.get(bar)),
+            optional(extended.fib_382.get(bar)),
+            optional(extended.fib_500.get(bar)),
+            optional(extended.fib_618.get(bar)),
+            optional(extended.fib_786.get(bar)),
+            optional(extended.fib_position.get(bar)),
+            optional(extended.fib_nearest_ratio.get(bar)),
+            optional(extended.fib_nearest_atr.get(bar)),
+            optional(extended.band_upper.get(bar)),
+            optional(extended.band_lower.get(bar)),
+            optional(extended.band_center.get(bar)),
+            optional(extended.band_touches.get(bar)),
+            optional(extended.band_age.get(bar)),
+            optional(extended.band_width_atr.get(bar)),
+            optional(extended.band_position.get(bar)),
             optional(extended.last_pivot_high.get(bar)),
             optional(extended.last_pivot_low.get(bar)),
             optional(extended.level_touches.get(bar)),

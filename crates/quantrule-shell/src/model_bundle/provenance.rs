@@ -123,6 +123,8 @@ pub(super) fn spec_v2_provenance(
             "level_atr": extended.level_atr,
             "aroon_window": extended.aroon_window,
             "path_window": extended.path_window,
+            "fib_test_atr": extended.fib_test_atr,
+            "band_atr": extended.band_atr,
             "candle_body": extended.candle_body,
             "candle_wick": extended.candle_wick,
             "candle_close": extended.candle_close,

@@ -293,6 +293,8 @@ fn parse_extended(value: &Value) -> Result<ExtendedConfig, SpecParseError> {
             "candle_wick",
             "candle_close",
             "gap_atr",
+            "fib_test_atr",
+            "band_atr",
         ],
         "readings.extended",
     )?;
@@ -333,6 +335,8 @@ fn parse_extended(value: &Value) -> Result<ExtendedConfig, SpecParseError> {
     config.candle_wick = optional_f64(object, "candle_wick", config.candle_wick)?;
     config.candle_close = optional_f64(object, "candle_close", config.candle_close)?;
     config.gap_atr = optional_f64(object, "gap_atr", config.gap_atr)?;
+    config.fib_test_atr = optional_f64(object, "fib_test_atr", config.fib_test_atr)?;
+    config.band_atr = optional_f64(object, "band_atr", config.band_atr)?;
     Ok(config)
 }
 

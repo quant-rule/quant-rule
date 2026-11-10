@@ -272,7 +272,9 @@ impl TimeframeModel {
             &readings,
             &extended,
             &ExtendedEventConfig::new(timeframe_secs)
-                .with_path_window(config.extended().path_window),
+                .with_path_window(config.extended().path_window)
+                .with_fib_test_atr(config.extended().fib_test_atr)
+                .with_band_atr(config.extended().band_atr),
         );
 
         let mut events: Vec<EventRecord> = level_events
