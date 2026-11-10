@@ -1,0 +1,14 @@
+{
+  "schema": "quantrule.event-edge-signal/v1",
+  "id": "h1-break-short",
+  "side": "short",
+  "window": 2,
+  "events": [
+    {
+      "type": 1,
+      "subtype": 3,
+      "source": 19,
+      "direction": 1
+    }
+  ]
+}

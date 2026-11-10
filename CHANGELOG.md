@@ -42,6 +42,14 @@ are not treated as releases.
 - The `tools/trades/annotation_zones.py` zone extractor and the 2018–2019
   annotation zone report. It publishes EMA-tap, Fibonacci, band, pivot-sequence,
   and forward-return features around each human mark.
+- A deterministic raw-edge diagnostic (`tools/research/raw_edge.py`) that measures
+  forward returns, MFE/MAE, and barrier outcomes for a published entry signal,
+  with event-only, state-only, and unconditional controls. It writes only an
+  evaluation report and never a strategy artifact.
+- A configurable event-edge screen (`tools/research/event_edge.py`) that applies
+  the same forward and barrier measurements to a declared event identity and
+  window, with an all-bars control. It rejects event subtypes the strategy
+  engine cannot read.
 
 ### Changed
 
