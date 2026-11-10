@@ -1,7 +1,7 @@
 # Audit Remediation — M1.2 Indicator and Event Findings
 
 - Date: 2026-11-10 (UTC)
-- Status: **Approved** — human approved 2026-11-10; implementation complete on the working tree; commit and pull request pending
+- Status: **Approved** — human approved 2026-11-10; implementation complete; PR #579 open; findings `In progress` pending merge and verification
 - Work item: `audit-model-structures-remediation`
 - Audit: [`model-structures-audit.md`](../../audits/2026-11-10/model-structures-audit.md)
   (`AUDIT-2026-11-10-model-structures`, baseline `main` at `dda51d8`)
@@ -86,9 +86,9 @@ The remediation was executed in one worktree on
 `fix/audit-m12-remediation` because the model identity, event code, and golden
 fixture changes share files. The per-sub-issue worktrees and PRs in §7 were not
 created; the working tree groups the changes by finding and the commit/PR review
-can split them. No commit, push, pull request, or merge was created. This is the
-only planned-process deviation; the content and decisions follow the approved
-plan.
+can split them. The work is committed as `5bf7152` and `d3a6b42` and opened as PR #579; the
+CI `verify` and `sync` checks pass. No merge was performed. This is the only
+planned-process deviation; the content and decisions follow the approved plan.
 
 ## 4. Assumptions and uncertainty
 
@@ -243,17 +243,17 @@ traceability table below uses `TBD` for the PR links.
 
 | Finding | Severity | Sub-issue | Branch | PR | Regression guard | Status |
 |---|---|---|---|---|---|---|
-| AUD-2026-11-10-01 | Major | 3 | `fix/audit-m12-remediation` | TBD | sequence event occurred/available test; fixture | Implemented (uncommitted) |
-| AUD-2026-11-10-02 | Major | 4 | `fix/audit-m12-remediation` | TBD | wide-bar test, non-intersection test, multiplicity test; fixture | Implemented (uncommitted) |
-| AUD-2026-11-10-03 | Major | 5 | `fix/audit-m12-remediation` | TBD | formula/edge/property tests; edge helper includes new fields | Implemented (uncommitted) |
-| AUD-2026-11-10-04 | Major | 6 | `fix/audit-m12-remediation` | TBD | spec rejection or validation tests; registry/parser agreement | Implemented (uncommitted) |
-| AUD-2026-11-10-05 | Major | 7 | `fix/audit-m12-remediation` | TBD | Quant Validator record | Implemented (uncommitted) |
-| AUD-2026-11-10-06 | Minor | 8 | `fix/audit-m12-remediation` | TBD | parity test or renamed definition | Implemented (uncommitted) |
-| AUD-2026-11-10-07 | Minor | 9 | `fix/audit-m12-remediation` | TBD | contract/validator test | Implemented (uncommitted) |
-| AUD-2026-11-10-08 | Minor | 10 | `fix/audit-m12-remediation` | TBD | no `expect`; null-path test | Implemented (uncommitted) |
-| AUD-2026-11-10-09 | Minor | 11 | `fix/audit-m12-remediation` | TBD | registry text/formula test | Implemented (uncommitted) |
+| AUD-2026-11-10-01 | Major | 3 | `fix/audit-m12-remediation` | #579 | sequence event occurred/available test; fixture | In progress (PR #579) |
+| AUD-2026-11-10-02 | Major | 4 | `fix/audit-m12-remediation` | #579 | wide-bar test, non-intersection test, multiplicity test; fixture | In progress (PR #579) |
+| AUD-2026-11-10-03 | Major | 5 | `fix/audit-m12-remediation` | #579 | formula/edge/property tests; edge helper includes new fields | In progress (PR #579) |
+| AUD-2026-11-10-04 | Major | 6 | `fix/audit-m12-remediation` | #579 | spec rejection or validation tests; registry/parser agreement | In progress (PR #579) |
+| AUD-2026-11-10-05 | Major | 7 | `fix/audit-m12-remediation` | #579 | Quant Validator record | In progress (PR #579) |
+| AUD-2026-11-10-06 | Minor | 8 | `fix/audit-m12-remediation` | #579 | parity test or renamed definition | In progress (PR #579) |
+| AUD-2026-11-10-07 | Minor | 9 | `fix/audit-m12-remediation` | #579 | contract/validator test | In progress (PR #579) |
+| AUD-2026-11-10-08 | Minor | 10 | `fix/audit-m12-remediation` | #579 | no `expect`; null-path test | In progress (PR #579) |
+| AUD-2026-11-10-09 | Minor | 11 | `fix/audit-m12-remediation` | #579 | registry text/formula test | In progress (PR #579) |
 
-The execution was consolidated on `fix/audit-m12-remediation`; the PR links remain `TBD` until the commit/PR pass. The execution PR moves each finding to `Fixed`; the Improvement Verifier moves it to `Verified`.
+The execution was consolidated on `fix/audit-m12-remediation`; PR #579 carries the work. The execution PR moves each finding to `Fixed` after merge; the Improvement Verifier moves it to `Verified`.
 
 ## 9. Acceptance criteria
 

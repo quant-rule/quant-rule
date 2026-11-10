@@ -9,9 +9,9 @@
   validation claims, verification evidence, model contract, config surface,
   golden fixtures, and the tools and strategy configs that consume them.
 - Workflow: [`audit-workflow.md`](../../workflows/audit-workflow.md)
-- Execution note: the remediation is implemented on `fix/audit-m12-remediation`
-  and the full gate passes; no commit, push, or pull request exists yet, so the
-  findings remain `In progress` until the PR merges.
+- Execution note: the remediation is implemented on `fix/audit-m12-remediation`,
+  committed as `5bf7152` and `d3a6b42`, and opened as PR #579; the full gate and
+  CI checks pass. The findings remain `In progress` until the PR merges.
 - Claim type: program audit; no edge, profitability, or strategy claim.
 
 ## Summary

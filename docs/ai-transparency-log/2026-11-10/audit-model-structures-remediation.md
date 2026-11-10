@@ -53,6 +53,13 @@ Execution:
   fixed-tolerance parser rejection, and the new structure events in the
   event-composite validator.
 
+## Commit and pull request
+
+- Commits: `5bf7152` (audit and plan), `d3a6b42` (remediation).
+- PR: [#579](https://github.com/quant-rule/quant-rule/pull/579).
+- CI: `verify` and `sync` pass.
+- No merge was performed; the human retains merge authorization.
+
 ## Learning
 
 - The sequence-event correction changes only the occurrence metadata, not when

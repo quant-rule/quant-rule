@@ -1,10 +1,10 @@
 # M1.3 Quant Validation — Sequence and Fibonacci Corrections
 
 - Date: 2026-11-10 (UTC)
-- Status: Sequential Quant Validator pass; not an independent review
+- Status: Sequential Quant Validator pass; not an independent review; PR #579 open
 - Model: `M1.3`
 - Registry: `2026-11-10.2`
-- Baseline: `main` at `dda51d8` plus the remediation working tree
+- Baseline: `dda51d8` plus `5bf7152` and `d3a6b42`; PR #579
 - Audit: [`model-structures-audit.md`](../../audits/2026-11-10/model-structures-audit.md)
   (`AUDIT-2026-11-10-model-structures`)
 - Plan: [`audit-model-structures-remediation.md`](../../execution-plans/2026-11-10/audit-model-structures-remediation.md)
@@ -34,7 +34,7 @@ model value change.
 | Event config | `ExtendedEventConfig::from_secs(3600)` in the unit tests; `300` in the model fixture |
 | Data partition | repository fixture only; no 2024, validation, or holdout access |
 | Seed/randomness | none |
-| Code state | remediation working tree on `fix/audit-m12-remediation`; no commit created |
+| Code state | `fix/audit-m12-remediation` at `d3a6b42`; PR #579 |
 
 ## 3. Observed results
 
@@ -132,9 +132,8 @@ randomness, I/O, or unordered iteration.
 - The full 2018–2019 backtest and annotation-zone reports were not re-run; the
   fixture and unit/integration gates are the validation input. No strategy
   result is claimed.
-- The validation was run on an uncommitted working tree. The commit ID and PR
-  are recorded by the execution PR; the record must be updated with them before
-  the Improvement Verifier closes the findings.
+- The validation was run on the PR branch at `d3a6b42`. The merge commit must
+  be added before the Improvement Verifier closes the findings.
 - The 2024 partition was not accessed.
 
 ## 7. Verdict
