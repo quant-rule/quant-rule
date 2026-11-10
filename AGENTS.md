@@ -231,6 +231,7 @@ Working in the worktree:
 - Never assume that a new terminal tab isolates the working files. The directory is what isolates them.
 - If a session cannot be started in the correct worktree automatically, ask the human to open one there rather than continuing in the original directory.
 - The implementation, verification, commit, push, pull request, and merge workflow is unchanged, and every approval gate still applies.
+- A merged task's worktree and local and remote branches are removed before the final report; see section 9.
 
 ### Commit Convention
 
@@ -333,6 +334,7 @@ Every final response to the human ends with a single closing line stating what i
 - The line is **at most one phrase long**. A phrase, not a sentence: a sentence carries its own clause and can hide a second instruction inside it. Write `**Review PR #4**`, not `**Please review PR #4 and then confirm the board status before I move on.**`
 - The line states either the action required from the human, or that none is required.
 - When the work is complete and nothing is needed, the line says so: `**No action**`. Do not invent a pending action to fill the line.
+- A merged task is not complete while its worktree or local/remote branch remains. The closing line for a merged-but-uncleaned task is the cleanup action, not `No action`.
 - When several actions are needed, name the single next one. The rest belong in the body of the response.
 - When the response is a blocking question, the question itself is the action, and the line states what the human needs to decide.
 - This rule governs the agent's own response to the human. The formats above govern artifacts written into the repository. Both apply to the same piece of work.
@@ -352,7 +354,7 @@ Creating a task branch and its worktree may be included in an approved execution
 - Deploying to any environment.
 - Deleting branches or performing destructive Git operations.
 
-One exception, and it is a routine one: after a task's pull request has been accepted and merged and its acceptance criteria have been verified, removing the task's worktree and deleting its task branch, locally and on the remote, is the default cleanup and needs no separate authorization, provided the issue is marked `Done` on the board. Before the cleanup, verify that no uncommitted or unmerged work will be lost; when that cannot be established, preserve the work and report a blocker instead of deleting anything. Every other destructive Git operation keeps its gate.
+**Merged-task cleanup is mandatory.** After a task's pull request has been accepted and merged and its acceptance criteria have been verified, the task is not complete until its worktree is removed and its local and remote task branches are deleted. This cleanup needs no separate authorization. Before cleanup, verify that no uncommitted or unmerged work will be lost; when that cannot be established, preserve the work and report a blocker instead of deleting anything. Do not report completion, "no action", or a clean handoff while a merged task's worktree or local/remote branch remains. The only exception is an explicit human instruction to retain it for a named follow-up; record that exception in the task record. Every other destructive Git operation keeps its gate.
 
 The human remains responsible for final acceptance. A pull request may be merged by its author once the required checks pass; a separate approval review is not required. An AI may merge a pull request it authored when the human's current instruction explicitly requests the merge.
 
@@ -1100,6 +1102,7 @@ Before reporting completion:
 - Add or update the `CHANGELOG.md` release entry when the change is meaningful, or record why no entry is needed.
 - Update `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` for material AI contributions.
 - Move the issue to `Done` on the project board once the pull request is open (section 9).
+- When the pull request is merged and verified, remove the task worktree and delete its local and remote task branch before reporting completion; if it is not merged, keep the worktree and report the pending gate.
 - Report changed files, tests, results, limitations, and any decisions still required.
 
 The report itself follows the response format in section 8.
@@ -1116,7 +1119,9 @@ remediation. The Improvement Workflow records the run result and decides whether
 to re-run, change one tier, or stop. The workflow owner updates the workflow
 status and the record map when a workflow changes. Unresolved findings stay open;
 no release with an open Critical finding unless the human records residual-risk
-acceptance.
+acceptance. The workflow is closed only after the merged task's worktree and
+local and remote branches are removed; `Verified` is not a clean handoff while
+they remain.
 
 ## 14. Human Approval Gates
 
