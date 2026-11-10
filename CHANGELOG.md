@@ -39,6 +39,9 @@ are not treated as releases.
 - Strategy position excursions: entry price/ATR, unrealized ATR, MFE, MAE, and a
   configurable giveback exit with an arming threshold. The strategy still sees
   no cash, equity, P&L, fill, order, or quantity.
+- The `tools/trades/annotation_zones.py` zone extractor and the 2018–2019
+  annotation zone report. It publishes EMA-tap, Fibonacci, band, pivot-sequence,
+  and forward-return features around each human mark.
 
 ### Changed
 
