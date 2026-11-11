@@ -299,6 +299,8 @@ def check_dated_docs(root: Path) -> list[Violation]:
             continue
         if directory == templates:
             continue
+        if directory.parent == docs / "course":
+            continue
         if not DATE_DIR.match(directory.name):
             violations.append(
                 Violation(

@@ -10,6 +10,7 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | AI transparency log | The record of material AI contributions for a work item, per `AGENTS.md` section 6. | `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` |
 | Agent roles | The quant and engineering roles, their handoffs, and when each is required. | `docs/roles/<YYYY-MM-DD>/<file>.md` |
 | Architecture | The living system documentation: overview, product kata, architecture characteristics, style/quantum, and cross-cutting views. | `docs/architecture/<file>.md` |
+| Course deliverables | Submission sources and generated PDFs for the Software Architecture and Development Methodologies courses. | `docs/course/{architecture,methodology}/{src,deliverables}` |
 | Model | The analytical model's contract and evidence. The implementation follows it. | `docs/model/<YYYY-MM-DD>/<file>.md` |
 | Configuration | The engine JSON configuration: files, fields, validation, and cross-config rules. | `docs/config/<YYYY-MM-DD>/<file>.md` |
 | Reports | Historical report bundles and verification records. | `docs/reports/<YYYY-MM-DD>/<file>.md` |
@@ -55,6 +56,17 @@ repeating a status.
 | Architecture characteristics | Current | `docs/architecture/characteristics.md` |
 | Command surface | Current; implemented/planned stage contract and drift gate | `docs/architecture/command-surface.md` |
 | S3.x command-surface plan | Approved 2026-11-06; all phases merged; human acceptance pending | `docs/execution-plans/2026-11-06/s3-command-surface.md` |
+
+## Current course deliverables
+
+| Deliverable | Status | Path |
+|---|---|---|
+| Course folder index | Current; draft for the Tauri Platform | `docs/course/README.md` |
+| Architecture kata | Draft | `docs/course/architecture/src/01-kata.md` |
+| Architecture characteristics | Draft | `docs/course/architecture/src/02-architecture-characteristics.md` |
+| Architecture description | Outline | `docs/course/architecture/src/03-architecture-description.md` |
+| Methodology overview and checkpoints A–E | Draft | `docs/course/methodology/src/` |
+| PDF build | Current | `tools/course/build_pdfs.sh` |
 
 ## Current model
 
