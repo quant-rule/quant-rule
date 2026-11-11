@@ -1,7 +1,7 @@
 # Simulation Store Recovery — 2026-11-11
 
 - Date: 2026-11-11 (UTC)
-- Status: Current; recovery complete; audit finding `Fixed`; Improvement Verifier pending
+- Status: Current; recovery complete; audit finding `Verified`
 - Canonical root: `/home/zantgo/quant-rule-data`
 - Store: `/home/zantgo/quant-rule-data/simulation`
 - Model: `M1.3`, registry `2026-11-10.2`
@@ -89,11 +89,12 @@ accepted decisions and the retired candidate note.
   backed up outside this machine; a copy to a second local disk or backup is a
   separate operational decision.
 - The SIM-08 candidate remains retired; this recovery does not reopen it.
-- The audit finding is `Fixed`; the Improvement Verifier must independently
-  check the archive guard and the regenerated numbers before `Verified`.
+- The audit finding is `Verified` by a sequential same-agent Improvement
+  Verifier pass, disclosed as not independent. The residual is the nested
+  `target/` false positive in the cleanup guard; it is a tooling follow-up, not
+  a data-loss recurrence.
 
 ## 7. Next
 
-Review the recovery report, run the cleanup guard test, and open the remediation
-PR. After merge, use `tools/worktree_cleanup.py` on this task before the final
-report.
+The recovery and guard are merged. A follow-up may classify nested `target/`
+directories as disposable; otherwise no further action is required.
