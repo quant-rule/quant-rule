@@ -1,7 +1,7 @@
 # Run Index
 
-- Date: 2026-11-10 (UTC)
-- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, the SR1.x stopped compression-breakout fade, the SR2.x dual-design no-edge run, the SR2-A BTCUSD robustness audit, the SR2/SR3 feature programme, the SR4 multi-instrument stack fade, the SR5 absorption count gate, the SR6 VWAP rejection development run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the SR13 5m onset-breakout screen appended
+- Date: 2026-11-11 (UTC)
+- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, the SR1.x stopped compression-breakout fade, the SR2.x dual-design no-edge run, the SR2-A BTCUSD robustness audit, the SR2/SR3 feature programme, the SR4 multi-instrument stack fade, the SR5 absorption count gate, the SR6 VWAP rejection development run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, the SR13 5m onset-breakout screen, and the PROGRAM-2026-11-11-01 trend-pullback model gate appended
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 The local `data/improvement/` store was reset after the 2026-11-03 records, so
@@ -67,6 +67,7 @@ view for the local store.
 | `STRATEGY-2026-11-01-14` | 2026-11-01 | strategy | v7 level-fade ETHUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-003-comparison.md) |
 | `STRATEGY-2026-11-01-15` | 2026-11-01 | strategy | v7 level-fade XAUUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-003-comparison.md) |
 | `STRATEGY-2026-11-10-01` | 2026-11-10 | strategy | 5m fresh-onset compression breakout continuation; raw-edge screen | strategy | model, portfolio | — | `strategy_dev` | no edge | [record](2026-11-10/SR13.md) |
+| `PROGRAM-2026-11-11-01` | 2026-11-11 | model | 15m EMA200 pullback with 1h trend agreement; primary and controls fail; filtered event below the 1h state base | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-11/PROGRAM-2026-11-11-01.md) |
 
 ### Research analyses
 
@@ -104,6 +105,7 @@ Cycles: [`CYCLE-001`](2026-11-01/CYCLE-001.md), [`CYCLE-002`](2026-11-01/CYCLE-0
 | `PROGRAM-2026-11-08-01` | 2026-11-08 | no edge — stopped after the 30-cell grid | [record](2026-11-08/MR5-DEV-SWARM.md) |
 | `PROGRAM-2026-11-08-02` | 2026-11-08 | no edge — stopped after the 15-cell ordered-confirmation grid | [record](2026-11-08/MR6-DEV-SWARM.md) |
 | `PROGRAM-2026-11-08-03` | 2026-11-08 | no edge — stopped after the 15-cell opening-range sweep grid | [record](2026-11-08/MR7-DEV-SWARM.md) |
+| `PROGRAM-2026-11-11-01` | 2026-11-11 | no edge — stopped after the primary cell failed the development gate | [record](2026-11-11/PROGRAM-2026-11-11-01.md) |
 
 Rows sort by date, then tier (`model`, `strategy`, `portfolio`), then run ID. See
 [`baselines.md`](baselines.md) for accepted baselines and

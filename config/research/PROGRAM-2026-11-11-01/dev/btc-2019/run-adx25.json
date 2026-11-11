@@ -1,0 +1,14 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "trend-pullback-btc-2019-adx25",
+  "policy": "../../policies/policy-BTCUSD.json",
+  "data": "data.json",
+  "model": "../../model-adx25.json",
+  "execution": "../../execution-15m-6bps.json",
+  "portfolio": "../../portfolio-5pct-6bps.json",
+  "model_timeframes": [
+    "15m",
+    "1h"
+  ],
+  "output_root": "../../../../../data/trend-pullback/dev/btc-2019-adx25"
+}

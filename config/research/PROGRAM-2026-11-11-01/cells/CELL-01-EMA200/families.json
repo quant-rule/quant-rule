@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ema200_test_15m_1h_trend",
+    "label": "15m EMA200 test with 1h trend agreement",
+    "event_type": 1,
+    "subtype": 1,
+    "source": 3,
+    "context": {
+      "timeframe": "1h",
+      "ema_stack": "agree",
+      "adx_regime": 1
+    }
+  }
+]
