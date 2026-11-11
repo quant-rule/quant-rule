@@ -7,8 +7,8 @@ use std::io::Write;
 use std::path::Path;
 
 use super::types::RunError;
-use crate::csv;
 use crate::render;
+use quantrule_app::csv;
 
 /// Loads a CSV source strictly and writes its retained window as NDJSON.
 ///

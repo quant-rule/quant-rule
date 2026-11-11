@@ -20,11 +20,11 @@ use quantrule_data::Candle;
 use serde_json::{Value, json};
 
 use super::decisions::{DecisionKind, DecisionsBundle, DecisionsError};
-use crate::config::{ConfigError, RunConfig};
-use crate::csv::SourceError;
-use crate::pipeline;
 use crate::render_report::{self, BundleError};
 use crate::request::ExecutionRunArgs;
+use quantrule_app::config::{ConfigError, RunConfig};
+use quantrule_app::csv::SourceError;
+use quantrule_app::pipeline;
 
 /// The execution command failed.
 #[derive(Debug)]

@@ -10,7 +10,7 @@
 
 use serde_json::Value;
 
-use crate::config::{Criteria, Criterion};
+use quantrule_app::config::{Criteria, Criterion};
 
 /// One criterion's status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -265,7 +265,7 @@ mod tests {
     use serde_json::json;
 
     use super::{Reason, Resolved, Status, evaluate, resolve};
-    use crate::config::{Criteria, Criterion, Dimension, EvidenceArtifact, Operator};
+    use quantrule_app::config::{Criteria, Criterion, Dimension, EvidenceArtifact, Operator};
 
     fn criterion(id: &str, mandatory: bool, operator: Operator, threshold: f64) -> Criterion {
         Criterion {
@@ -285,11 +285,11 @@ mod tests {
             id: "Q-TEST".to_owned(),
             required_partitions: Vec::new(),
             minimum_trades,
-            cost_model: crate::config::CostModel::ExecutionAndPortfolio,
-            multiple_testing: crate::config::MultipleTesting {
+            cost_model: quantrule_app::config::CostModel::ExecutionAndPortfolio,
+            multiple_testing: quantrule_app::config::MultipleTesting {
                 primary_cells: 1,
                 trials: 1,
-                correction: crate::config::Correction::None,
+                correction: quantrule_app::config::Correction::None,
                 family_alpha: 0.05,
             },
             criteria: entries,

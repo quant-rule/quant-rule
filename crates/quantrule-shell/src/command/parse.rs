@@ -17,8 +17,8 @@ use super::report_run::parse_report_arguments;
 use super::run_check::parse_run_check_arguments;
 use super::strategy::parse_strategy_arguments;
 use super::types::{Command, HelpTopic, ParseError};
-use crate::pipeline::WindowMode;
 use crate::request::ModelArgs;
+use quantrule_app::pipeline::WindowMode;
 
 /// Parses one command line.
 ///

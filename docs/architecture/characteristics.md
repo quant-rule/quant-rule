@@ -44,10 +44,10 @@ properties that keep it. The distinction is analytical, not exclusive.
 | "no look-ahead"; events appear only when knowable | Temporal integrity (causality) |
 | "inspect engine by engine, and defend in a validation record"; refuse stale labs | Auditability (evidence traceability) |
 | "every reading and event has ... evidence"; boundaries must be provable | Testability (enabling) |
-| "pure filters"; one-way dependencies; engines separate from the shell | Modularity |
-| "local, single-user, one process"; no server or GUI | Simplicity and deployability |
+| "pure filters"; one-way dependencies; engines separate from the application service and shell | Modularity |
+| "local, single-user, one process"; no server, account, or cloud runtime | Simplicity and deployability |
 | "revise it through a pre-registered experiment"; prior evidence remains valid | Evolvability |
-| "every capability as a discoverable shell command"; help is the interface | Discoverability |
+| "every capability as a discoverable command"; help is the interface today | Discoverability |
 
 The characteristics are not a generic list of "-ilities." Each one is tied to a
 sentence in the kata.
@@ -87,8 +87,8 @@ behavior-neutral change and keeps the structural checker honest.
 
 | Characteristic | Type | What "good" means here | Fitness function | Current evidence |
 |---|---|---|---|---|
-| **Modularity** | Structural | One crate per pipeline responsibility; one-way dependencies; pure engines; the shell owns I/O. The backtest crate holds the strategy, execution, portfolio, and benchmark engines. | Crate graph; source-level boundary guards; `cargo clippy --all-targets`; structural report; review. | Strong at crate level. The shell remains the watch item; the structural report names its largest modules. |
-| **Simplicity and deployability** | Operational / structural | One local binary; local files; no service, UI, or server database. Keeps the product a tool, not a platform. | Release build; single binary; no network in tests. | Strong operationally; the command and configuration surface is broad. |
+| **Modularity** | Structural | One crate per pipeline responsibility plus a shared application service; one-way dependencies; pure engines; the service owns workspace, dataset, configuration, and run I/O. The backtest crate holds the strategy, execution, portfolio, and benchmark engines. | Crate graph; source-level boundary guards; `cargo clippy --all-targets`; structural report; review. | Strong at crate level. The application service is the new seam; the structural report names its largest modules. |
+| **Simplicity and deployability** | Operational / structural | One local application; local files and SQLite; no deployed service, account, or server database. Keeps the product a tool, not a platform. | Release build; local binary or installer; no network in tests. | Strong operationally; the command and configuration surface is broad. |
 | **Evolvability** | Structural | Contracts are versioned; a new capability arrives as a new command or configuration; model and strategy changes are pre-registered. Protects prior evidence. | Versioned schemas; migration tests; ADR and plan index; command contract tests. | Partial: strong process, expensive contract changes. |
 | **Discoverability** | Cross-cutting | Every command, argument, and output shape is reachable from help; output is fixed-width and deterministic. A capability that cannot be typed does not exist. | Help tests; `help all`; CLI tests. | Strong. Help and `help all` render from one command table and are tested. |
 
@@ -105,21 +105,24 @@ behavior-neutral change and keeps the structural checker honest.
 ## 7. Style and quantum
 
 **Style.** Pipes-and-filters (pipeline) inside a modular monolith. Each filter is a
-pure transformation with an explicit input and output; the shell is an adapter at
-the edge, not a fifth stage. The style is chosen for modularity, independent
+pure transformation with an explicit input and output; the application service and
+the shell are adapters at the edge, not a fifth stage. The style is chosen for modularity, independent
 verification, and deterministic composition, not for throughput or fault
 tolerance.
 
 **Quantum.** An architecture quantum is the smallest independently deployable unit
 with high functional cohesion and synchronous connascence. QuantRule has one: one
-deployable binary and one process, with local files as its only state. There is no
-independently deployable engine, no shared service, and no second surface. A change
-to any crate is a rebuild of the same binary; that is acceptable for a single-user
-local tool.
+local application and one process, with local files and SQLite as its only state.
+The command shell and the desktop UI are adapters over the same application
+service; there is no independently deployable engine and no shared cloud service.
+A change to any crate is a rebuild of the same local application; that is acceptable
+for a single-user local tool. A team control plane would be a second quantum and
+requires a new ADR.
 
 ```text
-shell (adapter: parse, fetch, render)
- └─ data → model
+shell / desktop ui (adapters: parse, fetch, render)
+ └─ application service (workspace, dataset, config, run, export)
+     ├─ data → model
      └─ backtest (strategy, execution, portfolio, benchmark engines)
 ```
 
@@ -130,15 +133,16 @@ shell (adapter: parse, fetch, render)
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
 | `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines. | `quantrule-data`, `quantrule-model` |
-| `quantrule-shell` | The binary and only surface: parse, call, render; configuration load and source fetch. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
+| `quantrule-app` | Application service: workspace, dataset, configuration, model run, and export. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
+| `quantrule-shell` | The command shell: parse, call the application service, render, and explicit source fetch. | `quantrule-app`, `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
 
 ### Structural constraints
 
 - Dependencies point one way; no engine reaches upstream; no circular dependencies.
-- Engines are pure: no I/O, clock, randomness, or global mutable state. The shell is
-  the only impure layer.
-- The shell holds no domain logic: it parses a command, calls into the pipeline, and
-  renders the result.
+- Engines are pure: no I/O, clock, randomness, or global mutable state. The
+  application service and the shell are the impure layers.
+- The shell holds no domain logic: it parses a command, calls the application
+  service or a pipeline operation, and renders the result.
 - Contract changes are schema-versioned and human-gated; a new capability arrives as
   a new command or configuration, not as a silent change to an existing contract.
 - `unsafe` is forbidden; library code does not panic on invalid input; errors are
@@ -151,8 +155,8 @@ not need: one user, one process, local files. Microservices and event-driven
 architecture add distribution and asynchrony that make byte-identical determinism
 harder without a multi-user need. A layered monolith hides the data flow that
 auditability depends on. A plugin architecture is speculative; a new capability
-arrives as a new command. An embedded library contradicts the kata's single
-surface. The pipeline's documented weaknesses in scalability and fault tolerance
+arrives as a new command. An embedded third-party library contradicts the product
+boundary; the application service is internal to the workspace. The pipeline's documented weaknesses in scalability and fault tolerance
 are deliberate non-goals. The style is not a claim of universal bestness; it is the
 least-worst fit for the drivers.
 
@@ -170,15 +174,15 @@ least-worst fit for the drivers.
 
 ## 9. Current baseline
 
-Snapshot on 2026-11-06, measured in the task worktree. This is evidence, not a
+Snapshot on 2026-11-11, measured in the task worktree. This is evidence, not a
 guarantee; release notes are the record for released runs.
 
 | Item | Observed |
 |---|---|
-| Workspace | Four crates; version 0.3.0; edition 2024; Rust 1.99.1 pinned |
-| Size | The structural report scans `src`: 192 Rust source files and 63,683 lines. The complete tree, including integration and inline tests, is 230 files and 75,412 lines; the shell is 23,367 lines across 77 files. |
+| Workspace | Five crates; version 0.3.0; edition 2024; Rust 1.99.1 pinned |
+| Size | The structural report scans `src`: 216 Rust source files and 68,883 lines. The complete tree, including integration and inline tests, is 257 files and 81,690 lines; the shell is 18,247 lines across 68 files and the application service is 7,370 lines across 24 files. |
 | Largest file | 973 lines at the preflight; the file-size gate remains at 1,000 |
-| Tests | The full workspace suite passes: 1,309 passed, 0 failed, 8 ignored; the file-size and structural gates pass |
+| Tests | The full workspace suite passes: 1,452 passed, 0 failed, 8 ignored; the file-size and structural gates pass |
 | Model report | The `report model` bundle over a fixture run |
 | Unsafe | Forbidden at every crate root |
 

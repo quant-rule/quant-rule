@@ -7,7 +7,7 @@
 
 /// Returns the 16-digit lowercase FNV-1a fingerprint of `bytes`.
 #[must_use]
-pub(crate) fn fnv1a(bytes: &[u8]) -> String {
+pub fn fnv1a(bytes: &[u8]) -> String {
     const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
     const PRIME: u64 = 0x0000_0100_0000_01b3;
     let mut hash = OFFSET;

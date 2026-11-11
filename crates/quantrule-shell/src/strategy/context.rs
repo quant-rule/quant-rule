@@ -8,7 +8,7 @@
 
 use std::fmt;
 
-use crate::config::StrategyConfig;
+use quantrule_app::config::StrategyConfig;
 
 /// The strategy configuration does not fit the published model timeframes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,11 +107,11 @@ pub(crate) fn validate_context(
 #[cfg(test)]
 mod tests {
     use super::{StrategyContextError, validate_context};
-    use crate::config::StrategyConfig;
+    use quantrule_app::config::StrategyConfig;
     use serde_json::json;
 
     fn config(context: &[&str], entry_timeframe: &str) -> StrategyConfig {
-        crate::config::parse_strategy(
+        quantrule_app::config::parse_strategy(
             &json!({
                 "schema": "quantrule.strategy/v1",
                 "id": "CTX",

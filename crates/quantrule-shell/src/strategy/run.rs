@@ -22,9 +22,9 @@ use serde_json::{Value, json};
 use super::artifacts::{self, DecisionCounts, StrategyArtifactMeta};
 use super::bundle::{ModelBundle, ModelBundleError};
 use super::context::StrategyContextError;
-use crate::config::{ConfigError, StrategyConfig};
 use crate::render_report::{self, BundleError};
 use crate::request::{StrategyExplainArgs, StrategyRunArgs};
+use quantrule_app::config::{ConfigError, StrategyConfig};
 
 /// The strategy command failed.
 #[derive(Debug)]
@@ -122,7 +122,7 @@ pub(crate) fn explain(
     writer: &mut impl Write,
 ) -> Result<(), StrategyRunError> {
     let (config, _) =
-        crate::config::load_strategy(&args.strategy).map_err(StrategyRunError::Config)?;
+        quantrule_app::config::load_strategy(&args.strategy).map_err(StrategyRunError::Config)?;
     let bundle = ModelBundle::load(&args.model).map_err(StrategyRunError::Model)?;
     super::context::validate_context(&config, None, |timeframe| {
         bundle.contains_timeframe(timeframe)
@@ -170,7 +170,7 @@ pub(crate) fn explain(
 /// the writer fails.
 pub(crate) fn run(args: &StrategyRunArgs, writer: &mut impl Write) -> Result<(), StrategyRunError> {
     let (config, config_id) =
-        crate::config::load_strategy(&args.strategy).map_err(StrategyRunError::Config)?;
+        quantrule_app::config::load_strategy(&args.strategy).map_err(StrategyRunError::Config)?;
     if config.engine_name() == "compression_bracket" {
         return Err(StrategyRunError::UnsupportedEngine {
             engine: "compression_bracket",

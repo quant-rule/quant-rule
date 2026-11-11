@@ -19,11 +19,11 @@ use quantrule_data::Candle;
 use serde_json::{Value, json};
 
 use super::fills::{FillsBundle, FillsError};
-use crate::config::{ConfigError, RunConfig};
-use crate::csv::SourceError;
-use crate::pipeline;
 use crate::render_report::{self, BundleError};
 use crate::request::PortfolioReplayArgs;
+use quantrule_app::config::{ConfigError, RunConfig};
+use quantrule_app::csv::SourceError;
+use quantrule_app::pipeline;
 
 /// The portfolio command failed.
 #[derive(Debug)]

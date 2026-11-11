@@ -8,10 +8,11 @@
 
 ## 1. Why the surface is command-first
 
-QuantRule is a shell application. The program is started, and the user types
-commands at a prompt. The shell is the only product surface: there is no library
-to embed, no service to deploy, and no second interface. A capability that cannot
-be typed does not exist for the user.
+QuantRule is a local application. The current release is the command shell: the
+program is started, and the user types commands at a prompt. The shell is the
+current product surface and the desktop UI is being built over the same
+application service; there is no deployed service, account, or cloud runtime. A
+capability that cannot be typed does not exist for the user today.
 
 The pipeline is a chain of independently useful stages. A human or an agent must
 be able to stop after any stage, inspect the artifact that stage produced, and

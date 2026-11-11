@@ -1,6 +1,6 @@
 //! Explicit UTC date windows shared by configuration, source, and bundle readers.
 //!
-//! The shell accepts two date-only strings and converts them to a half-open
+//! The application service accepts two date-only strings and converts them to a half-open
 //! second interval: the start is inclusive and the end is exclusive and is
 //! exactly the midnight after the supplied end date. No clock is read; the
 //! dates are the entire definition of the window.
@@ -14,7 +14,7 @@ const SECONDS_PER_DAY: i64 = 86_400;
 
 /// A validated inclusive date range.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct DateRange {
+pub struct DateRange {
     start: String,
     end: String,
     start_seconds: i64,
@@ -33,7 +33,7 @@ impl DateRange {
     /// Returns a [`DateRangeError`] when either date is not a real calendar
     /// date, when the start is after the end, or when the exclusive end would
     /// overflow.
-    pub(crate) fn parse(start: &str, end: &str) -> Result<Self, DateRangeError> {
+    pub fn parse(start: &str, end: &str) -> Result<Self, DateRangeError> {
         let start_seconds = parse_date(start)?;
         let end_seconds = parse_date(end)?;
 
@@ -57,27 +57,27 @@ impl DateRange {
     }
 
     /// The first UTC date, as supplied, in `YYYY-MM-DD` form.
-    pub(crate) fn start_label(&self) -> &str {
+    pub fn start_label(&self) -> &str {
         &self.start
     }
 
     /// The last UTC date, as supplied, in `YYYY-MM-DD` form.
-    pub(crate) fn end_label(&self) -> &str {
+    pub fn end_label(&self) -> &str {
         &self.end
     }
 
     /// The inclusive start as UTC Unix seconds.
-    pub(crate) const fn start_seconds(&self) -> i64 {
+    pub const fn start_seconds(&self) -> i64 {
         self.start_seconds
     }
 
     /// The exclusive end as UTC Unix seconds.
-    pub(crate) const fn end_exclusive_seconds(&self) -> i64 {
+    pub const fn end_exclusive_seconds(&self) -> i64 {
         self.end_exclusive_seconds
     }
 
     /// The `start_end` suffix used in output file names.
-    pub(crate) fn file_suffix(&self) -> String {
+    pub fn file_suffix(&self) -> String {
         format!("{}_{}", self.start, self.end)
     }
 }
@@ -88,7 +88,7 @@ impl DateRange {
 /// the end is exclusive and is exactly the midnight after the supplied end
 /// date. The command layer uses this for an open-ended `--from` or `--to`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct DateBounds {
+pub struct DateBounds {
     start_seconds: Option<i64>,
     end_exclusive_seconds: Option<i64>,
 }
@@ -100,7 +100,7 @@ impl DateBounds {
     ///
     /// Returns [`DateRangeError`] when a supplied date is invalid, when the
     /// start is after the end, or when the exclusive end overflows.
-    pub(crate) fn parse(from: Option<&str>, to: Option<&str>) -> Result<Self, DateRangeError> {
+    pub fn parse(from: Option<&str>, to: Option<&str>) -> Result<Self, DateRangeError> {
         let start_seconds = from.map(parse_date).transpose()?;
         let end_seconds = to.map(parse_date).transpose()?;
 
@@ -128,19 +128,19 @@ impl DateBounds {
     }
 
     /// The inclusive start as UTC Unix seconds, when supplied.
-    pub(crate) const fn start_seconds(self) -> Option<i64> {
+    pub const fn start_seconds(self) -> Option<i64> {
         self.start_seconds
     }
 
     /// The exclusive end as UTC Unix seconds, when supplied.
-    pub(crate) const fn end_exclusive_seconds(self) -> Option<i64> {
+    pub const fn end_exclusive_seconds(self) -> Option<i64> {
         self.end_exclusive_seconds
     }
 }
 
 /// A date range could not be built.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum DateRangeError {
+pub enum DateRangeError {
     /// A date is not a valid `YYYY-MM-DD` UTC date.
     InvalidDate {
         /// The supplied text.

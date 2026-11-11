@@ -24,6 +24,10 @@ are not treated as releases.
   architecture characteristics, architecture-description outline, methodology
   checkpoints, and a Dockerized PDF build. The current product is solo and local;
   the team cloud is future work.
+- The `quantrule-app` application service: workspace discovery, dataset summaries,
+  run validation, model-run summaries, and deterministic run-summary export. The
+  command shell and the future desktop UI call the same service; `run check` now
+  goes through it.
 
 ### Changed
 

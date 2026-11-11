@@ -672,7 +672,7 @@ fn period(file: &str, path: &str, value: &Value) -> Result<usize, ConfigError> {
 
 /// Serializes the effective v4 model configuration.
 #[must_use]
-pub(crate) fn effective_json(config: &MarketStateConfig) -> Value {
+pub fn effective_json(config: &MarketStateConfig) -> Value {
     let mut timeframes = serde_json::Map::new();
     for timeframe in Timeframe::ALL {
         let seconds = u64::from(timeframe.seconds());

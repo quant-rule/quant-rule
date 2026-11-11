@@ -1,6 +1,6 @@
 //! `portfolio.json`: capital, sizing, costs, and risk limits.
 //!
-//! The shell validates every field before it builds the engine's
+//! The application service validates every field before it builds the engine's
 //! [`PortfolioConfig`], so an error names the exact JSON path. The engine
 //! repeats the checks that protect the ledger; the two must agree, and the
 //! table-driven tests keep them in step.
@@ -21,7 +21,7 @@ const LEVERAGE: f64 = 1.0;
 const MAX_OPEN_POSITIONS: u64 = 1;
 
 /// Parses `portfolio.json`.
-pub(crate) fn parse(value: &Value, file: &str) -> Result<PortfolioConfig, ConfigError> {
+pub fn parse(value: &Value, file: &str) -> Result<PortfolioConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::check_fields(
         file,

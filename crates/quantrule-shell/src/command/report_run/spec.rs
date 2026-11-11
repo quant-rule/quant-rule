@@ -10,9 +10,9 @@ use quantrule_data::{Candle, Timeframe};
 use quantrule_model::run::ModelRun;
 
 use crate::command::types::{ReportError, RunError};
-use crate::config::RunConfig;
 use crate::model_bundle::{ModelBundleError, period_label, resolve_spec_path};
-use crate::pipeline::{self, PipelineError};
+use quantrule_app::config::RunConfig;
+use quantrule_app::pipeline::{self, PipelineError};
 
 pub(super) fn load_panel_series(
     config: &RunConfig,

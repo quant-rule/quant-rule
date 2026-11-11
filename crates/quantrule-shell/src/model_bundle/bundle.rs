@@ -16,9 +16,9 @@ use serde_json::{Value, json};
 use super::error::ModelBundleError;
 use super::provenance::{config_files, spec_provenance, spec_v2_provenance};
 use super::{artifacts, period_label};
-use crate::config::RunConfig;
-use crate::pipeline;
 use crate::render_report::{self, Provenance};
+use quantrule_app::config::RunConfig;
+use quantrule_app::pipeline;
 
 /// The paths and bytes of a written model bundle.
 pub(crate) struct BundleOutput {
@@ -128,7 +128,7 @@ fn model_bundle_with(
         &config.data.data_version,
         config.data.from.as_deref(),
         config.data.to.as_deref(),
-        &crate::config::effective_json(effective_model),
+        &quantrule_app::config::effective_json(effective_model),
     )
     .map_err(ModelBundleError::Output)?;
     let readings_csv = artifacts::readings_csv(model_run, ladder);
@@ -225,7 +225,7 @@ fn model_bundle_with(
             "model_id": config.model_id,
             "execution_id": config.execution_id,
             "portfolio_id": config.portfolio_id,
-            "model": crate::config::effective_json(effective_model),
+            "model": quantrule_app::config::effective_json(effective_model),
             "ladder": ladder.iter().map(|seconds| timeframe_label(*seconds)).collect::<Vec<_>>(),
         }),
         spec: spec_value,

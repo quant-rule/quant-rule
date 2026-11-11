@@ -26,7 +26,7 @@ use crate::fingerprint::fnv1a;
 ///
 /// Returns [`ConfigError`] when the file is missing, unreadable, not JSON, or
 /// disagrees with the schema.
-pub(crate) fn load(path: &Path) -> Result<(Criteria, String), ConfigError> {
+pub fn load(path: &Path) -> Result<(Criteria, String), ConfigError> {
     let file = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -47,7 +47,7 @@ pub(crate) fn load(path: &Path) -> Result<(Criteria, String), ConfigError> {
 ///
 /// Returns [`ConfigError`] naming the file and JSON path when a field is
 /// missing, unknown, of the wrong type, or outside its allowed range.
-pub(crate) fn parse(value: &Value, file: &str) -> Result<Criteria, ConfigError> {
+pub fn parse(value: &Value, file: &str) -> Result<Criteria, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::check_fields(
         file,

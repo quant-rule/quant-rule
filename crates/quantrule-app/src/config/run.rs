@@ -28,46 +28,46 @@ use super::read::{self, ROOT};
 
 /// One validated run, ready for the pipeline.
 #[derive(Debug, Clone)]
-pub(crate) struct RunConfig {
+pub struct RunConfig {
     /// The run name, recorded in provenance.
-    pub(crate) name: String,
+    pub name: String,
     /// The resolved output root.
-    pub(crate) output_root: PathBuf,
+    pub output_root: PathBuf,
     /// A stable fingerprint of the five config files.
-    pub(crate) config_hash: String,
+    pub config_hash: String,
     /// The five resolved config paths.
-    pub(crate) paths: ConfigPaths,
+    pub paths: ConfigPaths,
     /// The optional model identity, such as `M1.0`.
-    pub(crate) model_id: Option<String>,
+    pub model_id: Option<String>,
     /// The optional execution identity, such as `E1.0`.
-    pub(crate) execution_id: Option<String>,
+    pub execution_id: Option<String>,
     /// The optional portfolio identity, such as `P1.0`.
-    pub(crate) portfolio_id: Option<String>,
+    pub portfolio_id: Option<String>,
     /// The data engine's source and ladder.
-    pub(crate) data: DataConfig,
+    pub data: DataConfig,
     /// The optional model ladder. `None` means the full data ladder.
-    pub(crate) model_ladder: Option<Vec<Timeframe>>,
+    pub model_ladder: Option<Vec<Timeframe>>,
     /// The model engine's configuration.
-    pub(crate) model: MarketStateConfig,
+    pub model: MarketStateConfig,
     /// The execution engine's configuration and fill policy.
-    pub(crate) execution: ExecutionRunConfig,
+    pub execution: ExecutionRunConfig,
     /// The portfolio engine's configuration.
-    pub(crate) portfolio: PortfolioConfig,
+    pub portfolio: PortfolioConfig,
 }
 
 /// The five resolved config files.
 #[derive(Debug, Clone)]
-pub(crate) struct ConfigPaths {
+pub struct ConfigPaths {
     /// The run file itself.
-    pub(crate) run: PathBuf,
+    pub run: PathBuf,
     /// The data file.
-    pub(crate) data: PathBuf,
+    pub data: PathBuf,
     /// The model file.
-    pub(crate) model: PathBuf,
+    pub model: PathBuf,
     /// The execution file.
-    pub(crate) execution: PathBuf,
+    pub execution: PathBuf,
     /// The portfolio file.
-    pub(crate) portfolio: PathBuf,
+    pub portfolio: PathBuf,
 }
 
 impl RunConfig {
@@ -78,7 +78,7 @@ impl RunConfig {
     /// Returns a [`ConfigError`] naming the file and JSON path when a file is
     /// missing or unreadable, is not JSON, disagrees with its schema, or fails
     /// a cross-config check.
-    pub(crate) fn load(path: &Path) -> Result<Self, ConfigError> {
+    pub fn load(path: &Path) -> Result<Self, ConfigError> {
         let run_name = file_name(path);
         let run = parse(&load_document(path, run_name)?, run_name)?;
         let base = path.parent().unwrap_or_else(|| Path::new("."));

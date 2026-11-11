@@ -18,38 +18,38 @@ use super::read::{self, ROOT};
 
 /// The resolved `data.json`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct DataConfig {
+pub struct DataConfig {
     /// The M1 source file.
-    pub(crate) source: DataSource,
+    pub source: DataSource,
     /// The instrument ticket this source represents, such as `EURUSD`.
-    pub(crate) instrument: String,
+    pub instrument: String,
     /// The identity of the input series, set by the caller.
-    pub(crate) data_version: String,
+    pub data_version: String,
     /// The inclusive lower UTC date, as written.
-    pub(crate) from: Option<String>,
+    pub from: Option<String>,
     /// The inclusive upper UTC date, as written.
-    pub(crate) to: Option<String>,
+    pub to: Option<String>,
     /// The range as half-open UTC seconds.
-    pub(crate) bounds: DateBounds,
+    pub bounds: DateBounds,
     /// The source timeframe; exactly `1m`.
-    pub(crate) source_timeframe: Timeframe,
+    pub source_timeframe: Timeframe,
     /// The available timeframes, fastest first.
-    pub(crate) available_timeframes: Vec<Timeframe>,
+    pub available_timeframes: Vec<Timeframe>,
     /// The refusal bound for each series.
-    pub(crate) max_candles: usize,
+    pub max_candles: usize,
     /// The declared trading calendar; defaults to 24×7.
-    pub(crate) session: TradingCalendar,
+    pub session: TradingCalendar,
 }
 
 /// The M1 source file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct DataSource {
+pub struct DataSource {
     /// The resolved source path.
-    pub(crate) path: PathBuf,
+    pub path: PathBuf,
 }
 
 /// Parses `data.json`, resolving `source.path` against `base`.
-pub(crate) fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig, ConfigError> {
+pub fn parse(value: &Value, file: &str, base: &Path) -> Result<DataConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::check_fields(
         file,

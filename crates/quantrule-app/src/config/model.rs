@@ -13,7 +13,7 @@ use super::model_v4::parse_v4;
 use super::read::{self, ROOT};
 
 /// Parses `model.json`.
-pub(crate) fn parse(value: &Value, file: &str) -> Result<MarketStateConfig, ConfigError> {
+pub fn parse(value: &Value, file: &str) -> Result<MarketStateConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     let schema = read::string(file, "$.schema", read::field(file, ROOT, object, "schema")?)?;
     match schema {

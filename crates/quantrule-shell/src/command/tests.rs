@@ -4,10 +4,10 @@ use super::fetch::{parse_fetch_arguments, write_fetch_cap_warning};
 use super::parse::parse;
 use super::parse_argv;
 use super::types::{Command, HelpTopic, ParseError};
-use crate::date::DateRange;
-use crate::pipeline::WindowMode;
 use crate::request::{FetchArgs, ModelArgs};
 use crate::source::Symbol;
+use quantrule_app::date::DateRange;
+use quantrule_app::pipeline::WindowMode;
 use quantrule_data::Timeframe;
 use std::path::PathBuf;
 

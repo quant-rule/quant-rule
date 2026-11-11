@@ -27,13 +27,13 @@ evidence. The style and quantum are recorded after the table.
 | Reproducibility | A fixed fixture run is byte-identical across repeated runs | Rerun comparison, golden fixtures | 5 | Determinism and byte-identical rerun tests |
 | Temporal integrity | No output at bar *t* changes when later bars are appended | Causality and prefix tests | 5 | Model, event, and strategy boundary tests |
 | Auditability | Every evidence bundle names data version, config hash, code commit, artifacts | Provenance schema check and export review | 4 | Model and stage provenance; research memory is new |
-| Testability (enabling) | Fast suite plus desktop E2E and installer smoke | `cargo test`, UI E2E, install test | 4 | 1,443 Rust tests; UI tests are new |
+| Testability (enabling) | Fast suite plus desktop E2E and installer smoke | `cargo test`, UI E2E, install test | 4 | 1,452 Rust tests; UI tests are new |
 
 ## 4. Supporting characteristics
 
 | Characteristic | Target | Measurement | Current score (1–5) |
 |---|---|---|---|
-| Modularity | One crate per pipeline stage; no dependency cycles | Crate graph and structural checker | 5 |
+| Modularity | One crate per pipeline stage plus a shared application service; no dependency cycles | Crate graph and structural checker | 5 |
 | Deployability | Clean Linux install in under five minutes | Installer smoke test | 3 (new) |
 | Evolvability | Versioned configs and research-memory schema | Contract and migration tests | 4 |
 | Cost | No cloud bill; static download site | Hosting and infrastructure inventory | 5 |

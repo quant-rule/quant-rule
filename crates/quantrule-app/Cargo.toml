@@ -1,0 +1,18 @@
+[package]
+name = "quantrule-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "quantrule_app"
+path = "src/lib.rs"
+
+[dependencies]
+quantrule-backtest = { path = "../quantrule-backtest" }
+quantrule-data = { path = "../quantrule-data" }
+quantrule-model = { path = "../quantrule-model" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[lints]
+workspace = true

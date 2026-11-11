@@ -10,7 +10,7 @@ use quantrule_model::spec::v2::{ModelSpecV2, PredictionKind, SpecRun};
 use quantrule_model::spec::{ModelSpec, SpecEvaluation};
 use serde_json::{Value, json};
 
-use crate::config::RunConfig;
+use quantrule_app::config::RunConfig;
 
 pub(super) fn spec_provenance(
     spec: &ModelSpec,
@@ -93,7 +93,7 @@ pub(super) fn spec_v2_provenance(
         "registry_version": quantrule_model::REGISTRY_VERSION,
         "timeframes": spec.timeframes,
         "evaluation_timeframe": spec.evaluation_timeframe_secs,
-        "readings": crate::config::effective_json(&spec.readings),
+        "readings": quantrule_app::config::effective_json(&spec.readings),
         "extended": {
             "vwap_window": extended.vwap_window,
             "vwap_band_mad": extended.vwap_band_mad,
@@ -195,7 +195,7 @@ pub(crate) fn panel_provenance(
                 let source = parsed.panel_sources.get(name).map_or("", String::as_str);
                 let path = resolve_spec_path(spec_path, source);
                 let hash = fs::read(&path)
-                    .map(|bytes| crate::fingerprint::fnv1a(&bytes))
+                    .map(|bytes| quantrule_app::fingerprint::fnv1a(&bytes))
                     .unwrap_or_default();
                 json!({
                     "instrument": name,

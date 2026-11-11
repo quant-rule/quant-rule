@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{Map, Value};
 
 use crate::backtest_bundle::{BundleError, BundleManifest, StageProvenance};
-use crate::config::Partition;
+use quantrule_app::config::Partition;
 
 pub(crate) use crate::backtest_bundle::{MANIFEST_SCHEMA, STAGE_SCHEMA};
 
