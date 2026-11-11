@@ -79,3 +79,31 @@
   was changed back to the event control to match the committed run.
 - The local `decision.md` files are regenerated skeletons; the committed batch
   reports remain the authoritative decisions.
+
+## Entry 3 — Improvement Verifier pass
+
+### Intent and boundary
+
+- Independently check the merged recovery and cleanup guard against
+  `AUD-2026-11-11-01`; read-only except for the audit status and the
+  verification record.
+- This is a sequential same-agent pass, not an independent agent or independent
+  model judgment; disclosed in the record. The human approved the pass.
+
+### Verification
+
+- Baseline `main` at `9e466fa` (PR #586); diff 46 files, +2,062/−25; no
+  `crates/` change and no model/strategy/execution/portfolio behavior change.
+- Store: five reports, ten runs, 461 PNGs, nine checks; SIM-08 bull n=466,
+  +0.0786%, hit 54.1%; SIM-02 long −0.0165%, short −0.0747%; SIM-01 −0.1170%
+  versus −0.0923%; SIM-03 101/3,328; SIM-09 underpowered; SIM-10 blocked.
+- Tests: 51 simulation, 6 cleanup, 8 trade, 23 chart; `cargo test`; repo checks.
+- Guard: archive/refusal/remove tests pass; AGENTS.md section 9 requires the
+  step.
+- Residual: nested `crates/*/target/` is a false-positive blocker; it was
+  removed manually during dogfooding; no data loss. Follow-up recommended.
+
+### Learning
+
+- The guard needs a nested `target/` rule; the data-loss closure itself is
+  verified. The residual is tooling friction, not a recurrence.
