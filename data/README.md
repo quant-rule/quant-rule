@@ -10,6 +10,7 @@ artifacts never leave the machine.
 |---|---|
 | [`sources/`](sources/README.md) | Provider candles, the only input data |
 | [`improvement/`](improvement/README.md) | The local improvement run store |
+| [`simulation/`](simulation/README.md) | The local simulation-run store: hindsight-labeled exploration, not evidence |
 | [`partitions.json`](partitions.json) | The partition windows, instruments, and aliases |
 | `README.md` | This guide |
 

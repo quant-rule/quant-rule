@@ -1,0 +1,9 @@
+{
+  "schema": "quantrule.provenance/v1",
+  "data_version": "fixture-m1.3-v1",
+  "model_version": "fixture",
+  "period": {
+    "from": "2018-01-01",
+    "to": "2018-01-05"
+  }
+}

@@ -139,6 +139,11 @@ criteria are explicit command arguments; the run schema stays
 | Indicator/event verification evidence | Scope map: 33 row-level, 1410 family-level, 332 tool gates, 304 N/A | [`docs/reports/2026-11-06/indicator-event-verification.md`](reports/2026-11-06/indicator-event-verification.md) |
 | Workflow documentation reset verification | Released in `v0.6.0`; verification record current | [`docs/reports/2026-11-07/workflow-verification.md`](reports/2026-11-07/workflow-verification.md) |
 | 2018–2019 annotation zone analysis | Descriptive; EMA/Fibonacci zone profile and 2018 vs 2019 comparison | [`docs/reports/2026-11-10/annotation-zone-analysis.md`](reports/2026-11-10/annotation-zone-analysis.md) |
+| Simulation Batch 1 | SIM-01 no pattern, SIM-02 no pattern, SIM-03 no exit rescue; entry-first conclusion; no edge claim | [`docs/reports/2026-11-11/simulation-batch-1.md`](reports/2026-11-11/simulation-batch-1.md) |
+| Simulation Batch 2 | SIM-04/05/06 no pattern; six runs complete, five no_pattern and one no_exit_rescue; no edge claim | [`docs/reports/2026-11-11/simulation-batch-2.md`](reports/2026-11-11/simulation-batch-2.md) |
+| Simulation Batch 3 | SIM-07 no pattern, SIM-08 bullish divergence candidate screen, SIM-09 underpowered, SIM-10 blocked | [`docs/reports/2026-11-11/simulation-batch-3.md`](reports/2026-11-11/simulation-batch-3.md) |
+| Simulation campaign synthesis | Closed — no edge; ten runs; one candidate screen retired under the variant rule | [`docs/reports/2026-11-11/simulation-synthesis.md`](reports/2026-11-11/simulation-synthesis.md) |
+| SIM08-BULL-DIV hypothesis | Retired; variant of the failed divergence-at-pivot programme; no edge claim | [`docs/reports/2026-11-11/sim08-bull-divergence-hypothesis.md`](reports/2026-11-11/sim08-bull-divergence-hypothesis.md) |
 | SR10 EMA/Fibonacci exit study | Stopped early; 2018 primary failed; no candidate; 2024 closed | [`docs/improvement/2026-11-10/SR10.md`](improvement/2026-11-10/SR10.md) |
 | SR11 trend-aligned EMA/Fibonacci entry | Completed; no candidate; EMA/Fibonacci line stopped; 2024 closed | [`docs/improvement/2026-11-10/SR11.md`](improvement/2026-11-10/SR11.md) |
 | SR11 raw-edge diagnostic | No positive raw edge; entry flat to negative before costs; controls not beaten | [`docs/reports/2026-11-10/sr11-raw-edge.md`](reports/2026-11-10/sr11-raw-edge.md) |
@@ -162,6 +167,7 @@ of workflow status; this page does not repeat it.
 | Research swarm | `docs/workflows/research-swarm.md` |
 | Model research | `docs/workflows/model-research.md` |
 | Model change | `docs/workflows/model-change.md` |
+| Simulation research | `docs/workflows/simulation-research.md` |
 | Strategy research | `docs/workflows/strategy-research.md` |
 | Portfolio research | `docs/workflows/portfolio-research.md` |
 | Policy change | `docs/workflows/policy-change.md` |
@@ -196,6 +202,7 @@ store in the current surface.
 | Tool | Purpose | Path |
 |---|---|---|
 | Progression replay oracle | Regenerates and checks the per-bar Progression and retained-leg golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
+| Simulation harness | Selects M1.3 windows, renders clean charts, writes hindsight marks, and reviews them; exploration only. | [`tools/simulation/README.md`](../tools/simulation/README.md) |
 | Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `tools/build_verification.py` |
 | Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
 | Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
@@ -248,6 +255,7 @@ record of what was released. Historical tags `v0.4.0-exp-baseline` and
 | MR7.x model programme | Development `no_edge`; 15 cells; validation not opened | `docs/execution-plans/2026-11-08/mr7-programme.md`; `docs/improvement/2026-11-08/MR7-DEV-SWARM.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 | Workflow documentation reset | Released in `v0.6.0` (PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
+| Simulation runs | Approved 2026-11-10; execution started | `docs/execution-plans/2026-11-10/simulation-runs.md` |
 
 ## Current architecture decisions
 
