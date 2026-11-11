@@ -13,6 +13,8 @@ are not treated as releases.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-11
+
 ### Added
 
 - The four-stage development workflow: `Todo`, `In Progress`, `In Review`, and

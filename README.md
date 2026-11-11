@@ -1,8 +1,8 @@
 # QuantRule
 
 QuantRule is a local, single-user, deterministic application for rule-based
-research on OHLCV candles. The current release is the command shell: you start it
-and type commands, and it prints or writes what the data and model engines produce.
+research on OHLCV candles. The current release is the local desktop app plus the command shell: the app
+covers the service-backed workflow, and the shell remains the headless surface.
 The desktop application lives in `apps/desktop` and calls the same application
 service; there is no account, no deployed service, and no cloud runtime.
 
