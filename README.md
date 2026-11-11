@@ -282,6 +282,8 @@ cargo clippy --all-targets -- -D warnings
 python3 tools/check_file_size.py
 python3 tools/check_structure.py
 python3 tools/check_workflows.py
+python3 tools/check_execution_plans.py
+python3 tools/check_claims.py
 python3 tools/check_changelog.py
 python3 tools/check_releases.py
 python3 tools/check_partitions.py

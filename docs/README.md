@@ -175,6 +175,7 @@ of workflow status; this page does not repeat it.
 | Policy change | `docs/workflows/policy-change.md` |
 | Data lifecycle | `docs/workflows/data-lifecycle.md` |
 | Requirements and design | `docs/workflows/requirements-design.md` |
+| Execution plan | `docs/workflows/execution-plan.md` |
 | Release and operations | `docs/workflows/release-operations.md` |
 | Deprecation and retirement | `docs/workflows/deprecation-retirement.md` |
 | Recordkeeping | `docs/workflows/recordkeeping.md` |
@@ -210,6 +211,8 @@ store in the current surface.
 | Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
 | Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
 | Workflow checker | Checks the workflow index, status, required sections, and links. | `tools/check_workflows.py` |
+| Execution-plan checker | Checks current plans for a claim type and reviewer verification table. | `tools/check_execution_plans.py` |
+| Claim-type checker | Checks issue/PR templates and the normative claim-type section. | `tools/check_claims.py` |
 | Changelog checker | Checks the grouped release structure, allowed types, and release order. | `tools/check_changelog.py` |
 | Release checker | Checks release notes, tag names, dates, and changelog alignment. | `tools/check_releases.py` |
 | Partition checker | Checks canonical instruments, aliases, partitions, and config references. | `tools/check_partitions.py` |

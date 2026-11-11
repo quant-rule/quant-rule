@@ -5,7 +5,7 @@
 - Scope: <what this workflow governs>
 - Owner: <role>
 - Contract: <link to the controlling contract>
-- Claim type: <workflow/record/tooling; no model, strategy, or edge claim>
+- Claim type: <Problem Claim | Behaviour Claim | Outcome Claim | ADR (Architecture Decision)>
 - Related: <links>
 
 ## 1. Purpose

@@ -264,6 +264,7 @@ A pull request must include:
 - **Scope:** What is included and deliberately excluded.
 - **Workflow:** The workflow used, with a link to its document in `docs/workflows/`.
 - **Issue:** A link to the relevant issue, when one exists.
+- **Claim type:** One of `Problem Claim`, `Behaviour Claim`, `Outcome Claim`, or `ADR (Architecture Decision)`.
 - **Records:** The audit, refactor, run, programme, policy, data, release, or deprecation IDs that the change advances.
 - **Verification:** Commands actually executed and their observed results, in a table.
 - **Changelog:** The `CHANGELOG.md` release entry added or updated, or the reason no entry is needed.
@@ -277,6 +278,22 @@ Run the relevant checks before proposing a pull request. Review the complete dif
 
 Keep every issue, commit message, pull request, and response to the human brief, human-readable and in the same format every time.
 
+### Claim type
+
+Every issue and pull request carries exactly one claim type. The claim type is
+the boundary of what the work is allowed to claim; it is not the workflow and it
+is not the board status.
+
+| Claim type | Meaning |
+|---|---|
+| `Problem Claim` | Consequential user friction that exists independently of the software. |
+| `Behaviour Claim` | A verifiable system rule, action, or state change. |
+| `Outcome Claim` | A measurable real-world impact after the software is used. |
+| `ADR (Architecture Decision)` | A recorded structural choice, its context, and its trade-offs. |
+
+If a work item needs more than one claim type, split it. A missing claim type
+keeps the issue in `Todo`. The pull request states the issue's claim type again.
+
 ### Issue format
 
 Keep the whole body under roughly 15 lines:
@@ -285,6 +302,7 @@ Keep the whole body under roughly 15 lines:
 Goal: two or three sentences.
 Scope: short bullet list.
 Done when: short bullet list of observable conditions.
+Claim type: one of the four claim types.
 ```
 
 ### Audit format
@@ -323,7 +341,7 @@ Conventional Commit subject; body of at most five short lines saying what change
 
 ### Pull request format
 
-Summary (two or three sentences), `Closes #issue`, Workflow (the workflow used and its document), Records (the IDs advanced), Changes (short bullets), Verification (a table with the command and the observed result), Changelog (the release entry added or updated, or the reason none is needed), Risks (or "None"). Do not restate the issue, do not pad with prose. State the claim type in one line. When the change alters model or strategy behavior, include `Quant validation:` with the validator record or the reason it is not applicable. When the change is documentation or tooling only, state that no Quant Validator record is required and why.
+Summary (two or three sentences), `Closes #issue`, Workflow (the workflow used and its document), Records (the IDs advanced), Changes (short bullets), Verification (a table with the command and the observed result), Changelog (the release entry added or updated, or the reason none is needed), Risks (or "None"). Do not restate the issue, do not pad with prose. State the claim type as one of `Problem Claim`, `Behaviour Claim`, `Outcome Claim`, or `ADR (Architecture Decision)`. When the change alters model or strategy behavior, include `Quant validation:` with the validator record or the reason it is not applicable. When the change is documentation or tooling only, state that no Quant Validator record is required and why.
 
 ### Response format
 
@@ -362,22 +380,55 @@ Branch protection, required checks, and merge restrictions may be configured in 
 
 ### Issue Status Lifecycle
 
-Every issue is tracked on the project board and moves through a fixed sequence. The board status is the source of truth for what is being worked on.
+Every issue is tracked on the project board and moves through a fixed four-stage
+sequence. The board status is the source of truth for what is being worked on.
 
-- **Todo.** A newly opened issue starts in `Todo`. It has been filed but no work has begun.
-- **In Progress.** Move the issue to `In Progress` before the first change is made to the working tree. An issue that is being worked on is never left in `Todo`.
-- **Done.** Move the issue to `Done` once the work is committed, the pull request is open, and the acceptance criteria are met. The issue is not closed on the board before the pull request exists.
+- **Todo.** A newly opened issue starts in `Todo`. It has been filed but no work
+  has begun. It carries a claim type.
+- **In Progress.** Move the issue to `In Progress` before the first change is
+  made to the working tree. Set `Start date` to the UTC date. Create the task
+  worktree and branch.
+- **In Review.** Move the issue to `In Review` when the pull request is open, the
+  required checks are green, and the human review gate is requested. The agent
+  does not move an item to `Done` while it is in review.
+- **Done.** Move the issue to `Done` only after the human accepts the work, the
+  pull request is merged, the acceptance criteria are verified, and the task
+  worktree and branches are removed. Set `Closed date` to the UTC date.
 
 Rules for the lifecycle:
 
-- Update the board status as part of the work, not as a separate task. A status change is part of the same change that advances the issue.
-- One work item is `In Progress` at a time unless the human explicitly authorizes parallel work. A container that mirrors its sub-issues is not a work item in flight and does not occupy the slot.
-- Moving an issue to `In Progress` requires no separate approval. It is an ordinary part of starting work.
-- Moving an issue to `Done` requires the pull request to exist and be open. A container is the exception: its own deliverable was merged when it was delivered, and it is moved to `Done` when its last sub-issue is done.
-- The board status and the issue's own state are independent. A `Done` board item may still be open on GitHub, and an open GitHub issue may still be in `Todo`.
-- An issue with sub-issues is a container. Its acceptance criteria cover its own deliverable, and the work it delegates is stated in the criteria of its sub-issues, which carry the rest. A container's board status follows its children: it is `In Progress` while any sub-issue is open, and `Done` only when every sub-issue is done. The title of a container says what it delivers, so the board does not read as though the delegated work were done.
-- The board is kept in step by workflows rather than by hand. The project's built-in workflows mark an item `Done` when its issue is closed, and close the issue when the item is marked `Done`. A repository workflow owns the `State`, `Item type`, and `Closed date` fields, and recomputes a container's `Status` from its sub-issues. The agent sets a leaf's `Todo`, `In Progress`, and `Start date`, and does not set what a workflow owns.
-- If work stops, the issue returns to `Todo` unless it is genuinely still in progress.
+- Update the board status as part of the work, not as a separate task. A status
+  change is part of the same change that advances the issue.
+- Every issue has exactly one claim type before it leaves `Todo`. A missing claim
+  type is a workflow defect and keeps the issue in `Todo`.
+- Set `Start date` once when the issue first enters `In Progress`. Do not
+  overwrite it. If work stops and returns to `Todo`, keep the original start date
+  and record the stop in a comment.
+- Set `Closed date` when the issue enters `Done`. If a `Done` item returns to
+  active work, clear `Closed date` and move it to `In Progress`.
+- If review requests changes, move the issue back to `In Progress` and keep the
+  original `Start date`.
+- One leaf issue is `In Progress` at a time unless the human explicitly
+  authorizes parallel work. Several items may wait in `In Review`.
+- Moving an issue to `In Progress` requires no separate approval. Moving it to
+  `Done` requires human acceptance and a merged pull request.
+- The board status and the issue's own state are independent. A `Done` board item
+  may still be open on GitHub, and an open GitHub issue may still be in `Todo`.
+- An issue with sub-issues is a container. Its acceptance criteria cover its own
+  deliverable, and the work it delegates is stated in the criteria of its
+  sub-issues. A container is `In Progress` while any child is `Todo` or
+  `In Progress`; `In Review` when all open children are `In Review` or `Done`
+  and at least one is `In Review`; and `Done` only when every child is `Done`.
+- The board is kept in step by workflows rather than by hand. A repository
+  workflow owns `State`, `Item type`, and backfills `Start date` and `Closed
+  date` when they are empty; it never overwrites a date the agent set. It
+  recomputes a container's `Status` from its children. The agent owns the leaf
+  `Status`, the `Claim Type`, and the two dates.
+- The built-in workflow may mark an item `Done` when its issue is closed. Closing
+  an issue before the review gate is a workflow defect; the correct close follows
+  the `Done` transition.
+- If work stops, the issue returns to `Todo` unless it is genuinely still in
+  progress.
 
 ### Audit, refactor, and improvement tracking
 
@@ -417,9 +468,11 @@ The board holds both the issue and the pull request that closes it. The human re
 - A pull request that closes a tracked issue is added to the board by GitHub's own automation, within a second of being opened and without anyone asking for it. A board item is therefore not evidence that something was added on purpose, and the `Item type` field is what tells an issue from a pull request.
 - The `Item type` field carries `Issue` or `Pull request` on every item. An item without a value is a defect, not a new kind of item. A pull request that the automation adds arrives without a value, so it is labelled when it appears.
 - The `State` field carries `Open` or `Closed` on every item, and a merged pull request is closed. The built-in date fields are not populated on this board, so `State` is the only field that says whether an item is still open.
-- An issue and its pull request share a title, so the board is read with `Item type` in view. `Labels` is a second signal in this repository, where issues carry labels and pull requests do not; that is a property of how issues are labelled rather than a rule, and nothing depends on it.
-- The `Status` field is the source of truth for the lifecycle, and it is the field that says which work is in flight.
-- The `All items` view lists every item in one table: open issues, closed issues, and pull requests. The `Board` view separates the same items across the columns of the lifecycle, so the table is the view to read when the question is what exists.
+- The `Claim Type` field carries exactly one of `Problem Claim`, `Behaviour Claim`, `Outcome Claim`, or `ADR (Architecture Decision)`. An item without a claim type is a defect; it stays in `Todo` and is flagged for repair.
+- An issue and its pull request share a title, so the board is read with `Item type` and `Claim Type` in view. `Labels` is a second signal in this repository, where issues carry labels and pull requests do not; that is a property of how issues are labelled rather than a rule, and nothing depends on it.
+- The `Status` field is the source of truth for the lifecycle. It has four options: `Todo`, `In Progress`, `In Review`, and `Done`.
+- The `Start date` field records the first `Todo -> In Progress` transition. The `Closed date` field records the `In Review -> Done` transition. Both are UTC dates. A `Done` item that reopens clears `Closed date`; a stopped item keeps `Start date`.
+- The `All items` view lists every item in one table: open issues, closed issues, and pull requests. The `Board` view separates the same items across the four lifecycle columns. The `Review queue` view filters `Status = In Review`. The `Missing claim type` view filters an empty `Claim Type`.
 - A view that cannot be configured through the API is configured by the human in the browser. The `Timeline` view is one: the API sets its name and layout but not the date field its timeline is drawn from, so the human picks that axis, and the board's `Start date` and `Closed date` fields are what it draws.
 
 ## 10. Agentic Engineering and Role Definitions
@@ -816,6 +869,7 @@ The workflow index is [`docs/workflows/README.md`](docs/workflows/README.md). Ch
 | A policy envelope change | [Policy Change](docs/workflows/policy-change.md) |
 | A data source, version, or partition change | [Data Lifecycle](docs/workflows/data-lifecycle.md) |
 | A new command, report, or capability | [Requirements & Design](docs/workflows/requirements-design.md) |
+| A substantial multi-step change, or a plan that needs a reviewer checklist | [Execution Plan](docs/workflows/execution-plan.md) |
 | A release, tag, rollback, or incident | [Release & Operations](docs/workflows/release-operations.md) |
 | Retiring a model, event, command, or data source | [Deprecation & Retirement](docs/workflows/deprecation-retirement.md) |
 | A record, ID, status, or changelog issue | [Recordkeeping](docs/workflows/recordkeeping.md) |
@@ -968,6 +1022,13 @@ Prepare a formal plan before implementation when a task:
 
 For a small, low-risk change, a concise scope and verification checklist may be sufficient.
 
+### Execution plan workflow
+
+The full contract is [`docs/workflows/execution-plan.md`](docs/workflows/execution-plan.md).
+It defines the plan lifecycle (`Proposed`, `Approved`, `In Progress`, `In Review`,
+`Verified`, `Superseded`), the required sections, the human gates, and the
+mandatory verification table. A plan without that table is not reviewable.
+
 ### Execution Plan Location
 
 All project plans live in the repository at the following path. A plan drafted elsewhere is a scratch copy and is not approved or implemented until it is committed here:
@@ -990,6 +1051,11 @@ A formal plan must include:
 - **Acceptance criteria:** Observable conditions for completion.
 - **Work breakdown:** Ordered steps, dependencies, responsible agent roles, and affected paths. Name the quant roles when the work changes a hypothesis, model, strategy, or strategy result.
 - **Verification:** Test commands, expected evidence, and limitations. A strategy or model behavior change includes the Quant Validator's reproduction record.
+- **Verification table:** A table with many rows and columns that acts as the
+  reviewer's checklist. Every row has an ID, the plan item, the acceptance
+  criterion, the evidence or command, the expected result, the observed result,
+  its status, the reviewer, the date, and notes. The plan is not `Verified` until
+  every row is `Pass` or the human records an accepted exception.
 - **Risks and recovery:** Relevant failure modes, migration safety, rollback, and recovery considerations.
 - **Stop conditions:** Conflicts, new decisions, missing permissions, or failures requiring escalation.
 
@@ -998,10 +1064,13 @@ A formal plan must include:
 Present a read-only repository assessment before proposing implementation.
 Mark the plan `Proposed` until the human approves it.
 Do not implement a proposed plan.
-After approval, mark it `Approved` and execute only the authorized scope.
+After approval, mark it `Approved`, then `In Progress` when the first issue starts.
+Move it to `In Review` when the review gate is requested, and to `Verified` only
+when every row of its verification table is `Pass` or the human records an
+accepted exception.
 Record material findings and verification evidence as work progresses.
 If new information requires a material change in scope, architecture, requirements, risk, or operational behavior, stop and request approval for the revised plan.
-Mark a plan `Verified` only when its acceptance criteria have been evaluated against observed evidence. Record unresolved criteria rather than claiming full completion.
+Record unresolved criteria rather than claiming full completion.
 
 Plan approval authorizes only the work explicitly described in that plan. It does not automatically authorize commits, pushes, merges, deployments, or unrelated changes.
 
@@ -1101,8 +1170,12 @@ Before reporting completion:
 - Update the workflow status and the record map when a workflow changes.
 - Add or update the `CHANGELOG.md` release entry when the change is meaningful, or record why no entry is needed.
 - Update `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` for material AI contributions.
-- Move the issue to `Done` on the project board once the pull request is open (section 9).
-- When the pull request is merged and verified, remove the task worktree and delete its local and remote task branch before reporting completion; if it is not merged, keep the worktree and report the pending gate.
+- Move the issue to `In Review` when the pull request is open, the checks are
+  green, and the human review gate is requested (section 9).
+- After human acceptance and merge, move the issue to `Done`, set `Closed date`,
+  remove the task worktree, and delete its local and remote task branch before
+  reporting completion; if it is not merged, keep the worktree and report the
+  pending gate.
 - Report changed files, tests, results, limitations, and any decisions still required.
 
 The report itself follows the response format in section 8.

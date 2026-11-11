@@ -24,6 +24,8 @@ Done when:
 - [ ] The human authorizes the removal.
 - [ ] The changelog and AI log are present.
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow: [`docs/workflows/deprecation-retirement.md`](../../docs/workflows/deprecation-retirement.md)
 
 Prior records reviewed:

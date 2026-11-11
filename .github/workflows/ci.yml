@@ -50,6 +50,16 @@ jobs:
           python3 -m unittest discover -s tools -p 'test_check_workflows.py'
           python3 tools/check_workflows.py
 
+      - name: Execution plans
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_execution_plans.py'
+          python3 tools/check_execution_plans.py
+
+      - name: Claim types
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_claims.py'
+          python3 tools/check_claims.py
+
       - name: Changelog
         run: |
           python3 -m unittest discover -s tools -p 'test_check_changelog.py'

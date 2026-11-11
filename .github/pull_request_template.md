@@ -17,6 +17,8 @@ Closes #
 
 - Record IDs:
 
+Claim type: Problem Claim | Behaviour Claim | Outcome Claim | ADR (Architecture Decision)
+
 ## Scope
 
 <!-- What is included and what is deliberately excluded. -->
@@ -30,8 +32,6 @@ Closes #
 | Check | Command | Observed |
 |---|---|---|
 |  |  |  |
-
-Claim type:
 
 Regression guard:
 

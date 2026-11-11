@@ -23,6 +23,8 @@ Done when:
 - [ ] The full gate passes.
 - [ ] No unrelated change is included.
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow: [`docs/workflows/audit-workflow.md`](../../docs/workflows/audit-workflow.md)
 
 Prior records reviewed:

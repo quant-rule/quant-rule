@@ -2,12 +2,12 @@
 #
 # Keeps the QuantRule project board in step with the issues.
 #
-# The board's built-in workflows mark an item `Done` when its issue is closed,
-# and close the issue when its item is marked `Done`. They do not write the
-# custom `State`, `Item type`, and `Closed date` fields, and they do not
-# recompute a container's status from its sub-issues. This script writes those
-# fields and sets a leaf's status, so that the board says what actually
-# happened to every item on it, whoever made the change.
+# The board uses four stages: Todo, In Progress, In Review, Done. The built-in
+# workflows mark an item `Done` when its issue is closed, and close the issue
+# when its item is marked `Done`. This script writes the custom `State`,
+# `Item type`, `Claim Type`, `Start date`, and `Closed date` fields, preserves
+# the leaf status the agent set, and recomputes a container's status from its
+# sub-issues.
 #
 # A merged pull request reports its state as MERGED rather than CLOSED, and a
 # merged pull request is closed: the rule the board states, and the rule in
@@ -98,18 +98,22 @@ option_id() {
 STATUS_FIELD="$(field_id "Status")"
 ITEM_TYPE_FIELD="$(field_id "Item type")"
 STATE_FIELD="$(field_id "State")"
+CLAIM_TYPE_FIELD="$(field_id "Claim Type")"
+START_DATE_FIELD="$(field_id "Start date")"
 CLOSED_DATE_FIELD="$(field_id "Closed date")"
 
 STATUS_TODO="$(option_id "Status" "Todo")"
 STATUS_IN_PROGRESS="$(option_id "Status" "In Progress")"
+STATUS_IN_REVIEW="$(option_id "Status" "In Review")"
 STATUS_DONE="$(option_id "Status" "Done")"
 ITEM_TYPE_ISSUE="$(option_id "Item type" "Issue")"
 ITEM_TYPE_PULL_REQUEST="$(option_id "Item type" "Pull request")"
 STATE_OPEN="$(option_id "State" "Open")"
 STATE_CLOSED="$(option_id "State" "Closed")"
 
-for id in "$STATUS_FIELD" "$ITEM_TYPE_FIELD" "$STATE_FIELD" "$CLOSED_DATE_FIELD" \
-          "$STATUS_TODO" "$STATUS_IN_PROGRESS" "$STATUS_DONE" \
+for id in "$STATUS_FIELD" "$ITEM_TYPE_FIELD" "$STATE_FIELD" "$CLAIM_TYPE_FIELD" \
+          "$START_DATE_FIELD" "$CLOSED_DATE_FIELD" \
+          "$STATUS_TODO" "$STATUS_IN_PROGRESS" "$STATUS_IN_REVIEW" "$STATUS_DONE" \
           "$ITEM_TYPE_ISSUE" "$ITEM_TYPE_PULL_REQUEST" "$STATE_OPEN" "$STATE_CLOSED"; do
   if [ -z "$id" ] || [ "$id" = "null" ]; then
     echo "project-sync: the project is missing a field or option this script writes" >&2
@@ -180,6 +184,37 @@ mutation($project: ID!, $contentId: ID!) {
 }' project "$PROJECT_ID" contentId "$content_id" | jq -r '.data.addProjectV2ItemById.item.id'
 }
 
+read_item_fields() {
+  # read_item_fields <item-id> -> {status, claim, start, close}
+  gql '
+query($id: ID!) {
+  node(id: $id) {
+    ... on ProjectV2Item {
+      fieldValues(first: 30) {
+        nodes {
+          __typename
+          ... on ProjectV2ItemFieldSingleSelectValue {
+            name
+            field { ... on ProjectV2SingleSelectField { name } }
+          }
+          ... on ProjectV2ItemFieldDateValue {
+            date
+            field { ... on ProjectV2Field { name } }
+          }
+        }
+      }
+    }
+  }
+}' id "$1" | jq -c '
+    .data.node.fieldValues.nodes
+    | {
+        status: (map(select(.field.name == "Status")) | .[0].name // null),
+        claim: (map(select(.field.name == "Claim Type")) | .[0].name // null),
+        start: (map(select(.field.name == "Start date")) | .[0].date // null),
+        close: (map(select(.field.name == "Closed date")) | .[0].date // null)
+      }'
+}
+
 set_field() {
   # set_field <item-id> <field-id> <option-id>
   gql '
@@ -225,7 +260,25 @@ query($id: ID!) {
       state
       closedAt
       parent { id number state }
-      subIssues(first: 100) { totalCount nodes { number state } }
+      subIssues(first: 100) {
+        totalCount
+        nodes {
+          number
+          state
+          projectItems(first: 5) {
+            nodes {
+              fieldValues(first: 20) {
+                nodes {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                    field { ... on ProjectV2SingleSelectField { name } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
     ... on PullRequest { number state closedAt }
   }
@@ -237,23 +290,34 @@ query($id: ID!) {
         state: .state,
         closedAt: .closedAt,
         parent: (if .parent then {id: .parent.id, number: .parent.number, state: .parent.state} else null end),
-        children: [(.subIssues.nodes // [])[].state]
+        children: [(.subIssues.nodes // [])[] | {
+          state: .state,
+          status: ((.projectItems.nodes[0].fieldValues.nodes // [])
+            | map(select(.field.name == "Status"))
+            | .[0].name // null)
+        }]
       }'
 }
 
-# The status a container carries, given the states of its sub-issues.
+# The status a container carries, given its sub-issues.
 container_status() {
   # container_status <children-json>
   local children="$1"
-  local total closed
+  local total done review open_in_review
   total="$(echo "$children" | jq 'length')"
   if [ "$total" -eq 0 ]; then
     echo "TODO"
     return 0
   fi
-  closed="$(echo "$children" | jq '[.[] | select(. == "CLOSED")] | length')"
-  if [ "$closed" -eq "$total" ]; then
+  done="$(echo "$children" | jq '[.[] | select(.state == "CLOSED" or .status == "Done")] | length')"
+  if [ "$done" -eq "$total" ]; then
     echo "DONE"
+    return 0
+  fi
+  review="$(echo "$children" | jq '[.[] | select(.status == "In Review")] | length')"
+  open_in_review="$(echo "$children" | jq '[.[] | select(.state != "CLOSED" and .status != "In Review" and .status != "Done")] | length')"
+  if [ "$review" -gt 0 ] && [ "$open_in_review" -eq 0 ]; then
+    echo "IN_REVIEW"
   else
     echo "IN_PROGRESS"
   fi
@@ -263,6 +327,7 @@ status_option() {
   case "$1" in
     TODO) echo "$STATUS_TODO" ;;
     IN_PROGRESS) echo "$STATUS_IN_PROGRESS" ;;
+    IN_REVIEW) echo "$STATUS_IN_REVIEW" ;;
     DONE) echo "$STATUS_DONE" ;;
     *) echo "project-sync: unknown status $1" >&2; exit 1 ;;
   esac
@@ -291,16 +356,21 @@ mutation($id: ID!) {
   closeIssue(input: { issueId: $id }) { issue { id state } }
 }' id "$issue_id" >/dev/null
     echo "project-sync: closed issue ${issue_id}, because its board status is Done"
-  elif [ "$desired" = "IN_PROGRESS" ] && [ "$issue_state" = "CLOSED" ]; then
+  elif { [ "$desired" = "IN_PROGRESS" ] || [ "$desired" = "IN_REVIEW" ]; } \
+      && [ "$issue_state" = "CLOSED" ]; then
     gql '
 mutation($id: ID!) {
   reopenIssue(input: { issueId: $id }) { issue { id state } }
 }' id "$issue_id" >/dev/null
-    echo "project-sync: reopened issue ${issue_id}, because its board status is In Progress"
+    echo "project-sync: reopened issue ${issue_id}, because its board status is active"
   fi
 }
 
 # --- the work -----------------------------------------------------------------
+
+today_utc() {
+  date -u +%F
+}
 
 main() {
   local content content_type content_state content_closed_at children parent_id
@@ -326,24 +396,55 @@ main() {
     set_field "$item_id" "$STATE_FIELD" "$STATE_OPEN"
   fi
 
-  # The day the item closed, taken from the issue's own record rather than
-  # from a clock, so that the board's dates are the dates of the events.
-  if is_closed "$content_state" && [ -n "$content_closed_at" ]; then
-    set_date "$item_id" "$CLOSED_DATE_FIELD" "${content_closed_at:0:10}"
-  elif [ "$content_state" = "OPEN" ]; then
-    clear_field "$item_id" "$CLOSED_DATE_FIELD"
-  fi
+  local fields current_status current_claim current_start current_close
+  fields="$(read_item_fields "$item_id")"
+  current_status="$(echo "$fields" | jq -r '.status // empty')"
+  current_claim="$(echo "$fields" | jq -r '.claim // empty')"
+  current_start="$(echo "$fields" | jq -r '.start // empty')"
+  current_close="$(echo "$fields" | jq -r '.close // empty')"
 
-  # The status. A container follows its sub-issues; a leaf follows its own state.
+  # The status. A container follows its sub-issues. A closed leaf is Done. An
+  # open pull request is In Review. An open issue keeps the status the agent
+  # set, and a new issue starts in Todo. A missing claim type keeps a new issue
+  # in Todo and is visible in the Missing claim type view.
   local desired
   if [ "$(echo "$children" | jq 'length')" -gt 0 ]; then
     desired="$(container_status "$children")"
   elif is_closed "$content_state"; then
     desired="DONE"
+  elif [ "$content_type" = "PullRequest" ]; then
+    desired="IN_REVIEW"
   else
-    desired="TODO"
+    case "$current_status" in
+      "In Progress") desired="IN_PROGRESS" ;;
+      "In Review") desired="IN_REVIEW" ;;
+      *) desired="TODO" ;;
+    esac
+    if [ -z "$current_claim" ]; then
+      desired="TODO"
+    fi
   fi
   set_field "$item_id" "$STATUS_FIELD" "$(status_option "$desired")"
+
+  # Start date: set once, on the first active issue transition.
+  if [ "$content_type" = "Issue" ] \
+      && { [ "$desired" = "IN_PROGRESS" ] || [ "$desired" = "IN_REVIEW" ]; } \
+      && [ -z "$current_start" ]; then
+    set_date "$item_id" "$START_DATE_FIELD" "$(today_utc)"
+  fi
+
+  # Close date: set on Done and cleared when the item returns to active work.
+  if [ "$desired" = "DONE" ]; then
+    if [ -z "$current_close" ]; then
+      if [ -n "$content_closed_at" ]; then
+        set_date "$item_id" "$CLOSED_DATE_FIELD" "${content_closed_at:0:10}"
+      else
+        set_date "$item_id" "$CLOSED_DATE_FIELD" "$(today_utc)"
+      fi
+    fi
+  elif [ -n "$current_close" ]; then
+    clear_field "$item_id" "$CLOSED_DATE_FIELD"
+  fi
 
   # A container's issue is closed by the board when its item reaches `Done`.
   if [ "$(echo "$children" | jq 'length')" -gt 0 ]; then

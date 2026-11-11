@@ -138,10 +138,14 @@ Stop and request human direction when:
 
 | To | Packet |
 |---|---|
+| Execution Plan | The approved scope, acceptance criteria, dependencies, and verification table |
 | Implementation | The approved plan, acceptance criteria, and contract |
 | Test Engineer | The acceptance criteria and edge cases |
 | Code Reviewer | The diff and the contract |
 | Recordkeeping | The issue, plan, PR, and changelog entry |
+
+A substantial change hands off to [`execution-plan.md`](execution-plan.md). The
+plan must include the reviewer verification table before implementation starts.
 
 ## 12. Related documents
 

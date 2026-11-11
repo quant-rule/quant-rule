@@ -43,6 +43,7 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 | [`policy-change.md`](policy-change.md) | Does the human-owned envelope change? | Governance | Current | Yes |
 | [`data-lifecycle.md`](data-lifecycle.md) | Is the input valid, versioned, and admissible? | Data | Current | Yes |
 | [`requirements-design.md`](requirements-design.md) | What should the new capability be? | Engineering upstream | Current | Yes |
+| [`execution-plan.md`](execution-plan.md) | How is a substantial change ordered and proven? | Engineering delivery | Current | Yes |
 | [`release-operations.md`](release-operations.md) | Is this safe to release and recover? | Engineering downstream | Current | Yes |
 | [`deprecation-retirement.md`](deprecation-retirement.md) | How is a surface removed without losing history? | Engineering lifecycle | Current | Yes |
 | [`recordkeeping.md`](recordkeeping.md) | Where is the evidence and what is its status? | Cross-cutting | Current | Yes |
@@ -61,6 +62,7 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 | A policy envelope change | [Policy Change](policy-change.md) |
 | A data source, version, or partition change | [Data Lifecycle](data-lifecycle.md) |
 | A new command, report, or capability | [Requirements & Design](requirements-design.md) |
+| A substantial multi-step change, or a reviewer checklist | [Execution Plan](execution-plan.md) |
 | A release, tag, rollback, or incident | [Release & Operations](release-operations.md) |
 | Retiring a model, event, command, or data source | [Deprecation & Retirement](deprecation-retirement.md) |
 | A record, ID, status, or changelog issue | [Recordkeeping](recordkeeping.md) |
@@ -89,6 +91,7 @@ DATA (versioned, validated) --> MODEL RESEARCH --> MODEL CHANGE (if needed) --> 
 
 Cross-cutting:
   Audit (defects) | Refactor (structure) | Requirements & Design (new capability)
+  Execution Plan (order, review checklist)
   Release & Operations (release/incident) | Deprecation & Retirement (remove surface)
   Recordkeeping (records, IDs, changelog, AI log)
 ```
@@ -118,6 +121,15 @@ baseline.
   the changelog is the release history; the AI log is the work-item record.
 - **One workflow per decision boundary.** Do not add a workflow for every noun.
   Add one where the wrong route would contaminate evidence or violate a gate.
+- **Every issue has one claim type.** The options are `Problem Claim`,
+  `Behaviour Claim`, `Outcome Claim`, and `ADR (Architecture Decision)`. A missing
+  claim type keeps the issue in `Todo`.
+- **The board has four stages.** `Todo -> In Progress -> In Review -> Done`.
+  `Start date` is set on `In Progress`; `Closed date` is set on `Done`. The review
+  gate is `In Review`; `Done` follows human acceptance, merge, and cleanup.
+- **Every execution plan ends with a verification table.** The table is the
+  reviewer's checklist and a plan is not `Verified` until every row is `Pass` or
+  the human records an accepted exception.
 - **No behavior change by accident.** A workflow change that alters model or
   strategy behavior stops and routes to the Quant roles.
 - **No hidden legacy.** A current document does not describe a retired command,

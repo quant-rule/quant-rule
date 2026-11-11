@@ -27,6 +27,8 @@ Done when:
 - [ ] The affected baselines are re-established or retired.
 - [ ] The changelog and AI log are present.
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow: [`docs/workflows/data-lifecycle.md`](../../docs/workflows/data-lifecycle.md)
 
 Prior records reviewed:
