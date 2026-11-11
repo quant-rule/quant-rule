@@ -192,12 +192,24 @@ jobs:
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       - name: Desktop native build
-        run: npm run tauri build -- --no-bundle
+        run: npm run tauri build
+
+      - name: Stage and check the download page
+        run: ../../site/build.sh --skip-build
 
       - name: Desktop launch smoke
         run: |
           set +e
           xvfb-run -a timeout 15 ./src-tauri/target/release/quantrule-desktop
+          code=$?
+          if [ "$code" -ne 124 ]; then
+            exit "$code"
+          fi
+
+      - name: AppImage launch smoke
+        run: |
+          set +e
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a timeout 15 ./src-tauri/target/release/bundle/appimage/*.AppImage
           code=$?
           if [ "$code" -ne 124 ]; then
             exit "$code"

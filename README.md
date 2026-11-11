@@ -68,7 +68,8 @@ npm run tauri dev    # native window
 ```
 
 See [`apps/desktop/README.md`](apps/desktop/README.md) for the native build and
-test commands.
+test commands. The Linux AppImage/deb bundles and the static download page are
+built with `./site/build.sh`; the page source is [`site/index.html`](site/index.html).
 
 ## Commands
 
@@ -278,6 +279,7 @@ for the shell fetch surface. Trade charts are rendered from recorded bundles wit
 | `crates/quantrule-app` | Application service: workspace, dataset, configuration, model run, export, and local research memory |
 | `crates/quantrule-shell` | The command shell: parse, call the application service, and render |
 | `apps/desktop` | Tauri 2 + Svelte 5 desktop UI over the application service |
+| `site/` | Static Linux download page, packaging script, and checksum checker |
 | `tools/data/` | Binance archive importer and source coverage audit |
 | `tools/charts/` | Deterministic trade-chart renderer and click annotator |
 | `tools/trades/` | Per-trade 250-bar context, annotations, and exit-quality evaluation |

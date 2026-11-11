@@ -21,7 +21,7 @@ installers. A team cloud is future work.
 | Backtest engine | Strategy, execution, portfolio, benchmark | `crates/quantrule-backtest` |
 | CLI shell | Headless command surface | `crates/quantrule-shell` |
 | Local research memory | Workspaces, datasets, configs, runs, claims, notes | `crates/quantrule-app/src/memory/` + SQLite |
-| Download page | Static Linux installer distribution | `site/` (Phase 3) |
+| Download page | Static Linux installer distribution | `site/` |
 
 ## 3. Data flow
 
@@ -49,6 +49,7 @@ orchestration. The UI and CLI do not compute indicators or rules.
 | Backtest engines | `crates/quantrule-backtest/src/lib.rs` |
 | Application service | `crates/quantrule-app/src/lib.rs`, `service.rs`, `workspace.rs` |
 | Desktop UI | `apps/desktop/src-tauri/src/commands.rs`, `apps/desktop/src/App.svelte` |
+| Linux distribution | `site/index.html`, `site/build.sh`, `site/check.py` |
 | Shell and command surface | `crates/quantrule-shell/src/main.rs`, `docs/architecture/command-surface.md` |
 | Determinism tests | `crates/quantrule-model/tests/`, `crates/quantrule-shell/tests/` |
 | Architecture baseline | `docs/architecture/` |

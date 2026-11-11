@@ -80,6 +80,13 @@ and settings. It has no account, no network path, and no domain computation;
 every command delegates to `quantrule-app`. Backtest, strategy, execution,
 portfolio, and analytics remain CLI operations.
 
+## Distribution
+
+[`site/`](../../site) is the static Linux download page and packaging boundary.
+`site/build.sh` builds the Tauri `.deb` and `.AppImage`, stages them under
+`site/downloads/`, writes `site/checksums.txt`, and runs `site/check.py`. The
+page is distribution only: no account, backend, or cloud runtime.
+
 ## Documents
 
 | Document | What it answers | Path |
