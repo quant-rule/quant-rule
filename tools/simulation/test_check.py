@@ -108,6 +108,8 @@ class CheckTest(unittest.TestCase):
         self.assertTrue(_passes_filter(row, "short", {"opposite_direction": True, "close_back": True}))
         self.assertTrue(_passes_filter(row, "short", {"opposite_direction": True, "ema_stack": 0}))
         self.assertFalse(_passes_filter(row, "short", {"opposite_direction": True, "ema_stack": -1}))
+        self.assertTrue(_passes_filter(row, "short", {"opposite_direction": True, "rsi_zone": 0}))
+        self.assertFalse(_passes_filter(row, "short", {"opposite_direction": True, "rsi_zone": 1}))
 
     def test_cost_is_subtracted(self) -> None:
         result = check_side(

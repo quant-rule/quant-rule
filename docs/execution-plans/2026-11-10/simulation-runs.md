@@ -450,20 +450,20 @@ result in the run record.
 | 4.2 | 4 | SIM-05 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
 | 4.3 | 4 | SIM-06 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
 | 4.4 | 4 | Batch 2 review recorded | Human review in the batch record | ☐ |
-| 5.1 | 5 | SIM-07 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |
-| 5.2 | 5 | SIM-08 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |
-| 5.3 | 5 | SIM-09 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |
-| 5.4 | 5 | SIM-10 complete and checked | Manifest, marks, charts, review, decision, check; session block recorded | ☐ |
+| 5.1 | 5 | SIM-07 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
+| 5.2 | 5 | SIM-08 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
+| 5.3 | 5 | SIM-09 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
+| 5.4 | 5 | SIM-10 complete and checked | Manifest, marks, charts, review, decision, check; session block recorded | N/A |
 | 5.5 | 5 | Batch 3 review recorded | Human review in the batch record | ☐ |
-| 6.1 | 6 | Synthesis report | `docs/reports/2026-11-10/simulation-synthesis.md` | ☐ |
-| 6.2 | 6 | Survivor Strategy Research notes | One note per survivor with costs and pre-registration | ☐ |
+| 6.1 | 6 | Synthesis report | `docs/reports/2026-11-10/simulation-synthesis.md` | ☑ |
+| 6.2 | 6 | Survivor Strategy Research notes | One note per survivor with costs and pre-registration | ☑ |
 | 6.3 | 6 | Registry update only if accepted | `docs/improvement/` entry; no baseline unless accepted | ☐ |
 | 6.4 | 6 | Changelog entry | `CHANGELOG.md` under `## [Unreleased]` | ☐ |
 | 6.5 | 6 | AI transparency log complete | Decisions, corrections, evidence, rejected suggestions | ☐ |
-| 7.1 | 7 | Repo checks pass | `check_structure.py`, `check_workflows.py`, `check_changelog.py`, `check_command_surface.py` | ☐ |
-| 7.2 | 7 | Existing tool tests pass | `tools/trades`, `tools/charts` unittest suites | ☐ |
-| 7.3 | 7 | Rust regression passes | `cargo test` | ☐ |
-| 7.4 | 7 | No validation/holdout access | Report date range and read audit; 2023–2025 absent | ☐ |
-| 7.5 | 7 | No model/strategy changes | Diff contains only tools, docs, data README | ☐ |
+| 7.1 | 7 | Repo checks pass | `check_structure.py`, `check_workflows.py`, `check_changelog.py`, `check_command_surface.py` | ☑ |
+| 7.2 | 7 | Existing tool tests pass | `tools/trades`, `tools/charts` unittest suites | ☑ |
+| 7.3 | 7 | Rust regression passes | `cargo test` | ☑ |
+| 7.4 | 7 | No validation/holdout access | Report date range and read audit; 2023–2025 absent | ☑ |
+| 7.5 | 7 | No model/strategy changes | Diff contains only tools, docs, data README | ☑ |
 | 7.6 | 7 | PR opened and merged | Human gate; PR links the plan and AI log | ☐ |
 | 7.7 | 7 | Worktree cleanup | After merge, per the section 9 cleanup exception | ☐ |

@@ -141,6 +141,9 @@ criteria are explicit command arguments; the run schema stays
 | 2018–2019 annotation zone analysis | Descriptive; EMA/Fibonacci zone profile and 2018 vs 2019 comparison | [`docs/reports/2026-11-10/annotation-zone-analysis.md`](reports/2026-11-10/annotation-zone-analysis.md) |
 | Simulation Batch 1 | SIM-01 no pattern, SIM-02 no pattern, SIM-03 no exit rescue; entry-first conclusion; no edge claim | [`docs/reports/2026-11-11/simulation-batch-1.md`](reports/2026-11-11/simulation-batch-1.md) |
 | Simulation Batch 2 | SIM-04/05/06 no pattern; six runs complete, five no_pattern and one no_exit_rescue; no edge claim | [`docs/reports/2026-11-11/simulation-batch-2.md`](reports/2026-11-11/simulation-batch-2.md) |
+| Simulation Batch 3 | SIM-07 no pattern, SIM-08 bullish divergence candidate screen, SIM-09 underpowered, SIM-10 blocked | [`docs/reports/2026-11-11/simulation-batch-3.md`](reports/2026-11-11/simulation-batch-3.md) |
+| Simulation campaign synthesis | Ten runs; one candidate screen; no confirmed edge; next gate is a Strategy Research pre-registration | [`docs/reports/2026-11-11/simulation-synthesis.md`](reports/2026-11-11/simulation-synthesis.md) |
+| SIM08-BULL-DIV hypothesis | Bullish RSI divergence long; screen only; no edge claim; human approval pending | [`docs/reports/2026-11-11/sim08-bull-divergence-hypothesis.md`](reports/2026-11-11/sim08-bull-divergence-hypothesis.md) |
 | SR10 EMA/Fibonacci exit study | Stopped early; 2018 primary failed; no candidate; 2024 closed | [`docs/improvement/2026-11-10/SR10.md`](improvement/2026-11-10/SR10.md) |
 | SR11 trend-aligned EMA/Fibonacci entry | Completed; no candidate; EMA/Fibonacci line stopped; 2024 closed | [`docs/improvement/2026-11-10/SR11.md`](improvement/2026-11-10/SR11.md) |
 | SR11 raw-edge diagnostic | No positive raw edge; entry flat to negative before costs; controls not beaten | [`docs/reports/2026-11-10/sr11-raw-edge.md`](reports/2026-11-10/sr11-raw-edge.md) |

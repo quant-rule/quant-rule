@@ -119,6 +119,33 @@ def event_rows(
     return rows
 
 
+def bar_rows(bundle, from_ts: int, to_ts: int, horizon_bars: int) -> list[dict[str, Any]]:
+    """Return one forward-path row per bar for an unconditional control."""
+    rows = []
+    for index, bar in enumerate(bundle.bars):
+        if not from_ts <= bar.timestamp <= to_ts:
+            continue
+        entry_index = index + 1
+        exit_index = entry_index + horizon_bars
+        if entry_index >= len(bundle.bars) or exit_index >= len(bundle.bars):
+            continue
+        entry = bundle.bars[entry_index]
+        rows.append(
+            {
+                "event_bar": bar,
+                "direction": 0,
+                "reference": None,
+                "confirmation_bar": None,
+                "entry_index": entry_index,
+                "entry_time": entry.timestamp,
+                "exit_index": exit_index,
+                "entry_open": entry.open,
+                "exit_close": bundle.bars[exit_index].close,
+            }
+        )
+    return rows
+
+
 def _return(row: dict[str, Any], side: str, cost_bps: float) -> float:
     entry = row["entry_open"]
     exit_price = row["exit_close"]
@@ -201,6 +228,9 @@ def _passes_filter(row: dict[str, Any], side: str, side_config: dict[str, Any]) 
             return False
         if (bucket == "ge1") != (ratio >= 1.0):
             return False
+    rsi_zone = side_config.get("rsi_zone")
+    if rsi_zone is not None and row["event_bar"].rsi_zone != int(rsi_zone):
+        return False
     rvol_min = side_config.get("rvol_min")
     if rvol_min is not None:
         rvol = row["event_bar"].rvol
@@ -238,12 +268,16 @@ def check_side(
     side_config: dict[str, Any],
     horizon_bars: int,
     cost_bps: float,
+    control_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Check one side and compare the filtered set with the event control."""
+    """Check one side and compare the filtered set with the event or bar control."""
     candidates = _non_overlapping(rows, horizon_bars)
     direction_rows = [row for row in candidates if _passes_direction(row, side, side_config)]
     filtered_rows = [row for row in direction_rows if _passes_filter(row, side, side_config)]
-    control = _stats(direction_rows, side, cost_bps)
+    if control_rows is None:
+        control = _stats(direction_rows, side, cost_bps)
+    else:
+        control = _stats(_non_overlapping(control_rows, horizon_bars), side, cost_bps)
     filtered = _stats(filtered_rows, side, cost_bps)
     underpowered = filtered["n"] < MIN_EVENTS or control["n"] < MIN_EVENTS
     survives = (
@@ -284,11 +318,16 @@ def build(config: dict[str, Any], out: Path, repo_root: Path) -> dict[str, Any]:
     rows = event_rows(
         bundle, event_code, from_ts, to_ts, horizon_bars, confirmation_bars
     )
+    control_rows = (
+        bar_rows(bundle, from_ts, to_ts, horizon_bars)
+        if config.get("control") == "bars"
+        else None
+    )
     sides = config.get("sides", {})
     if not sides:
         raise CheckError("the check config must declare at least one side")
     results = [
-        check_side(rows, side, side_config, horizon_bars, cost_bps)
+        check_side(rows, side, side_config, horizon_bars, cost_bps, control_rows)
         for side, side_config in sorted(sides.items())
     ]
     verdicts = {result["verdict"] for result in results}
@@ -305,6 +344,7 @@ def build(config: dict[str, Any], out: Path, repo_root: Path) -> dict[str, Any]:
         "event_code": event_code,
         "horizon_bars": horizon_bars,
         "confirmation_bars": confirmation_bars,
+        "control": config.get("control", "event"),
         "cost_bps": cost_bps,
         "from": config["from"],
         "to": config["to"],

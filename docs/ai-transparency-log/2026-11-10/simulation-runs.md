@@ -167,3 +167,41 @@
 - Six runs are complete; the entry families tested do not produce a positive
   screen. The remaining decision is whether Batch 3 is worth running or the
   campaign should stop and redesign.
+
+## Entry 5 — Batch 3 and synthesis
+
+### Intent and boundary
+
+- Complete SIM-07–SIM-10 and synthesize the ten-run campaign.
+- No model, strategy, execution, or portfolio change. No validation or holdout
+  access.
+
+### Work performed
+
+- Added the RSI-zone and all-bars control filters to the check.
+- SIM-07: 32 windows, 122 marks; long −0.1180%, short +0.0516% (hit 42.4%);
+  `no_pattern`.
+- SIM-08: 32 windows, 100 marks; bullish divergence long **survives** the
+  all-bars control (n=466, +0.0786%, hit 54.1% versus −0.0276% and 48.7%, 4 of 6
+  half-years); bearish short `no_pattern`.
+- SIM-09: 19 windows, 82 marks; check 5/12 climax and 1/0 absorption;
+  `underpowered`; the floor was not lowered.
+- SIM-10: `blocked`; the M1.3 report has no session block, so codes 144/145 are
+  zero in every year. Did not substitute `level.break`.
+- Wrote the Batch 3 report, the campaign synthesis, and the SIM08-BULL-DIV
+  hypothesis note.
+
+### Verification
+
+- `python3 -m unittest discover -s tools/simulation -p 'test_*.py'`: 45 tests
+  pass after the RSI-zone and all-bars control additions.
+- The run records include the check subdirectories and the decisions.
+- The survivor is a screen only; no strategy config was written.
+
+### Learning and corrections
+
+- The event-only divergence needs an all-bars control; the event-control design
+  would compare the event with itself. The `control: "bars"` option was added.
+- The survivor is one of ten runs and several checks; the multiple-testing
+  correction is mandatory and the effect is small.
+- SIM-09 and SIM-10 are recorded as underpowered and blocked rather than forced.
