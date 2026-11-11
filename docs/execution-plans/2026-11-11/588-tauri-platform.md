@@ -1,6 +1,6 @@
 # Tauri Platform — Local-First Solo Research Workstation
 
-- Status: In Progress
+- Status: Verified
 - Date: 2026-11-11 (UTC)
 - Issue: #588 (container), #593 (definition)
 - Claim type: ADR (Architecture Decision)
@@ -146,7 +146,7 @@ current scope is solo/local; team collaboration is a stated future increment.
 | P3D | Desktop UI | Linux install; core workflow; no account | E2E + clean install | pass | 7 unit, 1 E2E, 4 backend; Ubuntu deb launch | Pass | Agent | 2026-11-11 | Phase 3.4 |
 | P3E | Distribution | AppImage/deb, checksums, static page | installer smoke | pass | 2 bundles, 2 checksums, site check | Pass | Agent | 2026-11-11 | Phase 3.5 |
 | P4 | Course PDFs | Three architecture PDFs and six methodology PDFs | `build_pdfs.sh`; review | readable | 9 PDFs built; release readiness recorded | Pass | Agent | 2026-11-11 | Phase 4 |
-| P5 | Final closure | All rows pass; demo reproducible; cleanup | full gate; board | complete | Pending | Pending | — | — | |
+| P5 | Final closure | All rows pass; demo reproducible; cleanup | full gate; board | complete | `v0.9.0` published at `57f5663`; deb, AppImage, and checksums verified; phase worktrees and branches removed | Pass | Agent | 2026-11-11 | Release closure |
 
 ## 9. Risks and recovery
 

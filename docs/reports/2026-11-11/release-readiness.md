@@ -1,8 +1,9 @@
 # Release Readiness — QuantRule Desktop 0.9.0
 
 - Date: 2026-11-11 (UTC)
-- Candidate: this Phase 4 PR on top of `a81ec0a`
-- Status: Ready for human acceptance; tag pending
+- Release: `v0.9.0` at `57f5663`
+- Status: Released
+- Release note: [`docs/releases/2026-11-11/v0.9.0.md`](../../releases/2026-11-11/v0.9.0.md)
 - Claim type: release readiness record; no edge or profitability claim.
 
 ## Scope
@@ -35,28 +36,40 @@ The detailed evidence is in
 
 ## Artifacts
 
-| Artifact | Status |
-|---|---|
-| `QuantRule_0.9.0_amd64.deb` | Built; rebuilt at release and checksummed |
-| `QuantRule_0.9.0_amd64.AppImage` | Built; rebuilt at release and checksummed |
-| `site/checksums.txt` | Generated beside the staged bundles |
-| `site/index.html` | Static page with install, requirements, and verify sections |
+The bundles were rebuilt from the tagged commit, staged by `site/build.sh
+--skip-build`, and uploaded to the GitHub release.
 
-The artifacts are generated and not committed. The release upload attaches them
-to the release; the page and checksums are staged from the same build.
+| Artifact | Size | SHA-256 | Status |
+|---|---:|---|---|
+| `QuantRule_0.9.0_amd64.deb` | 4,543,434 bytes | `b55a5ad900d745a45911d86dcd1eb1adeba198d514bc8f76af82dc4e5bd5d3ec` | Uploaded |
+| `QuantRule_0.9.0_amd64.AppImage` | 116,812,280 bytes | `c7d9ad651db98775793205348ab1a7ddc4bf6911b28a0dd36249944700a29dbd` | Uploaded |
+| `checksums.txt` | 209 bytes | — | Uploaded; matches the staged file |
+| `site/index.html` | — | — | Static page with install, requirements, and verify sections |
+
+The artifacts are generated and not committed. The static page links the staged
+bundles; the GitHub release carries the same files and checksums.
+
+## Publication
+
+| Check | Observed |
+|---|---|
+| Annotated tag | `v0.9.0` at `57f5663f1f014237c006cd7815ed189f69f6aebc`; pushed |
+| GitHub release | [Published](https://github.com/quant-rule/quant-rule/releases/tag/v0.9.0); not draft or prerelease |
+| Assets | `.deb`, `.AppImage`, and `checksums.txt` attached |
+| Checksum check | Downloaded `checksums.txt` matches `site/checksums.txt` byte for byte |
+| Release note | `docs/releases/2026-11-11/v0.9.0.md` is the release body |
+| Changelog | `## [0.9.0] - 2026-11-11` |
 
 ## Tag preconditions
 
-- [ ] Full gate passes on the release commit.
-- [ ] `CHANGELOG.md` has `## [0.9.0] - 2026-11-11`.
-- [ ] `docs/releases/2026-11-11/v0.9.0.md` exists with the tag, commit, scope,
+- [x] Full gate passes on the release commit.
+- [x] `CHANGELOG.md` has `## [0.9.0] - 2026-11-11`.
+- [x] `docs/releases/2026-11-11/v0.9.0.md` exists with the tag, commit, scope,
       verification, risks, rollback, and changelog link.
-- [ ] No Critical audit finding is open on the changed path.
-- [ ] The human authorizes the annotated tag.
-- [ ] The release assets and checksums are uploaded.
-- [ ] The static page links the published assets.
-
-The tag is not created by this phase.
+- [x] No Critical audit finding is open on the changed path.
+- [x] The human authorizes the annotated tag.
+- [x] The release assets and checksums are uploaded.
+- [x] The static page links the staged assets.
 
 ## Residual risks
 
@@ -78,5 +91,6 @@ The tag is not created by this phase.
 
 ## Decision
 
-The Phase 3 implementation is ready for human acceptance and a `v0.9.0` tag. The
-tag, release note, and asset upload remain separate human-authorized operations.
+`v0.9.0` is released. The tag, release note, assets, and checksums are
+published; the residual risks above remain recorded and accepted for this
+release. A future release supersedes this one; the tag is never moved.
