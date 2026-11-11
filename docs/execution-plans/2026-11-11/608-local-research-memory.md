@@ -3,7 +3,7 @@
 - Date: 2026-11-11 (UTC)
 - Issue: [#608](https://github.com/quant-rule/quant-rule/issues/608)
 - Parent plan: [`588-tauri-platform.md`](588-tauri-platform.md)
-- Status: Approved
+- Status: In Review
 - Claim type: Behaviour Claim
 - Owner: Human
 - Workflow: Execution Plan
@@ -85,23 +85,23 @@ Excluded:
 | 5 | Tests and edge cases | Test | `src/memory/tests.rs` |
 | 6 | Docs, changelog, AI log | Implementation | `docs/`, `CHANGELOG.md` |
 
-## Verification
+## Verification table
 
 Commands are run from the task worktree with
 `CARGO_TARGET_DIR=/home/zantgo/Proyectos/quant-rule/target`.
 
-| ID | Plan item | Acceptance criterion | Evidence or command | Expected | Observed | Status | Reviewer | Date | Notes |
+| ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Dependency | Bundled SQLite builds | `cargo check -p quantrule-app` | pass | Pending | Pending | — | — | |
-| V2 | Schema | v1 tables and version exist | `cargo test -p quantrule-app memory::` | pass | Pending | Pending | — | — | |
-| V3 | Migrations | Reopen is idempotent | memory migration test | pass | Pending | Pending | — | — | |
-| V4 | CRUD | Every record type round-trips | memory CRUD tests | pass | Pending | Pending | — | — | |
-| V5 | Null | Null metric is not zero | memory metric test | pass | Pending | Pending | — | — | |
-| V6 | Export | Same state, same bytes | memory export test | pass | Pending | Pending | — | — | |
-| V7 | Import | Export/import round-trip | memory import test | pass | Pending | Pending | — | — | |
-| V8 | Backup | Backup/restore round-trip | memory backup test | pass | Pending | Pending | — | — | |
-| V9 | Integrity | Orphan rows are rejected | memory foreign-key test | pass | Pending | Pending | — | — | |
-| V10 | Gate | Full workspace gate | fmt, clippy, test, doc, checkers | pass | Pending | Pending | — | — | |
+| V1 | Dependency | Bundled SQLite builds | `cargo check -p quantrule-app`; rusqlite 0.42 bundled builds | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V2 | Schema | v1 tables and version exist | `cargo test -p quantrule-app memory::`; 22 tests | pass | 22 passed | Pass | Agent | 2026-11-11 | Human review pending |
+| V3 | Migrations | Reopen is idempotent | schema migration tests; reopen and newer-version refusal | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V4 | CRUD | Every record type round-trips | CRUD and ordered-query tests; every record type | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V5 | Null | Null metric is not zero | null metric and zero metric test; integer precision test | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V6 | Export | Same state, same bytes | two exports compared byte for byte | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V7 | Import | Export/import round-trip | export/import round-trip and non-empty-target refusal | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V8 | Backup | Backup/restore round-trip | `VACUUM INTO` backup and restore round-trip | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V9 | Integrity | Orphan rows are rejected | orphan and cross-workspace rejection tests | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V10 | Gate | Full workspace gate | fmt, clippy, test, doc, repository checkers | pass | 1,476 passed, 8 ignored; checkers pass | Pass | Agent | 2026-11-11 | Human review pending |
 
 ## Risks and recovery
 

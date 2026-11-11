@@ -33,6 +33,7 @@ pub mod date;
 pub mod error;
 pub mod export;
 pub mod fingerprint;
+pub mod memory;
 pub mod pipeline;
 pub mod service;
 pub mod workspace;

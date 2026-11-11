@@ -44,7 +44,7 @@ The Rust workspace holds one crate per pipeline stage plus a shared application 
 - `crates/quantrule-data` — the data engine.
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
 - `crates/quantrule-backtest` — the execution, portfolio, and generic strategy engines, which depend on `quantrule-model` and `quantrule-data`. The runner and the multi-timeframe strategy context are implemented.
-- `crates/quantrule-app` — the application service: workspace, dataset, configuration, model run, and export. It depends on the three engine crates and is called by the shell and, in Phase 3, by the desktop UI.
+- `crates/quantrule-app` — the application service: workspace, dataset, configuration, model run, export, and local research memory. It depends on the three engine crates and is called by the shell and, in Phase 3, by the desktop UI.
 - `crates/quantrule-shell` — the command shell, which depends on `quantrule-app`, `quantrule-model`, `quantrule-backtest`, and `quantrule-data`.
 
 The research engine (`quantrule-analytics`) was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.

@@ -180,9 +180,9 @@ guarantee; release notes are the record for released runs.
 | Item | Observed |
 |---|---|
 | Workspace | Five crates; version 0.3.0; edition 2024; Rust 1.99.1 pinned |
-| Size | The structural report scans `src`: 216 Rust source files and 68,883 lines. The complete tree, including integration and inline tests, is 257 files and 81,690 lines; the shell is 18,247 lines across 68 files and the application service is 7,370 lines across 24 files. |
+| Size | The structural report scans `src`: 222 Rust source files and 71,581 lines. The complete tree, including integration and inline tests, is 263 files and 84,388 lines; the shell is 18,247 lines across 68 files and the application service is 10,068 lines across 30 files. |
 | Largest file | 973 lines at the preflight; the file-size gate remains at 1,000 |
-| Tests | The full workspace suite passes: 1,452 passed, 0 failed, 8 ignored; the file-size and structural gates pass |
+| Tests | The full workspace suite passes: 1,476 passed, 0 failed, 8 ignored; the file-size and structural gates pass |
 | Model report | The `report model` bundle over a fixture run |
 | Unsafe | Forbidden at every crate root |
 

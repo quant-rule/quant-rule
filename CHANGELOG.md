@@ -28,6 +28,11 @@ are not treated as releases.
   run validation, model-run summaries, and deterministic run-summary export. The
   command shell and the future desktop UI call the same service; `run check` now
   goes through it.
+- The local research memory: `quantrule.research-memory/v1` over bundled SQLite,
+  with workspace, dataset, config, run, metric, claim, and note records, ordered
+  queries, deterministic JSON export/import, and consistent backup/restore.
+  `AppService::record_run` writes a validated run and its workspace, dataset, and
+  configuration in one call.
 
 ### Changed
 

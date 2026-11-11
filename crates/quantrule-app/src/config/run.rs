@@ -26,6 +26,9 @@ use super::model;
 use super::portfolio;
 use super::read::{self, ROOT};
 
+/// The current run schema.
+pub const RUN_SCHEMA: &str = "quantrule.run/v3";
+
 /// One validated run, ready for the pipeline.
 #[derive(Debug, Clone)]
 pub struct RunConfig {
@@ -246,7 +249,7 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             "output_root",
         ],
     )?;
-    read::schema(file, object, "quantrule.run/v3")?;
+    read::schema(file, object, RUN_SCHEMA)?;
 
     Ok(RunFile {
         name: read::non_empty_string(file, "$.name", read::field(file, ROOT, object, "name")?)?
