@@ -54,6 +54,9 @@ are not treated as releases.
   tests a range-fraction stop/target geometry for cost feasibility against a
   published compression range and ATR. It writes only an evaluation report and
   no strategy or portfolio artifact.
+- A fresh-onset 5m breakout screen (`tools/research/breakout_edge.py`) with nine
+  fixture tests and the SR13 development record. The 6-bar pooled result is
+  negative; no candidate and 2024 remains closed.
 - Undo for the click annotator: `Ctrl+Z`, `Cmd+Z`, or the **Undo** button
   reverses the last save or delete in the current server session.
 

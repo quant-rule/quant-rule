@@ -40,3 +40,19 @@ python3 tools/research/event_edge.py --spec <signal.json> --model <model-bundle>
 
 `test_event_edge.py` covers spec validation, the event-identity parsing, the
 window matching, the direction filter, and the control output.
+
+`breakout_edge.py` implements the SR13 fresh-onset 5m rule: the first strict
+close outside the accepted onset range within a fixed window, entry at the next
+bar open, and fixed-horizon returns with no stop, target, halt, or position
+state. It reconstructs the rule from the model bundle and reports the
+unconditional, fade, random-direction, back-lag, non-coiling placebo, and
+compression-only controls. It is a diagnostic and writes only JSON and Markdown.
+
+```sh
+python3 tools/research/breakout_edge.py --model <model-bundle> --out <dir> \
+  --window 3 --horizons 1,3,6,12 --primary 6 --cost-bps 6 --stress-bps 9 --seed 0
+```
+
+`test_breakout_edge.py` covers the long and short break, the strict boundary,
+window expiry, next-onset supersession, gap-open entry, end-of-series safety,
+the non-overlapping sample, and the statistics.

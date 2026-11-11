@@ -1,7 +1,7 @@
 # Run Index
 
-- Date: 2026-11-08 (UTC)
-- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, the SR1.x stopped compression-breakout fade, the SR2.x dual-design no-edge run, the SR2-A BTCUSD robustness audit, the SR2/SR3 feature programme, the SR4 multi-instrument stack fade, the SR5 absorption count gate, the SR6 VWAP rejection development run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, and the SR9 15m structure campaign appended
+- Date: 2026-11-10 (UTC)
+- Status: Committed snapshot; v3 history retained from the pre-reset store, with the v4, compression, 4 ATR, range, and strategy gates, the M2.x development swarm, the M3.x underpowered preflight, the M4.x no-edge development swarm, the MR5.x no-edge grid, the MR6.x no-edge ordered-confirmation grid, the MR7.x no-edge opening-range sweep grid, the SR1.x stopped compression-breakout fade, the SR2.x dual-design no-edge run, the SR2-A BTCUSD robustness audit, the SR2/SR3 feature programme, the SR4 multi-instrument stack fade, the SR5 absorption count gate, the SR6 VWAP rejection development run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the SR13 5m onset-breakout screen appended
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 The local `data/improvement/` store was reset after the 2026-11-03 records, so
@@ -66,6 +66,7 @@ view for the local store.
 | `STRATEGY-2026-11-01-13` | 2026-11-01 | strategy | v7 level-fade BTCUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-003-comparison.md) |
 | `STRATEGY-2026-11-01-14` | 2026-11-01 | strategy | v7 level-fade ETHUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-003-comparison.md) |
 | `STRATEGY-2026-11-01-15` | 2026-11-01 | strategy | v7 level-fade XAUUSD | strategy | model, portfolio | MODEL-2026-11-01-01..04 | `strategy_validation` | not green | [comparison](2026-11-01/STRATEGY-003-comparison.md) |
+| `STRATEGY-2026-11-10-01` | 2026-11-10 | strategy | 5m fresh-onset compression breakout continuation; raw-edge screen | strategy | model, portfolio | — | `strategy_dev` | no edge | [record](2026-11-10/SR13.md) |
 
 ### Research analyses
 
