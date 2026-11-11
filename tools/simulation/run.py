@@ -31,6 +31,14 @@ from bundle import (
     parse_utc,
     validate_m13,
 )
+from data_root import (
+    DataRootError,
+    current_worktree,
+    guard_root,
+    is_inside,
+    resolve_root,
+    substitute,
+)
 from marks import MarkError, read_marks, validate_marks, write_marks
 from oracle import OracleSpec, oracle_for_window
 from render import LIGHT, DARK, RenderError, contact_sheet, render_windows
@@ -82,15 +90,16 @@ def load_config(path: Path) -> dict[str, Any]:
     return config
 
 
-def resolve_paths(config_path: Path, config: dict[str, Any]) -> tuple[list[Path], Path]:
-    """Resolve the bundle list and registry path relative to the config file."""
+def resolve_paths(config_path: Path, config: dict[str, Any], data_root: Path) -> tuple[list[Path], Path]:
+    """Resolve the bundle list and registry path against the data root."""
     base = config_path.parent
     raw = config.get("bundles", [config.get("bundle")])
     if not raw or any(not item for item in raw):
         raise RunError("provide bundle or a non-empty bundles list")
     bundles = []
     for item in raw:
-        path = Path(item)
+        value = substitute(item, data_root)
+        path = Path(value)
         if not path.is_absolute():
             path = (base / path).resolve()
         bundles.append(path)
@@ -188,7 +197,7 @@ def write_detail(path: Path, rows: list[dict[str, Any]]) -> None:
             writer.writerow({field: row.get(field) for field in fields})
 
 
-def write_reproduce(path: Path, config_path: Path, output: Path, config: dict[str, Any]) -> None:
+def write_reproduce(path: Path, config_path: Path, output: Path, config: dict[str, Any], data_root: Path) -> None:
     """Write the command and the input identity."""
     lines = [
         f"# Reproduce {config['run_id']}",
@@ -200,6 +209,7 @@ def write_reproduce(path: Path, config_path: Path, output: Path, config: dict[st
         "| Input | Value |",
         "|---|---|",
         f"| Run config | `{config_path}` |",
+        f"| Data root | `{data_root}` |",
         f"| Bundles | `{config.get('bundles', [config.get('bundle')])}` |",
         f"| Model | `M1.3` |",
         f"| Registry | `2026-11-10.2` |",
@@ -232,8 +242,10 @@ def write_decision(path: Path, run_id: str) -> None:
 def build(args: argparse.Namespace) -> dict[str, Any]:
     """Execute one run and return its manifest."""
     config_path = Path(args.run_config).resolve()
+    data_root = resolve_root(args.data_root)
+    guard_root(data_root, args.allow_worktree_data)
     config = load_config(config_path)
-    bundle_paths, registry_path = resolve_paths(config_path, config)
+    bundle_paths, registry_path = resolve_paths(config_path, config, data_root)
     codes, catalog = event_codes(config, registry_path)
     from_ts = parse_window(str(config["from"]), "from")
     to_ts = parse_window(str(config["to"]), "to")
@@ -244,6 +256,11 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     if config.get("strict_m13", True):
         validate_m13(bundle)
     out = Path(args.out).resolve()
+    if is_inside(out, current_worktree()) and not args.allow_worktree_data:
+        raise RunError(
+            f"the output {out} is inside the current worktree; "
+            "write to the external data root or pass --allow-worktree-data"
+        )
     if out.exists() and (out / "manifest.json").is_file() and not args.force:
         raise RunError(f"{out} already has a manifest; pass --force to replace it")
 
@@ -317,7 +334,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         catalog,
         {catalog[code] for code in codes},
     )
-    write_reproduce(out / "reproduce.md", config_path, out, config)
+    write_reproduce(out / "reproduce.md", config_path, out, config, data_root)
     write_decision(out / "decision.md", str(config["run_id"]))
 
     manifest_record = {
@@ -334,6 +351,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "label_window": {"from": config["from"], "to": config["to"]},
         "check_window": config.get("check_window", {"from": "2020-01-01", "to": "2022-12-31"}),
         "holdout_access": "none",
+        "data_root": str(data_root),
         "bundle": str(bundle_paths[0]),
         "bundles": [str(path) for path in bundle_paths],
         "seed": window_spec.seed,
@@ -374,11 +392,17 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-config", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--data-root", type=Path, help="persistent local data root")
+    parser.add_argument(
+        "--allow-worktree-data",
+        action="store_true",
+        help="allow data inside the current worktree (disposable runs only)",
+    )
     parser.add_argument("--force", action="store_true", help="replace an existing run manifest")
     args = parser.parse_args(argv[1:])
     try:
         result = build(args)
-    except (RunError, BundleError, SelectError, RenderError, MarkError) as error:
+    except (RunError, BundleError, SelectError, RenderError, MarkError, DataRootError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(f"wrote {result['run_id']} to {Path(args.out).resolve()}")

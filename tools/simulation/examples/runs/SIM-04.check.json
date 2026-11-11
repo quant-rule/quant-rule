@@ -1,0 +1,28 @@
+{
+  "schema": "quantrule.simulation-check/v1",
+  "run_id": "SIM-04.check",
+  "bundles": [
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2018/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2019/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2020/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2021/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2022/model"
+  ],
+  "data_version": "binance-spot-btcusdt-m1-2018-01-01_2022-12-31-v1",
+  "from": "2020-01-01",
+  "to": "2022-12-31",
+  "event": "level.break",
+  "horizon_bars": 20,
+  "confirmation_bars": 1,
+  "cost_bps": 6.0,
+  "sides": {
+    "long": {
+      "opposite_direction": true,
+      "close_back": true
+    },
+    "short": {
+      "opposite_direction": true,
+      "close_back": true
+    }
+  }
+}

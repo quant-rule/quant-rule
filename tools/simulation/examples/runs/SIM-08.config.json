@@ -1,0 +1,52 @@
+{
+  "schema": "quantrule.simulation-run/v1",
+  "run_id": "SIM-08",
+  "premise": "A regular RSI divergence at a confirmed major pivot reverses; the entry is the rejection after the pivot is confirmed.",
+  "bundles": [
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2018/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2019/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2020/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2021/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2022/model"
+  ],
+  "data_version": "binance-spot-btcusdt-m1-2018-01-01_2022-12-31-v1",
+  "timeframe": "15m",
+  "timeframe_secs": 900,
+  "from": "2018-01-01",
+  "to": "2019-12-31",
+  "events": [
+    "divergence.rsi_regular_bullish",
+    "divergence.rsi_regular_bearish"
+  ],
+  "window_bars": 400,
+  "candidate_zone": [
+    80,
+    120
+  ],
+  "max_windows": 32,
+  "min_windows": 30,
+  "seed": 0,
+  "overlap_bars": 40,
+  "studies": [
+    "ema",
+    "rsi"
+  ],
+  "zoom": true,
+  "zoom_bars": 30,
+  "oracle": {
+    "horizon_bars": 60,
+    "target_atr": 2.0,
+    "stop_atr": 1.0,
+    "bad_stop_atr": 1.5,
+    "bad_target_atr": 1.0,
+    "entry_offset_max": 1
+  },
+  "strict_m13": true,
+  "theme": "light",
+  "title": "BTCUSDT 15m M1.3",
+  "date": "2026-11-10",
+  "check_window": {
+    "from": "2020-01-01",
+    "to": "2022-12-31"
+  }
+}

@@ -28,6 +28,20 @@ The execution plan is
 `window_select.py` is not named `select.py` because a module of that name
 shadows the Python standard library `select` module used by `subprocess`.
 
+## Data root
+
+The persistent store is outside the repository and every worktree:
+`$QUANTRULE_DATA_ROOT` or `$HOME/quant-rule-data`. The simulation store is
+`<root>/simulation`, the cleanup archive is `<root>/worktree-archive`, and the
+run/check configs use a `{data_root}` placeholder.
+
+`run.py`, `check.py`, `meta.py`, and `exit_lab.py` accept `--data-root`. A
+linked worktree must not keep the only copy of persistent local data; writing
+inside the current worktree is refused unless `--allow-worktree-data` is
+explicitly passed. The cleanup guard
+[`tools/worktree_cleanup.py`](../worktree_cleanup.py) checks and archives
+`data/` before `git worktree remove`.
+
 ## One run
 
 ```bash
