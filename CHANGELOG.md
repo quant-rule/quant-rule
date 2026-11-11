@@ -13,6 +13,8 @@ are not treated as releases.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-11
+
 ### Added
 
 - The Binance BTCUSDT public-archive importer and coverage audit, with 96
