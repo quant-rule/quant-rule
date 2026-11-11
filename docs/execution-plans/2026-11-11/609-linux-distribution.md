@@ -3,7 +3,7 @@
 - Date: 2026-11-11 (UTC)
 - Issue: [#609](https://github.com/quant-rule/quant-rule/issues/609)
 - Parent plan: [`588-tauri-platform.md`](588-tauri-platform.md)
-- Status: In Progress
+- Status: In Review
 - Claim type: Outcome Claim
 - Owner: Human
 - Workflow: Release & Operations
@@ -94,15 +94,15 @@ Commands are run from the repository root unless noted.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Version | Desktop identity is 0.9.0 | version fields | 0.9.0 | Pending | Pending | — | — | |
-| V2 | Deb build | Tauri writes a deb | `npm run tauri build` | file exists | Pending | Pending | — | — | |
-| V3 | AppImage build | Tauri writes an AppImage | `npm run tauri build` | file exists | Pending | Pending | — | — | |
-| V4 | Page | Links and requirements present | `python3 site/check.py` | pass | Pending | Pending | — | — | |
-| V5 | Checksums | Hashes match artifacts | `python3 site/check.py --require-artifacts` | pass | Pending | Pending | — | — | |
-| V6 | Deb install | Package installs and launches | `dpkg-deb -x`; Xvfb | launch | Pending | Pending | — | — | |
-| V7 | AppImage | AppImage launches | Xvfb | launch | Pending | Pending | — | — | |
+| V1 | Version | Desktop identity is 0.9.0 | npm package, Tauri crate, Tauri config | 0.9.0 | 0.9.0 | Pass | Agent | 2026-11-11 | Human review pending |
+| V2 | Deb build | Tauri writes a deb | `npm run tauri build` | file exists | 4.33 MiB | Pass | Agent | 2026-11-11 | Human review pending |
+| V3 | AppImage build | Tauri writes an AppImage | `npm run tauri build` | file exists | 111.40 MiB | Pass | Agent | 2026-11-11 | Human review pending |
+| V4 | Page | Links and requirements present | `python3 site/check.py` | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V5 | Checksums | Hashes match artifacts | `./site/build.sh`; `sha256sum -c` | pass | 2 artifacts, 2 checksums | Pass | Agent | 2026-11-11 | Human review pending |
+| V6 | Deb install | Package extracts and launches | `ar`/`tar` extract; Xvfb | launch | exit 124 after 10s | Pass | Agent | 2026-11-11 | Full apt install in P3.6 |
+| V7 | AppImage | AppImage launches | Xvfb | launch | exit 124 after 10s | Pass | Agent | 2026-11-11 | Human review pending |
 | V8 | CI | Desktop job packages and checks | `.github/workflows/ci.yml` | pass | Pending | Pending | — | — | |
-| V9 | Gate | Full Rust and repository gate | root `cargo test`; checkers | pass | Pending | Pending | — | — | |
+| V9 | Gate | Full Rust and repository gate | root `cargo test`; checkers | pass | 1,476 passed, 8 ignored; checkers pass | Pass | Agent | 2026-11-11 | Human review pending |
 
 ## Risks and recovery
 

@@ -37,6 +37,10 @@ are not treated as releases.
   model run, research memory, export/backup, and settings over the application
   service. It has no account, network path, or domain computation. Frontend unit
   tests, Playwright browser E2E, and a native Xvfb launch smoke test cover it.
+- The Linux distribution path: desktop version `0.9.0`, Tauri `.deb` and
+  `.AppImage` bundles, a static download page at `site/`, SHA-256 checksums, and
+  `site/check.py` verification. The page is distribution only; no account,
+  backend, or cloud runtime.
 
 ### Changed
 
