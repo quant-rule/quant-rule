@@ -20,7 +20,9 @@ The execution plan is
 | `oracle.py` | Deterministic hindsight labeler: best good and most tempting bad entry per side |
 | `review.py` | Mark counts, MFE/MAE to the rule exit, candle-shape context, and the candidate-rule table |
 | `check.py` | Event study on the unmarked window: filtered vs. unfiltered control, 6 bps proxy, half-years |
-| `contact_sheet.py` | Not a separate file; `render.contact_sheet` builds the 3x4 sheet |
+| `meta.py` | SIM-01: label the human entries by their 50-bar path and check the EMA-stack / ATR cell |
+| `exit_lab.py` | SIM-03: fixed 2R, EMA20 trail, swing trail, time, and 1R partial on the same entries |
+| `contact_sheet.py` | Not a separate file; `render.contact_sheet` builds the 3x4 sheet from the zoom charts |
 | `run.py` | Orchestrates select -> render -> oracle -> review for one run |
 
 `window_select.py` is not named `select.py` because a module of that name
@@ -60,6 +62,31 @@ The chart manifest repeats `plot_left`, `plot_width`, `price_top`,
 `price_bottom`, `price_low`, `price_high`, `candles`, and the per-bar
 `[bar, timestamp, high, low]` rows. The existing click annotator can open the
 same `charts/` directory and correct the AI marks.
+
+## Meta-label (SIM-01)
+
+```bash
+python3 tools/simulation/meta.py \
+  --meta-config data/simulation/2026-11-10/SIM-01-meta-label/meta-config.json \
+  --out data/simulation/2026-11-10/SIM-01-meta-label
+```
+
+The human entries are mapped to the M1.3 bars by timestamp, labelled by their
+50-bar forward return, grouped by EMA stack and ATR ratio, and the best cell is
+checked as a context screen on 2020-2022. The human timing is not used in the
+check; the check asks whether the context alone holds.
+
+## Exit lab (SIM-03)
+
+```bash
+python3 tools/simulation/exit_lab.py \
+  --exit-config data/simulation/2026-11-10/SIM-03-exit-lab/exit-config.json \
+  --out data/simulation/2026-11-10/SIM-03-exit-lab
+```
+
+The entries are fixed. The lab simulates a fixed 2R bracket, an EMA20 trail, a
+swing trail, a time stop, and a 1R partial, then compares the mean net return
+and the captured part of the forward move. It never changes the entry.
 
 ## The check
 

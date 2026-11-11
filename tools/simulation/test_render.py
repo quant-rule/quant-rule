@@ -116,6 +116,7 @@ class RenderTest(unittest.TestCase):
             self.assertTrue((out / "contact-sheet.png").is_file())
         self.assertEqual(len(charts), 3)
         self.assertEqual(manifest["schema"], "quantrule.simulation-charts/v1")
+        self.assertTrue(charts[0]["zoom_file"].endswith("-zoom.png"))
 
 
 if __name__ == "__main__":

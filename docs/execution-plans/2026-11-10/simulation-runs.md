@@ -425,7 +425,7 @@ result in the run record.
 | 0.4 | 0 | Data store and README row | `data/simulation/README.md`; `data/README.md` | ☑ |
 | 0.5 | 0 | Worktree/branch on the M1.3 base | `git worktree list`; `feat/simulation-runs` based on `main` @ `56c2beb` | ☑ |
 | 0.6 | 0 | AI transparency log started | `docs/ai-transparency-log/2026-11-10/simulation-runs.md` | ☑ |
-| 1.1 | 1 | Harness modules exist | `tools/simulation/{bundle,window_select,render,marks,oracle,review,contact_sheet,run,check}.py` | ☑ |
+| 1.1 | 1 | Harness modules exist | `tools/simulation/{bundle,window_select,render,marks,oracle,review,contact_sheet,run,check,meta,exit_lab}.py` | ☑ |
 | 1.2 | 1 | Harness tests pass | `python3 -m unittest discover -s tools/simulation -p 'test_*.py'` | ☑ |
 | 1.3 | 1 | Selection is deterministic | Same seed -> identical `windows.json` | ☑ |
 | 1.4 | 1 | Render is deterministic | Same window -> identical PNG sha256 | ☑ |
@@ -439,12 +439,12 @@ result in the run record.
 | 2.5 | 2 | Sequence availability validated | Sequence events have `occurred_bar_index` != `available_bar_index` | ☑ |
 | 2.6 | 2 | Date range validated | No 2023–2025 rows | ☑ |
 | 2.7 | 2 | Report stored | `data/simulation/_data/M1.3-2018-2022/` | ☑ |
-| 3.1 | 3 | SIM-01 complete | Manifest, windows, marks, charts, review, decision | ☐ |
-| 3.2 | 3 | SIM-01 check | M1.3 two-condition split on 2020–2022 | ☐ |
+| 3.1 | 3 | SIM-01 complete | Manifest, windows, marks, charts, review, decision | ☑ |
+| 3.2 | 3 | SIM-01 check | M1.3 two-condition split on 2020–2022 | ☑ |
 | 3.3 | 3 | SIM-02 complete | Manifest, windows, marks, charts, review, decision | ☑ |
 | 3.4 | 3 | SIM-02 check | Rejection rule vs. proximity control on 2020–2022 | ☑ |
-| 3.5 | 3 | SIM-03 complete | Manifest, marks, charts, review, decision | ☐ |
-| 3.6 | 3 | SIM-03 check | Captured MFE and five-exit comparison on 2020–2022 | ☐ |
+| 3.5 | 3 | SIM-03 complete | Manifest, marks, charts, review, decision | ☑ |
+| 3.6 | 3 | SIM-03 check | Captured MFE and five-exit comparison on 2020–2022 | ☑ |
 | 3.7 | 3 | Batch 1 review recorded | Human review in the batch record | ☐ |
 | 4.1 | 4 | SIM-04 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |
 | 4.2 | 4 | SIM-05 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |

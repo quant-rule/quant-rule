@@ -89,3 +89,42 @@
   the next run needs a zoom panel.
 - The oracle's good/bad labels are forward-path outcomes; the context table is
   the only pre-exit discriminator, and it did not produce a positive screen.
+
+## Entry 3 — Batch 1 (SIM-01, SIM-02, SIM-03) and zoom
+
+### Intent and boundary
+
+- Complete Batch 1 after the human approved proceeding.
+- Add the zoom chart and the SIM-01/SIM-03 tools; no model, strategy, or engine
+  change.
+
+### Work performed
+
+- Added a zoom render around the candidate (±30 bars) and used it for the contact
+  sheet; the 400-bar context chart remains the mark-mapping surface.
+- Added `meta.py` for SIM-01 and `exit_lab.py` for SIM-03, with tests.
+- SIM-01: 810 human entries mapped; long 368 good / 120 bad, short 246 good / 76
+  bad; best cell short/bear/ATR>=1 (n=38); check `no_pattern` (filtered −0.12%
+  vs. control −0.09%, 1 positive half-year).
+- SIM-03: 101 label entries, 3,328 check entries; time exit least bad on the
+  check (long −0.02%, short −0.10%); fixed 2R and swing trail worse; verdict
+  `no_exit_rescue`.
+- Wrote `docs/reports/2026-11-11/simulation-batch-1.md` and updated the plan
+  checklist and tool README.
+
+### Verification
+
+- `python3 -m unittest discover -s tools/simulation -p 'test_*.py'`: 44 tests
+  pass.
+- `check_structure.py`, `check_workflows.py`, `check_changelog.py`, and link
+  checks pass after the report and workflow updates.
+- The SIM-01 and SIM-03 records include the commands and numbers in
+  `meta.md`/`meta-check.json` and `exit-lab.md`/`exit-lab.json`.
+
+### Learning and corrections
+
+- The zoom panel is necessary: the 400-bar chart hides the rejection wick.
+- The human marks are positive by construction; the context split is the real
+  test, and it did not generalise.
+- The exit lab shows the entry, not the exit, is the weak part. The next batch
+  should not search another exit threshold on the same entries.

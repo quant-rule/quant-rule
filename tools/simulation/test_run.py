@@ -71,6 +71,7 @@ class RunTest(unittest.TestCase):
             self.assertEqual(manifest["selected_count"], 3)
             self.assertFalse(manifest["underpowered"])
             self.assertEqual(manifest["holdout_access"], "none")
+            self.assertTrue(list((out / "charts").glob("*-zoom.png")))
             marks = (out / "marks-ai.csv").read_text(encoding="utf-8")
             self.assertIn("entry", marks)
             self.assertIn("exit", marks)

@@ -297,6 +297,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         studies,
         str(config.get("title", "BTCUSDT 15m")),
         theme,
+        zoom=bool(config.get("zoom", True)),
+        zoom_bars=int(config.get("zoom_bars", 30)),
     )
     marks = validate_marks(marks, charts)
     marks_path = out / "marks-ai.csv"
@@ -344,6 +346,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         },
         "oracle_spec": oracle_spec.__dict__,
         "studies": list(studies),
+        "zoom": bool(config.get("zoom", True)),
+        "zoom_bars": int(config.get("zoom_bars", 30)),
         "event_codes": list(codes),
         "event_names": [catalog[code] for code in codes],
         "selected_count": selection["selected_count"],

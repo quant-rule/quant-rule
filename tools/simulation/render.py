@@ -508,6 +508,43 @@ def render_window(
     }
 
 
+def render_zoom(
+    bundle: Bundle,
+    window: Window,
+    chart_name: str,
+    out_dir: Path,
+    run_id: str,
+    marks: list[dict[str, str]],
+    catalog: dict[int, str],
+    studies: tuple[str, ...] = DEFAULT_STUDIES,
+    title: str = "BTCUSDT 15m",
+    theme: Theme = LIGHT,
+    zoom_bars: int = 30,
+) -> dict[str, Any]:
+    """Render a narrow view around the candidate so the bar shape is legible."""
+    start = max(window.start_index, window.candidate_index - zoom_bars)
+    end = min(window.end_index, window.candidate_index + zoom_bars + 1)
+    zoom = Window(
+        window_id=f"{window.window_id}-zoom",
+        start_index=start,
+        end_index=end,
+        candidate_index=window.candidate_index,
+        events=window.events,
+    )
+    return render_window(
+        bundle,
+        zoom,
+        chart_name,
+        out_dir,
+        run_id,
+        marks,
+        catalog,
+        studies,
+        f"{title} · zoom",
+        theme,
+    )
+
+
 def render_windows(
     bundle: Bundle,
     windows_record: dict[str, Any],
@@ -518,6 +555,8 @@ def render_windows(
     studies: tuple[str, ...] = DEFAULT_STUDIES,
     title: str = "BTCUSDT 15m",
     theme: Theme = LIGHT,
+    zoom: bool = True,
+    zoom_bars: int = 30,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Render every selected window and write the chart manifest."""
     charts: list[dict[str, Any]] = []
@@ -549,6 +588,24 @@ def render_windows(
             title,
             theme,
         )
+        if zoom:
+            zoom_name = f"{run_id.lower()}-{window.window_id}-zoom.png"
+            zoom_record = render_zoom(
+                bundle,
+                window,
+                zoom_name,
+                out_dir,
+                run_id,
+                chart_marks,
+                catalog,
+                studies,
+                title,
+                theme,
+                zoom_bars,
+            )
+            chart["zoom_file"] = zoom_record["file"]
+            chart["zoom_sha256"] = zoom_record["sha256"]
+            chart["zoom_candles"] = zoom_record["candles"]
         charts.append(chart)
     charts.sort(key=lambda chart: (chart["start_time"], chart["window_id"]))
     manifest = {
@@ -557,6 +614,8 @@ def render_windows(
         "title": title,
         "theme": "light" if theme is LIGHT else "dark",
         "studies": list(studies),
+        "zoom": zoom,
+        "zoom_bars": zoom_bars,
         "charts": charts,
     }
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -573,11 +632,13 @@ def render_windows(
             "end_time",
             "candles",
             "sha256",
+            "zoom_file",
+            "zoom_sha256",
         ]
-        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         for chart in charts:
-            writer.writerow({field: chart[field] for field in fields})
+            writer.writerow({field: chart.get(field, "") for field in fields})
     return charts, manifest
 
 
@@ -604,16 +665,18 @@ def contact_sheet(
     )
     draw = ImageDraw.Draw(sheet)
     for index, chart in enumerate(charts):
-        image = Image.open(charts_dir / chart["file"]).convert("RGB")
+        file = chart.get("zoom_file") or chart["file"]
+        image = Image.open(charts_dir / file).convert("RGB")
         image.thumbnail((thumb_width, thumb_height))
         column = index % columns
         row = index // columns
         x = column * thumb_width
         y = row * (thumb_height + label_height)
         sheet.paste(image, (x, y))
+        suffix = " · zoom" if chart.get("zoom_file") else ""
         draw.text(
             (x + 8, y + thumb_height + 6),
-            f"{chart['window_id']} · {chart['candidate_time']}",
+            f"{chart['window_id']} · {chart['candidate_time']}{suffix}",
             fill=(31, 41, 51),
             font=font(20, bold=True),
         )
