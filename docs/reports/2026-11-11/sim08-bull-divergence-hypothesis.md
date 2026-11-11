@@ -1,7 +1,7 @@
 # SIM08-BULL-DIV — Strategy Research Hypothesis Note
 
 - Date: 2026-11-11 (UTC)
-- Status: Proposed; not pre-registered, not a strategy
+- Status: **Retired** — variant of a failed hypothesis; not pre-registered, not a strategy
 - Source run: `SIM-08` (`data/simulation/2026-11-10/SIM-08-divergence/`)
 - Model: `M1.3`, registry `2026-11-10.2`
 - Partition used: `strategy_dev` 2018–2022
@@ -98,3 +98,17 @@ explicit.
 
 Do not open 2024, do not tune the 20-bar horizon after seeing the check, and do
 not run another threshold search on the same event.
+
+
+## 7. Disposition
+
+- Date: 2026-11-11 (UTC)
+- Human instruction: continue.
+- No explicit override of the variant rule and no new premise/program was
+  supplied.
+- Default disposition applied: the candidate is **retired** as a variant of the
+  failed divergence-at-pivot programme. It is not a model baseline, not a
+  strategy hypothesis, and not a reason to open 2024.
+- The records remain for traceability. A future attempt requires a genuinely new
+  premise (different instrument, timeframe, or mechanism) and a new charter, or
+  an explicit methodology override by the human.

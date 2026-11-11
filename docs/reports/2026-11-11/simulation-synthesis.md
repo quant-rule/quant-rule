@@ -1,7 +1,7 @@
 # Simulation Campaign — Synthesis
 
 - Date: 2026-11-11 (UTC)
-- Status: Current; ten-run campaign complete; human acceptance pending
+- Status: **Closed — no edge**; ten-run campaign complete; the only candidate is retired
 - Model: `M1.3`, registry `2026-11-10.2`
 - Partition: `strategy_dev` 2018–2022; label 2018–2019; check 2020–2022
 - Claim type: exploratory campaign; one candidate screen; no edge claim
@@ -58,9 +58,24 @@ multiple-testing correction is mandatory. The hypothesis note is
 - No validation (2024) or holdout (2025) data was read.
 - SIM-09 is underpowered; SIM-10 is blocked.
 
-## 5. Next gate
+## 5. Disposition
 
-The candidate is blocked at the model baseline, not at the strategy rule.
+The only candidate, SIM08-BULL-DIV, is **retired**. It is a variant of the
+failed divergence-at-pivot programme (`PROGRAM-2026-11-04-01`), and the Model
+Research Workflow retires a variant rather than re-registering it. The 2021–2022
+model-validation window was observed by the check, so a later model validation
+would not be a clean one-shot. No strategy code, model run, or baseline is
+created.
+
+The campaign closes with no confirmed edge. This is a valid research outcome,
+not a failure of the process.
+
+## 6. Next gate
+
+A future attempt requires a genuinely new premise (different instrument,
+timeframe, or mechanism) and a new charter, or an explicit human override of the
+variant rule. The candidate is blocked at the model baseline, not at the
+strategy rule.
 `docs/improvement/baselines.md` records the divergence-at-pivot model programme
 (`PROGRAM-2026-11-04-01`) as not accepted — no edge. The strategy tier requires
 an accepted model baseline for the family the rule reads; that condition is not

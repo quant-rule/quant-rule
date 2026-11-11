@@ -467,3 +467,17 @@ result in the run record.
 | 7.5 | 7 | No model/strategy changes | Diff contains only tools, docs, data README | ☑ |
 | 7.6 | 7 | PR opened and merged | Human gate; PR links the plan and AI log | ☐ |
 | 7.7 | 7 | Worktree cleanup | After merge, per the section 9 cleanup exception | ☐ |
+
+
+## 14. Closeout — 2026-11-11
+
+- Campaign: ten simulation runs complete.
+- Result: six `no_pattern`, one `no_exit_rescue`, one `underpowered`, one
+  `blocked`, and one `candidate_screen` (SIM-08 bullish divergence long).
+- Disposition: the candidate is retired as a variant of the failed
+  divergence-at-pivot programme (`PROGRAM-2026-11-04-01`). No model or strategy
+  baseline is opened; no 2024 access.
+- Evidence: `docs/reports/2026-11-11/simulation-synthesis.md` and the three batch
+  reports.
+- Remaining gates: human review of the closeout and a PR decision. The worktree
+  and branch are retained because the task is not merged.
