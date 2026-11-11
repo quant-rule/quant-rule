@@ -101,9 +101,9 @@ page is distribution only: no account, backend, or cloud runtime.
 | Strategy configuration | `quantrule.strategy/v1`, both generic engines, and the decision record. | [`../config/2026-11-06/strategy-config.md`](../config/2026-11-06/strategy-config.md) |
 | Local research memory | `quantrule.research-memory/v1`, tables, export/import, and backup/restore. | [`../config/2026-11-11/research-memory-v1.md`](../config/2026-11-11/research-memory-v1.md) |
 | Qualification criteria | The human-owned criteria, verdict semantics, and human acceptance boundary. | [`../config/2026-11-06/qualification-criteria.md`](../config/2026-11-06/qualification-criteria.md) |
-| Model contract | The flat readings, discrete states, confirmed levels, events, progression, context, and the numeric output fields. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
+| Model contract | The flat readings, discrete states, confirmed levels, events, progression, context, and the numeric output fields. | [`../model/2026-11-10/model-m1.3.md`](../model/2026-11-10/model-m1.3.md) |
 | Run v3 and portfolio constraints | The current run composition and the portfolio constraints. | [`../config/2026-11-11/run-v3-and-portfolio-constraints.md`](../config/2026-11-11/run-v3-and-portfolio-constraints.md) |
-| Report command | The `report model` bundle artifacts and the flat result envelope. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
+| Report command | The `report model` bundle artifacts and the flat result envelope. | [`../model/2026-11-10/model-m1.3.md`](../model/2026-11-10/model-m1.3.md) |
 | Documentation index | The full documentation tree and the current architecture decisions. | [`../README.md`](../README.md) |
 
 ## Reading order
