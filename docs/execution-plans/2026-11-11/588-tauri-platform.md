@@ -1,6 +1,6 @@
 # Tauri Platform — Local-First Solo Research Workstation
 
-- Status: Approved
+- Status: In Progress
 - Date: 2026-11-11 (UTC)
 - Issue: #588 (container), #593 (definition)
 - Claim type: ADR (Architecture Decision)
@@ -137,14 +137,14 @@ current scope is solo/local; team collaboration is a stated future increment.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| P0 | Pre-Tauri tag | `v0.8.0` annotated and pushed | `git tag -n99 v0.8.0` | tag exists | Pending | Pending | — | — | |
-| P1 | Workflow v2 | Four stages, claim types, dates, review gate, plan table | `check_claims.py`, `check_execution_plans.py`, `check_workflows.py` | pass | Pending | Pending | — | — | |
-| P2 | Definition docs | Plan, ADR, course tree, kata, characteristics, contract | file review | complete | Pending | Pending | — | — | |
-| P3A | De-prop-firm | Run v3; policy gone; portfolio constraints kept | full gate; byte-identical rerun | pass | Pending | Pending | — | — | |
-| P3B | App service | CLI and UI share one application service | `cargo test` | pass | Pending | Pending | — | — | |
-| P3C | Local memory | SQLite CRUD, export/import, backup/restore | memory tests | pass | Pending | Pending | — | — | |
-| P3D | Desktop UI | Linux install; core workflow; no account | E2E + clean install | pass | Pending | Pending | — | — | |
-| P3E | Distribution | AppImage/deb, checksums, static page | installer smoke | pass | Pending | Pending | — | — | |
+| P0 | Pre-Tauri tag | `v0.8.0` annotated and pushed | `git tag -n99 v0.8.0` | tag exists | annotated tag exists | Pass | Agent | 2026-11-11 | Phase 0 |
+| P1 | Workflow v2 | Four stages, claim types, dates, review gate, plan table | `check_claims.py`, `check_execution_plans.py`, `check_workflows.py` | pass | pass | Pass | Agent | 2026-11-11 | Phase 1 |
+| P2 | Definition docs | Plan, ADR, course tree, kata, characteristics, contract | file review | complete | complete | Pass | Agent | 2026-11-11 | Phase 2 |
+| P3A | De-prop-firm | Run v3; policy gone; portfolio constraints kept | full gate; byte-identical rerun | pass | 1,476 passed, 8 ignored; run v3 | Pass | Agent | 2026-11-11 | Phase 3.1 |
+| P3B | App service | CLI and UI share one application service | `cargo test` | pass | app service tests pass; shell run check uses the service | Pass | Agent | 2026-11-11 | Phase 3.2 |
+| P3C | Local memory | SQLite CRUD, export/import, backup/restore | memory tests | pass | 22 memory tests pass | Pass | Agent | 2026-11-11 | Phase 3.3 |
+| P3D | Desktop UI | Linux install; core workflow; no account | E2E + clean install | pass | 7 unit, 1 E2E, 4 backend; Ubuntu deb launch | Pass | Agent | 2026-11-11 | Phase 3.4 |
+| P3E | Distribution | AppImage/deb, checksums, static page | installer smoke | pass | 2 bundles, 2 checksums, site check | Pass | Agent | 2026-11-11 | Phase 3.5 |
 | P4 | Course PDFs | Three architecture PDFs and six methodology PDFs | `build_pdfs.sh`; review | readable | Pending | Pending | — | — | |
 | P5 | Final closure | All rows pass; demo reproducible; cleanup | full gate; board | complete | Pending | Pending | — | — | |
 
