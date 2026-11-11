@@ -1,0 +1,33 @@
+{
+  "name": "quantrule-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 1420 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 1420 --strictPort",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tauri-apps/cli": "^2.12.4",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/svelte": "^5.4.2",
+    "@types/node": "^26.6.6",
+    "jsdom": "^31.0.0",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

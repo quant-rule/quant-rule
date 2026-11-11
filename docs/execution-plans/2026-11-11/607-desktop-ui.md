@@ -3,7 +3,7 @@
 - Date: 2026-11-11 (UTC)
 - Issue: [#607](https://github.com/quant-rule/quant-rule/issues/607)
 - Parent plan: [`588-tauri-platform.md`](588-tauri-platform.md)
-- Status: In Progress
+- Status: In Review
 - Claim type: Problem Claim
 - Owner: Human
 - Workflow: Execution Plan
@@ -99,16 +99,16 @@ Commands are run from `apps/desktop` unless noted.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Scaffold | Tauri and frontend dependencies install | `npm ci` | pass | Pending | Pending | — | — | |
-| V2 | Frontend | Unit tests pass | `npm test` | pass | Pending | Pending | — | — | |
-| V3 | Build | Frontend production build | `npm run build` | pass | Pending | Pending | — | — | |
-| V4 | Backend | Tauri crate tests pass | `cargo test --manifest-path src-tauri/Cargo.toml` | pass | Pending | Pending | — | — | |
-| V5 | Native build | Desktop binary builds | `npm run tauri build -- --no-bundle` | pass | Pending | Pending | — | — | |
-| V6 | Native launch | Window opens under Xvfb | `xvfb-run -a timeout 20 ./src-tauri/target/release/quantrule-desktop` | window starts | Pending | Pending | — | — | |
-| V7 | Browser E2E | Core flow passes with mocked IPC | `npm run test:e2e` | pass | Pending | Pending | — | — | |
-| V8 | CLI parity | Run-check view matches CLI | compare UI and `run check` fields | match | Pending | Pending | — | — | |
-| V9 | Offline | No account or network path | source scan | none | Pending | Pending | — | — | |
-| V10 | Gate | Full Rust and repository gate | root `cargo test`; checkers | pass | Pending | Pending | — | — | |
+| V1 | Scaffold | Tauri and frontend dependencies install | `npm ci` | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V2 | Frontend | Unit tests pass | `npm test` | pass | 7 passed | Pass | Agent | 2026-11-11 | Human review pending |
+| V3 | Build | Frontend production build | `npm run build` | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V4 | Backend | Tauri crate tests pass | `cargo test --manifest-path src-tauri/Cargo.toml` | pass | 4 passed | Pass | Agent | 2026-11-11 | Human review pending |
+| V5 | Native build | Desktop binary builds | `npm run tauri build -- --no-bundle` | pass | pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V6 | Native launch | Window opens under Xvfb | `xvfb-run -a timeout 10 ./src-tauri/target/release/quantrule-desktop` | window starts | exit 124 after 10s | Pass | Agent | 2026-11-11 | Human review pending |
+| V7 | Browser E2E | Core flow passes with mocked IPC | `npm run test:e2e` | pass | 1 passed | Pass | Agent | 2026-11-11 | Human review pending |
+| V8 | CLI parity | Run-check view matches CLI | desktop test vs `run check` fixture | match | fixture/EURUSD/test:v1/1m,5m,15m,1h/5m | Pass | Agent | 2026-11-11 | Human review pending |
+| V9 | Offline | No account or network path | source scan | none | no account or network command | Pass | Agent | 2026-11-11 | Human review pending |
+| V10 | Gate | Full Rust and repository gate | root `cargo test`; checkers | pass | 1,476 passed, 8 ignored; checkers pass | Pass | Agent | 2026-11-11 | Human review pending |
 
 ## Risks and recovery
 

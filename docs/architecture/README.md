@@ -69,8 +69,16 @@ path resolution; the engines receive validated values.
 | `ResearchMemory` | SQLite CRUD, ordered queries, logical export/import, and file backup/restore. |
 
 The shell calls the service for `run check`; the other commands call the same
-configuration and pipeline modules directly. The desktop UI will call the same
+configuration and pipeline modules directly. The desktop UI calls the same
 service rather than reimplementing path resolution.
+
+## Desktop UI
+
+[`apps/desktop`](../../apps/desktop) is a Tauri 2 host with a Svelte 5 frontend.
+It exposes workspace, data, configs, model run, research memory, export/backup,
+and settings. It has no account, no network path, and no domain computation;
+every command delegates to `quantrule-app`. Backtest, strategy, execution,
+portfolio, and analytics remain CLI operations.
 
 ## Documents
 

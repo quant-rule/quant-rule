@@ -33,6 +33,10 @@ are not treated as releases.
   queries, deterministic JSON export/import, and consistent backup/restore.
   `AppService::record_run` writes a validated run and its workspace, dataset, and
   configuration in one call.
+- The Tauri 2 + Svelte 5 desktop UI in `apps/desktop`: workspace, data, configs,
+  model run, research memory, export/backup, and settings over the application
+  service. It has no account, network path, or domain computation. Frontend unit
+  tests, Playwright browser E2E, and a native Xvfb launch smoke test cover it.
 
 ### Changed
 
