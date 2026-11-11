@@ -107,6 +107,7 @@ repeating a status.
 |---|---|---|
 | Run v3 and portfolio constraints | Current; `run v3`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
 | Local research memory | Current; `quantrule.research-memory/v1`, export v1, backup/restore | `docs/config/2026-11-11/research-memory-v1.md` |
+| Desktop UI | Current; Tauri 2 + Svelte 5 over the application service | `apps/desktop/README.md` |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |

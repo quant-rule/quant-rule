@@ -27,7 +27,7 @@ evidence. The style and quantum are recorded after the table.
 | Reproducibility | A fixed fixture run is byte-identical across repeated runs | Rerun comparison, golden fixtures | 5 | Determinism and byte-identical rerun tests |
 | Temporal integrity | No output at bar *t* changes when later bars are appended | Causality and prefix tests | 5 | Model, event, and strategy boundary tests |
 | Auditability | Every evidence bundle names data version, config hash, code commit, artifacts | Provenance schema check and export review | 4 | Model and stage provenance; research memory is new |
-| Testability (enabling) | Fast suite plus desktop E2E and installer smoke | `cargo test`, UI E2E, install test | 4 | 1,476 Rust tests; UI tests are new |
+| Testability (enabling) | Fast suite plus desktop E2E and installer smoke | `cargo test`, UI E2E, install test | 4 | 1,476 Rust tests; 7 frontend unit tests and 1 Playwright E2E |
 
 ## 4. Supporting characteristics
 

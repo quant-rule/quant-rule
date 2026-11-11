@@ -3,8 +3,8 @@
 QuantRule is a local, single-user, deterministic application for rule-based
 research on OHLCV candles. The current release is the command shell: you start it
 and type commands, and it prints or writes what the data and model engines produce.
-The desktop application is being built on the same application service; there is no
-account, no deployed service, and no cloud runtime.
+The desktop application lives in `apps/desktop` and calls the same application
+service; there is no account, no deployed service, and no cloud runtime.
 
 The current model is **M1.0**: a flat per-timeframe measurement of readings,
 discrete states, confirmed levels, events, progression, and context. It publishes
@@ -53,6 +53,22 @@ one command and exits with the command's status:
 ```bash
 ./target/release/quantrule candles crates/quantrule-shell/tests/fixtures/three.csv
 ```
+
+## Desktop
+
+The desktop UI is a local Tauri 2 application with a Svelte 5 frontend. It covers
+workspace, data, configs, model run, research memory, export/backup, and settings.
+Backtest, strategy, execution, portfolio, and analytics remain CLI operations.
+
+```bash
+cd apps/desktop
+npm ci
+npm run dev          # browser fixture backend
+npm run tauri dev    # native window
+```
+
+See [`apps/desktop/README.md`](apps/desktop/README.md) for the native build and
+test commands.
 
 ## Commands
 
@@ -261,6 +277,7 @@ for the shell fetch surface. Trade charts are rendered from recorded bundles wit
 | `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines |
 | `crates/quantrule-app` | Application service: workspace, dataset, configuration, model run, export, and local research memory |
 | `crates/quantrule-shell` | The command shell: parse, call the application service, and render |
+| `apps/desktop` | Tauri 2 + Svelte 5 desktop UI over the application service |
 | `tools/data/` | Binance archive importer and source coverage audit |
 | `tools/charts/` | Deterministic trade-chart renderer and click annotator |
 | `tools/trades/` | Per-trade 250-bar context, annotations, and exit-quality evaluation |
