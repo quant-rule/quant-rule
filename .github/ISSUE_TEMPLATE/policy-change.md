@@ -26,6 +26,8 @@ Done when:
 - [ ] The baselines are retired or superseded.
 - [ ] The changelog and AI log are present.
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow: [`docs/workflows/policy-change.md`](../../docs/workflows/policy-change.md)
 
 Prior records reviewed:

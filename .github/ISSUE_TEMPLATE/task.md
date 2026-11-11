@@ -15,6 +15,8 @@ Done when:
 - [ ] 
 - [ ] 
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow:
 - [ ] Audit
 - [ ] Refactor
@@ -25,6 +27,7 @@ Workflow:
 - [ ] Policy change
 - [ ] Data lifecycle
 - [ ] Requirements and design
+- [ ] Execution plan
 - [ ] Release and operations
 - [ ] Deprecation and retirement
 - [ ] Recordkeeping

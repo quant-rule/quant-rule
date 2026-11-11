@@ -30,6 +30,8 @@ Done when:
 - [ ] The closeout verdict is recorded.
 - [ ] The baseline or `no edge` is recorded.
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow:
 - Model: [`docs/workflows/model-research.md`](../../docs/workflows/model-research.md)
 - Strategy: [`docs/workflows/strategy-research.md`](../../docs/workflows/strategy-research.md)

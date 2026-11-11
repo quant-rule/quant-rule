@@ -22,6 +22,8 @@ Done when:
 - [ ] Golden fixtures and representative output are unchanged.
 - [ ] The named structural metric improved.
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow: [`docs/workflows/refactor-workflow.md`](../../docs/workflows/refactor-workflow.md)
 
 Prior records reviewed:

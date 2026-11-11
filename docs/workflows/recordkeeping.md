@@ -29,7 +29,7 @@ to the original.
 | Data change | `docs/config/` + `data/partitions.json` | `DATA-<date>-NN` | Data Steward | Proposed, Validated, Active, Superseded, Invalidated |
 | Release | `docs/releases/<date>/<tag>.md` | tag | Release Verifier | Planned, Ready, Released, Rolled back, Superseded |
 | Deprecation | `docs/registry/history.md` + deprecation record | `DEP-<date>-NN` | Planner | Proposed, Approved, Deprecated, Removed, Superseded |
-| Execution plan | `docs/execution-plans/<date>/<issue>-<slug>.md` | issue/slug | Planner | Proposed, Approved, Verified, Superseded |
+| Execution plan | `docs/execution-plans/<date>/<issue>-<slug>.md` | issue/slug | Planner | Proposed, Approved, In Progress, In Review, Verified, Superseded |
 | AI transparency | `docs/ai-transparency-log/<date>/<issue>-<slug>.md` | work item | Orchestrator | append-only |
 | Changelog | `CHANGELOG.md` | release version | Implementer | grouped by release; released sections immutable |
 | Invalidation | `docs/improvement/INVALIDATIONS.md` | run/baseline/artifact | Reviewer + human | append-only |
@@ -61,7 +61,33 @@ to the original.
 - A run whose `results.json` records `ok: false` is `failed`, not partially
   successful.
 
-## 5. Append-only rules
+## 5. Board fields and claim types
+
+Every issue and pull request carries one claim type:
+
+| Claim type | Meaning |
+|---|---|
+| `Problem Claim` | Consequential user friction that exists independently of the software. |
+| `Behaviour Claim` | A verifiable system rule, action, or state change. |
+| `Outcome Claim` | A measurable real-world impact after the software is used. |
+| `ADR (Architecture Decision)` | A recorded structural choice, its context, and its trade-offs. |
+
+The board fields are:
+
+| Field | Owner | Rule |
+|---|---|---|
+| `Status` | Agent | `Todo`, `In Progress`, `In Review`, `Done` |
+| `Item type` | Automation | `Issue` or `Pull request` |
+| `State` | Automation | `Open` or `Closed` |
+| `Claim Type` | Agent | Required; one of the four values |
+| `Start date` | Agent, automation backfill | Set on the first `Todo -> In Progress`; never overwritten |
+| `Closed date` | Agent, automation backfill | Set on `In Review -> Done`; cleared when the item reopens |
+
+A missing claim type is a defect. The issue stays in `Todo` and is flagged for
+repair. The review gate is `In Review`; `Done` follows human acceptance, merge,
+acceptance-criteria verification, and worktree cleanup.
+
+## 6. Append-only rules
 
 - Never overwrite, rename, move, or delete a historical record.
 - A correction is a dated addendum that links to the original.
@@ -72,7 +98,7 @@ to the original.
 - The changelog is append-only per release. A released section is not rewritten;
   a correction is a new release or a dated addendum in the next release.
 
-## 6. Cross-index rules
+## 7. Cross-index rules
 
 - `docs/README.md` is the global status index.
 - `docs/workflows/README.md` is the workflow index.
@@ -85,7 +111,7 @@ to the original.
 - A policy or data change links its impact analysis, affected baselines, and
   re-baseline sequence.
 
-## 7. AI transparency
+## 8. AI transparency
 
 Record material AI contributions in
 `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md`, one file per work
@@ -93,7 +119,7 @@ item. Each entry records the date and tool, the intent and boundary, the
 verification and evidence, and the learning, including rejected or corrected
 suggestions. Never invent test results or omit failed checks.
 
-## 8. Changelog
+## 9. Changelog
 
 [`CHANGELOG.md`](../../CHANGELOG.md) is the grouped release history. It records
 meaningful user-facing or developer-facing changes under `## [Unreleased]` and
@@ -108,16 +134,20 @@ release or a dated addendum in the next release. The changelog starts at the
 2026-11-07 workflow documentation reset; earlier release notes are in
 [`docs/releases/`](../releases/).
 
-## 9. Verification
+## 10. Verification
 
 - `python3 tools/check_workflows.py` checks the workflow index and status.
+- `python3 tools/check_execution_plans.py` checks the current plan structure and
+  the reviewer verification table.
+- `python3 tools/check_claims.py` checks the issue and pull-request templates and
+  the normative claim-type section.
 - `python3 tools/check_changelog.py` checks the grouped release structure, allowed
   types, and release order.
 - `python3 tools/check_links.py` checks every relative link.
 - `python3 tools/check_terms.py` and `python3 tools/check_legacy.py` reject
   retired terms and labels.
 
-## 10. Related documents
+## 11. Related documents
 
 - [`docs/workflows/README.md`](README.md)
 - [`docs/README.md`](../README.md)

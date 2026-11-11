@@ -13,6 +13,14 @@ are not treated as releases.
 
 ## [Unreleased]
 
+### Added
+
+- The four-stage development workflow: `Todo`, `In Progress`, `In Review`, and
+  `Done`, with a required claim type, start and close dates, a human review gate,
+  and an execution-plan verification table that the reviewer checks row by row.
+  The new `check_claims.py` and `check_execution_plans.py` gates cover the
+  templates and current plans.
+
 ## [0.8.0] - 2026-11-11
 
 ### Added

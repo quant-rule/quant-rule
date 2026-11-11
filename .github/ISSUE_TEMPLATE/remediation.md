@@ -13,6 +13,8 @@ Done when:
 - [ ] The `CHANGELOG.md` release entry (or the reason none is needed) and the AI transparency entry are present.
 - [ ] No unrelated changes.
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow: [`docs/workflows/audit-workflow.md`](../../docs/workflows/audit-workflow.md)
 
 Prior records reviewed:

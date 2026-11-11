@@ -24,6 +24,8 @@ Done when:
 - [ ] The human authorizes the release.
 - [ ] The recovery path is stated.
 
+Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)
+
 Workflow: [`docs/workflows/release-operations.md`](../../docs/workflows/release-operations.md)
 
 Prior records reviewed:
