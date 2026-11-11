@@ -287,7 +287,7 @@ Gate: human review of the batch.
 
 ### Phase 6 — Synthesis and gate
 
-1. Write `docs/reports/2026-11-10/simulation-synthesis.md`: each run's premise,
+1. Write `docs/reports/2026-11-11/simulation-synthesis.md`: each run's premise,
    sample, pattern, check result, and decision.
 2. Rank survivors by simplicity (at most two conditions), sample size,
    stability across 2020–2022, and check evidence.
@@ -455,11 +455,11 @@ result in the run record.
 | 5.3 | 5 | SIM-09 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
 | 5.4 | 5 | SIM-10 complete and checked | Manifest, marks, charts, review, decision, check; session block recorded | N/A |
 | 5.5 | 5 | Batch 3 review recorded | Human review in the batch record | ☐ |
-| 6.1 | 6 | Synthesis report | `docs/reports/2026-11-10/simulation-synthesis.md` | ☑ |
+| 6.1 | 6 | Synthesis report | `docs/reports/2026-11-11/simulation-synthesis.md` | ☑ |
 | 6.2 | 6 | Survivor Strategy Research notes | One note per survivor with costs and pre-registration | ☑ |
-| 6.3 | 6 | Registry update only if accepted | `docs/improvement/` entry; no baseline unless accepted | ☐ |
-| 6.4 | 6 | Changelog entry | `CHANGELOG.md` under `## [Unreleased]` | ☐ |
-| 6.5 | 6 | AI transparency log complete | Decisions, corrections, evidence, rejected suggestions | ☐ |
+| 6.3 | 6 | Registry update only if accepted | `docs/improvement/` entry; no baseline unless accepted | N/A |
+| 6.4 | 6 | Changelog entry | `CHANGELOG.md` under `## [Unreleased]` | ☑ |
+| 6.5 | 6 | AI transparency log complete | Decisions, corrections, evidence, rejected suggestions | ☑ |
 | 7.1 | 7 | Repo checks pass | `check_structure.py`, `check_workflows.py`, `check_changelog.py`, `check_command_surface.py` | ☑ |
 | 7.2 | 7 | Existing tool tests pass | `tools/trades`, `tools/charts` unittest suites | ☑ |
 | 7.3 | 7 | Rust regression passes | `cargo test` | ☑ |
