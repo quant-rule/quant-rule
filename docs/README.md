@@ -161,7 +161,7 @@ criteria are explicit command arguments; the run schema stays
 | Simulation data loss audit | Local store lost in worktree cleanup; finding `Verified`; residual nested-target false positive | [`docs/audits/2026-11-11/simulation-data-loss-audit.md`](audits/2026-11-11/simulation-data-loss-audit.md) |
 | Simulation store recovery | Store regenerated at `/home/zantgo/quant-rule-data/simulation`; committed numbers reproduced | [`docs/reports/2026-11-11/simulation-recovery.md`](reports/2026-11-11/simulation-recovery.md) |
 | Tauri Platform implementation verification | Phase 3 gate pass; P0–P3E; clean deb, offline, determinism, memory | [`docs/reports/2026-11-11/implementation-verification.md`](reports/2026-11-11/implementation-verification.md) |
-| Desktop 0.9.0 release readiness | Ready for human acceptance; tag pending; gate, artifacts, and risks recorded | [`docs/reports/2026-11-11/release-readiness.md`](reports/2026-11-11/release-readiness.md) |
+| Desktop 0.9.0 release readiness | Released; `v0.9.0` tag, assets, and checksums published | [`docs/reports/2026-11-11/release-readiness.md`](reports/2026-11-11/release-readiness.md) |
 | Simulation campaign synthesis | Closed — no edge; ten runs; one candidate screen retired under the variant rule | [`docs/reports/2026-11-11/simulation-synthesis.md`](reports/2026-11-11/simulation-synthesis.md) |
 | SIM08-BULL-DIV hypothesis | Retired; variant of the failed divergence-at-pivot programme; no edge claim | [`docs/reports/2026-11-11/sim08-bull-divergence-hypothesis.md`](reports/2026-11-11/sim08-bull-divergence-hypothesis.md) |
 | SR10 EMA/Fibonacci exit study | Stopped early; 2018 primary failed; no candidate; 2024 closed | [`docs/improvement/2026-11-10/SR10.md`](improvement/2026-11-10/SR10.md) |
