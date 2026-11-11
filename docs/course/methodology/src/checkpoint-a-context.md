@@ -24,14 +24,17 @@ Windows and macOS.
 
 ## Evidence
 
-- The current shell run is deterministic; `cargo test` passes 1,443 tests.
-- `v0.8.0` freezes the pre-Tauri surface.
-- Phase 3 will provide the installer and the end-to-end demo.
+- The current run is deterministic; `cargo test` passes 1,476 tests.
+- `v0.8.0` freezes the pre-Tauri surface; Phase 3 is verified at `a81ec0a`.
+- The Linux `.deb` installs in Ubuntu 24.04 and launches under Xvfb; the AppImage
+  launches with the network namespace removed.
+- The Phase 3 report records the end-to-end evidence.
 
 ## Limit
 
-The evidence is single-user and historical. It does not prove adoption, team
-collaboration, or future profitability.
+The evidence is single-user and historical. The native UI flow is not
+WebDriver-driven, and the clean install is containerized. It does not prove
+adoption, team collaboration, or future profitability.
 
 ## Decision
 

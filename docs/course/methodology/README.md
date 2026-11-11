@@ -1,6 +1,6 @@
 # Methodology Deliverables
 
-- Status: Draft for the Tauri Platform
+- Status: Final; submission-ready
 - Course: CM0639 Development Methodologies
 - Claim type: Outcome Claim
 - Plan: [`docs/execution-plans/2026-11-11/588-tauri-platform.md`](../../execution-plans/2026-11-11/588-tauri-platform.md)

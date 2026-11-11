@@ -31,14 +31,18 @@ failures, and recover the local workspace without a cloud service.
 
 ## Evidence
 
-- Installer smoke test on a clean Linux environment.
-- Backup/restore test.
-- Offline test.
-- Checksums match the download page.
+- Ubuntu 24.04 container: the `.deb` installs and launches under Xvfb.
+- The AppImage launches with `bwrap --unshare-net`.
+- Research-memory export/import and backup/restore tests pass.
+- `site/check.py --require-artifacts` matches both bundles and both SHA-256
+  checksums.
+- The Phase 3 report is
+  [`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md).
 
 ## Limit
 
-There is no cloud backup and no team recovery. The team cloud is future work.
+There is no cloud backup, auto-update, or team recovery. The native UI is not
+WebDriver-driven. The team cloud is future work.
 
 ## Decision
 

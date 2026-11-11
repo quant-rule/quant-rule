@@ -17,8 +17,8 @@ same result can be reproduced. The product's value is trust, not prediction.
 
 - Primary user: a solo researcher with local OHLCV data on Linux.
 - Secondary user: a course evaluator who installs the app and reproduces a run.
-- First increment: local workspace, data import, configs, one backtest, local
-  research memory, analytics, and a Linux installer.
+- First increment: local workspace, data import, configs, model run, local
+  research memory, a Linux installer, and the CLI backtest/analytics path.
 - Non-goals: accounts, team cloud, cloud compute, live trading, prop-firm rules.
 
 ## Method
@@ -31,12 +31,16 @@ start and close date. The human review gate is `In Review`.
 ## Evidence
 
 - `v0.8.0` is the last pre-Tauri release.
-- The deterministic Rust pipeline passes 1,443 tests.
-- Phase 3 will add the desktop UI, local research memory, Linux installer, and
-  end-to-end evidence.
+- Phase 3 is verified at `a81ec0a`: 1,476 Rust tests, 7 frontend unit tests, 1
+  Playwright E2E, 4 desktop backend tests, a clean Debian install, an offline
+  AppImage launch, deterministic model runs, and 22 research-memory tests.
+- The Phase 3 report is
+  [`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md).
 
 ## Limitations
 
-- The desktop product is not yet implemented.
+- The browser E2E uses a fixture backend; the native launch smoke does not drive
+  the UI.
+- The clean install is containerized, not bare-metal Ubuntu.
 - The evidence is historical; it does not establish future profitability.
 - No team collaboration is claimed.

@@ -26,18 +26,18 @@ evidence. The style and quantum are recorded after the table.
 |---|---|---|---|---|
 | Reproducibility | A fixed fixture run is byte-identical across repeated runs | Rerun comparison, golden fixtures | 5 | Determinism and byte-identical rerun tests |
 | Temporal integrity | No output at bar *t* changes when later bars are appended | Causality and prefix tests | 5 | Model, event, and strategy boundary tests |
-| Auditability | Every evidence bundle names data version, config hash, code commit, artifacts | Provenance schema check and export review | 4 | Model and stage provenance; research memory is new |
-| Testability (enabling) | Fast suite plus desktop E2E and installer smoke | `cargo test`, UI E2E, install test | 4 | 1,476 Rust tests; 7 frontend unit tests and 1 Playwright E2E |
+| Auditability | Every evidence bundle names data version, config hash, code commit, artifacts | Provenance schema check and export review | 5 | Model/stage provenance, versioned run summaries, and research memory |
+| Testability (enabling) | Fast suite plus desktop E2E and installer smoke | `cargo test`, UI E2E, install test | 5 | 1,476 Rust tests, 7 frontend unit tests, 1 Playwright E2E, 4 desktop backend tests, clean install |
 
 ## 4. Supporting characteristics
 
 | Characteristic | Target | Measurement | Current score (1–5) |
 |---|---|---|---|
 | Modularity | One crate per pipeline stage plus a shared application service; no dependency cycles | Crate graph and structural checker | 5 |
-| Deployability | Clean Linux install in under five minutes | Installer smoke test | 3 (new) |
+| Deployability | Clean Linux install in under five minutes | Installer smoke test | 4 | AppImage/deb build; Ubuntu container install and launch |
 | Evolvability | Versioned configs and research-memory schema | Contract and migration tests | 4 |
 | Cost | No cloud bill; static download site | Hosting and infrastructure inventory | 5 |
-| Local security | No engine network calls; data stays local | Offline test and network isolation | 4 |
+| Local security | No engine network calls; data stays local | Offline test and network isolation | 5 |
 
 ## 5. Deliberately not optimized
 
@@ -75,7 +75,19 @@ are not current drivers.
 
 ## 9. Evidence
 
-- `cargo test --workspace`: 1,443 passed, 0 failed, 8 ignored at `v0.8.0`.
-- Repository checks: structure, file size, links, terms, command surface.
-- The desktop UI, installer, and local research memory are Phase 3 evidence and
-  are not yet implemented.
+- `cargo test --workspace`: 1,476 passed, 0 failed, 8 ignored.
+- Desktop: `npm run check` clean; 7 unit tests; 1 Playwright E2E; 4 backend tests.
+- Linux: `.deb` and `.AppImage` build; the deb installs in Ubuntu 24.04 and
+  launches under Xvfb; the AppImage launches with the network namespace removed.
+- Determinism: repeated model bundles and `run check` output are byte-identical.
+- Research memory: 22 tests cover schema, migrations, CRUD, export/import, and
+  backup/restore.
+- Repository checks: structure, file size, links, terms, command surface,
+  workflows, changelog, releases, registry, validation, and verification.
+- The Phase 3 verification report is
+  [`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md).
+
+The scores are course evidence, not a claim of universal quality. Deployability
+is 4 because the clean install is containerized and no bare-metal install has
+been run; local security is 5 for the current scope because the engines have no
+network path and the desktop app launches offline.
