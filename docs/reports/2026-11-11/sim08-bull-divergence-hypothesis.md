@@ -70,14 +70,29 @@ The SIM-08 check used 2020–2022 as a strategy-tier screen. 2021–2022 is also
 has been observed. A later model research validation on 2021–2022 would not be a
 clean one-shot. This is a recorded limitation, not a validation claim.
 
-## 5. Required next steps
+## 5. Variant rule
 
-1. Human decides the gate: open a Model Research pre-registration for the
-   divergence family, or retire the family as no edge.
-2. If Model Research is opened, the pre-registration records the 2021–2022
-   observation and the validation limitation before any new run.
-3. Strategy Research opens only after the model baseline for the divergence
-   family is accepted; then the normal pre-registration, feasibility preflight,
+The candidate is also a variant of a failed hypothesis. The
+divergence-at-pivot model programme (`PROGRAM-2026-11-04-01`) tested the regular
+and hidden bullish/bearish divergence at 15m and did not pass the model gate.
+SIM-08 uses the same event family, instrument, and timeframe with a different
+exit. The Model Research Workflow (§4.2) says: "A variant of a failed hypothesis
+is retired, not re-registered."
+
+The default disposition is therefore retirement, not a new model charter. A new
+program would need a genuinely new premise (for example, a different instrument,
+timeframe, or mechanism) and a new charter, not the same event with a new exit.
+A human override of the variant rule is a methodology change and must be
+explicit.
+
+## 6. Required next steps
+
+1. Human decides the disposition: retire the divergence family as no edge, or
+   explicitly approve a new premise/program outside the variant rule.
+2. If a new program is approved, the charter records the 2021–2022 observation
+   and the validation limitation before any new run.
+3. Strategy Research opens only after a model baseline for the new family is
+   accepted; then the normal pre-registration, feasibility preflight,
    development, freeze, and one-shot validation apply.
 4. No strategy code or config is written from this note.
 

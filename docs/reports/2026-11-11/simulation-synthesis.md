@@ -66,14 +66,14 @@ The candidate is blocked at the model baseline, not at the strategy rule.
 an accepted model baseline for the family the rule reads; that condition is not
 met.
 
-1. The human decides whether to open a Model Research pre-registration for the
-   divergence family or retire it.
-2. The SIM-08 check used 2020–2022, including the 2021–2022 model-validation
+1. The human decides the disposition: retire the divergence family, or
+   explicitly approve a new premise/program outside the variant rule.
+2. The SIM-08 candidate is a variant of the failed divergence-at-pivot programme
+   (`PROGRAM-2026-11-04-01`); the Model Research Workflow says a variant of a
+   failed hypothesis is retired, not re-registered.
+3. The SIM-08 check used 2020–2022, including the 2021–2022 model-validation
    window. The observation is recorded; a later model validation is not a clean
    one-shot.
-3. Strategy Research opens only after the model baseline is accepted, with the
-   normal pre-registration, feasibility, development, freeze, and one-shot
-   validation.
 4. Do not open 2024 from this report and do not write strategy code.
 
 ## 6. Records
