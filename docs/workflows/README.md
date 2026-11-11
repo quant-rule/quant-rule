@@ -43,7 +43,7 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 | [`policy-change.md`](policy-change.md) | Does the human-owned envelope change? | Governance | Historical | No; superseded by run v3 |
 | [`data-lifecycle.md`](data-lifecycle.md) | Is the input valid, versioned, and admissible? | Data | Current | Yes |
 | [`requirements-design.md`](requirements-design.md) | What should the new capability be? | Engineering upstream | Current | Yes |
-| [`execution-plan.md`](execution-plan.md) | How is a substantial change ordered and proven? | Engineering delivery | Current | Yes |
+| [`execution-plan.md`](execution-plan.md) | How is a substantial change ordered, delivered, reviewed, and cleaned up? | Engineering delivery | Current | Yes |
 | [`release-operations.md`](release-operations.md) | Is this safe to release and recover? | Engineering downstream | Current | Yes |
 | [`deprecation-retirement.md`](deprecation-retirement.md) | How is a surface removed without losing history? | Engineering lifecycle | Current | Yes |
 | [`recordkeeping.md`](recordkeeping.md) | Where is the evidence and what is its status? | Cross-cutting | Current | Yes |
@@ -61,7 +61,7 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 | An execution or portfolio mechanics hypothesis | [Portfolio Research](portfolio-research.md) |
 | A data source, version, or partition change | [Data Lifecycle](data-lifecycle.md) |
 | A new command, report, or capability | [Requirements & Design](requirements-design.md) |
-| A substantial multi-step change, or a reviewer checklist | [Execution Plan](execution-plan.md) |
+| A substantial multi-step change, delivery sequence, or reviewer checklist | [Execution Plan](execution-plan.md) |
 | A release, tag, rollback, or incident | [Release & Operations](release-operations.md) |
 | Retiring a model, event, command, or data source | [Deprecation & Retirement](deprecation-retirement.md) |
 | A record, ID, status, or changelog issue | [Recordkeeping](recordkeeping.md) |
@@ -87,7 +87,7 @@ DATA (versioned, validated) --> MODEL RESEARCH --> MODEL CHANGE (if needed) --> 
 
 Cross-cutting:
   Audit (defects) | Refactor (structure) | Requirements & Design (new capability)
-  Execution Plan (order, review checklist)
+  Execution Plan (order, delivery, review checklist)
   Release & Operations (release/incident) | Deprecation & Retirement (remove surface)
   Recordkeeping (records, IDs, changelog, AI log)
 ```
@@ -122,9 +122,15 @@ portfolio work. Data is outside the tiers but can invalidate a baseline.
 - **The board has four stages.** `Todo -> In Progress -> In Review -> Done`.
   `Start date` is set on `In Progress`; `Closed date` is set on `Done`. The review
   gate is `In Review`; `Done` follows human acceptance, merge, and cleanup.
-- **Every execution plan ends with a verification table.** The table is the
-  reviewer's checklist and a plan is not `Verified` until every row is `Pass` or
-  the human records an accepted exception.
+- **Every execution plan ends with a verification table.** The table has a row
+  for every work-breakdown phase, acceptance criterion, and closure step; it is
+  the reviewer's checklist, and a plan is not `Verified` until every row is
+  `Pass` or the human records an accepted exception.
+- **The board is append-only history.** No board item is deleted, archived,
+  removed, or bulk-cleaned. `Done` items stay after issue closure, merge, and
+  worktree cleanup; `Done` is terminal, and follow-up work is a new linked issue.
+- **Cleanup means worktrees and branches only.** It never touches the board or a
+  `Done` item.
 - **No behavior change by accident.** A workflow change that alters model or
   strategy behavior stops and routes to the Quant roles.
 - **No hidden legacy.** A current document does not describe a retired command,

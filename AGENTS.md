@@ -353,7 +353,7 @@ Every final response to the human ends with a single closing line stating what i
 - The line is **at most one phrase long**. A phrase, not a sentence: a sentence carries its own clause and can hide a second instruction inside it. Write `**Review PR #4**`, not `**Please review PR #4 and then confirm the board status before I move on.**`
 - The line states either the action required from the human, or that none is required.
 - When the work is complete and nothing is needed, the line says so: `**No action**`. Do not invent a pending action to fill the line.
-- A merged task is not complete while its worktree or local/remote branch remains. When cleanup remains, the closing line is `**Clean up**` (or an equally explicit cleanup phrase), never `No action`. Only after the worktree and branches are removed may a later response end with `**No action**`.
+- A merged task is not complete while its worktree or local/remote branch remains. When cleanup remains, the closing line is `**Clean up**` (or an equally explicit cleanup phrase), never `No action`. Only after the worktree and branches are removed may a later response end with `**No action**`. Cleanup means the worktree and branches; the `Done` board item is never removed.
 - When several actions are needed, name the single next one. The rest belong in the body of the response.
 - When the response is a blocking question, the question itself is the action, and the line states what the human needs to decide.
 - This rule governs the agent's own response to the human. The formats above govern artifacts written into the repository. Both apply to the same piece of work.
@@ -373,7 +373,7 @@ Creating a task branch and its worktree may be included in an approved execution
 - Deploying to any environment.
 - Deleting branches or performing destructive Git operations.
 
-**Merged-task cleanup is mandatory.** After a task's pull request has been accepted and merged and its acceptance criteria have been verified, the task is not complete until its worktree is removed and its local and remote task branches are deleted. This cleanup needs no separate authorization. Before cleanup, run `python3 tools/worktree_cleanup.py check <worktree>`. If it reports local data, run `python3 tools/worktree_cleanup.py archive <worktree> --dest <external-root>/worktree-archive` and record the archive manifest in the task record. Do not remove the worktree until the check passes; if a file cannot be classified, preserve the worktree and report a blocker instead of deleting anything. Do not report completion, "no action", or a clean handoff while a merged task's worktree or local/remote branch remains. The completion report says `Clean up` while cleanup remains; `No action` is reserved for after the worktree and branches are removed. The only exception is an explicit human instruction to retain it for a named follow-up; record that exception in the task record. Every other destructive Git operation keeps its gate.
+**Merged-task cleanup is mandatory.** After a task's pull request has been accepted and merged and its acceptance criteria have been verified, the task is not complete until its worktree is removed and its local and remote task branches are deleted. This cleanup needs no separate authorization. Cleanup removes the worktree and branches only; it never deletes, archives, removes, or edits a board item, and the `Done` item stays on the board as history. Before cleanup, run `python3 tools/worktree_cleanup.py check <worktree>`. If it reports local data, run `python3 tools/worktree_cleanup.py archive <worktree> --dest <external-root>/worktree-archive` and record the archive manifest in the task record. Do not remove the worktree until the check passes; if a file cannot be classified, preserve the worktree and report a blocker instead of deleting anything. Do not report completion, "no action", or a clean handoff while a merged task's worktree or local/remote branch remains. The completion report says `Clean up` while cleanup remains; `No action` is reserved for after the worktree and branches are removed. The only exception is an explicit human instruction to retain it for a named follow-up; record that exception in the task record. Every other destructive Git operation keeps its gate.
 
 The human remains responsible for final acceptance. A pull request may be merged by its author once the required checks pass; a separate approval review is not required. An AI may merge a pull request it authored when the human's current instruction explicitly requests the merge.
 
@@ -405,10 +405,10 @@ Rules for the lifecycle:
 - Set `Start date` once when the issue first enters `In Progress`. Do not
   overwrite it. If work stops and returns to `Todo`, keep the original start date
   and record the stop in a comment.
-- Set `Closed date` when the issue enters `Done`. If a `Done` item returns to
-  active work, clear `Closed date` and move it to `In Progress`.
-- If review requests changes, move the issue back to `In Progress` and keep the
-  original `Start date`.
+- Set `Closed date` when the issue enters `Done`. A `Done` item is terminal and
+  keeps its `Closed date`; follow-up work is a new issue linked to it.
+- If review requests changes before the item is `Done`, move the issue back to
+  `In Progress` and keep the original `Start date`.
 - One leaf issue is `In Progress` at a time unless the human explicitly
   authorizes parallel work. Several items may wait in `In Review`.
 - Moving an issue to `In Progress` requires no separate approval. Moving it to
@@ -428,8 +428,8 @@ Rules for the lifecycle:
 - The built-in workflow may mark an item `Done` when its issue is closed. Closing
   an issue before the review gate is a workflow defect; the correct close follows
   the `Done` transition.
-- If work stops, the issue returns to `Todo` unless it is genuinely still in
-  progress.
+- If work stops before the item is `Done`, the issue returns to `Todo` unless it
+  is genuinely still in progress.
 
 ### Audit, refactor, and improvement tracking
 
@@ -472,7 +472,8 @@ The board holds both the issue and the pull request that closes it. The human re
 - The `Claim Type` field carries exactly one of `Problem Claim`, `Behaviour Claim`, `Outcome Claim`, or `ADR (Architecture Decision)`. An item without a claim type is a defect; it stays in `Todo` and is flagged for repair.
 - An issue and its pull request share a title, so the board is read with `Item type` and `Claim Type` in view. `Labels` is a second signal in this repository, where issues carry labels and pull requests do not; that is a property of how issues are labelled rather than a rule, and nothing depends on it.
 - The `Status` field is the source of truth for the lifecycle. It has four options: `Todo`, `In Progress`, `In Review`, and `Done`.
-- The `Start date` field records the first `Todo -> In Progress` transition. The `Closed date` field records the `In Review -> Done` transition. Both are UTC dates. A `Done` item that reopens clears `Closed date`; a stopped item keeps `Start date`.
+- The `Start date` field records the first `Todo -> In Progress` transition. The `Closed date` field records the `In Review -> Done` transition. Both are UTC dates. A `Done` item keeps `Closed date` and is never reopened; a stopped item keeps `Start date`.
+- **The board is append-only history.** No agent, script, or automation may delete, archive, remove, or bulk-clean a board item, in any status, under any circumstances. `Done` items stay on the board after the issue closes, the pull request merges, and the task worktree and branches are removed. Worktree and branch cleanup never touches the board. The `Done` status option, the `Done` view, and the board's history fields are never deleted, renamed, or cleared. A `Done` item is terminal: it is not reopened or moved back to an earlier status; follow-up work is a new issue that links to it. A correction to a done item is a field edit or a comment, not a removal. The only board writes are field updates and comments.
 - The `All items` view lists every item in one table: open issues, closed issues, and pull requests. The `Board` view separates the same items across the four lifecycle columns. The `Review queue` view filters `Status = In Review`. The `Missing claim type` view filters an empty `Claim Type`.
 - A view that cannot be configured through the API is configured by the human in the browser. The `Timeline` view is one: the API sets its name and layout but not the date field its timeline is drawn from, so the human picks that axis, and the board's `Start date` and `Closed date` fields are what it draws.
 

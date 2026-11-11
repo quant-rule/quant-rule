@@ -13,6 +13,26 @@ are not treated as releases.
 
 ## [Unreleased]
 
+### Added
+
+- The board permanence checker (`tools/check_board_permanence.py`) and the
+  project-sync status test. CI rejects a delete or archive mutation in the board
+  automation and proves that `Done` stays terminal.
+
+### Changed
+
+- The project board is append-only history. A `Done` item is terminal and is
+  never deleted, archived, removed, bulk-cleaned, or moved back to an earlier
+  status; worktree and branch cleanup never touches the board.
+- `project-sync.sh` now keeps a `Done` leaf or container `Done` instead of
+  resetting an open leaf to `Todo` or recomputing a container when a child
+  reopens.
+- Execution plans now carry a delivery sequence and a verification table with a
+  row for every work-breakdown phase, acceptance criterion, and closure step. The
+  template names roles, dependencies, and affected paths, and the plan checker
+  rejects duplicate IDs, empty core cells, and unresolved rows on a `Verified`
+  plan.
+
 ## [0.9.0] - 2026-11-11
 
 ### Added
