@@ -1,8 +1,8 @@
 # Improvement Registry
 
 - Date: 2026-11-03 (UTC)
-- Updated: 2026-11-09 for the SR9 15m structure campaign
-- Status: Current committed record; `quantrule.improvement-run/v2` is current, v1 is historical; the SR1 strategy development run (`STRATEGY-2026-11-08-01`) was the first v2 run recorded; it stopped early as infeasible, the SR2 dual-design run (`STRATEGY-2026-11-08-02`) recorded no edge, the SR2-A BTCUSD robustness audit is recorded, the SR2/SR3 feature programme is recorded as a research analysis, SR4 recorded a BTC-only no-candidate, SR5 stopped as underpowered at the count gate, SR6 recorded a no-candidate VWAP rejection run, SR7 recorded a no-candidate BTC+ETH H3 cross-section, SR8 stopped the 2023 buffer as data-ineligible, SR8-A rejected the Dukascopy 2023 archive as flat placeholders, SR9 found the 15m structure campaign underpowered, and the Binance BTCUSDT cross-venue check did not reproduce the Dukascopy control lead
+- Updated: 2026-11-11 for the PROGRAM-2026-11-11-01 trend-pullback model gate
+- Status: Current committed record; `quantrule.improvement-run/v2` is current, v1 is historical; the SR1 strategy development run (`STRATEGY-2026-11-08-01`) was the first v2 run recorded; it stopped early as infeasible, the SR2 dual-design run (`STRATEGY-2026-11-08-02`) recorded no edge, the SR2-A BTCUSD robustness audit is recorded, the SR2/SR3 feature programme is recorded as a research analysis, SR4 recorded a BTC-only no-candidate, SR5 stopped as underpowered at the count gate, SR6 recorded a no-candidate VWAP rejection run, SR7 recorded a no-candidate BTC+ETH H3 cross-section, SR8 stopped the 2023 buffer as data-ineligible, SR8-A rejected the Dukascopy 2023 archive as flat placeholders, SR9 found the 15m structure campaign underpowered, the Binance BTCUSDT cross-venue check did not reproduce the Dukascopy control lead, and the PROGRAM-2026-11-11-01 trend-pullback model gate found no edge
 - Contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
 
 This directory is the committed record of improvement runs. The run folders

@@ -1,0 +1,14 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "trend-pullback-xau-2019-adx20",
+  "policy": "../../policies/policy-XAUUSD.json",
+  "data": "data.json",
+  "model": "../../model-adx20.json",
+  "execution": "../../execution-15m-6bps.json",
+  "portfolio": "../../portfolio-5pct-6bps.json",
+  "model_timeframes": [
+    "15m",
+    "1h"
+  ],
+  "output_root": "../../../../../data/trend-pullback/dev/xau-2019-adx20"
+}

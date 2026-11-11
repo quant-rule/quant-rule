@@ -1,0 +1,102 @@
+{
+  "schema": "quantrule.model-matrix/v1",
+  "partition": "dev",
+  "configs": [
+    "adx25",
+    "adx20"
+  ],
+  "primary_config": "adx25",
+  "sensitivity_config": "adx20",
+  "cells": [
+    {
+      "instrument": "BTCUSD",
+      "short": "btc",
+      "fold": 2018,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/btc-2018-adx25/model",
+        "adx20": "data/trend-pullback/dev/btc-2018-adx20/model"
+      }
+    },
+    {
+      "instrument": "BTCUSD",
+      "short": "btc",
+      "fold": 2019,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/btc-2019-adx25/model",
+        "adx20": "data/trend-pullback/dev/btc-2019-adx20/model"
+      }
+    },
+    {
+      "instrument": "BTCUSD",
+      "short": "btc",
+      "fold": 2020,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/btc-2020-adx25/model",
+        "adx20": "data/trend-pullback/dev/btc-2020-adx20/model"
+      }
+    },
+    {
+      "instrument": "ETHUSD",
+      "short": "eth",
+      "fold": 2018,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/eth-2018-adx25/model",
+        "adx20": "data/trend-pullback/dev/eth-2018-adx20/model"
+      }
+    },
+    {
+      "instrument": "ETHUSD",
+      "short": "eth",
+      "fold": 2019,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/eth-2019-adx25/model",
+        "adx20": "data/trend-pullback/dev/eth-2019-adx20/model"
+      }
+    },
+    {
+      "instrument": "ETHUSD",
+      "short": "eth",
+      "fold": 2020,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/eth-2020-adx25/model",
+        "adx20": "data/trend-pullback/dev/eth-2020-adx20/model"
+      }
+    },
+    {
+      "instrument": "XAUUSD",
+      "short": "xau",
+      "fold": 2018,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/xau-2018-adx25/model",
+        "adx20": "data/trend-pullback/dev/xau-2018-adx20/model"
+      }
+    },
+    {
+      "instrument": "XAUUSD",
+      "short": "xau",
+      "fold": 2019,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/xau-2019-adx25/model",
+        "adx20": "data/trend-pullback/dev/xau-2019-adx20/model"
+      }
+    },
+    {
+      "instrument": "XAUUSD",
+      "short": "xau",
+      "fold": 2020,
+      "partition": "model_dev",
+      "runs": {
+        "adx25": "data/trend-pullback/dev/xau-2020-adx25/model",
+        "adx20": "data/trend-pullback/dev/xau-2020-adx20/model"
+      }
+    }
+  ]
+}

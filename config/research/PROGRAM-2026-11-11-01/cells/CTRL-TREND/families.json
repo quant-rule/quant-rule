@@ -1,0 +1,14 @@
+[
+  {
+    "id": "trend_cont_15m_1h_trend",
+    "label": "15m trend continuation with 1h trend agreement",
+    "event_type": 3,
+    "subtype": 6,
+    "source": 16,
+    "context": {
+      "timeframe": "1h",
+      "ema_stack": "agree",
+      "adx_regime": 1
+    }
+  }
+]
