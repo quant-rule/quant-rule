@@ -446,9 +446,9 @@ result in the run record.
 | 3.5 | 3 | SIM-03 complete | Manifest, marks, charts, review, decision | ☑ |
 | 3.6 | 3 | SIM-03 check | Captured MFE and five-exit comparison on 2020–2022 | ☑ |
 | 3.7 | 3 | Batch 1 review recorded | Human review in the batch record | ☐ |
-| 4.1 | 4 | SIM-04 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |
-| 4.2 | 4 | SIM-05 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |
-| 4.3 | 4 | SIM-06 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |
+| 4.1 | 4 | SIM-04 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
+| 4.2 | 4 | SIM-05 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
+| 4.3 | 4 | SIM-06 complete and checked | Manifest, marks, charts, review, decision, check | ☑ |
 | 4.4 | 4 | Batch 2 review recorded | Human review in the batch record | ☐ |
 | 5.1 | 5 | SIM-07 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |
 | 5.2 | 5 | SIM-08 complete and checked | Manifest, marks, charts, review, decision, check | ☐ |

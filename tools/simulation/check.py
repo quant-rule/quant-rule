@@ -78,8 +78,13 @@ def event_rows(
     from_ts: int,
     to_ts: int,
     horizon_bars: int,
+    confirmation_bars: int = 0,
 ) -> list[dict[str, Any]]:
-    """Return one forward-path row per event in the check window."""
+    """Return one forward-path row per event in the check window.
+
+    ``confirmation_bars`` delays the entry past the event so a filter may read a
+    confirmation bar (for example, the bar that closes back inside a level).
+    """
     rows = []
     for event in bundle.events:
         if event.code != event_code:
@@ -90,7 +95,8 @@ def event_rows(
         event_bar = bundle.bars[index]
         if not from_ts <= event_bar.timestamp <= to_ts:
             continue
-        entry_index = index + 1
+        confirmation_index = index + 1
+        entry_index = index + 1 + confirmation_bars
         exit_index = entry_index + horizon_bars
         if entry_index >= len(bundle.bars) or exit_index >= len(bundle.bars):
             continue
@@ -99,6 +105,9 @@ def event_rows(
         rows.append(
             {
                 "event_bar": event_bar,
+                "direction": event.direction,
+                "reference": event.reference,
+                "confirmation_bar": bundle.bars[confirmation_index] if confirmation_bars else None,
                 "entry_index": entry_index,
                 "entry_time": entry.timestamp,
                 "exit_index": exit_index,
@@ -162,16 +171,47 @@ def _non_overlapping(rows: list[dict[str, Any]], horizon_bars: int) -> list[dict
     return selected
 
 
-def _passes_filter(row: dict[str, Any], side_config: dict[str, Any]) -> bool:
+def _passes_direction(row: dict[str, Any], side: str, side_config: dict[str, Any]) -> bool:
+    """Apply the optional direction mapping for an event-driven side."""
+    direction = row.get("direction")
+    if direction is None:
+        return True
+    if side_config.get("direction_only"):
+        if direction == 0:
+            return False
+        return (side == "long" and direction > 0) or (side == "short" and direction < 0)
+    if side_config.get("opposite_direction"):
+        if direction == 0:
+            return False
+        return (side == "long" and direction < 0) or (side == "short" and direction > 0)
+    return True
+
+
+def _passes_filter(row: dict[str, Any], side: str, side_config: dict[str, Any]) -> bool:
+    """Apply the event filters after the direction mapping."""
+    if not _passes_direction(row, side, side_config):
+        return False
+    ema_stack = side_config.get("ema_stack")
+    if ema_stack is not None and row["event_bar"].ema_stack != int(ema_stack):
+        return False
+    bucket = side_config.get("atr_bucket")
+    if bucket is not None:
+        ratio = row["event_bar"].atr_ratio
+        if ratio is None:
+            return False
+        if (bucket == "ge1") != (ratio >= 1.0):
+            return False
+    rvol_min = side_config.get("rvol_min")
+    if rvol_min is not None:
+        rvol = row["event_bar"].rvol
+        if rvol is None or rvol < float(rvol_min):
+            return False
     column = str(side_config.get("wick_column", ""))
     minimum = side_config.get("wick_min")
-    if minimum is None:
-        return True
-    value = row["event_bar"].value(column)
-    if value is None:
-        return False
-    if value < float(minimum):
-        return False
+    if minimum is not None:
+        value = row["event_bar"].value(column)
+        if value is None or value < float(minimum):
+            return False
     close_min = side_config.get("close_min")
     close_max = side_config.get("close_max")
     close_position = row["event_bar"].value("close_position")
@@ -179,6 +219,16 @@ def _passes_filter(row: dict[str, Any], side_config: dict[str, Any]) -> bool:
         return False
     if close_max is not None and (close_position is None or close_position > float(close_max)):
         return False
+    if side_config.get("close_back"):
+        confirmation = row.get("confirmation_bar")
+        reference = row.get("reference")
+        direction = row.get("direction")
+        if confirmation is None or reference is None or direction in (None, 0):
+            return False
+        if direction > 0 and not confirmation.close < reference:
+            return False
+        if direction < 0 and not confirmation.close > reference:
+            return False
     return True
 
 
@@ -191,8 +241,9 @@ def check_side(
 ) -> dict[str, Any]:
     """Check one side and compare the filtered set with the event control."""
     candidates = _non_overlapping(rows, horizon_bars)
-    filtered_rows = [row for row in candidates if _passes_filter(row, side_config)]
-    control = _stats(candidates, side, cost_bps)
+    direction_rows = [row for row in candidates if _passes_direction(row, side, side_config)]
+    filtered_rows = [row for row in direction_rows if _passes_filter(row, side, side_config)]
+    control = _stats(direction_rows, side, cost_bps)
     filtered = _stats(filtered_rows, side, cost_bps)
     underpowered = filtered["n"] < MIN_EVENTS or control["n"] < MIN_EVENTS
     survives = (
@@ -229,7 +280,10 @@ def build(config: dict[str, Any], out: Path, repo_root: Path) -> dict[str, Any]:
         to_ts,
         data_version=config.get("data_version"),
     )
-    rows = event_rows(bundle, event_code, from_ts, to_ts, horizon_bars)
+    confirmation_bars = int(config.get("confirmation_bars", 0))
+    rows = event_rows(
+        bundle, event_code, from_ts, to_ts, horizon_bars, confirmation_bars
+    )
     sides = config.get("sides", {})
     if not sides:
         raise CheckError("the check config must declare at least one side")
@@ -250,6 +304,7 @@ def build(config: dict[str, Any], out: Path, repo_root: Path) -> dict[str, Any]:
         "event": catalog.get(event_code, str(event_code)),
         "event_code": event_code,
         "horizon_bars": horizon_bars,
+        "confirmation_bars": confirmation_bars,
         "cost_bps": cost_bps,
         "from": config["from"],
         "to": config["to"],

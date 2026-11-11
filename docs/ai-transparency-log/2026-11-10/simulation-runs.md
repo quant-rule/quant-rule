@@ -128,3 +128,42 @@
   test, and it did not generalise.
 - The exit lab shows the entry, not the exit, is the weak part. The next batch
   should not search another exit threshold on the same entries.
+
+## Entry 4 — Batch 2 (SIM-04, SIM-05, SIM-06)
+
+### Intent and boundary
+
+- Complete Batch 2 with the failed-break, retest-hold, and trend-pullback
+  premises. No model, strategy, or engine change.
+
+### Work performed
+
+- Extended the check filter to support direction mapping, confirmation bars,
+  close-back, EMA stack, ATR bucket, and RVOL.
+- SIM-04: 32 windows, 116 marks; check long +0.0225% (n=419, hit 50.4%) vs.
+  control −0.0289% (hit 51.9%), one positive half-year; short −0.1468%;
+  `no_pattern`.
+- SIM-05: 32 windows, 122 marks; check long −0.1294% (n=137), short +0.0486%
+  (n=138, hit 42.0%, three half-years); `no_pattern`.
+- SIM-06: 32 windows, 100 marks; the EMA-stack filter equals the event at the
+  entry bar, so filtered equals control; long −0.0092%, short −0.0163%;
+  `no_pattern`.
+- Wrote `docs/reports/2026-11-11/simulation-batch-2.md` and updated the plan
+  checklist and docs index.
+
+### Verification
+
+- `python3 -m unittest discover -s tools/simulation -p 'test_*.py'`: 45 tests
+  pass, including the new direction/close-back filter test.
+- The three run records contain `manifest.json`, `review.md`, `check.md`,
+  `check.json`, and `decision.md`.
+
+### Learning and corrections
+
+- The close-back filter needs a confirmation bar; the check now delays the entry
+  by one bar and reads the confirmation close.
+- SIM-06's filter is the event itself; the check is a direction-only event
+  study, not a filter comparison. Recorded as a limitation, not a pattern.
+- Six runs are complete; the entry families tested do not produce a positive
+  screen. The remaining decision is whether Batch 3 is worth running or the
+  campaign should stop and redesign.

@@ -4,10 +4,11 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from bundle import Bar
-from check import _non_overlapping, check_side
+from check import _non_overlapping, _passes_direction, _passes_filter, check_side
 
 
 def event_bar(wick: float) -> Bar:
@@ -81,6 +82,32 @@ class CheckTest(unittest.TestCase):
         )
         self.assertEqual(result["filtered"]["n"], result["control"]["n"])
         self.assertEqual(result["verdict"], "no_pattern")
+
+
+    def test_direction_and_close_back_filters(self) -> None:
+        base = event_bar(0.2)
+        confirmation = replace(
+            base,
+            bar=1,
+            timestamp=base.timestamp + 900,
+            high=101.0,
+            low=98.5,
+            close=99.0,
+            raw={"lower_wick_ratio": "0.2", "close_position": "0.5"},
+        )
+        row = {
+            "event_bar": event_bar(0.2),
+            "direction": 1,
+            "reference": 100.0,
+            "confirmation_bar": confirmation,
+        }
+        self.assertTrue(_passes_direction(row, "long", {"direction_only": True}))
+        self.assertFalse(_passes_direction(row, "short", {"direction_only": True}))
+        self.assertTrue(_passes_direction(row, "short", {"opposite_direction": True}))
+        self.assertFalse(_passes_direction(row, "long", {"opposite_direction": True}))
+        self.assertTrue(_passes_filter(row, "short", {"opposite_direction": True, "close_back": True}))
+        self.assertTrue(_passes_filter(row, "short", {"opposite_direction": True, "ema_stack": 0}))
+        self.assertFalse(_passes_filter(row, "short", {"opposite_direction": True, "ema_stack": -1}))
 
     def test_cost_is_subtracted(self) -> None:
         result = check_side(
