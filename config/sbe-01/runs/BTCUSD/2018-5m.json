@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sbe-01-btcusd-2018-5m",
+  "policy": "../../policy-5m.json",
+  "data": "../../data/BTCUSD-2018.json",
+  "model": "../../../compression-range-onset/shared/model-range-onset.json",
+  "execution": "../../execution-5m-6bps.json",
+  "portfolio": "../../portfolio-5pct-6bps.json",
+  "model_timeframes": [
+    "5m"
+  ],
+  "output_root": "../../../../data/improvement/2026-11-10/SBE-01/artifacts/model/BTCUSD/2018"
+}
