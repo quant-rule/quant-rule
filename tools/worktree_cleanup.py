@@ -28,14 +28,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-DISPOSABLE_PREFIXES = (
-    "target/",
-    "__pycache__/",
-    ".venv/",
-    ".pytest_cache/",
-    ".mypy_cache/",
-    ".ruff_cache/",
-)
+DISPOSABLE_PREFIXES = ("target/",)
+DISPOSABLE_DIRECTORIES = {
+    "__pycache__",
+    ".venv",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+}
 DISPOSABLE_SUFFIXES = (".pyc", ".pyo")
 LOCAL_DATA_PREFIX = "data/"
 CLASSIFICATION_SCHEMA = "quantrule.worktree-cleanup/v1"
@@ -61,7 +61,7 @@ def _git(worktree: Path, *arguments: str) -> str:
 def _status_entries(worktree: Path) -> list[tuple[str, str]]:
     """Return (status, relative path) entries, including ignored files."""
     output = subprocess.run(
-        ["git", "-C", str(worktree), "status", "--porcelain=v1", "--ignored=matching", "-z"],
+        ["git", "-C", str(worktree), "status", "--porcelain=v1", "--ignored=matching", "--untracked-files=all", "-z"],
         check=True,
         capture_output=True,
     ).stdout
@@ -82,7 +82,10 @@ def _classify(path: str, status: str) -> str:
         return "tracked"
     if path.startswith(LOCAL_DATA_PREFIX):
         return "local_data"
+    parts = Path(path).parts
     if path.startswith(DISPOSABLE_PREFIXES) or path.endswith(DISPOSABLE_SUFFIXES):
+        return "disposable"
+    if any(part in DISPOSABLE_DIRECTORIES for part in parts):
         return "disposable"
     if status == "!!":
         return "blocker"

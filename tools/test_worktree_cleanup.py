@@ -75,6 +75,16 @@ class WorktreeCleanupTest(unittest.TestCase):
             self.assertTrue(manifest_path.is_file())
             self.assertEqual(json.loads(manifest_path.read_text())["file_count"], 1)
 
+    def test_nested_cache_is_disposable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = make_repo(root)
+            worktree = add_worktree(repo, root)
+            cache = worktree / "tools" / "__pycache__"
+            cache.mkdir(parents=True)
+            (cache / "x.pyc").write_bytes(b"cache")
+            self.assertEqual(inspect_worktree(worktree)["status"], "clean")
+
     def test_untracked_blocker(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
