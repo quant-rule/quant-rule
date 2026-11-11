@@ -50,6 +50,9 @@ are not treated as releases.
   the same forward and barrier measurements to a declared event identity and
   window, with an all-bars control. It rejects event subtypes the strategy
   engine cannot read.
+- A fresh-onset 5m breakout screen (`tools/research/breakout_edge.py`) with nine
+  fixture tests and the SR13 development record. The 6-bar pooled result is
+  negative; no candidate and 2024 remains closed.
 - Undo for the click annotator: `Ctrl+Z`, `Cmd+Z`, or the **Undo** button
   reverses the last save or delete in the current server session.
 

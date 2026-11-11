@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v2",
+  "name": "sr13-btcusd-2020-5m",
+  "policy": "../../policy-5m.json",
+  "data": "../../data/BTCUSD-2020.json",
+  "model": "../../model-onset-5m.json",
+  "execution": "../../execution-5m-6bps.json",
+  "portfolio": "../../portfolio-5pct-6bps.json",
+  "model_timeframes": [
+    "5m"
+  ],
+  "output_root": "../../../../data/improvement/2026-11-10/SR13/artifacts/model/BTCUSD/2020"
+}
