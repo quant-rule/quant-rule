@@ -29,6 +29,6 @@ pub use qualification::{Correction, CostModel, Dimension, MultipleTesting, Opera
 pub use qualification::{
     Criteria, Criterion, EvidenceArtifact, Partition, load as load_qualification,
 };
-pub use run::RunConfig;
+pub use run::{RUN_SCHEMA, RunConfig};
 pub use strategy::parse as parse_strategy;
 pub use strategy::{StrategyConfig, load as load_strategy};

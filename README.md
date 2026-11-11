@@ -259,7 +259,7 @@ for the shell fetch surface. Trade charts are rendered from recorded bundles wit
 | `crates/quantrule-data` | Data engine: normalization, ladder construction, ordering, gaps |
 | `crates/quantrule-model` | Model engine: readings, states, levels, events, progression, context, flat report |
 | `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines |
-| `crates/quantrule-app` | Application service: workspace, dataset, configuration, model run, and export |
+| `crates/quantrule-app` | Application service: workspace, dataset, configuration, model run, export, and local research memory |
 | `crates/quantrule-shell` | The command shell: parse, call the application service, and render |
 | `tools/data/` | Binance archive importer and source coverage audit |
 | `tools/charts/` | Deterministic trade-chart renderer and click annotator |

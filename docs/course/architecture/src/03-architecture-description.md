@@ -20,7 +20,7 @@ installers. A team cloud is future work.
 | Model engine | Readings, states, levels, events, progression, context | `crates/quantrule-model` |
 | Backtest engine | Strategy, execution, portfolio, benchmark | `crates/quantrule-backtest` |
 | CLI shell | Headless command surface | `crates/quantrule-shell` |
-| Local research memory | Workspaces, datasets, configs, runs, claims, notes | `crates/quantrule-app` + SQLite (Phase 3) |
+| Local research memory | Workspaces, datasets, configs, runs, claims, notes | `crates/quantrule-app/src/memory/` + SQLite |
 | Download page | Static Linux installer distribution | `site/` (Phase 3) |
 
 ## 3. Data flow
