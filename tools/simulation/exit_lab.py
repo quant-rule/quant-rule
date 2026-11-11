@@ -22,6 +22,14 @@ from statistics import mean
 from typing import Any
 
 from bundle import BundleError, load_bundles, parse_utc
+from data_root import (
+    DataRootError,
+    current_worktree,
+    guard_root,
+    is_inside,
+    resolve_root,
+    substitute,
+)
 from marks import MarkError, read_marks
 
 EXIT_SCHEMA = "quantrule.simulation-exit/v1"
@@ -33,7 +41,7 @@ class ExitError(Exception):
     """The exit-lab configuration or its inputs is invalid."""
 
 
-def load_config(path: Path) -> dict[str, Any]:
+def load_config(path: Path, data_root: Path) -> dict[str, Any]:
     """Read and resolve the exit-lab configuration."""
     config = json.loads(path.read_text(encoding="utf-8"))
     missing = REQUIRED - set(config)
@@ -44,13 +52,14 @@ def load_config(path: Path) -> dict[str, Any]:
     base = path.parent
     bundles = []
     for item in config["bundles"]:
-        bundle = Path(item)
+        bundle = Path(substitute(item, data_root))
         if not bundle.is_absolute():
             bundle = (base / bundle).resolve()
         bundles.append(bundle)
     config["_bundles"] = bundles
+    config["_data_root"] = str(data_root)
     if "marks" in config:
-        marks = Path(config["marks"])
+        marks = Path(substitute(config["marks"], data_root))
         if not marks.is_absolute():
             marks = (base / marks).resolve()
         config["_marks"] = marks
@@ -400,6 +409,7 @@ def build(config: dict[str, Any], out: Path) -> dict[str, Any]:
         "model": "M1.3",
         "registry_version": "2026-11-10.2",
         "data_version": bundle.data_version,
+        "data_root": config.get("_data_root"),
         "label_window": {"from": config["from"], "to": config["to"]},
         "check_window": {"from": config["check_from"], "to": config["check_to"]},
         "horizon_bars": horizon,
@@ -457,11 +467,25 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--exit-config", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--data-root", type=Path, help="persistent local data root")
+    parser.add_argument(
+        "--allow-worktree-data",
+        action="store_true",
+        help="allow data inside the current worktree (disposable runs only)",
+    )
     args = parser.parse_args(argv[1:])
     try:
-        config = load_config(args.exit_config.resolve())
-        result = build(config, args.out.resolve())
-    except (ExitError, BundleError, MarkError, KeyError, TypeError, ValueError) as error:
+        data_root = resolve_root(args.data_root)
+        guard_root(data_root, args.allow_worktree_data)
+        out = args.out.resolve()
+        if is_inside(out, current_worktree()) and not args.allow_worktree_data:
+            raise ExitError(
+                f"the output {out} is inside the current worktree; "
+                "write to the external data root or pass --allow-worktree-data"
+            )
+        config = load_config(args.exit_config.resolve(), data_root)
+        result = build(config, out)
+    except (ExitError, BundleError, MarkError, DataRootError, KeyError, TypeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(f"exit lab {result['run_id']}: {result['label_entries']} label, {result['check_entries']} check")

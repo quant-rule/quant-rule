@@ -1,0 +1,23 @@
+{
+  "schema": "quantrule.simulation-exit/v1",
+  "run_id": "SIM-03",
+  "marks": "{data_root}/simulation/2026-11-10/SIM-02-level-rejection/marks-ai.csv",
+  "bundles": [
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2018/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2019/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2020/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2021/model",
+    "{data_root}/simulation/_data/M1.3-2018-2022/report-2022/model"
+  ],
+  "data_version": "binance-spot-btcusdt-m1-2018-01-01_2022-12-31-v1",
+  "from": "2018-01-01",
+  "to": "2019-12-31",
+  "check_from": "2020-01-01",
+  "check_to": "2022-12-31",
+  "event_code": 149,
+  "horizon_bars": 60,
+  "target_atr": 2.0,
+  "stop_atr": 1.0,
+  "partial_atr": 1.0,
+  "cost_bps": 6.0
+}

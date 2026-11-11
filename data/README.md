@@ -14,6 +14,23 @@ artifacts never leave the machine.
 | [`partitions.json`](partitions.json) | The partition windows, instruments, and aliases |
 | `README.md` | This guide |
 
+## Local data root
+
+The persistent local data root is outside the repository and every worktree:
+
+```text
+$QUANTRULE_DATA_ROOT        (default: $HOME/quant-rule-data)
+  simulation/               simulation reports, marks, charts, and checks
+  worktree-archive/         archives written before a worktree is removed
+  sources/                  local source copies, when needed
+```
+
+The simulation tools resolve `--data-root`, then `QUANTRULE_DATA_ROOT`, then
+`$HOME/quant-rule-data`. A task worktree must not keep the only copy of
+persistent local data; the cleanup guard
+[`tools/worktree_cleanup.py`](../tools/worktree_cleanup.py) checks and archives
+`data/` before `git worktree remove`.
+
 ## Historical local directories
 
 The following directories are retained locally for the reproducibility of
@@ -69,3 +86,6 @@ the full payload. The cleanup record is
 6. A run may cite only a partition and instrument declared in `partitions.json`.
 7. A data defect is fixed through the Audit Workflow and gets a new data version;
    see [`docs/workflows/data-lifecycle.md`](../docs/workflows/data-lifecycle.md).
+8. Persistent local data lives in the external data root. A task worktree's
+   `data/` is a working copy; `tools/worktree_cleanup.py` checks and archives it
+   before the worktree is removed.

@@ -65,8 +65,12 @@ are not treated as releases.
   reviews the candle-shape context, and checks the extracted rule on 2020–2022
   with an unfiltered control and a 6 bps proxy. It is exploration only; a
   survivor goes to Strategy Research. The same harness includes the SIM-01
-  human-mark meta-label and the SIM-03 five-exit comparison. The local store is
-  `data/simulation/`.
+  human-mark meta-label and the SIM-03 five-exit comparison.
+- A persistent local data root outside the repository and every worktree
+  (`$QUANTRULE_DATA_ROOT` or `$HOME/quant-rule-data`), and the
+  `tools/worktree_cleanup.py` guard. The guard classifies local data, archives
+  it with a SHA-256 manifest, and refuses to remove an unmerged or unclassified
+  worktree. The merged-task cleanup now checks and archives before removal.
 
 ### Changed
 

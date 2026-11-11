@@ -142,6 +142,8 @@ criteria are explicit command arguments; the run schema stays
 | Simulation Batch 1 | SIM-01 no pattern, SIM-02 no pattern, SIM-03 no exit rescue; entry-first conclusion; no edge claim | [`docs/reports/2026-11-11/simulation-batch-1.md`](reports/2026-11-11/simulation-batch-1.md) |
 | Simulation Batch 2 | SIM-04/05/06 no pattern; six runs complete, five no_pattern and one no_exit_rescue; no edge claim | [`docs/reports/2026-11-11/simulation-batch-2.md`](reports/2026-11-11/simulation-batch-2.md) |
 | Simulation Batch 3 | SIM-07 no pattern, SIM-08 bullish divergence candidate screen, SIM-09 underpowered, SIM-10 blocked | [`docs/reports/2026-11-11/simulation-batch-3.md`](reports/2026-11-11/simulation-batch-3.md) |
+| Simulation data loss audit | Local store lost in worktree cleanup; finding `Fixed`; Improvement Verifier pending | [`docs/audits/2026-11-11/simulation-data-loss-audit.md`](audits/2026-11-11/simulation-data-loss-audit.md) |
+| Simulation store recovery | Store regenerated at `/home/zantgo/quant-rule-data/simulation`; committed numbers reproduced | [`docs/reports/2026-11-11/simulation-recovery.md`](reports/2026-11-11/simulation-recovery.md) |
 | Simulation campaign synthesis | Closed — no edge; ten runs; one candidate screen retired under the variant rule | [`docs/reports/2026-11-11/simulation-synthesis.md`](reports/2026-11-11/simulation-synthesis.md) |
 | SIM08-BULL-DIV hypothesis | Retired; variant of the failed divergence-at-pivot programme; no edge claim | [`docs/reports/2026-11-11/sim08-bull-divergence-hypothesis.md`](reports/2026-11-11/sim08-bull-divergence-hypothesis.md) |
 | SR10 EMA/Fibonacci exit study | Stopped early; 2018 primary failed; no candidate; 2024 closed | [`docs/improvement/2026-11-10/SR10.md`](improvement/2026-11-10/SR10.md) |
@@ -203,6 +205,7 @@ store in the current surface.
 |---|---|---|
 | Progression replay oracle | Regenerates and checks the per-bar Progression and retained-leg golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
 | Simulation harness | Selects M1.3 windows, renders clean charts, writes hindsight marks, and reviews them; exploration only. | [`tools/simulation/README.md`](../tools/simulation/README.md) |
+| Worktree cleanup guard | Classifies, archives, and removes a merged task worktree; required before `git worktree remove`. | `tools/worktree_cleanup.py` |
 | Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `tools/build_verification.py` |
 | Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
 | Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |

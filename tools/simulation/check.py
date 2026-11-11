@@ -24,6 +24,14 @@ from statistics import mean
 from typing import Any
 
 from bundle import BundleError, load_bundles, load_catalog, parse_utc
+from data_root import (
+    DataRootError,
+    current_worktree,
+    guard_root,
+    is_inside,
+    resolve_root,
+    substitute,
+)
 from window_select import SelectError
 
 DEFAULT_REGISTRY = Path("docs/registry/indicators.json")
@@ -37,7 +45,7 @@ class CheckError(Exception):
     """The check configuration or its inputs are invalid."""
 
 
-def load_config(path: Path, repo_root: Path) -> dict[str, Any]:
+def load_config(path: Path, repo_root: Path, data_root: Path) -> dict[str, Any]:
     """Read and validate the check configuration."""
     config = json.loads(path.read_text(encoding="utf-8"))
     if config.get("schema") != CHECK_SCHEMA:
@@ -47,11 +55,12 @@ def load_config(path: Path, repo_root: Path) -> dict[str, Any]:
     base = path.parent
     bundles = []
     for item in config["bundles"]:
-        bundle = Path(item)
+        bundle = Path(substitute(item, data_root))
         if not bundle.is_absolute():
             bundle = (base / bundle).resolve()
         bundles.append(bundle)
     config["_bundles"] = bundles
+    config["_data_root"] = str(data_root)
     registry = Path(config.get("registry", DEFAULT_REGISTRY))
     if not registry.is_absolute():
         registry = (repo_root / registry).resolve()
@@ -349,6 +358,7 @@ def build(config: dict[str, Any], out: Path, repo_root: Path) -> dict[str, Any]:
         "from": config["from"],
         "to": config["to"],
         "data_version": bundle.data_version,
+        "data_root": config.get("_data_root"),
         "model": "M1.3",
         "registry_version": "2026-11-10.2",
         "thresholds": {
@@ -420,12 +430,26 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-config", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--data-root", type=Path, help="persistent local data root")
+    parser.add_argument(
+        "--allow-worktree-data",
+        action="store_true",
+        help="allow data inside the current worktree (disposable runs only)",
+    )
     args = parser.parse_args(argv[1:])
     repo_root = Path(__file__).resolve().parents[2]
     try:
-        config = load_config(args.check_config.resolve(), repo_root)
-        result = build(config, args.out.resolve(), repo_root)
-    except (CheckError, BundleError, SelectError, KeyError, TypeError, ValueError) as error:
+        data_root = resolve_root(args.data_root)
+        guard_root(data_root, args.allow_worktree_data)
+        out = args.out.resolve()
+        if is_inside(out, current_worktree()) and not args.allow_worktree_data:
+            raise CheckError(
+                f"the output {out} is inside the current worktree; "
+                "write to the external data root or pass --allow-worktree-data"
+            )
+        config = load_config(args.check_config.resolve(), repo_root, data_root)
+        result = build(config, out, repo_root)
+    except (CheckError, BundleError, SelectError, DataRootError, KeyError, TypeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(f"check {result['run_id']}: {result['verdict']}")
