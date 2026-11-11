@@ -16,6 +16,7 @@
 //! workspace root is an error because every later operation depends on it.
 
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::dataset::Dataset;
@@ -41,15 +42,28 @@ impl Workspace {
     /// directory.
     pub fn open(root: impl AsRef<Path>) -> Result<Self, AppError> {
         let root = root.as_ref();
-        if !root.is_dir() {
+        let canonical = match fs::canonicalize(root) {
+            Ok(path) => path,
+            Err(source) if source.kind() == io::ErrorKind::NotFound => {
+                return Err(AppError::Workspace {
+                    path: root.to_path_buf(),
+                    reason: String::from("the workspace root is missing or is not a directory"),
+                });
+            }
+            Err(source) => {
+                return Err(AppError::Io {
+                    path: root.to_path_buf(),
+                    source,
+                });
+            }
+        };
+        if !canonical.is_dir() {
             return Err(AppError::Workspace {
                 path: root.to_path_buf(),
                 reason: String::from("the workspace root is missing or is not a directory"),
             });
         }
-        Ok(Self {
-            root: root.to_path_buf(),
-        })
+        Ok(Self { root: canonical })
     }
 
     /// Finds the nearest enclosing workspace from a file or directory.
@@ -81,10 +95,22 @@ impl Workspace {
         })
     }
 
-    /// The workspace root, exactly as supplied.
+    /// The canonical workspace root.
     #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// The workspace name: its directory name.
+    ///
+    /// The name labels the workspace and is stable while the root is unchanged;
+    /// a run name labels a run and never replaces this name.
+    #[must_use]
+    pub fn name(&self) -> String {
+        self.root
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| self.root.to_string_lossy().into_owned())
     }
 
     /// The standard configuration directory.
@@ -194,6 +220,23 @@ mod tests {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../target/app-service-tests/missing-workspace");
         assert!(Workspace::open(&path).is_err());
+    }
+
+    #[test]
+    fn the_root_is_canonicalized() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../target/app-service-tests/canonical-workspace");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("the workspace is created");
+        let dotted = root.join(".");
+        let workspace = Workspace::open(&dotted).expect("the dotted root opens");
+        assert_eq!(
+            workspace.root().to_string_lossy(),
+            fs::canonicalize(&root)
+                .expect("the root resolves")
+                .to_string_lossy()
+        );
+        assert_eq!(workspace.name(), "canonical-workspace");
     }
 
     #[test]

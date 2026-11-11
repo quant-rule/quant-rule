@@ -3,11 +3,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use rusqlite::Connection;
 use serde_json::json;
 
 use super::{
     EXPORT_SCHEMA, MetricValue, NewClaim, NewConfig, NewDataset, NewNote, NewRun, NewWorkspace,
-    ResearchMemory, backup, export_bytes, export_json, import_json, restore,
+    ResearchMemory, backup, export_bytes, export_json, export_to_file, import_json, restore,
 };
 
 const AT: i64 = 1_763_000_000;
@@ -26,6 +27,54 @@ fn test_root(name: &str) -> PathBuf {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).expect("the test directory is created");
     root
+}
+
+fn foreign_database(path: &Path) {
+    let connection = Connection::open(path).expect("the foreign database opens");
+    connection
+        .execute_batch(
+            "CREATE TABLE unrelated (x INTEGER NOT NULL);
+             INSERT INTO unrelated (x) VALUES (7);",
+        )
+        .expect("the foreign schema is written");
+}
+
+#[test]
+fn a_foreign_database_is_refused_and_left_unchanged() {
+    let path = test_root("foreign").join("foreign.db");
+    foreign_database(&path);
+
+    assert!(ResearchMemory::open(&path).is_err());
+
+    let connection = Connection::open(&path).expect("the foreign database reopens");
+    let memory_tables: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master
+              WHERE type = 'table' AND name IN ('meta', 'workspaces')",
+            [],
+            |row| row.get(0),
+        )
+        .expect("the table count is read");
+    let unrelated: i64 = connection
+        .query_row("SELECT x FROM unrelated", [], |row| row.get(0))
+        .expect("the foreign row is read");
+    let version: i64 = connection
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .expect("the version is read");
+    assert_eq!(memory_tables, 0);
+    assert_eq!(unrelated, 7);
+    assert_eq!(version, 0);
+}
+
+#[test]
+fn restore_refuses_a_foreign_database_without_creating_the_target() {
+    let root = test_root("foreign-restore");
+    let backup = root.join("foreign.db");
+    let target = root.join("restored.db");
+    foreign_database(&backup);
+
+    assert!(restore(&backup, &target).is_err());
+    assert!(!target.exists());
 }
 
 fn populated() -> (ResearchMemory, Fixture) {
@@ -326,6 +375,40 @@ fn a_run_config_must_belong_to_the_run_workspace() {
 }
 
 #[test]
+fn notes_are_scoped_to_their_run() {
+    let (memory, fixture) = populated();
+    let other = memory
+        .insert_run(NewRun {
+            workspace_id: fixture.workspace,
+            config_id: None,
+            run_key: "run-2",
+            data_version: "btc-v1",
+            config_hash: "0123456789abcdef",
+            status: "complete",
+            started_at: AT,
+            finished_at: None,
+            summary_json: "{}",
+        })
+        .expect("the second run is written");
+    memory
+        .insert_note(NewNote {
+            workspace_id: fixture.workspace,
+            run_id: Some(other),
+            body: "second note",
+            created_at: AT,
+            updated_at: AT,
+        })
+        .expect("the second note is written");
+
+    let first = memory.notes_for_run(fixture.run).expect("the first notes");
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].body, "first note");
+    let second = memory.notes_for_run(other).expect("the second notes");
+    assert_eq!(second.len(), 1);
+    assert_eq!(second[0].body, "second note");
+}
+
+#[test]
 fn deleting_a_run_cascades_and_clears_note_links() {
     let (memory, fixture) = populated();
     assert!(memory.delete_run(fixture.run).expect("the run is deleted"));
@@ -393,6 +476,46 @@ fn ids_are_not_reused_after_delete() {
 }
 
 #[test]
+fn update_note_rejects_updated_at_before_created_at() {
+    let memory = ResearchMemory::open_in_memory().expect("the memory opens");
+    let workspace = memory
+        .upsert_workspace(NewWorkspace {
+            root: "/one",
+            name: "One",
+            created_at: AT,
+        })
+        .expect("the workspace is written");
+    let note = memory
+        .insert_note(NewNote {
+            workspace_id: workspace,
+            run_id: None,
+            body: "first",
+            created_at: AT,
+            updated_at: AT,
+        })
+        .expect("the note is written");
+    assert!(
+        memory
+            .update_note(note, "second", AT - 1)
+            .expect_err("the update is rejected")
+            .to_string()
+            .contains("updated_at")
+    );
+    let stored = memory.notes(workspace).expect("the notes are read");
+    assert_eq!(stored[0].body, "first");
+    assert_eq!(stored[0].updated_at, AT);
+    assert!(
+        memory
+            .update_note(note, "second", AT + 1)
+            .expect("the update is accepted")
+    );
+    assert_eq!(
+        memory.notes(workspace).expect("the notes are read")[0].body,
+        "second"
+    );
+}
+
+#[test]
 fn an_export_is_byte_deterministic() {
     let (memory, _) = populated();
     let first = export_bytes(&memory).expect("the first export is written");
@@ -402,6 +525,63 @@ fn an_export_is_byte_deterministic() {
     assert_eq!(value["schema"], EXPORT_SCHEMA);
     assert_eq!(value["workspaces"].as_array().expect("workspaces").len(), 1);
     assert_eq!(value["metrics"].as_array().expect("metrics").len(), 4);
+}
+
+#[test]
+fn export_to_file_replaces_the_target_on_success_and_leaves_no_temp() {
+    let (memory, _) = populated();
+    let root = test_root("export-atomic");
+    let target = root.join("export.json");
+    fs::write(&target, b"previous").expect("the previous file is written");
+
+    export_to_file(&memory, &target).expect("the export is written");
+
+    let text = fs::read_to_string(&target).expect("the export is readable");
+    assert!(text.contains(EXPORT_SCHEMA));
+    let leftovers = fs::read_dir(&root)
+        .expect("the directory is readable")
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".export.json.")
+        })
+        .count();
+    assert_eq!(leftovers, 0, "the temporary file is removed");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_export_leaves_the_previous_file_unchanged() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (memory, _) = populated();
+    let root = test_root("export-failure");
+    let target = root.join("export.json");
+    fs::write(&target, b"previous").expect("the previous file is written");
+    let mut permissions = fs::metadata(&root)
+        .expect("the directory metadata is read")
+        .permissions();
+    permissions.set_mode(0o555);
+    fs::set_permissions(&root, permissions).expect("the directory is made read-only");
+
+    let result = export_to_file(&memory, &target);
+
+    let mut permissions = fs::metadata(&root)
+        .expect("the directory metadata is re-read")
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&root, permissions).expect("the directory is made writable again");
+    assert!(
+        result.is_err(),
+        "the atomic export fails without a writable directory"
+    );
+    assert_eq!(
+        fs::read(&target).expect("the previous file is readable"),
+        b"previous",
+        "the previous export is unchanged"
+    );
 }
 
 #[test]
@@ -461,6 +641,42 @@ fn import_rejects_a_bad_document_without_partial_writes() {
     });
     assert!(import_json(&mut target, &bad).is_err());
     assert!(target.is_empty().expect("the target is empty"));
+}
+
+fn import_is_rejected(document: &serde_json::Value) {
+    let mut target = ResearchMemory::open_in_memory().expect("the target opens");
+    assert!(import_json(&mut target, document).is_err());
+    assert!(target.is_empty().expect("the target is empty"));
+}
+
+#[test]
+fn import_rejects_each_store_invariant_violation() {
+    let (memory, _) = populated();
+    let exported = export_json(&memory).expect("the export is built");
+
+    let mut document = exported.clone();
+    document["metrics"][1]["text_value"] = json!("not-an-integer");
+    import_is_rejected(&document);
+
+    let mut document = exported.clone();
+    document["metrics"][3]["value"] = json!(1.25);
+    import_is_rejected(&document);
+
+    let mut document = exported.clone();
+    document["metrics"][0]["id"] = json!(0);
+    import_is_rejected(&document);
+
+    let mut document = exported.clone();
+    document["runs"][0]["finished_at"] = json!(AT - 1);
+    import_is_rejected(&document);
+
+    let mut document = exported.clone();
+    document["datasets"][0]["last_open_time"] = json!(AT - 1);
+    import_is_rejected(&document);
+
+    let mut document = exported.clone();
+    document["notes"][0]["updated_at"] = json!(AT - 1);
+    import_is_rejected(&document);
 }
 
 #[test]

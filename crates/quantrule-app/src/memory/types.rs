@@ -22,6 +22,13 @@ pub enum MemoryError {
         /// The schema this build writes.
         expected: String,
     },
+    /// The file is a SQLite database but not a QuantRule research memory.
+    ForeignDatabase {
+        /// The file that was inspected.
+        path: PathBuf,
+        /// What was found instead of a research memory.
+        detail: String,
+    },
     /// The database version is newer than this build.
     UnsupportedVersion {
         /// The version found in the database.
@@ -59,6 +66,11 @@ impl fmt::Display for MemoryError {
                 formatter,
                 "memory schema {found} is not supported; expected {expected}"
             ),
+            Self::ForeignDatabase { path, detail } => write!(
+                formatter,
+                "memory database {} is not a QuantRule research memory: {detail}",
+                path.display()
+            ),
             Self::UnsupportedVersion { found, expected } => write!(
                 formatter,
                 "memory version {found} is newer than the supported version {expected}"
@@ -88,6 +100,7 @@ impl std::error::Error for MemoryError {
             Self::Json(error) => Some(error),
             Self::Io { source, .. } => Some(source),
             Self::UnsupportedSchema { .. }
+            | Self::ForeignDatabase { .. }
             | Self::UnsupportedVersion { .. }
             | Self::NonEmptyTarget
             | Self::TargetExists { .. }

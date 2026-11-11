@@ -3,10 +3,13 @@
 - Date: 2026-11-11 (UTC)
 - Issue: [#608](https://github.com/quant-rule/quant-rule/issues/608)
 - Parent plan: [`588-tauri-platform.md`](588-tauri-platform.md)
-- Status: In Review
+- Status: Verified
 - Claim type: Behaviour Claim
 - Owner: Human
 - Workflow: Execution Plan
+- Note (2026-11-11): shipped in v0.9.0; the human accepted the release and the
+  audit decision on 2026-11-11. The memory-use-case parity follow-up is tracked
+  by the [audit remediation plan](audit-app-service-native-remediation.md).
 
 ## Intent
 

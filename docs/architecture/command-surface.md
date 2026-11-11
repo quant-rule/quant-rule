@@ -8,11 +8,15 @@
 
 ## 1. Why the surface is command-first
 
-QuantRule is a local application. The current release is the command shell: the
-program is started, and the user types commands at a prompt. The shell is the
-current product surface and the desktop UI is being built over the same
-application service; there is no deployed service, account, or cloud runtime. A
-capability that cannot be typed does not exist for the user today.
+QuantRule is a local application with two first-class surfaces: the command
+shell and the desktop UI. They are the same program; both call the shared
+application service, and feature parity is required. The shell is primarily for
+agents and remains the stable command interface; the desktop UI is the human
+workstation. There is no deployed service, account, or cloud runtime. The
+pipeline stages are reachable through the shell today; the desktop pipeline
+parity is tracked by the [audit remediation plan](../execution-plans/2026-11-11/audit-app-service-native-remediation.md).
+A capability that only one surface can reach is a parity gap, not a completed
+capability.
 
 The pipeline is a chain of independently useful stages. A human or an agent must
 be able to stop after any stage, inspect the artifact that stage produced, and

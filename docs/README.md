@@ -35,7 +35,8 @@ repeating a status.
 | Area | Status |
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
-| Command surface | 15 implemented commands, 0 planned; the discovery gate passes. |
+| Surfaces | The command shell and the desktop UI are first-class surfaces of the same program; the shell is primarily for agents and the desktop UI is the human workstation. Feature parity is required; the pipeline/memory parity extraction is in progress under the [audit remediation plan](execution-plans/2026-11-11/audit-app-service-native-remediation.md) and the [one-program ADR](adr/2026-11-11/one-program-first-class-desktop.md). |
+| Command surface | 15 implemented commands, 0 planned; the discovery gate passes. The desktop UI exposes the shared service's workspace, dataset, config, model, memory, and export use cases; pipeline parity is in Phase 3c. |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
@@ -215,8 +216,9 @@ of workflow status; this page does not repeat it.
 ## Local workspace
 
 `data/` is a local workspace. Only its README files and `partitions.json` are
-committed; candles, reports, and run artifacts stay local. There is no database
-store in the current surface.
+committed; candles, reports, run artifacts, and the research-memory database
+stay local. The distributed desktop app and the shell share the
+`quantrule.research-memory/v1` store through the application service.
 
 ## Developer tools
 
@@ -297,6 +299,7 @@ record of what was released. Historical tags `v0.4.0-exp-baseline` and
 | Stateless strategy and the position parameter | Accepted 2026-10-30 | `docs/adr/2026-10-30/stateless-strategy-position-parameter.md` |
 | One-way timeframe ladder and trade-intent boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/one-way-timeframe-ladder.md` |
 | Trustworthy backtest kata and architecture characteristics | Accepted 2026-10-31 | `docs/adr/2026-10-31/adopt-architecture-baseline.md` |
+| One program, two first-class surfaces | Accepted 2026-11-11 | `docs/adr/2026-11-11/one-program-first-class-desktop.md` |
 
 ## Reading a work item
 

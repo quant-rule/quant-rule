@@ -1,7 +1,7 @@
 # Run v3 and Portfolio Constraints
 
 - Date: 2026-11-11 (UTC)
-- Status: Target contract for Phase 3
+- Status: Current
 - Claim type: ADR (Architecture Decision)
 - Plan: [`docs/execution-plans/2026-11-11/588-tauri-platform.md`](../../execution-plans/2026-11-11/588-tauri-platform.md)
 

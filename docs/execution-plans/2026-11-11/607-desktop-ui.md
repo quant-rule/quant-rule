@@ -3,10 +3,14 @@
 - Date: 2026-11-11 (UTC)
 - Issue: [#607](https://github.com/quant-rule/quant-rule/issues/607)
 - Parent plan: [`588-tauri-platform.md`](588-tauri-platform.md)
-- Status: In Review
+- Status: Verified
 - Claim type: Problem Claim
 - Owner: Human
 - Workflow: Execution Plan
+- Note (2026-11-11): the human decision makes the desktop UI a first-class
+  surface. The pipeline stages excluded here are moved to the
+  [audit remediation plan](audit-app-service-native-remediation.md); the
+  delivered UI scope remains verified.
 
 ## Intent
 

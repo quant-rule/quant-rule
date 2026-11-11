@@ -35,10 +35,13 @@ data → model → strategy → execution → portfolio → qualification
 ```
 
 The application service is the shared use-case boundary and owns workspace, dataset,
-configuration, and run I/O. The shell is the current surface: it parses a command,
-calls the service or a pipeline operation, and renders the result. The engines are
-pure and depend one way. Every stage is reachable from the current shell surface
-through its stage command.
+configuration, run I/O, memory, and the shared use cases. The shell and the desktop
+UI are the two first-class surfaces of the same program: the shell is primarily for
+agents, the desktop UI is the human workstation. Both call the service; neither
+holds domain logic. The engines are pure and depend one way. The pipeline stages are
+reachable through the shell today; the desktop pipeline parity is being completed
+under the [audit remediation plan](../execution-plans/2026-11-11/audit-app-service-native-remediation.md)
+and the [one-program ADR](../adr/2026-11-11/one-program-first-class-desktop.md).
 The stage contract, the command registry, and the implemented/planned status are in
 [`command-surface.md`](command-surface.md).
 
@@ -49,7 +52,7 @@ The stage contract, the command registry, and the implemented/planned status are
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
 | `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines. | `quantrule-data`, `quantrule-model` |
-| `quantrule-app` | Application service: workspace, dataset, configuration, model run, and export. Shared by the shell and the future desktop UI. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
+| `quantrule-app` | Application service: workspace, dataset, configuration, model run, export, memory, and the shared use cases. Shared by the shell and the desktop UI. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
 | `quantrule-shell` | The command shell: parse, call the application service, render, and explicit source fetch. | `quantrule-app`, `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
 
 ## Application service
@@ -68,17 +71,23 @@ path resolution; the engines receive validated values.
 | `AppService::record_run` | Writes the workspace, dataset, configuration, and run to the local research memory. |
 | `ResearchMemory` | SQLite CRUD, ordered queries, logical export/import, and file backup/restore. |
 
-The shell calls the service for `run check`; the other commands call the same
-configuration and pipeline modules directly. The desktop UI calls the same
-service rather than reimplementing path resolution.
+The shell calls the service for `run check`; the other pipeline commands still
+call the same configuration and pipeline modules directly and are being moved
+behind the shared use-case layer under the remediation plan. The desktop UI
+calls the service rather than reimplementing path resolution.
 
 ## Desktop UI
 
 [`apps/desktop`](../../apps/desktop) is a Tauri 2 host with a Svelte 5 frontend.
-It exposes workspace, data, configs, model run, research memory, export/backup,
-and settings. It has no account, no network path, and no domain computation;
-every command delegates to `quantrule-app`. Backtest, strategy, execution,
-portfolio, and analytics remain CLI operations.
+It is a first-class surface, equal to the shell. It exposes workspace, data,
+configs, model run, research memory, export/backup, and settings. The pipeline
+stage parity (backtest, strategy, execution, portfolio, qualification, analytics,
+and the stage reports) is being completed under the
+[audit remediation plan](../execution-plans/2026-11-11/audit-app-service-native-remediation.md);
+until that phase lands, those stages remain shell-only and are a recorded
+parity gap. It has no account and no background network path; every command
+delegates to `quantrule-app`. The explicit source-fetch parity is a separate
+network-boundary decision.
 
 ## Distribution
 

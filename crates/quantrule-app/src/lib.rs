@@ -6,9 +6,10 @@
 //! configuration file or builds the model ladder itself.
 //!
 //! The engine crates remain pure. This crate owns file access, path resolution,
-//! and orchestration, and returns explicit errors that name the failing input.
-//! A future local research memory lives behind the same boundary; it is not
-//! part of this module yet.
+//! orchestration, and the local research memory, and returns explicit errors
+//! that name the failing input. The shell and the desktop UI are thin adapters:
+//! they call the same use cases and neither duplicates path resolution,
+//! configuration parsing, or memory rules.
 //!
 //! # Examples
 //!

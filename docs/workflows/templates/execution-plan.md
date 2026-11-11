@@ -58,6 +58,10 @@ command`, and `Expected`. The implementer fills `Observed`; the reviewer fills
 `Status`, `Reviewer`, and `Date`. One row covers each work-breakdown phase,
 acceptance criterion, and closure step.
 
+Run the workspace gate with `tools/gate.sh`; it uses a target directory inside
+the worktree. Do not share a Cargo target directory across worktrees; a cached
+test binary can carry another worktree's absolute paths and fail a correct tree.
+
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | V1 | Phase 1 / <artifact> | <criterion> | `<command>` | <expected> |  |  |  |  |  |
