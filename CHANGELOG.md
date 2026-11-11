@@ -25,6 +25,18 @@ are not treated as releases.
   checkpoints, and a Dockerized PDF build. The current product is solo and local;
   the team cloud is future work.
 
+### Changed
+
+- The current run schema is `quantrule.run/v3`; the policy layer is removed and
+  `run check` replaces `policy check`. Portfolio capital, sizing, costs,
+  drawdown, leverage, and position limits remain first-class constraints. The
+  qualification dimension `prop_firm_limits` is removed.
+
+### Removed
+
+- The current `policy.json`, policy loader, `policy check` command, and policy
+  cross-config checks. Historical `run/v2` evidence remains read-only.
+
 ## [0.8.0] - 2026-11-11
 
 ### Added

@@ -42,9 +42,9 @@ pub(crate) struct ReportArgs {
     pub(crate) json: bool,
 }
 
-/// A parsed `policy check` command.
+/// A parsed `run check` command.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PolicyCheckArgs {
+pub(crate) struct RunCheckArgs {
     /// The run configuration.
     pub(crate) config: PathBuf,
 }

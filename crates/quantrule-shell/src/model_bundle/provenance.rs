@@ -221,33 +221,9 @@ pub(crate) fn resolve_spec_path(spec_path: &Path, source: &str) -> PathBuf {
     }
 }
 
-pub(super) fn policy_value(config: &RunConfig) -> Value {
-    json!({
-        "account": {
-            "currency": config.policy.account.currency,
-            "initial_cash": config.policy.account.initial_cash,
-        },
-        "objective": {
-            "performance_target": config.policy.objective.performance_target,
-            "evaluation_days": config.policy.objective.evaluation_days,
-            "max_drawdown": config.policy.objective.max_drawdown,
-        },
-        "risk": {
-            "max_position_fraction": config.policy.risk.max_position_fraction,
-            "max_leverage": config.policy.risk.max_leverage,
-            "max_open_positions": config.policy.risk.max_open_positions,
-        },
-        "universe": {
-            "tickets": config.policy.universe.tickets,
-            "timeframes": config.policy.universe.timeframes.iter().map(|timeframe| timeframe.code()).collect::<Vec<_>>(),
-        },
-    })
-}
-
 pub(super) fn config_files(config: &RunConfig) -> Vec<String> {
     [
         &config.paths.run,
-        &config.paths.policy,
         &config.paths.data,
         &config.paths.model,
         &config.paths.execution,

@@ -1,7 +1,7 @@
 //! `run.json`: the composition root.
 //!
-//! The run file names the policy blueprint, the data, model, execution, and
-//! portfolio files, and the output root. This module reads them in contract
+//! The run file names the data, model, execution, and portfolio files, and the
+//! output root. This module reads them in contract
 //! order, resolves every path against the file that names it, builds the
 //! engine configs, and runs the cross-config checks that need more than one
 //! file. No candle is read and no output is written here: a config error
@@ -9,12 +9,12 @@
 //!
 //! The current run has no strategy or analytics file. S3.x passes the strategy
 //! file and the qualification criteria as explicit command arguments; the run
-//! schema stays `quantrule.run/v2`.
+//! schema is `quantrule.run/v3`.
 
 use std::io;
 use std::path::{Path, PathBuf};
 
-use quantrule_backtest::portfolio::{DrawdownAction, PortfolioConfig};
+use quantrule_backtest::portfolio::PortfolioConfig;
 use quantrule_data::Timeframe;
 use quantrule_model::input::MarketStateConfig;
 use serde_json::Value;
@@ -23,7 +23,6 @@ use super::data::{self, DataConfig};
 use super::error::ConfigError;
 use super::execution::{self, ExecutionRunConfig};
 use super::model;
-use super::policy::{self, PolicyConfig};
 use super::portfolio;
 use super::read::{self, ROOT};
 
@@ -34,20 +33,16 @@ pub(crate) struct RunConfig {
     pub(crate) name: String,
     /// The resolved output root.
     pub(crate) output_root: PathBuf,
-    /// A stable fingerprint of the six config files.
+    /// A stable fingerprint of the five config files.
     pub(crate) config_hash: String,
-    /// The six resolved config paths.
+    /// The five resolved config paths.
     pub(crate) paths: ConfigPaths,
     /// The optional model identity, such as `M1.0`.
     pub(crate) model_id: Option<String>,
-    /// The optional policy identity, such as `POL1.0`.
-    pub(crate) policy_id: Option<String>,
     /// The optional execution identity, such as `E1.0`.
     pub(crate) execution_id: Option<String>,
     /// The optional portfolio identity, such as `P1.0`.
     pub(crate) portfolio_id: Option<String>,
-    /// The human-owned policy envelope.
-    pub(crate) policy: PolicyConfig,
     /// The data engine's source and ladder.
     pub(crate) data: DataConfig,
     /// The optional model ladder. `None` means the full data ladder.
@@ -60,13 +55,11 @@ pub(crate) struct RunConfig {
     pub(crate) portfolio: PortfolioConfig,
 }
 
-/// The six resolved config files.
+/// The five resolved config files.
 #[derive(Debug, Clone)]
 pub(crate) struct ConfigPaths {
     /// The run file itself.
     pub(crate) run: PathBuf,
-    /// The policy blueprint.
-    pub(crate) policy: PathBuf,
     /// The data file.
     pub(crate) data: PathBuf,
     /// The model file.
@@ -92,17 +85,12 @@ impl RunConfig {
 
         let paths = ConfigPaths {
             run: path.to_path_buf(),
-            policy: base.join(&run.policy),
             data: base.join(&run.data),
             model: base.join(&run.model),
             execution: base.join(&run.execution),
             portfolio: base.join(&run.portfolio),
         };
 
-        let policy = policy::parse(
-            &load_document(&paths.policy, display(&run.policy))?,
-            display(&run.policy),
-        )?;
         let data = data::parse(
             &load_document(&paths.data, display(&run.data))?,
             display(&run.data),
@@ -128,10 +116,8 @@ impl RunConfig {
             config_hash,
             paths,
             model_id: run.model_id,
-            policy_id: run.policy_id,
             execution_id: run.execution_id,
             portfolio_id: run.portfolio_id,
-            policy,
             data,
             model_ladder: run.model_timeframes,
             model,
@@ -146,7 +132,6 @@ impl RunConfig {
     pub(super) fn validate_identities(&self) -> Result<(), ConfigError> {
         for (field, value, prefix) in [
             ("model_id", self.model_id.as_deref(), "M"),
-            ("policy_id", self.policy_id.as_deref(), "POL"),
             ("execution_id", self.execution_id.as_deref(), "E"),
             ("portfolio_id", self.portfolio_id.as_deref(), "P"),
         ] {
@@ -210,17 +195,6 @@ impl RunConfig {
             }
         }
 
-        for timeframe in &self.policy.universe.timeframes {
-            if !self.data.available_timeframes.contains(timeframe) {
-                return Err(ConfigError::inconsistent(
-                    file_name(&self.paths.policy),
-                    "$.universe.timeframes",
-                    "timeframes from the available data ladder",
-                    timeframe.code(),
-                ));
-            }
-        }
-
         if !self
             .data
             .available_timeframes
@@ -233,109 +207,6 @@ impl RunConfig {
                 self.execution.fill_timeframe.code(),
             ));
         }
-        if !self
-            .policy
-            .universe
-            .timeframes
-            .contains(&self.execution.fill_timeframe)
-        {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.execution),
-                "$.fill_timeframe",
-                "a timeframe from the policy universe",
-                self.execution.fill_timeframe.code(),
-            ));
-        }
-
-        if !self
-            .policy
-            .universe
-            .tickets
-            .iter()
-            .any(|ticket| ticket == &self.data.instrument)
-        {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.data),
-                "$.instrument",
-                "an instrument from the policy universe",
-                &self.data.instrument,
-            ));
-        }
-
-        if self.policy.account.initial_cash != self.portfolio.initial_cash {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.portfolio),
-                "$.initial_cash",
-                &self.policy.account.initial_cash.to_string(),
-                &self.portfolio.initial_cash.to_string(),
-            ));
-        }
-
-        let Some(drawdown_limit) = self.portfolio.max_drawdown.limit() else {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.portfolio),
-                "$.max_drawdown.limit",
-                "a limit at or below the policy maximum",
-                "null",
-            ));
-        };
-        if drawdown_limit > self.policy.objective.max_drawdown {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.portfolio),
-                "$.max_drawdown.limit",
-                &self.policy.objective.max_drawdown.to_string(),
-                &drawdown_limit.to_string(),
-            ));
-        }
-        if self.portfolio.max_drawdown.action() != DrawdownAction::Halt {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.portfolio),
-                "$.max_drawdown.action",
-                "halt, because the policy declares a drawdown limit",
-                self.portfolio.max_drawdown.action().code(),
-            ));
-        }
-        if self.portfolio.leverage > self.policy.risk.max_leverage {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.portfolio),
-                "$.leverage",
-                &self.policy.risk.max_leverage.to_string(),
-                &self.portfolio.leverage.to_string(),
-            ));
-        }
-        if self.portfolio.max_open_positions > self.policy.risk.max_open_positions {
-            return Err(ConfigError::inconsistent(
-                file_name(&self.paths.portfolio),
-                "$.max_open_positions",
-                &self.policy.risk.max_open_positions.to_string(),
-                &self.portfolio.max_open_positions.to_string(),
-            ));
-        }
-        match self.portfolio.sizing {
-            quantrule_backtest::portfolio::SizingMode::FixedNotional { notional, .. } => {
-                let maximum =
-                    self.policy.account.initial_cash * self.policy.risk.max_position_fraction;
-                if notional > maximum {
-                    return Err(ConfigError::inconsistent(
-                        file_name(&self.paths.portfolio),
-                        "$.sizing.notional",
-                        &format!("at most {maximum}"),
-                        &notional.to_string(),
-                    ));
-                }
-            }
-            quantrule_backtest::portfolio::SizingMode::EquityFraction { fraction, .. } => {
-                if fraction > self.policy.risk.max_position_fraction {
-                    return Err(ConfigError::inconsistent(
-                        file_name(&self.paths.portfolio),
-                        "$.sizing.fraction",
-                        &self.policy.risk.max_position_fraction.to_string(),
-                        &fraction.to_string(),
-                    ));
-                }
-            }
-        }
-
         Ok(())
     }
 }
@@ -345,10 +216,8 @@ impl RunConfig {
 pub(super) struct RunFile {
     pub(super) name: String,
     model_id: Option<String>,
-    policy_id: Option<String>,
     execution_id: Option<String>,
     portfolio_id: Option<String>,
-    policy: String,
     data: String,
     model: String,
     execution: String,
@@ -367,10 +236,8 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             "schema",
             "name",
             "model_id",
-            "policy_id",
             "execution_id",
             "portfolio_id",
-            "policy",
             "data",
             "model",
             "execution",
@@ -379,21 +246,14 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             "output_root",
         ],
     )?;
-    read::schema(file, object, "quantrule.run/v2")?;
+    read::schema(file, object, "quantrule.run/v3")?;
 
     Ok(RunFile {
         name: read::non_empty_string(file, "$.name", read::field(file, ROOT, object, "name")?)?
             .to_owned(),
         model_id: optional_identity(file, object, "model_id")?,
-        policy_id: optional_identity(file, object, "policy_id")?,
         execution_id: optional_identity(file, object, "execution_id")?,
         portfolio_id: optional_identity(file, object, "portfolio_id")?,
-        policy: read::non_empty_string(
-            file,
-            "$.policy",
-            read::field(file, ROOT, object, "policy")?,
-        )?
-        .to_owned(),
         data: read::non_empty_string(file, "$.data", read::field(file, ROOT, object, "data")?)?
             .to_owned(),
         model: read::non_empty_string(file, "$.model", read::field(file, ROOT, object, "model")?)?
@@ -477,14 +337,13 @@ fn load_document(path: &Path, file: &str) -> Result<Value, ConfigError> {
 ///
 /// The hash is an identity aid, not a security primitive. It is stable for the
 /// same bytes and the same binary, and it is recorded in provenance so a later
-/// run can be shown to have used the same policy and engine files.
+/// run can be shown to have used the same engine files.
 fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
     const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
     const PRIME: u64 = 0x0000_0100_0000_01b3;
     let mut hash = OFFSET;
     for path in [
         &paths.run,
-        &paths.policy,
         &paths.data,
         &paths.model,
         &paths.execution,

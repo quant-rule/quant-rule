@@ -197,7 +197,7 @@ fn help_lists_only_the_surviving_commands() {
         "timeframes",
         "events",
         "report model",
-        "policy check",
+        "run check",
         "strategy explain",
         "strategy run",
         "execution run",
@@ -252,28 +252,28 @@ fn a_removed_command_fails_cleanly() {
 }
 
 #[test]
-fn policy_check_validates_the_current_example() {
+fn run_check_validates_the_current_example() {
     let config =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../config/examples/btcusd-2024/run.json");
     let output = run(&[
-        "policy",
+        "run",
         "check",
         "--config",
         config.to_str().expect("the config path is UTF-8"),
     ]);
     assert_success(&output);
     let text = stdout_text(&output);
-    assert!(text.starts_with("policy ok run=btcusd-2024"));
+    assert!(text.starts_with("run ok run=btcusd-2024"));
     assert!(text.contains("model=M1.0"));
     assert!(text.contains("model_ladder=1m,5m,15m,1h"));
-    assert!(text.contains("timeframes=5m,15m"));
+    assert!(text.contains("data_timeframes=1m,5m,15m,1h"));
 }
 
 #[test]
 fn a_retired_model_schema_fails_cleanly() {
     let config = fixture("config-run/run-old-model.json");
     let output = run(&[
-        "policy",
+        "run",
         "check",
         "--config",
         config.to_str().expect("the config path is UTF-8"),

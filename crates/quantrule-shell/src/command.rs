@@ -13,10 +13,10 @@ mod execution;
 mod fetch;
 mod help;
 mod parse;
-mod policy;
 mod portfolio;
 mod qualify;
 mod report_run;
+mod run_check;
 mod strategy;
 pub(crate) mod types;
 
@@ -28,10 +28,10 @@ pub(crate) use self::backtest::{parse_backtest_arguments, run_backtest};
 pub(crate) use self::dispatch::{execute, parse_argv};
 pub(crate) use self::execution::{parse_execution_arguments, run_execution};
 pub(crate) use self::parse::{parse, parse_help_arguments, parse_model_arguments};
-pub(crate) use self::policy::{parse_policy_arguments, run_policy_check};
 pub(crate) use self::portfolio::{parse_portfolio_arguments, run_portfolio};
 pub(crate) use self::qualify::{parse_qualify_arguments, run_qualify};
 pub(crate) use self::report_run::{parse_report_arguments, run_report};
+pub(crate) use self::run_check::{parse_run_check_arguments, run_run_check};
 pub(crate) use self::strategy::{parse_strategy_arguments, run_explain, run_run};
 pub(crate) use self::types::{Command, ParseError};
 

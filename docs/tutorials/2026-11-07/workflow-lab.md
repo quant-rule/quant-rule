@@ -25,7 +25,7 @@ quantrule help workflows
 | Add or change an indicator or event | Model Change | registry, validation, verification gates |
 | Test a strategy rule | Strategy Research | `strategy explain`, `strategy run`, `backtest run` |
 | Test execution or portfolio mechanics | Portfolio Research | `execution run`, `portfolio replay`, `backtest run` |
-| Change the policy envelope | Policy Change | `policy check` |
+| Validate the run composition | Requirements and Design | `run check` |
 | Change a data source, version, or partition | Data Lifecycle | `fetch`, `data/partitions.json` |
 | Add a command, report, or capability | Requirements & Design | plan first |
 | Release, tag, rollback, or incident | Release & Operations | release note, `CHANGELOG.md` |
@@ -205,7 +205,7 @@ Stop and route to the owning workflow when:
 
 - the change is a defect, a refactor, or a new capability;
 - the data is invalid;
-- the policy envelope changes;
+- the run composition changes;
 - a model or strategy rule changes without an approved hypothesis;
 - a gate fails for a reason outside the scope.
 

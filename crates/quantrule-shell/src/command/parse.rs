@@ -11,10 +11,10 @@ use super::analytics::parse_analytics_arguments;
 use super::backtest::parse_backtest_arguments;
 use super::execution::parse_execution_arguments;
 use super::fetch::parse_fetch_arguments;
-use super::policy::parse_policy_arguments;
 use super::portfolio::parse_portfolio_arguments;
 use super::qualify::parse_qualify_arguments;
 use super::report_run::parse_report_arguments;
+use super::run_check::parse_run_check_arguments;
 use super::strategy::parse_strategy_arguments;
 use super::types::{Command, HelpTopic, ParseError};
 use crate::pipeline::WindowMode;
@@ -49,9 +49,9 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
             let arguments = tokenize(rest)?;
             parse_report_arguments(&arguments).map(|args| Some(Command::Report(args)))
         }
-        "policy" => {
+        "run" => {
             let arguments = tokenize(rest)?;
-            parse_policy_arguments(&arguments).map(Some)
+            parse_run_check_arguments(&arguments).map(Some)
         }
         "strategy" => {
             let arguments = tokenize(rest)?;

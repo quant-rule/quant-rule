@@ -12,7 +12,7 @@ The full contracts are in docs/workflows/README.md.
   Add or change an indicator/event           Model Change               registry, validation, verification
   Test a strategy rule                       Strategy Research          strategy explain/run, backtest run
   Test execution/portfolio mechanics         Portfolio Research         execution run, portfolio replay
-  Change the policy envelope                 Policy Change              policy check
+  Validate the run composition               Requirements and Design    run check
   Change a data source/version/partition     Data Lifecycle             fetch, data/partitions.json
   Add a command, report, or capability       Requirements & Design      plan first
   Release, tag, rollback, or incident        Release & Operations       release note, CHANGELOG.md

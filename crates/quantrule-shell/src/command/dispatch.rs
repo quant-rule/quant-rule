@@ -9,8 +9,8 @@ use std::path::PathBuf;
 
 use super::{
     Command, ParseError, run_analytics, run_backtest, run_candles, run_candles_tolerant,
-    run_events, run_execution, run_explain, run_fetch, run_help, run_policy_check, run_portfolio,
-    run_qualify, run_report, run_run, run_timeframes,
+    run_events, run_execution, run_explain, run_fetch, run_help, run_portfolio, run_qualify,
+    run_report, run_run, run_run_check, run_timeframes,
 };
 
 /// Parses the already-split arguments after the binary name.
@@ -34,7 +34,7 @@ pub(crate) fn parse_argv(arguments: &[String]) -> Result<Option<Command>, ParseE
             super::parse_model_arguments(rest, "events").map(|args| Some(Command::Events(args)))
         }
         "report" => super::parse_report_arguments(rest).map(|args| Some(Command::Report(args))),
-        "policy" => super::parse_policy_arguments(rest).map(Some),
+        "run" => super::parse_run_check_arguments(rest).map(Some),
         "strategy" => super::parse_strategy_arguments(rest).map(Some),
         "execution" => super::parse_execution_arguments(rest).map(Some),
         "portfolio" => super::parse_portfolio_arguments(rest).map(Some),
@@ -76,7 +76,7 @@ pub(crate) fn execute(command: Command, stdout: &mut impl Write, stderr: &mut im
         Command::Timeframes(path) => run_timeframes(&path, stdout, stderr),
         Command::Events(args) => run_events(&args, stdout),
         Command::Report(args) => run_report(&args, stdout),
-        Command::PolicyCheck(args) => run_policy_check(&args, stdout),
+        Command::RunCheck(args) => run_run_check(&args, stdout),
         Command::StrategyExplain(args) => run_explain(&args, stdout),
         Command::StrategyRun(args) => run_run(&args, stdout),
         Command::ExecutionRun(args) => run_execution(&args, stdout),

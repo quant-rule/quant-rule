@@ -78,10 +78,10 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
-        name: "policy check",
-        usage: "policy check --config <run.json>",
-        summary: "Validate the policy and every engine config against it.",
-        output: "one `policy ok ...` line",
+        name: "run check",
+        usage: "run check --config <run.json>",
+        summary: "Validate the run and every engine config against it.",
+        output: "one `run ok ...` line",
         notes: &[
             "The loader rejects a missing, malformed, or inconsistent config before any candle is read.",
         ],
@@ -272,7 +272,7 @@ mod tests {
             "timeframes",
             "events",
             "report model",
-            "policy check",
+            "run check",
             "strategy explain",
             "strategy run",
             "execution run",

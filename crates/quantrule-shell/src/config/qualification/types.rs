@@ -194,13 +194,11 @@ pub(crate) enum Dimension {
     BaselineControl,
     /// The same inputs reproduce the artifact.
     Reproducibility,
-    /// The result fits the intended account rules.
-    PropFirmLimits,
 }
 
 impl Dimension {
     /// Every declared dimension.
-    pub(crate) const ALL: [Self; 15] = [
+    pub(crate) const ALL: [Self; 14] = [
         Self::OutOfSample,
         Self::WalkForward,
         Self::Robustness,
@@ -215,7 +213,6 @@ impl Dimension {
         Self::DataQuality,
         Self::BaselineControl,
         Self::Reproducibility,
-        Self::PropFirmLimits,
     ];
 
     /// The stable wire code.
@@ -236,7 +233,6 @@ impl Dimension {
             Self::DataQuality => "data_quality",
             Self::BaselineControl => "baseline_control",
             Self::Reproducibility => "reproducibility",
-            Self::PropFirmLimits => "prop_firm_limits",
         }
     }
 

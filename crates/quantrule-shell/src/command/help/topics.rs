@@ -132,9 +132,9 @@ pub(super) fn render_workflows(writer: &mut impl Write) -> io::Result<()> {
     )?;
     workflow_row(
         writer,
-        "Change the policy envelope",
-        "Policy Change",
-        "policy check",
+        "Validate the run composition",
+        "Requirements and Design",
+        "run check",
     )?;
     workflow_row(
         writer,

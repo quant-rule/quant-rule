@@ -40,7 +40,7 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 | [`simulation-research.md`](simulation-research.md) | What pattern does a chart-first, hindsight-marked sample imply? | Quant exploration | Current | Yes; development partition only |
 | [`strategy-research.md`](strategy-research.md) | Does a rule produce a cost-inclusive edge? | Quant tier | Current | Gated by a model baseline |
 | [`portfolio-research.md`](portfolio-research.md) | Do execution and accounting improve the account outcome? | Quant tier | Current | Gated by a strategy baseline |
-| [`policy-change.md`](policy-change.md) | Does the human-owned envelope change? | Governance | Current | Yes |
+| [`policy-change.md`](policy-change.md) | Does the human-owned envelope change? | Governance | Historical | No; superseded by run v3 |
 | [`data-lifecycle.md`](data-lifecycle.md) | Is the input valid, versioned, and admissible? | Data | Current | Yes |
 | [`requirements-design.md`](requirements-design.md) | What should the new capability be? | Engineering upstream | Current | Yes |
 | [`execution-plan.md`](execution-plan.md) | How is a substantial change ordered and proven? | Engineering delivery | Current | Yes |
@@ -59,7 +59,6 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 | A chart-first, hindsight-labeled hypothesis | [Simulation Research](simulation-research.md) |
 | A strategy hypothesis | [Strategy Research](strategy-research.md) |
 | An execution or portfolio mechanics hypothesis | [Portfolio Research](portfolio-research.md) |
-| A policy envelope change | [Policy Change](policy-change.md) |
 | A data source, version, or partition change | [Data Lifecycle](data-lifecycle.md) |
 | A new command, report, or capability | [Requirements & Design](requirements-design.md) |
 | A substantial multi-step change, or a reviewer checklist | [Execution Plan](execution-plan.md) |
@@ -72,9 +71,6 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 ## How they fit together
 
 ```text
-POLICY (human-owned, outside the tiers)
-   |
-   v
 DATA (versioned, validated) --> MODEL RESEARCH --> MODEL CHANGE (if needed) --> MODEL BASELINE (human)
                                       |
                                       v
@@ -99,13 +95,12 @@ Cross-cutting:
 The Improvement Workflow is the tier spine. The Research Swarm is the parallel
 execution mechanism. The Run Contract is the unit of evidence. The tier runbooks
 add the questions, commands, and gates specific to model, strategy, and
-portfolio work. Policy and data are outside the tiers but can invalidate a
-baseline.
+portfolio work. Data is outside the tiers but can invalidate a baseline.
 
 ## Shared rules
 
 - **Human authority.** The human approves requirements, scope, priorities,
-  architecture, policy, strategy, validation access, baselines, releases, and
+  architecture, strategy, validation access, baselines, releases, and
   residual risk. Agents investigate, recommend, and execute only within an
   approved scope.
 - **No self-verification.** The agent that implements a change does not verify or
@@ -158,7 +153,7 @@ short map is:
 | Refactor | `docs/refactors/<date>/<scope>-refactor.md` | `REF-<date>-NN` | Open, Triaged, Planned, In progress, Refactored, Verified, Deferred, Won't refactor, Duplicate, Stale |
 | Improvement run | `data/improvement/<date>/<run-id>/` | `MODEL-/STRATEGY-/PORTFOLIO-<date>-NN` | pending, accepted, rejected, invalidated, no edge, new hypothesis, failed |
 | Programme | `docs/governance/<date>/<PROGRAM-ID>.md` | `PROGRAM-<date>-NN` | Proposed, Approved, Stopped, Closed; verdict `no_edge`, `development_only`, `candidate`, `accepted` |
-| Policy change | `docs/config/` + `docs/workflows/policy-change.md` record | `POL-<date>-NN` | Proposed, Approved, Applied, Superseded, Rejected |
+| Policy change (historical) | `docs/workflows/policy-change.md` record | `POL-<date>-NN` | Proposed, Approved, Applied, Superseded, Rejected |
 | Data change | `docs/config/` + `data/partitions.json` | `DATA-<date>-NN` | Proposed, Validated, Active, Superseded, Invalidated |
 | Release | `docs/releases/<date>/<tag>.md` | tag | Planned, Ready, Released, Rolled back, Superseded |
 | Deprecation | `docs/registry/history.md` + workflow record | `DEP-<date>-NN` | Proposed, Approved, Deprecated, Removed, Superseded |

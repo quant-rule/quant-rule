@@ -1,7 +1,10 @@
-# Policy Change Workflow
+# Policy Change Workflow (Historical)
+
+> Superseded 2026-11-11 by run v3 and `run check`. The policy layer is retired;
+> portfolio constraints remain in `portfolio.json`.
 
 - Date: 2026-11-07 (UTC)
-- Status: Current
+- Status: Historical
 - Scope: the human-owned account, objective, risk, universe, and prop-firm envelope
 - Owner: Human (decision), Planner (impact analysis), Quant Validator (evidence review)
 - Contract: [`docs/config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md)

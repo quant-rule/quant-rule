@@ -7,8 +7,8 @@
 //!
 //! The sizing price is the decision-bar close. The fill happens at the next
 //! bar's open, so the realized notional can differ from the sizing notional. The
-//! runner separately caps the fill quantity at current equity × leverage × the
-//! policy position fraction; this module computes the unconstrained quantity.
+//! runner separately caps the fill quantity at the sizing notional; this module
+//! computes the unconstrained quantity.
 //! Sizing is side-independent: the engine always operates in both directions.
 
 use std::fmt;
@@ -93,6 +93,19 @@ impl SizingMode {
         }
 
         Ok(())
+    }
+
+    /// The notional cap for one entry.
+    ///
+    /// A fixed notional returns its declared notional. An equity fraction
+    /// returns `equity * fraction * leverage`. The caller supplies the current
+    /// equity and the configured leverage; this method does not read state.
+    #[must_use]
+    pub fn max_notional(&self, equity: f64, leverage: f64) -> f64 {
+        match *self {
+            Self::FixedNotional { notional, .. } => notional,
+            Self::EquityFraction { fraction, .. } => equity * fraction * leverage,
+        }
     }
 
     /// The minimum quantity increment.

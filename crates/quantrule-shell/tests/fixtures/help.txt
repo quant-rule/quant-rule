@@ -5,7 +5,7 @@ QuantRule shell commands
   timeframes <csv-path>                                      Build every supported timeframe from one M1 CSV and print every retained series.
   events <csv-path> [--window full|latest]                   Print the flat model's registered and extended event records.
   report model --config <run.json> [--spec <spec.json>] [--out <dir>] [--json] Write the flat per-timeframe model bundle for one configured run.
-  policy check --config <run.json>                           Validate the policy and every engine config against it.
+  run check --config <run.json>                              Validate the run and every engine config against it.
   strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat|long|short] Print one strategy decision and its as-of evidence from a model bundle.
   strategy run --model <model-bundle> --strategy <strategy.json> [--out <dir>] [--json] Write the strategy decisions bundle for one model bundle.
   execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json] Turn a strategy decisions bundle into orders, fills, and rejections.

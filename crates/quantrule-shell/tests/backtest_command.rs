@@ -53,13 +53,7 @@ fn run_config_without_timeframe(name: &str, available: &[&str]) -> PathBuf {
         .join("../../target/p3-backtest-tests")
         .join(name);
     fs::create_dir_all(&target).expect("the config directory is created");
-    for file in [
-        "run.json",
-        "model.json",
-        "execution.json",
-        "portfolio.json",
-        "policy.json",
-    ] {
+    for file in ["run.json", "model.json", "execution.json", "portfolio.json"] {
         fs::copy(source.join(file), target.join(file))
             .unwrap_or_else(|error| panic!("copy {file}: {error}"));
     }

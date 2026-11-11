@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 
 use super::error::ConfigErrorKind;
 use super::error::ConfigErrorKind::{Inconsistent, MissingField, Range, Unsupported};
-use super::{ConfigError, data, execution, model, policy, portfolio, run};
+use super::{ConfigError, data, execution, model, portfolio, run};
 
 fn set(mut value: Value, path: &[&str], replacement: Value) -> Value {
     let (last, parents) = path.split_last().expect("the path is not empty");
@@ -60,27 +60,6 @@ fn data_object() -> Value {
         "source_timeframe": "1m",
         "available_timeframes": ["1m", "5m", "15m", "1h", "4h"],
         "max_candles": 600000
-    })
-}
-
-fn policy_object() -> Value {
-    json!({
-        "schema": "quantrule.policy/v1",
-        "account": { "currency": "USD", "initial_cash": 10000.0 },
-        "objective": {
-            "performance_target": 0.10,
-            "evaluation_days": 90,
-            "max_drawdown": 0.20
-        },
-        "risk": {
-            "max_position_fraction": 1.0,
-            "max_leverage": 1.0,
-            "max_open_positions": 1
-        },
-        "universe": {
-            "tickets": ["EURUSD", "BTCUSD"],
-            "timeframes": ["15m"]
-        }
     })
 }
 
@@ -168,13 +147,11 @@ fn model_v4_object() -> Value {
 
 fn run_object() -> Value {
     json!({
-        "schema": "quantrule.run/v2",
+        "schema": "quantrule.run/v3",
         "name": "run",
         "model_id": "M1.0",
-        "policy_id": "POL1.0",
         "execution_id": "E1.0",
         "portfolio_id": "P1.0",
-        "policy": "policy.json",
         "data": "data.json",
         "model": "model.json",
         "execution": "execution.json",
@@ -253,27 +230,6 @@ fn data_rejects_a_missing_source_and_an_inverted_range() {
         MissingField,
         "$.source",
     );
-}
-
-#[test]
-fn policy_matches_the_contract() {
-    let valid = policy::parse(&policy_object(), "policy.json").expect("the valid policy loads");
-    assert_eq!(valid.account.currency, "USD");
-    assert_eq!(valid.account.initial_cash, 10_000.0);
-    assert_eq!(valid.objective.performance_target, 0.10);
-    assert_eq!(valid.universe.tickets, ["EURUSD", "BTCUSD"]);
-}
-
-#[test]
-fn policy_rejects_an_out_of_range_risk_envelope() {
-    for value in [
-        set(policy_object(), &["risk", "max_leverage"], json!(2.0)),
-        set(policy_object(), &["risk", "max_open_positions"], json!(2)),
-        set(policy_object(), &["objective", "max_drawdown"], json!(1.5)),
-        set(policy_object(), &["universe", "tickets"], json!([])),
-    ] {
-        assert!(policy::parse(&value, "policy.json").is_err());
-    }
 }
 
 #[test]
@@ -469,7 +425,6 @@ fn the_example_config_loads_and_resolves() {
 
     assert_eq!(config.name, "btcusd-2024");
     assert_eq!(config.model_id.as_deref(), Some("M1.0"));
-    assert_eq!(config.policy_id.as_deref(), Some("POL1.0"));
     assert_eq!(config.execution_id.as_deref(), Some("E1.0"));
     assert_eq!(config.portfolio_id.as_deref(), Some("P1.0"));
     assert_eq!(config.data.source_timeframe, Timeframe::M1);
@@ -498,33 +453,28 @@ fn a_model_ladder_must_be_in_the_data_ladder_and_contain_execution() {
 
 #[test]
 fn a_cross_config_mismatch_is_rejected() {
-    let base = Path::new("config");
-    let policy = policy::parse(&policy_object(), "policy.json").expect("policy");
-    let mut data_value = data_object();
-    data_value["available_timeframes"] = json!(["1m", "5m", "15m", "1h"]);
-    let data = data::parse(&data_value, "data.json", base).expect("data");
-    let model = model::parse(&model_v4_object(), "model.json").expect("model");
-    let execution = execution::parse(&execution_object(), "execution.json").expect("execution");
-    let portfolio = portfolio::parse(&portfolio_object(), "portfolio.json").expect("portfolio");
-
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
     let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
-    config.policy = policy;
-    config.data = data;
-    config.model = model;
-    config.execution = execution;
-    config.portfolio = portfolio;
-
-    assert!(config.validate_cross().is_ok());
 
     config.data.available_timeframes.push(Timeframe::H4);
     assert_rejected(config.validate_cross(), Range, "$.available_timeframes");
-    config.data.available_timeframes.pop();
+}
 
-    config.policy.universe.timeframes = vec![Timeframe::M15, Timeframe::H4];
+#[test]
+fn run_rejects_the_removed_policy_field() {
+    let mut value = run_object();
+    value["policy"] = json!("policy.json");
     assert_rejected(
-        config.validate_cross(),
-        Inconsistent,
-        "$.universe.timeframes",
+        run::parse(&value, "run.json"),
+        ConfigErrorKind::UnknownField,
+        "$.policy",
+    );
+
+    let mut value = run_object();
+    value["policy_id"] = json!("POL1.0");
+    assert_rejected(
+        run::parse(&value, "run.json"),
+        ConfigErrorKind::UnknownField,
+        "$.policy_id",
     );
 }

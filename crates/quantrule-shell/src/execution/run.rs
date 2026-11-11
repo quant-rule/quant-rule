@@ -227,9 +227,7 @@ pub(crate) fn run(
     let initial_cash = config.portfolio.initial_cash;
     let sizing = config.portfolio.sizing;
     let quantity_step = sizing.quantity_step();
-    let max_notional = config.portfolio.initial_cash
-        * config.policy.risk.max_position_fraction
-        * config.portfolio.leverage;
+    let max_notional = sizing.max_notional(initial_cash, config.portfolio.leverage);
     let mut orders = Vec::new();
     let mut fills = Vec::new();
     let mut rejections = Vec::new();

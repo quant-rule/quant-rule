@@ -1,6 +1,7 @@
 # Policy Blueprint and Current Run Contracts
 
-- Date: 2026-10-30 (updated 2026-11-07 for the portfolio v2 rule removal)
+- Date: 2026-10-30 (updated 2026-11-07; superseded 2026-11-11 by run v3)
+- Status: Historical
 - Applies to: run schema `quantrule.run/v2`, policy `v1`, data `v3`, model
   `v4`, execution `v2`, portfolio `v2`
 - Related: `docs/adr/2026-10-30/abstraction-levels-and-engine-boundaries.md`
@@ -165,12 +166,14 @@ observed cadence.
 ## Commands
 
 ```bash
-quantrule policy check --config <run.json>
+quantrule run check --config <run.json>
 quantrule report model --config <run.json> --out <dir>
 quantrule events <csv-path>
 ```
 
-`policy check` is read-only: it reads no candles and writes no artifacts.
+This document is historical. The current run contract is
+[`docs/config/2026-11-11/run-v3-and-portfolio-constraints.md`](../2026-11-11/run-v3-and-portfolio-constraints.md).
+`run check` is the current validation command.
 `report model` reads the configured candles and writes the flat bundle.
 
 ## Related workflows
