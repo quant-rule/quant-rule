@@ -20,6 +20,10 @@ are not treated as releases.
   and an execution-plan verification table that the reviewer checks row by row.
   The new `check_claims.py` and `check_execution_plans.py` gates cover the
   templates and current plans.
+- The Tauri Platform definition: local-first ADR, course folders, kata,
+  architecture characteristics, architecture-description outline, methodology
+  checkpoints, and a Dockerized PDF build. The current product is solo and local;
+  the team cloud is future work.
 
 ## [0.8.0] - 2026-11-11
 

@@ -228,6 +228,13 @@ class LayoutTests(unittest.TestCase):
             (root / "docs" / "workflows" / "templates").mkdir(parents=True)
             self.assertEqual(check_structure.check_dated_docs(root), [])
 
+    def test_course_directories_are_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "docs" / "course" / "architecture").mkdir(parents=True)
+            (root / "docs" / "course" / "methodology").mkdir(parents=True)
+            self.assertEqual(check_structure.check_dated_docs(root), [])
+
     def test_data_allowlist_accepts_readmes_and_partitions(self) -> None:
         self.assertEqual(
             check_structure.data_allowlist_violations(

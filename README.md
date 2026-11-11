@@ -30,6 +30,7 @@ strategy, portfolio, data, and tooling is in
 | [`docs/README.md`](docs/README.md) | Global documentation index and current status |
 | [`docs/workflows/README.md`](docs/workflows/README.md) | Workflow index, selection guide, status vocabulary, and record map |
 | [`docs/architecture/README.md`](docs/architecture/README.md) | Architecture baseline, pipeline, and reading order |
+| [`docs/course/README.md`](docs/course/README.md) | Course deliverables and PDF build |
 | [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md) | Stage contract, command registry, and discovery gate |
 | [`docs/model/2026-11-05/model-m1.0.md`](docs/model/2026-11-05/model-m1.0.md) | M1.0 model contract |
 | [`docs/config/2026-10-30/policy-and-strategy.md`](docs/config/2026-10-30/policy-and-strategy.md) | Policy, strategy, execution, and portfolio contracts |

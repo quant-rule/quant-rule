@@ -1,6 +1,6 @@
 # Development Workflow v2
 
-- Status: In Progress
+- Status: Verified
 - Date: 2026-11-11 (UTC)
 - Issue: #590
 - Claim type: Behaviour Claim
@@ -71,12 +71,12 @@ Excluded:
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Claim Type field | Four options exist on the board | `gh project field-list 1 --owner quant-rule` | Field and options present | Field exists with four options | Pending | — | — | |
-| V2 | Lifecycle documents | Four stages and dates are normative | `python3 tools/check_workflows.py` | pass | 17 workflows, 8 templates | Pending | — | — | |
-| V3 | Templates | Every issue/PR template names the four types | `python3 tools/check_claims.py` | pass | pass | Pending | — | — | |
-| V4 | Execution plan rule | New plans require the verification table | `python3 tools/check_execution_plans.py` | pass | pass | Pending | — | — | |
-| V5 | Automation | `In Review` is preserved; dates and claim type are read | `bash -n .github/scripts/project-sync.sh`; issue #590 sync | script runs; fields preserved | syntax pass; #590 In Progress and start date preserved | Pending | — | — | |
-| V6 | Pilot | Issue #590 passes Todo -> In Progress -> In Review -> Done | GitHub Project | lifecycle works | In Progress; review pending | Pending | — | — | |
+| V1 | Claim Type field | Four options exist on the board | `gh project field-list 1 --owner quant-rule` | Field and options present | Field exists with four options | Pass | Agent | 2026-11-11 | |
+| V2 | Lifecycle documents | Four stages and dates are normative | `python3 tools/check_workflows.py` | pass | 17 workflows, 8 templates | Pass | Agent | 2026-11-11 | |
+| V3 | Templates | Every issue/PR template names the four types | `python3 tools/check_claims.py` | pass | pass | Pass | Agent | 2026-11-11 | |
+| V4 | Execution plan rule | New plans require the verification table | `python3 tools/check_execution_plans.py` | pass | pass | Pass | Agent | 2026-11-11 | |
+| V5 | Automation | `In Review` is preserved; dates and claim type are read | `bash -n .github/scripts/project-sync.sh`; issue #590 sync | script runs; fields preserved | syntax pass; #590 In Progress and start date preserved | Pass | Agent | 2026-11-11 | |
+| V6 | Pilot | Issue #590 passes Todo -> In Progress -> In Review -> Done | GitHub Project | lifecycle works | PR #592 merged; issue #590 Done | Pass | Human | 2026-11-11 | |
 
 ## Risks and recovery
 
