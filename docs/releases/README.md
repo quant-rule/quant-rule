@@ -72,8 +72,9 @@ format unless the human approves a named marker.
 
 The first post-baseline release is [`v0.6.0`](2026-11-07/v0.6.0.md) on
 2026-11-07. It is not in the historical table. The latest release is
-[`v0.8.0`](2026-11-11/v0.8.0.md) on 2026-11-11, the last pre-Tauri release.
-The previous release is [`v0.7.0`](2026-11-09/v0.7.0.md) on 2026-11-09.
+[`v0.9.0`](2026-11-11/v0.9.0.md) on 2026-11-11, the first Tauri Platform release.
+The previous release is [`v0.8.0`](2026-11-11/v0.8.0.md), the last pre-Tauri
+release; before it is [`v0.7.0`](2026-11-09/v0.7.0.md).
 
 ## 5. Changelog alignment
 
