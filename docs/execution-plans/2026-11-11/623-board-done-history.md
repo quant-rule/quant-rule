@@ -1,6 +1,6 @@
 # Protect Board Done History and Strengthen the Execution-Plan Checklist
 
-- Status: In Progress
+- Status: In Review
 - Date: 2026-11-11 (UTC)
 - Issue: #623
 - Claim type: Behaviour Claim
@@ -147,7 +147,7 @@ Excluded:
 | V10 | Phase 6: Issue template | Workflow list matches the current index | `rg "Simulation research\|Policy change" .github/ISSUE_TEMPLATE/task.md` | simulation present; policy absent | Simulation research present at line 25; Policy change absent | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
 | V11 | Phase 6: Docs index | Board guard is listed in the tooling table | `rg "check_board_permanence" docs/README.md` | present | `docs/README.md` line 233: board permanence checker | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
 | V12 | Phase 7: Records | Changelog and AI log are updated | `python3 tools/check_changelog.py`; `test -f docs/ai-transparency-log/2026-11-11/623-board-done-history.md` | pass | changelog ok: 5 releases, 90 entries; AI log present | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
-| V13 | Phase 8: Delivery | Issue In Progress; PR open; issue In Review; Done item intact after merge | GitHub Project and PR | board and PR states match | | Pending | | | PR open; human review and merge pending |
+| V13 | Phase 8: Delivery | Issue In Progress; PR open; issue In Review; Done item intact after merge | GitHub Project and PR | board and PR states match | PR #624 open; issue moved to In Review; merge and Done verification pending | Pending | | | PR open; human review and merge pending |
 | V14 | Phase 8: Regression guard | The board permanence guard fails before the rule and passes after | `python3 tools/check_board_permanence.py` against the pre-change tree | fail before; pass after | Pre-change tree: `AGENTS.md is missing the board permanence rule`; post-change: pass | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
 
 ## Risks and recovery
