@@ -48,6 +48,11 @@ are not treated as releases.
   `run check` replaces `policy check`. Portfolio capital, sizing, costs,
   drawdown, leverage, and position limits remain first-class constraints. The
   qualification dimension `prop_firm_limits` is removed.
+- The course deliverables are final: the architecture description now cites the
+  implemented desktop, application service, memory, and distribution code, the
+  characteristics and methodology checkpoints match the Phase 3 evidence, and
+  all nine PDFs are rebuilt. The 0.9.0 release-readiness record is added; the tag
+  remains a human gate.
 
 ### Removed
 

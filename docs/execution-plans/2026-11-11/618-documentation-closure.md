@@ -3,7 +3,7 @@
 - Date: 2026-11-11 (UTC)
 - Issue: [#618](https://github.com/quant-rule/quant-rule/issues/618)
 - Parent plan: [`588-tauri-platform.md`](588-tauri-platform.md)
-- Status: In Progress
+- Status: In Review
 - Claim type: Outcome Claim
 - Owner: Human
 - Workflow: Execution Plan + Release & Operations
@@ -83,13 +83,13 @@ Commands are run from the repository root.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Architecture | Final description with code references | file review | complete | Pending | Pending | — | — | |
-| V2 | Methodology | Checkpoints and overview current | file review | complete | Pending | Pending | — | — | |
-| V3 | PDFs | Nine PDFs build | `tools/course/build_pdfs.sh` | pass | Pending | Pending | — | — | |
-| V4 | Readability | PDFs open and page counts are sane | `pdfinfo`/file check | pass | Pending | Pending | — | — | |
-| V5 | Release readiness | Gate, artifacts, risks recorded | report review | complete | Pending | Pending | — | — | |
-| V6 | Plan | P4 Pass; P5 pending | plan review | complete | Pending | Pending | — | — | |
-| V7 | Gate | Repository checks | checkers | pass | Pending | Pending | — | — | |
+| V1 | Architecture | Final description with code references | file review | complete | final; code and evidence references present | Pass | Agent | 2026-11-11 | Human review pending |
+| V2 | Methodology | Checkpoints and overview current | file review | complete | Phase 3 evidence and residual risks recorded | Pass | Agent | 2026-11-11 | Human review pending |
+| V3 | PDFs | Nine PDFs build | `tools/course/build_pdfs.sh` | pass | 9 PDFs built | Pass | Agent | 2026-11-11 | Human review pending |
+| V4 | Readability | PDFs open and page counts are sane | `pdfinfo`/file check | pass | 1/3/5 pages; six 2-page documents | Pass | Agent | 2026-11-11 | Human review pending |
+| V5 | Release readiness | Gate, artifacts, risks recorded | report review | complete | report added; tag pending | Pass | Agent | 2026-11-11 | Human review pending |
+| V6 | Plan | P4 Pass; P5 pending | plan review | complete | P4 Pass; P5 Pending | Pass | Agent | 2026-11-11 | Human review pending |
+| V7 | Gate | Repository checks | checkers | pass | links, terms, structure, workflows, changelog, releases, plans pass | Pass | Agent | 2026-11-11 | Human review pending |
 
 ## Risks and recovery
 

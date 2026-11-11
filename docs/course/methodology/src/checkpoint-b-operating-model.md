@@ -37,13 +37,15 @@ issue -> plan -> implement -> test -> PR -> In Review -> accept/merge -> Done
 
 ## Evidence
 
-The Phase 1 workflow pilot and the four-stage board are recorded in issue #590;
-the plan verification table is the review checklist.
+The Phase 1 workflow pilot and the four-stage board are recorded in issue #590.
+Phase 3 ran through issues #605–#611 with a plan, PR, green checks, `In Review`,
+and cleanup. The parent plan's P0–P3E rows are `Pass`; the verification report is
+[`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md).
 
 ## Limit
 
 The lifecycle is exercised on one solo developer and one Linux machine. It does
-not yet cover a team or a multi-user support queue.
+not yet cover a team, a multi-user support queue, or a native WebDriver flow.
 
 ## Decision
 
