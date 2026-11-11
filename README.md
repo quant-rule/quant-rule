@@ -1,9 +1,10 @@
 # QuantRule
 
-QuantRule is a local, single-user, deterministic shell application for rule-based
-research on OHLCV candles. You start it and type commands; it prints or writes what
-the data and model engines produce. There is no graphical interface, no service, and
-no library to embed.
+QuantRule is a local, single-user, deterministic application for rule-based
+research on OHLCV candles. The current release is the command shell: you start it
+and type commands, and it prints or writes what the data and model engines produce.
+The desktop application is being built on the same application service; there is no
+account, no deployed service, and no cloud runtime.
 
 The current model is **M1.0**: a flat per-timeframe measurement of readings,
 discrete states, confirmed levels, events, progression, and context. It publishes
@@ -258,7 +259,8 @@ for the shell fetch surface. Trade charts are rendered from recorded bundles wit
 | `crates/quantrule-data` | Data engine: normalization, ladder construction, ordering, gaps |
 | `crates/quantrule-model` | Model engine: readings, states, levels, events, progression, context, flat report |
 | `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines |
-| `crates/quantrule-shell` | The binary: parse, source access, stage orchestration, and rendering |
+| `crates/quantrule-app` | Application service: workspace, dataset, configuration, model run, and export |
+| `crates/quantrule-shell` | The command shell: parse, call the application service, and render |
 | `tools/data/` | Binance archive importer and source coverage audit |
 | `tools/charts/` | Deterministic trade-chart renderer and click annotator |
 | `tools/trades/` | Per-trade 250-bar context, annotations, and exit-quality evaluation |

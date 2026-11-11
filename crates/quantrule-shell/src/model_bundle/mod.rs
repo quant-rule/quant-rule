@@ -16,7 +16,7 @@ pub(crate) use bundle::{
 pub(crate) use error::ModelBundleError;
 pub(crate) use provenance::{panel_provenance, resolve_spec_path};
 
-use crate::config::RunConfig;
+use quantrule_app::config::RunConfig;
 
 /// The requested period as written, for the summary and the empty-period error.
 pub(crate) fn period_label(config: &RunConfig) -> String {

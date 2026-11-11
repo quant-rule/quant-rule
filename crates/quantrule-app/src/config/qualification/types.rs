@@ -4,11 +4,11 @@
 //! `parse.rs` builds them; the qualification stage reads them.
 
 /// The qualification criteria schema.
-pub(crate) const SCHEMA: &str = "quantrule.qualification/v1";
+pub const SCHEMA: &str = "quantrule.qualification/v1";
 
 /// A fixed data partition declared by the improvement workflow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum Partition {
+pub enum Partition {
     /// Model development, 2018-01-01..2020-12-31.
     ModelDev,
     /// Model validation, 2021-01-01..2022-12-31.
@@ -25,7 +25,7 @@ pub(crate) enum Partition {
 
 impl Partition {
     /// Every declared partition, in workflow order.
-    pub(crate) const ALL: [Self; 6] = [
+    pub const ALL: [Self; 6] = [
         Self::ModelDev,
         Self::ModelValidation,
         Self::StrategyDev,
@@ -36,7 +36,7 @@ impl Partition {
 
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::ModelDev => "model_dev",
             Self::ModelValidation => "model_validation",
@@ -49,7 +49,7 @@ impl Partition {
 
     /// Parses a stable wire code.
     #[must_use]
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
             .find(|partition| partition.code() == code)
@@ -57,7 +57,7 @@ impl Partition {
 
     /// The inclusive UTC window, as `YYYY-MM-DD` bounds.
     #[must_use]
-    pub(crate) const fn window(self) -> (&'static str, &'static str) {
+    pub const fn window(self) -> (&'static str, &'static str) {
         match self {
             Self::ModelDev => ("2018-01-01", "2020-12-31"),
             Self::ModelValidation => ("2021-01-01", "2022-12-31"),
@@ -71,7 +71,7 @@ impl Partition {
 
 /// The declared cost model.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CostModel {
+pub enum CostModel {
     /// Execution fees, slippage, commission, and funding are carried by the
     /// execution and portfolio artifacts.
     ExecutionAndPortfolio,
@@ -80,7 +80,7 @@ pub(crate) enum CostModel {
 impl CostModel {
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::ExecutionAndPortfolio => "execution-and-portfolio",
         }
@@ -88,7 +88,7 @@ impl CostModel {
 
     /// Parses a stable wire code.
     #[must_use]
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         match code {
             "execution-and-portfolio" => Some(Self::ExecutionAndPortfolio),
             _ => None,
@@ -98,7 +98,7 @@ impl CostModel {
 
 /// A declared multiple-testing correction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Correction {
+pub enum Correction {
     /// Holm's step-down correction.
     Holm,
     /// Bonferroni's single-step correction.
@@ -110,7 +110,7 @@ pub(crate) enum Correction {
 impl Correction {
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::Holm => "holm",
             Self::Bonferroni => "bonferroni",
@@ -120,7 +120,7 @@ impl Correction {
 
     /// Parses a stable wire code.
     #[must_use]
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         match code {
             "holm" => Some(Self::Holm),
             "bonferroni" => Some(Self::Bonferroni),
@@ -132,15 +132,15 @@ impl Correction {
 
 /// The pre-registered multiple-testing declaration.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct MultipleTesting {
+pub struct MultipleTesting {
     /// The number of primary cells.
-    pub(crate) primary_cells: u64,
+    pub primary_cells: u64,
     /// The number of trials, at least the primary-cell count.
-    pub(crate) trials: u64,
+    pub trials: u64,
     /// The declared correction.
-    pub(crate) correction: Correction,
+    pub correction: Correction,
     /// The family-wise alpha, in `(0, 1)`.
-    pub(crate) family_alpha: f64,
+    pub family_alpha: f64,
 }
 
 impl MultipleTesting {
@@ -153,7 +153,7 @@ impl MultipleTesting {
     /// p-value can compare it against this threshold without changing the
     /// verdict semantics.
     #[must_use]
-    pub(crate) fn adjusted_alpha(&self) -> f64 {
+    pub fn adjusted_alpha(&self) -> f64 {
         match self.correction {
             Correction::Holm | Correction::Bonferroni => {
                 self.family_alpha / self.primary_cells as f64
@@ -165,7 +165,7 @@ impl MultipleTesting {
 
 /// One evidence dimension named by the contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum Dimension {
+pub enum Dimension {
     /// The frozen candidate survived data it was not tuned on.
     OutOfSample,
     /// The result holds across sequential folds.
@@ -198,7 +198,7 @@ pub(crate) enum Dimension {
 
 impl Dimension {
     /// Every declared dimension.
-    pub(crate) const ALL: [Self; 14] = [
+    pub const ALL: [Self; 14] = [
         Self::OutOfSample,
         Self::WalkForward,
         Self::Robustness,
@@ -217,7 +217,7 @@ impl Dimension {
 
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::OutOfSample => "out_of_sample",
             Self::WalkForward => "walk_forward",
@@ -238,7 +238,7 @@ impl Dimension {
 
     /// Parses a stable wire code.
     #[must_use]
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
             .find(|dimension| dimension.code() == code)
@@ -247,7 +247,7 @@ impl Dimension {
 
 /// A comparison operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Operator {
+pub enum Operator {
     /// Strictly greater than.
     Greater,
     /// Greater than or equal to.
@@ -265,7 +265,7 @@ pub(crate) enum Operator {
 impl Operator {
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::Greater => ">",
             Self::GreaterOrEqual => ">=",
@@ -278,7 +278,7 @@ impl Operator {
 
     /// Parses a stable wire code.
     #[must_use]
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         match code {
             ">" => Some(Self::Greater),
             ">=" => Some(Self::GreaterOrEqual),
@@ -292,7 +292,7 @@ impl Operator {
 
     /// Compares one observed value against one threshold.
     #[must_use]
-    pub(crate) fn evaluate(self, observed: f64, threshold: f64) -> bool {
+    pub fn evaluate(self, observed: f64, threshold: f64) -> bool {
         match self {
             Self::Greater => observed > threshold,
             Self::GreaterOrEqual => observed >= threshold,
@@ -306,7 +306,7 @@ impl Operator {
 
 /// An artifact a criterion can read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum EvidenceArtifact {
+pub enum EvidenceArtifact {
     /// The backtest manifest.
     Backtest,
     /// The portfolio metrics.
@@ -319,7 +319,7 @@ pub(crate) enum EvidenceArtifact {
 
 impl EvidenceArtifact {
     /// Every supported artifact.
-    pub(crate) const ALL: [Self; 4] = [
+    pub const ALL: [Self; 4] = [
         Self::Backtest,
         Self::Portfolio,
         Self::Execution,
@@ -328,7 +328,7 @@ impl EvidenceArtifact {
 
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::Backtest => "backtest",
             Self::Portfolio => "portfolio",
@@ -339,7 +339,7 @@ impl EvidenceArtifact {
 
     /// The required prefix of `evidence_field`.
     #[must_use]
-    pub(crate) const fn field_prefix(self) -> &'static str {
+    pub const fn field_prefix(self) -> &'static str {
         match self {
             Self::Backtest => "manifest.",
             Self::Portfolio => "metrics.",
@@ -350,7 +350,7 @@ impl EvidenceArtifact {
 
     /// Parses a stable wire code.
     #[must_use]
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
             .find(|artifact| artifact.code() == code)
@@ -358,56 +358,56 @@ impl EvidenceArtifact {
 
     /// Strips the required prefix from a validated evidence field.
     #[must_use]
-    pub(crate) fn field_path(self, field: &str) -> &str {
+    pub fn field_path(self, field: &str) -> &str {
         field.strip_prefix(self.field_prefix()).unwrap_or(field)
     }
 }
 
 /// One human-owned criterion.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Criterion {
+pub struct Criterion {
     /// The stable criterion id.
-    pub(crate) id: String,
+    pub id: String,
     /// The evidence dimension.
-    pub(crate) dimension: Dimension,
+    pub dimension: Dimension,
     /// Whether the criterion changes the verdict.
-    pub(crate) mandatory: bool,
+    pub mandatory: bool,
     /// The human label for the measurement.
-    pub(crate) metric: String,
+    pub metric: String,
     /// The comparison operator.
-    pub(crate) operator: Operator,
+    pub operator: Operator,
     /// The comparison threshold.
-    pub(crate) threshold: f64,
+    pub threshold: f64,
     /// The artifact the measurement comes from.
-    pub(crate) evidence_artifact: EvidenceArtifact,
+    pub evidence_artifact: EvidenceArtifact,
     /// The dotted field path inside the artifact.
-    pub(crate) evidence_field: String,
+    pub evidence_field: String,
 }
 
 /// A dimension the human declared not applicable.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct NotApplicable {
+pub struct NotApplicable {
     /// The dimension.
-    pub(crate) dimension: Dimension,
+    pub dimension: Dimension,
     /// Why the dimension does not apply.
-    pub(crate) reason: String,
+    pub reason: String,
 }
 
 /// One validated qualification criteria file.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Criteria {
+pub struct Criteria {
     /// The human label for this protocol.
-    pub(crate) id: String,
+    pub id: String,
     /// The partitions the evidence must come from.
-    pub(crate) required_partitions: Vec<Partition>,
+    pub required_partitions: Vec<Partition>,
     /// The sample floor the evidence must meet.
-    pub(crate) minimum_trades: u64,
+    pub minimum_trades: u64,
     /// The declared cost model.
-    pub(crate) cost_model: CostModel,
+    pub cost_model: CostModel,
     /// The pre-registered multiple-testing declaration.
-    pub(crate) multiple_testing: MultipleTesting,
+    pub multiple_testing: MultipleTesting,
     /// The criteria, in file order.
-    pub(crate) criteria: Vec<Criterion>,
+    pub criteria: Vec<Criterion>,
     /// The dimensions the human declared not applicable.
-    pub(crate) not_applicable: Vec<NotApplicable>,
+    pub not_applicable: Vec<NotApplicable>,
 }

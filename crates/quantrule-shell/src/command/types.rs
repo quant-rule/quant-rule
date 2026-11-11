@@ -12,8 +12,6 @@ use std::path::PathBuf;
 
 use crate::analytics::AnalyticsRunError;
 use crate::backtest::BacktestRunError;
-use crate::config::ConfigError;
-use crate::csv::SourceError;
 use crate::execution::ExecutionRunError;
 use crate::fetch::FetchRunError;
 use crate::model_bundle::ModelBundleError;
@@ -25,6 +23,9 @@ use crate::request::{
     StrategyRunArgs,
 };
 use crate::strategy::StrategyRunError;
+use quantrule_app::config::ConfigError;
+use quantrule_app::csv::SourceError;
+use quantrule_app::error::AppError;
 
 /// A parsed shell command.
 #[derive(Debug, PartialEq)]
@@ -189,6 +190,8 @@ pub(crate) enum RunError {
     Config(ConfigError),
     /// The source or data engine rejected the candles.
     Source(SourceError),
+    /// The application service failed.
+    App(AppError),
     /// The report spec could not be read or parsed.
     Report(ReportError),
     /// The model bundle could not be built.
@@ -218,6 +221,7 @@ impl fmt::Display for RunError {
         match self {
             Self::Config(error) => error.fmt(formatter),
             Self::Source(error) => error.fmt(formatter),
+            Self::App(error) => error.fmt(formatter),
             Self::Report(error) => error.fmt(formatter),
             Self::Model(error) => error.fmt(formatter),
             Self::Strategy(error) => error.fmt(formatter),
@@ -238,6 +242,7 @@ impl std::error::Error for RunError {
         match self {
             Self::Config(error) => Some(error),
             Self::Source(error) => Some(error),
+            Self::App(error) => Some(error),
             Self::Report(error) => Some(error),
             Self::Model(error) => Some(error),
             Self::Strategy(error) => Some(error),

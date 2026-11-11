@@ -12,20 +12,20 @@ use serde_json::{Map, Value};
 use super::error::ConfigError;
 
 /// The JSON path of the document root.
-pub(crate) const ROOT: &str = "$";
+pub const ROOT: &str = "$";
 
 /// The path of a named child.
-pub(crate) fn child(path: &str, name: &str) -> String {
+pub fn child(path: &str, name: &str) -> String {
     format!("{path}.{name}")
 }
 
 /// The path of an array element.
-pub(crate) fn index(path: &str, position: usize) -> String {
+pub fn index(path: &str, position: usize) -> String {
     format!("{path}[{position}]")
 }
 
 /// How a value is shown in an error message.
-pub(crate) fn observed(value: &Value) -> String {
+pub fn observed(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
         Value::Number(number) => number.to_string(),
@@ -36,7 +36,7 @@ pub(crate) fn observed(value: &Value) -> String {
 }
 
 /// Requires a JSON object.
-pub(crate) fn object<'a>(
+pub fn object<'a>(
     file: &str,
     path: &str,
     value: &'a Value,
@@ -47,7 +47,7 @@ pub(crate) fn object<'a>(
 }
 
 /// Requires a field, or reports it as missing at `path.name`.
-pub(crate) fn field<'a>(
+pub fn field<'a>(
     file: &str,
     path: &str,
     object: &'a Map<String, Value>,
@@ -61,7 +61,7 @@ pub(crate) fn field<'a>(
 /// Rejects any field not in `allowed`.
 ///
 /// `serde_json`'s map is ordered, so the first unknown field is deterministic.
-pub(crate) fn check_fields(
+pub fn check_fields(
     file: &str,
     path: &str,
     object: &Map<String, Value>,
@@ -76,11 +76,7 @@ pub(crate) fn check_fields(
 }
 
 /// Requires the contract's schema string.
-pub(crate) fn schema(
-    file: &str,
-    object: &Map<String, Value>,
-    expected: &str,
-) -> Result<(), ConfigError> {
+pub fn schema(file: &str, object: &Map<String, Value>, expected: &str) -> Result<(), ConfigError> {
     let value = field(file, ROOT, object, "schema")?;
     let found = string(file, &child(ROOT, "schema"), value)?;
     if found != expected {
@@ -95,14 +91,14 @@ pub(crate) fn schema(
 }
 
 /// Requires a JSON string.
-pub(crate) fn string<'a>(file: &str, path: &str, value: &'a Value) -> Result<&'a str, ConfigError> {
+pub fn string<'a>(file: &str, path: &str, value: &'a Value) -> Result<&'a str, ConfigError> {
     value
         .as_str()
         .ok_or_else(|| ConfigError::wrong_type(file, path, "a string", &observed(value)))
 }
 
 /// Requires a non-empty JSON string.
-pub(crate) fn non_empty_string<'a>(
+pub fn non_empty_string<'a>(
     file: &str,
     path: &str,
     value: &'a Value,
@@ -115,14 +111,14 @@ pub(crate) fn non_empty_string<'a>(
 }
 
 /// Requires a JSON boolean.
-pub(crate) fn boolean(file: &str, path: &str, value: &Value) -> Result<bool, ConfigError> {
+pub fn boolean(file: &str, path: &str, value: &Value) -> Result<bool, ConfigError> {
     value
         .as_bool()
         .ok_or_else(|| ConfigError::wrong_type(file, path, "a boolean", &observed(value)))
 }
 
 /// Requires a finite JSON number.
-pub(crate) fn number(file: &str, path: &str, value: &Value) -> Result<f64, ConfigError> {
+pub fn number(file: &str, path: &str, value: &Value) -> Result<f64, ConfigError> {
     let number = value
         .as_f64()
         .ok_or_else(|| ConfigError::wrong_type(file, path, "a number", &observed(value)))?;
@@ -138,18 +134,14 @@ pub(crate) fn number(file: &str, path: &str, value: &Value) -> Result<f64, Confi
 }
 
 /// Requires a non-negative JSON integer.
-pub(crate) fn u64(file: &str, path: &str, value: &Value) -> Result<u64, ConfigError> {
+pub fn u64(file: &str, path: &str, value: &Value) -> Result<u64, ConfigError> {
     value
         .as_u64()
         .ok_or_else(|| ConfigError::wrong_type(file, path, "an integer", &observed(value)))
 }
 
 /// Requires a JSON array.
-pub(crate) fn array<'a>(
-    file: &str,
-    path: &str,
-    value: &'a Value,
-) -> Result<&'a [Value], ConfigError> {
+pub fn array<'a>(file: &str, path: &str, value: &'a Value) -> Result<&'a [Value], ConfigError> {
     value
         .as_array()
         .map(Vec::as_slice)

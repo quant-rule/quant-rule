@@ -1,6 +1,6 @@
-//! The shell-side CSV source.
+//! The application-service CSV source.
 //!
-//! The shell owns source access: it opens a local file, validates the exact
+//! The application service owns local source access: it opens a file, validates the exact
 //! header, and streams one row at a time into the data engine. The engine never
 //! reads a file. This module only hands raw fields to `CandleWindow::push`; it
 //! does not validate candles or assign series indices.
@@ -29,7 +29,7 @@ const FIELD_COUNT: usize = 6;
 
 /// A source file could not be loaded into the candle window.
 #[derive(Debug)]
-pub(crate) enum SourceError {
+pub enum SourceError {
     /// The file could not be opened.
     Open {
         /// The source path.
@@ -182,16 +182,16 @@ impl std::error::Error for SourceError {
 
 /// A tolerant load: the retained window plus its quality report.
 #[derive(Debug)]
-pub(crate) struct TolerantWindow {
+pub struct TolerantWindow {
     /// The accepted candles retained by the bounded window.
-    pub(crate) window: CandleWindow,
+    pub window: CandleWindow,
     /// Counts and skipped-row details from the load.
-    pub(crate) report: IngestionReport,
+    pub report: IngestionReport,
 }
 
 /// Counts and skipped-row details from a tolerant load.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct IngestionReport {
+pub struct IngestionReport {
     rows_read: usize,
     accepted: usize,
     rejected: usize,
@@ -209,7 +209,7 @@ impl IngestionReport {
     /// # Errors
     ///
     /// Returns the writer's error when a line cannot be written.
-    pub(crate) fn write(&self, writer: &mut impl Write) -> io::Result<()> {
+    pub fn write(&self, writer: &mut impl Write) -> io::Result<()> {
         writeln!(
             writer,
             "quality rows_read={} accepted={} rejected={} duplicate={} out_of_order={} invalid={} evicted={} retained={}",
@@ -329,7 +329,7 @@ struct FieldCountError {
 /// Returns a [`SourceError`] when the file cannot be opened or read, the header
 /// is missing or invalid, a row does not have six fields, or the data engine
 /// rejects a row.
-pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
+pub fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
     let mut reader = open_reader(path)?;
     read_header(&mut reader, path)?;
 
@@ -365,7 +365,7 @@ pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
 /// Opens a CSV source and streams every row into a fresh timeframe set.
 ///
 /// The input is an M1 series. The data engine derives M5, M15, and H1 while
-/// the file is read, so the shell never builds a timeframe itself. The header
+/// the file is read, so no adapter builds a timeframe itself. The header
 /// is checked before any row is accepted, and the full file is never
 /// collected. Every parsed row feeds a source-cadence tracker before any date
 /// bound is applied; a file whose rows are never closer than a coarser
@@ -377,7 +377,7 @@ pub(crate) fn load_window(path: &Path) -> Result<CandleWindow, SourceError> {
 /// is missing or invalid, a row does not have six fields, the source is not
 /// one-minute spaced, the data engine rejects a row, or the final bucket cannot
 /// be finished.
-pub(crate) fn load_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
+pub fn load_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
     load_timeframe_set(path, TimeframeSet::new(), None)
 }
 
@@ -391,7 +391,7 @@ pub(crate) fn load_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> 
 ///
 /// Returns a [`SourceError`] for the same reasons as [`load_timeframes`], and
 /// when the input exceeds the full-series cap.
-pub(crate) fn load_full_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
+pub fn load_full_timeframes(path: &Path) -> Result<TimeframeSet, SourceError> {
     load_timeframe_set(path, TimeframeSet::full(), None)
 }
 
@@ -407,7 +407,7 @@ pub(crate) fn load_full_timeframes(path: &Path) -> Result<TimeframeSet, SourceEr
 ///
 /// Returns a [`SourceError`] for the same reasons as [`load_timeframes`], and
 /// when the input exceeds `limit`.
-pub(crate) fn load_timeframes_with_limit(
+pub fn load_timeframes_with_limit(
     path: &Path,
     bounds: DateBounds,
     limit: usize,
@@ -504,7 +504,7 @@ fn within_bounds(raw: &RawCandle<'_>, bounds: DateBounds) -> bool {
 ///
 /// Returns a [`SourceError`] when the file cannot be opened or read, or the
 /// header is missing or invalid.
-pub(crate) fn load_window_tolerant(path: &Path) -> Result<TolerantWindow, SourceError> {
+pub fn load_window_tolerant(path: &Path) -> Result<TolerantWindow, SourceError> {
     let mut reader = open_reader(path)?;
     read_header(&mut reader, path)?;
 

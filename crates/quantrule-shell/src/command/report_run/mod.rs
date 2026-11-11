@@ -11,12 +11,12 @@ use quantrule_model::panel::PanelInstrument;
 use quantrule_model::spec::v2::SpecRun;
 
 use super::types::{ReportError, RunError};
-use crate::config::RunConfig;
 use crate::model_bundle::{
     BundleOutput, SpecRunArtifacts, model_bundle_from, model_bundle_with_spec, panel_provenance,
 };
-use crate::pipeline;
 use crate::request::ReportArgs;
+use quantrule_app::config::RunConfig;
+use quantrule_app::pipeline;
 
 mod parse;
 mod spec;
@@ -46,7 +46,7 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
         })?;
         let schema = crate::spec::schema_of(&text)
             .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
-        let spec_hash = crate::fingerprint::fnv1a(text.as_bytes());
+        let spec_hash = quantrule_app::fingerprint::fnv1a(text.as_bytes());
         let file = spec_path
             .file_name()
             .and_then(|name| name.to_str())

@@ -88,13 +88,22 @@ fn the_legacy_analytics_crate_is_gone() {
 ///
 /// The order is the dependency order, so a crate may only name crates above
 /// it. Adding an edge is an architecture decision; this table is its guard.
-const ALLOWED_EDGES: [(&str, &[&str]); 4] = [
+const ALLOWED_EDGES: [(&str, &[&str]); 5] = [
     ("quantrule-data", &[]),
     ("quantrule-model", &["quantrule-data"]),
     ("quantrule-backtest", &["quantrule-data", "quantrule-model"]),
     (
-        "quantrule-shell",
+        "quantrule-app",
         &["quantrule-backtest", "quantrule-data", "quantrule-model"],
+    ),
+    (
+        "quantrule-shell",
+        &[
+            "quantrule-app",
+            "quantrule-backtest",
+            "quantrule-data",
+            "quantrule-model",
+        ],
     ),
 ];
 

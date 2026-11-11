@@ -17,10 +17,8 @@ use quantrule_backtest::portfolio::{PortfolioLedger, PortfolioLedgerError};
 use quantrule_backtest::strategy::{Decision, EventStrategyInput};
 use serde_json::{Value, json};
 
-use crate::config::{ConfigError, RunConfig};
 use crate::execution::{ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution};
 use crate::model_bundle::model_bundle_from;
-use crate::pipeline::{self, PipelineError};
 use crate::portfolio::{self, PortfolioRunError};
 use crate::render_report::{self, BundleError};
 use crate::request::{BacktestRunArgs, PortfolioReplayArgs};
@@ -28,6 +26,8 @@ use crate::strategy::{
     DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
     validate_context,
 };
+use quantrule_app::config::{ConfigError, RunConfig};
+use quantrule_app::pipeline::{self, PipelineError};
 
 /// The backtest command failed.
 #[derive(Debug)]
@@ -136,7 +136,8 @@ impl std::error::Error for BacktestRunError {
 pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(), BacktestRunError> {
     let config = RunConfig::load(&args.config).map_err(BacktestRunError::Config)?;
     let (strategy_config, strategy_config_id) =
-        crate::config::load_strategy(&args.strategy).map_err(BacktestRunError::StrategyConfig)?;
+        quantrule_app::config::load_strategy(&args.strategy)
+            .map_err(BacktestRunError::StrategyConfig)?;
     let out = args
         .out
         .clone()
@@ -445,7 +446,7 @@ fn stage_info(
             message: "config identity is missing".to_owned(),
         })?
         .to_owned();
-    let hash = crate::fingerprint::fnv1a(text.as_bytes());
+    let hash = quantrule_app::fingerprint::fnv1a(text.as_bytes());
     Ok(StageInfo {
         stage,
         artifact,
@@ -518,7 +519,7 @@ fn backtest_provenance_bytes(
 
 #[cfg(test)]
 mod tests {
-    use crate::fingerprint::fnv1a;
+    use quantrule_app::fingerprint::fnv1a;
 
     #[test]
     fn the_provenance_fingerprint_is_stable() {

@@ -11,7 +11,7 @@ use std::fmt;
 /// The categories mirror the contract's error table. They are separate from the
 /// message so tests can assert on the category without matching prose.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ConfigErrorKind {
+pub enum ConfigErrorKind {
     /// A referenced file does not exist or cannot be read.
     MissingFile,
     /// A file is not valid JSON.
@@ -34,7 +34,7 @@ pub(crate) enum ConfigErrorKind {
 
 /// A configuration file was rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ConfigError {
+pub struct ConfigError {
     file: String,
     path: String,
     kind: ConfigErrorKind,
@@ -60,7 +60,7 @@ impl ConfigError {
     }
 
     /// A referenced file is missing or unreadable.
-    pub(crate) fn missing_file(file: &str) -> Self {
+    pub fn missing_file(file: &str) -> Self {
         Self::new(
             file,
             "$",
@@ -71,7 +71,7 @@ impl ConfigError {
     }
 
     /// A file could not be parsed as JSON.
-    pub(crate) fn invalid_json(file: &str, message: &str) -> Self {
+    pub fn invalid_json(file: &str, message: &str) -> Self {
         Self::new(
             file,
             "$",
@@ -82,7 +82,7 @@ impl ConfigError {
     }
 
     /// A referenced file exists but cannot be read.
-    pub(crate) fn unreadable_file(file: &str) -> Self {
+    pub fn unreadable_file(file: &str) -> Self {
         Self::new(
             file,
             "$",
@@ -93,12 +93,12 @@ impl ConfigError {
     }
 
     /// The schemas do not match.
-    pub(crate) fn schema(file: &str, path: &str, expected: &str, observed: &str) -> Self {
+    pub fn schema(file: &str, path: &str, expected: &str, observed: &str) -> Self {
         Self::new(file, path, ConfigErrorKind::Schema, expected, observed)
     }
 
     /// An object carries an unknown field.
-    pub(crate) fn unknown_field(file: &str, path: &str, field: &str) -> Self {
+    pub fn unknown_field(file: &str, path: &str, field: &str) -> Self {
         Self::new(
             file,
             path,
@@ -109,7 +109,7 @@ impl ConfigError {
     }
 
     /// A required field is absent.
-    pub(crate) fn missing_field(file: &str, path: &str) -> Self {
+    pub fn missing_field(file: &str, path: &str) -> Self {
         Self::new(
             file,
             path,
@@ -120,17 +120,17 @@ impl ConfigError {
     }
 
     /// A value has the wrong JSON type.
-    pub(crate) fn wrong_type(file: &str, path: &str, expected: &str, observed: &str) -> Self {
+    pub fn wrong_type(file: &str, path: &str, expected: &str, observed: &str) -> Self {
         Self::new(file, path, ConfigErrorKind::Type, expected, observed)
     }
 
     /// A value is outside its allowed range.
-    pub(crate) fn range(file: &str, path: &str, expected: &str, observed: &str) -> Self {
+    pub fn range(file: &str, path: &str, expected: &str, observed: &str) -> Self {
         Self::new(file, path, ConfigErrorKind::Range, expected, observed)
     }
 
     /// Two values disagree across files.
-    pub(crate) fn inconsistent(file: &str, path: &str, expected: &str, observed: &str) -> Self {
+    pub fn inconsistent(file: &str, path: &str, expected: &str, observed: &str) -> Self {
         Self::new(
             file,
             path,
@@ -141,19 +141,19 @@ impl ConfigError {
     }
 
     /// A value is valid in the schema but not supported in v1.
-    pub(crate) fn unsupported(file: &str, path: &str, expected: &str, observed: &str) -> Self {
+    pub fn unsupported(file: &str, path: &str, expected: &str, observed: &str) -> Self {
         Self::new(file, path, ConfigErrorKind::Unsupported, expected, observed)
     }
 
     /// The error category.
     #[cfg(test)]
-    pub(crate) const fn kind(&self) -> ConfigErrorKind {
+    pub const fn kind(&self) -> ConfigErrorKind {
         self.kind
     }
 
     /// The JSON path inside the file.
     #[cfg(test)]
-    pub(crate) fn path(&self) -> &str {
+    pub fn path(&self) -> &str {
         &self.path
     }
 }

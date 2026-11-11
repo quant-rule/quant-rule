@@ -4,7 +4,7 @@
 //! error category and the JSON path, not only that the file was rejected, so a
 //! rule cannot regress into a different rejection unnoticed. The example
 //! configs are loaded from the repository; the invalid-JSON and missing-file
-//! fixtures live under `tests/fixtures/config/`.
+//! fixtures live under the shell crate at `tests/fixtures/config/`.
 
 use std::path::{Path, PathBuf};
 
@@ -401,7 +401,8 @@ fn run_rejects_an_unsorted_model_ladder() {
 
 #[test]
 fn run_rejects_a_bad_identity_prefix() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-shell/tests/fixtures/config-run/run.json");
     let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
     config.model_id = Some(String::from("S1.0"));
     assert_rejected(config.validate_identities(), Range, "$.model_id");
@@ -409,7 +410,8 @@ fn run_rejects_a_bad_identity_prefix() {
 
 #[test]
 fn run_rejects_an_identity_without_a_major_minor_shape() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-shell/tests/fixtures/config-run/run.json");
     for identity in ["M", "Mfoo", "M1", "M1.", "M1.0.0", "M1.x"] {
         let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
         config.model_id = Some(identity.to_string());
@@ -433,7 +435,8 @@ fn the_example_config_loads_and_resolves() {
 
 #[test]
 fn the_config_run_fixture_loads() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-shell/tests/fixtures/config-run/run.json");
     let config = run::RunConfig::load(&path).expect("the fixture config is valid");
     assert_eq!(config.name, "fixture");
     assert_eq!(config.execution.fill_timeframe, Timeframe::M5);
@@ -441,7 +444,8 @@ fn the_config_run_fixture_loads() {
 
 #[test]
 fn a_model_ladder_must_be_in_the_data_ladder_and_contain_execution() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-shell/tests/fixtures/config-run/run.json");
     let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
     config.model_ladder = Some(vec![Timeframe::H4]);
     assert_rejected(config.validate_cross(), Inconsistent, "$.model_timeframes");
@@ -453,7 +457,8 @@ fn a_model_ladder_must_be_in_the_data_ladder_and_contain_execution() {
 
 #[test]
 fn a_cross_config_mismatch_is_rejected() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-shell/tests/fixtures/config-run/run.json");
     let mut config = run::RunConfig::load(&path).expect("the fixture config is valid");
 
     config.data.available_timeframes.push(Timeframe::H4);

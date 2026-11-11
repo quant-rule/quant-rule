@@ -1,14 +1,14 @@
 //! The `run check` command.
 //!
-//! The command loads the run configuration. The loader validates the data,
-//! model, execution, and portfolio contracts and their cross-config rules, so
-//! this command is the human-visible proof that the run composition agrees.
+//! The command asks the application service to discover the workspace and
+//! validate the run. The service applies the data, model, execution, and
+//! portfolio contracts and their cross-config rules, so this command is the
+//! human-visible proof that the run composition agrees.
 
 use std::io::Write;
-use std::path::Path;
 
-use crate::config::RunConfig;
-use crate::labels;
+use quantrule_app::error::AppError;
+use quantrule_app::service::AppService;
 
 use super::types::RunError;
 use crate::request::RunCheckArgs;
@@ -74,36 +74,30 @@ pub(crate) fn parse_run_check_arguments(
 /// Returns [`RunError::Config`] when any config file is invalid, and
 /// [`RunError::Output`] when the writer fails.
 pub(crate) fn run_run_check(args: &RunCheckArgs, writer: &mut impl Write) -> Result<(), RunError> {
-    let config = RunConfig::load(Path::new(&args.config)).map_err(RunError::Config)?;
-    let ladder = config
-        .data
-        .available_timeframes
-        .iter()
-        .map(|timeframe| timeframe.code())
-        .collect::<Vec<_>>()
-        .join(",");
-    let model_ladder = config
-        .model_ladder
-        .as_ref()
-        .unwrap_or(&config.data.available_timeframes)
-        .iter()
-        .map(|timeframe| timeframe.code())
-        .collect::<Vec<_>>()
-        .join(",");
+    let service = AppService::open_for_config(&args.config).map_err(|error| match error {
+        AppError::Config(error) => RunError::Config(error),
+        other => RunError::App(other),
+    })?;
+    let summary = service
+        .check_run(&args.config)
+        .map_err(|error| match error {
+            AppError::Config(error) => RunError::Config(error),
+            other => RunError::App(other),
+        })?;
     writeln!(
         writer,
         "run ok run={} instrument={} data_version={} data_timeframes={} model={} model_ladder={} execution={} portfolio={} cash={} leverage={} positions={}",
-        config.name,
-        config.data.instrument,
-        config.data.data_version,
-        ladder,
-        config.model_id.as_deref().unwrap_or("-"),
-        model_ladder,
-        labels::timeframe_label(u64::from(config.execution.fill_timeframe.seconds())),
-        config.portfolio_id.as_deref().unwrap_or("-"),
-        config.portfolio.initial_cash,
-        config.portfolio.leverage,
-        config.portfolio.max_open_positions,
+        summary.name,
+        summary.instrument,
+        summary.data_version,
+        summary.data_timeframes.join(","),
+        summary.model_id.as_deref().unwrap_or("-"),
+        summary.model_timeframes.join(","),
+        summary.execution_fill_timeframe,
+        summary.portfolio_id.as_deref().unwrap_or("-"),
+        summary.initial_cash,
+        summary.leverage,
+        summary.max_open_positions,
     )
     .map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)

@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 
 use serde_json::{Value, json};
 
-use crate::config::{Criteria, Partition};
+use quantrule_app::config::{Criteria, Partition};
 
 use super::evaluate::{Status, Verdict};
 use super::evidence::{BacktestEvidence, MANIFEST_SCHEMA};

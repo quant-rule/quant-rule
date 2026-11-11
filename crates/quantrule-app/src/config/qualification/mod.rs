@@ -11,7 +11,6 @@
 mod parse;
 mod types;
 
-pub(crate) use parse::load;
-#[cfg(test)]
-pub(crate) use types::{Correction, CostModel, Dimension, MultipleTesting, Operator};
-pub(crate) use types::{Criteria, Criterion, EvidenceArtifact, Partition};
+pub use parse::load;
+pub use types::{Correction, CostModel, Dimension, MultipleTesting, Operator};
+pub use types::{Criteria, Criterion, EvidenceArtifact, Partition};

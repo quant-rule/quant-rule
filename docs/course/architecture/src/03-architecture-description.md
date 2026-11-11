@@ -15,7 +15,7 @@ installers. A team cloud is future work.
 | Container | Responsibility | Current code |
 |---|---|---|
 | Desktop UI | Workspace, config editor, run view, analytics, memory | `apps/desktop` (Phase 3) |
-| Application service | Use-case orchestration shared by UI and CLI | `crates/quantrule-app` (Phase 3) |
+| Application service | Use-case orchestration shared by UI and CLI | `crates/quantrule-app` |
 | Data engine | Normalization, ladder, ordering, gaps | `crates/quantrule-data` |
 | Model engine | Readings, states, levels, events, progression, context | `crates/quantrule-model` |
 | Backtest engine | Strategy, execution, portfolio, benchmark | `crates/quantrule-backtest` |
@@ -47,6 +47,7 @@ orchestration. The UI and CLI do not compute indicators or rules.
 | Data engine | `crates/quantrule-data/src/lib.rs` |
 | Model engine | `crates/quantrule-model/src/lib.rs` |
 | Backtest engines | `crates/quantrule-backtest/src/lib.rs` |
+| Application service | `crates/quantrule-app/src/lib.rs`, `service.rs`, `workspace.rs` |
 | Shell and command surface | `crates/quantrule-shell/src/main.rs`, `docs/architecture/command-surface.md` |
 | Determinism tests | `crates/quantrule-model/tests/`, `crates/quantrule-shell/tests/` |
 | Architecture baseline | `docs/architecture/` |

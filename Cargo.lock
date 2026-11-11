@@ -145,6 +145,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quantrule-app"
+version = "0.3.0"
+dependencies = [
+ "quantrule-backtest",
+ "quantrule-data",
+ "quantrule-model",
+ "serde_json",
+]
+
+[[package]]
 name = "quantrule-backtest"
 version = "0.3.0"
 dependencies = [
@@ -168,6 +178,7 @@ dependencies = [
 name = "quantrule-shell"
 version = "0.3.0"
 dependencies = [
+ "quantrule-app",
  "quantrule-backtest",
  "quantrule-data",
  "quantrule-model",

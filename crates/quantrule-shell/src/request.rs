@@ -10,9 +10,9 @@ use std::path::PathBuf;
 use quantrule_backtest::intent::StrategyPosition;
 use quantrule_data::Timeframe;
 
-use crate::date::DateRange;
-use crate::pipeline::WindowMode;
 use crate::source::Symbol;
+use quantrule_app::date::DateRange;
+use quantrule_app::pipeline::WindowMode;
 
 /// The path and input window shared by the event command.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -39,7 +39,7 @@ SCAN = [
 ALLOWLIST = {
     "docs/registry/history.md",
     "crates/quantrule-shell/tests/architecture.rs",
-    "crates/quantrule-shell/src/config/tests.rs",
+    "crates/quantrule-app/src/config/tests.rs",
     "crates/quantrule-shell/tests/fixtures/config-run/model-v3.json",
 }
 

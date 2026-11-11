@@ -26,28 +26,28 @@ use super::error::ConfigError;
 use super::read::{self, ROOT};
 
 /// The strategy configuration schema.
-pub(crate) const SCHEMA: &str = "quantrule.strategy/v1";
+pub const SCHEMA: &str = "quantrule.strategy/v1";
 
 /// One validated strategy configuration.
 #[derive(Debug, Clone)]
-pub(crate) struct StrategyConfig {
+pub struct StrategyConfig {
     /// The optional human label, recorded in the decision summary.
-    pub(crate) id: Option<String>,
+    pub id: Option<String>,
     /// The timeframe whose closed bars produce decisions.
-    pub(crate) execution_timeframe: Timeframe,
+    pub execution_timeframe: Timeframe,
     /// The context timeframes read at each execution bar, ascending.
-    pub(crate) context_timeframes: Vec<Timeframe>,
+    pub context_timeframes: Vec<Timeframe>,
     /// The generic engine and its validated conditions.
     engine: StrategyEngine,
     /// The ATR stop and reward-to-risk policy attached to an entry.
-    pub(crate) risk: RiskPolicy,
+    pub risk: RiskPolicy,
     /// Whether a decision requires the next execution bar to be contiguous.
-    pub(crate) require_contiguous: bool,
+    pub require_contiguous: bool,
 }
 
 /// The generic strategy engine selected by the configuration.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum StrategyEngine {
+pub enum StrategyEngine {
     /// The bounded event/state conjunction engine.
     EventComposite(EventCompositeConfig),
     /// The two-sided compression-range bracket engine.
@@ -57,7 +57,7 @@ pub(crate) enum StrategyEngine {
 impl StrategyConfig {
     /// The engine name recorded in the summary and provenance.
     #[must_use]
-    pub(crate) fn engine_name(&self) -> &'static str {
+    pub fn engine_name(&self) -> &'static str {
         match self.engine {
             StrategyEngine::EventComposite(_) => "event_composite",
             StrategyEngine::CompressionBracket(_) => "compression_bracket",
@@ -66,7 +66,7 @@ impl StrategyConfig {
 
     /// The event window in bars used to build the per-bar snapshot.
     #[must_use]
-    pub(crate) fn event_window_bars(&self) -> usize {
+    pub fn event_window_bars(&self) -> usize {
         match self.engine {
             StrategyEngine::EventComposite(config) => config.window_bars(),
             // The bracket reads only the event that became knowable on the
@@ -77,7 +77,7 @@ impl StrategyConfig {
 
     /// The entry conditions for the event-composite engine.
     #[must_use]
-    pub(crate) fn entry_conditions(&self) -> &[Condition] {
+    pub fn entry_conditions(&self) -> &[Condition] {
         match &self.engine {
             StrategyEngine::EventComposite(config) => config.entry_conditions(),
             StrategyEngine::CompressionBracket(_) => &[],
@@ -86,7 +86,7 @@ impl StrategyConfig {
 
     /// The exit conditions for the event-composite engine.
     #[must_use]
-    pub(crate) fn exit_conditions(&self) -> &[Condition] {
+    pub fn exit_conditions(&self) -> &[Condition] {
         match &self.engine {
             StrategyEngine::EventComposite(config) => config.exit_conditions(),
             StrategyEngine::CompressionBracket(_) => &[],
@@ -95,7 +95,7 @@ impl StrategyConfig {
 
     /// The timeframes named by the event-composite conditions.
     #[must_use]
-    pub(crate) fn condition_timeframes(&self) -> Vec<u64> {
+    pub fn condition_timeframes(&self) -> Vec<u64> {
         self.entry_conditions()
             .iter()
             .chain(self.exit_conditions())
@@ -108,7 +108,7 @@ impl StrategyConfig {
 
     /// The compression event identity for the bracket engine.
     #[must_use]
-    pub(crate) fn compression_event(&self) -> Option<(u64, u8, u8, u16)> {
+    pub fn compression_event(&self) -> Option<(u64, u8, u8, u16)> {
         match self.engine {
             StrategyEngine::EventComposite(_) => None,
             StrategyEngine::CompressionBracket(config) => Some((
@@ -122,11 +122,7 @@ impl StrategyConfig {
 
     /// Applies the configured engine to one closed bar and position.
     #[must_use]
-    pub(crate) fn decide(
-        &self,
-        input: &EventStrategyInput,
-        position: StrategyPosition,
-    ) -> Decision {
+    pub fn decide(&self, input: &EventStrategyInput, position: StrategyPosition) -> Decision {
         match self.engine {
             StrategyEngine::EventComposite(config) => {
                 EventCompositeStrategy::new(config, self.risk, self.require_contiguous)
@@ -151,7 +147,7 @@ impl StrategyConfig {
 
     /// The side a decision intends, when the engine selected one.
     #[must_use]
-    pub(crate) fn decision_side(decision: Decision) -> Option<Side> {
+    pub fn decision_side(decision: Decision) -> Option<Side> {
         match decision {
             Decision::Enter(entry) => Some(entry.side()),
             Decision::Exit(exit) => Some(exit.side),
@@ -169,7 +165,7 @@ impl StrategyConfig {
 ///
 /// Returns [`ConfigError`] when the file is missing, unreadable, not JSON, or
 /// disagrees with the schema.
-pub(crate) fn load(path: &Path) -> Result<(StrategyConfig, String), ConfigError> {
+pub fn load(path: &Path) -> Result<(StrategyConfig, String), ConfigError> {
     let file = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -190,7 +186,7 @@ pub(crate) fn load(path: &Path) -> Result<(StrategyConfig, String), ConfigError>
 ///
 /// Returns [`ConfigError`] naming the file and JSON path when a field is
 /// missing, unknown, of the wrong type, or outside its allowed range.
-pub(crate) fn parse(value: &Value, file: &str) -> Result<StrategyConfig, ConfigError> {
+pub fn parse(value: &Value, file: &str) -> Result<StrategyConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::schema(file, object, SCHEMA)?;
     let engine = read::string(file, "$.engine", read::field(file, ROOT, object, "engine")?)?;

@@ -1,11 +1,11 @@
-//! The shell composition pipeline.
+//! The application-service composition pipeline.
 //!
 //! One module owns the source-to-engine path: read the M1 CSV into the data
 //! engine's timeframe set, copy the selected ladder's series into the model
 //! input shape, and run the model. Command families parse arguments and render
 //! the result; they do not rebuild the ladder or the inputs.
 //!
-//! The module performs I/O because the shell owns source access. It does not
+//! The module performs I/O because the application service owns local source access. It does not
 //! compute an indicator, a rule, a fill, or an accounting value.
 
 use std::path::Path;
@@ -20,7 +20,7 @@ use crate::date::DateBounds;
 
 /// The input window shared by the model analysis commands.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) enum WindowMode {
+pub enum WindowMode {
     /// Use the full supported series, up to the dataset cap.
     #[default]
     Full,
@@ -29,7 +29,9 @@ pub(crate) enum WindowMode {
 }
 
 impl WindowMode {
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    /// Parses the command-facing window code.
+    #[must_use]
+    pub fn from_code(code: &str) -> Option<Self> {
         match code {
             "full" => Some(Self::Full),
             "latest" => Some(Self::Latest),
@@ -40,7 +42,7 @@ impl WindowMode {
 
 /// The configured ladder in seconds, fastest first.
 #[must_use]
-pub(crate) fn ladder_secs_for(timeframes: &[Timeframe]) -> Vec<u64> {
+pub fn ladder_secs_for(timeframes: &[Timeframe]) -> Vec<u64> {
     timeframes
         .iter()
         .map(|timeframe| u64::from(timeframe.seconds()))
@@ -51,14 +53,14 @@ pub(crate) fn ladder_secs_for(timeframes: &[Timeframe]) -> Vec<u64> {
 ///
 /// `TimeframeInput` borrows a slice, so the vectors must outlive the inputs.
 /// This type keeps that ownership in one place and exposes the borrowed view.
-pub(crate) struct ModelInputs {
+pub struct ModelInputs {
     series: Vec<(Timeframe, Vec<Candle>)>,
 }
 
 impl ModelInputs {
     /// Copies the selected ladder's series out of a loaded set.
     #[must_use]
-    pub(crate) fn from_set_with_ladder(set: &TimeframeSet, ladder: &[Timeframe]) -> Self {
+    pub fn from_set_with_ladder(set: &TimeframeSet, ladder: &[Timeframe]) -> Self {
         let series = ladder
             .iter()
             .map(|timeframe| (*timeframe, set.series(*timeframe).iter().copied().collect()))
@@ -68,7 +70,7 @@ impl ModelInputs {
 
     /// The model inputs, in ladder order.
     #[must_use]
-    pub(crate) fn as_inputs(&self) -> Vec<TimeframeInput<'_>> {
+    pub fn as_inputs(&self) -> Vec<TimeframeInput<'_>> {
         self.series
             .iter()
             .map(|(timeframe, candles)| TimeframeInput {
@@ -81,15 +83,33 @@ impl ModelInputs {
 
 /// The pipeline failed before a command could render a result.
 #[derive(Debug)]
-pub(crate) enum PipelineError {
+pub enum PipelineError {
     /// The source or the data engine rejected the candles.
     Source(SourceError),
     /// The requested period selected no M1 candle.
     EmptyPeriod,
 }
 
+impl std::fmt::Display for PipelineError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Source(error) => write!(formatter, "{error}"),
+            Self::EmptyPeriod => write!(formatter, "the selected period contains no M1 candle"),
+        }
+    }
+}
+
+impl std::error::Error for PipelineError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Source(error) => Some(error),
+            Self::EmptyPeriod => None,
+        }
+    }
+}
+
 /// Loads a full or latest-window set from one CSV.
-pub(crate) fn load_set(path: &Path, window: WindowMode) -> Result<TimeframeSet, SourceError> {
+pub fn load_set(path: &Path, window: WindowMode) -> Result<TimeframeSet, SourceError> {
     match window {
         WindowMode::Full => csv::load_full_timeframes(path),
         WindowMode::Latest => csv::load_timeframes(path),
@@ -97,7 +117,7 @@ pub(crate) fn load_set(path: &Path, window: WindowMode) -> Result<TimeframeSet, 
 }
 
 /// Loads a set bounded by a date range and a refusal limit.
-pub(crate) fn load_set_with_limit(
+pub fn load_set_with_limit(
     path: &Path,
     bounds: DateBounds,
     limit: usize,
@@ -107,13 +127,13 @@ pub(crate) fn load_set_with_limit(
 
 /// Builds a model run from an already loaded set and an explicit configuration.
 #[must_use]
-pub(crate) fn model_run_from_set(set: &TimeframeSet, config: &MarketStateConfig) -> ModelRun {
+pub fn model_run_from_set(set: &TimeframeSet, config: &MarketStateConfig) -> ModelRun {
     model_run_from_set_with_ladder(set, &Timeframe::DEFAULT_LADDER, config)
 }
 
 /// Builds a model run over an explicit ladder.
 #[must_use]
-pub(crate) fn model_run_from_set_with_ladder(
+pub fn model_run_from_set_with_ladder(
     set: &TimeframeSet,
     ladder: &[Timeframe],
     config: &MarketStateConfig,
@@ -123,7 +143,7 @@ pub(crate) fn model_run_from_set_with_ladder(
 }
 
 /// Loads the configured run and computes its model over the active ladder.
-pub(crate) fn run_model(config: &RunConfig) -> Result<ModelRun, PipelineError> {
+pub fn run_model(config: &RunConfig) -> Result<ModelRun, PipelineError> {
     let ladder: &[Timeframe] = match &config.model_ladder {
         Some(ladder) => ladder,
         None => &config.data.available_timeframes,
@@ -134,7 +154,7 @@ pub(crate) fn run_model(config: &RunConfig) -> Result<ModelRun, PipelineError> {
 /// Loads the configured run and computes its model over an explicit ladder.
 ///
 /// The spec engine uses this to run only the timeframes the spec declares.
-pub(crate) fn run_model_with_ladder(
+pub fn run_model_with_ladder(
     config: &RunConfig,
     ladder: &[Timeframe],
 ) -> Result<ModelRun, PipelineError> {

@@ -16,19 +16,19 @@ use super::read::{self, ROOT};
 
 /// The resolved `execution.json`.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct ExecutionRunConfig {
+pub struct ExecutionRunConfig {
     /// The costs and fill mechanics.
-    pub(crate) engine: ExecutionConfig,
+    pub engine: ExecutionConfig,
     /// The timeframe fills are simulated on; it must be in the data ladder and
     /// the policy universe.
-    pub(crate) fill_timeframe: Timeframe,
+    pub fill_timeframe: Timeframe,
 }
 
 /// Parses `execution.json`.
 ///
 /// The file owns costs and mechanics only. Stop and target distances are part
 /// of the S3.x risk intent; the execution file must not duplicate them.
-pub(crate) fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, ConfigError> {
+pub fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, ConfigError> {
     let object = read::object(file, ROOT, value)?;
     read::check_fields(
         file,

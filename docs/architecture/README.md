@@ -21,7 +21,7 @@ optimizes for trust, not scale, availability, or latency.
 ## Pipeline
 
 ```text
-INPUT (shell source access)
+INPUT (application-service source access; shell fetch)
   → data engine
   → model engine
   → output (shell render: model report, event batch)
@@ -34,9 +34,11 @@ data → model → strategy → execution → portfolio → qualification
                                       ↘ analytics
 ```
 
-The shell is the only surface and the only impure layer. It parses a command, calls
-into the pipeline, and renders the result. The engines are pure and depend one way.
-Every stage is reachable from the current shell surface through its stage command.
+The application service is the shared use-case boundary and owns workspace, dataset,
+configuration, and run I/O. The shell is the current surface: it parses a command,
+calls the service or a pipeline operation, and renders the result. The engines are
+pure and depend one way. Every stage is reachable from the current shell surface
+through its stage command.
 The stage contract, the command registry, and the implemented/planned status are in
 [`command-surface.md`](command-surface.md).
 
@@ -47,7 +49,26 @@ The stage contract, the command registry, and the implemented/planned status are
 | `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
 | `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
 | `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines. | `quantrule-data`, `quantrule-model` |
-| `quantrule-shell` | The binary and only surface: parse, call, render; configuration load and source fetch. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
+| `quantrule-app` | Application service: workspace, dataset, configuration, model run, and export. Shared by the shell and the future desktop UI. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
+| `quantrule-shell` | The command shell: parse, call the application service, render, and explicit source fetch. | `quantrule-app`, `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
+
+## Application service
+
+The application service is the shared use-case boundary in
+[`crates/quantrule-app`](../../crates/quantrule-app). It owns file access and
+path resolution; the engines receive validated values.
+
+| Operation | Contract |
+|---|---|
+| `Workspace` | Opens a local root and lists `config/` run files and `data/sources/` datasets in sorted order. |
+| `Dataset` | Opens one M1 CSV and reports its retained candle count and first and last open time. |
+| `AppService::check_run` | Loads every configuration file, resolves every path, and applies every cross-config rule without reading a candle. |
+| `AppService::run_model` | Loads the run, computes the model over the configured ladder, and returns the model plus deterministic counts. |
+| `AppService::export_run_summary` | Writes the validated run summary as versioned JSON. |
+
+The shell calls the service for `run check`; the other commands call the same
+configuration and pipeline modules directly. The desktop UI will call the same
+service rather than reimplementing path resolution.
 
 ## Documents
 
