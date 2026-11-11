@@ -177,6 +177,22 @@ fn zero_fraction_is_rejected() {
 }
 
 #[test]
+fn the_entry_notional_cap_follows_the_sizing_mode() {
+    let fixed = SizingMode::FixedNotional {
+        notional: 10_000.0,
+        quantity_step: 0.0001,
+    };
+    assert_eq!(fixed.max_notional(50_000.0, 1.0), 10_000.0);
+
+    let fraction = SizingMode::EquityFraction {
+        fraction: 0.25,
+        quantity_step: 0.0001,
+    };
+    assert_eq!(fraction.max_notional(40_000.0, 1.0), 10_000.0);
+    assert_eq!(fraction.max_notional(40_000.0, 2.0), 20_000.0);
+}
+
+#[test]
 fn negative_commission_is_rejected() {
     assert_eq!(
         CommissionConfig::new(-0.001, CommissionBase::Equity, CommissionPer::Operation),

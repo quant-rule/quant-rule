@@ -564,7 +564,7 @@ fn the_surface_help_lists_every_stage_command() {
         "backtest run",
         "qualify",
         "analytics evaluate",
-        "policy check",
+        "run check",
         "fetch",
         "help",
     ] {

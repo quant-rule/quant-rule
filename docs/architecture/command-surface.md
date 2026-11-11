@@ -41,8 +41,8 @@ The surface therefore follows six rules:
 
 ## 2. Stage contract
 
-The policy is human-owned input, not a pipeline stage. `policy check` validates
-the policy and the engine configuration files; it does not decide a trade.
+The run composition is validated by `run check`; it is not a pipeline stage and
+does not decide a trade.
 
 | Stage | Engine | Input | Output | Command surface | Status |
 |---:|---|---|---|---|---|
@@ -89,7 +89,7 @@ the distinction.
 | `fetch` | Data | Implemented | `<symbol> <start> <end>` and options | CSV path and accepted/rejected counts |
 | `events` | Model | Implemented | `<csv-path> [--window full\|latest]` | Event records |
 | `report model` | Model | Implemented | `--config <run.json>` and options | Model bundle |
-| `policy check` | Configuration | Implemented | `--config <run.json>` | Validation line |
+| `run check` | Configuration | Implemented | `--config <run.json>` | Validation line |
 | `help` | Shell | Implemented | `[<command>\|all\|glossary\|workflows]` | Plain text |
 | `strategy explain` | Strategy | Implemented | Model bundle, strategy config, bar index | One decision and its as-of evidence |
 | `strategy run` | Strategy | Implemented | Model bundle, strategy config | Decisions bundle |
@@ -204,7 +204,7 @@ strategy.
 The engine evaluates the whole evidence set, not profitability alone:
 out-of-sample and walk-forward evidence; robustness across folds, regimes, and
 instruments; drawdown, duration, and recovery; trade count, profit factor, win
-rate, and return distribution; exposure, concentration, tail risk, and prop-firm
+rate, and return distribution; exposure, concentration, tail risk, and portfolio
 limits; cost and slippage sensitivity; parameter stability; multiple-testing
 correction; data coverage and quality; and the matched baseline controls.
 

@@ -90,12 +90,12 @@ fn rejects_other_report_engines() {
 }
 
 #[test]
-fn parses_policy_check() {
+fn parses_run_check() {
     assert!(matches!(
-        parse("policy check --config run.json"),
-        Ok(Some(Command::PolicyCheck(_)))
+        parse("run check --config run.json"),
+        Ok(Some(Command::RunCheck(_)))
     ));
-    assert!(parse("policy --config run.json").is_err());
+    assert!(parse("run --config run.json").is_err());
 }
 
 #[test]
@@ -183,7 +183,7 @@ fn interactive_and_argv_paths_agree() {
         "candles data/example.csv",
         "events data/example.csv --window latest",
         "report model --config run.json --out target/report",
-        "policy check --config run.json",
+        "run check --config run.json",
         "fetch gold 2025-01-01 2025-12-31 --timeframe 1h",
         "help all",
         "quit",

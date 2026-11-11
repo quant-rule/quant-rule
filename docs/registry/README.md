@@ -9,7 +9,7 @@
 ## 1. Purpose
 
 The registry is the single documented index of every indicator, event, source
-code, and behaviour-affecting parameter in the model, policy, execution,
+code, and behaviour-affecting parameter in the model, execution,
 portfolio, and benchmark contracts.
 
 If a number can change a model value, an event, a strategy decision, a fill, a
@@ -93,7 +93,7 @@ by it.
 | `min`, `max`, `enum` | Allowed range or set, when applicable |
 | `unit` | `bars`, `records`, `fraction`, `atr`, `seconds`, `bps`, `currency`, `period`, or `none` |
 | `configurable` | `true` when a run config may change it; `false` for a fixed formula constant |
-| `affects` | `model`, `policy`, `execution`, `portfolio`, or `benchmark` |
+| `affects` | `model`, `execution`, `portfolio`, or `benchmark` |
 | `status` | `active`, `planned`, `retired`, or `experimental` |
 
 A fixed formula constant is listed with `configurable: false`. It is documented

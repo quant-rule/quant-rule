@@ -243,12 +243,6 @@
 | `model.context.threshold` | `fixed` | `1.0` | none | false | model | active |
 | `model.event.retention` | `fixed` | `1024` | records | false | model | active |
 | `model.event.window_bars` | `fixed` | `5` | bars | false | model | active |
-| `policy.performance_target` | `objective.performance_target` | `0.1` | fraction | true | policy | active |
-| `policy.evaluation_days` | `objective.evaluation_days` | `365` | bars | true | policy | active |
-| `policy.max_drawdown` | `objective.max_drawdown` | `0.1` | fraction | true | policy | active |
-| `policy.max_position_fraction` | `risk.max_position_fraction` | `1.0` | fraction | true | policy | active |
-| `policy.max_leverage` | `risk.max_leverage` | `1.0` | none | true | policy | active |
-| `policy.max_open_positions` | `risk.max_open_positions` | `1` | none | true | policy | active |
 | `portfolio.initial_cash` | `initial_cash` | `10000.0` | currency | true | portfolio | active |
 | `portfolio.sizing.notional` | `sizing.notional` | `10000.0` | currency | true | portfolio | active |
 | `portfolio.commission.rate` | `commission.rate` | `0.001` | fraction | true | portfolio | active |

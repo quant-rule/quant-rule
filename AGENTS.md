@@ -8,7 +8,7 @@ QuantRule ships as a shell application, and that is the whole of it. The result 
 
 The system is deterministic. Given the same input data and the same configuration, it must produce the same output every time. Any behavior that depends on wall-clock time, unseeded randomness, or iteration order of unordered collections is a defect, not a limitation. See section 12.
 
-The system is improved through explicit workflows, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): a human-owned policy and strategy blueprint, an Improvement Workflow (run, results, review, new hypothesis), tier runbooks for model research, model change, strategy research, and portfolio/execution research, an Audit Workflow (audit, remediation plan, execution, verification), a Refactor Workflow (structural assessment, refactor plan, behavior-neutral execution, equivalence verification), a Policy Change Workflow, a Data Lifecycle Workflow, Requirements & Design, Release & Operations, Deprecation & Retirement, Recordkeeping, an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop. The change history is recorded in [`CHANGELOG.md`](CHANGELOG.md).
+The system is improved through explicit workflows, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): a human-owned strategy blueprint, an Improvement Workflow (run, results, review, new hypothesis), tier runbooks for model research, model change, strategy research, and portfolio/execution research, an Audit Workflow (audit, remediation plan, execution, verification), a Refactor Workflow (structural assessment, refactor plan, behavior-neutral execution, equivalence verification), a Data Lifecycle Workflow, Requirements & Design, Release & Operations, Deprecation & Retirement, Recordkeeping, an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop. The change history is recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## 2. Architecture and Data Flow
 
@@ -33,7 +33,7 @@ Invariants that the pipeline depends on:
 - Candles-only: the system consumes OHLCV. Tick data, order books, and other externally derived series are out of scope.
 - Rule-based signals: signal generation is a deterministic rule over OHLCV candles. Statistical, machine-learning, and neural-network signal generation are out of scope; statistics is used only to evaluate and validate rule-based signals.
 - Rule purity: the signal path uses only addition, subtraction, multiplication, division, comparison, clamp, sign, and rounding. No statistical or fitted field may enter a model event value or a strategy decision.
-- Configuration ownership: policy and strategy are human-owned; model, execution, portfolio, and analytics are technical contracts validated against the policy. The policy never contains an entry or exit rule, and the strategy never contains an indicator or accounting rule.
+- Configuration ownership: strategy is human-owned; model, execution, portfolio, and analytics are technical contracts validated against the data and portfolio configs. The strategy never contains an indicator or accounting rule.
 - Layer isolation: the data engine never calls into the model engine, and the model engine never reaches back upstream. Dependencies point one way.
 - Indicator and event roles: every indicator and event is registered as `signal`, `context`, or `diagnostic` with its own definition and claim. A strategy may read only `signal` and `context`; a diagnostic never enters a decision.
 - Availability, not occurrence: a measurement that becomes knowable only later — a confirmed swing pivot, a divergence — records both when it occurred and when it became knowable, and it never reaches an earlier bar.
@@ -48,17 +48,16 @@ The Rust workspace holds one crate per pipeline stage, with dependencies pointin
 
 The research engine (`quantrule-analytics`) was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.
 
-The current implementation exposes every pipeline stage. The shell exposes data inspection (`candles`, `candles-tolerant`, `timeframes`, `fetch`), the event batch (`events`), the model report (`report model`), strategy decisions (`strategy explain`, `strategy run`), execution fills (`execution run`), portfolio accounting (`portfolio replay`), the coupled run (`backtest run`), qualification (`qualify`), analytics evaluation (`analytics evaluate`), policy validation (`policy check`), and help. The S3 command surface is implemented; no tiered improvement run has used it yet, and no strategy or portfolio baseline exists. The stage contract, command status, and discovery gate are in [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
+The current implementation exposes every pipeline stage. The shell exposes data inspection (`candles`, `candles-tolerant`, `timeframes`, `fetch`), the event batch (`events`), the model report (`report model`), strategy decisions (`strategy explain`, `strategy run`), execution fills (`execution run`), portfolio accounting (`portfolio replay`), the coupled run (`backtest run`), qualification (`qualify`), analytics evaluation (`analytics evaluate`), run validation (`run check`), and help. The S3 command surface is implemented; no tiered improvement run has used it yet, and no strategy or portfolio baseline exists. The stage contract, command status, and discovery gate are in [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
 
 The decision stack above the pipeline is one-way:
 
 ```
-POLICY (human) > STRATEGY (human) > MODEL (measurement) > EXECUTION (fills) > PORTFOLIO (accounting) > ANALYTICS (evaluation)
+STRATEGY (human) > MODEL (measurement) > EXECUTION (fills) > PORTFOLIO (accounting) > ANALYTICS (evaluation)
 ```
 
-- The policy is the human-owned account/objective/risk/universe envelope. It never emits a signal.
 - The strategy is the human-owned, explainable rule. It reads the published event and state snapshot (event records, discrete states, confirmed levels, and bar identity), the as-of context derived from those published values, and its own position state supplied explicitly by the runner; it never computes an indicator, reads a statistic, or touches cash/P&L.
-- The model measures and publishes numbers. It never reads strategy, execution, portfolio, policy, or analytics.
+- The model measures and publishes numbers. It never reads strategy, execution, portfolio, or analytics.
 - Execution fills decisions. It never decides direction.
 - Portfolio accounts. It never decides a signal.
 - Analytics evaluates. It never feeds a rule.
@@ -124,7 +123,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **Strategy validation.** A claim that a rule is profitable reports in-sample and out-of-sample results, cost assumptions, and every variation tried. Out-of-sample evidence is required before the claim is called promising; a backtest on the tuning sample is not validation.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Model-layer tests.** Every indicator and every event has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
-- **Policy and strategy tests.** The policy loader validates every cross-config rule; `policy check` is tested as printed output. The strategy explain command is tested as printed output, and a boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
+- **Run and strategy tests.** The run loader validates every cross-config rule; `run check` is tested as printed output. The strategy explain command is tested as printed output, and a boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
 - **Feasibility preflight tests.** The preflight has unit tests for the ATR and cost arithmetic, the pass and fail verdicts, a 4:1 fade that fails, a cost-negative target that fails, a 1:2 design that passes, and a timeframe above 1 hour that fails. The tool reads no backtest outcome; a regression test on the recorded SR1 config proves the 4:1 fade is rejected.
 - **Audit regression guards.** A fix for an audit finding carries a regression test that fails before the fix and passes after it, or a written reason why a fail-before test is impossible.
 - **Improvement-run reproducibility.** A run record names the data versions, configs, partitions, costs, and matrix; the same manifest and config reproduce the same artifacts.
@@ -155,11 +154,11 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` — read-only findings, evidence, and remediation options. `docs/audits/README.md` is the index/template.
   - `docs/refactors/<YYYY-MM-DD>/<scope>-refactor.md` — read-only structural findings, evidence, and refactor options. `docs/refactors/README.md` is the index/template.
   - `docs/governance/<YYYY-MM-DD>/<file>.md` — the improvement charter, green criteria, autonomy, and stop conditions.
-  - `docs/workflows/<file>.md` — the living workflow contracts, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor, Improvement, Run Contract, Research Swarm, Model Research, Model Change, Strategy Research, Portfolio Research, Policy Change, Data Lifecycle, Requirements & Design, Release & Operations, Deprecation & Retirement, and Recordkeeping.
-  - `docs/workflows/templates/<file>.md` — the workflow and record templates. The workflow template is the skeleton for a new workflow document; the record templates are policy, data, release, deprecation, and requirements records.
+  - `docs/workflows/<file>.md` — the living workflow contracts, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor, Improvement, Run Contract, Research Swarm, Model Research, Model Change, Strategy Research, Portfolio Research, Data Lifecycle, Requirements & Design, Release & Operations, Deprecation & Retirement, and Recordkeeping.
+  - `docs/workflows/templates/<file>.md` — the workflow and record templates. The workflow template is the skeleton for a new workflow document; the record templates are data, release, deprecation, and requirements records.
   - `docs/releases/README.md` — the release index and tag rule; `docs/releases/<YYYY-MM-DD>/<tag>.md` is the release note for one tagged release.
   - `docs/improvement/<file>.md` — the committed improvement registry: run index, baselines, invalidation tombstones, and the run record template.
-  - `docs/config/<YYYY-MM-DD>/<file>.md` — policy, strategy, and engine configuration contracts.
+  - `docs/config/<YYYY-MM-DD>/<file>.md` — run, strategy, and engine configuration contracts.
   - `CHANGELOG.md` — the grouped release history. Meaningful user-facing or developer-facing changes are recorded by release and type; the changelog is not a pull-request index.
 - **Plans live in the repository.** An execution plan drafted outside the repository is a scratch copy, not the plan of record. Before implementation, it is written to `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` and committed. No implementation begins until that file exists.
 - **Documentation follows the code.** A change that invalidates a documented behavior updates that document in the same pull request, not in a follow-up.
@@ -266,7 +265,7 @@ A pull request must include:
 - **Workflow:** The workflow used, with a link to its document in `docs/workflows/`.
 - **Issue:** A link to the relevant issue, when one exists.
 - **Claim type:** One of `Problem Claim`, `Behaviour Claim`, `Outcome Claim`, or `ADR (Architecture Decision)`.
-- **Records:** The audit, refactor, run, programme, policy, data, release, or deprecation IDs that the change advances.
+- **Records:** The audit, refactor, run, programme, data, release, or deprecation IDs that the change advances.
 - **Verification:** Commands actually executed and their observed results, in a table.
 - **Changelog:** The `CHANGELOG.md` release entry added or updated, or the reason no entry is needed.
 - **Quant validation:** The Quant Validator's record, or the reason the change does not require one, when the change alters model or strategy behavior.
@@ -867,7 +866,6 @@ The workflow index is [`docs/workflows/README.md`](docs/workflows/README.md). Ch
 | An indicator, event, or model implementation change | [Model Change](docs/workflows/model-change.md) |
 | A strategy hypothesis | [Strategy Research](docs/workflows/strategy-research.md) |
 | An execution or portfolio mechanics hypothesis | [Portfolio Research](docs/workflows/portfolio-research.md) |
-| A policy envelope change | [Policy Change](docs/workflows/policy-change.md) |
 | A data source, version, or partition change | [Data Lifecycle](docs/workflows/data-lifecycle.md) |
 | A new command, report, or capability | [Requirements & Design](docs/workflows/requirements-design.md) |
 | A substantial multi-step change, or a plan that needs a reviewer checklist | [Execution Plan](docs/workflows/execution-plan.md) |
@@ -882,7 +880,7 @@ The workflow status vocabulary is `Current`, `Target`, `Historical`, `Deprecated
 ### Improvement workflow
 
 ```text
-Policy and strategy (human)
+Strategy (human)
   → model run -> model baseline (human)
   → strategy run -> strategy baseline (human)
   → portfolio run -> portfolio baseline (human)
@@ -893,9 +891,9 @@ The workflow changes one tier at a time while the other engines stay frozen:
 
 | Tier | Changed | Frozen | Development | Validation |
 |---|---|---|---|---|
-| Model | Model | Data, policy, strategy, execution, portfolio, analytics | `model_dev` | `model_validation` |
-| Strategy | Strategy | Data, policy, accepted model, execution, portfolio, analytics | `strategy_dev` | `strategy_validation` |
-| Portfolio | Execution, portfolio | Data, policy, accepted model, accepted strategy, analytics | `portfolio_dev` | `portfolio_holdout` |
+| Model | Model | Data, strategy, execution, portfolio, analytics | `model_dev` | `model_validation` |
+| Strategy | Strategy | Data, accepted model, execution, portfolio, analytics | `strategy_dev` | `strategy_validation` |
+| Portfolio | Execution, portfolio | Data, accepted model, accepted strategy, analytics | `portfolio_dev` | `portfolio_holdout` |
 
 The data partitions are `model_dev` 2018-01-01..2020-12-31, `model_validation`
 2021-01-01..2022-12-31, `strategy_dev` 2018-01-01..2022-12-31,
@@ -904,7 +902,7 @@ The data partitions are `model_dev` 2018-01-01..2020-12-31, `model_validation`
 excluded from every partition. Validation and holdout are one-shot per
 hypothesis.
 
-The human owns the policy and strategy, approves the protocol and the holdout,
+The human owns the strategy, approves the protocol and the holdout,
 accepts baselines, and accepts residual risk. The workflow may stop at “no
 edge”. The contract is `docs/workflows/improvement-workflow.md` and the run
 record contract is `docs/workflows/run-contract.md`.
@@ -966,14 +964,14 @@ imported as run records.
 ### Research goal and evidence standard
 
 The research goal is a durable, cost-aware, rule-based edge on OHLCV candles,
-suitable for adaptation to prop-firm risk rules. Months of research are
+suitable for a portfolio-constrained research account. Months of research are
 acceptable. A passing backtest is not the goal.
 
 An edge is evidence that survives all of the following: out-of-sample data,
 costs and slippage, multiple instruments or regimes, a minimum trade count, a
 drawdown limit, a profit factor above one, and stability across folds. A
 backtest is a filter, not live proof. Paper trading and small live validation
-follow before any prop-firm claim.
+follow before any live claim.
 
 The workflow may conclude that the current model, timeframe, or envelope has no
 edge. That is a valid result, not a failure of the process. It is not a reason
@@ -1100,8 +1098,8 @@ Follow these stages in order for planned work.
 
 The human or the owning workflow defines the work. Select the workflow from
 [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor,
-Model Research, Model Change, Strategy Research, Portfolio Research, Policy
-Change, Data Lifecycle, Requirements & Design, Release & Operations,
+Model Research, Model Change, Strategy Research, Portfolio Research,
+Data Lifecycle, Requirements & Design, Release & Operations,
 Deprecation & Retirement, Recordkeeping, or the Improvement Workflow. The audit,
 run, assessment, charter, or requirements record exists; when the work changes
 code, the Planner has a plan and the human has approved it. No implementation
@@ -1211,8 +1209,8 @@ Examples include:
 - Changes to development methodology, Git conventions, or approval procedures.
 - A new workflow, a workflow status change, or a change to a workflow's stages, roles, gates, or green criteria.
 - A refactor campaign, a consequential module-boundary change, or structural debt accepted as `Deferred` or `Won't refactor`.
-- A policy or strategy blueprint change, a model/strategy/execution/portfolio/
-  analytics contract change, or a new improvement run protocol.
+- A strategy blueprint change, a model/strategy/execution/portfolio/analytics
+  contract change, or a new improvement run protocol.
 - A finding marked `Won't fix`, a release with an open Critical finding, or a
   claim of an edge.
 - The autonomy level of the Improvement Workflow and any automatic config writing.

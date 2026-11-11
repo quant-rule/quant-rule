@@ -1,11 +1,9 @@
 {
-  "schema": "quantrule.run/v2",
+  "schema": "quantrule.run/v3",
   "name": "btcusd-2024-breakout",
   "model_id": "M1.0",
-  "policy_id": "POL1.0",
   "execution_id": "E1.0",
   "portfolio_id": "P1.0",
-  "policy": "policy.json",
   "data": "data.json",
   "model": "model.json",
   "execution": "execution.json",

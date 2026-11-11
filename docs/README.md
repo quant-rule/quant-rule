@@ -20,7 +20,7 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | Refactors | Read-only structural findings, evidence, and refactor options. | `docs/refactors/<YYYY-MM-DD>/<scope>-refactor.md` |
 | Governance | The improvement charter, green criteria, autonomy, and stop conditions. | `docs/governance/<YYYY-MM-DD>/<file>.md` |
 | Workflows | The living workflow contracts, indexed by `docs/workflows/README.md`. | `docs/workflows/<file>.md` |
-| Workflow templates | The skeleton for a new workflow and the policy, data, release, deprecation, and requirements records. | `docs/workflows/templates/<file>.md` |
+| Workflow templates | The skeleton for a new workflow and the data, release, deprecation, and requirements records. | `docs/workflows/templates/<file>.md` |
 | Improvement registry | The committed run index, baselines, invalidation tombstones, and run record template. | `docs/improvement/<file>.md` |
 | Changelog | The grouped release history: meaningful user-facing or developer-facing changes by release and type. | `CHANGELOG.md` |
 
@@ -105,7 +105,8 @@ repeating a status.
 
 | Contract | Status | Path |
 |---|---|---|
-| Policy blueprint | Current; `run v2`, `policy v1`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-10-30/policy-and-strategy.md` |
+| Run v3 and portfolio constraints | Current; `run v3`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
+| Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
 | Session coverage | Current; optional weekly calendar and session-aware coverage | `docs/config/2026-11-09/data-change-SESSION-COVERAGE-01.md` |
@@ -121,7 +122,7 @@ repeating a status.
 The current run does not reference `strategy.json` or `analytics.json`. The loader
 rejects them with an unknown-field error. The strategy file and the qualification
 criteria are explicit command arguments; the run schema stays
-`quantrule.run/v2`.
+`quantrule.run/v3`.
 
 ## Current evidence
 
@@ -184,7 +185,7 @@ of workflow status; this page does not repeat it.
 | Simulation research | `docs/workflows/simulation-research.md` |
 | Strategy research | `docs/workflows/strategy-research.md` |
 | Portfolio research | `docs/workflows/portfolio-research.md` |
-| Policy change | `docs/workflows/policy-change.md` |
+| Policy change (historical) | `docs/workflows/policy-change.md` |
 | Data lifecycle | `docs/workflows/data-lifecycle.md` |
 | Requirements and design | `docs/workflows/requirements-design.md` |
 | Execution plan | `docs/workflows/execution-plan.md` |

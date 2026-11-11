@@ -128,10 +128,9 @@ the strictest adjusted alpha (`family_alpha / primary_cells` for Holm and
 Bonferroni, `family_alpha` for none). It does not invent a p-value that the
 result artifacts do not publish.
 
-The account envelope in `policy.json` supplies the account currency, initial
-cash, performance target, evaluation days, drawdown ceiling, leverage, position
-limit, and universe. The qualification thresholds are separate from that
-envelope; a policy limit is a constraint, not a pass rule.
+`portfolio.json` supplies the account currency, initial cash, leverage, position
+limit, and drawdown limit. The qualification thresholds are separate from that
+configuration; a portfolio limit is a constraint, not a pass rule.
 
 ## 3. Required evidence dimensions
 
@@ -155,7 +154,6 @@ recorded as `not_applicable` with a reason; it is not silently omitted.
 | `data_quality` | Is the input complete and aligned? | Coverage, gaps, partial buckets, zero-volume candles, source cadence. | Yes |
 | `baseline_control` | Does the rule beat the matched controls? | Buy-and-hold, random, back-lag, and shuffled controls. | Yes |
 | `reproducibility` | Can the same inputs reproduce the artifact? | Byte-identical rerun, manifest, data version, code revision. | Yes |
-| `prop_firm_limits` | Does the result fit the intended account rules? | Daily loss, maximum loss, profit target, consistency rule, time limit. | Only when declared |
 
 The engine does not choose these dimensions. The human names the mandatory ones
 and their thresholds in the criteria file. The engine validates the declared

@@ -369,7 +369,6 @@ def check_defaults(registry: dict[str, Any]) -> list[str]:
     parameters = {entry["id"]: entry for entry in registry.get("parameters", []) if isinstance(entry, dict) and "id" in entry}
     configs = {
         "model": ROOT / "config/defaults/model.json",
-        "policy": ROOT / "config/defaults/policy.json",
         "portfolio": ROOT / "config/defaults/portfolio.json",
         "execution": ROOT / "config/examples/btcusd-2024/execution.json",
     }

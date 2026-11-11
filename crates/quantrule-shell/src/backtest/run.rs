@@ -166,7 +166,7 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
         .iter()
         .map(|timeframe| u64::from(timeframe.seconds()))
         .collect();
-    let policy_fraction = config.policy.risk.max_position_fraction;
+    let sizing = config.portfolio.sizing;
     let leverage = config.portfolio.leverage;
 
     let mut engine =
@@ -218,7 +218,7 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
         counts.observe(decision);
         records.push(record);
 
-        let max_notional = ledger.state().equity * policy_fraction * leverage;
+        let max_notional = sizing.max_notional(ledger.state().equity, leverage);
         let step = ledger.quantity_step();
         let (intent, quantity, quantity_step) = match decision {
             Decision::Hold => (OrderIntent::Hold, None, None),

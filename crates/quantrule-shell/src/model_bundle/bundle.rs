@@ -14,7 +14,7 @@ use quantrule_model::spec::{ModelSpec, SpecEvaluation};
 use serde_json::{Value, json};
 
 use super::error::ModelBundleError;
-use super::provenance::{config_files, policy_value, spec_provenance, spec_v2_provenance};
+use super::provenance::{config_files, spec_provenance, spec_v2_provenance};
 use super::{artifacts, period_label};
 use crate::config::RunConfig;
 use crate::pipeline;
@@ -223,12 +223,10 @@ fn model_bundle_with(
         config_files: &files,
         config: json!({
             "model_id": config.model_id,
-            "policy_id": config.policy_id,
             "execution_id": config.execution_id,
             "portfolio_id": config.portfolio_id,
             "model": crate::config::effective_json(effective_model),
             "ladder": ladder.iter().map(|seconds| timeframe_label(*seconds)).collect::<Vec<_>>(),
-            "policy": policy_value(config),
         }),
         spec: spec_value,
         artifacts: &names,

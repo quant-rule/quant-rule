@@ -33,10 +33,10 @@ report model
   note:   The bundle carries readings, states, levels, events, progression, and context; it carries no axis or cross-timeframe aggregate.
   note:   A spec adds conditions.csv; a v2 spec can also add prediction.csv, panel.csv, and session.csv.
 
-policy check
-  usage:  policy check --config <run.json>
-  does:   Validate the policy and every engine config against it.
-  output: one `policy ok ...` line
+run check
+  usage:  run check --config <run.json>
+  does:   Validate the run and every engine config against it.
+  output: one `run ok ...` line
   note:   The loader rejects a missing, malformed, or inconsistent config before any candle is read.
 
 strategy explain

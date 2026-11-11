@@ -63,7 +63,7 @@ The stage contract, the command registry, and the implemented/planned status are
 | Strategy configuration | `quantrule.strategy/v1`, both generic engines, and the decision record. | [`../config/2026-11-06/strategy-config.md`](../config/2026-11-06/strategy-config.md) |
 | Qualification criteria | The human-owned criteria, verdict semantics, and human acceptance boundary. | [`../config/2026-11-06/qualification-criteria.md`](../config/2026-11-06/qualification-criteria.md) |
 | Model contract | The flat readings, discrete states, confirmed levels, events, progression, context, and the numeric output fields. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
-| Policy contract | The human-owned policy envelope and the cross-config rules. | [`../config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md) |
+| Run v3 and portfolio constraints | The current run composition and the portfolio constraints. | [`../config/2026-11-11/run-v3-and-portfolio-constraints.md`](../config/2026-11-11/run-v3-and-portfolio-constraints.md) |
 | Report command | The `report model` bundle artifacts and the flat result envelope. | [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md) |
 | Documentation index | The full documentation tree and the current architecture decisions. | [`../README.md`](../README.md) |
 

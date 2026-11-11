@@ -12,7 +12,7 @@ vote, no composite view, and no cross-timeframe aggregate.
 
 The current shell surface covers data inspection, event records, the flat model
 report, strategy decisions, execution fills, portfolio accounting, the coupled
-backtest, qualification, analytics, policy validation, source fetch, and help.
+backtest, qualification, analytics, run validation, source fetch, and help.
 Every pipeline stage is implemented. The stage contract and the command status
 are in
 [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
@@ -33,7 +33,7 @@ strategy, portfolio, data, and tooling is in
 | [`docs/course/README.md`](docs/course/README.md) | Course deliverables and PDF build |
 | [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md) | Stage contract, command registry, and discovery gate |
 | [`docs/model/2026-11-05/model-m1.0.md`](docs/model/2026-11-05/model-m1.0.md) | M1.0 model contract |
-| [`docs/config/2026-10-30/policy-and-strategy.md`](docs/config/2026-10-30/policy-and-strategy.md) | Policy, strategy, execution, and portfolio contracts |
+| [`docs/config/2026-11-11/run-v3-and-portfolio-constraints.md`](docs/config/2026-11-11/run-v3-and-portfolio-constraints.md) | Run v3 and portfolio constraints |
 | [`docs/registry/README.md`](docs/registry/README.md) | Indicator, event, parameter, validation, and verification registry |
 | [`docs/improvement/README.md`](docs/improvement/README.md) | Run index, baselines, invalidation tombstones, and run record template |
 | [`docs/releases/README.md`](docs/releases/README.md) | Release index, tag rule, historical tags, and release-note template |
@@ -69,7 +69,7 @@ one command and exits with the command's status:
 | `backtest run` | `--config <run.json> --strategy <strategy.json> [--out <dir>] [--json]` | The manifest and stage bundle paths |
 | `qualify` | `--evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]` | The verdict, criterion counts, and the qualification bundle |
 | `analytics evaluate` | `--evidence <backtest-bundle> [--out <dir>] [--json]` | The metrics, benchmarks, tables, and summary paths |
-| `policy check` | `--config <run.json>` | One `policy ok ...` line after every config check |
+| `run check` | `--config <run.json>` | One `run ok ...` line after every config check |
 | `fetch` | `<symbol> <start> <end> [--timeframe <1m\|5m\|15m\|1h>] [--csv <path>]` | The CSV path and the accepted/rejected counts |
 | `help` | `[<command>\|all\|glossary\|workflows]` | The command map, one contract, the glossary, or the workflow selection guide |
 
@@ -82,7 +82,7 @@ configuration.
 ```bash
 quantrule candles crates/quantrule-shell/tests/fixtures/three.csv
 quantrule events crates/quantrule-shell/tests/fixtures/state_m1.csv --window latest
-quantrule policy check --config crates/quantrule-shell/tests/fixtures/config-run/run.json
+quantrule run check --config crates/quantrule-shell/tests/fixtures/config-run/run.json
 quantrule report model --config crates/quantrule-shell/tests/fixtures/config-run/run.json --out target/report
 quantrule report model --config crates/quantrule-shell/tests/fixtures/config-run/run.json --spec crates/quantrule-shell/tests/fixtures/config-run/spec.json --out target/report-spec
 quantrule strategy explain --model target/report/model --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json --bar 21
@@ -156,13 +156,11 @@ A run is described by `run.json`:
 
 ```json
 {
-  "schema": "quantrule.run/v2",
+  "schema": "quantrule.run/v3",
   "name": "btcusd-2024",
   "model_id": "M1.0",
-  "policy_id": "POL1.0",
   "execution_id": "E1.0",
   "portfolio_id": "P1.0",
-  "policy": "policy.json",
   "data": "data.json",
   "model": "model.json",
   "execution": "execution.json",
@@ -173,7 +171,6 @@ A run is described by `run.json`:
 
 | File | Contract | Current role |
 |---|---|---|
-| `policy.json` | `quantrule.policy/v1` | Human-owned account, objective, risk, and universe envelope |
 | `data.json` | `quantrule.data/v3` | Source path, data version, period, and available ladder |
 | `model.json` | `quantrule.model/v4` | M1.0 reading, event, and progression settings |
 | `execution.json` | `quantrule.execution/v2` | Fill mechanics and costs |
@@ -182,7 +179,7 @@ A run is described by `run.json`:
 `strategy.json` and `analytics.json` are not part of the current run. The loader
 rejects them with an unknown-field error. The strategy file and the qualification
 criteria are explicit command arguments; the run schema stays
-`quantrule.run/v2`. The old model schema versions 1–3 are retired and rejected
+`quantrule.run/v3`. The old model schema versions 1–3 are retired and rejected
 with an unsupported-schema error.
 
 `config/defaults/` and `config/examples/` are the current config tree.
@@ -190,10 +187,10 @@ with an unsupported-schema error.
 model or historical research evidence, not current run configs. See
 [`config/README.md`](config/README.md).
 
-`policy check` loads every file, resolves every path, and validates the cross-config
-rules before any candle is read: the data ladder, model ceiling, policy universe,
-instrument, execution fill timeframe, and portfolio envelope must agree. An error
-names the file and the JSON path, never an absolute path.
+`run check` loads every file, resolves every path, and validates the cross-config
+rules before any candle is read: the data ladder, model ceiling, model ladder,
+instrument, execution fill timeframe, and portfolio configuration must agree. An
+error names the file and the JSON path, never an absolute path.
 
 ## `report model` bundle
 

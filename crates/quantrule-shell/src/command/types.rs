@@ -21,7 +21,7 @@ use crate::portfolio::PortfolioRunError;
 use crate::qualification::QualificationRunError;
 use crate::request::{
     AnalyticsEvaluateArgs, BacktestRunArgs, ExecutionRunArgs, FetchArgs, ModelArgs,
-    PolicyCheckArgs, PortfolioReplayArgs, QualifyArgs, ReportArgs, StrategyExplainArgs,
+    PortfolioReplayArgs, QualifyArgs, ReportArgs, RunCheckArgs, StrategyExplainArgs,
     StrategyRunArgs,
 };
 use crate::strategy::StrategyRunError;
@@ -39,8 +39,8 @@ pub(crate) enum Command {
     Events(ModelArgs),
     /// Write the flat model report bundle.
     Report(ReportArgs),
-    /// Validate the policy and every engine config against it.
-    PolicyCheck(PolicyCheckArgs),
+    /// Validate the run and every engine config against it.
+    RunCheck(RunCheckArgs),
     /// Explain one strategy decision from a model bundle.
     StrategyExplain(StrategyExplainArgs),
     /// Write the strategy decisions bundle for one model bundle.
@@ -93,8 +93,8 @@ pub(crate) enum ParseError {
     Window(String),
     /// A report command is invalid.
     Report(String),
-    /// A policy command is invalid.
-    Policy(String),
+    /// A run-check command is invalid.
+    RunCheck(String),
     /// A strategy command is invalid.
     Strategy(String),
     /// An execution command is invalid.
@@ -124,7 +124,7 @@ impl fmt::Display for ParseError {
             Self::MissingPath(name) => write!(formatter, "usage: {name} <csv-path>"),
             Self::Window(message)
             | Self::Report(message)
-            | Self::Policy(message)
+            | Self::RunCheck(message)
             | Self::Strategy(message)
             | Self::Execution(message)
             | Self::Portfolio(message)

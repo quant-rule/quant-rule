@@ -618,7 +618,7 @@ mod tests {
             ("2024-01-01", "2024-12-31")
         );
         assert_eq!(Partition::ALL.len(), 6);
-        assert_eq!(Dimension::ALL.len(), 15);
+        assert_eq!(Dimension::ALL.len(), 14);
     }
 
     #[test]
