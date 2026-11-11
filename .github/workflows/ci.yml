@@ -55,6 +55,16 @@ jobs:
           python3 -m unittest discover -s tools -p 'test_check_execution_plans.py'
           python3 tools/check_execution_plans.py
 
+      - name: Board permanence
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_board_permanence.py'
+          python3 tools/check_board_permanence.py
+
+      - name: Project sync
+        run: |
+          bash -n .github/scripts/project-sync.sh
+          bash tools/test_project_sync.sh
+
       - name: Claim types
         run: |
           python3 -m unittest discover -s tools -p 'test_check_claims.py'

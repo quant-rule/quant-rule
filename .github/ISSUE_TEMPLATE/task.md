@@ -22,9 +22,9 @@ Workflow:
 - [ ] Refactor
 - [ ] Model research
 - [ ] Model change
+- [ ] Simulation research
 - [ ] Strategy research
 - [ ] Portfolio research
-- [ ] Policy change
 - [ ] Data lifecycle
 - [ ] Requirements and design
 - [ ] Execution plan
@@ -32,6 +32,7 @@ Workflow:
 - [ ] Deprecation and retirement
 - [ ] Recordkeeping
 - [ ] Improvement run
+- [ ] Research swarm
 - [ ] Other:
 
 Prior records reviewed:

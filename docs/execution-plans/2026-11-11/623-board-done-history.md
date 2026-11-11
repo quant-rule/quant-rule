@@ -135,20 +135,20 @@ Excluded:
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Phase 1: Board permanence rule | `AGENTS.md` prohibits delete, archive, remove, and bulk-clean in absolute terms | `python3 tools/check_board_permanence.py` | pass | | | | | |
-| V2 | Phase 1: Done lifecycle | `Done` is terminal; cleanup never touches the board | `rg "Done.*terminal\|append-only" AGENTS.md docs/workflows/recordkeeping.md` | both rules present | | | | | |
-| V3 | Phase 1: Recordkeeping | Append-only rules cover board items | `rg "board" docs/workflows/recordkeeping.md` | rule present | | | | | |
-| V4 | Phase 2: Delivery sequence | Issue to Done sequence names owner and record | `rg "Delivery sequence" docs/workflows/execution-plan.md` | section present | | | | | |
-| V5 | Phase 2: Verification coverage | Row per work-breakdown phase, acceptance criterion, and closure step | `python3 tools/check_execution_plans.py` | pass | | | | | |
-| V6 | Phase 2: Template | Work breakdown has role, dependencies, paths; table is last | `rg "Depends on\|Affected paths" docs/workflows/templates/execution-plan.md` | columns present | | | | | |
-| V7 | Phase 3: Plan checker | Duplicate IDs, empty core cells, and Verified unresolved rows fail | `python3 -m unittest discover -s tools -p 'test_check_execution_plans.py'` | pass | | | | | |
-| V8 | Phase 4: Done stickiness | `project-sync.sh` keeps Done leaves and containers Done | `bash tools/test_project_sync.sh` | pass | | | | | |
-| V9 | Phase 5: Board guard | Forbidden board mutations and missing rule fail | `python3 -m unittest discover -s tools -p 'test_check_board_permanence.py'` | pass | | | | | |
-| V10 | Phase 6: Issue template | Workflow list matches the current index | `rg "Simulation research\|Policy change" .github/ISSUE_TEMPLATE/task.md` | simulation present; policy absent | | | | | |
-| V11 | Phase 6: Docs index | Board guard is listed in the tooling table | `rg "check_board_permanence" docs/README.md` | present | | | | | |
-| V12 | Phase 7: Records | Changelog and AI log are updated | `python3 tools/check_changelog.py`; `test -f docs/ai-transparency-log/2026-11-11/623-board-done-history.md` | pass | | | | | |
-| V13 | Phase 8: Delivery | Issue In Progress; PR open; issue In Review; Done item intact after merge | GitHub Project and PR | board and PR states match | | | | | |
-| V14 | Phase 8: Regression guard | The board permanence guard fails before the rule and passes after | `python3 tools/check_board_permanence.py` against the pre-change tree | fail before; pass after | | | | | |
+| V1 | Phase 1: Board permanence rule | `AGENTS.md` prohibits delete, archive, remove, and bulk-clean in absolute terms | `python3 tools/check_board_permanence.py` | pass | board permanence ok: append-only rule present; no delete or archive mutation | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V2 | Phase 1: Done lifecycle | `Done` is terminal; cleanup never touches the board | `rg "Done.*terminal\|append-only" AGENTS.md docs/workflows/recordkeeping.md` | both rules present | `AGENTS.md` lines 408 and 476; `recordkeeping.md` line 91 | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V3 | Phase 1: Recordkeeping | Append-only rules cover board items | `rg "board" docs/workflows/recordkeeping.md` | rule present | `recordkeeping.md` line 91: append-only rule covers board items | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V4 | Phase 2: Delivery sequence | Issue to Done sequence names owner and record | `rg "Delivery sequence" docs/workflows/execution-plan.md` | section present | `execution-plan.md` line 107: Delivery sequence | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V5 | Phase 2: Verification coverage | Row per work-breakdown phase, acceptance criterion, and closure step | `python3 tools/check_execution_plans.py` | pass | execution plans ok: current plans carry a claim type and verification table | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V6 | Phase 2: Template | Work breakdown has role, dependencies, paths; table is last | `rg "Depends on\|Affected paths" docs/workflows/templates/execution-plan.md` | columns present | template line 34: `Phase \| Work \| Role \| Depends on \| Affected paths \| Output \| Gate` | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V7 | Phase 3: Plan checker | Duplicate IDs, empty core cells, and Verified unresolved rows fail | `python3 -m unittest discover -s tools -p 'test_check_execution_plans.py'` | pass | 8 tests pass | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V8 | Phase 4: Done stickiness | `project-sync.sh` keeps Done leaves and containers Done | `bash tools/test_project_sync.sh` | pass | 8 cases pass; project sync ok | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V9 | Phase 5: Board guard | Forbidden board mutations and missing rule fail | `python3 -m unittest discover -s tools -p 'test_check_board_permanence.py'` | pass | 4 tests pass | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V10 | Phase 6: Issue template | Workflow list matches the current index | `rg "Simulation research\|Policy change" .github/ISSUE_TEMPLATE/task.md` | simulation present; policy absent | Simulation research present at line 25; Policy change absent | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V11 | Phase 6: Docs index | Board guard is listed in the tooling table | `rg "check_board_permanence" docs/README.md` | present | `docs/README.md` line 233: board permanence checker | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V12 | Phase 7: Records | Changelog and AI log are updated | `python3 tools/check_changelog.py`; `test -f docs/ai-transparency-log/2026-11-11/623-board-done-history.md` | pass | changelog ok: 5 releases, 90 entries; AI log present | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
+| V13 | Phase 8: Delivery | Issue In Progress; PR open; issue In Review; Done item intact after merge | GitHub Project and PR | board and PR states match | | Pending | | | PR open; human review and merge pending |
+| V14 | Phase 8: Regression guard | The board permanence guard fails before the rule and passes after | `python3 tools/check_board_permanence.py` against the pre-change tree | fail before; pass after | Pre-change tree: `AGENTS.md is missing the board permanence rule`; post-change: pass | Pass | Agent (sequential) | 2026-11-11 | Sequential pass; not independent |
 
 ## Risks and recovery
 

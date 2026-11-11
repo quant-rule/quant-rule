@@ -31,21 +31,15 @@ Excluded:
 
 ## Work breakdown
 
-| Phase | Work | Output | Gate |
-|---|---|---|---|
-| 1 |  |  |  |
+| Phase | Work | Role | Depends on | Affected paths | Output | Gate |
+|---|---|---|---|---|---|---|
+| 1 |  |  |  |  |  |  |
 
 ## Verification
 
 | Check | Command | Expected |
 |---|---|---|
 |  |  |  |
-
-## Verification table
-
-| ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
-|---|---|---|---|---|---|---|---|---|---|
-|  |  |  |  |  |  |  |  |  |  |
 
 ## Risks and recovery
 
@@ -56,6 +50,18 @@ Excluded:
 ## Stop conditions
 
 - 
+
+## Verification table
+
+At approval, fill `ID`, `Plan item`, `Acceptance criterion`, `Evidence /
+command`, and `Expected`. The implementer fills `Observed`; the reviewer fills
+`Status`, `Reviewer`, and `Date`. One row covers each work-breakdown phase,
+acceptance criterion, and closure step.
+
+| ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| V1 | Phase 1 / <artifact> | <criterion> | `<command>` | <expected> |  |  |  |  |  |
+| V2 | Closure / worktree and branch cleanup | Worktree and branches removed; the `Done` board item remains | `python3 tools/worktree_cleanup.py check <worktree>` | check passes; board item present |  |  |  |  |  |
 
 ## Related documents
 

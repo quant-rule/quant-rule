@@ -81,15 +81,25 @@ The board fields are:
 | `State` | Automation | `Open` or `Closed` |
 | `Claim Type` | Agent | Required; one of the four values |
 | `Start date` | Agent, automation backfill | Set on the first `Todo -> In Progress`; never overwritten |
-| `Closed date` | Agent, automation backfill | Set on `In Review -> Done`; cleared when the item reopens |
+| `Closed date` | Agent, automation backfill | Set on `In Review -> Done`; a `Done` item keeps it and is never reopened |
 
 A missing claim type is a defect. The issue stays in `Todo` and is flagged for
 repair. The review gate is `In Review`; `Done` follows human acceptance, merge,
-acceptance-criteria verification, and worktree cleanup.
+acceptance-criteria verification, and worktree cleanup. The board item remains
+`Done` permanently.
+
+**The board is append-only history.** A board item is never deleted, archived,
+removed, or bulk-cleaned, in any status and under any circumstances. `Done` items
+stay on the board after the issue closes, the pull request merges, and the task
+worktree and branches are removed. A `Done` item is terminal: it is not reopened
+or moved back to an earlier status, and follow-up work is a new issue that links
+to it. Worktree and branch cleanup never touches the board.
 
 ## 6. Append-only rules
 
 - Never overwrite, rename, move, or delete a historical record.
+- Never delete, archive, remove, or bulk-clean a board item. `Done` items are
+  permanent project history; cleanup removes worktrees and branches only.
 - A correction is a dated addendum that links to the original.
 - A superseded record keeps its content and gains a forward link.
 - An invalidation is a tombstone row in

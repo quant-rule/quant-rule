@@ -2,8 +2,9 @@
 """Check the structure of current execution plans.
 
 A plan dated 2026-11-11 or later must carry a status, a claim type, and a
-verification table with the reviewer columns. Historical plans are exempt
-because they predate the verification-table rule.
+verification table with the reviewer columns, unique row IDs, non-empty core
+cells, and no unresolved row on a ``Verified`` plan. Historical plans are
+exempt because they predate the verification-table rule.
 """
 
 from __future__ import annotations
@@ -40,6 +41,13 @@ COLUMNS = (
     "date",
     "notes",
 )
+STATUSES = ("Pass", "Fail", "Blocked", "Pending", "Accepted risk")
+
+
+def row_cells(line: str) -> list[str]:
+    """Split a Markdown table row on its unescaped cell separators."""
+    protected = line.replace("\\|", "\u0000")
+    return [cell.strip().replace("\u0000", "|") for cell in protected.split("|")[1:-1]]
 
 
 def table_header(text: str) -> str | None:
@@ -95,6 +103,51 @@ def check(root: Path) -> list[str]:
                 ]
                 if len(rows) <= 1:
                     problems.append(f"{relative}: verification table has no data rows")
+                else:
+                    plan_status = status.group(1).strip() if status else ""
+                    ids: set[str] = set()
+                    for row in rows[1:]:
+                        cells = row_cells(row)
+                        if len(cells) < len(COLUMNS):
+                            problems.append(
+                                f"{relative}: verification row has fewer than "
+                                f"{len(COLUMNS)} cells: {row.strip()}"
+                            )
+                            continue
+                        row_id, item, criterion, evidence, expected, _, row_status = (
+                            cells[:7]
+                        )
+                        if not row_id:
+                            problems.append(f"{relative}: verification row has no ID")
+                            continue
+                        if row_id in ids:
+                            problems.append(
+                                f"{relative}: duplicate verification row ID {row_id!r}"
+                            )
+                        ids.add(row_id)
+                        for label, value in (
+                            ("Plan item", item),
+                            ("Acceptance criterion", criterion),
+                            ("Evidence / command", evidence),
+                            ("Expected", expected),
+                        ):
+                            if not value:
+                                problems.append(
+                                    f"{relative}: {row_id} has an empty {label}"
+                                )
+                        if row_status and row_status not in STATUSES:
+                            problems.append(
+                                f"{relative}: {row_id} has unknown status "
+                                f"{row_status!r}"
+                            )
+                        if plan_status == "Verified" and row_status not in (
+                            "Pass",
+                            "Accepted risk",
+                        ):
+                            problems.append(
+                                f"{relative}: Verified plan row {row_id} is "
+                                f"{row_status or 'empty'}"
+                            )
     return problems
 
 

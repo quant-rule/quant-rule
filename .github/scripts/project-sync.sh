@@ -2,6 +2,10 @@
 #
 # Keeps the QuantRule project board in step with the issues.
 #
+# Board items are permanent project history. This script never deletes,
+# archives, or removes an item, and a `Done` item is terminal: it is never
+# reopened or moved back to an earlier status.
+#
 # The board uses four stages: Todo, In Progress, In Review, Done. The built-in
 # workflows mark an item `Done` when its issue is closed, and close the issue
 # when its item is marked `Done`. This script writes the custom `State`,
@@ -30,13 +34,6 @@
 
 set -euo pipefail
 
-for required in GH_TOKEN ORGANIZATION PROJECT_NUMBER CONTENT_ID; do
-  if [ -z "${!required:-}" ]; then
-    echo "project-sync: ${required} is not set" >&2
-    exit 1
-  fi
-done
-
 gql() {
   # gql <query> [name value]...
   #
@@ -60,26 +57,6 @@ gql() {
   gh api graphql -F "query=${query}" "${args[@]}"
 }
 
-# --- the project's fields, looked up by name ---------------------------------
-
-PROJECT_FIELDS="$(gql '
-query($org: String!, $number: Int!) {
-  organization(login: $org) {
-    projectV2(number: $number) {
-      id
-      fields(first: 30) {
-        nodes {
-          __typename
-          ... on ProjectV2Field { id name }
-          ... on ProjectV2SingleSelectField { id name options { id name } }
-        }
-      }
-    }
-  }
-}' org "$ORGANIZATION" number "#$PROJECT_NUMBER")"
-
-PROJECT_ID="$(echo "$PROJECT_FIELDS" | jq -r '.data.organization.projectV2.id')"
-
 field_id() {
   # The id of a field by name, of whatever type it is.
   echo "$PROJECT_FIELDS" | jq -r --arg name "$1" '
@@ -95,31 +72,59 @@ option_id() {
     | .[0].options | map(select(.name == $name)) | .[0].id'
 }
 
-STATUS_FIELD="$(field_id "Status")"
-ITEM_TYPE_FIELD="$(field_id "Item type")"
-STATE_FIELD="$(field_id "State")"
-CLAIM_TYPE_FIELD="$(field_id "Claim Type")"
-START_DATE_FIELD="$(field_id "Start date")"
-CLOSED_DATE_FIELD="$(field_id "Closed date")"
+load_fields() {
+  # Read the project's fields and keep every id this script writes.
+  for required in GH_TOKEN ORGANIZATION PROJECT_NUMBER CONTENT_ID; do
+    if [ -z "${!required:-}" ]; then
+      echo "project-sync: ${required} is not set" >&2
+      exit 1
+    fi
+  done
 
-STATUS_TODO="$(option_id "Status" "Todo")"
-STATUS_IN_PROGRESS="$(option_id "Status" "In Progress")"
-STATUS_IN_REVIEW="$(option_id "Status" "In Review")"
-STATUS_DONE="$(option_id "Status" "Done")"
-ITEM_TYPE_ISSUE="$(option_id "Item type" "Issue")"
-ITEM_TYPE_PULL_REQUEST="$(option_id "Item type" "Pull request")"
-STATE_OPEN="$(option_id "State" "Open")"
-STATE_CLOSED="$(option_id "State" "Closed")"
+  PROJECT_FIELDS="$(gql '
+query($org: String!, $number: Int!) {
+  organization(login: $org) {
+    projectV2(number: $number) {
+      id
+      fields(first: 30) {
+        nodes {
+          __typename
+          ... on ProjectV2Field { id name }
+          ... on ProjectV2SingleSelectField { id name options { id name } }
+        }
+      }
+    }
+  }
+}' org "$ORGANIZATION" number "#$PROJECT_NUMBER")"
 
-for id in "$STATUS_FIELD" "$ITEM_TYPE_FIELD" "$STATE_FIELD" "$CLAIM_TYPE_FIELD" \
-          "$START_DATE_FIELD" "$CLOSED_DATE_FIELD" \
-          "$STATUS_TODO" "$STATUS_IN_PROGRESS" "$STATUS_IN_REVIEW" "$STATUS_DONE" \
-          "$ITEM_TYPE_ISSUE" "$ITEM_TYPE_PULL_REQUEST" "$STATE_OPEN" "$STATE_CLOSED"; do
-  if [ -z "$id" ] || [ "$id" = "null" ]; then
-    echo "project-sync: the project is missing a field or option this script writes" >&2
-    exit 1
-  fi
-done
+  PROJECT_ID="$(echo "$PROJECT_FIELDS" | jq -r '.data.organization.projectV2.id')"
+
+  STATUS_FIELD="$(field_id "Status")"
+  ITEM_TYPE_FIELD="$(field_id "Item type")"
+  STATE_FIELD="$(field_id "State")"
+  CLAIM_TYPE_FIELD="$(field_id "Claim Type")"
+  START_DATE_FIELD="$(field_id "Start date")"
+  CLOSED_DATE_FIELD="$(field_id "Closed date")"
+
+  STATUS_TODO="$(option_id "Status" "Todo")"
+  STATUS_IN_PROGRESS="$(option_id "Status" "In Progress")"
+  STATUS_IN_REVIEW="$(option_id "Status" "In Review")"
+  STATUS_DONE="$(option_id "Status" "Done")"
+  ITEM_TYPE_ISSUE="$(option_id "Item type" "Issue")"
+  ITEM_TYPE_PULL_REQUEST="$(option_id "Item type" "Pull request")"
+  STATE_OPEN="$(option_id "State" "Open")"
+  STATE_CLOSED="$(option_id "State" "Closed")"
+
+  for id in "$STATUS_FIELD" "$ITEM_TYPE_FIELD" "$STATE_FIELD" "$CLAIM_TYPE_FIELD" \
+            "$START_DATE_FIELD" "$CLOSED_DATE_FIELD" \
+            "$STATUS_TODO" "$STATUS_IN_PROGRESS" "$STATUS_IN_REVIEW" "$STATUS_DONE" \
+            "$ITEM_TYPE_ISSUE" "$ITEM_TYPE_PULL_REQUEST" "$STATE_OPEN" "$STATE_CLOSED"; do
+    if [ -z "$id" ] || [ "$id" = "null" ]; then
+      echo "project-sync: the project is missing a field or option this script writes" >&2
+      exit 1
+    fi
+  done
+}
 
 # --- the board ----------------------------------------------------------------
 
@@ -344,6 +349,43 @@ is_closed() {
   esac
 }
 
+desired_status() {
+  # desired_status <current-status> <content-type> <content-state> <children-json> <claim>
+  #
+  # A Done item is terminal: no child, state, or claim change moves it out.
+  # Otherwise a container follows its children, a closed item is Done, an open
+  # pull request is In Review, and an open issue keeps the status the agent set.
+  local current_status="$1" content_type="$2" content_state="$3"
+  local children="$4" claim="$5"
+  local desired
+
+  if [ "$current_status" = "Done" ]; then
+    echo "DONE"
+    return 0
+  fi
+  if [ "$(echo "$children" | jq 'length')" -gt 0 ]; then
+    container_status "$children"
+    return 0
+  fi
+  if is_closed "$content_state"; then
+    echo "DONE"
+    return 0
+  fi
+  if [ "$content_type" = "PullRequest" ]; then
+    echo "IN_REVIEW"
+    return 0
+  fi
+  case "$current_status" in
+    "In Progress") desired="IN_PROGRESS" ;;
+    "In Review") desired="IN_REVIEW" ;;
+    *) desired="TODO" ;;
+  esac
+  if [ -z "$claim" ]; then
+    desired="TODO"
+  fi
+  echo "$desired"
+}
+
 # Keep an issue's own open or closed state in step with the status its board
 # item carries, so that the two never disagree. The board closes an issue when
 # its item reaches `Done`, and nothing reopens it when a sub-issue comes back.
@@ -373,6 +415,8 @@ today_utc() {
 }
 
 main() {
+  load_fields
+
   local content content_type content_state content_closed_at children parent_id
   content="$(read_content "$CONTENT_ID")"
   content_type="$(echo "$content" | jq -r '.type')"
@@ -403,27 +447,12 @@ main() {
   current_start="$(echo "$fields" | jq -r '.start // empty')"
   current_close="$(echo "$fields" | jq -r '.close // empty')"
 
-  # The status. A container follows its sub-issues. A closed leaf is Done. An
-  # open pull request is In Review. An open issue keeps the status the agent
-  # set, and a new issue starts in Todo. A missing claim type keeps a new issue
-  # in Todo and is visible in the Missing claim type view.
+  # The status. A Done item is terminal. Otherwise a container follows its
+  # sub-issues, a closed leaf is Done, an open pull request is In Review, and an
+  # open issue keeps the status the agent set. A new issue starts in Todo, and a
+  # missing claim type keeps a new issue in Todo for the Missing claim type view.
   local desired
-  if [ "$(echo "$children" | jq 'length')" -gt 0 ]; then
-    desired="$(container_status "$children")"
-  elif is_closed "$content_state"; then
-    desired="DONE"
-  elif [ "$content_type" = "PullRequest" ]; then
-    desired="IN_REVIEW"
-  else
-    case "$current_status" in
-      "In Progress") desired="IN_PROGRESS" ;;
-      "In Review") desired="IN_REVIEW" ;;
-      *) desired="TODO" ;;
-    esac
-    if [ -z "$current_claim" ]; then
-      desired="TODO"
-    fi
-  fi
+  desired="$(desired_status "$current_status" "$content_type" "$content_state" "$children" "$current_claim")"
   set_field "$item_id" "$STATUS_FIELD" "$(status_option "$desired")"
 
   # Start date: set once, on the first active issue transition.
@@ -433,7 +462,8 @@ main() {
     set_date "$item_id" "$START_DATE_FIELD" "$(today_utc)"
   fi
 
-  # Close date: set on Done and cleared when the item returns to active work.
+  # Close date: set on Done and never cleared for a Done item. A non-Done item
+  # with a stale date loses it, so only a real Done carries a close date.
   if [ "$desired" = "DONE" ]; then
     if [ -z "$current_close" ]; then
       if [ -n "$content_closed_at" ]; then
@@ -452,17 +482,23 @@ main() {
   fi
 
   # The parent of what changed is a container, and its status is recomputed
-  # from its own sub-issues.
+  # from its own sub-issues. A parent that is already Done stays Done.
   if [ -n "$parent_id" ]; then
     local parent parent_children parent_state parent_item parent_desired
+    local parent_fields parent_status parent_claim
     parent="$(read_content "$parent_id")"
     parent_children="$(echo "$parent" | jq -c '.children')"
     parent_state="$(echo "$parent" | jq -r '.state')"
     parent_item="$(ensure_item "$parent_id")"
-    parent_desired="$(container_status "$parent_children")"
+    parent_fields="$(read_item_fields "$parent_item")"
+    parent_status="$(echo "$parent_fields" | jq -r '.status // empty')"
+    parent_claim="$(echo "$parent_fields" | jq -r '.claim // empty')"
+    parent_desired="$(desired_status "$parent_status" "Issue" "$parent_state" "$parent_children" "$parent_claim")"
     set_field "$parent_item" "$STATUS_FIELD" "$(status_option "$parent_desired")"
     reconcile_issue_state "$parent_id" "$parent_state" "$parent_desired"
   fi
 }
 
-main "$@"
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+fi
