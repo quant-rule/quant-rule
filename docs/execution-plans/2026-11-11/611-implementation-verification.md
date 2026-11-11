@@ -3,7 +3,7 @@
 - Date: 2026-11-11 (UTC)
 - Issue: [#611](https://github.com/quant-rule/quant-rule/issues/611)
 - Parent plan: [`588-tauri-platform.md`](588-tauri-platform.md)
-- Status: In Progress
+- Status: In Review
 - Claim type: Behaviour Claim
 - Owner: Human
 - Workflow: Execution Plan
@@ -91,15 +91,15 @@ Commands are run from the repository root unless noted.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Rust gate | fmt, clippy, test, doc pass | cargo fmt/clippy/test/doc | pass | Pending | Pending | — | — | |
-| V2 | Desktop gate | check, unit, E2E, backend, build pass | npm/cargo commands | pass | Pending | Pending | — | — | |
-| V3 | Bundles | deb and AppImage build | `npm run tauri build` | pass | Pending | Pending | — | — | |
-| V4 | Site | links and checksums match | `./site/build.sh --skip-build` | pass | Pending | Pending | — | — | |
-| V5 | Clean install | deb installs and launches | Ubuntu container + Xvfb | launch | Pending | Pending | — | — | |
-| V6 | Offline | AppImage starts without network | `bwrap --unshare-net` | launch | Pending | Pending | — | — | |
-| V7 | Determinism | repeated runs are identical | CLI/desktop repeat | identical | Pending | Pending | — | — | |
-| V8 | Memory | export/import and backup/restore | memory tests/script | round-trip | Pending | Pending | — | — | |
-| V9 | Plan table | P3A–P3E observed | plan review | complete | Pending | Pending | — | — | |
+| V1 | Rust gate | fmt, clippy, test, doc pass | cargo fmt/clippy/test/doc | pass | 1,476 passed, 8 ignored; all pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V2 | Desktop gate | check, unit, E2E, backend, build pass | npm/cargo commands | pass | 0 errors; 7 unit; 1 E2E; 4 backend; build pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V3 | Bundles | deb and AppImage build | `npm run tauri build` | pass | 4.33 MiB deb; 111.40 MiB AppImage | Pass | Agent | 2026-11-11 | Human review pending |
+| V4 | Site | links and checksums match | `./site/build.sh --skip-build` | pass | 2 artifacts, 2 checksums | Pass | Agent | 2026-11-11 | Human review pending |
+| V5 | Clean install | deb installs and launches | Ubuntu container + Xvfb | launch | installed; exit 124 | Pass | Agent | 2026-11-11 | Container install |
+| V6 | Offline | AppImage starts without network | `bwrap --unshare-net` | launch | exit 124 | Pass | Agent | 2026-11-11 | Network namespace removed |
+| V7 | Determinism | repeated runs are identical | CLI/desktop repeat | identical | model bundles and run check identical | Pass | Agent | 2026-11-11 | Human review pending |
+| V8 | Memory | export/import and backup/restore | memory tests | round-trip | 22 tests pass | Pass | Agent | 2026-11-11 | Human review pending |
+| V9 | Plan table | P3A–P3E observed | plan review | complete | P0–P3E Pass | Pass | Agent | 2026-11-11 | P4/P5 pending |
 
 ## Risks and recovery
 
