@@ -82,6 +82,7 @@ view for the local store.
 | `SR8-H3-BUFFER` | 2026-11-09 | 2023 BTC one-shot buffer for the frozen H3 rule | buffer ineligible — 2023 1h coverage 61.3%; 0 long / 4 short trades; 2024 not opened | [record](2026-11-09/SR8-H3-BUFFER.md) |
 | `SR8-A-H3-ARCHIVE` | 2026-11-09 | Dukascopy 2023 archive source check before the H3 buffer | archive rejected — 38,948 flat placeholders, 61.4% genuine coverage; no H3 run; 2024 not opened | [record](2026-11-09/SR8-A-H3-ARCHIVE.md) |
 | `SR9-15M-STRUCTURE` | 2026-11-09 | 15m structure-transition campaign; 6 primary cells + break-only control | no candidate — underpowered, 9–16 trades per cell; 9 bps not run; 2024 not opened | [record](2026-11-09/SR9-15M-STRUCTURE.md) |
+| `SBE-01-SCALE` | 2026-11-10 | 5m onset range-fraction 0.3/0.6 structural geometry; 11,940 events | infeasible — median breakeven 53.3%; 0.3 W is about 0.5 ATR; no engine change | [report](../reports/2026-11-10/sbe-01-scale-screen.md) |
 
 
 

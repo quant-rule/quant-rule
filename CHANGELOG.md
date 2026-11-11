@@ -50,6 +50,10 @@ are not treated as releases.
   the same forward and barrier measurements to a declared event identity and
   window, with an all-bars control. It rejects event subtypes the strategy
   engine cannot read.
+- A deterministic SBE-01 scale screen (`tools/research/scale_screen.py`) that
+  tests a range-fraction stop/target geometry for cost feasibility against a
+  published compression range and ATR. It writes only an evaluation report and
+  no strategy or portfolio artifact.
 - A fresh-onset 5m breakout screen (`tools/research/breakout_edge.py`) with nine
   fixture tests and the SR13 development record. The 6-bar pooled result is
   negative; no candidate and 2024 remains closed.
