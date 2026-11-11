@@ -44,7 +44,7 @@ repeating a status.
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v0.9.0` is the latest release, the first Tauri Platform release; `v0.8.0` is the last pre-Tauri release; historical tags are retained. |
-| Changelog | Grouped release history; `0.8.0` is the current release; the SR2–SR13 entries and research tooling are in its section. |
+| Changelog | Grouped release history; `0.9.0` is the current release. |
 | Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path; the historical research scripts and the old improvement adapter are retained for reproducibility. |
 
 ## Current architecture
