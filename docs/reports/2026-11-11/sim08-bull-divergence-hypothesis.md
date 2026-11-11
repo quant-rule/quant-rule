@@ -56,17 +56,30 @@ and `check-bear/check.md`.
 - The label sample is 2018–2019; the check is 2020–2022. Both are
   `strategy_dev`; no validation or holdout data was read.
 
-## 4. Required next steps
+## 4. Model baseline gate
 
-1. Human accepts or rejects the hypothesis note.
-2. If accepted, the Quant Researcher writes a Strategy Research pre-registration
-   with the exact rule, stop, target, time stop, costs, partitions, green
-   criteria, multiple-testing correction, and iteration cap.
-3. The Quant Validator runs the feasibility preflight before any backtest.
-4. The Quant Developer implements the strategy config only after the
-   pre-registration is approved; no code is written from this note.
-5. The strategy tier remains subject to the model-baseline gate and the normal
-   validation rules.
+The strategy tier cannot open yet. `docs/improvement/baselines.md` records the
+divergence-at-pivot model programme (`PROGRAM-2026-11-04-01`) as **not accepted —
+no edge**. The accepted model baselines are compression families, not the
+divergence family. The Strategy Research entry condition requires an accepted
+model baseline that publishes the family the rule reads; that condition is not
+met for `divergence.rsi_regular_bullish`.
+
+The SIM-08 check used 2020–2022 as a strategy-tier screen. 2021–2022 is also the
+`model_validation` window. The check is not a model research run, but the data
+has been observed. A later model research validation on 2021–2022 would not be a
+clean one-shot. This is a recorded limitation, not a validation claim.
+
+## 5. Required next steps
+
+1. Human decides the gate: open a Model Research pre-registration for the
+   divergence family, or retire the family as no edge.
+2. If Model Research is opened, the pre-registration records the 2021–2022
+   observation and the validation limitation before any new run.
+3. Strategy Research opens only after the model baseline for the divergence
+   family is accepted; then the normal pre-registration, feasibility preflight,
+   development, freeze, and one-shot validation apply.
+4. No strategy code or config is written from this note.
 
 Do not open 2024, do not tune the 20-bar horizon after seeing the check, and do
 not run another threshold search on the same event.

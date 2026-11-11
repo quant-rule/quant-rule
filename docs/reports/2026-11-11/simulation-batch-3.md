@@ -90,9 +90,12 @@ multiple-testing correction is mandatory in any pre-registration.
 
 ## 8. Next
 
-The human decides whether to accept the SIM08-BULL-DIV hypothesis note and
-authorize a Strategy Research pre-registration. Do not tune the 20-bar horizon,
-do not run another threshold search on the same event, and do not open 2024 from
-this report.
+The human decides the model gate first. The divergence-at-pivot model programme
+(`PROGRAM-2026-11-04-01`) is not accepted, so the strategy tier is closed for
+this family. Open a Model Research pre-registration or retire the family. The
+SIM-08 check used 2020–2022, including the 2021–2022 model-validation window;
+the observation is a recorded limitation for any later model validation.
 
-No strategy code, config, or baseline change is made from Batch 3.
+Do not tune the 20-bar horizon, do not run another threshold search on the same
+event, and do not open 2024 from this report. No strategy code, config, or
+baseline change is made from Batch 3.
