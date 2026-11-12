@@ -1,33 +1,18 @@
-# QuantRule - Trading Edge Research
+# Quant Rule
 
 ### Description
-
-Build a research system that discovers and evaluates trading edges in historical
-OHLCV market data. It separates a repeatable statistical advantage from
-randomness and overfitting.
+A research system that discovers and evaluates potential trading edges in historical market data. Its purpose is to distinguish repeatable statistical advantages from randomness and overfitting.
 
 ### Users
-
-- **Quantitative researcher** - defines hypotheses, explores data, marks
-  candidate entries and exits, and runs experiments.
-- **Research reviewer** - independently reproduces a result and challenges it
-  before the researcher accepts it.
+Individual quantitative researcher developing and evaluating trading strategies.
 
 ### Requirements
-
-- Define and record a market hypothesis before testing it.
-- Explore historical candles and mark candidate entries and exits on a chart.
-- Evaluate a hypothesis as a deterministic rule, with explicit costs and no
-  look-ahead.
-- Measure expected return, hit rate, drawdown, and trade count over a large
-  enough sample.
-- Validate on out-of-sample data and reject overfitted results.
-- Compare experiments and reproduce any previous result from its recorded
-  inputs.
+- Define and record market hypotheses.
+- Explore historical data to identify potential predictive signals.
+- Measure statistical significance and expected returns.
+- Validate hypotheses using out-of-sample data.
+- Account for transaction costs and market conditions.
+- Compare experiments and reproduce previous results.
 
 ### Additional context
-
-- A research tool, not an execution platform: no live trading, no order routing.
-- The goal is to establish whether an apparent edge is statistically meaningful,
-  robust, and worth further investigation.
-- Results are evidence to be defended, not a profit claim.
+The system is a research tool, not an execution platform. Its primary goal is to establish whether an apparent market advantage is statistically meaningful, robust, and worth further investigation.
