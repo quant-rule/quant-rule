@@ -86,6 +86,28 @@ TOKENS = [
 ]
 PATTERN = re.compile("|".join(re.escape(token) for token in TOKENS), re.IGNORECASE)
 
+# Retired architecture terms. The retired *shape* is banned, not the vendor word:
+# a Tauri shell over the gateway URL is current (ADR-2026-11-12-12), while the
+# Tauri application that embedded the app service is not.
+ARCH_TOKENS = [
+    "download page",
+    "static download",
+    "Linux installer",
+    "AppImage",
+    "apps/desktop/src-tauri",
+    "Tauri IPC",
+    "Tauri desktop application",
+    "five services",
+    "eight containers",
+    "local only",
+    "single process",
+    "shell-only fetch",
+    "SQLite memory",
+]
+ARCH_PATTERN = re.compile(
+    "|".join(re.escape(token) for token in ARCH_TOKENS), re.IGNORECASE
+)
+
 
 def files() -> list[Path]:
     found: list[Path] = []
@@ -115,6 +137,12 @@ def main() -> int:
             match = PATTERN.search(line)
             if match:
                 errors.append(f"{name}:{number}: retired label {match.group(0)!r}")
+                continue
+            match = ARCH_PATTERN.search(line)
+            if match:
+                errors.append(
+                    f"{name}:{number}: retired architecture term {match.group(0)!r}"
+                )
     if errors:
         for error in errors:
             print(f"error: {error}", file=sys.stderr)

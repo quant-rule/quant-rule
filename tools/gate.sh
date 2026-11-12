@@ -24,6 +24,7 @@ for checker in \
   check_structure \
   check_workflows \
   check_changelog \
+  check_doc_length \
   check_releases \
   check_partitions \
   check_registry \
