@@ -27,7 +27,7 @@ Consequences:
 - Provenance becomes a verifiable hash chain.
 - Ordering is explicit: a merge key is sorted, never inherited from arrival order.
 
-**2. One image, five binaries.**
+**2. One image, six binaries.**
 
 | Binary | Service |
 |---|---|
@@ -36,6 +36,7 @@ Consequences:
 | `qr-model` | model |
 | `qr-backtest` | backtest |
 | `qr-evidence` | evidence |
+| `qr-simulation` | simulation |
 
 The image also contains the built Svelte client. One digest pins the entire
 compute stack, so version skew between services cannot occur.
