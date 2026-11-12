@@ -56,7 +56,6 @@ build_dir() {
       --variable geometry:margin=2.2cm \
       --variable fontsize=11pt \
       --metadata title="$title" \
-      --metadata author="$AUTHOR" \
       --metadata date="$DATE" \
       --fail-if-warnings \
       "${toc[@]}" \
