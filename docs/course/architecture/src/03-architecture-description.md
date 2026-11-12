@@ -29,7 +29,7 @@ its only state.
 | Backtest engine | Strategy, execution, portfolio, benchmark | `crates/quantrule-backtest` |
 | CLI shell | Headless command surface and explicit source fetch | `crates/quantrule-shell` |
 | Local research memory | SQLite workspaces, datasets, configs, runs, metrics, claims, notes | `crates/quantrule-app/src/memory/` |
-| Download page | Static Linux installer distribution and checksums | `site/` |
+| Distribution | Container image and GitHub Release assets; no maintained page | `docs/architecture/deployment.md` |
 
 The desktop UI and the CLI are adapters over the same application service. The
 engines are pure and depend one way. The UI does not compute an indicator, a
@@ -71,7 +71,7 @@ qualification, and analytics remain CLI operations until the service owns them.
 | Memory | Schema, CRUD, export/import, backup/restore | `crates/quantrule-app/src/memory/` |
 | Tauri commands | One command per service operation | `apps/desktop/src-tauri/src/commands.rs` |
 | Svelte shell | Panels, state, typed IPC, fixture backend | `apps/desktop/src/` |
-| Distribution | Bundle, stage, checksum, static page | `site/` |
+| Distribution | Image digest and release assets | `docs/architecture/deployment.md` |
 
 The application service owns file access and path resolution. The engines receive
 validated Rust values and never parse a file. The shell owns command parsing,
@@ -105,7 +105,7 @@ config, plus typed metrics, claims, and notes. It is outside the signal path.
 | Desktop | `QuantRule_0.9.0_amd64.AppImage` | Xvfb launch, offline launch |
 | Desktop | `QuantRule_0.9.0_amd64.deb` | Ubuntu 24.04 container install + launch |
 | CLI | `quantrule` binary | workspace tests and command tests |
-| Distribution | Static `site/` page and `checksums.txt` | `site/check.py` |
+| Distribution | Image digest recorded in the release note | `docs/architecture/operations.md` |
 | State | Local files and SQLite | memory tests |
 
 There is no server, database service, account, or cloud runtime. The download

@@ -22,7 +22,7 @@ local and testable.
 | New strategy rule | `crates/quantrule-backtest` | strategy boundary tests |
 | UI screen | `apps/desktop/src` | unit and browser E2E |
 | New command | `crates/quantrule-shell` | command tests and help |
-| New installer | `site/` | clean install and checksums |
+| New distribution channel | `docs/architecture/deployment.md` | clean install and recorded digest |
 | Team cloud (future) | new control plane | not implemented; new ADR |
 
 ## Evidence

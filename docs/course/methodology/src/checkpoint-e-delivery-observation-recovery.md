@@ -34,7 +34,7 @@ failures, and recover the local workspace without a cloud service.
 - Ubuntu 24.04 container: the `.deb` installs and launches under Xvfb.
 - The AppImage launches with `bwrap --unshare-net`.
 - Research-memory export/import and backup/restore tests pass.
-- `site/check.py --require-artifacts` matches both bundles and both SHA-256
+- The release note records the image digest, and the image check runs at release time
   checksums.
 - The Phase 3 report is
   [`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md).
