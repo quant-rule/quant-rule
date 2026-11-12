@@ -191,3 +191,20 @@ Stop and request human direction when:
 - [`../../data/README.md`](../../data/README.md)
 - [`../../data/partitions.json`](../../data/partitions.json)
 - [`../../AGENTS.md`](../../AGENTS.md)
+
+## Distributed ingestion — v1.0.0
+
+Candles enter through `POST /catalog/datasets`. The `data` service owns the
+boundary; no other service reads a source file.
+
+| Step | Rule |
+|---|---|
+| Upload | Size limit from `QR_UPLOAD_LIMIT_BYTES`; schema validated before storage |
+| Identity | `data_version = sha256(normalized bytes)`; the client never supplies it |
+| Duplicate | Identical bytes return the existing `data_version` with `409` |
+| Storage | Objects under `candles/{data_version}` in the operator's object store |
+| Retention | A dataset is never mutated; a correction is a new `data_version` |
+| Provenance | Every run records the `data_version` it consumed |
+
+Candle data stays on the operator's network. A backup archive contains candle
+data and is handled as sensitive.

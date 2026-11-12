@@ -169,3 +169,23 @@ Stop and request human direction when:
 - [`deprecation-retirement.md`](deprecation-retirement.md)
 - [`../../AGENTS.md`](../../AGENTS.md)
 - [`../../README.md`](../../README.md)
+
+## Distributed release — v1.0.0
+
+The release unit is a container image, not an installer.
+
+| Step | Evidence |
+|---|---|
+| 1. Gate | `tools/gate.sh` passes |
+| 2. Image | Built from the release commit; the digest is recorded |
+| 3. Contract check | `/version` reports the product version and digest |
+| 4. Verification | `make up` and `make verify` on a clean host |
+| 5. Note | `docs/releases/<date>/<tag>.md` names the image digest |
+| 6. Tag | Annotated `v1.0.0` from `main` after the release PR merges |
+
+Rollback is starting the previous image digest. Migrations are forward-only; a
+rollback never reverts the schema, so the previous version must tolerate the
+newer one.
+
+There is no download page and no installer. The retired surface is recorded in
+`ADR-2026-11-12-08`.

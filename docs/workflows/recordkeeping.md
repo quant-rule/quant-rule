@@ -165,3 +165,17 @@ release or a dated addendum in the next release. The changelog starts at the
 - [`docs/audits/README.md`](../audits/README.md)
 - [`docs/refactors/README.md`](../refactors/README.md)
 - [`docs/improvement/README.md`](../improvement/README.md)
+
+## Distributed records — v1.0.0
+
+| Record | ID form | Owner |
+|---|---|---|
+| Architecture decision | `ADR-2026-11-12-NN` | Architect |
+| Execution plan | `docs/execution-plans/2026-11-12/dist-NNN-<slug>.md` | Orchestrator |
+| Issue | `DIST-NNN` plan ID; the GitHub number is assigned at creation | Orchestrator |
+| Pipeline run | `run_id` content hash | evidence service |
+| Improvement run | `data/improvement/<date>/<run-id>/` | Improvement Workflow |
+| Release | `vMAJOR.MINOR.PATCH` | Release |
+
+A plan ID is stable. The GitHub issue number is a pointer, never the identity of
+the work. A record that is not in this map is a defect.

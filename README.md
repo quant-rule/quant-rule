@@ -1,51 +1,100 @@
 # QuantRule
 
-QuantRule is a local-first desktop research workstation for a solo systematic
-researcher. It turns an OHLCV hypothesis into reproducible,
-portfolio-constrained evidence. Data, configs, runs, analytics, and research
-memory stay on the machine. There is no account, no cloud runtime, and no live
-trading.
+QuantRule turns an OHLCV hypothesis into reproducible, portfolio-constrained
+evidence — and keeps that evidence auditable after the client that submitted it
+has closed. It is candles-only, rule-based, and deterministic. There is no
+account, no cloud provider, and no live trading.
 
-**Current release:** [`v0.9.0` — The Tauri Platform](https://github.com/quant-rule/quant-rule/releases/tag/v0.9.0) (2026-11-11).
-Linux `.deb` and `.AppImage` installers are attached to the release. Linux is the
-current target; Windows and macOS are future work.
+> **Status.** The architecture target is **v1.0.0**, a distributed
+> single-operator platform. The current tree is the v0.9.0 local surface. The
+> distributed implementation is tracked by `DIST-000` and specified in
+> [`docs/architecture/`](docs/architecture/README.md). Nothing in this README
+> claims that the distributed surface is implemented.
 
-## Start
+## Why it is distributed
 
-Desktop:
+Not because there are many users. Because the work outlives the client, can
+exceed one machine, and must not collapse with the UI.
+
+| Reason | Consequence |
+|---|---|
+| A run is longer than a session | Submit, close the client, return to the result |
+| Compute can be larger than the laptop | Move workers to another host |
+| A crash must not take the UI down | Services fail independently |
+| The CPU-bound stage is shardable | Scale `model` and `backtest` workers |
+
+A monolith is the better choice when runs are seconds long and stay on one
+machine. That was true before; it is not true now.
+
+## Start (target v1.0.0)
 
 ```bash
-cd apps/desktop
-npm ci
-npm run tauri dev
+git clone git@github.com:quant-rule/quant-rule.git
+cd quant-rule
+make up
 ```
 
-CLI:
+`make up` builds the image, starts the stack, waits for health, and prints:
 
-```bash
-cargo build --release
-./target/release/quantrule
+```text
+QuantRule v1.0.0 ready → http://localhost:8080
 ```
 
-Build the Linux bundles and static page with `./site/build.sh`. Native
-prerequisites and desktop tests are in [`apps/desktop/README.md`](apps/desktop/README.md).
+| Target | Effect |
+|---|---|
+| `make down` | Stop, keep data |
+| `make reset` | Stop and delete volumes |
+| `make logs` / `make ps` | Observe |
+| `make scale N=4` | Scale model and backtest workers |
+| `make verify` | Print the canonical digest |
+| `make remote` | Publish only `:8080` behind a token |
 
-## What it does
+Full deployment contract: [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 
-One deterministic pipeline over local OHLCV candles:
+## How it is used
 
-`data → model → strategy → execution → portfolio → qualification → analytics`
+1. `make up`, open the URL.
+2. Upload candles once; the server returns a `data_version`.
+3. Pick a config, submit. The response is immediate.
+4. Close the laptop. The run continues.
+5. Return: stages, provenance, artifacts, canonical digest.
+6. Compare the digest, or hand it to a reviewer.
 
-Each stage can run on its own and hands off an explicit artifact; `backtest run`
-orchestrates the same engines as one coupled run. The model publishes numbers and
-codes, not labels or predictions. Strategy, execution, portfolio, and
-qualification remain separate boundaries.
+Full journey: [`docs/architecture/user-journey.md`](docs/architecture/user-journey.md).
 
-The current model is [`M1.3`](docs/model/2026-11-10/model-m1.3.md). Every stage is
-implemented. No strategy or portfolio baseline is accepted, and no edge is
-claimed. The status index is [`docs/README.md`](docs/README.md).
+## Architecture in one screen
 
-## Commands
+```text
+browser ── HTTP ── gateway ── postgres
+                     │            ▲
+                     │            └── evidence ── minio
+                     ▼
+                  rabbitmq ── backtest ── minio
+                                │   └── model
+                                └────── data
+```
+
+- **Two planes.** A synchronous, deterministic data plane computes one run. An
+  asynchronous control plane decides which run happens when.
+- **Five services.** `gateway`, `data`, `model`, `backtest`, `evidence`.
+- **One image.** One digest pins the whole compute stack, so version skew cannot
+  occur.
+- **References, not payloads.** Stages exchange content hashes; bytes live in
+  object storage.
+- **The engines did not change.** Every service is a thin adapter over
+  `quantrule-app`.
+
+Details: [`services.md`](docs/architecture/services.md),
+[`data-plane.md`](docs/architecture/data-plane.md),
+[`control-plane.md`](docs/architecture/control-plane.md),
+[`http-api.md`](docs/architecture/http-api.md).
+
+## Commands (v0.3.0 tree)
+
+The table below is the implemented surface today, not the v1.0.0 target. The
+v1.0.0 surface is listed as `Planned` in
+[`docs/architecture/command-surface.md`](docs/architecture/command-surface.md)
+section 9.
 
 | Command | Stage | Purpose |
 |---|---|---|
@@ -66,36 +115,32 @@ claimed. The status index is [`docs/README.md`](docs/README.md).
 | `memory` | Memory | Read and write the local research memory |
 | `help` | Shell | Show the command map and contracts |
 
-Full usage: run `quantrule help <command>`, or see the
-[command registry](docs/architecture/command-surface.md) and
-[`docs/tutorials/`](docs/tutorials/).
-
 ## Principles
 
-- **Local-first.** No account, cloud runtime, or remote data store.
-- **Deterministic.** Same candles, data version, and configuration produce the
-  same output. No wall-clock time, unseeded randomness, or unordered iteration
-  in the signal path.
-- **Candles-only and rule-based.** No tick data, order books, machine learning,
-  or statistical signal generation.
+- **Deterministic.** Same data version, config, and image digest produce the same
+  artifacts. No wall-clock time, unseeded randomness, or unordered iteration in
+  the signal path.
+- **Auditable.** Every result names its data version, config hash, model version,
+  and image digest.
+- **Candles-only and rule-based.** No ticks, order books, machine learning, or
+  statistical signal generation.
+- **Single principal.** No accounts. Remote exposure is a network decision.
 - **Human acceptance.** The engine measures and evaluates; the human owns the
-  criteria and the final decision. No command declares an edge.
+  criteria and the final decision.
 
 ## Documentation
 
-| Document | What it answers |
+| Document | Answers |
 |---|---|
-| [`docs/README.md`](docs/README.md) | Documentation index and current status |
-| [`docs/architecture/README.md`](docs/architecture/README.md) | Architecture baseline and pipeline |
-| [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md) | Command registry, stage contract, and discovery gate |
-| [`docs/workflows/README.md`](docs/workflows/README.md) | Workflow index and selection guide |
+| [`docs/README.md`](docs/README.md) | Index and current status |
+| [`docs/architecture/README.md`](docs/architecture/README.md) | Architecture entry point and glossary |
+| [`docs/architecture/kata.md`](docs/architecture/kata.md) | Why the product exists |
+| [`docs/architecture/characteristics.md`](docs/architecture/characteristics.md) | Measurable qualities and fitness functions |
+| [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
+| [`docs/workflows/README.md`](docs/workflows/README.md) | Workflow index |
 | [`docs/model/2026-11-10/model-m1.3.md`](docs/model/2026-11-10/model-m1.3.md) | Current model contract |
-| [`docs/config/2026-11-11/run-v3-and-portfolio-constraints.md`](docs/config/2026-11-11/run-v3-and-portfolio-constraints.md) | Run v3 and portfolio constraints |
-| [`docs/registry/README.md`](docs/registry/README.md) | Indicator, event, parameter, and validation registry |
-| [`docs/registry/history.md`](docs/registry/history.md) | Retired surfaces and history boundary |
-| [`docs/releases/2026-11-11/v0.9.0.md`](docs/releases/2026-11-11/v0.9.0.md) | Current release note |
 | [`CHANGELOG.md`](CHANGELOG.md) | Grouped release history |
-| [`AGENTS.md`](AGENTS.md) | Repository rules, workflow, and approval gates |
+| [`AGENTS.md`](AGENTS.md) | Repository rules and approval gates |
 
 ## Repository
 
@@ -103,13 +148,14 @@ Full usage: run `quantrule help <command>`, or see the
 |---|---|
 | `crates/quantrule-data` | Data engine |
 | `crates/quantrule-model` | Model engine |
-| `crates/quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines |
+| `crates/quantrule-backtest` | Strategy, execution, portfolio, benchmark |
 | `crates/quantrule-app` | Shared application service |
+| `crates/quantrule-api` | HTTP contract types (target) |
+| `crates/quantrule-server` | Gateway and workers (target) |
 | `crates/quantrule-shell` | Command shell |
-| `apps/desktop` | Tauri 2 + Svelte 5 desktop UI |
-| `site/` | Linux bundles, checksums, and static download page |
-| `docs/` | Contracts, workflows, plans, releases, and course deliverables |
-| `tools/` | Data, chart, trade, research, and checker tooling |
+| `apps/web` | Svelte 5 browser client (target) |
+| `docs/` | Contracts, workflows, plans, releases, course |
+| `tools/` | Data, research, and checker tooling |
 
 ## Development
 
@@ -117,15 +163,12 @@ Full usage: run `quantrule help <command>`, or see the
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 cargo test
+tools/gate.sh
 ```
-
-The full gate, including documentation, registry, command-surface, and desktop
-checks, is in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Non-goals
 
-- Tick data, order books, machine learning, and statistical signal generation.
-- A server, cloud runtime, accounts, multi-tenancy, live trading, or an embedded
-  library.
-- A profitability claim from a single backtest, or treating a green backtest as
-  an accepted edge.
+- Tick data, order books, machine learning, statistical signal generation.
+- Accounts, multi-tenancy, billing, cloud provider deployment, high availability.
+- Live trading, or a profitability claim from a single backtest.
+- A third-party embedded library or a public API.

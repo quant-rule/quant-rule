@@ -1,82 +1,82 @@
-# The Local Research Workstation Kata
+# The Distributed Research Platform Kata
 
-- Status: Current; approved 2026-11-11
+- Status: Current; approved 2026-11-12
 - Owner: Human
-- Part of: `docs/architecture/README.md`
+- Part of: [`docs/architecture/README.md`](README.md)
+- Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 
 ## About this kata
 
-This is the product kata for the Tauri Platform. It is a one-page,
-solution-agnostic description of the product, its users, and its measurable
-requirements. The current product is for the solo researcher; a collaborative
-team cloud is future work.
+A one-page, solution-agnostic description of the product, its operator, and its
+measurable requirements. The previous kata described a local tool for a solo
+researcher on one laptop. This one describes the same operator with work that can
+outlive a session and leave a machine.
 
 ## Name
 
-QuantRule — The Local Research Workstation.
+QuantRule — the reproducible evidence platform.
 
 ## One line
 
-A local-first desktop application that turns an OHLCV hypothesis into
-reproducible, portfolio-constrained evidence — and keeps the candles, compute,
-and research memory on the researcher's machine.
+A distributed research platform that turns an OHLCV hypothesis into reproducible,
+portfolio-constrained evidence, and keeps that evidence auditable after the
+client that submitted it has closed.
 
 ## Intent
 
 Backtests are cheap; trustworthy backtests are not. QuantRule exists so that the
 same candles and the same configuration produce the same evidence, every time,
-and so that a negative result is a legitimate outcome. The product is for
-adoption by the solo researcher. A team cloud is a future increment, not a
-current requirement.
+and so that a negative result is a legitimate outcome. The product is for one
+operator on an internal network. It is not a public service and it is not a
+prediction engine.
 
-## User
+## Operator
 
-The primary user is a solo systematic researcher who owns or can download their
-own OHLCV data, works on one Linux machine, and runs batch backtests. A secondary
-user is the course evaluator, who must install the app and reproduce a run with
-sample data. The current increment is single-user, single-machine, and local.
+A systematic researcher who owns their candles, submits batch runs, and needs the
+result to survive their laptop closing. A secondary reader is a reviewer who must
+reproduce a result from an image digest and a canonical digest, without an
+account.
+
+The product is single-principal. It is not multi-user and does not pretend to be.
 
 ## Job to be done
 
-Given local M1 OHLCV candles, a data version, a model, a strategy, and portfolio
-constraints, run the pipeline in one command and give me a lab I can reproduce,
-inspect, and defend — so I can accept the hypothesis, revise it through a
-pre-registered experiment, or stop with "no edge."
+Given candle data, a data version, a model, a strategy, and portfolio
+constraints, submit a run and walk away. Come back to a bundle I can reproduce,
+inspect, and defend: an audit trail, a canonical digest a reviewer can compare,
+and a recorded decision to accept the hypothesis, revise it, or stop at "no edge".
 
 ## Requirements
 
-1. Import or download OHLCV data locally, with a data version and checksum.
+1. Accept candles as an upload, identify them by content, and keep the bytes.
 2. Measure each timeframe with readings, states, confirmed levels, events,
-   progression, and context; publish numbers, nulls, and codes — never labels or
-   a composite score.
-3. Evaluate the model, strategy, execution, and portfolio constraints through a
-   deterministic backtest with explicit costs and no look-ahead.
-4. Produce a deterministic evidence bundle with provenance and a local research
-   memory that can be exported, imported, and backed up.
-5. Expose the same capabilities through a headless CLI and a Svelte desktop UI.
-6. Ship Linux installers through a static download page with checksums.
-7. Require no account and send no candle data over the network.
+   progression, and context; publish numbers, nulls, and codes — never labels.
+3. Evaluate model, strategy, execution, and portfolio constraints in one
+   deterministic run with explicit costs and no look-ahead.
+4. Return `202` on submission and continue after the client disconnects.
+5. Produce a bundle with provenance naming the data version, config hash, model
+   version, and image digest, plus a canonical digest over the data artifacts.
+6. Expose the same capabilities through a browser client and a command shell.
+7. Start with one command on a machine with Docker; expose one port.
+8. Require no account, and keep candle data on the operator's network.
 
 ## Constraints and non-goals
 
 - Candles only — no ticks, order books, machine learning, or statistical signals.
-- Single-user, single-machine, offline-capable. No accounts, team cloud, sync,
-  subscription, cloud compute, or cloud data storage.
-- No prop-firm account rules, profit targets, evaluation windows, or funded-account
-  simulation. Portfolio capital, sizing, costs, drawdown, leverage, and position
-  limits remain.
-- A backtest is not a profitability claim; out-of-sample evidence is required
-  before a result is called promising.
-- The download page is distribution, not a cloud runtime.
+- One principal. No accounts, no tenancy, no billing, no cloud provider.
+- No high availability, no failover, no uptime target.
+- No public distribution page. Deployment is an image and one command.
+- No multi-user isolation. A shared host is a deployment choice, not a product
+  feature.
+- A backtest is not a profitability claim. Out-of-sample evidence is required.
 
 ## Done when
 
-- One configured run over a local M1 file produces the evidence bundle.
-- A rerun over the same candles, data version, and configuration is byte-identical.
-- A bundle is refused when its target is not empty.
-- The desktop app installs on Linux and runs the core workflow offline.
-- A validation record can be assembled from the bundle and its provenance.
+- One command starts the stack and prints a URL.
+- A submitted run survives the client closing and completes.
+- A rerun over the same inputs produces the same canonical digest.
+- A bundle is refused when its artifact set is incomplete.
+- Provenance names the image digest that produced the run.
 - Every command, argument, and output shape is discoverable from help.
-- Every reading, event, and rule has causal, deterministic, fixed-expected-value,
-  and edge-case evidence.
-- A negative result can be recorded and the improvement workflow can stop.
+- A second machine following the verification tutorial prints the same digest.
+- A negative result can be recorded and the workflow can stop.

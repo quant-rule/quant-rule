@@ -81,6 +81,28 @@ are not treated as releases.
   report as the M1.0 view. The shell glossary now names M1.3 as the current
   model.
 
+### Added
+
+- The v1.0.0 distributed architecture record: eight decision records under
+  `docs/adr/2026-11-12/`, the service catalog, and the data-plane,
+  control-plane, HTTP API, deployment, client, user-journey, security, and
+  operations contracts under `docs/architecture/`.
+- The distributed execution plan
+  `docs/execution-plans/2026-11-12/dist-000-distributed-platform.md` and its
+  issue tree `DIST-000` … `DIST-090`.
+- Verification tutorials for the distributed target: run a backtest, verify the
+  canonical digest, use remote compute, and scale workers.
+
+### Changed
+
+- `AGENTS.md` now describes a distributed single-operator platform: a browser
+  client and a command shell on one HTTP contract, two planes, two test tiers,
+  and a bounded determinism claim.
+- `README.md` now states the v1.0.0 target and keeps the implemented command
+  table labelled as the v0.3.0 tree.
+- `docs/architecture/` now separates current decisions from target contracts;
+  every target document carries `Status: Target v1.0.0`.
+
 ## [0.9.0] - 2026-11-11
 
 ### Added

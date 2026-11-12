@@ -26,6 +26,20 @@ intention to a workflow and its first command; the full contracts are here.
 Historical records are indexed by [`docs/README.md`](../README.md). The change
 history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 
+## Distributed target
+
+The v1.0.0 platform is recorded in `docs/architecture/` and executed by the
+`DIST-*` issue tree. Four workflows change at v1.0.0:
+
+| Workflow | Change |
+|---|---|
+| [Run Contract](run-contract.md) | A pipeline run is identified by `run_id`, image digest, and canonical digest |
+| [Release & Operations](release-operations.md) | The release unit is a container image digest |
+| [Data Lifecycle](data-lifecycle.md) | Candles enter by upload and are identified by content |
+| [Deprecation & Retirement](deprecation-retirement.md) | The local-first surface has a dated retirement record |
+
+The remaining workflows keep their stages and gates.
+
 ## Workflow index
 
 | Workflow | Question | Type | Status | Use now? |

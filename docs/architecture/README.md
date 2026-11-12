@@ -1,145 +1,88 @@
 # QuantRule System Architecture
 
-- Status: Current; approved 2026-10-31
+- Status: Current; approved 2026-11-12
 - Global index: `docs/README.md`
-- Decision: `docs/adr/2026-10-31/adopt-architecture-baseline.md`
+- Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 
 This folder is the entry point for the living system documentation. It holds the
-product kata, the architecture characteristics, and the style and quantum record.
-Decisions live in `docs/adr/`; model, configuration, and report contracts live in
-their own folders. The documents here explain the system and link to the contracts;
-they do not replace them.
+product kata, the architecture characteristics, the service catalog, and the
+runtime contracts. Decisions live in `docs/adr/`; model, configuration, and
+report contracts live in their own folders.
 
 ## What QuantRule is
 
-QuantRule is a local, single-user, deterministic research and backtesting tool for
-rule-based trading on OHLCV candles. It is not a prediction engine. It is an
-evidence machine: a human can accept or reject a rule-based edge with reproducible,
-causal, cost-inclusive evidence, including the answer "no edge." The architecture
-optimizes for trust, not scale, availability, or latency.
+QuantRule is a distributed, single-operator research platform for rule-based
+trading on OHLCV candles. It is not a prediction engine. It is an evidence
+machine: a human can accept or reject a rule-based edge with reproducible,
+causal, cost-inclusive evidence, including the answer "no edge."
 
-## Pipeline
+Distribution exists because the work outlives the client and can exceed one
+machine — not because there are many users.
 
-```text
-INPUT (application-service source access; shell fetch)
-  → data engine
-  → model engine
-  → output (shell render: model report, event batch)
-```
-
-The current pipeline extends the same stages one at a time:
+## Pipeline and planes
 
 ```text
-data → model → strategy → execution → portfolio → qualification
-                                      ↘ analytics
+data plane (synchronous, deterministic)
+  data → model → backtest → evidence
+
+control plane (asynchronous)
+  submit → queue → worker → finalize → completed
 ```
 
-The application service is the shared use-case boundary and owns workspace, dataset,
-configuration, run I/O, memory, and the shared use cases. The shell and the desktop
-UI are the two first-class surfaces of the same program: the shell is primarily for
-agents, the desktop UI is the human workstation. Both call the service; neither
-holds domain logic. The engines are pure and depend one way. The pipeline stages are
-reachable through the shell today; the desktop pipeline parity is being completed
-under the [audit remediation plan](../execution-plans/2026-11-11/audit-app-service-native-remediation.md)
-and the [one-program ADR](../adr/2026-11-11/one-program-first-class-desktop.md).
-The stage contract, the command registry, and the implemented/planned status are in
-[`command-surface.md`](command-surface.md).
+The gateway is the only client surface. The client is a browser. The shell is the
+agent interface. Both speak `quantrule.api/v1`.
 
-## Crates
+## Status of each document
 
-| Crate | Role | Depends on (workspace) |
+| Document | Status | Answers |
 |---|---|---|
-| `quantrule-data` | Data engine: normalization, timeframe ladder, ordering, gaps. | — |
-| `quantrule-model` | Model engine: readings, states, confirmed levels, events, progression, context, and the flat report. | `quantrule-data` |
-| `quantrule-backtest` | Strategy, execution, portfolio, and benchmark engines. | `quantrule-data`, `quantrule-model` |
-| `quantrule-app` | Application service: workspace, dataset, configuration, model run, export, memory, and the shared use cases. Shared by the shell and the desktop UI. | `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
-| `quantrule-shell` | The command shell: parse, call the application service, render, and explicit source fetch. | `quantrule-app`, `quantrule-data`, `quantrule-model`, `quantrule-backtest` |
+| [`kata.md`](kata.md) | Current | Why the product exists |
+| [`characteristics.md`](characteristics.md) | Current | Which qualities are measurable and how |
+| [`services.md`](services.md) | Target v1.0.0 | Who does what, and what each service owns |
+| [`data-plane.md`](data-plane.md) | Target v1.0.0 | How one run stays deterministic |
+| [`control-plane.md`](control-plane.md) | Target v1.0.0 | How a run is submitted, retried, and cancelled |
+| [`http-api.md`](http-api.md) | Target v1.0.0 | The client contract |
+| [`deployment.md`](deployment.md) | Target v1.0.0 | How to run it with one command |
+| [`client.md`](client.md) | Target v1.0.0 | The browser client |
+| [`user-journey.md`](user-journey.md) | Target v1.0.0 | How it is used and what it returns |
+| [`security.md`](security.md) | Target v1.0.0 | The trust boundary |
+| [`operations.md`](operations.md) | Target v1.0.0 | Running, backing up, recovering |
+| [`module-map.md`](module-map.md) | Target v1.0.0 | Where code lives |
+| [`command-surface.md`](command-surface.md) | Current | Implemented and planned commands |
 
-## Application service
+`Target` means the decision is accepted and the document is the implementation
+contract; the code does not exist yet. The status flips to `Current` at
+`DIST-090`.
 
-The application service is the shared use-case boundary in
-[`crates/quantrule-app`](../../crates/quantrule-app). It owns file access and
-path resolution; the engines receive validated values.
+## Glossary
 
-| Operation | Contract |
+One term per concept. A synonym is a defect.
+
+| Term | Meaning |
 |---|---|
-| `Workspace` | Opens a local root and lists `config/` run files and `data/sources/` datasets in sorted order. |
-| `Dataset` | Opens one M1 CSV and reports its retained candle count and first and last open time. |
-| `AppService::check_run` | Loads every configuration file, resolves every path, and applies every cross-config rule without reading a candle. |
-| `AppService::run_model` | Loads the run, computes the model over the configured ladder, and returns the model plus deterministic counts. |
-| `AppService::export_run_summary` | Writes the validated run summary as versioned JSON. |
-| `AppService::record_run` | Writes the workspace, dataset, configuration, and run to the local research memory. |
-| `ResearchMemory` | SQLite CRUD, ordered queries, logical export/import, and file backup/restore. |
+| `dataset` | An uploaded candle series with one `data_version` |
+| `data version` | `sha256` of the normalized candle bytes |
+| `config` | A run configuration document |
+| `config hash` | `sha256` of the canonical config bytes |
+| `run` | One execution of the full pipeline. A research record is always written **improvement run** |
+| `submission` | The client request that creates or finds a run |
+| `artifact` | One immutable output file of a run |
+| `bundle` | The complete artifact set of one run |
+| `canonical digest` | `sha256` over the sorted artifact hashes, excluding provenance |
+| `service` | One of the five deployable responsibilities |
+| `data plane` | The synchronous deterministic run path |
+| `control plane` | The asynchronous lifecycle |
+| `operator` | The single principal |
+| `worker` | A `model` or `backtest` container instance |
+| `stage` | One step of the data plane |
 
-The shell calls the service for every pipeline use case: data inspection,
-events, model report, strategy, execution, portfolio, backtest, qualification,
-and analytics. The service owns artifact I/O and the stage modules under
-`stages/`; the shell keeps command parsing, terminal output, fetch, and
-rendering. The desktop UI calls the same service rather than reimplementing
-path resolution or stage logic; its pipeline-stage UI exposes the same use cases; source fetch
-remains the recorded shell-only exception.
+## History
 
-## Desktop UI
+Retired documents keep their path and carry a status line. They are never
+forked.
 
-[`apps/desktop`](../../apps/desktop) is a Tauri 2 host with a Svelte 5 frontend.
-It is a first-class surface, equal to the shell. It exposes workspace, data,
-configs, model run, research memory, export/backup, and settings. The pipeline
-stage parity (backtest, strategy, execution, portfolio, qualification, analytics,
-and the stage reports) is being completed under the
-[audit remediation plan](../execution-plans/2026-11-11/audit-app-service-native-remediation.md);
-until that phase lands, those stages remain shell-only and are a recorded
-parity gap. It has no account and no background network path; every command
-delegates to `quantrule-app`. The explicit source-fetch parity is a separate
-network-boundary decision.
-
-## Distribution
-
-[`site/`](../../site) is the static Linux download page and packaging boundary.
-`site/build.sh` builds the Tauri `.deb` and `.AppImage`, stages them under
-`site/downloads/`, writes `site/checksums.txt`, and runs `site/check.py`. The
-page is distribution only: no account, backend, or cloud runtime.
-
-## Documents
-
-| Document | What it answers | Path |
-|---|---|---|
-| Code module map | Which crate and module owns each responsibility, the reading order, and where to add a reading, event, command, or use case. | [`module-map.md`](module-map.md) |
-| Product kata | Why the product exists, for whom, what "done" means. Solution-agnostic. | [`kata.md`](kata.md) |
-| Architecture characteristics | Which non-domain properties shape the architecture, how each is measured, and what is deliberately not optimized. | [`characteristics.md`](characteristics.md) |
-| Architecture baseline decision | Why the kata and characteristics are the baseline, and what alternatives were rejected. | [`../adr/2026-10-31/adopt-architecture-baseline.md`](../adr/2026-10-31/adopt-architecture-baseline.md) |
-| Workflow index | The workflow contracts, selection guide, status vocabulary, and record map. | [`../workflows/README.md`](../workflows/README.md) |
-| Changelog | The grouped release history for meaningful user-facing or developer-facing changes. | [`../../CHANGELOG.md`](../../CHANGELOG.md) |
-| Command surface | The stage table, command registry, discovery contract, and the Qualification Engine boundary. | [`command-surface.md`](command-surface.md) |
-| Engine artifacts | The stage bundle, provenance, and handoff contract. | [`../config/2026-11-06/engine-artifacts.md`](../config/2026-11-06/engine-artifacts.md) |
-| Strategy configuration | `quantrule.strategy/v1`, both generic engines, and the decision record. | [`../config/2026-11-06/strategy-config.md`](../config/2026-11-06/strategy-config.md) |
-| Local research memory | `quantrule.research-memory/v1`, tables, export/import, and backup/restore. | [`../config/2026-11-11/research-memory-v1.md`](../config/2026-11-11/research-memory-v1.md) |
-| Qualification criteria | The human-owned criteria, verdict semantics, and human acceptance boundary. | [`../config/2026-11-06/qualification-criteria.md`](../config/2026-11-06/qualification-criteria.md) |
-| Model contract | The flat readings, discrete states, confirmed levels, events, progression, context, and the numeric output fields. | [`../model/2026-11-10/model-m1.3.md`](../model/2026-11-10/model-m1.3.md) |
-| Run v3 and portfolio constraints | The current run composition and the portfolio constraints. | [`../config/2026-11-11/run-v3-and-portfolio-constraints.md`](../config/2026-11-11/run-v3-and-portfolio-constraints.md) |
-| Report command | The `report model` bundle artifacts and the flat result envelope. | [`../model/2026-11-10/model-m1.3.md`](../model/2026-11-10/model-m1.3.md) |
-| Documentation index | The full documentation tree and the current architecture decisions. | [`../README.md`](../README.md) |
-
-## Reading order
-
-1. Read [`kata.md`](kata.md) for the product promise and the thin end-to-end
-   requirements.
-2. Read [`characteristics.md`](characteristics.md) for the measurable drivers, the
-   style, the quantum, and the trade-offs.
-3. Read [`command-surface.md`](command-surface.md) for the stage contract, the
-   command registry, and the Qualification Engine boundary.
-4. Read [`module-map.md`](module-map.md) for the code navigation map and the
-   where-to-add guide.
-5. Read the [workflow index](../workflows/README.md) for the workflow that owns
-   the change you are making.
-6. Read the [architecture baseline decision](../adr/2026-10-31/adopt-architecture-baseline.md)
-   for the decision and the rejected alternatives.
-7. Follow the links to the model, configuration, artifact, qualification, report,
-   and research contracts for the normative details.
-
-## Maintenance
-
-These are living documents. Update them in place when the architecture changes;
-record a decision in `docs/adr/` when the change is consequential. The kata stays
-solution-agnostic. The characteristics stay short and measurable, with a fitness
-function for each one. Review triggers are listed in
-[`characteristics.md`](characteristics.md).
+| Document | Status |
+|---|---|
+| `adr/2026-11-11/adopt-local-first-tauri-platform.md` | Superseded by ADR-2026-11-12-01 |
+| `adr/2026-10-31/adopt-architecture-baseline.md` | Amended by ADR-2026-11-12-01 |
+| `execution-plans/2026-11-11/588-tauri-platform.md` | Superseded by the distributed plan |
