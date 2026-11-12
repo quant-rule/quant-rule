@@ -39,6 +39,16 @@ are not treated as releases.
 
 ### Changed
 
+- The model engine's extended signal detector now sits under
+  `events/extended/`, the extended submodules use explicit imports, and source
+  codes are defined once in `events/source_codes.rs`.
+- The stage-provenance reader is shared by the model, strategy, execution, and
+  portfolio bundles; the duplicate reader error names are gone.
+- The desktop command boundary is split into `views`, `scope`, `workspace`, and
+  `memory` modules.
+- The model report and data-inspection use cases now live behind
+  `quantrule-app`; the model bundle, report renderer, labels, and model-spec
+  parser moved out of the shell. The shell keeps parsing and terminal output.
 - The desktop UI is a first-class surface of the same program as the shell. Both
   call the shared application service and are required to have feature parity;
   the shell is primarily for agents. The

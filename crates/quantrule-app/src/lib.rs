@@ -40,4 +40,5 @@ pub mod fingerprint;
 pub mod memory;
 pub mod pipeline;
 pub mod service;
+pub mod stages;
 pub mod workspace;

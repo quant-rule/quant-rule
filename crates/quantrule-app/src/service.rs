@@ -13,15 +13,19 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use quantrule_data::Timeframe;
+use quantrule_data::{CandleWindow, Timeframe, TimeframeSet};
 use quantrule_model::run::ModelRun;
 
+use crate::artifact::model_bundle::BundleOutput;
 use crate::config::{RUN_SCHEMA, RunConfig};
+use crate::csv::{SourceError, TolerantWindow};
 use crate::dataset::{Dataset, DatasetSummary};
 use crate::error::AppError;
 use crate::export;
 use crate::memory::{MemoryError, NewConfig, NewDataset, NewRun, NewWorkspace, ResearchMemory};
-use crate::pipeline;
+use crate::pipeline::{self, WindowMode};
+use crate::stages::data;
+use crate::stages::model::{self, ModelReportError, ModelReportRequest};
 use crate::workspace::Workspace;
 
 /// The application service for one local workspace.
@@ -273,6 +277,59 @@ impl AppService {
         let summary = self.check_run(config)?;
         export::write_run_summary_file(&summary, out.as_ref())?;
         Ok(summary)
+    }
+
+    /// Runs the model report over the configured ladder or a model spec and
+    /// writes its bundle.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModelReportError`] when the configuration, source, model,
+    /// spec, or artifact fails.
+    pub fn run_model_report(
+        request: &ModelReportRequest<'_>,
+    ) -> Result<BundleOutput, ModelReportError> {
+        model::run_report(request)
+    }
+
+    /// Loads a CSV source strictly.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SourceError`] when the source or the data engine rejects a row.
+    pub fn inspect_candles(path: impl AsRef<Path>) -> Result<CandleWindow, SourceError> {
+        data::inspect_candles(path.as_ref())
+    }
+
+    /// Loads a CSV source tolerantly.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SourceError`] when the source cannot be read or the header is
+    /// invalid.
+    pub fn inspect_candles_tolerant(path: impl AsRef<Path>) -> Result<TolerantWindow, SourceError> {
+        data::inspect_candles_tolerant(path.as_ref())
+    }
+
+    /// Builds the supported timeframe ladder from one M1 CSV source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SourceError`] when the source or the data engine rejects a row.
+    pub fn inspect_timeframes(path: impl AsRef<Path>) -> Result<TimeframeSet, SourceError> {
+        data::inspect_timeframes(path.as_ref())
+    }
+
+    /// Computes the event batch over one CSV source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SourceError`] when the source or the data engine fails.
+    pub fn compute_events(
+        path: impl AsRef<Path>,
+        window: WindowMode,
+    ) -> Result<ModelRun, SourceError> {
+        data::compute_events(path.as_ref(), window)
     }
 }
 

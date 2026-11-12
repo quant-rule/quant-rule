@@ -93,12 +93,14 @@ REF-2026-11-12-06 and is deferred.
 | `artifact/render_report/` | Report `summary.txt`, result JSON, and the shared bundle writer. |
 | `artifact/labels.rs` | Shared numeric-code-to-word mapping used by artifacts and terminal output. |
 | `config/spec/` | `quantrule.model-spec/v1` and v2 JSON parsers. |
+| `stages/data.rs` | Candle, tolerant, timeframe, and event-batch use cases. |
+| `stages/model.rs` | Model report use case and spec/panel loading. |
 | `memory/` | SQLite research memory: schema, store, types, transfer, tests. |
 
-The artifact layer now owns provenance, the model bundle, the report artifacts,
-the shared labels, and atomic writes. P3.4 adds the remaining stage bundles and
-`stages/` (data, model, strategy, execution, portfolio, backtest,
-qualification, analytics). The target layout is in section 7.
+The artifact layer owns provenance, the model bundle, the report artifacts, the
+shared labels, and atomic writes. The `stages/` layer owns the data and model
+use cases; P3.4 adds strategy, execution, portfolio, backtest, qualification,
+and analytics. The target layout is in section 7.
 
 ## 5. Shell (`crates/quantrule-shell/src`)
 

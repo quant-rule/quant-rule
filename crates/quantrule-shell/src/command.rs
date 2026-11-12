@@ -64,12 +64,8 @@ pub(crate) fn run_events(
     args: &ModelArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), RunError> {
-    let set =
-        quantrule_app::pipeline::load_set(&args.path, args.window).map_err(RunError::Source)?;
-    let run = quantrule_app::pipeline::model_run_from_set(
-        &set,
-        &quantrule_model::input::MarketStateConfig::default(),
-    );
+    let run = quantrule_app::service::AppService::compute_events(&args.path, args.window)
+        .map_err(RunError::Source)?;
     crate::render_flat::write_event_batch(&run, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
