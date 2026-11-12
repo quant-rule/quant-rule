@@ -1,18 +1,16 @@
 # QuantRule - Project Overview
 
-**Project.** A research workstation that turns an OHLCV hypothesis into
-reproducible, cost-aware evidence.
+A research workstation that turns an OHLCV hypothesis into reproducible,
+cost-aware evidence.
 
-**Who.** One quantitative researcher. One reviewer who reproduces a result.
-
-**What exists today.** A working deterministic pipeline in the v0.3.0 tree: data,
-model, strategy, execution, portfolio, backtest, qualification, analytics, and a
-command shell. A distributed platform (six services, one image, browser client,
-desktop shell) is being built on top of it; three of six foundation issues are
-merged.
-
-**How it is judged.** The same candles and configuration produce the same bytes;
-a reviewer compares one digest; a negative result is a valid outcome.
-
-**Constraint that shapes everything.** One operator, one machine or a small
-internal server. No accounts, no cloud runtime.
+- **User:** one quantitative researcher, working alone on one machine or a small
+  internal server.
+- **Reviewer:** one person per result, who reproduces it from a bundle and a
+  digest, without an account.
+- **What exists:** a deterministic pipeline - candles, model, strategy,
+  execution, portfolio, backtest, qualification, analytics - behind a command
+  shell. A distributed version (six services, one image, browser client, desktop
+  shell) is being built on top of it.
+- **How it is judged:** the same candles and configuration produce the same
+  bytes; a reviewer compares one digest; a negative result is a valid outcome.
+- **Constraint:** no accounts, no cloud runtime, candle data stays local.
