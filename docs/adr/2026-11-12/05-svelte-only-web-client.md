@@ -20,10 +20,26 @@ Vite, served by the gateway at the same origin as the API.
 
 - Location: `apps/web/`.
 - Transport: `fetch` to `quantrule.api/v1`. No IPC, no native bridge.
-- `apps/desktop/` and the Tauri dependency are removed.
+- **Migrate, do not rewrite.** The Svelte source in `apps/desktop/src` moves to
+  `apps/web/src` before anything is deleted. The `api.ts` seam keeps its
+  signature; the body becomes `fetch`. Panels keep their markup and lose their
+  path props.
+- The Tauri shell (`apps/desktop/src-tauri`) and the Tauri dependency are
+  deleted only after the move merges.
 - The mock backend becomes an HTTP fixture router so browser tests stay
   deterministic.
 - The shell remains the agent interface and speaks the same API.
+
+### Deletion order
+
+| Order | Removed | By |
+|---|---|---|
+| 1 | `site/` | `DIST-016` |
+| 2 | Svelte source moved, not deleted | `DIST-050` |
+| 3 | `apps/desktop/src-tauri/` | `DIST-050` |
+| 4 | empty `apps/desktop/` | `DIST-050` |
+
+A deletion never precedes its replacement.
 
 ## Alternatives considered
 
@@ -37,9 +53,12 @@ Vite, served by the gateway at the same origin as the API.
 
 - The client runs on any machine with a browser; nothing installs.
 - Same-origin serving removes CORS and cookie complexity.
-- Native file dialogs are replaced by an HTML upload control.
+- Native file dialogs are replaced by an HTML upload control. With D16, configs
+  still come from the repository mount, so the editing loop is unchanged.
 - The desktop parity programme is retired; the shell–web parity test replaces it.
 - The client can no longer read the local filesystem, by design.
+- The Tauri build stays in CI until `DIST-050` removes it; it is dormant, not
+  developed.
 
 ## Revisit trigger
 
@@ -51,3 +70,5 @@ tray daemon or a local hardware integration. None is planned.
 - No Rust crate depends on a webview runtime.
 - `apps/web` builds to static assets and is served by the gateway.
 - The shell and the web client call the same endpoints.
+- `apps/desktop/src` no longer exists after `DIST-050`; its files exist under
+  `apps/web/src` with the same component names.

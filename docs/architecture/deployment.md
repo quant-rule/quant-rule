@@ -29,7 +29,7 @@ Stop with `make down`. Delete volumes with `make reset`.
 | Container | Image | Published | Volume |
 |---|---|---|---|
 | `gateway` | `quantrule-server` | `8080` | — |
-| `data` | `quantrule-server` | — | — |
+| `data` | `quantrule-server` | — | `config/` read-only |
 | `model` | `quantrule-server` | — | — |
 | `backtest` | `quantrule-server` | — | — |
 | `evidence` | `quantrule-server` | — | — |
@@ -61,7 +61,19 @@ gateway is reachable from the host.
 
 ## 4. Configuration
 
-Environment variables only. No config file is required to start.
+Two sources, one catalog:
+
+| Source | Purpose |
+|---|---|
+| Repository `config/`, mounted read-only | Git-tracked run configs; the research loop, unchanged |
+| `POST /catalog/configs` | A config that is not in the repository |
+
+The mount is read-only and resolved by the `data` service. A config outside the
+mount is never read from an arbitrary path. Every config receives a
+`config_hash`, so the origin does not affect reproducibility.
+
+Environment variables only for service configuration. No config file is required
+to start.
 
 | Variable | Default | Purpose |
 |---|---|---|
