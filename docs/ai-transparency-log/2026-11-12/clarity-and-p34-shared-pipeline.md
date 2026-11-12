@@ -66,7 +66,7 @@ P3.5 UI decision, the P12 decision, and final acceptance.
 | Assessment committed | `docs/refactors/2026-11-12/clarity-refactor.md` |
 | Docs checks | Recorded in the plan V2/V3/V21 rows |
 | Code behavior | No model/strategy behavior change; bundle hashes recorded per slice |
-| PR | #628, open at the review gate |
+| PR | #628 merged as f311576; worktree and branches removed |
 
 ## Learning and rejected suggestions
 
