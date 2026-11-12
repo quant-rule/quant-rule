@@ -8,15 +8,18 @@
 
 ## 1. Why the surface is command-first
 
-QuantRule is a local application with two first-class surfaces: the command
-shell and the desktop UI. They are the same program; both call the shared
-application service, and feature parity is required. The shell is primarily for
-agents and remains the stable command interface; the desktop UI is the human
-workstation. There is no deployed service, account, or cloud runtime. The
-pipeline stages are reachable through the shell today; the desktop pipeline
-parity is tracked by the [audit remediation plan](../execution-plans/2026-11-11/audit-app-service-native-remediation.md).
-A capability that only one surface can reach is a parity gap, not a completed
-capability.
+QuantRule has one client contract and two clients. The browser client and the
+command shell both speak `quantrule.api/v1` through the gateway
+([`http-api.md`](http-api.md)). The shell is primarily for agents and remains the
+stable command interface; the browser client is the human workstation. Feature
+parity is required, and a parity test asserts that the same operation through
+either client produces the same JSON. A capability that only one client can
+reach is a parity gap, not a completed capability.
+
+The registry below records the **v0.3.0 local surface**, which is what the
+current tree implements. The distributed surface is listed in section 8 as
+`Planned` and is implemented by `DIST-070`. This document is the single
+authority for both.
 
 The pipeline is a chain of independently useful stages. A human or an agent must
 be able to stop after any stage, inspect the artifact that stage produced, and
@@ -251,3 +254,37 @@ The command surface was delivered in phases, one stage at a time:
 Each phase adds only implemented commands to the discovery surfaces. The plan
 and traceability are in
 [`docs/execution-plans/2026-11-06/s3-command-surface.md`](../execution-plans/2026-11-06/s3-command-surface.md).
+
+## 9. Distributed surface — v1.0.0 (Planned)
+
+The distributed release replaces the path-driven stage commands with a
+reference-driven surface. A run is the full pipeline (`DIST-060`); inspection
+stays read-only. The table is the target, implemented by `DIST-070`.
+
+| Command | Status | Input | Output |
+|---|---|---|---|
+| `health` | Planned | — | service states, queue depth, worker count |
+| `dataset list` | Planned | — | datasets with `data_version`, candles, coverage |
+| `dataset show` | Planned | `data_version` | one dataset record |
+| `dataset upload` | Planned | CSV file | `data_version` |
+| `config list` | Planned | — | configs with validity |
+| `config show` | Planned | `config_id` | canonical config |
+| `run submit` | Planned | `data_version`, `config_id` | `run_id`, `queued` |
+| `run status` | Planned | `run_id` | state, stages, provenance, digest |
+| `run list` | Planned | `status`, `limit` | run summaries |
+| `run fetch` | Planned | `run_id`, directory | artifact set |
+| `run cancel` | Planned | `run_id` | new state |
+| `inspect candles` | Planned | `data_version` | counts and coverage |
+| `inspect timeframes` | Planned | `data_version` | bars and events per timeframe |
+| `inspect events` | Planned | `data_version`, `timeframe` | event batch |
+| `verify` | Planned | — | canonical digest of the fixture run |
+| `help` | Planned | topic | the command map |
+
+**Removed in v1.0.0:** `candles`, `candles-tolerant`, `timeframes`, `fetch`,
+`events`, `report model`, `strategy explain`, `strategy run`, `execution run`,
+`portfolio replay`, `backtest run`, `qualify`, `analytics evaluate`, `run check`,
+`memory`. Their capability moves into the run and into read-only inspection. The
+retirement is recorded by `DIST-018`.
+
+A planned command never appears in `help` or the README table until it is
+implemented and tested.

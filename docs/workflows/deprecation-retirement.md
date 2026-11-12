@@ -145,3 +145,23 @@ Stop and request human direction when:
 - [`../registry/history.md`](../registry/history.md)
 - [`../registry/deletion-manifest.md`](../registry/deletion-manifest.md)
 - [`../../AGENTS.md`](../../AGENTS.md)
+
+## Retirement record — local-first surface, 2026-11-12
+
+| Retired | Replaced by | Record |
+|---|---|---|
+| Tauri desktop (`apps/desktop/`) | Svelte browser client served by the gateway | `ADR-2026-11-12-05` |
+| Static download site (`site/`) | Container image and `make up` | `ADR-2026-11-12-08` |
+| Local-first deployment (`ADR-2026-11-11`) | Distributed service-based platform | `ADR-2026-11-12-01` |
+| SQLite research memory | `evidence` service on Postgres | `ADR-2026-11-12-01` |
+| Shell-only source fetch | `data` service ingestion | `ADR-2026-11-12-01` |
+| Stage-by-stage execution commands | One run plus read-only inspection | `ADR-2026-11-12-06` |
+| One-process determinism claim | Canonical digest with a stated boundary | `ADR-2026-11-12-07` |
+
+Rules applied:
+
+- The retired code is deleted, not flagged. No shim, no compatibility layer.
+- A superseded decision keeps its path and gains a status line.
+- The changelog records the removal under the release that removes it.
+- The retired-term gate fails the build if the old vocabulary returns to a
+  current document.

@@ -45,7 +45,9 @@ only when the source changes.
 
 ## Boundary
 
-- The current product is solo and local. A collaborative team cloud is future
-  work and is not part of these deliverables.
-- The download page is distribution, not a cloud runtime.
+- The architecture target from 2026-11-12 is the distributed single-operator
+  platform in [`docs/architecture/`](../architecture/README.md). The sources in
+  this folder still describe the v0.9.0 local surface; rewriting them and
+  rebuilding the PDFs is `DIST-018`.
 - No candle data, credentials, or private run artifacts belong in this folder.
+- A collaborative team cloud is out of scope. The product is single-principal.

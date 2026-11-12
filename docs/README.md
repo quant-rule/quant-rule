@@ -35,8 +35,8 @@ repeating a status.
 | Area | Status |
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
-| Surfaces | The command shell and the desktop UI are first-class surfaces of the same program; the shell is primarily for agents and the desktop UI is the human workstation. Feature parity is required; the pipeline/memory parity extraction is in progress under the [audit remediation plan](execution-plans/2026-11-11/audit-app-service-native-remediation.md) and the [one-program ADR](adr/2026-11-11/one-program-first-class-desktop.md). |
-| Command surface | 16 implemented commands, 0 planned; the discovery gate passes. The desktop UI exposes the shared service's workspace, dataset, config, model, memory, and export use cases; the pipeline-stage UI exposes the shared use cases; source fetch remains the recorded shell-only exception. |
+| Surfaces | Target v1.0.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`. The current tree still carries the v0.3.0 local surface. The distributed target and its issues are in [architecture/README.md](architecture/README.md) and [dist-000](execution-plans/2026-11-12/dist-000-distributed-platform.md). |
+| Command surface | 16 implemented commands in the v0.3.0 local surface; the v1.0.0 reference-driven surface is planned in [command-surface.md](architecture/command-surface.md) section 9 and implemented by `DIST-070`. The discovery gate passes for the implemented set. |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
@@ -44,9 +44,9 @@ repeating a status.
 | Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; no baseline accepted; human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
-| Release tags | `v0.9.0` is the latest release, the first Tauri Platform release; `v0.8.0` is the last pre-Tauri release; historical tags are retained. |
+| Release tags | `v0.9.0` is the latest release. `v1.0.0` is the distributed target and is not tagged. Historical tags are retained. |
 | Changelog | Grouped release history; `0.9.0` is the current release. |
-| Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path; the historical research scripts and the old improvement adapter are retained for reproducibility. |
+| Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets, specified in [deployment.md](architecture/deployment.md). |
 
 ## Current architecture
 

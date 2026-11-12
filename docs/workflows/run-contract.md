@@ -420,3 +420,27 @@ has no backwards-compatibility layer; see the
 - [Baseline registry](../improvement/baselines.md)
 - [Invalidation log](../improvement/INVALIDATIONS.md)
 - [Workflow reset execution plan](../execution-plans/2026-11-01/workflow-reset.md)
+
+## Distributed execution — v1.0.0
+
+An **improvement run** is a research record. A **run** is one execution of the
+pipeline. The compound term is always written in full; a bare "run" always means
+the pipeline execution.
+
+From v1.0.0 an improvement run is produced by submitting a pipeline run:
+
+| Field | Source |
+|---|---|
+| `run_id` | `sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)` |
+| `data_version` | returned by the dataset upload |
+| `config_hash` | computed by the gateway at submission |
+| `image_digest` | reported by `/health` and recorded in provenance |
+| `canonical_digest` | returned by `GET /runs/{id}/digest` |
+
+The manifest keeps the hypothesis, tier, partition, changed/frozen split, costs,
+green criteria, iteration cap, and stop rule. It replaces the local artifact
+paths with the run identifiers above.
+
+Reproducing a recorded improvement run requires the same `data_version`, the same
+`config_hash`, and the same `image_digest`. A different image digest is a
+different execution, even when the canonical digest matches; record it.
