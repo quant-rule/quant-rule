@@ -22,8 +22,8 @@ use serde_json::{Value, json};
 use super::artifacts::{self, DecisionCounts, StrategyArtifactMeta};
 use super::bundle::{ModelBundle, StrategyBundleError};
 use super::context::StrategyContextError;
-use crate::render_report::{self, BundleWriteError};
 use crate::request::{StrategyExplainArgs, StrategyRunArgs};
+use quantrule_app::artifact::render_report::{self, BundleWriteError};
 use quantrule_app::config::{ConfigError, StrategyConfig};
 
 /// The strategy command failed.

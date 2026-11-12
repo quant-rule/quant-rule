@@ -16,18 +16,26 @@ use serde_json::{Value, json};
 use super::error::ModelBundleError;
 use super::provenance::{config_files, spec_provenance, spec_v2_provenance};
 use super::{artifacts, period_label};
-use crate::render_report::{self, Provenance};
-use quantrule_app::config::RunConfig;
-use quantrule_app::pipeline;
+use crate::artifact::render_report::{self, Provenance};
+use crate::config::RunConfig;
+use crate::pipeline;
 
 /// The paths and bytes of a written model bundle.
-pub(crate) struct BundleOutput {
-    pub(crate) path: PathBuf,
-    pub(crate) names: Vec<String>,
-    pub(crate) json: Vec<u8>,
+pub struct BundleOutput {
+    /// The bundle root.
+    pub path: PathBuf,
+    /// The artifact names written under the root.
+    pub names: Vec<String>,
+    /// The result envelope for `--json` output.
+    pub json: Vec<u8>,
 }
 
-pub(crate) fn model_bundle_from(
+/// Writes a model bundle from a completed model run.
+///
+/// # Errors
+///
+/// Returns [`ModelBundleError`] when the report or an artifact fails.
+pub fn model_bundle_from(
     config: &RunConfig,
     out: &Path,
     model_run: &ModelRun,
@@ -37,7 +45,7 @@ pub(crate) fn model_bundle_from(
 }
 
 /// The spec artifacts a model bundle publishes.
-pub(crate) enum SpecRunArtifacts<'a> {
+pub enum SpecRunArtifacts<'a> {
     /// v1 conditions only.
     V1 {
         /// The parsed v1 spec.
@@ -69,7 +77,7 @@ pub(crate) enum SpecRunArtifacts<'a> {
 /// # Errors
 ///
 /// Returns a [`ModelBundleError`] when the report or an artifact fails.
-pub(crate) fn model_bundle_with_spec(
+pub fn model_bundle_with_spec(
     config: &RunConfig,
     out: &Path,
     model_run: &ModelRun,
@@ -128,7 +136,7 @@ fn model_bundle_with(
         &config.data.data_version,
         config.data.from.as_deref(),
         config.data.to.as_deref(),
-        &quantrule_app::config::effective_json(effective_model),
+        &crate::config::effective_json(effective_model),
     )
     .map_err(ModelBundleError::Output)?;
     let readings_csv = artifacts::readings_csv(model_run, ladder);
@@ -225,7 +233,7 @@ fn model_bundle_with(
             "model_id": config.model_id,
             "execution_id": config.execution_id,
             "portfolio_id": config.portfolio_id,
-            "model": quantrule_app::config::effective_json(effective_model),
+            "model": crate::config::effective_json(effective_model),
             "ladder": ladder.iter().map(|seconds| timeframe_label(*seconds)).collect::<Vec<_>>(),
         }),
         spec: spec_value,

@@ -5,12 +5,12 @@
 
 use std::path::Path;
 
-use crate::spec::v2::ParsedModelSpecV2;
+use quantrule_app::config::spec::v2::ParsedModelSpecV2;
 use quantrule_data::{Candle, Timeframe};
 use quantrule_model::run::ModelRun;
 
 use crate::command::types::{ReportError, RunError};
-use crate::model_bundle::{ModelBundleError, period_label, resolve_spec_path};
+use quantrule_app::artifact::model_bundle::{ModelBundleError, period_label, resolve_spec_path};
 use quantrule_app::config::RunConfig;
 use quantrule_app::pipeline::{self, PipelineError};
 

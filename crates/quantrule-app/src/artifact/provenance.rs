@@ -56,7 +56,11 @@ impl fmt::Display for ProvenanceError {
                 write!(formatter, "cannot read {}: {source}", path.display())
             }
             Self::Invalid { path, message } => {
-                write!(formatter, "invalid provenance {}: {message}", path.display())
+                write!(
+                    formatter,
+                    "invalid provenance {}: {message}",
+                    path.display()
+                )
             }
         }
     }
@@ -169,8 +173,7 @@ pub fn read_text(path: &Path) -> Result<String, ProvenanceError> {
         path: path.to_path_buf(),
         source,
     })?;
-    String::from_utf8(bytes)
-        .map_err(|error| invalid(path, &format!("not UTF-8: {error}")))
+    String::from_utf8(bytes).map_err(|error| invalid(path, &format!("not UTF-8: {error}")))
 }
 
 fn read_object(path: &Path) -> Result<serde_json::Map<String, Value>, ProvenanceError> {
@@ -206,7 +209,10 @@ fn period(
     let object = period
         .as_object()
         .ok_or_else(|| invalid(path, "the period is not an object"))?;
-    let from = object.get("from").and_then(Value::as_str).map(str::to_owned);
+    let from = object
+        .get("from")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
     let to = object.get("to").and_then(Value::as_str).map(str::to_owned);
     Ok((from, to))
 }

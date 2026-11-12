@@ -93,8 +93,7 @@ impl FillsBundle {
 }
 
 fn parse_provenance(path: &Path) -> Result<StageProvenance, FillsError> {
-    quantrule_app::artifact::provenance::load_stage(path, "execution", "fills")
-        .map_err(fills_error)
+    quantrule_app::artifact::provenance::load_stage(path, "execution", "fills").map_err(fills_error)
 }
 
 fn fills_error(error: ProvenanceError) -> FillsError {

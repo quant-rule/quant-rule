@@ -256,7 +256,9 @@ fn parse_provenance(path: &Path) -> Result<StageProvenance, StrategyBundleError>
 fn strategy_bundle_error(error: ProvenanceError) -> StrategyBundleError {
     match error {
         ProvenanceError::Read { path, source } => StrategyBundleError::Read { path, source },
-        ProvenanceError::Invalid { path, message } => StrategyBundleError::Invalid { path, message },
+        ProvenanceError::Invalid { path, message } => {
+            StrategyBundleError::Invalid { path, message }
+        }
     }
 }
 
@@ -464,7 +466,12 @@ impl Table {
             .trim()
     }
 
-    fn u64(&self, row: &[String], column: usize, number: usize) -> Result<u64, StrategyBundleError> {
+    fn u64(
+        &self,
+        row: &[String],
+        column: usize,
+        number: usize,
+    ) -> Result<u64, StrategyBundleError> {
         parse_value(
             self.field(row, column, number),
             number,
@@ -485,7 +492,12 @@ impl Table {
         })
     }
 
-    fn i64(&self, row: &[String], column: usize, number: usize) -> Result<i64, StrategyBundleError> {
+    fn i64(
+        &self,
+        row: &[String],
+        column: usize,
+        number: usize,
+    ) -> Result<i64, StrategyBundleError> {
         parse_value(self.field(row, column, number), number, "a signed integer")
     }
 
@@ -497,7 +509,12 @@ impl Table {
         })
     }
 
-    fn u16(&self, row: &[String], column: usize, number: usize) -> Result<u16, StrategyBundleError> {
+    fn u16(
+        &self,
+        row: &[String],
+        column: usize,
+        number: usize,
+    ) -> Result<u16, StrategyBundleError> {
         let value = self.u64(row, column, number)?;
         u16::try_from(value).map_err(|_| StrategyBundleError::Invalid {
             path: PathBuf::from("the model bundle"),

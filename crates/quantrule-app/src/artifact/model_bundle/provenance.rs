@@ -10,7 +10,7 @@ use quantrule_model::spec::v2::{ModelSpecV2, PredictionKind, SpecRun};
 use quantrule_model::spec::{ModelSpec, SpecEvaluation};
 use serde_json::{Value, json};
 
-use quantrule_app::config::RunConfig;
+use crate::config::RunConfig;
 
 pub(super) fn spec_provenance(
     spec: &ModelSpec,
@@ -93,7 +93,7 @@ pub(super) fn spec_v2_provenance(
         "registry_version": quantrule_model::REGISTRY_VERSION,
         "timeframes": spec.timeframes,
         "evaluation_timeframe": spec.evaluation_timeframe_secs,
-        "readings": quantrule_app::config::effective_json(&spec.readings),
+        "readings": crate::config::effective_json(&spec.readings),
         "extended": {
             "vwap_window": extended.vwap_window,
             "vwap_band_mad": extended.vwap_band_mad,
@@ -173,9 +173,11 @@ fn session_zone_label(zone: quantrule_model::sessions::SessionZone) -> &'static 
     }
 }
 
-pub(crate) fn panel_provenance(
+/// Builds the panel-source provenance for a v2 spec run.
+#[must_use]
+pub fn panel_provenance(
     spec_path: &Path,
-    parsed: &crate::spec::v2::ParsedModelSpecV2,
+    parsed: &crate::config::spec::v2::ParsedModelSpecV2,
     data_version: &str,
 ) -> Vec<Value> {
     parsed
@@ -195,7 +197,7 @@ pub(crate) fn panel_provenance(
                 let source = parsed.panel_sources.get(name).map_or("", String::as_str);
                 let path = resolve_spec_path(spec_path, source);
                 let hash = fs::read(&path)
-                    .map(|bytes| quantrule_app::fingerprint::fnv1a(&bytes))
+                    .map(|bytes| crate::fingerprint::fnv1a(&bytes))
                     .unwrap_or_default();
                 json!({
                     "instrument": name,
@@ -209,7 +211,9 @@ pub(crate) fn panel_provenance(
         .collect()
 }
 
-pub(crate) fn resolve_spec_path(spec_path: &Path, source: &str) -> PathBuf {
+/// Resolves a panel source path against the spec file's directory.
+#[must_use]
+pub fn resolve_spec_path(spec_path: &Path, source: &str) -> PathBuf {
     let path = PathBuf::from(source);
     if path.is_absolute() {
         path

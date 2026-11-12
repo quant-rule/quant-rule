@@ -9,10 +9,10 @@ use std::io;
 use serde_json::{Value, json};
 
 /// The report contract version carried by every new bundle.
-pub(crate) const REPORT_VERSION: &str = "2026-11-05";
+pub const REPORT_VERSION: &str = "2026-11-05";
 
 /// One report's provenance values.
-pub(crate) struct Provenance<'a> {
+pub struct Provenance<'a> {
     /// The report name, such as `model`.
     pub report: &'a str,
     /// The data version supplied by the run configuration.
@@ -42,7 +42,7 @@ pub(crate) struct Provenance<'a> {
 /// # Errors
 ///
 /// Returns the serializer's I/O error when the value cannot be encoded.
-pub(crate) fn bytes(provenance: &Provenance<'_>) -> io::Result<Vec<u8>> {
+pub fn bytes(provenance: &Provenance<'_>) -> io::Result<Vec<u8>> {
     let mut value = json!({
         "schema": "quantrule.provenance/v1",
         "report": provenance.report,

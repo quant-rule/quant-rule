@@ -1,26 +1,26 @@
 //! Rendering for the flat model report.
 //!
-//! The shell copies the numeric view into `summary.txt` and the JSON files; it
-//! computes no statistic. The text maps stable codes to the shell's fixed
+//! The artifact renderer copies the numeric view into `summary.txt` and the JSON
+//! files; it computes no statistic. The text maps stable codes to the shared
 //! labels, and the JSON carries codes and numbers only.
 
 mod bundle;
 mod json;
 mod provenance;
 
-pub(crate) use bundle::{BundleWriteError, ensure_available, write_bundle, write_stage_bundle};
-pub(crate) use json::{json_bytes, model_result_bytes};
-pub(crate) use provenance::{Provenance, bytes as provenance_bytes};
+pub use bundle::{BundleWriteError, ensure_available, write_bundle, write_stage_bundle};
+pub use json::{json_bytes, model_result_bytes};
+pub use provenance::{Provenance, bytes as provenance_bytes};
 
 use std::io::{self, Write};
 
 use quantrule_data::format_utc_timestamp;
 use quantrule_model::report::{FlatEventSeries, FlatReport};
 
-use crate::labels;
+use crate::artifact::labels;
 
 /// The report view-contract version carried by the JSON envelope.
-pub(crate) const VIEW_CONTRACT: &str = "2026-11-05";
+pub const VIEW_CONTRACT: &str = "2026-11-05";
 
 /// Renders `summary.txt`.
 ///
@@ -30,7 +30,7 @@ pub(crate) const VIEW_CONTRACT: &str = "2026-11-05";
 /// # Errors
 ///
 /// Returns the writer's error when a line cannot be written.
-pub(crate) fn summary_bytes(
+pub fn summary_bytes(
     report: &FlatReport,
     data_version: &str,
     requested_period: &str,

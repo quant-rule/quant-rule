@@ -11,11 +11,11 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::export::{ExportError, write_atomic};
+use crate::artifact::write::{AtomicWriteError, write_atomic};
 
 /// A bundle could not be written.
 #[derive(Debug)]
-pub(crate) enum BundleWriteError {
+pub enum BundleWriteError {
     /// The bundle directory exists and is not empty.
     OutputNotEmpty {
         /// The bundle path.
@@ -45,7 +45,7 @@ pub(crate) enum BundleWriteError {
         /// The artifact path.
         path: PathBuf,
         /// The underlying error.
-        source: ExportError,
+        source: AtomicWriteError,
     },
 }
 
@@ -86,16 +86,17 @@ impl std::error::Error for BundleWriteError {
 }
 
 /// Refuses a target that is a file or a non-empty directory.
-pub(crate) fn ensure_available(root: &Path) -> Result<(), BundleWriteError> {
+pub fn ensure_available(root: &Path) -> Result<(), BundleWriteError> {
     match fs::metadata(root) {
         Ok(metadata) if !metadata.is_dir() => Err(BundleWriteError::OutputNotDirectory {
             path: root.to_path_buf(),
         }),
         Ok(_) => {
-            let mut entries = fs::read_dir(root).map_err(|source| BundleWriteError::ReadOutput {
-                path: root.to_path_buf(),
-                source,
-            })?;
+            let mut entries =
+                fs::read_dir(root).map_err(|source| BundleWriteError::ReadOutput {
+                    path: root.to_path_buf(),
+                    source,
+                })?;
             match entries.next() {
                 None => Ok(()),
                 Some(Ok(_)) => Err(BundleWriteError::OutputNotEmpty {
@@ -120,7 +121,7 @@ pub(crate) fn ensure_available(root: &Path) -> Result<(), BundleWriteError> {
 /// `artifacts` contains every artifact except `provenance.json`; the writer
 /// adds provenance. The bundle is removed on failure, including a directory it
 /// created.
-pub(crate) fn write_bundle(
+pub fn write_bundle(
     root: &Path,
     artifacts: &[(&str, Vec<u8>)],
     provenance: &[u8],
@@ -135,7 +136,7 @@ pub(crate) fn write_bundle(
 /// An artifact name may contain a relative subdirectory, as the analytics
 /// bundle's `tables/` entries do; the writer creates and, on failure, removes
 /// those directories.
-pub(crate) fn write_stage_bundle(
+pub fn write_stage_bundle(
     root: &Path,
     artifacts: &[(&str, Vec<u8>)],
     provenance: &[u8],

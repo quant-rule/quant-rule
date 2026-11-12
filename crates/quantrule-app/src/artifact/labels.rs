@@ -1,9 +1,11 @@
 //! Presentation labels for the model's numeric codes.
 //!
-//! The model publishes numbers; the shell maps them to words. Every mapping is
-//! fixed, so the same numeric output renders as the same text on every run.
+//! The model publishes numbers; the adapters and artifact renderers map them to
+//! words. Every mapping is fixed, so the same numeric output renders as the same
+//! text on every run.
 
-pub(crate) fn timeframe_label(seconds: u64) -> &'static str {
+/// Maps a timeframe in seconds to its command label.
+pub fn timeframe_label(seconds: u64) -> &'static str {
     match seconds {
         60 => "1m",
         300 => "5m",
@@ -14,7 +16,8 @@ pub(crate) fn timeframe_label(seconds: u64) -> &'static str {
     }
 }
 
-pub(crate) fn stage_label(code: i8) -> &'static str {
+/// Maps a progression stage code to its word.
+pub fn stage_label(code: i8) -> &'static str {
     match code {
         0 => "against",
         1 => "under_25",
@@ -26,7 +29,8 @@ pub(crate) fn stage_label(code: i8) -> &'static str {
     }
 }
 
-pub(crate) fn context_label(code: u8) -> &'static str {
+/// Maps a context code to its word.
+pub fn context_label(code: u8) -> &'static str {
     match code {
         1 => "expanding",
         2 => "coiling",
@@ -36,7 +40,8 @@ pub(crate) fn context_label(code: u8) -> &'static str {
     }
 }
 
-pub(crate) fn event_type_label(code: u8) -> &'static str {
+/// Maps an event type code to its word.
+pub fn event_type_label(code: u8) -> &'static str {
     match code {
         1 => "level",
         2 => "divergence",
@@ -45,7 +50,8 @@ pub(crate) fn event_type_label(code: u8) -> &'static str {
     }
 }
 
-pub(crate) fn event_subtype_label(type_code: u8, subtype_code: u8) -> &'static str {
+/// Maps an event type and subtype pair to its word.
+pub fn event_subtype_label(type_code: u8, subtype_code: u8) -> &'static str {
     match (type_code, subtype_code) {
         (1, 1) => "test",
         (1, 2) => "cross",
@@ -83,7 +89,8 @@ pub(crate) fn event_subtype_label(type_code: u8, subtype_code: u8) -> &'static s
     }
 }
 
-pub(crate) fn source_label(code: u16) -> &'static str {
+/// Maps a source code to its word.
+pub fn source_label(code: u16) -> &'static str {
     match code {
         1 => "ema_fast",
         2 => "ema_mid",
@@ -140,7 +147,8 @@ pub(crate) fn source_label(code: u16) -> &'static str {
     }
 }
 
-pub(crate) fn lifecycle_label(code: u8) -> &'static str {
+/// Maps a progression lifecycle code to its word.
+pub fn lifecycle_label(code: u8) -> &'static str {
     match code {
         0 => "forming",
         1 => "active",
@@ -151,7 +159,8 @@ pub(crate) fn lifecycle_label(code: u8) -> &'static str {
     }
 }
 
-pub(crate) fn scale_label(code: u8) -> &'static str {
+/// Maps a pivot scale code to its word.
+pub fn scale_label(code: u8) -> &'static str {
     match code {
         1 => "minor",
         2 => "major",
@@ -159,7 +168,8 @@ pub(crate) fn scale_label(code: u8) -> &'static str {
     }
 }
 
-pub(crate) fn leg_direction_label(code: i8) -> &'static str {
+/// Maps a progression leg direction to its word.
+pub fn leg_direction_label(code: i8) -> &'static str {
     match code {
         1 => "up",
         -1 => "down",
@@ -167,7 +177,8 @@ pub(crate) fn leg_direction_label(code: i8) -> &'static str {
     }
 }
 
-pub(crate) fn target_basis_label(code: u8) -> &'static str {
+/// Maps a progression target basis code to its word.
+pub fn target_basis_label(code: u8) -> &'static str {
     match code {
         1 => "confirmed_level",
         2 => "atr_fallback",

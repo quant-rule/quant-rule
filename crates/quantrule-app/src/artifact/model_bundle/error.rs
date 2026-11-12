@@ -8,11 +8,11 @@
 use std::fmt;
 use std::io;
 
-use crate::render_report::BundleWriteError;
+use crate::artifact::render_report::BundleWriteError;
 
 /// A model bundle could not be assembled or written.
 #[derive(Debug)]
-pub(crate) enum ModelBundleError {
+pub enum ModelBundleError {
     /// The requested period selected no candle.
     EmptyPeriod {
         /// The requested period as written.
@@ -52,7 +52,7 @@ impl std::error::Error for ModelBundleError {
 #[cfg(test)]
 mod tests {
     use super::ModelBundleError;
-    use crate::render_report::BundleWriteError;
+    use crate::artifact::render_report::BundleWriteError;
     use std::path::PathBuf;
 
     #[test]

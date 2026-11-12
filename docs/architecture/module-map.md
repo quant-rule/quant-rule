@@ -89,11 +89,16 @@ REF-2026-11-12-06 and is deferred.
 | `date.rs` | Explicit UTC date windows. |
 | `error.rs` | The application-service error. |
 | `artifact/provenance.rs` | Shared model/stage provenance reader and identity fields. |
+| `artifact/model_bundle/` | Model-bundle assembly and CSV/JSON artifact writers. |
+| `artifact/render_report/` | Report `summary.txt`, result JSON, and the shared bundle writer. |
+| `artifact/labels.rs` | Shared numeric-code-to-word mapping used by artifacts and terminal output. |
+| `config/spec/` | `quantrule.model-spec/v1` and v2 JSON parsers. |
 | `memory/` | SQLite research memory: schema, store, types, transfer, tests. |
 
-P3.4 adds `artifact/` (bundle writer, provenance, labels, model/report artifacts,
-backtest manifest) and `stages/` (data, model, strategy, execution, portfolio,
-backtest, qualification, analytics). The target layout is in section 7.
+The artifact layer now owns provenance, the model bundle, the report artifacts,
+the shared labels, and atomic writes. P3.4 adds the remaining stage bundles and
+`stages/` (data, model, strategy, execution, portfolio, backtest,
+qualification, analytics). The target layout is in section 7.
 
 ## 5. Shell (`crates/quantrule-shell/src`)
 
@@ -104,15 +109,12 @@ backtest, qualification, analytics). The target layout is in section 7.
 | `request.rs` | Parsed request structs shared by command parsers and stage runs. |
 | `render.rs` | Candle and timeframe NDJSON. |
 | `render_flat.rs` | Event NDJSON. |
-| `labels.rs` | Numeric-code-to-word mapping for terminal output. |
 | `source/`, `fetch.rs`, `export.rs` | Explicit Dukascopy fetch and its CSV writer. |
-| `model_bundle/`, `render_report/` | Current model-bundle writer and report artifacts. |
-| `spec.rs`, `spec/v2.rs` | Current model-spec JSON parser. |
 | `strategy/`, `execution/`, `portfolio/`, `backtest/`, `qualification/`, `analytics/` | Current stage orchestration and artifact readers/writers. |
 | `backtest_bundle.rs` | Current backtest manifest and stage-provenance reader. |
 
-The stage modules and `model_bundle/`/`render_report/`/`spec*` are transitional;
-P3.4 moves them to the app. Do not add a new stage capability to the shell.
+The stage modules are transitional; P3.4 moves them to the app. Do not add a new
+stage capability to the shell.
 
 ## 6. Desktop (`apps/desktop`)
 

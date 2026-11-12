@@ -1,7 +1,7 @@
 //! The `quantrule.model-spec` JSON parsers.
 //!
-//! The shell owns JSON parsing; the model owns the resolved spec and its
-//! evaluators. The v1 parser and the v2 parser share one embedded registry so
+//! The application service owns JSON parsing; the model owns the resolved spec
+//! and its evaluators. The v1 parser and the v2 parser share one embedded registry so
 //! an event identifier resolves to the same numeric codes in both schemas.
 //!
 //! The registry is embedded at compile time so the parser and the model cannot
@@ -18,9 +18,9 @@ use quantrule_model::spec::{
 };
 use serde_json::{Map, Value};
 
-pub(crate) mod v2;
+pub mod v2;
 
-const REGISTRY_JSON: &str = include_str!("../../../docs/registry/indicators.json");
+const REGISTRY_JSON: &str = include_str!("../../../../../docs/registry/indicators.json");
 
 /// A spec document that could not be parsed or validated.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,7 +62,7 @@ pub(crate) struct EventCode {
 ///
 /// Returns a [`SpecParseError`] when the JSON is malformed, the root is not an
 /// object, or the schema field is missing or not a string.
-pub(crate) fn schema_of(text: &str) -> Result<String, SpecParseError> {
+pub fn schema_of(text: &str) -> Result<String, SpecParseError> {
     let value: Value = serde_json::from_str(text)
         .map_err(|error| SpecParseError::new(format!("invalid JSON: {error}")))?;
     let object = as_object(&value, "the spec")?;
@@ -415,7 +415,8 @@ mod tests {
     use quantrule_model::run::ModelRun;
     use quantrule_model::spec::{SpecExpression, SpecStateField};
 
-    const FIXTURE: &str = include_str!("../tests/fixtures/model_spec_v1.json");
+    const FIXTURE: &str =
+        include_str!("../../../../../crates/quantrule-shell/tests/fixtures/model_spec_v1.json");
     const BASE: i64 = 1_700_000_100;
 
     fn candle(index: usize, timestamp: i64, open: f64, close: f64) -> Candle {

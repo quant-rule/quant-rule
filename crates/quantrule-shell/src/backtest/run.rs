@@ -18,14 +18,14 @@ use quantrule_backtest::strategy::{Decision, EventStrategyInput};
 use serde_json::{Value, json};
 
 use crate::execution::{ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution};
-use crate::model_bundle::model_bundle_from;
 use crate::portfolio::{self, PortfolioRunError};
-use crate::render_report::{self, BundleWriteError};
 use crate::request::{BacktestRunArgs, PortfolioReplayArgs};
 use crate::strategy::{
     DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
     validate_context,
 };
+use quantrule_app::artifact::model_bundle::model_bundle_from;
+use quantrule_app::artifact::render_report::{self, BundleWriteError};
 use quantrule_app::config::{ConfigError, RunConfig};
 use quantrule_app::pipeline::{self, PipelineError};
 

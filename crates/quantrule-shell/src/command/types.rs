@@ -14,7 +14,6 @@ use crate::analytics::AnalyticsRunError;
 use crate::backtest::BacktestRunError;
 use crate::execution::ExecutionRunError;
 use crate::fetch::FetchRunError;
-use crate::model_bundle::ModelBundleError;
 use crate::portfolio::PortfolioRunError;
 use crate::qualification::QualificationRunError;
 use crate::request::{
@@ -23,6 +22,7 @@ use crate::request::{
     StrategyRunArgs,
 };
 use crate::strategy::StrategyRunError;
+use quantrule_app::artifact::model_bundle::ModelBundleError;
 use quantrule_app::config::ConfigError;
 use quantrule_app::csv::SourceError;
 use quantrule_app::error::AppError;

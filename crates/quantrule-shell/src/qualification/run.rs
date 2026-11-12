@@ -12,8 +12,8 @@ use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
-use crate::render_report::{self, BundleWriteError};
 use crate::request::QualifyArgs;
+use quantrule_app::artifact::render_report::{self, BundleWriteError};
 use quantrule_app::config::{ConfigError, EvidenceArtifact, load_qualification};
 
 use super::evaluate::{Status, evaluate, resolve};

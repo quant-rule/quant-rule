@@ -20,8 +20,8 @@ use quantrule_data::Candle;
 use serde_json::{Value, json};
 
 use super::decisions::{DecisionKind, DecisionsBundle, DecisionsError};
-use crate::render_report::{self, BundleWriteError};
 use crate::request::ExecutionRunArgs;
+use quantrule_app::artifact::render_report::{self, BundleWriteError};
 use quantrule_app::config::{ConfigError, RunConfig};
 use quantrule_app::csv::SourceError;
 use quantrule_app::pipeline;

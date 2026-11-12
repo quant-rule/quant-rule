@@ -20,7 +20,7 @@ use super::VIEW_CONTRACT;
 /// # Errors
 ///
 /// Returns the serializer's I/O error when the value cannot be encoded.
-pub(crate) fn json_bytes(
+pub fn json_bytes(
     report: &FlatReport,
     data_version: &str,
     from: Option<&str>,
@@ -49,7 +49,7 @@ pub(crate) fn json_bytes(
 /// # Errors
 ///
 /// Returns the serializer's I/O error when the value cannot be encoded.
-pub(crate) fn model_result_bytes(
+pub fn model_result_bytes(
     report: &FlatReport,
     ladder: &[u64],
     data_version: &str,

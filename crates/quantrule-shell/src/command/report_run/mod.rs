@@ -11,10 +11,10 @@ use quantrule_model::panel::PanelInstrument;
 use quantrule_model::spec::v2::SpecRun;
 
 use super::types::{ReportError, RunError};
-use crate::model_bundle::{
+use crate::request::ReportArgs;
+use quantrule_app::artifact::model_bundle::{
     BundleOutput, SpecRunArtifacts, model_bundle_from, model_bundle_with_spec, panel_provenance,
 };
-use crate::request::ReportArgs;
 use quantrule_app::config::RunConfig;
 use quantrule_app::pipeline;
 
@@ -44,7 +44,7 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
                 source,
             })
         })?;
-        let schema = crate::spec::schema_of(&text)
+        let schema = quantrule_app::config::spec::schema_of(&text)
             .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
         let spec_hash = quantrule_app::fingerprint::fnv1a(text.as_bytes());
         let file = spec_path
@@ -54,7 +54,7 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
             .to_owned();
         match schema.as_str() {
             "quantrule.model-spec/v1" => {
-                let spec = crate::spec::parse_model_spec(&text)
+                let spec = quantrule_app::config::spec::parse_model_spec(&text)
                     .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
                 let timeframes = spec_timeframes(&config, &spec.ladder)?;
                 let model = pipeline::run_model_with_ladder(&config, &timeframes)
@@ -78,7 +78,7 @@ pub(crate) fn run_report(args: &ReportArgs, writer: &mut impl Write) -> Result<(
                 .map_err(RunError::Model)?
             }
             "quantrule.model-spec/v2" => {
-                let parsed = crate::spec::v2::parse_model_spec_v2(&text)
+                let parsed = quantrule_app::config::spec::v2::parse_model_spec_v2(&text)
                     .map_err(|error| RunError::Report(ReportError::Spec(error.to_string())))?;
                 let timeframes = spec_timeframes(&config, &parsed.spec.timeframes)?;
                 let mut spec_config = config.clone();

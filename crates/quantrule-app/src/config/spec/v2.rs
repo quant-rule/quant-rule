@@ -1,7 +1,7 @@
 //! The `quantrule.model-spec/v2` JSON parser.
 //!
-//! The shell resolves event identifiers, reading overrides, the panel sources,
-//! and the session calendar; the model receives a validated [`ModelSpecV2`] and
+//! The application service resolves event identifiers, reading overrides, the
+//! panel sources, and the session calendar; the model receives a validated [`ModelSpecV2`] and
 //! performs no I/O. The parser shares the embedded registry with the v1 parser
 //! so both schemas resolve an event ID to the same numeric code and role.
 
@@ -23,12 +23,12 @@ use super::{
 
 /// A parsed v2 document and the panel source paths the shell must load.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ParsedModelSpecV2 {
+pub struct ParsedModelSpecV2 {
     /// The resolved model spec.
-    pub(crate) spec: ModelSpecV2,
+    pub spec: ModelSpecV2,
     /// Panel instrument -> source path as written, excluding the evaluated
     /// instrument. The shell resolves each path against the spec file.
-    pub(crate) panel_sources: BTreeMap<String, String>,
+    pub panel_sources: BTreeMap<String, String>,
 }
 
 /// Parses and validates a `quantrule.model-spec/v2` document.
@@ -38,7 +38,7 @@ pub(crate) struct ParsedModelSpecV2 {
 /// Returns a [`SpecParseError`] when the JSON is malformed, a field is missing
 /// or mistyped, a reading override is invalid, an event identifier is unknown,
 /// the prediction is inconsistent, or the resolved spec fails validation.
-pub(crate) fn parse_model_spec_v2(text: &str) -> Result<ParsedModelSpecV2, SpecParseError> {
+pub fn parse_model_spec_v2(text: &str) -> Result<ParsedModelSpecV2, SpecParseError> {
     let value: Value = serde_json::from_str(text)
         .map_err(|error| SpecParseError::new(format!("invalid JSON: {error}")))?;
     let registry = Registry::load()?;
