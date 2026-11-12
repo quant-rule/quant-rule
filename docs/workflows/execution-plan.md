@@ -87,6 +87,10 @@ Rules:
 - `Status` is `Pass`, `Fail`, `Blocked`, `Pending`, or `Accepted risk`.
 - The implementer fills `Observed`; the reviewer fills `Status`, `Reviewer`, and
   `Date`.
+- Gate commands run through `tools/gate.sh` or an equivalent command with a
+  target directory inside the worktree. Never share a Cargo target directory
+  across worktrees: a cached test binary can carry another worktree's absolute
+  paths and fail a correct tree.
 - A plan is not `Verified` while any row is `Pending`, `Fail`, or `Blocked`.
 - An `Accepted risk` requires the human to record the residual risk and the next
   action.

@@ -2,6 +2,7 @@
   import { call } from "./api";
   import { errorMessage } from "./errors";
   import { formatCount, timeframeCode } from "./format";
+  import { setLastRun } from "./session.svelte";
   import type { ModelRunView, RunSummaryView } from "./types";
 
   let { runPath }: { runPath: string } = $props();
@@ -9,16 +10,30 @@
   let model = $state<ModelRunView | null>(null);
   let busy = $state(false);
   let error = $state("");
+  let exportError = $state("");
   let exportPath = $state("");
 
   async function run() {
     error = "";
+    exportError = "";
     model = null;
+    setLastRun(null);
     busy = true;
+    const startedAt = Math.floor(Date.now() / 1000);
     try {
-      model = await call<ModelRunView>("run_model", { config: runPath });
-      exportPath = `${model.run.output_root}/run-summary.json`;
+      const completed = await call<ModelRunView>("run_model", {
+        config: runPath,
+      });
+      model = completed;
+      exportPath = `${completed.run.output_root}/run-summary.json`;
+      setLastRun({
+        config: runPath,
+        startedAt,
+        finishedAt: Math.floor(Date.now() / 1000),
+        model: completed,
+      });
     } catch (cause) {
+      setLastRun(null);
       error = errorMessage(cause);
     } finally {
       busy = false;
@@ -30,6 +45,7 @@
       return;
     }
     error = "";
+    exportError = "";
     busy = true;
     try {
       const summary = await call<RunSummaryView>("export_run_summary", {
@@ -38,7 +54,7 @@
       });
       model = { ...model, run: summary };
     } catch (cause) {
-      error = errorMessage(cause);
+      exportError = errorMessage(cause);
     } finally {
       busy = false;
     }
@@ -91,6 +107,9 @@
         </tbody>
       </table>
 
+      {#if exportError}
+        <p class="error">{exportError}</p>
+      {/if}
       <div class="row" style="margin-top: 1rem">
         <input bind:value={exportPath} aria-label="Run summary export path" />
         <button onclick={exportSummary} disabled={busy || exportPath.trim() === ""}>

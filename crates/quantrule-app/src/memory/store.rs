@@ -46,7 +46,7 @@ impl ResearchMemory {
             })?;
         }
         let mut connection = Connection::open(path)?;
-        schema::apply(&mut connection)?;
+        schema::apply(&mut connection, path)?;
         Ok(Self {
             connection,
             path: Some(path.to_path_buf()),
@@ -61,7 +61,7 @@ impl ResearchMemory {
     /// Returns [`MemoryError::Database`] when SQLite cannot create the schema.
     pub fn open_in_memory() -> Result<Self, MemoryError> {
         let mut connection = Connection::open_in_memory()?;
-        schema::apply(&mut connection)?;
+        schema::apply(&mut connection, Path::new(":memory:"))?;
         Ok(Self {
             connection,
             path: None,
@@ -390,6 +390,19 @@ impl ResearchMemory {
     /// [`MemoryError::Database`] when SQLite rejects the write.
     pub fn update_note(&self, id: i64, body: &str, updated_at: i64) -> Result<bool, MemoryError> {
         require_non_empty("note.body", body)?;
+        let created_at: Option<i64> = self
+            .connection
+            .query_row("SELECT created_at FROM notes WHERE id = ?1", [id], |row| {
+                row.get(0)
+            })
+            .optional()?;
+        if let Some(created_at) = created_at
+            && updated_at < created_at
+        {
+            return Err(MemoryError::InvalidRecord(String::from(
+                "note.updated_at must not be before created_at",
+            )));
+        }
         let changed = self.connection.execute(
             "UPDATE notes SET body = ?1, updated_at = ?2 WHERE id = ?3",
             params![body, updated_at, id],
@@ -638,6 +651,23 @@ impl ResearchMemory {
              FROM notes WHERE workspace_id = ?1 ORDER BY id",
             note_from_row,
             [workspace_id],
+        )
+    }
+
+    /// Every note attached to one run, ordered by ID.
+    ///
+    /// A workspace-only note has no run and is not returned here.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MemoryError::Database`] when the query fails.
+    pub fn notes_for_run(&self, run_id: i64) -> Result<Vec<NoteRecord>, MemoryError> {
+        query_all(
+            &self.connection,
+            "SELECT id, workspace_id, run_id, body, created_at, updated_at
+             FROM notes WHERE run_id = ?1 ORDER BY id",
+            note_from_row,
+            [run_id],
         )
     }
 

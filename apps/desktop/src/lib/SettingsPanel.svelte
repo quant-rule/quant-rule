@@ -39,7 +39,7 @@
       <li>No login, subscription, or cloud compute.</li>
       <li>No engine reads the clock or a network resource.</li>
       <li>The UI calls only the shared application service.</li>
-      <li>Backtest, strategy, and analytics commands remain on the CLI.</li>
+      <li>The pipeline stages are being moved into the shared service; until then they remain on the CLI.</li>
     </ul>
   </div>
 </div>

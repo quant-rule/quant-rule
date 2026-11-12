@@ -21,6 +21,12 @@ are not treated as releases.
 
 ### Changed
 
+- The desktop UI is a first-class surface of the same program as the shell. Both
+  call the shared application service and are required to have feature parity;
+  the shell is primarily for agents. The
+  [one-program ADR](docs/adr/2026-11-11/one-program-first-class-desktop.md) and
+  the [audit remediation plan](docs/execution-plans/2026-11-11/audit-app-service-native-remediation.md)
+  record the target and the remaining parity extraction.
 - The project board is append-only history. A `Done` item is terminal and is
   never deleted, archived, removed, bulk-cleaned, or moved back to an earlier
   status; worktree and branch cleanup never touches the board.

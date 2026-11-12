@@ -7,7 +7,13 @@
 mod commands;
 
 /// Starts the desktop application.
-pub fn run() {
+///
+/// # Errors
+///
+/// Returns the Tauri runtime error when the window or the event loop cannot
+/// start. The binary entry point renders an actionable message; this library
+/// function does not panic.
+pub fn run() -> Result<(), tauri::Error> {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::open_workspace,
@@ -21,6 +27,7 @@ pub fn run() {
             commands::memory_metrics,
             commands::memory_claims,
             commands::memory_notes,
+            commands::memory_notes_for_run,
             commands::record_run,
             commands::memory_export,
             commands::memory_import,
@@ -28,5 +35,4 @@ pub fn run() {
             commands::memory_restore,
         ])
         .run(tauri::generate_context!())
-        .expect("the QuantRule desktop window failed to start");
 }

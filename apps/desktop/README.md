@@ -15,8 +15,12 @@
 | Memory | Open the SQLite memory, record a run, view metrics/claims/notes, export/import, backup/restore. |
 | Settings | Set the workspace root and memory database path. |
 
-The desktop app does not run backtests, strategies, execution, portfolio, or
-analytics. Those remain CLI operations until the application service owns them.
+The desktop UI is a first-class surface, equal to the shell. The pipeline stages
+(backtest, strategy, execution, portfolio, qualification, analytics, and the
+stage reports) are being moved behind the shared application service under the
+[audit remediation plan](../../docs/execution-plans/2026-11-11/audit-app-service-native-remediation.md).
+Until that phase lands, those stages remain shell-only and are a recorded parity
+gap.
 
 ## Develop
 

@@ -2,6 +2,7 @@
   import { call } from "./api";
   import { errorMessage } from "./errors";
   import { formatTime } from "./format";
+  import { lastModel, recordTimes } from "./session.svelte";
   import type {
     ClaimView,
     MemoryStatusView,
@@ -84,9 +85,9 @@
         db: memoryPath,
         run_id: run.id,
       });
-      notes = await call<NoteView[]>("memory_notes", {
+      notes = await call<NoteView[]>("memory_notes_for_run", {
         db: memoryPath,
-        workspace_id: selectedWorkspace,
+        run_id: run.id,
       });
     } catch (cause) {
       error = errorMessage(cause);
@@ -98,14 +99,15 @@
     notice = "";
     busy = true;
     try {
-      const now = Math.floor(Date.now() / 1000);
+      const times = recordTimes(runPath, Math.floor(Date.now() / 1000));
       const recorded = await call<RecordedRunView>("record_run", {
         db: memoryPath,
         config: runPath,
         run_key: runKey,
         status: "complete",
-        started_at: now,
-        finished_at: now,
+        started_at: times.startedAt,
+        finished_at: times.finishedAt,
+        model: lastModel(runPath),
       });
       notice = `Recorded run #${recorded.run_id}.`;
       selectedWorkspace = recorded.workspace_id;

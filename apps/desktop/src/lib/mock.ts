@@ -145,6 +145,20 @@ export async function mockInvoke<T>(
       ];
       return notes as T;
     }
+    case "memory_notes_for_run": {
+      requireString(args, "db");
+      const notes: NoteView[] = [
+        {
+          id: 1,
+          workspace_id: 1,
+          run_id: Number(args.run_id ?? 1),
+          body: "fixture note",
+          created_at: 1763000000,
+          updated_at: 1763000000,
+        },
+      ];
+      return notes as T;
+    }
     case "record_run": {
       requireString(args, "config");
       requireString(args, "run_key");

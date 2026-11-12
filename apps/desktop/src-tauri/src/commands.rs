@@ -12,8 +12,11 @@ use quantrule_app::memory::{
     ClaimRecord, MemoryError, MetricRecord, MetricValue, NoteRecord, ResearchMemory, RunRecord,
     WorkspaceRecord,
 };
-use quantrule_app::service::{AppService, ModelRunOutcome, RunSummary};
-use serde::Serialize;
+use quantrule_app::service::{
+    AppService, ModelRunOutcome, ModelRunSummary, RecordRunInput, RunSummary,
+    TimeframeModelSummary,
+};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Serialize)]
@@ -58,12 +61,36 @@ pub struct RunSummaryView {
     max_open_positions: u32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TimeframeView {
     timeframe_secs: u64,
     bars: usize,
     events: usize,
     levels: usize,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ModelSummaryView {
+    timeframes: Vec<TimeframeView>,
+    events: usize,
+}
+
+impl From<ModelSummaryView> for ModelRunSummary {
+    fn from(view: ModelSummaryView) -> Self {
+        Self {
+            timeframes: view
+                .timeframes
+                .into_iter()
+                .map(|timeframe| TimeframeModelSummary {
+                    timeframe_secs: timeframe.timeframe_secs,
+                    bars: timeframe.bars,
+                    events: timeframe.events,
+                    levels: timeframe.levels,
+                })
+                .collect(),
+            events: view.events,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -370,6 +397,14 @@ pub fn memory_notes(db: String, workspace_id: i64) -> Result<Vec<NoteView>, Stri
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn memory_notes_for_run(db: String, run_id: i64) -> Result<Vec<NoteView>, String> {
+    ResearchMemory::open(&db)
+        .and_then(|memory| memory.notes_for_run(run_id))
+        .map(|records| records.into_iter().map(NoteView::from).collect())
+        .map_err(text)
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn record_run(
     db: String,
     config: String,
@@ -377,11 +412,24 @@ pub fn record_run(
     status: String,
     started_at: i64,
     finished_at: Option<i64>,
+    model: Option<ModelSummaryView>,
 ) -> Result<RecordedRunView, String> {
     let memory = ResearchMemory::open(&db).map_err(text)?;
+    let model = model.map(ModelRunSummary::from);
+    let config_path = Path::new(&config);
     let recorded = AppService::open_for_config(&config)
         .and_then(|service| {
-            service.record_run(&memory, &config, &run_key, &status, started_at, finished_at)
+            service.record_run_with_model(
+                &memory,
+                RecordRunInput {
+                    config: config_path,
+                    run_key: &run_key,
+                    status: &status,
+                    started_at,
+                    finished_at,
+                    model: model.as_ref(),
+                },
+            )
         })
         .map_err(text)?;
     Ok(RecordedRunView {
@@ -431,8 +479,8 @@ mod tests {
     use quantrule_app::memory::{MetricRecord, MetricValue};
 
     use super::{
-        check_run, memory_export, memory_runs, memory_status, memory_workspaces, metric_view,
-        open_workspace, record_run, run_model,
+        check_run, memory_export, memory_notes_for_run, memory_runs, memory_status,
+        memory_workspaces, metric_view, open_workspace, record_run, run_model,
     };
 
     fn repository_root() -> String {
@@ -488,6 +536,7 @@ mod tests {
             "complete".to_owned(),
             1_763_000_000,
             Some(1_763_000_060),
+            None,
         )
         .expect("the run is recorded");
         assert!(recorded.run_id > 0);
@@ -498,6 +547,11 @@ mod tests {
         let runs = memory_runs(db.clone(), workspaces[0].id).expect("the runs are read");
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].run_key, "run-1");
+        assert!(
+            memory_notes_for_run(db.clone(), runs[0].id)
+                .expect("the run notes are read")
+                .is_empty()
+        );
         let out = directory.join("export.json");
         memory_export(db, out.to_string_lossy().into_owned()).expect("the export is written");
         assert!(out.is_file());

@@ -4,7 +4,9 @@
 //! `meta` table records the contract identity. A database with a newer version
 //! is refused rather than opened and silently modified.
 
-use rusqlite::Connection;
+use std::path::Path;
+
+use rusqlite::{Connection, OptionalExtension};
 
 use super::types::MemoryError;
 
@@ -132,7 +134,11 @@ INSERT INTO meta (key, value) VALUES ('schema', 'quantrule.research-memory/v1');
 "#;
 
 /// Applies every pending migration and verifies the stored identity.
-pub(super) fn apply(connection: &mut Connection) -> Result<(), MemoryError> {
+///
+/// A database that already contains user tables is only accepted when it
+/// already carries the research-memory schema. The version alone cannot prove
+/// identity: every SQLite database starts at version 0.
+pub(super) fn apply(connection: &mut Connection, path: &Path) -> Result<(), MemoryError> {
     connection.pragma_update(None, "foreign_keys", "ON")?;
     let version = user_version(connection)?;
     if version > CURRENT_VERSION {
@@ -141,13 +147,54 @@ pub(super) fn apply(connection: &mut Connection) -> Result<(), MemoryError> {
             expected: CURRENT_VERSION,
         });
     }
+    let existing = check_existing(connection, path)?;
     if version == 0 {
+        if existing {
+            return Err(MemoryError::ForeignDatabase {
+                path: path.to_path_buf(),
+                detail: String::from("it carries the research-memory schema but reports version 0"),
+            });
+        }
         let transaction = connection.transaction()?;
         transaction.execute_batch(MIGRATION_V1)?;
         transaction.pragma_update(None, "user_version", CURRENT_VERSION)?;
         transaction.commit()?;
     }
     verify(connection)
+}
+
+/// Checks whether a connection is fresh or already a research memory.
+///
+/// A fresh database has no user tables. An existing research memory has the
+/// `meta.schema` identity. Any other database is refused before a migration
+/// can add tables or change `user_version`.
+pub(super) fn check_existing(connection: &Connection, path: &Path) -> Result<bool, MemoryError> {
+    let tables: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM sqlite_master
+          WHERE type IN ('table', 'view')
+            AND name NOT LIKE 'sqlite_%'",
+        [],
+        |row| row.get(0),
+    )?;
+    if tables == 0 {
+        return Ok(false);
+    }
+    let stored: Option<String> = connection
+        .query_row("SELECT value FROM meta WHERE key = 'schema'", [], |row| {
+            row.get(0)
+        })
+        .optional()?;
+    match stored {
+        Some(schema) if schema == SCHEMA => Ok(true),
+        Some(schema) => Err(MemoryError::UnsupportedSchema {
+            found: schema,
+            expected: SCHEMA.to_owned(),
+        }),
+        None => Err(MemoryError::ForeignDatabase {
+            path: path.to_path_buf(),
+            detail: String::from("it contains tables but no research-memory schema"),
+        }),
+    }
 }
 
 /// Verifies that the stored schema identity is the one this build writes.
@@ -172,6 +219,8 @@ pub(super) fn user_version(connection: &Connection) -> Result<i64, MemoryError> 
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use rusqlite::Connection;
 
     use super::{CURRENT_VERSION, SCHEMA, apply, user_version};
@@ -179,7 +228,7 @@ mod tests {
     #[test]
     fn a_fresh_database_reaches_the_current_version() {
         let mut connection = Connection::open_in_memory().expect("the database opens");
-        apply(&mut connection).expect("the migration applies");
+        apply(&mut connection, Path::new(":memory:")).expect("the migration applies");
         assert_eq!(
             user_version(&connection).expect("the version is readable"),
             CURRENT_VERSION
@@ -195,8 +244,8 @@ mod tests {
     #[test]
     fn reapplying_the_migration_is_idempotent() {
         let mut connection = Connection::open_in_memory().expect("the database opens");
-        apply(&mut connection).expect("the first migration applies");
-        apply(&mut connection).expect("the second migration is a no-op");
+        apply(&mut connection, Path::new(":memory:")).expect("the first migration applies");
+        apply(&mut connection, Path::new(":memory:")).expect("the second migration is a no-op");
         assert_eq!(
             user_version(&connection).expect("the version is readable"),
             CURRENT_VERSION
@@ -209,6 +258,6 @@ mod tests {
         connection
             .pragma_update(None, "user_version", CURRENT_VERSION + 1)
             .expect("the version is written");
-        assert!(apply(&mut connection).is_err());
+        assert!(apply(&mut connection, Path::new(":memory:")).is_err());
     }
 }

@@ -8,10 +8,12 @@
 
 use std::fs;
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use rusqlite::params;
+use rusqlite::{Connection, OpenFlags, params};
 use serde_json::{Map, Value, json};
 
+use super::schema;
 use super::store::ResearchMemory;
 use super::types::{MemoryError, MetricValue};
 
@@ -140,18 +142,52 @@ pub fn export_bytes(memory: &ResearchMemory) -> Result<Vec<u8>, MemoryError> {
     Ok(bytes)
 }
 
-/// Writes the export to a file, replacing an existing file.
+/// Writes the export to a file, replacing an existing file on success.
+///
+/// The document is written to a temporary file in the same directory and
+/// renamed over the target only after the write completes. A failed write
+/// removes the temporary file and leaves an existing export unchanged.
 ///
 /// # Errors
 ///
 /// Returns [`MemoryError::Io`] when the file cannot be written, and
 /// [`MemoryError::Json`] when the document cannot be built.
 pub fn export_to_file(memory: &ResearchMemory, path: &Path) -> Result<(), MemoryError> {
+    static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
     let bytes = export_bytes(memory)?;
-    fs::write(path, bytes).map_err(|source| MemoryError::Io {
-        path: path.to_path_buf(),
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).map_err(|source| MemoryError::Io {
+        path: parent.to_path_buf(),
         source,
-    })
+    })?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("memory-export.json");
+    let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let temporary = parent.join(format!(
+        ".{file_name}.{}.{sequence}.tmp",
+        std::process::id()
+    ));
+    if let Err(source) = fs::write(&temporary, bytes) {
+        let _ = fs::remove_file(&temporary);
+        return Err(MemoryError::Io {
+            path: path.to_path_buf(),
+            source,
+        });
+    }
+    if let Err(source) = fs::rename(&temporary, path) {
+        let _ = fs::remove_file(&temporary);
+        return Err(MemoryError::Io {
+            path: path.to_path_buf(),
+            source,
+        });
+    }
+    Ok(())
 }
 
 /// Imports a logical export into an empty memory.
@@ -204,6 +240,16 @@ pub fn import_json(memory: &mut ResearchMemory, value: &Value) -> Result<(), Mem
 
     for record in datasets {
         let record = object(record, "dataset")?;
+        let candles = non_negative(integer(record, "candles")?, "dataset.candles")?;
+        let first_open_time = optional_integer(record, "first_open_time")?;
+        let last_open_time = optional_integer(record, "last_open_time")?;
+        if let (Some(first), Some(last)) = (first_open_time, last_open_time)
+            && first > last
+        {
+            return Err(invalid_export(
+                "dataset.first_open_time is after last_open_time",
+            ));
+        }
         transaction.execute(
             "INSERT INTO datasets
                  (id, workspace_id, name, path, data_version, instrument, candles,
@@ -216,9 +262,9 @@ pub fn import_json(memory: &mut ResearchMemory, value: &Value) -> Result<(), Mem
                 non_empty(string(record, "path")?, "dataset.path")?,
                 non_empty(string(record, "data_version")?, "dataset.data_version")?,
                 non_empty(string(record, "instrument")?, "dataset.instrument")?,
-                non_negative(integer(record, "candles")?, "dataset.candles")?,
-                optional_integer(record, "first_open_time")?,
-                optional_integer(record, "last_open_time")?,
+                candles,
+                first_open_time,
+                last_open_time,
                 integer(record, "created_at")?
             ],
         )?;
@@ -244,6 +290,13 @@ pub fn import_json(memory: &mut ResearchMemory, value: &Value) -> Result<(), Mem
 
     for record in runs {
         let record = object(record, "run")?;
+        let started_at = integer(record, "started_at")?;
+        let finished_at = optional_integer(record, "finished_at")?;
+        if let Some(finished) = finished_at
+            && finished < started_at
+        {
+            return Err(invalid_export("run.finished_at is before started_at"));
+        }
         transaction.execute(
             "INSERT INTO runs
                  (id, workspace_id, config_id, run_key, data_version, config_hash,
@@ -257,8 +310,8 @@ pub fn import_json(memory: &mut ResearchMemory, value: &Value) -> Result<(), Mem
                 non_empty(string(record, "data_version")?, "run.data_version")?,
                 non_empty(string(record, "config_hash")?, "run.config_hash")?,
                 non_empty(string(record, "status")?, "run.status")?,
-                integer(record, "started_at")?,
-                optional_integer(record, "finished_at")?,
+                started_at,
+                finished_at,
                 json_text(record, "summary_json")?
             ],
         )?;
@@ -266,20 +319,50 @@ pub fn import_json(memory: &mut ResearchMemory, value: &Value) -> Result<(), Mem
 
     for record in metrics {
         let record = object(record, "metric")?;
+        let id = positive_id(record, "id")?;
+        let run_id = positive_id(record, "run_id")?;
+        let name = non_empty(string(record, "name")?, "metric.name")?;
         let kind = string(record, "kind")?;
         let value = optional_real(record, "value")?;
         let text = optional_string(record, "text_value")?;
         match kind.as_str() {
-            "real" if value.is_none() => {
-                return Err(invalid_export("real metric has no value"));
+            "real" => {
+                let Some(number) = value else {
+                    return Err(invalid_export("real metric has no value"));
+                };
+                if !number.is_finite() {
+                    return Err(invalid_export("real metric value must be finite"));
+                }
+                if text.is_some() {
+                    return Err(invalid_export("real metric must not have text_value"));
+                }
             }
-            "integer" if text.is_none() => {
-                return Err(invalid_export("integer metric has no text_value"));
+            "integer" => {
+                if value.is_some() {
+                    return Err(invalid_export("integer metric must not have a real value"));
+                }
+                let Some(text_value) = text.as_deref() else {
+                    return Err(invalid_export("integer metric has no text_value"));
+                };
+                if text_value.parse::<i64>().is_err() {
+                    return Err(invalid_export(
+                        "integer metric text_value is not an integer",
+                    ));
+                }
             }
-            "text" if text.is_none() => {
-                return Err(invalid_export("text metric has no text_value"));
+            "text" => {
+                if value.is_some() {
+                    return Err(invalid_export("text metric must not have a real value"));
+                }
+                if text.is_none() {
+                    return Err(invalid_export("text metric has no text_value"));
+                }
             }
-            "real" | "integer" | "text" | "null" => {}
+            "null" => {
+                if value.is_some() || text.is_some() {
+                    return Err(invalid_export("null metric must not carry a value"));
+                }
+            }
             other => {
                 return Err(invalid_export(format!(
                     "metric kind {other} is not supported"
@@ -289,14 +372,7 @@ pub fn import_json(memory: &mut ResearchMemory, value: &Value) -> Result<(), Mem
         transaction.execute(
             "INSERT INTO metrics (id, run_id, name, kind, value, text_value)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![
-                integer(record, "id")?,
-                integer(record, "run_id")?,
-                string(record, "name")?,
-                kind,
-                value,
-                text
-            ],
+            params![id, run_id, name, kind, value, text],
         )?;
     }
 
@@ -318,6 +394,11 @@ pub fn import_json(memory: &mut ResearchMemory, value: &Value) -> Result<(), Mem
 
     for record in notes {
         let record = object(record, "note")?;
+        let created_at = integer(record, "created_at")?;
+        let updated_at = integer(record, "updated_at")?;
+        if updated_at < created_at {
+            return Err(invalid_export("note.updated_at is before created_at"));
+        }
         transaction.execute(
             "INSERT INTO notes (id, workspace_id, run_id, body, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -326,8 +407,8 @@ pub fn import_json(memory: &mut ResearchMemory, value: &Value) -> Result<(), Mem
                 positive_id(record, "workspace_id")?,
                 optional_positive_id(record, "run_id")?,
                 non_empty(string(record, "body")?, "note.body")?,
-                integer(record, "created_at")?,
-                integer(record, "updated_at")?
+                created_at,
+                updated_at
             ],
         )?;
     }
@@ -384,6 +465,30 @@ pub fn restore(backup: &Path, target: &Path) -> Result<ResearchMemory, MemoryErr
             path: backup.to_path_buf(),
             source: std::io::Error::new(std::io::ErrorKind::NotFound, "backup file does not exist"),
         });
+    }
+    {
+        let connection = Connection::open_with_flags(backup, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        let existing = schema::check_existing(&connection, backup)?;
+        if !existing {
+            return Err(MemoryError::ForeignDatabase {
+                path: backup.to_path_buf(),
+                detail: String::from("the backup has no research-memory tables"),
+            });
+        }
+        schema::verify(&connection)?;
+        let version = schema::user_version(&connection)?;
+        if version == 0 {
+            return Err(MemoryError::ForeignDatabase {
+                path: backup.to_path_buf(),
+                detail: String::from("the backup has no research-memory version"),
+            });
+        }
+        if version > schema::CURRENT_VERSION {
+            return Err(MemoryError::UnsupportedVersion {
+                found: version,
+                expected: schema::CURRENT_VERSION,
+            });
+        }
     }
     if let Some(parent) = target.parent()
         && !parent.as_os_str().is_empty()
