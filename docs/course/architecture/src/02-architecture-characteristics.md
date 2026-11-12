@@ -1,7 +1,9 @@
 # QuantRule - Architecture Characteristics
 
-Eight characteristics matter. Each is tied to a numbered requirement and has a
-level that can be measured. The rest are deliberately not optimised.
+The product exists to find a trading edge, and an edge is only as trustworthy
+as the evidence behind it. Eight characteristics protect that evidence and the
+speed of the search. Each is tied to a numbered requirement and has a level
+that can be measured; the rest are deliberately not optimised.
 
 | Characteristic | Kata | Why it matters | Level (measurable) | Measured by |
 |:---------------|:----:|:---------------|:------------------|:------------|

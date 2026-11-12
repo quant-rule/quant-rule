@@ -1,7 +1,7 @@
 # QuantRule - Project Overview
 
-A research workstation that turns an OHLCV hypothesis into reproducible,
-cost-aware evidence.
+A research workstation that helps one researcher find a trading edge by turning
+an OHLCV hypothesis into reproducible, cost-aware evidence.
 
 - **User:** one quantitative researcher, working alone on one machine or a small
   internal server.
