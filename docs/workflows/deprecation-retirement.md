@@ -159,6 +159,7 @@ Stop and request human direction when:
 | One-process determinism claim | Canonical digest with a stated boundary | `ADR-2026-11-12-07` |
 | Python simulation harness (`tools/simulation`, `tools/charts`, `tools/oracle`, `tools/trades`) | The `simulation` service in Rust; the client renders the chart | `ADR-2026-11-12-09`, `ADR-2026-11-12-10` |
 | Server-rendered PNG charts and the click-annotator page | Client-side SVG and the Simulation screens | `ADR-2026-11-12-09` |
+| The Tauri **application** (embedded app service, IPC commands, local file access) | A Tauri **shell** over the gateway URL: no compute, no local data, no IPC domain | `ADR-2026-11-12-12` |
 
 Rules applied:
 

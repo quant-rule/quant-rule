@@ -13,6 +13,7 @@ document links here instead of restating it.
 |---|---|---|---|
 | 1 | `make up` | `ready → http://localhost:8080` | one command, no configuration file |
 | 2 | Opens the URL | `connected · v1.0.0` | a client that is only a browser |
+| 2b | Creates a profile, or keeps `default` | the switcher shows the active profile | research lines stay separate |
 | 3 | Uploads a candle CSV | `data_version`, candles, coverage | data identified by content |
 | 4 | Picks a config, sees `valid`, submits | `202`, run appears `queued` | submission returns immediately |
 | 5 | Closes the laptop | — | the run does not depend on the session |
@@ -41,7 +42,18 @@ document links here instead of restating it.
 Four commands, one line of output. The reviewer does not need an account, a
 credential, or access to the operator's machine.
 
-## 4. The research loop
+## 4. Desktop, when you want a window
+
+| # | Does | Value |
+|---|---|---|
+| 1 | Installs the desktop bundle from GitHub Releases | no Docker, no terminal |
+| 2 | Enters the gateway URL once | the same server, the same data |
+| 3 | Uses the same screens and the same profiles | nothing to relearn |
+
+The shell contains no compute and no local data. It is the browser in a window,
+with the URL remembered.
+
+## 5. The research loop
 
 Before a run, the operator may explore:
 
@@ -58,7 +70,7 @@ Before a run, the operator may explore:
 The research loop is hindsight by design. It never feeds a run, and a strategy
 can never read it.
 
-## 5. What the product is worth
+## 6. What the product is worth
 
 | Value | Because |
 |---|---|
@@ -69,7 +81,7 @@ can never read it.
 | **Sovereign** | No account, no vendor; candle data stays on the operator's network |
 | **Honest** | A negative result is valid and the workflow can stop |
 
-## 5. What the operator never does
+## 7. What the operator never does
 
 - Type a filesystem path.
 - Create an account.

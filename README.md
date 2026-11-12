@@ -62,6 +62,12 @@ Full deployment contract: [`docs/architecture/deployment.md`](docs/architecture/
 
 Full journey: [`docs/architecture/user-journey.md`](docs/architecture/user-journey.md).
 
+## Desktop
+
+A Tauri shell is published from GitHub Releases. It is a window over the gateway
+URL: no Docker, no local data, no engine. The server remains the same stack.
+Details: [`docs/adr/2026-11-12/12-desktop-distribution.md`](docs/adr/2026-11-12/12-desktop-distribution.md).
+
 ## The research loop
 
 Before a run, the platform supports chart-first exploration: create a simulation

@@ -278,6 +278,9 @@ stays read-only. The table is the target, implemented by `DIST-070`.
 | `inspect timeframes` | Planned | `data_version` | bars and events per timeframe |
 | `inspect events` | Planned | `data_version`, `timeframe` | event batch |
 | `verify` | Planned | — | canonical digest of the fixture run |
+| `profile list` | Planned | — | profiles with counts |
+| `profile create` | Planned | `name` | `profile_id` |
+| `profile use` | Planned | `profile_id` | active profile |
 | `simulation list` | Planned | `status`, `limit` | simulation run summaries |
 | `simulation create` | Planned | premise, bundle, seed, criteria | `sim_id` |
 | `simulation windows` | Planned | `sim_id` | deterministic window selection |
@@ -287,6 +290,8 @@ stays read-only. The table is the target, implemented by `DIST-070`.
 | `simulation check` | Planned | `sim_id` | event-study table and verdict |
 | `simulation decide` | Planned | `sim_id`, test/refine/stop, note | decision record |
 | `help` | Planned | topic | the command map |
+
+Every planned command accepts a global `--profile` and defaults to `default`.
 
 **Removed in v1.0.0:** `candles`, `candles-tolerant`, `timeframes`, `fetch`,
 `events`, `report model`, `strategy explain`, `strategy run`, `execution run`,

@@ -54,7 +54,14 @@ Every rejection returns a code a client can act on and a message a human can rea
   provides transport security.
 - The gateway never forwards a client path or header to a worker unchecked.
 
-## 6. What is explicitly not protected
+## 6. Profiles are not a boundary
+
+A profile scopes records for organisation. It does not authenticate, authorise, or
+isolate. A client that knows another profile's name can read it, because there is
+one principal and no account system. The documents must never call a profile a
+tenant.
+
+## 7. What is explicitly not protected
 
 - A second principal on the same gateway is not isolated.
 - A stolen bearer token grants full access.

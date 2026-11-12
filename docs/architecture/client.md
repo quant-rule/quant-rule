@@ -13,6 +13,7 @@ same origin as the API. It holds no domain logic and no source of truth.
 | Screen | Shows | Empty state |
 |---|---|---|
 | Connection | Mode, URL, health, version, image digest | `unreachable` with a retry |
+| Profile switcher | Active profile, profile list, create | `default` selected |
 | Datasets | `data_version`, candles, first and last bar, upload | "No datasets. Upload a CSV." |
 | Configs | Name, origin (repo or uploaded), validity, parser message, submit | "No configs on the server." |
 | Runs | Status, id, config, data version, submitted, duration, cancel | "No runs. Submit one from Configs." |
@@ -97,14 +98,28 @@ The client streams the CSV to `POST /catalog/datasets` and displays progress.
 The server owns the limit, the hash, and the catalog row. The client never
 constructs a `data_version`.
 
-## 9. Accessibility and determinism
+## 9. Desktop shell
+
+`apps/desktop-shell/` is a Tauri 2 window over the gateway URL.
+
+| It does | It does not |
+|---|---|
+| Load the gateway URL | Embed an engine |
+| Remember the URL and the active profile | Read a local file |
+| Check for a new release | Own an IPC domain |
+| Show the connection state | Implement a use case |
+
+It is a window onto the Svelte client, not a second client. When the gateway is
+unreachable it shows the disconnected state, exactly like the browser.
+
+## 10. Accessibility and determinism
 
 - Every action is reachable by keyboard and announced by role.
 - Status is text plus colour, never colour alone.
 - Rendered order is fixed; no timestamp is rendered from the client clock.
 - The same fixture produces the same DOM in Playwright.
 
-## 10. Toolchain
+## 11. Toolchain
 
 | Concern | Choice |
 |---|---|
@@ -117,7 +132,7 @@ constructs a `data_version`.
 Bun is the client toolchain only. The built assets are static and are served by
 the gateway; no Bun runtime exists in the image.
 
-## 11. Out of scope
+## 12. Out of scope
 
 No offline mode, no native shell, no local file access beyond upload, no charting
 library, no client-side computation of a model value, no client-side check

@@ -27,10 +27,11 @@ quantrule-server ──┘         │
 | `quantrule-backtest` | Strategy, execution, portfolio, benchmark | Files, transport, rendering |
 | `quantrule-app` | Workspace, dataset, configuration, run orchestration, artifact I/O, memory, shared use cases | Indicators, rules, fills, P&L, transport |
 | `quantrule-api` | Contract types, error envelope, state enum, version constants | Any engine dependency |
-| `quantrule-server` | Runtime, gateway, workers, migrations | Domain logic |
+| `quantrule-server` | Runtime, gateway, workers, migrations, profiles | Domain logic |
 | `quantrule-simulation` | Window selection, marks, oracle, review, check, exit lab | Model computation, run artifacts |
 | `quantrule-shell` | Parsing, terminal rendering, HTTP calls | Domain logic, engine dependency |
 | `apps/web` | Svelte screens, stores, SVG chart, rendering | Domain logic, computation |
+| `apps/desktop-shell` | A Tauri window over the gateway URL | Domain logic, local data, IPC commands |
 
 Two guard tests enforce the graph: the gateway may not import an engine module,
 and `quantrule-api` may not depend on a workspace engine crate.
@@ -44,6 +45,8 @@ and `quantrule-api` may not depend on a workspace engine crate.
 | `runtime/pg.rs`, `runtime/s3.rs`, `runtime/amqp.rs` | Pool, client, channel |
 | `runtime/error.rs` | One error type and the JSON envelope |
 | `runtime/shutdown.rs` | Graceful drain on SIGTERM |
+| `runtime/profile.rs` | Profile resolution from the request header |
+| `runtime/adapters.rs` | Database, object store, and queue traits |
 | `gateway/router.rs` | Route table; one handler per endpoint |
 | `gateway/principal.rs` | The `Authorization` seam; injects `operator` |
 | `gateway/static.rs` | SPA assets and history fallback |

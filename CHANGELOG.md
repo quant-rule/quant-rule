@@ -99,6 +99,11 @@ are not treated as releases.
 - The Python boundary: the product image carries no Python interpreter; Python is
   confined to repository governance (`ADR-2026-11-12-10`).
 
+- Profiles: organisational scoping over every record, with shared content-addressed
+  bytes and no security promise (`ADR-2026-11-12-11`).
+- A Tauri desktop shell over the gateway URL, and backend adapter traits so the
+  embedded desktop profile is additive rather than a fork (`ADR-2026-11-12-12`).
+
 ### Changed
 
 - The platform grows from five services to six; the deployment from eight

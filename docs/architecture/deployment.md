@@ -94,7 +94,18 @@ to start.
 
 Secrets come from the environment. No secret is committed.
 
-## 5. Split host
+## 5. Two distribution profiles
+
+| Profile | Contains | Installs with |
+|---|---|---|
+| Server | The image and nine containers | Docker, `make up` |
+| Desktop | A Tauri shell; no compute, no local data | A release asset from GitHub Releases |
+
+The desktop shell points at a gateway URL. It does not replace the server and it
+does not run one. The embedded, self-contained desktop is `DIST-200` and is not
+part of v1.0.0.
+
+## 6. Split host
 
 The same compose file runs on two machines:
 
@@ -106,7 +117,7 @@ The same compose file runs on two machines:
 The client points at `http://<server>:8080`. Scaling and splitting are
 configuration; no code changes.
 
-## 6. Upgrade and rollback
+## 7. Upgrade and rollback
 
 1. Pull the new image digest.
 2. `make down && make up`.
@@ -115,7 +126,7 @@ configuration; no code changes.
    rollback never reverts the schema; the previous version must tolerate the
    newer schema.
 
-## 7. What deployment does not provide
+## 8. What deployment does not provide
 
 No high availability, no multi-host scheduling, no autoscaling, no TLS
 termination, no external registry. Each is a later decision with its own record.
