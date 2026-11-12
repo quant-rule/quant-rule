@@ -46,7 +46,7 @@ and `quantrule-api` may not depend on a workspace engine crate.
 | `runtime/error.rs` | One error type and the JSON envelope |
 | `runtime/shutdown.rs` | Graceful drain on SIGTERM |
 | `runtime/profile.rs` | Profile resolution from the request header |
-| `runtime/adapters.rs` | Database, object store, and queue traits |
+| `runtime/adapters/` | Database, object store, and queue traits, with one implementation each |
 | `gateway/router.rs` | Route table; one handler per endpoint |
 | `gateway/principal.rs` | The `Authorization` seam; injects `operator` |
 | `gateway/static.rs` | SPA assets and history fallback |

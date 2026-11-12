@@ -13,6 +13,8 @@ pub const DEFAULT_BIND: &str = "0.0.0.0:8080";
 pub const DEFAULT_DATABASE_URL: &str = "postgres://quantrule:quantrule@postgres:5432/quantrule";
 /// The default object-store endpoint used by the compose stack.
 pub const DEFAULT_OBJECT_STORE_URL: &str = "http://minio:9000";
+/// The default object-store bucket used by the compose stack.
+pub const DEFAULT_OBJECT_BUCKET: &str = "quantrule";
 /// The default broker URL used by the compose stack.
 pub const DEFAULT_QUEUE_URL: &str = "amqp://quantrule:quantrule@rabbitmq:5672/%2f";
 /// The default upload limit: 512 MiB.
@@ -61,6 +63,8 @@ pub struct Config {
     pub database_url: String,
     /// S3-compatible endpoint.
     pub object_store_url: String,
+    /// Bucket that holds every object.
+    pub object_store_bucket: String,
     /// AMQP connection string.
     pub queue_url: String,
     /// Upload cap in bytes.
@@ -79,6 +83,7 @@ impl Default for Config {
             bind: DEFAULT_BIND.to_owned(),
             database_url: DEFAULT_DATABASE_URL.to_owned(),
             object_store_url: DEFAULT_OBJECT_STORE_URL.to_owned(),
+            object_store_bucket: DEFAULT_OBJECT_BUCKET.to_owned(),
             queue_url: DEFAULT_QUEUE_URL.to_owned(),
             upload_limit_bytes: DEFAULT_UPLOAD_LIMIT,
             bearer_token: None,
@@ -124,6 +129,9 @@ impl Config {
         }
         if let Some(value) = values.get("QR_OBJECT_STORE_URL") {
             config.object_store_url.clone_from(value);
+        }
+        if let Some(value) = values.get("QR_OBJECT_BUCKET") {
+            config.object_store_bucket.clone_from(value);
         }
         if let Some(value) = values.get("QR_QUEUE_URL") {
             config.queue_url.clone_from(value);
