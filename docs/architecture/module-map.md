@@ -83,7 +83,7 @@ REF-2026-11-12-06 and is deferred.
 | `dataset.rs` | One M1 CSV summary. |
 | `csv.rs` | Strict and tolerant CSV source loading; the only local source reader. |
 | `pipeline.rs` | The source-to-model composition: load M1, build the ladder, run the model. |
-| `config/` | Run, data, model v4, execution, portfolio, strategy, qualification, and model-spec parsing. |
+| `config/` | Run, data, model, execution, portfolio, strategy, qualification, and model-spec parsing. |
 | `export.rs` | Deterministic run-summary JSON. |
 | `fingerprint.rs` | FNV-1a content identity. |
 | `date.rs` | Explicit UTC date windows. |

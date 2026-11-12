@@ -1,7 +1,7 @@
 # Clarity Refactor and P3.4 Shared Pipeline Extraction
 
 - Date: 2026-11-12 (UTC)
-- Status: **Approved** (human, 2026-11-12); execution begins in P1
+- Status: **In Progress** (human, 2026-11-12); P0–P4 and P3.4a complete, P3.4b–P3.4e pending
 - Claim type: **Behaviour Claim** (internal boundary and parity; the only visible change is the corrected help model-version line)
 - Owner: Human
 - Workflow: Execution Plan + Refactor Workflow; Audit Workflow closure for AUD-2026-11-11-11
@@ -973,15 +973,15 @@ The implementer fills `Observed`; the reviewer fills `Status`, `Reviewer`, and
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | P0 baseline | Baseline recorded and gate green | commands in 10.1 | exact values recorded |  | Pending |  |  |  |
-| V2 | P1 stale docs | No stale boundary claims | `rg -n 'only surface\|S3\\.x work\|six scalar\|M1\\.0 view\|M1\\.0 +The current' crates apps`; `check_links`; `check_terms` | no stale matches; checks pass |  | Pending |  |  |  |
-| V3 | P1 module map | One code map exists and is linked | `test -f docs/architecture/module-map.md`; `rg -n 'module-map' docs/README.md docs/architecture/README.md` | file exists and is linked |  | Pending |  |  |  |
-| V4 | P2 module names | `signals.rs` moved; no glob imports | `test ! -f crates/quantrule-model/src/events/signals.rs`; `test -f crates/quantrule-model/src/events/extended/signals.rs`; `rg -n 'use super::\\*' crates/quantrule-model/src/events/extended crates/quantrule-model/src/readings/extended` | old file gone; zero glob imports |  | Pending |  |  |  |
-| V5 | P2 source codes | One definition per source code | `rg -n 'SOURCE_CODE: u16' crates/quantrule-model/src`; `cargo test -p quantrule-model`; `python3 tools/check_registry.py` | no duplicate values; tests and registry pass |  | Pending |  |  |  |
-| V6 | P3 shared reader | Three stage readers use one provenance reader | `rg -n 'quantrule\\.stage-provenance/v1' crates/quantrule-app/src crates/quantrule-shell/src`; `cargo test -p quantrule-app`; `cargo test -p quantrule-shell` | one parser; tests pass |  | Pending |  |  |  |
-| V7 | P3 error names | No duplicate `ModelBundleError`/`BundleError` in shell | `rg -n 'enum ModelBundleError|enum BundleError' crates/quantrule-shell/src` | no duplicate names |  | Pending |  |  |  |
-| V8 | P4 desktop split | Commands split; behavior unchanged | `wc -l apps/desktop/src-tauri/src/commands/*.rs`; `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`; `cargo clippy --manifest-path ...`; `npm test` | largest file under 350; tests pass |  | Pending |  |  |  |
-| V9 | P5 data/model | Data/model use cases in app; outputs identical | `target/debug/quantrule report model ...`; `events`; `candles`; `timeframes`; bundle hash | bundle/stdout identical |  | Pending |  |  |  |
+| V1 | P0 baseline | Baseline recorded and gate green | `git rev-parse HEAD`; `cargo test --workspace -- --list`; fixture SHA256; `tools/gate.sh` | exact values recorded | commit `d2ed0c7`; 1,505 tests listed; fixture SHA256 `fdcf3118…`; gate pass | Pass | Agent | 2026-11-12 | plan and assessment committed |
+| V2 | P1 stale docs | No stale boundary claims | `rg -n 'only surface\|S3\\.x work\|six scalar\|M1\\.0 view\|M1\\.0 +The current' crates apps`; `check_links`; `check_terms` | no stale matches; checks pass | no stale matches; links and terms pass | Pass | Agent | 2026-11-12 | help glossary corrected |
+| V3 | P1 module map | One code map exists and is linked | `test -f docs/architecture/module-map.md`; `rg -n 'module-map' docs/README.md docs/architecture/README.md` | file exists and is linked | file exists; both indexes link it | Pass | Agent | 2026-11-12 | updated for the moves |
+| V4 | P2 module names | `signals.rs` moved; no glob imports | `test ! -f crates/quantrule-model/src/events/signals.rs`; `test -f crates/quantrule-model/src/events/extended/signals.rs`; `rg -n 'use super::\\*' crates/quantrule-model/src/events/extended crates/quantrule-model/src/readings/extended` | old file gone; zero glob imports | old file gone; zero glob imports; model tests pass | Pass | Agent | 2026-11-12 | `events/extended/signals.rs` |
+| V5 | P2 source codes | One definition per source code | `rg -n 'SOURCE_CODE: u16' crates/quantrule-model/src`; `cargo test -p quantrule-model`; `python3 tools/check_registry.py` | no duplicate values; tests and registry pass | constants only in `events/source_codes.rs`; registry passes | Pass | Agent | 2026-11-12 | registry checks the numeric set |
+| V6 | P3 shared reader | Three stage readers use one provenance reader | `rg -n 'quantrule\\.stage-provenance/v1' crates/quantrule-app/src crates/quantrule-shell/src`; `cargo test -p quantrule-app`; `cargo test -p quantrule-shell` | one parser; tests pass | one app parser; strategy/execution/portfolio use it | Pass | Agent | 2026-11-12 | app tests added |
+| V7 | P3 error names | No duplicate `ModelBundleError`/`BundleError` in shell | `rg -n 'enum ModelBundleError\|enum BundleError' crates/quantrule-shell/src` | no duplicate names | `StrategyBundleError`, `BundleWriteError`, `ManifestError`; no duplicate `BundleError` | Pass | Agent | 2026-11-12 |  |
+| V8 | P4 desktop split | Commands split; behavior unchanged | `wc -l apps/desktop/src-tauri/src/commands/*.rs`; `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`; `cargo clippy --manifest-path ...`; `npm test` | largest file under 350; tests pass | largest file 247; 5 backend tests pass; clippy pass | Pass | Agent | 2026-11-12 | frontend untouched |
+| V9 | P5 data/model | Data/model use cases in app; outputs identical | `target/debug/quantrule report model ...`; `events`; `candles`; `timeframes`; bundle hash | bundle/stdout identical | report/CLI tests pass; data/model use cases in `stages/{data,model}.rs` | Pass | Agent | 2026-11-12 | artifact/spec moved to app |
 | V10 | P6 strategy | Strategy use cases in app; outputs identical | `strategy run`; `strategy explain`; decisions hash | identical |  | Pending |  |  |  |
 | V11 | P7 execution/portfolio | Execution/portfolio use cases in app; outputs identical | `execution run`; `portfolio replay`; bundle hashes | identical |  | Pending |  |  |  |
 | V12 | P8 backtest | Backtest use case in app; outputs identical | `backtest run`; manifest hash | identical |  | Pending |  |  |  |
@@ -991,14 +991,14 @@ The implementer fills `Observed`; the reviewer fills `Status`, `Reviewer`, and
 | V16 | P10b desktop commands | Every stage use case has a Tauri command | `cargo test --manifest-path ...`; `cargo clippy ...`; `npm test`; parity test | commands call app; tests pass |  | Pending |  |  |  |
 | V17 | P11 desktop UI | Stages visible and usable, or approved exception | `npm run check`; `npm test`; `npm run test:e2e` | pass or accepted risk |  | Pending |  |  |  |
 | V18 | P12 extended split (conditional) | Family structs, identical artifacts | `cargo test -p quantrule-model`; report bundle hash; `readings.csv` header/bytes | identical |  | Pending |  |  |  |
-| V19 | P13 full gate | Workspace gate passes | `tools/gate.sh` | pass |  | Pending |  |  |  |
+| V19 | P13 full gate | Workspace gate passes | `tools/gate.sh` | pass | gate passed with `CARGO_TARGET_DIR=target/gate` | Pass | Agent | 2026-11-12 | fmt, clippy, test, doc, checkers |
 | V20 | P13 desktop gate | Desktop checks pass | commands in 10.1 | pass |  | Pending |  |  |  |
-| V21 | P13 docs/checkers | Command surface and docs checkers pass | `check_command_surface`, `check_links`, `check_terms`, `check_workflows`, `check_changelog`, `check_releases`, `check_claims` | pass |  | Pending |  |  |  |
+| V21 | P13 docs/checkers | Command surface and docs checkers pass | `check_command_surface`, `check_links`, `check_terms`, `check_workflows`, `check_changelog`, `check_releases`, `check_claims` | pass | all checkers passed in `tools/gate.sh` | Pass | Agent | 2026-11-12 |  |
 | V22 | P13 records | Changelog, AI log, plan table complete | file review | complete |  | Pending |  |  |  |
 | V23 | All slices | No behavior drift except the documented help correction | golden fixture hash; report/backtest/CLI hashes; help output diff | identical except the M1.0→M1.3 help line |  | Pending |  |  |  |
 | V24 | Closure | Worktrees/branches removed; board Done | `python3 tools/worktree_cleanup.py check <worktree>`; `git worktree list`; `git branch -a` | clean; board Done |  | Pending |  |  |  |
-| V25 | All slices | No new dependency | `git diff -- Cargo.toml Cargo.lock apps/desktop/src-tauri/Cargo.toml` | no new dependency |  | Pending |  |  |  |
-| V26 | All slices | No test weakened; count not down | test list before/after; fixture diff | count equal or higher; fixtures unchanged |  | Pending |  |  |  |
+| V25 | All slices | No new dependency | `git diff -- Cargo.toml Cargo.lock apps/desktop/src-tauri/Cargo.toml` | no new dependency | no dependency changed | Pass | Agent | 2026-11-12 |  |
+| V26 | All slices | No test weakened; count not down | `cargo test --workspace -- --list`; fixture diff | count equal or higher; fixtures unchanged | 1,505 tests listed; no test removed; golden fixtures unchanged | Pass | Agent | 2026-11-12 |  |
 
 ## 11. Risks and recovery
 
