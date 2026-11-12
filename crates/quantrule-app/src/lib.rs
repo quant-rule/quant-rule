@@ -1,9 +1,10 @@
 //! The QuantRule application service.
 //!
 //! The application service is the shared use-case boundary for every client.
-//! The command shell and the desktop UI call the same workspace, dataset,
-//! configuration, and model-run operations here; neither adapter parses a
-//! configuration file or builds the model ladder itself.
+//! The command shell and the desktop UI call the same workspace, dataset, run
+//! configuration, model-run, export, and memory operations here. During P3.4
+//! the shell still parses the model-spec JSON and orchestrates the later
+//! pipeline stages; those are the remaining parity gap, not a second service.
 //!
 //! The engine crates remain pure. This crate owns file access, path resolution,
 //! orchestration, and the local research memory, and returns explicit errors

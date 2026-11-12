@@ -47,7 +47,7 @@ pub(super) fn render_glossary(writer: &mut impl Write) -> io::Result<()> {
     )?;
     writeln!(
         writer,
-        "M1.0          The current flat per-timeframe model: readings, states, levels, events, progression, and context."
+        "M1.3          The current flat per-timeframe model: readings, states, levels, events, progression, and context."
     )?;
     writeln!(
         writer,

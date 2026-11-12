@@ -53,6 +53,7 @@ repeating a status.
 | Document | Status | Path |
 |---|---|---|
 | System architecture entry point | Current | `docs/architecture/README.md` |
+| Code module map | Current; crate, module, reading order, and where-to-add guide | `docs/architecture/module-map.md` |
 | The Trustworthy Backtest Kata | Current | `docs/architecture/kata.md` |
 | Architecture characteristics | Current | `docs/architecture/characteristics.md` |
 | Command surface | Current; implemented/planned stage contract and drift gate | `docs/architecture/command-surface.md` |

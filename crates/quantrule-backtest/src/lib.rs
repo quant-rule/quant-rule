@@ -8,11 +8,12 @@
 //! [`portfolio`] module holds the capital configuration, sizing, state, records,
 //! and the ledger.
 //!
-//! The multi-timeframe strategy context and the runner are S3.x work.
+//! The multi-timeframe strategy context and the runner are implemented in the
+//! strategy and shell composition layers.
 //!
 //! The crate is pure. It performs no I/O, reads no clock, uses no randomness,
-//! and keeps no global mutable state. The shell owns source access and
-//! rendering.
+//! and keeps no global mutable state. The application service and the shell own
+//! source access; the shell and the desktop own rendering.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

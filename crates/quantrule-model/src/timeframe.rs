@@ -28,7 +28,7 @@ use crate::progression::{ProgressionBar, ProgressionConfig, ProgressionLeg, Prog
 use crate::readings::{AdxSeries, ExtendedReadings, MacdSeries, PivotSeries, Readings};
 use crate::retention::{EventBatch, EventHistory};
 
-/// The six scalar readings for one closed bar.
+/// The scalar readings for one closed bar.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ModelReadings {
     /// EMA 20.
@@ -105,7 +105,7 @@ pub struct ModelBar {
     pub bar_index: usize,
     /// The candle.
     pub candle: Candle,
-    /// The six scalar readings.
+    /// The scalar readings.
     pub readings: ModelReadings,
     /// The v3 discrete indicator states.
     pub states: ModelStates,

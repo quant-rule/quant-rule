@@ -1,8 +1,9 @@
 //! The QuantRule desktop application library.
 //!
 //! The Tauri host registers one command per application-service operation. It
-//! holds no path resolution, configuration parsing, model computation, or
-//! database rule; those belong to `quantrule-app`.
+//! owns the webview path scope and IPC boundary, but no workspace discovery,
+//! configuration parsing, model computation, or database rule; those belong to
+//! `quantrule-app`.
 
 mod commands;
 

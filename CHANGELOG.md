@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- The code module map at `docs/architecture/module-map.md`: crate and module
+  ownership, reading order, and the where-to-add guide for a reading, event,
+  command, configuration field, use case, or desktop command.
 - Native file and folder pickers in the desktop Settings, Memory, and Run
   panels. A selected path still passes the backend workspace/memory scope check
   before any I/O, and typed paths remain available.
@@ -53,6 +56,14 @@ are not treated as releases.
   template names roles, dependencies, and affected paths, and the plan checker
   rejects duplicate IDs, empty core cells, and unresolved rows on a `Verified`
   plan.
+
+### Fixed
+
+- Stale module docs that described the shell as the only surface, the backtest
+  runner as future work, the app as the only configuration parser, the desktop
+  as doing no path resolution, the model as six scalar readings, and the flat
+  report as the M1.0 view. The shell glossary now names M1.3 as the current
+  model.
 
 ## [0.9.0] - 2026-11-11
 

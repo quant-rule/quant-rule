@@ -1,8 +1,9 @@
 //! The QuantRule shell binary.
 //!
-//! The shell is the product's only surface. It parses commands, performs source
-//! access, calls the data and model engines, and renders the result. It holds no
-//! indicator or model logic.
+//! The shell is one of the product's two first-class surfaces, primarily for
+//! agents. It parses commands, performs explicit source fetch, calls the shared
+//! application service, and renders the result. It holds no indicator, model,
+//! strategy, execution, or portfolio logic.
 
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]

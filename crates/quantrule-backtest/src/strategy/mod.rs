@@ -9,8 +9,9 @@
 //! Execution resolves the intent. The strategy never chooses a fill price, fee,
 //! or slippage.
 //!
-//! Two generic, event-driven engines remain for S3.x: the bounded
-//! [`EventCompositeStrategy`] and the two-sided [`CompressionBracketStrategy`].
+//! Two generic, event-driven engines implement the current strategy layer: the
+//! bounded [`EventCompositeStrategy`] and the two-sided
+//! [`CompressionBracketStrategy`].
 
 mod bracket;
 mod config;

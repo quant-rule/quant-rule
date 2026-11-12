@@ -1,9 +1,9 @@
 //! Command parsing and execution for the shell.
 //!
-//! The shell parses the command text and calls the source, model, and rendering
-//! modules. It does not validate candles or assign series indices; those stay in
-//! the data engine. Each command family owns its argument grammar and its
-//! execution path behind this vocabulary.
+//! The shell parses the command text, calls the source and application-service
+//! use cases, and renders the result. It does not validate candles, assign
+//! series indices, or compute a model value. Each command family owns its
+//! argument grammar and its execution path behind this vocabulary.
 
 mod analytics;
 mod backtest;
