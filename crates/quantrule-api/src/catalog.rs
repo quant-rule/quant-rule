@@ -1,0 +1,120 @@
+//! The dataset and configuration catalog.
+//!
+//! A catalog entry is metadata over content-addressed bytes. Two profiles may
+//! point at the same object; neither duplicates it.
+
+use serde::{Deserialize, Serialize};
+
+use crate::digest::Digest;
+
+/// Where a configuration came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigOrigin {
+    /// A file under the read-only repository mount.
+    Repository,
+    /// A file uploaded through the API.
+    Upload,
+}
+
+/// A dataset in a list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DatasetSummary {
+    /// Content identity of the normalized candles.
+    pub data_version: Digest,
+    /// A human label, usually the source file name.
+    pub name: String,
+    /// Number of M1 candles.
+    pub candles: u64,
+    /// First open time, Unix seconds UTC.
+    pub first_bar: u64,
+    /// Last open time, Unix seconds UTC.
+    pub last_bar: u64,
+    /// Stored size in bytes.
+    pub bytes: u64,
+}
+
+/// A dataset record, including where its bytes live.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DatasetRecord {
+    /// The list projection.
+    pub summary: DatasetSummary,
+    /// The object key inside the content-addressed store.
+    pub object_key: String,
+    /// The hash of the stored bytes.
+    pub sha256: Digest,
+    /// Server-assigned creation time, RFC 3339 UTC.
+    pub created_at: String,
+}
+
+/// A configuration in a list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConfigSummary {
+    /// Stable configuration id.
+    pub config_id: String,
+    /// A human label.
+    pub name: String,
+    /// Repository or upload.
+    pub origin: ConfigOrigin,
+    /// Whether the configuration passes schema and cross-config validation.
+    pub valid: bool,
+    /// The parser message when invalid.
+    pub message: Option<String>,
+    /// The canonical hash, present when valid.
+    pub config_hash: Option<Digest>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn digest() -> Digest {
+        Digest::parse(&"b".repeat(64)).expect("fixture")
+    }
+
+    #[test]
+    fn origins_serialize_in_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&ConfigOrigin::Repository).expect("encode"),
+            "\"repository\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ConfigOrigin::Upload).expect("encode"),
+            "\"upload\""
+        );
+    }
+
+    #[test]
+    fn a_record_round_trips() {
+        let record = DatasetRecord {
+            summary: DatasetSummary {
+                data_version: digest(),
+                name: "candles.csv".to_owned(),
+                candles: 1_000,
+                first_bar: 1_546_300_800,
+                last_bar: 1_549_065_600,
+                bytes: 65_536,
+            },
+            object_key: "candles/abc".to_owned(),
+            sha256: digest(),
+            created_at: "2026-11-12T00:00:00Z".to_owned(),
+        };
+        let text = serde_json::to_string(&record).expect("encode");
+        let back: DatasetRecord = serde_json::from_str(&text).expect("decode");
+        assert_eq!(back, record);
+    }
+
+    #[test]
+    fn an_invalid_config_carries_a_message_and_no_hash() {
+        let summary = ConfigSummary {
+            config_id: "cfg-1".to_owned(),
+            name: "run".to_owned(),
+            origin: ConfigOrigin::Repository,
+            valid: false,
+            message: Some("portfolio.initial_cash must be positive".to_owned()),
+            config_hash: None,
+        };
+        assert!(summary.message.is_some());
+        assert!(summary.config_hash.is_none());
+    }
+}
