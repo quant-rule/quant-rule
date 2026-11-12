@@ -204,9 +204,6 @@ jobs:
       - name: Desktop native build
         run: npm run tauri build
 
-      - name: Stage and check the download page
-        run: ../../site/build.sh --skip-build
-
       - name: Desktop launch smoke
         run: |
           set +e

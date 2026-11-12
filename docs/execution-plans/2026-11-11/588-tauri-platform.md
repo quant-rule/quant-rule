@@ -1,6 +1,8 @@
 # Tauri Platform — Local-First Solo Research Workstation
 
-- Status: Verified
+- Status: Superseded on 2026-11-12 by
+  [`dist-000-distributed-platform.md`](../2026-11-12/dist-000-distributed-platform.md).
+  Retained as history.
 - Date: 2026-11-11 (UTC)
 - Issue: #588 (container), #593 (definition)
 - Claim type: ADR (Architecture Decision)

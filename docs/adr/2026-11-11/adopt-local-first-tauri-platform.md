@@ -1,7 +1,10 @@
 # ADR — Adopt a Local-First Tauri Platform and Defer the Team Cloud
 
 - Date: 2026-11-11 (UTC)
-- Status: Accepted
+- Status: Superseded on 2026-11-12 by
+  [ADR 2026-11-12-01](../2026-11-12/01-adopt-distributed-service-based-architecture.md).
+  Retained as history. The desktop application was retired; a later Tauri
+  shell over the gateway URL is a different artifact (ADR 2026-11-12-12).
 - Owner: Human
 - Claim type: ADR (Architecture Decision)
 - Related: [`docs/execution-plans/2026-11-11/588-tauri-platform.md`](../../execution-plans/2026-11-11/588-tauri-platform.md)

@@ -1,7 +1,9 @@
 # ADR: Adopt the Product Kata and Architecture Characteristics
 
 - Date: 2026-10-31
-- Status: Accepted
+- Status: Amended on 2026-11-12 by
+  [ADR 2026-11-12-01](../2026-11-12/01-adopt-distributed-service-based-architecture.md):
+  the drivers are unchanged; the style, quantum, and service count are amended.
 - Work item: `architecture-baseline`
 
 ## Context

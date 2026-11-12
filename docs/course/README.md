@@ -49,5 +49,8 @@ only when the source changes.
   platform in [`docs/architecture/`](../architecture/README.md). The sources in
   this folder still describe the v0.9.0 local surface; rewriting them and
   rebuilding the PDFs is `DIST-018`.
+- The static download site was deleted on 2026-11-12. Any remaining reference
+  to `site/` or a download page in these sources is historical and is removed
+  by `DIST-018`.
 - No candle data, credentials, or private run artifacts belong in this folder.
 - A collaborative team cloud is out of scope. The product is single-principal.
