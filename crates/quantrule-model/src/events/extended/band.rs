@@ -4,10 +4,13 @@
 //! direction is descriptive: support when the close is at or above the center,
 //! resistance when it is below.
 
-use super::*;
+use crate::events::codes;
+pub use crate::events::source_codes::BAND_SOURCE_CODE;
+use crate::events::{EventRecord, EventType};
+use crate::readings::{ExtendedReadings, Readings};
+use quantrule_data::Candle;
 
-/// Source code for horizontal bands.
-pub const BAND_SOURCE_CODE: u16 = 57;
+use super::{ExtendedEventConfig, push};
 
 pub(super) fn band_events(
     candles: &[Candle],

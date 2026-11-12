@@ -47,7 +47,7 @@ fn signal_events(
     let mut extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
     overrides(&mut extended, len);
     let mut events = Vec::new();
-    super::super::signals::compute(&candles, &readings, &extended, &event_config(), &mut events);
+    super::signals::compute(&candles, &readings, &extended, &event_config(), &mut events);
     events
 }
 

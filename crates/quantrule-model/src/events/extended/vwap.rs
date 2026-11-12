@@ -1,7 +1,9 @@
 //! VWAP event detection.
 
-use super::*;
-
+use super::{
+    Candle, EventRecord, EventType, ExtendedEventConfig, ExtendedReadings, VWAP_SOURCE_CODE, codes,
+    push,
+};
 pub(super) fn vwap_events(
     candles: &[Candle],
     extended: &ExtendedReadings,

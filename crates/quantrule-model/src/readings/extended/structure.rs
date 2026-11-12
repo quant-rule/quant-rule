@@ -1,7 +1,8 @@
 //! Volatility and structure readings.
 
-use super::*;
-
+use super::{
+    Candle, ConfirmedLevelRegistry, ExtendedConfig, PivotKind, PivotScale, Readings, atr, ema,
+};
 pub(super) struct StructureReadings {
     pub(super) atr_ratio: Vec<Option<f64>>,
     pub(super) atr_slope: Vec<Option<f64>>,

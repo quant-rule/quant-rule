@@ -1,4 +1,4 @@
-//! Signal events for the new single-instrument readings.
+//! Signal events for the extended single-instrument readings.
 //!
 //! These are the indicator signals that do not need a panel or a session
 //! calendar: ATR, range, MAR, Keltner, Donchian, structure, strength, Aroon,
@@ -8,15 +8,16 @@
 use crate::events::EventRecord;
 use crate::events::EventType;
 use crate::events::codes;
-use crate::events::extended::{
+use crate::readings::{ExtendedReadings, Readings};
+use quantrule_data::Candle;
+
+use super::{
     AROON_SOURCE_CODE, ATR_SOURCE_CODE, CANDLE_SOURCE_CODE, DIRECTION_SOURCE_CODE,
     DONCHIAN_SOURCE_CODE, DRAWDOWN_SOURCE_CODE, EXTREME_SOURCE_CODE, ExtendedEventConfig,
     GAP_SOURCE_CODE, KELTNER_SOURCE_CODE, MAR_SOURCE_CODE, PATH_SOURCE_CODE, PATTERN_SOURCE_CODE,
     RANGE_POSITION_SOURCE_CODE, RANGE_SOURCE_CODE, STRENGTH_SOURCE_CODE, SWING_SOURCE_CODE,
     cross_down_value, cross_up_value, push,
 };
-use crate::readings::{ExtendedReadings, Readings};
-use quantrule_data::Candle;
 
 /// Emits the single-instrument signal events.
 pub(crate) fn compute(

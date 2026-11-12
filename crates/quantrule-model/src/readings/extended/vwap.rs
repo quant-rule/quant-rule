@@ -1,7 +1,7 @@
 //! VWAP readings.
 
+use super::Candle;
 use super::shared::{typical_price, volume};
-use super::*;
 
 pub(super) fn vwap_series(
     candles: &[Candle],

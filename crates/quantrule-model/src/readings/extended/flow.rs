@@ -1,7 +1,7 @@
 //! Volume-flow readings.
 
 use super::shared::volume;
-use super::*;
+use super::{Candle, ExtendedConfig};
 
 pub(super) struct FlowSeries {
     pub(super) obv: Vec<Option<f64>>,

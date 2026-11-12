@@ -8,6 +8,7 @@
 //! The module is pure: it reads candles, readings, and the published context.
 //! It performs no I/O, reads no clock, and uses no randomness.
 
+pub use crate::events::source_codes::ATR_SOURCE_CODE;
 use std::num::NonZeroU64;
 
 use quantrule_data::Candle;
@@ -16,9 +17,6 @@ use crate::context::{COILING_CODE, ContextSeries};
 use crate::events::signal::SignalSubtype;
 use crate::events::{EventRecord, EventType};
 use crate::readings::Readings;
-
-/// The contract's source code for ATR 14.
-pub const ATR_SOURCE_CODE: u16 = 5;
 
 /// The configuration of a compression-breakout run.
 ///

@@ -16,18 +16,13 @@ use crate::events::EventRecord;
 use crate::events::EventType;
 use crate::events::codes;
 use crate::events::extended::push;
+pub use crate::events::source_codes::{
+    OPENING_RANGE_SOURCE_CODE, OVERNIGHT_SOURCE_CODE, SESSION_RANGE_SOURCE_CODE,
+    SESSION_SOURCE_CODE,
+};
 use crate::readings::Readings;
 use crate::sessions::{SessionConfig, SessionReadings};
 use quantrule_data::Candle;
-
-/// Source code for the session state.
-pub const SESSION_SOURCE_CODE: u16 = 50;
-/// Source code for the opening range.
-pub const OPENING_RANGE_SOURCE_CODE: u16 = 51;
-/// Source code for the overnight and intraday returns.
-pub const OVERNIGHT_SOURCE_CODE: u16 = 52;
-/// Source code for the session range.
-pub const SESSION_RANGE_SOURCE_CODE: u16 = 53;
 
 /// Signal subtype for a session signal.
 const SESSION_SIGNAL_SUBTYPE: u8 = 23;

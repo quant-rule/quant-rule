@@ -1,7 +1,10 @@
 //! Participation event detection.
 
-use super::*;
-
+use super::{
+    ABSORPTION_SOURCE_CODE, CLIMAX_SOURCE_CODE, Candle, EventRecord, EventType,
+    ExtendedEventConfig, ExtendedReadings, PivotKind, PivotScale, RVOL_SOURCE_CODE, Readings,
+    VOLUME_OSCILLATOR_SOURCE_CODE, codes, cross_down_value, cross_up_value, push,
+};
 pub(super) fn participation_events(
     candles: &[Candle],
     readings: &Readings,

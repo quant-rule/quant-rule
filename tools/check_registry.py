@@ -27,6 +27,7 @@ REGISTRY = ROOT / "docs/registry/indicators.json"
 MARKDOWN = ROOT / "docs/registry/indicators.md"
 SCHEMA = ROOT / "docs/registry/schema.json"
 MODEL_CODES = ROOT / "crates/quantrule-model/src/events/codes.rs"
+MODEL_SOURCE_CODES = ROOT / "crates/quantrule-model/src/events/source_codes.rs"
 MODEL_LIB = ROOT / "crates/quantrule-model/src/lib.rs"
 
 ROOT_KEYS = {"schema", "version", "indicators", "events", "parameters", "codes"}
@@ -111,6 +112,7 @@ def check(registry: Any) -> list[str]:
     errors.extend(check_codes(codes))
     errors.extend(check_schema_file())
     errors.extend(check_model_codes(registry))
+    errors.extend(check_source_codes(registry))
 
     indicator_ids: set[str] = set()
     indicator_codes: set[int] = set()
@@ -361,6 +363,28 @@ def check_model_codes(registry: dict[str, Any]) -> list[str]:
         errors.append(
             f"model REGISTRY_VERSION {match.group(1)} != registry {registry.get('version')}"
         )
+    return errors
+
+
+def check_source_codes(registry: dict[str, Any]) -> list[str]:
+    """Compare the canonical Rust source codes with the registry codes."""
+    errors: list[str] = []
+    source = MODEL_SOURCE_CODES.read_text(encoding="utf-8")
+    constants = {
+        match.group(1): int(match.group(2))
+        for match in re.finditer(r"pub const ([A-Z0-9_]+_SOURCE_CODE): u16 = (\d+);", source)
+    }
+    if not constants:
+        return ["model source codes were not found"]
+    registered = {int(code) for code in registry.get("codes", {}).get("sources", {})}
+    seen: dict[int, str] = {}
+    for name, code in sorted(constants.items()):
+        if code not in registered:
+            errors.append(f"model source code {name} is not in the registry sources")
+        if code in seen:
+            errors.append(f"model source code {code} is defined twice: {seen[code]} and {name}")
+        else:
+            seen[code] = name
     return errors
 
 

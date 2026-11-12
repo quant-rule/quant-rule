@@ -1,7 +1,11 @@
 //! Volume-flow event detection.
 
 use super::shared::{cross_down_series, cross_up_series, mfi_zone};
-use super::*;
+use super::{
+    AD_SOURCE_CODE, CMF_SOURCE_CODE, Candle, EventRecord, EventType, ExtendedEventConfig,
+    ExtendedReadings, MFI_SOURCE_CODE, OBV_SOURCE_CODE, PivotKind, PivotScale, Readings, codes,
+    cross_down_value, cross_up_value, push,
+};
 
 pub(super) fn flow_events(
     candles: &[Candle],

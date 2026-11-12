@@ -7,10 +7,11 @@
 //! pivots only, so a candidate or a future pivot can never affect an earlier
 //! event.
 
-use super::*;
-
-/// Source code for the confirmed pivot sequence.
-pub const PIVOT_SEQUENCE_SOURCE_CODE: u16 = 55;
+use super::{
+    EventRecord, EventType, ExtendedEventConfig, ExtendedReadings, PivotKind, PivotScale, Readings,
+    codes, push_confirmed,
+};
+pub use crate::events::source_codes::PIVOT_SEQUENCE_SOURCE_CODE;
 
 /// Emits the lower-high and lower-low sequence events.
 pub(super) fn structure_sequence_events(

@@ -1,7 +1,6 @@
 //! Candle anatomy and path readings.
 
-use super::*;
-
+use super::{Candle, ExtendedConfig, Readings};
 pub(super) struct AnatomyReadings {
     pub(super) body_ratio: Vec<Option<f64>>,
     pub(super) upper_wick_ratio: Vec<Option<f64>>,

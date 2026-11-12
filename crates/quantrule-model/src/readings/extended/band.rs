@@ -5,8 +5,7 @@
 //! nearest the close, then to the lower center. The computation only reads
 //! confirmed levels available at or before the bar.
 
-use super::*;
-
+use super::{Candle, ConfirmedLevelRegistry, ExtendedConfig, PivotScale, Readings};
 pub(super) struct BandReadings {
     pub(super) upper: Vec<Option<f64>>,
     pub(super) lower: Vec<Option<f64>>,

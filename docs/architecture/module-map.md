@@ -43,8 +43,9 @@ The crate graph is guarded by
 | `readings/extended.rs` | The `ExtendedReadings` aggregate and family dispatch. | You add an extended reading field. |
 | `events/` | Shared event record, event types, codes, and base detectors: level, divergence, signal, compression, DMI, retest, trend. | You add or change a base event. |
 | `events/extended/` | Extended event families: VWAP, profile, participation, flow, levels, structure, Fibonacci, band, divergence. | You add or change an extended event. |
-| `events/signals.rs` | The extended single-instrument signal batch, called by `events/extended.rs`. | You add an ATR/range/channel/Aroon/path signal. |
+| `events/extended/signals.rs` | The extended single-instrument signal batch, called by `events/extended.rs`. | You add an ATR/range/channel/Aroon/path signal. |
 | `events/codes.rs` | Stable event codes. | You register a new event. |
+| `events/source_codes.rs` | Canonical source codes, defined once and re-exported by the event modules. | You add or rename a source code. |
 | `levels.rs` | Confirmed-level registry from confirmed pivots. | You change level identity or confirmation. |
 | `progression/` | Progression legs, targets, lifecycle, and tests. | You change the leg model. |
 | `context.rs` | Volatility and participation context. | You add a context measurement. |

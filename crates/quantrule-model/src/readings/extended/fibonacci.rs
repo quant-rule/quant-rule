@@ -4,8 +4,7 @@
 //! major pivot of the opposite kind before it. A candidate pivot never changes a
 //! level, and the confirmation delay is inherited from the pivot series.
 
-use super::*;
-
+use super::{Candle, PivotKind, PivotScale, Readings};
 const RATIOS: [f64; 5] = [0.236, 0.382, 0.5, 0.618, 0.786];
 
 pub(super) struct FibonacciReadings {

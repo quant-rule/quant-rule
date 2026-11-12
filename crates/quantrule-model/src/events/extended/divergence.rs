@@ -1,7 +1,9 @@
 //! Divergence event detection.
 
-use super::*;
-
+use super::{
+    ATR_SOURCE_CODE, EventRecord, EventType, ExtendedEventConfig, ExtendedReadings,
+    PROFILE_SOURCE_CODE, PivotKind, PivotScale, Readings, VWAP_SOURCE_CODE, codes,
+};
 pub(super) fn divergence_events(
     readings: &Readings,
     extended: &ExtendedReadings,

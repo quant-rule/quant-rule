@@ -1,7 +1,6 @@
 //! Shared helpers for the extended event detectors.
 
-use super::*;
-
+use super::{EventRecord, EventType, ReadingSeries};
 // A private constructor that mirrors the EventRecord fields one-for-one.
 // Grouping them into synthetic structs would obscure the mapping, so the
 // argument count is intentional.

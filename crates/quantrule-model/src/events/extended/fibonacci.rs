@@ -4,10 +4,11 @@
 //! the configured ATR tolerance. The event direction follows the leg direction,
 //! not the bar direction.
 
-use super::*;
-
-/// Source code for Fibonacci retracements.
-pub const FIBONACCI_SOURCE_CODE: u16 = 56;
+use super::{
+    Candle, EventRecord, EventType, ExtendedEventConfig, ExtendedReadings, Readings, codes,
+    push_with_reference,
+};
+pub use crate::events::source_codes::FIBONACCI_SOURCE_CODE;
 
 pub(super) fn fibonacci_events(
     candles: &[Candle],
