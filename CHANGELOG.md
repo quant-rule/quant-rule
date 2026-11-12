@@ -13,8 +13,18 @@ are not treated as releases.
 
 ## [Unreleased]
 
+### Security
+
+- The native command boundary now rejects filesystem paths outside the opened
+  workspace and memory directory. The desktop Settings, Memory, and Run panels
+  use the native dialog picker, and every selected path is scope-validated
+  before I/O; typed paths remain validated inline.
+
 ### Added
 
+- Native file and folder pickers in the desktop Settings, Memory, and Run
+  panels. A selected path still passes the backend workspace/memory scope check
+  before any I/O, and typed paths remain available.
 - The shell `memory` command family and the desktop memory write forms:
   status, record with computed model counts, workspace/run lists, metric,
   claim, and note CRUD, logical export/import, and SQLite backup/restore. The

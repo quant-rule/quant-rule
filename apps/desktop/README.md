@@ -13,7 +13,7 @@
 | Configs | Validate a run and show its data, model, execution, and portfolio composition. |
 | Run | Compute the model over the configured ladder and export the run summary. |
 | Memory | Open the SQLite memory, record a run, view metrics/claims/notes, export/import, backup/restore. |
-| Settings | Set the workspace root and memory database path. |
+| Settings | Set the workspace root and memory database path with native pickers. |
 
 The desktop UI is a first-class surface, equal to the shell. The pipeline stages
 (backtest, strategy, execution, portfolio, qualification, analytics, and the
@@ -21,6 +21,11 @@ stage reports) are being moved behind the shared application service under the
 [audit remediation plan](../../docs/execution-plans/2026-11-11/audit-app-service-native-remediation.md).
 Until that phase lands, those stages remain shell-only and are a recorded parity
 gap.
+
+The backend owns the path scope. Opening a workspace and a memory database
+anchors the two allowed roots; dataset, config, run, export, import, backup, and
+restore paths are checked against them before I/O, even when a native picker
+selected the path.
 
 ## Develop
 

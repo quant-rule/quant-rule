@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { isTauri } from "./api";
+  import { pickDirectory, pickSaveFile } from "./paths";
+
   let {
     workspaceRoot = $bindable(),
     memoryPath = $bindable(),
@@ -6,6 +9,29 @@
     workspaceRoot: string;
     memoryPath: string;
   } = $props();
+
+  const native = isTauri();
+
+  async function browseWorkspace() {
+    const selected = await pickDirectory("Choose a workspace root");
+    if (selected) {
+      workspaceRoot = selected;
+    }
+  }
+
+  async function browseMemory() {
+    const fallback = workspaceRoot
+      ? `${workspaceRoot.replace(/[\\/]$/, "")}/research.db`
+      : "";
+    const selected = await pickSaveFile(
+      "Choose the research memory database",
+      memoryPath || fallback,
+      [{ name: "SQLite database", extensions: ["db", "sqlite"] }],
+    );
+    if (selected) {
+      memoryPath = selected;
+    }
+  }
 </script>
 
 <div class="stack">
@@ -18,7 +44,12 @@
 
     <label class="field">
       <span>Workspace root</span>
-      <input bind:value={workspaceRoot} placeholder="/home/you/quant-rule-workspace" />
+      <div class="row">
+        <input bind:value={workspaceRoot} placeholder="/home/you/quant-rule-workspace" />
+        {#if native}
+          <button type="button" onclick={browseWorkspace}>Browse…</button>
+        {/if}
+      </div>
       <small class="muted">
         A directory with <code>config/</code> and <code>data/sources/</code>.
       </small>
@@ -26,7 +57,12 @@
 
     <label class="field">
       <span>Research memory database</span>
-      <input bind:value={memoryPath} placeholder="/home/you/quant-rule-workspace/research.db" />
+      <div class="row">
+        <input bind:value={memoryPath} placeholder="/home/you/quant-rule-workspace/research.db" />
+        {#if native}
+          <button type="button" onclick={browseMemory}>Browse…</button>
+        {/if}
+      </div>
       <small class="muted">
         A local SQLite file. The app creates it when you open the memory.
       </small>

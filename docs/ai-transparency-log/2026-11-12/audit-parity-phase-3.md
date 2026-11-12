@@ -64,3 +64,36 @@ workspace tests, 0 failed, 8 ignored.
 
 Remaining Phase 3: P3.2 path scope/pickers, P3.3 native WebDriver E2E, P3.4
 shared pipeline use cases, P3.5 GUI pipeline parity and the `fetch` decision.
+
+## Implementation — P3.2 path scope
+
+- Added a backend-owned desktop scope: the opened workspace root and memory
+  database are set by `open_workspace` and `memory_status`; every dataset,
+  config, model, export, memory write, export/import, and backup/restore path is
+  checked against those roots. Out-of-scope paths are rejected before I/O.
+- Added the out-of-scope regression test for a dataset and a memory export.
+- The dialog-backed file/folder pickers are not added: `tauri-plugin-dialog` is
+  a new dependency and needs explicit approval. The typed-path inputs remain
+  with backend scope validation as the fallback.
+
+Verification: desktop backend 5 tests + 2 bridge; workspace 1,492 passed,
+0 failed, 8 ignored; `tools/gate.sh` passed. P3.2 V2 is `Pass`; V3 is `Pending`
+on the dialog dependency.
+
+## Implementation — P3.2 native pickers
+
+- The human approved `tauri-plugin-dialog`; added the Rust plugin, the
+  `dialog:default` capability, and the npm package.
+- Added `apps/desktop/src/lib/paths.ts` with directory, open-file, and save-file
+  helpers; the browser fixture returns null, so the typed path stays the
+  fallback.
+- Wired native Browse buttons into Settings (workspace root and memory
+  database), Memory (export, import, backup, restore), and Run (summary export).
+  The buttons render only inside the Tauri webview; selected paths still pass
+  the backend scope check.
+- Added Settings- and Memory-panel unit tests that mock the picker helpers and
+  assert the bound workspace, memory, export, and import fields receive the
+  selected paths. Updated the Run-panel test mock for the `isTauri` guard.
+
+Verification: `svelte-check` 0 errors/0 warnings; frontend 13 tests; browser E2E
+1; desktop backend 5 tests + 2 bridge. P3.2 V3 is `Pass`.

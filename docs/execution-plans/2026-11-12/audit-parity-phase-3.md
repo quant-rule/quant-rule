@@ -20,18 +20,17 @@ is sliced so each slice is reviewable, testable, and independently reversible.
 
 ## Current state
 
-- `main` at `688409d` (PR #625 merged) contains the Phase 1/2 remediation.
+- `main` at `2c4c9fb` (PR #626 merged) contains Phase 3 P3.1.
 - The app service owns workspace, dataset, configuration, model run, export,
   memory, and the model-summary record.
 - The shell owns the pipeline orchestration for data inspection, events, report,
   strategy, execution, portfolio, backtest, qualification, and analytics.
-- The desktop UI owns workspace, data, config, model, memory read/record/export,
-  and settings; it has no pipeline stages, memory write forms, path scope, or
-  file pickers.
+- The desktop UI owns workspace, data, config, model, memory read/write/export,
+  and settings; the P3.2 slice adds the backend path scope and native pickers.
 - The native WebDriver E2E is absent; the bridge source guard and the native
   launch/drive evidence exist.
-- Open findings: AUD-11, AUD-12 (CRUD), AUD-14, AUD-16, AUD-18; the `fetch`
-  network-boundary decision is open.
+- Open findings: AUD-11, AUD-12 (model-summary portion), AUD-14, AUD-16,
+  AUD-18; the `fetch` network-boundary decision is open.
 
 ## Scope
 
@@ -61,8 +60,8 @@ Excluded:
   `In Progress` until every slice is merged.
 - The shell `memory` commands are a stable agent interface; adding them changes
   the command surface count and requires README, help, and checker updates.
-- `tauri-plugin-dialog` is a new dependency and needs explicit approval in the
-  P3.2 slice; inline validation is the fallback.
+- `tauri-plugin-dialog` was explicitly approved and added in P3.2; inline
+  validation remains the fallback for typed paths.
 - The native E2E may be blocked by the environment; a recorded exception is
   allowed only with human approval.
 - Moving the shell orchestration into the app service is the largest slice; the
@@ -76,7 +75,7 @@ Excluded:
 | Slice order | P3.1 memory, P3.2 boundary, P3.3 E2E, P3.4 pipeline, P3.5 GUI/fetch | Memory closes a Major finding quickly; the boundary is security; the extraction is last and largest |
 | Memory write path | Shell `memory` command + GUI forms; the service owns the rules | Both surfaces, one source |
 | Path scope | Backend-owned workspace/memory roots; dialog for new paths | The webview must not choose arbitrary file access |
-| Dialog dependency | Add only with explicit approval; inline validation first | Dependency gate |
+| Dialog dependency | `tauri-plugin-dialog`, added in P3.2 after explicit approval | Dependency gate; native selection without a webview path guess |
 | Native E2E | `tauri-driver` + `WebKitWebDriver` | Real IPC, not the fixture backend |
 | Pipeline extraction | Move orchestration into the app service, one stage per slice | ADR direction; no shell-library inversion |
 | Fetch | Human decision; default shell-only with a recorded exception | Network boundary |
@@ -122,8 +121,8 @@ Excluded:
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | V1 | P3.1 memory write path | Shell and GUI CRUD round-trip; shared validation | `cargo test -p quantrule-app`; `cargo test -p quantrule-shell --test cli`; frontend tests | pass | shell CRUD round-trip, desktop CRUD tests, and the full gate pass | Pass | Agent | 2026-11-12 | 18 shell CLI tests + CRUD test; 10 frontend; 1 E2E |
-| V2 | P3.2 path scope | Out-of-root rejected; allowed paths work | desktop command tests | pass | Pending | Pending | Agent | — | — |
-| V3 | P3.2 pickers/validation | Dialog/inline path test | frontend test | pass | Pending | Pending | Agent | — | — |
+| V2 | P3.2 path scope | Out-of-root rejected; allowed paths work | desktop command tests | pass | out-of-root dataset and memory-export paths rejected; workspace commands pass | Pass | Agent | 2026-11-12 | 5 desktop tests + 2 bridge |
+| V3 | P3.2 pickers/validation | Dialog/inline path test | frontend test | pass | Settings, Memory, and Run use the native pickers and the fields update; typed paths remain scope-validated | Pass | Agent | 2026-11-12 | dialog plugin approved; 13 frontend tests |
 | V4 | P3.3 native E2E | Core native flow passes | native WebDriver E2E | pass | Pending | Pending | Agent | — | — |
 | V5 | P3.4 pipeline extraction | One use-case source; parity test | architecture/parity tests | pass | Pending | Pending | Agent | — | — |
 | V6 | P3.5 GUI parity/fetch | Parity or accepted exception; fetch decision recorded | parity test + record | pass | Pending | Pending | Agent | — | — |

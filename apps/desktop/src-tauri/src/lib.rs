@@ -15,6 +15,7 @@ mod commands;
 /// function does not panic.
 pub fn run() -> Result<(), tauri::Error> {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::open_workspace,
             commands::dataset_summary,
