@@ -28,8 +28,35 @@ P3.5 UI decision, the P12 decision, and final acceptance.
 
 - Implemented: the formal refactor assessment, the plan of record, the docs truth
   pass, and the module map.
-- Verification: recorded in the plan verification table; observed results are
-  added as the slices land.
+- Verification: recorded in the plan verification table.
+
+### 2026-11-12 — P2–P4
+
+- Implemented: `events/signals.rs` moved under `events/extended/`, explicit
+  extended imports, one canonical `events/source_codes.rs`, the shared app
+  provenance reader, and the desktop `commands/` split.
+- Verification: `cargo test -p quantrule-model`; app/shell tests; desktop
+  backend tests and clippy; `tools/gate.sh`.
+
+### 2026-11-12 — P3.4a–P3.4e
+
+- Implemented: app-owned data/model/strategy/execution/portfolio/backtest/
+  qualification/analytics use cases; the shell is now a parse/render/fetch
+  adapter. Artifact I/O, labels, and the spec parser moved to the app.
+- Verification: stage command tests pass; the new shell/app parity test writes
+  the same model bundle; `tools/gate.sh` passes.
+
+### 2026-11-12 — P10/P11
+
+- Implemented: shell stage-orchestration guard, 12 desktop stage commands, and
+  the desktop Pipeline panel.
+- Verification: `cargo clippy --workspace --all-targets`; desktop clippy/tests;
+  `npm run check`, `npm test`, `npm run build`; `tools/gate.sh`.
+
+### 2026-11-12 — P12
+
+- Deferred: the `ExtendedReadings` family-struct split remains REF-06
+  `Deferred`, as the approved plan made it conditional. No code change.
 
 ## Verification and evidence
 

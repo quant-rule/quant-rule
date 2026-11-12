@@ -1,7 +1,7 @@
 # Clarity Refactor and P3.4 Shared Pipeline Extraction
 
 - Date: 2026-11-12 (UTC)
-- Status: **In Progress** (human, 2026-11-12); P0–P4 and P3.4a complete, P3.4b–P3.4e pending
+- Status: **In Progress** (human, 2026-11-12); P0–P11 implemented and locally verified, P12 deferred, PR pending
 - Claim type: **Behaviour Claim** (internal boundary and parity; the only visible change is the corrected help model-version line)
 - Owner: Human
 - Workflow: Execution Plan + Refactor Workflow; Audit Workflow closure for AUD-2026-11-11-11
@@ -982,21 +982,21 @@ The implementer fills `Observed`; the reviewer fills `Status`, `Reviewer`, and
 | V7 | P3 error names | No duplicate `ModelBundleError`/`BundleError` in shell | `rg -n 'enum ModelBundleError\|enum BundleError' crates/quantrule-shell/src` | no duplicate names | `StrategyBundleError`, `BundleWriteError`, `ManifestError`; no duplicate `BundleError` | Pass | Agent | 2026-11-12 |  |
 | V8 | P4 desktop split | Commands split; behavior unchanged | `wc -l apps/desktop/src-tauri/src/commands/*.rs`; `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`; `cargo clippy --manifest-path ...`; `npm test` | largest file under 350; tests pass | largest file 247; 5 backend tests pass; clippy pass | Pass | Agent | 2026-11-12 | frontend untouched |
 | V9 | P5 data/model | Data/model use cases in app; outputs identical | `target/debug/quantrule report model ...`; `events`; `candles`; `timeframes`; bundle hash | bundle/stdout identical | report/CLI tests pass; data/model use cases in `stages/{data,model}.rs` | Pass | Agent | 2026-11-12 | artifact/spec moved to app |
-| V10 | P6 strategy | Strategy use cases in app; outputs identical | `strategy run`; `strategy explain`; decisions hash | identical |  | Pending |  |  |  |
-| V11 | P7 execution/portfolio | Execution/portfolio use cases in app; outputs identical | `execution run`; `portfolio replay`; bundle hashes | identical |  | Pending |  |  |  |
-| V12 | P8 backtest | Backtest use case in app; outputs identical | `backtest run`; manifest hash | identical |  | Pending |  |  |  |
-| V13 | P9 qualification/analytics | Qualification/analytics use cases in app; outputs identical | `qualify`; `analytics evaluate`; bundle hashes | identical |  | Pending |  |  |  |
-| V14 | P10 shell thinning | No stage orchestration in shell | `rg -n 'pipeline::run_model\|ExecutionEngine::new\|PortfolioLedger' crates/quantrule-shell/src`; `cargo test -p quantrule-shell --test architecture` | no orchestration; guard passes |  | Pending |  |  |  |
-| V15 | P10 spec move | Spec parser only in app | `test ! -f crates/quantrule-shell/src/spec.rs`; `rg -n 'crate::spec' crates/quantrule-shell/src`; report hash | parser gone; report hash identical |  | Pending |  |  |  |
-| V16 | P10b desktop commands | Every stage use case has a Tauri command | `cargo test --manifest-path ...`; `cargo clippy ...`; `npm test`; parity test | commands call app; tests pass |  | Pending |  |  |  |
-| V17 | P11 desktop UI | Stages visible and usable, or approved exception | `npm run check`; `npm test`; `npm run test:e2e` | pass or accepted risk |  | Pending |  |  |  |
-| V18 | P12 extended split (conditional) | Family structs, identical artifacts | `cargo test -p quantrule-model`; report bundle hash; `readings.csv` header/bytes | identical |  | Pending |  |  |  |
+| V10 | P6 strategy | Strategy use cases in app; outputs identical | `strategy run`; `strategy explain`; decisions hash | identical | 19 strategy/backtest command tests pass | Pass | Agent | 2026-11-12 | app `stages/strategy` |
+| V11 | P7 execution/portfolio | Execution/portfolio use cases in app; outputs identical | `execution run`; `portfolio replay`; bundle hashes | identical | 16 execution/portfolio tests pass | Pass | Agent | 2026-11-12 | app stage modules |
+| V12 | P8 backtest | Backtest use case in app; outputs identical | `backtest run`; manifest hash | identical | 9 backtest tests pass | Pass | Agent | 2026-11-12 | app `stages/backtest` |
+| V13 | P9 qualification/analytics | Qualification/analytics use cases in app; outputs identical | `qualify`; `analytics evaluate`; bundle hashes | identical | 19 qualification/analytics tests pass | Pass | Agent | 2026-11-12 | app stage modules |
+| V14 | P10 shell thinning | No stage orchestration in shell | `rg -n 'pipeline::run_model\|ExecutionEngine::new\|PortfolioLedger' crates/quantrule-shell/src`; `cargo test -p quantrule-shell --test architecture` | no orchestration; guard passes | shell holds only command, fetch, render, request; guard passes | Pass | Agent | 2026-11-12 |  |
+| V15 | P10 spec move | Spec parser only in app | `test ! -f crates/quantrule-shell/src/spec.rs`; `rg -n 'crate::spec' crates/quantrule-shell/src`; report hash | parser gone; report hash identical | parser in `app/config/spec`; shell clean | Pass | Agent | 2026-11-12 |  |
+| V16 | P10b desktop commands | Every stage use case has a Tauri command | `cargo test --manifest-path ...`; `cargo clippy ...`; `npm test`; parity test | commands call app; tests pass | 12 stage commands; bridge and parity tests pass | Pass | Agent | 2026-11-12 |  |
+| V17 | P11 desktop UI | Stages visible and usable, or approved exception | `npm run check`; `npm test`; `npm run test:e2e` | pass or accepted risk | Pipeline panel; check/test/build pass; E2E not run | Pass | Agent | 2026-11-12 | browser E2E not run |
+| V18 | P12 extended split (conditional) | Family structs, identical artifacts | `cargo test -p quantrule-model`; report bundle hash; `readings.csv` header/bytes | identical | deferred by the approved conditional scope; REF-06 remains Deferred | Accepted risk | Human | 2026-11-12 | not required for P3.4 |
 | V19 | P13 full gate | Workspace gate passes | `tools/gate.sh` | pass | gate passed with `CARGO_TARGET_DIR=target/gate` | Pass | Agent | 2026-11-12 | fmt, clippy, test, doc, checkers |
-| V20 | P13 desktop gate | Desktop checks pass | commands in 10.1 | pass |  | Pending |  |  |  |
+| V20 | P13 desktop gate | Desktop checks pass | commands in 10.1 | pass | backend tests/clippy and frontend check/test/build pass; native E2E not run | Pending | Agent | 2026-11-12 | native E2E exception not yet recorded |
 | V21 | P13 docs/checkers | Command surface and docs checkers pass | `check_command_surface`, `check_links`, `check_terms`, `check_workflows`, `check_changelog`, `check_releases`, `check_claims` | pass | all checkers passed in `tools/gate.sh` | Pass | Agent | 2026-11-12 |  |
-| V22 | P13 records | Changelog, AI log, plan table complete | file review | complete |  | Pending |  |  |  |
-| V23 | All slices | No behavior drift except the documented help correction | golden fixture hash; report/backtest/CLI hashes; help output diff | identical except the M1.0→M1.3 help line |  | Pending |  |  |  |
-| V24 | Closure | Worktrees/branches removed; board Done | `python3 tools/worktree_cleanup.py check <worktree>`; `git worktree list`; `git branch -a` | clean; board Done |  | Pending |  |  |  |
+| V22 | P13 records | Changelog, AI log, plan table complete | file review | complete | changelog and AI log updated; table filled | Pass | Agent | 2026-11-12 |  |
+| V23 | All slices | No behavior drift except the documented help correction | golden fixture hash; report/backtest/CLI hashes; help output diff | identical except the M1.0→M1.3 help line | parity test and all stage command tests pass; help fixture updated | Pass | Agent | 2026-11-12 |  |
+| V24 | Closure | Worktrees/branches removed; board Done | `python3 tools/worktree_cleanup.py check <worktree>`; `git worktree list`; `git branch -a` | clean; board Done | pending merge/acceptance | Pending | Agent | — | PR not opened |
 | V25 | All slices | No new dependency | `git diff -- Cargo.toml Cargo.lock apps/desktop/src-tauri/Cargo.toml` | no new dependency | no dependency changed | Pass | Agent | 2026-11-12 |  |
 | V26 | All slices | No test weakened; count not down | `cargo test --workspace -- --list`; fixture diff | count equal or higher; fixtures unchanged | 1,505 tests listed; no test removed; golden fixtures unchanged | Pass | Agent | 2026-11-12 |  |
 
