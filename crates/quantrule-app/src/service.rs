@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 use quantrule_data::{CandleWindow, Timeframe, TimeframeSet};
 use quantrule_model::run::ModelRun;
+use serde_json::Value;
 
 use crate::artifact::model_bundle::BundleOutput;
 use crate::config::{RUN_SCHEMA, RunConfig};
@@ -26,6 +27,9 @@ use crate::memory::{MemoryError, NewConfig, NewDataset, NewRun, NewWorkspace, Re
 use crate::pipeline::{self, WindowMode};
 use crate::stages::data;
 use crate::stages::model::{self, ModelReportError, ModelReportRequest};
+use crate::stages::strategy::{
+    self, StrategyExplainRequest, StrategyOutcome, StrategyRunError, StrategyRunRequest,
+};
 use crate::workspace::Workspace;
 
 /// The application service for one local workspace.
@@ -330,6 +334,30 @@ impl AppService {
         window: WindowMode,
     ) -> Result<ModelRun, SourceError> {
         data::compute_events(path.as_ref(), window)
+    }
+
+    /// Explains one strategy decision from a model bundle.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyRunError`] when the strategy or model bundle is invalid
+    /// or the bar is absent.
+    pub fn explain_strategy(
+        request: &StrategyExplainRequest<'_>,
+    ) -> Result<Value, StrategyRunError> {
+        strategy::explain(request)
+    }
+
+    /// Writes the strategy decisions bundle.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyRunError`] when the strategy or model bundle is
+    /// invalid, the engine needs execution feedback, or the bundle fails.
+    pub fn run_strategy(
+        request: &StrategyRunRequest<'_>,
+    ) -> Result<StrategyOutcome, StrategyRunError> {
+        strategy::run(request)
     }
 }
 

@@ -21,7 +21,6 @@ mod render;
 mod render_flat;
 mod request;
 mod source;
-mod strategy;
 
 use std::ffi::OsString;
 use std::io::{self, Write};

@@ -21,12 +21,12 @@ use crate::request::{
     PortfolioReplayArgs, QualifyArgs, ReportArgs, RunCheckArgs, StrategyExplainArgs,
     StrategyRunArgs,
 };
-use crate::strategy::StrategyRunError;
 use quantrule_app::config::ConfigError;
 use quantrule_app::csv::SourceError;
 use quantrule_app::error::AppError;
 use quantrule_app::memory::MemoryError;
 use quantrule_app::stages::model::ModelReportError;
+use quantrule_app::stages::strategy::StrategyRunError;
 
 /// A parsed shell command.
 #[derive(Debug, PartialEq)]

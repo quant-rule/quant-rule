@@ -2,7 +2,7 @@
 //!
 //! `strategy explain` prints one decision and its as-of evidence. `strategy
 //! run` writes the decisions bundle for one model bundle. The parser owns the
-//! argument grammar; the stage implementation lives in `crate::strategy`.
+//! argument grammar; the stage implementation lives in `quantrule_app::stages::strategy`.
 
 use std::path::PathBuf;
 
@@ -11,7 +11,8 @@ use quantrule_backtest::side::Side;
 
 use super::types::{Command, ParseError};
 use crate::request::{StrategyExplainArgs, StrategyRunArgs};
-use crate::strategy;
+use quantrule_app::service::AppService;
+use quantrule_app::stages::strategy::{StrategyExplainRequest, StrategyRunRequest};
 
 const EXPLAIN_USAGE: &str = "usage: strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat|long|short]";
 const RUN_USAGE: &str =
@@ -223,7 +224,25 @@ pub(crate) fn run_explain(
     args: &StrategyExplainArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), super::types::RunError> {
-    strategy::explain(args, writer).map_err(super::types::RunError::Strategy)
+    let request = StrategyExplainRequest {
+        model: &args.model,
+        strategy: &args.strategy,
+        bar: args.bar,
+        position: args.position,
+    };
+    let record =
+        AppService::explain_strategy(&request).map_err(super::types::RunError::Strategy)?;
+    writeln!(
+        writer,
+        "{}",
+        serde_json::to_string(&record).map_err(|error| {
+            super::types::RunError::Strategy(
+                quantrule_app::stages::strategy::StrategyRunError::Json(error),
+            )
+        })?
+    )
+    .map_err(super::types::RunError::Output)?;
+    writer.flush().map_err(super::types::RunError::Output)
 }
 
 /// Runs `strategy run`.
@@ -236,7 +255,23 @@ pub(crate) fn run_run(
     args: &StrategyRunArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), super::types::RunError> {
-    strategy::run(args, writer).map_err(super::types::RunError::Strategy)
+    let request = StrategyRunRequest {
+        model: &args.model,
+        strategy: &args.strategy,
+        out: args.out.as_deref(),
+    };
+    let outcome = AppService::run_strategy(&request).map_err(super::types::RunError::Strategy)?;
+    if args.json {
+        writer
+            .write_all(&outcome.json)
+            .map_err(super::types::RunError::Output)?;
+    } else {
+        for name in &outcome.artifacts {
+            writeln!(writer, "{}", outcome.root.join(name).display())
+                .map_err(super::types::RunError::Output)?;
+        }
+    }
+    writer.flush().map_err(super::types::RunError::Output)
 }
 
 #[cfg(test)]

@@ -13,57 +13,57 @@ use serde_json::{Value, json};
 use super::StrategyRunError;
 
 /// The identity and configuration a decisions bundle records.
-pub(crate) struct StrategyArtifactMeta<'a> {
+pub struct StrategyArtifactMeta<'a> {
     /// The input candle identity.
-    pub(crate) data_version: &'a str,
+    pub data_version: &'a str,
     /// The model configuration identity.
-    pub(crate) model_config_id: &'a str,
+    pub model_config_id: &'a str,
     /// The strategy configuration identity.
-    pub(crate) strategy_config_id: &'a str,
+    pub strategy_config_id: &'a str,
     /// The requested period start, as written.
-    pub(crate) period_from: Option<&'a str>,
+    pub period_from: Option<&'a str>,
     /// The requested period end, as written.
-    pub(crate) period_to: Option<&'a str>,
+    pub period_to: Option<&'a str>,
     /// The optional strategy label.
-    pub(crate) strategy_id: Option<&'a str>,
+    pub strategy_id: Option<&'a str>,
     /// The engine name.
-    pub(crate) engine: &'a str,
+    pub engine: &'a str,
     /// The execution timeframe code.
-    pub(crate) execution_timeframe: &'a str,
+    pub execution_timeframe: &'a str,
     /// The context timeframe codes, ascending.
-    pub(crate) context_timeframes: Vec<&'a str>,
+    pub context_timeframes: Vec<&'a str>,
 }
 
 /// The decision counts a summary carries.
 #[derive(Debug, Default)]
-pub(crate) struct DecisionCounts {
+pub struct DecisionCounts {
     /// Hold decisions.
-    pub(crate) hold: usize,
+    pub hold: usize,
     /// Market entry decisions.
-    pub(crate) enter: usize,
+    pub enter: usize,
     /// Bracket entry decisions.
-    pub(crate) enter_bracket: usize,
+    pub enter_bracket: usize,
     /// Exit decisions.
-    pub(crate) exit: usize,
+    pub exit: usize,
     /// Long entries.
-    pub(crate) long: usize,
+    pub long: usize,
     /// Short entries.
-    pub(crate) short: usize,
+    pub short: usize,
     /// Entry reason count.
-    pub(crate) entry_reason: usize,
+    pub entry_reason: usize,
     /// Bracket-entry reason count.
-    pub(crate) bracket_entry_reason: usize,
+    pub bracket_entry_reason: usize,
     /// Event-condition exit reason count.
-    pub(crate) event_condition_reason: usize,
+    pub event_condition_reason: usize,
     /// Time-stop exit reason count.
-    pub(crate) time_stop_reason: usize,
+    pub time_stop_reason: usize,
     /// Giveback exit reason count.
-    pub(crate) giveback_reason: usize,
+    pub giveback_reason: usize,
 }
 
 impl DecisionCounts {
     /// Counts one decision.
-    pub(crate) fn observe(&mut self, decision: Decision) {
+    pub fn observe(&mut self, decision: Decision) {
         match decision {
             Decision::Hold => self.hold += 1,
             Decision::Enter(entry) => {
@@ -95,7 +95,7 @@ impl DecisionCounts {
 /// # Errors
 ///
 /// Returns the serializer's error when a record cannot be encoded.
-pub(crate) fn decisions_ndjson(records: &[Value]) -> Result<String, StrategyRunError> {
+pub fn decisions_ndjson(records: &[Value]) -> Result<String, StrategyRunError> {
     let mut text = String::new();
     for record in records {
         text.push_str(&serde_json::to_string(record).map_err(StrategyRunError::Json)?);
@@ -105,7 +105,7 @@ pub(crate) fn decisions_ndjson(records: &[Value]) -> Result<String, StrategyRunE
 }
 
 /// Renders `summary.txt`.
-pub(crate) fn summary_bytes(
+pub fn summary_bytes(
     meta: &StrategyArtifactMeta<'_>,
     bars: usize,
     first_open_time: Option<i64>,
@@ -160,9 +160,7 @@ pub(crate) fn summary_bytes(
 /// # Errors
 ///
 /// Returns the serializer's error when the value cannot be encoded.
-pub(crate) fn provenance_bytes(
-    meta: &StrategyArtifactMeta<'_>,
-) -> Result<Vec<u8>, StrategyRunError> {
+pub fn provenance_bytes(meta: &StrategyArtifactMeta<'_>) -> Result<Vec<u8>, StrategyRunError> {
     let value = json!({
         "schema": "quantrule.stage-provenance/v1",
         "stage": "strategy",

@@ -7,7 +7,7 @@
 //! the runner, not a market reading.
 
 use std::fmt;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use quantrule_backtest::intent::{
@@ -22,13 +22,44 @@ use serde_json::{Value, json};
 use super::artifacts::{self, DecisionCounts, StrategyArtifactMeta};
 use super::bundle::{ModelBundle, StrategyBundleError};
 use super::context::StrategyContextError;
-use crate::request::{StrategyExplainArgs, StrategyRunArgs};
-use quantrule_app::artifact::render_report::{self, BundleWriteError};
-use quantrule_app::config::{ConfigError, StrategyConfig};
+use crate::artifact::render_report::{self, BundleWriteError};
+use crate::config::{ConfigError, StrategyConfig};
+
+/// One `strategy explain` request.
+pub struct StrategyExplainRequest<'a> {
+    /// The model bundle directory.
+    pub model: &'a Path,
+    /// The strategy configuration path.
+    pub strategy: &'a Path,
+    /// The zero-based execution bar.
+    pub bar: usize,
+    /// The strategy's own position state.
+    pub position: StrategyPosition,
+}
+
+/// One `strategy run` request.
+pub struct StrategyRunRequest<'a> {
+    /// The model bundle directory.
+    pub model: &'a Path,
+    /// The strategy configuration path.
+    pub strategy: &'a Path,
+    /// The output root; the model bundle's parent when `None`.
+    pub out: Option<&'a Path>,
+}
+
+/// The written decisions bundle.
+pub struct StrategyOutcome {
+    /// The bundle root.
+    pub root: PathBuf,
+    /// The artifact names under the root.
+    pub artifacts: Vec<String>,
+    /// The `--json` envelope.
+    pub json: Vec<u8>,
+}
 
 /// The strategy command failed.
 #[derive(Debug)]
-pub(crate) enum StrategyRunError {
+pub enum StrategyRunError {
     /// The strategy file is invalid.
     Config(ConfigError),
     /// The model bundle is missing or invalid.
@@ -117,13 +148,10 @@ impl From<StrategyContextError> for StrategyRunError {
 ///
 /// Returns [`StrategyRunError`] when the strategy or model bundle is invalid,
 /// the bar is absent, or the writer fails.
-pub(crate) fn explain(
-    args: &StrategyExplainArgs,
-    writer: &mut impl Write,
-) -> Result<(), StrategyRunError> {
+pub fn explain(request: &StrategyExplainRequest<'_>) -> Result<Value, StrategyRunError> {
     let (config, _) =
-        quantrule_app::config::load_strategy(&args.strategy).map_err(StrategyRunError::Config)?;
-    let bundle = ModelBundle::load(&args.model).map_err(StrategyRunError::Model)?;
+        crate::config::load_strategy(request.strategy).map_err(StrategyRunError::Config)?;
+    let bundle = ModelBundle::load(request.model).map_err(StrategyRunError::Model)?;
     super::context::validate_context(&config, None, |timeframe| {
         bundle.contains_timeframe(timeframe)
     })?;
@@ -133,32 +161,32 @@ pub(crate) fn explain(
         .ok_or(StrategyRunError::MissingTimeframe {
             timeframe_secs: execution,
         })?;
-    let row = bundle
-        .execution_bar(execution, args.bar)
-        .ok_or(StrategyRunError::BarOutOfRange {
-            bar: args.bar,
-            bars: bars.len(),
-        })?;
+    let row =
+        bundle
+            .execution_bar(execution, request.bar)
+            .ok_or(StrategyRunError::BarOutOfRange {
+                bar: request.bar,
+                bars: bars.len(),
+            })?;
     let context: Vec<u64> = config
         .context_timeframes
         .iter()
         .map(|timeframe| u64::from(timeframe.seconds()))
         .collect();
     let input = bundle
-        .input(execution, args.bar, config.event_window_bars(), &context)
+        .input(execution, request.bar, config.event_window_bars(), &context)
         .ok_or(StrategyRunError::BarOutOfRange {
-            bar: args.bar,
+            bar: request.bar,
             bars: bars.len(),
         })?;
-    let decision = config.decide(&input, args.position);
-    let record = decision_record(&config, &input, args.position, decision, row.atr);
-    writeln!(
-        writer,
-        "{}",
-        serde_json::to_string(&record).map_err(StrategyRunError::Json)?
-    )
-    .map_err(StrategyRunError::Output)?;
-    writer.flush().map_err(StrategyRunError::Output)
+    let decision = config.decide(&input, request.position);
+    Ok(decision_record(
+        &config,
+        &input,
+        request.position,
+        decision,
+        row.atr,
+    ))
 }
 
 /// Writes the decisions bundle for one model bundle and strategy configuration.
@@ -168,16 +196,16 @@ pub(crate) fn explain(
 /// Returns [`StrategyRunError`] when the strategy or model bundle is invalid,
 /// the engine needs execution feedback, the output target is unavailable, or
 /// the writer fails.
-pub(crate) fn run(args: &StrategyRunArgs, writer: &mut impl Write) -> Result<(), StrategyRunError> {
+pub fn run(request: &StrategyRunRequest<'_>) -> Result<StrategyOutcome, StrategyRunError> {
     let (config, config_id) =
-        quantrule_app::config::load_strategy(&args.strategy).map_err(StrategyRunError::Config)?;
+        crate::config::load_strategy(request.strategy).map_err(StrategyRunError::Config)?;
     if config.engine_name() == "compression_bracket" {
         return Err(StrategyRunError::UnsupportedEngine {
             engine: "compression_bracket",
             reason: "the bracket side is known only after a fill; use strategy explain for one decision",
         });
     }
-    let bundle = ModelBundle::load(&args.model).map_err(StrategyRunError::Model)?;
+    let bundle = ModelBundle::load(request.model).map_err(StrategyRunError::Model)?;
     super::context::validate_context(&config, None, |timeframe| {
         bundle.contains_timeframe(timeframe)
     })?;
@@ -197,15 +225,18 @@ pub(crate) fn run(args: &StrategyRunArgs, writer: &mut impl Write) -> Result<(),
         .iter()
         .map(|timeframe| u64::from(timeframe.seconds()))
         .collect();
-    let root = args
+    let root = request
         .out
-        .clone()
-        .unwrap_or_else(|| {
-            args.model
-                .parent()
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| PathBuf::from("."))
-        })
+        .map_or_else(
+            || {
+                request
+                    .model
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_else(|| PathBuf::from("."))
+            },
+            Path::to_path_buf,
+        )
         .join("strategy");
     render_report::ensure_available(&root).map_err(StrategyRunError::Bundle)?;
 
@@ -266,26 +297,27 @@ pub(crate) fn run(args: &StrategyRunArgs, writer: &mut impl Write) -> Result<(),
     render_report::write_stage_bundle(&root, &artifacts, &provenance, "decisions.ndjson")
         .map_err(StrategyRunError::Bundle)?;
 
-    if args.json {
-        let value = json!({
-            "bundle": root,
-            "artifacts": ["decisions.ndjson", "summary.txt", "provenance.json"],
-        });
-        writeln!(
-            writer,
-            "{}",
-            serde_json::to_string(&value).map_err(StrategyRunError::Json)?
-        )
-        .map_err(StrategyRunError::Output)?;
-    } else {
-        for name in ["decisions.ndjson", "summary.txt", "provenance.json"] {
-            writeln!(writer, "{}", root.join(name).display()).map_err(StrategyRunError::Output)?;
-        }
-    }
-    writer.flush().map_err(StrategyRunError::Output)
+    let artifacts = vec![
+        "decisions.ndjson".to_owned(),
+        "summary.txt".to_owned(),
+        "provenance.json".to_owned(),
+    ];
+    let value = json!({
+        "bundle": root,
+        "artifacts": artifacts,
+    });
+    let mut json = serde_json::to_vec(&value).map_err(StrategyRunError::Json)?;
+    json.push(b'\n');
+    Ok(StrategyOutcome {
+        root,
+        artifacts,
+        json,
+    })
 }
 
-pub(crate) fn decision_record(
+/// Builds one strategy decision record for the bundle or the explain command.
+#[must_use]
+pub fn decision_record(
     config: &StrategyConfig,
     input: &EventStrategyInput,
     position: StrategyPosition,

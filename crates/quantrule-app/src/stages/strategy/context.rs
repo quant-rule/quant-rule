@@ -8,11 +8,11 @@
 
 use std::fmt;
 
-use quantrule_app::config::StrategyConfig;
+use crate::config::StrategyConfig;
 
 /// The strategy configuration does not fit the published model timeframes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum StrategyContextError {
+pub enum StrategyContextError {
     /// The model does not publish a required timeframe.
     MissingTimeframe {
         /// The timeframe in seconds.
@@ -65,7 +65,7 @@ impl std::error::Error for StrategyContextError {}
 /// Returns [`StrategyContextError`] when the declared execution timeframe
 /// differs from the run's, a required timeframe is not published, or a
 /// condition names a timeframe outside execution plus context.
-pub(crate) fn validate_context(
+pub fn validate_context(
     config: &StrategyConfig,
     expected_execution: Option<u64>,
     published: impl Fn(u64) -> bool,
@@ -107,11 +107,11 @@ pub(crate) fn validate_context(
 #[cfg(test)]
 mod tests {
     use super::{StrategyContextError, validate_context};
-    use quantrule_app::config::StrategyConfig;
+    use crate::config::StrategyConfig;
     use serde_json::json;
 
     fn config(context: &[&str], entry_timeframe: &str) -> StrategyConfig {
-        quantrule_app::config::parse_strategy(
+        crate::config::parse_strategy(
             &json!({
                 "schema": "quantrule.strategy/v1",
                 "id": "CTX",

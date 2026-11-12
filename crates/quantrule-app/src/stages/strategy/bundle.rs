@@ -11,7 +11,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use quantrule_app::artifact::provenance::{ProvenanceError, StageProvenance};
+use crate::artifact::provenance::{ProvenanceError, StageProvenance};
 use quantrule_backtest::strategy::{
     EventStrategyInput, EventTimeframeView, EventView, context_window_bars,
 };
@@ -20,7 +20,7 @@ use quantrule_model::timeframe::ModelStates;
 
 /// The model bundle could not be read.
 #[derive(Debug)]
-pub(crate) enum StrategyBundleError {
+pub enum StrategyBundleError {
     /// A required artifact could not be read.
     Read {
         /// The artifact path.
@@ -65,36 +65,36 @@ impl std::error::Error for StrategyBundleError {
 
 /// One published model bar, reduced to the values a strategy may read.
 #[derive(Debug, Clone)]
-pub(crate) struct BarRow {
+pub struct BarRow {
     /// The timeframe in seconds.
-    pub(crate) timeframe_secs: u64,
+    pub timeframe_secs: u64,
     /// The zero-based bar position.
-    pub(crate) bar: usize,
+    pub bar: usize,
     /// The bar's UTC open time.
-    pub(crate) timestamp: i64,
+    pub timestamp: i64,
     /// The published discrete states.
-    pub(crate) states: ModelStates,
+    pub states: ModelStates,
     /// The published progression stage, or `None`.
-    pub(crate) progression_stage: Option<i8>,
+    pub progression_stage: Option<i8>,
     /// The published progression leg direction, or `None`.
-    pub(crate) progression_leg_direction: Option<i8>,
+    pub progression_leg_direction: Option<i8>,
     /// The published context values, or `None`.
-    pub(crate) context: Option<ContextBar>,
+    pub context: Option<ContextBar>,
     /// The published ATR(14), or `None`.
-    pub(crate) atr: Option<f64>,
+    pub atr: Option<f64>,
 }
 
 /// A completed model bundle ready for the strategy stage.
 #[derive(Debug, Clone)]
-pub(crate) struct ModelBundle {
+pub struct ModelBundle {
     /// The input candle identity.
-    pub(crate) data_version: String,
+    pub data_version: String,
     /// The model configuration identity.
-    pub(crate) config_id: String,
+    pub config_id: String,
     /// The requested period start, as written.
-    pub(crate) period_from: Option<String>,
+    pub period_from: Option<String>,
     /// The requested period end, as written.
-    pub(crate) period_to: Option<String>,
+    pub period_to: Option<String>,
     bars: BTreeMap<u64, Vec<BarRow>>,
     events: BTreeMap<u64, Vec<EventView>>,
 }
@@ -106,7 +106,7 @@ impl ModelBundle {
     ///
     /// Returns [`StrategyBundleError`] when a required artifact is missing,
     /// unreadable, or not shaped like a model bundle.
-    pub(crate) fn load(path: &Path) -> Result<Self, StrategyBundleError> {
+    pub fn load(path: &Path) -> Result<Self, StrategyBundleError> {
         let provenance = parse_provenance(&path.join("provenance.json"))?;
         let bars = parse_readings(&path.join("readings.csv"))?;
         let events = parse_events(&path.join("events.csv"))?;
@@ -136,19 +136,19 @@ impl ModelBundle {
 
     /// Whether the bundle publishes one timeframe.
     #[must_use]
-    pub(crate) fn contains_timeframe(&self, timeframe_secs: u64) -> bool {
+    pub fn contains_timeframe(&self, timeframe_secs: u64) -> bool {
         self.bars.contains_key(&timeframe_secs)
     }
 
     /// One timeframe's published bars, or `None`.
     #[must_use]
-    pub(crate) fn bars(&self, timeframe_secs: u64) -> Option<&[BarRow]> {
+    pub fn bars(&self, timeframe_secs: u64) -> Option<&[BarRow]> {
         self.bars.get(&timeframe_secs).map(Vec::as_slice)
     }
 
     /// The closed execution bar at `bar_index`, or `None`.
     #[must_use]
-    pub(crate) fn execution_bar(&self, timeframe_secs: u64, bar_index: usize) -> Option<&BarRow> {
+    pub fn execution_bar(&self, timeframe_secs: u64, bar_index: usize) -> Option<&BarRow> {
         let bars = self.bars.get(&timeframe_secs)?;
         bars.binary_search_by_key(&bar_index, |row| row.bar)
             .ok()
@@ -161,7 +161,7 @@ impl ModelBundle {
     /// close is at or before the execution bar's close, so a higher timeframe
     /// that is still forming is never read.
     #[must_use]
-    pub(crate) fn input(
+    pub fn input(
         &self,
         execution_timeframe_secs: u64,
         execution_bar_index: usize,
@@ -219,7 +219,7 @@ impl ModelBundle {
 
     /// The published events for one timeframe.
     #[must_use]
-    pub(crate) fn events(&self, timeframe_secs: u64) -> &[EventView] {
+    pub fn events(&self, timeframe_secs: u64) -> &[EventView] {
         self.events
             .get(&timeframe_secs)
             .map(Vec::as_slice)
@@ -250,7 +250,7 @@ fn view(row: &BarRow, _window_bars: usize, events: Vec<EventView>) -> EventTimef
 }
 
 fn parse_provenance(path: &Path) -> Result<StageProvenance, StrategyBundleError> {
-    quantrule_app::artifact::provenance::load_model(path).map_err(strategy_bundle_error)
+    crate::artifact::provenance::load_model(path).map_err(strategy_bundle_error)
 }
 
 fn strategy_bundle_error(error: ProvenanceError) -> StrategyBundleError {

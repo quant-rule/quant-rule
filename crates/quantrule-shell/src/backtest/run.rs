@@ -20,14 +20,14 @@ use serde_json::{Value, json};
 use crate::execution::{ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution};
 use crate::portfolio::{self, PortfolioRunError};
 use crate::request::{BacktestRunArgs, PortfolioReplayArgs};
-use crate::strategy::{
-    DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
-    validate_context,
-};
 use quantrule_app::artifact::model_bundle::model_bundle_from;
 use quantrule_app::artifact::render_report::{self, BundleWriteError};
 use quantrule_app::config::{ConfigError, RunConfig};
 use quantrule_app::pipeline::{self, PipelineError};
+use quantrule_app::stages::strategy::{
+    DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
+    validate_context,
+};
 
 /// The backtest command failed.
 #[derive(Debug)]
@@ -43,7 +43,7 @@ pub(crate) enum BacktestRunError {
     /// The model bundle could not be written.
     Model(String),
     /// A strategy artifact could not be encoded.
-    StrategyArtifact(crate::strategy::StrategyRunError),
+    StrategyArtifact(quantrule_app::stages::strategy::StrategyRunError),
     /// The execution engine rejected a caller invariant.
     Execution(ExecutionError),
     /// The portfolio ledger rejected a fill or a mark.
