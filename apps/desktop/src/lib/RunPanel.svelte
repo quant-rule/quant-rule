@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { call } from "./api";
+  import { call, isTauri } from "./api";
   import { errorMessage } from "./errors";
   import { formatCount, timeframeCode } from "./format";
+  import { pickSaveFile } from "./paths";
   import { setLastRun } from "./session.svelte";
   import type { ModelRunView, RunSummaryView } from "./types";
 
@@ -59,6 +60,19 @@
       busy = false;
     }
   }
+
+  const native = isTauri();
+
+  async function browseExport() {
+    const selected = await pickSaveFile(
+      "Export run summary",
+      exportPath || `${model?.run.output_root ?? ""}/run-summary.json`,
+      [{ name: "JSON", extensions: ["json"] }],
+    );
+    if (selected) {
+      exportPath = selected;
+    }
+  }
 </script>
 
 <div class="stack">
@@ -112,6 +126,9 @@
       {/if}
       <div class="row" style="margin-top: 1rem">
         <input bind:value={exportPath} aria-label="Run summary export path" />
+        {#if native}
+          <button type="button" onclick={browseExport}>Browse…</button>
+        {/if}
         <button onclick={exportSummary} disabled={busy || exportPath.trim() === ""}>
           Export summary
         </button>

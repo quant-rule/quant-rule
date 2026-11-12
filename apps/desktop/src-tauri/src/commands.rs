@@ -5,7 +5,8 @@
 //! config, computes a reading, or writes SQL.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
+use std::sync::Mutex;
 
 use quantrule_app::dataset::Dataset;
 use quantrule_app::memory::{
@@ -262,9 +263,124 @@ fn text(error: impl std::fmt::Display) -> String {
     error.to_string()
 }
 
+#[derive(Debug, Default, Clone)]
+struct Scope {
+    workspace: Option<PathBuf>,
+    memory: Option<PathBuf>,
+}
+
+static SCOPE: Mutex<Scope> = Mutex::new(Scope {
+    workspace: None,
+    memory: None,
+});
+
+fn scope() -> Result<Scope, String> {
+    SCOPE
+        .lock()
+        .map_err(|_| String::from("the desktop path scope is unavailable"))
+        .map(|scope| scope.clone())
+}
+
+fn set_workspace(path: PathBuf) -> Result<(), String> {
+    SCOPE
+        .lock()
+        .map_err(|_| String::from("the desktop path scope is unavailable"))?
+        .workspace = Some(path);
+    Ok(())
+}
+
+fn set_memory(path: PathBuf) -> Result<(), String> {
+    SCOPE
+        .lock()
+        .map_err(|_| String::from("the desktop path scope is unavailable"))?
+        .memory = Some(path);
+    Ok(())
+}
+
+fn normalize(path: &str) -> Result<PathBuf, String> {
+    let path = Path::new(path);
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(text)?
+            .join(path)
+    };
+    let mut normalized = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::RootDir | Component::Prefix(_) | Component::Normal(_) => {
+                normalized.push(component.as_os_str());
+            }
+        }
+    }
+    Ok(normalized)
+}
+
+fn validate_workspace_path(path: &str, label: &str) -> Result<PathBuf, String> {
+    let root = scope()?
+        .workspace
+        .ok_or_else(|| String::from("open a workspace first"))?;
+    let path = normalize(path)?;
+    if !path.starts_with(&root) {
+        return Err(format!(
+            "{label} {} is outside the open workspace {}",
+            path.display(),
+            root.display()
+        ));
+    }
+    Ok(path)
+}
+
+fn validate_output_path(path: &str) -> Result<PathBuf, String> {
+    let scope = scope()?;
+    let path = normalize(path)?;
+    let in_workspace = scope
+        .workspace
+        .as_ref()
+        .is_some_and(|root| path.starts_with(root));
+    let in_memory = scope
+        .memory
+        .as_ref()
+        .and_then(|db| db.parent())
+        .is_some_and(|parent| path.starts_with(parent));
+    if !in_workspace && !in_memory {
+        return Err(format!(
+            "path {} is outside the workspace and the memory directory",
+            path.display()
+        ));
+    }
+    Ok(path)
+}
+
+fn validate_memory_db(db: &str) -> Result<PathBuf, String> {
+    let configured = scope()?
+        .memory
+        .ok_or_else(|| String::from("open the memory first"))?;
+    let db = normalize(db)?;
+    if db != configured {
+        return Err(format!(
+            "memory database {} is not the open memory {}",
+            db.display(),
+            configured.display()
+        ));
+    }
+    Ok(db)
+}
+
+fn open_memory(db: &str) -> Result<ResearchMemory, MemoryError> {
+    let db = validate_memory_db(db).map_err(MemoryError::InvalidRecord)?;
+    ResearchMemory::open(&db)
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn open_workspace(root: String) -> Result<WorkspaceView, String> {
     let service = AppService::open(&root).map_err(text)?;
+    set_workspace(service.workspace().root().to_path_buf())?;
     let workspace = service.workspace();
     let datasets = workspace
         .datasets()
@@ -296,6 +412,7 @@ pub fn open_workspace(root: String) -> Result<WorkspaceView, String> {
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn dataset_summary(path: String) -> Result<DatasetSummaryView, String> {
+    let path = validate_workspace_path(&path, "dataset")?;
     let summary = Dataset::open(&path)
         .and_then(|dataset| dataset.summary())
         .map_err(text)?;
@@ -310,6 +427,7 @@ pub fn dataset_summary(path: String) -> Result<DatasetSummaryView, String> {
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn check_run(config: String) -> Result<RunSummaryView, String> {
+    let config = validate_workspace_path(&config, "run config")?;
     AppService::open_for_config(&config)
         .and_then(|service| service.check_run(&config))
         .map(RunSummaryView::from)
@@ -318,6 +436,7 @@ pub fn check_run(config: String) -> Result<RunSummaryView, String> {
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn run_model(config: String) -> Result<ModelRunView, String> {
+    let config = validate_workspace_path(&config, "run config")?;
     let outcome: ModelRunOutcome = AppService::open_for_config(&config)
         .and_then(|service| service.run_model(&config))
         .map_err(text)?;
@@ -340,6 +459,8 @@ pub fn run_model(config: String) -> Result<ModelRunView, String> {
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn export_run_summary(config: String, out: String) -> Result<RunSummaryView, String> {
+    let config = validate_workspace_path(&config, "run config")?;
+    let out = validate_output_path(&out)?;
     AppService::open_for_config(&config)
         .and_then(|service| service.export_run_summary(&config, &out))
         .map(RunSummaryView::from)
@@ -349,6 +470,8 @@ pub fn export_run_summary(config: String, out: String) -> Result<RunSummaryView,
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_status(db: String) -> Result<MemoryStatusView, String> {
     let memory = ResearchMemory::open(&db).map_err(text)?;
+    let canonical = fs::canonicalize(&db).map_err(text)?;
+    set_memory(canonical)?;
     Ok(MemoryStatusView {
         schema: memory.schema().map_err(text)?,
         version: memory.version().map_err(text)?,
@@ -358,7 +481,7 @@ pub fn memory_status(db: String) -> Result<MemoryStatusView, String> {
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_workspaces(db: String) -> Result<Vec<WorkspaceRecordView>, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.workspaces())
         .map(|records| records.into_iter().map(WorkspaceRecordView::from).collect())
         .map_err(text)
@@ -366,7 +489,7 @@ pub fn memory_workspaces(db: String) -> Result<Vec<WorkspaceRecordView>, String>
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_runs(db: String, workspace_id: i64) -> Result<Vec<RunRecordView>, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.runs(workspace_id))
         .map(|records| records.into_iter().map(RunRecordView::from).collect())
         .map_err(text)
@@ -374,7 +497,7 @@ pub fn memory_runs(db: String, workspace_id: i64) -> Result<Vec<RunRecordView>, 
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_metrics(db: String, run_id: i64) -> Result<Vec<MetricView>, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.metrics(run_id))
         .map(|records| records.into_iter().map(metric_view).collect())
         .map_err(text)
@@ -382,7 +505,7 @@ pub fn memory_metrics(db: String, run_id: i64) -> Result<Vec<MetricView>, String
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_claims(db: String, run_id: i64) -> Result<Vec<ClaimView>, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.claims(run_id))
         .map(|records| records.into_iter().map(ClaimView::from).collect())
         .map_err(text)
@@ -390,7 +513,7 @@ pub fn memory_claims(db: String, run_id: i64) -> Result<Vec<ClaimView>, String> 
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_notes(db: String, workspace_id: i64) -> Result<Vec<NoteView>, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.notes(workspace_id))
         .map(|records| records.into_iter().map(NoteView::from).collect())
         .map_err(text)
@@ -398,7 +521,7 @@ pub fn memory_notes(db: String, workspace_id: i64) -> Result<Vec<NoteView>, Stri
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_notes_for_run(db: String, run_id: i64) -> Result<Vec<NoteView>, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.notes_for_run(run_id))
         .map(|records| records.into_iter().map(NoteView::from).collect())
         .map_err(text)
@@ -436,7 +559,7 @@ pub fn memory_metric_set(
         "null" => MetricValue::Null,
         other => return Err(format!("metric kind {other} is not supported")),
     };
-    let memory = ResearchMemory::open(&db).map_err(text)?;
+    let memory = open_memory(&db).map_err(text)?;
     memory
         .upsert_metric(run_id, &name, &value)
         .map_err(text)
@@ -444,7 +567,7 @@ pub fn memory_metric_set(
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_metric_delete(db: String, run_id: i64, name: String) -> Result<bool, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.delete_metric(run_id, &name))
         .map_err(text)
 }
@@ -458,7 +581,7 @@ pub fn memory_claim_add(
     status: String,
     created_at: i64,
 ) -> Result<i64, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| {
             memory.insert_claim(NewClaim {
                 run_id,
@@ -473,7 +596,7 @@ pub fn memory_claim_add(
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_claim_delete(db: String, id: i64) -> Result<bool, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.delete_claim(id))
         .map_err(text)
 }
@@ -487,7 +610,7 @@ pub fn memory_note_add(
     created_at: i64,
     updated_at: i64,
 ) -> Result<i64, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| {
             memory.insert_note(NewNote {
                 workspace_id,
@@ -507,14 +630,14 @@ pub fn memory_note_update(
     body: String,
     updated_at: i64,
 ) -> Result<bool, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.update_note(id, &body, updated_at))
         .map_err(text)
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_note_delete(db: String, id: i64) -> Result<bool, String> {
-    ResearchMemory::open(&db)
+    open_memory(&db)
         .and_then(|memory| memory.delete_note(id))
         .map_err(text)
 }
@@ -529,15 +652,15 @@ pub fn record_run(
     finished_at: Option<i64>,
     model: Option<ModelSummaryView>,
 ) -> Result<RecordedRunView, String> {
-    let memory = ResearchMemory::open(&db).map_err(text)?;
+    let config = validate_workspace_path(&config, "run config")?;
+    let memory = open_memory(&db).map_err(text)?;
     let model = model.map(ModelRunSummary::from);
-    let config_path = Path::new(&config);
     let recorded = AppService::open_for_config(&config)
         .and_then(|service| {
             service.record_run_with_model(
                 &memory,
                 RecordRunInput {
-                    config: config_path,
+                    config: config.as_path(),
                     run_key: &run_key,
                     status: &status,
                     started_at,
@@ -557,48 +680,62 @@ pub fn record_run(
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_export(db: String, out: String) -> Result<String, String> {
-    let memory = ResearchMemory::open(&db).map_err(text)?;
-    quantrule_app::memory::export_to_file(&memory, Path::new(&out)).map_err(text)?;
-    Ok(out)
+    let memory = open_memory(&db).map_err(text)?;
+    let out = validate_output_path(&out)?;
+    quantrule_app::memory::export_to_file(&memory, &out).map_err(text)?;
+    Ok(out.to_string_lossy().into_owned())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_import(db: String, from: String) -> Result<String, String> {
+    let from = validate_output_path(&from)?;
     let document =
-        fs::read_to_string(&from).map_err(|error| format!("cannot read {from}: {error}"))?;
-    let value: Value =
-        serde_json::from_str(&document).map_err(|error| format!("cannot parse {from}: {error}"))?;
-    let mut memory = ResearchMemory::open(&db).map_err(text)?;
+        fs::read_to_string(&from).map_err(|error| format!("cannot read {}: {error}", from.display()))?;
+    let value: Value = serde_json::from_str(&document)
+        .map_err(|error| format!("cannot parse {}: {error}", from.display()))?;
+    let mut memory = open_memory(&db).map_err(text)?;
     quantrule_app::memory::import_json(&mut memory, &value).map_err(text)?;
-    Ok(from)
+    Ok(from.to_string_lossy().into_owned())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_backup(db: String, out: String) -> Result<String, String> {
-    let memory = ResearchMemory::open(&db).map_err(text)?;
-    quantrule_app::memory::backup(&memory, Path::new(&out)).map_err(text)?;
-    Ok(out)
+    let memory = open_memory(&db).map_err(text)?;
+    let out = validate_output_path(&out)?;
+    quantrule_app::memory::backup(&memory, &out).map_err(text)?;
+    Ok(out.to_string_lossy().into_owned())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn memory_restore(backup: String, target: String) -> Result<String, String> {
-    quantrule_app::memory::restore(Path::new(&backup), Path::new(&target))
-        .map(|_| target)
+    let backup = validate_output_path(&backup)?;
+    let target = validate_output_path(&target)?;
+    quantrule_app::memory::restore(&backup, &target)
+        .map(|_| target.to_string_lossy().into_owned())
         .map_err(|error: MemoryError| text(error))
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+    use std::sync::{Mutex, MutexGuard};
 
     use quantrule_app::memory::{MetricRecord, MetricValue};
 
     use super::{
-        check_run, memory_claim_add, memory_claim_delete, memory_claims, memory_export,
-        memory_metric_delete, memory_metric_set, memory_metrics, memory_note_add,
-        memory_note_delete, memory_note_update, memory_notes_for_run, memory_runs,
-        memory_status, memory_workspaces, metric_view, open_workspace, record_run, run_model,
+        check_run, dataset_summary, memory_claim_add, memory_claim_delete, memory_claims,
+        memory_export, memory_metric_delete, memory_metric_set, memory_metrics, memory_note_add,
+        memory_note_delete, memory_note_update, memory_notes_for_run, memory_runs, memory_status,
+        memory_workspaces, metric_view, open_workspace, record_run, run_model,
     };
+
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn test_guard() -> MutexGuard<'static, ()> {
+        let guard = TEST_LOCK.lock().expect("the test lock is available");
+        *super::SCOPE.lock().expect("the scope is available") = super::Scope::default();
+        guard
+    }
 
     fn repository_root() -> String {
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -609,6 +746,7 @@ mod tests {
 
     #[test]
     fn the_repository_workspace_lists_its_runs() {
+        let _guard = test_guard();
         let view = open_workspace(repository_root()).expect("the repository opens");
         assert!(!view.name.is_empty());
         assert!(view
@@ -625,7 +763,39 @@ mod tests {
     }
 
     #[test]
+    fn out_of_scope_paths_are_rejected() {
+        let _guard = test_guard();
+        open_workspace(repository_root()).expect("the repository opens");
+        let outside = std::env::temp_dir().join("quantrule-outside.csv");
+        assert!(
+            dataset_summary(outside.to_string_lossy().into_owned()).is_err(),
+            "a dataset outside the workspace is rejected"
+        );
+
+        let directory =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../target/desktop-tests/scope");
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).expect("the test directory is created");
+        let db = directory.join("research.db");
+        let db = db.to_string_lossy().into_owned();
+        memory_status(db.clone()).expect("the memory opens");
+        assert!(
+            memory_export(
+                db,
+                std::env::temp_dir()
+                    .join("quantrule-outside-export.json")
+                    .to_string_lossy()
+                    .into_owned(),
+            )
+            .is_err(),
+            "an export outside the workspace and memory directory is rejected"
+        );
+    }
+
+    #[test]
     fn the_run_commands_match_the_service() {
+        let _guard = test_guard();
+        open_workspace(repository_root()).expect("the repository opens");
         let summary = check_run(fixture_run()).expect("the fixture validates");
         assert_eq!(summary.name, "fixture");
         assert_eq!(summary.instrument, "EURUSD");
@@ -640,12 +810,16 @@ mod tests {
 
     #[test]
     fn the_memory_commands_record_and_export() {
+        let _guard = test_guard();
+        open_workspace(repository_root()).expect("the repository opens");
         let directory =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../target/desktop-tests/memory");
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).expect("the test directory is created");
         let db = directory.join("research.db");
         let db = db.to_string_lossy().into_owned();
+        let status = memory_status(db.clone()).expect("the memory opens");
+        assert_eq!(status.schema, "quantrule.research-memory/v1");
         let recorded = record_run(
             db.clone(),
             fixture_run(),
@@ -657,8 +831,6 @@ mod tests {
         )
         .expect("the run is recorded");
         assert!(recorded.run_id > 0);
-        let status = memory_status(db.clone()).expect("the memory opens");
-        assert_eq!(status.schema, "quantrule.research-memory/v1");
         let workspaces = memory_workspaces(db.clone()).expect("the workspaces are read");
         assert_eq!(workspaces.len(), 1);
         let runs = memory_runs(db.clone(), workspaces[0].id).expect("the runs are read");

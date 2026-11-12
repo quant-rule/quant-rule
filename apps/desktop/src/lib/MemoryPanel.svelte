@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { call } from "./api";
+  import { call, isTauri } from "./api";
   import { errorMessage } from "./errors";
   import { formatTime } from "./format";
+  import { pickOpenFile, pickSaveFile } from "./paths";
   import { lastModel, recordTimes } from "./session.svelte";
   import type {
     ClaimView,
@@ -301,6 +302,58 @@
       busy = false;
     }
   }
+
+  const native = isTauri();
+
+  function memoryDirectory(): string {
+    const separator = Math.max(
+      memoryPath.lastIndexOf("/"),
+      memoryPath.lastIndexOf("\\"),
+    );
+    return separator > 0 ? memoryPath.slice(0, separator) : ".";
+  }
+
+  async function browseExport() {
+    const selected = await pickSaveFile(
+      "Export research memory",
+      exportPath || `${memoryDirectory()}/memory-export.json`,
+      [{ name: "JSON", extensions: ["json"] }],
+    );
+    if (selected) {
+      exportPath = selected;
+    }
+  }
+
+  async function browseImport() {
+    const selected = await pickOpenFile("Import research memory", [
+      { name: "JSON", extensions: ["json"] },
+    ]);
+    if (selected) {
+      importPath = selected;
+    }
+  }
+
+  async function browseBackup() {
+    const selected = await pickSaveFile(
+      "Back up research memory",
+      backupPath || `${memoryDirectory()}/research-backup.db`,
+      [{ name: "SQLite database", extensions: ["db", "sqlite"] }],
+    );
+    if (selected) {
+      backupPath = selected;
+    }
+  }
+
+  async function browseRestore() {
+    const selected = await pickSaveFile(
+      "Restore into a new memory database",
+      restorePath || `${memoryDirectory()}/research-restored.db`,
+      [{ name: "SQLite database", extensions: ["db", "sqlite"] }],
+    );
+    if (selected) {
+      restorePath = selected;
+    }
+  }
 </script>
 
 <div class="stack">
@@ -478,14 +531,26 @@
     <div class="stack">
       <div class="row">
         <input bind:value={exportPath} placeholder="export path" aria-label="Export path" />
+        {#if native}
+          <button type="button" onclick={browseExport}>Browse…</button>
+        {/if}
         <button onclick={exportMemory} disabled={busy || exportPath.trim() === ""}>Export</button>
         <input bind:value={importPath} placeholder="import path" aria-label="Import path" />
+        {#if native}
+          <button type="button" onclick={browseImport}>Browse…</button>
+        {/if}
         <button onclick={importMemory} disabled={busy || importPath.trim() === ""}>Import</button>
       </div>
       <div class="row">
         <input bind:value={backupPath} placeholder="backup path" aria-label="Backup path" />
+        {#if native}
+          <button type="button" onclick={browseBackup}>Browse…</button>
+        {/if}
         <button onclick={backupMemory} disabled={busy || backupPath.trim() === ""}>Backup</button>
         <input bind:value={restorePath} placeholder="restore target" aria-label="Restore target" />
+        {#if native}
+          <button type="button" onclick={browseRestore}>Browse…</button>
+        {/if}
         <button onclick={restoreMemory} disabled={busy || backupPath.trim() === "" || restorePath.trim() === ""}>
           Restore
         </button>

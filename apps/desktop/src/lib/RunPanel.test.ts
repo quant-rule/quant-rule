@@ -5,7 +5,7 @@ import type { ModelRunView } from "./types";
 
 const { call } = vi.hoisted(() => ({ call: vi.fn() }));
 
-vi.mock("./api", () => ({ call }));
+vi.mock("./api", () => ({ call, isTauri: () => false }));
 
 import RunPanel from "./RunPanel.svelte";
 
