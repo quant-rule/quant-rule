@@ -1,115 +1,19 @@
 # QuantRule — Architecture Characteristics
 
-## 1. Derivation
+Eight characteristics matter. Each is tied to a kata requirement and has a level
+that can be measured. The rest of the course list is deliberately not optimised.
 
-Mark Richards and Neal Ford define an architecture characteristic as a non-domain
-design consideration that shapes structure and is critical to success. Each one
-below is tied to a sentence in the kata, carries a fitness function, and states
-the evidence that exists today.
+| Characteristic | Kata | Why it matters | Level (measurable) | Measured by |
+|:---------------|:----:|:---------------|:------------------|:------------|
+| Testability | R2, R3, R5 | every published number is a claim someone defends | every reading and event has a causality, a determinism, and a golden test; fast suite <= 5 min | `cargo test`, gate |
+| Modularity | R4, R6, R7 | six services only pay off if boundaries hold | 6 services, 0 cycles, gateway imports 0 engine symbols | boundary test |
+| Maintainability | R3, R7 | the rule changes weekly, the platform must not | a rule change touches <= 1 crate and <= 3 modules; no file over 1,000 lines | structural check |
+| Deployability | R4, R6 | a reviewer must reproduce in one command | clean clone to healthy <= 10 min; 1 published port; desktop is 1 asset | `make up` |
+| Fault tolerance | R4, R5 | a run must survive a crash without corrupting evidence | 0 succeeded runs with a missing artifact; resubmission gives identical bytes | crash test |
+| Responsiveness | R4, R7 | marking is interactive, a year of candles is not | submit <= 200 ms; chart window <= 200 ms; 1 year, 8 timeframes <= 60 s on 8 cores | benchmark |
+| Scalability | R4 | one machine must borrow a second | model stage 1 to 4 workers: identical digest, >= 2.5x throughput | scale test |
+| Partitioning type | R1-R7 | the course asks for the choice explicitly | domain-driven: 6 services by capability, no layer split | service catalog |
 
-| Demand from the kata | Characteristic |
-|---|---|
-| "the same evidence, every time" | Reproducibility (determinism) |
-| "no look-ahead"; events appear only when knowable | Temporal integrity (causality) |
-| "inspect, reproduce, and defend" | Auditability (evidence traceability) |
-| "walk away"; the run outlives the client | Detachability |
-| "work can exceed one machine" | Scalability |
-| "pure filters"; one-way dependencies | Modularity |
-| "one command"; one port | Deployability |
-| "every reading and event has evidence" | Testability (enabling) |
-
-## 2. Driving characteristics
-
-| Characteristic | Good means | Fitness function | Evidence |
-|---|---|---|---|
-| **Reproducibility** | Same inputs plus the same image digest produce byte-identical data artifacts | Canonical digest equality; determinism tests; golden fixtures | Strong for the engines; the distributed claim is bounded (see §6) |
-| **Temporal integrity** | No value at bar *t* depends on a later bar; events appear only at or after their availability bar | Causality and prefix tests | Strong |
-| **Auditability** | Every result names data version, config hash, model version, image digest, canonical digest | Provenance fields; bundle-completeness test | Designed; implemented by `DIST-034` |
-
-## 3. Supporting characteristics
-
-| Characteristic | Good means | Fitness function |
-|---|---|---|
-| **Detachability** | A run completes after the client disconnects | Submit, close, reopen, observe `succeeded` |
-| **Scalability** | Model and backtest workers scale with no change in output | One worker and four workers produce the same digest |
-| **Modularity** | Six services, one responsibility each; engines untouched | Service catalog; boundary guard tests |
-| **Deployability** | One command starts the stack; one port is exposed | `make up`; health check |
-| **Research isolation** | Hindsight research cannot reach the signal path | Guard: no run artifact write, no strategy read |
-| **Testability** | Claims are provable at the tier that exercises them | Unit, composed, and port-parity tiers |
-
-Scalability is a supporting characteristic, not a driver. It exists because the
-work is batch and CPU-bound, not because there are many users.
-
-## 4. Deliberately not optimized
-
-| Characteristic | Decision | Consequence |
-|---|---|---|
-| **Availability** | A run is a job; a failure is a state | No failover, no uptime target |
-| **Multi-tenancy** | One principal; profiles are organisational | A shared host is trusted |
-| **Low latency** | Batch; a run takes as long as it takes | Simplicity wins over speed |
-| **Security depth** | Host and network boundary, not application auth | Remote exposure needs a network gate |
-| **Interoperability** | File and JSON contracts only | No third-party API |
-
-## 5. Style, quantum, and planes
-
-**Style.** Service-Based Architecture with pipes-and-filters inside each service,
-and an event-driven control plane.
-
-**Quantum.** Six deployables, one database instance with schema-per-service, one
-object store, one image. The set is one quantum for the operator; each service is
-a separate failure and scaling unit.
-
-| Plane | Style | Determinism | Queue |
-|---|---|---|---|
-| Data | Synchronous, fixed order | Required | no |
-| Control | Asynchronous | Not required | yes |
-| Research | Synchronous, interactive | Bounded | no |
-
-```text
-browser / shell / desktop shell
-            | HTTP
-            v
-        gateway -- postgres
-            |          ^
-            |          +-- evidence -- minio
-            v
-        rabbitmq -- backtest -- minio
-                       |   +-- model
-                       +------ data
-        simulation -- (research plane, isolated)
-```
-
-**Why this is the least worst.** A monolith cannot detach a run from the client or
-use a second machine. Microservices add sagas, a mesh, and version skew for no
-additional driver. Event-driven everywhere makes byte-identical output depend on
-delivery order. Space-based and SOA/ESB have no load profile or integration
-estate to serve.
-
-## 6. The determinism claim
-
-Compared by the **canonical digest**: SHA-256 over the sorted list of
-`(path, sha256)` for `results.json`, `*.csv`, and `*.ndjson`, excluding
-`provenance.json`, logs, and any file that records where or when the run
-happened.
-
-Enforced, not sampled: no transcendental or fused-multiply-add operation in the
-signal path, a pinned target triple, fixed accumulation order, and float-roundtrip
-serialization. Scale invariance is tested locally. End-to-end confirmation across
-two CPUs belongs to reviewer verification, and no document claims otherwise.
-
-The research plane records an **inputs digest** and no output digest, because
-human marks are judgment.
-
-## 7. Trade-offs
-
-| Trade-off | Decision | Consequence |
-|---|---|---|
-| Reproducibility vs distribution | Distribution accepted; determinism defended by invariants | The claim must be precise |
-| Simplicity vs distribution | Simplicity conceded | Docker becomes mandatory for local use |
-| Scalability vs determinism | Shard only where the merge is order-independent | Backtest stays sequential per run |
-| Auditability vs storage | Duplicate copies retained and hashed | Storage is cheap |
-| Deployability vs native UX | Browser is primary; desktop is a shell | No native file dialogs |
-| Organisation vs isolation | Profiles scope records | They are not a security boundary |
-
-**Priority if forced to shed one:** shed Evolvability first. Never shed
-Reproducibility, Temporal integrity, Auditability, or Detachability.
+**Not optimised:** elasticity (no burst traffic, one operator, batch work),
+localization (one language, one user), and accessibility (one expert user;
+keyboard support is kept, but it is not a driver).

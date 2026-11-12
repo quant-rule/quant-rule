@@ -1,161 +1,100 @@
-# QuantRule — Architecture Description
+# QuantRule - Architecture Description
 
-## 1. Context
+## 1. Style
 
-QuantRule is a distributed, single-operator research platform for rule-based
-trading on OHLCV candles. One operator owns the candles, submits batch runs, and
-must be able to walk away while a run completes. A reviewer reproduces a result
-from an image digest and a canonical digest, without an account.
+Service-Based architecture: six coarse services, one database instance with one
+schema per service, one object store, one broker, one image. The data plane is a
+synchronous pipeline; the control plane is asynchronous; research is a separate,
+isolated plane.
 
-The product is not a public service, not multi-tenant, and not a prediction
-engine. It is an evidence machine.
+Chosen over microservices (saga and mesh cost for one operator) and over a
+monolith (cannot detach a run from the client or use a second machine).
 
-## 2. Style selection
+## 2. Partitioning
 
-The five distributed styles were compared against the kata's drivers:
-reproducibility, temporal integrity, auditability, and detachability.
+Domain-driven, by capability, not by layer:
 
-| Style | Verdict | Why |
-|---|---|---|
-| **Service-Based** | **Base style** | Coarse domains, six services, one host, shared infrastructure. Distribution without microservice operations |
-| **Event-Driven** | **Control plane only** | Async fits submission and finalization; choreographing the pipeline would break replay |
-| Microservices | Rejected | Twenty services, sagas, a mesh, and version skew for no additional driver |
-| Space-Based | Rejected | No elastic in-memory load profile exists |
-| SOA / ESB | Rejected | The bus is the coupling bottleneck; its useful half is Service-Based without the bus |
+| Service | Capability | Kata |
+|:-----------------|:-------------------------------------------|:--------|
+| `gateway` | HTTP boundary, static client, profile, upload | R6, R8 |
+| `data` | Ingestion, content identity, ladder, catalog | R1, R2 |
+| `model` | Readings, states, events, progression | R2 |
+| `backtest` | Orchestration, strategy, execution, portfolio | R3, R4 |
+| `evidence` | Provenance, digest, run records, memory | R5 |
+| `simulation` | Windows, marks, oracle, review, check | R7 |
 
-The result is a **two-plane** architecture, with a third research plane.
-
-## 3. Containers
-
-| Container | Responsibility | Owns |
-|---|---|---|
-| `gateway` | HTTP boundary, static client, upload, health, principal, profile | nothing durable |
-| `data` | Ingestion, `data_version`, ladder, dataset and config catalog | `catalog` schema, candles |
-| `model` | Readings, states, levels, events, progression, report | model objects |
-| `backtest` | Run orchestration, strategy, execution, portfolio | artifacts |
-| `evidence` | Provenance, canonical digest, run records, memory | `runs` schema, bundles |
-| `simulation` | Windows, marks, oracle, review, check | `simulation` schema, research objects |
-| `postgres` | Metadata, schema per service | — |
-| `minio` | Content-addressed candles and artifacts | — |
-| `rabbitmq` | Control-plane messages | — |
-
-One image carries the six service binaries and the built Svelte client, so one
-digest pins the entire compute stack.
-
-## 4. Runtime view
+## 3. Components and boundaries
 
 ```text
-submit --> gateway --> postgres (queued)
-                +---> rabbitmq (run.requested)
-                          |
-                          v
-                    backtest worker
-                      +- data: candles and ladder
-                      +- model: readings and events
-                      +- strategy, execution, portfolio
-                          |
-                          v
-                    run.computed --> evidence
-                                       +- provenance.json
-                                       +- canonical digest
-                                       +- succeeded
+browser / shell / desktop shell
+  -> gateway (HTTP, quantrule.api/v1)
+       -> postgres
+       -> evidence -> object store
+  -> broker
+       -> backtest -> object store
+            -> model
+            -> data
+  -> simulation (research plane: no queue, no run id)
 ```
 
-A client may disconnect after `202`; the queue is durable and the inputs are
-immutable.
+- Stages exchange content references, never payload sets.
+- Database, object store, and queue sit behind traits; a service calls the trait.
+- The research plane can read a recorded bundle and cannot write a run artifact.
 
-The **research plane** is separate: `simulation` serves windows, marks, oracle,
-review, and check synchronously. It has no queue, no `run_id`, and no output
-digest.
+Code: `crates/quantrule-{api,server,app,data,model,backtest,shell}`,
+`apps/web`, `apps/desktop-shell`. The module map is
+`docs/architecture/module-map.md`.
 
-## 5. Component view
+## 4. Interfaces
 
-| Service | Components |
-|---|---|
-| `gateway` | router, profile resolution, static assets, upload streaming, health |
-| `data` | ingest, catalog, ladder, inspect |
-| `model` | compute, shard by timeframe, sorted merge |
-| `backtest` | orchestrator, strategy, execution, portfolio, artifact writer |
-| `evidence` | provenance, digest, finalize, memory |
-| `simulation` | window selection, marks, oracle, review, check, exit lab |
-
-Database, object store, and queue sit behind traits. v1.0.0 ships Postgres, S3,
-and RabbitMQ; the embedded desktop profile (v1.1) implements the same traits.
-
-## 6. Data flow
-
-```text
-candles --> data_version (sha256)
-              |
-              v
-        ladder --> model --> backtest --> artifacts --> evidence
-                                                        |
-                                                        v
-                                                canonical digest
-```
-
-Stages exchange **references**, never payloads. A merge key is sorted; no output
-depends on arrival order. A run is `succeeded` only when every artifact verifies.
-
-## 7. Deployment
-
-| Profile | Contains | Installs with |
+| Interface | Shape | Version |
 |---|---|---|
-| Server | Six services and three stores | Docker, `make up` |
-| Desktop | A Tauri shell over the gateway URL | A GitHub Release asset |
+| Client API | HTTP/JSON | `quantrule.api/v1` |
+| Control plane | Message envelope | `quantrule.queue/v1` |
+| Run manifest | JSON | `quantrule.run/v1` |
+| Evidence bundle | Files plus provenance | `quantrule.bundle/v1` |
+| Shell | Command contract | in-repo |
 
-`make up` is the only command a reviewer needs. It prints
-`QuantRule v1.0.0 ready -> http://localhost:8080` after health passes.
+No interface accepts a filesystem path. No interface returns a label: the gateway
+forwards numeric codes and each client maps them.
 
-The image contains no Python interpreter and no `.py` file. The client is built
-with Bun; the image carries static assets, not a Bun runtime.
+## 5. Constraints
 
-## 8. Quality attributes
+- Rust for every computation; Svelte for the client; no Python in the image.
+- One image, six binaries, one digest.
+- One principal; profiles organise records and are not a security boundary.
+- Determinism is compared by a canonical digest, not by a whole-bundle hash.
 
-| Attribute | Fitness function |
-|---|---|
-| Reproducibility | Canonical digest equality across runs, worker counts, and reordered inputs |
-| Temporal integrity | Causality and prefix tests per reading and event |
-| Auditability | Provenance completeness; bundle refused when an artifact is missing |
-| Detachability | Submit, close the client, reopen, observe `succeeded` |
-| Scalability | One worker and four workers produce the same digest |
-| Research isolation | No run artifact write, no strategy read, no model computation |
-| Testability | Unit, composed, and port-parity tiers |
+## 6. Decisions
 
-## 9. Security and privacy
+`docs/adr/2026-11-12/`: 01 architecture, 02 planes, 03 principal, 04 content
+addressing, 05 client, 06 run, 07 digest, 08 distribution, 09 simulation,
+10 Python boundary, 11 profiles, 12 desktop.
 
-- The trust boundary is the host and the container network.
-- There is no authentication: one principal, by decision.
-- Profiles are organisational, not a boundary.
-- Remote exposure needs a private network or a bearer token; the security
-  document states which.
-- Candle data stays on the operator's network.
+Each records context, decision, alternatives, consequences, a revisit trigger, and
+verification.
 
-## 10. Decisions
+## 7. Changeability evidence
 
-| ID | Decision |
-|---|---|
-| ADR-01 | Distributed Service-Based architecture; six services |
-| ADR-02 | Control plane separate from the data plane |
-| ADR-03 | Single principal; no accounts |
-| ADR-04 | Content-addressed exchange; one image |
-| ADR-05 | Svelte client; the Tauri shell owns no domain |
-| ADR-06 | A run is the full pipeline; inspection is read-only |
-| ADR-07 | Canonical digest and the claim boundary |
-| ADR-08 | Static download site retired |
-| ADR-09 | Simulation service and the research plane |
-| ADR-10 | Python confined to repository governance |
-| ADR-11 | Profiles are organisational |
-| ADR-12 | Desktop: shell now, embedded later, in-process never |
+Two changes carried through the architecture:
 
-## 11. Evidence and limitations
+| Change | Touched | Cost | What was hard |
+|---|---|---|---|
+| Add the simulation service | 2 ADRs, 15 documents, 9 issues; no engine change | one document pass | keeping hindsight out of the signal path |
+| Add profiles | one column across four schemas, one header, one client store | small | every query must be scoped; a missed scope is a silent leak between research lines |
 
-- Reproducibility is proven on one machine by scale invariance and by repeated
-  runs; cross-CPU confirmation is a reviewer procedure, not an observed result.
-- The system is not built yet. This document describes the v1.0.0 contract.
-- The embedded desktop profile is v1.1 and is not part of this release.
+A rule change (R3) touches one crate and at most three modules: the strategy
+vocabulary, its config parser, and its test fixture. A new reading (R2) touches
+one reading module plus the registry, the config parser, the writer, and one
+golden fixture - the widest ripple in the system, and it is bounded.
 
-## 12. Future work
+Expensive to change: the canonical digest definition (invalidates recorded
+evidence), the run identity inputs (invalidates deduplication), and the service
+count (a new ADR and a new deployment unit).
 
-Multi-tenancy, a team cloud, an embedded desktop profile, and Windows/macOS
-packaging. Each requires its own decision record. None is in v1.0.0.
+## 8. Consistency
+
+Kata R1-R8 -> eight characteristics -> six services -> twelve decisions -> the issue
+tree. One increment is described throughout: the distributed platform that makes
+one rule produce one reproducible bundle, and one research question produce one
+checked hypothesis.

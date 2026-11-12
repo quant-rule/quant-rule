@@ -1,45 +1,51 @@
-# Checkpoint D — Architecture and Changeability
+# Checkpoint D - Architecture and Changeability
 
-## Claim
+## Architecture description
 
-The local-first architecture keeps the deterministic engine isolated from the
-desktop UI and the distribution channel, so a model, strategy, or UI change stays
-local and testable.
+`docs/course/architecture/src/03-architecture-description.md`, with code
+references: style, domain partitioning, six services, interfaces, constraints,
+and the twelve decisions.
 
-## Current architecture
+## Decisions
 
-- One local quantum: Tauri UI + application service + pure engines.
-- Pipes-and-filters inside a modular monolith.
-- CLI and UI are adapters over the same application service.
-- The download page is a static distribution channel.
-- The research memory is a SQLite store behind the application service.
+`docs/adr/2026-11-12/01`-`12`. Each has context, decision, alternatives,
+consequences, a revisit trigger, and a verification line. The two that are hard
+to reverse:
 
-## Change scenarios
-
-| Change | Boundary | Evidence |
+| Decision | Why hard to reverse | Revisit trigger |
 |---|---|---|
-| New model reading | `crates/quantrule-model` | golden, causality, determinism tests |
-| New strategy rule | `crates/quantrule-backtest` | strategy boundary tests |
-| UI screen | `apps/desktop/src` | unit and browser E2E |
-| New command | `crates/quantrule-shell` | command tests and help |
-| New distribution channel | `docs/architecture/deployment.md` | clean install and recorded digest |
-| Team cloud (future) | new control plane | not implemented; new ADR |
+| Canonical digest definition | Invalidates every recorded comparison | A digest that misses a real artefact class |
+| Run identity inputs | Invalidates deduplication and every run id | A new input that changes results |
 
-## Evidence
+## Quantified characteristics
 
-- Crate boundaries and structural checks.
-- Model/strategy boundary tests.
-- The Tauri UI calls `quantrule-app` through typed commands; it does not import
-  an engine directly.
-- The Phase 3 verification report records the clean install, offline launch, and
-  memory round-trips.
+Eight, in `02-architecture-characteristics.md`, each tied to a kata requirement
+and each with a measurable level.
 
-## Limit
+## Changeability evidence
 
-The UI does not run backtests or analytics; those remain CLI operations. The
-team cloud is a future quantum and is not covered by this evidence.
+| Change | Ripple | What it cost | What stayed easy |
+|---|---|---|---|
+| Add a service (simulation) | 2 ADRs, 15 documents, 9 issues | a document pass; no engine change | engines untouched |
+| Add profiles | one column in four schemas, one header, one client store | small | no service changed its responsibility |
+| Add a reading | one module, registry, parser, writer, one fixture | the widest ripple in the system | bounded to one crate |
 
-## Decision
+**Cheap to change:** a rule, a reading, a client screen, an endpoint behind a
+version.
+**Expensive:** the digest definition, the run identity, the service count.
+**Evidence limitation:** the ripple figures come from the change set, not from a
+measured time series; there is one data point per change.
 
-Keep the pipeline/modular-monolith style; do not add a server or microservices
-for the solo increment.
+## Consistency
+
+Kata R1-R8 -> eight characteristics -> six services -> twelve decisions -> the issue
+tree. One increment throughout: one rule in, one reproducible bundle out.
+
+## Likely questions
+
+- **What does this structure make cheap?** A rule change, a new reading, a client
+  screen, and a second worker.
+- **What does it make expensive?** Changing the digest definition or the run
+  identity, and adding a seventh service.
+- **Residual risk:** the distributed stack is partially built; the determinism
+  claim is bounded to one machine.

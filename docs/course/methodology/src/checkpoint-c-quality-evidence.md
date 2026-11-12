@@ -1,43 +1,44 @@
-# Checkpoint C — Quality and Residual Risk
-
-## Claim
-
-The Tauri Platform's highest-risk behaviours have executable evidence and a
-recorded residual risk.
+# Checkpoint C - Quality and Residual Risk
 
 ## Risk map
 
-| Risk | Control | Evidence |
-|---|---|---|
-| Reproducibility drift | Golden and byte-identical rerun tests | `cargo test` |
-| Look-ahead | Causality and availability tests | model/strategy tests |
-| Local data loss | Export/backup and restore test | 22 memory tests, including round-trips |
-| Linux packaging failure | Installer smoke test | Ubuntu 24.04 container install + launch |
-| Scope creep into cloud | Plan scope fence and ADR | plan/ADR |
-| Strategy IP exposure | No network in engines; local-only data | offline AppImage launch |
+| Risk | Control | Effort | Residual |
+|---|---|---|---|
+| Look-ahead leaks into a rule | availability bars + causality tests per event | high | a new reading may repeat a past mistake |
+| Non-determinism across runs | fixed accumulation order, sorted merges, canonical digest | high | cross-CPU equality is unproven |
+| A run silently loses an artifact | publish only after every hash verifies | medium | a store failure mid-verify is untested in production |
+| A change breaks recorded evidence | versioned contracts, immutable runs | medium | a digest definition change invalidates old bundles |
+| Wrong input accepted as valid | strict config validation, cross-config checks | medium | a valid config can still be a bad hypothesis |
 
-Non-test control: the human review gate and the scope-fence ADR.
+At least one control is non-test: contract versioning and the review rule.
 
-## One behaviour
+## One behaviour, with evidence
 
-**Expected:** the same fixture and config produce the same evidence bundle bytes
-on two runs.
+**Risk:** look-ahead.
+**Behaviour tested:** an event appears only at or after the bar on which it
+became knowable.
+**Expected:** appending later bars does not change any earlier published value.
+**Observed:** the prefix and causality tests pass on the current model suite.
 
-**Observed:** repeated `report model` bundles and repeated `run check` output
-are byte-identical; the full Rust suite passes 1,476 tests.
+Command: `cargo test -p quantrule-model` (causality and prefix tests).
 
-**Limit:** this proves the fixture and the local machine, not every platform or
-dataset.
+## Limit
 
-## Review and AI use
+Passing causality tests prove the tested readings are causal. They do not prove
+that a strategy written on top of them is - the strategy is a separate rule and
+can still read a level before it is confirmed.
 
-- Review: the plan and the PR are reviewed at `In Review`.
-- AI use: recorded in the AI transparency log; the human verifies the result.
-- Residual risk: the browser E2E uses a fixture backend; the native smoke does
-  not drive the UI. The clean install is containerized, not bare-metal.
+## Three decisions
 
-## Decision
+- **Review.** The review kept the model's numeric output and rejected adding
+  labels at the service boundary; labels are a client mapping, so two clients
+  cannot drift.
+- **AI use.** AI drafted the architecture documents and the issue tree. Every
+  claim in them was checked against the code or the gate; cross-machine
+  determinism is explicitly not claimed as observed.
+- **Residual risk.** The determinism claim is bounded to one machine until a
+  second one runs the verification procedure. Next: add the scale-invariance
+  test before the client ships.
 
-Keep the quality gates. The Phase 3 evidence is recorded in
-[`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md);
-add a native WebDriver flow only if release risk requires it.
+**Claim -> Evidence -> Limit -> Decision:** the evidence supports the causality
+claim for the tested readings, not for a strategy built on them.

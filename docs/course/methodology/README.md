@@ -17,4 +17,4 @@
 | `src/checkpoint-e-delivery-observation-recovery.md` | `deliverables/checkpoint-e-delivery-observation-recovery.pdf` |
 
 Each checkpoint uses **Claim / Evidence / Limit / Decision**. The current scope is
-the solo local product; a collaborative team cloud is future work.
+the distributed platform; the product is single-principal.

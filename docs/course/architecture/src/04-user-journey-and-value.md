@@ -1,4 +1,4 @@
-# QuantRule — User Journey and Value
+# QuantRule - User Journey and Value
 
 ## 1. The operator
 
@@ -12,11 +12,11 @@ must reproduce a result from an image digest and a canonical digest.
 | # | The operator does | Sees | Value |
 |---|---|---|---|
 | 1 | Clones the repository and runs `make up` | `ready -> http://localhost:8080` | one command, no configuration file |
-| 2 | Opens the URL | `connected · v1.0.0` | a client that is only a browser |
+| 2 | Opens the URL | `connected . v1.0.0` | a client that is only a browser |
 | 3 | Creates a profile, or keeps `default` | the switcher shows the active profile | research lines stay separate |
 | 4 | Uploads a candle CSV once | `data_version`, candles, coverage | data identified by content |
 | 5 | Picks a config, sees `valid`, submits | `202`, the run appears `queued` | submission returns immediately |
-| 6 | Closes the laptop | — | the run does not depend on the session |
+| 6 | Closes the laptop | - | the run does not depend on the session |
 | 7 | Returns and opens the URL | `succeeded`, stages, provenance, digest, artifacts | evidence with an audit trail |
 | 8 | Copies the digest, or runs `make verify` | one hash | reproducible, comparable, defensible |
 

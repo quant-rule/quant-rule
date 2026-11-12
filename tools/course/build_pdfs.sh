@@ -42,12 +42,10 @@ build_dir() {
     local output="$target_dir/$name.pdf"
     local toc=()
     local numbers=()
-    if [ "$name" != "01-kata" ]; then
-      toc=(--toc)
-      numbers=(--number-sections)
-    fi
+    # The deliverables are short; a table of contents and section numbers add
+    # noise without helping a reader find anything.
     echo "building $output"
-    docker run --rm \
+    sed '1{/^# /d;}' "$source" | docker run --rm -i \
       --user "$(id -u):$(id -g)" \
       -v "$ROOT:/work" \
       -w /work \
@@ -64,7 +62,7 @@ build_dir() {
       "${toc[@]}" \
       "${numbers[@]}" \
       -o "docs/course/$target_dir/$name.pdf" \
-      "docs/course/$source_dir/$name.md"
+      -
   done
 }
 
