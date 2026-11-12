@@ -82,6 +82,11 @@ Svelte source has moved.
 | D14 | No backwards compatibility; supersede in place | 2026-11-12 |
 | D15 | Product 1.0.0 with release candidates; contracts `quantrule.*/v1` | 2026-11-12 |
 | D16 | Repository `config/` is mounted read-only into the data service and catalogued beside uploads | 2026-11-12 |
+| D17 | A sixth service, `simulation`, owns the research plane | 2026-11-12 |
+| D18 | The product image contains no Python; Python is repository governance only | 2026-11-12 |
+| D19 | The research plane is outside the signal path, the data plane, and the control plane | 2026-11-12 |
+| D20 | Charts are client-side SVG; the PNG renderer and geometry manifest are retired | 2026-11-12 |
+| D21 | A simulation run has an inputs digest and no output digest | 2026-11-12 |
 
 ## 5. Acceptance criteria
 
@@ -134,6 +139,9 @@ No quant role is required: no model or strategy behavior changes.
 | V18 | Honesty | No claim exceeds its evidence | manual read | no overclaim | no overclaim | Pass | agent | 2026-11-12 | cross-machine claim delegated |
 | V19 | Deletion order | `site/` removed before `src-tauri/` | merged history | order holds | not started | Pending | — | — | `DIST-016` then `DIST-050` |
 | V20 | Repo configs visible | repository configs listed and valid | configs screen | listed | not started | Pending | — | — | `DIST-031` read-only mount |
+| V21 | Six services | `services.md` lists six services | `services.md` | six rows | not started | Pending | — | — | ADR-09 |
+| V22 | No Python in the image | image has no interpreter | `docker run --rm <image> sh -c 'command -v python3'` | empty | not started | Pending | — | — | ADR-10 |
+| V23 | Research plane isolated | no run write, no strategy read | guard test | pass | not started | Pending | — | — | DIST-101/102 |
 
 ## 8. Risks and recovery
 

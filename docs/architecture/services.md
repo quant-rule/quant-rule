@@ -5,7 +5,7 @@
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
 
-Five services, five binaries, one image. Each service owns one responsibility and
+Six services, six binaries, one image. Each service owns one responsibility and
 one set of data. The catalog is the single authority for "who does what".
 
 ## 1. Boundaries
@@ -17,6 +17,7 @@ one set of data. The catalog is the single authority for "who does what".
 | `model` | `qr-model` | Readings, states, events, levels, progression, context, report | model objects | read strategy, execution, or portfolio |
 | `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio | artifact objects | own provenance or compute a digest |
 | `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, finalization | `runs` schema, bundle objects | compute a reading or decide a trade |
+| `simulation` | `qr-simulation` | Chart-first research: window selection, marks, oracle, review, check, decision | `simulation` schema, research objects | compute a model, write a run artifact, publish to the queue |
 
 ## 2. Dependency direction
 
@@ -44,6 +45,7 @@ over `quantrule-app`, exactly as the shell was.
 | `model` | **N** | shards by timeframe; CPU-bound |
 | `backtest` | **N** | one run per worker; CPU-bound and sequential within a run |
 | `evidence` | one | finalization is a short, ordered step |
+| `simulation` | one | interactive; no batch parallelism, no queue |
 
 `backtest` is never sharded inside a run: strategy, fills, position, and cash are
 a fold over time. Claiming otherwise would be false.
@@ -75,3 +77,20 @@ a fold over time. Claiming otherwise would be false.
 - Place a wall-clock value inside an artifact.
 - Render a human-readable label for a numeric code.
 - Publish a model reading on the control plane.
+
+## 7. The research plane
+
+`simulation` is not a pipeline stage and not a run. It is a third plane:
+synchronous, interactive, and isolated.
+
+| Rule | Enforced by |
+|---|---|
+| It never writes into a run's artifact set | schema ownership + guard test |
+| No strategy, execution, or portfolio code reads it | import guard |
+| It may read a model bundle; it may never compute a model | symbol allowlist |
+| It has no `run_id`, no canonical digest, no queue message | contract + test |
+| Human marks are judgment: no output digest | contract |
+
+A simulation run records an **inputs digest** over the model bundle, window
+selection, seed, mark criterion, and check thresholds. That is what makes the
+selection reproducible without claiming the human marks are.

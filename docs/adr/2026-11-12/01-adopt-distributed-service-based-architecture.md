@@ -21,7 +21,7 @@ size, and location of the work. The client is one operator; the work is not.
 
 ## Decision
 
-Adopt a **Service-Based Architecture** with five services and one supporting
+Adopt a **Service-Based Architecture** with six services and one supporting
 event-driven seam:
 
 | Service | Responsibility | Owns |
@@ -31,6 +31,7 @@ event-driven seam:
 | `model` | Readings, states, events, progression, report | model objects |
 | `backtest` | Run orchestration, strategy, execution, portfolio | artifact objects |
 | `evidence` | Provenance, canonical digest, run records, memory | `runs` schema, bundles |
+| `simulation` | Chart-first research: windows, marks, oracle, review, check | `simulation` schema, research objects |
 
 - **Service-Based** is the base style: coarse domains, shared infrastructure,
   one database instance with schema-per-service, one host first.
@@ -55,6 +56,7 @@ event-driven seam:
 - The client is a pure HTTP consumer; Tauri is removed.
 - Local development requires Docker. That is the accepted cost of one code path.
 - Simplicity and deployability stop being drivers and become trade-offs.
+- A sixth service is justified by a different determinism class, not by convenience (ADR-09).
 - Scalability and elasticity become real supporting characteristics with
   fitness functions (scale invariance, no partial publish).
 - Multi-tenancy, accounts, and billing remain out of scope. One principal.
@@ -67,7 +69,7 @@ for capacity rather than convenience.
 
 ## Verification
 
-- The five services map one-to-one to five binaries in one image.
+- The six services map one-to-one to six binaries in one image.
 - Every service names its owned data and its forbidden responsibilities in
   [`services.md`](../../architecture/services.md).
 - The determinism claim is bounded in [`ADR-07`](07-canonical-digest-and-claim-boundary.md).

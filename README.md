@@ -62,6 +62,16 @@ Full deployment contract: [`docs/architecture/deployment.md`](docs/architecture/
 
 Full journey: [`docs/architecture/user-journey.md`](docs/architecture/user-journey.md).
 
+## The research loop
+
+Before a run, the platform supports chart-first exploration: create a simulation
+run from a recorded bundle, mark good and bad entries and exits on the chart with
+the future visible, compare against a deterministic oracle, and check the implied
+rule on a later unmarked window. It is hindsight by design, it is isolated by
+test, and a strategy can never read it.
+
+Details: [`docs/architecture/user-journey.md`](docs/architecture/user-journey.md).
+
 ## Architecture in one screen
 
 ```text
@@ -76,13 +86,15 @@ browser ── HTTP ── gateway ── postgres
 
 - **Two planes.** A synchronous, deterministic data plane computes one run. An
   asynchronous control plane decides which run happens when.
-- **Five services.** `gateway`, `data`, `model`, `backtest`, `evidence`.
+- **Six services.** `gateway`, `data`, `model`, `backtest`, `evidence`, `simulation`.
 - **One image.** One digest pins the whole compute stack, so version skew cannot
   occur.
 - **References, not payloads.** Stages exchange content hashes; bytes live in
   object storage.
-- **The engines did not change.** Every service is a thin adapter over
+- **The engines did not change.** Every pipeline service is a thin adapter over
   `quantrule-app`.
+- **No Python in the product.** The image is Rust and static assets; the client is
+  built with Bun.
 
 Details: [`services.md`](docs/architecture/services.md),
 [`data-plane.md`](docs/architecture/data-plane.md),

@@ -278,6 +278,14 @@ stays read-only. The table is the target, implemented by `DIST-070`.
 | `inspect timeframes` | Planned | `data_version` | bars and events per timeframe |
 | `inspect events` | Planned | `data_version`, `timeframe` | event batch |
 | `verify` | Planned | — | canonical digest of the fixture run |
+| `simulation list` | Planned | `status`, `limit` | simulation run summaries |
+| `simulation create` | Planned | premise, bundle, seed, criteria | `sim_id` |
+| `simulation windows` | Planned | `sim_id` | deterministic window selection |
+| `simulation mark` | Planned | `sim_id`, chart, bar, action, quality, side, note | mark id |
+| `simulation marks` | Planned | `sim_id`, `origin` | human and oracle marks |
+| `simulation oracle` | Planned | `sim_id` | deterministic oracle marks |
+| `simulation check` | Planned | `sim_id` | event-study table and verdict |
+| `simulation decide` | Planned | `sim_id`, test/refine/stop, note | decision record |
 | `help` | Planned | topic | the command map |
 
 **Removed in v1.0.0:** `candles`, `candles-tolerant`, `timeframes`, `fetch`,

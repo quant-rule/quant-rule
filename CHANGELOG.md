@@ -93,8 +93,19 @@ are not treated as releases.
 - Verification tutorials for the distributed target: run a backtest, verify the
   canonical digest, use remote compute, and scale workers.
 
+- The `simulation` service and the research plane: chart-first, hindsight-labeled
+  research, isolated from the signal path, with an inputs digest and no output
+  digest (`ADR-2026-11-12-09`).
+- The Python boundary: the product image carries no Python interpreter; Python is
+  confined to repository governance (`ADR-2026-11-12-10`).
+
 ### Changed
 
+- The platform grows from five services to six; the deployment from eight
+  containers to nine.
+- The browser client renders charts as SVG and captures marks in the page; the
+  server no longer renders PNGs.
+- The client toolchain is Bun; the image carries static assets, not a Bun runtime.
 - `AGENTS.md` now describes a distributed single-operator platform: a browser
   client and a command shell on one HTTP contract, two planes, two test tiers,
   and a bounded determinism claim.
