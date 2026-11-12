@@ -1,93 +1,115 @@
 # QuantRule — Architecture Characteristics
 
-## 1. Method
+## 1. Derivation
 
-The characteristics are derived from the kata's demands and kept short: three
-drivers, one enabling characteristic, and the supporting properties that protect
-the product promise. Each characteristic has a measurable target and current
-evidence. The style and quantum are recorded after the table.
+Mark Richards and Neal Ford define an architecture characteristic as a non-domain
+design consideration that shapes structure and is critical to success. Each one
+below is tied to a sentence in the kata, carries a fitness function, and states
+the evidence that exists today.
 
-## 2. Derivation
-
-| Kata demand | Characteristic |
+| Demand from the kata | Characteristic |
 |---|---|
-| Same input produces the same evidence | Reproducibility |
-| No look-ahead; events only when knowable | Temporal integrity |
-| Evidence can be inspected and defended | Auditability |
-| Every reading and rule is testable | Testability (enabling) |
-| One local pipeline with clear boundaries | Modularity |
-| A Linux installer a researcher can run | Deployability |
-| Contracts can evolve without rewriting the engine | Evolvability |
-| No cloud bill and no data egress | Cost and local security |
+| "the same evidence, every time" | Reproducibility (determinism) |
+| "no look-ahead"; events appear only when knowable | Temporal integrity (causality) |
+| "inspect, reproduce, and defend" | Auditability (evidence traceability) |
+| "walk away"; the run outlives the client | Detachability |
+| "work can exceed one machine" | Scalability |
+| "pure filters"; one-way dependencies | Modularity |
+| "one command"; one port | Deployability |
+| "every reading and event has evidence" | Testability (enabling) |
 
-## 3. Driving characteristics
+## 2. Driving characteristics
 
-| Characteristic | Target | Measurement | Current score (1–5) | Evidence |
-|---|---|---|---|---|
-| Reproducibility | A fixed fixture run is byte-identical across repeated runs | Rerun comparison, golden fixtures | 5 | Determinism and byte-identical rerun tests |
-| Temporal integrity | No output at bar *t* changes when later bars are appended | Causality and prefix tests | 5 | Model, event, and strategy boundary tests |
-| Auditability | Every evidence bundle names data version, config hash, code commit, artifacts | Provenance schema check and export review | 5 | Model/stage provenance, versioned run summaries, and research memory |
-| Testability (enabling) | Fast suite plus desktop E2E and installer smoke | `cargo test`, UI E2E, install test | 5 | 1,476 Rust tests, 7 frontend unit tests, 1 Playwright E2E, 4 desktop backend tests, clean install |
-
-## 4. Supporting characteristics
-
-| Characteristic | Target | Measurement | Current score (1–5) |
+| Characteristic | Good means | Fitness function | Evidence |
 |---|---|---|---|
-| Modularity | One crate per pipeline stage plus a shared application service; no dependency cycles | Crate graph and structural checker | 5 |
-| Deployability | Clean Linux install in under five minutes | Installer smoke test | 4 | AppImage/deb build; Ubuntu container install and launch |
-| Evolvability | Versioned configs and research-memory schema | Contract and migration tests | 4 |
-| Cost | No cloud bill; static download site | Hosting and infrastructure inventory | 5 |
-| Local security | No engine network calls; data stays local | Offline test and network isolation | 5 |
+| **Reproducibility** | Same inputs plus the same image digest produce byte-identical data artifacts | Canonical digest equality; determinism tests; golden fixtures | Strong for the engines; the distributed claim is bounded (see §6) |
+| **Temporal integrity** | No value at bar *t* depends on a later bar; events appear only at or after their availability bar | Causality and prefix tests | Strong |
+| **Auditability** | Every result names data version, config hash, model version, image digest, canonical digest | Provenance fields; bundle-completeness test | Designed; implemented by `DIST-034` |
 
-## 5. Deliberately not optimized
+## 3. Supporting characteristics
+
+| Characteristic | Good means | Fitness function |
+|---|---|---|
+| **Detachability** | A run completes after the client disconnects | Submit, close, reopen, observe `succeeded` |
+| **Scalability** | Model and backtest workers scale with no change in output | One worker and four workers produce the same digest |
+| **Modularity** | Six services, one responsibility each; engines untouched | Service catalog; boundary guard tests |
+| **Deployability** | One command starts the stack; one port is exposed | `make up`; health check |
+| **Research isolation** | Hindsight research cannot reach the signal path | Guard: no run artifact write, no strategy read |
+| **Testability** | Claims are provable at the tier that exercises them | Unit, composed, and port-parity tiers |
+
+Scalability is a supporting characteristic, not a driver. It exists because the
+work is batch and CPU-bound, not because there are many users.
+
+## 4. Deliberately not optimized
 
 | Characteristic | Decision | Consequence |
 |---|---|---|
-| Scalability | Single user, single machine | No horizontal scaling |
-| Elasticity | Batch runs, no service | No autoscaling |
-| Availability | Local app, no uptime target | A failed run is an error, not an outage |
-| Multi-tenancy | No accounts or team workspace | Team cloud is future work |
-| Interoperability | File contracts only | No API or plugin marketplace |
+| **Availability** | A run is a job; a failure is a state | No failover, no uptime target |
+| **Multi-tenancy** | One principal; profiles are organisational | A shared host is trusted |
+| **Low latency** | Batch; a run takes as long as it takes | Simplicity wins over speed |
+| **Security depth** | Host and network boundary, not application auth | Remote exposure needs a network gate |
+| **Interoperability** | File and JSON contracts only | No third-party API |
 
-## 6. Style and quantum
+## 5. Style, quantum, and planes
 
-- **Style:** pipes-and-filters inside a modular monolith.
-- **Quantum:** one local deployable app with local files and SQLite; the CLI and
-  the Tauri UI are adapters over the same application service.
-- **Distribution:** a static download page for Linux installers.
-- **Future:** a team control plane would be a second quantum; it is not part of
-  this increment.
+**Style.** Service-Based Architecture with pipes-and-filters inside each service,
+and an event-driven control plane.
+
+**Quantum.** Six deployables, one database instance with schema-per-service, one
+object store, one image. The set is one quantum for the operator; each service is
+a separate failure and scaling unit.
+
+| Plane | Style | Determinism | Queue |
+|---|---|---|---|
+| Data | Synchronous, fixed order | Required | no |
+| Control | Asynchronous | Not required | yes |
+| Research | Synchronous, interactive | Bounded | no |
+
+```text
+browser / shell / desktop shell
+            | HTTP
+            v
+        gateway -- postgres
+            |          ^
+            |          +-- evidence -- minio
+            v
+        rabbitmq -- backtest -- minio
+                       |   +-- model
+                       +------ data
+        simulation -- (research plane, isolated)
+```
+
+**Why this is the least worst.** A monolith cannot detach a run from the client or
+use a second machine. Microservices add sagas, a mesh, and version skew for no
+additional driver. Event-driven everywhere makes byte-identical output depend on
+delivery order. Space-based and SOA/ESB have no load profile or integration
+estate to serve.
+
+## 6. The determinism claim
+
+Compared by the **canonical digest**: SHA-256 over the sorted list of
+`(path, sha256)` for `results.json`, `*.csv`, and `*.ndjson`, excluding
+`provenance.json`, logs, and any file that records where or when the run
+happened.
+
+Enforced, not sampled: no transcendental or fused-multiply-add operation in the
+signal path, a pinned target triple, fixed accumulation order, and float-roundtrip
+serialization. Scale invariance is tested locally. End-to-end confirmation across
+two CPUs belongs to reviewer verification, and no document claims otherwise.
+
+The research plane records an **inputs digest** and no output digest, because
+human marks are judgment.
 
 ## 7. Trade-offs
 
 | Trade-off | Decision | Consequence |
 |---|---|---|
-| Local-first vs collaboration | Keep data and compute local | No team sync in v1 |
-| Reproducibility vs change velocity | Golden fixtures and versioned contracts | Intentional changes are deliberate |
-| Simplicity vs future cloud | Defer the control plane | A future ADR and characteristics review are required |
-| Linux-only vs reach | Ship Linux first | Windows and macOS are future work |
+| Reproducibility vs distribution | Distribution accepted; determinism defended by invariants | The claim must be precise |
+| Simplicity vs distribution | Simplicity conceded | Docker becomes mandatory for local use |
+| Scalability vs determinism | Shard only where the merge is order-independent | Backtest stays sequential per run |
+| Auditability vs storage | Duplicate copies retained and hashed | Storage is cheap |
+| Deployability vs native UX | Browser is primary; desktop is a shell | No native file dialogs |
+| Organisation vs isolation | Profiles scope records | They are not a security boundary |
 
-## 8. Future trigger
-
-If a collaborative team cloud is introduced, re-derive the characteristics:
-security, multi-tenancy, sync, availability, and cost will need new targets. They
-are not current drivers.
-
-## 9. Evidence
-
-- `cargo test --workspace`: 1,476 passed, 0 failed, 8 ignored.
-- Desktop: `npm run check` clean; 7 unit tests; 1 Playwright E2E; 4 backend tests.
-- Linux: `.deb` and `.AppImage` build; the deb installs in Ubuntu 24.04 and
-  launches under Xvfb; the AppImage launches with the network namespace removed.
-- Determinism: repeated model bundles and `run check` output are byte-identical.
-- Research memory: 22 tests cover schema, migrations, CRUD, export/import, and
-  backup/restore.
-- Repository checks: structure, file size, links, terms, command surface,
-  workflows, changelog, releases, registry, validation, and verification.
-- The Phase 3 verification report is
-  [`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md).
-
-The scores are course evidence, not a claim of universal quality. Deployability
-is 4 because the clean install is containerized and no bare-metal install has
-been run; local security is 5 for the current scope because the engines have no
-network path and the desktop app launches offline.
+**Priority if forced to shed one:** shed Evolvability first. Never shed
+Reproducibility, Temporal integrity, Auditability, or Detachability.
