@@ -112,6 +112,14 @@ fetch
   note:   The default path is data/sources/<SYMBOL>_<TF>_<start>_<end>.csv.
   note:   The CSV is written atomically; an empty result leaves no file.
 
+memory
+  usage:  memory status|workspaces|runs|record|metrics|metric set|metric delete|claims|claim add|claim delete|notes|note add|note update|note delete|export|import|backup|restore --db <path> ...
+  does:   Read and write the local research memory.
+  output: deterministic text lines with workspace, run, metric, claim, note, or artifact identities
+  note:   The database path is required; the memory rules and validation live in the application service.
+  note:   record computes the model and stores its counts with the run.
+  note:   A missing measurement is null, never zero; export replaces the target atomically.
+
 help
   usage:  help [<command>|all|glossary|workflows]
   does:   Print the command map, one command contract, or a reference topic.

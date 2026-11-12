@@ -3,7 +3,7 @@
 use super::fetch::{parse_fetch_arguments, write_fetch_cap_warning};
 use super::parse::parse;
 use super::parse_argv;
-use super::types::{Command, HelpTopic, ParseError};
+use super::types::{Command, HelpTopic, MemoryArgs, MetricArg, ParseError};
 use crate::request::{FetchArgs, ModelArgs};
 use crate::source::Symbol;
 use quantrule_app::date::DateRange;
@@ -68,6 +68,56 @@ fn parses_events_with_a_window() {
     assert!(parse("events data/example.csv --window full --window latest").is_err());
     assert!(parse("events data/example.csv --window").is_err());
     assert!(parse("events data/example.csv --window hourly").is_err());
+}
+
+#[test]
+fn parses_the_memory_commands() {
+    assert_eq!(
+        parse("memory status --db /tmp/research.db"),
+        Ok(Some(Command::Memory(MemoryArgs::Status {
+            db: PathBuf::from("/tmp/research.db"),
+        })))
+    );
+    assert_eq!(
+        parse(
+            "memory metric set --db /tmp/research.db --run 4 --name sharpe --kind real --value 1.5"
+        ),
+        Ok(Some(Command::Memory(MemoryArgs::MetricSet {
+            db: PathBuf::from("/tmp/research.db"),
+            run_id: 4,
+            name: String::from("sharpe"),
+            value: MetricArg::Real(1.5),
+        })))
+    );
+    assert_eq!(
+        parse(
+            "memory metric set --db /tmp/research.db --run 4 --name trades --kind integer --text 42"
+        ),
+        Ok(Some(Command::Memory(MemoryArgs::MetricSet {
+            db: PathBuf::from("/tmp/research.db"),
+            run_id: 4,
+            name: String::from("trades"),
+            value: MetricArg::Integer(42),
+        })))
+    );
+    assert_eq!(
+        parse("memory notes --db /tmp/research.db --run 4"),
+        Ok(Some(Command::Memory(MemoryArgs::Notes {
+            db: PathBuf::from("/tmp/research.db"),
+            workspace_id: None,
+            run_id: Some(4),
+        })))
+    );
+}
+
+#[test]
+fn rejects_bad_memory_arguments() {
+    assert!(parse("memory status").is_err());
+    assert!(parse("memory status --db /tmp/a --db /tmp/b").is_err());
+    assert!(parse("memory status --db /tmp/a --extra x").is_err());
+    assert!(parse("memory metric set --db /tmp/a --run 1 --name x --kind real").is_err());
+    assert!(parse("memory notes --db /tmp/a").is_err());
+    assert!(parse("memory notes --db /tmp/a --workspace 1 --run 2").is_err());
 }
 
 #[test]

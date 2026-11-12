@@ -11,6 +11,7 @@ use super::analytics::parse_analytics_arguments;
 use super::backtest::parse_backtest_arguments;
 use super::execution::parse_execution_arguments;
 use super::fetch::parse_fetch_arguments;
+use super::memory::parse_memory_arguments;
 use super::portfolio::parse_portfolio_arguments;
 use super::qualify::parse_qualify_arguments;
 use super::report_run::parse_report_arguments;
@@ -80,6 +81,10 @@ pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
         "fetch" => {
             let arguments = tokenize(rest)?;
             parse_fetch_arguments(&arguments).map(|args| Some(Command::Fetch(args)))
+        }
+        "memory" => {
+            let arguments = tokenize(rest)?;
+            parse_memory_arguments(&arguments).map(Some)
         }
         "help" => {
             let arguments = tokenize(rest)?;

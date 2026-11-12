@@ -9,8 +9,8 @@ use std::path::PathBuf;
 
 use super::{
     Command, ParseError, run_analytics, run_backtest, run_candles, run_candles_tolerant,
-    run_events, run_execution, run_explain, run_fetch, run_help, run_portfolio, run_qualify,
-    run_report, run_run, run_run_check, run_timeframes,
+    run_events, run_execution, run_explain, run_fetch, run_help, run_memory, run_portfolio,
+    run_qualify, run_report, run_run, run_run_check, run_timeframes,
 };
 
 /// Parses the already-split arguments after the binary name.
@@ -42,6 +42,7 @@ pub(crate) fn parse_argv(arguments: &[String]) -> Result<Option<Command>, ParseE
         "qualify" => super::parse_qualify_arguments(rest).map(Some),
         "analytics" => super::parse_analytics_arguments(rest).map(Some),
         "fetch" => super::parse_fetch_arguments(rest).map(|args| Some(Command::Fetch(args))),
+        "memory" => super::parse_memory_arguments(rest).map(Some),
         "help" => super::parse_help_arguments(rest).map(|topic| Some(Command::Help(topic))),
         "quit" => {
             if rest.is_empty() {
@@ -85,6 +86,7 @@ pub(crate) fn execute(command: Command, stdout: &mut impl Write, stderr: &mut im
         Command::Qualify(args) => run_qualify(&args, stdout),
         Command::AnalyticsEvaluate(args) => run_analytics(&args, stdout),
         Command::Fetch(args) => run_fetch(&args, stdout, stderr),
+        Command::Memory(args) => run_memory(&args, stdout),
         Command::Help(topic) => run_help(&topic, stdout),
         Command::Quit => return 0,
     };

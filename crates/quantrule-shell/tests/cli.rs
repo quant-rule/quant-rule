@@ -206,6 +206,7 @@ fn help_lists_only_the_surviving_commands() {
         "qualify",
         "analytics evaluate",
         "fetch",
+        "memory",
         "help",
     ] {
         assert!(text.contains(command), "help must list {command}");
@@ -224,7 +225,13 @@ fn help_lists_only_the_surviving_commands() {
         "research",
         "lab",
     ] {
-        assert!(!text.contains(removed), "help must not list {removed}");
+        assert!(
+            !text.lines().any(|line| {
+                let line = line.trim_start();
+                line == removed || line.starts_with(&format!("{removed} "))
+            }),
+            "help must not list {removed}"
+        );
     }
     assert_eq!(text, fixture_text("help.txt"));
 }
@@ -242,6 +249,121 @@ fn help_topics_are_stable() {
     let workflows = run(&["help", "workflows"]);
     assert_success(&workflows);
     assert_eq!(stdout_text(&workflows), fixture_text("help-workflows.txt"));
+}
+
+#[test]
+fn memory_status_creates_and_reports_the_schema() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/cli-tests/memory");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).expect("the test directory is created");
+    let db = root.join("research.db");
+    let output = run(&[
+        "memory",
+        "status",
+        "--db",
+        db.to_str().expect("the database path is UTF-8"),
+    ]);
+    assert_success(&output);
+    let text = stdout_text(&output);
+    assert!(text.contains("memory schema=quantrule.research-memory/v1 version=1"));
+    assert!(text.contains("research.db"));
+}
+
+#[test]
+fn memory_crud_round_trips() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/cli-tests/memory-crud");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).expect("the test directory is created");
+    let db = root.join("research.db");
+    let db = db.to_str().expect("the database path is UTF-8");
+    let config = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-shell/tests/fixtures/config-run/run.json");
+    let config = config.to_str().expect("the config path is UTF-8");
+
+    let recorded = run(&[
+        "memory",
+        "record",
+        "--db",
+        db,
+        "--config",
+        config,
+        "--key",
+        "shell-run-1",
+        "--started",
+        "1762900000",
+    ]);
+    assert_success(&recorded);
+    let recorded_text = stdout_text(&recorded);
+    assert!(recorded_text.contains("recorded workspace=1 dataset=1 config=1 run="));
+    let run_id = recorded_text
+        .split("run=")
+        .nth(1)
+        .expect("the record line carries the run ID")
+        .trim()
+        .to_owned();
+    assert!(!run_id.is_empty());
+
+    let metric = run(&[
+        "memory",
+        "metric",
+        "set",
+        "--db",
+        db,
+        "--run",
+        run_id.as_str(),
+        "--name",
+        "sharpe",
+        "--kind",
+        "real",
+        "--value",
+        "1.5",
+    ]);
+    assert_success(&metric);
+    let metrics = run(&["memory", "metrics", "--db", db, "--run", run_id.as_str()]);
+    assert_success(&metrics);
+    assert!(stdout_text(&metrics).contains("sharpe real 1.5"));
+
+    let claim = run(&[
+        "memory",
+        "claim",
+        "add",
+        "--db",
+        db,
+        "--run",
+        run_id.as_str(),
+        "--type",
+        "Behaviour Claim",
+        "--statement",
+        "the run is deterministic",
+        "--status",
+        "accepted",
+        "--created",
+        "1762900000",
+    ]);
+    assert_success(&claim);
+    let claims = run(&["memory", "claims", "--db", db, "--run", run_id.as_str()]);
+    assert_success(&claims);
+    assert!(stdout_text(&claims).contains("Behaviour Claim"));
+
+    let note = run(&[
+        "memory",
+        "note",
+        "add",
+        "--db",
+        db,
+        "--workspace",
+        "1",
+        "--run",
+        run_id.as_str(),
+        "--body",
+        "first review",
+        "--created",
+        "1762900000",
+    ]);
+    assert_success(&note);
+    let notes = run(&["memory", "notes", "--db", db, "--run", run_id.as_str()]);
+    assert_success(&notes);
+    assert!(stdout_text(&notes).contains("first review"));
 }
 
 #[test]

@@ -159,6 +159,39 @@ export async function mockInvoke<T>(
       ];
       return notes as T;
     }
+    case "memory_metric_set": {
+      requireString(args, "db");
+      requireString(args, "name");
+      requireString(args, "kind");
+      return 1 as T;
+    }
+    case "memory_metric_delete": {
+      requireString(args, "db");
+      return true as T;
+    }
+    case "memory_claim_add": {
+      requireString(args, "db");
+      requireString(args, "statement");
+      return 1 as T;
+    }
+    case "memory_claim_delete": {
+      requireString(args, "db");
+      return true as T;
+    }
+    case "memory_note_add": {
+      requireString(args, "db");
+      requireString(args, "body");
+      return 1 as T;
+    }
+    case "memory_note_update": {
+      requireString(args, "db");
+      requireString(args, "body");
+      return true as T;
+    }
+    case "memory_note_delete": {
+      requireString(args, "db");
+      return true as T;
+    }
     case "record_run": {
       requireString(args, "config");
       requireString(args, "run_key");

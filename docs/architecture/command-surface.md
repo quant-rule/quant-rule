@@ -92,6 +92,7 @@ the distinction.
 | `candles-tolerant` | Data | Implemented | `<csv-path>` | NDJSON candles and a quality report |
 | `timeframes` | Data | Implemented | `<csv-path>` | NDJSON candles per timeframe and an aggregation report |
 | `fetch` | Data | Implemented | `<symbol> <start> <end>` and options | CSV path and accepted/rejected counts |
+| `memory` | Memory | Implemented | `status`, `record`, lists, metric/claim/note CRUD, export/import, backup/restore | Memory records and artifact paths |
 | `events` | Model | Implemented | `<csv-path> [--window full\|latest]` | Event records |
 | `report model` | Model | Implemented | `--config <run.json>` and options | Model bundle |
 | `run check` | Configuration | Implemented | `--config <run.json>` | Validation line |

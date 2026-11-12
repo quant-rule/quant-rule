@@ -40,6 +40,19 @@ test("the core local workflow runs end to end", async ({ page }) => {
   await expect(page.getByText("Recorded run #1.")).toBeVisible();
   await expect(page.getByText("run-1")).toBeVisible();
 
+  await page.getByRole("button", { name: /run-1/ }).click();
+  await expect(page.getByRole("heading", { name: "Evidence for run #1" })).toBeVisible();
+  await page.getByLabel("Metric name").fill("sharpe");
+  await page.getByLabel("Metric value").fill("1.5");
+  await page.getByRole("button", { name: "Add metric" }).click();
+  await expect(page.getByText("Metric added.")).toBeVisible();
+  await page.getByLabel("Claim statement").fill("the run is deterministic");
+  await page.getByRole("button", { name: "Add claim" }).click();
+  await expect(page.getByText("Claim added.")).toBeVisible();
+  await page.getByLabel("Note body").fill("first review");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await expect(page.getByText("Note added.")).toBeVisible();
+
   await page.getByLabel("Export path").fill("/mock/workspace/export.json");
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await expect(page.getByText("Exported to /mock/workspace/export.json.")).toBeVisible();
