@@ -71,10 +71,13 @@ path resolution; the engines receive validated values.
 | `AppService::record_run` | Writes the workspace, dataset, configuration, and run to the local research memory. |
 | `ResearchMemory` | SQLite CRUD, ordered queries, logical export/import, and file backup/restore. |
 
-The shell calls the service for `run check`; the other pipeline commands still
-call the same configuration and pipeline modules directly and are being moved
-behind the shared use-case layer under the remediation plan. The desktop UI
-calls the service rather than reimplementing path resolution.
+The shell calls the service for every pipeline use case: data inspection,
+events, model report, strategy, execution, portfolio, backtest, qualification,
+and analytics. The service owns artifact I/O and the stage modules under
+`stages/`; the shell keeps command parsing, terminal output, fetch, and
+rendering. The desktop UI calls the same service rather than reimplementing
+path resolution or stage logic; its pipeline-stage UI is the remaining P3.5
+slice.
 
 ## Desktop UI
 

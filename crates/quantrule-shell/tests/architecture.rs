@@ -160,3 +160,21 @@ fn the_workspace_graph_is_acyclic_and_directional() {
         }
     }
 }
+
+#[test]
+fn the_shell_does_not_orchestrate_pipeline_stages() {
+    for (path, text) in sources("") {
+        for forbidden in [
+            "pipeline::run_model",
+            "ExecutionEngine::new",
+            "PortfolioLedger::new",
+            "SpecRun::compute",
+        ] {
+            assert!(
+                !text.contains(forbidden),
+                "{} must not orchestrate a pipeline stage: {forbidden}",
+                path.display()
+            );
+        }
+    }
+}

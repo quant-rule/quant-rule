@@ -42,6 +42,18 @@ pub fn run() -> Result<(), tauri::Error> {
             commands::memory_import,
             commands::memory_backup,
             commands::memory_restore,
+            commands::inspect_candles,
+            commands::inspect_candles_tolerant,
+            commands::inspect_timeframes,
+            commands::compute_events,
+            commands::run_model_report,
+            commands::explain_strategy,
+            commands::run_strategy,
+            commands::run_execution,
+            commands::replay_portfolio,
+            commands::run_backtest,
+            commands::qualify,
+            commands::evaluate_analytics,
         ])
         .run(tauri::generate_context!())
 }

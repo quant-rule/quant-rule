@@ -2,9 +2,9 @@
 //!
 //! The application service is the shared use-case boundary for every client.
 //! The command shell and the desktop UI call the same workspace, dataset, run
-//! configuration, model-run, export, and memory operations here. During P3.4
-//! the shell still parses the model-spec JSON and orchestrates the later
-//! pipeline stages; those are the remaining parity gap, not a second service.
+//! configuration, model-run, export, pipeline-stage, and memory operations
+//! here. The shell keeps command parsing, terminal output, explicit source
+//! fetch, and rendering; the desktop keeps its window, IPC, and rendering.
 //!
 //! The engine crates remain pure. This crate owns file access, path resolution,
 //! orchestration, and the local research memory, and returns explicit errors

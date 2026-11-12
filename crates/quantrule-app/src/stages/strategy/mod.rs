@@ -12,6 +12,8 @@ mod run;
 
 pub use artifacts::{DecisionCounts, StrategyArtifactMeta};
 pub use context::{StrategyContextError, validate_context};
+pub use quantrule_backtest::intent::StrategyPosition;
+pub use quantrule_backtest::side::Side;
 pub use run::{
     StrategyExplainRequest, StrategyOutcome, StrategyRunError, StrategyRunRequest, decision_record,
     explain, run,

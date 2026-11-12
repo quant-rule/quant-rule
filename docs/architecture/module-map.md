@@ -125,15 +125,15 @@ The target layout is in section 7.
 | Path | Responsibility |
 |---|---|
 | `src-tauri/src/lib.rs` | Tauri registration and the native boundary. |
-| `src-tauri/src/commands/` | Tauri command boundary: `views`, `scope`, `workspace`, `memory`, and tests. |
+| `src-tauri/src/commands/` | Tauri command boundary: `views`, `scope`, `workspace`, `memory`, `pipeline`, and tests. |
 | `src/App.svelte` | Workspace shell and section navigation. |
 | `src/lib/*Panel.svelte` | Workspace, data, config, run, memory, settings views. |
 | `src/lib/api.ts` | Tauri invoke or deterministic fixture backend. |
 | `src/lib/types.ts` | IPC view types. |
 | `src/lib/mock.ts` | Deterministic browser fixture backend. |
 
-P4 splits `commands.rs` into `commands/{mod,views,scope,workspace,memory,tests}`.
-P3.4g adds `commands/pipeline.rs`; P3.5 adds the pipeline section to the UI.
+The command boundary is split into `commands/{mod,views,scope,workspace,memory,pipeline,tests}`.
+P3.5 adds the pipeline section to the UI; the backend commands already exist.
 
 ## 7. Target layout after P3.4
 
