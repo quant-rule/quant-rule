@@ -1,7 +1,7 @@
 # Simulation Research Workflow
 
 - Date: 2026-11-10 (UTC)
-- Status: Current
+- Status: Current; the harness is ported to the `simulation` service in v1.0.0
 - Scope: chart-first, hindsight-labeled hypothesis generation on the development partition
 - Owner: Quant Researcher (premise), AI labeler (marks), Quant Validator (check), Human (acceptance)
 - Contract: [`improvement-workflow.md`](improvement-workflow.md), [`run-contract.md`](run-contract.md), [`strategy-research.md`](strategy-research.md)

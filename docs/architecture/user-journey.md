@@ -41,7 +41,24 @@ document links here instead of restating it.
 Four commands, one line of output. The reviewer does not need an account, a
 credential, or access to the operator's machine.
 
-## 4. What the product is worth
+## 4. The research loop
+
+Before a run, the operator may explore:
+
+| # | Does | Sees | Value |
+|---|---|---|---|
+| 1 | Creates a simulation run from a recorded bundle and a premise | window selection, seeded | a bounded, reproducible sample |
+| 2 | Opens a window | chart with candles, EMAs, events, levels | the context, with the future visible |
+| 3 | Marks entries and exits as good or bad (keys 1-8) | marks drawn on the chart | judgment captured in a schema, not in a note |
+| 4 | Runs the oracle | the deterministic marks for the same window | a mechanical second opinion |
+| 5 | Reviews the difference | review table | a candidate rule with at most two conditions |
+| 6 | Runs the check on a later, unmarked window | event study, 30-event minimum | a screen, not an edge |
+| 7 | Decides test, refine, or stop | decision record | a hypothesis for Strategy Research, or a stop |
+
+The research loop is hindsight by design. It never feeds a run, and a strategy
+can never read it.
+
+## 5. What the product is worth
 
 | Value | Because |
 |---|---|

@@ -75,6 +75,10 @@ One term per concept. A synonym is a defect.
 | `operator` | The single principal |
 | `worker` | A `model` or `backtest` container instance |
 | `stage` | One step of the data plane |
+| `simulation run` | One chart-first research record, with an inputs digest and no output digest |
+| `mark` | A timestamped good or bad entry or exit on a chart window |
+| `oracle` | The deterministic hindsight labeler that marks the same window |
+| `research plane` | The interactive, hindsight, isolated plane owned by `simulation` |
 
 ## History
 

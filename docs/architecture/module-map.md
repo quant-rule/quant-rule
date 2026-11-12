@@ -28,8 +28,9 @@ quantrule-server ──┘         │
 | `quantrule-app` | Workspace, dataset, configuration, run orchestration, artifact I/O, memory, shared use cases | Indicators, rules, fills, P&L, transport |
 | `quantrule-api` | Contract types, error envelope, state enum, version constants | Any engine dependency |
 | `quantrule-server` | Runtime, gateway, workers, migrations | Domain logic |
+| `quantrule-simulation` | Window selection, marks, oracle, review, check, exit lab | Model computation, run artifacts |
 | `quantrule-shell` | Parsing, terminal rendering, HTTP calls | Domain logic, engine dependency |
-| `apps/web` | Svelte screens, stores, rendering | Domain logic, computation |
+| `apps/web` | Svelte screens, stores, SVG chart, rendering | Domain logic, computation |
 
 Two guard tests enforce the graph: the gateway may not import an engine module,
 and `quantrule-api` may not depend on a workspace engine crate.
@@ -57,6 +58,11 @@ and `quantrule-api` may not depend on a workspace engine crate.
 | `evidence/digest.rs` | Canonical digest |
 | `evidence/finalize.rs` | Completeness check and `succeeded` transition |
 | `evidence/memory.rs` | Research memory, replacing SQLite |
+| `simulation/windows.rs` | Seeded, non-overlapping window selection |
+| `simulation/marks.rs` | Mark schema, validation, atomic write |
+| `simulation/oracle.rs` | Deterministic hindsight labeler |
+| `simulation/check.rs` | Event study on the unmarked window |
+| `simulation/review.rs` | Mark comparison and candidate-rule table |
 | `migrations/` | Forward-only SQL |
 
 ## 3. Where to add a change

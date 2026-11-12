@@ -84,7 +84,13 @@ provenance records.
 A run is `succeeded` only when every artifact in the manifest is present and its
 hash verifies.
 
-## 7. Read-only inspection
+## 7. What is not in the data plane
+
+Simulation is not a run. It reads a recorded bundle, marks with the future
+visible, and writes research records. It has no place in this order, no `run_id`,
+and no canonical digest. See [`services.md`](services.md) §7.
+
+## 8. Read-only inspection
 
 Inspection is outside the run and writes nothing:
 

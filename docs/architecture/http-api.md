@@ -91,8 +91,42 @@ The gateway validates the config, computes `run_id`, writes `queued`, publishes
 | `upload.too_large` | 413 | Over the configured limit |
 | `queue.unavailable` | 503 | Broker unreachable |
 | `internal` | 500 | Unclassified; logged with a correlation id |
+| `simulation.not_found` | 404 | Unknown simulation run |
+| `simulation.mark_invalid` | 400 | Bar outside the window, or a schema violation |
+| `simulation.check_incomplete` | 409 | Fewer than 30 events, or an unmarked check window |
+| `simulation.locked` | 409 | Marking after the decision is recorded |
 
-## 6. Prohibitions
+## 6. Simulation endpoints — the research plane
+
+`simulation` is reachable under the same contract and the same principal. It has
+no run lifecycle and no queue.
+
+| Method | Path | Request | Response |
+|---|---|---|---|
+| GET | `/simulation/runs` | `status`, `limit` | simulation run summaries |
+| POST | `/simulation/runs` | premise, bundle ref, inputs, seed, criteria | `201` with `sim_id` |
+| GET | `/simulation/runs/{id}` | — | premise, inputs digest, counts, status |
+| POST | `/simulation/runs/{id}/windows` | — | deterministic window selection |
+| GET | `/simulation/runs/{id}/windows/{n}/series` | — | candles, volume, EMA 20/50/200, one indicator panel, event markers, levels |
+| POST | `/simulation/runs/{id}/marks` | `chart`, `bar`, `action`, `quality`, `side`, `note` | `201` with `mark_id` |
+| GET | `/simulation/runs/{id}/marks` | `origin` | human and oracle marks |
+| DELETE | `/simulation/runs/{id}/marks/{mark_id}` | — | `204` |
+| POST | `/simulation/runs/{id}/oracle` | — | oracle marks, deterministic |
+| POST | `/simulation/runs/{id}/check` | — | check table and verdict |
+| POST | `/simulation/runs/{id}/decision` | `test`, `refine`, or `stop`, plus a note | `201` |
+
+Rules:
+
+- `sim_id` is server-assigned; the client never supplies it.
+- `marked_time_utc` is assigned by the server; the client clock is untrusted.
+- `series` returns numbers and codes only. The client maps codes to words.
+- A mark is validated against the window's bar range and the event availability
+  bar before it is stored.
+- `oracle` and `check` are synchronous and idempotent: the same inputs digest
+  yields the same output.
+- No simulation endpoint can write into a run artifact or read a strategy.
+
+## 7. Prohibitions
 
 - No endpoint accepts a path.
 - No endpoint returns a human-readable label for a numeric code.

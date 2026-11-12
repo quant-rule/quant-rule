@@ -34,6 +34,7 @@ the previous architecture could not express "the run continues without me".
 | Characteristic | Good means | Fitness function |
 |---|---|---|
 | **Detachability** | A submitted run completes after the client disconnects, and its status is readable on return | Submit, close the client, reopen, observe `succeeded` |
+| **Research isolation** | A sixth service owns hindsight research and cannot reach the signal path | Boundary guard: no run artifact write, no strategy read |
 | **Scalability** | Model and backtest workers scale horizontally with no change in output | Scale invariance: one worker and four workers produce the same canonical digest |
 
 Scalability is a supporting driver, not a third driver. It exists because the
@@ -52,7 +53,7 @@ A passing test that does not exercise the behavior proves nothing.
 
 | Characteristic | Good means | Fitness function |
 |---|---|---|
-| **Modularity** | Five services, one responsibility each; engines untouched by distribution | Service catalog; boundary guard tests |
+| **Modularity** | Six services, one responsibility each; engines untouched by distribution | Service catalog; boundary guard tests |
 | **Deployability** | One command starts the stack; one port is exposed | `make up`; health check |
 | **Evolvability** | Contracts are versioned; a capability arrives as a new endpoint or command | `quantrule.*/v1` constants; compatibility tests |
 

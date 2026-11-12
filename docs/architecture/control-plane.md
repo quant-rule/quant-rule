@@ -95,7 +95,14 @@ A run is never split across backtest workers. Scaling adds workers, not shards.
 Cancellation is best-effort by design: a run that has already reached the
 evidence service has completed, and the response says so.
 
-## 7. What the control plane must never do
+## 7. What is not in the control plane
+
+Simulation has no queue and no lifecycle. It is synchronous and interactive, and
+its oracle and check complete inside a request. If they ever exceed a few
+seconds, they join this plane with a recorded decision. See
+[`services.md`](services.md) §7.
+
+## 8. What the control plane must never do
 
 - Carry a model reading.
 - Change a run's inputs after submission.

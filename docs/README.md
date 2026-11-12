@@ -46,7 +46,7 @@ repeating a status.
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v0.9.0` is the latest release. `v1.0.0` is the distributed target and is not tagged. Historical tags are retained. |
 | Changelog | Grouped release history; `0.9.0` is the current release. |
-| Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets, specified in [deployment.md](architecture/deployment.md). |
+| Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
 
 ## Current architecture
 

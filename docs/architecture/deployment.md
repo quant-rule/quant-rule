@@ -33,12 +33,19 @@ Stop with `make down`. Delete volumes with `make reset`.
 | `model` | `quantrule-server` | — | — |
 | `backtest` | `quantrule-server` | — | — |
 | `evidence` | `quantrule-server` | — | — |
+| `simulation` | `quantrule-server` | — | `config/` read-only |
 | `postgres` | `postgres:17` | — | `pgdata` |
 | `minio` | `minio/minio` | — | `objects` |
 | `rabbitmq` | `rabbitmq:4-management` | — | `mqdata` |
 
 One bridge network. Services resolve each other by container name. Only the
 gateway is reachable from the host.
+
+Nine containers: six service binaries from one image, plus Postgres, the object
+store, and the broker.
+
+The image also carries the static client, built with **Bun** (`bun install`,
+`bun run build`). No Bun runtime and no Python runtime are present at run time.
 
 ## 3. Make targets
 
