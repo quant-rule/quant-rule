@@ -9,14 +9,14 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use quantrule_app::artifact::provenance::{ProvenanceError, StageProvenance};
+use crate::artifact::provenance::{ProvenanceError, StageProvenance};
 use quantrule_backtest::intent::{BracketIntent, EntryStyle, StopSpec, TargetSpec, TradeIntent};
 use quantrule_backtest::side::Side;
 use serde_json::Value;
 
 /// The strategy decisions bundle could not be read.
 #[derive(Debug)]
-pub(crate) enum DecisionsError {
+pub enum DecisionsError {
     /// A required artifact could not be read.
     Read {
         /// The artifact path.
@@ -61,22 +61,22 @@ impl std::error::Error for DecisionsError {
 
 /// One decision as execution reads it.
 #[derive(Debug, Clone)]
-pub(crate) struct DecisionRecord {
+pub struct DecisionRecord {
     /// The execution timeframe in seconds.
-    pub(crate) timeframe_secs: u64,
+    pub timeframe_secs: u64,
     /// The zero-based execution bar.
-    pub(crate) bar_index: usize,
+    pub bar_index: usize,
     /// The bar's UTC open time.
-    pub(crate) open_time: i64,
+    pub open_time: i64,
     /// The decision and its request.
-    pub(crate) kind: DecisionKind,
+    pub kind: DecisionKind,
     /// The decision bar's ATR(14), or `None`.
-    pub(crate) atr14: Option<f64>,
+    pub atr14: Option<f64>,
 }
 
 /// The decision kind with its execution request.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum DecisionKind {
+pub enum DecisionKind {
     /// No order.
     Hold,
     /// Open one position on the next bar.
@@ -89,17 +89,17 @@ pub(crate) enum DecisionKind {
 
 /// A complete decisions bundle.
 #[derive(Debug, Clone)]
-pub(crate) struct DecisionsBundle {
+pub struct DecisionsBundle {
     /// The strategy output's data version.
-    pub(crate) data_version: String,
+    pub data_version: String,
     /// The strategy configuration identity.
-    pub(crate) config_id: String,
+    pub config_id: String,
     /// The requested period start, as written.
-    pub(crate) period_from: Option<String>,
+    pub period_from: Option<String>,
     /// The requested period end, as written.
-    pub(crate) period_to: Option<String>,
+    pub period_to: Option<String>,
     /// The decisions in ascending bar order.
-    pub(crate) decisions: Vec<DecisionRecord>,
+    pub decisions: Vec<DecisionRecord>,
 }
 
 impl DecisionsBundle {
@@ -109,7 +109,7 @@ impl DecisionsBundle {
     ///
     /// Returns [`DecisionsError`] when a required artifact is missing,
     /// unreadable, or not shaped like a decisions bundle.
-    pub(crate) fn load(path: &Path) -> Result<Self, DecisionsError> {
+    pub fn load(path: &Path) -> Result<Self, DecisionsError> {
         let provenance = parse_provenance(&path.join("provenance.json"))?;
         let decisions = parse_decisions(&path.join("decisions.ndjson"))?;
         if decisions.is_empty() {
@@ -140,8 +140,7 @@ impl DecisionsBundle {
 }
 
 fn parse_provenance(path: &Path) -> Result<StageProvenance, DecisionsError> {
-    quantrule_app::artifact::provenance::load_stage(path, "strategy", "decisions")
-        .map_err(decisions_error)
+    crate::artifact::provenance::load_stage(path, "strategy", "decisions").map_err(decisions_error)
 }
 
 fn decisions_error(error: ProvenanceError) -> DecisionsError {

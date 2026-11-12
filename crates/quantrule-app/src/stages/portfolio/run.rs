@@ -8,7 +8,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Write as _;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use quantrule_backtest::portfolio::{
@@ -19,15 +19,14 @@ use quantrule_data::Candle;
 use serde_json::{Value, json};
 
 use super::fills::{FillsBundle, FillsError};
-use crate::request::PortfolioReplayArgs;
-use quantrule_app::artifact::render_report::{self, BundleWriteError};
-use quantrule_app::config::{ConfigError, RunConfig};
-use quantrule_app::csv::SourceError;
-use quantrule_app::pipeline;
+use crate::artifact::render_report::{self, BundleWriteError};
+use crate::config::{ConfigError, RunConfig};
+use crate::csv::SourceError;
+use crate::pipeline;
 
 /// The portfolio command failed.
 #[derive(Debug)]
-pub(crate) enum PortfolioRunError {
+pub enum PortfolioRunError {
     /// The run configuration is invalid.
     Config(ConfigError),
     /// The execution fills bundle is invalid.
@@ -133,16 +132,33 @@ impl std::error::Error for PortfolioRunError {
 
 /// Replays one execution fills bundle through the portfolio ledger.
 ///
+/// One portfolio replay request.
+pub struct PortfolioRequest<'a> {
+    /// The run configuration path.
+    pub config: &'a Path,
+    /// The execution fills bundle directory.
+    pub fills: &'a Path,
+    /// The output root; the fills bundle's parent when `None`.
+    pub out: Option<&'a Path>,
+}
+
+/// The written portfolio bundle.
+pub struct PortfolioOutcome {
+    /// The bundle root.
+    pub root: PathBuf,
+    /// The artifact names under the root.
+    pub artifacts: Vec<String>,
+    /// The `--json` envelope.
+    pub json: Vec<u8>,
+}
+
 /// # Errors
 ///
 /// Returns [`PortfolioRunError`] when a config, fill artifact, candle series,
-/// ledger rule, output target, or writer fails.
-pub(crate) fn replay(
-    args: &PortfolioReplayArgs,
-    writer: &mut impl Write,
-) -> Result<(), PortfolioRunError> {
-    let config = RunConfig::load(&args.config).map_err(PortfolioRunError::Config)?;
-    let fills = FillsBundle::load(&args.fills).map_err(PortfolioRunError::Fills)?;
+/// ledger rule, or output target fails.
+pub fn replay(request: &PortfolioRequest<'_>) -> Result<PortfolioOutcome, PortfolioRunError> {
+    let config = RunConfig::load(request.config).map_err(PortfolioRunError::Config)?;
+    let fills = FillsBundle::load(request.fills).map_err(PortfolioRunError::Fills)?;
     if fills.data_version != config.data.data_version {
         return Err(PortfolioRunError::DataVersionMismatch {
             fills: fills.data_version,
@@ -203,15 +219,18 @@ pub(crate) fn replay(
     }
 
     let metrics = ledger.metrics();
-    let root = args
+    let root = request
         .out
-        .clone()
-        .unwrap_or_else(|| {
-            args.fills
-                .parent()
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| PathBuf::from("."))
-        })
+        .map_or_else(
+            || {
+                request
+                    .fills
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_else(|| PathBuf::from("."))
+            },
+            Path::to_path_buf,
+        )
         .join("portfolio");
     render_report::ensure_available(&root).map_err(PortfolioRunError::Bundle)?;
 
@@ -243,39 +262,26 @@ pub(crate) fn replay(
     render_report::write_stage_bundle(&root, &artifacts, &provenance, "metrics.json")
         .map_err(PortfolioRunError::Bundle)?;
 
-    if args.json {
-        let value = json!({
-            "bundle": root,
-            "artifacts": [
-                "trades.csv",
-                "equity.csv",
-                "funding.csv",
-                "risk_events.csv",
-                "metrics.json",
-                "summary.txt",
-                "provenance.json"
-            ],
-        });
-        writeln!(
-            writer,
-            "{}",
-            serde_json::to_string(&value).map_err(PortfolioRunError::Json)?
-        )
-        .map_err(PortfolioRunError::Output)?;
-    } else {
-        for name in [
-            "trades.csv",
-            "equity.csv",
-            "funding.csv",
-            "risk_events.csv",
-            "metrics.json",
-            "summary.txt",
-            "provenance.json",
-        ] {
-            writeln!(writer, "{}", root.join(name).display()).map_err(PortfolioRunError::Output)?;
-        }
-    }
-    writer.flush().map_err(PortfolioRunError::Output)
+    let artifact_names = vec![
+        "trades.csv".to_owned(),
+        "equity.csv".to_owned(),
+        "funding.csv".to_owned(),
+        "risk_events.csv".to_owned(),
+        "metrics.json".to_owned(),
+        "summary.txt".to_owned(),
+        "provenance.json".to_owned(),
+    ];
+    let value = json!({
+        "bundle": root,
+        "artifacts": artifact_names,
+    });
+    let mut json = serde_json::to_vec(&value).map_err(PortfolioRunError::Json)?;
+    json.push(b'\n');
+    Ok(PortfolioOutcome {
+        root,
+        artifacts: artifact_names,
+        json,
+    })
 }
 
 fn trades_csv(trades: &[TradeRecord]) -> String {

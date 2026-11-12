@@ -9,12 +9,12 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use quantrule_app::artifact::provenance::{ProvenanceError, StageProvenance};
+use crate::artifact::provenance::{ProvenanceError, StageProvenance};
 use quantrule_backtest::execution::{Fill, FillReason, OrderSide};
 
 /// The execution fills bundle could not be read.
 #[derive(Debug)]
-pub(crate) enum FillsError {
+pub enum FillsError {
     /// A required artifact could not be read.
     Read {
         /// The artifact path.
@@ -59,17 +59,17 @@ impl std::error::Error for FillsError {
 
 /// A complete fills bundle.
 #[derive(Debug, Clone)]
-pub(crate) struct FillsBundle {
+pub struct FillsBundle {
     /// The execution output's data version.
-    pub(crate) data_version: String,
+    pub data_version: String,
     /// The execution configuration identity.
-    pub(crate) config_id: String,
+    pub config_id: String,
     /// The requested period start, as written.
-    pub(crate) period_from: Option<String>,
+    pub period_from: Option<String>,
     /// The requested period end, as written.
-    pub(crate) period_to: Option<String>,
+    pub period_to: Option<String>,
     /// The fills in fill order.
-    pub(crate) fills: Vec<Fill>,
+    pub fills: Vec<Fill>,
 }
 
 impl FillsBundle {
@@ -79,7 +79,7 @@ impl FillsBundle {
     ///
     /// Returns [`FillsError`] when a required artifact is missing, unreadable,
     /// or not shaped like a fills bundle.
-    pub(crate) fn load(path: &Path) -> Result<Self, FillsError> {
+    pub fn load(path: &Path) -> Result<Self, FillsError> {
         let provenance = parse_provenance(&path.join("provenance.json"))?;
         let fills = parse_fills(&path.join("fills.csv"))?;
         Ok(Self {
@@ -93,7 +93,7 @@ impl FillsBundle {
 }
 
 fn parse_provenance(path: &Path) -> Result<StageProvenance, FillsError> {
-    quantrule_app::artifact::provenance::load_stage(path, "execution", "fills").map_err(fills_error)
+    crate::artifact::provenance::load_stage(path, "execution", "fills").map_err(fills_error)
 }
 
 fn fills_error(error: ProvenanceError) -> FillsError {

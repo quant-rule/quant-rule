@@ -7,4 +7,4 @@
 mod fills;
 mod run;
 
-pub(crate) use run::{PortfolioRunError, replay};
+pub use run::{PortfolioOutcome, PortfolioRequest, PortfolioRunError, replay};

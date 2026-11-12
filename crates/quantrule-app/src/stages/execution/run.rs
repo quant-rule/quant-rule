@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Write as _;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use quantrule_backtest::execution::{
@@ -20,15 +20,14 @@ use quantrule_data::Candle;
 use serde_json::{Value, json};
 
 use super::decisions::{DecisionKind, DecisionsBundle, DecisionsError};
-use crate::request::ExecutionRunArgs;
-use quantrule_app::artifact::render_report::{self, BundleWriteError};
-use quantrule_app::config::{ConfigError, RunConfig};
-use quantrule_app::csv::SourceError;
-use quantrule_app::pipeline;
+use crate::artifact::render_report::{self, BundleWriteError};
+use crate::config::{ConfigError, RunConfig};
+use crate::csv::SourceError;
+use crate::pipeline;
 
 /// The execution command failed.
 #[derive(Debug)]
-pub(crate) enum ExecutionRunError {
+pub enum ExecutionRunError {
     /// The run configuration is invalid.
     Config(ConfigError),
     /// The strategy decisions bundle is invalid.
@@ -163,18 +162,36 @@ impl std::error::Error for ExecutionRunError {
     }
 }
 
+/// One execution-stage request.
+pub struct ExecutionRequest<'a> {
+    /// The run configuration path.
+    pub config: &'a Path,
+    /// The strategy decisions bundle directory.
+    pub decisions: &'a Path,
+    /// The output root; the decisions bundle's parent when `None`.
+    pub out: Option<&'a Path>,
+}
+
+/// The written execution bundle.
+pub struct ExecutionOutcome {
+    /// The bundle root.
+    pub root: PathBuf,
+    /// The artifact names under the root.
+    pub artifacts: Vec<String>,
+    /// The `--json` envelope.
+    pub json: Vec<u8>,
+}
+
 /// Runs the execution stage.
 ///
 /// # Errors
 ///
 /// Returns [`ExecutionRunError`] when a config, decision artifact, candle
-/// series, execution invariant, output target, or writer fails.
-pub(crate) fn run(
-    args: &ExecutionRunArgs,
-    writer: &mut impl Write,
-) -> Result<(), ExecutionRunError> {
-    let config = RunConfig::load(&args.config).map_err(ExecutionRunError::Config)?;
-    let decisions = DecisionsBundle::load(&args.decisions).map_err(ExecutionRunError::Decisions)?;
+/// series, execution invariant, or output target fails.
+pub fn run(request: &ExecutionRequest<'_>) -> Result<ExecutionOutcome, ExecutionRunError> {
+    let config = RunConfig::load(request.config).map_err(ExecutionRunError::Config)?;
+    let decisions =
+        DecisionsBundle::load(request.decisions).map_err(ExecutionRunError::Decisions)?;
     if decisions.data_version != config.data.data_version {
         return Err(ExecutionRunError::DataVersionMismatch {
             decisions: decisions.data_version,
@@ -286,15 +303,18 @@ pub(crate) fn run(
     }
     let final_orders: Vec<OrderRecord> = final_orders.into_values().collect();
 
-    let root = args
+    let root = request
         .out
-        .clone()
-        .unwrap_or_else(|| {
-            args.decisions
-                .parent()
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| PathBuf::from("."))
-        })
+        .map_or_else(
+            || {
+                request
+                    .decisions
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_else(|| PathBuf::from("."))
+            },
+            Path::to_path_buf,
+        )
         .join("execution");
     let meta = ExecutionArtifactMeta {
         data_version: &decisions.data_version,
@@ -314,29 +334,24 @@ pub(crate) fn run(
     };
     write_bundle(&root, &final_orders, &fills, &rejections, &meta)?;
 
-    if args.json {
-        let value = json!({
-            "bundle": root,
-            "artifacts": ["orders.csv", "fills.csv", "rejections.csv", "summary.txt", "provenance.json"],
-        });
-        writeln!(
-            writer,
-            "{}",
-            serde_json::to_string(&value).map_err(ExecutionRunError::Json)?
-        )
-        .map_err(ExecutionRunError::Output)?;
-    } else {
-        for name in [
-            "orders.csv",
-            "fills.csv",
-            "rejections.csv",
-            "summary.txt",
-            "provenance.json",
-        ] {
-            writeln!(writer, "{}", root.join(name).display()).map_err(ExecutionRunError::Output)?;
-        }
-    }
-    writer.flush().map_err(ExecutionRunError::Output)
+    let artifacts = vec![
+        "orders.csv".to_owned(),
+        "fills.csv".to_owned(),
+        "rejections.csv".to_owned(),
+        "summary.txt".to_owned(),
+        "provenance.json".to_owned(),
+    ];
+    let value = json!({
+        "bundle": root,
+        "artifacts": artifacts,
+    });
+    let mut json = serde_json::to_vec(&value).map_err(ExecutionRunError::Json)?;
+    json.push(b'\n');
+    Ok(ExecutionOutcome {
+        root,
+        artifacts,
+        json,
+    })
 }
 
 fn collect(
@@ -418,35 +433,35 @@ fn rejections_csv(rejections: &[Rejection]) -> String {
 }
 
 /// The identity and configuration an execution bundle records.
-pub(crate) struct ExecutionArtifactMeta<'a> {
+pub struct ExecutionArtifactMeta<'a> {
     /// The input candle identity.
-    pub(crate) data_version: &'a str,
+    pub data_version: &'a str,
     /// The run configuration identity.
-    pub(crate) config_id: &'a str,
+    pub config_id: &'a str,
     /// The strategy configuration identity.
-    pub(crate) strategy_config_id: &'a str,
+    pub strategy_config_id: &'a str,
     /// The requested period start, as written.
-    pub(crate) period_from: Option<&'a str>,
+    pub period_from: Option<&'a str>,
     /// The requested period end, as written.
-    pub(crate) period_to: Option<&'a str>,
+    pub period_to: Option<&'a str>,
     /// The execution timeframe code.
-    pub(crate) fill_timeframe: &'a str,
+    pub fill_timeframe: &'a str,
     /// The number of decision bars.
-    pub(crate) decision_bars: usize,
+    pub decision_bars: usize,
     /// The number of candle bars.
-    pub(crate) bars: usize,
+    pub bars: usize,
     /// The sizing mode.
-    pub(crate) sizing: quantrule_backtest::portfolio::SizingMode,
+    pub sizing: quantrule_backtest::portfolio::SizingMode,
     /// How the sizing equity was selected.
-    pub(crate) sizing_basis: &'a str,
+    pub sizing_basis: &'a str,
     /// The fixed sizing equity, or `None` for the ledger's current equity.
-    pub(crate) sizing_equity: Option<f64>,
+    pub sizing_equity: Option<f64>,
     /// The fixed notional cap, or `None` for the ledger's dynamic cap.
-    pub(crate) max_notional: Option<f64>,
+    pub max_notional: Option<f64>,
     /// The execution fee rate.
-    pub(crate) fee_rate: f64,
+    pub fee_rate: f64,
     /// The execution slippage in basis points.
-    pub(crate) slippage_bps: f64,
+    pub slippage_bps: f64,
 }
 
 /// Writes the execution bundle from the collected records.
@@ -455,7 +470,7 @@ pub(crate) struct ExecutionArtifactMeta<'a> {
 ///
 /// Returns [`ExecutionRunError::Bundle`] when the target is unavailable, and
 /// [`ExecutionRunError::Json`] when an artifact cannot be encoded.
-pub(crate) fn write_bundle(
+pub fn write_bundle(
     root: &Path,
     orders: &[OrderRecord],
     fills: &[Fill],

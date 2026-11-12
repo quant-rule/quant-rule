@@ -17,13 +17,15 @@ use quantrule_backtest::portfolio::{PortfolioLedger, PortfolioLedgerError};
 use quantrule_backtest::strategy::{Decision, EventStrategyInput};
 use serde_json::{Value, json};
 
-use crate::execution::{ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution};
-use crate::portfolio::{self, PortfolioRunError};
-use crate::request::{BacktestRunArgs, PortfolioReplayArgs};
+use crate::request::BacktestRunArgs;
 use quantrule_app::artifact::model_bundle::model_bundle_from;
 use quantrule_app::artifact::render_report::{self, BundleWriteError};
 use quantrule_app::config::{ConfigError, RunConfig};
 use quantrule_app::pipeline::{self, PipelineError};
+use quantrule_app::stages::execution::{
+    ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution,
+};
+use quantrule_app::stages::portfolio::{self, PortfolioRequest, PortfolioRunError};
 use quantrule_app::stages::strategy::{
     DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
     validate_context,
@@ -338,13 +340,13 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
     )
     .map_err(BacktestRunError::ExecutionBundle)?;
 
-    let portfolio_args = PortfolioReplayArgs {
-        fills: root.join("execution"),
-        config: args.config.clone(),
-        out: Some(root.clone()),
-        json: false,
+    let execution_root = root.join("execution");
+    let portfolio_request = PortfolioRequest {
+        config: &args.config,
+        fills: &execution_root,
+        out: Some(root.as_path()),
     };
-    portfolio::replay(&portfolio_args, &mut io::sink()).map_err(BacktestRunError::Portfolio)?;
+    portfolio::replay(&portfolio_request).map_err(BacktestRunError::Portfolio)?;
 
     let stages = [
         stage_info(&root, "model", "model")?,

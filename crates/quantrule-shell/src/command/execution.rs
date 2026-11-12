@@ -7,8 +7,9 @@
 use std::path::PathBuf;
 
 use super::types::{Command, ParseError};
-use crate::execution;
 use crate::request::ExecutionRunArgs;
+use quantrule_app::service::AppService;
+use quantrule_app::stages::execution::ExecutionRequest;
 
 const USAGE: &str =
     "usage: execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json]";
@@ -117,7 +118,23 @@ pub(crate) fn run_execution(
     args: &ExecutionRunArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), super::types::RunError> {
-    execution::run(args, writer).map_err(super::types::RunError::Execution)
+    let request = ExecutionRequest {
+        config: &args.config,
+        decisions: &args.decisions,
+        out: args.out.as_deref(),
+    };
+    let outcome = AppService::run_execution(&request).map_err(super::types::RunError::Execution)?;
+    if args.json {
+        writer
+            .write_all(&outcome.json)
+            .map_err(super::types::RunError::Output)?;
+    } else {
+        for name in &outcome.artifacts {
+            writeln!(writer, "{}", outcome.root.join(name).display())
+                .map_err(super::types::RunError::Output)?;
+        }
+    }
+    writer.flush().map_err(super::types::RunError::Output)
 }
 
 #[cfg(test)]

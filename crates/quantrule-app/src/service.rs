@@ -26,7 +26,9 @@ use crate::export;
 use crate::memory::{MemoryError, NewConfig, NewDataset, NewRun, NewWorkspace, ResearchMemory};
 use crate::pipeline::{self, WindowMode};
 use crate::stages::data;
+use crate::stages::execution::{self, ExecutionOutcome, ExecutionRequest, ExecutionRunError};
 use crate::stages::model::{self, ModelReportError, ModelReportRequest};
+use crate::stages::portfolio::{self, PortfolioOutcome, PortfolioRequest, PortfolioRunError};
 use crate::stages::strategy::{
     self, StrategyExplainRequest, StrategyOutcome, StrategyRunError, StrategyRunRequest,
 };
@@ -358,6 +360,30 @@ impl AppService {
         request: &StrategyRunRequest<'_>,
     ) -> Result<StrategyOutcome, StrategyRunError> {
         strategy::run(request)
+    }
+
+    /// Runs the execution stage over a strategy decisions bundle.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutionRunError`] when the configuration, decisions, candles,
+    /// execution invariant, or bundle fails.
+    pub fn run_execution(
+        request: &ExecutionRequest<'_>,
+    ) -> Result<ExecutionOutcome, ExecutionRunError> {
+        execution::run(request)
+    }
+
+    /// Replays an execution fills bundle into portfolio accounting.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PortfolioRunError`] when the configuration, fills, candles,
+    /// ledger rule, or bundle fails.
+    pub fn replay_portfolio(
+        request: &PortfolioRequest<'_>,
+    ) -> Result<PortfolioOutcome, PortfolioRunError> {
+        portfolio::replay(request)
     }
 }
 

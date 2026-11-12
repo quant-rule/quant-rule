@@ -96,6 +96,8 @@ REF-2026-11-12-06 and is deferred.
 | `stages/data.rs` | Candle, tolerant, timeframe, and event-batch use cases. |
 | `stages/model.rs` | Model report use case and spec/panel loading. |
 | `stages/strategy/` | Model-bundle reader, strategy context, decision records, and the explain/run use cases. |
+| `stages/execution/` | Decisions reader, causal fill engine orchestration, and the fills bundle. |
+| `stages/portfolio/` | Fills reader, portfolio ledger orchestration, and the portfolio bundle. |
 | `memory/` | SQLite research memory: schema, store, types, transfer, tests. |
 
 The artifact layer owns provenance, the model bundle, the report artifacts, the
@@ -113,7 +115,7 @@ and analytics. The target layout is in section 7.
 | `render.rs` | Candle and timeframe NDJSON. |
 | `render_flat.rs` | Event NDJSON. |
 | `source/`, `fetch.rs`, `export.rs` | Explicit Dukascopy fetch and its CSV writer. |
-| `execution/`, `portfolio/`, `backtest/`, `qualification/`, `analytics/` | Current stage orchestration and artifact readers/writers. |
+| `backtest/`, `qualification/`, `analytics/` | Current stage orchestration and artifact readers/writers. |
 | `backtest_bundle.rs` | Current backtest manifest and stage-provenance reader. |
 
 The remaining stage modules are transitional; P3.4 moves them to the app. Do not

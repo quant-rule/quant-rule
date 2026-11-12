@@ -8,4 +8,6 @@
 mod decisions;
 mod run;
 
-pub(crate) use run::{ExecutionArtifactMeta, ExecutionRunError, run, write_bundle};
+pub use run::{
+    ExecutionArtifactMeta, ExecutionOutcome, ExecutionRequest, ExecutionRunError, run, write_bundle,
+};

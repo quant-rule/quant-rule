@@ -7,5 +7,7 @@
 //! value.
 
 pub mod data;
+pub mod execution;
 pub mod model;
+pub mod portfolio;
 pub mod strategy;
