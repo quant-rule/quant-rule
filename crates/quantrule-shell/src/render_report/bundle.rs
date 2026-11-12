@@ -15,7 +15,7 @@ use crate::export::{ExportError, write_atomic};
 
 /// A bundle could not be written.
 #[derive(Debug)]
-pub(crate) enum BundleError {
+pub(crate) enum BundleWriteError {
     /// The bundle directory exists and is not empty.
     OutputNotEmpty {
         /// The bundle path.
@@ -49,7 +49,7 @@ pub(crate) enum BundleError {
     },
 }
 
-impl fmt::Display for BundleError {
+impl fmt::Display for BundleWriteError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::OutputNotEmpty { path } => write!(
@@ -75,7 +75,7 @@ impl fmt::Display for BundleError {
     }
 }
 
-impl std::error::Error for BundleError {
+impl std::error::Error for BundleWriteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::ReadOutput { source, .. } | Self::CreateDirectory { source, .. } => Some(source),
@@ -86,29 +86,29 @@ impl std::error::Error for BundleError {
 }
 
 /// Refuses a target that is a file or a non-empty directory.
-pub(crate) fn ensure_available(root: &Path) -> Result<(), BundleError> {
+pub(crate) fn ensure_available(root: &Path) -> Result<(), BundleWriteError> {
     match fs::metadata(root) {
-        Ok(metadata) if !metadata.is_dir() => Err(BundleError::OutputNotDirectory {
+        Ok(metadata) if !metadata.is_dir() => Err(BundleWriteError::OutputNotDirectory {
             path: root.to_path_buf(),
         }),
         Ok(_) => {
-            let mut entries = fs::read_dir(root).map_err(|source| BundleError::ReadOutput {
+            let mut entries = fs::read_dir(root).map_err(|source| BundleWriteError::ReadOutput {
                 path: root.to_path_buf(),
                 source,
             })?;
             match entries.next() {
                 None => Ok(()),
-                Some(Ok(_)) => Err(BundleError::OutputNotEmpty {
+                Some(Ok(_)) => Err(BundleWriteError::OutputNotEmpty {
                     path: root.to_path_buf(),
                 }),
-                Some(Err(source)) => Err(BundleError::ReadOutput {
+                Some(Err(source)) => Err(BundleWriteError::ReadOutput {
                     path: root.to_path_buf(),
                     source,
                 }),
             }
         }
         Err(source) if source.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(source) => Err(BundleError::ReadOutput {
+        Err(source) => Err(BundleWriteError::ReadOutput {
             path: root.to_path_buf(),
             source,
         }),
@@ -124,7 +124,7 @@ pub(crate) fn write_bundle(
     root: &Path,
     artifacts: &[(&str, Vec<u8>)],
     provenance: &[u8],
-) -> Result<(), BundleError> {
+) -> Result<(), BundleWriteError> {
     write_stage_bundle(root, artifacts, provenance, "report.json")
 }
 
@@ -140,11 +140,11 @@ pub(crate) fn write_stage_bundle(
     artifacts: &[(&str, Vec<u8>)],
     provenance: &[u8],
     marker: &str,
-) -> Result<(), BundleError> {
+) -> Result<(), BundleWriteError> {
     ensure_available(root)?;
     let created = !root.exists();
     if created {
-        fs::create_dir_all(root).map_err(|source| BundleError::CreateDirectory {
+        fs::create_dir_all(root).map_err(|source| BundleWriteError::CreateDirectory {
             path: root.to_path_buf(),
             source,
         })?;
@@ -152,7 +152,7 @@ pub(crate) fn write_stage_bundle(
 
     let mut written = Vec::new();
     let mut created_dirs: Vec<PathBuf> = Vec::new();
-    let mut write = |name: &str, bytes: &[u8]| -> Result<(), BundleError> {
+    let mut write = |name: &str, bytes: &[u8]| -> Result<(), BundleWriteError> {
         let path = root.join(name);
         if let Some(parent) = path.parent() {
             let mut missing = Vec::new();
@@ -165,7 +165,7 @@ pub(crate) fn write_stage_bundle(
                 current = next;
             }
             if !missing.is_empty() {
-                fs::create_dir_all(parent).map_err(|source| BundleError::CreateDirectory {
+                fs::create_dir_all(parent).map_err(|source| BundleWriteError::CreateDirectory {
                     path: parent.to_path_buf(),
                     source,
                 })?;
@@ -174,7 +174,7 @@ pub(crate) fn write_stage_bundle(
                 }
             }
         }
-        write_atomic(&path, bytes).map_err(|source| BundleError::Artifact {
+        write_atomic(&path, bytes).map_err(|source| BundleWriteError::Artifact {
             path: path.clone(),
             source,
         })?;
@@ -212,7 +212,7 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use super::{BundleError, ensure_available, write_bundle};
+    use super::{BundleWriteError, ensure_available, write_bundle};
 
     fn root(name: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -229,7 +229,7 @@ mod tests {
 
         assert!(matches!(
             ensure_available(&root),
-            Err(BundleError::OutputNotEmpty { .. })
+            Err(BundleWriteError::OutputNotEmpty { .. })
         ));
         fs::remove_dir_all(&root).expect("the directory is removed");
     }

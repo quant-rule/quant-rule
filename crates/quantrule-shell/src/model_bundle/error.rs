@@ -8,7 +8,7 @@
 use std::fmt;
 use std::io;
 
-use crate::render_report::BundleError;
+use crate::render_report::BundleWriteError;
 
 /// A model bundle could not be assembled or written.
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub(crate) enum ModelBundleError {
         period: String,
     },
     /// The bundle directory is unavailable.
-    Bundle(BundleError),
+    Bundle(BundleWriteError),
     /// An artifact could not be rendered.
     Output(io::Error),
 }
@@ -52,7 +52,7 @@ impl std::error::Error for ModelBundleError {
 #[cfg(test)]
 mod tests {
     use super::ModelBundleError;
-    use crate::render_report::BundleError;
+    use crate::render_report::BundleWriteError;
     use std::path::PathBuf;
 
     #[test]
@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn bundle_message_delegates() {
-        let error = ModelBundleError::Bundle(BundleError::OutputNotEmpty {
+        let error = ModelBundleError::Bundle(BundleWriteError::OutputNotEmpty {
             path: PathBuf::from("target/model"),
         });
 

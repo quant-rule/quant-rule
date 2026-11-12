@@ -11,16 +11,16 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use quantrule_app::artifact::provenance::{ProvenanceError, StageProvenance};
 use quantrule_backtest::strategy::{
     EventStrategyInput, EventTimeframeView, EventView, context_window_bars,
 };
 use quantrule_model::context::ContextBar;
 use quantrule_model::timeframe::ModelStates;
-use serde_json::Value;
 
 /// The model bundle could not be read.
 #[derive(Debug)]
-pub(crate) enum ModelBundleError {
+pub(crate) enum StrategyBundleError {
     /// A required artifact could not be read.
     Read {
         /// The artifact path.
@@ -37,7 +37,7 @@ pub(crate) enum ModelBundleError {
     },
 }
 
-impl fmt::Display for ModelBundleError {
+impl fmt::Display for StrategyBundleError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Read { path, source } => {
@@ -54,7 +54,7 @@ impl fmt::Display for ModelBundleError {
     }
 }
 
-impl std::error::Error for ModelBundleError {
+impl std::error::Error for StrategyBundleError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Read { source, .. } => Some(source),
@@ -104,32 +104,31 @@ impl ModelBundle {
     ///
     /// # Errors
     ///
-    /// Returns [`ModelBundleError`] when a required artifact is missing,
+    /// Returns [`StrategyBundleError`] when a required artifact is missing,
     /// unreadable, or not shaped like a model bundle.
-    pub(crate) fn load(path: &Path) -> Result<Self, ModelBundleError> {
-        let (data_version, config_id, period_from, period_to) =
-            parse_provenance(&path.join("provenance.json"))?;
+    pub(crate) fn load(path: &Path) -> Result<Self, StrategyBundleError> {
+        let provenance = parse_provenance(&path.join("provenance.json"))?;
         let bars = parse_readings(&path.join("readings.csv"))?;
         let events = parse_events(&path.join("events.csv"))?;
         if bars.is_empty() {
-            return Err(ModelBundleError::Invalid {
+            return Err(StrategyBundleError::Invalid {
                 path: path.join("readings.csv"),
                 message: "the bundle has no readings".to_owned(),
             });
         }
         for timeframe in events.keys() {
             if !bars.contains_key(timeframe) {
-                return Err(ModelBundleError::Invalid {
+                return Err(StrategyBundleError::Invalid {
                     path: path.join("events.csv"),
                     message: format!("events name timeframe {timeframe}s, but readings do not"),
                 });
             }
         }
         Ok(Self {
-            data_version,
-            config_id,
-            period_from,
-            period_to,
+            data_version: provenance.data_version,
+            config_id: provenance.config_id,
+            period_from: provenance.period_from,
+            period_to: provenance.period_to,
             bars,
             events,
         })
@@ -250,57 +249,18 @@ fn view(row: &BarRow, _window_bars: usize, events: Vec<EventView>) -> EventTimef
     }
 }
 
-fn parse_provenance(
-    path: &Path,
-) -> Result<(String, String, Option<String>, Option<String>), ModelBundleError> {
-    let text = read_text(path)?;
-    let value: Value = serde_json::from_str(&text).map_err(|error| ModelBundleError::Invalid {
-        path: path.to_path_buf(),
-        message: format!("not JSON: {error}"),
-    })?;
-    let object = value.as_object().ok_or_else(|| ModelBundleError::Invalid {
-        path: path.to_path_buf(),
-        message: "the provenance root is not an object".to_owned(),
-    })?;
-    let report = object.get("report").and_then(Value::as_str).unwrap_or("");
-    if report != "model" {
-        return Err(ModelBundleError::Invalid {
-            path: path.to_path_buf(),
-            message: format!("expected report 'model', found '{report}'"),
-        });
-    }
-    let data_version = object
-        .get("data_version")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| ModelBundleError::Invalid {
-            path: path.to_path_buf(),
-            message: "data_version is missing or empty".to_owned(),
-        })?
-        .to_owned();
-    let config_id = object
-        .get("config_hash")
-        .or_else(|| object.get("config_id"))
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| ModelBundleError::Invalid {
-            path: path.to_path_buf(),
-            message: "config_hash is missing or empty".to_owned(),
-        })?
-        .to_owned();
-    let period = object.get("requested_period");
-    let period_from = period
-        .and_then(|period| period.get("from"))
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    let period_to = period
-        .and_then(|period| period.get("to"))
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    Ok((data_version, config_id, period_from, period_to))
+fn parse_provenance(path: &Path) -> Result<StageProvenance, StrategyBundleError> {
+    quantrule_app::artifact::provenance::load_model(path).map_err(strategy_bundle_error)
 }
 
-fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, ModelBundleError> {
+fn strategy_bundle_error(error: ProvenanceError) -> StrategyBundleError {
+    match error {
+        ProvenanceError::Read { path, source } => StrategyBundleError::Read { path, source },
+        ProvenanceError::Invalid { path, message } => StrategyBundleError::Invalid { path, message },
+    }
+}
+
+fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBundleError> {
     let table = Table::read(path)?;
     let timeframe = table.column("timeframe_secs")?;
     let bar = table.column("bar")?;
@@ -377,7 +337,7 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, ModelBundle
         rows.sort_by_key(|row| row.bar);
         for pair in rows.windows(2) {
             if pair[0].bar == pair[1].bar {
-                return Err(ModelBundleError::Invalid {
+                return Err(StrategyBundleError::Invalid {
                     path: path.to_path_buf(),
                     message: format!(
                         "timeframe {}s has two bars at index {}",
@@ -390,7 +350,7 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, ModelBundle
     Ok(bars)
 }
 
-fn parse_events(path: &Path) -> Result<BTreeMap<u64, Vec<EventView>>, ModelBundleError> {
+fn parse_events(path: &Path) -> Result<BTreeMap<u64, Vec<EventView>>, StrategyBundleError> {
     let table = Table::read(path)?;
     let timeframe = table.column("timeframe_secs")?;
     let event_code = table.column("event_code")?;
@@ -437,8 +397,8 @@ fn parse_events(path: &Path) -> Result<BTreeMap<u64, Vec<EventView>>, ModelBundl
     Ok(events)
 }
 
-fn read_text(path: &Path) -> Result<String, ModelBundleError> {
-    fs::read_to_string(path).map_err(|source| ModelBundleError::Read {
+fn read_text(path: &Path) -> Result<String, StrategyBundleError> {
+    fs::read_to_string(path).map_err(|source| StrategyBundleError::Read {
         path: path.to_path_buf(),
         source,
     })
@@ -450,10 +410,10 @@ struct Table {
 }
 
 impl Table {
-    fn read(path: &Path) -> Result<Self, ModelBundleError> {
+    fn read(path: &Path) -> Result<Self, StrategyBundleError> {
         let text = read_text(path)?;
         let mut lines = text.lines();
-        let header = lines.next().ok_or_else(|| ModelBundleError::Invalid {
+        let header = lines.next().ok_or_else(|| StrategyBundleError::Invalid {
             path: path.to_path_buf(),
             message: "the file is empty".to_owned(),
         })?;
@@ -465,7 +425,7 @@ impl Table {
             }
             let row = split_row(path, line)?;
             if row.len() != header.len() {
-                return Err(ModelBundleError::Invalid {
+                return Err(StrategyBundleError::Invalid {
                     path: path.to_path_buf(),
                     message: format!(
                         "row {} has {} fields; the header has {}",
@@ -480,11 +440,11 @@ impl Table {
         Ok(Self { header, rows })
     }
 
-    fn column(&self, name: &str) -> Result<usize, ModelBundleError> {
+    fn column(&self, name: &str) -> Result<usize, StrategyBundleError> {
         self.header
             .iter()
             .position(|column| column == name)
-            .ok_or_else(|| ModelBundleError::Invalid {
+            .ok_or_else(|| StrategyBundleError::Invalid {
                 path: PathBuf::from("the model bundle"),
                 message: format!("the required column '{name}' is missing"),
             })
@@ -504,7 +464,7 @@ impl Table {
             .trim()
     }
 
-    fn u64(&self, row: &[String], column: usize, number: usize) -> Result<u64, ModelBundleError> {
+    fn u64(&self, row: &[String], column: usize, number: usize) -> Result<u64, StrategyBundleError> {
         parse_value(
             self.field(row, column, number),
             number,
@@ -517,37 +477,37 @@ impl Table {
         row: &[String],
         column: usize,
         number: usize,
-    ) -> Result<usize, ModelBundleError> {
+    ) -> Result<usize, StrategyBundleError> {
         let value = self.u64(row, column, number)?;
-        usize::try_from(value).map_err(|_| ModelBundleError::Invalid {
+        usize::try_from(value).map_err(|_| StrategyBundleError::Invalid {
             path: PathBuf::from("the model bundle"),
             message: format!("row {number} has a bar index that does not fit this platform"),
         })
     }
 
-    fn i64(&self, row: &[String], column: usize, number: usize) -> Result<i64, ModelBundleError> {
+    fn i64(&self, row: &[String], column: usize, number: usize) -> Result<i64, StrategyBundleError> {
         parse_value(self.field(row, column, number), number, "a signed integer")
     }
 
-    fn u8(&self, row: &[String], column: usize, number: usize) -> Result<u8, ModelBundleError> {
+    fn u8(&self, row: &[String], column: usize, number: usize) -> Result<u8, StrategyBundleError> {
         let value = self.u64(row, column, number)?;
-        u8::try_from(value).map_err(|_| ModelBundleError::Invalid {
+        u8::try_from(value).map_err(|_| StrategyBundleError::Invalid {
             path: PathBuf::from("the model bundle"),
             message: format!("row {number} has a value outside u8"),
         })
     }
 
-    fn u16(&self, row: &[String], column: usize, number: usize) -> Result<u16, ModelBundleError> {
+    fn u16(&self, row: &[String], column: usize, number: usize) -> Result<u16, StrategyBundleError> {
         let value = self.u64(row, column, number)?;
-        u16::try_from(value).map_err(|_| ModelBundleError::Invalid {
+        u16::try_from(value).map_err(|_| StrategyBundleError::Invalid {
             path: PathBuf::from("the model bundle"),
             message: format!("row {number} has a value outside u16"),
         })
     }
 
-    fn i8(&self, row: &[String], column: usize, number: usize) -> Result<i8, ModelBundleError> {
+    fn i8(&self, row: &[String], column: usize, number: usize) -> Result<i8, StrategyBundleError> {
         let value = self.i64(row, column, number)?;
-        i8::try_from(value).map_err(|_| ModelBundleError::Invalid {
+        i8::try_from(value).map_err(|_| StrategyBundleError::Invalid {
             path: PathBuf::from("the model bundle"),
             message: format!("row {number} has a value outside i8"),
         })
@@ -558,7 +518,7 @@ impl Table {
         row: &[String],
         column: usize,
         number: usize,
-    ) -> Result<Option<i8>, ModelBundleError> {
+    ) -> Result<Option<i8>, StrategyBundleError> {
         let value = self.field(row, column, number);
         if value.is_empty() {
             Ok(None)
@@ -572,7 +532,7 @@ impl Table {
         row: &[String],
         column: usize,
         number: usize,
-    ) -> Result<Option<u8>, ModelBundleError> {
+    ) -> Result<Option<u8>, StrategyBundleError> {
         let value = self.field(row, column, number);
         if value.is_empty() {
             Ok(None)
@@ -580,7 +540,7 @@ impl Table {
             let parsed: u64 = parse_value(value, number, "an unsigned integer")?;
             u8::try_from(parsed)
                 .map(Some)
-                .map_err(|_| ModelBundleError::Invalid {
+                .map_err(|_| StrategyBundleError::Invalid {
                     path: PathBuf::from("the model bundle"),
                     message: format!("row {number} has a value outside u8"),
                 })
@@ -592,7 +552,7 @@ impl Table {
         row: &[String],
         column: usize,
         number: usize,
-    ) -> Result<Option<u32>, ModelBundleError> {
+    ) -> Result<Option<u32>, StrategyBundleError> {
         let value = self.field(row, column, number);
         if value.is_empty() {
             Ok(None)
@@ -600,7 +560,7 @@ impl Table {
             let parsed: u64 = parse_value(value, number, "an unsigned integer")?;
             u32::try_from(parsed)
                 .map(Some)
-                .map_err(|_| ModelBundleError::Invalid {
+                .map_err(|_| StrategyBundleError::Invalid {
                     path: PathBuf::from("the model bundle"),
                     message: format!("row {number} has a value outside u32"),
                 })
@@ -612,7 +572,7 @@ impl Table {
         row: &[String],
         column: usize,
         number: usize,
-    ) -> Result<Option<f64>, ModelBundleError> {
+    ) -> Result<Option<f64>, StrategyBundleError> {
         let value = self.field(row, column, number);
         if value.is_empty() {
             Ok(None)
@@ -622,9 +582,9 @@ impl Table {
     }
 }
 
-fn split_row(path: &Path, line: &str) -> Result<Vec<String>, ModelBundleError> {
+fn split_row(path: &Path, line: &str) -> Result<Vec<String>, StrategyBundleError> {
     if line.contains('"') {
-        return Err(ModelBundleError::Invalid {
+        return Err(StrategyBundleError::Invalid {
             path: path.to_path_buf(),
             message: "quoted fields are not supported in a model artifact".to_owned(),
         });
@@ -636,8 +596,8 @@ fn parse_value<T: std::str::FromStr>(
     value: &str,
     number: usize,
     expected: &str,
-) -> Result<T, ModelBundleError> {
-    value.parse().map_err(|_| ModelBundleError::Invalid {
+) -> Result<T, StrategyBundleError> {
+    value.parse().map_err(|_| StrategyBundleError::Invalid {
         path: PathBuf::from("the model bundle"),
         message: format!("row {number} has {value:?}; expected {expected}"),
     })

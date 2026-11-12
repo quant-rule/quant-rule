@@ -8,7 +8,7 @@ mod bundle;
 mod json;
 mod provenance;
 
-pub(crate) use bundle::{BundleError, ensure_available, write_bundle, write_stage_bundle};
+pub(crate) use bundle::{BundleWriteError, ensure_available, write_bundle, write_stage_bundle};
 pub(crate) use json::{json_bytes, model_result_bytes};
 pub(crate) use provenance::{Provenance, bytes as provenance_bytes};
 

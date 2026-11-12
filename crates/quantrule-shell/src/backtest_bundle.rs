@@ -32,7 +32,7 @@ const STAGES: [&str; 4] = ["model", "strategy", "execution", "portfolio"];
 
 /// A backtest bundle could not be read.
 #[derive(Debug)]
-pub(crate) enum BundleError {
+pub(crate) enum ManifestError {
     /// A required artifact could not be read.
     Read {
         /// The artifact path.
@@ -69,7 +69,7 @@ pub(crate) enum BundleError {
     },
 }
 
-impl fmt::Display for BundleError {
+impl fmt::Display for ManifestError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Read { path, source } => {
@@ -105,7 +105,7 @@ impl fmt::Display for BundleError {
     }
 }
 
-impl std::error::Error for BundleError {
+impl std::error::Error for ManifestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Read { source, .. } => Some(source),
@@ -167,16 +167,16 @@ impl BundleManifest {
     ///
     /// # Errors
     ///
-    /// Returns [`BundleError`] when the manifest or a stage provenance is
+    /// Returns [`ManifestError`] when the manifest or a stage provenance is
     /// missing, unreadable, not JSON, carries an unsupported schema, disagrees
     /// with the manifest, or fails a recorded provenance hash.
-    pub(crate) fn load(root: &Path) -> Result<Self, BundleError> {
+    pub(crate) fn load(root: &Path) -> Result<Self, ManifestError> {
         let manifest_path = root.join("manifest.json");
         let (manifest, manifest_bytes) = read_json(&manifest_path)?;
         let manifest_object = as_object(&manifest_path, &manifest)?;
         let schema = required_str(&manifest_path, manifest_object, "schema")?;
         if schema != MANIFEST_SCHEMA {
-            return Err(BundleError::UnsupportedSchema {
+            return Err(ManifestError::UnsupportedSchema {
                 path: manifest_path,
                 expected: MANIFEST_SCHEMA,
                 observed: schema.to_owned(),
@@ -284,7 +284,7 @@ impl BundleManifest {
             let (provenance_value, provenance_bytes) = read_json(&provenance_path)?;
             let observed = fnv1a(&provenance_bytes);
             if observed != hash {
-                return Err(BundleError::HashMismatch {
+                return Err(ManifestError::HashMismatch {
                     stage: stage.to_owned(),
                     path: provenance_path,
                     expected: hash.to_owned(),
@@ -299,7 +299,7 @@ impl BundleManifest {
                 STAGE_SCHEMA
             };
             if provenance_schema != expected_schema {
-                return Err(BundleError::UnsupportedSchema {
+                return Err(ManifestError::UnsupportedSchema {
                     path: provenance_path,
                     expected: expected_schema,
                     observed: provenance_schema.to_owned(),
@@ -371,9 +371,9 @@ impl BundleManifest {
     ///
     /// # Errors
     ///
-    /// Returns [`BundleError::Read`] when the file cannot be read and
-    /// [`BundleError::Invalid`] when it is not JSON.
-    pub(crate) fn read_json(&self, relative: &str) -> Result<Value, BundleError> {
+    /// Returns [`ManifestError::Read`] when the file cannot be read and
+    /// [`ManifestError::Invalid`] when it is not JSON.
+    pub(crate) fn read_json(&self, relative: &str) -> Result<Value, ManifestError> {
         let path = self.root.join(relative);
         let (value, _) = read_json(&path)?;
         Ok(value)
@@ -383,11 +383,11 @@ impl BundleManifest {
     ///
     /// # Errors
     ///
-    /// Returns [`BundleError::Read`] when the file cannot be read and
-    /// [`BundleError::Invalid`] when it is not UTF-8.
-    pub(crate) fn read_string(&self, relative: &str) -> Result<String, BundleError> {
+    /// Returns [`ManifestError::Read`] when the file cannot be read and
+    /// [`ManifestError::Invalid`] when it is not UTF-8.
+    pub(crate) fn read_string(&self, relative: &str) -> Result<String, ManifestError> {
         let path = self.root.join(relative);
-        let bytes = std::fs::read(&path).map_err(|source| BundleError::Read {
+        let bytes = std::fs::read(&path).map_err(|source| ManifestError::Read {
             path: path.clone(),
             source,
         })?;
@@ -395,19 +395,19 @@ impl BundleManifest {
     }
 }
 
-fn read_json(path: &Path) -> Result<(Value, Vec<u8>), BundleError> {
-    let bytes = std::fs::read(path).map_err(|source| BundleError::Read {
+fn read_json(path: &Path) -> Result<(Value, Vec<u8>), ManifestError> {
+    let bytes = std::fs::read(path).map_err(|source| ManifestError::Read {
         path: path.to_path_buf(),
         source,
     })?;
-    let value = serde_json::from_slice(&bytes).map_err(|error| BundleError::Invalid {
+    let value = serde_json::from_slice(&bytes).map_err(|error| ManifestError::Invalid {
         path: path.to_path_buf(),
         message: format!("not JSON: {error}"),
     })?;
     Ok((value, bytes))
 }
 
-fn as_object<'a>(path: &Path, value: &'a Value) -> Result<&'a Map<String, Value>, BundleError> {
+fn as_object<'a>(path: &Path, value: &'a Value) -> Result<&'a Map<String, Value>, ManifestError> {
     value
         .as_object()
         .ok_or_else(|| invalid(path, "the document root must be an object"))
@@ -417,7 +417,7 @@ fn required_str<'a>(
     path: &Path,
     object: &'a Map<String, Value>,
     name: &str,
-) -> Result<&'a str, BundleError> {
+) -> Result<&'a str, ManifestError> {
     object
         .get(name)
         .and_then(Value::as_str)
@@ -428,7 +428,7 @@ fn required_non_empty_str<'a>(
     path: &Path,
     object: &'a Map<String, Value>,
     name: &str,
-) -> Result<&'a str, BundleError> {
+) -> Result<&'a str, ManifestError> {
     let value = required_str(path, object, name)?;
     if value.is_empty() {
         return Err(invalid(path, &format!("{name} must be non-empty")));
@@ -440,7 +440,7 @@ fn optional_date(
     path: &Path,
     object: &Map<String, Value>,
     name: &str,
-) -> Result<Option<String>, BundleError> {
+) -> Result<Option<String>, ManifestError> {
     match object.get(name) {
         Some(Value::Null) | None => Ok(None),
         Some(Value::String(text)) => Ok(Some(text.clone())),
@@ -455,8 +455,8 @@ fn is_lower_hex(byte: u8) -> bool {
     byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
 }
 
-fn invalid(path: &Path, message: &str) -> BundleError {
-    BundleError::Invalid {
+fn invalid(path: &Path, message: &str) -> ManifestError {
+    ManifestError::Invalid {
         path: path.to_path_buf(),
         message: message.to_owned(),
     }

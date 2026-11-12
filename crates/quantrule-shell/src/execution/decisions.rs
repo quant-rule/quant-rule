@@ -9,6 +9,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use quantrule_app::artifact::provenance::{ProvenanceError, StageProvenance};
 use quantrule_backtest::intent::{BracketIntent, EntryStyle, StopSpec, TargetSpec, TradeIntent};
 use quantrule_backtest::side::Side;
 use serde_json::Value;
@@ -109,8 +110,7 @@ impl DecisionsBundle {
     /// Returns [`DecisionsError`] when a required artifact is missing,
     /// unreadable, or not shaped like a decisions bundle.
     pub(crate) fn load(path: &Path) -> Result<Self, DecisionsError> {
-        let (data_version, config_id, period_from, period_to) =
-            parse_provenance(&path.join("provenance.json"))?;
+        let provenance = parse_provenance(&path.join("provenance.json"))?;
         let decisions = parse_decisions(&path.join("decisions.ndjson"))?;
         if decisions.is_empty() {
             return Err(DecisionsError::Invalid {
@@ -130,76 +130,25 @@ impl DecisionsBundle {
             }
         }
         Ok(Self {
-            data_version,
-            config_id,
-            period_from,
-            period_to,
+            data_version: provenance.data_version,
+            config_id: provenance.config_id,
+            period_from: provenance.period_from,
+            period_to: provenance.period_to,
             decisions,
         })
     }
 }
 
-fn parse_provenance(
-    path: &Path,
-) -> Result<(String, String, Option<String>, Option<String>), DecisionsError> {
-    let text = read_text(path)?;
-    let value: Value = serde_json::from_str(&text).map_err(|error| DecisionsError::Invalid {
-        path: path.to_path_buf(),
-        message: format!("not JSON: {error}"),
-    })?;
-    let object = value.as_object().ok_or_else(|| DecisionsError::Invalid {
-        path: path.to_path_buf(),
-        message: "the provenance root is not an object".to_owned(),
-    })?;
-    let schema = object.get("schema").and_then(Value::as_str).unwrap_or("");
-    if schema != "quantrule.stage-provenance/v1" {
-        return Err(DecisionsError::Invalid {
-            path: path.to_path_buf(),
-            message: format!("expected schema 'quantrule.stage-provenance/v1', found '{schema}'"),
-        });
+fn parse_provenance(path: &Path) -> Result<StageProvenance, DecisionsError> {
+    quantrule_app::artifact::provenance::load_stage(path, "strategy", "decisions")
+        .map_err(decisions_error)
+}
+
+fn decisions_error(error: ProvenanceError) -> DecisionsError {
+    match error {
+        ProvenanceError::Read { path, source } => DecisionsError::Read { path, source },
+        ProvenanceError::Invalid { path, message } => DecisionsError::Invalid { path, message },
     }
-    let stage = object.get("stage").and_then(Value::as_str).unwrap_or("");
-    if stage != "strategy" {
-        return Err(DecisionsError::Invalid {
-            path: path.to_path_buf(),
-            message: format!("expected stage 'strategy', found '{stage}'"),
-        });
-    }
-    let artifact = object.get("artifact").and_then(Value::as_str).unwrap_or("");
-    if artifact != "decisions" {
-        return Err(DecisionsError::Invalid {
-            path: path.to_path_buf(),
-            message: format!("expected artifact 'decisions', found '{artifact}'"),
-        });
-    }
-    let data_version = object
-        .get("data_version")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| DecisionsError::Invalid {
-            path: path.to_path_buf(),
-            message: "data_version is missing or empty".to_owned(),
-        })?
-        .to_owned();
-    let config_id = object
-        .get("config_id")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| DecisionsError::Invalid {
-            path: path.to_path_buf(),
-            message: "config_id is missing or empty".to_owned(),
-        })?
-        .to_owned();
-    let period = object.get("period");
-    let period_from = period
-        .and_then(|period| period.get("from"))
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    let period_to = period
-        .and_then(|period| period.get("to"))
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    Ok((data_version, config_id, period_from, period_to))
 }
 
 fn parse_decisions(path: &Path) -> Result<Vec<DecisionRecord>, DecisionsError> {

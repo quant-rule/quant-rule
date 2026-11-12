@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-use crate::render_report::{self, BundleError};
+use crate::render_report::{self, BundleWriteError};
 use crate::request::AnalyticsEvaluateArgs;
 
 use super::evidence::{AnalyticsEvidence, AnalyticsEvidenceError};
@@ -23,7 +23,7 @@ pub(crate) enum AnalyticsRunError {
     /// The evidence bundle is missing or invalid.
     Evidence(AnalyticsEvidenceError),
     /// The analytics bundle could not be written.
-    Bundle(BundleError),
+    Bundle(BundleWriteError),
     /// An analytics artifact could not be encoded.
     Json(serde_json::Error),
     /// The writer failed.

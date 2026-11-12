@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use crate::backtest_bundle::{BundleError, BundleManifest, StageProvenance};
+use crate::backtest_bundle::{BundleManifest, ManifestError, StageProvenance};
 use quantrule_app::config::Partition;
 
 pub(crate) use crate::backtest_bundle::{MANIFEST_SCHEMA, STAGE_SCHEMA};
@@ -30,7 +30,7 @@ pub(crate) const MODEL_RESULT_SCHEMA: &str = "quantrule.model-result/v4";
 #[derive(Debug)]
 pub(crate) enum EvidenceError {
     /// The shared manifest or stage provenance is invalid.
-    Bundle(BundleError),
+    Bundle(ManifestError),
     /// A required artifact could not be read.
     Read {
         /// The artifact path.

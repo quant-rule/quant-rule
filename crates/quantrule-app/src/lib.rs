@@ -28,6 +28,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod artifact;
 pub mod config;
 pub mod csv;
 pub mod dataset;

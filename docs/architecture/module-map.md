@@ -88,6 +88,7 @@ REF-2026-11-12-06 and is deferred.
 | `fingerprint.rs` | FNV-1a content identity. |
 | `date.rs` | Explicit UTC date windows. |
 | `error.rs` | The application-service error. |
+| `artifact/provenance.rs` | Shared model/stage provenance reader and identity fields. |
 | `memory/` | SQLite research memory: schema, store, types, transfer, tests. |
 
 P3.4 adds `artifact/` (bundle writer, provenance, labels, model/report artifacts,

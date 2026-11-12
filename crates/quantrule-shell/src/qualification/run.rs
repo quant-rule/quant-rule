@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
-use crate::render_report::{self, BundleError};
+use crate::render_report::{self, BundleWriteError};
 use crate::request::QualifyArgs;
 use quantrule_app::config::{ConfigError, EvidenceArtifact, load_qualification};
 
@@ -28,7 +28,7 @@ pub(crate) enum QualificationRunError {
     /// The evidence bundle is missing or invalid.
     Evidence(EvidenceError),
     /// The qualification bundle could not be written.
-    Bundle(BundleError),
+    Bundle(BundleWriteError),
     /// A qualification artifact could not be encoded.
     Json(serde_json::Error),
     /// An internal invariant was violated.

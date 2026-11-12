@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 use crate::execution::{ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution};
 use crate::model_bundle::model_bundle_from;
 use crate::portfolio::{self, PortfolioRunError};
-use crate::render_report::{self, BundleError};
+use crate::render_report::{self, BundleWriteError};
 use crate::request::{BacktestRunArgs, PortfolioReplayArgs};
 use crate::strategy::{
     DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
@@ -53,7 +53,7 @@ pub(crate) enum BacktestRunError {
     /// The portfolio replay failed.
     Portfolio(PortfolioRunError),
     /// A stage bundle could not be written.
-    Bundle(BundleError),
+    Bundle(BundleWriteError),
     /// A manifest file could not be written.
     Export(crate::export::ExportError),
     /// The manifest could not be encoded.

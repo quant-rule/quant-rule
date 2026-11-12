@@ -20,7 +20,7 @@ use quantrule_data::Candle;
 use serde_json::{Value, json};
 
 use super::decisions::{DecisionKind, DecisionsBundle, DecisionsError};
-use crate::render_report::{self, BundleError};
+use crate::render_report::{self, BundleWriteError};
 use crate::request::ExecutionRunArgs;
 use quantrule_app::config::{ConfigError, RunConfig};
 use quantrule_app::csv::SourceError;
@@ -84,7 +84,7 @@ pub(crate) enum ExecutionRunError {
         lower_price: f64,
     },
     /// The output bundle could not be written.
-    Bundle(BundleError),
+    Bundle(BundleWriteError),
     /// The execution artifact could not be encoded.
     Json(serde_json::Error),
     /// The writer failed.

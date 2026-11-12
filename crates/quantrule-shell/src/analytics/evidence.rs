@@ -17,7 +17,7 @@ use super::evidence_parse::{
     dominant_decision_timeframe, dominant_readings_timeframe, parse_candles, parse_commission_rate,
     parse_decisions, parse_trades,
 };
-use crate::backtest_bundle::{BundleError, BundleManifest};
+use crate::backtest_bundle::{BundleManifest, ManifestError};
 
 /// The portfolio metrics schema.
 pub(crate) const METRICS_SCHEMA: &str = "quantrule.portfolio-metrics/v1";
@@ -37,7 +37,7 @@ pub(crate) const RISK_EVENTS_HEADER: &str = "bar,time,drawdown,equity,peak_equit
 #[derive(Debug)]
 pub(crate) enum AnalyticsEvidenceError {
     /// The shared manifest or stage provenance is invalid.
-    Bundle(BundleError),
+    Bundle(ManifestError),
     /// A required artifact is not shaped like the documented bundle.
     Invalid {
         /// The artifact path.

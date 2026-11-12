@@ -20,9 +20,9 @@ use quantrule_backtest::strategy::{
 use serde_json::{Value, json};
 
 use super::artifacts::{self, DecisionCounts, StrategyArtifactMeta};
-use super::bundle::{ModelBundle, ModelBundleError};
+use super::bundle::{ModelBundle, StrategyBundleError};
 use super::context::StrategyContextError;
-use crate::render_report::{self, BundleError};
+use crate::render_report::{self, BundleWriteError};
 use crate::request::{StrategyExplainArgs, StrategyRunArgs};
 use quantrule_app::config::{ConfigError, StrategyConfig};
 
@@ -32,7 +32,7 @@ pub(crate) enum StrategyRunError {
     /// The strategy file is invalid.
     Config(ConfigError),
     /// The model bundle is missing or invalid.
-    Model(ModelBundleError),
+    Model(StrategyBundleError),
     /// The execution timeframe is not in the model bundle.
     MissingTimeframe {
         /// The requested timeframe in seconds.
@@ -55,7 +55,7 @@ pub(crate) enum StrategyRunError {
         reason: &'static str,
     },
     /// The bundle could not be written.
-    Bundle(BundleError),
+    Bundle(BundleWriteError),
     /// The decision record could not be encoded.
     Json(serde_json::Error),
     /// The writer failed.

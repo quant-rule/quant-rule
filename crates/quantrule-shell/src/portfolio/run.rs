@@ -19,7 +19,7 @@ use quantrule_data::Candle;
 use serde_json::{Value, json};
 
 use super::fills::{FillsBundle, FillsError};
-use crate::render_report::{self, BundleError};
+use crate::render_report::{self, BundleWriteError};
 use crate::request::PortfolioReplayArgs;
 use quantrule_app::config::{ConfigError, RunConfig};
 use quantrule_app::csv::SourceError;
@@ -69,7 +69,7 @@ pub(crate) enum PortfolioRunError {
         candle_time: i64,
     },
     /// The output bundle could not be written.
-    Bundle(BundleError),
+    Bundle(BundleWriteError),
     /// The portfolio artifact could not be encoded.
     Json(serde_json::Error),
     /// The writer failed.

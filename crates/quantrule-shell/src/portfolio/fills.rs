@@ -9,8 +9,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use quantrule_app::artifact::provenance::{ProvenanceError, StageProvenance};
 use quantrule_backtest::execution::{Fill, FillReason, OrderSide};
-use serde_json::Value;
 
 /// The execution fills bundle could not be read.
 #[derive(Debug)]
@@ -80,80 +80,28 @@ impl FillsBundle {
     /// Returns [`FillsError`] when a required artifact is missing, unreadable,
     /// or not shaped like a fills bundle.
     pub(crate) fn load(path: &Path) -> Result<Self, FillsError> {
-        let (data_version, config_id, period_from, period_to) =
-            parse_provenance(&path.join("provenance.json"))?;
+        let provenance = parse_provenance(&path.join("provenance.json"))?;
         let fills = parse_fills(&path.join("fills.csv"))?;
         Ok(Self {
-            data_version,
-            config_id,
-            period_from,
-            period_to,
+            data_version: provenance.data_version,
+            config_id: provenance.config_id,
+            period_from: provenance.period_from,
+            period_to: provenance.period_to,
             fills,
         })
     }
 }
 
-fn parse_provenance(
-    path: &Path,
-) -> Result<(String, String, Option<String>, Option<String>), FillsError> {
-    let text = read_text(path)?;
-    let value: Value = serde_json::from_str(&text).map_err(|error| FillsError::Invalid {
-        path: path.to_path_buf(),
-        message: format!("not JSON: {error}"),
-    })?;
-    let object = value.as_object().ok_or_else(|| FillsError::Invalid {
-        path: path.to_path_buf(),
-        message: "the provenance root is not an object".to_owned(),
-    })?;
-    let schema = object.get("schema").and_then(Value::as_str).unwrap_or("");
-    if schema != "quantrule.stage-provenance/v1" {
-        return Err(FillsError::Invalid {
-            path: path.to_path_buf(),
-            message: format!("expected schema 'quantrule.stage-provenance/v1', found '{schema}'"),
-        });
+fn parse_provenance(path: &Path) -> Result<StageProvenance, FillsError> {
+    quantrule_app::artifact::provenance::load_stage(path, "execution", "fills")
+        .map_err(fills_error)
+}
+
+fn fills_error(error: ProvenanceError) -> FillsError {
+    match error {
+        ProvenanceError::Read { path, source } => FillsError::Read { path, source },
+        ProvenanceError::Invalid { path, message } => FillsError::Invalid { path, message },
     }
-    let stage = object.get("stage").and_then(Value::as_str).unwrap_or("");
-    if stage != "execution" {
-        return Err(FillsError::Invalid {
-            path: path.to_path_buf(),
-            message: format!("expected stage 'execution', found '{stage}'"),
-        });
-    }
-    let artifact = object.get("artifact").and_then(Value::as_str).unwrap_or("");
-    if artifact != "fills" {
-        return Err(FillsError::Invalid {
-            path: path.to_path_buf(),
-            message: format!("expected artifact 'fills', found '{artifact}'"),
-        });
-    }
-    let data_version = object
-        .get("data_version")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| FillsError::Invalid {
-            path: path.to_path_buf(),
-            message: "data_version is missing or empty".to_owned(),
-        })?
-        .to_owned();
-    let config_id = object
-        .get("config_id")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| FillsError::Invalid {
-            path: path.to_path_buf(),
-            message: "config_id is missing or empty".to_owned(),
-        })?
-        .to_owned();
-    let period = object.get("period");
-    let period_from = period
-        .and_then(|period| period.get("from"))
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    let period_to = period
-        .and_then(|period| period.get("to"))
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    Ok((data_version, config_id, period_from, period_to))
 }
 
 fn parse_fills(path: &Path) -> Result<Vec<Fill>, FillsError> {
