@@ -49,6 +49,12 @@ are not treated as releases.
 - The model report and data-inspection use cases now live behind
   `quantrule-app`; the model bundle, report renderer, labels, and model-spec
   parser moved out of the shell. The shell keeps parsing and terminal output.
+- The strategy, execution, portfolio, backtest, qualification, and analytics
+  use cases now live behind `quantrule-app`; the shell is a parse/render/fetch
+  adapter and the desktop has one Tauri command per use case.
+- The desktop UI has a Pipeline section for inspecting data and running the
+  model, strategy, execution, portfolio, backtest, qualification, and analytics
+  stages. Source fetch remains shell-only.
 - The desktop UI is a first-class surface of the same program as the shell. Both
   call the shared application service and are required to have feature parity;
   the shell is primarily for agents. The

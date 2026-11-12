@@ -76,8 +76,8 @@ events, model report, strategy, execution, portfolio, backtest, qualification,
 and analytics. The service owns artifact I/O and the stage modules under
 `stages/`; the shell keeps command parsing, terminal output, fetch, and
 rendering. The desktop UI calls the same service rather than reimplementing
-path resolution or stage logic; its pipeline-stage UI is the remaining P3.5
-slice.
+path resolution or stage logic; its pipeline-stage UI exposes the same use cases; source fetch
+remains the recorded shell-only exception.
 
 ## Desktop UI
 

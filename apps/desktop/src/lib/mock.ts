@@ -234,6 +234,67 @@ export async function mockInvoke<T>(
       requireString(args, "backup");
       requireString(args, "target");
       return { path: String(args.target) } as T;
+    case "inspect_candles": {
+      requireString(args, "path");
+      return { candles: 527040 } as T;
+    }
+    case "inspect_candles_tolerant": {
+      requireString(args, "path");
+      return { candles: 527040 } as T;
+    }
+    case "inspect_timeframes": {
+      requireString(args, "path");
+      return {
+        timeframes: [
+          { timeframe: "1m", candles: 527040 },
+          { timeframe: "5m", candles: 105408 },
+          { timeframe: "15m", candles: 35136 },
+          { timeframe: "1h", candles: 8784 },
+        ],
+      } as T;
+    }
+    case "compute_events": {
+      requireString(args, "path");
+      return { events: 27655, timeframes: [{ timeframe: "300", candles: 105408 }] } as T;
+    }
+    case "run_model_report": {
+      requireString(args, "config");
+      return { root: String(args.out ?? "/mock/workspace/target/model"), artifacts: ["readings.csv", "events.csv", "levels.csv", "legs.csv", "summary.txt", "report.json", "result.json", "provenance.json"] } as T;
+    }
+    case "explain_strategy": {
+      requireString(args, "model");
+      requireString(args, "strategy");
+      return { decision: "hold", position_before: "flat", position_after: "flat" } as T;
+    }
+    case "run_strategy": {
+      requireString(args, "model");
+      requireString(args, "strategy");
+      return { root: "/mock/workspace/target/strategy", artifacts: ["decisions.ndjson", "summary.txt", "provenance.json"] } as T;
+    }
+    case "run_execution": {
+      requireString(args, "decisions");
+      requireString(args, "config");
+      return { root: "/mock/workspace/target/execution", artifacts: ["orders.csv", "fills.csv", "rejections.csv", "summary.txt", "provenance.json"] } as T;
+    }
+    case "replay_portfolio": {
+      requireString(args, "fills");
+      requireString(args, "config");
+      return { root: "/mock/workspace/target/portfolio", artifacts: ["trades.csv", "equity.csv", "funding.csv", "risk_events.csv", "metrics.json", "summary.txt", "provenance.json"] } as T;
+    }
+    case "run_backtest": {
+      requireString(args, "config");
+      requireString(args, "strategy");
+      return { root: "/mock/workspace/target/backtest", manifest: "/mock/workspace/target/backtest/manifest.json", stages: ["model", "strategy", "execution", "portfolio"] } as T;
+    }
+    case "qualify": {
+      requireString(args, "evidence");
+      requireString(args, "criteria");
+      return { root: "/mock/workspace/target/qualification", qualification: "/mock/workspace/target/qualification/qualification.json", verdict: "insufficient_evidence", summary: "total=1 pass=0 fail=0 insufficient_evidence=1" } as T;
+    }
+    case "evaluate_analytics": {
+      requireString(args, "evidence");
+      return { root: "/mock/workspace/target/analytics", metrics: "/mock/workspace/target/analytics/metrics.json", tables: "/mock/workspace/target/analytics/tables", summary: "/mock/workspace/target/analytics/summary.txt" } as T;
+    }
     default:
       throw new Error(`unknown mock command: ${command}`);
   }
