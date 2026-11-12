@@ -109,7 +109,7 @@ repeating a status.
 |---|---|---|
 | Run v3 and portfolio constraints | Current; `run v3`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
 | Local research memory | Current; `quantrule.research-memory/v1`, export v1, backup/restore | `docs/config/2026-11-11/research-memory-v1.md` |
-| Desktop UI | Current; Tauri 2 + Svelte 5 over the application service | `apps/desktop/README.md` |
+| Client surfaces | Target v1.0.0: Svelte browser client, command shell, and a Tauri shell over the gateway URL | `docs/architecture/client.md` |
 | Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
