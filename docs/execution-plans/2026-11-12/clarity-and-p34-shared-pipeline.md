@@ -1,7 +1,7 @@
 # Clarity Refactor and P3.4 Shared Pipeline Extraction
 
 - Date: 2026-11-12 (UTC)
-- Status: **In Review** (human, 2026-11-12); P0–P11 implemented and verified, P12 deferred, PR #628 open
+- Status: **Verified** (human, 2026-11-12); PR #628 merged, P12 deferred, worktree and branches removed
 - Claim type: **Behaviour Claim** (internal boundary and parity; the only visible change is the corrected help model-version line)
 - Owner: Human
 - Workflow: Execution Plan + Refactor Workflow; Audit Workflow closure for AUD-2026-11-11-11
@@ -996,7 +996,7 @@ The implementer fills `Observed`; the reviewer fills `Status`, `Reviewer`, and
 | V21 | P13 docs/checkers | Command surface and docs checkers pass | `check_command_surface`, `check_links`, `check_terms`, `check_workflows`, `check_changelog`, `check_releases`, `check_claims` | pass | all checkers passed in `tools/gate.sh` | Pass | Agent | 2026-11-12 |  |
 | V22 | P13 records | Changelog, AI log, plan table complete | file review | complete | changelog and AI log updated; table filled | Pass | Agent | 2026-11-12 |  |
 | V23 | All slices | No behavior drift except the documented help correction | golden fixture hash; report/backtest/CLI hashes; help output diff | identical except the M1.0→M1.3 help line | parity test and all stage command tests pass; help fixture updated | Pass | Agent | 2026-11-12 |  |
-| V24 | Closure | Worktrees/branches removed; board Done | `python3 tools/worktree_cleanup.py check <worktree>`; `git worktree list`; `git branch -a` | clean; board Done | pending merge/acceptance | Pending | Agent | — | PR #628 open |
+| V24 | Closure | Worktrees/branches removed; board Done | `python3 tools/worktree_cleanup.py check <worktree>`; `git worktree list`; `git branch -a` | clean; board Done | PR #628 merged as f311576; worktree and local/remote branch removed | Pass | Agent | 2026-11-12 | no issue/board item; campaign plan only |
 | V25 | All slices | No new dependency | `git diff -- Cargo.toml Cargo.lock apps/desktop/src-tauri/Cargo.toml` | no new dependency | no dependency changed | Pass | Agent | 2026-11-12 |  |
 | V26 | All slices | No test weakened; count not down | `cargo test --workspace -- --list`; fixture diff | count equal or higher; fixtures unchanged | 1,505 tests listed; no test removed; golden fixtures unchanged | Pass | Agent | 2026-11-12 |  |
 
