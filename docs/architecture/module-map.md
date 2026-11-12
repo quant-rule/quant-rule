@@ -119,7 +119,7 @@ P3.4 moves them to the app. Do not add a new stage capability to the shell.
 | Path | Responsibility |
 |---|---|
 | `src-tauri/src/lib.rs` | Tauri registration and the native boundary. |
-| `src-tauri/src/commands.rs` | Current Tauri command boundary, views, path scope, memory CRUD. |
+| `src-tauri/src/commands/` | Tauri command boundary: `views`, `scope`, `workspace`, `memory`, and tests. |
 | `src/App.svelte` | Workspace shell and section navigation. |
 | `src/lib/*Panel.svelte` | Workspace, data, config, run, memory, settings views. |
 | `src/lib/api.ts` | Tauri invoke or deterministic fixture backend. |
