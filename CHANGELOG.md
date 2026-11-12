@@ -15,6 +15,11 @@ are not treated as releases.
 
 ### Added
 
+- The shell `memory` command family and the desktop memory write forms:
+  status, record with computed model counts, workspace/run lists, metric,
+  claim, and note CRUD, logical export/import, and SQLite backup/restore. The
+  shared application service owns the validation; the command surface now has
+  16 implemented commands.
 - The board permanence checker (`tools/check_board_permanence.py`) and the
   project-sync status test. CI rejects a delete or archive mutation in the board
   automation and proves that `Done` stays terminal.

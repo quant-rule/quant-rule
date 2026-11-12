@@ -9,8 +9,8 @@ use std::path::Path;
 
 use quantrule_app::dataset::Dataset;
 use quantrule_app::memory::{
-    ClaimRecord, MemoryError, MetricRecord, MetricValue, NoteRecord, ResearchMemory, RunRecord,
-    WorkspaceRecord,
+    ClaimRecord, MemoryError, MetricRecord, MetricValue, NewClaim, NewNote, NoteRecord,
+    ResearchMemory, RunRecord, WorkspaceRecord,
 };
 use quantrule_app::service::{
     AppService, ModelRunOutcome, ModelRunSummary, RecordRunInput, RunSummary,
@@ -405,6 +405,121 @@ pub fn memory_notes_for_run(db: String, run_id: i64) -> Result<Vec<NoteView>, St
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn memory_metric_set(
+    db: String,
+    run_id: i64,
+    name: String,
+    kind: String,
+    value: Option<f64>,
+    text_value: Option<String>,
+) -> Result<i64, String> {
+    let value = match kind.as_str() {
+        "real" => {
+            let number = value.ok_or_else(|| String::from("a real metric requires a value"))?;
+            if !number.is_finite() {
+                return Err(String::from("a real metric value must be finite"));
+            }
+            MetricValue::Real(number)
+        }
+        "integer" => {
+            let text_value =
+                text_value.ok_or_else(|| String::from("an integer metric requires text_value"))?;
+            MetricValue::Integer(
+                text_value
+                    .parse()
+                    .map_err(|_| String::from("the integer metric text is not an integer"))?,
+            )
+        }
+        "text" => MetricValue::Text(
+            text_value.ok_or_else(|| String::from("a text metric requires text_value"))?,
+        ),
+        "null" => MetricValue::Null,
+        other => return Err(format!("metric kind {other} is not supported")),
+    };
+    let memory = ResearchMemory::open(&db).map_err(text)?;
+    memory
+        .upsert_metric(run_id, &name, &value)
+        .map_err(text)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn memory_metric_delete(db: String, run_id: i64, name: String) -> Result<bool, String> {
+    ResearchMemory::open(&db)
+        .and_then(|memory| memory.delete_metric(run_id, &name))
+        .map_err(text)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn memory_claim_add(
+    db: String,
+    run_id: i64,
+    claim_type: String,
+    statement: String,
+    status: String,
+    created_at: i64,
+) -> Result<i64, String> {
+    ResearchMemory::open(&db)
+        .and_then(|memory| {
+            memory.insert_claim(NewClaim {
+                run_id,
+                claim_type: &claim_type,
+                statement: &statement,
+                status: &status,
+                created_at,
+            })
+        })
+        .map_err(text)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn memory_claim_delete(db: String, id: i64) -> Result<bool, String> {
+    ResearchMemory::open(&db)
+        .and_then(|memory| memory.delete_claim(id))
+        .map_err(text)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn memory_note_add(
+    db: String,
+    workspace_id: i64,
+    run_id: Option<i64>,
+    body: String,
+    created_at: i64,
+    updated_at: i64,
+) -> Result<i64, String> {
+    ResearchMemory::open(&db)
+        .and_then(|memory| {
+            memory.insert_note(NewNote {
+                workspace_id,
+                run_id,
+                body: &body,
+                created_at,
+                updated_at,
+            })
+        })
+        .map_err(text)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn memory_note_update(
+    db: String,
+    id: i64,
+    body: String,
+    updated_at: i64,
+) -> Result<bool, String> {
+    ResearchMemory::open(&db)
+        .and_then(|memory| memory.update_note(id, &body, updated_at))
+        .map_err(text)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn memory_note_delete(db: String, id: i64) -> Result<bool, String> {
+    ResearchMemory::open(&db)
+        .and_then(|memory| memory.delete_note(id))
+        .map_err(text)
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn record_run(
     db: String,
     config: String,
@@ -479,8 +594,10 @@ mod tests {
     use quantrule_app::memory::{MetricRecord, MetricValue};
 
     use super::{
-        check_run, memory_export, memory_notes_for_run, memory_runs, memory_status,
-        memory_workspaces, metric_view, open_workspace, record_run, run_model,
+        check_run, memory_claim_add, memory_claim_delete, memory_claims, memory_export,
+        memory_metric_delete, memory_metric_set, memory_metrics, memory_note_add,
+        memory_note_delete, memory_note_update, memory_notes_for_run, memory_runs,
+        memory_status, memory_workspaces, metric_view, open_workspace, record_run, run_model,
     };
 
     fn repository_root() -> String {
@@ -552,6 +669,59 @@ mod tests {
                 .expect("the run notes are read")
                 .is_empty()
         );
+        let run_id = runs[0].id;
+        assert!(memory_metric_set(
+            db.clone(),
+            run_id,
+            "sharpe".to_owned(),
+            "real".to_owned(),
+            Some(1.5),
+            None
+        )
+        .expect("the metric is written")
+            > 0);
+        assert_eq!(
+            memory_metrics(db.clone(), run_id)
+                .expect("the metrics are read")
+                .len(),
+            1
+        );
+        let claim = memory_claim_add(
+            db.clone(),
+            run_id,
+            "Behaviour Claim".to_owned(),
+            "the run is deterministic".to_owned(),
+            "accepted".to_owned(),
+            1,
+        )
+        .expect("the claim is written");
+        assert_eq!(
+            memory_claims(db.clone(), run_id)
+                .expect("the claims are read")
+                .len(),
+            1
+        );
+        let note = memory_note_add(
+            db.clone(),
+            workspaces[0].id,
+            Some(run_id),
+            "first review".to_owned(),
+            1,
+            1,
+        )
+        .expect("the note is written");
+        assert_eq!(
+            memory_notes_for_run(db.clone(), run_id)
+                .expect("the run notes are read")
+                .len(),
+            1
+        );
+        assert!(memory_note_update(db.clone(), note, "updated".to_owned(), 2)
+            .expect("the note is updated"));
+        assert!(memory_note_delete(db.clone(), note).expect("the note is deleted"));
+        assert!(memory_claim_delete(db.clone(), claim).expect("the claim is deleted"));
+        assert!(memory_metric_delete(db.clone(), run_id, "sharpe".to_owned())
+            .expect("the metric is deleted"));
         let out = directory.join("export.json");
         memory_export(db, out.to_string_lossy().into_owned()).expect("the export is written");
         assert!(out.is_file());

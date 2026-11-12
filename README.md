@@ -63,6 +63,7 @@ claimed. The status index is [`docs/README.md`](docs/README.md).
 | `analytics evaluate` | Analytics | Write metrics, benchmarks, and evaluation tables |
 | `run check` | Configuration | Validate the run configuration |
 | `fetch` | Data | Fetch a Dukascopy range to CSV |
+| `memory` | Memory | Read and write the local research memory |
 | `help` | Shell | Show the command map and contracts |
 
 Full usage: run `quantrule help <command>`, or see the

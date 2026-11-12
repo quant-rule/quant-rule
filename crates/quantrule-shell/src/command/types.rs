@@ -26,6 +26,7 @@ use crate::strategy::StrategyRunError;
 use quantrule_app::config::ConfigError;
 use quantrule_app::csv::SourceError;
 use quantrule_app::error::AppError;
+use quantrule_app::memory::MemoryError;
 
 /// A parsed shell command.
 #[derive(Debug, PartialEq)]
@@ -58,10 +59,188 @@ pub(crate) enum Command {
     AnalyticsEvaluate(AnalyticsEvaluateArgs),
     /// Fetch a Dukascopy range and write a CSV.
     Fetch(FetchArgs),
+    /// Read or write the local research memory.
+    Memory(MemoryArgs),
     /// Print the command reference, one command, or a reference topic.
     Help(HelpTopic),
     /// Exit the shell.
     Quit,
+}
+
+/// One typed metric value for `memory metric set`.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum MetricArg {
+    /// A finite real number.
+    Real(f64),
+    /// A signed integer.
+    Integer(i64),
+    /// Text.
+    Text(String),
+    /// An unavailable measurement.
+    Null,
+}
+
+/// The parsed `memory` command family.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum MemoryArgs {
+    /// Print the schema, version, and path.
+    Status {
+        /// The memory database.
+        db: PathBuf,
+    },
+    /// Record a validated run and its computed model counts.
+    Record {
+        /// The memory database.
+        db: PathBuf,
+        /// The run configuration.
+        config: PathBuf,
+        /// The stable run key.
+        run_key: String,
+        /// The status code.
+        status: String,
+        /// The caller-supplied start second.
+        started_at: i64,
+        /// The caller-supplied finish second.
+        finished_at: Option<i64>,
+    },
+    /// List workspaces.
+    Workspaces {
+        /// The memory database.
+        db: PathBuf,
+    },
+    /// List runs in one workspace.
+    Runs {
+        /// The memory database.
+        db: PathBuf,
+        /// The workspace ID.
+        workspace_id: i64,
+    },
+    /// List metrics for one run.
+    Metrics {
+        /// The memory database.
+        db: PathBuf,
+        /// The run ID.
+        run_id: i64,
+    },
+    /// Insert or update one metric.
+    MetricSet {
+        /// The memory database.
+        db: PathBuf,
+        /// The run ID.
+        run_id: i64,
+        /// The metric name.
+        name: String,
+        /// The typed value.
+        value: MetricArg,
+    },
+    /// Delete one metric.
+    MetricDelete {
+        /// The memory database.
+        db: PathBuf,
+        /// The run ID.
+        run_id: i64,
+        /// The metric name.
+        name: String,
+    },
+    /// List claims for one run.
+    Claims {
+        /// The memory database.
+        db: PathBuf,
+        /// The run ID.
+        run_id: i64,
+    },
+    /// Insert one claim.
+    ClaimAdd {
+        /// The memory database.
+        db: PathBuf,
+        /// The run ID.
+        run_id: i64,
+        /// The claim type.
+        claim_type: String,
+        /// The claim statement.
+        statement: String,
+        /// The claim status.
+        status: String,
+        /// The caller-supplied creation second.
+        created_at: i64,
+    },
+    /// Delete one claim.
+    ClaimDelete {
+        /// The memory database.
+        db: PathBuf,
+        /// The claim ID.
+        id: i64,
+    },
+    /// List notes for one workspace or one run.
+    Notes {
+        /// The memory database.
+        db: PathBuf,
+        /// The workspace ID.
+        workspace_id: Option<i64>,
+        /// The run ID.
+        run_id: Option<i64>,
+    },
+    /// Insert one note.
+    NoteAdd {
+        /// The memory database.
+        db: PathBuf,
+        /// The workspace ID.
+        workspace_id: i64,
+        /// The optional run ID.
+        run_id: Option<i64>,
+        /// The note body.
+        body: String,
+        /// The caller-supplied creation second.
+        created_at: i64,
+        /// The caller-supplied update second.
+        updated_at: i64,
+    },
+    /// Update one note.
+    NoteUpdate {
+        /// The memory database.
+        db: PathBuf,
+        /// The note ID.
+        id: i64,
+        /// The note body.
+        body: String,
+        /// The caller-supplied update second.
+        updated_at: i64,
+    },
+    /// Delete one note.
+    NoteDelete {
+        /// The memory database.
+        db: PathBuf,
+        /// The note ID.
+        id: i64,
+    },
+    /// Write the logical export.
+    Export {
+        /// The memory database.
+        db: PathBuf,
+        /// The export path.
+        out: PathBuf,
+    },
+    /// Import a logical export into an empty memory.
+    Import {
+        /// The memory database.
+        db: PathBuf,
+        /// The export path.
+        from: PathBuf,
+    },
+    /// Write a SQLite backup.
+    Backup {
+        /// The memory database.
+        db: PathBuf,
+        /// The backup path.
+        out: PathBuf,
+    },
+    /// Restore a SQLite backup to a new path.
+    Restore {
+        /// The backup path.
+        backup: PathBuf,
+        /// The new database path.
+        target: PathBuf,
+    },
 }
 
 /// A topic selected by the `help` command.
@@ -110,6 +289,8 @@ pub(crate) enum ParseError {
     Analytics(String),
     /// A fetch command is invalid.
     Fetch(String),
+    /// A memory command is invalid.
+    Memory(String),
     /// A help topic is invalid.
     Help(String),
 }
@@ -133,6 +314,7 @@ impl fmt::Display for ParseError {
             | Self::Qualification(message)
             | Self::Analytics(message)
             | Self::Fetch(message)
+            | Self::Memory(message)
             | Self::Help(message) => formatter.write_str(message),
         }
     }
@@ -210,6 +392,8 @@ pub(crate) enum RunError {
     Analytics(AnalyticsRunError),
     /// The fetch failed.
     Fetch(FetchRunError),
+    /// The memory operation failed.
+    Memory(MemoryError),
     /// A help topic is unknown.
     Help(String),
     /// The writer failed.
@@ -231,6 +415,7 @@ impl fmt::Display for RunError {
             Self::Qualification(error) => error.fmt(formatter),
             Self::Analytics(error) => error.fmt(formatter),
             Self::Fetch(error) => error.fmt(formatter),
+            Self::Memory(error) => error.fmt(formatter),
             Self::Help(message) => formatter.write_str(message),
             Self::Output(error) => write!(formatter, "cannot write output: {error}"),
         }
@@ -252,6 +437,7 @@ impl std::error::Error for RunError {
             Self::Qualification(error) => Some(error),
             Self::Analytics(error) => Some(error),
             Self::Fetch(error) => Some(error),
+            Self::Memory(error) => Some(error),
             Self::Output(error) => Some(error),
             Self::Help(_) => None,
         }

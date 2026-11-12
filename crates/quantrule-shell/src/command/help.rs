@@ -184,6 +184,17 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "memory",
+        usage: "memory status|workspaces|runs|record|metrics|metric set|metric delete|claims|claim add|claim delete|notes|note add|note update|note delete|export|import|backup|restore --db <path> ...",
+        summary: "Read and write the local research memory.",
+        output: "deterministic text lines with workspace, run, metric, claim, note, or artifact identities",
+        notes: &[
+            "The database path is required; the memory rules and validation live in the application service.",
+            "record computes the model and stores its counts with the run.",
+            "A missing measurement is null, never zero; export replaces the target atomically.",
+        ],
+    },
+    CommandHelp {
         name: "help",
         usage: "help [<command>|all|glossary|workflows]",
         summary: "Print the command map, one command contract, or a reference topic.",
@@ -281,11 +292,12 @@ mod tests {
             "qualify",
             "analytics evaluate",
             "fetch",
+            "memory",
             "help",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 15);
+        assert_eq!(COMMANDS.len(), 16);
     }
 
     #[test]
