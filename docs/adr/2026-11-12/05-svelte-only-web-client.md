@@ -5,7 +5,7 @@
 - Owner: Human
 - Claim type: ADR (Architecture Decision)
 - Supersedes: the Tauri desktop surface of [`2026-11-11/adopt-local-first-tauri-platform.md`](../2026-11-11/adopt-local-first-tauri-platform.md)
-- Related: [`01`](01-adopt-distributed-service-based-architecture.md)
+- Related: [`01`](01-adopt-distributed-service-based-architecture.md), [`12`](12-desktop-distribution.md)
 
 ## Context
 
@@ -40,6 +40,17 @@ Vite, served by the gateway at the same origin as the API.
 | 4 | empty `apps/desktop/` | `DIST-050` |
 
 A deletion never precedes its replacement.
+
+### Amendment — 2026-11-12
+
+A **Tauri shell** returns as an optional desktop client, and it is not the
+retired application. The retired artifact embedded `quantrule-app`, owned an IPC
+command boundary, and read the local filesystem. The shell loads the gateway URL,
+owns no domain boundary, and reads nothing local. It is recorded in
+[`12`](12-desktop-distribution.md).
+
+The Svelte client remains the single implementation of the interface. The shell
+is a window onto it.
 
 ## Alternatives considered
 

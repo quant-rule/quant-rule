@@ -12,6 +12,7 @@ never renders a label, and never returns a raw engine type.
 | Rule | Value |
 |---|---|
 | Base | `/api/v1` |
+| Profile | `X-QuantRule-Profile` header on every request; default `default` |
 | Content type | `application/json` except upload and artifact download |
 | Version | `quantrule.api/v1` in `/version` and every error envelope |
 | Identifier | Content hash or opaque catalog id; never a path |
@@ -27,6 +28,8 @@ never renders a label, and never returns a raw engine type.
 | Method | Path | Request | Response |
 |---|---|---|---|
 | GET | `/health` | — | service states, queue depth, worker count |
+| GET | `/profiles` | — | profiles with counts |
+| POST | `/profiles` | `name` | `201` with `profile_id` |
 | GET | `/version` | — | product version, image digest, contract versions |
 | GET | `/catalog/datasets` | — | list with `data_version`, candles, coverage |
 | POST | `/catalog/datasets` | multipart CSV | `202` with `data_version` |
@@ -83,6 +86,8 @@ The gateway validates the config, computes `run_id`, writes `queued`, publishes
 
 | Code | HTTP | Meaning |
 |---|---|---|
+| `profile.not_found` | 404 | Unknown or missing profile |
+| `profile.invalid` | 400 | Bad profile name |
 | `dataset.not_found` | 404 | Unknown `data_version` |
 | `dataset.exists` | 409 | Same bytes already ingested |
 | `config.invalid` | 400 | Schema or cross-config rule failed |
@@ -126,7 +131,18 @@ Rules:
   yields the same output.
 - No simulation endpoint can write into a run artifact or read a strategy.
 
-## 7. Prohibitions
+## 7. Profiles
+
+| Rule | Value |
+|---|---|
+| Header | `X-QuantRule-Profile`, required on every request except `/health`, `/version`, and `/profiles` |
+| Default | `default`, created by the first migration |
+| Scope | Catalog, runs, simulation, memory |
+| Bytes | Shared and content-addressed; profiles never duplicate an object |
+| Security | **Not a boundary.** One principal; no isolation promise |
+| Unknown profile | `404 profile.not_found`; the request is never defaulted silently |
+
+## 8. Prohibitions
 
 - No endpoint accepts a path.
 - No endpoint returns a human-readable label for a numeric code.

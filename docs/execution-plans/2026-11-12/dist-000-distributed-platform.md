@@ -87,6 +87,11 @@ Svelte source has moved.
 | D19 | The research plane is outside the signal path, the data plane, and the control plane | 2026-11-12 |
 | D20 | Charts are client-side SVG; the PNG renderer and geometry manifest are retired | 2026-11-12 |
 | D21 | A simulation run has an inputs digest and no output digest | 2026-11-12 |
+| D22 | The desktop is a Tauri thin shell over the gateway; no IPC domain, no local data | 2026-11-12 |
+| D23 | Database, object store, and queue sit behind traits; v1.0.0 ships the server implementations | 2026-11-12 |
+| D24 | Profiles are organisational scoping, not a security boundary | 2026-11-12 |
+| D25 | GitHub Releases carries the desktop artifacts; no maintained download page | 2026-11-12 |
+| D26 | The embedded desktop profile is v1.1, outside the v1.0.0 gate | 2026-11-12 |
 
 ## 5. Acceptance criteria
 
@@ -142,6 +147,9 @@ No quant role is required: no model or strategy behavior changes.
 | V21 | Six services | `services.md` lists six services | `services.md` | six rows | not started | Pending | — | — | ADR-09 |
 | V22 | No Python in the image | image has no interpreter | `docker run --rm <image> sh -c 'command -v python3'` | empty | not started | Pending | — | — | ADR-10 |
 | V23 | Research plane isolated | no run write, no strategy read | guard test | pass | not started | Pending | — | — | DIST-101/102 |
+| V24 | Profiles scoped | two profiles see independent records | two `X-QuantRule-Profile` values | independent | not started | Pending | — | — | ADR-11 |
+| V25 | Desktop shell | loads the gateway URL | shell smoke test | no IPC, no local read | not started | Pending | — | — | ADR-12 |
+| V26 | Adapter traits | one implementation each | trait review + `cargo check` | second impl needs no use-case change | not started | Pending | — | — | DIST-111 |
 
 ## 8. Risks and recovery
 

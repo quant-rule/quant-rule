@@ -8,6 +8,9 @@
 Six services, six binaries, one image. Each service owns one responsibility and
 one set of data. The catalog is the single authority for "who does what".
 
+Every record is scoped by `profile_id`. Profiles are organisational, not a
+security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
+
 ## 1. Boundaries
 
 | Service | Binary | Responsibility | Owns | Must never |
@@ -78,7 +81,21 @@ a fold over time. Claiming otherwise would be false.
 - Render a human-readable label for a numeric code.
 - Publish a model reading on the control plane.
 
-## 7. The research plane
+## 7. Backend adapters
+
+Database, object store, and queue sit behind traits. v1.0.0 ships one
+implementation of each: Postgres, S3, RabbitMQ.
+
+| Trait | v1.0.0 | v1.1 desktop profile |
+|---|---|---|
+| Database | Postgres | SQLite |
+| Object store | S3 API | filesystem CAS |
+| Queue | RabbitMQ | in-process |
+
+A service calls the trait, never a client library directly. A second
+implementation must not require a use-case change; that is the test.
+
+## 8. The research plane
 
 `simulation` is not a pipeline stage and not a run. It is a third plane:
 synchronous, interactive, and isolated.

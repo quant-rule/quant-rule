@@ -22,6 +22,9 @@ network. A public download page has nothing to distribute.
 - **Remove the kata requirement** that promised a static download page.
 - **No replacement page.** The client is served by the gateway at the same
   origin as the API.
+- **GitHub Releases carries artifacts.** The container image digest and, from
+  `DIST-114`, the desktop bundle are published as release assets. A release
+  asset is distribution, not a maintained site.
 
 ## Alternatives considered
 

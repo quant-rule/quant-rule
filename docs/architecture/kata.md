@@ -57,7 +57,8 @@ and a recorded decision to accept the hypothesis, revise it, or stop at "no edge
 5. Produce a bundle with provenance naming the data version, config hash, model
    version, and image digest, plus a canonical digest over the data artifacts.
 6. Expose the same capabilities through a browser client and a command shell.
-7. Start with one command on a machine with Docker; expose one port.
+7. Start with one command on a machine with Docker; expose one port. Offer a
+   desktop shell that needs no Docker and reads no local data.
 8. Require no account, and keep candle data on the operator's network.
 
 ## Constraints and non-goals
