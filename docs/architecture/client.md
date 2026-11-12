@@ -14,7 +14,7 @@ same origin as the API. It holds no domain logic and no source of truth.
 |---|---|---|
 | Connection | Mode, URL, health, version, image digest | `unreachable` with a retry |
 | Datasets | `data_version`, candles, first and last bar, upload | "No datasets. Upload a CSV." |
-| Configs | Name, validity, parser message, submit | "No configs on the server." |
+| Configs | Name, origin (repo or uploaded), validity, parser message, submit | "No configs on the server." |
 | Runs | Status, id, config, data version, submitted, duration, cancel | "No runs. Submit one from Configs." |
 | Run detail | Stages, provenance, artifacts, digest, result | Only for a known run |
 | Memory | Runs, metrics, claims, notes | "Nothing recorded yet." |
@@ -61,7 +61,13 @@ The gateway returns codes. The client maps them using
 `labels.generated.ts`, produced from the Rust registry and checked by the gate.
 A code with no mapping renders as `unknown(<code>)`, never as a guess.
 
-## 6. Upload
+## 6. Config origin
+
+The list merges the read-only repository mount with uploaded configs. The origin
+is shown as a label, never as a path. A repository config updates when the file
+changes and the data service reloads; it is not editable in the client.
+
+## 7. Upload
 
 The client streams the CSV to `POST /catalog/datasets` and displays progress.
 The server owns the limit, the hash, and the catalog row. The client never

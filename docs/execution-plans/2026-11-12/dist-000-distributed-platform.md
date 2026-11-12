@@ -49,6 +49,19 @@ issue tree. **It changes no program code.**
 - Multi-tenancy, accounts, billing, cloud deployment, Kubernetes.
 - Any change to indicator, event, strategy, or portfolio semantics.
 
+### Deletion order
+
+No deletion precedes its replacement. `DIST-016` retires the download site and
+only the download site; the Tauri shell is deleted by `DIST-050` after the
+Svelte source has moved.
+
+| Order | Path | Owner | Precondition |
+|---|---|---|---|
+| 1 | `site/` | `DIST-016` | none |
+| 2 | `apps/desktop/src/**` → `apps/web/src/**` | `DIST-050` | `apps/web` builds |
+| 3 | `apps/desktop/src-tauri/` | `DIST-050` | the move is merged |
+| 4 | `apps/desktop/` (now empty) | `DIST-050` | — |
+
 ## 4. Decisions
 
 | ID | Decision | Approved |
@@ -61,13 +74,14 @@ issue tree. **It changes no program code.**
 | D6 | Content-addressed exchange; services pass references, never payloads | 2026-11-12 |
 | D7 | One image, five binaries; one digest pins the stack | 2026-11-12 |
 | D8 | Docker Compose on one host first; split host is configuration | 2026-11-12 |
-| D9 | Svelte-only web client served by the gateway; Tauri removed | 2026-11-12 |
+| D9 | The Svelte client is migrated to `apps/web`; the Tauri shell is deleted. No desktop wrapper is planned | 2026-11-12 |
 | D10 | A run is the full pipeline; stage inspection is read-only | 2026-11-12 |
 | D11 | Run identity is content-derived; resubmission is a lookup | 2026-11-12 |
 | D12 | Canonical digest excludes provenance; cross-machine proof is reviewer-executed | 2026-11-12 |
 | D13 | Postgres schema-per-service, MinIO, RabbitMQ | 2026-11-12 |
 | D14 | No backwards compatibility; supersede in place | 2026-11-12 |
 | D15 | Product 1.0.0 with release candidates; contracts `quantrule.*/v1` | 2026-11-12 |
+| D16 | Repository `config/` is mounted read-only into the data service and catalogued beside uploads | 2026-11-12 |
 
 ## 5. Acceptance criteria
 
@@ -114,10 +128,12 @@ No quant role is required: no model or strategy behavior changes.
 | V12 | Deployment | `make up` documented as the only setup step | `docs/architecture/deployment.md` | present | present | Pass | agent | 2026-11-12 | |
 | V13 | Course PDFs | Five PDFs rebuilt | `tools/course/build_pdfs.sh` | 5 PDFs | not rebuilt in this session | Pending | — | — | delegated to DIST-018 |
 | V14 | Issue tree | Every `DIST-*` issue exists with a claim type | `gh issue list --label dist` | 39 or more | 45 issues (#630-#674) | Pass | agent | 2026-11-12 | one epic plus 44 children |
-| V15 | Board | Every issue has Status, Claim Type, Phase | board query | no empty field | claim type in body; phase on labels | Pending | — | — | the Phase project field is a browser action |
+| V15 | Board | Every issue has Status, Claim Type, Phase | board query | no empty field | 45 items populated; 7 closed with `Closed date` 2026-11-12 | Pass | agent | 2026-11-12 | `Phase` field created and populated |
 | V16 | Changelog | `[1.0.0]` section exists | `python3 tools/check_changelog.py` | pass | pass | Pass | agent | 2026-11-12 | |
-| V17 | Gate | Workspace gate passes | `tools/gate.sh` | pass | not run in this session | Pending | — | — | no code changed; CI is the authority |
+| V17 | Gate | Workspace gate passes | `tools/gate.sh` | pass | CI `verify` job passed on PR #675 (1m22s) | Pass | agent | 2026-11-12 | no code changed |
 | V18 | Honesty | No claim exceeds its evidence | manual read | no overclaim | no overclaim | Pass | agent | 2026-11-12 | cross-machine claim delegated |
+| V19 | Deletion order | `site/` removed before `src-tauri/` | merged history | order holds | not started | Pending | — | — | `DIST-016` then `DIST-050` |
+| V20 | Repo configs visible | repository configs listed and valid | configs screen | listed | not started | Pending | — | — | `DIST-031` read-only mount |
 
 ## 8. Risks and recovery
 
