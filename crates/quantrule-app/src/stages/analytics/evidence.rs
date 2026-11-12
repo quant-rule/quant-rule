@@ -17,25 +17,25 @@ use super::evidence_parse::{
     dominant_decision_timeframe, dominant_readings_timeframe, parse_candles, parse_commission_rate,
     parse_decisions, parse_trades,
 };
-use quantrule_app::artifact::backtest::{BundleManifest, ManifestError};
+use crate::artifact::backtest::{BundleManifest, ManifestError};
 
 /// The portfolio metrics schema.
-pub(crate) const METRICS_SCHEMA: &str = "quantrule.portfolio-metrics/v1";
+pub const METRICS_SCHEMA: &str = "quantrule.portfolio-metrics/v1";
 /// The strategy decision schema.
-pub(crate) const DECISION_SCHEMA: &str = "quantrule.strategy-decision/v1";
+pub const DECISION_SCHEMA: &str = "quantrule.strategy-decision/v1";
 
 /// The portfolio trades header.
-pub(crate) const TRADES_HEADER: &str = "trade_id,side,quantity,entry_bar,entry_time,entry_price,exit_bar,exit_time,exit_price,gross_pnl,execution_fees,commission,funding,net_pnl,return_fraction,hold_bars,exit_reason";
+pub const TRADES_HEADER: &str = "trade_id,side,quantity,entry_bar,entry_time,entry_price,exit_bar,exit_time,exit_price,gross_pnl,execution_fees,commission,funding,net_pnl,return_fraction,hold_bars,exit_reason";
 /// The portfolio equity header.
-pub(crate) const EQUITY_HEADER: &str = "date,cash,position_value,equity,peak_equity,drawdown";
+pub const EQUITY_HEADER: &str = "date,cash,position_value,equity,peak_equity,drawdown";
 /// The portfolio funding header.
-pub(crate) const FUNDING_HEADER: &str = "bar,time,rate,price,quantity,amount";
+pub const FUNDING_HEADER: &str = "bar,time,rate,price,quantity,amount";
 /// The portfolio risk-event header.
-pub(crate) const RISK_EVENTS_HEADER: &str = "bar,time,drawdown,equity,peak_equity,limit";
+pub const RISK_EVENTS_HEADER: &str = "bar,time,drawdown,equity,peak_equity,limit";
 
 /// A result artifact could not be read.
 #[derive(Debug)]
-pub(crate) enum AnalyticsEvidenceError {
+pub enum AnalyticsEvidenceError {
     /// The shared manifest or stage provenance is invalid.
     Bundle(ManifestError),
     /// A required artifact is not shaped like the documented bundle.
@@ -91,69 +91,69 @@ impl std::error::Error for AnalyticsEvidenceError {
 
 /// One monthly return.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct MonthlyReturn {
+pub struct MonthlyReturn {
     /// The UTC year.
-    pub(crate) year: u64,
+    pub year: u64,
     /// The UTC month, `1..=12`.
-    pub(crate) month: u64,
+    pub month: u64,
     /// The month's return, or `None` when it is undefined.
-    pub(crate) return_fraction: Option<f64>,
+    pub return_fraction: Option<f64>,
 }
 
 /// The portfolio metrics the analytics stage republishes.
 #[derive(Debug, Clone)]
-pub(crate) struct PortfolioSnapshot {
+pub struct PortfolioSnapshot {
     /// The starting cash.
-    pub(crate) initial_cash: f64,
+    pub initial_cash: f64,
     /// The equity at the last mark.
-    pub(crate) final_equity: f64,
+    pub final_equity: f64,
     /// `final_equity / initial_cash - 1`.
-    pub(crate) total_return: f64,
+    pub total_return: f64,
     /// Closed-trade net P&L.
-    pub(crate) realized_pnl: f64,
+    pub realized_pnl: f64,
     /// Open-position net P&L.
-    pub(crate) unrealized_pnl: f64,
+    pub unrealized_pnl: f64,
     /// Closed gross P&L plus the open position's gross P&L.
-    pub(crate) gross_pnl: f64,
+    pub gross_pnl: f64,
     /// `realized_pnl + unrealized_pnl`.
-    pub(crate) net_pnl: f64,
+    pub net_pnl: f64,
     /// Execution fees paid on every fill.
-    pub(crate) execution_fees: f64,
+    pub execution_fees: f64,
     /// Commission paid on every fill.
-    pub(crate) commission: f64,
+    pub commission: f64,
     /// Funding paid at aligned boundaries.
-    pub(crate) funding_paid: f64,
+    pub funding_paid: f64,
     /// Funding received at aligned boundaries.
-    pub(crate) funding_received: f64,
+    pub funding_received: f64,
     /// The maximum drawdown observed at any refresh.
-    pub(crate) max_drawdown: f64,
+    pub max_drawdown: f64,
     /// The longest run of marked bars with a positive drawdown.
-    pub(crate) max_drawdown_duration_bars: u64,
+    pub max_drawdown_duration_bars: u64,
     /// The number of closed trades.
-    pub(crate) trades: u64,
+    pub trades: u64,
     /// Closed trades with a positive net P&L.
-    pub(crate) wins: u64,
+    pub wins: u64,
     /// Closed trades with a negative net P&L.
-    pub(crate) losses: u64,
+    pub losses: u64,
     /// `wins / trades`, or `None` with no trades.
-    pub(crate) win_rate: Option<f64>,
+    pub win_rate: Option<f64>,
     /// Winning net P&L divided by the absolute losing net P&L.
-    pub(crate) profit_factor: Option<f64>,
+    pub profit_factor: Option<f64>,
     /// Mean closed-trade net P&L.
-    pub(crate) average_trade: Option<f64>,
+    pub average_trade: Option<f64>,
     /// Mean closed-trade hold in strategy bars.
-    pub(crate) average_hold_bars: Option<f64>,
+    pub average_hold_bars: Option<f64>,
     /// `sum(position_value) / sum(equity)` over marks.
-    pub(crate) exposure: Option<f64>,
+    pub exposure: Option<f64>,
     /// Whether the drawdown halt has latched.
-    pub(crate) halted: bool,
+    pub halted: bool,
     /// One entry per month in the actual period.
-    pub(crate) monthly_returns: Vec<MonthlyReturn>,
+    pub monthly_returns: Vec<MonthlyReturn>,
 }
 
 /// A strategy decision's kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum DecisionKind {
+pub enum DecisionKind {
     /// Hold.
     Hold,
     /// Market entry.
@@ -167,7 +167,7 @@ pub(crate) enum DecisionKind {
 impl DecisionKind {
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::Hold => "hold",
             Self::Enter => "enter",
@@ -176,7 +176,7 @@ impl DecisionKind {
         }
     }
 
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         match code {
             "hold" => Some(Self::Hold),
             "enter" => Some(Self::Enter),
@@ -189,7 +189,7 @@ impl DecisionKind {
 
 /// A strategy decision's side.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum DecisionSide {
+pub enum DecisionSide {
     /// Long.
     Long,
     /// Short.
@@ -199,14 +199,14 @@ pub(crate) enum DecisionSide {
 impl DecisionSide {
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::Long => "long",
             Self::Short => "short",
         }
     }
 
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         match code {
             "long" => Some(Self::Long),
             "short" => Some(Self::Short),
@@ -217,7 +217,7 @@ impl DecisionSide {
 
 /// A strategy decision's reason.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum DecisionReason {
+pub enum DecisionReason {
     /// Entry conditions met.
     Entry,
     /// Bracket entry conditions met.
@@ -231,7 +231,7 @@ pub(crate) enum DecisionReason {
 impl DecisionReason {
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::Entry => "entry",
             Self::BracketEntry => "bracket_entry",
@@ -240,7 +240,7 @@ impl DecisionReason {
         }
     }
 
-    pub(crate) fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         match code {
             "entry" => Some(Self::Entry),
             "bracket_entry" => Some(Self::BracketEntry),
@@ -253,40 +253,40 @@ impl DecisionReason {
 
 /// One strategy decision record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct DecisionRecord {
+pub struct DecisionRecord {
     /// The execution timeframe in seconds.
-    pub(crate) timeframe_secs: u64,
+    pub timeframe_secs: u64,
     /// The decision kind.
-    pub(crate) decision: DecisionKind,
+    pub decision: DecisionKind,
     /// The side, when the decision names one.
-    pub(crate) side: Option<DecisionSide>,
+    pub side: Option<DecisionSide>,
     /// The reason, when the decision names one.
-    pub(crate) reason: Option<DecisionReason>,
+    pub reason: Option<DecisionReason>,
 }
 
 /// The complete analytics evidence.
 #[derive(Debug, Clone)]
-pub(crate) struct AnalyticsEvidence {
+pub struct AnalyticsEvidence {
     /// The verified bundle identity.
-    pub(crate) bundle: BundleManifest,
+    pub bundle: BundleManifest,
     /// The parsed portfolio metrics.
-    pub(crate) portfolio: PortfolioSnapshot,
+    pub portfolio: PortfolioSnapshot,
     /// The portfolio trades table, including its header.
-    pub(crate) trades_csv: String,
+    pub trades_csv: String,
     /// The portfolio equity table, including its header.
-    pub(crate) equity_csv: String,
+    pub equity_csv: String,
     /// The portfolio funding table, including its header.
-    pub(crate) funding_csv: String,
+    pub funding_csv: String,
     /// The portfolio risk-event table, including its header.
-    pub(crate) risk_events_csv: String,
+    pub risk_events_csv: String,
     /// The strategy decisions, in file order.
-    pub(crate) decisions: Vec<DecisionRecord>,
+    pub decisions: Vec<DecisionRecord>,
     /// The recorded execution-timeframe candles, oldest first.
-    pub(crate) candles: Vec<Candle>,
+    pub candles: Vec<Candle>,
     /// The closed trades, in file order.
-    pub(crate) trades: Vec<TradeRecord>,
+    pub trades: Vec<TradeRecord>,
     /// The portfolio commission rate recorded in the stage provenance.
-    pub(crate) commission_rate: f64,
+    pub commission_rate: f64,
 }
 
 impl AnalyticsEvidence {
@@ -297,7 +297,7 @@ impl AnalyticsEvidence {
     /// Returns [`AnalyticsEvidenceError`] when the shared bundle reader refuses,
     /// a required table is absent or has an unsupported header, the portfolio
     /// metrics use an unsupported schema, or a decision record is malformed.
-    pub(crate) fn load(root: &std::path::Path) -> Result<Self, AnalyticsEvidenceError> {
+    pub fn load(root: &std::path::Path) -> Result<Self, AnalyticsEvidenceError> {
         let bundle = BundleManifest::load(root).map_err(AnalyticsEvidenceError::Bundle)?;
         let metrics_path = "portfolio/metrics.json";
         let metrics = bundle
@@ -426,7 +426,7 @@ fn parse_monthly_returns(
     Ok(returns)
 }
 
-pub(crate) fn validate_header(
+pub fn validate_header(
     path: &str,
     text: &str,
     expected: &str,
@@ -443,7 +443,7 @@ pub(crate) fn validate_header(
     Ok(())
 }
 
-pub(crate) fn as_object<'a>(
+pub fn as_object<'a>(
     path: &str,
     value: &'a Value,
 ) -> Result<&'a Map<String, Value>, AnalyticsEvidenceError> {
@@ -463,7 +463,7 @@ fn required_str<'a>(
         .ok_or_else(|| invalid(path, &format!("{name} must be a string")))
 }
 
-pub(crate) fn required_number(
+pub fn required_number(
     path: &str,
     object: &Map<String, Value>,
     name: &str,
@@ -522,7 +522,7 @@ fn required_bool(
         .ok_or_else(|| invalid(path, &format!("{name} must be a boolean")))
 }
 
-pub(crate) fn invalid(path: &str, message: &str) -> AnalyticsEvidenceError {
+pub fn invalid(path: &str, message: &str) -> AnalyticsEvidenceError {
     AnalyticsEvidenceError::Invalid {
         path: PathBuf::from(path),
         message: message.to_owned(),
@@ -531,7 +531,7 @@ pub(crate) fn invalid(path: &str, message: &str) -> AnalyticsEvidenceError {
 
 /// The number of data rows in a table, excluding its header.
 #[must_use]
-pub(crate) fn row_count(text: &str) -> usize {
+pub fn row_count(text: &str) -> usize {
     text.lines()
         .skip(1)
         .filter(|line| !line.trim().is_empty())
@@ -546,7 +546,7 @@ mod tests {
         DecisionKind, DecisionReason, DecisionSide, EQUITY_HEADER, TRADES_HEADER,
         parse_portfolio_metrics, row_count, validate_header,
     };
-    use crate::analytics::evidence_parse::{
+    use crate::stages::analytics::evidence_parse::{
         dominant_readings_timeframe, parse_candles, parse_decisions, parse_trades,
     };
 

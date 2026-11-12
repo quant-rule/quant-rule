@@ -5,13 +5,12 @@
 //! strategy decision.
 
 use std::fmt;
-use std::io::{self, Write};
-use std::path::PathBuf;
+use std::io;
+use std::path::{Path, PathBuf};
 
 use serde_json::json;
 
-use crate::request::AnalyticsEvaluateArgs;
-use quantrule_app::artifact::render_report::{self, BundleWriteError};
+use crate::artifact::render_report::{self, BundleWriteError};
 
 use super::evidence::{AnalyticsEvidence, AnalyticsEvidenceError};
 use super::metrics;
@@ -19,7 +18,7 @@ use super::render;
 
 /// The analytics command failed.
 #[derive(Debug)]
-pub(crate) enum AnalyticsRunError {
+pub enum AnalyticsRunError {
     /// The evidence bundle is missing or invalid.
     Evidence(AnalyticsEvidenceError),
     /// The analytics bundle could not be written.
@@ -54,17 +53,37 @@ impl std::error::Error for AnalyticsRunError {
     }
 }
 
+/// One analytics request.
+pub struct AnalyticsRequest<'a> {
+    /// The backtest evidence bundle directory.
+    pub evidence: &'a Path,
+    /// The output root; the evidence bundle's parent when `None`.
+    pub out: Option<&'a Path>,
+}
+
+/// The written analytics bundle.
+pub struct AnalyticsOutcome {
+    /// The bundle root.
+    pub root: PathBuf,
+    /// The metrics JSON path.
+    pub metrics: PathBuf,
+    /// The tables directory.
+    pub tables: PathBuf,
+    /// The summary path.
+    pub summary: PathBuf,
+    /// The `--json` envelope.
+    pub json: Vec<u8>,
+}
+
 /// Runs `analytics evaluate`.
 ///
 /// # Errors
 ///
-/// Returns [`AnalyticsRunError`] when the evidence bundle, the output target, or
-/// the writer fails.
-pub(crate) fn run(
-    args: &AnalyticsEvaluateArgs,
-    writer: &mut impl Write,
-) -> Result<(), AnalyticsRunError> {
-    let evidence = AnalyticsEvidence::load(&args.evidence).map_err(AnalyticsRunError::Evidence)?;
+/// Returns [`AnalyticsRunError`] when the evidence bundle or the output target
+/// fails.
+pub fn run(request: &AnalyticsRequest<'_>) -> Result<AnalyticsOutcome, AnalyticsRunError> {
+    let evidence =
+        AnalyticsEvidence::load(request.evidence).map_err(AnalyticsRunError::Evidence)?;
     let metrics = metrics::build(&evidence);
 
     let metrics_json =
@@ -73,11 +92,16 @@ pub(crate) fn run(
     let provenance =
         render::provenance_json_bytes(&evidence, &metrics).map_err(AnalyticsRunError::Json)?;
 
-    let out = args
-        .out
-        .clone()
-        .or_else(|| args.evidence.parent().map(PathBuf::from))
-        .unwrap_or_else(|| PathBuf::from("."));
+    let out = request.out.map_or_else(
+        || {
+            request
+                .evidence
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."))
+        },
+        Path::to_path_buf,
+    );
     let root = out.join("analytics");
 
     let mut artifacts: Vec<(&str, Vec<u8>)> = Vec::with_capacity(metrics.tables.len() + 2);
@@ -89,31 +113,24 @@ pub(crate) fn run(
     render_report::write_stage_bundle(&root, &artifacts, &provenance, "metrics.json")
         .map_err(AnalyticsRunError::Bundle)?;
 
-    if args.json {
-        let value = json!({
-            "schema": "quantrule.analytics-metrics/v1",
-            "bundle": &root,
-            "metrics": root.join("metrics.json"),
-            "tables": root.join("tables"),
-            "summary": root.join("summary.txt"),
-            "trade_count": evidence.portfolio.trades,
-            "table_count": metrics.tables.len(),
-        });
-        writeln!(
-            writer,
-            "{}",
-            serde_json::to_string(&value).map_err(AnalyticsRunError::Json)?
-        )
-        .map_err(AnalyticsRunError::Output)?;
-    } else {
-        writeln!(writer, "metrics: {}", root.join("metrics.json").display())
-            .map_err(AnalyticsRunError::Output)?;
-        writeln!(writer, "tables: {}", root.join("tables").display())
-            .map_err(AnalyticsRunError::Output)?;
-        writeln!(writer, "summary: {}", root.join("summary.txt").display())
-            .map_err(AnalyticsRunError::Output)?;
-    }
-    writer.flush().map_err(AnalyticsRunError::Output)
+    let value = json!({
+        "schema": "quantrule.analytics-metrics/v1",
+        "bundle": &root,
+        "metrics": root.join("metrics.json"),
+        "tables": root.join("tables"),
+        "summary": root.join("summary.txt"),
+        "trade_count": evidence.portfolio.trades,
+        "table_count": metrics.tables.len(),
+    });
+    let mut json = serde_json::to_vec(&value).map_err(AnalyticsRunError::Json)?;
+    json.push(b'\n');
+    Ok(AnalyticsOutcome {
+        metrics: root.join("metrics.json"),
+        tables: root.join("tables"),
+        summary: root.join("summary.txt"),
+        root,
+        json,
+    })
 }
 
 #[cfg(test)]

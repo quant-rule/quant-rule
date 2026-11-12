@@ -11,14 +11,14 @@ use quantrule_backtest::side::Side;
 use quantrule_data::Candle;
 use serde_json::Value;
 
-use quantrule_app::artifact::backtest::BundleManifest;
+use crate::artifact::backtest::BundleManifest;
 
 use super::evidence::{
     AnalyticsEvidenceError, DECISION_SCHEMA, DecisionKind, DecisionReason, DecisionRecord,
     DecisionSide, TRADES_HEADER, as_object, invalid, required_number, validate_header,
 };
 
-pub(crate) fn parse_decisions(text: &str) -> Result<Vec<DecisionRecord>, AnalyticsEvidenceError> {
+pub fn parse_decisions(text: &str) -> Result<Vec<DecisionRecord>, AnalyticsEvidenceError> {
     let path = "strategy/decisions.ndjson";
     let mut decisions = Vec::new();
     for (index, line) in text.lines().enumerate() {
@@ -106,7 +106,7 @@ pub(crate) fn parse_decisions(text: &str) -> Result<Vec<DecisionRecord>, Analyti
     Ok(decisions)
 }
 
-pub(crate) fn dominant_decision_timeframe(decisions: &[DecisionRecord]) -> Option<u64> {
+pub fn dominant_decision_timeframe(decisions: &[DecisionRecord]) -> Option<u64> {
     let mut counts: BTreeMap<u64, usize> = BTreeMap::new();
     for decision in decisions {
         *counts.entry(decision.timeframe_secs).or_insert(0) += 1;
@@ -117,7 +117,7 @@ pub(crate) fn dominant_decision_timeframe(decisions: &[DecisionRecord]) -> Optio
         .map(|(secs, _)| secs)
 }
 
-pub(crate) fn dominant_readings_timeframe(text: &str) -> Option<u64> {
+pub fn dominant_readings_timeframe(text: &str) -> Option<u64> {
     let mut lines = text.lines();
     let header = lines.next()?;
     let index = header
@@ -143,7 +143,7 @@ pub(crate) fn dominant_readings_timeframe(text: &str) -> Option<u64> {
         .map(|(secs, _)| secs)
 }
 
-pub(crate) fn parse_candles(
+pub fn parse_candles(
     text: &str,
     timeframe_secs: u64,
 ) -> Result<Vec<Candle>, AnalyticsEvidenceError> {
@@ -247,7 +247,7 @@ pub(crate) fn parse_candles(
     Ok(candles)
 }
 
-pub(crate) fn parse_trades(text: &str) -> Result<Vec<TradeRecord>, AnalyticsEvidenceError> {
+pub fn parse_trades(text: &str) -> Result<Vec<TradeRecord>, AnalyticsEvidenceError> {
     let path = "portfolio/trades.csv";
     validate_header(path, text, TRADES_HEADER)?;
     let mut trades = Vec::new();
@@ -345,9 +345,7 @@ pub(crate) fn parse_trades(text: &str) -> Result<Vec<TradeRecord>, AnalyticsEvid
     Ok(trades)
 }
 
-pub(crate) fn parse_commission_rate(
-    bundle: &BundleManifest,
-) -> Result<f64, AnalyticsEvidenceError> {
+pub fn parse_commission_rate(bundle: &BundleManifest) -> Result<f64, AnalyticsEvidenceError> {
     let path = "portfolio/provenance.json";
     let value = bundle
         .read_json(path)

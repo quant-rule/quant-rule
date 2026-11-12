@@ -6,9 +6,11 @@
 //! outcome. No module computes an indicator, a rule, a fill, or an accounting
 //! value.
 
+pub mod analytics;
 pub mod backtest;
 pub mod data;
 pub mod execution;
 pub mod model;
 pub mod portfolio;
+pub mod qualification;
 pub mod strategy;

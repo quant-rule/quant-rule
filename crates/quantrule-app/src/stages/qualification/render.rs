@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 
 use serde_json::{Value, json};
 
-use quantrule_app::config::{Criteria, Partition};
+use crate::config::{Criteria, Partition};
 
 use super::evaluate::{Status, Verdict};
 use super::evidence::{BacktestEvidence, MANIFEST_SCHEMA};
@@ -18,7 +18,7 @@ use super::evidence::{BacktestEvidence, MANIFEST_SCHEMA};
 /// # Errors
 ///
 /// Returns the serializer's error when the value cannot be encoded.
-pub(crate) fn qualification_json_bytes(
+pub fn qualification_json_bytes(
     criteria: &Criteria,
     evidence: &BacktestEvidence,
     verdict: &Verdict<'_>,
@@ -52,7 +52,7 @@ pub(crate) fn qualification_json_bytes(
 
 /// Renders `criteria.csv`.
 #[must_use]
-pub(crate) fn criteria_csv(verdict: &Verdict<'_>) -> String {
+pub fn criteria_csv(verdict: &Verdict<'_>) -> String {
     let mut csv = String::from(
         "id,dimension,mandatory,status,observed,threshold,operator,evidence_artifact,evidence_field,reason_code\n",
     );
@@ -78,7 +78,7 @@ pub(crate) fn criteria_csv(verdict: &Verdict<'_>) -> String {
 
 /// Renders `qualification.md`.
 #[must_use]
-pub(crate) fn qualification_md(
+pub fn qualification_md(
     criteria: &Criteria,
     evidence: &BacktestEvidence,
     verdict: &Verdict<'_>,
@@ -210,7 +210,7 @@ pub(crate) fn qualification_md(
 /// # Errors
 ///
 /// Returns the serializer's error when the value cannot be encoded.
-pub(crate) fn provenance_json_bytes(
+pub fn provenance_json_bytes(
     criteria: &Criteria,
     criteria_id: &str,
     evidence: &BacktestEvidence,

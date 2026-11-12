@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 
 use serde_json::{Value, json};
 
-use quantrule_app::artifact::backtest::MANIFEST_SCHEMA;
+use crate::artifact::backtest::MANIFEST_SCHEMA;
 
 use super::evidence::AnalyticsEvidence;
 use super::metrics::AnalyticsMetrics;
@@ -18,7 +18,7 @@ use super::metrics::AnalyticsMetrics;
 /// # Errors
 ///
 /// Returns the serializer's error when the value cannot be encoded.
-pub(crate) fn metrics_json_bytes(
+pub fn metrics_json_bytes(
     evidence: &AnalyticsEvidence,
     metrics: &AnalyticsMetrics,
 ) -> Result<Vec<u8>, serde_json::Error> {
@@ -99,7 +99,7 @@ pub(crate) fn metrics_json_bytes(
 
 /// Renders `summary.txt`.
 #[must_use]
-pub(crate) fn summary_bytes(evidence: &AnalyticsEvidence, metrics: &AnalyticsMetrics) -> String {
+pub fn summary_bytes(evidence: &AnalyticsEvidence, metrics: &AnalyticsMetrics) -> String {
     let portfolio = &evidence.portfolio;
     let net_costs = portfolio.execution_fees + portfolio.commission + portfolio.funding_paid
         - portfolio.funding_received;
@@ -195,12 +195,12 @@ pub(crate) fn summary_bytes(evidence: &AnalyticsEvidence, metrics: &AnalyticsMet
 /// # Errors
 ///
 /// Returns the serializer's error when the value cannot be encoded.
-pub(crate) fn provenance_json_bytes(
+pub fn provenance_json_bytes(
     evidence: &AnalyticsEvidence,
     metrics: &AnalyticsMetrics,
 ) -> Result<Vec<u8>, serde_json::Error> {
     let value = json!({
-        "schema": quantrule_app::artifact::backtest::STAGE_SCHEMA,
+        "schema": crate::artifact::backtest::STAGE_SCHEMA,
         "stage": "analytics",
         "artifact": "analytics",
         "data_version": &evidence.bundle.data_version,

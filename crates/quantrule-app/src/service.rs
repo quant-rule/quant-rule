@@ -25,11 +25,15 @@ use crate::error::AppError;
 use crate::export;
 use crate::memory::{MemoryError, NewConfig, NewDataset, NewRun, NewWorkspace, ResearchMemory};
 use crate::pipeline::{self, WindowMode};
+use crate::stages::analytics::{self, AnalyticsOutcome, AnalyticsRequest, AnalyticsRunError};
 use crate::stages::backtest::{self, BacktestOutcome, BacktestRequest, BacktestRunError};
 use crate::stages::data;
 use crate::stages::execution::{self, ExecutionOutcome, ExecutionRequest, ExecutionRunError};
 use crate::stages::model::{self, ModelReportError, ModelReportRequest};
 use crate::stages::portfolio::{self, PortfolioOutcome, PortfolioRequest, PortfolioRunError};
+use crate::stages::qualification::{
+    self, QualificationOutcome, QualificationRequest, QualificationRunError,
+};
 use crate::stages::strategy::{
     self, StrategyExplainRequest, StrategyOutcome, StrategyRunError, StrategyRunRequest,
 };
@@ -397,6 +401,31 @@ impl AppService {
         request: &BacktestRequest<'_>,
     ) -> Result<BacktestOutcome, BacktestRunError> {
         backtest::run(request)
+    }
+
+    /// Evaluates a backtest bundle against human-owned qualification criteria.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QualificationRunError`] when the criteria, evidence, or bundle
+    /// fails.
+    pub fn qualify(
+        request: &QualificationRequest<'_>,
+    ) -> Result<QualificationOutcome, QualificationRunError> {
+        qualification::run(request)
+    }
+
+    /// Builds the descriptive analytics metrics and tables from a backtest
+    /// bundle.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AnalyticsRunError`] when the evidence bundle or the analytics
+    /// bundle fails.
+    pub fn evaluate_analytics(
+        request: &AnalyticsRequest<'_>,
+    ) -> Result<AnalyticsOutcome, AnalyticsRunError> {
+        analytics::run(request)
     }
 }
 

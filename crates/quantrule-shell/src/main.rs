@@ -8,11 +8,9 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]
 
-mod analytics;
 pub(crate) mod command;
 mod export;
 mod fetch;
-mod qualification;
 mod render;
 mod render_flat;
 mod request;

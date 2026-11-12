@@ -100,12 +100,13 @@ REF-2026-11-12-06 and is deferred.
 | `stages/execution/` | Decisions reader, causal fill engine orchestration, and the fills bundle. |
 | `stages/portfolio/` | Fills reader, portfolio ledger orchestration, and the portfolio bundle. |
 | `stages/backtest.rs` | Coupled model/strategy/execution/portfolio runner and manifest writer. |
+| `stages/qualification/` | Evidence reader, criterion evaluation, and the qualification bundle. |
+| `stages/analytics/` | Evidence reader, descriptive metrics/tables, and the analytics bundle. |
 | `memory/` | SQLite research memory: schema, store, types, transfer, tests. |
 
 The artifact layer owns provenance, the model bundle, the report artifacts, the
-shared labels, and atomic writes. The `stages/` layer owns the data and model
-use cases; P3.4 adds strategy, execution, portfolio, backtest, qualification,
-and analytics. The target layout is in section 7.
+shared labels, and atomic writes. The `stages/` layer owns every stage use case.
+The target layout is in section 7.
 
 ## 5. Shell (`crates/quantrule-shell/src`)
 
@@ -117,11 +118,7 @@ and analytics. The target layout is in section 7.
 | `render.rs` | Candle and timeframe NDJSON. |
 | `render_flat.rs` | Event NDJSON. |
 | `source/`, `fetch.rs`, `export.rs` | Explicit Dukascopy fetch and its CSV writer. |
-| `qualification/`, `analytics/` | Current stage orchestration and artifact readers/writers. |
-| `backtest_bundle.rs` | Current backtest manifest and stage-provenance reader. |
 
-The remaining stage modules are transitional; P3.4 moves them to the app. Do not
-add a new stage capability to the shell.
 
 ## 6. Desktop (`apps/desktop`)
 

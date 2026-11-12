@@ -18,69 +18,69 @@ use super::evidence::AnalyticsEvidence;
 use super::metrics::Table;
 
 /// The number of seeded random-timing paths.
-pub(crate) const BENCHMARK_PATHS: usize = 1_000;
+pub const BENCHMARK_PATHS: usize = 1_000;
 
 /// A buy-and-hold summary.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct BuyHoldSummary {
+pub struct BuyHoldSummary {
     /// The final equity.
-    pub(crate) final_equity: f64,
+    pub final_equity: f64,
     /// `final_equity / initial_cash - 1`.
-    pub(crate) total_return: f64,
+    pub total_return: f64,
     /// The maximum drawdown.
-    pub(crate) max_drawdown: f64,
+    pub max_drawdown: f64,
     /// The longest underwater period in seconds.
-    pub(crate) longest_underwater_secs: i64,
+    pub longest_underwater_secs: i64,
 }
 
 /// A random-timing summary.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct RandomSummary {
+pub struct RandomSummary {
     /// The explicit seed.
-    pub(crate) seed: u64,
+    pub seed: u64,
     /// The number of paths that produced a metric.
-    pub(crate) paths: usize,
+    pub paths: usize,
     /// The benchmark method identifier.
-    pub(crate) method: &'static str,
+    pub method: &'static str,
     /// The final-return distribution.
-    pub(crate) returns: Distribution,
+    pub returns: Distribution,
     /// The maximum-drawdown distribution.
-    pub(crate) drawdowns: Distribution,
+    pub drawdowns: Distribution,
     /// The strategy's final-return percentile among the paths.
-    pub(crate) strategy_percentile: f64,
+    pub strategy_percentile: f64,
     /// The share of paths whose final return beats the strategy.
-    pub(crate) probability_random_beats_strategy: f64,
+    pub probability_random_beats_strategy: f64,
 }
 
 /// The benchmark section of the analytics bundle.
 #[derive(Debug, Clone)]
-pub(crate) struct BenchmarkSummary {
+pub struct BenchmarkSummary {
     /// The strategy's total return.
-    pub(crate) strategy_return: f64,
+    pub strategy_return: f64,
     /// The strategy's maximum drawdown.
-    pub(crate) strategy_max_drawdown: f64,
+    pub strategy_max_drawdown: f64,
     /// The buy-and-hold baseline, when the candles support it.
-    pub(crate) buy_and_hold: Option<BuyHoldSummary>,
+    pub buy_and_hold: Option<BuyHoldSummary>,
     /// The random-timing baseline, when the trades and candles support it.
-    pub(crate) random: Option<RandomSummary>,
+    pub random: Option<RandomSummary>,
     /// The strategy return minus the buy-and-hold return.
-    pub(crate) alpha_vs_buy_and_hold: Option<f64>,
+    pub alpha_vs_buy_and_hold: Option<f64>,
     /// The strategy's initial cash.
-    pub(crate) initial_cash: f64,
+    pub initial_cash: f64,
     /// The commission rate replayed by both baselines.
-    pub(crate) commission_rate: f64,
+    pub commission_rate: f64,
     /// The explicit random seed.
-    pub(crate) seed: u64,
+    pub seed: u64,
     /// The requested path count.
-    pub(crate) paths: usize,
+    pub paths: usize,
     /// Stable reasons for a missing benchmark.
-    pub(crate) null_reasons: BTreeMap<&'static str, &'static str>,
+    pub null_reasons: BTreeMap<&'static str, &'static str>,
 }
 
 impl BenchmarkSummary {
     /// Builds the benchmark summary from the recorded evidence.
     #[must_use]
-    pub(crate) fn build(evidence: &AnalyticsEvidence) -> Self {
+    pub fn build(evidence: &AnalyticsEvidence) -> Self {
         let seed = evidence.bundle.seed.as_u64().unwrap_or(0);
         let mut null_reasons = BTreeMap::new();
         let buy = if evidence.candles.len() < 2 {
@@ -141,7 +141,7 @@ impl BenchmarkSummary {
 
     /// The benchmark table.
     #[must_use]
-    pub(crate) fn table(&self) -> Table {
+    pub fn table(&self) -> Table {
         let header = "baseline,paths,seed,total_return,max_drawdown,p05_return,p50_return,p95_return,strategy_percentile,probability_random_beats_strategy,alpha_vs_buy_and_hold";
         let mut text = format!("{header}\n");
         let mut rows = 0;
@@ -194,7 +194,7 @@ impl BenchmarkSummary {
 
     /// The JSON value for `metrics.json`.
     #[must_use]
-    pub(crate) fn json(&self) -> Value {
+    pub fn json(&self) -> Value {
         json!({
             "strategy": {
                 "total_return": self.strategy_return,
@@ -230,7 +230,7 @@ impl BenchmarkSummary {
 
     /// The summary lines for `summary.txt`.
     #[must_use]
-    pub(crate) fn summary_lines(&self) -> Vec<String> {
+    pub fn summary_lines(&self) -> Vec<String> {
         let mut lines = Vec::new();
         lines.push(format!(
             "benchmark_buy_and_hold: {}",

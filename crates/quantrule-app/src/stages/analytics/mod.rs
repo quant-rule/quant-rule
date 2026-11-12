@@ -11,4 +11,4 @@ mod metrics;
 mod render;
 mod run;
 
-pub(crate) use run::{AnalyticsRunError, run};
+pub use run::{AnalyticsOutcome, AnalyticsRequest, AnalyticsRunError, run};

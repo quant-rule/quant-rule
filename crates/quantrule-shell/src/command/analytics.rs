@@ -7,8 +7,9 @@
 use std::path::PathBuf;
 
 use super::types::{Command, ParseError};
-use crate::analytics;
 use crate::request::AnalyticsEvaluateArgs;
+use quantrule_app::service::AppService;
+use quantrule_app::stages::analytics::AnalyticsRequest;
 
 const USAGE: &str = "usage: analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json]";
 
@@ -106,7 +107,25 @@ pub(crate) fn run_analytics(
     args: &AnalyticsEvaluateArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), super::types::RunError> {
-    analytics::run(args, writer).map_err(super::types::RunError::Analytics)
+    let request = AnalyticsRequest {
+        evidence: &args.evidence,
+        out: args.out.as_deref(),
+    };
+    let outcome =
+        AppService::evaluate_analytics(&request).map_err(super::types::RunError::Analytics)?;
+    if args.json {
+        writer
+            .write_all(&outcome.json)
+            .map_err(super::types::RunError::Output)?;
+    } else {
+        writeln!(writer, "metrics: {}", outcome.metrics.display())
+            .map_err(super::types::RunError::Output)?;
+        writeln!(writer, "tables: {}", outcome.tables.display())
+            .map_err(super::types::RunError::Output)?;
+        writeln!(writer, "summary: {}", outcome.summary.display())
+            .map_err(super::types::RunError::Output)?;
+    }
+    writer.flush().map_err(super::types::RunError::Output)
 }
 
 #[cfg(test)]

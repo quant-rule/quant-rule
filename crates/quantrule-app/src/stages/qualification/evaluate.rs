@@ -10,11 +10,11 @@
 
 use serde_json::Value;
 
-use quantrule_app::config::{Criteria, Criterion};
+use crate::config::{Criteria, Criterion};
 
 /// One criterion's status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Status {
+pub enum Status {
     /// The evidence exists, the metric is defined, and the comparison holds.
     Pass,
     /// The evidence exists, the metric is defined, and the comparison fails.
@@ -27,7 +27,7 @@ pub(crate) enum Status {
 impl Status {
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::Pass => "pass",
             Self::Fail => "fail",
@@ -38,7 +38,7 @@ impl Status {
 
 /// A stable reason code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Reason {
+pub enum Reason {
     /// The operator and threshold were satisfied.
     OperatorSatisfied,
     /// The operator and threshold were not satisfied.
@@ -58,7 +58,7 @@ pub(crate) enum Reason {
 impl Reason {
     /// The stable wire code.
     #[must_use]
-    pub(crate) const fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
             Self::OperatorSatisfied => "operator_satisfied",
             Self::OperatorNotSatisfied => "operator_not_satisfied",
@@ -73,7 +73,7 @@ impl Reason {
 
 /// A resolved evidence field.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum Resolved {
+pub enum Resolved {
     /// A finite JSON number.
     Number(f64),
     /// The field exists and is null.
@@ -91,7 +91,7 @@ pub(crate) enum Resolved {
 /// [`Resolved::Missing`]. A present null is [`Resolved::Null`]. Every other
 /// non-number is [`Resolved::NonNumeric`].
 #[must_use]
-pub(crate) fn resolve(document: &Value, field: &str) -> Resolved {
+pub fn resolve(document: &Value, field: &str) -> Resolved {
     let mut current = document;
     for segment in field.split('.') {
         current = match current {
@@ -125,31 +125,31 @@ pub(crate) fn resolve(document: &Value, field: &str) -> Resolved {
 
 /// One criterion's evaluated result.
 #[derive(Debug, Clone)]
-pub(crate) struct Outcome<'a> {
+pub struct Outcome<'a> {
     /// The criterion.
-    pub(crate) criterion: &'a Criterion,
+    pub criterion: &'a Criterion,
     /// Its status.
-    pub(crate) status: Status,
+    pub status: Status,
     /// The observed number, or `None` when the measurement is missing or not
     /// numeric.
-    pub(crate) observed: Option<f64>,
+    pub observed: Option<f64>,
     /// The stable reason code.
-    pub(crate) reason: Reason,
+    pub reason: Reason,
 }
 
 /// The complete evaluation.
 #[derive(Debug, Clone)]
-pub(crate) struct Verdict<'a> {
+pub struct Verdict<'a> {
     /// `pass`, `fail`, or `insufficient_evidence`.
-    pub(crate) status: Status,
+    pub status: Status,
     /// One outcome per criterion, in criteria order.
-    pub(crate) outcomes: Vec<Outcome<'a>>,
+    pub outcomes: Vec<Outcome<'a>>,
 }
 
 impl Verdict<'_> {
     /// The count of one status.
     #[must_use]
-    pub(crate) fn count(&self, status: Status) -> usize {
+    pub fn count(&self, status: Status) -> usize {
         self.outcomes
             .iter()
             .filter(|outcome| outcome.status == status)
@@ -161,7 +161,7 @@ impl Verdict<'_> {
 ///
 /// `observations` must have one entry per criterion, in the same order.
 #[must_use]
-pub(crate) fn evaluate<'a>(
+pub fn evaluate<'a>(
     criteria: &'a Criteria,
     observations: &[Resolved],
     partitions_covered: bool,
@@ -265,7 +265,7 @@ mod tests {
     use serde_json::json;
 
     use super::{Reason, Resolved, Status, evaluate, resolve};
-    use quantrule_app::config::{Criteria, Criterion, Dimension, EvidenceArtifact, Operator};
+    use crate::config::{Criteria, Criterion, Dimension, EvidenceArtifact, Operator};
 
     fn criterion(id: &str, mandatory: bool, operator: Operator, threshold: f64) -> Criterion {
         Criterion {
@@ -285,11 +285,11 @@ mod tests {
             id: "Q-TEST".to_owned(),
             required_partitions: Vec::new(),
             minimum_trades,
-            cost_model: quantrule_app::config::CostModel::ExecutionAndPortfolio,
-            multiple_testing: quantrule_app::config::MultipleTesting {
+            cost_model: crate::config::CostModel::ExecutionAndPortfolio,
+            multiple_testing: crate::config::MultipleTesting {
                 primary_cells: 1,
                 trials: 1,
-                correction: quantrule_app::config::Correction::None,
+                correction: crate::config::Correction::None,
                 family_alpha: 0.05,
             },
             criteria: entries,

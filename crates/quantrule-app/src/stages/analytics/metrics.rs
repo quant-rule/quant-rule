@@ -21,44 +21,44 @@ use super::evidence::{
 
 /// One generated CSV table.
 #[derive(Debug, Clone)]
-pub(crate) struct Table {
+pub struct Table {
     /// The table name without the extension.
-    pub(crate) name: &'static str,
+    pub name: &'static str,
     /// The bundle-relative path.
-    pub(crate) file: String,
+    pub file: String,
     /// The fixed header line.
-    pub(crate) header: &'static str,
+    pub header: &'static str,
     /// The complete CSV text, including the header.
-    pub(crate) text: String,
+    pub text: String,
     /// The number of data rows.
-    pub(crate) rows: usize,
+    pub rows: usize,
 }
 
 /// A table the evidence cannot support.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct UnsupportedTable {
+pub struct UnsupportedTable {
     /// The table name without the extension.
-    pub(crate) name: &'static str,
+    pub name: &'static str,
     /// The stable reason code.
-    pub(crate) reason_code: &'static str,
+    pub reason_code: &'static str,
 }
 
 /// The decision counts.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) struct DecisionCounts {
+pub struct DecisionCounts {
     /// Hold decisions.
-    pub(crate) hold: u64,
+    pub hold: u64,
     /// Market-entry decisions.
-    pub(crate) enter: u64,
+    pub enter: u64,
     /// Bracket-entry decisions.
-    pub(crate) enter_bracket: u64,
+    pub enter_bracket: u64,
     /// Exit decisions.
-    pub(crate) exit: u64,
+    pub exit: u64,
 }
 
 impl DecisionCounts {
     /// Counts one decision.
-    pub(crate) fn observe(&mut self, decision: DecisionKind) {
+    pub fn observe(&mut self, decision: DecisionKind) {
         match decision {
             DecisionKind::Hold => self.hold += 1,
             DecisionKind::Enter => self.enter += 1,
@@ -69,29 +69,29 @@ impl DecisionCounts {
 
     /// The total number of decisions.
     #[must_use]
-    pub(crate) fn total(self) -> u64 {
+    pub fn total(self) -> u64 {
         self.hold + self.enter + self.enter_bracket + self.exit
     }
 }
 
 /// The analytics metrics and tables.
 #[derive(Debug, Clone)]
-pub(crate) struct AnalyticsMetrics {
+pub struct AnalyticsMetrics {
     /// The decision counts across every timeframe.
-    pub(crate) decisions: DecisionCounts,
+    pub decisions: DecisionCounts,
     /// The evaluation benchmarks.
-    pub(crate) benchmarks: BenchmarkSummary,
+    pub benchmarks: BenchmarkSummary,
     /// Stable reasons for every null metric.
-    pub(crate) null_reasons: BTreeMap<&'static str, &'static str>,
+    pub null_reasons: BTreeMap<&'static str, &'static str>,
     /// The tables, in the fixed declared order.
-    pub(crate) tables: Vec<Table>,
+    pub tables: Vec<Table>,
     /// The tables the evidence cannot support.
-    pub(crate) unsupported: Vec<UnsupportedTable>,
+    pub unsupported: Vec<UnsupportedTable>,
 }
 
 /// Builds the analytics metrics and tables.
 #[must_use]
-pub(crate) fn build(evidence: &AnalyticsEvidence) -> AnalyticsMetrics {
+pub fn build(evidence: &AnalyticsEvidence) -> AnalyticsMetrics {
     let mut tables = Vec::new();
     tables.push(copy_table("trades", TRADES_HEADER, &evidence.trades_csv));
     tables.push(monthly_returns_table(&evidence.portfolio.monthly_returns));
@@ -333,7 +333,7 @@ fn timeframe_label(seconds: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{DecisionCounts, decision_tables, null_reasons, timeframe_label};
-    use crate::analytics::evidence::{
+    use crate::stages::analytics::evidence::{
         DecisionKind, DecisionReason, DecisionRecord, DecisionSide, MonthlyReturn,
         PortfolioSnapshot,
     };

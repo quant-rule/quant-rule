@@ -7,14 +7,13 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::io::{self, Write};
-use std::path::PathBuf;
+use std::io;
+use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 
-use crate::request::QualifyArgs;
-use quantrule_app::artifact::render_report::{self, BundleWriteError};
-use quantrule_app::config::{ConfigError, EvidenceArtifact, load_qualification};
+use crate::artifact::render_report::{self, BundleWriteError};
+use crate::config::{ConfigError, EvidenceArtifact, load_qualification};
 
 use super::evaluate::{Status, evaluate, resolve};
 use super::evidence::{BacktestEvidence, EvidenceError, PartitionWindow};
@@ -22,7 +21,7 @@ use super::render;
 
 /// The qualification command failed.
 #[derive(Debug)]
-pub(crate) enum QualificationRunError {
+pub enum QualificationRunError {
     /// The criteria file is invalid.
     Config(ConfigError),
     /// The evidence bundle is missing or invalid.
@@ -70,20 +69,43 @@ impl std::error::Error for QualificationRunError {
     }
 }
 
+/// One qualification request.
+pub struct QualificationRequest<'a> {
+    /// The backtest evidence bundle directory.
+    pub evidence: &'a Path,
+    /// The qualification criteria path.
+    pub criteria: &'a Path,
+    /// The output root; the evidence bundle's parent when `None`.
+    pub out: Option<&'a Path>,
+}
+
+/// The written qualification bundle and its printed verdict.
+pub struct QualificationOutcome {
+    /// The bundle root.
+    pub root: PathBuf,
+    /// The qualification JSON path.
+    pub qualification: PathBuf,
+    /// The stable verdict code.
+    pub verdict: &'static str,
+    /// The criterion counts.
+    pub summary: String,
+    /// The `--json` envelope.
+    pub json: Vec<u8>,
+}
+
 /// Runs `qualify`.
 ///
 /// # Errors
 ///
-/// Returns [`QualificationRunError`] when the criteria, the evidence bundle, the
-/// output target, or the writer fails.
-pub(crate) fn run(
-    args: &QualifyArgs,
-    writer: &mut impl Write,
-) -> Result<(), QualificationRunError> {
+/// Returns [`QualificationRunError`] when the criteria, the evidence bundle, or
+/// the output target fails.
+pub fn run(
+    request: &QualificationRequest<'_>,
+) -> Result<QualificationOutcome, QualificationRunError> {
     let (criteria, criteria_id) =
-        load_qualification(&args.criteria).map_err(QualificationRunError::Config)?;
+        load_qualification(request.criteria).map_err(QualificationRunError::Config)?;
     let evidence =
-        BacktestEvidence::load(&args.evidence).map_err(QualificationRunError::Evidence)?;
+        BacktestEvidence::load(request.evidence).map_err(QualificationRunError::Evidence)?;
 
     let required = evidence.partition_windows(&criteria.required_partitions);
     let partitions_covered = required.iter().all(PartitionWindow::covered);
@@ -134,11 +156,16 @@ pub(crate) fn run(
     let provenance = render::provenance_json_bytes(&criteria, &criteria_id, &evidence, &verdict)
         .map_err(QualificationRunError::Json)?;
 
-    let out = args
-        .out
-        .clone()
-        .or_else(|| args.evidence.parent().map(PathBuf::from))
-        .unwrap_or_else(|| PathBuf::from("."));
+    let out = request.out.map_or_else(
+        || {
+            request
+                .evidence
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."))
+        },
+        Path::to_path_buf,
+    );
     let root = out.join("qualification");
     let artifacts = [
         ("criteria.csv", csv),
@@ -155,37 +182,26 @@ pub(crate) fn run(
         verdict.count(Status::Fail),
         verdict.count(Status::InsufficientEvidence),
     );
-    if args.json {
-        let value = json!({
-            "schema": "quantrule.qualification-result/v1",
-            "bundle": &root,
-            "qualification": root.join("qualification.json"),
-            "verdict": verdict.status.code(),
-            "criteria": {
-                "total": verdict.outcomes.len(),
-                "pass": verdict.count(Status::Pass),
-                "fail": verdict.count(Status::Fail),
-                "insufficient_evidence": verdict.count(Status::InsufficientEvidence),
-            },
-            "human_decision": Value::Null,
-        });
-        writeln!(
-            writer,
-            "{}",
-            serde_json::to_string(&value).map_err(QualificationRunError::Json)?
-        )
-        .map_err(QualificationRunError::Output)?;
-    } else {
-        writeln!(writer, "verdict: {}", verdict.status.code())
-            .map_err(QualificationRunError::Output)?;
-        writeln!(writer, "criteria: {summary}").map_err(QualificationRunError::Output)?;
-        writeln!(
-            writer,
-            "qualification: {}",
-            root.join("qualification.json").display()
-        )
-        .map_err(QualificationRunError::Output)?;
-        writeln!(writer, "human_decision: pending").map_err(QualificationRunError::Output)?;
-    }
-    writer.flush().map_err(QualificationRunError::Output)
+    let value = json!({
+        "schema": "quantrule.qualification-result/v1",
+        "bundle": &root,
+        "qualification": root.join("qualification.json"),
+        "verdict": verdict.status.code(),
+        "criteria": {
+            "total": verdict.outcomes.len(),
+            "pass": verdict.count(Status::Pass),
+            "fail": verdict.count(Status::Fail),
+            "insufficient_evidence": verdict.count(Status::InsufficientEvidence),
+        },
+        "human_decision": Value::Null,
+    });
+    let mut json = serde_json::to_vec(&value).map_err(QualificationRunError::Json)?;
+    json.push(b'\n');
+    Ok(QualificationOutcome {
+        qualification: root.join("qualification.json"),
+        root,
+        verdict: verdict.status.code(),
+        summary,
+        json,
+    })
 }

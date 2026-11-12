@@ -10,9 +10,7 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
-use crate::analytics::AnalyticsRunError;
 use crate::fetch::FetchRunError;
-use crate::qualification::QualificationRunError;
 use crate::request::{
     AnalyticsEvaluateArgs, BacktestRunArgs, ExecutionRunArgs, FetchArgs, ModelArgs,
     PortfolioReplayArgs, QualifyArgs, ReportArgs, RunCheckArgs, StrategyExplainArgs,
@@ -22,10 +20,12 @@ use quantrule_app::config::ConfigError;
 use quantrule_app::csv::SourceError;
 use quantrule_app::error::AppError;
 use quantrule_app::memory::MemoryError;
+use quantrule_app::stages::analytics::AnalyticsRunError;
 use quantrule_app::stages::backtest::BacktestRunError;
 use quantrule_app::stages::execution::ExecutionRunError;
 use quantrule_app::stages::model::ModelReportError;
 use quantrule_app::stages::portfolio::PortfolioRunError;
+use quantrule_app::stages::qualification::QualificationRunError;
 use quantrule_app::stages::strategy::StrategyRunError;
 
 /// A parsed shell command.

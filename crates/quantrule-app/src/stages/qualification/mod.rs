@@ -10,4 +10,4 @@ mod evidence;
 mod render;
 mod run;
 
-pub(crate) use run::{QualificationRunError, run};
+pub use run::{QualificationOutcome, QualificationRequest, QualificationRunError, run};

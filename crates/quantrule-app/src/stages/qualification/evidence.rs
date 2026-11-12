@@ -16,19 +16,19 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use quantrule_app::artifact::backtest::{BundleManifest, ManifestError, StageProvenance};
-use quantrule_app::config::Partition;
+use crate::artifact::backtest::{BundleManifest, ManifestError, StageProvenance};
+use crate::config::Partition;
 
-pub(crate) use quantrule_app::artifact::backtest::{MANIFEST_SCHEMA, STAGE_SCHEMA};
+pub use crate::artifact::backtest::{MANIFEST_SCHEMA, STAGE_SCHEMA};
 
 /// The portfolio metrics schema.
-pub(crate) const METRICS_SCHEMA: &str = "quantrule.portfolio-metrics/v1";
+pub const METRICS_SCHEMA: &str = "quantrule.portfolio-metrics/v1";
 /// The model result schema.
-pub(crate) const MODEL_RESULT_SCHEMA: &str = "quantrule.model-result/v4";
+pub const MODEL_RESULT_SCHEMA: &str = "quantrule.model-result/v4";
 
 /// A backtest evidence bundle could not be read.
 #[derive(Debug)]
-pub(crate) enum EvidenceError {
+pub enum EvidenceError {
     /// The shared manifest or stage provenance is invalid.
     Bundle(ManifestError),
     /// A required artifact could not be read.
@@ -95,75 +95,75 @@ impl std::error::Error for EvidenceError {
 
 /// The declared cost fields carried by the evidence.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Costs {
+pub struct Costs {
     /// The execution fee rate.
-    pub(crate) fee_rate: f64,
+    pub fee_rate: f64,
     /// The execution slippage in basis points.
-    pub(crate) slippage_bps: f64,
+    pub slippage_bps: f64,
     /// The portfolio commission rate.
-    pub(crate) commission_rate: f64,
+    pub commission_rate: f64,
     /// The portfolio funding rate.
-    pub(crate) funding_rate: f64,
+    pub funding_rate: f64,
     /// The initial cash.
-    pub(crate) initial_cash: f64,
+    pub initial_cash: f64,
     /// The leverage.
-    pub(crate) leverage: f64,
+    pub leverage: f64,
 }
 
 /// One required partition and its overlap with the evidence period.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PartitionWindow {
+pub struct PartitionWindow {
     /// The partition.
-    pub(crate) partition: Partition,
+    pub partition: Partition,
     /// The partition start.
-    pub(crate) from: &'static str,
+    pub from: &'static str,
     /// The partition end.
-    pub(crate) to: &'static str,
+    pub to: &'static str,
     /// The inclusive overlap start, or `None` when the periods do not overlap.
-    pub(crate) overlap_from: Option<String>,
+    pub overlap_from: Option<String>,
     /// The inclusive overlap end, or `None` when the periods do not overlap.
-    pub(crate) overlap_to: Option<String>,
+    pub overlap_to: Option<String>,
 }
 
 impl PartitionWindow {
     /// Whether the evidence period overlaps the partition.
     #[must_use]
-    pub(crate) fn covered(&self) -> bool {
+    pub fn covered(&self) -> bool {
         self.overlap_from.is_some() && self.overlap_to.is_some()
     }
 }
 
 /// A complete backtest evidence bundle for qualification.
 #[derive(Debug, Clone)]
-pub(crate) struct BacktestEvidence {
+pub struct BacktestEvidence {
     /// The bundle root.
     root: PathBuf,
     /// The parsed manifest.
-    pub(crate) manifest: Value,
+    pub manifest: Value,
     /// The FNV-1a hash of the manifest bytes.
-    pub(crate) manifest_hash: String,
+    pub manifest_hash: String,
     /// The input data version.
-    pub(crate) data_version: String,
+    pub data_version: String,
     /// The run configuration identity.
-    pub(crate) config_id: String,
+    pub config_id: String,
     /// The code revision recorded by the build.
-    pub(crate) code_commit: String,
+    pub code_commit: String,
     /// The explicit seed, or `null`.
-    pub(crate) seed: Value,
+    pub seed: Value,
     /// The requested period start, as written.
-    pub(crate) period_from: Option<String>,
+    pub period_from: Option<String>,
     /// The requested period end, as written.
-    pub(crate) period_to: Option<String>,
+    pub period_to: Option<String>,
     /// The four stage provenances, in canonical order.
-    pub(crate) stages: Vec<StageProvenance>,
+    pub stages: Vec<StageProvenance>,
     /// The portfolio metrics document.
-    pub(crate) metrics: Value,
+    pub metrics: Value,
     /// The execution provenance document.
-    pub(crate) execution_provenance: Value,
+    pub execution_provenance: Value,
     /// The declared costs.
-    pub(crate) costs: Costs,
+    pub costs: Costs,
     /// The closed-trade count, when the metrics define it.
-    pub(crate) trades: Option<u64>,
+    pub trades: Option<u64>,
 }
 
 impl BacktestEvidence {
@@ -173,7 +173,7 @@ impl BacktestEvidence {
     ///
     /// Returns [`EvidenceError`] when the shared bundle reader refuses, or the
     /// portfolio metrics or declared costs are missing or malformed.
-    pub(crate) fn load(root: &Path) -> Result<Self, EvidenceError> {
+    pub fn load(root: &Path) -> Result<Self, EvidenceError> {
         let bundle = BundleManifest::load(root).map_err(EvidenceError::Bundle)?;
         let execution = bundle
             .stage("execution")
@@ -257,7 +257,7 @@ impl BacktestEvidence {
     ///
     /// Returns [`EvidenceError`] when the result is missing, unreadable, not
     /// JSON, or uses an unsupported schema.
-    pub(crate) fn model_result(&self) -> Result<Value, EvidenceError> {
+    pub fn model_result(&self) -> Result<Value, EvidenceError> {
         let path = self.root.join("model/result.json");
         let (value, _) = read_json(&path)?;
         let object = as_object(&path, &value)?;
@@ -274,7 +274,7 @@ impl BacktestEvidence {
 
     /// Computes each partition's overlap with the evidence period.
     #[must_use]
-    pub(crate) fn partition_windows(&self, partitions: &[Partition]) -> Vec<PartitionWindow> {
+    pub fn partition_windows(&self, partitions: &[Partition]) -> Vec<PartitionWindow> {
         partitions
             .iter()
             .map(|partition| {
