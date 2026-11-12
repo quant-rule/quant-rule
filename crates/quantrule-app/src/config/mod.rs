@@ -19,6 +19,7 @@ mod portfolio;
 mod qualification;
 mod read;
 mod run;
+pub mod spec;
 mod strategy;
 
 #[cfg(test)]

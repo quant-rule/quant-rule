@@ -1,7 +1,7 @@
 //! The flat per-timeframe indicator/event report.
 //!
-//! This projection is the M1.0 view: readings, discrete states, confirmed
-//! levels, events, progression, and context. It carries no axis value, no
+//! This projection is the flat per-timeframe view: readings, discrete states,
+//! confirmed levels, events, progression, and context. It carries no axis value, no
 //! consensus, and no cross-timeframe aggregate. The report is a pure projection
 //! of a completed [`crate::run::ModelRun`]; it never recomputes a reading or an
 //! event.

@@ -1,7 +1,6 @@
 //! Shared reading helpers.
 
-use super::*;
-
+use super::Candle;
 pub(super) fn mean_volume(candles: &[Candle], bar: usize, window: usize) -> Option<f64> {
     if window == 0 || bar + 1 < window {
         return None;

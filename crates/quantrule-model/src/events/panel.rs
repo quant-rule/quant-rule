@@ -6,6 +6,10 @@
 //! five cross-asset readings. The events are keyed by instrument, because the
 //! model event record does not carry an instrument field.
 
+pub use crate::events::source_codes::{
+    BREADTH_SOURCE_CODE, CO_MOVEMENT_SOURCE_CODE, DISPERSION_SOURCE_CODE, LEAD_LAG_SOURCE_CODE,
+    RELATIVE_STRENGTH_SOURCE_CODE,
+};
 use std::collections::BTreeMap;
 
 use crate::events::EventRecord;
@@ -14,17 +18,6 @@ use crate::events::codes;
 use crate::events::extended::divergence_subtype;
 use crate::panel::{PanelInstrument, PanelInstrumentReadings, PanelReadings};
 use crate::readings::{PivotKind, PivotScale, PivotSeries};
-
-/// Source code for relative strength.
-pub const RELATIVE_STRENGTH_SOURCE_CODE: u16 = 45;
-/// Source code for lead-lag.
-pub const LEAD_LAG_SOURCE_CODE: u16 = 46;
-/// Source code for breadth.
-pub const BREADTH_SOURCE_CODE: u16 = 47;
-/// Source code for co-movement.
-pub const CO_MOVEMENT_SOURCE_CODE: u16 = 48;
-/// Source code for dispersion.
-pub const DISPERSION_SOURCE_CODE: u16 = 49;
 
 /// Signal subtype for a cross-asset signal.
 const CROSS_ASSET_SIGNAL_SUBTYPE: u8 = 22;

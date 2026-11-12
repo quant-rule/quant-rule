@@ -7,8 +7,9 @@
 use std::path::PathBuf;
 
 use super::types::{Command, ParseError};
-use crate::qualification;
 use crate::request::QualifyArgs;
+use quantrule_app::service::AppService;
+use quantrule_app::stages::qualification::QualificationRequest;
 
 const USAGE: &str = "usage: qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]";
 
@@ -105,7 +106,25 @@ pub(crate) fn run_qualify(
     args: &QualifyArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), super::types::RunError> {
-    qualification::run(args, writer).map_err(super::types::RunError::Qualification)
+    let request = QualificationRequest {
+        evidence: &args.evidence,
+        criteria: &args.criteria,
+        out: args.out.as_deref(),
+    };
+    let outcome = AppService::qualify(&request).map_err(super::types::RunError::Qualification)?;
+    if args.json {
+        writer
+            .write_all(&outcome.json)
+            .map_err(super::types::RunError::Output)?;
+    } else {
+        writeln!(writer, "verdict: {}", outcome.verdict).map_err(super::types::RunError::Output)?;
+        writeln!(writer, "criteria: {}", outcome.summary)
+            .map_err(super::types::RunError::Output)?;
+        writeln!(writer, "qualification: {}", outcome.qualification.display())
+            .map_err(super::types::RunError::Output)?;
+        writeln!(writer, "human_decision: pending").map_err(super::types::RunError::Output)?;
+    }
+    writer.flush().map_err(super::types::RunError::Output)
 }
 
 #[cfg(test)]

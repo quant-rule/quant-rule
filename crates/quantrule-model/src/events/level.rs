@@ -14,6 +14,10 @@
 //! The module is pure: it reads only the candles, readings, and configuration it
 //! is given. It performs no I/O, reads no clock, and uses no randomness.
 
+pub use crate::events::source_codes::{
+    EMA20_SOURCE_CODE, EMA50_SOURCE_CODE, EMA200_SOURCE_CODE, MAJOR_PIVOT_SOURCE_CODE,
+    MINOR_PIVOT_SOURCE_CODE,
+};
 use std::num::NonZeroU64;
 
 use quantrule_data::Candle;
@@ -25,17 +29,6 @@ use crate::readings::{PivotKind, PivotScale, Readings};
 
 /// The fraction of ATR 14 that scales the Level-event proximity zone.
 pub const PROXIMITY_ATR_FRACTION: f64 = 0.2;
-
-/// The contract's source code for EMA 20.
-pub const EMA20_SOURCE_CODE: u16 = 1;
-/// The contract's source code for EMA 50.
-pub const EMA50_SOURCE_CODE: u16 = 2;
-/// The contract's source code for EMA 200.
-pub const EMA200_SOURCE_CODE: u16 = 3;
-/// The contract's source code for confirmed minor pivots.
-pub const MINOR_PIVOT_SOURCE_CODE: u16 = 7;
-/// The contract's source code for confirmed major pivots.
-pub const MAJOR_PIVOT_SOURCE_CODE: u16 = 8;
 
 /// The contract's reference code for EMA 20.
 pub const EMA20_REFERENCE_CODE: u32 = 1;

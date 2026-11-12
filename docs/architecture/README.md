@@ -71,10 +71,13 @@ path resolution; the engines receive validated values.
 | `AppService::record_run` | Writes the workspace, dataset, configuration, and run to the local research memory. |
 | `ResearchMemory` | SQLite CRUD, ordered queries, logical export/import, and file backup/restore. |
 
-The shell calls the service for `run check`; the other pipeline commands still
-call the same configuration and pipeline modules directly and are being moved
-behind the shared use-case layer under the remediation plan. The desktop UI
-calls the service rather than reimplementing path resolution.
+The shell calls the service for every pipeline use case: data inspection,
+events, model report, strategy, execution, portfolio, backtest, qualification,
+and analytics. The service owns artifact I/O and the stage modules under
+`stages/`; the shell keeps command parsing, terminal output, fetch, and
+rendering. The desktop UI calls the same service rather than reimplementing
+path resolution or stage logic; its pipeline-stage UI exposes the same use cases; source fetch
+remains the recorded shell-only exception.
 
 ## Desktop UI
 
@@ -100,6 +103,7 @@ page is distribution only: no account, backend, or cloud runtime.
 
 | Document | What it answers | Path |
 |---|---|---|
+| Code module map | Which crate and module owns each responsibility, the reading order, and where to add a reading, event, command, or use case. | [`module-map.md`](module-map.md) |
 | Product kata | Why the product exists, for whom, what "done" means. Solution-agnostic. | [`kata.md`](kata.md) |
 | Architecture characteristics | Which non-domain properties shape the architecture, how each is measured, and what is deliberately not optimized. | [`characteristics.md`](characteristics.md) |
 | Architecture baseline decision | Why the kata and characteristics are the baseline, and what alternatives were rejected. | [`../adr/2026-10-31/adopt-architecture-baseline.md`](../adr/2026-10-31/adopt-architecture-baseline.md) |
@@ -123,11 +127,13 @@ page is distribution only: no account, backend, or cloud runtime.
    style, the quantum, and the trade-offs.
 3. Read [`command-surface.md`](command-surface.md) for the stage contract, the
    command registry, and the Qualification Engine boundary.
-4. Read the [workflow index](../workflows/README.md) for the workflow that owns
+4. Read [`module-map.md`](module-map.md) for the code navigation map and the
+   where-to-add guide.
+5. Read the [workflow index](../workflows/README.md) for the workflow that owns
    the change you are making.
-5. Read the [architecture baseline decision](../adr/2026-10-31/adopt-architecture-baseline.md)
+6. Read the [architecture baseline decision](../adr/2026-10-31/adopt-architecture-baseline.md)
    for the decision and the rejected alternatives.
-6. Follow the links to the model, configuration, artifact, qualification, report,
+7. Follow the links to the model, configuration, artifact, qualification, report,
    and research contracts for the normative details.
 
 ## Maintenance

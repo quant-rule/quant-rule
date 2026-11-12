@@ -5,17 +5,19 @@
   import ConfigPanel from "./lib/ConfigPanel.svelte";
   import DataPanel from "./lib/DataPanel.svelte";
   import MemoryPanel from "./lib/MemoryPanel.svelte";
+  import PipelinePanel from "./lib/PipelinePanel.svelte";
   import RunPanel from "./lib/RunPanel.svelte";
   import SettingsPanel from "./lib/SettingsPanel.svelte";
   import WorkspacePanel from "./lib/WorkspacePanel.svelte";
 
-  type Section = "workspace" | "data" | "configs" | "run" | "memory" | "settings";
+  type Section = "workspace" | "data" | "configs" | "run" | "pipeline" | "memory" | "settings";
 
   const sections: { id: Section; label: string; hint: string }[] = [
     { id: "workspace", label: "Workspace", hint: "Open a local root" },
     { id: "data", label: "Data", hint: "Inspect candle sources" },
     { id: "configs", label: "Configs", hint: "Validate a run" },
     { id: "run", label: "Run", hint: "Model and evidence" },
+    { id: "pipeline", label: "Pipeline", hint: "Stage commands" },
     { id: "memory", label: "Memory", hint: "Local research store" },
     { id: "settings", label: "Settings", hint: "Paths and defaults" },
   ];
@@ -124,6 +126,8 @@
         <ConfigPanel runs={workspace?.runs ?? []} onSelect={selectRun} />
       {:else if section === "run"}
         <RunPanel runPath={selectedRun} />
+      {:else if section === "pipeline"}
+        <PipelinePanel runPath={selectedRun} />
       {:else if section === "memory"}
         <MemoryPanel {memoryPath} runPath={selectedRun} />
       {:else if section === "settings"}

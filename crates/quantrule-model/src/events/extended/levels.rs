@@ -1,7 +1,10 @@
 //! Extended level event detection.
 
-use super::*;
-
+use super::{
+    BOS_CHOCH_SOURCE_CODE, CANDLE_SOURCE_CODE, Candle, DONCHIAN_SOURCE_CODE, EventRecord,
+    EventType, ExtendedEventConfig, ExtendedReadings, GAP_SOURCE_CODE, KELTNER_SOURCE_CODE,
+    Readings, STRENGTH_SOURCE_CODE, SWING_SOURCE_CODE, codes, push,
+};
 pub(super) fn level_extended_events(
     candles: &[Candle],
     readings: &Readings,

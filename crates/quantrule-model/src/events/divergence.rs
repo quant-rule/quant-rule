@@ -10,14 +10,12 @@
 //! never changes a reading and is not a second RSI vote. The module is pure:
 //! it reads only the readings and the configuration it is given.
 
+pub use crate::events::source_codes::RSI_SOURCE_CODE;
 use std::num::NonZeroU64;
 
 use crate::events::{EventRecord, EventType};
 use crate::levels::{ConfirmedLevel, ConfirmedLevelRegistry};
 use crate::readings::{PivotKind, PivotScale, ReadingSeries, Readings};
-
-/// The contract's source code for RSI 14.
-pub const RSI_SOURCE_CODE: u16 = 4;
 
 /// The number of bars on either side of a pivot used for its RSI window.
 pub const RSI_WINDOW_BARS: usize = 2;

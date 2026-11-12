@@ -7,8 +7,9 @@
 use std::path::PathBuf;
 
 use super::types::{Command, ParseError};
-use crate::portfolio;
 use crate::request::PortfolioReplayArgs;
+use quantrule_app::service::AppService;
+use quantrule_app::stages::portfolio::PortfolioRequest;
 
 const USAGE: &str =
     "usage: portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [--json]";
@@ -117,7 +118,24 @@ pub(crate) fn run_portfolio(
     args: &PortfolioReplayArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), super::types::RunError> {
-    portfolio::replay(args, writer).map_err(super::types::RunError::Portfolio)
+    let request = PortfolioRequest {
+        config: &args.config,
+        fills: &args.fills,
+        out: args.out.as_deref(),
+    };
+    let outcome =
+        AppService::replay_portfolio(&request).map_err(super::types::RunError::Portfolio)?;
+    if args.json {
+        writer
+            .write_all(&outcome.json)
+            .map_err(super::types::RunError::Output)?;
+    } else {
+        for name in &outcome.artifacts {
+            writeln!(writer, "{}", outcome.root.join(name).display())
+                .map_err(super::types::RunError::Output)?;
+        }
+    }
+    writer.flush().map_err(super::types::RunError::Output)
 }
 
 #[cfg(test)]

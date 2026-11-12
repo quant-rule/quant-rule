@@ -1,9 +1,21 @@
-//! Extended events for the first indicator batch: VWAP and volume profile.
+//! Extended event detection by reading family.
 //!
-//! The detector reads only closed candles and the published readings. It emits
-//! Level, Divergence, and Signal records with the contract's numeric codes. The
-//! module is pure: no I/O, clock, randomness, or statistics.
+//! The batch covers VWAP, profile, participation, flow, Keltner/Donchian and
+//! level strength, pivot sequence, Fibonacci, horizontal bands, ATR/range/MAR,
+//! Aroon, candle anatomy, patterns, gaps, path, extremes, drawdown, and range
+//! position. The detector reads only closed candles and the published readings.
+//! It emits Level, Divergence, and Signal records with the contract's numeric
+//! codes, and it is pure: no I/O, clock, randomness, or statistics.
 
+pub use crate::events::source_codes::{
+    ABSORPTION_SOURCE_CODE, AD_SOURCE_CODE, AROON_SOURCE_CODE,
+    ATR_TERM_SOURCE_CODE as ATR_SOURCE_CODE, BOS_CHOCH_SOURCE_CODE, CANDLE_SOURCE_CODE,
+    CLIMAX_SOURCE_CODE, CMF_SOURCE_CODE, DIRECTION_SOURCE_CODE, DONCHIAN_SOURCE_CODE,
+    DRAWDOWN_SOURCE_CODE, EXTREME_SOURCE_CODE, GAP_SOURCE_CODE, KELTNER_SOURCE_CODE,
+    MAR_SOURCE_CODE, MFI_SOURCE_CODE, OBV_SOURCE_CODE, PATH_SOURCE_CODE, PATTERN_SOURCE_CODE,
+    PROFILE_SOURCE_CODE, RANGE_POSITION_SOURCE_CODE, RANGE_SOURCE_CODE, RVOL_SOURCE_CODE,
+    STRENGTH_SOURCE_CODE, SWING_SOURCE_CODE, VOLUME_OSCILLATOR_SOURCE_CODE, VWAP_SOURCE_CODE,
+};
 use std::collections::BTreeSet;
 use std::num::NonZeroU64;
 
@@ -11,62 +23,6 @@ use quantrule_data::Candle;
 
 use crate::events::{EventRecord, EventType, codes};
 use crate::readings::{ExtendedReadings, PivotKind, PivotScale, ReadingSeries, Readings};
-
-/// Source code for the rolling VWAP.
-pub const VWAP_SOURCE_CODE: u16 = 19;
-/// Source code for the rolling volume profile.
-pub const PROFILE_SOURCE_CODE: u16 = 20;
-/// Source code for RVOL, used by the profile breakout confirmation.
-pub const RVOL_SOURCE_CODE: u16 = 6;
-/// Source code for the volume climax.
-pub const CLIMAX_SOURCE_CODE: u16 = 21;
-/// Source code for absorption.
-pub const ABSORPTION_SOURCE_CODE: u16 = 22;
-/// Source code for the volume oscillator.
-pub const VOLUME_OSCILLATOR_SOURCE_CODE: u16 = 23;
-/// Source code for on-balance volume.
-pub const OBV_SOURCE_CODE: u16 = 24;
-/// Source code for Chaikin money flow.
-pub const CMF_SOURCE_CODE: u16 = 25;
-/// Source code for the money flow index.
-pub const MFI_SOURCE_CODE: u16 = 26;
-/// Source code for the accumulation/distribution line.
-pub const AD_SOURCE_CODE: u16 = 27;
-/// Source code for Keltner.
-pub const KELTNER_SOURCE_CODE: u16 = 31;
-/// Source code for Donchian.
-pub const DONCHIAN_SOURCE_CODE: u16 = 32;
-/// Source code for swing structure.
-pub const SWING_SOURCE_CODE: u16 = 33;
-/// Source code for level strength.
-pub const STRENGTH_SOURCE_CODE: u16 = 34;
-/// Source code for break of structure and change of character.
-pub const BOS_CHOCH_SOURCE_CODE: u16 = 36;
-/// Source code for candle anatomy.
-pub const CANDLE_SOURCE_CODE: u16 = 37;
-/// Source code for gaps.
-pub const GAP_SOURCE_CODE: u16 = 39;
-/// Source code for the ATR term structure.
-pub const ATR_SOURCE_CODE: u16 = 28;
-
-/// Source code for range expansion.
-pub const RANGE_SOURCE_CODE: u16 = 29;
-/// Source code for mean absolute return.
-pub const MAR_SOURCE_CODE: u16 = 30;
-/// Source code for Aroon.
-pub const AROON_SOURCE_CODE: u16 = 35;
-/// Source code for candle patterns.
-pub const PATTERN_SOURCE_CODE: u16 = 38;
-/// Source code for path efficiency.
-pub const PATH_SOURCE_CODE: u16 = 40;
-/// Source code for direction changes.
-pub const DIRECTION_SOURCE_CODE: u16 = 41;
-/// Source code for bars since extreme.
-pub const EXTREME_SOURCE_CODE: u16 = 42;
-/// Source code for drawdown.
-pub const DRAWDOWN_SOURCE_CODE: u16 = 43;
-/// Source code for range position.
-pub const RANGE_POSITION_SOURCE_CODE: u16 = 44;
 
 /// The configuration of the extended event run.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -186,7 +142,7 @@ impl ExtendedEventSeries {
         participation_divergences(readings, extended, config, &mut events);
         flow_divergences(readings, extended, config, &mut events);
         atr_divergences(readings, extended, config, &mut events);
-        crate::events::signals::compute(candles, readings, extended, config, &mut events);
+        signals::compute(candles, readings, extended, config, &mut events);
         deduplicate_occurrences(&mut events);
         Self { events }
     }
@@ -218,6 +174,7 @@ mod levels;
 mod participation;
 mod profile;
 mod shared;
+mod signals;
 mod structure;
 mod vwap;
 

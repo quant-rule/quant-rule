@@ -7,18 +7,12 @@
 //! The module is pure: it reads the published ADX/DI series and the timeframe it
 //! is given. It performs no I/O, reads no clock, and uses no randomness.
 
+pub use crate::events::source_codes::{ADX_SOURCE_CODE, DI_MINUS_SOURCE_CODE, DI_PLUS_SOURCE_CODE};
 use std::num::NonZeroU64;
 
 use crate::events::signal::SignalSubtype;
 use crate::events::{EventRecord, EventType};
 use crate::readings::AdxSeries;
-
-/// The contract's source code for `+DI`.
-pub const DI_PLUS_SOURCE_CODE: u16 = 17;
-/// The contract's source code for `-DI`.
-pub const DI_MINUS_SOURCE_CODE: u16 = 18;
-/// The contract's source code for ADX.
-pub const ADX_SOURCE_CODE: u16 = 16;
 
 /// The configuration of a DI-event run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

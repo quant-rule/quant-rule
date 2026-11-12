@@ -1,9 +1,10 @@
 //! The QuantRule application service.
 //!
 //! The application service is the shared use-case boundary for every client.
-//! The command shell and the desktop UI call the same workspace, dataset,
-//! configuration, and model-run operations here; neither adapter parses a
-//! configuration file or builds the model ladder itself.
+//! The command shell and the desktop UI call the same workspace, dataset, run
+//! configuration, model-run, export, pipeline-stage, and memory operations
+//! here. The shell keeps command parsing, terminal output, explicit source
+//! fetch, and rendering; the desktop keeps its window, IPC, and rendering.
 //!
 //! The engine crates remain pure. This crate owns file access, path resolution,
 //! orchestration, and the local research memory, and returns explicit errors
@@ -26,7 +27,9 @@
 //! ```
 
 #![forbid(unsafe_code)]
+#![recursion_limit = "512"]
 
+pub mod artifact;
 pub mod config;
 pub mod csv;
 pub mod dataset;
@@ -37,4 +40,5 @@ pub mod fingerprint;
 pub mod memory;
 pub mod pipeline;
 pub mod service;
+pub mod stages;
 pub mod workspace;

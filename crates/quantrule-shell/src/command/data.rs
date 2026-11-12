@@ -8,7 +8,7 @@ use std::path::Path;
 
 use super::types::RunError;
 use crate::render;
-use quantrule_app::csv;
+use quantrule_app::service::AppService;
 
 /// Loads a CSV source strictly and writes its retained window as NDJSON.
 ///
@@ -16,7 +16,7 @@ use quantrule_app::csv;
 ///
 /// Returns a [`RunError`] when the source fails or the writer fails.
 pub(crate) fn run_candles(path: &Path, writer: &mut impl Write) -> Result<(), RunError> {
-    let window = csv::load_window(path).map_err(RunError::Source)?;
+    let window = AppService::inspect_candles(path).map_err(RunError::Source)?;
     render::write_ndjson(&window, writer).map_err(RunError::Output)?;
     writer.flush().map_err(RunError::Output)
 }
@@ -35,7 +35,7 @@ pub(crate) fn run_candles_tolerant(
     output: &mut impl Write,
     report: &mut impl Write,
 ) -> Result<(), RunError> {
-    let loaded = csv::load_window_tolerant(path).map_err(RunError::Source)?;
+    let loaded = AppService::inspect_candles_tolerant(path).map_err(RunError::Source)?;
     render::write_ndjson(&loaded.window, output).map_err(RunError::Output)?;
     output.flush().map_err(RunError::Output)?;
     loaded.report.write(report).map_err(RunError::Output)?;
@@ -55,7 +55,7 @@ pub(crate) fn run_timeframes(
     output: &mut impl Write,
     report: &mut impl Write,
 ) -> Result<(), RunError> {
-    let set = csv::load_timeframes(path).map_err(RunError::Source)?;
+    let set = AppService::inspect_timeframes(path).map_err(RunError::Source)?;
     render::write_timeframes(&set, output).map_err(RunError::Output)?;
     output.flush().map_err(RunError::Output)?;
     render::write_timeframe_report(&set, report).map_err(RunError::Output)?;

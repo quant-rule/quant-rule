@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- The code module map at `docs/architecture/module-map.md`: crate and module
+  ownership, reading order, and the where-to-add guide for a reading, event,
+  command, configuration field, use case, or desktop command.
 - Native file and folder pickers in the desktop Settings, Memory, and Run
   panels. A selected path still passes the backend workspace/memory scope check
   before any I/O, and typed paths remain available.
@@ -36,6 +39,22 @@ are not treated as releases.
 
 ### Changed
 
+- The model engine's extended signal detector now sits under
+  `events/extended/`, the extended submodules use explicit imports, and source
+  codes are defined once in `events/source_codes.rs`.
+- The stage-provenance reader is shared by the model, strategy, execution, and
+  portfolio bundles; the duplicate reader error names are gone.
+- The desktop command boundary is split into `views`, `scope`, `workspace`, and
+  `memory` modules.
+- The model report and data-inspection use cases now live behind
+  `quantrule-app`; the model bundle, report renderer, labels, and model-spec
+  parser moved out of the shell. The shell keeps parsing and terminal output.
+- The strategy, execution, portfolio, backtest, qualification, and analytics
+  use cases now live behind `quantrule-app`; the shell is a parse/render/fetch
+  adapter and the desktop has one Tauri command per use case.
+- The desktop UI has a Pipeline section for inspecting data and running the
+  model, strategy, execution, portfolio, backtest, qualification, and analytics
+  stages. Source fetch remains shell-only.
 - The desktop UI is a first-class surface of the same program as the shell. Both
   call the shared application service and are required to have feature parity;
   the shell is primarily for agents. The
@@ -53,6 +72,14 @@ are not treated as releases.
   template names roles, dependencies, and affected paths, and the plan checker
   rejects duplicate IDs, empty core cells, and unresolved rows on a `Verified`
   plan.
+
+### Fixed
+
+- Stale module docs that described the shell as the only surface, the backtest
+  runner as future work, the app as the only configuration parser, the desktop
+  as doing no path resolution, the model as six scalar readings, and the flat
+  report as the M1.0 view. The shell glossary now names M1.3 as the current
+  model.
 
 ## [0.9.0] - 2026-11-11
 

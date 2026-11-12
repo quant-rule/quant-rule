@@ -105,11 +105,24 @@ fn mock_cases(source: &str) -> BTreeSet<String> {
     names
 }
 
+fn command_sources(directory: &Path) -> String {
+    let mut files = Vec::new();
+    collect_files(directory, &mut files);
+    let mut source = String::new();
+    for file in files {
+        if file.extension().is_some_and(|extension| extension == "rs") {
+            source.push_str(&read(&file));
+            source.push('\n');
+        }
+    }
+    source
+}
+
 #[test]
 fn every_registered_command_is_a_command_function_and_vice_versa() {
     let root = app_root();
     let lib = read(&root.join("src-tauri/src/lib.rs"));
-    let commands = read(&root.join("src-tauri/src/commands.rs"));
+    let commands = command_sources(&root.join("src-tauri/src/commands"));
     let registered = registered_commands(&lib);
     let functions = command_functions(&commands);
     assert_eq!(

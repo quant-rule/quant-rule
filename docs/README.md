@@ -36,7 +36,7 @@ repeating a status.
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Surfaces | The command shell and the desktop UI are first-class surfaces of the same program; the shell is primarily for agents and the desktop UI is the human workstation. Feature parity is required; the pipeline/memory parity extraction is in progress under the [audit remediation plan](execution-plans/2026-11-11/audit-app-service-native-remediation.md) and the [one-program ADR](adr/2026-11-11/one-program-first-class-desktop.md). |
-| Command surface | 16 implemented commands, 0 planned; the discovery gate passes. The desktop UI exposes the shared service's workspace, dataset, config, model, memory, and export use cases; pipeline parity is in Phase 3c. |
+| Command surface | 16 implemented commands, 0 planned; the discovery gate passes. The desktop UI exposes the shared service's workspace, dataset, config, model, memory, and export use cases; the pipeline-stage UI exposes the shared use cases; source fetch remains the recorded shell-only exception. |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
@@ -53,6 +53,7 @@ repeating a status.
 | Document | Status | Path |
 |---|---|---|
 | System architecture entry point | Current | `docs/architecture/README.md` |
+| Code module map | Current; crate, module, reading order, and where-to-add guide | `docs/architecture/module-map.md` |
 | The Trustworthy Backtest Kata | Current | `docs/architecture/kata.md` |
 | Architecture characteristics | Current | `docs/architecture/characteristics.md` |
 | Command surface | Current; implemented/planned stage contract and drift gate | `docs/architecture/command-surface.md` |

@@ -12,7 +12,7 @@ use quantrule_model::run::ModelRun;
 use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
-use crate::labels;
+use quantrule_app::artifact::labels;
 
 /// Writes the full event batch, grouped by timeframe and availability order.
 ///

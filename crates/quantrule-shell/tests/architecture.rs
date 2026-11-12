@@ -42,15 +42,10 @@ fn collect(path: &Path, files: &mut Vec<(PathBuf, String)>) {
 
 #[test]
 fn renderers_do_not_depend_on_the_command_module() {
-    let mut files: Vec<(String, String)> = ["render.rs", "render_flat.rs"]
+    let files: Vec<(String, String)> = ["render.rs", "render_flat.rs"]
         .into_iter()
         .map(|file| (file.to_owned(), source(file)))
         .collect();
-    files.extend(
-        sources("render_report")
-            .into_iter()
-            .map(|(path, text)| (path.display().to_string(), text)),
-    );
     for (name, text) in files {
         assert!(
             !text.contains("use crate::command"),
@@ -161,6 +156,24 @@ fn the_workspace_graph_is_acyclic_and_directional() {
             assert!(
                 allowed.contains(&dependency.as_str()),
                 "{crate_name} must not depend on {dependency}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_shell_does_not_orchestrate_pipeline_stages() {
+    for (path, text) in sources("") {
+        for forbidden in [
+            "pipeline::run_model",
+            "ExecutionEngine::new",
+            "PortfolioLedger::new",
+            "SpecRun::compute",
+        ] {
+            assert!(
+                !text.contains(forbidden),
+                "{} must not orchestrate a pipeline stage: {forbidden}",
+                path.display()
             );
         }
     }

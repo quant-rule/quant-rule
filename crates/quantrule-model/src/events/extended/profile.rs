@@ -1,7 +1,9 @@
 //! Volume-profile event detection.
 
-use super::*;
-
+use super::{
+    Candle, EventRecord, EventType, ExtendedEventConfig, ExtendedReadings, PROFILE_SOURCE_CODE,
+    Readings, codes, push,
+};
 pub(super) fn profile_events(
     candles: &[Candle],
     readings: &Readings,

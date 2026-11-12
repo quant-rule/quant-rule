@@ -1,7 +1,7 @@
 //! Volume-profile readings.
 
 use super::shared::{typical_price, volume};
-use super::*;
+use super::{Candle, ExtendedConfig, Readings};
 
 pub(super) struct ProfileSeries {
     pub(super) poc: Vec<Option<f64>>,

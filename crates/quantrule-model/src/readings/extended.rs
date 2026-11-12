@@ -1,10 +1,12 @@
-//! Extended OHLCV readings: VWAP and rolling volume profile.
+//! Extended OHLCV readings by family.
 //!
+//! The aggregate covers VWAP, volume profile, participation, volume flow,
+//! volatility/structure, Fibonacci, horizontal bands, and candle anatomy/path.
 //! These readings are computed from closed candles only. They are pure: no I/O,
 //! no clock, no randomness. A missing denominator publishes `None`, never zero.
 //!
-//! The v4 readings remain the contract surface; this module adds the first batch
-//! of the indicator-completeness programme (epic #405).
+//! The v4 readings remain the base contract surface; this module is the
+//! indicator-completeness batch beyond them.
 
 use quantrule_data::Candle;
 

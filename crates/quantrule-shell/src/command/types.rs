@@ -10,23 +10,23 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
-use crate::analytics::AnalyticsRunError;
-use crate::backtest::BacktestRunError;
-use crate::execution::ExecutionRunError;
 use crate::fetch::FetchRunError;
-use crate::model_bundle::ModelBundleError;
-use crate::portfolio::PortfolioRunError;
-use crate::qualification::QualificationRunError;
 use crate::request::{
     AnalyticsEvaluateArgs, BacktestRunArgs, ExecutionRunArgs, FetchArgs, ModelArgs,
     PortfolioReplayArgs, QualifyArgs, ReportArgs, RunCheckArgs, StrategyExplainArgs,
     StrategyRunArgs,
 };
-use crate::strategy::StrategyRunError;
 use quantrule_app::config::ConfigError;
 use quantrule_app::csv::SourceError;
 use quantrule_app::error::AppError;
 use quantrule_app::memory::MemoryError;
+use quantrule_app::stages::analytics::AnalyticsRunError;
+use quantrule_app::stages::backtest::BacktestRunError;
+use quantrule_app::stages::execution::ExecutionRunError;
+use quantrule_app::stages::model::ModelReportError;
+use quantrule_app::stages::portfolio::PortfolioRunError;
+use quantrule_app::stages::qualification::QualificationRunError;
+use quantrule_app::stages::strategy::StrategyRunError;
 
 /// A parsed shell command.
 #[derive(Debug, PartialEq)]
@@ -322,49 +322,6 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-/// A report spec failure.
-#[derive(Debug)]
-pub(crate) enum ReportError {
-    /// The spec file could not be read.
-    SpecRead {
-        /// The spec path.
-        path: PathBuf,
-        /// The underlying error.
-        source: io::Error,
-    },
-    /// The spec is invalid.
-    Spec(String),
-    /// A spec timeframe is not in the data ladder.
-    SpecTimeframe {
-        /// The requested timeframe.
-        timeframe_secs: u64,
-    },
-}
-
-impl fmt::Display for ReportError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::SpecRead { path, source } => {
-                write!(formatter, "cannot read {}: {source}", path.display())
-            }
-            Self::Spec(message) => formatter.write_str(message),
-            Self::SpecTimeframe { timeframe_secs } => write!(
-                formatter,
-                "the spec timeframe {timeframe_secs}s is not in the run's data ladder"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for ReportError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::SpecRead { source, .. } => Some(source),
-            _ => None,
-        }
-    }
-}
-
 /// A command failed while executing.
 #[derive(Debug)]
 pub(crate) enum RunError {
@@ -374,10 +331,8 @@ pub(crate) enum RunError {
     Source(SourceError),
     /// The application service failed.
     App(AppError),
-    /// The report spec could not be read or parsed.
-    Report(ReportError),
-    /// The model bundle could not be built.
-    Model(ModelBundleError),
+    /// The model report use case failed.
+    ReportUseCase(ModelReportError),
     /// The strategy command failed.
     Strategy(StrategyRunError),
     /// The execution command failed.
@@ -406,8 +361,7 @@ impl fmt::Display for RunError {
             Self::Config(error) => error.fmt(formatter),
             Self::Source(error) => error.fmt(formatter),
             Self::App(error) => error.fmt(formatter),
-            Self::Report(error) => error.fmt(formatter),
-            Self::Model(error) => error.fmt(formatter),
+            Self::ReportUseCase(error) => error.fmt(formatter),
             Self::Strategy(error) => error.fmt(formatter),
             Self::Execution(error) => error.fmt(formatter),
             Self::Portfolio(error) => error.fmt(formatter),
@@ -428,8 +382,7 @@ impl std::error::Error for RunError {
             Self::Config(error) => Some(error),
             Self::Source(error) => Some(error),
             Self::App(error) => Some(error),
-            Self::Report(error) => Some(error),
-            Self::Model(error) => Some(error),
+            Self::ReportUseCase(error) => Some(error),
             Self::Strategy(error) => Some(error),
             Self::Execution(error) => Some(error),
             Self::Portfolio(error) => Some(error),

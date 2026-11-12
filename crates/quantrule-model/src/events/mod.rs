@@ -21,7 +21,7 @@ pub mod panel;
 pub mod retest;
 pub mod session;
 pub mod signal;
-pub mod signals;
+pub mod source_codes;
 pub mod trend;
 
 /// The contract's event-type codes.

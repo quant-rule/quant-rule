@@ -9,26 +9,15 @@
 //! reading; a signal is evidence, not a vote. The module is pure: it performs no
 //! I/O, reads no clock, and uses no randomness.
 
+pub use crate::events::source_codes::{
+    EMA20_SOURCE_CODE, EMA50_SOURCE_CODE, EMA200_SOURCE_CODE, MACD_HISTOGRAM_SOURCE_CODE,
+    MACD_LINE_SOURCE_CODE, MACD_SIGNAL_SOURCE_CODE, RSI_SOURCE_CODE,
+};
 use std::num::NonZeroU64;
 
 use crate::events::{EventRecord, EventType};
 use crate::input::SignalSettings;
 use crate::readings::{MacdSeries, Readings};
-
-/// The contract's source code for RSI 14.
-pub const RSI_SOURCE_CODE: u16 = 4;
-/// The contract's source code for the MACD line.
-pub const MACD_LINE_SOURCE_CODE: u16 = 13;
-/// The contract's source code for the MACD signal.
-pub const MACD_SIGNAL_SOURCE_CODE: u16 = 14;
-/// The contract's source code for the MACD histogram.
-pub const MACD_HISTOGRAM_SOURCE_CODE: u16 = 15;
-/// The contract's source code for EMA 20.
-pub const EMA20_SOURCE_CODE: u16 = 1;
-/// The contract's source code for EMA 50.
-pub const EMA50_SOURCE_CODE: u16 = 2;
-/// The contract's source code for EMA 200.
-pub const EMA200_SOURCE_CODE: u16 = 3;
 
 /// The contract's reference code for EMA 20.
 pub const EMA20_REFERENCE_CODE: u32 = 1;

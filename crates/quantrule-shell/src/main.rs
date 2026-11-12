@@ -1,30 +1,20 @@
 //! The QuantRule shell binary.
 //!
-//! The shell is the product's only surface. It parses commands, performs source
-//! access, calls the data and model engines, and renders the result. It holds no
-//! indicator or model logic.
+//! The shell is one of the product's two first-class surfaces, primarily for
+//! agents. It parses commands, performs explicit source fetch, calls the shared
+//! application service, and renders the result. It holds no indicator, model,
+//! strategy, execution, or portfolio logic.
 
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]
 
-mod analytics;
-pub(crate) mod backtest;
-mod backtest_bundle;
-mod command;
-mod execution;
+pub(crate) mod command;
 mod export;
 mod fetch;
-mod labels;
-mod model_bundle;
-mod portfolio;
-mod qualification;
 mod render;
 mod render_flat;
-mod render_report;
 mod request;
 mod source;
-mod spec;
-mod strategy;
 
 use std::ffi::OsString;
 use std::io::{self, Write};

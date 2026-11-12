@@ -1,7 +1,7 @@
 //! Participation readings.
 
 use super::shared::{mean_volume, volume};
-use super::*;
+use super::{Candle, ExtendedConfig, Readings};
 
 #[allow(clippy::type_complexity)]
 pub(super) fn participation_series(
