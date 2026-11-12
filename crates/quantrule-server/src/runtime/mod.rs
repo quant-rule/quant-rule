@@ -4,13 +4,11 @@
 //! binary. A service supplies its own probes and routes; nothing here decides a
 //! measurement or a trade.
 
-pub mod amqp;
+pub mod adapters;
 pub mod config;
 pub mod error;
 pub mod health;
 pub mod logging;
-pub mod pg;
-pub mod s3;
 pub mod server;
 pub mod shutdown;
 

@@ -5,9 +5,16 @@
 
 use std::sync::Arc;
 
-use quantrule_server::runtime::{
-    AppState, Config, HealthRegistry, RuntimeError, amqp, logging, pg, s3, server,
-};
+use quantrule_server::runtime::AppState;
+use quantrule_server::runtime::Config;
+use quantrule_server::runtime::HealthRegistry;
+use quantrule_server::runtime::RuntimeError;
+use quantrule_server::runtime::adapters::Database;
+use quantrule_server::runtime::adapters::postgres::PgDatabase;
+use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
+use quantrule_server::runtime::adapters::s3::S3Store;
+use quantrule_server::runtime::logging;
+use quantrule_server::runtime::server;
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -16,35 +23,35 @@ async fn main() -> Result<(), RuntimeError> {
 
     let mut health = HealthRegistry::new();
 
-    let pool = pg::connect(&config.database_url).await.ok();
-    if let Some(pool) = pool.clone() {
-        health.register("postgres", move || {
-            let pool = pool.clone();
-            async move { pg::check(&pool).await }
-        });
-    } else {
-        health.register("postgres", || async {
-            Err("not connected at startup".to_owned())
-        });
+    match PgDatabase::connect(&config.database_url).await {
+        Ok(database) => health.register("postgres", move || {
+            let database = database.clone();
+            async move { database.ping().await.map_err(|error| error.to_string()) }
+        }),
+        Err(error) => health.register("postgres", move || {
+            let message = error.to_string();
+            async move { Err(message) }
+        }),
     }
 
-    let store = s3::client(&config.object_store_url).await;
+    let store = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
     health.register("object-store", move || {
         let store = store.clone();
-        async move { s3::check(&store).await }
+        async move { store.check().await.map_err(|error| error.to_string()) }
     });
 
-    let broker = amqp::connect(&config.queue_url).await.ok();
-    if let Some(connection) = broker {
-        let connection = Arc::new(connection);
-        health.register("queue", move || {
-            let connection = Arc::clone(&connection);
-            async move { amqp::check(&connection) }
-        });
-    } else {
-        health.register("queue", || async {
-            Err("not connected at startup".to_owned())
-        });
+    match RabbitQueue::connect(&config.queue_url).await {
+        Ok(queue) => {
+            let queue = Arc::new(queue);
+            health.register("queue", move || {
+                let queue = Arc::clone(&queue);
+                async move { queue.check().map_err(|error| error.to_string()) }
+            });
+        }
+        Err(error) => health.register("queue", move || {
+            let message = error.to_string();
+            async move { Err(message) }
+        }),
     }
 
     let state = Arc::new(AppState::new(&config, health));
