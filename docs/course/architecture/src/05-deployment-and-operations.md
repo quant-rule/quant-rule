@@ -1,4 +1,4 @@
-# QuantRule — Deployment and Operations
+# QuantRule - Deployment and Operations
 
 ## 1. The operator interface
 
@@ -12,7 +12,7 @@ make verify  # print the canonical digest
 make reset   # stop and delete volumes, with confirmation
 make remote  # publish only :8080 behind a token
 make backup  # dump Postgres and mirror objects
-make restore FILE=…
+make restore FILE=...
 ```
 
 `make up` blocks until `/health` returns 200 and prints:
@@ -25,15 +25,15 @@ QuantRule v1.0.0 ready -> http://localhost:8080
 
 | Container | Image | Published | Volume |
 |---|---|---|---|
-| `gateway` | `quantrule-server` | `8080` | — |
-| `data` | `quantrule-server` | — | `config/` read-only |
-| `model` | `quantrule-server` | — | — |
-| `backtest` | `quantrule-server` | — | — |
-| `evidence` | `quantrule-server` | — | — |
-| `simulation` | `quantrule-server` | — | `config/` read-only |
-| `postgres` | `postgres:17` | — | `pgdata` |
-| `minio` | `minio/minio` | — | `objects` |
-| `rabbitmq` | `rabbitmq:4-management` | — | `mqdata` |
+| `gateway` | `quantrule-server` | `8080` | - |
+| `data` | `quantrule-server` | - | `config/` read-only |
+| `model` | `quantrule-server` | - | - |
+| `backtest` | `quantrule-server` | - | - |
+| `evidence` | `quantrule-server` | - | - |
+| `simulation` | `quantrule-server` | - | `config/` read-only |
+| `postgres` | `postgres:17` | - | `pgdata` |
+| `minio` | `minio/minio` | - | `objects` |
+| `rabbitmq` | `rabbitmq:4-management` | - | `mqdata` |
 
 One bridge network. Services resolve each other by container name. Only the
 gateway is reachable from the host.

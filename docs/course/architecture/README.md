@@ -23,6 +23,5 @@ the source Markdown by `tools/course/build_pdfs.sh`.
 ## Boundary
 
 The current target is a distributed, single-operator platform with six services
-and three planes. Distribution is the container image and GitHub Release assets;
-there is no download page. A collaborative team cloud is future work and is not
-part of the current architecture.
+and three planes. Distribution is the container image and a GitHub Release asset
+for the desktop shell.

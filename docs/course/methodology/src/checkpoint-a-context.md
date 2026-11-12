@@ -1,42 +1,48 @@
-# Checkpoint A — Context and First Behaviour
+# Checkpoint A - Context and First Behaviour
+
+## Kata
+
+See `docs/course/architecture/src/01-kata.md`. Eight numbered requirements
+(R1-R8), one operator, two clients, no accounts.
 
 ## Claim
 
-For a solo systematic researcher with local OHLCV data, QuantRule will turn one
-rule-based hypothesis into a reproducible, portfolio-constrained evidence bundle,
-measured by a byte-identical rerun and a complete provenance manifest, with the
-limitation that the evidence is historical and does not establish future profit.
+**Claim type: Behaviour.**
 
-## User and context
+> For a quantitative researcher working on their own OHLCV data, the system will
+> produce one evidence bundle per submitted rule, measured by comparing the
+> canonical digest of two runs over the same inputs, with the limitation that a
+> digest says nothing about whether the rule has an edge.
 
-- User: a solo researcher on Linux who owns the candles.
-- Current friction: backtests are easy to run but hard to reproduce, compare, and
-  defend.
-- First increment: import data, configure a model/strategy/portfolio, run one
-  backtest, and inspect the evidence.
+Falsified by: two runs over identical inputs and the same image producing
+different artifact bytes.
 
-## Scope fence
+## First increment
 
-Included: local app, local data, local research memory, Linux distribution.
+One user action, one observable result:
 
-Excluded: accounts, team cloud, cloud compute, live trading, prop-firm rules,
-Windows and macOS.
+```text
+backtest run --config <run> --strategy <rule> --out <bundle>
+  -> exit 0, bundle written, provenance.json names data version and config hash
+```
 
-## Evidence
+It is implemented today as `backtest run` in the v0.3.0 tree and is being moved
+behind the distributed run lifecycle. It already crosses the architecture
+boundary: shell -> application service -> engines, with the engines pure.
 
-- The current run is deterministic; `cargo test` passes 1,476 tests.
-- `v0.8.0` freezes the pre-Tauri surface; Phase 3 is verified at `a81ec0a`.
-- The Linux `.deb` installs in Ubuntu 24.04 and launches under Xvfb; the AppImage
-  launches with the network namespace removed.
-- The Phase 3 report records the end-to-end evidence.
+Evidence it carries: a printed-output shell test, an integration test over
+fixture candles, and the run manifest.
 
-## Limit
+## Pitch (45-60 s)
 
-The evidence is single-user and historical. The native UI flow is not
-WebDriver-driven, and the clean install is containerized. It does not prove
-adoption, team collaboration, or future profitability.
+- **QuantRule** - a research workstation that turns a candle hypothesis into
+  evidence you can reproduce.
+- **The user** is one researcher who must defend a result months later.
+- **The claim**: one rule in, one bundle out, byte-identical on a rerun.
 
-## Decision
+## Panel
 
-Proceed to the local Tauri increment; do not build the team cloud until the solo
-workflow is validated.
+- **Name:** Quantitative researcher.
+- **Project:** QuantRule - reproducible OHLCV evidence.
+- **Description (<= 10 words):** Reproducible evidence for rule-based OHLCV research.
+- **Claim:** Same inputs, same bundle, every time.

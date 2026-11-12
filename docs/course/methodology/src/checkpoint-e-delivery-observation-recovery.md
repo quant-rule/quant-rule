@@ -1,50 +1,52 @@
-# Checkpoint E — Delivery, Observation, and Recovery
+# Checkpoint E - Delivery, Observation, Recovery
 
 ## Claim
 
-A solo researcher can install the Linux app, run the first workflow, observe
-failures, and recover the local workspace without a cloud service.
+**Claim type: Outcome.**
+
+> For one researcher, a submitted run completes without the client and is
+> reproducible from its own provenance, measured by comparing the canonical
+> digest of a rerun on a second day, with the limitation that this says nothing
+> about the rule's edge.
 
 ## Delivery
 
-- Linux AppImage and deb installers.
-- Static download page with checksums and release notes.
-- Headless CLI for automation and reproducibility.
-- No account, no backend, no cloud data.
+- One image, six binaries, one digest.
+- One command: `make up` -> healthy -> a URL.
+- One published port.
+- A desktop shell installs from a single release asset and reads no local data.
 
 ## Observation
 
-- Deterministic command output and run artifacts.
-- Optional local logs and crash reports; no strategy or candle contents.
-- Export/import and workspace backup.
-- A failed run is an error with a clear message, not an outage.
+| Signal | Where | Action when it moves |
+|---|---|---|
+| Service state | `/health` per dependency | restart the failing dependency |
+| Queue depth, workers | `/health` | add a worker |
+| Run state and failed stage | run detail | fix the input, resubmit |
+| Canonical digest | run detail, `make verify` | compare; a mismatch is a defect |
+| Image digest | `/health`, provenance | a different build is a different run |
+
+The run row is the record. A dead-lettered message is visible as a failed run,
+not as a silent loss.
 
 ## Recovery
 
-| Failure | Recovery |
-|---|---|
-| Corrupt workspace | Restore from export/backup |
-| Failed update | Reinstall the previous verified installer |
-| Data mismatch | Re-import the dataset and verify its checksum |
-| Lost machine | Restore the research memory export and re-download data |
-| Network source failure | Retry or import a local CSV |
-
-## Evidence
-
-- Ubuntu 24.04 container: the `.deb` installs and launches under Xvfb.
-- The AppImage launches with `bwrap --unshare-net`.
-- Research-memory export/import and backup/restore tests pass.
-- The release note records the image digest, and the image check runs at release time
-  checksums.
-- The Phase 3 report is
-  [`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md).
+| Failure | Recovery | Evidence it worked |
+|---|---|---|
+| Worker killed mid-run | message redelivered; recompute is idempotent | no artifact visible; rerun yields the same digest |
+| Evidence service down after compute | finalization retries | run stays `running`, never `succeeded` with a missing artifact |
+| Database lost | restore the last backup | every artifact hash verifies |
+| Object store lost | restore from backup | missing objects make runs unverifiable, and that is reported |
+| Bad image | start the previous digest | migrations are forward-only; the previous version must tolerate the newer schema |
 
 ## Limit
 
-There is no cloud backup, auto-update, or team recovery. The native UI is not
-WebDriver-driven. The team cloud is future work.
+There is no high availability and no failover. A host failure is an outage until
+the operator restarts the stack. That is a deliberate trade for a single-operator
+tool, and it is recorded, not hidden.
 
 ## Decision
 
-Ship Linux installers and the static download page; add auto-update only if it
-does not delay the first release.
+Ship the thin shell and profiles with v1.0.0; keep the self-contained desktop as
+v1.1 behind the adapter traits. Next action: prove the delivered run survives a
+client close and a worker kill, then verify the digest on a second machine.

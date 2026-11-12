@@ -1,6 +1,6 @@
 # Course Deliverables
 
-This folder holds the submission-ready course artifacts for the Tauri Platform.
+This folder holds the submission-ready course artifacts for the QuantRule research platform.
 The Markdown in each `src/` folder is authoritative; the PDFs in `deliverables/`
 are generated submission artifacts.
 
@@ -53,4 +53,4 @@ only when the source changes.
 - The static download site was deleted on 2026-11-12; distribution is the
   container image and GitHub Release assets.
 - No candle data, credentials, or private run artifacts belong in this folder.
-- A collaborative team cloud is out of scope. The product is single-principal.
+- The product is single-principal: one operator, one machine or a small internal server.
