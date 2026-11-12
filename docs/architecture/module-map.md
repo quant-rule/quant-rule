@@ -91,6 +91,7 @@ REF-2026-11-12-06 and is deferred.
 | `artifact/provenance.rs` | Shared model/stage provenance reader and identity fields. |
 | `artifact/model_bundle/` | Model-bundle assembly and CSV/JSON artifact writers. |
 | `artifact/render_report/` | Report `summary.txt`, result JSON, and the shared bundle writer. |
+| `artifact/backtest.rs` | Backtest manifest and stage-provenance reader. |
 | `artifact/labels.rs` | Shared numeric-code-to-word mapping used by artifacts and terminal output. |
 | `config/spec/` | `quantrule.model-spec/v1` and v2 JSON parsers. |
 | `stages/data.rs` | Candle, tolerant, timeframe, and event-batch use cases. |
@@ -98,6 +99,7 @@ REF-2026-11-12-06 and is deferred.
 | `stages/strategy/` | Model-bundle reader, strategy context, decision records, and the explain/run use cases. |
 | `stages/execution/` | Decisions reader, causal fill engine orchestration, and the fills bundle. |
 | `stages/portfolio/` | Fills reader, portfolio ledger orchestration, and the portfolio bundle. |
+| `stages/backtest.rs` | Coupled model/strategy/execution/portfolio runner and manifest writer. |
 | `memory/` | SQLite research memory: schema, store, types, transfer, tests. |
 
 The artifact layer owns provenance, the model bundle, the report artifacts, the
@@ -115,7 +117,7 @@ and analytics. The target layout is in section 7.
 | `render.rs` | Candle and timeframe NDJSON. |
 | `render_flat.rs` | Event NDJSON. |
 | `source/`, `fetch.rs`, `export.rs` | Explicit Dukascopy fetch and its CSV writer. |
-| `backtest/`, `qualification/`, `analytics/` | Current stage orchestration and artifact readers/writers. |
+| `qualification/`, `analytics/` | Current stage orchestration and artifact readers/writers. |
 | `backtest_bundle.rs` | Current backtest manifest and stage-provenance reader. |
 
 The remaining stage modules are transitional; P3.4 moves them to the app. Do not

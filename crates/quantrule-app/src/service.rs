@@ -25,6 +25,7 @@ use crate::error::AppError;
 use crate::export;
 use crate::memory::{MemoryError, NewConfig, NewDataset, NewRun, NewWorkspace, ResearchMemory};
 use crate::pipeline::{self, WindowMode};
+use crate::stages::backtest::{self, BacktestOutcome, BacktestRequest, BacktestRunError};
 use crate::stages::data;
 use crate::stages::execution::{self, ExecutionOutcome, ExecutionRequest, ExecutionRunError};
 use crate::stages::model::{self, ModelReportError, ModelReportRequest};
@@ -384,6 +385,18 @@ impl AppService {
         request: &PortfolioRequest<'_>,
     ) -> Result<PortfolioOutcome, PortfolioRunError> {
         portfolio::replay(request)
+    }
+
+    /// Runs the coupled model, strategy, execution, and portfolio stages.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BacktestRunError`] when a configuration, model, strategy,
+    /// execution, ledger, bundle, or manifest fails.
+    pub fn run_backtest(
+        request: &BacktestRequest<'_>,
+    ) -> Result<BacktestOutcome, BacktestRunError> {
+        backtest::run(request)
     }
 }
 

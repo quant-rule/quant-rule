@@ -7,8 +7,9 @@
 use std::path::PathBuf;
 
 use super::types::{Command, ParseError};
-use crate::backtest;
 use crate::request::BacktestRunArgs;
+use quantrule_app::service::AppService;
+use quantrule_app::stages::backtest::BacktestRequest;
 
 const USAGE: &str =
     "usage: backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--json]";
@@ -115,7 +116,25 @@ pub(crate) fn run_backtest(
     args: &BacktestRunArgs,
     writer: &mut impl std::io::Write,
 ) -> Result<(), super::types::RunError> {
-    backtest::run(args, writer).map_err(super::types::RunError::Backtest)
+    let request = BacktestRequest {
+        config: &args.config,
+        strategy: &args.strategy,
+        out: args.out.as_deref(),
+    };
+    let outcome = AppService::run_backtest(&request).map_err(super::types::RunError::Backtest)?;
+    if args.json {
+        writer
+            .write_all(&outcome.json)
+            .map_err(super::types::RunError::Output)?;
+    } else {
+        writeln!(writer, "{}", outcome.manifest.display())
+            .map_err(super::types::RunError::Output)?;
+        for stage in &outcome.stages {
+            writeln!(writer, "{}", outcome.root.join(stage).display())
+                .map_err(super::types::RunError::Output)?;
+        }
+    }
+    writer.flush().map_err(super::types::RunError::Output)
 }
 
 #[cfg(test)]

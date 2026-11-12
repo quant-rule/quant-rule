@@ -11,7 +11,7 @@ use quantrule_backtest::side::Side;
 use quantrule_data::Candle;
 use serde_json::Value;
 
-use crate::backtest_bundle::BundleManifest;
+use quantrule_app::artifact::backtest::BundleManifest;
 
 use super::evidence::{
     AnalyticsEvidenceError, DECISION_SCHEMA, DecisionKind, DecisionReason, DecisionRecord,

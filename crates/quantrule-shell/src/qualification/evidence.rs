@@ -16,10 +16,10 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use crate::backtest_bundle::{BundleManifest, ManifestError, StageProvenance};
+use quantrule_app::artifact::backtest::{BundleManifest, ManifestError, StageProvenance};
 use quantrule_app::config::Partition;
 
-pub(crate) use crate::backtest_bundle::{MANIFEST_SCHEMA, STAGE_SCHEMA};
+pub(crate) use quantrule_app::artifact::backtest::{MANIFEST_SCHEMA, STAGE_SCHEMA};
 
 /// The portfolio metrics schema.
 pub(crate) const METRICS_SCHEMA: &str = "quantrule.portfolio-metrics/v1";

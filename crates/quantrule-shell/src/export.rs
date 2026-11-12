@@ -140,45 +140,6 @@ impl Drop for PendingCsv {
     }
 }
 
-/// Writes bytes to `path` through a temporary sibling and an atomic rename.
-///
-/// # Errors
-///
-/// Returns [`ExportError`] when the parent cannot be created, the temporary
-/// file cannot be written, or the rename fails.
-pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), ExportError> {
-    ensure_parent(path)?;
-    let temp = temp_path(path);
-    let mut file = match File::create(&temp) {
-        Ok(file) => file,
-        Err(source) => {
-            let _ = fs::remove_file(&temp);
-            return Err(ExportError::Create {
-                path: path.to_path_buf(),
-                source,
-            });
-        }
-    };
-
-    if let Err(source) = file.write_all(bytes).and_then(|()| file.flush()) {
-        let _ = fs::remove_file(&temp);
-        return Err(ExportError::Write {
-            path: path.to_path_buf(),
-            source,
-        });
-    }
-
-    if let Err(source) = fs::rename(&temp, path) {
-        let _ = fs::remove_file(&temp);
-        return Err(ExportError::Rename {
-            path: path.to_path_buf(),
-            source,
-        });
-    }
-
-    Ok(())
-}
-
 /// Formats UTC Unix seconds as the CSV source timestamp.
 ///
 /// The shape is `YYYY-MM-DD HH:MM:SS+00:00`; no local timezone is consulted.
@@ -285,7 +246,7 @@ mod tests {
 
     use quantrule_data::Candle;
 
-    use super::{PendingCsv, format_number, format_timestamp, temp_path, write_atomic};
+    use super::{PendingCsv, format_number, format_timestamp, temp_path};
 
     fn artifact_dir() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("target/test-artifacts/export")
@@ -376,23 +337,6 @@ mod tests {
         assert_eq!(
             fs::read_to_string(&path).expect("the artifact is readable"),
             "Date,Open,High,Low,Close,Volume\n1970-01-01 00:00:00+00:00,1.0,2.0,0.5,1.0,\n"
-        );
-        assert!(!temp_path(&path).exists());
-
-        fs::remove_file(path).expect("the artifact is removed");
-    }
-
-    #[test]
-    fn atomic_write_replaces_the_target_and_leaves_no_temporary_file() {
-        let path = artifact("atomic.png");
-        fs::create_dir_all(artifact_dir()).expect("the artifact directory exists");
-        fs::write(&path, b"old").expect("the previous target is written");
-
-        write_atomic(&path, b"new bytes").expect("the atomic write succeeds");
-
-        assert_eq!(
-            fs::read(&path).expect("the target is readable"),
-            b"new bytes"
         );
         assert!(!temp_path(&path).exists());
 

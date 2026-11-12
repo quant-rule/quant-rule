@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use quantrule_backtest::execution::{
@@ -17,23 +17,23 @@ use quantrule_backtest::portfolio::{PortfolioLedger, PortfolioLedgerError};
 use quantrule_backtest::strategy::{Decision, EventStrategyInput};
 use serde_json::{Value, json};
 
-use crate::request::BacktestRunArgs;
-use quantrule_app::artifact::model_bundle::model_bundle_from;
-use quantrule_app::artifact::render_report::{self, BundleWriteError};
-use quantrule_app::config::{ConfigError, RunConfig};
-use quantrule_app::pipeline::{self, PipelineError};
-use quantrule_app::stages::execution::{
+use crate::artifact::model_bundle::model_bundle_from;
+use crate::artifact::render_report::{self, BundleWriteError};
+use crate::artifact::write::{AtomicWriteError, write_atomic};
+use crate::config::{ConfigError, RunConfig};
+use crate::pipeline::{self, PipelineError};
+use crate::stages::execution::{
     ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution,
 };
-use quantrule_app::stages::portfolio::{self, PortfolioRequest, PortfolioRunError};
-use quantrule_app::stages::strategy::{
+use crate::stages::portfolio::{self, PortfolioRequest, PortfolioRunError};
+use crate::stages::strategy::{
     DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
     validate_context,
 };
 
 /// The backtest command failed.
 #[derive(Debug)]
-pub(crate) enum BacktestRunError {
+pub enum BacktestRunError {
     /// The run configuration is invalid.
     Config(ConfigError),
     /// The strategy configuration is invalid.
@@ -45,7 +45,7 @@ pub(crate) enum BacktestRunError {
     /// The model bundle could not be written.
     Model(String),
     /// A strategy artifact could not be encoded.
-    StrategyArtifact(quantrule_app::stages::strategy::StrategyRunError),
+    StrategyArtifact(crate::stages::strategy::StrategyRunError),
     /// The execution engine rejected a caller invariant.
     Execution(ExecutionError),
     /// The portfolio ledger rejected a fill or a mark.
@@ -57,7 +57,7 @@ pub(crate) enum BacktestRunError {
     /// A stage bundle could not be written.
     Bundle(BundleWriteError),
     /// A manifest file could not be written.
-    Export(crate::export::ExportError),
+    Export(AtomicWriteError),
     /// The manifest could not be encoded.
     Json(serde_json::Error),
     /// A stage provenance could not be read.
@@ -129,21 +129,41 @@ impl std::error::Error for BacktestRunError {
     }
 }
 
+/// One coupled backtest request.
+pub struct BacktestRequest<'a> {
+    /// The run configuration path.
+    pub config: &'a Path,
+    /// The strategy configuration path.
+    pub strategy: &'a Path,
+    /// The output root; the run configuration's root when `None`.
+    pub out: Option<&'a Path>,
+}
+
+/// The written backtest bundle.
+pub struct BacktestOutcome {
+    /// The bundle root.
+    pub root: PathBuf,
+    /// The manifest path.
+    pub manifest: PathBuf,
+    /// The stage directories.
+    pub stages: Vec<String>,
+    /// The `--json` envelope.
+    pub json: Vec<u8>,
+}
+
 /// Runs the coupled backtest and writes the stage bundles.
 ///
 /// # Errors
 ///
 /// Returns [`BacktestRunError`] when a config, model, execution, ledger, stage
 /// bundle, manifest, or writer fails.
-pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(), BacktestRunError> {
-    let config = RunConfig::load(&args.config).map_err(BacktestRunError::Config)?;
+pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRunError> {
+    let config = RunConfig::load(request.config).map_err(BacktestRunError::Config)?;
     let (strategy_config, strategy_config_id) =
-        quantrule_app::config::load_strategy(&args.strategy)
-            .map_err(BacktestRunError::StrategyConfig)?;
-    let out = args
+        crate::config::load_strategy(request.strategy).map_err(BacktestRunError::StrategyConfig)?;
+    let out = request
         .out
-        .clone()
-        .unwrap_or_else(|| config.output_root.clone());
+        .map_or_else(|| config.output_root.clone(), Path::to_path_buf);
     let root = out.join("backtest");
     render_report::ensure_available(&root).map_err(BacktestRunError::Bundle)?;
 
@@ -342,7 +362,7 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
 
     let execution_root = root.join("execution");
     let portfolio_request = PortfolioRequest {
-        config: &args.config,
+        config: request.config,
         fills: &execution_root,
         out: Some(root.as_path()),
     };
@@ -356,31 +376,28 @@ pub(crate) fn run(args: &BacktestRunArgs, writer: &mut impl Write) -> Result<(),
     ];
     let manifest = manifest_bytes(&config, &strategy_config_id, &stages)?;
     let provenance = backtest_provenance_bytes(&config, &stages)?;
-    crate::export::write_atomic(&root.join("provenance.json"), &provenance)
-        .map_err(BacktestRunError::Export)?;
-    crate::export::write_atomic(&root.join("manifest.json"), &manifest)
-        .map_err(BacktestRunError::Export)?;
+    write_atomic(&root.join("provenance.json"), &provenance).map_err(BacktestRunError::Export)?;
+    write_atomic(&root.join("manifest.json"), &manifest).map_err(BacktestRunError::Export)?;
 
-    if args.json {
-        let value = json!({
-            "bundle": root,
-            "manifest": root.join("manifest.json"),
-            "artifacts": ["manifest.json", "model", "strategy", "execution", "portfolio", "provenance.json"],
-        });
-        writeln!(
-            writer,
-            "{}",
-            serde_json::to_string(&value).map_err(BacktestRunError::Json)?
-        )
-        .map_err(BacktestRunError::Output)?;
-    } else {
-        writeln!(writer, "{}", root.join("manifest.json").display())
-            .map_err(BacktestRunError::Output)?;
-        for stage in ["model", "strategy", "execution", "portfolio"] {
-            writeln!(writer, "{}", root.join(stage).display()).map_err(BacktestRunError::Output)?;
-        }
-    }
-    writer.flush().map_err(BacktestRunError::Output)
+    let stages = vec![
+        "model".to_owned(),
+        "strategy".to_owned(),
+        "execution".to_owned(),
+        "portfolio".to_owned(),
+    ];
+    let value = json!({
+        "bundle": root,
+        "manifest": root.join("manifest.json"),
+        "artifacts": ["manifest.json", "model", "strategy", "execution", "portfolio", "provenance.json"],
+    });
+    let mut json = serde_json::to_vec(&value).map_err(BacktestRunError::Json)?;
+    json.push(b'\n');
+    Ok(BacktestOutcome {
+        manifest: root.join("manifest.json"),
+        root,
+        stages,
+        json,
+    })
 }
 
 fn collect(
@@ -448,7 +465,7 @@ fn stage_info(
             message: "config identity is missing".to_owned(),
         })?
         .to_owned();
-    let hash = quantrule_app::fingerprint::fnv1a(text.as_bytes());
+    let hash = crate::fingerprint::fnv1a(text.as_bytes());
     Ok(StageInfo {
         stage,
         artifact,
@@ -521,7 +538,7 @@ fn backtest_provenance_bytes(
 
 #[cfg(test)]
 mod tests {
-    use quantrule_app::fingerprint::fnv1a;
+    use crate::fingerprint::fnv1a;
 
     #[test]
     fn the_provenance_fingerprint_is_stable() {

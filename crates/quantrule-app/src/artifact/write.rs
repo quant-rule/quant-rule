@@ -118,3 +118,35 @@ fn temp_path(path: &Path) -> PathBuf {
     temp.push(format!(".tmp.{}", std::process::id()));
     PathBuf::from(temp)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{temp_path, write_atomic};
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn artifact(name: &str) -> PathBuf {
+        std::env::temp_dir()
+            .join("quantrule-app-artifact-tests")
+            .join(name)
+    }
+
+    #[test]
+    fn atomic_write_replaces_the_target_and_leaves_no_temporary_file() {
+        let path = artifact("atomic.bin");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("the artifact directory exists");
+        }
+        fs::write(&path, b"old").expect("the previous target is written");
+
+        write_atomic(&path, b"new bytes").expect("the atomic write succeeds");
+
+        assert_eq!(
+            fs::read(&path).expect("the target is readable"),
+            b"new bytes"
+        );
+        assert!(!temp_path(&path).exists());
+
+        fs::remove_file(path).expect("the artifact is removed");
+    }
+}

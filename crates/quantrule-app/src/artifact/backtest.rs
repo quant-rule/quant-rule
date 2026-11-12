@@ -16,23 +16,23 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use quantrule_app::date::DateBounds;
-use quantrule_app::fingerprint::fnv1a;
+use crate::date::DateBounds;
+use crate::fingerprint::fnv1a;
 
 /// The backtest manifest schema.
-pub(crate) const MANIFEST_SCHEMA: &str = "quantrule.backtest-manifest/v1";
+pub const MANIFEST_SCHEMA: &str = "quantrule.backtest-manifest/v1";
 /// The stage provenance schema for strategy, execution, portfolio, and later
 /// stages.
-pub(crate) const STAGE_SCHEMA: &str = "quantrule.stage-provenance/v1";
+pub const STAGE_SCHEMA: &str = "quantrule.stage-provenance/v1";
 /// The existing model provenance schema.
-pub(crate) const MODEL_PROVENANCE_SCHEMA: &str = "quantrule.provenance/v1";
+pub const MODEL_PROVENANCE_SCHEMA: &str = "quantrule.provenance/v1";
 
 /// The canonical stage order.
 const STAGES: [&str; 4] = ["model", "strategy", "execution", "portfolio"];
 
 /// A backtest bundle could not be read.
 #[derive(Debug)]
-pub(crate) enum ManifestError {
+pub enum ManifestError {
     /// A required artifact could not be read.
     Read {
         /// The artifact path.
@@ -118,48 +118,48 @@ impl std::error::Error for ManifestError {
 
 /// One stage's provenance, as recorded by the backtest manifest.
 #[derive(Debug, Clone)]
-pub(crate) struct StageProvenance {
+pub struct StageProvenance {
     /// The stage name.
-    pub(crate) stage: String,
+    pub stage: String,
     /// The stage's relative directory.
-    pub(crate) path: String,
+    pub path: String,
     /// The relative provenance path.
-    pub(crate) provenance: String,
+    pub provenance: String,
     /// The FNV-1a hash recorded in the manifest.
-    pub(crate) provenance_hash: String,
+    pub provenance_hash: String,
     /// The provenance schema.
-    pub(crate) schema: String,
+    pub schema: String,
     /// The input data version.
-    pub(crate) data_version: String,
+    pub data_version: String,
     /// The stage configuration identity.
-    pub(crate) config_id: String,
+    pub config_id: String,
     /// The parsed provenance value.
-    pub(crate) value: Value,
+    pub value: Value,
 }
 
 /// A verified backtest manifest and its stage provenance.
 #[derive(Debug, Clone)]
-pub(crate) struct BundleManifest {
+pub struct BundleManifest {
     /// The bundle root.
-    pub(crate) root: PathBuf,
+    pub root: PathBuf,
     /// The parsed manifest.
-    pub(crate) manifest: Value,
+    pub manifest: Value,
     /// The FNV-1a hash of the manifest bytes.
-    pub(crate) manifest_hash: String,
+    pub manifest_hash: String,
     /// The input data version.
-    pub(crate) data_version: String,
+    pub data_version: String,
     /// The run configuration identity.
-    pub(crate) config_id: String,
+    pub config_id: String,
     /// The code revision recorded by the build.
-    pub(crate) code_commit: String,
+    pub code_commit: String,
     /// The explicit seed, or `null`.
-    pub(crate) seed: Value,
+    pub seed: Value,
     /// The requested period start, as written.
-    pub(crate) period_from: Option<String>,
+    pub period_from: Option<String>,
     /// The requested period end, as written.
-    pub(crate) period_to: Option<String>,
+    pub period_to: Option<String>,
     /// The four stage provenances, in canonical order.
-    pub(crate) stages: Vec<StageProvenance>,
+    pub stages: Vec<StageProvenance>,
 }
 
 impl BundleManifest {
@@ -170,7 +170,7 @@ impl BundleManifest {
     /// Returns [`ManifestError`] when the manifest or a stage provenance is
     /// missing, unreadable, not JSON, carries an unsupported schema, disagrees
     /// with the manifest, or fails a recorded provenance hash.
-    pub(crate) fn load(root: &Path) -> Result<Self, ManifestError> {
+    pub fn load(root: &Path) -> Result<Self, ManifestError> {
         let manifest_path = root.join("manifest.json");
         let (manifest, manifest_bytes) = read_json(&manifest_path)?;
         let manifest_object = as_object(&manifest_path, &manifest)?;
@@ -363,7 +363,7 @@ impl BundleManifest {
 
     /// Finds one stage provenance by name.
     #[must_use]
-    pub(crate) fn stage(&self, name: &str) -> Option<&StageProvenance> {
+    pub fn stage(&self, name: &str) -> Option<&StageProvenance> {
         self.stages.iter().find(|stage| stage.stage == name)
     }
 
@@ -373,7 +373,7 @@ impl BundleManifest {
     ///
     /// Returns [`ManifestError::Read`] when the file cannot be read and
     /// [`ManifestError::Invalid`] when it is not JSON.
-    pub(crate) fn read_json(&self, relative: &str) -> Result<Value, ManifestError> {
+    pub fn read_json(&self, relative: &str) -> Result<Value, ManifestError> {
         let path = self.root.join(relative);
         let (value, _) = read_json(&path)?;
         Ok(value)
@@ -385,7 +385,7 @@ impl BundleManifest {
     ///
     /// Returns [`ManifestError::Read`] when the file cannot be read and
     /// [`ManifestError::Invalid`] when it is not UTF-8.
-    pub(crate) fn read_string(&self, relative: &str) -> Result<String, ManifestError> {
+    pub fn read_string(&self, relative: &str) -> Result<String, ManifestError> {
         let path = self.root.join(relative);
         let bytes = std::fs::read(&path).map_err(|source| ManifestError::Read {
             path: path.clone(),

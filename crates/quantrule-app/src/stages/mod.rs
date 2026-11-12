@@ -6,6 +6,7 @@
 //! outcome. No module computes an indicator, a rule, a fill, or an accounting
 //! value.
 
+pub mod backtest;
 pub mod data;
 pub mod execution;
 pub mod model;

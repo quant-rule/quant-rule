@@ -17,7 +17,7 @@ use super::evidence_parse::{
     dominant_decision_timeframe, dominant_readings_timeframe, parse_candles, parse_commission_rate,
     parse_decisions, parse_trades,
 };
-use crate::backtest_bundle::{BundleManifest, ManifestError};
+use quantrule_app::artifact::backtest::{BundleManifest, ManifestError};
 
 /// The portfolio metrics schema.
 pub(crate) const METRICS_SCHEMA: &str = "quantrule.portfolio-metrics/v1";

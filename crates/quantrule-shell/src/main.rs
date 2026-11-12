@@ -9,9 +9,7 @@
 #![recursion_limit = "512"]
 
 mod analytics;
-pub(crate) mod backtest;
-mod backtest_bundle;
-mod command;
+pub(crate) mod command;
 mod export;
 mod fetch;
 mod qualification;

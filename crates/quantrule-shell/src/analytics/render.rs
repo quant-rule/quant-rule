@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 
 use serde_json::{Value, json};
 
-use crate::backtest_bundle::MANIFEST_SCHEMA;
+use quantrule_app::artifact::backtest::MANIFEST_SCHEMA;
 
 use super::evidence::AnalyticsEvidence;
 use super::metrics::AnalyticsMetrics;
@@ -200,7 +200,7 @@ pub(crate) fn provenance_json_bytes(
     metrics: &AnalyticsMetrics,
 ) -> Result<Vec<u8>, serde_json::Error> {
     let value = json!({
-        "schema": crate::backtest_bundle::STAGE_SCHEMA,
+        "schema": quantrule_app::artifact::backtest::STAGE_SCHEMA,
         "stage": "analytics",
         "artifact": "analytics",
         "data_version": &evidence.bundle.data_version,
