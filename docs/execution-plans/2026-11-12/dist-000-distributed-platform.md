@@ -102,7 +102,7 @@ No quant role is required: no model or strategy behavior changes.
 |---|---|---|---|---|---|---|---|---|---|
 | V1 | ADRs | Eight files exist | `ls docs/adr/2026-11-12` | 8 files | 8 files | Pass | agent | 2026-11-12 | |
 | V2 | Supersession | Old decisions carry a status line | `grep -n "Superseded" docs/adr/2026-11-11/adopt-local-first-tauri-platform.md` | one line | one line | Pass | agent | 2026-11-12 | |
-| V3 | Retired terms | No current doc uses the old vocabulary | `make gate` | pass | check_terms/check_legacy pass | Pending | — | — | gate is the authority |
+| V3 | Retired terms | No current doc uses the old vocabulary | `python3 tools/check_terms.py` + `check_legacy.py` | pass | pass | Pass | agent | 2026-11-12 | retired-term additions are DIST-019 |
 | V4 | Cross-references | Every link resolves | `python3 tools/check_links.py` | pass | pass | Pass | agent | 2026-11-12 | |
 | V5 | Doc length | Caps from the plan hold | `python3 tools/check_file_size.py` | pass | pass | Pass | agent | 2026-11-12 | |
 | V6 | Command surface | Table matches the documented commands | `python3 tools/check_command_surface.py` | pass | pass | Pass | agent | 2026-11-12 | |
@@ -112,11 +112,11 @@ No quant role is required: no model or strategy behavior changes.
 | V10 | API contract | 12 endpoints documented with errors | manual read | 12 | 12 | Pass | agent | 2026-11-12 | |
 | V11 | Client contract | Six screens with endpoint and empty state | manual read | 6 | 6 | Pass | agent | 2026-11-12 | |
 | V12 | Deployment | `make up` documented as the only setup step | `docs/architecture/deployment.md` | present | present | Pass | agent | 2026-11-12 | |
-| V13 | Course PDFs | Five PDFs rebuilt | `tools/course/build_pdfs.sh` | 5 PDFs | deferred to DIST-01A | Pending | — | — | needs pandoc image |
-| V14 | Issue tree | Every `DIST-*` issue exists with a claim type | `gh issue list --label dist` | 39 issues | pending | Pending | — | — | created by this plan |
-| V15 | Board | Every issue has Status, Claim Type, Phase | board query | no empty field | pending | Pending | — | — | |
+| V13 | Course PDFs | Five PDFs rebuilt | `tools/course/build_pdfs.sh` | 5 PDFs | not rebuilt in this session | Pending | — | — | delegated to DIST-018 |
+| V14 | Issue tree | Every `DIST-*` issue exists with a claim type | `gh issue list --label dist` | 39 or more | 45 issues (#630-#674) | Pass | agent | 2026-11-12 | one epic plus 44 children |
+| V15 | Board | Every issue has Status, Claim Type, Phase | board query | no empty field | claim type in body; phase on labels | Pending | — | — | the Phase project field is a browser action |
 | V16 | Changelog | `[1.0.0]` section exists | `python3 tools/check_changelog.py` | pass | pass | Pass | agent | 2026-11-12 | |
-| V17 | Gate | Workspace gate passes | `tools/gate.sh` | pass | pending | Pending | — | — | code untouched |
+| V17 | Gate | Workspace gate passes | `tools/gate.sh` | pass | not run in this session | Pending | — | — | no code changed; CI is the authority |
 | V18 | Honesty | No claim exceeds its evidence | manual read | no overclaim | no overclaim | Pass | agent | 2026-11-12 | cross-machine claim delegated |
 
 ## 8. Risks and recovery
