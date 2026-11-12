@@ -10,7 +10,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 IMAGE="${PANDOC_IMAGE:-pandoc/extra:latest}"
-DATE="2026-11-11"
+DATE="2026-11-12"
 AUTHOR="QuantRule"
 
 if ! command -v docker >/dev/null 2>&1; then

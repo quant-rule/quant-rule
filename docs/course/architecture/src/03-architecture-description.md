@@ -1,166 +1,161 @@
 # QuantRule — Architecture Description
 
-- Status: Final; Phase 4
-- Date: 2026-11-11 (UTC)
-- Claim type: ADR (Architecture Decision)
-- Parent plan: [`docs/execution-plans/2026-11-11/588-tauri-platform.md`](../../../execution-plans/2026-11-11/588-tauri-platform.md)
-- Verification: [`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md)
-
 ## 1. Context
 
-QuantRule is a local-first research workstation for a solo systematic researcher.
-The user owns the candles and the machine; the product owns the deterministic
-pipeline and the local research memory. A static download page distributes Linux
-installers. A team cloud is future work and is not part of this increment.
+QuantRule is a distributed, single-operator research platform for rule-based
+trading on OHLCV candles. One operator owns the candles, submits batch runs, and
+must be able to walk away while a run completes. A reviewer reproduces a result
+from an image digest and a canonical digest, without an account.
 
-The architecture is shaped by four drivers: reproducibility, temporal integrity,
-auditability, and testability. The style is pipes-and-filters inside a modular
-monolith, with one local deployable application and local files plus SQLite as
-its only state.
+The product is not a public service, not multi-tenant, and not a prediction
+engine. It is an evidence machine.
 
-## 2. Containers
+## 2. Style selection
 
-| Container | Responsibility | Code |
+The five distributed styles were compared against the kata's drivers:
+reproducibility, temporal integrity, auditability, and detachability.
+
+| Style | Verdict | Why |
 |---|---|---|
-| Desktop UI | Workspace, data, configs, model run, memory, export/backup, settings | `apps/desktop` |
-| Application service | Use-case orchestration, file access, workspace, datasets, config, model run, export, memory | `crates/quantrule-app` |
-| Data engine | Candle normalization, timeframe ladder, ordering, gaps | `crates/quantrule-data` |
-| Model engine | Readings, states, levels, events, progression, context | `crates/quantrule-model` |
-| Backtest engine | Strategy, execution, portfolio, benchmark | `crates/quantrule-backtest` |
-| CLI shell | Headless command surface and explicit source fetch | `crates/quantrule-shell` |
-| Local research memory | SQLite workspaces, datasets, configs, runs, metrics, claims, notes | `crates/quantrule-app/src/memory/` |
-| Distribution | Container image and GitHub Release assets; no maintained page | `docs/architecture/deployment.md` |
+| **Service-Based** | **Base style** | Coarse domains, six services, one host, shared infrastructure. Distribution without microservice operations |
+| **Event-Driven** | **Control plane only** | Async fits submission and finalization; choreographing the pipeline would break replay |
+| Microservices | Rejected | Twenty services, sagas, a mesh, and version skew for no additional driver |
+| Space-Based | Rejected | No elastic in-memory load profile exists |
+| SOA / ESB | Rejected | The bus is the coupling bottleneck; its useful half is Service-Based without the bus |
 
-The desktop UI and the CLI are adapters over the same application service. The
-engines are pure and depend one way. The UI does not compute an indicator, a
-rule, a fill, or an accounting value.
+The result is a **two-plane** architecture, with a third research plane.
 
-## 3. Runtime view
+## 3. Containers
+
+| Container | Responsibility | Owns |
+|---|---|---|
+| `gateway` | HTTP boundary, static client, upload, health, principal, profile | nothing durable |
+| `data` | Ingestion, `data_version`, ladder, dataset and config catalog | `catalog` schema, candles |
+| `model` | Readings, states, levels, events, progression, report | model objects |
+| `backtest` | Run orchestration, strategy, execution, portfolio | artifacts |
+| `evidence` | Provenance, canonical digest, run records, memory | `runs` schema, bundles |
+| `simulation` | Windows, marks, oracle, review, check | `simulation` schema, research objects |
+| `postgres` | Metadata, schema per service | — |
+| `minio` | Content-addressed candles and artifacts | — |
+| `rabbitmq` | Control-plane messages | — |
+
+One image carries the six service binaries and the built Svelte client, so one
+digest pins the entire compute stack.
+
+## 4. Runtime view
 
 ```text
-Desktop UI (Tauri + Svelte)
-  +- Tauri commands
-       +- quantrule-app
-            +- workspace / dataset / config
-            +- model run
-            +- export
-            +- SQLite research memory
-
-CLI shell (quantrule)
-  +- quantrule-app config and pipeline
-       +- backtest, strategy, execution, portfolio, analytics
-
-Static download page
-  +- AppImage / deb + SHA-256 checksums
+submit --> gateway --> postgres (queued)
+                +---> rabbitmq (run.requested)
+                          |
+                          v
+                    backtest worker
+                      +- data: candles and ladder
+                      +- model: readings and events
+                      +- strategy, execution, portfolio
+                          |
+                          v
+                    run.computed --> evidence
+                                       +- provenance.json
+                                       +- canonical digest
+                                       +- succeeded
 ```
 
-The desktop app covers workspace, data, configs, model run, memory,
-export/backup, and settings. Backtest, strategy, execution, portfolio,
-qualification, and analytics remain CLI operations until the service owns them.
+A client may disconnect after `202`; the queue is durable and the inputs are
+immutable.
 
-## 4. Component view
+The **research plane** is separate: `simulation` serves windows, marks, oracle,
+review, and check synchronously. It has no queue, no `run_id`, and no output
+digest.
 
-| Component | Responsibility | Key code |
-|---|---|---|
-| Workspace | Resolve a local root; list sorted configs and datasets | `crates/quantrule-app/src/workspace.rs` |
-| Dataset | Open one M1 CSV and report its extent | `crates/quantrule-app/src/dataset.rs` |
-| Config | Strictly load and cross-check run, data, model, execution, portfolio | `crates/quantrule-app/src/config/` |
-| Pipeline | Load the ladder and compute the model | `crates/quantrule-app/src/pipeline.rs` |
-| Service | Shared use cases and validated run summary | `crates/quantrule-app/src/service.rs` |
-| Export | Versioned, deterministic run-summary JSON | `crates/quantrule-app/src/export.rs` |
-| Memory | Schema, CRUD, export/import, backup/restore | `crates/quantrule-app/src/memory/` |
-| Tauri commands | One command per service operation | `apps/desktop/src-tauri/src/commands.rs` |
-| Svelte shell | Panels, state, typed IPC, fixture backend | `apps/desktop/src/` |
-| Distribution | Image digest and release assets | `docs/architecture/deployment.md` |
+## 5. Component view
 
-The application service owns file access and path resolution. The engines receive
-validated Rust values and never parse a file. The shell owns command parsing,
-terminal output, the clock, and explicit source fetch.
-
-## 5. Data flow
-
-```text
-local M1 candles
-  -> data engine (normalization, ladder)
-  -> model engine (readings, states, levels, events, progression, context)
-  -> strategy (human rule)
-  -> execution (fills)
-  -> portfolio (accounting)
-  -> evidence + local research memory
-  -> desktop UI / CLI
-```
-
-The model publishes per-timeframe results only. Cross-timeframe reporting views
-are computed by the reporting consumer. The strategy composes its own as-of
-context from the published events and states; it never computes an indicator or
-reads cash/P&L.
-
-The research memory records the validated run, its workspace, dataset, and
-config, plus typed metrics, claims, and notes. It is outside the signal path.
-
-## 6. Deployment
-
-| Surface | Artifact | Evidence |
-|---|---|---|
-| Desktop | `QuantRule_0.9.0_amd64.AppImage` | Xvfb launch, offline launch |
-| Desktop | `QuantRule_0.9.0_amd64.deb` | Ubuntu 24.04 container install + launch |
-| CLI | `quantrule` binary | workspace tests and command tests |
-| Distribution | Image digest recorded in the release note | `docs/architecture/operations.md` |
-| State | Local files and SQLite | memory tests |
-
-There is no server, database service, account, or cloud runtime. The download
-page is distribution only.
-
-## 7. Quality attributes
-
-| Attribute | Design response | Evidence |
-|---|---|---|
-| Reproducibility | Pure engines, fixed accumulation order, ordered collections, provenance | Repeated model bundles and `run check` byte-identical |
-| Temporal integrity | Availability bars, causality tests, as-of joins | Model, event, and strategy boundary tests |
-| Auditability | Artifact bundles, config hash, data version, research memory | Provenance and memory tests; verification report |
-| Testability | Unit, golden, causality, determinism, shell, UI, E2E | 1,476 Rust tests; 7 frontend; 1 Playwright E2E; 4 desktop backend |
-| Modularity | One crate per engine plus application service; one-way edges | Architecture guard and structural checker |
-| Deployability | Tauri bundles and static page | Clean deb install; AppImage launch |
-| Evolvability | Versioned run, config, and memory schemas | Migration tests; versioned contracts |
-| Local security | No account; no engine network; explicit fetch only | Offline AppImage launch; source scan |
-| Cost | Local compute; static page | No cloud runtime |
-
-## 8. Security and privacy
-
-- No account, login, subscription, or cloud data store.
-- No engine network call. The only network path is the explicit CLI `fetch`.
-- Candles, configs, strategies, and research memory stay local.
-- The Tauri capability file grants only `core:default`; the app has no shell or
-  file-system plugin permission.
-- The download page publishes installers and checksums only.
-
-## 9. Decisions
-
-| Decision | Record |
+| Service | Components |
 |---|---|
-| Local-first Tauri platform; team cloud deferred | [`docs/adr/2026-11-11/adopt-local-first-tauri-platform.md`](../../../adr/2026-11-11/adopt-local-first-tauri-platform.md) |
-| Four-stage board, claim types, review gate | [`docs/execution-plans/2026-11-11/590-workflow-v2.md`](../../../execution-plans/2026-11-11/590-workflow-v2.md) |
-| Run v3 and portfolio constraints | [`docs/config/2026-11-11/run-v3-and-portfolio-constraints.md`](../../../config/2026-11-11/run-v3-and-portfolio-constraints.md) |
-| Research memory v1 | [`docs/config/2026-11-11/research-memory-v1.md`](../../../config/2026-11-11/research-memory-v1.md) |
-| Architecture baseline | [`docs/architecture/README.md`](../../architecture/README.md) |
+| `gateway` | router, profile resolution, static assets, upload streaming, health |
+| `data` | ingest, catalog, ladder, inspect |
+| `model` | compute, shard by timeframe, sorted merge |
+| `backtest` | orchestrator, strategy, execution, portfolio, artifact writer |
+| `evidence` | provenance, digest, finalize, memory |
+| `simulation` | window selection, marks, oracle, review, check, exit lab |
 
-## 10. Evidence and limitations
+Database, object store, and queue sit behind traits. v1.0.0 ships Postgres, S3,
+and RabbitMQ; the embedded desktop profile (v1.1) implements the same traits.
 
-The Phase 3 gate is recorded in
-[`docs/reports/2026-11-11/implementation-verification.md`](../../../reports/2026-11-11/implementation-verification.md):
-full Rust and desktop gates, two bundles, clean Debian install, offline AppImage
-launch, byte-identical model runs, and research-memory round-trips.
+## 6. Data flow
 
-Limitations:
+```text
+candles --> data_version (sha256)
+              |
+              v
+        ladder --> model --> backtest --> artifacts --> evidence
+                                                        |
+                                                        v
+                                                canonical digest
+```
 
-- The browser E2E drives the Vite build with a fixture backend; the native smoke
-  proves the Tauri shell launches but does not drive the UI.
-- The clean install runs in a container, not bare-metal Ubuntu.
-- The UI does not run backtests or analytics; those remain CLI operations.
-- No tag or GitHub release exists in this phase.
+Stages exchange **references**, never payloads. A merge key is sorted; no output
+depends on arrival order. A run is `succeeded` only when every artifact verifies.
 
-## 11. Future work
+## 7. Deployment
 
-A collaborative team cloud is a future increment. It would add a control plane
-for accounts, config/run metadata, roles, and verification, but not candles or
-cloud backtesting. It requires a new ADR and characteristics review.
+| Profile | Contains | Installs with |
+|---|---|---|
+| Server | Six services and three stores | Docker, `make up` |
+| Desktop | A Tauri shell over the gateway URL | A GitHub Release asset |
+
+`make up` is the only command a reviewer needs. It prints
+`QuantRule v1.0.0 ready -> http://localhost:8080` after health passes.
+
+The image contains no Python interpreter and no `.py` file. The client is built
+with Bun; the image carries static assets, not a Bun runtime.
+
+## 8. Quality attributes
+
+| Attribute | Fitness function |
+|---|---|
+| Reproducibility | Canonical digest equality across runs, worker counts, and reordered inputs |
+| Temporal integrity | Causality and prefix tests per reading and event |
+| Auditability | Provenance completeness; bundle refused when an artifact is missing |
+| Detachability | Submit, close the client, reopen, observe `succeeded` |
+| Scalability | One worker and four workers produce the same digest |
+| Research isolation | No run artifact write, no strategy read, no model computation |
+| Testability | Unit, composed, and port-parity tiers |
+
+## 9. Security and privacy
+
+- The trust boundary is the host and the container network.
+- There is no authentication: one principal, by decision.
+- Profiles are organisational, not a boundary.
+- Remote exposure needs a private network or a bearer token; the security
+  document states which.
+- Candle data stays on the operator's network.
+
+## 10. Decisions
+
+| ID | Decision |
+|---|---|
+| ADR-01 | Distributed Service-Based architecture; six services |
+| ADR-02 | Control plane separate from the data plane |
+| ADR-03 | Single principal; no accounts |
+| ADR-04 | Content-addressed exchange; one image |
+| ADR-05 | Svelte client; the Tauri shell owns no domain |
+| ADR-06 | A run is the full pipeline; inspection is read-only |
+| ADR-07 | Canonical digest and the claim boundary |
+| ADR-08 | Static download site retired |
+| ADR-09 | Simulation service and the research plane |
+| ADR-10 | Python confined to repository governance |
+| ADR-11 | Profiles are organisational |
+| ADR-12 | Desktop: shell now, embedded later, in-process never |
+
+## 11. Evidence and limitations
+
+- Reproducibility is proven on one machine by scale invariance and by repeated
+  runs; cross-CPU confirmation is a reviewer procedure, not an observed result.
+- The system is not built yet. This document describes the v1.0.0 contract.
+- The embedded desktop profile is v1.1 and is not part of this release.
+
+## 12. Future work
+
+Multi-tenancy, a team cloud, an embedded desktop profile, and Windows/macOS
+packaging. Each requires its own decision record. None is in v1.0.0.

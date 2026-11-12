@@ -21,6 +21,8 @@ docs/course/
 | Kata | `architecture/src/01-kata.md` | `architecture/deliverables/01-kata.pdf` |
 | Architecture characteristics | `architecture/src/02-architecture-characteristics.md` | `architecture/deliverables/02-architecture-characteristics.pdf` |
 | Architecture description | `architecture/src/03-architecture-description.md` | `architecture/deliverables/03-architecture-description.pdf` |
+| User journey and value | `architecture/src/04-user-journey-and-value.md` | `architecture/deliverables/04-user-journey-and-value.pdf` |
+| Deployment and operations | `architecture/src/05-deployment-and-operations.md` | `architecture/deliverables/05-deployment-and-operations.pdf` |
 
 ## Methodology
 
@@ -45,12 +47,10 @@ only when the source changes.
 
 ## Boundary
 
-- The architecture target from 2026-11-12 is the distributed single-operator
-  platform in [`docs/architecture/`](../architecture/README.md). The sources in
-  this folder still describe the v0.9.0 local surface; rewriting them and
-  rebuilding the PDFs is `DIST-018`.
-- The static download site was deleted on 2026-11-12. Any remaining reference
-  to `site/` or a download page in these sources is historical and is removed
-  by `DIST-018`.
+- The architecture sources describe the v1.0.0 distributed platform in
+  [`docs/architecture/`](../architecture/README.md). Where they differ, the
+  architecture copy governs.
+- The static download site was deleted on 2026-11-12; distribution is the
+  container image and GitHub Release assets.
 - No candle data, credentials, or private run artifacts belong in this folder.
 - A collaborative team cloud is out of scope. The product is single-principal.
