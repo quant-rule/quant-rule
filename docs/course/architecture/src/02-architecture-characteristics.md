@@ -1,7 +1,7 @@
-# QuantRule — Architecture Characteristics
+# QuantRule - Architecture Characteristics
 
-Eight characteristics matter. Each is tied to a kata requirement and has a level
-that can be measured. The rest of the course list is deliberately not optimised.
+Eight characteristics matter. Each is tied to a numbered requirement and has a
+level that can be measured. The rest are deliberately not optimised.
 
 | Characteristic | Kata | Why it matters | Level (measurable) | Measured by |
 |:---------------|:----:|:---------------|:------------------|:------------|
@@ -12,7 +12,7 @@ that can be measured. The rest of the course list is deliberately not optimised.
 | Fault tolerance | R4, R5 | a run must survive a crash without corrupting evidence | 0 succeeded runs with a missing artifact; resubmission gives identical bytes | crash test |
 | Responsiveness | R4, R7 | marking is interactive, a year of candles is not | submit <= 200 ms; chart window <= 200 ms; 1 year, 8 timeframes <= 60 s on 8 cores | benchmark |
 | Scalability | R4 | one machine must borrow a second | model stage 1 to 4 workers: identical digest, >= 2.5x throughput | scale test |
-| Partitioning type | R1-R7 | the course asks for the choice explicitly | domain-driven: 6 services by capability, no layer split | service catalog |
+| Partitioning type | R1-R7 | capability boundaries keep a rule change inside one service | domain-driven: 6 services by capability, no layer split | service catalog |
 
 **Not optimised:** elasticity (no burst traffic, one operator, batch work),
 localization (one language, one user), and accessibility (one expert user;

@@ -1,9 +1,12 @@
 # Checkpoint A - Context and First Behaviour
 
-## Kata
+## Context
 
-See `docs/course/architecture/src/01-kata.md`. Eight numbered requirements
-(R1-R8), one operator, two clients, no accounts.
+One quantitative researcher works alone on their own OHLCV data. The system must
+ingest candles, measure them across timeframes as numbers, evaluate one
+human-authored rule without look-ahead, and produce evidence a reviewer can
+reproduce months later. Runs take minutes to hours and must survive the client
+closing. Candle data stays on the operator's machine; there are no accounts.
 
 ## Claim
 
@@ -22,18 +25,21 @@ different artifact bytes.
 One user action, one observable result:
 
 ```text
-backtest run --config <run> --strategy <rule> --out <bundle>
-  -> exit 0, bundle written, provenance.json names data version and config hash
+submit a rule over a dataset
+  -> a bundle is written
+  -> provenance records the data version, the config hash, the model version,
+     and the image digest
+  -> the command exits 0
 ```
 
-It is implemented today as `backtest run` in the v0.3.0 tree and is being moved
-behind the distributed run lifecycle. It already crosses the architecture
-boundary: shell -> application service -> engines, with the engines pure.
+It crosses the real architecture boundary: client -> service -> engines, with the
+engines pure and the evidence written by one owner.
 
-Evidence it carries: a printed-output shell test, an integration test over
-fixture candles, and the run manifest.
+Evidence: a printed-output client test, an integration test over fixture
+candles, and the bundle's provenance file. Limit: fixture data only; no
+out-of-sample claim.
 
-## Pitch (45-60 s)
+## Pitch (45-60 seconds)
 
 - **QuantRule** - a research workstation that turns a candle hypothesis into
   evidence you can reproduce.
@@ -44,5 +50,5 @@ fixture candles, and the run manifest.
 
 - **Name:** Quantitative researcher.
 - **Project:** QuantRule - reproducible OHLCV evidence.
-- **Description (<= 10 words):** Reproducible evidence for rule-based OHLCV research.
+- **Description (10 words):** Reproducible evidence for rule-based OHLCV research.
 - **Claim:** Same inputs, same bundle, every time.

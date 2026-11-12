@@ -41,9 +41,9 @@ browser / shell / desktop shell
 - Database, object store, and queue sit behind traits; a service calls the trait.
 - The research plane can read a recorded bundle and cannot write a run artifact.
 
-Code: `crates/quantrule-{api,server,app,data,model,backtest,shell}`,
-`apps/web`, `apps/desktop-shell`. The module map is
-`docs/architecture/module-map.md`.
+Code: `crates/quantrule-{api,server,app,data,model,backtest,shell}` hold the
+contract, the services, the use cases, and the engines; `apps/web` and
+`apps/desktop-shell` hold the two human clients.
 
 ## 4. Interfaces
 
@@ -67,12 +67,21 @@ forwards numeric codes and each client maps them.
 
 ## 6. Decisions
 
-`docs/adr/2026-11-12/`: 01 architecture, 02 planes, 03 principal, 04 content
-addressing, 05 client, 06 run, 07 digest, 08 distribution, 09 simulation,
-10 Python boundary, 11 profiles, 12 desktop.
+Twelve recorded decisions, each with context, alternatives, consequences, a
+revisit trigger, and verification:
 
-Each records context, decision, alternatives, consequences, a revisit trigger, and
-verification.
+1. Service-Based architecture with six services.
+2. Control plane separate from the data plane.
+3. One principal, no accounts.
+4. Content-addressed exchange; one image digest.
+5. Svelte client; the desktop shell owns no domain.
+6. A run is the full pipeline; inspection is read-only.
+7. Canonical digest, and the limit of the determinism claim.
+8. The static download page is retired.
+9. A simulation service owns the research plane.
+10. Python is confined to repository tooling; the image has none.
+11. Profiles are organisational, not a security boundary.
+12. Desktop: thin shell now, embedded later, in-process never.
 
 ## 7. Changeability evidence
 
@@ -80,7 +89,7 @@ Two changes carried through the architecture:
 
 | Change | Touched | Cost | What was hard |
 |---|---|---|---|
-| Add the simulation service | 2 ADRs, 15 documents, 9 issues; no engine change | one document pass | keeping hindsight out of the signal path |
+| Add the simulation service | 2 decisions, 9 work items; no engine change | one documentation pass | keeping hindsight out of the signal path |
 | Add profiles | one column across four schemas, one header, one client store | small | every query must be scoped; a missed scope is a silent leak between research lines |
 
 A rule change (R3) touches one crate and at most three modules: the strategy
@@ -90,7 +99,7 @@ golden fixture - the widest ripple in the system, and it is bounded.
 
 Expensive to change: the canonical digest definition (invalidates recorded
 evidence), the run identity inputs (invalidates deduplication), and the service
-count (a new ADR and a new deployment unit).
+count (a new decision and a new deployment unit).
 
 ## 8. Consistency
 

@@ -2,9 +2,13 @@
 
 ## Users
 
-- One quantitative researcher (the operator): interactive sessions between long
-  batch runs.
-- One reviewer per result, who must reproduce it without an account.
+- **One quantitative researcher** - the only human user. Works alone, on one
+  machine or a small internal server.
+- **One reviewer per published result** - not a system user. Receives an evidence
+  bundle and a digest, and reproduces the result offline, without an account.
+
+Pattern: short interactive sessions, between long unattended runs that continue
+after the client closes.
 
 ## Requirements
 
@@ -25,9 +29,8 @@
 
 ## Additional Context
 
-- Single operator, one machine or a small internal server. No cloud runtime,
-  no accounts.
+- Single operator, small deployment: one machine or one internal server.
 - The goal is a durable, cost-aware edge on OHLCV candles. "No edge" is a valid
   result.
-- The course requires a distributed deployment: services over a network.
 - Determinism is the trust claim: the same inputs produce the same bytes.
+- Runs are batch and CPU-bound: minutes to hours, not milliseconds.
