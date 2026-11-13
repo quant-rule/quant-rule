@@ -31,6 +31,8 @@ never renders a label, and never returns a raw engine type.
 | GET | `/profiles` | — | profiles with dataset, run, and simulation counts |
 | POST | `/profiles` | `profile_id`, `name` | `201` new, `200` existing, with the summary |
 | GET | `/version` | — | product version, image digest, contract versions |
+| GET | `/hypotheses/{fingerprint}` | — | one sealed hypothesis in the profile |
+| POST | `/hypotheses` | hypothesis JSON | `201` with the sealed record |
 | GET | `/catalog/datasets` | — | list with `data_version`, candles, coverage |
 | POST | `/catalog/datasets` | CSV bytes, `name` query | `201` new, `200` existing, with the record |
 | GET | `/catalog/datasets/{version}` | — | one dataset record |

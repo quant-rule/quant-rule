@@ -117,6 +117,11 @@ pub fn available() -> Vec<Migration> {
             name: "profiles",
             sql: include_str!("../../migrations/0007_profiles.sql"),
         },
+        Migration {
+            version: 8,
+            name: "hypothesis-profile",
+            sql: include_str!("../../migrations/0008_hypothesis_profile.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -216,7 +221,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![2, 3, 4, 5, 6, 7]
+            vec![2, 3, 4, 5, 6, 7, 8]
         );
     }
 
@@ -247,7 +252,7 @@ mod tests {
             plan(&applied, &available),
             Err(MigrationError::DatabaseAhead {
                 applied: 99,
-                available: 7
+                available: 8
             })
         );
     }
@@ -270,7 +275,7 @@ mod tests {
     fn versions_are_unique_and_ordered() {
         let available = available();
         let versions: Vec<i64> = available.iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8]);
     }
 
     #[test]

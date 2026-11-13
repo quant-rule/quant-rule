@@ -83,7 +83,7 @@ fn state() -> Arc<AppState> {
     Arc::new(AppState::new(&Config::default(), HealthRegistry::new()))
 }
 
-fn state_with_store() -> Arc<AppState> {
+async fn state_with_store() -> Arc<AppState> {
     Arc::new(AppState::with_services(
         &Config::default(),
         HealthRegistry::new(),
@@ -91,7 +91,7 @@ fn state_with_store() -> Arc<AppState> {
             hypotheses: Some(Arc::new(MemoryStore::default())),
             catalog: None,
             objects: None,
-            profiles: None,
+            profiles: Some(memory_profiles(&["default", "alpha", "beta"]).await),
         },
     ))
 }
@@ -220,11 +220,12 @@ async fn an_unknown_path_is_not_found() {
 
 #[tokio::test]
 async fn a_hypothesis_is_sealed_and_read_back() {
-    let state = state_with_store();
+    let state = state_with_store().await;
     let payload = serde_json::to_vec(&body()).expect("encode");
     let response = router(Arc::clone(&state))
         .oneshot(
             Request::post("/hypotheses")
+                .header(PROFILE_HEADER, "default")
                 .header("content-type", "application/json")
                 .body(Body::from(payload))
                 .expect("request"),
@@ -239,6 +240,7 @@ async fn a_hypothesis_is_sealed_and_read_back() {
     let response = router(state)
         .oneshot(
             Request::get(format!("/hypotheses/{fingerprint}"))
+                .header(PROFILE_HEADER, "default")
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -249,9 +251,10 @@ async fn a_hypothesis_is_sealed_and_read_back() {
 
 #[tokio::test]
 async fn an_unknown_hypothesis_is_not_found_with_a_code() {
-    let response = router(state_with_store())
+    let response = router(state_with_store().await)
         .oneshot(
             Request::get("/hypotheses/missing")
+                .header(PROFILE_HEADER, "default")
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -264,9 +267,10 @@ async fn an_unknown_hypothesis_is_not_found_with_a_code() {
 
 #[tokio::test]
 async fn a_malformed_body_is_rejected_with_a_code() {
-    let response = router(state_with_store())
+    let response = router(state_with_store().await)
         .oneshot(
             Request::post("/hypotheses")
+                .header(PROFILE_HEADER, "default")
                 .header("content-type", "application/json")
                 .body(Body::from("{}"))
                 .expect("request"),
@@ -284,6 +288,7 @@ async fn without_a_store_the_route_reports_internal() {
     let response = router(state())
         .oneshot(
             Request::post("/hypotheses")
+                .header(PROFILE_HEADER, "default")
                 .header("content-type", "application/json")
                 .body(Body::from(payload))
                 .expect("request"),
@@ -828,4 +833,53 @@ async fn another_profile_cannot_read_the_stream() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(text.contains("dataset.not_found"), "{text}");
+}
+
+#[tokio::test]
+async fn two_profiles_keep_independent_hypotheses() {
+    let state = state_with_store().await;
+    let payload = serde_json::to_vec(&body()).expect("encode");
+
+    let mut fingerprints = Vec::new();
+    for profile in ["alpha", "beta"] {
+        let response = router(Arc::clone(&state))
+            .oneshot(
+                Request::post("/hypotheses")
+                    .header(PROFILE_HEADER, profile)
+                    .header("content-type", "application/json")
+                    .body(Body::from(payload.clone()))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let sealed: SealedHypothesis =
+            serde_json::from_slice(&body_bytes(response).await).expect("decode");
+        fingerprints.push(sealed.fingerprint().to_owned());
+    }
+    assert_eq!(fingerprints[0], fingerprints[1]);
+
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/hypotheses/{}", fingerprints[0]))
+                .header(PROFILE_HEADER, "alpha")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/hypotheses/{}", fingerprints[0]))
+                .header(PROFILE_HEADER, "gamma")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("profile.not_found"), "{text}");
 }

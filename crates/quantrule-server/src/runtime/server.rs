@@ -164,8 +164,10 @@ async fn request_profile(state: &AppState, headers: &HeaderMap) -> Result<Profil
 
 async fn create_hypothesis(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     payload: Result<Json<Hypothesis>, JsonRejection>,
 ) -> Result<(StatusCode, Json<SealedHypothesis>), ApiFailure> {
+    let profile = request_profile(&state, &headers).await?;
     let Json(draft) = payload
         .map_err(|_| failure(ErrorCode::HypothesisInvalid, "the body is not a hypothesis"))?;
     let store = state
@@ -176,7 +178,7 @@ async fn create_hypothesis(
         .seal(clock::now_utc())
         .map_err(|error| failure(ErrorCode::HypothesisInvalid, error.to_string()))?;
     store
-        .insert(sealed.clone())
+        .insert(profile, sealed.clone())
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     Ok((StatusCode::CREATED, Json(sealed)))
@@ -184,13 +186,15 @@ async fn create_hypothesis(
 
 async fn get_hypothesis(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Path(fingerprint): Path<String>,
 ) -> Result<Json<SealedHypothesis>, ApiFailure> {
+    let profile = request_profile(&state, &headers).await?;
     let store = state
         .hypotheses
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no hypothesis store is configured"))?;
-    match store.load(fingerprint.clone()).await {
+    match store.load(profile, fingerprint.clone()).await {
         Ok(Some(sealed)) => Ok(Json(sealed)),
         Ok(None) => Err(failure(
             ErrorCode::HypothesisNotFound,

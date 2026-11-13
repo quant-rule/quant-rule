@@ -150,6 +150,7 @@ impl PgHypothesisStore {
 impl crate::research::HypothesisStore for PgHypothesisStore {
     fn insert(
         &self,
+        profile: quantrule_api::ProfileId,
         sealed: quantrule_research::SealedHypothesis,
     ) -> BoxFuture<Result<(), crate::research::StoreError>> {
         let pool = self.pool.clone();
@@ -166,9 +167,12 @@ impl crate::research::HypothesisStore for PgHypothesisStore {
             let body = encode(&sealed)?;
             sqlx::query(
                 "INSERT INTO research.hypotheses
-                     (fingerprint, premise, rule, dataset, costs, split, criteria, sealed_at, body)
-                 VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8::timestamptz, $9::jsonb)",
+                     (profile_id, fingerprint, premise, rule, dataset, costs, split, criteria,
+                      sealed_at, body)
+                 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::timestamptz,
+                         $10::jsonb)",
             )
+            .bind(profile.as_str())
             .bind(sealed.fingerprint())
             .bind(&hypothesis.premise)
             .bind(&hypothesis.rule)
@@ -187,17 +191,21 @@ impl crate::research::HypothesisStore for PgHypothesisStore {
 
     fn load(
         &self,
+        profile: quantrule_api::ProfileId,
         fingerprint: String,
     ) -> BoxFuture<Result<Option<quantrule_research::SealedHypothesis>, crate::research::StoreError>>
     {
         let pool = self.pool.clone();
         Box::pin(async move {
-            let row: Option<(String,)> =
-                sqlx::query_as("SELECT body::text FROM research.hypotheses WHERE fingerprint = $1")
-                    .bind(&fingerprint)
-                    .fetch_optional(&pool)
-                    .await
-                    .map_err(|error| crate::research::StoreError(error.to_string()))?;
+            let row: Option<(String,)> = sqlx::query_as(
+                "SELECT body::text FROM research.hypotheses
+                 WHERE profile_id = $1 AND fingerprint = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&fingerprint)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|error| crate::research::StoreError(error.to_string()))?;
             match row {
                 Some((body,)) => serde_json::from_str(&body)
                     .map(Some)
