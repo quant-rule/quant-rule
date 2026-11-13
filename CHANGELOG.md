@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- The profile switcher and Profiles screen: the client lists profiles, creates
+  one, remembers the active id locally, and sends it on every call. Switching
+  reloads the dataset list for that profile.
 - The browser client's Datasets screen: it lists `data_version`, candles, and
   UTC coverage, uploads a CSV with the file as the request body (no path field),
   shows an indeterminate upload bar, and renders the stable error code. A

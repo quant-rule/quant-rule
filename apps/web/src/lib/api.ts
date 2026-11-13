@@ -46,6 +46,14 @@ function requestHeaders(init?: HeadersInit, contentType?: string): Headers {
   return headers;
 }
 
+/** A human message that keeps a stable code when the failure has one. */
+export function errorText(error: unknown): string {
+  if (error instanceof ApiError) {
+    return `${error.code}: ${error.message}`;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
 async function parse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let body: ErrorBody = {};

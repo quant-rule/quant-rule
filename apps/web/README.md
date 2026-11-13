@@ -32,6 +32,10 @@ Bun runtime exists in the image.
 | `src/lib/ConnectionPanel.svelte` | Connection screen |
 | `src/lib/datasets.svelte.ts` | Dataset list and upload state |
 | `src/lib/DatasetsPanel.svelte` | Datasets screen and CSV upload |
+| `src/lib/profiles.ts` | Active-profile selection |
+| `src/lib/profiles.svelte.ts` | Profile list, create, and remembered id |
+| `src/lib/ProfilesPanel.svelte` | Profiles screen |
+| `src/lib/ProfileSwitcher.svelte` | Active profile in the topbar |
 
 Screens arrive with their issues; the connection and datasets screens are
 implemented.

@@ -1,12 +1,23 @@
 <script lang="ts">
   import ConnectionPanel from "./lib/ConnectionPanel.svelte";
   import DatasetsPanel from "./lib/DatasetsPanel.svelte";
+  import ProfilesPanel from "./lib/ProfilesPanel.svelte";
+  import ProfileSwitcher from "./lib/ProfileSwitcher.svelte";
   import { refresh } from "./lib/connection.svelte";
+  import { load as loadProfiles } from "./lib/profiles.svelte";
 
-  type Section = "connection" | "datasets" | "configs" | "runs" | "memory" | "settings";
+  type Section =
+    | "connection"
+    | "profiles"
+    | "datasets"
+    | "configs"
+    | "runs"
+    | "memory"
+    | "settings";
 
   const sections: { id: Section; label: string; hint: string }[] = [
     { id: "connection", label: "Connection", hint: "Gateway and services" },
+    { id: "profiles", label: "Profiles", hint: "Research lines" },
     { id: "datasets", label: "Datasets", hint: "Candles by content" },
     { id: "configs", label: "Configs", hint: "Hypotheses and runs" },
     { id: "runs", label: "Runs", hint: "Queued and finished" },
@@ -18,6 +29,7 @@
 
   $effect(() => {
     void refresh();
+    void loadProfiles();
   });
 </script>
 
@@ -52,11 +64,14 @@
   <main>
     <header class="topbar">
       <h1>{sections.find((item) => item.id === section)?.label}</h1>
+      <ProfileSwitcher />
     </header>
 
     <section class="content">
       {#if section === "connection"}
         <ConnectionPanel />
+      {:else if section === "profiles"}
+        <ProfilesPanel />
       {:else if section === "datasets"}
         <DatasetsPanel />
       {:else}

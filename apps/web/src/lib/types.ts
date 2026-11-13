@@ -40,3 +40,12 @@ export interface DatasetRecord {
   sha256: Digest;
   created_at: string;
 }
+
+/** One profile in a list. */
+export interface ProfileSummary {
+  profile_id: string;
+  name: string;
+  datasets: number;
+  runs: number;
+  simulations: number;
+}
