@@ -1,0 +1,18 @@
+[package]
+name = "quantrule-simulation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Chart-first research: deterministic windows and the mark schema"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+quantrule-research = { path = "../quantrule-research" }
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[lints]
+workspace = true

@@ -2761,6 +2761,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "quantrule-simulation"
+version = "0.3.0"
+dependencies = [
+ "quantrule-research",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -2,6 +2,7 @@
 members = [
     "crates/quantrule-api",
     "crates/quantrule-research",
+    "crates/quantrule-simulation",
     "crates/quantrule-app",
     "crates/quantrule-backtest",
     "crates/quantrule-data",
