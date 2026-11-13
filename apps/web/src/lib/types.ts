@@ -62,3 +62,23 @@ export interface RunSummary {
   submitted_at: string;
   elapsed_ms: number | null;
 }
+
+/** Where a configuration came from. */
+export type ConfigOrigin = "repository" | "upload";
+
+/** One configuration in a list. */
+export interface ConfigSummary {
+  config_id: string;
+  name: string;
+  origin: ConfigOrigin;
+  valid: boolean;
+  message: string | null;
+  config_hash: Digest | null;
+}
+
+/** The response to a run submission. */
+export interface SubmitRunResponse {
+  run_id: Digest;
+  status: RunState;
+  created: boolean;
+}
