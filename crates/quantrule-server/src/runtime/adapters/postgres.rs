@@ -129,3 +129,81 @@ async fn apply_locked(pool: &PgPool) -> Result<usize, MigrationError> {
 
     Ok(pending.len())
 }
+
+/// A hypothesis store backed by Postgres.
+///
+/// The sealed record is written whole as JSON and read back by fingerprint; the
+/// split columns remain for inspection.
+#[derive(Debug, Clone)]
+pub struct PgHypothesisStore {
+    pool: PgPool,
+}
+
+impl PgHypothesisStore {
+    /// Build the store over an existing pool.
+    #[must_use]
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+impl crate::research::HypothesisStore for PgHypothesisStore {
+    fn insert(
+        &self,
+        sealed: quantrule_research::SealedHypothesis,
+    ) -> BoxFuture<Result<(), crate::research::StoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let encode = |value: &quantrule_research::SealedHypothesis| {
+                serde_json::to_string(value)
+                    .map_err(|error| crate::research::StoreError(error.to_string()))
+            };
+            let hypothesis = sealed.hypothesis();
+            let costs = serde_json::to_string(&hypothesis.costs)
+                .map_err(|error| crate::research::StoreError(error.to_string()))?;
+            let split = serde_json::to_string(&hypothesis.split)
+                .map_err(|error| crate::research::StoreError(error.to_string()))?;
+            let body = encode(&sealed)?;
+            sqlx::query(
+                "INSERT INTO research.hypotheses
+                     (fingerprint, premise, rule, dataset, costs, split, criteria, sealed_at, body)
+                 VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8::timestamptz, $9::jsonb)",
+            )
+            .bind(sealed.fingerprint())
+            .bind(&hypothesis.premise)
+            .bind(&hypothesis.rule)
+            .bind(&hypothesis.dataset)
+            .bind(costs)
+            .bind(split)
+            .bind(&hypothesis.criteria)
+            .bind(sealed.sealed_at())
+            .bind(body)
+            .execute(&pool)
+            .await
+            .map(|_| ())
+            .map_err(|error| crate::research::StoreError(error.to_string()))
+        })
+    }
+
+    fn load(
+        &self,
+        fingerprint: String,
+    ) -> BoxFuture<Result<Option<quantrule_research::SealedHypothesis>, crate::research::StoreError>>
+    {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let row: Option<(String,)> =
+                sqlx::query_as("SELECT body::text FROM research.hypotheses WHERE fingerprint = $1")
+                    .bind(&fingerprint)
+                    .fetch_optional(&pool)
+                    .await
+                    .map_err(|error| crate::research::StoreError(error.to_string()))?;
+            match row {
+                Some((body,)) => serde_json::from_str(&body)
+                    .map(Some)
+                    .map_err(|error| crate::research::StoreError(error.to_string())),
+                None => Ok(None),
+            }
+        })
+    }
+}
