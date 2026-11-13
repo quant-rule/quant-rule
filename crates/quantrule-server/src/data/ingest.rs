@@ -1,7 +1,7 @@
 //! Uploaded CSV to a dataset identity.
 
 use quantrule_api::Digest;
-use quantrule_data::{Candle, CandleError, RawCandle};
+use quantrule_data::{Candle, CandleError, RawCandle, SourceCadence, TimeframeError};
 
 /// A dataset that was ingested.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,6 +43,34 @@ pub enum IngestError {
         /// The engine's reason.
         source: CandleError,
     },
+    /// A timestamp is not aligned to a whole minute.
+    Misaligned {
+        /// One-based line number.
+        line: usize,
+        /// The rejected timestamp, Unix seconds UTC.
+        timestamp: i64,
+    },
+    /// A timestamp repeats the previous bar.
+    Duplicate {
+        /// One-based line number.
+        line: usize,
+        /// The repeated timestamp, Unix seconds UTC.
+        timestamp: i64,
+    },
+    /// A timestamp precedes the previous bar.
+    OutOfOrder {
+        /// One-based line number.
+        line: usize,
+        /// The rejected timestamp, Unix seconds UTC.
+        timestamp: i64,
+        /// The previous timestamp, Unix seconds UTC.
+        previous: i64,
+    },
+    /// The rows are spaced as a coarser timeframe than M1.
+    Cadence {
+        /// The smallest spacing observed, in seconds.
+        observed_seconds: i64,
+    },
 }
 
 impl std::fmt::Display for IngestError {
@@ -53,6 +81,28 @@ impl std::fmt::Display for IngestError {
             Self::NoCandles => formatter.write_str("the upload holds no candles"),
             Self::BadFields { line } => write!(formatter, "line {line} has too few fields"),
             Self::Candle { line, source } => write!(formatter, "line {line}: {source}"),
+            Self::Misaligned { line, timestamp } => write!(
+                formatter,
+                "line {line}: timestamp {timestamp} is not aligned to one minute"
+            ),
+            Self::Duplicate { line, timestamp } => {
+                write!(
+                    formatter,
+                    "line {line}: timestamp {timestamp} repeats the previous bar"
+                )
+            }
+            Self::OutOfOrder {
+                line,
+                timestamp,
+                previous,
+            } => write!(
+                formatter,
+                "line {line}: timestamp {timestamp} precedes {previous}"
+            ),
+            Self::Cadence { observed_seconds } => write!(
+                formatter,
+                "the source cadence is {observed_seconds}s, not 60s"
+            ),
         }
     }
 }
@@ -72,6 +122,8 @@ pub fn ingest(name: &str, source: &[u8]) -> Result<Ingested, IngestError> {
     let text = std::str::from_utf8(source).map_err(|_| IngestError::NotUtf8)?;
 
     let mut candles = Vec::new();
+    let mut cadence = SourceCadence::new();
+    let mut previous: Option<i64> = None;
     for (index, line) in text.lines().enumerate() {
         let line = line.trim();
         if line.is_empty() {
@@ -97,11 +149,38 @@ pub fn ingest(name: &str, source: &[u8]) -> Result<Ingested, IngestError> {
                 line: index + 1,
                 source,
             })?;
+        let timestamp = candle.timestamp();
+        if timestamp.rem_euclid(60) != 0 {
+            return Err(IngestError::Misaligned {
+                line: index + 1,
+                timestamp,
+            });
+        }
+        if let Some(previous) = previous {
+            if timestamp == previous {
+                return Err(IngestError::Duplicate {
+                    line: index + 1,
+                    timestamp,
+                });
+            }
+            if timestamp < previous {
+                return Err(IngestError::OutOfOrder {
+                    line: index + 1,
+                    timestamp,
+                    previous,
+                });
+            }
+        }
+        cadence.observe(timestamp);
+        previous = Some(timestamp);
         candles.push(candle);
     }
 
     if candles.is_empty() {
         return Err(IngestError::NoCandles);
+    }
+    if let Err(TimeframeError::SourceCadence { observed_seconds }) = cadence.require_m1() {
+        return Err(IngestError::Cadence { observed_seconds });
     }
 
     let canonical = candles
@@ -212,5 +291,64 @@ mod tests {
         let csv = "2024-01-01 00:00:00+00:00,100,101,99,100\n";
         let dataset = ingest("x.csv", csv.as_bytes()).expect("ingest");
         assert_eq!(dataset.candles, 1);
+    }
+    #[test]
+    fn a_coarse_source_is_refused() {
+        let csv = "2024-01-01 00:00:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:05:00+00:00,100,101,99,100.5,10\n";
+        assert_eq!(
+            ingest("x.csv", csv.as_bytes()),
+            Err(IngestError::Cadence {
+                observed_seconds: 300
+            })
+        );
+    }
+
+    #[test]
+    fn an_out_of_order_row_is_refused() {
+        let csv = "2024-01-01 00:01:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:00:00+00:00,100,101,99,100.5,10\n";
+        assert_eq!(
+            ingest("x.csv", csv.as_bytes()),
+            Err(IngestError::OutOfOrder {
+                line: 2,
+                timestamp: 1_704_067_200,
+                previous: 1_704_067_260,
+            })
+        );
+    }
+
+    #[test]
+    fn a_duplicate_row_is_refused() {
+        let csv = "2024-01-01 00:00:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:00:00+00:00,100,101,99,100.5,10\n";
+        assert_eq!(
+            ingest("x.csv", csv.as_bytes()),
+            Err(IngestError::Duplicate {
+                line: 2,
+                timestamp: 1_704_067_200,
+            })
+        );
+    }
+
+    #[test]
+    fn a_misaligned_row_is_refused() {
+        let csv = "2024-01-01 00:00:30+00:00,100,101,99,100.5,10\n";
+        assert_eq!(
+            ingest("x.csv", csv.as_bytes()),
+            Err(IngestError::Misaligned {
+                line: 1,
+                timestamp: 1_704_067_230,
+            })
+        );
+    }
+
+    #[test]
+    fn a_gap_is_accepted_while_one_adjacent_pair_is_one_minute() {
+        let csv = "2024-01-01 00:00:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:01:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:10:00+00:00,100,101,99,100.5,10\n";
+        let dataset = ingest("x.csv", csv.as_bytes()).expect("a sparse M1 source is valid");
+        assert_eq!(dataset.candles, 3);
     }
 }

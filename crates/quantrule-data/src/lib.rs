@@ -11,6 +11,7 @@
 
 mod bucket;
 mod candle;
+mod ladder;
 mod source_cadence;
 mod time;
 mod timeframe;
@@ -18,6 +19,7 @@ mod timeframe_set;
 mod window;
 
 pub use candle::{Candle, CandleError, RawCandle};
+pub use ladder::{LadderSummary, TimeframeCoverage};
 pub use source_cadence::SourceCadence;
 pub use time::{
     MAX_TIMESTAMP_MILLISECONDS, MAX_TIMESTAMP_SECONDS, MIN_TIMESTAMP_SECONDS, TimestampError,

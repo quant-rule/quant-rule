@@ -469,7 +469,7 @@ impl std::error::Error for TimeframeError {
     }
 }
 
-fn check_m1_alignment(timestamp: i64) -> Result<(), TimeframeError> {
+pub(crate) fn check_m1_alignment(timestamp: i64) -> Result<(), TimeframeError> {
     let step = i64::from(Timeframe::M1.seconds());
     if timestamp.rem_euclid(step) == 0 {
         Ok(())
@@ -478,7 +478,7 @@ fn check_m1_alignment(timestamp: i64) -> Result<(), TimeframeError> {
     }
 }
 
-fn series_position(timeframe: Timeframe) -> usize {
+pub(crate) fn series_position(timeframe: Timeframe) -> usize {
     Timeframe::ALL
         .iter()
         .position(|candidate| *candidate == timeframe)

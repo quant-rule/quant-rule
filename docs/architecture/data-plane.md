@@ -97,7 +97,7 @@ Inspection is outside the run and writes nothing:
 | Operation | Endpoint | Output |
 |---|---|---|
 | Candles | `GET /inspect/candles?data_version=…` | counts, coverage, first and last bar |
-| Timeframes | `GET /inspect/timeframes?data_version=…` | bars and events per timeframe |
+| Timeframes | `GET /inspect/timeframes?data_version=…` | bars and partial buckets per timeframe |
 | Events | `GET /inspect/events?data_version=…&timeframe=…` | event batch |
 
 Inspection exists so a human or an agent can stop and look, without executing a

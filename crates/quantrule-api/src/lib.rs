@@ -21,7 +21,9 @@ pub mod sha256;
 pub mod simulation;
 pub mod version;
 
-pub use catalog::{ConfigOrigin, ConfigSummary, DatasetRecord, DatasetSummary};
+pub use catalog::{
+    ConfigOrigin, ConfigSummary, DatasetRecord, DatasetSummary, TimeframeBars, TimeframeInspection,
+};
 pub use digest::{Digest, DigestError};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};
 pub use health::{HealthReport, ServiceHealth, ServiceState, VersionInfo};
