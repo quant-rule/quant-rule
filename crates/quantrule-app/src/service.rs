@@ -18,7 +18,7 @@ use quantrule_model::run::ModelRun;
 use serde_json::Value;
 
 use crate::artifact::model_bundle::BundleOutput;
-use crate::config::{RUN_SCHEMA, RunConfig};
+use crate::config::RunConfig;
 use crate::csv::{SourceError, TolerantWindow};
 use crate::dataset::{Dataset, DatasetSummary};
 use crate::error::AppError;
@@ -243,7 +243,7 @@ impl AppService {
             name: &summary.name,
             path: &config_path,
             config_hash: &summary.config_hash,
-            schema_version: RUN_SCHEMA,
+            schema_version: &run.schema_version,
             created_at: input.started_at,
         })?;
         let mut summary_value = export::run_summary_json(&summary);
@@ -594,7 +594,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::AppService;
-    use crate::config::RUN_SCHEMA;
+    use crate::config::RUN_SCHEMA_V3;
 
     fn fixture_run() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -668,7 +668,7 @@ mod tests {
             .configs(recorded.workspace_id)
             .expect("the configs are read");
         assert_eq!(configs.len(), 1);
-        assert_eq!(configs[0].schema_version, RUN_SCHEMA);
+        assert_eq!(configs[0].schema_version, RUN_SCHEMA_V3);
         let run = memory
             .run(recorded.run_id)
             .expect("the run is read")

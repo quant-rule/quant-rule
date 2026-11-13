@@ -1,0 +1,30 @@
+{
+  "schema": "quantrule.improvement-index/v1",
+  "count": 2,
+  "runs": [
+    {
+      "run_id": "MODEL-2026-11-03-01",
+      "date": "2026-11-03",
+      "tier": "model",
+      "hypothesis": "At least one signal-role model state or event has a stable forward edge on the model_dev partition.",
+      "changed": "model",
+      "frozen": "strategy, portfolio",
+      "baseline": "",
+      "partition": "model_dev",
+      "verdict": "not green — no signal-role family passed",
+      "artifacts": 3
+    },
+    {
+      "run_id": "MODEL-2026-11-03-02",
+      "date": "2026-11-03",
+      "tier": "model",
+      "hypothesis": "The model_dev gate result replicates on the one-shot model_validation partition.",
+      "changed": "model",
+      "frozen": "strategy, portfolio",
+      "baseline": "",
+      "partition": "model_validation",
+      "verdict": "not green — validation-only B; combined gate no edge",
+      "artifacts": 3
+    }
+  ]
+}

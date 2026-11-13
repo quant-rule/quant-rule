@@ -106,12 +106,16 @@ pub(crate) fn record(
 fn bundle_files(body: &str, config: &RunConfig) -> BTreeMap<String, String> {
     let value: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
     let mut files = BTreeMap::from([("run.json".to_owned(), body.to_owned())]);
-    for (key, path) in [
+    let mut pairs: Vec<(&str, &PathBuf)> = vec![
         ("data", &config.paths.data),
         ("model", &config.paths.model),
         ("execution", &config.paths.execution),
         ("portfolio", &config.paths.portfolio),
-    ] {
+    ];
+    if let Some(strategy) = &config.paths.strategy {
+        pairs.push(("strategy", strategy));
+    }
+    for (key, path) in pairs {
         let Some(relative) = value.get(key).and_then(|value| value.as_str()) else {
             continue;
         };
@@ -124,13 +128,17 @@ fn bundle_files(body: &str, config: &RunConfig) -> BTreeMap<String, String> {
 
 fn hash_files(config: &RunConfig) -> Result<Digest, ScanError> {
     let mut bytes = Vec::new();
-    for path in [
+    let mut paths: Vec<&PathBuf> = vec![
         &config.paths.run,
         &config.paths.data,
         &config.paths.model,
         &config.paths.execution,
         &config.paths.portfolio,
-    ] {
+    ];
+    if let Some(strategy) = &config.paths.strategy {
+        paths.push(strategy);
+    }
+    for path in paths {
         let content = std::fs::read(path).map_err(|error| ScanError(error.to_string()))?;
         bytes.extend_from_slice(&content);
         bytes.push(0);
@@ -154,7 +162,10 @@ mod tests {
     fn the_scan_is_ordered_and_finds_both_runs() {
         let records = scan(&root(), "2026-11-13T00:00:00Z").expect("scan");
         let names: Vec<&str> = records.iter().map(|record| record.name.as_str()).collect();
-        assert_eq!(names, vec!["invalid/run.json", "valid/run.json"]);
+        assert_eq!(
+            names,
+            vec!["invalid/run.json", "valid/run.json", "valid-v4/run.json"]
+        );
     }
 
     #[test]
@@ -171,6 +182,14 @@ mod tests {
         assert_eq!(valid.files.len(), 5);
         assert!(valid.files.contains_key("run.json"));
         assert!(valid.files.contains_key("data.json"));
+
+        let v4 = records
+            .iter()
+            .find(|record| record.name == "valid-v4/run.json")
+            .expect("v4");
+        assert!(v4.valid);
+        assert_eq!(v4.files.len(), 6);
+        assert!(v4.files.contains_key("strategy.json"));
     }
 
     #[test]
