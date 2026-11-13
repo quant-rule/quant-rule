@@ -23,6 +23,7 @@ pub mod version;
 
 pub use catalog::{
     ConfigOrigin, ConfigSummary, DatasetRecord, DatasetSummary, TimeframeBars, TimeframeInspection,
+    UploadConfigRequest,
 };
 pub use digest::{Digest, DigestError};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};

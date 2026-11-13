@@ -18,13 +18,13 @@ use quantrule_api::{
     ConfigSummary, CreateProfileRequest, DatasetRecord, DatasetSummary, Digest, ErrorCode,
     ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, RunDetail, RunState,
     RunSummary, SubmitRunRequest, SubmitRunResponse, TimeframeBars, TimeframeInspection,
-    VersionInfo,
+    UploadConfigRequest, VersionInfo,
 };
 use quantrule_data::Timeframe;
 use quantrule_research::{Hypothesis, SealedHypothesis};
 use serde::Deserialize;
 
-use crate::configs::{ConfigCatalog, ConfigRecord, scan};
+use crate::configs::{ConfigCatalog, ConfigRecord, build, scan};
 use crate::data::{CatalogError, DatasetCatalog, Inspection, ingest, inspect, ladder};
 use crate::profile::{ProfileError, ProfileRecord, ProfileStore};
 use crate::research::HypothesisStore;
@@ -147,7 +147,12 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/hypotheses/{fingerprint}", get(get_hypothesis))
         .route("/catalog/datasets", get(list_datasets).post(create_dataset))
         .route("/catalog/datasets/{version}", get(get_dataset))
-        .route("/catalog/configs", get(list_configs))
+        .route(
+            "/catalog/configs",
+            get(list_configs)
+                .post(upload_config)
+                .layer(DefaultBodyLimit::max(4 * 1024 * 1024)),
+        )
         .route("/runs", get(list_runs).post(submit_run))
         .route("/runs/{id}", get(get_run))
         .route("/runs/{id}/cancel", post(cancel_run))
@@ -423,6 +428,41 @@ async fn create_dataset(
         }
         Err(CatalogError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
     }
+}
+
+/// Upload a run-config bundle, validate it, and catalogue it.
+async fn upload_config(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    payload: Result<Json<UploadConfigRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<ConfigSummary>), ApiFailure> {
+    let _profile = request_profile(&state, &headers).await?;
+    let Json(request) = payload
+        .map_err(|_| failure(ErrorCode::ConfigInvalid, "the body is not a config bundle"))?;
+    let store = state
+        .configs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
+    let now = clock::now_utc();
+    let staging = std::env::temp_dir();
+    let record =
+        tokio::task::spawn_blocking(move || build(&request.name, &request.files, &now, &staging))
+            .await
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+            .map_err(|error| failure(ErrorCode::ConfigInvalid, error.0))?;
+
+    if let Some(existing) = store
+        .get(record.config_id.clone())
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+    {
+        return Ok((StatusCode::OK, Json(existing.summary())));
+    }
+    store
+        .upsert(record.clone())
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    Ok((StatusCode::CREATED, Json(record.summary())))
 }
 
 /// The optional filters on a run list.

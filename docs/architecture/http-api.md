@@ -40,7 +40,7 @@ never renders a label, and never returns a raw engine type.
 | GET | `/datasets/{version}/candles` | — | canonical CSV bytes, with an ETag |
 | GET | `/datasets/{version}/ladder/{timeframe}` | — | canonical CSV for one timeframe, built once and reused |
 | GET | `/catalog/configs` | — | run configs with validity and origin |
-| POST | `/catalog/configs` | config JSON | planned; the catalog currently reads the mount |
+| POST | `/catalog/configs` | run-config bundle | `201` new, `200` existing, with the summary |
 | GET | `/runs` | `status`, `limit` | run summaries |
 | POST | `/runs` | `{data_version, config_id}` | `202` new, `200` existing, with `run_id` |
 | GET | `/runs/{id}` | — | status, stages, provenance, artifacts |
