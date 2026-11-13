@@ -1,5 +1,6 @@
 <script lang="ts">
   import ConnectionPanel from "./lib/ConnectionPanel.svelte";
+  import DatasetsPanel from "./lib/DatasetsPanel.svelte";
   import { refresh } from "./lib/connection.svelte";
 
   type Section = "connection" | "datasets" | "configs" | "runs" | "memory" | "settings";
@@ -56,6 +57,8 @@
     <section class="content">
       {#if section === "connection"}
         <ConnectionPanel />
+      {:else if section === "datasets"}
+        <DatasetsPanel />
       {:else}
         <div class="notice">
           This screen arrives with its issue. The connection screen is the first

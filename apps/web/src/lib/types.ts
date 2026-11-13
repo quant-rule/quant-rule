@@ -22,3 +22,21 @@ export interface VersionInfo {
   image_digest: Digest | null;
   contracts: [string, string][];
 }
+
+/** One dataset in a list. */
+export interface DatasetSummary {
+  data_version: Digest;
+  name: string;
+  candles: number;
+  first_bar: number;
+  last_bar: number;
+  bytes: number;
+}
+
+/** A dataset record, including where its bytes live. */
+export interface DatasetRecord {
+  summary: DatasetSummary;
+  object_key: string;
+  sha256: Digest;
+  created_at: string;
+}
