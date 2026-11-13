@@ -13,6 +13,12 @@ pub enum RuntimeError {
     /// The object store client failed.
     #[error("object store: {0}")]
     ObjectStore(String),
+    /// The database could not be reached.
+    #[error("database: {0}")]
+    Database(String),
+    /// The broker could not be reached.
+    #[error("queue: {0}")]
+    Queue(String),
     /// The listener could not bind or the server failed.
     #[error("serve: {0}")]
     Serve(String),

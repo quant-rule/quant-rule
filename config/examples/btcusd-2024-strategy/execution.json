@@ -1,7 +1,7 @@
 {
   "schema": "quantrule.execution/v2",
   "id": "E1.0",
-  "fill_timeframe": "5m",
+  "fill_timeframe": "1m",
   "order_type": "market_next_open",
   "tie_break": "stop_first",
   "fee_rate": 0.0,

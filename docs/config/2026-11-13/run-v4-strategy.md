@@ -30,7 +30,7 @@ than only its data, model, execution, and portfolio inputs.
 |---|---|
 | `strategy` | Relative path to a `quantrule.strategy/v1` file; required in v4, absent in v3 |
 | Other fields | Unchanged from v3 |
-| Cross-check | The strategy's execution and context timeframes must be in the data ladder |
+| Cross-check | The strategy's execution and context timeframes must be in the data ladder, and the strategy execution timeframe must equal `execution.fill_timeframe` |
 
 ## Compatibility
 

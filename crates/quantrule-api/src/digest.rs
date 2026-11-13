@@ -99,6 +99,25 @@ impl Digest {
     pub fn short(&self) -> &str {
         &self.0[..8]
     }
+
+    /// The canonical digest over a set of `(path, sha256)` entries.
+    ///
+    /// Entries are sorted by path; each contributes the path, a NUL separator,
+    /// the digest wire form, and a newline. The order of the input therefore
+    /// cannot change the result.
+    #[must_use]
+    pub fn canonical(entries: &[(String, Self)]) -> Self {
+        let mut sorted = entries.to_vec();
+        sorted.sort_by(|left, right| left.0.cmp(&right.0));
+        let mut bytes = Vec::new();
+        for (path, digest) in sorted {
+            bytes.extend_from_slice(path.as_bytes());
+            bytes.push(0);
+            bytes.extend_from_slice(digest.to_string().as_bytes());
+            bytes.push(b'\n');
+        }
+        Self::sha256(&bytes)
+    }
 }
 
 impl std::fmt::Display for Digest {
@@ -175,6 +194,28 @@ mod tests {
         assert_eq!(text, format!("\"sha256:{HEX}\""));
         let back: Digest = serde_json::from_str(&text).expect("decode");
         assert_eq!(back, digest);
+    }
+
+    #[test]
+    fn the_canonical_digest_ignores_input_order() {
+        let a = ("a.csv".to_owned(), Digest::sha256(b"a"));
+        let b = ("b.ndjson".to_owned(), Digest::sha256(b"b"));
+        assert_eq!(
+            Digest::canonical(&[a.clone(), b.clone()]),
+            Digest::canonical(&[b, a])
+        );
+    }
+
+    #[test]
+    fn the_canonical_digest_changes_with_a_path_or_a_hash() {
+        let a = ("a.csv".to_owned(), Digest::sha256(b"a"));
+        let b = ("b.csv".to_owned(), Digest::sha256(b"b"));
+        let base = Digest::canonical(std::slice::from_ref(&a));
+        assert_ne!(base, Digest::canonical(&[b]));
+        assert_ne!(
+            base,
+            Digest::canonical(&[("a.csv".to_owned(), Digest::sha256(b"other"))])
+        );
     }
 
     #[test]

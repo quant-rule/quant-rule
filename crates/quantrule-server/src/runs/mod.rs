@@ -8,5 +8,6 @@ pub mod store;
 
 pub use identity::derive;
 pub use store::{
-    CancelOutcome, MemoryRuns, NewRun, RunRecord, RunStore, RunStoreError, SubmitOutcome,
+    CancelOutcome, ClaimOutcome, MemoryRuns, NewRun, RunRecord, RunStore, RunStoreError,
+    SubmitOutcome,
 };
