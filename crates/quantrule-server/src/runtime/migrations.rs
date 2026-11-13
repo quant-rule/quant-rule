@@ -6,7 +6,6 @@
 //!
 //! This module is pure: it decides what to apply. The adapter runs the SQL.
 
-
 /// One compiled-in migration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Migration {
