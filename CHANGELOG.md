@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- The gateway serves the built client from `QR_STATIC_DIR`: assets are cached
+  immutably, an unknown page falls back to `index.html`, a write method is not
+  served the SPA, and an `/api/*` path never falls back.
 - A Playwright harness for the client: create a profile, switch it, survive a
   reload, and surface an unknown stored profile. The API is mocked at the
   network boundary, so the tests need no backend.

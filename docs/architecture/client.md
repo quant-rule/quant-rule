@@ -8,6 +8,10 @@
 The client is a Svelte 5 single-page application served by the gateway at the
 same origin as the API. It holds no domain logic and no source of truth.
 
+The gateway serves the built assets from `QR_STATIC_DIR`. A path outside that
+root is refused, an unknown page falls back to `index.html`, and an `/api/*`
+path never falls back to the client.
+
 ## 1. Screens
 
 | Screen | Shows | Empty state |

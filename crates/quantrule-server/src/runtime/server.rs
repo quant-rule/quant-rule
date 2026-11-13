@@ -4,12 +4,13 @@
 //! and ingests a dataset into the catalog. The remaining routes arrive with
 //! their services.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::body::Bytes;
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -59,6 +60,8 @@ pub struct AppState {
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// Which profiles exist; absent when no database is configured.
     pub profiles: Option<Arc<dyn ProfileStore>>,
+    /// Where the built client lives; absent in a client-less test or probe.
+    pub static_dir: Option<PathBuf>,
     /// The largest upload the gateway will buffer.
     pub max_upload: usize,
 }
@@ -73,6 +76,7 @@ impl std::fmt::Debug for AppState {
             .field("catalog", &self.catalog.is_some())
             .field("objects", &self.objects.is_some())
             .field("profiles", &self.profiles.is_some())
+            .field("static_dir", &self.static_dir)
             .field("max_upload", &self.max_upload)
             .finish()
     }
@@ -95,6 +99,7 @@ impl AppState {
             catalog: services.catalog,
             objects: services.objects,
             profiles: services.profiles,
+            static_dir: config.static_dir.clone(),
             max_upload: usize::try_from(config.upload_limit_bytes).unwrap_or(usize::MAX),
         }
     }
@@ -134,8 +139,18 @@ pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .merge(routes())
         .nest("/api/v1", routes())
+        .fallback(static_client)
         .layer(DefaultBodyLimit::max(limit))
         .with_state(state)
+}
+
+/// Serve the built client, or the SPA entry point, for a non-API path.
+async fn static_client(
+    State(state): State<Arc<AppState>>,
+    method: axum::http::Method,
+    uri: Uri,
+) -> impl IntoResponse {
+    crate::runtime::static_files::serve(&state, &uri, &method).await
 }
 
 async fn health(State(state): State<Arc<AppState>>) -> Json<HealthReport> {
