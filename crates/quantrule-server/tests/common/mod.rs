@@ -97,6 +97,7 @@ pub async fn state_with_store() -> Arc<AppState> {
             catalog: None,
             objects: None,
             profiles: Some(memory_profiles(&["default", "alpha", "beta"]).await),
+            configs: None,
         },
     ))
 }
@@ -126,6 +127,7 @@ pub async fn state_with_catalog_and_objects() -> (Arc<AppState>, MemoryObjects) 
             catalog: Some(Arc::new(MemoryCatalog::default())),
             objects: Some(Arc::new(objects.clone())),
             profiles: Some(memory_profiles(&["default", "alpha", "beta", "gamma"]).await),
+            configs: None,
         },
     ));
     (state, objects)
@@ -148,6 +150,7 @@ pub async fn state_with_small_upload() -> Arc<AppState> {
             catalog: Some(Arc::new(MemoryCatalog::default())),
             objects: Some(Arc::new(MemoryObjects::default())),
             profiles: Some(memory_profiles(&["default"]).await),
+            configs: None,
         },
     ))
 }

@@ -22,6 +22,11 @@ are not treated as releases.
 
 ### Added
 
+- The config catalog: `GET /catalog/configs` scans the read-only run-config
+  mount, validates each `run.json` with its referenced files, and lists a
+  content-derived id, validity, the parser message, and a SHA-256 over the five
+  files. A second read refreshes the rows without duplicating them. Config
+  uploads remain planned.
 - The gateway serves the built client from `QR_STATIC_DIR`: assets are cached
   immutably, an unknown page falls back to `index.html`, a write method is not
   served the SPA, and an `/api/*` path never falls back.

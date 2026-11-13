@@ -15,14 +15,15 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use quantrule_api::{
-    CreateProfileRequest, DatasetRecord, DatasetSummary, Digest, ErrorCode, ErrorEnvelope,
-    HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, TimeframeBars, TimeframeInspection,
-    VersionInfo,
+    ConfigSummary, CreateProfileRequest, DatasetRecord, DatasetSummary, Digest, ErrorCode,
+    ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, TimeframeBars,
+    TimeframeInspection, VersionInfo,
 };
 use quantrule_data::Timeframe;
 use quantrule_research::{Hypothesis, SealedHypothesis};
 use serde::Deserialize;
 
+use crate::configs::{ConfigCatalog, ConfigRecord, scan};
 use crate::data::{CatalogError, DatasetCatalog, Inspection, ingest, inspect, ladder};
 use crate::profile::{ProfileError, ProfileRecord, ProfileStore};
 use crate::research::HypothesisStore;
@@ -43,6 +44,8 @@ pub struct Services {
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// Which profiles exist.
     pub profiles: Option<Arc<dyn ProfileStore>>,
+    /// Where run configs are catalogued.
+    pub configs: Option<Arc<dyn ConfigCatalog>>,
 }
 
 /// What a handler needs.
@@ -62,6 +65,10 @@ pub struct AppState {
     pub profiles: Option<Arc<dyn ProfileStore>>,
     /// Where the built client lives; absent in a client-less test or probe.
     pub static_dir: Option<PathBuf>,
+    /// Where the read-only run-config mount lives.
+    pub config_root: PathBuf,
+    /// Where run configs are catalogued; absent when no database is configured.
+    pub configs: Option<Arc<dyn ConfigCatalog>>,
     /// The largest upload the gateway will buffer.
     pub max_upload: usize,
 }
@@ -77,6 +84,8 @@ impl std::fmt::Debug for AppState {
             .field("objects", &self.objects.is_some())
             .field("profiles", &self.profiles.is_some())
             .field("static_dir", &self.static_dir)
+            .field("config_root", &self.config_root)
+            .field("configs", &self.configs.is_some())
             .field("max_upload", &self.max_upload)
             .finish()
     }
@@ -100,6 +109,8 @@ impl AppState {
             objects: services.objects,
             profiles: services.profiles,
             static_dir: config.static_dir.clone(),
+            config_root: config.config_root.clone(),
+            configs: services.configs,
             max_upload: usize::try_from(config.upload_limit_bytes).unwrap_or(usize::MAX),
         }
     }
@@ -122,6 +133,7 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/hypotheses/{fingerprint}", get(get_hypothesis))
         .route("/catalog/datasets", get(list_datasets).post(create_dataset))
         .route("/catalog/datasets/{version}", get(get_dataset))
+        .route("/catalog/configs", get(list_configs))
         .route("/profiles", get(list_profiles).post(create_profile))
         .route("/inspect/candles", get(inspect_candles))
         .route("/inspect/timeframes", get(inspect_timeframes))
@@ -394,6 +406,35 @@ async fn create_dataset(
         }
         Err(CatalogError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
     }
+}
+
+/// Scan the read-only mount, refresh the catalog, and list every config.
+async fn list_configs(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<ConfigSummary>>, ApiFailure> {
+    let _profile = request_profile(&state, &headers).await?;
+    let store = state
+        .configs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
+    let root = state.config_root.clone();
+    let now = clock::now_utc();
+    let records = tokio::task::spawn_blocking(move || scan(&root, &now))
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    for record in records {
+        store
+            .upsert(record)
+            .await
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    }
+    let records = store
+        .list()
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    Ok(Json(records.iter().map(ConfigRecord::summary).collect()))
 }
 
 /// The dataset an inspection names.

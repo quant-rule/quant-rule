@@ -1,0 +1,9 @@
+{
+  "schema": "quantrule.run/v3",
+  "name": "broken",
+  "data": "missing-data.json",
+  "model": "missing-model.json",
+  "execution": "missing-execution.json",
+  "portfolio": "missing-portfolio.json",
+  "output_root": "../../../data/labs/broken"
+}
