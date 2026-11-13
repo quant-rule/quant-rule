@@ -4,6 +4,7 @@
 //! that fails to parse is an error rather than a silent default.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 use quantrule_api::Digest;
 
@@ -71,6 +72,8 @@ pub struct Config {
     pub upload_limit_bytes: u64,
     /// When set, every request must carry it.
     pub bearer_token: Option<String>,
+    /// Where the built client lives; absent in a client-less test or probe.
+    pub static_dir: Option<PathBuf>,
     /// Runs a backtest worker executes at once.
     pub backtest_concurrency: u32,
     /// The image digest that serves the request.
@@ -89,6 +92,7 @@ impl Default for Config {
             queue_url: DEFAULT_QUEUE_URL.to_owned(),
             upload_limit_bytes: DEFAULT_UPLOAD_LIMIT,
             bearer_token: None,
+            static_dir: None,
             backtest_concurrency: 1,
             image_digest: None,
             migrate: true,
@@ -145,6 +149,12 @@ impl Config {
                 value: value.clone(),
                 reason: "must be a non-negative integer",
             })?;
+        }
+        if let Some(value) = values
+            .get("QR_STATIC_DIR")
+            .filter(|value| !value.trim().is_empty())
+        {
+            config.static_dir = Some(PathBuf::from(value));
         }
         if let Some(value) = values.get("QR_BEARER_TOKEN") {
             config.bearer_token = Some(value.clone()).filter(|token| !token.is_empty());
@@ -206,6 +216,14 @@ mod tests {
         assert_eq!(config.upload_limit_bytes, DEFAULT_UPLOAD_LIMIT);
         assert_eq!(config.backtest_concurrency, 1);
         assert!(config.bearer_token.is_none());
+        assert!(config.static_dir.is_none());
+    }
+
+    #[test]
+    fn a_static_dir_is_read() {
+        let config =
+            Config::from_map(&map(&[("QR_STATIC_DIR", "/srv/static")])).expect("static dir");
+        assert_eq!(config.static_dir, Some(PathBuf::from("/srv/static")));
     }
 
     #[test]

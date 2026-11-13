@@ -13,6 +13,7 @@ pub mod logging;
 pub mod migrations;
 pub mod server;
 pub mod shutdown;
+pub mod static_files;
 
 pub use config::Config;
 pub use error::RuntimeError;
