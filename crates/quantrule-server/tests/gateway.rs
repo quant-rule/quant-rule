@@ -3,183 +3,20 @@
 //! The tests assert on status, envelope code, and body, not on a handler's
 //! internals, so a route change is visible the way a client would see it.
 
+mod common;
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use quantrule_api::{
-    DatasetRecord, DatasetSummary, Digest, PROFILE_HEADER, ProfileId, ProfileSummary,
-    TimeframeInspection,
+use common::{
+    CSV, body, body_bytes, read_dataset, state, state_with_catalog, state_with_catalog_and_objects,
+    state_with_small_upload, state_with_store, upload,
 };
-use quantrule_research::{CostModel, Partition, SealedHypothesis, Split};
-use quantrule_server::data::MemoryCatalog;
-use quantrule_server::profile::{MemoryProfiles, ProfileRecord, ProfileStore};
-use quantrule_server::research::MemoryStore;
-use quantrule_server::runtime::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
+use quantrule_api::{DatasetSummary, Digest, PROFILE_HEADER, ProfileSummary, TimeframeInspection};
+use quantrule_research::SealedHypothesis;
+use quantrule_server::runtime::adapters::ObjectStore;
 use quantrule_server::runtime::server::router;
-use quantrule_server::runtime::{AppState, Config, HealthRegistry, Services};
-use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tower::ServiceExt;
-
-/// An object store that keeps bytes in memory, so the route is tested
-/// without S3.
-#[derive(Clone, Default)]
-struct MemoryObjects {
-    inner: Arc<Mutex<BTreeMap<String, Vec<u8>>>>,
-}
-
-impl MemoryObjects {
-    fn remove(&self, key: &str) {
-        self.inner.lock().expect("the object lock").remove(key);
-    }
-}
-
-impl ObjectStore for MemoryObjects {
-    fn backend(&self) -> Backend {
-        Backend::Filesystem
-    }
-
-    fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .insert(key, bytes);
-            Ok(())
-        })
-    }
-
-    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .get(&key)
-                .cloned()
-                .ok_or_else(|| StoreError(format!("{key} is absent")))
-        })
-    }
-
-    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            Ok(inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .contains_key(&key))
-        })
-    }
-}
-
-const CSV: &str = "date,open,high,low,close,volume\n\
-2024-01-01 00:00:00+00:00,100.0,101.0,99.0,100.5,10\n\
-2024-01-01 00:01:00+00:00,100.5,101.5,100.0,101.0,12\n";
-
-fn state() -> Arc<AppState> {
-    Arc::new(AppState::new(&Config::default(), HealthRegistry::new()))
-}
-
-async fn state_with_store() -> Arc<AppState> {
-    Arc::new(AppState::with_services(
-        &Config::default(),
-        HealthRegistry::new(),
-        Services {
-            hypotheses: Some(Arc::new(MemoryStore::default())),
-            catalog: None,
-            objects: None,
-            profiles: Some(memory_profiles(&["default", "alpha", "beta"]).await),
-        },
-    ))
-}
-
-async fn memory_profiles(ids: &[&str]) -> Arc<MemoryProfiles> {
-    let store = Arc::new(MemoryProfiles::default());
-    for id in ids {
-        store
-            .create(ProfileRecord {
-                profile_id: ProfileId::parse(id).expect("profile"),
-                name: (*id).to_owned(),
-                created_at: "2026-11-13T00:00:00Z".to_owned(),
-            })
-            .await
-            .expect("create profile");
-    }
-    store
-}
-
-async fn state_with_catalog_and_objects() -> (Arc<AppState>, MemoryObjects) {
-    let objects = MemoryObjects::default();
-    let state = Arc::new(AppState::with_services(
-        &Config::default(),
-        HealthRegistry::new(),
-        Services {
-            hypotheses: None,
-            catalog: Some(Arc::new(MemoryCatalog::default())),
-            objects: Some(Arc::new(objects.clone())),
-            profiles: Some(memory_profiles(&["default", "alpha", "beta", "gamma"]).await),
-        },
-    ));
-    (state, objects)
-}
-
-async fn state_with_catalog() -> Arc<AppState> {
-    state_with_catalog_and_objects().await.0
-}
-
-async fn state_with_small_upload() -> Arc<AppState> {
-    let config = Config {
-        upload_limit_bytes: 16,
-        ..Config::default()
-    };
-    Arc::new(AppState::with_services(
-        &config,
-        HealthRegistry::new(),
-        Services {
-            hypotheses: None,
-            catalog: Some(Arc::new(MemoryCatalog::default())),
-            objects: Some(Arc::new(MemoryObjects::default())),
-            profiles: Some(memory_profiles(&["default"]).await),
-        },
-    ))
-}
-
-fn body() -> serde_json::Value {
-    let split = Split::new(
-        Partition::new("dev", 100, 200).expect("dev"),
-        Partition::new("val", 200, 300).expect("val"),
-    )
-    .expect("split");
-    serde_json::json!({
-        "premise": "a retest holds",
-        "rule": "strategy/retest.toml",
-        "dataset": "sha256:abc",
-        "costs": CostModel::new(1.0, 0.0, 0.0).expect("costs"),
-        "split": split,
-        "criteria": "expectancy above zero",
-    })
-}
-
-fn upload(name: &str) -> Request<Body> {
-    Request::post(format!("/catalog/datasets?name={name}"))
-        .header(PROFILE_HEADER, "default")
-        .body(Body::from(CSV))
-        .expect("request")
-}
-
-fn read_dataset(bytes: &[u8]) -> DatasetRecord {
-    serde_json::from_slice(bytes).expect("dataset record")
-}
-
-async fn body_bytes(response: axum::response::Response) -> Vec<u8> {
-    axum::body::to_bytes(response.into_body(), 65_536)
-        .await
-        .expect("body")
-        .to_vec()
-}
 
 #[tokio::test]
 async fn health_is_served_as_json() {

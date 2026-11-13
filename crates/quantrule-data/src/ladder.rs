@@ -1,13 +1,148 @@
-//! Streaming counts for a timeframe ladder.
+//! Streaming a timeframe ladder.
 //!
-//! Inspection needs to know how many bars each timeframe holds without keeping
-//! the series in memory. This module folds the same buckets [`crate::TimeframeSet`]
-//! publishes, so a count and a published candle cannot disagree.
+//! Inspection needs counts, and a run needs the bars themselves. Both fold the
+//! same buckets [`crate::TimeframeSet`] publishes, so a count, an emitted candle,
+//! and a published series cannot disagree.
 
 use crate::bucket::Bucket;
 use crate::time::{TimestampError, is_supported_timestamp};
 use crate::timeframe_set::{check_m1_alignment, series_position};
 use crate::{CandleError, CandleValues, Timeframe, TimeframeError, WindowError};
+
+/// One event from a ladder fold.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LadderEmission {
+    /// A complete bar.
+    Bar(Timeframe, CandleValues),
+    /// A bucket that ended before every expected M1 candle arrived. The stamp
+    /// is the bucket's UTC start.
+    Partial(Timeframe, i64),
+}
+
+/// Streams a ladder without retaining it.
+///
+/// Feed closed M1 candles in strictly increasing order, then call
+/// [`LadderWriter::finish`] so a complete trailing bucket is emitted.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LadderWriter {
+    buckets: [Option<Bucket>; 4],
+    last_timestamp: Option<i64>,
+    finished: bool,
+}
+
+impl LadderWriter {
+    /// Creates an empty writer.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            buckets: [None; 4],
+            last_timestamp: None,
+            finished: false,
+        }
+    }
+
+    /// Accepts one M1 candle and emits every bar or partial it closes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TimeframeError::Window`] for an unsupported, duplicate, or
+    /// out-of-order timestamp, [`TimeframeError::MisalignedM1Timestamp`] when
+    /// the row is not on a whole-minute boundary, and
+    /// [`TimeframeError::VolumeOverflow`] when a bucket sum is no longer finite.
+    pub fn push<F>(&mut self, values: CandleValues, emit: &mut F) -> Result<(), TimeframeError>
+    where
+        F: FnMut(LadderEmission),
+    {
+        self.validate(values)?;
+        self.last_timestamp = Some(values.timestamp);
+        emit(LadderEmission::Bar(Timeframe::M1, values));
+
+        for (index, timeframe) in Timeframe::DERIVED.iter().enumerate() {
+            let bucket_start = timeframe.bucket_start(values.timestamp);
+            let transition =
+                self.buckets[index].is_some_and(|bucket| bucket.start() != bucket_start);
+            if transition && let Some(bucket) = self.buckets[index].take() {
+                Self::record(*timeframe, bucket, emit);
+            }
+            match &mut self.buckets[index] {
+                Some(bucket) => bucket.push(values).map_err(|error| match error {
+                    crate::bucket::BucketError::VolumeOverflow { bucket_start } => {
+                        TimeframeError::VolumeOverflow { bucket_start }
+                    }
+                })?,
+                None => self.buckets[index] = Some(Bucket::new(*timeframe, values)),
+            }
+        }
+        Ok(())
+    }
+
+    /// Finalizes the trailing buckets. Calling it again is a no-op.
+    pub fn finish<F>(&mut self, emit: &mut F)
+    where
+        F: FnMut(LadderEmission),
+    {
+        if self.finished {
+            return;
+        }
+        for (index, timeframe) in Timeframe::DERIVED.iter().enumerate() {
+            if let Some(bucket) = self.buckets[index].take() {
+                Self::record(*timeframe, bucket, emit);
+            }
+        }
+        self.finished = true;
+    }
+
+    /// Whether [`LadderWriter::finish`] has been called.
+    #[must_use]
+    pub const fn is_finished(&self) -> bool {
+        self.finished
+    }
+
+    fn validate(&self, values: CandleValues) -> Result<(), TimeframeError> {
+        if self.finished {
+            return Err(TimeframeError::Finished);
+        }
+        if !is_supported_timestamp(values.timestamp) {
+            return Err(TimeframeError::Window(WindowError::Candle(
+                CandleError::Timestamp(TimestampError::UnsupportedYear),
+            )));
+        }
+        check_m1_alignment(values.timestamp)?;
+        if let Some(previous) = self.last_timestamp {
+            if values.timestamp == previous {
+                return Err(WindowError::DuplicateTimestamp {
+                    timestamp: previous,
+                }
+                .into());
+            }
+            if values.timestamp < previous {
+                return Err(WindowError::OutOfOrderTimestamp {
+                    previous,
+                    current: values.timestamp,
+                }
+                .into());
+            }
+        }
+        Ok(())
+    }
+
+    fn record<F>(timeframe: Timeframe, bucket: Bucket, emit: &mut F)
+    where
+        F: FnMut(LadderEmission),
+    {
+        if bucket.is_complete() {
+            emit(LadderEmission::Bar(timeframe, bucket.into_values()));
+        } else {
+            emit(LadderEmission::Partial(timeframe, bucket.start()));
+        }
+    }
+}
+
+impl Default for LadderWriter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Counts and coverage for one timeframe.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,12 +174,8 @@ impl TimeframeCoverage {
 /// A fold over M1 candles that counts a ladder without retaining it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LadderSummary {
-    candles: u64,
-    first_candle: Option<i64>,
-    last_candle: Option<i64>,
+    writer: LadderWriter,
     series: [TimeframeCoverage; 5],
-    buckets: [Option<Bucket>; 4],
-    finished: bool,
 }
 
 impl LadderSummary {
@@ -52,12 +183,8 @@ impl LadderSummary {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            candles: 0,
-            first_candle: None,
-            last_candle: None,
+            writer: LadderWriter::new(),
             series: Timeframe::ALL.map(TimeframeCoverage::new),
-            buckets: [None; 4],
-            finished: false,
         }
     }
 
@@ -65,98 +192,41 @@ impl LadderSummary {
     ///
     /// # Errors
     ///
-    /// Returns [`TimeframeError::Window`] for an unsupported, duplicate, or
-    /// out-of-order timestamp, [`TimeframeError::MisalignedM1Timestamp`] when
-    /// the row is not on a whole-minute boundary, and
-    /// [`TimeframeError::VolumeOverflow`] when a bucket sum is no longer finite.
+    /// Returns the same errors as [`LadderWriter::push`].
     pub fn push(&mut self, values: CandleValues) -> Result<(), TimeframeError> {
-        if self.finished {
-            return Err(TimeframeError::Finished);
-        }
-        if !is_supported_timestamp(values.timestamp) {
-            return Err(TimeframeError::Window(WindowError::Candle(
-                CandleError::Timestamp(TimestampError::UnsupportedYear),
-            )));
-        }
-        check_m1_alignment(values.timestamp)?;
-        if let Some(previous) = self.last_candle {
-            if values.timestamp == previous {
-                return Err(WindowError::DuplicateTimestamp {
-                    timestamp: previous,
-                }
-                .into());
-            }
-            if values.timestamp < previous {
-                return Err(WindowError::OutOfOrderTimestamp {
-                    previous,
-                    current: values.timestamp,
-                }
-                .into());
-            }
-        }
-
-        self.candles += 1;
-        self.first_candle.get_or_insert(values.timestamp);
-        self.last_candle = Some(values.timestamp);
-        let m1 = &mut self.series[series_position(Timeframe::M1)];
-        m1.bars += 1;
-        m1.first_bar.get_or_insert(values.timestamp);
-        m1.last_bar = Some(values.timestamp);
-
-        for (index, timeframe) in Timeframe::DERIVED.iter().enumerate() {
-            let bucket_start = timeframe.bucket_start(values.timestamp);
-            let transition =
-                self.buckets[index].is_some_and(|bucket| bucket.start() != bucket_start);
-            if transition && let Some(bucket) = self.buckets[index].take() {
-                self.record(*timeframe, bucket);
-            }
-            match &mut self.buckets[index] {
-                Some(bucket) => bucket.push(values).map_err(|error| match error {
-                    crate::bucket::BucketError::VolumeOverflow { bucket_start } => {
-                        TimeframeError::VolumeOverflow { bucket_start }
-                    }
-                })?,
-                None => self.buckets[index] = Some(Bucket::new(*timeframe, values)),
-            }
-        }
-        Ok(())
+        let writer = &mut self.writer;
+        let series = &mut self.series;
+        writer.push(values, &mut |emission| record(series, emission))
     }
 
     /// Finalizes the trailing buckets. Calling it again is a no-op.
     pub fn finish(&mut self) {
-        if self.finished {
-            return;
-        }
-        for (index, timeframe) in Timeframe::DERIVED.iter().enumerate() {
-            if let Some(bucket) = self.buckets[index].take() {
-                self.record(*timeframe, bucket);
-            }
-        }
-        self.finished = true;
+        let Self { writer, series } = self;
+        writer.finish(&mut |emission| record(series, emission));
     }
 
     /// Whether [`LadderSummary::finish`] has been called.
     #[must_use]
     pub const fn is_finished(&self) -> bool {
-        self.finished
+        self.writer.is_finished()
     }
 
     /// Number of M1 candles accepted.
     #[must_use]
-    pub const fn candles(&self) -> u64 {
-        self.candles
+    pub fn candles(&self) -> u64 {
+        self.series[series_position(Timeframe::M1)].bars
     }
 
     /// First M1 candle, Unix seconds UTC.
     #[must_use]
-    pub const fn first_candle(&self) -> Option<i64> {
-        self.first_candle
+    pub fn first_candle(&self) -> Option<i64> {
+        self.series[series_position(Timeframe::M1)].first_bar
     }
 
     /// Last M1 candle, Unix seconds UTC.
     #[must_use]
-    pub const fn last_candle(&self) -> Option<i64> {
-        self.last_candle
+    pub fn last_candle(&self) -> Option<i64> {
+        self.series[series_position(Timeframe::M1)].last_bar
     }
 
     /// Counts and coverage for one timeframe.
@@ -169,22 +239,25 @@ impl LadderSummary {
     pub fn coverages(&self) -> impl Iterator<Item = TimeframeCoverage> + '_ {
         self.series.iter().copied()
     }
-
-    fn record(&mut self, timeframe: Timeframe, bucket: Bucket) {
-        let coverage = &mut self.series[series_position(timeframe)];
-        if bucket.is_complete() {
-            coverage.bars += 1;
-            coverage.first_bar.get_or_insert(bucket.start());
-            coverage.last_bar = Some(bucket.start());
-        } else {
-            coverage.partial_buckets += 1;
-        }
-    }
 }
 
 impl Default for LadderSummary {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+fn record(series: &mut [TimeframeCoverage; 5], emission: LadderEmission) {
+    match emission {
+        LadderEmission::Bar(timeframe, candle) => {
+            let coverage = &mut series[series_position(timeframe)];
+            coverage.bars += 1;
+            coverage.first_bar.get_or_insert(candle.timestamp);
+            coverage.last_bar = Some(candle.timestamp);
+        }
+        LadderEmission::Partial(timeframe, _) => {
+            series[series_position(timeframe)].partial_buckets += 1;
+        }
     }
 }
 
@@ -197,10 +270,10 @@ mod tests {
     fn values(offset: i64) -> CandleValues {
         CandleValues {
             timestamp: BASE + offset * 60,
-            open: 100.0,
-            high: 101.0,
-            low: 99.0,
-            close: 100.5,
+            open: 100.0 + offset as f64,
+            high: 101.0 + offset as f64,
+            low: 99.0 + offset as f64,
+            close: 100.5 + offset as f64,
             volume: Some(10.0),
         }
     }
@@ -209,6 +282,18 @@ mod tests {
         for offset in 0..minutes {
             summary.push(values(offset)).expect("candle");
         }
+    }
+
+    fn writer_emissions(minutes: i64) -> Vec<LadderEmission> {
+        let mut writer = LadderWriter::new();
+        let mut emissions = Vec::new();
+        for offset in 0..minutes {
+            writer
+                .push(values(offset), &mut |emission| emissions.push(emission))
+                .expect("candle");
+        }
+        writer.finish(&mut |emission| emissions.push(emission));
+        emissions
     }
 
     #[test]
@@ -340,5 +425,67 @@ mod tests {
             })
             .expect_err("overflow");
         assert_eq!(error, TimeframeError::VolumeOverflow { bucket_start: BASE });
+    }
+
+    #[test]
+    fn the_writer_emits_m1_immediately_and_m5_at_finish() {
+        let emissions = writer_emissions(5);
+        let m1 = emissions
+            .iter()
+            .filter(|emission| matches!(emission, LadderEmission::Bar(Timeframe::M1, _)))
+            .count();
+        let m5 = emissions
+            .iter()
+            .filter(|emission| matches!(emission, LadderEmission::Bar(Timeframe::M5, _)))
+            .count();
+        assert_eq!(m1, 5);
+        assert_eq!(m5, 1);
+    }
+
+    #[test]
+    fn the_writer_emits_a_partial_for_an_incomplete_bucket() {
+        let emissions = writer_emissions(2);
+        assert!(emissions.iter().any(|emission| matches!(
+            emission,
+            LadderEmission::Partial(Timeframe::M5, start) if *start == BASE
+        )));
+    }
+
+    #[test]
+    fn the_writer_matches_the_published_set() {
+        let mut set = crate::TimeframeSet::with_limit(100);
+        for offset in 0..12 {
+            set.push_values(values(offset)).expect("set");
+        }
+        set.finish().expect("finish");
+
+        let emissions = writer_emissions(12);
+        for timeframe in Timeframe::ALL {
+            let emitted: Vec<CandleValues> = emissions
+                .iter()
+                .filter_map(|emission| match emission {
+                    LadderEmission::Bar(emitted, candle) if emitted == &timeframe => Some(*candle),
+                    _ => None,
+                })
+                .collect();
+            let published: Vec<CandleValues> = set
+                .series(timeframe)
+                .iter()
+                .map(|candle| CandleValues {
+                    timestamp: candle.timestamp(),
+                    open: candle.open(),
+                    high: candle.high(),
+                    low: candle.low(),
+                    close: candle.close(),
+                    volume: candle.volume(),
+                })
+                .collect();
+            assert_eq!(emitted, published, "{}", timeframe.code());
+        }
+    }
+
+    #[test]
+    fn the_same_rows_give_the_same_emissions() {
+        assert_eq!(writer_emissions(12), writer_emissions(12));
     }
 }

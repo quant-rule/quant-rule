@@ -22,6 +22,11 @@ are not treated as releases.
 
 ### Added
 
+- The stored ladder: `GET /datasets/{version}/ladder/{timeframe}` folds the
+  canonical M1 bytes into one timeframe's CSV and writes it under
+  `ladder/{data_version}/full/{timeframe}`. A repeat request reuses the object.
+  `LadderWriter` streams the same buckets as `TimeframeSet`, so an emitted bar
+  and a published bar cannot disagree.
 - Hypotheses are profile-scoped: migration 0008 adds `profile_id`, the store keys
   by `(profile_id, fingerprint)`, and the hypothesis routes require a known
   profile. The same hypothesis can be sealed in two profiles without one

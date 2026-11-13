@@ -37,6 +37,7 @@ never renders a label, and never returns a raw engine type.
 | POST | `/catalog/datasets` | CSV bytes, `name` query | `201` new, `200` existing, with the record |
 | GET | `/catalog/datasets/{version}` | — | one dataset record |
 | GET | `/datasets/{version}/candles` | — | canonical CSV bytes, with an ETag |
+| GET | `/datasets/{version}/ladder/{timeframe}` | — | canonical CSV for one timeframe, built once and reused |
 | GET | `/catalog/configs` | — | list with validity |
 | POST | `/catalog/configs` | config JSON | `201` with `config_id` |
 | GET | `/runs` | `status`, `limit` | run summaries |

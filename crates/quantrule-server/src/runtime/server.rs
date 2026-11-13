@@ -18,10 +18,11 @@ use quantrule_api::{
     HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, TimeframeBars, TimeframeInspection,
     VersionInfo,
 };
+use quantrule_data::Timeframe;
 use quantrule_research::{Hypothesis, SealedHypothesis};
 use serde::Deserialize;
 
-use crate::data::{CatalogError, DatasetCatalog, Inspection, ingest, inspect};
+use crate::data::{CatalogError, DatasetCatalog, Inspection, ingest, inspect, ladder};
 use crate::profile::{ProfileError, ProfileRecord, ProfileStore};
 use crate::research::HypothesisStore;
 use crate::runtime::adapters::ObjectStore;
@@ -121,6 +122,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/inspect/candles", get(inspect_candles))
         .route("/inspect/timeframes", get(inspect_timeframes))
         .route("/datasets/{version}/candles", get(get_candles))
+        .route("/datasets/{version}/ladder/{timeframe}", get(get_ladder))
         .layer(DefaultBodyLimit::max(limit))
         .with_state(state)
 }
@@ -372,6 +374,64 @@ async fn create_dataset(
 #[derive(Debug, Deserialize)]
 struct InspectQuery {
     data_version: String,
+}
+
+/// Build or reuse one timeframe's canonical CSV.
+async fn get_ladder(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path((version, code)): Path<(String, String)>,
+) -> Result<impl IntoResponse, ApiFailure> {
+    let timeframe = Timeframe::from_code(&code).ok_or_else(|| {
+        failure(
+            ErrorCode::DatasetInvalid,
+            format!("unknown timeframe {code}"),
+        )
+    })?;
+    let (record, source) = load_dataset_object(&state, &headers, &version).await?;
+    if timeframe == Timeframe::M1 {
+        return Ok(csv_response(source));
+    }
+    let objects = state
+        .objects
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let key = format!(
+        "ladder/{}/full/{}",
+        record.summary.data_version.as_hex(),
+        timeframe.code()
+    );
+    if objects
+        .exists(&key)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+    {
+        let cached = objects
+            .get(&key)
+            .await
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+        return Ok(csv_response(cached));
+    }
+    let object = ladder(&source, timeframe)
+        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
+    objects
+        .put(&key, object.clone())
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    Ok(csv_response(object))
+}
+
+/// A CSV body with a content ETag.
+fn csv_response(bytes: Vec<u8>) -> impl IntoResponse {
+    let etag = format!("\"{}\"", Digest::sha256(&bytes));
+    (
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "text/csv".to_owned()),
+            (header::ETAG, etag),
+        ],
+        bytes,
+    )
 }
 
 /// Resolve a dataset and read its stored bytes, verifying the digest.

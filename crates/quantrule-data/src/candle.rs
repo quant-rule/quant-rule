@@ -3,6 +3,7 @@
 use std::fmt;
 
 use crate::time::{TimestampError, is_supported_timestamp, parse_utc_timestamp};
+use crate::window::CandleValues;
 
 /// A validated OHLCV candle.
 ///
@@ -18,6 +19,25 @@ pub struct Candle {
     low: f64,
     close: f64,
     volume: Option<f64>,
+}
+
+impl CandleValues {
+    /// The canonical one-line form used for content identity.
+    ///
+    /// Floats use the shortest round-trip representation, so the same values
+    /// always produce the same bytes. An absent volume is empty, which is
+    /// distinct from a zero volume.
+    #[must_use]
+    pub fn canonical_line(&self) -> String {
+        let volume = match self.volume {
+            Some(value) => value.to_string(),
+            None => String::new(),
+        };
+        format!(
+            "{},{},{},{},{},{}",
+            self.timestamp, self.open, self.high, self.low, self.close, volume
+        )
+    }
 }
 
 /// The raw string fields a source provides for one candle.
@@ -116,14 +136,15 @@ impl Candle {
     /// distinct from a zero volume.
     #[must_use]
     pub fn canonical_line(&self) -> String {
-        let volume = match self.volume {
-            Some(value) => value.to_string(),
-            None => String::new(),
-        };
-        format!(
-            "{},{},{},{},{},{}",
-            self.timestamp, self.open, self.high, self.low, self.close, volume
-        )
+        CandleValues {
+            timestamp: self.timestamp,
+            open: self.open,
+            high: self.high,
+            low: self.low,
+            close: self.close,
+            volume: self.volume,
+        }
+        .canonical_line()
     }
 
     /// Builds a candle from already parsed values.
@@ -483,6 +504,20 @@ mod canonical_tests {
         let candle = Candle::new(0, 1, 1.0, 1.0, 1.0, 1.0, None).expect("candle");
         let line = candle.canonical_line();
         assert_eq!(line.split(',').next_back(), Some(""), "{line}");
+    }
+
+    #[test]
+    fn the_values_form_matches_the_candle_form() {
+        let candle = candle();
+        let values = CandleValues {
+            timestamp: candle.timestamp(),
+            open: candle.open(),
+            high: candle.high(),
+            low: candle.low(),
+            close: candle.close(),
+            volume: candle.volume(),
+        };
+        assert_eq!(values.canonical_line(), candle.canonical_line());
     }
 
     #[test]

@@ -1,11 +1,12 @@
-//! Stored canonical bytes to a ladder inspection.
+//! Stored canonical bytes to a ladder inspection or a stored ladder object.
 //!
 //! The catalog records what the upload said; this module re-reads the bytes and
-//! counts the ladder, so an inspection is evidence rather than a copy of the
+//! folds the ladder, so an inspection is evidence rather than a copy of the
 //! metadata.
 
 use quantrule_data::{
-    Candle, CandleError, CandleValues, LadderSummary, TimeframeCoverage, TimeframeError,
+    Candle, CandleError, CandleValues, LadderEmission, LadderSummary, LadderWriter, Timeframe,
+    TimeframeCoverage, TimeframeError,
 };
 
 /// What an inspection found.
@@ -21,7 +22,7 @@ pub struct Inspection {
     pub timeframes: Vec<TimeframeCoverage>,
 }
 
-/// Why stored bytes cannot be inspected.
+/// Why stored bytes cannot be inspected or folded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InspectError {
     /// The object is not UTF-8.
@@ -54,6 +55,11 @@ pub enum InspectError {
         /// The engine's reason.
         source: TimeframeError,
     },
+    /// The requested timeframe has no complete bar.
+    NoBar {
+        /// The timeframe's short code.
+        timeframe: &'static str,
+    },
 }
 
 impl std::fmt::Display for InspectError {
@@ -67,6 +73,9 @@ impl std::fmt::Display for InspectError {
             }
             Self::Candle { line, source } => write!(formatter, "line {line}: {source}"),
             Self::Ladder { line, source } => write!(formatter, "line {line}: {source}"),
+            Self::NoBar { timeframe } => {
+                write!(formatter, "the {timeframe} ladder has no complete bar")
+            }
         }
     }
 }
@@ -80,10 +89,56 @@ impl std::error::Error for InspectError {}
 /// Returns [`InspectError`] when the bytes are not UTF-8, hold no candle, a line
 /// is short, a number does not parse, or an engine rule rejects a candle.
 pub fn inspect(content: &[u8]) -> Result<Inspection, InspectError> {
-    let text = std::str::from_utf8(content).map_err(|_| InspectError::NotUtf8)?;
     let mut summary = LadderSummary::new();
-    let mut index = 0_u64;
+    for_each_candle(content, |candle, line| {
+        summary
+            .push(values(candle))
+            .map_err(|source| InspectError::Ladder { line, source })
+    })?;
+    summary.finish();
+    let (Some(first_bar), Some(last_bar)) = (summary.first_candle(), summary.last_candle()) else {
+        return Err(InspectError::Empty);
+    };
+    Ok(Inspection {
+        candles: summary.candles(),
+        first_bar: first_bar as u64,
+        last_bar: last_bar as u64,
+        timeframes: summary.coverages().collect(),
+    })
+}
 
+/// Build one timeframe's canonical CSV from the stored bytes.
+///
+/// # Errors
+///
+/// Returns [`InspectError`] for a parse or engine rejection, and
+/// [`InspectError::NoBar`] when the timeframe has no complete bar.
+pub fn ladder(content: &[u8], timeframe: Timeframe) -> Result<Vec<u8>, InspectError> {
+    let mut writer = LadderWriter::new();
+    let mut out = Vec::new();
+    for_each_candle(content, |candle, line| {
+        writer
+            .push(values(candle), &mut |emission| {
+                write_emission(&mut out, timeframe, emission);
+            })
+            .map_err(|source| InspectError::Ladder { line, source })
+    })?;
+    writer.finish(&mut |emission| write_emission(&mut out, timeframe, emission));
+    if out.is_empty() {
+        return Err(InspectError::NoBar {
+            timeframe: timeframe.code(),
+        });
+    }
+    out.pop();
+    Ok(out)
+}
+
+fn for_each_candle<F>(content: &[u8], mut feed: F) -> Result<(), InspectError>
+where
+    F: FnMut(Candle, usize) -> Result<(), InspectError>,
+{
+    let text = std::str::from_utf8(content).map_err(|_| InspectError::NotUtf8)?;
+    let mut index = 0_u64;
     for (line_number, line) in text.lines().enumerate() {
         let line = line.trim();
         if line.is_empty() {
@@ -114,32 +169,30 @@ pub fn inspect(content: &[u8]) -> Result<Inspection, InspectError> {
                     source,
                 }
             })?;
-        summary
-            .push(CandleValues {
-                timestamp: candle.timestamp(),
-                open: candle.open(),
-                high: candle.high(),
-                low: candle.low(),
-                close: candle.close(),
-                volume: candle.volume(),
-            })
-            .map_err(|source| InspectError::Ladder {
-                line: line_number + 1,
-                source,
-            })?;
+        feed(candle, line_number + 1)?;
         index += 1;
     }
+    Ok(())
+}
 
-    summary.finish();
-    let (Some(first_bar), Some(last_bar)) = (summary.first_candle(), summary.last_candle()) else {
-        return Err(InspectError::Empty);
-    };
-    Ok(Inspection {
-        candles: summary.candles(),
-        first_bar: first_bar as u64,
-        last_bar: last_bar as u64,
-        timeframes: summary.coverages().collect(),
-    })
+fn values(candle: Candle) -> CandleValues {
+    CandleValues {
+        timestamp: candle.timestamp(),
+        open: candle.open(),
+        high: candle.high(),
+        low: candle.low(),
+        close: candle.close(),
+        volume: candle.volume(),
+    }
+}
+
+fn write_emission(out: &mut Vec<u8>, timeframe: Timeframe, emission: LadderEmission) {
+    if let LadderEmission::Bar(emitted, values) = emission
+        && emitted == timeframe
+    {
+        out.extend_from_slice(values.canonical_line().as_bytes());
+        out.push(b'\n');
+    }
 }
 
 fn number(field: &str, line: usize, name: &'static str) -> Result<f64, InspectError> {
@@ -153,18 +206,23 @@ mod tests {
     use super::*;
     use crate::data::ingest;
 
-    const CSV: &str = "date,open,high,low,close,volume\n\
-2024-01-01 00:00:00+00:00,100.0,101.0,99.0,100.5,10\n\
-2024-01-01 00:01:00+00:00,100.5,101.5,100.0,101.0,12\n\
-2024-01-01 00:02:00+00:00,101.0,102.0,100.5,101.5,11\n\
-2024-01-01 00:03:00+00:00,101.5,102.5,101.0,102.0,13\n\
-2024-01-01 00:04:00+00:00,102.0,103.0,101.5,102.5,14\n\
-2024-01-01 00:05:00+00:00,102.5,103.5,102.0,103.0,15\n\
-2024-01-01 00:06:00+00:00,103.0,104.0,102.5,103.5,16\n";
+    fn csv(minutes: usize) -> String {
+        let mut text = String::from("date,open,high,low,close,volume\n");
+        for offset in 0..minutes {
+            let open = 100.0 + offset as f64;
+            text.push_str(&format!(
+                "2024-01-01 00:{offset:02}:00+00:00,{open},{},{},{},10\n",
+                open + 1.0,
+                open - 1.0,
+                open + 0.5
+            ));
+        }
+        text
+    }
 
     #[test]
     fn a_ladder_is_counted_from_canonical_bytes() {
-        let dataset = ingest("candles.csv", CSV.as_bytes()).expect("ingest");
+        let dataset = ingest("candles.csv", csv(7).as_bytes()).expect("ingest");
         let inspection = inspect(&dataset.content).expect("inspect");
         assert_eq!(inspection.candles, 7);
         assert_eq!(inspection.first_bar, 1_704_067_200);
@@ -194,7 +252,7 @@ mod tests {
 
     #[test]
     fn the_same_bytes_give_the_same_inspection() {
-        let dataset = ingest("candles.csv", CSV.as_bytes()).expect("ingest");
+        let dataset = ingest("candles.csv", csv(12).as_bytes()).expect("ingest");
         assert_eq!(
             inspect(&dataset.content).expect("first"),
             inspect(&dataset.content).expect("second")
@@ -204,5 +262,41 @@ mod tests {
     #[test]
     fn a_non_utf8_object_is_refused() {
         assert_eq!(inspect(&[0xff, 0xfe]), Err(InspectError::NotUtf8));
+    }
+
+    #[test]
+    fn a_stored_ladder_is_the_canonical_form() {
+        let dataset = ingest("candles.csv", csv(12).as_bytes()).expect("ingest");
+        let m5 = ladder(&dataset.content, Timeframe::M5).expect("ladder");
+        let text = String::from_utf8(m5).expect("utf8");
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "1704067200,100,105,99,104.5,50");
+        assert_eq!(lines[1], "1704067500,105,110,104,109.5,50");
+    }
+
+    #[test]
+    fn the_m1_ladder_is_the_input_series() {
+        let dataset = ingest("candles.csv", csv(12).as_bytes()).expect("ingest");
+        let m1 = ladder(&dataset.content, Timeframe::M1).expect("ladder");
+        assert_eq!(m1, dataset.content);
+    }
+
+    #[test]
+    fn a_timeframe_without_a_complete_bar_is_refused() {
+        let dataset = ingest("candles.csv", csv(12).as_bytes()).expect("ingest");
+        assert_eq!(
+            ladder(&dataset.content, Timeframe::H1),
+            Err(InspectError::NoBar { timeframe: "1h" })
+        );
+    }
+
+    #[test]
+    fn the_same_bytes_give_the_same_ladder() {
+        let dataset = ingest("candles.csv", csv(12).as_bytes()).expect("ingest");
+        assert_eq!(
+            ladder(&dataset.content, Timeframe::M5).expect("first"),
+            ladder(&dataset.content, Timeframe::M5).expect("second")
+        );
     }
 }
