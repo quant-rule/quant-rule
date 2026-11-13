@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- Profiles are real records: `GET /profiles` lists them with dataset counts,
+  `POST /profiles` creates one idempotently, and migration 0007 seeds the
+  `default` profile. The dataset routes now refuse an unknown profile instead of
+  accepting any syntactically valid id.
 - The dataset catalog: `POST /catalog/datasets` turns CSV bytes into a
   content-addressed, profile-scoped record, `GET /catalog/datasets` lists the
   profile's summaries, and `GET /catalog/datasets/{version}` returns one record.

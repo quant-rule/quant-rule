@@ -14,13 +14,14 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use quantrule_api::{
-    DatasetRecord, DatasetSummary, Digest, ErrorCode, ErrorEnvelope, HealthReport, PROFILE_HEADER,
-    ProfileId, VersionInfo,
+    CreateProfileRequest, DatasetRecord, DatasetSummary, Digest, ErrorCode, ErrorEnvelope,
+    HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, VersionInfo,
 };
 use quantrule_research::{Hypothesis, SealedHypothesis};
 use serde::Deserialize;
 
 use crate::data::{CatalogError, DatasetCatalog, ingest};
+use crate::profile::{ProfileError, ProfileRecord, ProfileStore};
 use crate::research::HypothesisStore;
 use crate::runtime::adapters::ObjectStore;
 use crate::runtime::clock;
@@ -37,6 +38,8 @@ pub struct Services {
     pub catalog: Option<Arc<dyn DatasetCatalog>>,
     /// Where the canonical bytes live.
     pub objects: Option<Arc<dyn ObjectStore>>,
+    /// Which profiles exist.
+    pub profiles: Option<Arc<dyn ProfileStore>>,
 }
 
 /// What a handler needs.
@@ -52,6 +55,8 @@ pub struct AppState {
     /// Where canonical dataset bytes live; absent when no object store is
     /// configured.
     pub objects: Option<Arc<dyn ObjectStore>>,
+    /// Which profiles exist; absent when no database is configured.
+    pub profiles: Option<Arc<dyn ProfileStore>>,
     /// The largest upload the gateway will buffer.
     pub max_upload: usize,
 }
@@ -65,6 +70,7 @@ impl std::fmt::Debug for AppState {
             .field("hypotheses", &self.hypotheses.is_some())
             .field("catalog", &self.catalog.is_some())
             .field("objects", &self.objects.is_some())
+            .field("profiles", &self.profiles.is_some())
             .field("max_upload", &self.max_upload)
             .finish()
     }
@@ -86,6 +92,7 @@ impl AppState {
             hypotheses: services.hypotheses,
             catalog: services.catalog,
             objects: services.objects,
+            profiles: services.profiles,
             max_upload: usize::try_from(config.upload_limit_bytes).unwrap_or(usize::MAX),
         }
     }
@@ -109,6 +116,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/hypotheses/{fingerprint}", get(get_hypothesis))
         .route("/catalog/datasets", get(list_datasets).post(create_dataset))
         .route("/catalog/datasets/{version}", get(get_dataset))
+        .route("/profiles", get(list_profiles).post(create_profile))
         .layer(DefaultBodyLimit::max(limit))
         .with_state(state)
 }
@@ -122,9 +130,9 @@ async fn version(State(state): State<Arc<AppState>>) -> Json<VersionInfo> {
     Json(state.version.clone())
 }
 
-/// Read the profile header. Every record is scoped, so a request without one is
-/// refused rather than defaulted.
-fn request_profile(headers: &HeaderMap) -> Result<ProfileId, ApiFailure> {
+/// Read the profile header and confirm the profile exists. Every record is
+/// scoped, so a request without one is refused rather than defaulted.
+async fn request_profile(state: &AppState, headers: &HeaderMap) -> Result<ProfileId, ApiFailure> {
     let Some(value) = headers.get(PROFILE_HEADER) else {
         return Err(failure(
             ErrorCode::ProfileNotFound,
@@ -134,7 +142,20 @@ fn request_profile(headers: &HeaderMap) -> Result<ProfileId, ApiFailure> {
     let text = value
         .to_str()
         .map_err(|_| failure(ErrorCode::ProfileInvalid, "the profile header is not text"))?;
-    ProfileId::parse(text).map_err(|error| failure(ErrorCode::ProfileInvalid, error.to_string()))
+    let profile = ProfileId::parse(text)
+        .map_err(|error| failure(ErrorCode::ProfileInvalid, error.to_string()))?;
+    let store = state
+        .profiles
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no profile store is configured"))?;
+    match store.get(profile.clone()).await {
+        Ok(Some(_)) => Ok(profile),
+        Ok(None) => Err(failure(
+            ErrorCode::ProfileNotFound,
+            format!("profile {profile} is unknown"),
+        )),
+        Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
+    }
 }
 
 async fn create_hypothesis(
@@ -175,6 +196,88 @@ async fn get_hypothesis(
     }
 }
 
+/// Build the wire summary for one profile.
+async fn profile_summary(
+    state: &AppState,
+    record: ProfileRecord,
+) -> Result<ProfileSummary, ApiFailure> {
+    let datasets = match state.catalog.as_ref() {
+        Some(catalog) => catalog
+            .count(record.profile_id.clone())
+            .await
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
+        None => 0,
+    };
+    // Runs and simulations gain their routes with their services; until then
+    // their counts are zero rather than a number no service can support.
+    Ok(ProfileSummary {
+        profile_id: record.profile_id,
+        name: record.name,
+        datasets,
+        runs: 0,
+        simulations: 0,
+    })
+}
+
+async fn create_profile(
+    State(state): State<Arc<AppState>>,
+    payload: Result<Json<CreateProfileRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<ProfileSummary>), ApiFailure> {
+    let Json(request) =
+        payload.map_err(|_| failure(ErrorCode::ProfileInvalid, "the body is not a profile"))?;
+    let profile_id = ProfileId::parse(request.profile_id.as_str())
+        .map_err(|error| failure(ErrorCode::ProfileInvalid, error.to_string()))?;
+    let name = request.name.trim();
+    if name.is_empty() {
+        return Err(failure(ErrorCode::ProfileInvalid, "a profile needs a name"));
+    }
+    let store = state
+        .profiles
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no profile store is configured"))?;
+    let record = ProfileRecord {
+        profile_id: profile_id.clone(),
+        name: name.to_owned(),
+        created_at: clock::now_utc(),
+    };
+    match store.create(record.clone()).await {
+        Ok(()) => {
+            let summary = profile_summary(&state, record).await?;
+            Ok((StatusCode::CREATED, Json(summary)))
+        }
+        Err(ProfileError::AlreadyExists) => match store.get(profile_id).await {
+            Ok(Some(existing)) => {
+                let summary = profile_summary(&state, existing).await?;
+                Ok((StatusCode::OK, Json(summary)))
+            }
+            Ok(None) => Err(failure(
+                ErrorCode::Internal,
+                "the profile store refused a duplicate but holds no record",
+            )),
+            Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
+        },
+        Err(ProfileError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
+    }
+}
+
+async fn list_profiles(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<ProfileSummary>>, ApiFailure> {
+    let store = state
+        .profiles
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no profile store is configured"))?;
+    let records = store
+        .list()
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    let mut summaries = Vec::with_capacity(records.len());
+    for record in records {
+        summaries.push(profile_summary(&state, record).await?);
+    }
+    Ok(Json(summaries))
+}
+
 /// The name an upload carries.
 #[derive(Debug, Deserialize)]
 struct DatasetUpload {
@@ -187,7 +290,7 @@ async fn create_dataset(
     query: Result<Query<DatasetUpload>, QueryRejection>,
     payload: Result<Bytes, BytesRejection>,
 ) -> Result<(StatusCode, Json<DatasetRecord>), ApiFailure> {
-    let profile = request_profile(&headers)?;
+    let profile = request_profile(&state, &headers).await?;
     let Query(query) = query.map_err(|_| {
         failure(
             ErrorCode::DatasetInvalid,
@@ -261,7 +364,7 @@ async fn list_datasets(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<DatasetSummary>>, ApiFailure> {
-    let profile = request_profile(&headers)?;
+    let profile = request_profile(&state, &headers).await?;
     let catalog = state
         .catalog
         .as_ref()
@@ -280,7 +383,7 @@ async fn get_dataset(
     headers: HeaderMap,
     Path(version): Path<String>,
 ) -> Result<Json<DatasetRecord>, ApiFailure> {
-    let profile = request_profile(&headers)?;
+    let profile = request_profile(&state, &headers).await?;
     let catalog = state
         .catalog
         .as_ref()
@@ -318,6 +421,7 @@ pub async fn serve(config: &Config, state: Arc<AppState>) -> Result<(), RuntimeE
 mod tests {
     use super::*;
     use crate::data::MemoryCatalog;
+    use crate::profile::MemoryProfiles;
     use crate::research::MemoryStore;
     use crate::runtime::adapters::{Backend, BoxFuture, StoreError};
     use axum::body::Body;
@@ -392,11 +496,27 @@ mod tests {
                 hypotheses: Some(Arc::new(MemoryStore::default())),
                 catalog: None,
                 objects: None,
+                profiles: None,
             },
         ))
     }
 
-    fn state_with_catalog_and_objects() -> (Arc<AppState>, MemoryObjects) {
+    async fn memory_profiles(ids: &[&str]) -> Arc<MemoryProfiles> {
+        let store = Arc::new(MemoryProfiles::default());
+        for id in ids {
+            store
+                .create(ProfileRecord {
+                    profile_id: ProfileId::parse(id).expect("profile"),
+                    name: (*id).to_owned(),
+                    created_at: "2026-11-13T00:00:00Z".to_owned(),
+                })
+                .await
+                .expect("create profile");
+        }
+        store
+    }
+
+    async fn state_with_catalog_and_objects() -> (Arc<AppState>, MemoryObjects) {
         let objects = MemoryObjects::default();
         let state = Arc::new(AppState::with_services(
             &Config::default(),
@@ -405,16 +525,17 @@ mod tests {
                 hypotheses: None,
                 catalog: Some(Arc::new(MemoryCatalog::default())),
                 objects: Some(Arc::new(objects.clone())),
+                profiles: Some(memory_profiles(&["default", "alpha", "beta", "gamma"]).await),
             },
         ));
         (state, objects)
     }
 
-    fn state_with_catalog() -> Arc<AppState> {
-        state_with_catalog_and_objects().0
+    async fn state_with_catalog() -> Arc<AppState> {
+        state_with_catalog_and_objects().await.0
     }
 
-    fn state_with_small_upload() -> Arc<AppState> {
+    async fn state_with_small_upload() -> Arc<AppState> {
         let config = Config {
             upload_limit_bytes: 16,
             ..Config::default()
@@ -426,6 +547,7 @@ mod tests {
                 hypotheses: None,
                 catalog: Some(Arc::new(MemoryCatalog::default())),
                 objects: Some(Arc::new(MemoryObjects::default())),
+                profiles: Some(memory_profiles(&["default"]).await),
             },
         ))
     }
@@ -577,8 +699,167 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_profile_is_created_and_listed() {
+        let state = state_with_catalog().await;
+        let payload = r#"{"profile_id":"delta","name":"Delta"}"#;
+        let response = router(Arc::clone(&state))
+            .oneshot(
+                Request::post("/profiles")
+                    .header("content-type", "application/json")
+                    .body(Body::from(payload))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let created: ProfileSummary =
+            serde_json::from_slice(&body_bytes(response).await).expect("profile");
+        assert_eq!(created.profile_id.as_str(), "delta");
+        assert_eq!(created.name, "Delta");
+        assert_eq!(created.datasets, 0);
+
+        let response = router(state)
+            .oneshot(
+                Request::get("/profiles")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let listed: Vec<ProfileSummary> =
+            serde_json::from_slice(&body_bytes(response).await).expect("profiles");
+        assert!(
+            listed
+                .iter()
+                .any(|profile| profile.profile_id.as_str() == "delta")
+        );
+        assert!(
+            listed
+                .iter()
+                .any(|profile| profile.profile_id.as_str() == "default")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_duplicate_profile_is_idempotent() {
+        let state = state_with_catalog().await;
+        let payload = r#"{"profile_id":"delta","name":"Delta"}"#;
+        let first = router(Arc::clone(&state))
+            .oneshot(
+                Request::post("/profiles")
+                    .header("content-type", "application/json")
+                    .body(Body::from(payload))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(first.status(), StatusCode::CREATED);
+        let first: ProfileSummary =
+            serde_json::from_slice(&body_bytes(first).await).expect("profile");
+
+        let second = router(state)
+            .oneshot(
+                Request::post("/profiles")
+                    .header("content-type", "application/json")
+                    .body(Body::from(payload))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(second.status(), StatusCode::OK);
+        let second: ProfileSummary =
+            serde_json::from_slice(&body_bytes(second).await).expect("profile");
+        assert_eq!(first, second);
+    }
+
+    #[tokio::test]
+    async fn an_invalid_profile_is_rejected() {
+        let state = state_with_catalog().await;
+        let bad_id = r#"{"profile_id":"Bad!","name":"Bad"}"#;
+        let response = router(Arc::clone(&state))
+            .oneshot(
+                Request::post("/profiles")
+                    .header("content-type", "application/json")
+                    .body(Body::from(bad_id))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+        assert!(text.contains("profile.invalid"), "{text}");
+
+        let blank_name = r#"{"profile_id":"ok","name":"   "}"#;
+        let response = router(state)
+            .oneshot(
+                Request::post("/profiles")
+                    .header("content-type", "application/json")
+                    .body(Body::from(blank_name))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+        assert!(text.contains("profile.invalid"), "{text}");
+    }
+
+    #[tokio::test]
+    async fn an_unknown_profile_is_not_found() {
+        let response = router(state_with_catalog().await)
+            .oneshot(
+                Request::get("/catalog/datasets")
+                    .header(PROFILE_HEADER, "ghost")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+        assert!(text.contains("profile.not_found"), "{text}");
+    }
+
+    #[tokio::test]
+    async fn a_dataset_contributes_to_its_profile_count() {
+        let state = state_with_catalog().await;
+        let response = router(Arc::clone(&state))
+            .oneshot(
+                Request::post("/catalog/datasets?name=candles.csv")
+                    .header(PROFILE_HEADER, "alpha")
+                    .body(Body::from(CSV))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let response = router(state)
+            .oneshot(
+                Request::get("/profiles")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let listed: Vec<ProfileSummary> =
+            serde_json::from_slice(&body_bytes(response).await).expect("profiles");
+        let alpha = listed
+            .iter()
+            .find(|profile| profile.profile_id.as_str() == "alpha")
+            .expect("alpha");
+        assert_eq!(alpha.datasets, 1);
+        let default = listed
+            .iter()
+            .find(|profile| profile.profile_id.as_str() == "default")
+            .expect("default");
+        assert_eq!(default.datasets, 0);
+    }
+
+    #[tokio::test]
     async fn a_dataset_is_uploaded_listed_and_read() {
-        let (state, objects) = state_with_catalog_and_objects();
+        let (state, objects) = state_with_catalog_and_objects().await;
         let response = router(Arc::clone(&state))
             .oneshot(upload("candles.csv"))
             .await
@@ -626,7 +907,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_same_bytes_are_idempotent() {
-        let state = state_with_catalog();
+        let state = state_with_catalog().await;
         let first = router(Arc::clone(&state))
             .oneshot(upload("one.csv"))
             .await
@@ -660,7 +941,7 @@ mod tests {
 
     #[tokio::test]
     async fn two_profiles_share_the_object_and_keep_their_own_rows() {
-        let state = state_with_catalog();
+        let state = state_with_catalog().await;
         let first = router(Arc::clone(&state))
             .oneshot(
                 Request::post("/catalog/datasets?name=candles.csv")
@@ -702,7 +983,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_missing_profile_is_refused() {
-        let response = router(state_with_catalog())
+        let response = router(state_with_catalog().await)
             .oneshot(
                 Request::post("/catalog/datasets?name=candles.csv")
                     .body(Body::from(CSV))
@@ -718,7 +999,7 @@ mod tests {
     #[tokio::test]
     async fn an_unknown_version_is_not_found() {
         let version = Digest::sha256(b"missing").to_string();
-        let response = router(state_with_catalog())
+        let response = router(state_with_catalog().await)
             .oneshot(
                 Request::get(format!("/catalog/datasets/{version}"))
                     .header(PROFILE_HEADER, "default")
@@ -734,7 +1015,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_broken_line_is_rejected_with_a_code() {
-        let response = router(state_with_catalog())
+        let response = router(state_with_catalog().await)
             .oneshot(
                 Request::post("/catalog/datasets?name=broken.csv")
                     .header(PROFILE_HEADER, "default")
@@ -759,7 +1040,7 @@ mod tests {
 
     #[tokio::test]
     async fn an_oversized_upload_is_refused() {
-        let response = router(state_with_small_upload())
+        let response = router(state_with_small_upload().await)
             .oneshot(upload("candles.csv"))
             .await
             .expect("response");

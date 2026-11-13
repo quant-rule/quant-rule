@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use quantrule_server::data::DatasetCatalog;
+use quantrule_server::profile::ProfileStore;
 use quantrule_server::research::HypothesisStore;
 use quantrule_server::runtime::AppState;
 use quantrule_server::runtime::Config;
@@ -17,6 +18,7 @@ use quantrule_server::runtime::adapters::ObjectStore;
 use quantrule_server::runtime::adapters::postgres::PgDatabase;
 use quantrule_server::runtime::adapters::postgres::PgDatasetCatalog;
 use quantrule_server::runtime::adapters::postgres::PgHypothesisStore;
+use quantrule_server::runtime::adapters::postgres::PgProfileStore;
 use quantrule_server::runtime::adapters::postgres::apply_migrations;
 use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_server::runtime::adapters::s3::S3Store;
@@ -31,6 +33,7 @@ async fn main() -> Result<(), RuntimeError> {
     let mut health = HealthRegistry::new();
     let mut hypotheses: Option<Arc<dyn HypothesisStore>> = None;
     let mut catalog: Option<Arc<dyn DatasetCatalog>> = None;
+    let mut profiles: Option<Arc<dyn ProfileStore>> = None;
 
     match PgDatabase::connect(&config.database_url).await {
         Ok(database) => {
@@ -42,6 +45,7 @@ async fn main() -> Result<(), RuntimeError> {
             }
             hypotheses = Some(Arc::new(PgHypothesisStore::new(database.pool().clone())));
             catalog = Some(Arc::new(PgDatasetCatalog::new(database.pool().clone())));
+            profiles = Some(Arc::new(PgProfileStore::new(database.pool().clone())));
             health.register("postgres", move || {
                 let database = database.clone();
                 async move { database.ping().await.map_err(|error| error.to_string()) }
@@ -81,6 +85,7 @@ async fn main() -> Result<(), RuntimeError> {
             hypotheses,
             catalog,
             objects: Some(objects),
+            profiles,
         },
     ));
     tracing::info!(bind = %config.bind, "starting gateway");

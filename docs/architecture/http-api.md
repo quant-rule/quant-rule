@@ -28,8 +28,8 @@ never renders a label, and never returns a raw engine type.
 | Method | Path | Request | Response |
 |---|---|---|---|
 | GET | `/health` | — | service states, queue depth, worker count |
-| GET | `/profiles` | — | profiles with counts |
-| POST | `/profiles` | `name` | `201` with `profile_id` |
+| GET | `/profiles` | — | profiles with dataset, run, and simulation counts |
+| POST | `/profiles` | `profile_id`, `name` | `201` new, `200` existing, with the summary |
 | GET | `/version` | — | product version, image digest, contract versions |
 | GET | `/catalog/datasets` | — | list with `data_version`, candles, coverage |
 | POST | `/catalog/datasets` | CSV bytes, `name` query | `201` new, `200` existing, with the record |
