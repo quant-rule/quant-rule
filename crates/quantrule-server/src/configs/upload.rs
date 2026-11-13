@@ -60,6 +60,7 @@ pub fn build(
     let mut record = record(&root, &root.join("run.json"), now, ConfigOrigin::Upload)
         .map_err(|error| UploadError(error.to_string()))?;
     record.name = name.trim().to_owned();
+    record.files = files.clone();
     Ok(record)
 }
 
@@ -141,6 +142,8 @@ mod tests {
         assert_eq!(record.name, "uploaded");
         assert!(record.config_hash.is_some());
         assert!(record.config_id.starts_with("cfg_"));
+        assert_eq!(record.files.len(), 5);
+        assert!(record.files.contains_key("run.json"));
     }
 
     #[test]

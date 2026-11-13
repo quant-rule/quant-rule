@@ -515,6 +515,7 @@ type ConfigRow = (
     Option<String>,
     String,
     String,
+    String,
 );
 
 fn config_origin(
@@ -547,7 +548,10 @@ fn config_record(
         message: row.4,
         config_hash,
         body: row.6,
-        created_at: row.7,
+        files: serde_json::from_str(&row.7).map_err(|error| {
+            crate::configs::ConfigStoreError(format!("stored config files are malformed: {error}"))
+        })?,
+        created_at: row.8,
     })
 }
 
@@ -564,15 +568,17 @@ impl crate::configs::ConfigCatalog for PgConfigStore {
             };
             sqlx::query(
                 "INSERT INTO catalog.configs
-                     (config_id, name, origin, valid, message, config_hash, body, created_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz)
+                     (config_id, name, origin, valid, message, config_hash, body, files,
+                      created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::timestamptz)
                  ON CONFLICT (config_id) DO UPDATE SET
                      name = EXCLUDED.name,
                      origin = EXCLUDED.origin,
                      valid = EXCLUDED.valid,
                      message = EXCLUDED.message,
                      config_hash = EXCLUDED.config_hash,
-                     body = EXCLUDED.body",
+                     body = EXCLUDED.body,
+                     files = EXCLUDED.files",
             )
             .bind(&record.config_id)
             .bind(&record.name)
@@ -581,6 +587,10 @@ impl crate::configs::ConfigCatalog for PgConfigStore {
             .bind(&record.message)
             .bind(record.config_hash.map(|digest| digest.to_wire()))
             .bind(&record.body)
+            .bind(
+                serde_json::to_string(&record.files)
+                    .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?,
+            )
             .bind(&record.created_at)
             .execute(&pool)
             .await
@@ -597,6 +607,7 @@ impl crate::configs::ConfigCatalog for PgConfigStore {
         Box::pin(async move {
             let rows: Vec<ConfigRow> = sqlx::query_as(
                 "SELECT config_id, name, origin, valid, message, config_hash, body,
+                        files::text,
                         to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM catalog.configs ORDER BY config_id",
             )
@@ -616,6 +627,7 @@ impl crate::configs::ConfigCatalog for PgConfigStore {
         Box::pin(async move {
             let row: Option<ConfigRow> = sqlx::query_as(
                 "SELECT config_id, name, origin, valid, message, config_hash, body,
+                        files::text,
                         to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM catalog.configs WHERE config_id = $1",
             )
