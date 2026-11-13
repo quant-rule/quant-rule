@@ -14,7 +14,11 @@ use lapin::types::FieldTable;
 use lapin::{Channel, Connection, ConnectionProperties, ExchangeKind};
 
 use crate::runtime::adapters::{
-    Backend, BoxFuture, MessageHandler, Queue, QueueConsumer, QueueError,
+    Backend, BoxFuture, Message, MessageHandler, Queue, QueueConsumer, QueueError,
+};
+use crate::runtime::queue::{
+    QUEUE_BACKTEST, QUEUE_DEAD_LETTER, QUEUE_EVIDENCE, ROUTING_CANCELLED, ROUTING_COMPUTED,
+    ROUTING_DEAD, ROUTING_REQUESTED,
 };
 
 /// The control-plane exchange.
@@ -61,6 +65,14 @@ impl RabbitQueue {
             )
             .await
             .map_err(|error| QueueError(error.to_string()))?;
+        declare_queue(
+            &channel,
+            QUEUE_BACKTEST,
+            &[ROUTING_REQUESTED, ROUTING_CANCELLED],
+        )
+        .await?;
+        declare_queue(&channel, QUEUE_EVIDENCE, &[ROUTING_COMPUTED]).await?;
+        declare_queue(&channel, QUEUE_DEAD_LETTER, &[ROUTING_DEAD]).await?;
         Ok(Self {
             connection: Arc::new(connection),
             channel,
@@ -113,31 +125,17 @@ impl QueueConsumer for RabbitQueue {
         Backend::RabbitMq
     }
 
-    fn consume(&self, queue: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>> {
+    fn consume(
+        &self,
+        queue: &str,
+        keys: &[&str],
+        handler: MessageHandler,
+    ) -> BoxFuture<Result<(), QueueError>> {
         let channel = self.channel.clone();
         let queue = queue.to_owned();
+        let keys: Vec<String> = keys.iter().map(|key| (*key).to_owned()).collect();
         Box::pin(async move {
-            channel
-                .queue_declare(
-                    queue.as_str().into(),
-                    QueueDeclareOptions {
-                        durable: true,
-                        ..QueueDeclareOptions::default()
-                    },
-                    FieldTable::default(),
-                )
-                .await
-                .map_err(|error| QueueError(error.to_string()))?;
-            channel
-                .queue_bind(
-                    queue.as_str().into(),
-                    EXCHANGE.into(),
-                    queue.as_str().into(),
-                    QueueBindOptions::default(),
-                    FieldTable::default(),
-                )
-                .await
-                .map_err(|error| QueueError(error.to_string()))?;
+            declare_queue(&channel, &queue, &keys).await?;
             channel
                 .basic_qos(1, BasicQosOptions::default())
                 .await
@@ -153,8 +151,12 @@ impl QueueConsumer for RabbitQueue {
                 .map_err(|error| QueueError(error.to_string()))?;
             while let Some(delivery) = consumer.next().await {
                 let delivery = delivery.map_err(|error| QueueError(error.to_string()))?;
-                let payload = delivery.data.clone();
-                match handler(payload).await {
+                let message = Message {
+                    routing_key: delivery.routing_key.as_str().to_owned(),
+                    payload: delivery.data.clone(),
+                    redelivered: delivery.redelivered,
+                };
+                match handler(message).await {
                     Ok(()) => {
                         delivery
                             .ack(BasicAckOptions::default())
@@ -176,4 +178,35 @@ impl QueueConsumer for RabbitQueue {
             Ok(())
         })
     }
+}
+
+async fn declare_queue<S: AsRef<str>>(
+    channel: &Channel,
+    queue: &str,
+    keys: &[S],
+) -> Result<(), QueueError> {
+    channel
+        .queue_declare(
+            queue.into(),
+            QueueDeclareOptions {
+                durable: true,
+                ..QueueDeclareOptions::default()
+            },
+            FieldTable::default(),
+        )
+        .await
+        .map_err(|error| QueueError(error.to_string()))?;
+    for key in keys {
+        channel
+            .queue_bind(
+                queue.into(),
+                EXCHANGE.into(),
+                key.as_ref().into(),
+                QueueBindOptions::default(),
+                FieldTable::default(),
+            )
+            .await
+            .map_err(|error| QueueError(error.to_string()))?;
+    }
+    Ok(())
 }

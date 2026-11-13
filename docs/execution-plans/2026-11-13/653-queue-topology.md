@@ -1,6 +1,7 @@
 # Execution Plan — Queue topology, retries, DLQ, and cancellation
 
-- Status: Proposed
+- Status: Verified
+- Approved: 2026-11-13
 - Claim type: Behaviour Claim
 - Owner: Human
 - Workflow: [Execution Plan](../../workflows/execution-plan.md)
@@ -74,7 +75,7 @@ Non-goals:
 | ID | Decision | Recommendation | Alternative |
 |---|---|---|---|
 | D1 | Attempt accounting | `runs.attempts` column, incremented atomically on claim; `claim(run_id, redelivered)` reclaims a running, uncomputed run; a fourth claim is `Exhausted` | Broker `x-death` headers; rejected because a killed worker's redelivery must count and the run row must be observable |
-| D2 | Retry mechanism | Handler sleeps the backoff and republishes `run.requested` while the delivery is unacked; on exhaustion publishes `run.dead` | Per-attempt TTL retry queues; deferred because it needs a live broker to prove and #643 is not ready |
+| D2 | Retry mechanism | Handler sleeps the backoff and retries the unacked delivery in place; on exhaustion publishes `run.dead` (implemented; a republish would arrive with `redelivered = false`) | Per-attempt TTL retry queues; deferred because it needs a live broker to prove and #643 is not ready |
 | D3 | Retry budget | 3 attempts; wait 5 s after attempt 1 and 25 s after attempt 2; the third failure is terminal | Fixed 30 s delay; simpler, but the issue asks for backoff |
 | D4 | Topology | `runs.backtest` ← `run.requested`; `runs.evidence` ← `run.computed`; `runs.dead-letter` ← `run.dead`; `run.failed` is not consumed | Keep queue name = routing key; rejected because the two named work queues are the issue |
 | D5 | Cancellation | Gateway publishes `run.cancelled`; worker checks the run row before execution and before CAS/finalization; internal backtest stages stay #649 | Inject a cancellation probe into the app backtest now; larger change, not needed to prove "cancel mid-run leaves cancelled and no bundle" |
@@ -82,7 +83,7 @@ Non-goals:
 
 ## 6. Acceptance criteria
 
-- A first handler failure republishes the same run id after 5 s; a second after 25 s.
+- A first handler failure is retried after 5 s; a second after 25 s.
 - A third failure marks the run `failed`, records the error and attempts, publishes
   `run.dead` with `{run_id}`, and leaves no CAS artifact.
 - A redelivered `run.requested` for an uncomputed `running` run executes; for a
@@ -118,16 +119,16 @@ by design. The composed broker row is `N/A` until #643 exists.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Retry policy | The policy maps attempts to backoff and a terminal action | unit test | 1→5 s, 2→25 s, 3→dead letter | — | Pending | — | — | — |
-| V2 | Attempts and claim | Claim increments attempts, reclaims a redelivered run, and exhausts at three | store tests | increments, reclaims, exhausts | — | Pending | — | — | — |
-| V3 | First retry | A handler failure republishes the same run id after the delay | worker test | republish after 5 s | — | Pending | — | — | — |
-| V4 | Third failure | The run is failed, `run.dead` is published, and no artifact exists | worker test | failed, `run.dead`, no artifacts | — | Pending | — | — | — |
-| V5 | Redelivery after kill | A redelivered uncomputed running run executes | worker test | re-executes | — | Pending | — | — | — |
-| V6 | Computed redelivery | A computed run republishes and never re-executes | worker test | republish only | — | Pending | — | — | — |
-| V7 | Cancel mid-run | Cancelled run writes no CAS object and the gateway publishes `{run_id}` | worker and gateway tests | cancelled, no object | — | Pending | — | — | — |
-| V8 | Topology | Backtest and evidence bindings and the DLQ are distinct | fake test and constants | routing proven | — | Pending | — | — | — |
-| V9 | Gates | Tests, clippy, fmt, rustdoc, checkers | `tools/gate.sh` | pass | — | Pending | — | — | — |
-| V10 | Live broker | The composed broker path is required before release | composed tier | deferred to #643 | — | Pending | — | — | — |
+| V1 | Retry policy | The policy maps attempts to backoff and a terminal action | unit test | 1→5 s, 2→25 s, 3→dead letter | policy test: 1→5 s, 2→25 s, 3→dead letter | Pass | Orchestrator | 2026-11-14 | — |
+| V2 | Attempts and claim | Claim increments attempts, reclaims a redelivered run, and exhausts at three | store tests | increments, reclaims, exhausts | store tests: reclaim, exhaust, computed not reclaimed | Pass | Orchestrator | 2026-11-14 | — |
+| V3 | First retry | A handler failure is retried after the delay | worker test | retry after 5 s | worker test: 5 s retry after the first failure | Pass | Orchestrator | 2026-11-14 | — |
+| V4 | Third failure | The run is failed, `run.dead` is published, and no artifact exists | worker test | failed, `run.dead`, no artifacts | worker test: third failure failed, `run.dead`, no artifacts | Pass | Orchestrator | 2026-11-14 | — |
+| V5 | Redelivery after kill | A redelivered uncomputed running run executes | worker test | re-executes | worker test: redelivery executes a running uncomputed run | Pass | Orchestrator | 2026-11-14 | — |
+| V6 | Computed redelivery | A computed run republishes and never re-executes | worker test | republish only | worker test: computed redelivery republishes, attempts stay 1 | Pass | Orchestrator | 2026-11-14 | — |
+| V7 | Cancel mid-run | Cancelled run writes no CAS object and the gateway publishes `{run_id}` | worker and gateway tests | cancelled, no object | worker cancel test and gateway `run.cancelled` payload | Pass | Orchestrator | 2026-11-14 | — |
+| V8 | Topology | Backtest and evidence bindings and the DLQ are distinct | fake test and constants | routing proven | adapter fake routes only the bound key; names are distinct | Pass | Orchestrator | 2026-11-14 | — |
+| V9 | Gates | Tests, clippy, fmt, rustdoc, checkers | `tools/gate.sh` | pass | `tools/gate.sh` passed | Pass | Orchestrator | 2026-11-14 | — |
+| V10 | Live broker | The composed broker path is required before release | composed tier | deferred to #643 | composed broker deferred to #643 | Accepted risk | Orchestrator | 2026-11-14 | — |
 
 
 ## 9. Risks and recovery

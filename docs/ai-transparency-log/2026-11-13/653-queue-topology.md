@@ -18,3 +18,27 @@
   long-term shape, but proving them needs the Compose stack from #643, and the
   issue's tests can be met with a policy the fake can exercise. The plan records
   the TTL queue as the fallback if the blocking sleep is not acceptable.
+
+## Implementation — 2026-11-14 (UTC)
+
+- Intent: implement the approved plan — attempt accounting, redelivery reclaim,
+  named queues, bounded retries, dead-letter, cancellation publication, and the
+  attempt count on the run row.
+- Boundary: RabbitMQ and Postgres compile behind the traits but are not
+  live-tested; the composed broker test remains #643. Per-stage cancellation
+  inside the coupled backtest remains #649. No model, strategy, execution, or
+  portfolio behavior changed.
+- Verification: `tools/gate.sh` passed. The new tests cover the retry policy,
+  claim/reclaim/exhaust, a stage failure that retries 5 s then 25 s and
+  dead-letters on the third, redelivery after a simulated killed worker, a
+  computed run that is never re-executed, cancellation after claim with no CAS
+  object, the gateway's `run.cancelled` payload, and queue-name distinctness.
+- Learning: the approved plan said the handler republishes after the backoff.
+  A republished message arrives with `redelivered = false`, so the claim could
+  not tell a legitimate retry from a duplicate submission while a live worker
+  held the run. The handler now holds the unacked delivery, sleeps, and retries
+  in place with the redelivery flag set. The budget, delays, and terminal state
+  are unchanged; the plan records this deviation.
+- Rejected: adding a retry header or a second payload field. The run row already
+  owns the attempt count, and the broker's redelivery flag is the proof the
+  holder is gone.

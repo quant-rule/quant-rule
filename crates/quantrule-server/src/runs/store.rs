@@ -10,6 +10,9 @@ use quantrule_api::{
 
 use crate::runtime::adapters::BoxFuture;
 
+/// The number of deliveries a run may receive before it is dead-lettered.
+pub const MAX_ATTEMPTS: u32 = 3;
+
 /// A new submission.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewRun {
@@ -60,6 +63,8 @@ pub struct RunRecord {
     pub artifacts: Vec<ArtifactRef>,
     /// The failure, when failed.
     pub error: Option<String>,
+    /// The number of deliveries claimed.
+    pub attempts: u32,
 }
 
 impl RunRecord {
@@ -123,6 +128,7 @@ impl RunRecord {
             digest: None,
             artifacts: Vec::new(),
             error: None,
+            attempts: 0,
         }
     }
 }
@@ -173,6 +179,8 @@ pub enum ClaimOutcome {
     Running(RunRecord),
     /// The run is terminal; there is nothing to execute.
     Terminal(RunRecord),
+    /// The retry budget is spent.
+    Exhausted(RunRecord),
     /// The run does not exist.
     Missing,
 }
@@ -222,8 +230,13 @@ pub trait RunStore: Send + Sync {
     /// Read one run without a profile, for the worker.
     fn get_any(&self, run_id: String) -> BoxFuture<Result<Option<RunRecord>, RunStoreError>>;
 
-    /// Atomically move a queued run to `running`.
-    fn claim(&self, run_id: String) -> BoxFuture<Result<ClaimOutcome, RunStoreError>>;
+    /// Claim a delivery. A queued run starts; a redelivered, uncomputed
+    /// `running` run is reclaimed; a computed run is left for evidence.
+    fn claim(
+        &self,
+        run_id: String,
+        redelivered: bool,
+    ) -> BoxFuture<Result<ClaimOutcome, RunStoreError>>;
 
     /// Record the computed digest and artifacts without finishing the run.
     fn computed(
@@ -384,7 +397,11 @@ impl RunStore for MemoryRuns {
         })
     }
 
-    fn claim(&self, run_id: String) -> BoxFuture<Result<ClaimOutcome, RunStoreError>> {
+    fn claim(
+        &self,
+        run_id: String,
+        redelivered: bool,
+    ) -> BoxFuture<Result<ClaimOutcome, RunStoreError>> {
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let mut state = inner
@@ -395,12 +412,22 @@ impl RunStore for MemoryRuns {
             };
             if record.status == RunState::Queued {
                 record.status = RunState::Running;
+                record.attempts = 1;
                 return Ok(ClaimOutcome::Claimed(record.clone()));
             }
-            if record.status == RunState::Running {
+            if record.status != RunState::Running {
+                return Ok(ClaimOutcome::Terminal(record.clone()));
+            }
+            // A computed run waits for evidence; a live worker still holds the
+            // delivery. Only a broker redelivery proves the holder is gone.
+            if !redelivered || record.digest.is_some() {
                 return Ok(ClaimOutcome::Running(record.clone()));
             }
-            Ok(ClaimOutcome::Terminal(record.clone()))
+            if record.attempts >= MAX_ATTEMPTS {
+                return Ok(ClaimOutcome::Exhausted(record.clone()));
+            }
+            record.attempts += 1;
+            Ok(ClaimOutcome::Claimed(record.clone()))
         })
     }
 
@@ -663,11 +690,11 @@ mod worker_tests {
             .expect("submit");
         let id = run.record().run_id.to_string();
         assert!(matches!(
-            store.claim(id.clone()).await.expect("claim"),
+            store.claim(id.clone(), false).await.expect("claim"),
             ClaimOutcome::Claimed(_)
         ));
         assert!(matches!(
-            store.claim(id.clone()).await.expect("claim"),
+            store.claim(id.clone(), false).await.expect("claim"),
             ClaimOutcome::Running(_)
         ));
         assert_eq!(
@@ -679,6 +706,64 @@ mod worker_tests {
                 .status,
             RunState::Running
         );
+    }
+
+    #[tokio::test]
+    async fn a_redelivery_reclaims_until_the_budget_is_spent() {
+        let store = MemoryRuns::default();
+        let run = store
+            .submit(profile("default"), new_run())
+            .await
+            .expect("submit");
+        let id = run.record().run_id.to_string();
+
+        let ClaimOutcome::Claimed(first) = store.claim(id.clone(), false).await.expect("first")
+        else {
+            panic!("the queued run was not claimed");
+        };
+        assert_eq!(first.attempts, 1);
+        assert!(matches!(
+            store.claim(id.clone(), false).await.expect("live"),
+            ClaimOutcome::Running(_)
+        ));
+        let ClaimOutcome::Claimed(second) = store.claim(id.clone(), true).await.expect("second")
+        else {
+            panic!("the redelivery was not reclaimed");
+        };
+        assert_eq!(second.attempts, 2);
+        let ClaimOutcome::Claimed(third) = store.claim(id.clone(), true).await.expect("third")
+        else {
+            panic!("the second redelivery was not reclaimed");
+        };
+        assert_eq!(third.attempts, 3);
+        let ClaimOutcome::Exhausted(spent) = store.claim(id, true).await.expect("fourth") else {
+            panic!("the fourth delivery was not exhausted");
+        };
+        assert_eq!(spent.attempts, 3);
+    }
+
+    #[tokio::test]
+    async fn a_computed_run_is_not_reclaimed() {
+        let store = MemoryRuns::default();
+        let run = store
+            .submit(profile("default"), new_run())
+            .await
+            .expect("submit");
+        let id = run.record().run_id.to_string();
+        store.claim(id.clone(), false).await.expect("claim");
+        store
+            .computed(
+                id.clone(),
+                Digest::sha256(b"canonical"),
+                Vec::new(),
+                done_stages(),
+            )
+            .await
+            .expect("computed");
+        assert!(matches!(
+            store.claim(id, true).await.expect("redelivery"),
+            ClaimOutcome::Running(_)
+        ));
     }
 
     #[tokio::test]
@@ -709,7 +794,7 @@ mod worker_tests {
         assert_eq!(record.status, RunState::Queued);
         assert_eq!(record.error, None);
 
-        store.claim(id.clone()).await.expect("claim");
+        store.claim(id.clone(), false).await.expect("claim");
         store
             .complete(
                 id.clone(),
@@ -735,7 +820,7 @@ mod worker_tests {
             .await
             .expect("submit");
         let id = run.record().run_id.to_string();
-        store.claim(id.clone()).await.expect("claim");
+        store.claim(id.clone(), false).await.expect("claim");
         let digest = Digest::sha256(b"canonical");
         let artifact = ArtifactRef {
             name: "results.json".to_owned(),
@@ -761,7 +846,7 @@ mod worker_tests {
                 .all(|stage| stage.state == StageStatus::Done)
         );
         assert!(matches!(
-            store.claim(id).await.expect("claim"),
+            store.claim(id, false).await.expect("claim"),
             ClaimOutcome::Terminal(_)
         ));
     }
@@ -774,7 +859,7 @@ mod worker_tests {
             .await
             .expect("submit");
         let id = run.record().run_id.to_string();
-        store.claim(id.clone()).await.expect("claim");
+        store.claim(id.clone(), false).await.expect("claim");
         let record = store
             .fail(id, "model failed".to_owned(), done_stages())
             .await
@@ -796,7 +881,7 @@ mod worker_tests {
             .await
             .expect("cancel");
         assert!(matches!(
-            store.claim(id).await.expect("claim"),
+            store.claim(id, false).await.expect("claim"),
             ClaimOutcome::Terminal(_)
         ));
     }

@@ -8,9 +8,12 @@ use quantrule_server::configs::{ConfigCatalog, MemoryConfigs, scan};
 use quantrule_server::data::{DatasetCatalog, MemoryCatalog, ingest};
 use quantrule_server::evidence::{EvidenceServices, FinalizeOutcome, finalize};
 use quantrule_server::runs::{MemoryRuns, NewRun, RunStore, derive};
-use quantrule_server::runtime::adapters::{Backend, BoxFuture, ObjectStore, Queue, QueueError};
+use quantrule_server::runtime::adapters::{
+    Backend, BoxFuture, ObjectStore, Queue, QueueError, StoreError,
+};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 type Messages = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
 
@@ -172,6 +175,41 @@ async fn fixture() -> Fixture {
     }
 }
 
+#[derive(Clone)]
+struct PutFails {
+    inner: common::MemoryObjects,
+}
+
+impl ObjectStore for PutFails {
+    fn backend(&self) -> Backend {
+        Backend::Filesystem
+    }
+
+    fn put(&self, _key: &str, _bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
+        Box::pin(async { Err(StoreError("the artifact store is full".to_owned())) })
+    }
+
+    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
+        self.inner.get(key)
+    }
+
+    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
+        self.inner.exists(key)
+    }
+}
+
+fn services_with_put_failure(fixture: &Fixture) -> WorkerServices {
+    WorkerServices {
+        runs: Arc::clone(&fixture.services.runs),
+        catalog: Arc::clone(&fixture.services.catalog),
+        configs: Arc::clone(&fixture.services.configs),
+        objects: Arc::new(PutFails {
+            inner: fixture.objects.clone(),
+        }),
+        queue: Arc::clone(&fixture.services.queue),
+    }
+}
+
 async fn submit_with(
     runs: &MemoryRuns,
     data_version: Digest,
@@ -204,7 +242,7 @@ async fn submit_with(
 #[tokio::test]
 async fn a_queued_run_succeeds_with_artifacts_and_digest() {
     let fixture = fixture().await;
-    let outcome = process(fixture.run_id.clone(), &fixture.services)
+    let outcome = process(fixture.run_id.clone(), false, &fixture.services)
         .await
         .expect("process");
     assert_eq!(
@@ -277,7 +315,7 @@ async fn a_queued_run_succeeds_with_artifacts_and_digest() {
 async fn a_second_delivery_does_not_execute_again() {
     let fixture = fixture().await;
     assert_eq!(
-        process(fixture.run_id.clone(), &fixture.services)
+        process(fixture.run_id.clone(), false, &fixture.services)
             .await
             .expect("first"),
         ProcessOutcome::Computed
@@ -289,7 +327,7 @@ async fn a_second_delivery_does_not_execute_again() {
         .expect("get")
         .expect("record");
     assert_eq!(
-        process(fixture.run_id.clone(), &fixture.services)
+        process(fixture.run_id.clone(), false, &fixture.services)
             .await
             .expect("second"),
         ProcessOutcome::Skipped
@@ -302,9 +340,144 @@ async fn a_second_delivery_does_not_execute_again() {
         .expect("record");
     assert_eq!(first.artifacts, second.artifacts);
     assert_eq!(second.status, RunState::Running);
-    // The redelivery republishes the computed message so evidence still hears
-    // about a run whose first publish was lost; it never executes it again.
-    assert_eq!(fixture.queue.payloads("run.computed").len(), 2);
+    assert_eq!(
+        process(fixture.run_id.clone(), true, &fixture.services)
+            .await
+            .expect("redelivery"),
+        ProcessOutcome::Skipped
+    );
+    let third = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(third.artifacts, first.artifacts);
+    assert_eq!(third.attempts, 1);
+    // A delivery after compute republishes so evidence still hears about a run
+    // whose first publish was lost; it never executes it again.
+    assert_eq!(fixture.queue.payloads("run.computed").len(), 3);
+}
+
+#[tokio::test]
+async fn a_redelivery_executes_a_run_left_running_by_a_killed_worker() {
+    let fixture = fixture().await;
+    fixture
+        .runs
+        .claim(fixture.run_id.clone(), false)
+        .await
+        .expect("simulated claim");
+    let outcome = process(fixture.run_id.clone(), true, &fixture.services)
+        .await
+        .expect("process");
+    assert_eq!(outcome, ProcessOutcome::Computed);
+    let record = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.status, RunState::Running);
+    assert_eq!(record.attempts, 2);
+    assert!(record.digest.is_some());
+    assert!(!record.artifacts.is_empty());
+}
+
+#[tokio::test]
+async fn a_stage_failure_retries_then_dead_letters() {
+    let fixture = fixture().await;
+    let services = services_with_put_failure(&fixture);
+    assert_eq!(
+        process(fixture.run_id.clone(), false, &services)
+            .await
+            .expect("first"),
+        ProcessOutcome::Retry {
+            delay: Duration::from_secs(5)
+        }
+    );
+    let record = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.status, RunState::Running);
+    assert_eq!(record.attempts, 1);
+    assert!(!fixture.queue.keys().contains(&"run.dead".to_owned()));
+
+    assert_eq!(
+        process(fixture.run_id.clone(), true, &services)
+            .await
+            .expect("second"),
+        ProcessOutcome::Retry {
+            delay: Duration::from_secs(25)
+        }
+    );
+    assert_eq!(
+        process(fixture.run_id.clone(), true, &services)
+            .await
+            .expect("third"),
+        ProcessOutcome::Exhausted
+    );
+    let record = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.status, RunState::Failed);
+    assert_eq!(record.attempts, 3);
+    assert!(
+        record
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("artifact store"))
+    );
+    assert!(record.artifacts.is_empty());
+    assert!(fixture.queue.keys().contains(&"run.dead".to_owned()));
+    let messages = fixture.queue.payloads("run.dead");
+    assert_eq!(messages.len(), 1);
+    let payload: serde_json::Value = serde_json::from_slice(&messages[0]).expect("payload");
+    assert_eq!(payload, serde_json::json!({ "run_id": fixture.run_id }));
+}
+
+#[tokio::test]
+async fn a_run_cancelled_after_claim_writes_no_bundle() {
+    let fixture = fixture().await;
+    fixture
+        .runs
+        .claim(fixture.run_id.clone(), false)
+        .await
+        .expect("claim");
+    fixture
+        .runs
+        .cancel(
+            ProfileId::parse("default").expect("profile"),
+            fixture.run_id.clone(),
+        )
+        .await
+        .expect("cancel");
+    assert_eq!(
+        process(fixture.run_id.clone(), false, &fixture.services)
+            .await
+            .expect("process"),
+        ProcessOutcome::Skipped
+    );
+    let record = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.status, RunState::Cancelled);
+    assert!(record.artifacts.is_empty());
+    assert!(
+        !fixture
+            .objects
+            .exists(&format!("runs/{}/results.json", fixture.run_id))
+            .await
+            .expect("exists")
+    );
 }
 
 #[tokio::test]
@@ -319,7 +492,7 @@ async fn a_cancelled_run_is_not_executed() {
         .await
         .expect("cancel");
     assert_eq!(
-        process(fixture.run_id.clone(), &fixture.services)
+        process(fixture.run_id.clone(), false, &fixture.services)
             .await
             .expect("process"),
         ProcessOutcome::Skipped
@@ -346,14 +519,14 @@ async fn a_missing_dataset_fails_the_run() {
     )
     .await;
     assert_eq!(
-        process(run_id.clone(), &fixture.services)
+        process(run_id.clone(), false, &fixture.services)
             .await
             .expect("process"),
         ProcessOutcome::Failed
     );
     let record = fixture
         .runs
-        .get_any(run_id)
+        .get_any(run_id.clone())
         .await
         .expect("get")
         .expect("record");
@@ -364,7 +537,10 @@ async fn a_missing_dataset_fails_the_run() {
             .as_deref()
             .is_some_and(|error| error.contains("dataset"))
     );
-    assert!(fixture.queue.keys().contains(&"run.failed".to_owned()));
+    let messages = fixture.queue.payloads("run.failed");
+    assert_eq!(messages.len(), 1);
+    let payload: serde_json::Value = serde_json::from_slice(&messages[0]).expect("payload");
+    assert_eq!(payload, serde_json::json!({ "run_id": run_id }));
 }
 
 #[tokio::test]
@@ -379,7 +555,7 @@ async fn an_invalid_config_fails_the_run() {
     )
     .await;
     assert_eq!(
-        process(run_id.clone(), &fixture.services)
+        process(run_id.clone(), false, &fixture.services)
             .await
             .expect("process"),
         ProcessOutcome::Failed

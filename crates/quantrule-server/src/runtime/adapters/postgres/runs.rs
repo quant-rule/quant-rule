@@ -30,6 +30,7 @@ type RunRow = (
     String,
     Option<String>,
     Option<String>,
+    i32,
 );
 
 fn run_digest(
@@ -73,7 +74,7 @@ async fn load_run_rows(
                 "SELECT r.run_id, r.status, r.owner, r.config_id, r.data_version,
                         r.config_hash, r.model_version, r.image_digest,
                         to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        r.digest, r.error
+                        r.digest, r.error, r.attempts
                  FROM runs.runs r
                  JOIN runs.submissions s ON s.run_id = r.run_id
                  WHERE s.profile_id = $1 AND r.run_id = $2",
@@ -88,7 +89,7 @@ async fn load_run_rows(
                 "SELECT r.run_id, r.status, r.owner, r.config_id, r.data_version,
                         r.config_hash, r.model_version, r.image_digest,
                         to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        r.digest, r.error
+                        r.digest, r.error, r.attempts
                  FROM runs.runs r
                  WHERE r.run_id = $1",
             )
@@ -161,6 +162,9 @@ async fn load_run_rows(
             })?,
         artifacts,
         error: row.10,
+        attempts: u32::try_from(row.11).map_err(|_| {
+            crate::runs::RunStoreError("a stored attempt count is negative".to_owned())
+        })?,
     }))
 }
 
@@ -362,11 +366,13 @@ impl crate::runs::RunStore for PgRunStore {
     fn claim(
         &self,
         run_id: String,
+        redelivered: bool,
     ) -> BoxFuture<Result<crate::runs::ClaimOutcome, crate::runs::RunStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            let updated = sqlx::query(
-                "UPDATE runs.runs SET status = 'running', started_at = now()
+            let started = sqlx::query(
+                "UPDATE runs.runs
+                 SET status = 'running', started_at = now(), attempts = attempts + 1
                  WHERE run_id = $1 AND status = 'queued'",
             )
             .bind(&run_id)
@@ -376,7 +382,34 @@ impl crate::runs::RunStore for PgRunStore {
             let Some(record) = load_run_rows(&pool, None, &run_id).await? else {
                 return Ok(crate::runs::ClaimOutcome::Missing);
             };
-            if updated.rows_affected() == 1 {
+            if started.rows_affected() == 1 {
+                return Ok(crate::runs::ClaimOutcome::Claimed(record));
+            }
+            if record.status != quantrule_api::RunState::Running {
+                return Ok(crate::runs::ClaimOutcome::Terminal(record));
+            }
+            if !redelivered || record.digest.is_some() {
+                return Ok(crate::runs::ClaimOutcome::Running(record));
+            }
+            if record.attempts >= crate::runs::MAX_ATTEMPTS {
+                return Ok(crate::runs::ClaimOutcome::Exhausted(record));
+            }
+            // The conditional update is what makes two redeliveries race
+            // safely: only one increments, the other reloads and skips.
+            let reclaimed = sqlx::query(
+                "UPDATE runs.runs SET attempts = attempts + 1, started_at = now()
+                 WHERE run_id = $1 AND status = 'running' AND digest IS NULL
+                   AND attempts < $2",
+            )
+            .bind(&run_id)
+            .bind(i64::from(crate::runs::MAX_ATTEMPTS))
+            .execute(&pool)
+            .await
+            .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+            let Some(record) = load_run_rows(&pool, None, &run_id).await? else {
+                return Ok(crate::runs::ClaimOutcome::Missing);
+            };
+            if reclaimed.rows_affected() == 1 {
                 Ok(crate::runs::ClaimOutcome::Claimed(record))
             } else if record.status == quantrule_api::RunState::Running {
                 Ok(crate::runs::ClaimOutcome::Running(record))

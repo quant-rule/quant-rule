@@ -11,6 +11,7 @@ pub mod error;
 pub mod health;
 pub mod logging;
 pub mod migrations;
+pub mod queue;
 pub mod server;
 pub mod shutdown;
 pub mod static_files;

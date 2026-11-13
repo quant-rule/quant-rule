@@ -1,7 +1,12 @@
-//! Execute one claimed run and finalize it.
+//! Execute one claimed run and record its artifacts.
+//!
+//! A retryable failure holds the delivery and retries in place, so the broker's
+//! redelivery flag is the only way a running run is reclaimed. The worker never
+//! renders a label or accepts a client path.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use quantrule_api::{
     ArtifactRef, Digest, ProfileId, RunState, StageName, StageProgress, StageStatus,
@@ -10,10 +15,12 @@ use quantrule_app::service::AppService;
 use quantrule_app::stages::backtest::BacktestRequest;
 
 use crate::backtest::Workspace;
+use crate::backtest::retry::{self, RetryDecision};
 use crate::configs::ConfigCatalog;
 use crate::data::DatasetCatalog;
 use crate::runs::{ClaimOutcome, RunStore};
 use crate::runtime::adapters::{ObjectStore, Queue};
+use crate::runtime::queue::{ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_FAILED};
 
 /// A worker failure with a human-readable message.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,9 +40,16 @@ pub enum ProcessOutcome {
     /// The run's artifacts and canonical digest were recorded; evidence still
     /// has to verify and finalize it.
     Computed,
-    /// The run failed; its error was recorded.
+    /// The run failed terminally on this attempt.
     Failed,
-    /// There was nothing to do: missing, running, or already terminal.
+    /// A retryable failure; hold the delivery for the delay and try again.
+    Retry {
+        /// How long to wait before the next attempt.
+        delay: Duration,
+    },
+    /// The retry budget is spent; the run is failed and dead-lettered.
+    Exhausted,
+    /// There was nothing to do: missing, running, computed, or terminal.
     Skipped,
 }
 
@@ -55,60 +69,76 @@ pub struct WorkerServices {
 
 /// Process one `run.requested` run id.
 ///
+/// `redelivered` is the broker's flag. It is the only proof that the previous
+/// holder is gone, so it is what lets a running run be reclaimed.
+///
 /// # Errors
 ///
 /// Returns [`WorkerError`] when a store or the object store is unavailable. A
-/// failed run is recorded and returned as [`ProcessOutcome::Failed`], not an
+/// stage failure is recorded or retried and returned as an outcome, not an
 /// error, so the consumer can acknowledge it.
 pub async fn process(
     run_id: String,
+    redelivered: bool,
     services: &WorkerServices,
 ) -> Result<ProcessOutcome, WorkerError> {
-    let Some(record) = services
+    let record = match services
         .runs
-        .get_any(run_id.clone())
-        .await
-        .map_err(|error| WorkerError(error.to_string()))?
-    else {
-        return Ok(ProcessOutcome::Skipped);
-    };
-    match services
-        .runs
-        .claim(run_id.clone())
+        .claim(run_id.clone(), redelivered)
         .await
         .map_err(|error| WorkerError(error.to_string()))?
     {
-        ClaimOutcome::Claimed(_) => {}
+        ClaimOutcome::Claimed(record) => record,
         ClaimOutcome::Terminal(_) | ClaimOutcome::Missing => {
             return Ok(ProcessOutcome::Skipped);
         }
         ClaimOutcome::Running(record) => {
-            // A redelivery after the worker wrote its artifacts but before the
-            // broker saw the publish must not execute the run again. The
-            // recorded digest is what tells the two `running` states apart.
+            // A delivery after the worker wrote its artifacts must not execute
+            // again. The recorded digest is what tells the two `running` states
+            // apart; publishing again closes a lost publish.
             if record.digest.is_some() && !record.artifacts.is_empty() {
-                publish_computed(&services.queue, &run_id).await?;
+                publish(&services.queue, ROUTING_COMPUTED, &run_id).await?;
             }
             return Ok(ProcessOutcome::Skipped);
         }
+        ClaimOutcome::Exhausted(record) => {
+            return exhaust(
+                services,
+                &run_id,
+                "the retry budget was exhausted",
+                record.attempts,
+            )
+            .await;
+        }
+    };
+    let attempts = record.attempts;
+    if cancelled(services, &run_id).await? {
+        return Ok(ProcessOutcome::Skipped);
     }
+
     let profile = ProfileId::parse(&record.owner)
         .map_err(|error| WorkerError(format!("the run owner is invalid: {error}")))?;
-    let Some(dataset) = services
+    let dataset = match services
         .catalog
         .get(profile.clone(), record.data_version.to_string())
         .await
-        .map_err(|error| WorkerError(error.to_string()))?
-    else {
-        return fail(services, &run_id, "the dataset is unknown").await;
+    {
+        Ok(Some(dataset)) => dataset,
+        Ok(None) => return fail(services, &run_id, "the dataset is unknown").await,
+        Err(error) => {
+            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        }
     };
-    let Some(config) = services
+    let config = match services
         .configs
         .get(profile, record.config_id.clone())
         .await
-        .map_err(|error| WorkerError(error.to_string()))?
-    else {
-        return fail(services, &run_id, "the config is unknown").await;
+    {
+        Ok(Some(config)) => config,
+        Ok(None) => return fail(services, &run_id, "the config is unknown").await,
+        Err(error) => {
+            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        }
     };
     if !config.valid {
         return fail(
@@ -126,20 +156,32 @@ pub async fn process(
         )
         .await;
     }
-    let bytes = services
-        .objects
-        .get(&dataset.object_key)
-        .await
-        .map_err(|error| WorkerError(error.to_string()))?;
+    let bytes = match services.objects.get(&dataset.object_key).await {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        }
+    };
     if Digest::sha256(&bytes) != record.data_version {
         return fail(services, &run_id, "the dataset bytes do not match").await;
     }
-    let workspace = tokio::task::spawn_blocking(move || {
+
+    let workspace = match tokio::task::spawn_blocking(move || {
         Workspace::create(&config, &bytes, &record.data_version)
     })
     .await
-    .map_err(|error| WorkerError(error.to_string()))?
-    .map_err(|error| WorkerError(error.to_string()))?;
+    {
+        Ok(Ok(workspace)) => workspace,
+        Ok(Err(error)) => {
+            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        }
+        Err(error) => {
+            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        }
+    };
+    if cancelled(services, &run_id).await? {
+        return Ok(ProcessOutcome::Skipped);
+    }
     let run_path = workspace.run_config();
     let strategy_path = workspace.strategy();
     let out = workspace.out();
@@ -150,24 +192,27 @@ pub async fn process(
             out: Some(&out),
         })
     })
-    .await
-    .map_err(|error| WorkerError(error.to_string()))?;
+    .await;
     let outcome = match outcome {
-        Ok(outcome) => outcome,
-        Err(error) => return fail(services, &run_id, &error.to_string()).await,
+        Ok(Ok(outcome)) => outcome,
+        Ok(Err(error)) => {
+            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        }
+        Err(error) => {
+            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        }
     };
-    let Some(current) = services
-        .runs
-        .get_any(run_id.clone())
-        .await
-        .map_err(|error| WorkerError(error.to_string()))?
-    else {
-        return Ok(ProcessOutcome::Skipped);
-    };
-    if current.status == RunState::Cancelled {
+    // A cancel after the backtest must leave no bundle. Check before the first
+    // CAS write, not after the upload.
+    if cancelled(services, &run_id).await? {
         return Ok(ProcessOutcome::Skipped);
     }
-    let artifacts = collect_artifacts(&services.objects, &run_id, &outcome.root).await?;
+    let artifacts = match collect_artifacts(&services.objects, &run_id, &outcome.root).await {
+        Ok(artifacts) => artifacts,
+        Err(error) => {
+            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        }
+    };
     let entries: Vec<(String, Digest)> = artifacts
         .iter()
         .filter(|artifact| canonical(&artifact.name))
@@ -182,19 +227,47 @@ pub async fn process(
     if record.status != RunState::Running {
         return Ok(ProcessOutcome::Skipped);
     }
-    publish_computed(&services.queue, &run_id).await?;
+    publish(&services.queue, ROUTING_COMPUTED, &run_id).await?;
     Ok(ProcessOutcome::Computed)
 }
 
-async fn publish_computed(queue: &Arc<dyn Queue>, run_id: &str) -> Result<(), WorkerError> {
-    queue
-        .publish(
-            "run.computed",
-            serde_json::to_vec(&serde_json::json!({ "run_id": run_id }))
-                .map_err(|error| WorkerError(error.to_string()))?,
-        )
+async fn cancelled(services: &WorkerServices, run_id: &str) -> Result<bool, WorkerError> {
+    Ok(services
+        .runs
+        .get_any(run_id.to_owned())
         .await
-        .map_err(|error| WorkerError(error.to_string()))
+        .map_err(|error| WorkerError(error.to_string()))?
+        .is_some_and(|record| record.status == RunState::Cancelled))
+}
+
+async fn retry_or_exhaust(
+    services: &WorkerServices,
+    run_id: &str,
+    message: &str,
+    attempts: u32,
+) -> Result<ProcessOutcome, WorkerError> {
+    match retry::decide(attempts) {
+        RetryDecision::Retry(delay) => Ok(ProcessOutcome::Retry { delay }),
+        RetryDecision::DeadLetter => exhaust(services, run_id, message, attempts).await,
+    }
+}
+
+async fn exhaust(
+    services: &WorkerServices,
+    run_id: &str,
+    message: &str,
+    _attempts: u32,
+) -> Result<ProcessOutcome, WorkerError> {
+    let record = services
+        .runs
+        .fail(run_id.to_owned(), message.to_owned(), failed_stages())
+        .await
+        .map_err(|error| WorkerError(error.to_string()))?;
+    if record.status != RunState::Failed {
+        return Ok(ProcessOutcome::Skipped);
+    }
+    publish(&services.queue, ROUTING_DEAD, run_id).await?;
+    Ok(ProcessOutcome::Exhausted)
 }
 
 async fn fail(
@@ -202,24 +275,31 @@ async fn fail(
     run_id: &str,
     message: &str,
 ) -> Result<ProcessOutcome, WorkerError> {
-    services
+    let record = services
         .runs
         .fail(run_id.to_owned(), message.to_owned(), failed_stages())
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
-    services
-        .queue
+    if record.status != RunState::Failed {
+        return Ok(ProcessOutcome::Skipped);
+    }
+    publish(&services.queue, ROUTING_FAILED, run_id).await?;
+    Ok(ProcessOutcome::Failed)
+}
+
+async fn publish(
+    queue: &Arc<dyn Queue>,
+    routing_key: &str,
+    run_id: &str,
+) -> Result<(), WorkerError> {
+    queue
         .publish(
-            "run.failed",
-            serde_json::to_vec(&serde_json::json!({
-                "run_id": run_id,
-                "error": message,
-            }))
-            .map_err(|error| WorkerError(error.to_string()))?,
+            routing_key,
+            serde_json::to_vec(&serde_json::json!({ "run_id": run_id }))
+                .map_err(|error| WorkerError(error.to_string()))?,
         )
         .await
-        .map_err(|error| WorkerError(error.to_string()))?;
-    Ok(ProcessOutcome::Failed)
+        .map_err(|error| WorkerError(error.to_string()))
 }
 
 async fn collect_artifacts(

@@ -36,6 +36,7 @@ use crate::runtime::clock;
 use crate::runtime::config::Config;
 use crate::runtime::error::RuntimeError;
 use crate::runtime::health::HealthRegistry;
+use crate::runtime::queue::{ROUTING_CANCELLED, ROUTING_REQUESTED};
 
 /// The services a gateway can reach.
 #[derive(Default)]
@@ -549,7 +550,7 @@ async fn submit_run(
     let payload = serde_json::to_vec(&message)
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     queue
-        .publish("run.requested", payload)
+        .publish(ROUTING_REQUESTED, payload)
         .await
         .map_err(|error| failure(ErrorCode::QueueUnavailable, error.to_string()))?;
 
@@ -631,7 +632,20 @@ async fn cancel_run(
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
     match runs.cancel(profile, id.clone()).await {
-        Ok(CancelOutcome::Cancelled(record)) => Ok((StatusCode::ACCEPTED, Json(record.detail()))),
+        Ok(CancelOutcome::Cancelled(record)) => {
+            // The run row is authoritative; the message is an observation for
+            // the worker's queue. A publish failure must not undo the cancel.
+            if let Some(queue) = state.queue.as_ref() {
+                let payload = serde_json::to_vec(&serde_json::json!({
+                    "run_id": record.run_id.to_string(),
+                }))
+                .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+                if let Err(error) = queue.publish(ROUTING_CANCELLED, payload).await {
+                    tracing::warn!(run_id = %record.run_id, %error, "cancel message was not published");
+                }
+            }
+            Ok((StatusCode::ACCEPTED, Json(record.detail())))
+        }
         Ok(CancelOutcome::Conflict(record)) => Err(failure(
             ErrorCode::RunConflict,
             format!(

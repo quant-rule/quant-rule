@@ -65,7 +65,7 @@ async fn fixture(suffix: &str) -> Fixture {
         .await
         .expect("submit");
     let run_id = submitted.record().run_id.to_string();
-    runs.claim(run_id.clone()).await.expect("claim");
+    runs.claim(run_id.clone(), false).await.expect("claim");
     Fixture {
         runs,
         objects,
