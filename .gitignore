@@ -36,5 +36,7 @@ Thumbs.db
 # exclusion, because Git does not descend into an excluded parent.
 /data/**
 !/data/**/
-!/data/**/README.md
+!/data/*/README.md
 !/data/partitions.json
+!/data/improvement/index.md
+!/data/improvement/index.json
