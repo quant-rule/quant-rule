@@ -9,7 +9,7 @@ use std::sync::Arc;
 use axum::body::Bytes;
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -120,6 +120,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/profiles", get(list_profiles).post(create_profile))
         .route("/inspect/candles", get(inspect_candles))
         .route("/inspect/timeframes", get(inspect_timeframes))
+        .route("/datasets/{version}/candles", get(get_candles))
         .layer(DefaultBodyLimit::max(limit))
         .with_state(state)
 }
@@ -369,16 +370,14 @@ struct InspectQuery {
     data_version: String,
 }
 
-/// Resolve a dataset and re-read its bytes into a ladder inspection.
-async fn load_inspection(
+/// Resolve a dataset and read its stored bytes, verifying the digest.
+async fn load_dataset_object(
     state: &AppState,
     headers: &HeaderMap,
-    query: Result<Query<InspectQuery>, QueryRejection>,
-) -> Result<(DatasetRecord, Inspection), ApiFailure> {
+    requested: &str,
+) -> Result<(DatasetRecord, Vec<u8>), ApiFailure> {
     let profile = request_profile(state, headers).await?;
-    let Query(query) =
-        query.map_err(|_| failure(ErrorCode::DatasetInvalid, "the query names no data_version"))?;
-    let version = Digest::parse(&query.data_version)
+    let version = Digest::parse(requested)
         .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?
         .to_string();
     let catalog = state
@@ -409,9 +408,39 @@ async fn load_inspection(
             "the stored object does not match the catalog",
         ));
     }
+    Ok((record, bytes))
+}
+
+/// Resolve a dataset and re-read its bytes into a ladder inspection.
+async fn load_inspection(
+    state: &AppState,
+    headers: &HeaderMap,
+    query: Result<Query<InspectQuery>, QueryRejection>,
+) -> Result<(DatasetRecord, Inspection), ApiFailure> {
+    let Query(query) =
+        query.map_err(|_| failure(ErrorCode::DatasetInvalid, "the query names no data_version"))?;
+    let (record, bytes) = load_dataset_object(state, headers, &query.data_version).await?;
     let inspection =
         inspect(&bytes).map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
     Ok((record, inspection))
+}
+
+/// Serve the canonical bytes a run consumes.
+async fn get_candles(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(version): Path<String>,
+) -> Result<impl IntoResponse, ApiFailure> {
+    let (record, bytes) = load_dataset_object(&state, &headers, &version).await?;
+    let etag = format!("\"{}\"", record.summary.data_version);
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "text/csv".to_owned()),
+            (header::ETAG, etag),
+        ],
+        bytes,
+    ))
 }
 
 async fn inspect_candles(
