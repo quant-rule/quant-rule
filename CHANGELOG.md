@@ -106,6 +106,10 @@ are not treated as releases.
 
 ### Changed
 
+- The board is aligned to the kata: six issues carry the six requirements
+  (hypothesis record, exploration, costs, statistical significance,
+  out-of-sample validation, comparison). Profiles and the desktop shell are
+  deferred because the kata does not ask for them.
 - The platform grows from five services to six; the deployment from eight
   containers to nine.
 - The browser client renders charts as SVG and captures marks in the page; the
