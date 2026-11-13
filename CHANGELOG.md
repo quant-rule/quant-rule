@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- Run detail: the browser opens a run from the inbox and shows the stage
+  timeline, provenance including the image digest, the artifact list with
+  hashes, and the canonical digest with a copy action. A failed run shows its
+  error and hides the artifact section.
 - The configs screen: the browser lists the config catalog with origin and
   validity, renders the parser message verbatim, disables submit on an invalid
   config or with no dataset, and submits a run from a valid config without a

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { elapsed, isActive, pollDelay, shortId, submitted } from "./runs";
+import { bytes, elapsed, isActive, pollDelay, shortId, submitted } from "./runs";
 import type { RunSummary } from "./types";
 
 function run(status: RunSummary["status"]): RunSummary {
@@ -52,5 +52,13 @@ describe("elapsed", () => {
 describe("submitted", () => {
   it("renders an RFC 3339 instant as a UTC table value", () => {
     expect(submitted("2026-11-13T12:00:00Z")).toBe("2026-11-13 12:00:00Z");
+  });
+});
+
+describe("bytes", () => {
+  it("renders a fixed byte count", () => {
+    expect(bytes(512)).toBe("512 B");
+    expect(bytes(2_048)).toBe("2.0 KiB");
+    expect(bytes(2 * 1_024 * 1_024)).toBe("2.0 MiB");
   });
 });
