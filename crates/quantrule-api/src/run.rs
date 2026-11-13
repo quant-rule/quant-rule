@@ -23,6 +23,31 @@ impl RunId {
     }
 }
 
+impl StageName {
+    /// The wire and storage token.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Data => "data",
+            Self::Model => "model",
+            Self::Backtest => "backtest",
+            Self::Evidence => "evidence",
+        }
+    }
+
+    /// Parse a stored token.
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "data" => Some(Self::Data),
+            "model" => Some(Self::Model),
+            "backtest" => Some(Self::Backtest),
+            "evidence" => Some(Self::Evidence),
+            _ => None,
+        }
+    }
+}
+
 impl std::fmt::Display for RunId {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(formatter)
@@ -46,6 +71,31 @@ pub enum RunState {
 }
 
 impl RunState {
+    /// The wire and storage token.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Running => "running",
+            Self::Succeeded => "succeeded",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+        }
+    }
+
+    /// Parse a stored token.
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "queued" => Some(Self::Queued),
+            "running" => Some(Self::Running),
+            "succeeded" => Some(Self::Succeeded),
+            "failed" => Some(Self::Failed),
+            "cancelled" => Some(Self::Cancelled),
+            _ => None,
+        }
+    }
+
     /// Whether the state is terminal.
     #[must_use]
     pub fn is_terminal(self) -> bool {
@@ -87,6 +137,33 @@ pub enum StageStatus {
     Failed,
     /// Not run because a later condition was already decided.
     Skipped,
+}
+
+impl StageStatus {
+    /// The wire and storage token.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Running => "running",
+            Self::Done => "done",
+            Self::Failed => "failed",
+            Self::Skipped => "skipped",
+        }
+    }
+
+    /// Parse a stored token.
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "pending" => Some(Self::Pending),
+            "running" => Some(Self::Running),
+            "done" => Some(Self::Done),
+            "failed" => Some(Self::Failed),
+            "skipped" => Some(Self::Skipped),
+            _ => None,
+        }
+    }
 }
 
 /// A stage and its progress.

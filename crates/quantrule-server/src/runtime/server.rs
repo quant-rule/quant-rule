@@ -16,8 +16,9 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use quantrule_api::{
     ConfigSummary, CreateProfileRequest, DatasetRecord, DatasetSummary, Digest, ErrorCode,
-    ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, TimeframeBars,
-    TimeframeInspection, VersionInfo,
+    ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, RunDetail, RunState,
+    RunSummary, SubmitRunRequest, SubmitRunResponse, TimeframeBars, TimeframeInspection,
+    VersionInfo,
 };
 use quantrule_data::Timeframe;
 use quantrule_research::{Hypothesis, SealedHypothesis};
@@ -27,7 +28,8 @@ use crate::configs::{ConfigCatalog, ConfigRecord, scan};
 use crate::data::{CatalogError, DatasetCatalog, Inspection, ingest, inspect, ladder};
 use crate::profile::{ProfileError, ProfileRecord, ProfileStore};
 use crate::research::HypothesisStore;
-use crate::runtime::adapters::ObjectStore;
+use crate::runs::{CancelOutcome, NewRun, RunStore, derive};
+use crate::runtime::adapters::{ObjectStore, Queue};
 use crate::runtime::clock;
 use crate::runtime::config::Config;
 use crate::runtime::error::RuntimeError;
@@ -46,6 +48,10 @@ pub struct Services {
     pub profiles: Option<Arc<dyn ProfileStore>>,
     /// Where run configs are catalogued.
     pub configs: Option<Arc<dyn ConfigCatalog>>,
+    /// Where runs are recorded.
+    pub runs: Option<Arc<dyn RunStore>>,
+    /// The control-plane queue.
+    pub queue: Option<Arc<dyn Queue>>,
 }
 
 /// What a handler needs.
@@ -69,6 +75,10 @@ pub struct AppState {
     pub config_root: PathBuf,
     /// Where run configs are catalogued; absent when no database is configured.
     pub configs: Option<Arc<dyn ConfigCatalog>>,
+    /// Where runs are recorded; absent when no database is configured.
+    pub runs: Option<Arc<dyn RunStore>>,
+    /// The control-plane queue; absent when the broker is unreachable.
+    pub queue: Option<Arc<dyn Queue>>,
     /// The largest upload the gateway will buffer.
     pub max_upload: usize,
 }
@@ -86,6 +96,8 @@ impl std::fmt::Debug for AppState {
             .field("static_dir", &self.static_dir)
             .field("config_root", &self.config_root)
             .field("configs", &self.configs.is_some())
+            .field("runs", &self.runs.is_some())
+            .field("queue", &self.queue.is_some())
             .field("max_upload", &self.max_upload)
             .finish()
     }
@@ -111,6 +123,8 @@ impl AppState {
             static_dir: config.static_dir.clone(),
             config_root: config.config_root.clone(),
             configs: services.configs,
+            runs: services.runs,
+            queue: services.queue,
             max_upload: usize::try_from(config.upload_limit_bytes).unwrap_or(usize::MAX),
         }
     }
@@ -134,6 +148,9 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/catalog/datasets", get(list_datasets).post(create_dataset))
         .route("/catalog/datasets/{version}", get(get_dataset))
         .route("/catalog/configs", get(list_configs))
+        .route("/runs", get(list_runs).post(submit_run))
+        .route("/runs/{id}", get(get_run))
+        .route("/runs/{id}/cancel", post(cancel_run))
         .route("/profiles", get(list_profiles).post(create_profile))
         .route("/inspect/candles", get(inspect_candles))
         .route("/inspect/timeframes", get(inspect_timeframes))
@@ -405,6 +422,229 @@ async fn create_dataset(
             }
         }
         Err(CatalogError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
+    }
+}
+
+/// The optional filters on a run list.
+#[derive(Debug, Deserialize)]
+struct RunListQuery {
+    status: Option<String>,
+    limit: Option<usize>,
+}
+
+/// The model identity recorded in a run config, or `none` when absent.
+fn model_version(body: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("model_id")
+                .and_then(|value| value.as_str())
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| "none".to_owned())
+}
+
+async fn submit_run(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    payload: Result<Json<SubmitRunRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<SubmitRunResponse>), ApiFailure> {
+    let profile = request_profile(&state, &headers).await?;
+    let Json(request) =
+        payload.map_err(|_| failure(ErrorCode::RunInvalid, "the body is not a run submission"))?;
+
+    let catalog = state
+        .catalog
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
+    match catalog
+        .get(profile.clone(), request.data_version.to_string())
+        .await
+    {
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            return Err(failure(
+                ErrorCode::DatasetNotFound,
+                format!("dataset {} is unknown", request.data_version),
+            ));
+        }
+        Err(error) => return Err(failure(ErrorCode::Internal, error.to_string())),
+    }
+
+    let configs = state
+        .configs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
+    let config = configs
+        .get(request.config_id.clone())
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+        .ok_or_else(|| {
+            failure(
+                ErrorCode::ConfigInvalid,
+                format!("config {} is unknown", request.config_id),
+            )
+        })?;
+    if !config.valid {
+        return Err(failure(
+            ErrorCode::ConfigInvalid,
+            config
+                .message
+                .unwrap_or_else(|| "the config is invalid".to_owned()),
+        ));
+    }
+    let Some(config_hash) = config.config_hash.clone() else {
+        return Err(failure(
+            ErrorCode::ConfigInvalid,
+            "a valid config carries no hash",
+        ));
+    };
+
+    let model_version = model_version(&config.body);
+    let image_digest = state
+        .version
+        .image_digest
+        .clone()
+        .unwrap_or_else(|| Digest::sha256(b"no-image-digest"));
+    let run_id = derive(
+        &request.data_version,
+        &config_hash,
+        &model_version,
+        &image_digest,
+    );
+    let runs = state
+        .runs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
+    let outcome = runs
+        .submit(
+            profile.clone(),
+            NewRun {
+                run_id,
+                config_id: request.config_id,
+                data_version: request.data_version,
+                config_hash,
+                model_version,
+                image_digest,
+                owner: profile.as_str().to_owned(),
+                submitted_at: clock::now_utc(),
+            },
+        )
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    let record = outcome.record().clone();
+
+    // Publish for a duplicate too: a retry after a lost publish must be able to
+    // recover, and the worker treats a repeated message as a lookup.
+    let queue = state
+        .queue
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::QueueUnavailable, "no run queue is configured"))?;
+    let message = serde_json::json!({
+        "run_id": record.run_id.to_string(),
+        "data_version": record.data_version.to_string(),
+        "config_id": record.config_id,
+    });
+    let payload = serde_json::to_vec(&message)
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    queue
+        .publish("run.requested", payload)
+        .await
+        .map_err(|error| failure(ErrorCode::QueueUnavailable, error.to_string()))?;
+
+    let response = SubmitRunResponse {
+        run_id: record.run_id,
+        status: record.status,
+        created: outcome.created(),
+    };
+    let status = if outcome.created() {
+        StatusCode::ACCEPTED
+    } else {
+        StatusCode::OK
+    };
+    Ok((status, Json(response)))
+}
+
+async fn list_runs(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    query: Result<Query<RunListQuery>, QueryRejection>,
+) -> Result<Json<Vec<RunSummary>>, ApiFailure> {
+    let profile = request_profile(&state, &headers).await?;
+    let Query(query) =
+        query.map_err(|_| failure(ErrorCode::RunInvalid, "the query is not a run filter"))?;
+    let status = match query.status.as_deref() {
+        None => None,
+        Some(value) => Some(RunState::parse(value).ok_or_else(|| {
+            failure(ErrorCode::RunInvalid, format!("unknown run status {value}"))
+        })?),
+    };
+    let limit = query.limit.unwrap_or(50).clamp(1, 200);
+    let runs = state
+        .runs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
+    let summaries = runs
+        .list(profile, status, limit)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    Ok(Json(summaries))
+}
+
+fn parse_run_id(id: &str) -> Result<String, ApiFailure> {
+    Digest::parse(id)
+        .map(|digest| digest.to_string())
+        .map_err(|error| failure(ErrorCode::RunInvalid, error.to_string()))
+}
+
+async fn get_run(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<RunDetail>, ApiFailure> {
+    let profile = request_profile(&state, &headers).await?;
+    let id = parse_run_id(&id)?;
+    let runs = state
+        .runs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
+    match runs.get(profile, id.clone()).await {
+        Ok(Some(record)) => Ok(Json(record.detail())),
+        Ok(None) => Err(failure(
+            ErrorCode::RunNotFound,
+            format!("run {id} is unknown"),
+        )),
+        Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
+    }
+}
+
+async fn cancel_run(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<(StatusCode, Json<RunDetail>), ApiFailure> {
+    let profile = request_profile(&state, &headers).await?;
+    let id = parse_run_id(&id)?;
+    let runs = state
+        .runs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
+    match runs.cancel(profile, id.clone()).await {
+        Ok(CancelOutcome::Cancelled(record)) => Ok((StatusCode::ACCEPTED, Json(record.detail()))),
+        Ok(CancelOutcome::Conflict(record)) => Err(failure(
+            ErrorCode::RunConflict,
+            format!(
+                "run {} is already {}",
+                record.run_id,
+                record.status.as_str()
+            ),
+        )),
+        Ok(CancelOutcome::Missing) => Err(failure(
+            ErrorCode::RunNotFound,
+            format!("run {id} is unknown"),
+        )),
+        Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
     }
 }
 

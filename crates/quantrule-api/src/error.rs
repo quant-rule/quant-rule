@@ -34,6 +34,9 @@ pub enum ErrorCode {
     /// The run id is unknown.
     #[serde(rename = "run.not_found")]
     RunNotFound,
+    /// A run submission or query is invalid.
+    #[serde(rename = "run.invalid")]
+    RunInvalid,
     /// The requested transition is not allowed in the current state.
     #[serde(rename = "run.conflict")]
     RunConflict,
@@ -73,6 +76,7 @@ impl ErrorCode {
             Self::HypothesisNotFound => "hypothesis.not_found",
             Self::HypothesisInvalid => "hypothesis.invalid",
             Self::RunNotFound => "run.not_found",
+            Self::RunInvalid => "run.invalid",
             Self::RunConflict => "run.conflict",
             Self::UploadTooLarge => "upload.too_large",
             Self::QueueUnavailable => "queue.unavailable",
@@ -94,6 +98,7 @@ impl ErrorCode {
             | Self::DatasetInvalid
             | Self::ConfigInvalid
             | Self::HypothesisInvalid
+            | Self::RunInvalid
             | Self::SimulationMarkInvalid => 400,
             Self::ProfileNotFound
             | Self::DatasetNotFound
@@ -158,7 +163,7 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 16] = [
+    const ALL: [ErrorCode; 17] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
         ErrorCode::HypothesisNotFound,
@@ -167,6 +172,7 @@ mod tests {
         ErrorCode::DatasetInvalid,
         ErrorCode::ConfigInvalid,
         ErrorCode::RunNotFound,
+        ErrorCode::RunInvalid,
         ErrorCode::RunConflict,
         ErrorCode::UploadTooLarge,
         ErrorCode::QueueUnavailable,

@@ -9,6 +9,7 @@ use quantrule_server::configs::ConfigCatalog;
 use quantrule_server::data::DatasetCatalog;
 use quantrule_server::profile::ProfileStore;
 use quantrule_server::research::HypothesisStore;
+use quantrule_server::runs::RunStore;
 use quantrule_server::runtime::AppState;
 use quantrule_server::runtime::Config;
 use quantrule_server::runtime::HealthRegistry;
@@ -16,11 +17,13 @@ use quantrule_server::runtime::RuntimeError;
 use quantrule_server::runtime::Services;
 use quantrule_server::runtime::adapters::Database;
 use quantrule_server::runtime::adapters::ObjectStore;
+use quantrule_server::runtime::adapters::Queue;
 use quantrule_server::runtime::adapters::postgres::PgConfigStore;
 use quantrule_server::runtime::adapters::postgres::PgDatabase;
 use quantrule_server::runtime::adapters::postgres::PgDatasetCatalog;
 use quantrule_server::runtime::adapters::postgres::PgHypothesisStore;
 use quantrule_server::runtime::adapters::postgres::PgProfileStore;
+use quantrule_server::runtime::adapters::postgres::PgRunStore;
 use quantrule_server::runtime::adapters::postgres::apply_migrations;
 use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_server::runtime::adapters::s3::S3Store;
@@ -37,6 +40,8 @@ async fn main() -> Result<(), RuntimeError> {
     let mut catalog: Option<Arc<dyn DatasetCatalog>> = None;
     let mut profiles: Option<Arc<dyn ProfileStore>> = None;
     let mut configs: Option<Arc<dyn ConfigCatalog>> = None;
+    let mut runs: Option<Arc<dyn RunStore>> = None;
+    let mut run_queue: Option<Arc<dyn Queue>> = None;
 
     match PgDatabase::connect(&config.database_url).await {
         Ok(database) => {
@@ -50,6 +55,7 @@ async fn main() -> Result<(), RuntimeError> {
             catalog = Some(Arc::new(PgDatasetCatalog::new(database.pool().clone())));
             profiles = Some(Arc::new(PgProfileStore::new(database.pool().clone())));
             configs = Some(Arc::new(PgConfigStore::new(database.pool().clone())));
+            runs = Some(Arc::new(PgRunStore::new(database.pool().clone())));
             health.register("postgres", move || {
                 let database = database.clone();
                 async move { database.ping().await.map_err(|error| error.to_string()) }
@@ -71,6 +77,8 @@ async fn main() -> Result<(), RuntimeError> {
     match RabbitQueue::connect(&config.queue_url).await {
         Ok(queue) => {
             let queue = Arc::new(queue);
+            let trait_queue: Arc<dyn Queue> = queue.clone();
+            run_queue = Some(trait_queue);
             health.register("queue", move || {
                 let queue = Arc::clone(&queue);
                 async move { queue.check().map_err(|error| error.to_string()) }
@@ -91,6 +99,8 @@ async fn main() -> Result<(), RuntimeError> {
             objects: Some(objects),
             profiles,
             configs,
+            runs,
+            queue: run_queue,
         },
     ));
     tracing::info!(bind = %config.bind, "starting gateway");

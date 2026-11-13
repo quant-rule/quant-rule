@@ -42,7 +42,7 @@ never renders a label, and never returns a raw engine type.
 | GET | `/catalog/configs` | — | run configs with validity and origin |
 | POST | `/catalog/configs` | config JSON | planned; the catalog currently reads the mount |
 | GET | `/runs` | `status`, `limit` | run summaries |
-| POST | `/runs` | `{data_version, config_id}` | `202` or `200` with `run_id` |
+| POST | `/runs` | `{data_version, config_id}` | `202` new, `200` existing, with `run_id` |
 | GET | `/runs/{id}` | — | status, stages, provenance, artifacts |
 | POST | `/runs/{id}/cancel` | — | `202` or `409` |
 | GET | `/runs/{id}/artifacts/{name}` | — | bytes |
@@ -64,7 +64,11 @@ The gateway validates the config, computes `run_id`, writes `queued`, publishes
 { "run_id": "sha256:…", "status": "queued" }
 ```
 
-`202` means new work. `200` means the identical run already exists.
+`202` means new work. `200` means the identical run already exists. A run is
+content-addressed and shared: each profile that submits it gets a submission row,
+and the run itself is not duplicated. A duplicate submission publishes the
+message again, so a retry after a lost publish can recover; the worker treats a
+repeated message as a lookup.
 
 ## 4. Run detail
 
@@ -97,6 +101,7 @@ The gateway validates the config, computes `run_id`, writes `queued`, publishes
 | `dataset.invalid` | 400 | Blank name, bad UTF-8, or a rejected candle |
 | `config.invalid` | 400 | Schema or cross-config rule failed |
 | `run.not_found` | 404 | Unknown run id |
+| `run.invalid` | 400 | Malformed run id or submission |
 | `run.conflict` | 409 | Cancel after completion |
 | `upload.too_large` | 413 | Over the configured limit |
 | `queue.unavailable` | 503 | Broker unreachable |
