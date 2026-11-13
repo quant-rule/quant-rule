@@ -15,6 +15,7 @@ pub mod catalog;
 pub mod digest;
 pub mod error;
 pub mod health;
+pub mod model;
 pub mod profile;
 pub mod run;
 pub mod sha256;
@@ -28,6 +29,7 @@ pub use catalog::{
 pub use digest::{Digest, DigestError};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};
 pub use health::{HealthReport, ServiceHealth, ServiceState, VersionInfo};
+pub use model::{ModelComputeRequest, ModelObject};
 pub use profile::{
     CreateProfileRequest, DEFAULT_PROFILE, PROFILE_HEADER, ProfileId, ProfileSummary,
 };

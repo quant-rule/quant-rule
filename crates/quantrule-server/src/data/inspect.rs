@@ -6,7 +6,7 @@
 
 use quantrule_data::{
     Candle, CandleError, CandleValues, LadderEmission, LadderSummary, LadderWriter, Timeframe,
-    TimeframeCoverage, TimeframeError,
+    TimeframeCoverage, TimeframeError, TimeframeSet,
 };
 
 /// What an inspection found.
@@ -60,6 +60,11 @@ pub enum InspectError {
         /// The timeframe's short code.
         timeframe: &'static str,
     },
+    /// The ladder could not be finished.
+    Finish {
+        /// The engine's reason.
+        source: TimeframeError,
+    },
 }
 
 impl std::fmt::Display for InspectError {
@@ -76,6 +81,7 @@ impl std::fmt::Display for InspectError {
             Self::NoBar { timeframe } => {
                 write!(formatter, "the {timeframe} ladder has no complete bar")
             }
+            Self::Finish { source } => write!(formatter, "cannot finish the ladder: {source}"),
         }
     }
 }
@@ -105,6 +111,24 @@ pub fn inspect(content: &[u8]) -> Result<Inspection, InspectError> {
         last_bar: last_bar as u64,
         timeframes: summary.coverages().collect(),
     })
+}
+
+/// Load the canonical bytes into a bounded timeframe set.
+///
+/// # Errors
+///
+/// Returns [`InspectError`] for a parse or engine rejection, and
+/// [`InspectError::Finish`] when the trailing bucket cannot be finished.
+pub fn series(content: &[u8], limit: usize) -> Result<TimeframeSet, InspectError> {
+    let mut set = TimeframeSet::with_limit(limit);
+    for_each_candle(content, |candle, line| {
+        set.push_values(values(candle))
+            .map(|_| ())
+            .map_err(|source| InspectError::Ladder { line, source })
+    })?;
+    set.finish()
+        .map_err(|source| InspectError::Finish { source })?;
+    Ok(set)
 }
 
 /// Build one timeframe's canonical CSV from the stored bytes.

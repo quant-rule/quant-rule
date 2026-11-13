@@ -25,6 +25,7 @@ mod strategy;
 #[cfg(test)]
 mod tests;
 
+pub use data::DataConfig;
 pub use error::ConfigError;
 pub use qualification::{Correction, CostModel, Dimension, MultipleTesting, Operator};
 pub use qualification::{

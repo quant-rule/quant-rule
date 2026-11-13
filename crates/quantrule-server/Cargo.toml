@@ -19,6 +19,7 @@ lapin = "4.12.3"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-app = { path = "../quantrule-app" }
 quantrule-data = { path = "../quantrule-data" }
+quantrule-model = { path = "../quantrule-model" }
 quantrule-research = { path = "../quantrule-research" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }

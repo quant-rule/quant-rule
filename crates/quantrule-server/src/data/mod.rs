@@ -11,5 +11,5 @@ pub mod tolerant;
 
 pub use catalog::{CatalogError, DatasetCatalog, MemoryCatalog};
 pub use ingest::{IngestError, Ingested, ingest};
-pub use inspect::{InspectError, Inspection, inspect, ladder};
+pub use inspect::{InspectError, Inspection, inspect, ladder, series};
 pub use tolerant::{TolerantIngested, ingest_tolerant};

@@ -209,11 +209,11 @@ pub fn ingest(name: &str, source: &[u8]) -> Result<Ingested, IngestError> {
 
 /// A first line of labels is not a candle.
 pub(crate) fn is_header(fields: &[&str]) -> bool {
-    fields.first().is_some_and(|first| {
-        first
-            .chars()
-            .any(|character| character.is_ascii_alphabetic())
-    })
+    // A header's first cell is a word such as `date`. A timestamp contains
+    // digits, so a malformed date is a row error, not a header to skip.
+    fields
+        .first()
+        .is_some_and(|first| !first.is_empty() && first.chars().all(|c| c.is_ascii_alphabetic()))
 }
 
 #[cfg(test)]
@@ -273,6 +273,15 @@ mod tests {
     fn the_header_is_skipped() {
         let dataset = ingest("candles.csv", CSV.as_bytes()).expect("ingest");
         assert_eq!(dataset.candles, 2);
+    }
+
+    #[test]
+    fn a_timestamp_with_letters_is_not_a_header() {
+        let csv = "2024-01-01T00:00:00Z,100,101,99,100.5,10\n";
+        assert!(matches!(
+            ingest("x.csv", csv.as_bytes()),
+            Err(IngestError::Candle { .. })
+        ));
     }
 
     #[test]

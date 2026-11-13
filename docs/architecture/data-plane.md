@@ -14,7 +14,7 @@ order.
 ```text
 backtest worker (orchestrator)
   1. GET  data:/datasets/{data_version}/candles      → candle stream
-  2. POST model:/compute {data_version, config}      → model artifact ref
+  2. POST model:/compute {data_version, config_id, timeframes?} → model object ref
   3. compute strategy, execution, portfolio locally
   4. write artifacts to CAS
   5. publish run.computed
@@ -32,7 +32,7 @@ Every intermediate and final object is stored under the SHA-256 of its bytes.
 |---|---|
 | Candle series | `candles/{data_version}` |
 | Timeframe ladder | `ladder/{data_version}/{config_hash}/{timeframe}` |
-| Model output | `model/{data_version}/{config_hash}/{model_version}` |
+| Model output | `model/{data_version}/{config_hash}/{model_version}/{ladder}.json` |
 | Run artifacts | `runs/{run_id}/{name}` |
 | Bundle | `runs/{run_id}/bundle.tar` |
 
