@@ -88,6 +88,12 @@ impl Digest {
         format!("{PREFIX}{}", self.0)
     }
 
+    /// The content digest of a byte slice.
+    #[must_use]
+    pub fn sha256(bytes: &[u8]) -> Self {
+        Self(crate::sha256::sha256_hex(bytes))
+    }
+
     /// The first eight characters, for a summary line.
     #[must_use]
     pub fn short(&self) -> &str {

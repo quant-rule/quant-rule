@@ -17,6 +17,7 @@ pub mod error;
 pub mod health;
 pub mod profile;
 pub mod run;
+pub mod sha256;
 pub mod simulation;
 pub mod version;
 
@@ -31,6 +32,7 @@ pub use run::{
     ArtifactRef, Provenance, RunDetail, RunId, RunState, RunSummary, StageName, StageProgress,
     StageStatus, SubmitRunRequest, SubmitRunResponse,
 };
+pub use sha256::{sha256, sha256_hex};
 pub use simulation::{
     CreateSimulationRequest, Mark, MarkAction, MarkOrigin, MarkQuality, Side, SimulationId,
     SimulationStatus, SimulationSummary,
