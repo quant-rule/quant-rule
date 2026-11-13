@@ -49,3 +49,16 @@ export interface ProfileSummary {
   runs: number;
   simulations: number;
 }
+
+/** The lifecycle state of a run. */
+export type RunState = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+
+/** One run in a list. */
+export interface RunSummary {
+  run_id: Digest;
+  status: RunState;
+  config_id: string;
+  data_version: Digest;
+  submitted_at: string;
+  elapsed_ms: number | null;
+}

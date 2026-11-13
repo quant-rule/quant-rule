@@ -3,6 +3,7 @@
   import ConnectionPanel from "./lib/ConnectionPanel.svelte";
   import DatasetsPanel from "./lib/DatasetsPanel.svelte";
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
+  import RunsPanel from "./lib/RunsPanel.svelte";
   import ProfileSwitcher from "./lib/ProfileSwitcher.svelte";
   import { refresh } from "./lib/connection.svelte";
   import { load as loadProfiles } from "./lib/profiles.svelte";
@@ -75,6 +76,8 @@
         <ProfilesPanel />
       {:else if section === "datasets"}
         <DatasetsPanel />
+      {:else if section === "runs"}
+        <RunsPanel />
       {:else}
         <div class="notice">
           This screen arrives with its issue. The connection screen is the first
