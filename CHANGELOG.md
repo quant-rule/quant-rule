@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- The runs inbox: the browser lists runs from the server with status, config,
+  data version, submission time, and duration; it polls every 2 s while a run is
+  active and every 30 s otherwise, cancels only an active run, drops the rows on
+  a failed read, and shows a disconnected state instead of stale evidence.
 - Run submission: `POST /runs` validates the dataset and the run config, derives
   `run_id` from `data_version`, `config_hash`, `model_version`, and
   `image_digest`, stores a queued run, and publishes `run.requested`. A duplicate

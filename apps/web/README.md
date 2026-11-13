@@ -38,6 +38,9 @@ Bun runtime exists in the image.
 | `src/lib/profiles.svelte.ts` | Profile list, create, and remembered id |
 | `src/lib/ProfilesPanel.svelte` | Profiles screen |
 | `src/lib/ProfileSwitcher.svelte` | Active profile in the topbar |
+| `src/lib/runs.ts` | Run status, polling, and display helpers |
+| `src/lib/runs.svelte.ts` | Run list and polling state |
+| `src/lib/RunsPanel.svelte` | Runs inbox and cancel |
 
 Screens arrive with their issues; the connection and datasets screens are
 implemented.
