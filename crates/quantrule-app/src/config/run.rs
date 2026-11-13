@@ -25,9 +25,12 @@ use super::execution::{self, ExecutionRunConfig};
 use super::model;
 use super::portfolio;
 use super::read::{self, ROOT};
+use super::strategy::StrategyConfig;
 
 /// The current run schema.
-pub const RUN_SCHEMA: &str = "quantrule.run/v3";
+pub const RUN_SCHEMA: &str = "quantrule.run/v4";
+/// The previous schema, accepted for a model-only run without a strategy.
+pub const RUN_SCHEMA_V3: &str = "quantrule.run/v3";
 
 /// One validated run, ready for the pipeline.
 #[derive(Debug, Clone)]
@@ -36,9 +39,11 @@ pub struct RunConfig {
     pub name: String,
     /// The resolved output root.
     pub output_root: PathBuf,
-    /// A stable fingerprint of the five config files.
+    /// The schema the run file declared.
+    pub schema_version: String,
+    /// A stable fingerprint of the config files.
     pub config_hash: String,
-    /// The five resolved config paths.
+    /// The resolved config paths.
     pub paths: ConfigPaths,
     /// The optional model identity, such as `M1.0`.
     pub model_id: Option<String>,
@@ -52,13 +57,15 @@ pub struct RunConfig {
     pub model_ladder: Option<Vec<Timeframe>>,
     /// The model engine's configuration.
     pub model: MarketStateConfig,
+    /// The human-owned strategy, when the run config names one.
+    pub strategy: Option<StrategyConfig>,
     /// The execution engine's configuration and fill policy.
     pub execution: ExecutionRunConfig,
     /// The portfolio engine's configuration.
     pub portfolio: PortfolioConfig,
 }
 
-/// The five resolved config files.
+/// The resolved config files.
 #[derive(Debug, Clone)]
 pub struct ConfigPaths {
     /// The run file itself.
@@ -71,6 +78,8 @@ pub struct ConfigPaths {
     pub execution: PathBuf,
     /// The portfolio file.
     pub portfolio: PathBuf,
+    /// The strategy file, when the run config names one.
+    pub strategy: Option<PathBuf>,
 }
 
 impl RunConfig {
@@ -92,6 +101,7 @@ impl RunConfig {
             model: base.join(&run.model),
             execution: base.join(&run.execution),
             portfolio: base.join(&run.portfolio),
+            strategy: run.strategy.as_ref().map(|name| base.join(name)),
         };
 
         let data = data::parse(
@@ -111,10 +121,15 @@ impl RunConfig {
             &load_document(&paths.portfolio, display(&run.portfolio))?,
             display(&run.portfolio),
         )?;
+        let strategy = match &paths.strategy {
+            Some(path) => Some(super::strategy::load(path)?.0),
+            None => None,
+        };
 
         let config_hash = fingerprint(&paths)?;
         let config = Self {
             name: run.name,
+            schema_version: run.schema,
             output_root: base.join(&run.output_root),
             config_hash,
             paths,
@@ -124,6 +139,7 @@ impl RunConfig {
             data,
             model_ladder: run.model_timeframes,
             model,
+            strategy,
             execution,
             portfolio,
         };
@@ -177,6 +193,36 @@ impl RunConfig {
             }
         }
 
+        if let Some(strategy) = &self.strategy {
+            let strategy_file = self
+                .paths
+                .strategy
+                .as_ref()
+                .map_or("strategy.json", |path| file_name(path));
+            if !self
+                .data
+                .available_timeframes
+                .contains(&strategy.execution_timeframe)
+            {
+                return Err(ConfigError::inconsistent(
+                    strategy_file,
+                    "$.execution_timeframe",
+                    "a timeframe from the available data ladder",
+                    strategy.execution_timeframe.code(),
+                ));
+            }
+            for timeframe in &strategy.context_timeframes {
+                if !self.data.available_timeframes.contains(timeframe) {
+                    return Err(ConfigError::inconsistent(
+                        strategy_file,
+                        "$.context_timeframes",
+                        "timeframes from the available data ladder",
+                        timeframe.code(),
+                    ));
+                }
+            }
+        }
+
         if let Some(ladder) = &self.model_ladder {
             for timeframe in ladder {
                 if !self.data.available_timeframes.contains(timeframe) {
@@ -218,6 +264,7 @@ impl RunConfig {
 #[derive(Debug)]
 pub(super) struct RunFile {
     pub(super) name: String,
+    pub(super) schema: String,
     model_id: Option<String>,
     execution_id: Option<String>,
     portfolio_id: Option<String>,
@@ -227,6 +274,7 @@ pub(super) struct RunFile {
     portfolio: String,
     pub(super) model_timeframes: Option<Vec<Timeframe>>,
     pub(super) output_root: String,
+    pub(super) strategy: Option<String>,
 }
 
 pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
@@ -247,13 +295,45 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             "portfolio",
             "model_timeframes",
             "output_root",
+            "strategy",
         ],
     )?;
-    read::schema(file, object, RUN_SCHEMA)?;
+    let schema =
+        read::string(file, "$.schema", read::field(file, ROOT, object, "schema")?)?.to_owned();
+    let strategy = match schema.as_str() {
+        RUN_SCHEMA => Some(
+            read::non_empty_string(
+                file,
+                "$.strategy",
+                read::field(file, ROOT, object, "strategy")?,
+            )?
+            .to_owned(),
+        ),
+        RUN_SCHEMA_V3 => {
+            if object.contains_key("strategy") {
+                return Err(ConfigError::schema(
+                    file,
+                    "$.strategy",
+                    "absent in quantrule.run/v3",
+                    "present",
+                ));
+            }
+            None
+        }
+        other => {
+            return Err(ConfigError::schema(
+                file,
+                "$.schema",
+                "quantrule.run/v4 or quantrule.run/v3",
+                other,
+            ));
+        }
+    };
 
     Ok(RunFile {
         name: read::non_empty_string(file, "$.name", read::field(file, ROOT, object, "name")?)?
             .to_owned(),
+        schema,
         model_id: optional_identity(file, object, "model_id")?,
         execution_id: optional_identity(file, object, "execution_id")?,
         portfolio_id: optional_identity(file, object, "portfolio_id")?,
@@ -283,6 +363,7 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             read::field(file, ROOT, object, "output_root")?,
         )?
         .to_owned(),
+        strategy,
     })
 }
 
@@ -345,13 +426,17 @@ fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
     const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
     const PRIME: u64 = 0x0000_0100_0000_01b3;
     let mut hash = OFFSET;
-    for path in [
+    let mut files: Vec<&PathBuf> = vec![
         &paths.run,
         &paths.data,
         &paths.model,
         &paths.execution,
         &paths.portfolio,
-    ] {
+    ];
+    if let Some(strategy) = &paths.strategy {
+        files.push(strategy);
+    }
+    for path in files {
         let bytes = std::fs::read(path).map_err(|error| match error.kind() {
             io::ErrorKind::NotFound => ConfigError::missing_file(file_name(path)),
             _ => ConfigError::unreadable_file(file_name(path)),

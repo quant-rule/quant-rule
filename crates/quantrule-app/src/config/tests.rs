@@ -358,15 +358,29 @@ fn run_parses_the_current_shape() {
 }
 
 #[test]
-fn run_rejects_the_removed_strategy_and_analytics_files() {
-    for field in ["strategy", "analytics"] {
-        let value = set(run_object(), &[field], json!("old.json"));
-        assert_rejected(
-            run::parse(&value, "run.json"),
-            ConfigErrorKind::UnknownField,
-            &format!("$.{field}"),
-        );
-    }
+fn run_rejects_a_strategy_in_v3_and_an_analytics_file() {
+    let value = set(run_object(), &["strategy"], json!("strategy.json"));
+    assert_rejected(
+        run::parse(&value, "run.json"),
+        ConfigErrorKind::Schema,
+        "$.strategy",
+    );
+    let value = set(run_object(), &["analytics"], json!("old.json"));
+    assert_rejected(
+        run::parse(&value, "run.json"),
+        ConfigErrorKind::UnknownField,
+        "$.analytics",
+    );
+}
+
+#[test]
+fn run_accepts_a_v4_strategy() {
+    let mut value = run_object();
+    value["schema"] = json!("quantrule.run/v4");
+    value["strategy"] = json!("strategy.json");
+    let parsed = run::parse(&value, "run.json").expect("v4 parses");
+    assert_eq!(parsed.schema, "quantrule.run/v4");
+    assert_eq!(parsed.strategy.as_deref(), Some("strategy.json"));
 }
 
 #[test]

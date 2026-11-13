@@ -1,0 +1,13 @@
+{
+  "schema": "quantrule.run/v4",
+  "name": "btcusd-2024-v4",
+  "model_id": "M1.0",
+  "execution_id": "E1.0",
+  "portfolio_id": "P1.0",
+  "data": "data.json",
+  "model": "model.json",
+  "execution": "execution.json",
+  "portfolio": "portfolio.json",
+  "strategy": "strategy.json",
+  "output_root": "../../../data/labs/backtest-btcusd-2024"
+}

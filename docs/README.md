@@ -124,10 +124,10 @@ repeating a status.
 | Strategy position excursions | Current; entry price/ATR, unrealized, MFE/MAE, giveback exit | `docs/config/2026-11-10/strategy-position-excursions.md` |
 | Improvement run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical | `docs/workflows/run-contract.md` |
 
-The current run does not reference `strategy.json` or `analytics.json`. The loader
-rejects them with an unknown-field error. The strategy file and the qualification
-criteria are explicit command arguments; the run schema stays
-`quantrule.run/v3`.
+A current run uses `quantrule.run/v4`, which references the strategy alongside
+the four engine files. `quantrule.run/v3` remains accepted for a model-only run
+and must not carry a `strategy` field. `analytics` is still rejected; the
+qualification criteria remain explicit command arguments.
 
 ## Current evidence
 

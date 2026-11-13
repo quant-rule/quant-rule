@@ -11,12 +11,12 @@ interchangeable, and only the first kind is a current run config.
 | Path | Holds |
 |---|---|
 | `config/defaults/` | Default portfolio and model files |
-| `config/examples/` | Current example runs: data, model, execution, portfolio, and `run.json` |
+| `config/examples/` | Current example runs, including `run.json`, the four engine files, and the strategy for v4 |
 
-A current `run.json` uses `quantrule.run/v3` and names exactly four engine
-files: `data`, `model`, `execution`, and `portfolio`, plus `output_root` and the
-optional identity fields. The policy layer is retired. `strategy` and `analytics` are retired fields; the
-loader rejects them with an unknown-field error. The strategy file and the
+A current `run.json` uses `quantrule.run/v4` and names five files: `data`,
+`model`, `execution`, `portfolio`, and `strategy`, plus `output_root` and the
+optional identity fields. `quantrule.run/v3` remains accepted for a model-only
+run and must not carry a `strategy` field. `analytics` is still rejected. The
 qualification criteria are explicit command arguments, not run fields. The
 current model schema is `quantrule.model/v4`; model schemas 1–3 are rejected.
 

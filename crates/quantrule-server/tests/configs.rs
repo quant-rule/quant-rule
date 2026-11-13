@@ -51,7 +51,7 @@ async fn the_mount_is_scanned_and_listed() {
     assert_eq!(response.status(), StatusCode::OK);
     let records: Vec<ConfigSummary> =
         serde_json::from_slice(&body_bytes(response).await).expect("configs");
-    assert_eq!(records.len(), 2);
+    assert_eq!(records.len(), 3);
 
     let valid = records
         .iter()
@@ -86,8 +86,8 @@ async fn configs_are_profile_scoped_but_the_bundle_is_shared() {
     let alpha = list_for(Arc::clone(&state), "alpha").await;
     let alpha: Vec<ConfigSummary> =
         serde_json::from_slice(&body_bytes(alpha).await).expect("alpha");
-    assert_eq!(default.len(), 2);
-    assert_eq!(alpha.len(), 2);
+    assert_eq!(default.len(), 3);
+    assert_eq!(alpha.len(), 3);
 
     let response = upload(Arc::clone(&state), bundle()).await;
     assert_eq!(response.status(), StatusCode::CREATED);
@@ -100,8 +100,8 @@ async fn configs_are_profile_scoped_but_the_bundle_is_shared() {
     let alpha = list_for(state, "alpha").await;
     let alpha: Vec<ConfigSummary> =
         serde_json::from_slice(&body_bytes(alpha).await).expect("alpha");
-    assert_eq!(default.len(), 3);
-    assert_eq!(alpha.len(), 2);
+    assert_eq!(default.len(), 4);
+    assert_eq!(alpha.len(), 3);
     assert!(
         default
             .iter()
@@ -194,7 +194,7 @@ async fn an_uploaded_bundle_is_catalogued() {
     let response = list(state).await;
     let records: Vec<ConfigSummary> =
         serde_json::from_slice(&body_bytes(response).await).expect("configs");
-    assert_eq!(records.len(), 3);
+    assert_eq!(records.len(), 4);
     assert!(
         records
             .iter()
