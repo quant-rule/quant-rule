@@ -25,6 +25,12 @@ pub enum ErrorCode {
     /// A configuration failed schema or cross-config validation.
     #[serde(rename = "config.invalid")]
     ConfigInvalid,
+    /// The hypothesis fingerprint is unknown.
+    #[serde(rename = "hypothesis.not_found")]
+    HypothesisNotFound,
+    /// A hypothesis failed validation.
+    #[serde(rename = "hypothesis.invalid")]
+    HypothesisInvalid,
     /// The run id is unknown.
     #[serde(rename = "run.not_found")]
     RunNotFound,
@@ -64,6 +70,8 @@ impl ErrorCode {
             Self::DatasetNotFound => "dataset.not_found",
             Self::DatasetExists => "dataset.exists",
             Self::ConfigInvalid => "config.invalid",
+            Self::HypothesisNotFound => "hypothesis.not_found",
+            Self::HypothesisInvalid => "hypothesis.invalid",
             Self::RunNotFound => "run.not_found",
             Self::RunConflict => "run.conflict",
             Self::UploadTooLarge => "upload.too_large",
@@ -82,9 +90,13 @@ impl ErrorCode {
     #[must_use]
     pub fn status(self) -> u16 {
         match self {
-            Self::ProfileInvalid | Self::ConfigInvalid | Self::SimulationMarkInvalid => 400,
+            Self::ProfileInvalid
+            | Self::ConfigInvalid
+            | Self::HypothesisInvalid
+            | Self::SimulationMarkInvalid => 400,
             Self::ProfileNotFound
             | Self::DatasetNotFound
+            | Self::HypothesisNotFound
             | Self::RunNotFound
             | Self::SimulationNotFound => 404,
             Self::DatasetExists
@@ -148,9 +160,11 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 14] = [
+    const ALL: [ErrorCode; 16] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
+        ErrorCode::HypothesisNotFound,
+        ErrorCode::HypothesisInvalid,
         ErrorCode::DatasetNotFound,
         ErrorCode::DatasetExists,
         ErrorCode::ConfigInvalid,

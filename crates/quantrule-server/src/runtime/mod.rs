@@ -5,6 +5,7 @@
 //! measurement or a trade.
 
 pub mod adapters;
+pub mod clock;
 pub mod config;
 pub mod error;
 pub mod health;

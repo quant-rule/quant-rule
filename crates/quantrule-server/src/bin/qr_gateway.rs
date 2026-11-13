@@ -5,12 +5,14 @@
 
 use std::sync::Arc;
 
+use quantrule_server::research::HypothesisStore;
 use quantrule_server::runtime::AppState;
 use quantrule_server::runtime::Config;
 use quantrule_server::runtime::HealthRegistry;
 use quantrule_server::runtime::RuntimeError;
 use quantrule_server::runtime::adapters::Database;
 use quantrule_server::runtime::adapters::postgres::PgDatabase;
+use quantrule_server::runtime::adapters::postgres::PgHypothesisStore;
 use quantrule_server::runtime::adapters::postgres::apply_migrations;
 use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_server::runtime::adapters::s3::S3Store;
@@ -23,6 +25,7 @@ async fn main() -> Result<(), RuntimeError> {
     logging::init("info")?;
 
     let mut health = HealthRegistry::new();
+    let mut hypotheses: Option<Arc<dyn HypothesisStore>> = None;
 
     match PgDatabase::connect(&config.database_url).await {
         Ok(database) => {
@@ -32,6 +35,7 @@ async fn main() -> Result<(), RuntimeError> {
                     .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
                 tracing::info!(applied, "migrations applied");
             }
+            hypotheses = Some(Arc::new(PgHypothesisStore::new(database.pool().clone())));
             health.register("postgres", move || {
                 let database = database.clone();
                 async move { database.ping().await.map_err(|error| error.to_string()) }
@@ -63,7 +67,7 @@ async fn main() -> Result<(), RuntimeError> {
         }),
     }
 
-    let state = Arc::new(AppState::new(&config, health));
+    let state = Arc::new(AppState::with_store(&config, health, hypotheses));
     tracing::info!(bind = %config.bind, "starting gateway");
     server::serve(&config, state).await
 }
