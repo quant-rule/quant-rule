@@ -74,6 +74,8 @@ pub struct Config {
     pub bearer_token: Option<String>,
     /// Where the built client lives; absent in a client-less test or probe.
     pub static_dir: Option<PathBuf>,
+    /// Where the read-only run-config mount lives.
+    pub config_root: PathBuf,
     /// Runs a backtest worker executes at once.
     pub backtest_concurrency: u32,
     /// The image digest that serves the request.
@@ -93,6 +95,7 @@ impl Default for Config {
             upload_limit_bytes: DEFAULT_UPLOAD_LIMIT,
             bearer_token: None,
             static_dir: None,
+            config_root: PathBuf::from("config"),
             backtest_concurrency: 1,
             image_digest: None,
             migrate: true,
@@ -156,6 +159,12 @@ impl Config {
         {
             config.static_dir = Some(PathBuf::from(value));
         }
+        if let Some(value) = values
+            .get("QR_CONFIG_ROOT")
+            .filter(|value| !value.trim().is_empty())
+        {
+            config.config_root = PathBuf::from(value);
+        }
         if let Some(value) = values.get("QR_BEARER_TOKEN") {
             config.bearer_token = Some(value.clone()).filter(|token| !token.is_empty());
         }
@@ -217,6 +226,14 @@ mod tests {
         assert_eq!(config.backtest_concurrency, 1);
         assert!(config.bearer_token.is_none());
         assert!(config.static_dir.is_none());
+        assert_eq!(config.config_root, PathBuf::from("config"));
+    }
+
+    #[test]
+    fn a_config_root_is_read() {
+        let config =
+            Config::from_map(&map(&[("QR_CONFIG_ROOT", "/srv/config")])).expect("config root");
+        assert_eq!(config.config_root, PathBuf::from("/srv/config"));
     }
 
     #[test]

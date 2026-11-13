@@ -462,3 +462,139 @@ impl crate::profile::ProfileStore for PgProfileStore {
         })
     }
 }
+
+/// A configuration catalog backed by Postgres.
+#[derive(Debug, Clone)]
+pub struct PgConfigStore {
+    pool: PgPool,
+}
+
+impl PgConfigStore {
+    /// Build the store over an existing pool.
+    #[must_use]
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+type ConfigRow = (
+    String,
+    String,
+    String,
+    bool,
+    Option<String>,
+    Option<String>,
+    String,
+    String,
+);
+
+fn config_origin(
+    value: &str,
+) -> Result<quantrule_api::ConfigOrigin, crate::configs::ConfigStoreError> {
+    match value {
+        "repository" => Ok(quantrule_api::ConfigOrigin::Repository),
+        "upload" => Ok(quantrule_api::ConfigOrigin::Upload),
+        other => Err(crate::configs::ConfigStoreError(format!(
+            "a stored config has an unknown origin: {other}"
+        ))),
+    }
+}
+
+fn config_record(
+    row: ConfigRow,
+) -> Result<crate::configs::ConfigRecord, crate::configs::ConfigStoreError> {
+    let config_hash = row
+        .5
+        .map(|value| quantrule_api::Digest::parse(&value))
+        .transpose()
+        .map_err(|error| {
+            crate::configs::ConfigStoreError(format!("a stored config hash is malformed: {error}"))
+        })?;
+    Ok(crate::configs::ConfigRecord {
+        config_id: row.0,
+        name: row.1,
+        origin: config_origin(&row.2)?,
+        valid: row.3,
+        message: row.4,
+        config_hash,
+        body: row.6,
+        created_at: row.7,
+    })
+}
+
+impl crate::configs::ConfigCatalog for PgConfigStore {
+    fn upsert(
+        &self,
+        record: crate::configs::ConfigRecord,
+    ) -> BoxFuture<Result<(), crate::configs::ConfigStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let origin = match record.origin {
+                quantrule_api::ConfigOrigin::Repository => "repository",
+                quantrule_api::ConfigOrigin::Upload => "upload",
+            };
+            sqlx::query(
+                "INSERT INTO catalog.configs
+                     (config_id, name, origin, valid, message, config_hash, body, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz)
+                 ON CONFLICT (config_id) DO UPDATE SET
+                     name = EXCLUDED.name,
+                     origin = EXCLUDED.origin,
+                     valid = EXCLUDED.valid,
+                     message = EXCLUDED.message,
+                     config_hash = EXCLUDED.config_hash,
+                     body = EXCLUDED.body",
+            )
+            .bind(&record.config_id)
+            .bind(&record.name)
+            .bind(origin)
+            .bind(record.valid)
+            .bind(&record.message)
+            .bind(record.config_hash.map(|digest| digest.to_wire()))
+            .bind(&record.body)
+            .bind(&record.created_at)
+            .execute(&pool)
+            .await
+            .map(|_| ())
+            .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))
+        })
+    }
+
+    fn list(
+        &self,
+    ) -> BoxFuture<Result<Vec<crate::configs::ConfigRecord>, crate::configs::ConfigStoreError>>
+    {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let rows: Vec<ConfigRow> = sqlx::query_as(
+                "SELECT config_id, name, origin, valid, message, config_hash, body,
+                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                 FROM catalog.configs ORDER BY config_id",
+            )
+            .fetch_all(&pool)
+            .await
+            .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?;
+            rows.into_iter().map(config_record).collect()
+        })
+    }
+
+    fn get(
+        &self,
+        config_id: String,
+    ) -> BoxFuture<Result<Option<crate::configs::ConfigRecord>, crate::configs::ConfigStoreError>>
+    {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let row: Option<ConfigRow> = sqlx::query_as(
+                "SELECT config_id, name, origin, valid, message, config_hash, body,
+                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                 FROM catalog.configs WHERE config_id = $1",
+            )
+            .bind(&config_id)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?;
+            row.map(config_record).transpose()
+        })
+    }
+}
