@@ -31,7 +31,7 @@ Every intermediate and final object is stored under the SHA-256 of its bytes.
 | Object | Key |
 |---|---|
 | Candle series | `candles/{data_version}` |
-| Timeframe ladder | `ladder/{data_version}/{config_hash}` |
+| Timeframe ladder | `ladder/{data_version}/{config_hash}/{timeframe}` |
 | Model output | `model/{data_version}/{config_hash}/{model_version}` |
 | Run artifacts | `runs/{run_id}/{name}` |
 | Bundle | `runs/{run_id}/bundle.tar` |
