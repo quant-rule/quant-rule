@@ -11,6 +11,7 @@ use quantrule_server::runtime::HealthRegistry;
 use quantrule_server::runtime::RuntimeError;
 use quantrule_server::runtime::adapters::Database;
 use quantrule_server::runtime::adapters::postgres::PgDatabase;
+use quantrule_server::runtime::adapters::postgres::apply_migrations;
 use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_server::runtime::adapters::s3::S3Store;
 use quantrule_server::runtime::logging;
@@ -24,10 +25,18 @@ async fn main() -> Result<(), RuntimeError> {
     let mut health = HealthRegistry::new();
 
     match PgDatabase::connect(&config.database_url).await {
-        Ok(database) => health.register("postgres", move || {
-            let database = database.clone();
-            async move { database.ping().await.map_err(|error| error.to_string()) }
-        }),
+        Ok(database) => {
+            if config.migrate {
+                let applied = apply_migrations(database.pool())
+                    .await
+                    .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+                tracing::info!(applied, "migrations applied");
+            }
+            health.register("postgres", move || {
+                let database = database.clone();
+                async move { database.ping().await.map_err(|error| error.to_string()) }
+            })
+        }
         Err(error) => health.register("postgres", move || {
             let message = error.to_string();
             async move { Err(message) }

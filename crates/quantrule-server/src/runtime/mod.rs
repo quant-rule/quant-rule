@@ -9,6 +9,7 @@ pub mod config;
 pub mod error;
 pub mod health;
 pub mod logging;
+pub mod migrations;
 pub mod server;
 pub mod shutdown;
 
