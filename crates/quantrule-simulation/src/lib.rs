@@ -12,9 +12,11 @@
 pub mod check;
 pub mod marks;
 pub mod oracle;
+pub mod review;
 pub mod window;
 
 pub use check::{Check, CheckError, Criteria, Failure, check};
 pub use marks::{Mark, MarkAction, MarkError, MarkOrigin, MarkQuality, Side};
 pub use oracle::{Bar, OracleError, label};
+pub use review::{Agreement, Counts, Disagreement, Review, review};
 pub use window::{Window, WindowError, select};
