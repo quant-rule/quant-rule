@@ -1,7 +1,7 @@
 # DIST-033 — Backtest Worker and Run Orchestrator
 
 - Date: 2026-11-13 (UTC)
-- Status: Approved
+- Status: Verified
 - Approved: 2026-11-13 (UTC)
 - Issue: #649
 - Claim type: Behaviour Claim
@@ -91,15 +91,15 @@ Excluded:
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Digest | Sorted paths give one stable digest; reordered input gives the same | unit test | equal | — | Pending | — | — | — |
-| V2 | Store | Claim is queued→running only; complete/fail terminal | store tests | as stated | — | Pending | — | — | — |
-| V3 | Queue | Fake consumer delivers one message and acks | adapter test | as stated | — | Pending | — | — | — |
-| V4 | Workspace | Rewritten data.json loads and points at the dataset CSV | unit test | loads | — | Pending | — | — | — |
-| V5 | Full run | Queued fixture becomes succeeded with artifacts and digest | integration test | succeeded | — | Pending | — | — | — |
-| V6 | Duplicate | Two deliveries produce one execution and one artifact set | integration test | one | — | Pending | — | — | — |
-| V7 | Invalid config | Missing/invalid config records failed, no artifacts | integration test | failed | — | Pending | — | — | — |
-| V8 | Cancel | Cancel before execution leaves cancelled, no artifacts | integration test | cancelled | — | Pending | — | — | — |
-| V9 | Gates | Tests, clippy, fmt, rustdoc, checkers | `tools/gate.sh` | pass | — | Pending | — | — | — |
+| V1 | Digest | Sorted paths give one stable digest; reordered input gives the same | unit test | equal | 3 digest tests pass | Pass | Orchestrator | 2026-11-13 | Local evidence |
+| V2 | Store | Claim is queued→running only; complete/fail terminal | store tests | as stated | 4 worker store tests pass | Pass | Orchestrator | 2026-11-13 | Local evidence |
+| V3 | Queue | Fake consumer delivers one message and acks | adapter test | as stated | consumer fake test passes | Pass | Orchestrator | 2026-11-13 | Local evidence |
+| V4 | Workspace | Rewritten data.json loads and points at the dataset CSV | unit test | loads | workspace test loads the bundle | Pass | Orchestrator | 2026-11-13 | Source CSV reconstructed with the required header |
+| V5 | Full run | Queued fixture becomes succeeded with artifacts and digest | integration test | succeeded | worker test succeeds with artifacts and digest | Pass | Orchestrator | 2026-11-13 | Local evidence |
+| V6 | Duplicate | Two deliveries produce one execution and one artifact set | integration test | one | second delivery is Skipped | Pass | Orchestrator | 2026-11-13 | Terminal republish |
+| V7 | Invalid config | Missing/invalid config records failed, no artifacts | integration test | failed | invalid and missing-input tests record failed | Pass | Orchestrator | 2026-11-13 | Local evidence |
+| V8 | Cancel | Cancel before execution leaves cancelled, no artifacts | integration test | cancelled | cancel test is Skipped and empty | Pass | Orchestrator | 2026-11-13 | Local evidence |
+| V9 | Gates | Tests, clippy, fmt, rustdoc, checkers | `tools/gate.sh` | pass | workspace gate passed | Pass | Orchestrator | 2026-11-13 | CI on the PR |
 
 ## 8. Risks and recovery
 

@@ -2736,6 +2736,7 @@ dependencies = [
  "aws-config",
  "aws-sdk-s3",
  "axum",
+ "futures-util",
  "lapin",
  "quantrule-api",
  "quantrule-app",

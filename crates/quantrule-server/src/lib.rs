@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod backtest;
 pub mod configs;
 pub mod data;
 pub mod model;

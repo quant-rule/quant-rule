@@ -39,7 +39,11 @@ fn a_client_library_is_named_only_in_its_adapter() {
             .replace('\\', "/");
         let text = std::fs::read_to_string(&file).expect("read source");
         for (client, allowed) in CLIENT_TO_ADAPTER {
-            if relative == format!("src/{allowed}") {
+            let base = format!("src/{allowed}");
+            if relative == base
+                || (allowed.ends_with("postgres.rs")
+                    && relative.starts_with("src/runtime/adapters/postgres/"))
+            {
                 continue;
             }
             if text.contains(client) {

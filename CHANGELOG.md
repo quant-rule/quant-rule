@@ -22,6 +22,14 @@ are not treated as releases.
 
 ### Added
 
+- The backtest worker core: `POST`-submitted runs are claimed, their six-file
+  config and catalogued dataset are materialized into a private workspace, the
+  coupled backtest runs, artifacts are written to CAS, the canonical digest is
+  computed over `results.json`, `*.csv`, and `*.ndjson`, and the run is
+  finalized. `qr-backtest` consumes `run.requested`; duplicate deliveries skip a
+  terminal or running run, and a cancel before finalization leaves it cancelled.
+- A `QueueConsumer` trait with a RabbitMQ implementation and an in-memory fake;
+  a successful handler is acked, a failed one is nacked.
 - The model compute route: `POST /model/compute` loads a catalogued dataset and
   run config by reference, materializes the config bundle, computes the declared
   ladder per timeframe, merges the reports sorted, and stores one JSON object in
@@ -132,6 +140,9 @@ are not treated as releases.
 
 ### Changed
 
+- The v4 strategy example uses a 1m execution fill to match the strategy. The
+  worker exposed that the app requires the strategy execution timeframe and the
+  execution fill timeframe to agree; the v4 contract now states it.
 - The model engine's extended signal detector now sits under
   `events/extended/`, the extended submodules use explicit imports, and source
   codes are defined once in `events/source_codes.rs`.

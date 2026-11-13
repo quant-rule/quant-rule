@@ -11,10 +11,15 @@ publish = false
 name = "qr-gateway"
 path = "src/bin/qr_gateway.rs"
 
+[[bin]]
+name = "qr-backtest"
+path = "src/bin/qr_backtest.rs"
+
 [dependencies]
 aws-config = "1.13.2"
 aws-sdk-s3 = "1.159.0"
 axum = "0.8.9"
+futures-util = "0.3"
 lapin = "4.12.3"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-app = { path = "../quantrule-app" }

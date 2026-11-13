@@ -5,11 +5,17 @@
 
 use std::sync::Arc;
 
-use lapin::options::{BasicPublishOptions, ExchangeDeclareOptions};
+use futures_util::StreamExt;
+use lapin::options::{
+    BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions, BasicQosOptions,
+    ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
+};
 use lapin::types::FieldTable;
 use lapin::{Channel, Connection, ConnectionProperties, ExchangeKind};
 
-use crate::runtime::adapters::{Backend, BoxFuture, Queue, QueueError};
+use crate::runtime::adapters::{
+    Backend, BoxFuture, MessageHandler, Queue, QueueConsumer, QueueError,
+};
 
 /// The control-plane exchange.
 pub const EXCHANGE: &str = "quantrule.runs";
@@ -98,6 +104,76 @@ impl Queue for RabbitQueue {
                 .await
                 .map(|_| ())
                 .map_err(|error| QueueError(error.to_string()))
+        })
+    }
+}
+
+impl QueueConsumer for RabbitQueue {
+    fn backend(&self) -> Backend {
+        Backend::RabbitMq
+    }
+
+    fn consume(&self, queue: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>> {
+        let channel = self.channel.clone();
+        let queue = queue.to_owned();
+        Box::pin(async move {
+            channel
+                .queue_declare(
+                    queue.as_str().into(),
+                    QueueDeclareOptions {
+                        durable: true,
+                        ..QueueDeclareOptions::default()
+                    },
+                    FieldTable::default(),
+                )
+                .await
+                .map_err(|error| QueueError(error.to_string()))?;
+            channel
+                .queue_bind(
+                    queue.as_str().into(),
+                    EXCHANGE.into(),
+                    queue.as_str().into(),
+                    QueueBindOptions::default(),
+                    FieldTable::default(),
+                )
+                .await
+                .map_err(|error| QueueError(error.to_string()))?;
+            channel
+                .basic_qos(1, BasicQosOptions::default())
+                .await
+                .map_err(|error| QueueError(error.to_string()))?;
+            let mut consumer = channel
+                .basic_consume(
+                    queue.as_str().into(),
+                    format!("quantrule-{queue}").as_str().into(),
+                    BasicConsumeOptions::default(),
+                    FieldTable::default(),
+                )
+                .await
+                .map_err(|error| QueueError(error.to_string()))?;
+            while let Some(delivery) = consumer.next().await {
+                let delivery = delivery.map_err(|error| QueueError(error.to_string()))?;
+                let payload = delivery.data.clone();
+                match handler(payload).await {
+                    Ok(()) => {
+                        delivery
+                            .ack(BasicAckOptions::default())
+                            .await
+                            .map_err(|error| QueueError(error.to_string()))?;
+                    }
+                    Err(error) => {
+                        delivery
+                            .nack(BasicNackOptions {
+                                requeue: true,
+                                ..BasicNackOptions::default()
+                            })
+                            .await
+                            .map_err(|error| QueueError(error.to_string()))?;
+                        return Err(error);
+                    }
+                }
+            }
+            Ok(())
         })
     }
 }

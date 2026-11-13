@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
 use quantrule_api::{
-    Digest, ProfileId, Provenance, RunDetail, RunId, RunState, RunSummary, StageName,
+    ArtifactRef, Digest, ProfileId, Provenance, RunDetail, RunId, RunState, RunSummary, StageName,
     StageProgress, StageStatus,
 };
 
@@ -56,6 +56,8 @@ pub struct RunRecord {
     pub stages: Vec<StageProgress>,
     /// The canonical digest once complete.
     pub digest: Option<Digest>,
+    /// The artifact set, ordered by name.
+    pub artifacts: Vec<ArtifactRef>,
     /// The failure, when failed.
     pub error: Option<String>,
 }
@@ -88,7 +90,7 @@ impl RunRecord {
                 model_version: self.model_version.clone(),
                 image_digest: self.image_digest.clone(),
             },
-            artifacts: Vec::new(),
+            artifacts: self.artifacts.clone(),
             digest: self.digest.clone(),
             error: self.error.clone(),
         }
@@ -119,6 +121,7 @@ impl RunRecord {
             })
             .collect(),
             digest: None,
+            artifacts: Vec::new(),
             error: None,
         }
     }
@@ -159,6 +162,19 @@ impl SubmitOutcome {
     pub fn created(&self) -> bool {
         matches!(self, Self::Created(_))
     }
+}
+
+/// What a worker claim did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClaimOutcome {
+    /// The worker moved the run from `queued` to `running`.
+    Claimed(RunRecord),
+    /// Another worker or a retry found it already running.
+    Running(RunRecord),
+    /// The run is terminal; there is nothing to execute.
+    Terminal(RunRecord),
+    /// The run does not exist.
+    Missing,
 }
 
 /// What a cancellation did.
@@ -202,6 +218,29 @@ pub trait RunStore: Send + Sync {
         profile: ProfileId,
         run_id: String,
     ) -> BoxFuture<Result<CancelOutcome, RunStoreError>>;
+
+    /// Read one run without a profile, for the worker.
+    fn get_any(&self, run_id: String) -> BoxFuture<Result<Option<RunRecord>, RunStoreError>>;
+
+    /// Atomically move a queued run to `running`.
+    fn claim(&self, run_id: String) -> BoxFuture<Result<ClaimOutcome, RunStoreError>>;
+
+    /// Mark a run succeeded with its artifacts and final digest.
+    fn complete(
+        &self,
+        run_id: String,
+        digest: Digest,
+        artifacts: Vec<ArtifactRef>,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>>;
+
+    /// Mark a run failed with its stages.
+    fn fail(
+        &self,
+        run_id: String,
+        error: String,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>>;
 }
 
 #[derive(Debug, Default)]
@@ -323,6 +362,81 @@ impl RunStore for MemoryRuns {
             }
             record.status = RunState::Cancelled;
             Ok(CancelOutcome::Cancelled(record.clone()))
+        })
+    }
+
+    fn get_any(&self, run_id: String) -> BoxFuture<Result<Option<RunRecord>, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            Ok(state.runs.get(&run_id).cloned())
+        })
+    }
+
+    fn claim(&self, run_id: String) -> BoxFuture<Result<ClaimOutcome, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            let Some(record) = state.runs.get_mut(&run_id) else {
+                return Ok(ClaimOutcome::Missing);
+            };
+            if record.status == RunState::Queued {
+                record.status = RunState::Running;
+                return Ok(ClaimOutcome::Claimed(record.clone()));
+            }
+            if record.status == RunState::Running {
+                return Ok(ClaimOutcome::Running(record.clone()));
+            }
+            Ok(ClaimOutcome::Terminal(record.clone()))
+        })
+    }
+
+    fn complete(
+        &self,
+        run_id: String,
+        digest: Digest,
+        artifacts: Vec<ArtifactRef>,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            let Some(record) = state.runs.get_mut(&run_id) else {
+                return Err(RunStoreError(format!("run {run_id} is unknown")));
+            };
+            record.status = RunState::Succeeded;
+            record.digest = Some(digest);
+            record.stages = stages;
+            record.artifacts = artifacts;
+            record.error = None;
+            Ok(record.clone())
+        })
+    }
+
+    fn fail(
+        &self,
+        run_id: String,
+        error: String,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            let Some(record) = state.runs.get_mut(&run_id) else {
+                return Err(RunStoreError(format!("run {run_id} is unknown")));
+            };
+            record.status = RunState::Failed;
+            record.error = Some(error);
+            record.stages = stages;
+            Ok(record.clone())
         })
     }
 }
@@ -458,5 +572,144 @@ mod tests {
                 .len(),
             0
         );
+    }
+}
+
+#[cfg(test)]
+mod worker_tests {
+    use super::*;
+
+    fn profile(name: &str) -> ProfileId {
+        ProfileId::parse(name).expect("profile")
+    }
+
+    fn new_run() -> NewRun {
+        NewRun {
+            run_id: RunId(Digest::sha256(b"worker")),
+            config_id: "cfg_abc".to_owned(),
+            data_version: Digest::sha256(b"data"),
+            config_hash: Digest::sha256(b"config"),
+            model_version: "M1.0".to_owned(),
+            image_digest: Digest::sha256(b"image"),
+            owner: "default".to_owned(),
+            submitted_at: "2026-11-13T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn done_stages() -> Vec<StageProgress> {
+        [
+            StageName::Data,
+            StageName::Model,
+            StageName::Backtest,
+            StageName::Evidence,
+        ]
+        .into_iter()
+        .map(|name| StageProgress {
+            name,
+            state: StageStatus::Done,
+            elapsed_ms: None,
+        })
+        .collect()
+    }
+
+    #[tokio::test]
+    async fn a_claim_is_atomic_and_one_shot() {
+        let store = MemoryRuns::default();
+        let run = store
+            .submit(profile("default"), new_run())
+            .await
+            .expect("submit");
+        let id = run.record().run_id.to_string();
+        assert!(matches!(
+            store.claim(id.clone()).await.expect("claim"),
+            ClaimOutcome::Claimed(_)
+        ));
+        assert!(matches!(
+            store.claim(id.clone()).await.expect("claim"),
+            ClaimOutcome::Running(_)
+        ));
+        assert_eq!(
+            store
+                .get_any(id)
+                .await
+                .expect("get")
+                .expect("record")
+                .status,
+            RunState::Running
+        );
+    }
+
+    #[tokio::test]
+    async fn a_completed_run_carries_its_artifacts_and_digest() {
+        let store = MemoryRuns::default();
+        let run = store
+            .submit(profile("default"), new_run())
+            .await
+            .expect("submit");
+        let id = run.record().run_id.to_string();
+        store.claim(id.clone()).await.expect("claim");
+        let digest = Digest::sha256(b"canonical");
+        let artifact = ArtifactRef {
+            name: "results.json".to_owned(),
+            bytes: 32,
+            sha256: Digest::sha256(b"results"),
+        };
+        let record = store
+            .complete(
+                id.clone(),
+                digest.clone(),
+                vec![artifact.clone()],
+                done_stages(),
+            )
+            .await
+            .expect("complete");
+        assert_eq!(record.status, RunState::Succeeded);
+        assert_eq!(record.digest, Some(digest));
+        assert_eq!(record.detail().artifacts, vec![artifact]);
+        assert!(
+            record
+                .stages
+                .iter()
+                .all(|stage| stage.state == StageStatus::Done)
+        );
+        assert!(matches!(
+            store.claim(id).await.expect("claim"),
+            ClaimOutcome::Terminal(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_failed_run_records_the_error() {
+        let store = MemoryRuns::default();
+        let run = store
+            .submit(profile("default"), new_run())
+            .await
+            .expect("submit");
+        let id = run.record().run_id.to_string();
+        store.claim(id.clone()).await.expect("claim");
+        let record = store
+            .fail(id, "model failed".to_owned(), done_stages())
+            .await
+            .expect("fail");
+        assert_eq!(record.status, RunState::Failed);
+        assert_eq!(record.error.as_deref(), Some("model failed"));
+    }
+
+    #[tokio::test]
+    async fn a_cancelled_run_is_terminal_for_the_worker() {
+        let store = MemoryRuns::default();
+        let run = store
+            .submit(profile("default"), new_run())
+            .await
+            .expect("submit");
+        let id = run.record().run_id.to_string();
+        store
+            .cancel(profile("default"), id.clone())
+            .await
+            .expect("cancel");
+        assert!(matches!(
+            store.claim(id).await.expect("claim"),
+            ClaimOutcome::Terminal(_)
+        ));
     }
 }
