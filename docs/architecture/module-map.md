@@ -27,6 +27,7 @@ quantrule-server ──┘         │
 | `quantrule-backtest` | Strategy, execution, portfolio, benchmark | Files, transport, rendering |
 | `quantrule-app` | Workspace, dataset, configuration, run orchestration, artifact I/O, memory, shared use cases | Indicators, rules, fills, P&L, transport |
 | `quantrule-api` | Contract types, error envelope, state enum, version constants | Any engine dependency |
+| `quantrule-research` | Hypothesis evaluation: expectancy, significance, drawdown, comparison | I/O, clock, engine dependency |
 | `quantrule-server` | Runtime, gateway, workers, migrations, profiles | Domain logic |
 | `quantrule-simulation` | Window selection, marks, oracle, review, check, exit lab | Model computation, run artifacts |
 | `quantrule-shell` | Parsing, terminal rendering, HTTP calls | Domain logic, engine dependency |
