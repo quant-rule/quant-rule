@@ -16,6 +16,8 @@ bun run dev      # proxies /api to localhost:8080
 bun run check    # svelte-check
 bun test         # unit tests
 bun run build    # static assets in dist/
+bunx playwright install chromium
+bun run e2e      # browser tests against the built client, with a mocked API
 ```
 
 The built assets are served by the gateway at the same origin as the API; no

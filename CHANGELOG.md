@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- A Playwright harness for the client: create a profile, switch it, survive a
+  reload, and surface an unknown stored profile. The API is mocked at the
+  network boundary, so the tests need no backend.
 - The profile switcher and Profiles screen: the client lists profiles, creates
   one, remembers the active id locally, and sends it on every call. Switching
   reloads the dataset list for that profile.
@@ -113,6 +116,8 @@ are not treated as releases.
 
 ### Fixed
 
+- The client's startup load no longer loops: the two initial requests run from
+  `onMount` instead of an effect that read the state it updated.
 - Stale module docs that described the shell as the only surface, the backtest
   runner as future work, the app as the only configuration parser, the desktop
   as doing no path resolution, the model as six scalar readings, and the flat
