@@ -134,9 +134,9 @@ impl AppState {
 }
 
 /// A failed request: a status and the shared envelope.
-type ApiFailure = (StatusCode, Json<ErrorEnvelope>);
+pub(crate) type ApiFailure = (StatusCode, Json<ErrorEnvelope>);
 
-fn failure(code: ErrorCode, message: impl Into<String>) -> ApiFailure {
+pub(crate) fn failure(code: ErrorCode, message: impl Into<String>) -> ApiFailure {
     let status = StatusCode::from_u16(code.status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     (status, Json(ErrorEnvelope::of(code, message)))
 }
@@ -157,6 +157,7 @@ fn routes() -> Router<Arc<AppState>> {
                 .post(upload_config)
                 .layer(DefaultBodyLimit::max(4 * 1024 * 1024)),
         )
+        .route("/model/compute", post(crate::model::compute_model))
         .route("/runs", get(list_runs).post(submit_run))
         .route("/runs/{id}", get(get_run))
         .route("/runs/{id}/cancel", post(cancel_run))
@@ -202,7 +203,10 @@ async fn version(State(state): State<Arc<AppState>>) -> Json<VersionInfo> {
 
 /// Read the profile header and confirm the profile exists. Every record is
 /// scoped, so a request without one is refused rather than defaulted.
-async fn request_profile(state: &AppState, headers: &HeaderMap) -> Result<ProfileId, ApiFailure> {
+pub(crate) async fn request_profile(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<ProfileId, ApiFailure> {
     let Some(value) = headers.get(PROFILE_HEADER) else {
         return Err(failure(
             ErrorCode::ProfileNotFound,
@@ -731,7 +735,7 @@ async fn cancel_run(
 
 /// Scan the read-only mount, refresh the catalog, and list every config.
 /// Scan the mount into a profile's config rows.
-async fn sync_configs(state: &AppState, profile: &ProfileId) -> Result<(), ApiFailure> {
+pub(crate) async fn sync_configs(state: &AppState, profile: &ProfileId) -> Result<(), ApiFailure> {
     let store = state
         .configs
         .as_ref()

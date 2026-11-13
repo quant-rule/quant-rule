@@ -2740,6 +2740,7 @@ dependencies = [
  "quantrule-api",
  "quantrule-app",
  "quantrule-data",
+ "quantrule-model",
  "quantrule-research",
  "serde",
  "serde_json",

@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- The model compute route: `POST /model/compute` loads a catalogued dataset and
+  run config by reference, materializes the config bundle, computes the declared
+  ladder per timeframe, merges the reports sorted, and stores one JSON object in
+  CAS. A single timeframe and the full ladder produce identical bytes.
 - Config rows are profile-scoped while the file bundle is shared by content id:
   a repository scan writes a row for the requesting profile, an upload writes
   one for its profile, and a run submission scans the mount on a miss. Switching
