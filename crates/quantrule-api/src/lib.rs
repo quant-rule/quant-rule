@@ -22,8 +22,8 @@ pub mod simulation;
 pub mod version;
 
 pub use catalog::{
-    ConfigOrigin, ConfigSummary, DatasetRecord, DatasetSummary, TimeframeBars, TimeframeInspection,
-    UploadConfigRequest,
+    ConfigOrigin, ConfigSummary, DatasetRecord, DatasetSummary, QualityReport, SkippedRow,
+    TimeframeBars, TimeframeInspection, UploadConfigRequest,
 };
 pub use digest::{Digest, DigestError};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};

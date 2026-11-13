@@ -746,3 +746,93 @@ async fn the_client_prefix_serves_the_same_routes() {
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+const TOLERANT_CSV: &str = "date,open,high,low,close,volume\n\
+2024-01-01 00:00:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:01:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:01:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:02:30+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:02:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:01:00+00:00,100,101,99,100.5,10\n\
+2024-01-01 00:03:00+00:00,100,90,95,99,10\n\
+2024-01-01 00:04:00+00:00,100,101,99,100.5,10\n";
+
+#[tokio::test]
+async fn a_tolerant_upload_keeps_the_good_rows_and_reports_the_bad() {
+    let state = state_with_catalog().await;
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::post("/catalog/datasets/tolerant?name=tolerant.csv")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::from(TOLERANT_CSV))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let record = read_dataset(&body_bytes(response).await);
+    assert_eq!(record.summary.candles, 4);
+    let quality = record.quality.clone().expect("quality");
+    assert_eq!(quality.rows_read, 8);
+    assert_eq!(quality.accepted, 4);
+    assert_eq!(quality.rejected, 4);
+    assert_eq!(quality.duplicates, 1);
+    assert_eq!(quality.out_of_order, 1);
+    assert_eq!(quality.invalid, 2);
+    let reasons: Vec<&str> = quality
+        .skipped
+        .iter()
+        .map(|row| row.reason.as_str())
+        .collect();
+    assert_eq!(
+        reasons,
+        vec!["duplicate", "misaligned", "out_of_order", "invalid"]
+    );
+
+    let version = record.summary.data_version.to_string();
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/catalog/datasets/{version}"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let stored = read_dataset(&body_bytes(response).await);
+    assert_eq!(stored.quality, record.quality);
+}
+
+#[tokio::test]
+async fn the_strict_route_still_refuses_the_bad_rows() {
+    let state = state_with_catalog().await;
+    let response = router(state)
+        .oneshot(
+            Request::post("/catalog/datasets?name=strict.csv")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::from(TOLERANT_CSV))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("dataset.invalid"), "{text}");
+}
+
+#[tokio::test]
+async fn a_tolerant_upload_with_no_valid_row_is_refused() {
+    let state = state_with_catalog().await;
+    let csv = "date,open,high,low,close\nnot,a,candle\n";
+    let response = router(state)
+        .oneshot(
+            Request::post("/catalog/datasets/tolerant?name=bad.csv")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::from(csv))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}

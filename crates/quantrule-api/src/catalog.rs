@@ -36,6 +36,35 @@ pub struct DatasetSummary {
     pub bytes: u64,
 }
 
+/// One row skipped by a tolerant ingest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SkippedRow {
+    /// One-based line number.
+    pub line: u64,
+    /// A stable reason code: `field_count`, `invalid`, `misaligned`,
+    /// `duplicate`, or `out_of_order`.
+    pub reason: String,
+}
+
+/// The quality report of a tolerant ingest.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct QualityReport {
+    /// Data rows read, excluding the header and blank lines.
+    pub rows_read: u64,
+    /// Candles accepted.
+    pub accepted: u64,
+    /// Rows rejected.
+    pub rejected: u64,
+    /// Rows repeating the previous timestamp.
+    pub duplicates: u64,
+    /// Rows earlier than the previous timestamp.
+    pub out_of_order: u64,
+    /// Rows with a field-count, parse, or alignment failure.
+    pub invalid: u64,
+    /// The skipped rows, in file order.
+    pub skipped: Vec<SkippedRow>,
+}
+
 /// A dataset record, including where its bytes live.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DatasetRecord {
@@ -45,6 +74,8 @@ pub struct DatasetRecord {
     pub object_key: String,
     /// The hash of the stored bytes.
     pub sha256: Digest,
+    /// The tolerant quality report; absent for a strict upload.
+    pub quality: Option<QualityReport>,
     /// Server-assigned creation time, RFC 3339 UTC.
     pub created_at: String,
 }
@@ -99,6 +130,7 @@ mod tests {
             },
             object_key: "candles/abc".to_owned(),
             sha256: digest(),
+            quality: None,
             created_at: "2026-11-12T00:00:00Z".to_owned(),
         };
         let text = serde_json::to_string(&record).expect("encode");

@@ -16,16 +16,19 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use quantrule_api::{
     ConfigSummary, CreateProfileRequest, DatasetRecord, DatasetSummary, Digest, ErrorCode,
-    ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, RunDetail, RunState,
-    RunSummary, SubmitRunRequest, SubmitRunResponse, TimeframeBars, TimeframeInspection,
-    UploadConfigRequest, VersionInfo,
+    ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, QualityReport,
+    RunDetail, RunState, RunSummary, SubmitRunRequest, SubmitRunResponse, TimeframeBars,
+    TimeframeInspection, UploadConfigRequest, VersionInfo,
 };
 use quantrule_data::Timeframe;
 use quantrule_research::{Hypothesis, SealedHypothesis};
 use serde::Deserialize;
 
 use crate::configs::{ConfigCatalog, ConfigRecord, build, scan};
-use crate::data::{CatalogError, DatasetCatalog, Inspection, ingest, inspect, ladder};
+use crate::data::{
+    CatalogError, DatasetCatalog, Ingested, Inspection, TolerantIngested, ingest, ingest_tolerant,
+    inspect, ladder,
+};
 use crate::profile::{ProfileError, ProfileRecord, ProfileStore};
 use crate::research::HypothesisStore;
 use crate::runs::{CancelOutcome, NewRun, RunStore, derive};
@@ -146,6 +149,7 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/hypotheses", post(create_hypothesis))
         .route("/hypotheses/{fingerprint}", get(get_hypothesis))
         .route("/catalog/datasets", get(list_datasets).post(create_dataset))
+        .route("/catalog/datasets/tolerant", post(create_dataset_tolerant))
         .route("/catalog/datasets/{version}", get(get_dataset))
         .route(
             "/catalog/configs",
@@ -360,7 +364,31 @@ async fn create_dataset(
     query: Result<Query<DatasetUpload>, QueryRejection>,
     payload: Result<Bytes, BytesRejection>,
 ) -> Result<(StatusCode, Json<DatasetRecord>), ApiFailure> {
-    let profile = request_profile(&state, &headers).await?;
+    let (profile, name, body) = read_dataset_upload(&state, &headers, query, payload).await?;
+    let ingested = ingest(&name, &body)
+        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
+    store_dataset(&state, profile, ingested, None).await
+}
+
+async fn create_dataset_tolerant(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    query: Result<Query<DatasetUpload>, QueryRejection>,
+    payload: Result<Bytes, BytesRejection>,
+) -> Result<(StatusCode, Json<DatasetRecord>), ApiFailure> {
+    let (profile, name, body) = read_dataset_upload(&state, &headers, query, payload).await?;
+    let TolerantIngested { dataset, quality } = ingest_tolerant(&name, &body)
+        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
+    store_dataset(&state, profile, dataset, Some(quality)).await
+}
+
+async fn read_dataset_upload(
+    state: &AppState,
+    headers: &HeaderMap,
+    query: Result<Query<DatasetUpload>, QueryRejection>,
+    payload: Result<Bytes, BytesRejection>,
+) -> Result<(ProfileId, String, Bytes), ApiFailure> {
+    let profile = request_profile(state, headers).await?;
     let Query(query) = query.map_err(|_| {
         failure(
             ErrorCode::DatasetInvalid,
@@ -375,6 +403,15 @@ async fn create_dataset(
             failure(ErrorCode::DatasetInvalid, "the upload could not be read")
         }
     })?;
+    Ok((profile, query.name.unwrap_or_default(), body))
+}
+
+async fn store_dataset(
+    state: &AppState,
+    profile: ProfileId,
+    ingested: Ingested,
+    quality: Option<QualityReport>,
+) -> Result<(StatusCode, Json<DatasetRecord>), ApiFailure> {
     let catalog = state
         .catalog
         .as_ref()
@@ -383,10 +420,6 @@ async fn create_dataset(
         .objects
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
-
-    let name = query.name.as_deref().unwrap_or("");
-    let ingested = ingest(name, &body)
-        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
     let hex = ingested.data_version.as_hex();
     let key = format!("datasets/{hex}");
     let present = objects
@@ -410,6 +443,7 @@ async fn create_dataset(
         },
         object_key: key,
         sha256: ingested.data_version.clone(),
+        quality,
         created_at: clock::now_utc(),
     };
 

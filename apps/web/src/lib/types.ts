@@ -33,11 +33,29 @@ export interface DatasetSummary {
   bytes: number;
 }
 
+/** One row skipped by a tolerant ingest. */
+export interface SkippedRow {
+  line: number;
+  reason: "field_count" | "invalid" | "misaligned" | "duplicate" | "out_of_order";
+}
+
+/** The quality report of a tolerant ingest. */
+export interface QualityReport {
+  rows_read: number;
+  accepted: number;
+  rejected: number;
+  duplicates: number;
+  out_of_order: number;
+  invalid: number;
+  skipped: SkippedRow[];
+}
+
 /** A dataset record, including where its bytes live. */
 export interface DatasetRecord {
   summary: DatasetSummary;
   object_key: string;
   sha256: Digest;
+  quality: QualityReport | null;
   created_at: string;
 }
 
