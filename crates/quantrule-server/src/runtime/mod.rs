@@ -17,4 +17,4 @@ pub mod shutdown;
 pub use config::Config;
 pub use error::RuntimeError;
 pub use health::HealthRegistry;
-pub use server::AppState;
+pub use server::{AppState, Services};

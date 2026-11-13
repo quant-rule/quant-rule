@@ -19,9 +19,9 @@ pub enum ErrorCode {
     /// The dataset version is unknown.
     #[serde(rename = "dataset.not_found")]
     DatasetNotFound,
-    /// The same bytes were already ingested.
-    #[serde(rename = "dataset.exists")]
-    DatasetExists,
+    /// A dataset upload failed validation.
+    #[serde(rename = "dataset.invalid")]
+    DatasetInvalid,
     /// A configuration failed schema or cross-config validation.
     #[serde(rename = "config.invalid")]
     ConfigInvalid,
@@ -68,7 +68,7 @@ impl ErrorCode {
             Self::ProfileNotFound => "profile.not_found",
             Self::ProfileInvalid => "profile.invalid",
             Self::DatasetNotFound => "dataset.not_found",
-            Self::DatasetExists => "dataset.exists",
+            Self::DatasetInvalid => "dataset.invalid",
             Self::ConfigInvalid => "config.invalid",
             Self::HypothesisNotFound => "hypothesis.not_found",
             Self::HypothesisInvalid => "hypothesis.invalid",
@@ -91,6 +91,7 @@ impl ErrorCode {
     pub fn status(self) -> u16 {
         match self {
             Self::ProfileInvalid
+            | Self::DatasetInvalid
             | Self::ConfigInvalid
             | Self::HypothesisInvalid
             | Self::SimulationMarkInvalid => 400,
@@ -99,10 +100,7 @@ impl ErrorCode {
             | Self::HypothesisNotFound
             | Self::RunNotFound
             | Self::SimulationNotFound => 404,
-            Self::DatasetExists
-            | Self::RunConflict
-            | Self::SimulationCheckIncomplete
-            | Self::SimulationLocked => 409,
+            Self::RunConflict | Self::SimulationCheckIncomplete | Self::SimulationLocked => 409,
             Self::UploadTooLarge => 413,
             Self::QueueUnavailable => 503,
             Self::Internal => 500,
@@ -166,7 +164,7 @@ mod tests {
         ErrorCode::HypothesisNotFound,
         ErrorCode::HypothesisInvalid,
         ErrorCode::DatasetNotFound,
-        ErrorCode::DatasetExists,
+        ErrorCode::DatasetInvalid,
         ErrorCode::ConfigInvalid,
         ErrorCode::RunNotFound,
         ErrorCode::RunConflict,

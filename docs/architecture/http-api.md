@@ -32,7 +32,7 @@ never renders a label, and never returns a raw engine type.
 | POST | `/profiles` | `name` | `201` with `profile_id` |
 | GET | `/version` | — | product version, image digest, contract versions |
 | GET | `/catalog/datasets` | — | list with `data_version`, candles, coverage |
-| POST | `/catalog/datasets` | multipart CSV | `202` with `data_version` |
+| POST | `/catalog/datasets` | CSV bytes, `name` query | `201` new, `200` existing, with the record |
 | GET | `/catalog/datasets/{version}` | — | one dataset record |
 | GET | `/catalog/configs` | — | list with validity |
 | POST | `/catalog/configs` | config JSON | `201` with `config_id` |
@@ -89,7 +89,7 @@ The gateway validates the config, computes `run_id`, writes `queued`, publishes
 | `profile.not_found` | 404 | Unknown or missing profile |
 | `profile.invalid` | 400 | Bad profile name |
 | `dataset.not_found` | 404 | Unknown `data_version` |
-| `dataset.exists` | 409 | Same bytes already ingested |
+| `dataset.invalid` | 400 | Blank name, bad UTF-8, or a rejected candle |
 | `config.invalid` | 400 | Schema or cross-config rule failed |
 | `run.not_found` | 404 | Unknown run id |
 | `run.conflict` | 409 | Cancel after completion |
@@ -100,6 +100,9 @@ The gateway validates the config, computes `run_id`, writes `queued`, publishes
 | `simulation.mark_invalid` | 400 | Bar outside the window, or a schema violation |
 | `simulation.check_incomplete` | 409 | Fewer than 30 events, or an unmarked check window |
 | `simulation.locked` | 409 | Marking after the decision is recorded |
+
+An upload is idempotent: the same bytes return the existing record and never
+create a second row.
 
 ## 6. Simulation endpoints — the research plane
 

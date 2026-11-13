@@ -5,13 +5,17 @@
 
 use std::sync::Arc;
 
+use quantrule_server::data::DatasetCatalog;
 use quantrule_server::research::HypothesisStore;
 use quantrule_server::runtime::AppState;
 use quantrule_server::runtime::Config;
 use quantrule_server::runtime::HealthRegistry;
 use quantrule_server::runtime::RuntimeError;
+use quantrule_server::runtime::Services;
 use quantrule_server::runtime::adapters::Database;
+use quantrule_server::runtime::adapters::ObjectStore;
 use quantrule_server::runtime::adapters::postgres::PgDatabase;
+use quantrule_server::runtime::adapters::postgres::PgDatasetCatalog;
 use quantrule_server::runtime::adapters::postgres::PgHypothesisStore;
 use quantrule_server::runtime::adapters::postgres::apply_migrations;
 use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
@@ -26,6 +30,7 @@ async fn main() -> Result<(), RuntimeError> {
 
     let mut health = HealthRegistry::new();
     let mut hypotheses: Option<Arc<dyn HypothesisStore>> = None;
+    let mut catalog: Option<Arc<dyn DatasetCatalog>> = None;
 
     match PgDatabase::connect(&config.database_url).await {
         Ok(database) => {
@@ -36,6 +41,7 @@ async fn main() -> Result<(), RuntimeError> {
                 tracing::info!(applied, "migrations applied");
             }
             hypotheses = Some(Arc::new(PgHypothesisStore::new(database.pool().clone())));
+            catalog = Some(Arc::new(PgDatasetCatalog::new(database.pool().clone())));
             health.register("postgres", move || {
                 let database = database.clone();
                 async move { database.ping().await.map_err(|error| error.to_string()) }
@@ -47,9 +53,10 @@ async fn main() -> Result<(), RuntimeError> {
         }),
     }
 
-    let store = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
+    let s3 = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
+    let objects: Arc<dyn ObjectStore> = Arc::new(s3.clone());
     health.register("object-store", move || {
-        let store = store.clone();
+        let store = s3.clone();
         async move { store.check().await.map_err(|error| error.to_string()) }
     });
 
@@ -67,7 +74,15 @@ async fn main() -> Result<(), RuntimeError> {
         }),
     }
 
-    let state = Arc::new(AppState::with_store(&config, health, hypotheses));
+    let state = Arc::new(AppState::with_services(
+        &config,
+        health,
+        Services {
+            hypotheses,
+            catalog,
+            objects: Some(objects),
+        },
+    ));
     tracing::info!(bind = %config.bind, "starting gateway");
     server::serve(&config, state).await
 }

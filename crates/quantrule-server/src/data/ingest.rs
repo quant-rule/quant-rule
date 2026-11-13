@@ -18,6 +18,8 @@ pub struct Ingested {
     pub last_bar: u64,
     /// Size of the canonical form in bytes.
     pub bytes: u64,
+    /// The canonical bytes that were hashed; these are the object contents.
+    pub content: Vec<u8>,
 }
 
 /// Why an upload cannot become a dataset.
@@ -107,11 +109,13 @@ pub fn ingest(name: &str, source: &[u8]) -> Result<Ingested, IngestError> {
         .map(Candle::canonical_line)
         .collect::<Vec<_>>()
         .join("\n");
-    let data_version = Digest::sha256(canonical.as_bytes());
+    let content = canonical.into_bytes();
+    let data_version = Digest::sha256(&content);
     let first_bar = candles
         .first()
         .map_or(0, |candle| candle.timestamp() as u64);
     let last_bar = candles.last().map_or(0, |candle| candle.timestamp() as u64);
+    let bytes = content.len() as u64;
 
     Ok(Ingested {
         data_version,
@@ -119,7 +123,8 @@ pub fn ingest(name: &str, source: &[u8]) -> Result<Ingested, IngestError> {
         candles: candles.len() as u64,
         first_bar,
         last_bar,
-        bytes: canonical.len() as u64,
+        bytes,
+        content,
     })
 }
 
@@ -148,6 +153,17 @@ mod tests {
         assert_eq!(dataset.first_bar, 1_704_067_200);
         assert_eq!(dataset.last_bar, 1_704_067_260);
         assert!(dataset.data_version.to_string().starts_with("sha256:"));
+    }
+
+    #[test]
+    fn the_content_is_the_canonical_form() {
+        let dataset = ingest("candles.csv", CSV.as_bytes()).expect("ingest");
+        assert_eq!(
+            dataset.content,
+            b"1704067200,100,101,99,100.5,10\n1704067260,100.5,101.5,100,101,12"
+        );
+        assert_eq!(dataset.data_version, Digest::sha256(&dataset.content));
+        assert_eq!(dataset.bytes, dataset.content.len() as u64);
     }
 
     #[test]
