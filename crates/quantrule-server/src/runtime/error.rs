@@ -16,6 +16,9 @@ pub enum RuntimeError {
     /// The listener could not bind or the server failed.
     #[error("serve: {0}")]
     Serve(String),
+    /// The schema could not be prepared.
+    #[error("migrations: {0}")]
+    Migrations(String),
     /// Standard I/O failed.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),

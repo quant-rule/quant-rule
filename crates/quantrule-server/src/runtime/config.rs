@@ -75,6 +75,8 @@ pub struct Config {
     pub backtest_concurrency: u32,
     /// The image digest that serves the request.
     pub image_digest: Option<Digest>,
+    /// Whether this process applies pending migrations at startup.
+    pub migrate: bool,
 }
 
 impl Default for Config {
@@ -89,6 +91,7 @@ impl Default for Config {
             bearer_token: None,
             backtest_concurrency: 1,
             image_digest: None,
+            migrate: true,
         }
     }
 }
@@ -160,6 +163,19 @@ impl Config {
                 });
             }
             config.backtest_concurrency = parsed;
+        }
+        if let Some(value) = values.get("QR_MIGRATE") {
+            config.migrate = match value.as_str() {
+                "1" | "true" => true,
+                "0" | "false" => false,
+                _ => {
+                    return Err(ConfigError::Invalid {
+                        name: "QR_MIGRATE",
+                        value: value.clone(),
+                        reason: "must be 1, 0, true, or false",
+                    });
+                }
+            };
         }
         if let Some(value) = values.get("QR_IMAGE_DIGEST") {
             config.image_digest = Some(Digest::parse(value).map_err(|_| ConfigError::Invalid {
