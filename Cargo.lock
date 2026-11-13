@@ -2738,6 +2738,7 @@ dependencies = [
  "axum",
  "lapin",
  "quantrule-api",
+ "quantrule-data",
  "quantrule-research",
  "serde",
  "serde_json",

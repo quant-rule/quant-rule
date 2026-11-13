@@ -109,6 +109,23 @@ impl std::error::Error for CandleError {
 }
 
 impl Candle {
+    /// The canonical one-line form used for content identity.
+    ///
+    /// Floats use the shortest round-trip representation, so the same candle
+    /// always produces the same bytes. The volume is empty when absent, which is
+    /// distinct from a zero volume.
+    #[must_use]
+    pub fn canonical_line(&self) -> String {
+        let volume = match self.volume {
+            Some(value) => value.to_string(),
+            None => String::new(),
+        };
+        format!(
+            "{},{},{},{},{},{}",
+            self.timestamp, self.open, self.high, self.low, self.close, volume
+        )
+    }
+
     /// Builds a candle from already parsed values.
     ///
     /// # Errors
@@ -442,5 +459,43 @@ mod tests {
             result,
             Err(CandleError::Timestamp(crate::TimestampError::InvalidDate))
         ));
+    }
+}
+
+#[cfg(test)]
+mod canonical_tests {
+    use super::*;
+
+    fn candle() -> Candle {
+        Candle::new(3, 1_700_000_000, 100.5, 101.25, 99.75, 100.0, Some(42.0)).expect("candle")
+    }
+
+    #[test]
+    fn the_canonical_line_is_stable() {
+        assert_eq!(
+            candle().canonical_line(),
+            "1700000000,100.5,101.25,99.75,100,42"
+        );
+    }
+
+    #[test]
+    fn an_absent_volume_is_empty_not_zero() {
+        let candle = Candle::new(0, 1, 1.0, 1.0, 1.0, 1.0, None).expect("candle");
+        let line = candle.canonical_line();
+        assert_eq!(line.split(',').next_back(), Some(""), "{line}");
+    }
+
+    #[test]
+    fn the_accessors_return_the_fields() {
+        let candle = candle();
+        assert_eq!(candle.series_index(), 3);
+        assert_eq!(candle.timestamp(), 1_700_000_000);
+        assert!((candle.open() - 100.5).abs() < 1e-12);
+        assert!((candle.volume().expect("volume") - 42.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn the_same_fields_give_the_same_line() {
+        assert_eq!(candle().canonical_line(), candle().canonical_line());
     }
 }
