@@ -196,6 +196,11 @@ async fn a_submission_is_content_addressed_and_listed() {
         payload["run_id"].as_str(),
         Some(created.run_id.to_string().as_str())
     );
+    assert_eq!(
+        payload.as_object().map(serde_json::Map::len),
+        Some(1),
+        "a queued message carries the run id only"
+    );
 
     let response = router(state)
         .oneshot(

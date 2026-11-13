@@ -538,16 +538,14 @@ async fn submit_run(
     let record = outcome.record().clone();
 
     // Publish for a duplicate too: a retry after a lost publish must be able to
-    // recover, and the worker treats a repeated message as a lookup.
+    // recover, and the worker treats a repeated message as a lookup. The
+    // message carries the run id only; the worker reads the rest from the run
+    // store, so a queued message cannot disagree with the recorded provenance.
     let queue = state
         .queue
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::QueueUnavailable, "no run queue is configured"))?;
-    let message = serde_json::json!({
-        "run_id": record.run_id.to_string(),
-        "data_version": record.data_version.to_string(),
-        "config_id": record.config_id,
-    });
+    let message = serde_json::json!({ "run_id": record.run_id.to_string() });
     let payload = serde_json::to_vec(&message)
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     queue

@@ -30,8 +30,9 @@ impl std::error::Error for WorkerError {}
 /// What one delivery did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProcessOutcome {
-    /// The run completed and its artifacts were written.
-    Succeeded,
+    /// The run's artifacts and canonical digest were recorded; evidence still
+    /// has to verify and finalize it.
+    Computed,
     /// The run failed; its error was recorded.
     Failed,
     /// There was nothing to do: missing, running, or already terminal.
@@ -78,11 +79,16 @@ pub async fn process(
         .map_err(|error| WorkerError(error.to_string()))?
     {
         ClaimOutcome::Claimed(_) => {}
-        ClaimOutcome::Terminal(record) => {
-            republish_terminal(&services.queue, &record).await?;
+        ClaimOutcome::Terminal(_) | ClaimOutcome::Missing => {
             return Ok(ProcessOutcome::Skipped);
         }
-        ClaimOutcome::Running(_) | ClaimOutcome::Missing => {
+        ClaimOutcome::Running(record) => {
+            // A redelivery after the worker wrote its artifacts but before the
+            // broker saw the publish must not execute the run again. The
+            // recorded digest is what tells the two `running` states apart.
+            if record.digest.is_some() && !record.artifacts.is_empty() {
+                publish_computed(&services.queue, &run_id).await?;
+            }
             return Ok(ProcessOutcome::Skipped);
         }
     }
@@ -170,25 +176,25 @@ pub async fn process(
     let digest = Digest::canonical(&entries);
     let record = services
         .runs
-        .complete(run_id.clone(), digest.clone(), artifacts, done_stages())
+        .computed(run_id.clone(), digest, artifacts, computed_stages())
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
-    if record.status != RunState::Succeeded {
+    if record.status != RunState::Running {
         return Ok(ProcessOutcome::Skipped);
     }
-    services
-        .queue
+    publish_computed(&services.queue, &run_id).await?;
+    Ok(ProcessOutcome::Computed)
+}
+
+async fn publish_computed(queue: &Arc<dyn Queue>, run_id: &str) -> Result<(), WorkerError> {
+    queue
         .publish(
             "run.computed",
-            serde_json::to_vec(&serde_json::json!({
-                "run_id": run_id,
-                "digest": digest.to_string(),
-            }))
-            .map_err(|error| WorkerError(error.to_string()))?,
+            serde_json::to_vec(&serde_json::json!({ "run_id": run_id }))
+                .map_err(|error| WorkerError(error.to_string()))?,
         )
         .await
-        .map_err(|error| WorkerError(error.to_string()))?;
-    Ok(ProcessOutcome::Succeeded)
+        .map_err(|error| WorkerError(error.to_string()))
 }
 
 async fn fail(
@@ -214,46 +220,6 @@ async fn fail(
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
     Ok(ProcessOutcome::Failed)
-}
-
-async fn republish_terminal(
-    queue: &Arc<dyn Queue>,
-    record: &crate::runs::RunRecord,
-) -> Result<(), WorkerError> {
-    match record.status {
-        RunState::Succeeded => {
-            if let Some(digest) = &record.digest {
-                queue
-                    .publish(
-                        "run.computed",
-                        serde_json::to_vec(&serde_json::json!({
-                            "run_id": record.run_id.to_string(),
-                            "digest": digest.to_string(),
-                        }))
-                        .map_err(|error| WorkerError(error.to_string()))?,
-                    )
-                    .await
-                    .map_err(|error| WorkerError(error.to_string()))?;
-            }
-        }
-        RunState::Failed => {
-            if let Some(error) = &record.error {
-                queue
-                    .publish(
-                        "run.failed",
-                        serde_json::to_vec(&serde_json::json!({
-                            "run_id": record.run_id.to_string(),
-                            "error": error,
-                        }))
-                        .map_err(|error| WorkerError(error.to_string()))?,
-                    )
-                    .await
-                    .map_err(|error| WorkerError(error.to_string()))?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
 }
 
 async fn collect_artifacts(
@@ -318,7 +284,7 @@ fn canonical(name: &str) -> bool {
     name == "results.json" || name.ends_with(".csv") || name.ends_with(".ndjson")
 }
 
-fn done_stages() -> Vec<StageProgress> {
+fn computed_stages() -> Vec<StageProgress> {
     [
         StageName::Data,
         StageName::Model,
@@ -328,7 +294,11 @@ fn done_stages() -> Vec<StageProgress> {
     .into_iter()
     .map(|name| StageProgress {
         name,
-        state: StageStatus::Done,
+        state: if name == StageName::Evidence {
+            StageStatus::Pending
+        } else {
+            StageStatus::Done
+        },
         elapsed_ms: None,
     })
     .collect()

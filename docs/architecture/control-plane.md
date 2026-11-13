@@ -37,7 +37,7 @@ no run row.
 | Type | Producer | Consumer | Payload |
 |---|---|---|---|
 | `run.requested` | gateway | backtest worker | none; the run row holds the inputs |
-| `run.computed` | backtest | evidence | artifact manifest |
+| `run.computed` | backtest | evidence | run id only; the run row holds the manifest |
 | `run.completed` | evidence | none required | run id and digest |
 | `run.cancelled` | gateway | backtest | none |
 | `run.failed` | backtest | evidence | stage and error code |
@@ -70,8 +70,9 @@ run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
 
 - A submission whose `run_id` exists returns the existing run with `200`.
 - A first submission returns `202`.
-- A redelivered message re-executes the same run; content addressing makes the
-  result identical.
+- A redelivered message looks the run up first: a running or terminal run is
+  never executed twice, and a running run with a recorded digest republishes
+  `run.computed` so a lost publish still reaches evidence.
 - Cancellation followed by completion is impossible: the worker checks the
   cancellation flag before each stage boundary.
 

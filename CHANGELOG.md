@@ -24,10 +24,16 @@ are not treated as releases.
 
 - The backtest worker core: `POST`-submitted runs are claimed, their six-file
   config and catalogued dataset are materialized into a private workspace, the
-  coupled backtest runs, artifacts are written to CAS, the canonical digest is
-  computed over `results.json`, `*.csv`, and `*.ndjson`, and the run is
-  finalized. `qr-backtest` consumes `run.requested`; duplicate deliveries skip a
-  terminal or running run, and a cancel before finalization leaves it cancelled.
+  coupled backtest runs, artifacts are written to CAS, and the canonical digest
+  is computed over `results.json`, `*.csv`, and `*.ndjson`. The run stays
+  `running` for evidence. `qr-backtest` consumes `run.requested`; duplicate
+  deliveries skip a terminal or running run, and a cancel before finalization
+  leaves it cancelled.
+- The evidence service: `qr-evidence` consumes `run.computed`, verifies every
+  artifact against its recorded size and SHA-256, recomputes the canonical
+  digest, rejects a missing, changed, or mismatched artifact, and marks the run
+  `succeeded` with the evidence stage `Done`. A finalized run is never finalized
+  again. The gateway and worker now publish the run id only.
 - A `QueueConsumer` trait with a RabbitMQ implementation and an in-memory fake;
   a successful handler is acked, a failed one is nacked.
 - The model compute route: `POST /model/compute` loads a catalogued dataset and

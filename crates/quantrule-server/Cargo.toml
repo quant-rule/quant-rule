@@ -15,6 +15,10 @@ path = "src/bin/qr_gateway.rs"
 name = "qr-backtest"
 path = "src/bin/qr_backtest.rs"
 
+[[bin]]
+name = "qr-evidence"
+path = "src/bin/qr_evidence.rs"
+
 [dependencies]
 aws-config = "1.13.2"
 aws-sdk-s3 = "1.159.0"

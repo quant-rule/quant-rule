@@ -16,8 +16,9 @@ backtest worker (orchestrator)
   1. GET  data:/datasets/{data_version}/candles      → candle stream
   2. POST model:/compute {data_version, config_id, timeframes?} → model object ref
   3. compute strategy, execution, portfolio locally
-  4. write artifacts to CAS
+  4. write artifacts to CAS and record the canonical digest
   5. publish run.computed
+  6. evidence verifies the manifest and marks the run succeeded
 ```
 
 `data` builds the timeframe ladder and writes it to CAS, so every run of the same

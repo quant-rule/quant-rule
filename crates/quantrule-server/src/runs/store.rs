@@ -225,6 +225,15 @@ pub trait RunStore: Send + Sync {
     /// Atomically move a queued run to `running`.
     fn claim(&self, run_id: String) -> BoxFuture<Result<ClaimOutcome, RunStoreError>>;
 
+    /// Record the computed digest and artifacts without finishing the run.
+    fn computed(
+        &self,
+        run_id: String,
+        digest: Digest,
+        artifacts: Vec<ArtifactRef>,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>>;
+
     /// Mark a run succeeded with its artifacts and final digest.
     fn complete(
         &self,
@@ -392,6 +401,30 @@ impl RunStore for MemoryRuns {
                 return Ok(ClaimOutcome::Running(record.clone()));
             }
             Ok(ClaimOutcome::Terminal(record.clone()))
+        })
+    }
+
+    fn computed(
+        &self,
+        run_id: String,
+        digest: Digest,
+        artifacts: Vec<ArtifactRef>,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            let Some(record) = state.runs.get_mut(&run_id) else {
+                return Err(RunStoreError(format!("run {run_id} is unknown")));
+            };
+            if record.status == RunState::Running {
+                record.digest = Some(digest);
+                record.stages = stages;
+                record.artifacts = artifacts;
+            }
+            Ok(record.clone())
         })
     }
 
