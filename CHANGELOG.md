@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- The candle stream: `GET /datasets/{version}/candles` returns the stored
+  canonical CSV after re-hashing it against `data_version` and sets an ETag, so
+  a run consumes exactly the bytes the catalog identifies.
 - Read-only inspection over stored bytes: `GET /inspect/candles` returns counts
   and coverage, and `GET /inspect/timeframes` returns complete bars and partial
   buckets per timeframe. The object is re-hashed before it is parsed, so a

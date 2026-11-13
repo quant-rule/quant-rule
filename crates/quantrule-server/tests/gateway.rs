@@ -758,3 +758,74 @@ async fn a_corrupt_object_is_refused() {
         .expect("response");
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
+
+#[tokio::test]
+async fn the_candle_stream_is_byte_identical() {
+    let state = state_with_catalog().await;
+    let response = router(Arc::clone(&state))
+        .oneshot(upload("candles.csv"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let record = read_dataset(&body_bytes(response).await);
+    let version = record.summary.data_version.to_string();
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/datasets/{version}/candles"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok()),
+        Some("text/csv")
+    );
+    let etag = format!("\"{}\"", record.summary.data_version);
+    assert_eq!(
+        response
+            .headers()
+            .get("etag")
+            .and_then(|value| value.to_str().ok()),
+        Some(etag.as_str())
+    );
+    assert_eq!(
+        body_bytes(response).await,
+        b"1704067200,100,101,99,100.5,10\n1704067260,100.5,101.5,100,101,12"
+    );
+}
+
+#[tokio::test]
+async fn another_profile_cannot_read_the_stream() {
+    let state = state_with_catalog().await;
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::post("/catalog/datasets?name=candles.csv")
+                .header(PROFILE_HEADER, "alpha")
+                .body(Body::from(CSV))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    let record = read_dataset(&body_bytes(response).await);
+    let version = record.summary.data_version.to_string();
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/datasets/{version}/candles"))
+                .header(PROFILE_HEADER, "beta")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("dataset.not_found"), "{text}");
+}
