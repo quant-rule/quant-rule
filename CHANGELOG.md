@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- The Datasets screen exposes tolerant upload: a "Skip bad rows" control uses
+  the tolerant route and renders the quality report, including the first skipped
+  line and its reason.
 - Tolerant ingest: `POST /catalog/datasets/tolerant` skips a bad row instead of
   failing the upload and records the accepted candles plus a quality report
   (rows read, accepted, rejected, duplicate, out of order, invalid, and each
