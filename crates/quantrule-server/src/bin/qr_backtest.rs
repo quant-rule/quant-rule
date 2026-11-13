@@ -1,8 +1,8 @@
 //! The backtest worker binary.
 //!
 //! It consumes `run.requested`, claims the run, executes it, writes the
-//! artifacts to CAS, finalizes the run, and publishes `run.computed` or
-//! `run.failed`. It serves no HTTP.
+//! artifacts to CAS, records the computed digest, and publishes `run.computed`
+//! or `run.failed`. Evidence finalizes the run. It serves no HTTP.
 
 use std::sync::Arc;
 

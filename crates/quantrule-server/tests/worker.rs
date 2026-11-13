@@ -6,6 +6,7 @@ use quantrule_api::{DatasetRecord, DatasetSummary, Digest, ProfileId, RunState};
 use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
 use quantrule_server::configs::{ConfigCatalog, MemoryConfigs, scan};
 use quantrule_server::data::{DatasetCatalog, MemoryCatalog, ingest};
+use quantrule_server::evidence::{EvidenceServices, FinalizeOutcome, finalize};
 use quantrule_server::runs::{MemoryRuns, NewRun, RunStore, derive};
 use quantrule_server::runtime::adapters::{Backend, BoxFuture, ObjectStore, Queue, QueueError};
 use std::path::Path;
@@ -43,6 +44,16 @@ impl MemoryQueue {
             .expect("queue")
             .iter()
             .map(|(key, _)| key.clone())
+            .collect()
+    }
+
+    fn payloads(&self, key: &str) -> Vec<Vec<u8>> {
+        self.messages
+            .lock()
+            .expect("queue")
+            .iter()
+            .filter(|(name, _)| name == key)
+            .map(|(_, payload)| payload.clone())
             .collect()
     }
 }
@@ -198,7 +209,7 @@ async fn a_queued_run_succeeds_with_artifacts_and_digest() {
         .expect("process");
     assert_eq!(
         outcome,
-        ProcessOutcome::Succeeded,
+        ProcessOutcome::Computed,
         "{:?}",
         fixture
             .runs
@@ -214,15 +225,52 @@ async fn a_queued_run_succeeds_with_artifacts_and_digest() {
         .await
         .expect("get")
         .expect("record");
-    assert_eq!(record.status, RunState::Succeeded);
+    assert_eq!(record.status, RunState::Running);
     assert!(record.digest.is_some());
     assert!(!record.artifacts.is_empty());
-    assert!(fixture.queue.keys().contains(&"run.computed".to_owned()));
+    let evidence_stage = record
+        .stages
+        .iter()
+        .find(|stage| stage.name == quantrule_api::StageName::Evidence)
+        .expect("evidence stage");
+    assert_eq!(evidence_stage.state, quantrule_api::StageStatus::Pending);
     for artifact in &record.artifacts {
         let key = format!("runs/{}/{}", fixture.run_id, artifact.name);
         let bytes = fixture.objects.get(&key).await.expect("artifact");
         assert_eq!(Digest::sha256(&bytes), artifact.sha256);
     }
+    let messages = fixture.queue.payloads("run.computed");
+    assert_eq!(messages.len(), 1);
+    let payload: serde_json::Value = serde_json::from_slice(&messages[0]).expect("payload");
+    assert_eq!(payload, serde_json::json!({ "run_id": fixture.run_id }));
+
+    let evidence = EvidenceServices {
+        runs: Arc::new(fixture.runs.clone()) as Arc<dyn RunStore>,
+        objects: Arc::new(fixture.objects.clone()) as Arc<dyn ObjectStore>,
+    };
+    assert_eq!(
+        finalize(fixture.run_id.clone(), &evidence)
+            .await
+            .expect("finalize"),
+        FinalizeOutcome::Succeeded
+    );
+    let record = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.status, RunState::Succeeded);
+    assert!(
+        record
+            .stages
+            .iter()
+            .all(|stage| stage.state == quantrule_api::StageStatus::Done)
+    );
+    assert_eq!(
+        finalize(fixture.run_id, &evidence).await.expect("again"),
+        FinalizeOutcome::Skipped
+    );
 }
 
 #[tokio::test]
@@ -232,7 +280,7 @@ async fn a_second_delivery_does_not_execute_again() {
         process(fixture.run_id.clone(), &fixture.services)
             .await
             .expect("first"),
-        ProcessOutcome::Succeeded
+        ProcessOutcome::Computed
     );
     let first = fixture
         .runs
@@ -253,6 +301,10 @@ async fn a_second_delivery_does_not_execute_again() {
         .expect("get")
         .expect("record");
     assert_eq!(first.artifacts, second.artifacts);
+    assert_eq!(second.status, RunState::Running);
+    // The redelivery republishes the computed message so evidence still hears
+    // about a run whose first publish was lost; it never executes it again.
+    assert_eq!(fixture.queue.payloads("run.computed").len(), 2);
 }
 
 #[tokio::test]
