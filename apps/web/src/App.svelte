@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import ConfigsPanel from "./lib/ConfigsPanel.svelte";
   import ConnectionPanel from "./lib/ConnectionPanel.svelte";
   import DatasetsPanel from "./lib/DatasetsPanel.svelte";
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
@@ -76,6 +77,8 @@
         <ProfilesPanel />
       {:else if section === "datasets"}
         <DatasetsPanel />
+      {:else if section === "configs"}
+        <ConfigsPanel onOpenRuns={() => (section = "runs")} />
       {:else if section === "runs"}
         <RunsPanel />
       {:else}

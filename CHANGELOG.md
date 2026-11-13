@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- The configs screen: the browser lists the config catalog with origin and
+  validity, renders the parser message verbatim, disables submit on an invalid
+  config or with no dataset, and submits a run from a valid config without a
+  path. A queued run can be opened in the runs inbox.
 - The runs inbox: the browser lists runs from the server with status, config,
   data version, submission time, and duration; it polls every 2 s while a run is
   active and every 30 s otherwise, cancels only an active run, drops the rows on

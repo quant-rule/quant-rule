@@ -41,6 +41,9 @@ Bun runtime exists in the image.
 | `src/lib/runs.ts` | Run status, polling, and display helpers |
 | `src/lib/runs.svelte.ts` | Run list and polling state |
 | `src/lib/RunsPanel.svelte` | Runs inbox and cancel |
+| `src/lib/configs.ts` | Submit eligibility |
+| `src/lib/configs.svelte.ts` | Config list and submission state |
+| `src/lib/ConfigsPanel.svelte` | Configs screen and run submission |
 
 Screens arrive with their issues; the connection and datasets screens are
 implemented.
