@@ -10,8 +10,10 @@
 
 #![forbid(unsafe_code)]
 
+pub mod costs;
 pub mod rng;
 pub mod stats;
 
+pub use costs::{CostError, CostModel};
 pub use rng::Pcg32;
 pub use stats::{Statistics, StatsError, evaluate};
