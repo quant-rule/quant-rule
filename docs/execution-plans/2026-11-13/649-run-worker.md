@@ -88,7 +88,7 @@ Excluded:
 
 ## Verification table
 
-| ID | Plan item | Acceptance criterion | Evidence or command | Expected | Observed | Status | Reviewer | Date | Notes |
+| ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | V1 | Digest | Sorted paths give one stable digest; reordered input gives the same | unit test | equal | — | Pending | — | — | — |
 | V2 | Store | Claim is queued→running only; complete/fail terminal | store tests | as stated | — | Pending | — | — | — |
