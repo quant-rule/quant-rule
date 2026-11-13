@@ -23,22 +23,26 @@ async fn state() -> Arc<AppState> {
         HealthRegistry::new(),
         Services {
             configs: Some(Arc::new(MemoryConfigs::default())),
-            profiles: Some(memory_profiles(&["default"]).await),
+            profiles: Some(memory_profiles(&["default", "alpha"]).await),
             ..Services::default()
         },
     ))
 }
 
-async fn list(state: Arc<AppState>) -> axum::response::Response {
+async fn list_for(state: Arc<AppState>, profile: &str) -> axum::response::Response {
     router(state)
         .oneshot(
             Request::get("/catalog/configs")
-                .header(PROFILE_HEADER, "default")
+                .header(PROFILE_HEADER, profile)
                 .body(Body::empty())
                 .expect("request"),
         )
         .await
         .expect("response")
+}
+
+async fn list(state: Arc<AppState>) -> axum::response::Response {
+    list_for(state, "default").await
 }
 
 #[tokio::test]
@@ -70,6 +74,43 @@ async fn the_mount_is_scanned_and_listed() {
             .is_some_and(|message| message.contains("missing-data.json")),
         "{:?}",
         invalid.message
+    );
+}
+
+#[tokio::test]
+async fn configs_are_profile_scoped_but_the_bundle_is_shared() {
+    let state = state().await;
+    let default = list(Arc::clone(&state)).await;
+    let default: Vec<ConfigSummary> =
+        serde_json::from_slice(&body_bytes(default).await).expect("default");
+    let alpha = list_for(Arc::clone(&state), "alpha").await;
+    let alpha: Vec<ConfigSummary> =
+        serde_json::from_slice(&body_bytes(alpha).await).expect("alpha");
+    assert_eq!(default.len(), 2);
+    assert_eq!(alpha.len(), 2);
+
+    let response = upload(Arc::clone(&state), bundle()).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let uploaded: ConfigSummary =
+        serde_json::from_slice(&body_bytes(response).await).expect("upload");
+
+    let default = list(Arc::clone(&state)).await;
+    let default: Vec<ConfigSummary> =
+        serde_json::from_slice(&body_bytes(default).await).expect("default");
+    let alpha = list_for(state, "alpha").await;
+    let alpha: Vec<ConfigSummary> =
+        serde_json::from_slice(&body_bytes(alpha).await).expect("alpha");
+    assert_eq!(default.len(), 3);
+    assert_eq!(alpha.len(), 2);
+    assert!(
+        default
+            .iter()
+            .any(|config| config.config_id == uploaded.config_id)
+    );
+    assert!(
+        !alpha
+            .iter()
+            .any(|config| config.config_id == uploaded.config_id)
     );
 }
 

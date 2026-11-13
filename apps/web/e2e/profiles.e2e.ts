@@ -87,6 +87,9 @@ async function mockApi(page: Page, mock: Mock): Promise<void> {
       mock.profiles.push(created);
       return route.fulfill({ status: 201, json: created });
     }
+    if (path === "/catalog/configs" && request.method() === "GET") {
+      return route.fulfill({ json: [] });
+    }
     if (path === "/catalog/datasets" && request.method() === "GET") {
       if (!mock.profiles.some((item) => item.profile_id === active)) {
         return route.fulfill({

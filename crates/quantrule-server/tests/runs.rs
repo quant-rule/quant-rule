@@ -90,11 +90,11 @@ async fn upload(state: Arc<AppState>, profile: &str) -> DatasetRecord {
     upload_csv(state, profile, CSV).await
 }
 
-async fn configs(state: Arc<AppState>) -> Vec<ConfigSummary> {
+async fn configs_for(state: Arc<AppState>, profile: &str) -> Vec<ConfigSummary> {
     let response = router(state)
         .oneshot(
             Request::get("/catalog/configs")
-                .header(PROFILE_HEADER, "default")
+                .header(PROFILE_HEADER, profile)
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -102,6 +102,10 @@ async fn configs(state: Arc<AppState>) -> Vec<ConfigSummary> {
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     serde_json::from_slice(&body_bytes(response).await).expect("configs")
+}
+
+async fn configs(state: Arc<AppState>) -> Vec<ConfigSummary> {
+    configs_for(state, "default").await
 }
 
 async fn submit(
@@ -280,12 +284,18 @@ async fn two_profiles_share_one_run() {
     let dataset = upload(Arc::clone(&state), "default").await;
     let same = upload(Arc::clone(&state), "alpha").await;
     assert_eq!(dataset.summary.data_version, same.summary.data_version);
-    let configs = configs(Arc::clone(&state)).await;
-    let config_id = configs
+    let default_configs = configs(Arc::clone(&state)).await;
+    let alpha_configs = configs_for(Arc::clone(&state), "alpha").await;
+    let config_id = default_configs
         .into_iter()
         .find(|config| config.valid)
         .expect("valid")
         .config_id;
+    assert!(
+        alpha_configs
+            .iter()
+            .any(|config| config.config_id == config_id)
+    );
 
     let first = submit(
         Arc::clone(&state),
