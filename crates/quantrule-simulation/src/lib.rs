@@ -10,7 +10,9 @@
 #![forbid(unsafe_code)]
 
 pub mod marks;
+pub mod oracle;
 pub mod window;
 
 pub use marks::{Mark, MarkAction, MarkError, MarkOrigin, MarkQuality, Side};
+pub use oracle::{Bar, OracleError, label};
 pub use window::{Window, WindowError, select};
