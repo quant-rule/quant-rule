@@ -13,6 +13,7 @@ pub mod check;
 pub mod exit;
 pub mod marks;
 pub mod oracle;
+pub mod path;
 pub mod review;
 pub mod window;
 
@@ -20,5 +21,6 @@ pub use check::{Check, CheckError, Criteria, Failure, check};
 pub use exit::{Bar as ExitBar, ExitError, ExitPolicy, ExitResult, evaluate as evaluate_exit, lab};
 pub use marks::{Mark, MarkAction, MarkError, MarkOrigin, MarkQuality, Side};
 pub use oracle::{Bar, OracleError, label};
+pub use path::{FirstTouch, Path, PathError, classify};
 pub use review::{Agreement, Counts, Disagreement, Review, review};
 pub use window::{Window, WindowError, select};
