@@ -149,6 +149,7 @@ mod tests {
             },
             object_key: format!("datasets/{}", version.as_hex()),
             sha256: version,
+            quality: None,
             created_at: "2026-11-13T00:00:00Z".to_owned(),
         }
     }

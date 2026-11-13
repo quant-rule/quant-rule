@@ -108,7 +108,9 @@ mod tests {
     use super::*;
 
     fn staging() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("target/config-upload-tests")
+        // The workspace target is ignored by the cleanup checker; a crate-local
+        // target looks like unclassified local data.
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/config-upload-tests")
     }
 
     fn valid() -> BTreeMap<String, String> {

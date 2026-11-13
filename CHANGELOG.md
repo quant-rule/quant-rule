@@ -22,6 +22,12 @@ are not treated as releases.
 
 ### Added
 
+- Tolerant ingest: `POST /catalog/datasets/tolerant` skips a bad row instead of
+  failing the upload and records the accepted candles plus a quality report
+  (rows read, accepted, rejected, duplicate, out of order, invalid, and each
+  skipped line with its reason). The accepted rows keep the identity a strict
+  upload of the same clean rows would produce, and the report is stored on the
+  dataset record.
 - Config uploads: `POST /catalog/configs` accepts a run-config bundle as
   relative paths and bodies, stages it privately, validates it with the same
   loader as the mount, and catalogues it as `upload`. A path that is absolute

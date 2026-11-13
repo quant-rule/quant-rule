@@ -7,7 +7,9 @@
 pub mod catalog;
 pub mod ingest;
 pub mod inspect;
+pub mod tolerant;
 
 pub use catalog::{CatalogError, DatasetCatalog, MemoryCatalog};
 pub use ingest::{IngestError, Ingested, ingest};
 pub use inspect::{InspectError, Inspection, inspect, ladder};
+pub use tolerant::{TolerantIngested, ingest_tolerant};

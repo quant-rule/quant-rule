@@ -208,7 +208,7 @@ pub fn ingest(name: &str, source: &[u8]) -> Result<Ingested, IngestError> {
 }
 
 /// A first line of labels is not a candle.
-fn is_header(fields: &[&str]) -> bool {
+pub(crate) fn is_header(fields: &[&str]) -> bool {
     fields.first().is_some_and(|first| {
         first
             .chars()
@@ -243,6 +243,15 @@ mod tests {
         );
         assert_eq!(dataset.data_version, Digest::sha256(&dataset.content));
         assert_eq!(dataset.bytes, dataset.content.len() as u64);
+    }
+
+    #[test]
+    fn the_data_version_is_golden() {
+        let dataset = ingest("candles.csv", CSV.as_bytes()).expect("ingest");
+        assert_eq!(
+            dataset.data_version.to_string(),
+            "sha256:ae392d2b27fd6960a4d9af79e68a5ad67786a6494c3bb0127aa394e153bbd934"
+        );
     }
 
     #[test]

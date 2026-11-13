@@ -230,7 +230,18 @@ impl PgDatasetCatalog {
     }
 }
 
-type DatasetRow = (String, String, i64, i64, i64, i64, String, String, String);
+type DatasetRow = (
+    String,
+    String,
+    i64,
+    i64,
+    i64,
+    i64,
+    String,
+    String,
+    String,
+    Option<String>,
+);
 
 fn dataset_count(value: i64, field: &str) -> Result<u64, crate::data::CatalogError> {
     u64::try_from(value).map_err(|_| {
@@ -257,6 +268,16 @@ fn dataset_record(
         sha256: quantrule_api::Digest::parse(&row.7).map_err(|error| {
             crate::data::CatalogError::Store(format!("a stored hash is malformed: {error}"))
         })?,
+        quality: row
+            .9
+            .as_deref()
+            .map(serde_json::from_str)
+            .transpose()
+            .map_err(|error| {
+                crate::data::CatalogError::Store(format!(
+                    "a stored quality report is malformed: {error}"
+                ))
+            })?,
         created_at: row.8,
     })
 }
@@ -285,8 +306,8 @@ impl crate::data::DatasetCatalog for PgDatasetCatalog {
             let inserted = sqlx::query(
                 "INSERT INTO catalog.datasets
                      (profile_id, data_version, name, candles, first_bar, last_bar, bytes,
-                      object_key, sha256, created_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz)
+                      object_key, sha256, quality, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::timestamptz)
                  ON CONFLICT (profile_id, data_version) DO NOTHING",
             )
             .bind(profile.as_str())
@@ -298,6 +319,14 @@ impl crate::data::DatasetCatalog for PgDatasetCatalog {
             .bind(bytes)
             .bind(&record.object_key)
             .bind(record.sha256.as_hex())
+            .bind(
+                record
+                    .quality
+                    .as_ref()
+                    .map(serde_json::to_string)
+                    .transpose()
+                    .map_err(|error| crate::data::CatalogError::Store(error.to_string()))?,
+            )
             .bind(&record.created_at)
             .execute(&pool)
             .await
@@ -318,7 +347,7 @@ impl crate::data::DatasetCatalog for PgDatasetCatalog {
         Box::pin(async move {
             let row: Option<DatasetRow> = sqlx::query_as(
                 "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
-                        sha256,
+                        sha256, quality::text,
                         to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM catalog.datasets
                  WHERE profile_id = $1 AND data_version = $2",
@@ -340,7 +369,7 @@ impl crate::data::DatasetCatalog for PgDatasetCatalog {
         Box::pin(async move {
             let rows: Vec<DatasetRow> = sqlx::query_as(
                 "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
-                        sha256,
+                        sha256, quality::text,
                         to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM catalog.datasets
                  WHERE profile_id = $1 ORDER BY data_version",
