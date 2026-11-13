@@ -91,9 +91,13 @@ export async function call<T>(path: string, init: RequestInit = {}): Promise<T> 
  * The `File` is the request body, so the browser streams it and the client never
  * constructs a `data_version`. The server owns the limit and the hash.
  */
-export async function uploadDataset(file: File): Promise<DatasetRecord> {
+export async function uploadDataset(
+  file: File,
+  options: { tolerant?: boolean } = {},
+): Promise<DatasetRecord> {
   const query = new URLSearchParams({ name: file.name });
-  const response = await fetch(`${API_BASE}/catalog/datasets?${query.toString()}`, {
+  const path = options.tolerant === true ? "/catalog/datasets/tolerant" : "/catalog/datasets";
+  const response = await fetch(`${API_BASE}${path}?${query.toString()}`, {
     method: "POST",
     headers: requestHeaders(undefined, "text/csv"),
     body: file,

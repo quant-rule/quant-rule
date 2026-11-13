@@ -99,8 +99,9 @@ changes and the data service reloads; it is not editable in the client.
 ## 8. Upload
 
 The client streams the CSV to `POST /catalog/datasets` and displays progress.
-The server owns the limit, the hash, and the catalog row. The client never
-constructs a `data_version`.
+A "Skip bad rows" control uses `POST /catalog/datasets/tolerant` and shows the
+quality report. The server owns the limit, the hash, and the catalog row. The
+client never constructs a `data_version`.
 
 ## 9. Desktop shell
 

@@ -5,6 +5,7 @@
   const view = $derived(datasets());
   let file = $state<File | null>(null);
   let input = $state<HTMLInputElement | null>(null);
+  let tolerant = $state(false);
 
   onMount(() => {
     void load();
@@ -20,7 +21,7 @@
     if (!file || view.uploading) {
       return;
     }
-    await upload(file);
+    await upload(file, tolerant);
     file = null;
     if (input) {
       input.value = "";
@@ -54,6 +55,10 @@
       aria-label="CSV file"
       onchange={choose}
     />
+    <label class="row small">
+      <input type="checkbox" bind:checked={tolerant} />
+      Skip bad rows
+    </label>
     <button type="submit" disabled={!file || view.uploading}>
       {view.uploading ? "Uploading…" : "Upload"}
     </button>
@@ -65,6 +70,18 @@
 
   {#if view.error}
     <div class="notice error" role="alert">{view.error}</div>
+  {/if}
+
+  {#if view.lastQuality}
+    <div class="notice" role="status">
+      {#if view.lastQuality.rejected > 0}
+        {view.lastQuality.rejected} of {view.lastQuality.rows_read} rows skipped.
+        First: line {view.lastQuality.skipped[0].line}
+        ({view.lastQuality.skipped[0].reason}).
+      {:else}
+        All {view.lastQuality.rows_read} rows accepted.
+      {/if}
+    </div>
   {/if}
 
   {#if view.loading && view.items.length === 0}

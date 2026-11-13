@@ -106,6 +106,25 @@ describe("uploadDataset", () => {
     expect(record.summary.candles).toBe(1);
   });
 
+  it("uses the tolerant route when asked", async () => {
+    const seen = capture(201, {
+      summary: {
+        data_version: "sha256:" + "a".repeat(64),
+        name: "candles.csv",
+        candles: 1,
+        first_bar: 1_704_067_200,
+        last_bar: 1_704_067_200,
+        bytes: 64,
+      },
+      object_key: "datasets/aaa",
+      sha256: "sha256:" + "a".repeat(64),
+      quality: null,
+      created_at: "2026-11-13T00:00:00Z",
+    });
+    await uploadDataset(file(), { tolerant: true });
+    expect(seen[0]?.url).toBe("/api/v1/catalog/datasets/tolerant?name=candles.csv");
+  });
+
   it("keeps the stable code on a rejected upload", async () => {
     capture(400, {
       error: { code: "dataset.invalid", message: "line 2: high is below low" },
