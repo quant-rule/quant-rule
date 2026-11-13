@@ -443,6 +443,12 @@ impl RunStore for MemoryRuns {
             let Some(record) = state.runs.get_mut(&run_id) else {
                 return Err(RunStoreError(format!("run {run_id} is unknown")));
             };
+            // Only a running run can finish. The Postgres store enforces this
+            // with the `status = 'running'` predicate; the memory store must
+            // agree or a test could accept a transition production rejects.
+            if record.status != RunState::Running {
+                return Ok(record.clone());
+            }
             record.status = RunState::Succeeded;
             record.digest = Some(digest);
             record.stages = stages;
@@ -466,6 +472,9 @@ impl RunStore for MemoryRuns {
             let Some(record) = state.runs.get_mut(&run_id) else {
                 return Err(RunStoreError(format!("run {run_id} is unknown")));
             };
+            if record.status != RunState::Running {
+                return Ok(record.clone());
+            }
             record.status = RunState::Failed;
             record.error = Some(error);
             record.stages = stages;
@@ -670,6 +679,52 @@ mod worker_tests {
                 .status,
             RunState::Running
         );
+    }
+
+    #[tokio::test]
+    async fn only_a_running_run_can_be_completed_or_failed() {
+        let store = MemoryRuns::default();
+        let run = store
+            .submit(profile("default"), new_run())
+            .await
+            .expect("submit");
+        let id = run.record().run_id.to_string();
+
+        let record = store
+            .complete(
+                id.clone(),
+                Digest::sha256(b"too-early"),
+                Vec::new(),
+                done_stages(),
+            )
+            .await
+            .expect("complete");
+        assert_eq!(record.status, RunState::Queued);
+        assert_eq!(record.digest, None);
+
+        let record = store
+            .fail(id.clone(), "too early".to_owned(), done_stages())
+            .await
+            .expect("fail");
+        assert_eq!(record.status, RunState::Queued);
+        assert_eq!(record.error, None);
+
+        store.claim(id.clone()).await.expect("claim");
+        store
+            .complete(
+                id.clone(),
+                Digest::sha256(b"canonical"),
+                Vec::new(),
+                done_stages(),
+            )
+            .await
+            .expect("complete");
+        let record = store
+            .fail(id, "after success".to_owned(), done_stages())
+            .await
+            .expect("fail");
+        assert_eq!(record.status, RunState::Succeeded);
+        assert_eq!(record.error, None);
     }
 
     #[tokio::test]

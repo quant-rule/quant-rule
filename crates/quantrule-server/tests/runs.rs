@@ -146,6 +146,46 @@ async fn list(state: Arc<AppState>, profile: &str) -> Vec<RunSummary> {
     serde_json::from_slice(&body_bytes(response).await).expect("runs")
 }
 
+fn changed_config(name: &str) -> serde_json::Value {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid");
+    let mut run: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join("run.json")).expect("run"))
+            .expect("run json");
+    run["name"] = serde_json::json!(name);
+    let mut files = serde_json::Map::new();
+    files.insert(
+        "run.json".to_owned(),
+        serde_json::json!(serde_json::to_string(&run).expect("run text")),
+    );
+    for name in [
+        "data.json",
+        "model.json",
+        "execution.json",
+        "portfolio.json",
+    ] {
+        files.insert(
+            name.to_owned(),
+            serde_json::json!(std::fs::read_to_string(root.join(name)).expect("fixture")),
+        );
+    }
+    serde_json::json!({ "name": name, "files": files })
+}
+
+async fn upload_config(state: Arc<AppState>, payload: serde_json::Value) -> ConfigSummary {
+    let response = router(state)
+        .oneshot(
+            Request::post("/catalog/configs")
+                .header(PROFILE_HEADER, "default")
+                .header("content-type", "application/json")
+                .body(Body::from(payload.to_string()))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    serde_json::from_slice(&body_bytes(response).await).expect("config")
+}
+
 async fn seed(state: Arc<AppState>) -> (Digest, String, String) {
     let dataset = upload(Arc::clone(&state), "default").await;
     let configs = configs(state).await;
@@ -248,6 +288,43 @@ async fn a_changed_dataset_gets_a_new_run() {
         &config_id,
     )
     .await;
+    let second: SubmitRunResponse =
+        serde_json::from_slice(&body_bytes(second).await).expect("second");
+    assert_ne!(first.run_id, second.run_id);
+    assert_eq!(list(state, "default").await.len(), 2);
+}
+
+#[tokio::test]
+async fn a_changed_config_gets_a_new_run() {
+    let (state, _queue) = harness().await;
+    let dataset = upload(Arc::clone(&state), "default").await;
+    let original = configs(Arc::clone(&state))
+        .await
+        .into_iter()
+        .find(|config| config.valid)
+        .expect("valid")
+        .config_id;
+    let changed = upload_config(Arc::clone(&state), changed_config("changed-run")).await;
+    assert!(changed.valid);
+    assert_ne!(original, changed.config_id);
+
+    let first = submit(
+        Arc::clone(&state),
+        "default",
+        &dataset.summary.data_version,
+        &original,
+    )
+    .await;
+    assert_eq!(first.status(), StatusCode::ACCEPTED);
+    let first: SubmitRunResponse = serde_json::from_slice(&body_bytes(first).await).expect("first");
+    let second = submit(
+        Arc::clone(&state),
+        "default",
+        &dataset.summary.data_version,
+        &changed.config_id,
+    )
+    .await;
+    assert_eq!(second.status(), StatusCode::ACCEPTED);
     let second: SubmitRunResponse =
         serde_json::from_slice(&body_bytes(second).await).expect("second");
     assert_ne!(first.run_id, second.run_id);

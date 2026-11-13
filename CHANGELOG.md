@@ -185,6 +185,9 @@ are not treated as releases.
 
 ### Fixed
 
+- The in-memory run store now rejects a `complete` or `fail` transition from a
+  queued or terminal run, matching the Postgres `status = 'running'` predicate;
+  a test that accepted a transition production rejects can no longer pass.
 - An invalid uploaded config now keeps the `upload` origin; the shared record
   loader had hard-coded `repository` on the invalid branch.
 - The client's startup load no longer loops: the two initial requests run from
