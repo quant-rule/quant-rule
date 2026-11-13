@@ -67,7 +67,7 @@ async fn an_asset_is_served_as_a_javascript_module() {
 
 #[tokio::test]
 async fn an_unknown_page_falls_back_to_the_entry_point() {
-    let response = get("/runs/abc").await;
+    let response = get("/simulation/abc").await;
     assert_eq!(response.status(), StatusCode::OK);
     let body = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(body.contains("Quant Rule"), "{body}");

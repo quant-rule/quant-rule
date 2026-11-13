@@ -6,4 +6,5 @@ pub mod configs;
 pub mod data;
 pub mod profile;
 pub mod research;
+pub mod runs;
 pub mod runtime;

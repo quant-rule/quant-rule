@@ -22,6 +22,12 @@ are not treated as releases.
 
 ### Added
 
+- Run submission: `POST /runs` validates the dataset and the run config, derives
+  `run_id` from `data_version`, `config_hash`, `model_version`, and
+  `image_digest`, stores a queued run, and publishes `run.requested`. A duplicate
+  returns `200` with the same run. `GET /runs`, `GET /runs/{id}`, and
+  `POST /runs/{id}/cancel` complete the control-plane surface. Runs are shared
+  across profiles through submission rows, so identical inputs produce one run.
 - The config catalog: `GET /catalog/configs` scans the read-only run-config
   mount, validates each `run.json` with its referenced files, and lists a
   content-derived id, validity, the parser message, and a SHA-256 over the five
