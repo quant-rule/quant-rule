@@ -1,5 +1,6 @@
 //! Scan the read-only repository mount for run configs.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use quantrule_api::{ConfigOrigin, Digest};
@@ -72,6 +73,7 @@ pub(crate) fn record(
     match RunConfig::load(path) {
         Ok(config) => {
             let digest = hash_files(&config)?;
+            let files = bundle_files(&body, &config);
             Ok(ConfigRecord {
                 config_id: id(&digest),
                 name,
@@ -80,6 +82,7 @@ pub(crate) fn record(
                 message: None,
                 config_hash: Some(digest),
                 body,
+                files,
                 created_at: now.to_owned(),
             })
         }
@@ -88,15 +91,35 @@ pub(crate) fn record(
             Ok(ConfigRecord {
                 config_id: id(&digest),
                 name,
-                origin: ConfigOrigin::Repository,
+                origin,
                 valid: false,
                 message: Some(error.to_string()),
                 config_hash: None,
-                body,
+                body: body.clone(),
+                files: BTreeMap::from([("run.json".to_owned(), body)]),
                 created_at: now.to_owned(),
             })
         }
     }
+}
+
+fn bundle_files(body: &str, config: &RunConfig) -> BTreeMap<String, String> {
+    let value: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
+    let mut files = BTreeMap::from([("run.json".to_owned(), body.to_owned())]);
+    for (key, path) in [
+        ("data", &config.paths.data),
+        ("model", &config.paths.model),
+        ("execution", &config.paths.execution),
+        ("portfolio", &config.paths.portfolio),
+    ] {
+        let Some(relative) = value.get(key).and_then(|value| value.as_str()) else {
+            continue;
+        };
+        if let Ok(content) = std::fs::read_to_string(path) {
+            files.insert(relative.to_owned(), content);
+        }
+    }
+    files
 }
 
 fn hash_files(config: &RunConfig) -> Result<Digest, ScanError> {
@@ -145,6 +168,9 @@ mod tests {
         assert!(valid.message.is_none());
         assert!(valid.config_hash.is_some());
         assert!(valid.config_id.starts_with("cfg_"));
+        assert_eq!(valid.files.len(), 5);
+        assert!(valid.files.contains_key("run.json"));
+        assert!(valid.files.contains_key("data.json"));
     }
 
     #[test]

@@ -113,7 +113,9 @@ repeated message as a lookup.
 | `simulation.locked` | 409 | Marking after the decision is recorded |
 
 An upload is idempotent: the same bytes return the existing record and never
-create a second row.
+create a second row. A config row carries the whole bundle, not only the run
+file, so a run can reproduce the configuration after the staging directory is
+gone.
 
 ## 6. Simulation endpoints — the research plane
 

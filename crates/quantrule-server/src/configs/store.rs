@@ -24,6 +24,8 @@ pub struct ConfigRecord {
     pub config_hash: Option<Digest>,
     /// The run file body as stored.
     pub body: String,
+    /// The bundle's relative path to body, including `run.json`.
+    pub files: BTreeMap<String, String>,
     /// Server-assigned first-seen time, RFC 3339 UTC.
     pub created_at: String,
 }
@@ -122,6 +124,7 @@ mod tests {
             message: None,
             config_hash: valid.then(|| Digest::sha256(b"config")),
             body: "{}".to_owned(),
+            files: BTreeMap::new(),
             created_at: "2026-11-13T00:00:00Z".to_owned(),
         }
     }

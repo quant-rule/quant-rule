@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- A catalogued config stores its whole bundle, not just `run.json`. A repository
+  scan reads the five referenced files; an uploaded config keeps the validated
+  path-to-body map. A run can reproduce the configuration after the staging
+  directory is gone.
 - The Datasets screen exposes tolerant upload: a "Skip bad rows" control uses
   the tolerant route and renders the quality report, including the first skipped
   line and its reason.
@@ -156,6 +160,8 @@ are not treated as releases.
 
 ### Fixed
 
+- An invalid uploaded config now keeps the `upload` origin; the shared record
+  loader had hard-coded `repository` on the invalid branch.
 - The client's startup load no longer loops: the two initial requests run from
   `onMount` instead of an effect that read the state it updated.
 - Stale module docs that described the shell as the only surface, the backtest
