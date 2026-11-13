@@ -22,6 +22,8 @@ are not treated as releases.
 
 ### Added
 
+- The gateway now serves the full API under `/api/v1`, the base the client
+  already uses, while the same routes remain at the root for probes.
 - The stored ladder: `GET /datasets/{version}/ladder/{timeframe}` folds the
   canonical M1 bytes into one timeframe's CSV and writes it under
   `ladder/{data_version}/full/{timeframe}`. A repeat request reuses the object.

@@ -720,3 +720,29 @@ async fn two_profiles_keep_independent_hypotheses() {
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(text.contains("profile.not_found"), "{text}");
 }
+
+#[tokio::test]
+async fn the_client_prefix_serves_the_same_routes() {
+    let state = state_with_catalog().await;
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::get("/api/v1/version")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("quantrule.api/v1"), "{text}");
+
+    let response = router(state)
+        .oneshot(
+            Request::get("/api/v1/profiles")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+}
