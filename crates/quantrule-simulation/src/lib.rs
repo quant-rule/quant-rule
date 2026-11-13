@@ -10,12 +10,14 @@
 #![forbid(unsafe_code)]
 
 pub mod check;
+pub mod exit;
 pub mod marks;
 pub mod oracle;
 pub mod review;
 pub mod window;
 
 pub use check::{Check, CheckError, Criteria, Failure, check};
+pub use exit::{Bar as ExitBar, ExitError, ExitPolicy, ExitResult, evaluate as evaluate_exit, lab};
 pub use marks::{Mark, MarkAction, MarkError, MarkOrigin, MarkQuality, Side};
 pub use oracle::{Bar, OracleError, label};
 pub use review::{Agreement, Counts, Disagreement, Review, review};
