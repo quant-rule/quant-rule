@@ -28,7 +28,7 @@ pub trait HypothesisStore: Send + Sync {
     fn load(&self, fingerprint: String) -> BoxFuture<Result<Option<SealedHypothesis>, StoreError>>;
 }
 
-/// An in-memory store, for tests and for a single process.
+/// An in-memory store, for tests and for a local instance.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryStore {
     inner: Arc<Mutex<BTreeMap<String, SealedHypothesis>>>,
