@@ -4,7 +4,7 @@
 - Status: Proposed
 - Issue: #649
 - Claim type: Behaviour Claim
-- Workflow: [Execution Plan](../workflows/execution-plan.md), [Improvement Workflow](../workflows/improvement-workflow.md)
+- Workflow: [Execution Plan](../../workflows/execution-plan.md), [Improvement Workflow](../../workflows/improvement-workflow.md)
 
 ## 1. Intent
 
