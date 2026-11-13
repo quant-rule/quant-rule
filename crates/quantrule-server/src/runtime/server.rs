@@ -15,10 +15,9 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use quantrule_api::{
-    ConfigSummary, CreateProfileRequest, DatasetRecord, DatasetSummary, Digest, ErrorCode,
-    ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, QualityReport,
-    RunDetail, RunState, RunSummary, SubmitRunRequest, SubmitRunResponse, TimeframeBars,
-    TimeframeInspection, UploadConfigRequest, VersionInfo,
+    ConfigSummary, DatasetRecord, DatasetSummary, Digest, ErrorCode, ErrorEnvelope, HealthReport,
+    PROFILE_HEADER, ProfileId, QualityReport, RunDetail, RunState, RunSummary, SubmitRunRequest,
+    SubmitRunResponse, TimeframeBars, TimeframeInspection, UploadConfigRequest, VersionInfo,
 };
 use quantrule_data::Timeframe;
 use quantrule_research::{Hypothesis, SealedHypothesis};
@@ -29,7 +28,7 @@ use crate::data::{
     CatalogError, DatasetCatalog, Ingested, Inspection, TolerantIngested, ingest, ingest_tolerant,
     inspect, ladder,
 };
-use crate::profile::{ProfileError, ProfileRecord, ProfileStore};
+use crate::profile::{ProfileStore, create_profile, list_profiles};
 use crate::research::HypothesisStore;
 use crate::runs::{CancelOutcome, NewRun, RunStore, derive};
 use crate::runtime::adapters::{ObjectStore, Queue};
@@ -272,88 +271,6 @@ async fn get_hypothesis(
         )),
         Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
     }
-}
-
-/// Build the wire summary for one profile.
-async fn profile_summary(
-    state: &AppState,
-    record: ProfileRecord,
-) -> Result<ProfileSummary, ApiFailure> {
-    let datasets = match state.catalog.as_ref() {
-        Some(catalog) => catalog
-            .count(record.profile_id.clone())
-            .await
-            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
-        None => 0,
-    };
-    // Runs and simulations gain their routes with their services; until then
-    // their counts are zero rather than a number no service can support.
-    Ok(ProfileSummary {
-        profile_id: record.profile_id,
-        name: record.name,
-        datasets,
-        runs: 0,
-        simulations: 0,
-    })
-}
-
-async fn create_profile(
-    State(state): State<Arc<AppState>>,
-    payload: Result<Json<CreateProfileRequest>, JsonRejection>,
-) -> Result<(StatusCode, Json<ProfileSummary>), ApiFailure> {
-    let Json(request) =
-        payload.map_err(|_| failure(ErrorCode::ProfileInvalid, "the body is not a profile"))?;
-    let profile_id = ProfileId::parse(request.profile_id.as_str())
-        .map_err(|error| failure(ErrorCode::ProfileInvalid, error.to_string()))?;
-    let name = request.name.trim();
-    if name.is_empty() {
-        return Err(failure(ErrorCode::ProfileInvalid, "a profile needs a name"));
-    }
-    let store = state
-        .profiles
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no profile store is configured"))?;
-    let record = ProfileRecord {
-        profile_id: profile_id.clone(),
-        name: name.to_owned(),
-        created_at: clock::now_utc(),
-    };
-    match store.create(record.clone()).await {
-        Ok(()) => {
-            let summary = profile_summary(&state, record).await?;
-            Ok((StatusCode::CREATED, Json(summary)))
-        }
-        Err(ProfileError::AlreadyExists) => match store.get(profile_id).await {
-            Ok(Some(existing)) => {
-                let summary = profile_summary(&state, existing).await?;
-                Ok((StatusCode::OK, Json(summary)))
-            }
-            Ok(None) => Err(failure(
-                ErrorCode::Internal,
-                "the profile store refused a duplicate but holds no record",
-            )),
-            Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
-        },
-        Err(ProfileError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
-    }
-}
-
-async fn list_profiles(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<ProfileSummary>>, ApiFailure> {
-    let store = state
-        .profiles
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no profile store is configured"))?;
-    let records = store
-        .list()
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    let mut summaries = Vec::with_capacity(records.len());
-    for record in records {
-        summaries.push(profile_summary(&state, record).await?);
-    }
-    Ok(Json(summaries))
 }
 
 /// The name an upload carries.
