@@ -43,7 +43,7 @@ never renders a label, and never returns a raw engine type.
 | GET | `/runs/{id}/artifacts/{name}` | — | bytes |
 | GET | `/runs/{id}/digest` | — | canonical digest |
 | GET | `/inspect/candles` | `data_version` | counts and coverage |
-| GET | `/inspect/timeframes` | `data_version` | bars and events per timeframe |
+| GET | `/inspect/timeframes` | `data_version` | bars and partial buckets per timeframe |
 | GET | `/inspect/events` | `data_version`, `timeframe` | event batch |
 
 ## 3. Submission

@@ -118,3 +118,27 @@ mod tests {
         assert!(summary.config_hash.is_none());
     }
 }
+
+/// One timeframe's bars and coverage in an inspection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TimeframeBars {
+    /// Short code, such as `5m`.
+    pub timeframe: String,
+    /// Complete bars.
+    pub bars: u64,
+    /// Trailing buckets missing at least one M1 candle.
+    pub partial_buckets: u64,
+    /// First complete bar, Unix seconds UTC.
+    pub first_bar: Option<u64>,
+    /// Last complete bar, Unix seconds UTC.
+    pub last_bar: Option<u64>,
+}
+
+/// A dataset's timeframe ladder, counted from its stored bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TimeframeInspection {
+    /// Content identity.
+    pub data_version: Digest,
+    /// One entry per timeframe, in ascending order.
+    pub timeframes: Vec<TimeframeBars>,
+}

@@ -7,6 +7,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use quantrule_api::{
     DatasetRecord, DatasetSummary, Digest, PROFILE_HEADER, ProfileId, ProfileSummary,
+    TimeframeInspection,
 };
 use quantrule_research::{CostModel, Partition, SealedHypothesis, Split};
 use quantrule_server::data::MemoryCatalog;
@@ -24,6 +25,12 @@ use tower::ServiceExt;
 #[derive(Clone, Default)]
 struct MemoryObjects {
     inner: Arc<Mutex<BTreeMap<String, Vec<u8>>>>,
+}
+
+impl MemoryObjects {
+    fn remove(&self, key: &str) {
+        self.inner.lock().expect("the object lock").remove(key);
+    }
 }
 
 impl ObjectStore for MemoryObjects {
@@ -634,4 +641,120 @@ async fn an_oversized_upload_is_refused() {
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(text.contains("upload.too_large"), "{text}");
+}
+
+#[tokio::test]
+async fn a_dataset_is_inspected_by_its_version() {
+    let (state, _objects) = state_with_catalog_and_objects().await;
+    let response = router(Arc::clone(&state))
+        .oneshot(upload("candles.csv"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let record = read_dataset(&body_bytes(response).await);
+    let version = record.summary.data_version.to_string();
+
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/inspect/candles?data_version={version}"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let summary: DatasetSummary =
+        serde_json::from_slice(&body_bytes(response).await).expect("summary");
+    assert_eq!(summary.candles, 2);
+    assert_eq!(summary.first_bar, 1_704_067_200);
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/inspect/timeframes?data_version={version}"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let inspection: TimeframeInspection =
+        serde_json::from_slice(&body_bytes(response).await).expect("inspection");
+    assert_eq!(inspection.data_version, record.summary.data_version);
+    let codes: Vec<&str> = inspection
+        .timeframes
+        .iter()
+        .map(|bars| bars.timeframe.as_str())
+        .collect();
+    assert_eq!(codes, vec!["1m", "5m", "15m", "1h", "4h"]);
+    assert_eq!(inspection.timeframes[0].bars, 2);
+    assert_eq!(inspection.timeframes[1].bars, 0);
+    assert_eq!(inspection.timeframes[1].partial_buckets, 1);
+}
+
+#[tokio::test]
+async fn an_unknown_version_cannot_be_inspected() {
+    let version = Digest::sha256(b"missing").to_string();
+    let response = router(state_with_catalog().await)
+        .oneshot(
+            Request::get(format!("/inspect/candles?data_version={version}"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("dataset.not_found"), "{text}");
+}
+
+#[tokio::test]
+async fn a_missing_object_is_a_server_error() {
+    let (state, objects) = state_with_catalog_and_objects().await;
+    let response = router(Arc::clone(&state))
+        .oneshot(upload("candles.csv"))
+        .await
+        .expect("response");
+    let record = read_dataset(&body_bytes(response).await);
+    objects.remove(&record.object_key);
+    let version = record.summary.data_version.to_string();
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/inspect/candles?data_version={version}"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}
+
+#[tokio::test]
+async fn a_corrupt_object_is_refused() {
+    let (state, objects) = state_with_catalog_and_objects().await;
+    let response = router(Arc::clone(&state))
+        .oneshot(upload("candles.csv"))
+        .await
+        .expect("response");
+    let record = read_dataset(&body_bytes(response).await);
+    objects
+        .put(&record.object_key, b"not,a,candle".to_vec())
+        .await
+        .expect("overwrite");
+    let version = record.summary.data_version.to_string();
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/inspect/timeframes?data_version={version}"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }

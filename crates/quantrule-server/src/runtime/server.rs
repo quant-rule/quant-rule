@@ -15,12 +15,13 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use quantrule_api::{
     CreateProfileRequest, DatasetRecord, DatasetSummary, Digest, ErrorCode, ErrorEnvelope,
-    HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, VersionInfo,
+    HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, TimeframeBars, TimeframeInspection,
+    VersionInfo,
 };
 use quantrule_research::{Hypothesis, SealedHypothesis};
 use serde::Deserialize;
 
-use crate::data::{CatalogError, DatasetCatalog, ingest};
+use crate::data::{CatalogError, DatasetCatalog, Inspection, ingest, inspect};
 use crate::profile::{ProfileError, ProfileRecord, ProfileStore};
 use crate::research::HypothesisStore;
 use crate::runtime::adapters::ObjectStore;
@@ -117,6 +118,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/catalog/datasets", get(list_datasets).post(create_dataset))
         .route("/catalog/datasets/{version}", get(get_dataset))
         .route("/profiles", get(list_profiles).post(create_profile))
+        .route("/inspect/candles", get(inspect_candles))
+        .route("/inspect/timeframes", get(inspect_timeframes))
         .layer(DefaultBodyLimit::max(limit))
         .with_state(state)
 }
@@ -358,6 +361,93 @@ async fn create_dataset(
         }
         Err(CatalogError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
     }
+}
+
+/// The dataset an inspection names.
+#[derive(Debug, Deserialize)]
+struct InspectQuery {
+    data_version: String,
+}
+
+/// Resolve a dataset and re-read its bytes into a ladder inspection.
+async fn load_inspection(
+    state: &AppState,
+    headers: &HeaderMap,
+    query: Result<Query<InspectQuery>, QueryRejection>,
+) -> Result<(DatasetRecord, Inspection), ApiFailure> {
+    let profile = request_profile(state, headers).await?;
+    let Query(query) =
+        query.map_err(|_| failure(ErrorCode::DatasetInvalid, "the query names no data_version"))?;
+    let version = Digest::parse(&query.data_version)
+        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?
+        .to_string();
+    let catalog = state
+        .catalog
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
+    let record = match catalog.get(profile, version.clone()).await {
+        Ok(Some(record)) => record,
+        Ok(None) => {
+            return Err(failure(
+                ErrorCode::DatasetNotFound,
+                format!("dataset {version} is unknown"),
+            ));
+        }
+        Err(error) => return Err(failure(ErrorCode::Internal, error.to_string())),
+    };
+    let objects = state
+        .objects
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let bytes = objects
+        .get(&record.object_key)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    if Digest::sha256(&bytes) != record.summary.data_version {
+        return Err(failure(
+            ErrorCode::Internal,
+            "the stored object does not match the catalog",
+        ));
+    }
+    let inspection =
+        inspect(&bytes).map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
+    Ok((record, inspection))
+}
+
+async fn inspect_candles(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    query: Result<Query<InspectQuery>, QueryRejection>,
+) -> Result<Json<DatasetSummary>, ApiFailure> {
+    let (record, _inspection) = load_inspection(&state, &headers, query).await?;
+    Ok(Json(record.summary))
+}
+
+async fn inspect_timeframes(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    query: Result<Query<InspectQuery>, QueryRejection>,
+) -> Result<Json<TimeframeInspection>, ApiFailure> {
+    let (record, inspection) = load_inspection(&state, &headers, query).await?;
+    let timeframes = inspection
+        .timeframes
+        .into_iter()
+        .map(|coverage| TimeframeBars {
+            timeframe: coverage.timeframe.code().to_owned(),
+            bars: coverage.bars,
+            partial_buckets: coverage.partial_buckets,
+            first_bar: coverage
+                .first_bar
+                .and_then(|value| u64::try_from(value).ok()),
+            last_bar: coverage
+                .last_bar
+                .and_then(|value| u64::try_from(value).ok()),
+        })
+        .collect();
+    Ok(Json(TimeframeInspection {
+        data_version: record.summary.data_version,
+        timeframes,
+    }))
 }
 
 async fn list_datasets(

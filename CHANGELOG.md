@@ -22,6 +22,15 @@ are not treated as releases.
 
 ### Added
 
+- Read-only inspection over stored bytes: `GET /inspect/candles` returns counts
+  and coverage, and `GET /inspect/timeframes` returns complete bars and partial
+  buckets per timeframe. The object is re-hashed before it is parsed, so a
+  catalog row and its bytes cannot disagree silently.
+- The ladder's streaming count (`LadderSummary`) folds the same buckets as
+  `TimeframeSet` without retaining the series, so a large dataset can be
+  inspected in bounded memory.
+- Ingest now refuses an out-of-order, duplicate, misaligned, or coarser-than-M1
+  source instead of cataloguing a series the ladder would reject.
 - Profiles are real records: `GET /profiles` lists them with dataset counts,
   `POST /profiles` creates one idempotently, and migration 0007 seeds the
   `default` profile. The dataset routes now refuse an unknown profile instead of

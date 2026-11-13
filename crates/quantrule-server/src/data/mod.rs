@@ -6,6 +6,8 @@
 
 pub mod catalog;
 pub mod ingest;
+pub mod inspect;
 
 pub use catalog::{CatalogError, DatasetCatalog, MemoryCatalog};
 pub use ingest::{IngestError, Ingested, ingest};
+pub use inspect::{InspectError, Inspection, inspect};

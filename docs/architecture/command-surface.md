@@ -275,7 +275,7 @@ stays read-only. The table is the target, implemented by `DIST-070`.
 | `run fetch` | Planned | `run_id`, directory | artifact set |
 | `run cancel` | Planned | `run_id` | new state |
 | `inspect candles` | Planned | `data_version` | counts and coverage |
-| `inspect timeframes` | Planned | `data_version` | bars and events per timeframe |
+| `inspect timeframes` | Planned | `data_version` | bars and partial buckets per timeframe |
 | `inspect events` | Planned | `data_version`, `timeframe` | event batch |
 | `verify` | Planned | — | canonical digest of the fixture run |
 | `profile list` | Planned | — | profiles with counts |
