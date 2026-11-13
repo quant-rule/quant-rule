@@ -12,10 +12,12 @@
 
 pub mod costs;
 pub mod rng;
+pub mod split;
 pub mod stats;
 
 pub use costs::{CostError, CostModel};
 pub use rng::Pcg32;
+pub use split::{Partition, Sample, Split, SplitError, ValidationLedger};
 pub use stats::{Statistics, StatsError, evaluate};
 
 /// Why an evaluation could not be produced.
