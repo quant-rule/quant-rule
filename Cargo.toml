@@ -1,5 +1,4 @@
 [workspace]
-exclude = ["apps/desktop/src-tauri"]
 members = [
     "crates/quantrule-api",
     "crates/quantrule-app",
