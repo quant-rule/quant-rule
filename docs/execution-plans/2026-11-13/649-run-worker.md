@@ -86,7 +86,7 @@ Excluded:
 | 6 | `qr-backtest` binary: config, health, migrations, signal, consumer loop | Implementation | `src/bin/qr_backtest.rs` |
 | 7 | Fixture run, duplicate, failure, cancel tests; docs and logs | Test + Quant Validator | tests, `docs/` |
 
-## 7. Verification table
+## Verification table
 
 | ID | Plan item | Acceptance criterion | Evidence or command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
