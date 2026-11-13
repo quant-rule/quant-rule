@@ -10,11 +10,13 @@
 
 #![forbid(unsafe_code)]
 
+pub mod compare;
 pub mod costs;
 pub mod rng;
 pub mod split;
 pub mod stats;
 
+pub use compare::{CompareError, Comparison, ComparisonRow, Experiment, compare};
 pub use costs::{CostError, CostModel};
 pub use rng::Pcg32;
 pub use split::{Partition, Sample, Split, SplitError, ValidationLedger};
