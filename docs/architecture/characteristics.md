@@ -7,16 +7,16 @@
 
 ## 1. Derivation
 
-| Demand from the kata | Characteristic |
-|---|---|
-| "the same evidence, every time" | Reproducibility (determinism) |
-| "no look-ahead"; events appear only when knowable | Temporal integrity (causality) |
+| Demand from the kata                                      | Characteristic                       |
+| --------------------------------------------------------- | ------------------------------------ |
+| "the same evidence, every time"                           | Reproducibility (determinism)        |
+| "no look-ahead"; events appear only when knowable         | Temporal integrity (causality)       |
 | "inspect, reproduce, and defend"; a reviewer must compare | Auditability (evidence traceability) |
-| "walk away"; the run outlives the client | **Detachability** (new) |
-| "work can exceed one machine" | **Scalability** (promoted) |
-| "pure filters"; one-way dependencies | Modularity |
-| "one command"; one port | Deployability (supporting) |
-| "every reading and event has evidence" | Testability (enabling) |
+| "walk away"; the run outlives the client                  | **Detachability** (new)              |
+| "work can exceed one machine"                             | **Scalability** (promoted)           |
+| "pure filters"; one-way dependencies                      | Modularity                           |
+| "one command"; one port                                   | Deployability (supporting)           |
+| "every reading and event has evidence"                    | Testability (enabling)               |
 
 The drivers changed because the delivery target changed. Detachability is new:
 the previous architecture could not express "the run continues without me".

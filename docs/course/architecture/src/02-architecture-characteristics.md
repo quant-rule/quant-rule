@@ -1,21 +1,85 @@
-# QuantRule - Architecture Characteristics
+# Quant Rule — Architecture Characteristics
 
-The product exists to find a trading edge, and an edge is only as trustworthy
-as the evidence behind it. Eight characteristics protect that evidence and the
-speed of the search. Each is tied to a numbered requirement and has a level
-that can be measured; the rest are deliberately not optimised.
+Rating: 1 = very low requirement, 5 = very high requirement.
 
-| Characteristic | Kata | Why it matters | Level (measurable) | Measured by |
-|:---------------|:----:|:---------------|:------------------|:------------|
-| Testability | R2, R3, R5 | every published number is a claim someone defends | every reading and event has a causality, a determinism, and a golden test; fast suite <= 5 min | `cargo test`, gate |
-| Modularity | R4, R6, R7 | six services only pay off if boundaries hold | 6 services, 0 cycles, gateway imports 0 engine symbols | boundary test |
-| Maintainability | R3, R7 | the rule changes weekly, the platform must not | a rule change touches <= 1 crate and <= 3 modules; no file over 1,000 lines | structural check |
-| Deployability | R4, R6 | a reviewer must reproduce in one command | clean clone to healthy <= 10 min; 1 published port; desktop is 1 asset | `make up` |
-| Fault tolerance | R4, R5 | a run must survive a crash without corrupting evidence | 0 succeeded runs with a missing artifact; resubmission gives identical bytes | crash test |
-| Responsiveness | R4, R7 | marking is interactive, a year of candles is not | submit <= 200 ms; chart window <= 200 ms; 1 year, 8 timeframes <= 60 s on 8 cores | benchmark |
-| Scalability | R4 | one machine must borrow a second | model stage 1 to 4 workers: identical digest, >= 2.5x throughput | scale test |
-| Partitioning type | R1-R7 | capability boundaries keep a rule change inside one service | domain-driven: 6 services by capability, no layer split | service catalog |
+## 1. Overall cost
 
-**Not optimised:** elasticity (no burst traffic, one operator, batch work),
-localization (one language, one user), and accessibility (one expert user;
-keyboard support is kept, but it is not a driver).
+\begin{longtable}{|L{3.0cm}|C{1.3cm}|L{1.3cm}|L{3.0cm}|L{4.6cm}|L{2.2cm}|}
+\hline
+\textbf{Characteristic} & \textbf{Level} & \textbf{Kata} & \textbf{Why it matters} & \textbf{Target} & \textbf{Evidence} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Characteristic} & \textbf{Level} & \textbf{Kata} & \textbf{Why it matters} & \textbf{Target} & \textbf{Evidence} \\
+\hline
+\endhead
+Overall cost & 2/5 & R1-R6 & the distributed split must stay cheap to build and run & at most 9 containers, 0 managed services, 1 host & deployment inventory \\
+\hline
+\end{longtable}
+
+## 2. Structural architecture characteristics
+
+\begin{longtable}{|L{3.0cm}|C{1.3cm}|L{1.3cm}|L{3.0cm}|L{4.6cm}|L{2.2cm}|}
+\hline
+\textbf{Characteristic} & \textbf{Level} & \textbf{Kata} & \textbf{Why it matters} & \textbf{Target} & \textbf{Evidence} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Characteristic} & \textbf{Level} & \textbf{Kata} & \textbf{Why it matters} & \textbf{Target} & \textbf{Evidence} \\
+\hline
+\endhead
+Simplicity & 5/5 & R1-R6 & hidden complexity hides errors & at most 5 configuration files; no infrastructure & file count \\
+\hline
+Modularity & 4/5 & R1, R2, R4 & data, signals, hypothesis, evaluation change independently & 0 cyclic dependencies & dependency check \\
+\hline
+Maintainability & 4/5 & R1-R4 & one correction must not touch unrelated parts & at most 1 module and 2 files per fix & change size \\
+\hline
+Testability & 5/5 & R4, R5, R6 & results must be checked against known answers & at least 90\% coverage of statistics; suite at most 5 minutes & coverage and suite time \\
+\hline
+Configurability & 4/5 & R1, R2, R3 & range, signals, costs, thresholds are set per hypothesis & 0 code changes to change a hypothesis & configuration diff \\
+\hline
+\end{longtable}
+
+\newpage
+
+## 3. Engineering architecture characteristics
+
+\begin{longtable}{|L{3.0cm}|C{1.3cm}|L{1.3cm}|L{3.0cm}|L{4.6cm}|L{2.2cm}|}
+\hline
+\textbf{Characteristic} & \textbf{Level} & \textbf{Kata} & \textbf{Why it matters} & \textbf{Target} & \textbf{Evidence} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Characteristic} & \textbf{Level} & \textbf{Kata} & \textbf{Why it matters} & \textbf{Target} & \textbf{Evidence} \\
+\hline
+\endhead
+Evolvability & 4/5 & R1, R2 & new hypotheses and signals arrive continuously & at most 1 day per new signal & change size \\
+\hline
+Deployability & 2/5 & R6 & a result must reproduce elsewhere & 1 command, 0 manual steps, at most 15 minutes & timed install \\
+\hline
+\end{longtable}
+
+## 4. Operational architecture characteristics
+
+\begin{longtable}{|L{3.0cm}|C{1.3cm}|L{1.3cm}|L{3.0cm}|L{4.6cm}|L{2.2cm}|}
+\hline
+\textbf{Characteristic} & \textbf{Level} & \textbf{Kata} & \textbf{Why it matters} & \textbf{Target} & \textbf{Evidence} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Characteristic} & \textbf{Level} & \textbf{Kata} & \textbf{Why it matters} & \textbf{Target} & \textbf{Evidence} \\
+\hline
+\endhead
+Performance & 3/5 & R2, R4 & large history, batch experiments & at most 60 s, 4 GB RAM, 80\% of one core & benchmark \\
+\hline
+Reliability & 4/5 & R4, R5, R6 & completed results must not be corrupted & 50 of 50 experiments at 80\% CPU for 1 hour & constrained run \\
+\hline
+Responsiveness & 2/5 & R2 & exploration is interactive & at most 2 s per query & timed query \\
+\hline
+Scalability & 2/5 & R2, R4 & one user, growing experiment count & 10 to 100 experiments, every result correct & run count \\
+\hline
+Elasticity & 1/5 & - & no burst expected & 1 user, at most 2 s, at most 70\% resources & peak test \\
+\hline
+Fault tolerance & 2/5 & R6 & an interrupted experiment restarts & 100\% of completed results valid after a kill & kill test \\
+\hline
+\end{longtable}

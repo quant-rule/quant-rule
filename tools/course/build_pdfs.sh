@@ -42,6 +42,10 @@ build_dir() {
     local output="$target_dir/$name.pdf"
     local toc=()
     local numbers=()
+    local date=()
+    if [ "$target_dir" != "architecture/deliverables" ]; then
+      date=(--metadata "date=$DATE")
+    fi
     # The deliverables are short; a table of contents and section numbers add
     # noise without helping a reader find anything.
     echo "building $output"
@@ -53,10 +57,11 @@ build_dir() {
       --from markdown \
       --to pdf \
       --pdf-engine=xelatex \
+      --include-in-header=tools/course/header.tex \
       --variable geometry:margin=2.2cm \
       --variable fontsize=11pt \
       --metadata title="$title" \
-      --metadata date="$DATE" \
+      "${date[@]}" \
       --fail-if-warnings \
       "${toc[@]}" \
       "${numbers[@]}" \
