@@ -12,6 +12,7 @@
 
 pub mod compare;
 pub mod costs;
+pub mod explore;
 pub mod hypothesis;
 pub mod rng;
 pub mod split;
@@ -19,6 +20,7 @@ pub mod stats;
 
 pub use compare::{CompareError, Comparison, ComparisonRow, Experiment, compare};
 pub use costs::{CostError, CostModel};
+pub use explore::{EventStudy, ExploreError, study};
 pub use hypothesis::{Hypothesis, HypothesisError, SealedHypothesis};
 pub use rng::Pcg32;
 pub use split::{Partition, Sample, Split, SplitError, ValidationLedger};
