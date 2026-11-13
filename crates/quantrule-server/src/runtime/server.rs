@@ -108,9 +108,8 @@ fn failure(code: ErrorCode, message: impl Into<String>) -> ApiFailure {
     (status, Json(ErrorEnvelope::of(code, message)))
 }
 
-/// Build the router.
-pub fn router(state: Arc<AppState>) -> Router {
-    let limit = state.max_upload;
+/// The API routes, before state and the body limit are attached.
+fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/health", get(health))
         .route("/version", get(version))
@@ -123,6 +122,18 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/inspect/timeframes", get(inspect_timeframes))
         .route("/datasets/{version}/candles", get(get_candles))
         .route("/datasets/{version}/ladder/{timeframe}", get(get_ladder))
+}
+
+/// Build the router.
+///
+/// The client speaks `/api/v1`, the base in the contract. The same routes answer
+/// at the root so a probe and a same-origin operator keep working without the
+/// prefix.
+pub fn router(state: Arc<AppState>) -> Router {
+    let limit = state.max_upload;
+    Router::new()
+        .merge(routes())
+        .nest("/api/v1", routes())
         .layer(DefaultBodyLimit::max(limit))
         .with_state(state)
 }

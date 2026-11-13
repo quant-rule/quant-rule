@@ -4,14 +4,15 @@
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
-The gateway is the only surface a client sees. It never accepts a filesystem path,
+The gateway is the only surface a client sees. The same routes also answer at
+`/` for probes and a same-origin operator; clients use the base. It never accepts a filesystem path,
 never renders a label, and never returns a raw engine type.
 
 ## 1. Conventions
 
 | Rule | Value |
 |---|---|
-| Base | `/api/v1` |
+| Base | `/api/v1`; paths below are relative to it |
 | Profile | `X-QuantRule-Profile` header on every request; default `default` |
 | Content type | `application/json` except upload and artifact download |
 | Version | `quantrule.api/v1` in `/version` and every error envelope |
