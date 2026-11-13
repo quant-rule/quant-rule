@@ -36,13 +36,15 @@ contains work the kata does not ask for. This plan re-scopes the board.
 **Included**
 
 - Six new issues, one per kata requirement, that carry the domain work.
-- Defer the work the kata does not ask for: profiles and the desktop shell.
+- Keep profiles and the desktop shell in scope: they serve one user and do not
+  contradict the kata.
 - Re-scope the epic around the six requirements.
 - Record the decision in the plan and the changelog.
 
 **Excluded**
 
-- Deleting or rewriting existing issues other than the deferred set.
+- Multi-user, accounts, sharing, and tenancy. These contradict the kata and are
+  not built.
 - Any program change.
 - Any change to the kata or the characteristics.
 
@@ -51,7 +53,7 @@ contains work the kata does not ask for. This plan re-scopes the board.
 | ID | Decision |
 |---|---|
 | K1 | The six kata requirements are the acceptance frame for the board |
-| K2 | Profiles, the desktop shell, and the embedded desktop are **deferred**, not deleted: they serve no kata requirement |
+| K2 | Profiles and the desktop shell stay in scope: one user, no accounts. Multi-user is the only exclusion |
 | K3 | New domain issues are numbered `DIST-12x` and placed with the services |
 | K4 | The epic counts only the six requirements; deferred work is listed but does not gate the release |
 
@@ -81,7 +83,7 @@ contains work the kata does not ask for. This plan re-scopes the board.
 
 | Risk | Mitigation |
 |---|---|
-| Deferring profiles and desktop hides work the user wanted | They stay on the board with a label and a reactivation trigger |
+| Scope creep back to multi-user | The kata names one user; any account or sharing request is a new decision |
 | Six new issues duplicate existing ones | Each names the requirement and the existing issue it builds on |
 | The board grows while the code does not | The epic counts requirements, not issues |
 
