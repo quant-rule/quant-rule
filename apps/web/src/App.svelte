@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import ConnectionPanel from "./lib/ConnectionPanel.svelte";
   import DatasetsPanel from "./lib/DatasetsPanel.svelte";
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
@@ -27,7 +28,7 @@
 
   let section = $state<Section>("connection");
 
-  $effect(() => {
+  onMount(() => {
     void refresh();
     void loadProfiles();
   });

@@ -179,3 +179,26 @@ jobs:
 
       - name: Build
         run: bun run build
+
+  web-e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+
+      - name: Install the client dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install the browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: bun run e2e
