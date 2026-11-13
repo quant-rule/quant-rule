@@ -2722,6 +2722,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "quantrule-research"
+version = "0.3.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "quantrule-server"
 version = "0.3.0"
 dependencies = [

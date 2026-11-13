@@ -1,0 +1,14 @@
+[package]
+name = "quantrule-research"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Hypothesis evaluation: expectancy, significance, drawdown, and comparison"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[lints]
+workspace = true
