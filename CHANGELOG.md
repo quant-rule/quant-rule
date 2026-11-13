@@ -22,6 +22,11 @@ are not treated as releases.
 
 ### Added
 
+- Config uploads: `POST /catalog/configs` accepts a run-config bundle as
+  relative paths and bodies, stages it privately, validates it with the same
+  loader as the mount, and catalogues it as `upload`. A path that is absolute
+  or contains `..` is refused; an invalid bundle is still catalogued with its
+  parser message.
 - Run detail: the browser opens a run from the inbox and shows the stage
   timeline, provenance including the image digest, the artifact list with
   hashes, and the canonical digest with a copy action. A failed run shows its

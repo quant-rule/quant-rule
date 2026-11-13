@@ -7,6 +7,8 @@
 
 pub mod scan;
 pub mod store;
+pub mod upload;
 
 pub use scan::{ScanError, scan};
 pub use store::{ConfigCatalog, ConfigRecord, ConfigStoreError, MemoryConfigs};
+pub use upload::{UploadError, build};

@@ -3,6 +3,8 @@
 //! A catalog entry is metadata over content-addressed bytes. Two profiles may
 //! point at the same object; neither duplicates it.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::digest::Digest;
@@ -141,4 +143,17 @@ pub struct TimeframeInspection {
     pub data_version: Digest,
     /// One entry per timeframe, in ascending order.
     pub timeframes: Vec<TimeframeBars>,
+}
+
+/// A run-config bundle uploaded as one body.
+///
+/// The keys are relative paths inside the bundle; `run.json` is required and
+/// every referenced file must be present. No key may escape the bundle.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UploadConfigRequest {
+    /// A human label for the catalog row.
+    pub name: String,
+    /// Relative path to file body.
+    pub files: BTreeMap<String, String>,
 }

@@ -31,7 +31,10 @@ impl std::error::Error for ScanError {}
 pub fn scan(root: &Path, now: &str) -> Result<Vec<ConfigRecord>, ScanError> {
     let mut paths = find_runs(root)?;
     paths.sort();
-    paths.iter().map(|path| record(root, path, now)).collect()
+    paths
+        .iter()
+        .map(|path| record(root, path, now, ConfigOrigin::Repository))
+        .collect()
 }
 
 fn find_runs(root: &Path) -> Result<Vec<PathBuf>, ScanError> {
@@ -53,7 +56,12 @@ fn find_runs(root: &Path) -> Result<Vec<PathBuf>, ScanError> {
     Ok(found)
 }
 
-fn record(root: &Path, path: &Path, now: &str) -> Result<ConfigRecord, ScanError> {
+pub(crate) fn record(
+    root: &Path,
+    path: &Path,
+    now: &str,
+    origin: ConfigOrigin,
+) -> Result<ConfigRecord, ScanError> {
     let body = std::fs::read_to_string(path).map_err(|error| ScanError(error.to_string()))?;
     let name = path
         .strip_prefix(root)
@@ -67,7 +75,7 @@ fn record(root: &Path, path: &Path, now: &str) -> Result<ConfigRecord, ScanError
             Ok(ConfigRecord {
                 config_id: id(&digest),
                 name,
-                origin: ConfigOrigin::Repository,
+                origin,
                 valid: true,
                 message: None,
                 config_hash: Some(digest),

@@ -99,3 +99,124 @@ async fn a_missing_profile_is_refused() {
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(text.contains("profile.not_found"), "{text}");
 }
+
+fn bundle() -> serde_json::Value {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid");
+    let mut run: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join("run.json")).expect("run"))
+            .expect("run json");
+    run["name"] = serde_json::json!("uploaded-run");
+    let mut files = serde_json::Map::new();
+    files.insert(
+        "run.json".to_owned(),
+        serde_json::json!(serde_json::to_string(&run).expect("run text")),
+    );
+    for name in [
+        "data.json",
+        "model.json",
+        "execution.json",
+        "portfolio.json",
+    ] {
+        files.insert(
+            name.to_owned(),
+            serde_json::json!(std::fs::read_to_string(root.join(name)).expect("fixture")),
+        );
+    }
+    serde_json::json!({ "name": "uploaded", "files": files })
+}
+
+async fn upload(state: Arc<AppState>, payload: serde_json::Value) -> axum::response::Response {
+    router(state)
+        .oneshot(
+            Request::post("/catalog/configs")
+                .header(PROFILE_HEADER, "default")
+                .header("content-type", "application/json")
+                .body(Body::from(payload.to_string()))
+                .expect("request"),
+        )
+        .await
+        .expect("response")
+}
+
+#[tokio::test]
+async fn an_uploaded_bundle_is_catalogued() {
+    let state = state().await;
+    let response = upload(Arc::clone(&state), bundle()).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let record: ConfigSummary =
+        serde_json::from_slice(&body_bytes(response).await).expect("config");
+    assert!(record.valid);
+    assert_eq!(record.origin, ConfigOrigin::Upload);
+    assert_eq!(record.name, "uploaded");
+    assert!(record.config_hash.is_some());
+
+    let response = list(state).await;
+    let records: Vec<ConfigSummary> =
+        serde_json::from_slice(&body_bytes(response).await).expect("configs");
+    assert_eq!(records.len(), 3);
+    assert!(
+        records
+            .iter()
+            .any(|item| item.config_id == record.config_id)
+    );
+}
+
+#[tokio::test]
+async fn a_duplicate_upload_is_a_lookup() {
+    let state = state().await;
+    let first = upload(Arc::clone(&state), bundle()).await;
+    assert_eq!(first.status(), StatusCode::CREATED);
+    let first: ConfigSummary = serde_json::from_slice(&body_bytes(first).await).expect("first");
+    let second = upload(state, bundle()).await;
+    assert_eq!(second.status(), StatusCode::OK);
+    let second: ConfigSummary = serde_json::from_slice(&body_bytes(second).await).expect("second");
+    assert_eq!(first.config_id, second.config_id);
+}
+
+#[tokio::test]
+async fn an_uploaded_invalid_bundle_is_catalogued_with_its_message() {
+    let mut payload = bundle();
+    payload["files"]
+        .as_object_mut()
+        .expect("files")
+        .remove("data.json");
+    let state = state().await;
+    let response = upload(Arc::clone(&state), payload).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let record: ConfigSummary =
+        serde_json::from_slice(&body_bytes(response).await).expect("config");
+    assert!(!record.valid);
+    assert!(record.config_hash.is_none());
+    assert!(
+        record
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("data.json")),
+        "{:?}",
+        record.message
+    );
+}
+
+#[tokio::test]
+async fn a_bundle_path_cannot_escape() {
+    let mut payload = bundle();
+    payload["files"]
+        .as_object_mut()
+        .expect("files")
+        .insert("../escape.json".to_owned(), serde_json::json!("{}"));
+    let response = upload(state().await, payload).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("config.invalid"), "{text}");
+}
+
+#[tokio::test]
+async fn a_bundle_without_run_json_is_refused() {
+    let mut payload = bundle();
+    payload["files"]
+        .as_object_mut()
+        .expect("files")
+        .remove("run.json");
+    let response = upload(state().await, payload).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
