@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- Hypotheses are profile-scoped: migration 0008 adds `profile_id`, the store keys
+  by `(profile_id, fingerprint)`, and the hypothesis routes require a known
+  profile. The same hypothesis can be sealed in two profiles without one
+  becoming visible to the other.
 - The candle stream: `GET /datasets/{version}/candles` returns the stored
   canonical CSV after re-hashing it against `data_version` and sets an ETag, so
   a run consumes exactly the bytes the catalog identifies.
