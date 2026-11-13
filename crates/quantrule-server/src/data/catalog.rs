@@ -50,6 +50,9 @@ pub trait DatasetCatalog: Send + Sync {
 
     /// List a profile's datasets, ordered by version.
     fn list(&self, profile: ProfileId) -> BoxFuture<Result<Vec<DatasetRecord>, CatalogError>>;
+
+    /// How many datasets a profile holds.
+    fn count(&self, profile: ProfileId) -> BoxFuture<Result<u64, CatalogError>>;
 }
 
 /// An in-memory catalog, for tests and for a local instance.
@@ -107,6 +110,19 @@ impl DatasetCatalog for MemoryCatalog {
                 .filter(|((owner, _), _)| owner == profile.as_str())
                 .map(|(_, record)| record.clone())
                 .collect())
+        })
+    }
+
+    fn count(&self, profile: ProfileId) -> BoxFuture<Result<u64, CatalogError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let map = inner
+                .lock()
+                .map_err(|_| CatalogError::Store("the catalog lock is poisoned".to_owned()))?;
+            Ok(map
+                .keys()
+                .filter(|(owner, _)| owner == profile.as_str())
+                .count() as u64)
         })
     }
 }
@@ -185,6 +201,21 @@ mod tests {
             .expect("low");
         let listed = catalog.list(profile("default")).await.expect("list");
         assert_eq!(listed, vec![low, high]);
+    }
+
+    #[tokio::test]
+    async fn the_count_is_per_profile() {
+        let catalog = MemoryCatalog::default();
+        catalog
+            .insert(profile("default"), record(b"one"))
+            .await
+            .expect("one");
+        catalog
+            .insert(profile("default"), record(b"two"))
+            .await
+            .expect("two");
+        assert_eq!(catalog.count(profile("default")).await.expect("count"), 2);
+        assert_eq!(catalog.count(profile("other")).await.expect("count"), 0);
     }
 
     #[tokio::test]
