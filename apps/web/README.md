@@ -29,6 +29,9 @@ Bun runtime exists in the image.
 | `src/lib/api.ts` | The only transport seam |
 | `src/lib/types.ts` | Contract types |
 | `src/lib/connection.svelte.ts` | Gateway state |
-| `src/lib/ConnectionPanel.svelte` | First screen |
+| `src/lib/ConnectionPanel.svelte` | Connection screen |
+| `src/lib/datasets.svelte.ts` | Dataset list and upload state |
+| `src/lib/DatasetsPanel.svelte` | Datasets screen and CSV upload |
 
-A screen arrives with its issue; the connection screen proves the transport.
+Screens arrive with their issues; the connection and datasets screens are
+implemented.

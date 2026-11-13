@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- The browser client's Datasets screen: it lists `data_version`, candles, and
+  UTC coverage, uploads a CSV with the file as the request body (no path field),
+  shows an indeterminate upload bar, and renders the stable error code. A
+  duplicate upload returns the existing record and does not add a row.
 - The gateway now serves the full API under `/api/v1`, the base the client
   already uses, while the same routes remain at the root for probes.
 - The stored ladder: `GET /datasets/{version}/ladder/{timeframe}` folds the
