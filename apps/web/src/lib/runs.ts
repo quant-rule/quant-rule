@@ -28,3 +28,12 @@ export function elapsed(milliseconds: number | null): string {
 export function submitted(iso: string): string {
   return iso.replace("T", " ").replace(".000Z", "Z");
 }
+
+/** A byte count in a fixed, locale-independent form. */
+export function bytes(count: number): string {
+  if (count < 1_024) {
+    return `${count} B`;
+  }
+  const kib = count / 1_024;
+  return kib < 1_024 ? `${kib.toFixed(1)} KiB` : `${(kib / 1_024).toFixed(1)} MiB`;
+}

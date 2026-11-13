@@ -1,18 +1,24 @@
 import { call, errorText } from "./api";
 import { pollDelay } from "./runs";
-import type { RunSummary } from "./types";
+import type { RunDetail, RunSummary } from "./types";
 
 /** What the runs inbox knows. */
 export interface Runs {
   items: RunSummary[];
   loading: boolean;
   error: string | null;
+  selected: string | null;
+  detail: RunDetail | null;
+  detailLoading: boolean;
 }
 
 let current = $state<Runs>({
   items: [],
   loading: false,
   error: null,
+  selected: null,
+  detail: null,
+  detailLoading: false,
 });
 
 /** Read the current runs state. */
@@ -26,10 +32,32 @@ export async function load(): Promise<void> {
   current = { ...current, loading: first, error: null };
   try {
     const items = await call<RunSummary[]>("/runs?limit=100");
-    current = { items, loading: false, error: null };
+    current = { ...current, items, loading: false, error: null };
   } catch (error) {
-    current = { items: [], loading: false, error: errorText(error) };
+    current = { ...current, items: [], loading: false, error: errorText(error) };
   }
+}
+
+/** Read one run's detail. */
+export async function loadDetail(runId: string): Promise<void> {
+  current = { ...current, detailLoading: true, error: null };
+  try {
+    const detail = await call<RunDetail>(`/runs/${encodeURIComponent(runId)}`);
+    current = { ...current, detail, detailLoading: false, error: null };
+  } catch (error) {
+    current = { ...current, detail: null, detailLoading: false, error: errorText(error) };
+  }
+}
+
+/** Open one run. */
+export async function select(runId: string): Promise<void> {
+  current = { ...current, selected: runId, detail: null, detailLoading: true };
+  await loadDetail(runId);
+}
+
+/** Return to the list. */
+export function clearSelection(): void {
+  current = { ...current, selected: null, detail: null, detailLoading: false };
 }
 
 /**
@@ -47,6 +75,9 @@ export function startPolling(): () => void {
       return;
     }
     await load();
+    if (current.selected !== null) {
+      await loadDetail(current.selected);
+    }
     if (stopped) {
       return;
     }
@@ -70,6 +101,9 @@ export async function cancel(runId: string): Promise<void> {
   try {
     await call(`/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST" });
     await load();
+    if (current.selected === runId) {
+      await loadDetail(runId);
+    }
   } catch (error) {
     current = { ...current, error: errorText(error) };
   }

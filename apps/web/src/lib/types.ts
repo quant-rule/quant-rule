@@ -82,3 +82,40 @@ export interface SubmitRunResponse {
   status: RunState;
   created: boolean;
 }
+
+/** One data-plane stage. */
+export type StageName = "data" | "model" | "backtest" | "evidence";
+
+/** The state of one stage. */
+export type StageStatus = "pending" | "running" | "done" | "failed" | "skipped";
+
+export interface StageProgress {
+  name: StageName;
+  state: StageStatus;
+  elapsed_ms: number | null;
+}
+
+export interface Provenance {
+  data_version: Digest;
+  config_hash: Digest;
+  model_version: string;
+  image_digest: Digest;
+}
+
+export interface ArtifactRef {
+  name: string;
+  bytes: number;
+  sha256: Digest;
+}
+
+/** One run in detail. */
+export interface RunDetail {
+  run_id: Digest;
+  status: RunState;
+  owner: string;
+  stages: StageProgress[];
+  provenance: Provenance;
+  artifacts: ArtifactRef[];
+  digest: Digest | null;
+  error: string | null;
+}

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { connection } from "./connection.svelte";
-  import { cancel, load, runs, startPolling } from "./runs.svelte";
+  import RunDetailView from "./RunDetail.svelte";
+  import { cancel, clearSelection, load, runs, select, startPolling } from "./runs.svelte";
   import { elapsed, isActive, shortId, submitted } from "./runs";
   import type { RunState } from "./types";
 
@@ -46,7 +47,16 @@
     <div class="notice error" role="alert">{view.error}</div>
   {/if}
 
-  {#if link.state !== "unreachable"}
+  {#if view.selected}
+    {#key view.detail?.run_id}
+      <RunDetailView
+        detail={view.detail}
+        loading={view.detailLoading}
+        onBack={clearSelection}
+        onCancel={(runId) => void stop(runId)}
+      />
+    {/key}
+  {:else if link.state !== "unreachable"}
     {#if view.loading && view.items.length === 0}
       <div class="notice">Loading runs…</div>
     {:else if view.items.length === 0}
@@ -67,7 +77,15 @@
         <tbody>
           {#each view.items as item (item.run_id)}
             <tr>
-              <td class="mono" title={item.run_id}>{shortId(item.run_id)}</td>
+              <td>
+                <button
+                  class="link"
+                  onclick={() => void select(item.run_id)}
+                  aria-label={`Open ${item.run_id}`}
+                >
+                  {shortId(item.run_id)}
+                </button>
+              </td>
               <td><span class="badge {badge(item.status)}">{item.status}</span></td>
               <td class="mono">{item.config_id}</td>
               <td class="mono" title={item.data_version}>{shortId(item.data_version)}</td>
@@ -96,5 +114,14 @@
   section {
     max-width: 80rem;
     gap: 0.8rem;
+  }
+
+  .link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    font-family: var(--mono);
+    cursor: pointer;
   }
 </style>
