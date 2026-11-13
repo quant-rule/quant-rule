@@ -40,3 +40,7 @@ Thumbs.db
 !/data/partitions.json
 !/data/improvement/index.md
 !/data/improvement/index.json
+
+# Client build output
+apps/web/node_modules/
+apps/web/dist/

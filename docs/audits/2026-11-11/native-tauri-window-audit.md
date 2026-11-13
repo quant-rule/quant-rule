@@ -485,7 +485,7 @@ reproducible.
 ## Links
 
 - Related audit: [`app-service-memory-audit.md`](app-service-memory-audit.md)
-- Native desktop: [`apps/desktop/README.md`](../../../apps/desktop/README.md)
+- Native desktop: `apps/desktop/README.md`
 - Desktop plan: [`607-desktop-ui.md`](../../execution-plans/2026-11-11/607-desktop-ui.md)
 - Parent Tauri plan: [`588-tauri-platform.md`](../../execution-plans/2026-11-11/588-tauri-platform.md)
 - Command surface: [`command-surface.md`](../../architecture/command-surface.md)

@@ -171,7 +171,7 @@ section 9.
 | `crates/quantrule-api` | HTTP contract types (target) |
 | `crates/quantrule-server` | Gateway and workers (target) |
 | `crates/quantrule-shell` | Command shell |
-| `apps/web` | Svelte 5 browser client (target) |
+| `apps/web` | Svelte 5 browser client, built with Bun |
 | `docs/` | Contracts, workflows, plans, releases, course |
 | `tools/` | Data, research, and checker tooling |
 
