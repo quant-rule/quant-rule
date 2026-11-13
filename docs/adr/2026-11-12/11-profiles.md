@@ -24,7 +24,7 @@ Introduce **profiles** as an organisational scope over records.
 | Identity | Still one principal. A profile is not an identity |
 | Scope | Every catalog row, run record, simulation record, and memory note carries `profile_id` |
 | Default | `default`, created by the first migration |
-| Object bytes | Content-addressed and **shared**; identical candles are stored once |
+| Object bytes | Content-addressed and **shared**; identical candles and config file bundles are stored once |
 | Visibility | Scoped by `profile_id`; not enforced as a security control |
 | API | `GET /profiles`, `POST /profiles`, and the `X-QuantRule-Profile` header on every request |
 | Client | A switcher in the top bar; the active profile is persisted locally |

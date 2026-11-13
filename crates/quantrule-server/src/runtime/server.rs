@@ -470,7 +470,7 @@ async fn upload_config(
     headers: HeaderMap,
     payload: Result<Json<UploadConfigRequest>, JsonRejection>,
 ) -> Result<(StatusCode, Json<ConfigSummary>), ApiFailure> {
-    let _profile = request_profile(&state, &headers).await?;
+    let profile = request_profile(&state, &headers).await?;
     let Json(request) = payload
         .map_err(|_| failure(ErrorCode::ConfigInvalid, "the body is not a config bundle"))?;
     let store = state
@@ -486,14 +486,14 @@ async fn upload_config(
             .map_err(|error| failure(ErrorCode::ConfigInvalid, error.0))?;
 
     if let Some(existing) = store
-        .get(record.config_id.clone())
+        .get(profile.clone(), record.config_id.clone())
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
     {
         return Ok((StatusCode::OK, Json(existing.summary())));
     }
     store
-        .upsert(record.clone())
+        .upsert(profile, record.clone())
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     Ok((StatusCode::CREATED, Json(record.summary())))
@@ -550,16 +550,23 @@ async fn submit_run(
         .configs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
-    let config = configs
-        .get(request.config_id.clone())
+    let mut config = configs
+        .get(profile.clone(), request.config_id.clone())
         .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
-        .ok_or_else(|| {
-            failure(
-                ErrorCode::ConfigInvalid,
-                format!("config {} is unknown", request.config_id),
-            )
-        })?;
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    if config.is_none() {
+        sync_configs(&state, &profile).await?;
+        config = configs
+            .get(profile.clone(), request.config_id.clone())
+            .await
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    }
+    let config = config.ok_or_else(|| {
+        failure(
+            ErrorCode::ConfigInvalid,
+            format!("config {} is unknown", request.config_id),
+        )
+    })?;
     if !config.valid {
         return Err(failure(
             ErrorCode::ConfigInvalid,
@@ -723,11 +730,8 @@ async fn cancel_run(
 }
 
 /// Scan the read-only mount, refresh the catalog, and list every config.
-async fn list_configs(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> Result<Json<Vec<ConfigSummary>>, ApiFailure> {
-    let _profile = request_profile(&state, &headers).await?;
+/// Scan the mount into a profile's config rows.
+async fn sync_configs(state: &AppState, profile: &ProfileId) -> Result<(), ApiFailure> {
     let store = state
         .configs
         .as_ref()
@@ -740,12 +744,25 @@ async fn list_configs(
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     for record in records {
         store
-            .upsert(record)
+            .upsert(profile.clone(), record)
             .await
             .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     }
+    Ok(())
+}
+
+async fn list_configs(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<ConfigSummary>>, ApiFailure> {
+    let profile = request_profile(&state, &headers).await?;
+    sync_configs(&state, &profile).await?;
+    let store = state
+        .configs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
     let records = store
-        .list()
+        .list(profile)
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     Ok(Json(records.iter().map(ConfigRecord::summary).collect()))

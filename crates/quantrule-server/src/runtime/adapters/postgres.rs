@@ -558,6 +558,7 @@ fn config_record(
 impl crate::configs::ConfigCatalog for PgConfigStore {
     fn upsert(
         &self,
+        profile: quantrule_api::ProfileId,
         record: crate::configs::ConfigRecord,
     ) -> BoxFuture<Result<(), crate::configs::ConfigStoreError>> {
         let pool = self.pool.clone();
@@ -566,20 +567,35 @@ impl crate::configs::ConfigCatalog for PgConfigStore {
                 quantrule_api::ConfigOrigin::Repository => "repository",
                 quantrule_api::ConfigOrigin::Upload => "upload",
             };
+            let files = serde_json::to_string(&record.files)
+                .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?;
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?;
+            sqlx::query(
+                "INSERT INTO catalog.config_bundles (config_id, files) VALUES ($1, $2::jsonb)
+                 ON CONFLICT (config_id) DO UPDATE SET files = EXCLUDED.files",
+            )
+            .bind(&record.config_id)
+            .bind(files)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?;
             sqlx::query(
                 "INSERT INTO catalog.configs
-                     (config_id, name, origin, valid, message, config_hash, body, files,
+                     (profile_id, config_id, name, origin, valid, message, config_hash, body,
                       created_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::timestamptz)
-                 ON CONFLICT (config_id) DO UPDATE SET
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz)
+                 ON CONFLICT (profile_id, config_id) DO UPDATE SET
                      name = EXCLUDED.name,
                      origin = EXCLUDED.origin,
                      valid = EXCLUDED.valid,
                      message = EXCLUDED.message,
                      config_hash = EXCLUDED.config_hash,
-                     body = EXCLUDED.body,
-                     files = EXCLUDED.files",
+                     body = EXCLUDED.body",
             )
+            .bind(profile.as_str())
             .bind(&record.config_id)
             .bind(&record.name)
             .bind(origin)
@@ -587,30 +603,34 @@ impl crate::configs::ConfigCatalog for PgConfigStore {
             .bind(&record.message)
             .bind(record.config_hash.map(|digest| digest.to_wire()))
             .bind(&record.body)
-            .bind(
-                serde_json::to_string(&record.files)
-                    .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?,
-            )
             .bind(&record.created_at)
-            .execute(&pool)
+            .execute(&mut *transaction)
             .await
-            .map(|_| ())
-            .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))
+            .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?;
+            transaction
+                .commit()
+                .await
+                .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?;
+            Ok(())
         })
     }
 
     fn list(
         &self,
+        profile: quantrule_api::ProfileId,
     ) -> BoxFuture<Result<Vec<crate::configs::ConfigRecord>, crate::configs::ConfigStoreError>>
     {
         let pool = self.pool.clone();
         Box::pin(async move {
             let rows: Vec<ConfigRow> = sqlx::query_as(
-                "SELECT config_id, name, origin, valid, message, config_hash, body,
-                        files::text,
-                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
-                 FROM catalog.configs ORDER BY config_id",
+                "SELECT c.config_id, c.name, c.origin, c.valid, c.message, c.config_hash, c.body,
+                        b.files::text,
+                        to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                 FROM catalog.configs c
+                 JOIN catalog.config_bundles b ON b.config_id = c.config_id
+                 WHERE c.profile_id = $1 ORDER BY c.config_id",
             )
+            .bind(profile.as_str())
             .fetch_all(&pool)
             .await
             .map_err(|error| crate::configs::ConfigStoreError(error.to_string()))?;
@@ -620,17 +640,21 @@ impl crate::configs::ConfigCatalog for PgConfigStore {
 
     fn get(
         &self,
+        profile: quantrule_api::ProfileId,
         config_id: String,
     ) -> BoxFuture<Result<Option<crate::configs::ConfigRecord>, crate::configs::ConfigStoreError>>
     {
         let pool = self.pool.clone();
         Box::pin(async move {
             let row: Option<ConfigRow> = sqlx::query_as(
-                "SELECT config_id, name, origin, valid, message, config_hash, body,
-                        files::text,
-                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
-                 FROM catalog.configs WHERE config_id = $1",
+                "SELECT c.config_id, c.name, c.origin, c.valid, c.message, c.config_hash, c.body,
+                        b.files::text,
+                        to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                 FROM catalog.configs c
+                 JOIN catalog.config_bundles b ON b.config_id = c.config_id
+                 WHERE c.profile_id = $1 AND c.config_id = $2",
             )
+            .bind(profile.as_str())
             .bind(&config_id)
             .fetch_optional(&pool)
             .await

@@ -153,7 +153,7 @@ Rules:
 |---|---|
 | Header | `X-QuantRule-Profile`, required on every request except `/health`, `/version`, and `/profiles` |
 | Default | `default`, created by the first migration |
-| Scope | Catalog, runs, simulation, memory |
+| Scope | Datasets, hypotheses, run submissions, simulation, memory, and config rows; a config file bundle is shared by content id |
 | Bytes | Shared and content-addressed; profiles never duplicate an object |
 | Security | **Not a boundary.** One principal; no isolation promise |
 | Unknown profile | `404 profile.not_found`; the request is never defaulted silently |

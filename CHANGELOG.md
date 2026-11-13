@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- Config rows are profile-scoped while the file bundle is shared by content id:
+  a repository scan writes a row for the requesting profile, an upload writes
+  one for its profile, and a run submission scans the mount on a miss. Switching
+  the client profile reloads the config list.
 - A catalogued config stores its whole bundle, not just `run.json`. A repository
   scan reads the five referenced files; an uploaded config keeps the validated
   path-to-body map. A run can reproduce the configuration after the staging

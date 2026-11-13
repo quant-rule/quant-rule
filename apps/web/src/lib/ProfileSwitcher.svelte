@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { load as loadConfigs } from "./configs.svelte";
   import { load as loadDatasets } from "./datasets.svelte";
   import { profiles, select } from "./profiles.svelte";
 
@@ -7,7 +8,7 @@
   async function change(event: Event): Promise<void> {
     const value = (event.currentTarget as HTMLSelectElement).value;
     await select(value);
-    await loadDatasets();
+    await Promise.all([loadDatasets(), loadConfigs()]);
   }
 </script>
 
