@@ -15,6 +15,9 @@
   dataset. The queue adapter publishes only; consumption needs a trait and a
   small futures dependency. Evidence has no service yet, so finalization needs a
   single evidence-shaped module rather than being scattered through the worker.
+- Approval: the human approved the plan and decisions D1–D5 on 2026-11-13,
+  including the evidence-shaped finalizer, `futures-util`, the data rewrite,
+  `qr-backtest` in the server crate, and skipping duplicate messages.
 - Rejected: starting the worker implementation without the plan. It crosses the
   evidence boundary, adds a dependency, and requires a data-source rewrite; the
   decisions belong at a human gate.

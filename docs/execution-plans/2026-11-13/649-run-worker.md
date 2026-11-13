@@ -1,7 +1,8 @@
 # DIST-033 — Backtest Worker and Run Orchestrator
 
 - Date: 2026-11-13 (UTC)
-- Status: Proposed
+- Status: Approved
+- Approved: 2026-11-13 (UTC)
 - Issue: #649
 - Claim type: Behaviour Claim
 - Workflow: [Execution Plan](../../workflows/execution-plan.md), [Improvement Workflow](../../workflows/improvement-workflow.md)
@@ -54,11 +55,11 @@ Excluded:
 
 | ID | Decision | Options | Recommendation | Status |
 |---|---|---|---|---|
-| D1 | Who finalizes the run | (a) worker; (b) a separate evidence worker now; (c) worker computes, evidence splits later | (c) a `finalize` function owned by the evidence boundary in the same binary, extracted to `qr-evidence` when it exists | Pending |
-| D2 | Queue consumer | (a) `futures-util` + `QueueConsumer` trait; (b) poll tables; (c) HTTP execute route | (a); small dependency already transitively present | Pending |
-| D3 | Data source | (a) rewrite the materialized `data.json`; (b) new reference loader in `app` | (a); the app loader stays unchanged and the rewrite is tested | Pending |
-| D4 | Worker binary | (a) `qr-backtest` in `quantrule-server`; (b) new crate | (a); the image already ships one binary set | Pending |
-| D5 | Duplicate message | (a) skip when running/succeeded; (b) always recompute | (a); recomputation would rewrite a finished run | Pending |
+| D1 | Who finalizes the run | (a) worker; (b) a separate evidence worker now; (c) worker computes, evidence splits later | (c) a `finalize` function owned by the evidence boundary in the same binary, extracted to `qr-evidence` when it exists | Approved |
+| D2 | Queue consumer | (a) `futures-util` + `QueueConsumer` trait; (b) poll tables; (c) HTTP execute route | (a); small dependency already transitively present | Approved |
+| D3 | Data source | (a) rewrite the materialized `data.json`; (b) new reference loader in `app` | (a); the app loader stays unchanged and the rewrite is tested | Approved |
+| D4 | Worker binary | (a) `qr-backtest` in `quantrule-server`; (b) new crate | (a); the image already ships one binary set | Approved |
+| D5 | Duplicate message | (a) skip when running/succeeded; (b) always recompute | (a); recomputation would rewrite a finished run | Approved |
 
 ## 5. Acceptance criteria
 
