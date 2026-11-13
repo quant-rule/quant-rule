@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- The dataset catalog: `POST /catalog/datasets` turns CSV bytes into a
+  content-addressed, profile-scoped record, `GET /catalog/datasets` lists the
+  profile's summaries, and `GET /catalog/datasets/{version}` returns one record.
+  A repeat upload is idempotent and returns the existing record.
 - The code module map at `docs/architecture/module-map.md`: crate and module
   ownership, reading order, and the where-to-add guide for a reading, event,
   command, configuration field, use case, or desktop command.
