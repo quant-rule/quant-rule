@@ -1,46 +1,17 @@
-//! The model service surface.
+//! The model service.
 //!
-//! Milestone M1 exposes `/health` and `/version` only. Model compute stays in
-//! the gateway until P4 moves it, and this crate must never read strategy,
-//! execution, or portfolio state.
+//! The service loads a dataset by reference through the data service, computes
+//! the configured ladder, and stores content-addressed model objects. It owns
+//! the public model route and the internal model-bundle reference the backtest
+//! worker consumes. It holds no profile, run, strategy, execution, or portfolio
+//! state; the gateway validates the profile and injects the header.
 
 #![forbid(unsafe_code)]
 
-use std::sync::Arc;
+mod bundle;
+mod model;
+mod routes;
+mod state;
 
-use axum::extract::State;
-use axum::routing::get;
-use axum::{Json, Router};
-use quantrule_api::{HealthReport, VersionInfo};
-use quantrule_runtime::Config;
-use quantrule_runtime::health::HealthRegistry;
-
-/// What the health and version routes read.
-struct ServiceState {
-    version: VersionInfo,
-    health: HealthRegistry,
-}
-
-/// Build the service router.
-///
-/// The two routes are the milestone's whole surface. A model route added here
-/// before P4 would claim a measurement the gateway still computes.
-pub fn router(config: &Config, health: HealthRegistry) -> Router {
-    let state = Arc::new(ServiceState {
-        version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
-        health,
-    });
-    Router::new()
-        .route("/health", get(health_report))
-        .route("/version", get(version))
-        .with_state(state)
-}
-
-async fn health_report(State(state): State<Arc<ServiceState>>) -> Json<HealthReport> {
-    let digest = state.version.image_digest.clone();
-    Json(state.health.report(digest).await)
-}
-
-async fn version(State(state): State<Arc<ServiceState>>) -> Json<VersionInfo> {
-    Json(state.version.clone())
-}
+pub use routes::router;
+pub use state::{ModelServices, ModelState};

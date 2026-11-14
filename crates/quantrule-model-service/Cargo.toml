@@ -14,8 +14,15 @@ path = "src/main.rs"
 [dependencies]
 axum = "0.8.9"
 quantrule-api = { path = "../quantrule-api" }
+quantrule-app = { path = "../quantrule-app" }
+quantrule-data = { path = "../quantrule-data" }
+quantrule-model = { path = "../quantrule-model" }
 quantrule-runtime = { path = "../quantrule-runtime" }
+quantrule-service-api = { path = "../quantrule-service-api" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
+tracing = "0.1.44"
 
 [dev-dependencies]
 serde_json = { version = "1", features = ["float_roundtrip"] }

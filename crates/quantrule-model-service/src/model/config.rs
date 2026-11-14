@@ -24,19 +24,35 @@ pub struct ModelConfig {
     pub ladder: Vec<Timeframe>,
 }
 
-/// Write a config bundle to a private directory and load it.
+impl ModelConfig {
+    /// Take the model inputs from a validated run config.
+    #[must_use]
+    pub fn from_run(config: &RunConfig) -> Self {
+        let ladder = config
+            .model_ladder
+            .clone()
+            .unwrap_or_else(|| config.data.available_timeframes.clone());
+        Self {
+            data: config.data.clone(),
+            model: config.model,
+            ladder,
+        }
+    }
+}
+
+/// Write a config bundle to a private directory and load the run config.
 ///
-/// The directory is removed before this returns; only the parsed config values
-/// survive.
+/// The directory is removed before this returns. The returned config carries
+/// parsed values and file names, never a live path into the staging directory.
 ///
 /// # Errors
 ///
 /// Returns [`ModelError::Config`] when a file cannot be written, the run config
 /// does not validate, or the bundle is missing `run.json`.
-pub fn load_config(
+pub fn load_run_config(
     files: &BTreeMap<String, String>,
     staging_root: &Path,
-) -> Result<ModelConfig, ModelError> {
+) -> Result<RunConfig, ModelError> {
     if !files.contains_key("run.json") {
         return Err(ModelError::Config(
             "the config bundle has no run.json".to_owned(),
@@ -59,17 +75,7 @@ pub fn load_config(
         std::fs::write(&path, body)
             .map_err(|error| ModelError::Config(format!("write {relative}: {error}")))?;
     }
-    let config = RunConfig::load(&root.join("run.json"))
-        .map_err(|error| ModelError::Config(error.to_string()))?;
-    let ladder = config
-        .model_ladder
-        .clone()
-        .unwrap_or_else(|| config.data.available_timeframes.clone());
-    Ok(ModelConfig {
-        data: config.data,
-        model: config.model,
-        ladder,
-    })
+    RunConfig::load(&root.join("run.json")).map_err(|error| ModelError::Config(error.to_string()))
 }
 
 struct Staging(PathBuf);

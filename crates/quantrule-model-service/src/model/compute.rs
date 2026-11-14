@@ -46,10 +46,14 @@ impl std::error::Error for ModelError {}
 
 /// Compute the full ladder in one pass.
 ///
+/// The service serves the sharded path; the full pass stays as the equivalence
+/// oracle for the compute tests.
+///
 /// # Errors
 ///
 /// Returns [`ModelError`] for an empty or unsupported ladder, or an output
 /// failure.
+#[cfg(test)]
 pub fn compute_full(
     set: &TimeframeSet,
     config: &ModelConfig,

@@ -181,11 +181,37 @@ fn safe_key(relative: &str) -> Result<(), WorkerError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::series::canonical_csv;
     use quantrule_api::Digest;
     use quantrule_app::config::RunConfig;
     use std::collections::BTreeMap;
     use std::path::Path as StdPath;
+
+    /// Canonicalize a date-and-price CSV for a test, the way ingest does.
+    fn canonical_csv(csv: &str) -> Vec<u8> {
+        use quantrule_data::{Candle, RawCandle};
+
+        let mut out = Vec::new();
+        let mut index = 0_u64;
+        for line in csv.lines() {
+            let fields: Vec<&str> = line.split(',').map(str::trim).collect();
+            if fields.len() < 5 || !fields[0].starts_with(|c: char| c.is_ascii_digit()) {
+                continue;
+            }
+            let raw = RawCandle {
+                date: fields[0],
+                open: fields[1],
+                high: fields[2],
+                low: fields[3],
+                close: fields[4],
+                volume: fields.get(5).copied(),
+            };
+            let candle = Candle::parse(index, raw).expect("test candle");
+            out.extend_from_slice(candle.canonical_line().as_bytes());
+            out.push(b'\n');
+            index += 1;
+        }
+        out
+    }
 
     fn fixture() -> (ConfigBundle, Vec<u8>, Digest) {
         let root = StdPath::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid-v4");
