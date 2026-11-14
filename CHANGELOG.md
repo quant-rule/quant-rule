@@ -22,6 +22,13 @@ are not treated as releases.
 
 ### Added
 
+- The single server image and the Compose stack: one `quantrule-server` image
+  carries `qr-gateway`, `qr-backtest`, `qr-evidence`, and the built client, and
+  `compose.yaml` defines the nine-container topology with one published port,
+  three named volumes, and health-gated startup. `docker compose up` starts the
+  six containers whose binaries exist; `data`, `model`, and `simulation` stay
+  behind the `six-binaries` profile until `qr-data`, `qr-model`, and
+  `qr-simulation` exist.
 - Testing is recorded as three tiers: the fast unit/integration gate, the
   opt-in Compose tier required before a release, and port parity backed by
   golden fixtures from the retired implementation. `tools/check_port_parity.py`
