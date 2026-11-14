@@ -7,8 +7,10 @@ use std::sync::Arc;
 use quantrule_api::{
     ArtifactRef, Digest, ProfileId, RunState, StageName, StageProgress, StageStatus,
 };
-use quantrule_server::evidence::{EvidenceServices, FinalizeOutcome, digest, finalize};
-use quantrule_server::runs::{MemoryRuns, NewRun, RunStore, derive};
+use quantrule_server::evidence::{
+    EvidenceServices, FinalizeOutcome, RunManifest, digest, finalize,
+};
+use quantrule_server::runs::{MemoryRuns, NewRun, RunRecord, RunStore, derive};
 use quantrule_server::runtime::adapters::ObjectStore;
 
 fn profile(name: &str) -> ProfileId {
@@ -81,17 +83,62 @@ impl Fixture {
         }
     }
 
+    /// Write one content-addressed blob and return its reference.
     async fn put(&self, name: &str, bytes: &[u8]) -> ArtifactRef {
-        let key = format!("runs/{}/{name}", self.run_id);
+        let sha256 = Digest::sha256(bytes);
+        let key = RunManifest::blob_key(&sha256);
         self.objects.put(&key, bytes.to_vec()).await.expect("put");
         ArtifactRef {
             name: name.to_owned(),
             bytes: bytes.len() as u64,
-            sha256: Digest::sha256(bytes),
+            sha256,
         }
     }
 
-    async fn record(&self) -> quantrule_server::runs::RunRecord {
+    /// Publish a manifest for these references.
+    async fn manifest(&self, artifacts: &[ArtifactRef]) -> RunManifest {
+        let manifest = RunManifest::from_artifacts(&self.run_id, artifacts);
+        self.objects
+            .put(
+                &RunManifest::key(&self.run_id),
+                manifest.to_bytes().expect("manifest bytes"),
+            )
+            .await
+            .expect("manifest");
+        manifest
+    }
+
+    /// Record the computed set; the manifest is written separately so a test
+    /// can omit or disagree with it.
+    async fn computed(
+        &self,
+        artifacts: Vec<ArtifactRef>,
+        digest: Digest,
+        stages: Vec<StageProgress>,
+    ) -> RunRecord {
+        self.runs
+            .computed(self.run_id.clone(), digest, artifacts, stages)
+            .await
+            .expect("computed")
+    }
+
+    /// Publish the manifest and then record the same set.
+    async fn publish(
+        &self,
+        artifacts: &[ArtifactRef],
+        record_digest: Option<Digest>,
+        stages: Vec<StageProgress>,
+    ) -> RunRecord {
+        let manifest = self.manifest(artifacts).await;
+        self.computed(
+            artifacts.to_vec(),
+            record_digest.unwrap_or_else(|| manifest.digest.clone()),
+            stages,
+        )
+        .await
+    }
+
+    async fn record(&self) -> RunRecord {
         self.runs
             .get_any(self.run_id.clone())
             .await
@@ -114,15 +161,8 @@ async fn a_computed_run_is_verified_and_finished() {
         "provenance is excluded from the digest"
     );
     fixture
-        .runs
-        .computed(
-            fixture.run_id.clone(),
-            canonical.clone(),
-            artifacts,
-            computed_stages(),
-        )
-        .await
-        .expect("computed");
+        .publish(&artifacts, Some(canonical.clone()), computed_stages())
+        .await;
 
     assert_eq!(
         finalize(fixture.run_id.clone(), &fixture.services())
@@ -140,6 +180,72 @@ async fn a_computed_run_is_verified_and_finished() {
         .find(|stage| stage.name == StageName::Evidence)
         .expect("evidence stage");
     assert_eq!(evidence_stage.state, StageStatus::Done);
+    assert!(
+        fixture
+            .objects
+            .exists(&RunManifest::key(&fixture.run_id))
+            .await
+            .expect("manifest")
+    );
+    assert!(
+        !fixture
+            .objects
+            .exists(&format!("runs/{}/results.json", fixture.run_id))
+            .await
+            .expect("per-name key")
+    );
+}
+
+#[tokio::test]
+async fn a_missing_manifest_blocks_success() {
+    let fixture = fixture("no-manifest").await;
+    let results = fixture.put("results.json", b"{\"profit\":1}").await;
+    fixture
+        .computed(
+            vec![results.clone()],
+            digest(std::slice::from_ref(&results)),
+            computed_stages(),
+        )
+        .await;
+    assert_eq!(
+        finalize(fixture.run_id.clone(), &fixture.services())
+            .await
+            .expect("finalize"),
+        FinalizeOutcome::Failed
+    );
+    let record = fixture.record().await;
+    assert_eq!(record.status, RunState::Failed);
+    assert!(
+        record
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("no artifact manifest"))
+    );
+}
+
+#[tokio::test]
+async fn a_manifest_that_disagrees_with_the_run_blocks_success() {
+    let fixture = fixture("disagree").await;
+    let results = fixture.put("results.json", b"{\"profit\":1}").await;
+    let other = fixture.put("other.csv", b"a,b\n").await;
+    let manifest = fixture.manifest(std::slice::from_ref(&other)).await;
+    fixture
+        .computed(vec![results], manifest.digest.clone(), computed_stages())
+        .await;
+    assert_eq!(
+        finalize(fixture.run_id.clone(), &fixture.services())
+            .await
+            .expect("finalize"),
+        FinalizeOutcome::Failed
+    );
+    let record = fixture.record().await;
+    assert_eq!(record.status, RunState::Failed);
+    assert!(
+        record
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("does not match the run record"))
+    );
 }
 
 #[tokio::test]
@@ -150,16 +256,10 @@ async fn a_missing_artifact_blocks_success() {
         bytes: 2,
         sha256: Digest::sha256(b"{}"),
     };
+    let manifest = fixture.manifest(std::slice::from_ref(&missing)).await;
     fixture
-        .runs
-        .computed(
-            fixture.run_id.clone(),
-            digest(std::slice::from_ref(&missing)),
-            vec![missing],
-            computed_stages(),
-        )
-        .await
-        .expect("computed");
+        .computed(vec![missing], manifest.digest.clone(), computed_stages())
+        .await;
     assert_eq!(
         finalize(fixture.run_id.clone(), &fixture.services())
             .await
@@ -187,16 +287,9 @@ async fn one_changed_artifact_blocks_success() {
     let fixture = fixture("changed").await;
     let results = fixture.put("results.json", b"{\"profit\":1}").await;
     fixture
-        .runs
-        .computed(
-            fixture.run_id.clone(),
-            digest(std::slice::from_ref(&results)),
-            vec![results],
-            computed_stages(),
-        )
-        .await
-        .expect("computed");
-    let key = format!("runs/{}/results.json", fixture.run_id);
+        .publish(std::slice::from_ref(&results), None, computed_stages())
+        .await;
+    let key = RunManifest::blob_key(&results.sha256);
     fixture
         .objects
         .put(&key, b"{\"profit\":9}".to_vec())
@@ -223,15 +316,12 @@ async fn a_digest_mismatch_blocks_success() {
     let fixture = fixture("mismatch").await;
     let results = fixture.put("results.json", b"{\"profit\":1}").await;
     fixture
-        .runs
-        .computed(
-            fixture.run_id.clone(),
-            Digest::sha256(b"not-the-artifacts"),
-            vec![results],
+        .publish(
+            std::slice::from_ref(&results),
+            Some(Digest::sha256(b"not-the-artifacts")),
             computed_stages(),
         )
-        .await
-        .expect("computed");
+        .await;
     assert_eq!(
         finalize(fixture.run_id.clone(), &fixture.services())
             .await
@@ -259,15 +349,8 @@ async fn an_unfinished_stage_blocks_success() {
         }
     }
     fixture
-        .runs
-        .computed(
-            fixture.run_id.clone(),
-            digest(std::slice::from_ref(&results)),
-            vec![results],
-            stages,
-        )
-        .await
-        .expect("computed");
+        .publish(std::slice::from_ref(&results), None, stages)
+        .await;
     assert_eq!(
         finalize(fixture.run_id.clone(), &fixture.services())
             .await
@@ -289,15 +372,8 @@ async fn a_finished_run_is_not_finalized_again() {
     let fixture = fixture("twice").await;
     let results = fixture.put("results.json", b"{\"profit\":1}").await;
     fixture
-        .runs
-        .computed(
-            fixture.run_id.clone(),
-            digest(std::slice::from_ref(&results)),
-            vec![results],
-            computed_stages(),
-        )
-        .await
-        .expect("computed");
+        .publish(std::slice::from_ref(&results), None, computed_stages())
+        .await;
     let services = fixture.services();
     assert_eq!(
         finalize(fixture.run_id.clone(), &services)
@@ -342,15 +418,8 @@ async fn two_profiles_share_one_finalized_run() {
     assert_eq!(submitted.record().run_id.to_string(), fixture.run_id);
     let results = fixture.put("results.json", b"{\"profit\":1}").await;
     fixture
-        .runs
-        .computed(
-            fixture.run_id.clone(),
-            digest(std::slice::from_ref(&results)),
-            vec![results],
-            computed_stages(),
-        )
-        .await
-        .expect("computed");
+        .publish(std::slice::from_ref(&results), None, computed_stages())
+        .await;
     assert_eq!(
         finalize(fixture.run_id.clone(), &fixture.services())
             .await

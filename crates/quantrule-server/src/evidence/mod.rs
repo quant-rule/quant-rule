@@ -6,15 +6,21 @@
 
 pub mod artifacts;
 pub mod finalize;
+pub mod manifest;
 
-pub use artifacts::{digest, store, verify};
+pub use artifacts::{digest, verify};
 pub use finalize::{EvidenceServices, FinalizeOutcome, finalize};
+pub use manifest::{ManifestError, RunManifest, canonical_digest};
 
 /// Why evidence could not accept a computed run.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvidenceError {
     /// The run has no artifacts.
     NoArtifacts,
+    /// The run has no manifest; nothing is published.
+    MissingManifest,
+    /// The manifest is malformed or disagrees with the run record.
+    Manifest(String),
     /// A required stage did not finish.
     StageIncomplete(String),
     /// An artifact is missing from the store.
@@ -31,6 +37,10 @@ impl std::fmt::Display for EvidenceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NoArtifacts => formatter.write_str("the run has no artifacts"),
+            Self::MissingManifest => formatter.write_str("the run has no artifact manifest"),
+            Self::Manifest(message) => {
+                write!(formatter, "the artifact manifest is invalid: {message}")
+            }
             Self::StageIncomplete(stage) => write!(formatter, "the {stage} stage did not finish"),
             Self::Missing(name) => write!(formatter, "artifact {name} is missing"),
             Self::Changed(name) => write!(formatter, "artifact {name} does not match its hash"),

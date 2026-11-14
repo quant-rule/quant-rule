@@ -34,8 +34,8 @@ Every intermediate and final object is stored under the SHA-256 of its bytes.
 | Candle series | `candles/{data_version}` |
 | Timeframe ladder | `ladder/{data_version}/{config_hash}/{timeframe}` |
 | Model output | `model/{data_version}/{config_hash}/{model_version}/{ladder}.json` |
-| Run artifacts | `runs/{run_id}/{name}` |
-| Bundle | `runs/{run_id}/bundle.tar` |
+| Artifact blobs | `artifacts/{sha256}` |
+| Run manifest | `runs/{run_id}/manifest.json` |
 
 A repeated computation produces the same key. This is what makes retries safe:
 redelivery recomputes and lands on the same bytes.
@@ -78,7 +78,7 @@ provenance records.
 | Point of failure | Result |
 |---|---|
 | Before the first artifact is written | `failed`; nothing published |
-| Mid-write | Bytes are written under a temporary key; the artifact is never visible |
+| Mid-write | Blobs may exist under their hash; no manifest is written, so no artifact set is visible |
 | After artifacts, before finalization | `running`; finalization retries |
 | During finalization | `running` or `failed`; never `succeeded` with a missing artifact |
 

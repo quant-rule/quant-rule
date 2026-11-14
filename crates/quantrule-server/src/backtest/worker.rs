@@ -18,6 +18,7 @@ use crate::backtest::Workspace;
 use crate::backtest::retry::{self, RetryDecision};
 use crate::configs::ConfigCatalog;
 use crate::data::DatasetCatalog;
+use crate::evidence::RunManifest;
 use crate::runs::{ClaimOutcome, RunStore};
 use crate::runtime::adapters::{ObjectStore, Queue};
 use crate::runtime::queue::{ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_FAILED};
@@ -207,21 +208,31 @@ pub async fn process(
     if cancelled(services, &run_id).await? {
         return Ok(ProcessOutcome::Skipped);
     }
-    let artifacts = match collect_artifacts(&services.objects, &run_id, &outcome.root).await {
+    let artifacts = match publish_artifacts(&services.objects, &outcome.root).await {
         Ok(artifacts) => artifacts,
         Err(error) => {
             return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
         }
     };
-    let entries: Vec<(String, Digest)> = artifacts
-        .iter()
-        .filter(|artifact| canonical(&artifact.name))
-        .map(|artifact| (artifact.name.clone(), artifact.sha256.clone()))
-        .collect();
-    let digest = Digest::canonical(&entries);
+    let manifest = RunManifest::from_artifacts(&run_id, &artifacts);
+    let manifest_bytes = manifest
+        .to_bytes()
+        .map_err(|error| WorkerError(error.to_string()))?;
+    if let Err(error) = services
+        .objects
+        .put(&RunManifest::key(&run_id), manifest_bytes)
+        .await
+    {
+        return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+    }
     let record = services
         .runs
-        .computed(run_id.clone(), digest, artifacts, computed_stages())
+        .computed(
+            run_id.clone(),
+            manifest.digest.clone(),
+            manifest.refs(),
+            computed_stages(),
+        )
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
     if record.status != RunState::Running {
@@ -302,9 +313,8 @@ async fn publish(
         .map_err(|error| WorkerError(error.to_string()))
 }
 
-async fn collect_artifacts(
+async fn publish_artifacts(
     objects: &Arc<dyn ObjectStore>,
-    run_id: &str,
     root: &Path,
 ) -> Result<Vec<ArtifactRef>, WorkerError> {
     let mut files = Vec::new();
@@ -312,7 +322,8 @@ async fn collect_artifacts(
     files.sort_by(|left, right| left.0.cmp(&right.0));
     let mut artifacts = Vec::with_capacity(files.len());
     for (name, bytes) in files {
-        let key = format!("runs/{run_id}/{name}");
+        let sha256 = Digest::sha256(&bytes);
+        let key = RunManifest::blob_key(&sha256);
         let present = objects
             .exists(&key)
             .await
@@ -326,7 +337,7 @@ async fn collect_artifacts(
         artifacts.push(ArtifactRef {
             name,
             bytes: bytes.len() as u64,
-            sha256: Digest::sha256(&bytes),
+            sha256,
         });
     }
     Ok(artifacts)
@@ -358,10 +369,6 @@ fn walk(
         }
     }
     Ok(())
-}
-
-fn canonical(name: &str) -> bool {
-    name == "results.json" || name.ends_with(".csv") || name.ends_with(".ndjson")
 }
 
 fn computed_stages() -> Vec<StageProgress> {

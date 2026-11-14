@@ -6,7 +6,7 @@ use quantrule_api::{DatasetRecord, DatasetSummary, Digest, ProfileId, RunState};
 use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
 use quantrule_server::configs::{ConfigCatalog, MemoryConfigs, scan};
 use quantrule_server::data::{DatasetCatalog, MemoryCatalog, ingest};
-use quantrule_server::evidence::{EvidenceServices, FinalizeOutcome, finalize};
+use quantrule_server::evidence::{EvidenceServices, FinalizeOutcome, RunManifest, finalize};
 use quantrule_server::runs::{MemoryRuns, NewRun, RunStore, derive};
 use quantrule_server::runtime::adapters::{
     Backend, BoxFuture, ObjectStore, Queue, QueueError, StoreError,
@@ -273,10 +273,22 @@ async fn a_queued_run_succeeds_with_artifacts_and_digest() {
         .expect("evidence stage");
     assert_eq!(evidence_stage.state, quantrule_api::StageStatus::Pending);
     for artifact in &record.artifacts {
-        let key = format!("runs/{}/{}", fixture.run_id, artifact.name);
+        let key = RunManifest::blob_key(&artifact.sha256);
         let bytes = fixture.objects.get(&key).await.expect("artifact");
         assert_eq!(Digest::sha256(&bytes), artifact.sha256);
     }
+    let manifest_key = RunManifest::key(&fixture.run_id);
+    let manifest_bytes = fixture.objects.get(&manifest_key).await.expect("manifest");
+    let manifest = RunManifest::from_bytes(&manifest_bytes).expect("manifest decode");
+    assert_eq!(manifest.refs(), record.artifacts);
+    assert_eq!(manifest.digest, record.digest.clone().expect("digest"));
+    assert!(
+        !fixture
+            .objects
+            .exists(&format!("runs/{}/results.json", fixture.run_id))
+            .await
+            .expect("per-name key")
+    );
     let messages = fixture.queue.payloads("run.computed");
     assert_eq!(messages.len(), 1);
     let payload: serde_json::Value = serde_json::from_slice(&messages[0]).expect("payload");
@@ -383,6 +395,103 @@ async fn a_redelivery_executes_a_run_left_running_by_a_killed_worker() {
     assert!(!record.artifacts.is_empty());
 }
 
+#[derive(Clone)]
+struct StopAfter {
+    inner: common::MemoryObjects,
+    allowed: usize,
+    puts: Arc<Mutex<usize>>,
+}
+
+impl ObjectStore for StopAfter {
+    fn backend(&self) -> Backend {
+        Backend::Filesystem
+    }
+
+    fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
+        let inner = self.inner.clone();
+        let puts = Arc::clone(&self.puts);
+        let allowed = self.allowed;
+        let key = key.to_owned();
+        Box::pin(async move {
+            let accepted = {
+                let mut count = puts
+                    .lock()
+                    .map_err(|_| StoreError("the counter lock is poisoned".to_owned()))?;
+                if *count < allowed {
+                    *count += 1;
+                    true
+                } else {
+                    false
+                }
+            };
+            if !accepted {
+                return Err(StoreError("the worker was stopped".to_owned()));
+            }
+            inner.put(&key, bytes).await
+        })
+    }
+
+    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
+        self.inner.get(key)
+    }
+
+    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
+        self.inner.exists(key)
+    }
+}
+
+fn services_with_stop_after(fixture: &Fixture, allowed: usize) -> WorkerServices {
+    WorkerServices {
+        runs: Arc::clone(&fixture.services.runs),
+        catalog: Arc::clone(&fixture.services.catalog),
+        configs: Arc::clone(&fixture.services.configs),
+        objects: Arc::new(StopAfter {
+            inner: fixture.objects.clone(),
+            allowed,
+            puts: Arc::new(Mutex::new(0)),
+        }),
+        queue: Arc::clone(&fixture.services.queue),
+    }
+}
+
+#[tokio::test]
+async fn a_stopped_write_leaves_no_manifest() {
+    let fixture = fixture().await;
+    let services = services_with_stop_after(&fixture, 1);
+    assert_eq!(
+        process(fixture.run_id.clone(), false, &services)
+            .await
+            .expect("process"),
+        ProcessOutcome::Retry {
+            delay: Duration::from_secs(5)
+        }
+    );
+    let record = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.status, RunState::Running);
+    assert!(record.artifacts.is_empty());
+    assert!(
+        fixture
+            .objects
+            .keys()
+            .iter()
+            .any(|key| key.starts_with("artifacts/"))
+    );
+    let run_prefix = format!("runs/{}/", fixture.run_id);
+    assert!(
+        fixture
+            .objects
+            .keys()
+            .iter()
+            .all(|key| !key.starts_with(&run_prefix)),
+        "a stopped write must not publish a run prefix"
+    );
+}
+
 #[tokio::test]
 async fn a_stage_failure_retries_then_dead_letters() {
     let fixture = fixture().await;
@@ -434,6 +543,20 @@ async fn a_stage_failure_retries_then_dead_letters() {
             .is_some_and(|error| error.contains("artifact store"))
     );
     assert!(record.artifacts.is_empty());
+    assert!(
+        !fixture
+            .objects
+            .exists(&RunManifest::key(&fixture.run_id))
+            .await
+            .expect("manifest")
+    );
+    assert!(
+        !fixture
+            .objects
+            .exists(&format!("runs/{}/results.json", fixture.run_id))
+            .await
+            .expect("per-name key")
+    );
     assert!(fixture.queue.keys().contains(&"run.dead".to_owned()));
     let messages = fixture.queue.payloads("run.dead");
     assert_eq!(messages.len(), 1);
@@ -471,6 +594,13 @@ async fn a_run_cancelled_after_claim_writes_no_bundle() {
         .expect("record");
     assert_eq!(record.status, RunState::Cancelled);
     assert!(record.artifacts.is_empty());
+    assert!(
+        !fixture
+            .objects
+            .exists(&RunManifest::key(&fixture.run_id))
+            .await
+            .expect("manifest")
+    );
     assert!(
         !fixture
             .objects

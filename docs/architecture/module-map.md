@@ -59,7 +59,8 @@ and `quantrule-api` may not depend on a workspace engine crate.
 | `model/compute.rs` | Model run, shard, merge |
 | `backtest/orchestrate.rs` | Run choreography across services |
 | `backtest/artifacts.rs` | Artifact write and manifest |
-| `evidence/artifacts.rs` | Artifact CAS, hash-chain verification, canonical digest |
+| `evidence/artifacts.rs` | Manifest and artifact-blob verification |
+| `evidence/manifest.rs` | Atomic artifact manifest and canonical digest |
 | `evidence/finalize.rs` | Completeness check and `succeeded` transition |
 | `evidence/memory.rs` | Research memory, replacing SQLite |
 | `simulation/windows.rs` | Seeded, non-overlapping window selection |
