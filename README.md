@@ -42,14 +42,35 @@ make up
 QuantRule v1.0.0 ready → http://localhost:8080
 ```
 
+`make` is the Linux and macOS path. Windows runs the same Compose file directly,
+and make is optional there:
+
+```powershell
+docker compose up -d --build --wait
+```
+
+Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
+current tree starts the six containers whose binaries exist; the nine-container
+target is in
+[`docs/architecture/deployment.md`](docs/architecture/deployment.md).
+
 | Target | Effect |
 |---|---|
+| `make help` | List every target |
+| `make up` | Build, start, wait for health, print the URL |
 | `make down` | Stop, keep data |
-| `make reset` | Stop and delete volumes |
+| `make reset` | Stop and delete volumes, after confirmation |
 | `make logs` / `make ps` | Observe |
-| `make scale N=4` | Scale model and backtest workers |
-| `make verify` | Print the canonical digest |
-| `make remote` | Publish only `:8080` behind a token |
+| `make scale N=4` | Scale model and backtest when the six-binary profile is enabled |
+| `make verify` | Fixture digest check; blocked until `tools/verify.sh` moves to the HTTP shell |
+| `make test` / `make gate` | Fast tier / full workspace gate |
+| `make remote` / `make token` | Remote exposure and token (DIST-081, #672) |
+| `make backup` / `make restore FILE=…` | Backup and restore (DIST-080, #671) |
+| `make dev-web` | Web client dev server against `localhost:8080` |
+
+`make remote`, `make token`, `make backup`, and `make restore` forward to scripts
+that are not in this tree yet; each target exits nonzero and names the owning
+issue until that script lands.
 
 Full deployment contract: [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 
