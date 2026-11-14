@@ -124,4 +124,31 @@ No credentials, secrets, or sensitive operational data were recorded.
   candidate, not landed. Copying it wholesale would duplicate routes and import
   the mixed `AppState` into services that no longer have it.
 
+## Amendment — #772 merged findings — 2026-11-14 (UTC)
+
+- Input: PR #772 (`DIST-022`) merged at `f3e258f0`. It builds the image and the
+  Compose stack for the three existing binaries and records two findings in
+  `docker/README.md` and its AI log.
+- Migration lock defect: the runtime acquires a session-level advisory lock and
+  releases it through the pool, so lock and unlock can land on different
+  connections. Three migrating services deadlocked; Compose works around it by
+  making the gateway the sole migrator (`QR_MIGRATE=1`, workers `0`). The plan
+  records this in §5.5 and adds the P1 fix: one `PoolConnection`, acquire,
+  migrate, and release on it. A composed two-migrator test with a timeout is
+  V30. The Compose workaround stays until that test passes.
+- MinIO registry: public MinIO images were withdrawn on 2026-09-11. #772 pins
+  `bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c`
+  as an amd64 stopgap, overridable with `QR_OBJECT_STORE_IMAGE`. The plan records
+  the permanent registry as a human decision under P9 and §9.1, not as an
+  implementation choice; the legacy archive is never described as permanent.
+- Verification: `python3 tools/check_execution_plans.py`,
+  `python3 tools/check_doc_length.py`, `python3 tools/check_links.py`, and
+  `git diff --check` were run on the amended plan.
+- Learning: the image work exposed defects that belong to the split, not to the
+  image. The B runner must own the migration lock and the release must own the
+  registry decision, or the Compose workaround becomes the architecture.
+- Rejected: treating the gateway sole-migrator rule as the fix; treating the
+  legacy Bitnami archive as the permanent object store; implementing the
+  migration fix or the registry decision in this plan-only PR.
+
 No credentials, secrets, or sensitive operational data were recorded.

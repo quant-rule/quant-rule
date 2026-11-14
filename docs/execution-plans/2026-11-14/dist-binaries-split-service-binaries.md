@@ -58,7 +58,7 @@ service-to-service contract is a new `quantrule.internal/v1`.
 
 ## 3. Current state
 
-| Area | Observed (2026-11-14, `b63b9015`) |
+| Area | Observed 2026-11-14; plan base `b63b9015`; #772 merged at `f3e258f0` |
 |---|---|
 | Binaries | `qr-gateway`, `qr-backtest`, `qr-evidence` (3) |
 | Missing binaries | `qr-data`, `qr-model`, `qr-simulation` |
@@ -68,6 +68,9 @@ service-to-service contract is a new `quantrule.internal/v1`.
 | Simulation | No binary and no route; `quantrule-simulation` is not a `quantrule-server` dependency; #679 and #680 are open |
 | Schemas | `catalog`, `runs`, `research`, and `simulation` in one database; profiles in `catalog.profiles`; one `public.schema_migrations` ledger |
 | Documents | ADR-04 and `services.md` say six binaries; `module-map.md:19` says "(5 binaries)"; `architecture/README.md:72` says "five deployable responsibilities"; `deployment.md:115` says "all eight" containers while §2 lists nine |
+| Image stack | #772 merged at `f3e258f0`: one image and a Compose stack with six default containers; `data`, `model`, and `simulation` sit behind the off-by-default `six-binaries` profile; #643 stays open |
+| Migration lock | #772 found the runtime acquires a session-level advisory lock and releases it through the pool; three migrating services deadlocked. Compose makes the gateway the sole migrator as a workaround, not a fix |
+| Object store | MinIO withdrew its public images on 2026-09-11. #772 pins `bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c` as an amd64 stopgap, overridable with `QR_OBJECT_STORE_IMAGE`; a permanent registry is a human decision |
 | Hidden closure | #647 and #648 closed as gateway routes, not binaries; #751 says the model route is served by the gateway "until the six binaries are split"; #649's plan excluded the split |
 | Parked S1 | `quant-rule--646-gateway` has uncommitted gateway work at `b63b9015`: bearer seam, route modules, artifact/digest/events routes, profile run count, migration 13 registration, and route-table tests. It is not landed and is not evidence |
 
@@ -278,6 +281,16 @@ Rules:
   it on every proxied call. Downstream services trust the injected value.
 - Each service applies only its own migration list. A global advisory lock
   serialises DDL; the ledger is per schema.
+- The migration runner pins one connection. The current runtime acquires a
+  session-level advisory lock on a pooled connection and releases it through the
+  pool, so the unlock can land on a different connection and the lock leaks.
+  #772 observed three migrating services deadlock; Compose works around it by
+  making the gateway the sole migrator (`QR_MIGRATE=1`, workers `0`). That is a
+  workaround, not a fix. The B runner takes one `PoolConnection`, acquires the
+  lock, creates the ledger, applies the migrations, and releases the lock on
+  that same connection; if the connection dies, Postgres releases the session
+  lock. A composed test starts two service migrators against one database and
+  proves neither waits forever.
 - v1.0.0 uses a fresh database. The pre-split `public.schema_migrations` and
   `catalog.profiles` are not migrated. `make reset` is the supported path.
 - Simulation owns its schema but may read a model bundle from CAS; it never
@@ -413,7 +426,7 @@ series. A phase does not edit a file owned by another active phase.
 | Phase | PR scope | Owned paths | Parked S1 input | Depends on | Exit criteria | Unblocks |
 |---|---|---|---|---|---|---|
 | **P0** | Record B; create the issue from §14; rename the plan; write the crate-boundary ADR; freeze the internal contract; capture the parked S1 salvage map | `docs/execution-plans/2026-11-14/`, `docs/adr/2026-11-14/`, GitHub | Inventory only | Human approval | Plan `Approved`; issue `In Progress`; ADR exists; salvage map recorded | Every phase |
-| **P1** | Extract `quantrule-runtime` and `quantrule-service-api`; move config, health, adapters, migrations runner, service client; no behavior change | `crates/quantrule-runtime/**`, `crates/quantrule-service-api/**`, workspace `Cargo.toml` | `auth.unauthorized`, `RunDigest`, `EventBatch` contract types | P0 | Workspace tests; runtime has no engine dependency; `quantrule-server` still builds | P2 |
+| **P1** | Extract `quantrule-runtime` and `quantrule-service-api`; move config, health, adapters, migrations runner, service client; pin the migration lock to one connection and add the two-migrator deadlock test; no route change | `crates/quantrule-runtime/**`, `crates/quantrule-service-api/**`, workspace `Cargo.toml` | `auth.unauthorized`, `RunDigest`, `EventBatch` contract types | P0 | Workspace tests; runtime has no engine dependency; two migrators do not deadlock; `quantrule-server` still builds | P2 |
 | **P2** | Six-binary milestone M1: add `qr-data`, `qr-model`, `qr-simulation` skeletons with `/health` and `/version`; keep the existing routes in the gateway | `crates/quantrule-data-service/**`, `crates/quantrule-model-service/**`, `crates/quantrule-simulation-service/**` (manifests and health only) | None | P1 | Six binaries build; inventory guard; every new binary answers health | **#643 binary prerequisite** |
 | **P3** | Data service: move `data/` and `configs/`; `catalog` schema and migrations; profile move to `gateway`; data routes; gateway data proxy; streamed upload | `crates/quantrule-data-service/**`, `crates/quantrule-server/src/data/**`, `src/configs/**`, `src/profile/**`, `src/runtime/server.rs` data routes, `src/runtime/proxy.rs`, `src/runtime/upstream.rs` | `routes/data.rs`, event inspection, `Timeframe` seam, data route tests | P2 | Data routes served by `qr-data`; gateway has no data handlers; catalog schema only data; streaming test | Part of #646; P4 |
 | **P4** | Model service: move `model/`; model bundle writer and internal manifest; data client; gateway model proxy; public `/model/compute` unchanged | `crates/quantrule-model-service/**`, `crates/quantrule-server/src/model/**`, `quantrule-app` model bundle call sites, gateway model proxy | None | P3 | Model route served by `qr-model`; bundle SHA-256 matches the coupled baseline; no strategy read | Part of #646; P5 |
@@ -421,7 +434,7 @@ series. A phase does not edit a file owned by another active phase.
 | **P6** | Backtest service: move `backtest/`; `run_backtest_from_model`; worker calls data, model, evidence; cancellation and retry map; #649 successor | `crates/quantrule-backtest-service/**`, `crates/quantrule-server/src/backtest/**`, `quantrule-app/src/stages/backtest.rs`, new `backtest_from_model.rs`, `service.rs` | None | P4, P5 | Full run over HTTP; same canonical digest; fast path removed; successor issue merged | Data plane true; #649 successor |
 | **P7** | Simulation service: #679 parity; #680 service; eleven endpoints; gateway proxy; no run write, no model compute | `crates/quantrule-simulation-service/**`, `crates/quantrule-simulation/**`, gateway simulation proxy | None | P2, #679 | Eleven endpoints; parity evidence; isolation guard; #680 done | #646 can close |
 | **P8** | Gateway finalization: remove the last domain modules; rename `quantrule-server` to `quantrule-gateway`; profiles, static, proxy, health; compile guard; retire `quantrule-server` | `crates/quantrule-gateway/**`, workspace `Cargo.toml`, `docs/architecture/**`, `AGENTS.md`, `README.md` glossary | `runtime/auth.rs`, `tests/surface.rs`, `tests/boundary.rs` | P3-P7 | Gateway links no app or engine; six service crates independent; #651 guard | #651; #646 final |
-| **P9** | Downstream gates, not owned by this plan: image/compose (#643), Makefile (#644), digest (#673), release (#674) | `Dockerfile`, compose, `Makefile`, release docs | None | P6, P7, P8 | Six services healthy in nine containers; digest recorded; release evidence | #674 |
+| **P9** | Downstream gates, not owned by this plan: image/compose (#643), Makefile (#644), digest (#673), release (#674); record the permanent object-store registry as a human decision | `Dockerfile`, compose, `Makefile`, release docs | None | P6, P7, P8 | Six services healthy in nine containers; digest recorded; release evidence; registry decision recorded | #674 |
 
 ### 7.1 Phase detail
 
@@ -438,7 +451,12 @@ domain moves. `quantrule-runtime` owns `Config`, `HealthRegistry`, the adapter
 traits and their Postgres, S3, and RabbitMQ implementations, the migration
 runner, logging, shutdown, and the HTTP serve helper. `quantrule-service-api`
 owns the internal contract types. `quantrule-server` keeps its three binaries and
-all routes; only imports change. No behavior change, no new route.
+all routes; only imports change. The migration runner is the one deliberate fix:
+it takes a single `PoolConnection`, acquires the advisory lock, applies the
+ledger and migrations, and releases on the same connection. A composed test
+starts two service migrators against one database and fails on a timeout. This
+removes the Compose sole-migrator workaround from the B target; the workaround
+stays in #772 until P1 lands.
 
 **P2 — Milestone M1.** Add three skeleton crates with `qr-data`, `qr-model`, and
 `qr-simulation` binaries. Each answers `/health` and `/version`; no domain route
@@ -544,19 +562,32 @@ guard.
     re-tested in its owning service crate; no route is implemented twice; the
     parked work is never cited as landed evidence.
 17. No model, strategy, execution, or portfolio definition or result changes.
+18. The migration runner acquires and releases the advisory lock on one
+    connection; two service migrators against one database complete without a
+    deadlock, and the composed test fails on a timeout.
+19. The object-store image is recorded as a stopgap with
+    `QR_OBJECT_STORE_IMAGE`; the release records the human's permanent registry
+    decision, and no document describes the legacy archive as permanent.
 
 ## 9. Downstream gates
 
 | Gate | Ready after | What it gets | What it still owns |
 |---|---|---|---|
-| #643 image | P2 for the binary prerequisite; P3-P7 for functional services | Six binaries and six service containers | Dockerfile, compose, healthchecks, no-Python/no-Bun checks |
+| #643 image | P2 for the binary prerequisite; P3-P7 for functional services | #772 already provides the image and the six-container default stack; B fills the three missing services and their containers | Dockerfile, compose, healthchecks, no-Python/no-Bun checks |
 | #644 Makefile | #643 | One-command workflow | Targets, scale, ps, remote, backup |
 | #646 gateway | P3 and P4 for data/model; P5 for runs; P7 for simulation; P8 for final isolation | A gateway-only proxy and a working simulation surface | Its own route table review and close |
 | #651 guard | P8 | Compile-time gateway isolation and per-service schema guards | The guard test details and close |
 | #673 digest | #643 | Image digest in health and provenance | Release pipeline |
-| #674 release | P7, P8, and #643/#644/#673 | Six services, nine containers, working simulation, release evidence | Release note, tag, board close-out |
+| #674 release | P7, P8, and #643/#644/#673 | Six services, nine containers, working simulation, release evidence | Release note, tag, board close-out, permanent object-store registry |
 | #661 memory | P5 | Postgres research memory in evidence | Its own close or supersession |
 | #680 simulation | P7 | The service and eleven endpoints | Its own close |
+
+### 9.1 Image and object-store gates
+
+| Finding | Current state | Required decision |
+|---|---|---|
+| Migration lock | #772 observed the session-level advisory lock released through the pool; three migrators deadlocked. Compose sets the gateway as the sole migrator as a workaround | P1 pins the runner to one connection and proves two migrators do not deadlock. The sole-migrator workaround is removed only after that test passes |
+| Object-store registry | MinIO withdrew its public images on 2026-09-11. #772 pins `bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c` (amd64) as a stopgap, overridable with `QR_OBJECT_STORE_IMAGE` | Before release, the human records a maintained registry or mirror. The legacy archive is not described as permanent and is not the default once the decision is recorded |
 
 ## 10. Blast radius
 
@@ -571,6 +602,7 @@ guard.
 | Schemas | 1 gateway schema added; catalog, runs, research, simulation separated; fresh database |
 | Documentation | AGENTS crate list, module map, service catalog, data plane, control plane, API, deployment, README glossary, changelog, AI log |
 | Parked S1 | 16 modified and 5 untracked files, ~568 insertions and 618 deletions; 12 mapped reuse areas; 0 treated as landed |
+| Image findings | #772 merged: 3 of 6 binaries, 6 default containers; migration lock workaround; legacy MinIO stopgap with a human registry decision before release |
 | Delivery | 12-16 reviewable PRs across P1-P8; weeks, not days; P6 and P7 are the long poles |
 | Deferred | Embedded desktop v1.1, shell HTTP, simulation screens, streaming downloads, app-crate split |
 
@@ -613,13 +645,17 @@ inside the worktree.
 | V27 | Honesty | Deferred items and buffered downloads are recorded, not claimed | Manual read of §4.3 and §5.6 | present | — | Pending | — | — | |
 | V28 | Parked inventory | Every parked S1 file and hunk is mapped to a phase and an action before P3 | Salvage map in the issue; diff stat | complete | — | Pending | — | — | Not landed |
 | V29 | Parked reuse | Each reused hunk passes its test in the owning service crate; no route is implemented twice | Owning service test; code search for duplicate handlers | pass; one implementation | — | Pending | — | — | Reuse or reimplement |
-| V30 | Closure | Issue `Done`, worktree and branches removed, comments posted | `gh issue view`; `git worktree list` | done; removed | — | Pending | — | — | |
+| V30 | Migration lock | The runner acquires and releases on one connection; two service migrators do not deadlock | `QR_TEST_DATABASE_URL=postgres://... cargo test -p quantrule-runtime --test migration_lock two_service_migrators_do_not_deadlock -- --ignored` | both finish inside 10 s; one ledger row per migration | — | Pending | — | — | Composed tier; #772 workaround stays until this passes |
+| V31 | Object-store registry | The legacy image is a stopgap, overridable, and not described as permanent; the release records the human registry decision | `grep -R "bitnamilegacy/minio\|QR_OBJECT_STORE_IMAGE" compose.yaml docker/README.md docs/architecture/deployment.md`; release note | override present; legacy named stopgap; decision recorded | — | Pending | — | — | No permanent claim |
+| V32 | Closure | Issue `Done`, worktree and branches removed, comments posted | `gh issue view`; `git worktree list` | done; removed | — | Pending | — | — | |
 
 ## 12. Risks and recovery
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| A multi-phase crate split destabilises a working tree | Build and tests fail across phases | Each phase is a separate PR; `quantrule-server` stays until P8; P1 is behavior-neutral; revert one phase |
+| A multi-phase crate split destabilises a working tree | Build and tests fail across phases | Each phase is a separate PR; `quantrule-server` stays until P8; P1 is behavior-neutral except the migration-lock fix, which has its own test; revert one phase |
+| The migration lock is released through the pool | Two migrating services deadlock; the stack depends on a sole-migrator workaround | Pin one `PoolConnection`; acquire, migrate, and release on it; composed two-migrator test with a timeout; do not treat the gateway workaround as the fix |
+| The legacy MinIO archive becomes the permanent source | The release ships an unmaintained, amd64-only object store | Keep `QR_OBJECT_STORE_IMAGE` overridable; record the human registry decision before release; do not describe the legacy archive as permanent |
 | The model bundle cannot reproduce the coupled artifact bytes | The worker rewrite changes the canonical digest | Golden fixture; byte equality before P6 is accepted; stop if it differs |
 | The worker HTTP path changes failure or cancellation semantics | A run succeeds when it should fail, or vice versa | Failure map per hop; cancel between hops; duplicate delivery; queue retry budget unchanged |
 | Evidence becomes a single critical path | Submission, claim, and finalization stop if evidence is down | Content-addressed idempotency; queue redelivery; health and 503; evidence restart test |
@@ -636,7 +672,8 @@ inside the worktree.
 | The parked work is copied wholesale and duplicates a route | Two implementations of the same endpoint | Reuse by hunk into the owning service; adapt state and imports; V29 checks for duplicate handlers |
 | A parked hunk bypasses the new schema or profile boundary | A service reads a schema it does not own | Review every salvaged hunk against §5.5; schema guard in P8; re-run the boundary tests |
 
-Recovery: each phase is a revertible PR. P1 is behavior-neutral. P2 is additive.
+Recovery: each phase is a revertible PR. P1 is behavior-neutral except the
+migration-lock fix, which is covered by the two-migrator test. P2 is additive.
 P3-P7 move one route or store at a time; the gateway can serve the old handler
 until its proxy is ready. P8 is the only deletion phase; it happens last. The
 database is fresh, so no data migration is rolled back. Artifacts are
@@ -659,6 +696,10 @@ digest; a rollback is the previous digest.
 - A file is owned by #643, #646, #668, or #680 and cannot be coordinated.
 - The parked S1 diff is the only copy of a behavior and the worktree is about to
   be rebound or removed; capture the diff before proceeding.
+- The migration runner cannot pin the advisory lock to one connection without a
+  new dependency or a database API change.
+- The release would describe the legacy `bitnamilegacy/minio` archive as the
+  permanent object store, or the human registry decision is not recorded.
 - A salvaged hunk would make a service read another service's schema or skip the
   profile boundary.
 - A phase would close #643, #646, #651, or #674 on a plan rather than evidence.
@@ -671,7 +712,7 @@ Goal: Split the six services into owned crates: data, model, evidence, backtest,
 Scope:
 - Extract quantrule-runtime and quantrule-service-api; move quantrule-server modules into five service crates and a gateway crate.
 - Move run records, research memory, and schema ownership to evidence; models to a bundle protocol; the worker to HTTP; profiles to a gateway schema.
-- Keep the six binaries as milestone M1; reuse the parked #646 gateway work by hunk, not as landed; #643/#646/#674 stay their own issues.
+- Keep the six binaries as milestone M1; pin the migration lock; reuse the parked #646 gateway work by hunk, not as landed; #643/#646/#674 stay their own issues.
 Done when:
 - Six service crates build six binaries; no service reads another's schema; the gateway links no engine or quantrule-app.
 - A queued run completes through data, model, backtest, and evidence over HTTP with the same canonical digest as the coupled baseline.
