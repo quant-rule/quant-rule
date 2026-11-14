@@ -27,6 +27,7 @@ use crate::memory::{MemoryError, NewConfig, NewDataset, NewRun, NewWorkspace, Re
 use crate::pipeline::{self, WindowMode};
 use crate::stages::analytics::{self, AnalyticsOutcome, AnalyticsRequest, AnalyticsRunError};
 use crate::stages::backtest::{self, BacktestOutcome, BacktestRequest, BacktestRunError};
+use crate::stages::backtest_from_model::{self, BacktestFromModelRequest};
 use crate::stages::data;
 use crate::stages::execution::{self, ExecutionOutcome, ExecutionRequest, ExecutionRunError};
 use crate::stages::model::{self, ModelReportError, ModelReportRequest};
@@ -401,6 +402,21 @@ impl AppService {
         request: &BacktestRequest<'_>,
     ) -> Result<BacktestOutcome, BacktestRunError> {
         backtest::run(request)
+    }
+
+    /// Runs strategy, execution, and portfolio from a published model bundle.
+    ///
+    /// The model is not recomputed. The bundle is copied into the run bundle and
+    /// the shared stage loop reads its published bars.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BacktestRunError`] when a configuration, strategy, model
+    /// bundle, execution, ledger, stage bundle, or manifest fails.
+    pub fn run_backtest_from_model(
+        request: &BacktestFromModelRequest<'_>,
+    ) -> Result<BacktestOutcome, BacktestRunError> {
+        backtest_from_model::run(request)
     }
 
     /// Evaluates a backtest bundle against human-owned qualification criteria.

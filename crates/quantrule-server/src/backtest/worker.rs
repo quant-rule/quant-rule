@@ -1,5 +1,11 @@
 //! Execute one claimed run and record its artifacts.
 //!
+//! The run row is the sequence: claim through evidence, read the config and
+//! dataset through data, ask model for a bundle, run the staged strategy,
+//! execution, and portfolio use case, write the artifact set to CAS, and record
+//! the digest through evidence. The model is never recomputed and no candle,
+//! reading, or artifact payload crosses the internal surface.
+//!
 //! A retryable failure holds the delivery and retries in place, so the broker's
 //! redelivery flag is the only way a running run is reclaimed. The worker never
 //! renders a label or accepts a client path.
@@ -12,13 +18,15 @@ use quantrule_api::{
     ArtifactRef, Digest, ProfileId, RunState, StageName, StageProgress, StageStatus,
 };
 use quantrule_app::service::AppService;
-use quantrule_app::stages::backtest::BacktestRequest;
-use quantrule_service_api::{RunClaimOutcome, RunManifest};
+use quantrule_app::stages::backtest_from_model::BacktestFromModelRequest;
+use quantrule_service_api::{
+    MODEL_BUNDLE_SCHEMA, ModelBundleManifest, RunClaimOutcome, RunManifest, RunRecord,
+};
 
 use crate::backtest::Workspace;
 use crate::backtest::retry::{self, RetryDecision};
 use quantrule_runtime::adapters::{ObjectStore, Queue};
-use quantrule_runtime::client::{DataClient, EvidenceClient};
+use quantrule_runtime::client::{ClientError, DataClient, EvidenceClient, ModelClient};
 use quantrule_runtime::queue::{ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_FAILED};
 
 /// A worker failure with a human-readable message.
@@ -58,6 +66,8 @@ pub struct WorkerServices {
     pub evidence: Arc<dyn EvidenceClient>,
     /// The data service's internal reads.
     pub data: Arc<dyn DataClient>,
+    /// The model service's bundle reference.
+    pub model: Arc<dyn ModelClient>,
     /// The object store.
     pub objects: Arc<dyn ObjectStore>,
     /// The control-plane queue.
@@ -115,27 +125,14 @@ pub async fn process(
 
     let profile = ProfileId::parse(&record.owner)
         .map_err(|error| WorkerError(format!("the run owner is invalid: {error}")))?;
-    let dataset = match services
-        .data
-        .dataset_object(profile.clone(), record.data_version.to_string())
-        .await
-    {
-        Ok(Some(dataset)) => dataset,
-        Ok(None) => return fail(services, &run_id, "the dataset is unknown").await,
-        Err(error) => {
-            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
-        }
-    };
     let config = match services
         .data
-        .config_bundle(profile, record.config_id.clone())
+        .config_bundle(profile.clone(), record.config_id.clone())
         .await
     {
         Ok(Some(config)) => config,
         Ok(None) => return fail(services, &run_id, "the config is unknown").await,
-        Err(error) => {
-            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
-        }
+        Err(error) => return client_failure(services, &run_id, &error, attempts).await,
     };
     if !config.valid {
         return fail(
@@ -153,6 +150,15 @@ pub async fn process(
         )
         .await;
     }
+    let dataset = match services
+        .data
+        .dataset_object(profile.clone(), record.data_version.to_string())
+        .await
+    {
+        Ok(Some(dataset)) => dataset,
+        Ok(None) => return fail(services, &run_id, "the dataset is unknown").await,
+        Err(error) => return client_failure(services, &run_id, &error, attempts).await,
+    };
     let bytes = match services.objects.get(&dataset.object_key).await {
         Ok(bytes) => bytes,
         Err(error) => {
@@ -163,8 +169,41 @@ pub async fn process(
         return fail(services, &run_id, "the dataset bytes do not match").await;
     }
 
+    // The row is authoritative; a cancel before the model call writes nothing.
+    if cancelled(services, &run_id).await? {
+        return Ok(ProcessOutcome::Skipped);
+    }
+    let manifest = match services
+        .model
+        .bundle(
+            profile,
+            record.data_version.clone(),
+            record.config_id.clone(),
+        )
+        .await
+    {
+        Ok(manifest) => manifest,
+        Err(error) => return client_failure(services, &run_id, &error, attempts).await,
+    };
+    if let Err(message) = verify_manifest(&manifest, &record) {
+        return fail(services, &run_id, &message).await;
+    }
+    let model_files = match load_model_artifacts(&services.objects, &manifest).await {
+        Ok(files) => files,
+        Err(ModelRead::Store(message)) => {
+            return retry_or_exhaust(services, &run_id, &message, attempts).await;
+        }
+        Err(ModelRead::Mismatch(message)) => {
+            return fail(services, &run_id, &message).await;
+        }
+    };
+
     let workspace = match tokio::task::spawn_blocking(move || {
-        Workspace::create(&config, &bytes, &record.data_version)
+        let workspace = Workspace::create(&config, &bytes)?;
+        for (name, bytes) in model_files {
+            workspace.write_model_artifact(&name, &bytes)?;
+        }
+        Ok::<Workspace, WorkerError>(workspace)
     })
     .await
     {
@@ -176,16 +215,19 @@ pub async fn process(
             return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
         }
     };
+    // A cancel before the backtest must leave the materialized workspace unread.
     if cancelled(services, &run_id).await? {
         return Ok(ProcessOutcome::Skipped);
     }
     let run_path = workspace.run_config();
     let strategy_path = workspace.strategy();
+    let model_path = workspace.model();
     let out = workspace.out();
     let outcome = tokio::task::spawn_blocking(move || {
-        AppService::run_backtest(&BacktestRequest {
+        AppService::run_backtest_from_model(&BacktestFromModelRequest {
             config: &run_path,
             strategy: &strategy_path,
+            model: &model_path,
             out: Some(&out),
         })
     })
@@ -210,8 +252,8 @@ pub async fn process(
             return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
         }
     };
-    let manifest = RunManifest::from_artifacts(&run_id, &artifacts);
-    let manifest_bytes = manifest
+    let run_manifest = RunManifest::from_artifacts(&run_id, &artifacts);
+    let manifest_bytes = run_manifest
         .to_bytes()
         .map_err(|error| WorkerError(error.to_string()))?;
     if let Err(error) = services
@@ -225,8 +267,8 @@ pub async fn process(
         .evidence
         .computed(
             run_id.clone(),
-            manifest.digest.clone(),
-            manifest.refs(),
+            run_manifest.digest.clone(),
+            run_manifest.refs(),
             computed_stages(),
         )
         .await
@@ -245,6 +287,100 @@ async fn cancelled(services: &WorkerServices, run_id: &str) -> Result<bool, Work
         .await
         .map_err(|error| WorkerError(error.to_string()))?
         .is_some_and(|record| record.status == RunState::Cancelled))
+}
+
+/// Whether a client failure will not improve with a retry.
+///
+/// The failure map makes a missing or invalid input terminal and an unreachable
+/// or overloaded service retryable. A malformed internal response is a contract
+/// defect, so retrying it cannot succeed either.
+fn terminal(error: &ClientError) -> bool {
+    match error {
+        ClientError::Status { status, .. } => {
+            (400..500).contains(status) && *status != 408 && *status != 429
+        }
+        ClientError::InvalidResponse { .. }
+        | ClientError::InvalidBase { .. }
+        | ClientError::Unconfigured { .. } => true,
+        ClientError::Unreachable { .. } | ClientError::Timeout { .. } => false,
+    }
+}
+
+async fn client_failure(
+    services: &WorkerServices,
+    run_id: &str,
+    error: &ClientError,
+    attempts: u32,
+) -> Result<ProcessOutcome, WorkerError> {
+    if terminal(error) {
+        fail(services, run_id, &error.to_string()).await
+    } else {
+        retry_or_exhaust(services, run_id, &error.to_string(), attempts).await
+    }
+}
+
+/// Verify that the model bundle is the one the run was submitted for.
+fn verify_manifest(manifest: &ModelBundleManifest, record: &RunRecord) -> Result<(), String> {
+    if manifest.schema != MODEL_BUNDLE_SCHEMA {
+        return Err(format!(
+            "the model bundle schema is {}, not {MODEL_BUNDLE_SCHEMA}",
+            manifest.schema
+        ));
+    }
+    if manifest.data_version != record.data_version {
+        return Err("the model bundle belongs to another dataset".to_owned());
+    }
+    if manifest.config_id != record.config_id {
+        return Err("the model bundle belongs to another config".to_owned());
+    }
+    if manifest.config_hash != record.config_hash {
+        return Err("the model bundle names a different config hash".to_owned());
+    }
+    Ok(())
+}
+
+/// Why a model artifact could not be materialized.
+enum ModelRead {
+    /// The object store could not be read; retry it.
+    Store(String),
+    /// The bytes do not match the manifest; stop the run.
+    Mismatch(String),
+}
+
+/// Read and verify every artifact the model manifest lists.
+async fn load_model_artifacts(
+    objects: &Arc<dyn ObjectStore>,
+    manifest: &ModelBundleManifest,
+) -> Result<Vec<(String, Vec<u8>)>, ModelRead> {
+    let prefix = manifest
+        .manifest_key
+        .strip_suffix("/manifest.json")
+        .ok_or_else(|| {
+            ModelRead::Mismatch(format!(
+                "the model manifest key {} is not a bundle manifest",
+                manifest.manifest_key
+            ))
+        })?;
+    let mut files = Vec::with_capacity(manifest.artifacts.len());
+    for artifact in &manifest.artifacts {
+        let key = if prefix.is_empty() {
+            artifact.name.clone()
+        } else {
+            format!("{prefix}/{}", artifact.name)
+        };
+        let bytes = objects
+            .get(&key)
+            .await
+            .map_err(|error| ModelRead::Store(error.to_string()))?;
+        if bytes.len() as u64 != artifact.bytes || Digest::sha256(&bytes) != artifact.sha256 {
+            return Err(ModelRead::Mismatch(format!(
+                "the model bundle artifact {} does not match its manifest",
+                artifact.name
+            )));
+        }
+        files.push((artifact.name.clone(), bytes));
+    }
+    Ok(files)
 }
 
 async fn retry_or_exhaust(

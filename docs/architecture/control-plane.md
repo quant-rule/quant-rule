@@ -76,7 +76,8 @@ run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
   a recorded digest republishes `run.computed` so a lost publish still reaches
   evidence. Neither is executed twice.
 - Cancellation followed by completion is impossible: the worker checks the
-  cancellation flag before execution and before the first CAS write.
+  cancellation flag after the claim, before the model call, before the backtest,
+  and before the first CAS write.
 
 ## 5. Concurrency
 
@@ -91,12 +92,12 @@ A run is never split across backtest workers. Scaling adds workers, not shards.
 ## 6. Cancellation
 
 1. Client calls `POST /runs/{id}/cancel`.
-2. Gateway writes `cancelled` on the run row and publishes `run.cancelled`
+2. Evidence writes `cancelled` on the run row and publishes `run.cancelled`
    best-effort; the row is authoritative.
-3. The worker checks the flag before execution and before the first CAS write.
+3. The worker checks the flag after the claim, before the model call, before the
+   backtest, and before the first CAS write.
 4. If it stops, the run stays `cancelled`; no artifact is finalized. A check
-   inside the coupled backtest is still made after it returns; per-stage probes
-   remain #649.
+   inside the backtest is made after it returns, at the before-CAS boundary.
 
 Cancellation is best-effort by design: a run that has already reached the
 evidence service has completed, and the response says so.

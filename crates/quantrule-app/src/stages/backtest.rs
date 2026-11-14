@@ -15,20 +15,22 @@ use quantrule_backtest::execution::{
 };
 use quantrule_backtest::portfolio::{PortfolioLedger, PortfolioLedgerError};
 use quantrule_backtest::strategy::{Decision, EventStrategyInput};
+use quantrule_data::Candle;
+use quantrule_model::timeframe::TimeframeModel;
 use serde_json::{Value, json};
 
 use crate::artifact::model_bundle::model_bundle_from;
 use crate::artifact::render_report::{self, BundleWriteError};
 use crate::artifact::write::{AtomicWriteError, write_atomic};
-use crate::config::{ConfigError, RunConfig};
+use crate::config::{ConfigError, RunConfig, StrategyConfig};
 use crate::pipeline::{self, PipelineError};
 use crate::stages::execution::{
     ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution,
 };
 use crate::stages::portfolio::{self, PortfolioRequest, PortfolioRunError};
 use crate::stages::strategy::{
-    DecisionCounts, StrategyArtifactMeta, StrategyContextError, artifacts, decision_record,
-    validate_context,
+    BarRow, DecisionCounts, ModelBundle, StrategyArtifactMeta, StrategyContextError, artifacts,
+    decision_record, validate_context,
 };
 
 /// The backtest command failed.
@@ -42,7 +44,7 @@ pub enum BacktestRunError {
     Pipeline(PipelineError),
     /// The strategy's timeframes do not fit the model and run.
     Context(StrategyContextError),
-    /// The model bundle could not be written.
+    /// The model bundle could not be read or written.
     Model(String),
     /// A strategy artifact could not be encoded.
     StrategyArtifact(crate::stages::strategy::StrategyRunError),
@@ -182,7 +184,156 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
         .ok_or(BacktestRunError::MissingTimeframe {
             timeframe_secs: execution,
         })?;
-    let candles = timeframe.candles();
+    let feed = RunFeed {
+        run: &model_run,
+        timeframe,
+        execution,
+    };
+    run_stages(
+        &config,
+        &strategy_config,
+        &strategy_config_id,
+        &feed,
+        &root,
+        request.config,
+    )
+}
+
+/// The model values the shared stage loop reads.
+///
+/// The coupled runner projects them from a completed [`ModelRun`]; the staged
+/// runner projects the same values from a published model bundle. The loop is
+/// one implementation so the two inputs cannot drift.
+pub(super) trait BacktestFeed {
+    /// The number of execution bars.
+    fn len(&self) -> usize;
+
+    /// The execution candle at a position.
+    fn candle(&self, position: usize) -> Option<Candle>;
+
+    /// The published bar index at a position.
+    fn bar_index(&self, position: usize) -> Option<usize>;
+
+    /// The published ATR(14) at a position.
+    fn atr(&self, position: usize) -> Option<f64>;
+
+    /// The as-of strategy snapshot at a position.
+    fn input(
+        &self,
+        position: usize,
+        window_bars: usize,
+        context_timeframes: &[u64],
+    ) -> Option<EventStrategyInput>;
+}
+
+struct RunFeed<'a> {
+    run: &'a quantrule_model::run::ModelRun,
+    timeframe: &'a TimeframeModel,
+    execution: u64,
+}
+
+impl BacktestFeed for RunFeed<'_> {
+    fn len(&self) -> usize {
+        self.timeframe.candles().len()
+    }
+
+    fn candle(&self, position: usize) -> Option<Candle> {
+        self.timeframe.candles().get(position).copied()
+    }
+
+    fn bar_index(&self, position: usize) -> Option<usize> {
+        (position < self.len()).then_some(position)
+    }
+
+    fn atr(&self, position: usize) -> Option<f64> {
+        self.timeframe
+            .bar(position)
+            .and_then(|bar| bar.readings.atr14)
+    }
+
+    fn input(
+        &self,
+        position: usize,
+        window_bars: usize,
+        context_timeframes: &[u64],
+    ) -> Option<EventStrategyInput> {
+        let candle = self.candle(position)?;
+        let mut input =
+            EventStrategyInput::from_model_run(self.run, self.execution, position, window_bars);
+        for timeframe_secs in context_timeframes {
+            let Some(context_timeframe) = self.run.timeframe(*timeframe_secs) else {
+                continue;
+            };
+            let execution_close = candle.timestamp() + self.execution as i64;
+            let open_times = context_timeframe.open_times();
+            let context_position = open_times
+                .partition_point(|open| *open + *timeframe_secs as i64 <= execution_close);
+            if context_position == 0 {
+                continue;
+            }
+            input = input.with_view(self.run, *timeframe_secs, context_position - 1, window_bars);
+        }
+        Some(input)
+    }
+}
+
+pub(super) struct BundleFeed<'a> {
+    bundle: &'a ModelBundle,
+    execution: u64,
+}
+
+impl<'a> BundleFeed<'a> {
+    /// A feed over one execution timeframe of a published model bundle.
+    pub(super) fn new(bundle: &'a ModelBundle, execution: u64) -> Self {
+        Self { bundle, execution }
+    }
+
+    fn bars(&self) -> Option<&[BarRow]> {
+        self.bundle.bars(self.execution)
+    }
+}
+
+impl BacktestFeed for BundleFeed<'_> {
+    fn len(&self) -> usize {
+        self.bars().map_or(0, <[BarRow]>::len)
+    }
+
+    fn candle(&self, position: usize) -> Option<Candle> {
+        self.bars()?.get(position).map(|row| row.candle)
+    }
+
+    fn bar_index(&self, position: usize) -> Option<usize> {
+        self.bars()?.get(position).map(|row| row.bar)
+    }
+
+    fn atr(&self, position: usize) -> Option<f64> {
+        self.bars()?.get(position).and_then(|row| row.atr)
+    }
+
+    fn input(
+        &self,
+        position: usize,
+        window_bars: usize,
+        context_timeframes: &[u64],
+    ) -> Option<EventStrategyInput> {
+        let row = self.bars()?.get(position)?;
+        self.bundle
+            .input(self.execution, row.bar, window_bars, context_timeframes)
+    }
+}
+
+/// Runs the strategy, execution, and portfolio stages over one model feed.
+pub(super) fn run_stages(
+    config: &RunConfig,
+    strategy_config: &StrategyConfig,
+    strategy_config_id: &str,
+    feed: &dyn BacktestFeed,
+    root: &Path,
+    config_path: &Path,
+) -> Result<BacktestOutcome, BacktestRunError> {
+    let fill_timeframe = config.execution.fill_timeframe;
+    let execution = u64::from(fill_timeframe.seconds());
+    let bars = feed.len();
     let window = strategy_config.event_window_bars();
     let context: Vec<u64> = strategy_config
         .context_timeframes
@@ -195,20 +346,33 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
     let mut engine =
         ExecutionEngine::new(config.execution.engine).map_err(BacktestRunError::Execution)?;
     let mut ledger = PortfolioLedger::new(config.portfolio).map_err(BacktestRunError::Ledger)?;
-    let mut records = Vec::with_capacity(candles.len());
+    let mut records = Vec::with_capacity(bars);
     let mut counts = DecisionCounts::default();
     let mut orders = Vec::new();
     let mut fills = Vec::new();
     let mut rejections = Vec::new();
+    let mut first_open_time = None;
+    let mut last_open_time = None;
 
-    for (bar, candle) in candles.iter().enumerate() {
-        let contiguous =
-            bar > 0 && candle.timestamp() - candles[bar - 1].timestamp() == execution as i64;
+    for position in 0..bars {
+        let candle = feed
+            .candle(position)
+            .ok_or_else(|| BacktestRunError::Model(format!("the model has no bar {position}")))?;
+        let bar = feed
+            .bar_index(position)
+            .ok_or_else(|| BacktestRunError::Model(format!("the model has no bar {position}")))?;
+        let contiguous = position > 0
+            && feed.candle(position - 1).is_some_and(|previous| {
+                candle.timestamp() - previous.timestamp() == execution as i64
+            });
+        first_open_time.get_or_insert(candle.timestamp());
+        last_open_time = Some(candle.timestamp());
+
         ledger
             .apply_funding(bar, candle.timestamp(), candle.open(), candle.volume())
             .map_err(BacktestRunError::Ledger)?;
         let batch = engine
-            .advance(candle, contiguous)
+            .advance(&candle, contiguous)
             .map_err(BacktestRunError::Execution)?;
         for fill in &batch.fills {
             ledger.apply_fill(fill).map_err(BacktestRunError::Ledger)?;
@@ -218,26 +382,15 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
             .mark(bar, candle.timestamp(), candle.close())
             .map_err(BacktestRunError::Ledger)?;
 
-        let mut input = EventStrategyInput::from_model_run(&model_run, execution, bar, window)
+        let input = feed
+            .input(position, window, &context)
+            .ok_or_else(|| BacktestRunError::Model(format!("the model has no bar {position}")))?
             .with_contiguous(contiguous);
-        for timeframe_secs in &context {
-            let Some(context_timeframe) = model_run.timeframe(*timeframe_secs) else {
-                continue;
-            };
-            let execution_close = candle.timestamp() + execution as i64;
-            let open_times = context_timeframe.open_times();
-            let position = open_times
-                .partition_point(|open| *open + *timeframe_secs as i64 <= execution_close);
-            if position == 0 {
-                continue;
-            }
-            input = input.with_view(&model_run, *timeframe_secs, position - 1, window);
-        }
 
-        let position = engine.position_view();
-        let decision = strategy_config.decide(&input, position);
-        let atr14 = timeframe.bar(bar).and_then(|bar| bar.readings.atr14);
-        let record = decision_record(&strategy_config, &input, position, decision, atr14);
+        let position_state = engine.position_view();
+        let decision = strategy_config.decide(&input, position_state);
+        let atr14 = feed.atr(position);
+        let record = decision_record(strategy_config, &input, position_state, decision, atr14);
         counts.observe(decision);
         records.push(record);
 
@@ -300,7 +453,7 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
     let strategy_meta = StrategyArtifactMeta {
         data_version: &config.data.data_version,
         model_config_id: &config.config_hash,
-        strategy_config_id: &strategy_config_id,
+        strategy_config_id,
         period_from: config.data.from.as_deref(),
         period_to: config.data.to.as_deref(),
         strategy_id: strategy_config.id.as_deref(),
@@ -314,9 +467,9 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
     };
     let strategy_summary = artifacts::summary_bytes(
         &strategy_meta,
-        candles.len(),
-        candles.first().map(quantrule_data::Candle::timestamp),
-        candles.last().map(quantrule_data::Candle::timestamp),
+        bars,
+        first_open_time,
+        last_open_time,
         &counts,
     );
     let strategy_decisions =
@@ -338,12 +491,12 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
     let execution_meta = ExecutionArtifactMeta {
         data_version: &config.data.data_version,
         config_id: &config.config_hash,
-        strategy_config_id: &strategy_config_id,
+        strategy_config_id,
         period_from: config.data.from.as_deref(),
         period_to: config.data.to.as_deref(),
         fill_timeframe: fill_timeframe.code(),
         decision_bars: records.len(),
-        bars: candles.len(),
+        bars,
         sizing: config.portfolio.sizing,
         sizing_basis: "ledger_current",
         sizing_equity: None,
@@ -362,20 +515,20 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
 
     let execution_root = root.join("execution");
     let portfolio_request = PortfolioRequest {
-        config: request.config,
+        config: config_path,
         fills: &execution_root,
-        out: Some(root.as_path()),
+        out: Some(root),
     };
     portfolio::replay(&portfolio_request).map_err(BacktestRunError::Portfolio)?;
 
     let stages = [
-        stage_info(&root, "model", "model")?,
-        stage_info(&root, "strategy", "decisions")?,
-        stage_info(&root, "execution", "fills")?,
-        stage_info(&root, "portfolio", "portfolio")?,
+        stage_info(root, "model", "model")?,
+        stage_info(root, "strategy", "decisions")?,
+        stage_info(root, "execution", "fills")?,
+        stage_info(root, "portfolio", "portfolio")?,
     ];
-    let manifest = manifest_bytes(&config, &strategy_config_id, &stages)?;
-    let provenance = backtest_provenance_bytes(&config, &stages)?;
+    let manifest = manifest_bytes(config, strategy_config_id, &stages)?;
+    let provenance = backtest_provenance_bytes(config, &stages)?;
     write_atomic(&root.join("provenance.json"), &provenance).map_err(BacktestRunError::Export)?;
     write_atomic(&root.join("manifest.json"), &manifest).map_err(BacktestRunError::Export)?;
 
@@ -394,7 +547,7 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
     json.push(b'\n');
     Ok(BacktestOutcome {
         manifest: root.join("manifest.json"),
-        root,
+        root: root.to_path_buf(),
         stages,
         json,
     })

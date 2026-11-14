@@ -8,6 +8,7 @@
 
 pub mod analytics;
 pub mod backtest;
+pub mod backtest_from_model;
 pub mod data;
 pub mod execution;
 pub mod model;

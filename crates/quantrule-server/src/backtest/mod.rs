@@ -1,9 +1,11 @@
 //! The backtest worker.
 //!
-//! The worker materializes a catalogued dataset and config, runs the existing
-//! coupled backtest, writes the artifact set to CAS, records the computed
-//! digest through the evidence client, and publishes `run.computed`; evidence
-//! finalizes the run. It never renders a label or accepts a path.
+//! The worker loads a catalogued dataset and config from the data client,
+//! obtains the model bundle from the model client, runs strategy, execution,
+//! and portfolio from that bundle, writes the artifact set to CAS, records the
+//! computed digest through the evidence client, and publishes `run.computed`;
+//! evidence finalizes the run. It never recomputes the model, renders a label,
+//! or accepts a path.
 
 pub mod retry;
 pub mod worker;

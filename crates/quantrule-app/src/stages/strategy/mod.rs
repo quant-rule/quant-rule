@@ -11,6 +11,7 @@ pub mod context;
 mod run;
 
 pub use artifacts::{DecisionCounts, StrategyArtifactMeta};
+pub(crate) use bundle::{BarRow, ModelBundle};
 pub use context::{StrategyContextError, validate_context};
 pub use quantrule_backtest::intent::StrategyPosition;
 pub use quantrule_backtest::side::Side;
