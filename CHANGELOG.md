@@ -38,6 +38,14 @@ are not treated as releases.
   `/hypotheses*`, writes no run row, and holds no research store. The parked
   attempt-count migration is registered in the evidence ledger, and the worker
   reaches evidence through the runtime client seam.
+- The backtest worker runs on the HTTP data plane. It reads the config and
+  dataset through the data client, obtains the model bundle from the model
+  client, runs strategy, execution, and portfolio from that bundle through
+  `AppService::run_backtest_from_model`, and finalizes through evidence. The
+  in-process `AppService::run_backtest` fast path is gone; the model is not
+  recomputed. The coupled baseline's artifact names, bytes, and canonical
+  digest are unchanged, and the worker checks cancellation after the claim,
+  before the model call, before the backtest, and before the first CAS write.
 - `quantrule-runtime` gains the concrete HTTP service transport and a
   `DataClient` with an in-memory fake. The runtime migration runner takes a
   ledger schema, so the catalog, gateway, and run migration lists record under

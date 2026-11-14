@@ -3,7 +3,6 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use quantrule_api::Digest;
 use serde_json::{Value, json};
 
 use crate::backtest::worker::WorkerError;
@@ -17,6 +16,7 @@ pub struct Workspace {
     root: PathBuf,
     run: PathBuf,
     strategy: PathBuf,
+    model: PathBuf,
     out: PathBuf,
 }
 
@@ -24,15 +24,16 @@ impl Workspace {
     /// Write the config bundle and dataset, and rewrite `data.json` to point at
     /// the catalogued candles.
     ///
+    /// The config's declared `data_version` is preserved. The worker verifies
+    /// the dataset bytes against the run row's digest and never substitutes that
+    /// digest for the config's own label, so the materialized config is the same
+    /// input the coupled `backtest run` writer consumes.
+    ///
     /// # Errors
     ///
     /// Returns [`WorkerError`] for an unsafe bundle path, a missing reference,
     /// a malformed file, or an I/O failure.
-    pub fn create(
-        config: &ConfigBundle,
-        dataset: &[u8],
-        data_version: &Digest,
-    ) -> Result<Self, WorkerError> {
+    pub fn create(config: &ConfigBundle, dataset: &[u8]) -> Result<Self, WorkerError> {
         let run_text = config
             .files
             .get("run.json")
@@ -59,6 +60,7 @@ impl Workspace {
         let workspace = Self {
             run: root.join("run.json"),
             strategy: root.join(strategy_key),
+            model: root.join("model"),
             out: root.join("out"),
             root,
         };
@@ -85,7 +87,6 @@ impl Workspace {
             .and_then(Value::as_object_mut)
             .ok_or_else(|| WorkerError(format!("{data_key} has no source object")))?;
         source.insert("path".to_owned(), json!("candles.csv"));
-        data["data_version"] = json!(data_version.to_string());
         let data_dir = Path::new(data_key)
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
@@ -120,6 +121,30 @@ impl Workspace {
     #[must_use]
     pub fn strategy(&self) -> PathBuf {
         self.strategy.clone()
+    }
+
+    /// The model bundle directory the worker materializes.
+    #[must_use]
+    pub fn model(&self) -> PathBuf {
+        self.model.clone()
+    }
+
+    /// Write one materialized model bundle artifact.
+    ///
+    /// The caller verifies the artifact against its manifest hash before this
+    /// write. A path outside the model directory is refused.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WorkerError`] for an unsafe artifact name or an I/O failure.
+    pub fn write_model_artifact(&self, name: &str, bytes: &[u8]) -> Result<(), WorkerError> {
+        safe_key(name)?;
+        let path = self.model.join(name);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| WorkerError(format!("create {name}: {error}")))?;
+        }
+        std::fs::write(&path, bytes).map_err(|error| WorkerError(format!("write {name}: {error}")))
     }
 
     /// The output root.
@@ -274,12 +299,22 @@ mod tests {
     }
 
     #[test]
-    fn the_workspace_rewrites_the_data_source_and_loads() {
-        let (config, dataset, version) = fixture();
-        let workspace = Workspace::create(&config, &dataset, &version).expect("workspace");
+    fn the_workspace_rewrites_the_data_source_and_keeps_the_declared_version() {
+        let (config, dataset, _version) = fixture();
+        let declared: Value = serde_json::from_str(
+            config
+                .files
+                .get("data.json")
+                .expect("the fixture data config"),
+        )
+        .expect("data config JSON");
+        let workspace = Workspace::create(&config, &dataset).expect("workspace");
         let run = RunConfig::load(&workspace.run_config()).expect("materialized config");
         assert!(run.strategy.is_some());
-        assert_eq!(run.data.data_version, version.to_string());
+        assert_eq!(
+            run.data.data_version,
+            declared["data_version"].as_str().expect("a string")
+        );
         assert!(workspace.strategy().is_file());
         assert!(workspace.out().to_string_lossy().contains("out"));
     }
