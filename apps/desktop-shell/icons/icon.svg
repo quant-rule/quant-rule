@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="QuantRule">
+  <rect width="512" height="512" rx="96" fill="#101828"/>
+  <rect x="96" y="288" width="64" height="128" rx="14" fill="#f59e0b"/>
+  <rect x="224" y="200" width="64" height="216" rx="14" fill="#fbbf24"/>
+  <rect x="352" y="112" width="64" height="304" rx="14" fill="#fde68a"/>
+  <path d="M72 224 L200 168 L328 120 L440 72" fill="none" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
