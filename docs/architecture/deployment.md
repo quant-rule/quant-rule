@@ -95,10 +95,11 @@ decision is recorded.
 | `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
 
 `make scale` requires the six-binary profile, off until `qr-data` and `qr-model`
-exist (§2.1). `make remote`, `make token`, `make backup`, and `make restore`
-forward to scripts owned by DIST-081 (#672) and DIST-080 (#671); until a script
-lands, its target exits nonzero and names the issue. `make test-composed`
-preserves exit 2 because the composed suite is not wired yet. `make verify` keeps
+exist (§2.1). `make remote` and `make token` forward to scripts owned by
+DIST-081 (#672); until a script lands, its target exits nonzero and names the
+issue. `make backup` and `make restore` call the DIST-080 scripts (#671).
+`make test-composed` preserves exit 2 because the composed suite is not wired yet.
+`make verify` keeps
 the pre-#771 recipe, but `tools/verify.sh` still calls the retired local
 `backtest run` command; the script needs its own change.
 

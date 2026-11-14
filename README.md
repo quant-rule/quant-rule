@@ -68,9 +68,9 @@ target is in
 | `make backup` / `make restore FILE=…` | Backup and restore (DIST-080, #671) |
 | `make dev-web` | Web client dev server against `localhost:8080` |
 
-`make remote`, `make token`, `make backup`, and `make restore` forward to scripts
-that are not in this tree yet; each target exits nonzero and names the owning
-issue until that script lands.
+`make remote` and `make token` forward to scripts that are not in this tree yet;
+each target exits nonzero and names the owning issue until that script lands.
+`make backup` and `make restore` call `tools/backup.sh` and `tools/restore.sh`.
 
 Full deployment contract: [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 
