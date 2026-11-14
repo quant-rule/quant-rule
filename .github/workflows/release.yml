@@ -1,0 +1,402 @@
+# The release pipeline: one image digest, two desktop artifacts, one record.
+#
+# A pushed v* tag builds and verifies the image, records its digest, builds the
+# Linux AppImage and the Windows NSIS installer, and attaches all three to the
+# GitHub release. A workflow_dispatch run performs the same build and records
+# the digest in the job summary but creates no release and publishes no asset.
+#
+# Publishing is tag-only. A tag run requires the four repository values
+# documented in docs/releases/README.md, so a release always names a pullable
+# image. A workflow_dispatch run is always the build-only dry run; its digest is
+# a local image ID, not a registry manifest.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  LOCAL_IMAGE: quantrule-server:release-${{ github.sha }}
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Verify the release tag
+        if: github.event_name == 'push'
+        env:
+          QR_REGISTRY: ${{ vars.QR_REGISTRY }}
+          QR_IMAGE_NAME: ${{ vars.QR_IMAGE_NAME }}
+          QR_REGISTRY_USERNAME: ${{ secrets.QR_REGISTRY_USERNAME }}
+          QR_REGISTRY_TOKEN: ${{ secrets.QR_REGISTRY_TOKEN }}
+        run: |
+          if ! printf '%s' "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$GITHUB_REF_NAME is not a vMAJOR.MINOR.PATCH tag" >&2
+            exit 1
+          fi
+          if [ "$(git for-each-ref --format='%(objecttype)' "refs/tags/$GITHUB_REF_NAME")" != tag ]; then
+            echo "::error::$GITHUB_REF_NAME is not an annotated tag" >&2
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::$GITHUB_REF_NAME is not on main" >&2
+            exit 1
+          fi
+          note="$(find docs/releases -type f -name "$GITHUB_REF_NAME.md" -print -quit)"
+          if [ -z "$note" ]; then
+            echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$GITHUB_REF_NAME.md" >&2
+            exit 1
+          fi
+          if [ -z "$QR_REGISTRY" ] || [ -z "$QR_IMAGE_NAME" ] \
+            || [ -z "$QR_REGISTRY_USERNAME" ] || [ -z "$QR_REGISTRY_TOKEN" ]; then
+            echo "::error::a release tag needs QR_REGISTRY, QR_IMAGE_NAME, QR_REGISTRY_USERNAME, and QR_REGISTRY_TOKEN; see docs/releases/README.md" >&2
+            exit 1
+          fi
+
+      - name: Install the pinned toolchain
+        run: rustup show
+
+      - name: Workspace gate
+        run: tools/gate.sh
+
+  image:
+    name: Image and digest
+    needs: gate
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
+      image: ${{ steps.reference.outputs.image }}
+      source: ${{ steps.digest.outputs.source }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Resolve the image reference
+        id: reference
+        env:
+          QR_REGISTRY: ${{ vars.QR_REGISTRY }}
+          QR_IMAGE_NAME: ${{ vars.QR_IMAGE_NAME }}
+          QR_REGISTRY_USERNAME: ${{ secrets.QR_REGISTRY_USERNAME }}
+          QR_REGISTRY_TOKEN: ${{ secrets.QR_REGISTRY_TOKEN }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            if [ -z "$QR_REGISTRY" ] || [ -z "$QR_IMAGE_NAME" ] \
+              || [ -z "$QR_REGISTRY_USERNAME" ] || [ -z "$QR_REGISTRY_TOKEN" ]; then
+              echo "::error::a release tag needs the four registry values; see docs/releases/README.md" >&2
+              exit 1
+            fi
+            echo "image=$QR_REGISTRY/$QR_IMAGE_NAME" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "image=$LOCAL_IMAGE" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Image registry"
+              echo
+              echo "This is a workflow_dispatch dry run. The image is built"
+              echo "locally and the recorded digest is a local image ID."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Log in to the image registry
+        if: steps.reference.outputs.publish == 'true'
+        env:
+          REGISTRY: ${{ vars.QR_REGISTRY }}
+          REGISTRY_USERNAME: ${{ secrets.QR_REGISTRY_USERNAME }}
+          REGISTRY_TOKEN: ${{ secrets.QR_REGISTRY_TOKEN }}
+        run: |
+          printf '%s' "$REGISTRY_TOKEN" \
+            | docker login "$REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
+
+      - name: Build the image
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+          PUBLISH: ${{ steps.reference.outputs.publish }}
+        run: |
+          if [ "$PUBLISH" = "true" ]; then
+            docker build \
+              --platform linux/amd64 \
+              --tag "$IMAGE:$GITHUB_REF_NAME" \
+              --tag "$IMAGE:sha-$GITHUB_SHA" \
+              .
+            docker push "$IMAGE:$GITHUB_REF_NAME"
+            docker push "$IMAGE:sha-$GITHUB_SHA"
+          else
+            docker build --platform linux/amd64 --tag "$IMAGE" .
+          fi
+
+      - name: Check the image contract
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+        run: |
+          docker run --rm "$IMAGE" --version
+          if docker run --rm "$IMAGE" sh -c 'command -v python3 || command -v bun'; then
+            echo "::error::the image carries a Python or Bun interpreter" >&2
+            exit 1
+          fi
+
+      - name: Capture the image digest
+        id: digest
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+          PUBLISH: ${{ steps.reference.outputs.publish }}
+        run: |
+          if [ "$PUBLISH" = "true" ]; then
+            digest="$(docker buildx imagetools inspect "$IMAGE:$GITHUB_REF_NAME" \
+              --format '{{.Manifest.Digest}}')"
+            source=registry
+          else
+            digest="$(docker image inspect "$IMAGE" --format '{{.Id}}')"
+            source=local
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "source=$source" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Release image"
+            echo
+            echo "- Reference: \`$IMAGE\`"
+            echo "- Digest: \`$digest\`"
+            echo "- Digest source: $source"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify the digest in /health
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          QR_IMAGE="$IMAGE" QR_IMAGE_DIGEST="$DIGEST" \
+            docker compose up -d --wait --no-build
+          trap 'docker compose down --volumes --remove-orphans' EXIT
+          for attempt in $(seq 1 10); do
+            if curl -fsS http://127.0.0.1:8080/health -o health.json; then
+              break
+            fi
+            echo "the gateway is not answering yet (attempt $attempt of 10)"
+            sleep 2
+          done
+          cat health.json
+          python3 - "$DIGEST" <<'PY'
+          import json
+          import sys
+
+          expected = sys.argv[1]
+          with open("health.json", encoding="utf-8") as handle:
+              report = json.load(handle)
+          if report.get("image_digest") != expected:
+              raise SystemExit(
+                  f"/health reports {report.get('image_digest')!r}, expected {expected!r}"
+              )
+          print(f"/health reports {expected}")
+          PY
+          docker compose ps
+          running="$(docker compose ps --status running --services | wc -l)"
+          if [ "$running" -ne 6 ]; then
+            echo "::error::the default stack started $running services, expected 6" >&2
+            exit 1
+          fi
+
+  desktop:
+    name: Desktop (${{ matrix.os }})
+    needs: gate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            bundle: appimage
+            name: quantrule-desktop-linux
+            path: apps/desktop-shell/target/release/bundle/appimage/*.AppImage
+          - os: windows-latest
+            bundle: nsis
+            name: quantrule-desktop-windows
+            path: apps/desktop-shell/target/release/bundle/nsis/*-setup.exe
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Install the pinned toolchain
+        run: rustup show
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.2"
+
+      - name: Install the Linux desktop libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl wget file patchelf \
+            libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev xvfb dbus-x11
+
+      - name: Test the shell helpers
+        working-directory: apps/desktop-shell
+        run: bun test
+
+      - name: Check the shell boundary
+        working-directory: apps/desktop-shell
+        run: bash tests/boundary.sh
+
+      - name: Build the installer
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop-shell
+          tauriScript: bunx @tauri-apps/cli@2
+          includeUpdaterJson: false
+          args: --bundles ${{ matrix.bundle }}
+
+      - name: Smoke test the Linux shell
+        if: runner.os == 'Linux'
+        working-directory: apps/desktop-shell
+        run: |
+          bin="$(find target/release -maxdepth 1 -type f -name quantrule-desktop-shell -print -quit)"
+          bash tests/smoke-linux.sh "$bin"
+
+      - name: Smoke test the Windows shell
+        if: runner.os == 'Windows'
+        working-directory: apps/desktop-shell
+        shell: pwsh
+        run: |
+          $exe = "target\release\quantrule-desktop-shell.exe"
+          if (-not (Test-Path $exe)) { throw "missing $exe" }
+          $proc = Start-Process -FilePath (Resolve-Path $exe) -PassThru
+          Start-Sleep -Seconds 8
+          if ($proc.HasExited) { throw "the shell exited with code $($proc.ExitCode)" }
+          Stop-Process -Id $proc.Id -Force
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    if: github.event_name == 'push' && needs.image.outputs.source == 'registry'
+    needs:
+      - gate
+      - image
+      - desktop
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Download the desktop assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: quantrule-desktop-*
+          path: desktop
+          merge-multiple: true
+
+      - name: Build the release body
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          SOURCE: ${{ needs.image.outputs.source }}
+        run: |
+          note="$(find docs/releases -type f -name "$GITHUB_REF_NAME.md" -print -quit)"
+          if [ -z "$note" ]; then
+            echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$GITHUB_REF_NAME.md" >&2
+            exit 1
+          fi
+          appimage="$(find desktop -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          installer="$(find desktop -maxdepth 1 -type f -name '*-setup.exe' -print -quit)"
+          if [ -z "$appimage" ] || [ -z "$installer" ]; then
+            echo "::error::both desktop artifacts must be present" >&2
+            exit 1
+          fi
+          {
+            cat "$note"
+            echo
+            echo "## Image and desktop artifacts"
+            echo
+            echo "- Image: \`$IMAGE\`"
+            echo "- Image digest: \`$DIGEST\` ($SOURCE)"
+            echo "- Linux AppImage: \`$(basename "$appimage")\`"
+            echo "- Windows NSIS installer: \`$(basename "$installer")\`"
+            echo
+            echo "The desktop artifacts are unsigned. On Windows, SmartScreen"
+            echo "shows \"Windows protected your PC\"; choose **More info**, then"
+            echo "**Run anyway**. On Linux, mark the AppImage executable and run it."
+          } > release-body.md
+          cp release-body.md "$RUNNER_TEMP/release-body.md"
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-body.md"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file "$RUNNER_TEMP/release-body.md"
+          fi
+          gh release upload "$GITHUB_REF_NAME" \
+            desktop/*.AppImage desktop/*-setup.exe --clobber
+
+      - name: Verify the released record
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --json body,assets,url > release.json
+          python3 - "$DIGEST" <<'PY'
+          import json
+          import sys
+
+          digest = sys.argv[1]
+          with open("release.json", encoding="utf-8") as handle:
+              release = json.load(handle)
+          names = [asset["name"] for asset in release["assets"]]
+          if digest not in release["body"]:
+              raise SystemExit(f"the release body does not name the digest {digest}")
+          if not any(name.endswith(".AppImage") for name in names):
+              raise SystemExit(f"the release has no AppImage asset: {names}")
+          if not any(name.endswith("-setup.exe") for name in names):
+              raise SystemExit(f"the release has no NSIS installer asset: {names}")
+          print(release["url"])
+          for name in names:
+              print(name)
+          PY
+          appimage="$(find desktop -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          installer="$(find desktop -maxdepth 1 -type f -name '*-setup.exe' -print -quit)"
+          {
+            echo "## Published"
+            echo
+            gh release view "$GITHUB_REF_NAME" --json url --jq '.url'
+            echo
+            echo "Copy these two lines into the release note:"
+            echo
+            echo "- Image digest: \`$DIGEST\`"
+            echo "- Desktop artifacts: \`$(basename "$appimage")\`, \`$(basename "$installer")\`"
+          } >> "$GITHUB_STEP_SUMMARY"

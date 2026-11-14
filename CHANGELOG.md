@@ -29,6 +29,19 @@ are not treated as releases.
   `quantrule.internal/v1` run record, claim/complete/fail payloads, run manifest
   and canonical digest, config bundle, dataset object, and model bundle
   manifest. `quantrule-server` keeps its three binaries, routes, and behavior.
+- The release pipeline (`.github/workflows/release.yml`) builds the server
+  image, records its digest, builds the Linux AppImage and the Windows NSIS
+  installer, and attaches the digest and both artifacts to the GitHub release.
+  Publishing to a registry is opt-in through documented repository values; a
+  `workflow_dispatch` run is a build-only dry run.
+- Backup and restore over both durable stores: `tools/backup.sh` writes one
+  timestamped archive with a custom-format Postgres dump, an object mirror of
+  the bucket, and a manifest carrying the SHA-256 of every payload file plus a
+  detached archive digest; `tools/restore.sh` verifies every hash before it
+  writes, refuses a corrupt or incomplete archive, refuses a non-empty stack
+  without `--force`, and writes objects before rows. The opt-in
+  `tools/test_backup.sh` proves a byte-identical round trip on an isolated
+  Compose project.
 - The single server image and the Compose stack: one `quantrule-server` image
   carries `qr-gateway`, `qr-backtest`, `qr-evidence`, and the built client, and
   `compose.yaml` defines the nine-container topology with one published port,
@@ -36,6 +49,15 @@ are not treated as releases.
   six containers whose binaries exist; `data`, `model`, and `simulation` stay
   behind the `six-binaries` profile until `qr-data`, `qr-model`, and
   `qr-simulation` exist.
+- The operator interface is one command: `make up` builds the default stack,
+  waits for health, and prints the URL, and `make help` lists every target.
+  `make down`, `make reset` (confirmed), `make logs`, `make ps`, `make scale`,
+  `make gate`, `make test`, and the preserved `make verify` and test-tier
+  targets complete the set. Windows runs `docker compose up -d` without make,
+  and Fedora may use Podman through `make COMPOSE="podman compose"`. The
+  `remote` and `token` targets are wired and name their owning distribution
+  issue until those scripts land; `backup` and `restore` call
+  `tools/backup.sh` and `tools/restore.sh`.
 - The shell is a `quantrule.api/v1` client: `health`, `dataset`, `config`,
   `run`, `inspect`, `verify`, `profile`, `simulation`, and `help` commands, a
   global `--profile`, and a `--json` machine view. Every command makes one
