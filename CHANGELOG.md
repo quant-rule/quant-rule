@@ -22,6 +22,11 @@ are not treated as releases.
 
 ### Added
 
+- The shell is a `quantrule.api/v1` client: `health`, `dataset`, `config`,
+  `run`, `inspect`, `verify`, `profile`, `simulation`, and `help` commands, a
+  global `--profile`, and a `--json` machine view. Every command makes one
+  gateway operation; printed output is stable and covered by fixture-server
+  tests.
 - The desktop shell (`apps/desktop-shell`) is a Tauri 2 window over the gateway
   URL. It remembers the gateway, leaves the active profile to the web client,
   checks GitHub Releases for a newer shell, and shows the bundled client only as
@@ -183,6 +188,9 @@ are not treated as releases.
 
 ### Changed
 
+- The shell depends only on `quantrule-api`, `ureq`, and `serde_json`. Local
+  source fetch and local stage execution are gone; a run is submitted to the
+  gateway and read back through the run and inspection routes.
 - Run artifacts publish atomically: bytes live at `artifacts/{sha256}` and one
   `runs/{run_id}/manifest.json` is the publish point. A worker stopped mid-write
   leaves blobs but no manifest, no recorded artifact, and no succeeded run.
@@ -222,6 +230,15 @@ are not treated as releases.
   template names roles, dependencies, and affected paths, and the plan checker
   rejects duplicate IDs, empty core cells, and unresolved rows on a `Verified`
   plan.
+
+### Removed
+
+- The local stage commands (`candles`, `candles-tolerant`, `timeframes`,
+  `events`, `report model`, `run check`, `strategy explain`, `strategy run`,
+  `execution run`, `portfolio replay`, `backtest run`, `qualify`, and
+  `analytics evaluate`), source `fetch`, and the local `memory` command are
+  removed from the shell in v1.0.0. Their capability moves into the run and
+  read-only inspection.
 
 ### Fixed
 

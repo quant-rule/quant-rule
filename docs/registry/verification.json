@@ -58,7 +58,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -123,7 +123,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -251,7 +251,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -316,7 +316,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -381,7 +381,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -446,7 +446,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -574,7 +574,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -639,7 +639,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -704,7 +704,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -769,7 +769,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -834,7 +834,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -899,7 +899,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -964,7 +964,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1029,7 +1029,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1094,7 +1094,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1159,7 +1159,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1224,7 +1224,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1289,7 +1289,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1354,7 +1354,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1419,7 +1419,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1484,7 +1484,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1549,7 +1549,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1614,7 +1614,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1679,7 +1679,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1744,7 +1744,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1809,7 +1809,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1874,7 +1874,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -1939,7 +1939,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2004,7 +2004,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2069,7 +2069,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2134,7 +2134,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2199,7 +2199,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2264,7 +2264,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2329,7 +2329,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2394,7 +2394,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2459,7 +2459,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2524,7 +2524,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2589,7 +2589,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2654,7 +2654,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2719,7 +2719,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2784,7 +2784,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2849,7 +2849,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -2914,7 +2914,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3044,7 +3044,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3114,7 +3114,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3188,7 +3188,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3260,7 +3260,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3332,7 +3332,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3404,7 +3404,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3474,7 +3474,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3544,7 +3544,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3614,7 +3614,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3684,7 +3684,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3754,7 +3754,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3824,7 +3824,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3894,7 +3894,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -3964,7 +3964,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4034,7 +4034,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4104,7 +4104,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4174,7 +4174,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4244,7 +4244,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4314,7 +4314,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4384,7 +4384,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4454,7 +4454,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4524,7 +4524,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4594,7 +4594,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4664,7 +4664,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4734,7 +4734,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4804,7 +4804,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4874,7 +4874,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -4944,7 +4944,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5014,7 +5014,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5084,7 +5084,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5154,7 +5154,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5224,7 +5224,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5294,7 +5294,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5364,7 +5364,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5434,7 +5434,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5504,7 +5504,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5574,7 +5574,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5644,7 +5644,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5714,7 +5714,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5784,7 +5784,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5854,7 +5854,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5924,7 +5924,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -5994,7 +5994,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6064,7 +6064,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6134,7 +6134,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6204,7 +6204,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6274,7 +6274,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6344,7 +6344,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6414,7 +6414,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6484,7 +6484,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6554,7 +6554,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6624,7 +6624,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6694,7 +6694,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6764,7 +6764,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6834,7 +6834,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6904,7 +6904,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -6974,7 +6974,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7044,7 +7044,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7114,7 +7114,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7184,7 +7184,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7254,7 +7254,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7324,7 +7324,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7394,7 +7394,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7464,7 +7464,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7534,7 +7534,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7604,7 +7604,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7674,7 +7674,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7744,7 +7744,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7814,7 +7814,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7884,7 +7884,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -7954,7 +7954,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8024,7 +8024,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8094,7 +8094,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8164,7 +8164,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8234,7 +8234,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8304,7 +8304,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8374,7 +8374,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8444,7 +8444,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8514,7 +8514,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8584,7 +8584,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8654,7 +8654,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8724,7 +8724,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8794,7 +8794,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8864,7 +8864,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -8934,7 +8934,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9004,7 +9004,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9074,7 +9074,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9144,7 +9144,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9214,7 +9214,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9284,7 +9284,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9354,7 +9354,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9424,7 +9424,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9494,7 +9494,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9564,7 +9564,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9634,7 +9634,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9704,7 +9704,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9774,7 +9774,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9844,7 +9844,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9914,7 +9914,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -9984,7 +9984,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10054,7 +10054,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10124,7 +10124,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10194,7 +10194,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10264,7 +10264,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10334,7 +10334,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10404,7 +10404,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10474,7 +10474,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10544,7 +10544,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10614,7 +10614,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10684,7 +10684,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10754,7 +10754,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10824,7 +10824,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10894,7 +10894,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -10964,7 +10964,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11034,7 +11034,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11104,7 +11104,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11174,7 +11174,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11244,7 +11244,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11314,7 +11314,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11384,7 +11384,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11454,7 +11454,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11524,7 +11524,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11594,7 +11594,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11664,7 +11664,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11734,7 +11734,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11804,7 +11804,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11874,7 +11874,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -11944,7 +11944,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12014,7 +12014,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12084,7 +12084,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12154,7 +12154,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12224,7 +12224,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12294,7 +12294,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12364,7 +12364,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12434,7 +12434,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12504,7 +12504,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12574,7 +12574,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12644,7 +12644,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12714,7 +12714,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12784,7 +12784,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12854,7 +12854,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12924,7 +12924,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -12994,7 +12994,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13064,7 +13064,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13134,7 +13134,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13204,7 +13204,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13274,7 +13274,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13344,7 +13344,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13414,7 +13414,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13484,7 +13484,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13554,7 +13554,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13627,7 +13627,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
@@ -13697,7 +13697,7 @@
         "spec": {
           "scope": "family",
           "tests": [
-            "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"
+            "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"
           ]
         },
         "emitter": {
