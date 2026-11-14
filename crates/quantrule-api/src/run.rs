@@ -109,6 +109,19 @@ impl RunState {
     }
 }
 
+/// The canonical digest of one run.
+///
+/// The digest is present once the run has succeeded; a run that is queued,
+/// running, failed, or cancelled has none yet. The run itself is still known, so
+/// the answer is a value with an absent digest rather than a missing resource.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RunDigest {
+    /// The run the digest belongs to.
+    pub run_id: RunId,
+    /// The canonical digest over the data artifacts, once complete.
+    pub digest: Option<Digest>,
+}
+
 /// One step of the data plane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -320,6 +333,27 @@ mod tests {
             d = "a".repeat(64)
         );
         assert!(serde_json::from_str::<Provenance>(&text).is_err());
+    }
+
+    #[test]
+    fn a_run_digest_round_trips_with_and_without_a_value() {
+        let run_id = RunId(digest());
+        for value in [
+            RunDigest {
+                run_id: run_id.clone(),
+                digest: Some(digest()),
+            },
+            RunDigest {
+                run_id,
+                digest: None,
+            },
+        ] {
+            let text = serde_json::to_string(&value).expect("encode");
+            assert_eq!(
+                serde_json::from_str::<RunDigest>(&text).expect("decode"),
+                value
+            );
+        }
     }
 
     #[test]

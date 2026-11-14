@@ -1,5 +1,10 @@
-//! The Postgres run store.
+//! The Postgres run and hypothesis repositories.
+//!
+//! The pool and the client-library boundary live in `quantrule-runtime`. These
+//! rows read and write only `runs.` and `research.` tables; evidence owns both
+//! schemas and never reads the `catalog`, `gateway`, or `simulation` schema.
 
+use quantrule_api::ProfileId;
 use sqlx::PgPool;
 
 use quantrule_runtime::adapters::BoxFuture;
@@ -623,6 +628,92 @@ impl crate::runs::RunStore for PgRunStore {
             load_run_rows(&pool, None, &run_id)
                 .await?
                 .ok_or_else(|| crate::runs::RunStoreError(format!("run {run_id} is unknown")))
+        })
+    }
+}
+
+/// A hypothesis store backed by Postgres.
+///
+/// The sealed record is written whole as JSON and read back by fingerprint; the
+/// split columns remain for inspection.
+#[derive(Debug, Clone)]
+pub struct PgHypothesisStore {
+    pool: PgPool,
+}
+
+impl PgHypothesisStore {
+    /// Build the store over an existing pool.
+    #[must_use]
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+impl crate::research::HypothesisStore for PgHypothesisStore {
+    fn insert(
+        &self,
+        profile: ProfileId,
+        sealed: quantrule_research::SealedHypothesis,
+    ) -> BoxFuture<Result<(), crate::research::StoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let encode = |value: &quantrule_research::SealedHypothesis| {
+                serde_json::to_string(value)
+                    .map_err(|error| crate::research::StoreError(error.to_string()))
+            };
+            let hypothesis = sealed.hypothesis();
+            let costs = serde_json::to_string(&hypothesis.costs)
+                .map_err(|error| crate::research::StoreError(error.to_string()))?;
+            let split = serde_json::to_string(&hypothesis.split)
+                .map_err(|error| crate::research::StoreError(error.to_string()))?;
+            let body = encode(&sealed)?;
+            sqlx::query(
+                "INSERT INTO research.hypotheses
+                     (profile_id, fingerprint, premise, rule, dataset, costs, split, criteria,
+                      sealed_at, body)
+                 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::timestamptz,
+                         $10::jsonb)",
+            )
+            .bind(profile.as_str())
+            .bind(sealed.fingerprint())
+            .bind(&hypothesis.premise)
+            .bind(&hypothesis.rule)
+            .bind(&hypothesis.dataset)
+            .bind(costs)
+            .bind(split)
+            .bind(&hypothesis.criteria)
+            .bind(sealed.sealed_at())
+            .bind(body)
+            .execute(&pool)
+            .await
+            .map(|_| ())
+            .map_err(|error| crate::research::StoreError(error.to_string()))
+        })
+    }
+
+    fn load(
+        &self,
+        profile: ProfileId,
+        fingerprint: String,
+    ) -> BoxFuture<Result<Option<quantrule_research::SealedHypothesis>, crate::research::StoreError>>
+    {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let row: Option<(String,)> = sqlx::query_as(
+                "SELECT body::text FROM research.hypotheses
+                 WHERE profile_id = $1 AND fingerprint = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&fingerprint)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|error| crate::research::StoreError(error.to_string()))?;
+            match row {
+                Some((body,)) => serde_json::from_str(&body)
+                    .map(Some)
+                    .map_err(|error| crate::research::StoreError(error.to_string())),
+                None => Ok(None),
+            }
         })
     }
 }

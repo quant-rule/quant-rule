@@ -30,6 +30,14 @@ are not treated as releases.
   reference. The gateway proxies `/model/*` unchanged and has no model handler;
   the public model object is byte-identical to the coupled route, and the
   internal manifest lists every model-bundle artifact with its SHA-256.
+- `qr-evidence` serves the run lifecycle and research memory: submission,
+  listing, detail, cancel, artifact download, digest, and hypotheses, plus the
+  internal claim/read/computed/failed calls the worker uses. Evidence owns the
+  `runs` and `research` schemas, validates a submission through the data
+  service, and publishes `run.requested`; the gateway proxies `/runs*` and
+  `/hypotheses*`, writes no run row, and holds no research store. The parked
+  attempt-count migration is registered in the evidence ledger, and the worker
+  reaches evidence through the runtime client seam.
 - `quantrule-runtime` gains the concrete HTTP service transport and a
   `DataClient` with an in-memory fake. The runtime migration runner takes a
   ledger schema, so the catalog, gateway, and run migration lists record under

@@ -84,7 +84,7 @@ async fn an_api_path_never_falls_back() {
 async fn a_write_method_is_not_served_the_spa() {
     let response = router(state())
         .oneshot(
-            Request::post("/runs/abc")
+            Request::post("/some/page")
                 .body(Body::empty())
                 .expect("request"),
         )

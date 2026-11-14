@@ -19,7 +19,8 @@ pub use manifest::{
     ManifestArtifact, ManifestError, RunManifest, SCHEMA as RUN_MANIFEST_SCHEMA, canonical_digest,
 };
 pub use run::{
-    NewRun, RunCancelOutcome, RunClaimOutcome, RunClaimRequest, RunComputed, RunFailed, RunRecord,
+    MAX_ATTEMPTS, NewRun, RunCancelOutcome, RunClaimOutcome, RunClaimRequest, RunComputed,
+    RunFailed, RunRecord, derive_run_id,
 };
 pub use storage::{ConfigBundle, DatasetObject, MODEL_BUNDLE_SCHEMA, ModelBundleManifest};
 

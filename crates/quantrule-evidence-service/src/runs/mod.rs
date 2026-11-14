@@ -1,0 +1,14 @@
+//! The run store and identity.
+//!
+//! A run is content-addressed and shared. A submission row binds a profile to a
+//! run, so two profiles can point at one run without duplicating it. The run
+//! identity and retry budget are part of the `quantrule.internal/v1` contract,
+//! so the worker derives the same values evidence stores.
+
+pub mod store;
+
+pub use quantrule_service_api::{MAX_ATTEMPTS, derive_run_id as derive};
+pub use store::{
+    CancelOutcome, ClaimOutcome, MemoryRuns, NewRun, RunRecord, RunStore, RunStoreError,
+    SubmitOutcome,
+};
