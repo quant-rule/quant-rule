@@ -52,6 +52,25 @@ pub fn canonical_digest() -> String {
     digest('a')
 }
 
+/// The shared client-parity responses.
+///
+/// One file serves the shell fixture server and the browser Bun test, so the
+/// two clients cannot drift onto different fixture values.
+pub fn client_parity_api() -> Value {
+    serde_json::from_str(include_str!(
+        "../../../../tests/fixtures/client-parity/api.json"
+    ))
+    .expect("the shared client-parity fixture is JSON")
+}
+
+/// The normalized view both clients must produce from [`client_parity_api`].
+pub fn client_parity_view() -> Value {
+    serde_json::from_str(include_str!(
+        "../../../../tests/fixtures/client-parity/view.json"
+    ))
+    .expect("the shared client-parity view is JSON")
+}
+
 /// One captured request.
 #[derive(Debug, Clone)]
 pub struct Request {
@@ -87,6 +106,7 @@ struct FixtureState {
     run_detail: Value,
     artifact_bytes: Vec<u8>,
     next_profile: u64,
+    parity: Option<Value>,
 }
 
 /// The response a handler builds.
@@ -142,69 +162,57 @@ impl Fixture {
         Self::start_with(
             run_detail(&artifact_digest, artifact_length),
             artifact_bytes,
+            None,
         )
     }
 
-    /// Start the fixture with the browser's run-detail values.
+    /// Start the fixture with the shared client-parity responses.
     ///
-    /// The values mirror `apps/web/e2e/run-detail.e2e.ts`; the shell must print
-    /// the same numbers and codes for the same profile.
+    /// The run detail mirrors `apps/web/e2e/run-detail.e2e.ts`; every parity
+    /// operation reads the same `tests/fixtures/client-parity/api.json` bytes
+    /// the browser test reads.
     pub fn start_parity() -> Self {
-        Self::start_with(
-            json!({
-                "run_id": run_id(),
-                "status": "succeeded",
-                "owner": "default",
-                "stages": [
-                    { "name": "data", "state": "done", "elapsed_ms": 1_200 },
-                    { "name": "model", "state": "done", "elapsed_ms": 2_400 },
-                    { "name": "backtest", "state": "done", "elapsed_ms": 3_600 },
-                    { "name": "evidence", "state": "done", "elapsed_ms": 120 },
-                ],
-                "provenance": {
-                    "data_version": data_version(),
-                    "config_hash": config_hash(),
-                    "model_version": "M1.0",
-                    "image_digest": image_digest(),
-                },
-                "artifacts": [
-                    { "name": "results.json", "bytes": 2_048, "sha256": digest('f') }
-                ],
-                "digest": canonical_digest(),
-                "error": null,
-            }),
-            Vec::new(),
-        )
+        let fixture = client_parity_api();
+        let run_detail = fixture["responses"]["run"].clone();
+        Self::start_with(run_detail, Vec::new(), Some(fixture))
     }
 
-    fn start_with(run_detail: Value, artifact_bytes: Vec<u8>) -> Self {
+    fn start_with(run_detail: Value, artifact_bytes: Vec<u8>, parity: Option<Value>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").expect("the fixture binds");
         let address = listener.local_addr().expect("the fixture has an address");
         listener
             .set_nonblocking(true)
             .expect("the fixture listener is non-blocking");
+        let profiles = parity
+            .as_ref()
+            .and_then(|fixture| fixture["responses"]["profiles"].as_array())
+            .cloned()
+            .unwrap_or_else(|| {
+                vec![
+                    json!({
+                        "profile_id": "default",
+                        "name": "Default",
+                        "datasets": 1,
+                        "runs": 1,
+                        "simulations": 1,
+                    }),
+                    json!({
+                        "profile_id": "alpha",
+                        "name": "Alpha",
+                        "datasets": 1,
+                        "runs": 0,
+                        "simulations": 0,
+                    }),
+                ]
+            });
         let state = Arc::new(Mutex::new(FixtureState {
-            profiles: vec![
-                json!({
-                    "profile_id": "default",
-                    "name": "Default",
-                    "datasets": 1,
-                    "runs": 1,
-                    "simulations": 1,
-                }),
-                json!({
-                    "profile_id": "alpha",
-                    "name": "Alpha",
-                    "datasets": 1,
-                    "runs": 0,
-                    "simulations": 0,
-                }),
-            ],
+            profiles,
             requests: Vec::new(),
             marks: Vec::new(),
             run_detail,
             artifact_bytes,
             next_profile: 0,
+            parity,
         }));
         let stop = Arc::new(AtomicBool::new(false));
         let handle = {
@@ -505,9 +513,37 @@ fn hex(byte: u8) -> Option<u8> {
     }
 }
 
+/// Answer a parity operation from the shared fixture, when one is installed.
+///
+/// Only the read-only operations the two clients share are routed here. Every
+/// other command keeps the mutable default fixture, so the existing
+/// printed-output tests are unchanged.
+fn parity_route(state: &FixtureState, request: &Request, segments: &[&str]) -> Option<Response> {
+    if request.method != "GET" {
+        return None;
+    }
+    let fixture = state.parity.as_ref()?;
+    let responses = &fixture["responses"];
+    let key = match segments {
+        ["health"] => "health",
+        ["catalog", "datasets"] => "datasets",
+        ["catalog", "datasets", id] if Some(*id) == fixture["dataset_id"].as_str() => "dataset",
+        ["catalog", "configs"] => "configs",
+        ["runs"] => "runs",
+        ["runs", id] if Some(*id) == fixture["run_id"].as_str() => "run",
+        ["profiles"] => "profiles",
+        _ => return None,
+    };
+    responses.get(key).map(|value| Response::json(200, value))
+}
+
 fn handle(state: &mut FixtureState, request: &Request) -> Response {
     let path = request.path.as_str();
     let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
+
+    if let Some(response) = parity_route(state, request, &segments) {
+        return response;
+    }
 
     if path == "/health" && request.method == "GET" {
         return Response::json(

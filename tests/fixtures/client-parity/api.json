@@ -1,0 +1,113 @@
+{
+  "profile": "default",
+  "dataset_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "config_id": "cfg_abc",
+  "run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "responses": {
+    "health": {
+      "v": "quantrule.api/v1",
+      "state": "degraded",
+      "services": [
+        { "name": "postgres", "state": "healthy", "detail": null },
+        { "name": "minio", "state": "degraded", "detail": "slow" }
+      ],
+      "queue_depth": 2,
+      "workers": 1,
+      "image_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "datasets": [
+      {
+        "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "name": "candles.csv",
+        "candles": 3,
+        "first_bar": 1704067200,
+        "last_bar": 1704067320,
+        "bytes": 96
+      }
+    ],
+    "dataset": {
+      "summary": {
+        "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "name": "candles.csv",
+        "candles": 3,
+        "first_bar": 1704067200,
+        "last_bar": 1704067320,
+        "bytes": 96
+      },
+      "object_key": "datasets/sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "quality": null,
+      "created_at": "2026-11-14T00:00:00Z"
+    },
+    "configs": [
+      {
+        "config_id": "cfg_abc",
+        "name": "run",
+        "origin": "repository",
+        "valid": true,
+        "message": null,
+        "config_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "config_id": "cfg_bad",
+        "name": "broken",
+        "origin": "upload",
+        "valid": false,
+        "message": "portfolio.initial_cash must be positive",
+        "config_hash": null
+      }
+    ],
+    "runs": [
+      {
+        "run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "status": "succeeded",
+        "config_id": "cfg_abc",
+        "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "submitted_at": "2026-11-13T12:00:00Z",
+        "elapsed_ms": 1200
+      }
+    ],
+    "run": {
+      "run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": "succeeded",
+      "owner": "default",
+      "stages": [
+        { "name": "data", "state": "done", "elapsed_ms": 1200 },
+        { "name": "model", "state": "done", "elapsed_ms": 2400 },
+        { "name": "backtest", "state": "done", "elapsed_ms": 3600 },
+        { "name": "evidence", "state": "done", "elapsed_ms": 120 }
+      ],
+      "provenance": {
+        "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "config_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "model_version": "M1.0",
+        "image_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "artifacts": [
+        {
+          "name": "results.json",
+          "bytes": 2048,
+          "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ],
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "error": null
+    },
+    "profiles": [
+      {
+        "profile_id": "default",
+        "name": "Default",
+        "datasets": 1,
+        "runs": 1,
+        "simulations": 1
+      },
+      {
+        "profile_id": "alpha",
+        "name": "Alpha",
+        "datasets": 1,
+        "runs": 0,
+        "simulations": 0
+      }
+    ]
+  }
+}
