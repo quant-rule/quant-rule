@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- A source guard over the signal path fails on transcendental, power, and
+  fused-multiply-add calls; `sqrt`, rounding, and the four arithmetic operations
+  remain allowed. The benchmark and test fixtures are outside the guard.
 - The client label table is generated from `docs/registry/indicators.json` into
   `apps/web/src/lib/labels.generated.ts`; `check_labels` fails the gate when the
   checked-in table drifts, so every numeric code has one word mapping.
