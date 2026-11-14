@@ -1,6 +1,6 @@
 # Execution Plan — #668 DIST-070 Shell HTTP Client
 
-- Status: In Progress
+- Status: In Review
 - Claim type: Behaviour Claim
 - Issue: [#668](https://github.com/quant-rule/quant-rule/issues/668)
 - Parent plan: `DIST-000` (DIST-070)
