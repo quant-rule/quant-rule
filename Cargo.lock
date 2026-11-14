@@ -2734,6 +2734,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "quantrule-evidence-service"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "quantrule-api",
+ "quantrule-research",
+ "quantrule-runtime",
+ "quantrule-service-api",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tower",
+ "tracing",
+]
+
+[[package]]
 name = "quantrule-model"
 version = "0.3.0"
 dependencies = [
@@ -2800,7 +2817,6 @@ dependencies = [
  "quantrule-api",
  "quantrule-app",
  "quantrule-data",
- "quantrule-research",
  "quantrule-runtime",
  "quantrule-service-api",
  "serde",

@@ -23,6 +23,10 @@ use quantrule_service_api::{ConfigBundle, DatasetObject};
 
 use crate::adapters::BoxFuture;
 
+mod evidence;
+
+pub use evidence::{EvidenceClient, MemoryEvidence};
+
 /// A service reachable on the internal network.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Service {
@@ -474,22 +478,61 @@ impl ServiceClient for HttpServiceClient {
 }
 
 impl HttpServiceClient {
-    async fn get_json<T>(&self, profile: &ProfileId, path: String) -> Result<Option<T>, ClientError>
+    async fn get_json<T>(
+        &self,
+        service: Service,
+        profile: Option<&ProfileId>,
+        path: String,
+    ) -> Result<Option<T>, ClientError>
     where
         T: serde::de::DeserializeOwned,
     {
-        let request = ServiceRequest::get(path).with_header(PROFILE_HEADER, profile.as_str());
-        let response = <Self as ServiceClient>::send(self, Service::Data, request).await?;
+        let mut request = ServiceRequest::get(path);
+        if let Some(profile) = profile {
+            request = request.with_header(PROFILE_HEADER, profile.as_str());
+        }
+        let response = <Self as ServiceClient>::send(self, service, request).await?;
         match response.status {
             200 => serde_json::from_slice(&response.body)
                 .map(Some)
                 .map_err(|error| ClientError::InvalidResponse {
-                    service: Service::Data,
+                    service,
                     message: error.to_string(),
                 }),
             404 => Ok(None),
             status => Err(ClientError::Status {
-                service: Service::Data,
+                service,
+                status,
+                message: upstream_message(&response.body),
+            }),
+        }
+    }
+
+    async fn post_json<T, B>(
+        &self,
+        service: Service,
+        path: String,
+        body: &B,
+    ) -> Result<T, ClientError>
+    where
+        T: serde::de::DeserializeOwned,
+        B: serde::Serialize + ?Sized,
+    {
+        let body = serde_json::to_vec(body).map_err(|error| ClientError::InvalidResponse {
+            service,
+            message: error.to_string(),
+        })?;
+        let response =
+            <Self as ServiceClient>::send(self, service, ServiceRequest::post(path, body)).await?;
+        match response.status {
+            200 => serde_json::from_slice(&response.body).map_err(|error| {
+                ClientError::InvalidResponse {
+                    service,
+                    message: error.to_string(),
+                }
+            }),
+            status => Err(ClientError::Status {
+                service,
                 status,
                 message: upstream_message(&response.body),
             }),
@@ -512,7 +555,11 @@ impl DataClient for HttpServiceClient {
         let client = self.clone();
         Box::pin(async move {
             client
-                .get_json(&profile, format!("/internal/v1/configs/{config_id}"))
+                .get_json(
+                    Service::Data,
+                    Some(&profile),
+                    format!("/internal/v1/configs/{config_id}"),
+                )
                 .await
         })
     }
@@ -525,7 +572,11 @@ impl DataClient for HttpServiceClient {
         let client = self.clone();
         Box::pin(async move {
             client
-                .get_json(&profile, format!("/internal/v1/datasets/{data_version}"))
+                .get_json(
+                    Service::Data,
+                    Some(&profile),
+                    format!("/internal/v1/datasets/{data_version}"),
+                )
                 .await
         })
     }
@@ -534,7 +585,11 @@ impl DataClient for HttpServiceClient {
         let client = self.clone();
         Box::pin(async move {
             client
-                .get_json(&profile, "/internal/v1/profile/datasets/count".to_owned())
+                .get_json(
+                    Service::Data,
+                    Some(&profile),
+                    "/internal/v1/profile/datasets/count".to_owned(),
+                )
                 .await?
                 .ok_or(ClientError::InvalidResponse {
                     service: Service::Data,

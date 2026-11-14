@@ -4,14 +4,13 @@ mod common;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use common::{body_bytes, memory_profiles};
+use common::body_bytes;
 use quantrule_api::{Digest, PROFILE_HEADER, RunDetail, RunState, RunSummary, SubmitRunResponse};
+use quantrule_evidence_service::runs::{MemoryRuns, RunStore};
+use quantrule_evidence_service::{EvidenceServices, EvidenceState, router};
 use quantrule_runtime::adapters::{Backend, BoxFuture, Queue, QueueError};
 use quantrule_runtime::client::MemoryDataClient;
 use quantrule_runtime::{Config, HealthRegistry};
-use quantrule_server::runs::MemoryRuns;
-use quantrule_server::server::router;
-use quantrule_server::server::{AppState, Services};
 use quantrule_service_api::{ConfigBundle, DatasetObject};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -77,7 +76,7 @@ fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
     }
 }
 
-async fn harness() -> (Arc<AppState>, MemoryQueue) {
+async fn harness() -> (Arc<EvidenceState>, MemoryQueue) {
     let queue = MemoryQueue::default();
     let data = MemoryDataClient::default();
     let default = quantrule_api::ProfileId::parse("default").expect("default");
@@ -99,15 +98,14 @@ async fn harness() -> (Arc<AppState>, MemoryQueue) {
             },
         );
     }
-    let state = Arc::new(AppState::with_services(
+    let state = Arc::new(EvidenceState::with_services(
         &Config::default(),
         HealthRegistry::new(),
-        Services {
-            profiles: Some(memory_profiles(&["default", "alpha"]).await),
+        EvidenceServices {
             data: Some(Arc::new(data)),
             runs: Some(Arc::new(MemoryRuns::default())),
             queue: Some(Arc::new(queue.clone())),
-            ..Services::default()
+            ..EvidenceServices::default()
         },
     ));
     (state, queue)
@@ -122,7 +120,7 @@ fn seed() -> (Digest, String, String) {
 }
 
 async fn submit(
-    state: Arc<AppState>,
+    state: Arc<EvidenceState>,
     profile: &str,
     data_version: &Digest,
     config_id: &str,
@@ -145,7 +143,7 @@ async fn submit(
         .expect("response")
 }
 
-async fn list(state: Arc<AppState>, profile: &str) -> Vec<RunSummary> {
+async fn list(state: Arc<EvidenceState>, profile: &str) -> Vec<RunSummary> {
     let response = router(state)
         .oneshot(
             Request::get("/runs")
@@ -374,6 +372,321 @@ async fn an_unknown_status_filter_is_rejected() {
             Request::get("/runs?status=bogus")
                 .header(PROFILE_HEADER, "default")
                 .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("run.invalid"), "{text}");
+}
+
+fn state_with(runs: MemoryRuns, objects: common::MemoryObjects) -> Arc<EvidenceState> {
+    use quantrule_evidence_service::runs::RunStore;
+    Arc::new(EvidenceState::with_services(
+        &Config::default(),
+        HealthRegistry::new(),
+        EvidenceServices {
+            runs: Some(Arc::new(runs) as Arc<dyn RunStore>),
+            objects: Some(Arc::new(objects)),
+            ..EvidenceServices::default()
+        },
+    ))
+}
+
+fn new_run(seed: &[u8]) -> quantrule_evidence_service::runs::NewRun {
+    use quantrule_evidence_service::runs::derive;
+    let data_version = Digest::sha256(seed);
+    let config_hash = Digest::sha256(b"config");
+    let image = Digest::sha256(b"image");
+    quantrule_evidence_service::runs::NewRun {
+        run_id: derive(&data_version, &config_hash, "M1.0", &image),
+        config_id: "cfg_abc".to_owned(),
+        data_version,
+        config_hash,
+        model_version: "M1.0".to_owned(),
+        image_digest: image,
+        owner: "default".to_owned(),
+        submitted_at: "2026-11-14T00:00:00Z".to_owned(),
+    }
+}
+
+fn computed_stages() -> serde_json::Value {
+    use quantrule_api::{StageName, StageStatus};
+    serde_json::json!([
+        {"name": StageName::Data, "state": StageStatus::Done, "elapsed_ms": null},
+        {"name": StageName::Model, "state": StageStatus::Done, "elapsed_ms": null},
+        {"name": StageName::Backtest, "state": StageStatus::Done, "elapsed_ms": null},
+        {"name": StageName::Evidence, "state": StageStatus::Pending, "elapsed_ms": null}
+    ])
+}
+
+async fn finished_run(
+    runs: &MemoryRuns,
+    objects: &common::MemoryObjects,
+) -> (String, Digest, Vec<u8>) {
+    use quantrule_api::ArtifactRef;
+    use quantrule_evidence_service::runs::RunStore;
+    use quantrule_service_api::RunManifest;
+
+    let submitted = runs
+        .submit(common::profile("default"), new_run(b"artifact"))
+        .await
+        .expect("submit");
+    let id = submitted.record().run_id.to_string();
+    runs.claim(id.clone(), false).await.expect("claim");
+    let bytes = b"{\"profit\":1}".to_vec();
+    let artifact = ArtifactRef {
+        name: "results.json".to_owned(),
+        bytes: bytes.len() as u64,
+        sha256: Digest::sha256(&bytes),
+    };
+    objects
+        .store(&RunManifest::blob_key(&artifact.sha256), bytes.clone())
+        .await;
+    let digest = Digest::sha256(b"canonical");
+    runs.computed(
+        id.clone(),
+        digest.clone(),
+        vec![artifact.clone()],
+        Vec::new(),
+    )
+    .await
+    .expect("computed");
+    runs.complete(id.clone(), digest.clone(), vec![artifact], Vec::new())
+        .await
+        .expect("complete");
+    (id, digest, bytes)
+}
+
+#[tokio::test]
+async fn a_run_artifact_is_served_by_its_recorded_hash() {
+    let runs = MemoryRuns::default();
+    let objects = common::MemoryObjects::default();
+    let (id, _digest, bytes) = finished_run(&runs, &objects).await;
+    let response = router(state_with(runs, objects))
+        .oneshot(
+            Request::get(format!("/runs/{id}/artifacts/results.json"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/json")
+    );
+    assert!(
+        response
+            .headers()
+            .get(axum::http::header::ETAG)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.starts_with("\"sha256:"))
+    );
+    assert_eq!(body_bytes(response).await, bytes);
+}
+
+#[tokio::test]
+async fn a_run_artifact_is_profile_scoped() {
+    let runs = MemoryRuns::default();
+    let objects = common::MemoryObjects::default();
+    let (id, _digest, _bytes) = finished_run(&runs, &objects).await;
+    let response = router(state_with(runs, objects))
+        .oneshot(
+            Request::get(format!("/runs/{id}/artifacts/results.json"))
+                .header(PROFILE_HEADER, "alpha")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("run.not_found"), "{text}");
+}
+
+#[tokio::test]
+async fn a_changed_artifact_blob_is_refused() {
+    let runs = MemoryRuns::default();
+    let objects = common::MemoryObjects::default();
+    let (id, _digest, _bytes) = finished_run(&runs, &objects).await;
+    use quantrule_service_api::RunManifest;
+    let key = RunManifest::blob_key(&Digest::sha256(b"{\"profit\":1}"));
+    objects.store(&key, b"{\"profit\":9}".to_vec()).await;
+    let response = router(state_with(runs, objects))
+        .oneshot(
+            Request::get(format!("/runs/{id}/artifacts/results.json"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("does not match"), "{text}");
+}
+
+#[tokio::test]
+async fn a_run_digest_is_served_within_the_profile() {
+    let runs = MemoryRuns::default();
+    let objects = common::MemoryObjects::default();
+    let (id, digest, _bytes) = finished_run(&runs, &objects).await;
+    let state = state_with(runs, objects);
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/runs/{id}/digest"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let value: quantrule_api::RunDigest =
+        serde_json::from_slice(&body_bytes(response).await).expect("digest");
+    assert_eq!(value.digest, Some(digest));
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/runs/{id}/digest"))
+                .header(PROFILE_HEADER, "alpha")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_missing_profile_header_is_refused() {
+    let response = router(state_with(
+        MemoryRuns::default(),
+        common::MemoryObjects::default(),
+    ))
+    .oneshot(Request::get("/runs").body(Body::empty()).expect("request"))
+    .await
+    .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("profile.not_found"), "{text}");
+}
+
+#[tokio::test]
+async fn the_internal_lifecycle_serves_claim_read_computed_and_failed() {
+    let runs = MemoryRuns::default();
+    let submitted = runs
+        .submit(common::profile("default"), new_run(b"internal"))
+        .await
+        .expect("submit");
+    let id = submitted.record().run_id.to_string();
+    let state = state_with(runs, common::MemoryObjects::default());
+
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::post(format!("/internal/v1/runs/{id}/claim"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"run_id": id, "redelivered": false}).to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let outcome: quantrule_service_api::RunClaimOutcome =
+        serde_json::from_slice(&body_bytes(response).await).expect("claim");
+    assert!(matches!(
+        outcome,
+        quantrule_service_api::RunClaimOutcome::Claimed(_)
+    ));
+
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/internal/v1/runs/{id}"))
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let record: quantrule_service_api::RunRecord =
+        serde_json::from_slice(&body_bytes(response).await).expect("record");
+    assert_eq!(record.status, RunState::Running);
+    assert_eq!(record.attempts, 1);
+
+    let digest = Digest::sha256(b"canonical");
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::post(format!("/internal/v1/runs/{id}/computed"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "run_id": id,
+                        "digest": digest,
+                        "artifacts": [],
+                        "stages": computed_stages(),
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let record: quantrule_service_api::RunRecord =
+        serde_json::from_slice(&body_bytes(response).await).expect("computed");
+    assert_eq!(record.digest, Some(digest.clone()));
+
+    let response = router(state)
+        .oneshot(
+            Request::post(format!("/internal/v1/runs/{id}/failed"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "run_id": id,
+                        "error": "late failure",
+                        "stages": computed_stages(),
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let record: quantrule_service_api::RunRecord =
+        serde_json::from_slice(&body_bytes(response).await).expect("failed");
+    assert_eq!(record.status, RunState::Failed);
+    assert_eq!(record.digest, Some(digest));
+    assert_eq!(record.error.as_deref(), Some("late failure"));
+}
+
+#[tokio::test]
+async fn an_internal_claim_for_another_run_is_refused() {
+    let runs = MemoryRuns::default();
+    let submitted = runs
+        .submit(common::profile("default"), new_run(b"claim-mismatch"))
+        .await
+        .expect("submit");
+    let id = submitted.record().run_id.to_string();
+    let response = router(state_with(runs, common::MemoryObjects::default()))
+        .oneshot(
+            Request::post(format!("/internal/v1/runs/{id}/claim"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "run_id": Digest::sha256(b"other"),
+                        "redelivered": false,
+                    })
+                    .to_string(),
+                ))
                 .expect("request"),
         )
         .await

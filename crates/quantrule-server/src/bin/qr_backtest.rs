@@ -1,26 +1,26 @@
 //! The backtest worker binary.
 //!
 //! It consumes `runs.backtest` (`run.requested` and `run.cancelled`), claims the
-//! run, executes it, writes the artifacts to CAS, records the computed digest,
-//! and publishes `run.computed` or `run.failed`. Evidence finalizes the run. A
-//! retryable failure holds the delivery, waits, and retries in place. It serves
-//! no HTTP.
+//! run through the evidence client, executes it, writes the artifacts to CAS,
+//! records the computed digest, and publishes `run.computed` or `run.failed`.
+//! Evidence finalizes the run. A retryable failure holds the delivery, waits,
+//! and retries in place. It serves no HTTP. P6 moves the orchestration to
+//! `quantrule-backtest-service`.
 
 use std::sync::Arc;
 
-use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
 use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_runtime::adapters::s3::S3Store;
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
-use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
+use quantrule_runtime::client::{
+    ClientError, DataClient, EvidenceClient, HttpServiceClient, Service,
+};
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::queue::{QUEUE_BACKTEST, ROUTING_CANCELLED, ROUTING_REQUESTED};
-use quantrule_runtime::{Config, RuntimeError, logging, shutdown};
-use quantrule_server::adapters::postgres::PgRunStore;
+use quantrule_runtime::{Config, RuntimeError, logging};
 use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
-use quantrule_server::runs::RunStore;
 use serde_json::Value;
 
 #[tokio::main]
@@ -28,18 +28,6 @@ async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
-    let database = PgDatabase::connect(&config.database_url)
-        .await
-        .map_err(|error| RuntimeError::Database(error.to_string()))?;
-    if config.migrate {
-        apply_migrations_in(
-            database.pool(),
-            "runs",
-            &quantrule_server::migrations::service(),
-        )
-        .await
-        .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
-    }
     let objects = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
     let queue = Arc::new(
         RabbitQueue::connect(&config.queue_url)
@@ -47,21 +35,16 @@ async fn main() -> Result<(), RuntimeError> {
             .map_err(|error| RuntimeError::Queue(error.to_string()))?,
     );
 
-    let data: Arc<dyn DataClient> =
-        Arc::new(HttpServiceClient::from_env(Service::Data).map_err(|error| {
-            RuntimeError::Config(match error {
-                ClientError::Unconfigured { .. } => ConfigError::Missing {
-                    name: "QR_DATA_URL",
-                },
-                _ => ConfigError::Invalid {
-                    name: "QR_DATA_URL",
-                    value: "<invalid>".to_owned(),
-                    reason: "must be an absolute HTTP URL",
-                },
-            })
-        })?);
+    let data: Arc<dyn DataClient> = Arc::new(
+        HttpServiceClient::from_env(Service::Data)
+            .map_err(|error| service_config_error(Service::Data, error))?,
+    );
+    let evidence: Arc<dyn EvidenceClient> = Arc::new(
+        HttpServiceClient::from_env(Service::Evidence)
+            .map_err(|error| service_config_error(Service::Evidence, error))?,
+    );
     let services = Arc::new(WorkerServices {
-        runs: Arc::new(PgRunStore::new(database.pool().clone())) as Arc<dyn RunStore>,
+        evidence,
         data,
         objects: Arc::new(objects) as Arc<dyn ObjectStore>,
         queue: Arc::clone(&queue) as Arc<dyn Queue>,
@@ -78,7 +61,7 @@ async fn main() -> Result<(), RuntimeError> {
                 return Ok(());
             };
             if message.routing_key == ROUTING_CANCELLED {
-                // The gateway already wrote the flag. The message is an
+                // Evidence already wrote the flag. The message is an
                 // observation; the worker checks the flag at its own boundaries.
                 tracing::info!(run_id = %run_id, "cancellation observed");
                 return Ok(());
@@ -120,7 +103,7 @@ async fn main() -> Result<(), RuntimeError> {
         ) => {
             result.map_err(|error| RuntimeError::Queue(error.to_string()))
         }
-        _ = shutdown::signal() => Ok(()),
+        _ = quantrule_runtime::shutdown::signal() => Ok(()),
     }
 }
 
@@ -133,4 +116,17 @@ fn run_id(payload: &[u8]) -> Option<String> {
                 .and_then(Value::as_str)
                 .map(str::to_owned)
         })
+}
+
+/// Name the missing or invalid `QR_*_URL` at startup.
+fn service_config_error(service: Service, error: ClientError) -> RuntimeError {
+    let name = service.url_variable();
+    RuntimeError::Config(match error {
+        ClientError::Unconfigured { .. } => ConfigError::Missing { name },
+        _ => ConfigError::Invalid {
+            name,
+            value: "<invalid>".to_owned(),
+            reason: "must be an absolute HTTP URL",
+        },
+    })
 }

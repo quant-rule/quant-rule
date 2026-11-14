@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use crate::runs::MAX_ATTEMPTS;
+use quantrule_service_api::MAX_ATTEMPTS;
 
 /// The waits after the first and second failed attempts.
 pub const RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(5), Duration::from_secs(25)];

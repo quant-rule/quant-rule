@@ -3,7 +3,7 @@ name = "quantrule-server"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "The QuantRule services: gateway routes, the backtest worker, and evidence"
+description = "The QuantRule gateway routes and the backtest worker"
 license = "MIT OR Apache-2.0"
 publish = false
 
@@ -15,16 +15,11 @@ path = "src/bin/qr_gateway.rs"
 name = "qr-backtest"
 path = "src/bin/qr_backtest.rs"
 
-[[bin]]
-name = "qr-evidence"
-path = "src/bin/qr_evidence.rs"
-
 [dependencies]
 axum = "0.8.9"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-app = { path = "../quantrule-app" }
 quantrule-data = { path = "../quantrule-data" }
-quantrule-research = { path = "../quantrule-research" }
 quantrule-runtime = { path = "../quantrule-runtime" }
 quantrule-service-api = { path = "../quantrule-service-api" }
 serde = { version = "1", features = ["derive"] }

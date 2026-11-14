@@ -8,12 +8,10 @@
 use axum::body::Body;
 use axum::http::Request;
 use quantrule_api::{PROFILE_HEADER, ProfileId};
-use quantrule_research::{CostModel, Partition, Split};
 use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
 use quantrule_runtime::client::MemoryDataClient;
 use quantrule_runtime::{Config, HealthRegistry};
 use quantrule_server::profile::{MemoryProfiles, ProfileRecord, ProfileStore};
-use quantrule_server::research::MemoryStore;
 use quantrule_server::server::{AppState, Services};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -87,18 +85,6 @@ pub fn state() -> Arc<AppState> {
     Arc::new(AppState::new(&Config::default(), HealthRegistry::new()))
 }
 
-pub async fn state_with_store() -> Arc<AppState> {
-    Arc::new(AppState::with_services(
-        &Config::default(),
-        HealthRegistry::new(),
-        Services {
-            hypotheses: Some(Arc::new(MemoryStore::default())),
-            profiles: Some(memory_profiles(&["default", "alpha", "beta"]).await),
-            ..Services::default()
-        },
-    ))
-}
-
 pub async fn state_with_data(data: MemoryDataClient) -> Arc<AppState> {
     Arc::new(AppState::with_services(
         &Config::default(),
@@ -124,22 +110,6 @@ pub async fn memory_profiles(ids: &[&str]) -> Arc<MemoryProfiles> {
             .expect("create profile");
     }
     store
-}
-
-pub fn body() -> serde_json::Value {
-    let split = Split::new(
-        Partition::new("dev", 100, 200).expect("dev"),
-        Partition::new("val", 200, 300).expect("val"),
-    )
-    .expect("split");
-    serde_json::json!({
-        "premise": "a retest holds",
-        "rule": "strategy/retest.toml",
-        "dataset": "sha256:abc",
-        "costs": CostModel::new(1.0, 0.0, 0.0).expect("costs"),
-        "split": split,
-        "criteria": "expectancy above zero",
-    })
 }
 
 pub async fn body_bytes(response: axum::response::Response) -> Vec<u8> {
