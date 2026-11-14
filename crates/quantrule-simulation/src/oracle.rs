@@ -9,6 +9,8 @@
 //! forward return went the other way. Ties break on the lowest bar, so the result
 //! never depends on iteration order.
 
+// port-parity: PORT-001
+
 use crate::marks::{Mark, MarkAction, MarkOrigin, MarkQuality, Side};
 use crate::window::Window;
 
@@ -225,6 +227,19 @@ mod tests {
         ];
         let marks = label(&bars, window(), Side::Long).expect("label");
         assert_eq!(marks.len(), 1);
+        assert_eq!(marks[0].quality, MarkQuality::Good);
+    }
+
+    #[test]
+    fn a_single_bar_window_marks_one_candidate() {
+        let bars = vec![Bar {
+            index: 100,
+            forward_return: 1.0,
+            temptation: 0.5,
+        }];
+        let marks = label(&bars, window(), Side::Long).expect("label");
+        assert_eq!(marks.len(), 1);
+        assert_eq!(marks[0].bar, 100);
         assert_eq!(marks[0].quality, MarkQuality::Good);
     }
 
