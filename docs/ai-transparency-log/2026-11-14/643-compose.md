@@ -189,3 +189,81 @@ Container health after P3:
 The Windows Docker Desktop and standalone Podman smoke checks remain manual
 notes. Model and simulation domain routes, the remaining split phases, and the
 permanent object-store registry are outside this change.
+
+## Follow-up after P4 (#793) — 2026-11-14 (UTC)
+
+- Merge: #793 merged to `main` at `64550efa`; `origin/main` merged into
+  `feat/643-compose` at `886b5bc9`.
+- Intent: enable `qr-model` in the default stack now that it serves
+  `/model/compute`, and wire the gateway's required `QR_MODEL_URL`.
+- Boundary: `compose.yaml`, `docker/README.md`, the current-state and
+  configuration sections of `docs/architecture/deployment.md`,
+  `CHANGELOG.md`, and this log. No Rust, client, Makefile, CI, `services.md`,
+  ADR, or port-parity change.
+- Compose: `QR_MODEL_URL=http://model:8080` is set for the gateway, which
+  refuses to start without it. The gateway now depends on `model` being
+  healthy. `model` depends on `data` and the object store; it owns no database
+  schema and keeps `QR_MIGRATE=0`. `QR_DATA_URL`, the gateway/data migration
+  split, the `config/` mount ownership, the three named volumes, the single
+  network, and the single published port are unchanged.
+- The model fixture path is real: `/catalog/configs` scans the repository
+  mount, `examples/verify-mini` is valid (`cfg_312c0eec3438`), and the model
+  route reads the catalogued dataset and config through `qr-data` and the
+  object store. No model data was stubbed.
+
+### Verification after P4 — 2026-11-14 (UTC)
+
+| Check | Command | Observed |
+|---|---|---|
+| Compose parse | `docker compose config -q` | exit 0; nine services |
+| Image build | `docker build -t quantrule-server:test .` | exit 0; manifest list `sha256:e78dbabe367ccc351cf5b9274c96cdb6700471e0d0db23d1fa78d18aa34e8939` |
+| Clean start | `docker compose down -v && docker compose up -d --build --wait` | exit 0; nine containers |
+| Gateway health | `curl -fsS http://localhost:8080/health` | `state=healthy`; postgres and queue healthy |
+| Data probe | `curl -H 'X-QuantRule-Profile: default' http://localhost:8080/catalog/datasets` | `200`; `[]` before upload |
+| Config scan | `curl -H 'X-QuantRule-Profile: default' http://localhost:8080/catalog/configs` | `200`; `examples/verify-mini` valid, `cfg_312c0eec3438` |
+| Dataset upload | `POST /catalog/datasets?name=model-fixture.csv` | `201`; 250 candles; `sha256:3c0106f8…` |
+| Model compute | `POST /model/compute` with the dataset version and `cfg_312c0eec3438` | `200`; timeframes `1m,5m,15m,1h`; 66,022 bytes; `sha256:e12f8069…` |
+| Gateway migrations | `docker compose logs gateway` | `migrations applied gateway=1 service=6` |
+| Data migrations | `docker compose logs data` | `catalog migrations applied applied=5` |
+| Model startup | `docker compose logs model` | `starting model service bind=0.0.0.0:8080`; no migration line |
+| No Python | `docker run --rm quantrule-server:test sh -c 'command -v python3'` | empty |
+| No Bun | `docker run --rm quantrule-server:test sh -c 'command -v bun'` | empty |
+| No `.py` | `docker run --rm quantrule-server:test sh -c 'find / -name "*.py" 2>/dev/null \| head'` | empty |
+| One-command path | `make up` | exit 0; `QuantRule v0.3.0 ready → http://localhost:8080` |
+| Workspace gate | `tools/gate.sh` | exit 0; `workspace gate passed` |
+
+Container health after P4:
+
+| Container | State |
+|---|---|
+| `gateway` | healthy |
+| `data` | healthy |
+| `model` | healthy |
+| `backtest` | up; no HTTP probe |
+| `evidence` | up; no HTTP probe |
+| `simulation` | healthy |
+| `postgres` | healthy |
+| `minio` | healthy |
+| `rabbitmq` | healthy |
+
+### Learning and rejected alternatives after P4
+
+- The model route is not a stub: a real catalogued config and a 250-candle
+  dataset were uploaded through the gateway, and the response is the full
+  four-timeframe model object. A 500 would have been the unmigrated or
+  unreachable data service, not the model.
+- Rejected: giving `model` a database URL and `QR_MIGRATE=1`. It owns no
+  schema; `qr-model` applies no migration, and the model reads the catalog
+  through `qr-data`.
+- Rejected: giving `model` the `config/` mount. It resolves the config bundle
+  through the data service and reads only dataset objects from the object
+  store.
+- The gateway's `/health` reports postgres and queue after P4; object-store
+  checks now belong to the service that owns them. The healthcheck still reads
+  the aggregate state.
+
+### Not verified here
+
+The Windows Docker Desktop and standalone Podman smoke checks remain manual
+notes. The simulation domain routes, the remaining split phases, and the
+permanent object-store registry are outside this change.

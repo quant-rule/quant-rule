@@ -44,7 +44,7 @@ no partial-stack profile: every one of the nine services starts by default.
 |---|---|---|
 | `gateway` | `qr-gateway` | `/health`, `/version`, profiles, runs, hypotheses, the model route, the proxied data routes, and the static client |
 | `data` | `qr-data` | `/health`, `/version`, `/catalog/*`, `/datasets/*`, `/inspect/*`, and the internal config/dataset references |
-| `model` | `qr-model` | `/health`, `/version` only until P4 |
+| `model` | `qr-model` | `/health`, `/version`, `/model/compute`, and the internal model bundle |
 | `backtest` | `qr-backtest` | queue consumer; no HTTP |
 | `evidence` | `qr-evidence` | queue consumer; no HTTP |
 | `simulation` | `qr-simulation` | `/health`, `/version` only until P7 |
@@ -62,25 +62,27 @@ the dependencies. A worker probe is part of the split.
 
 `data` is complete for P3. It owns the `catalog` schema, the read-only `config/`
 mount, the dataset object path, and the public catalog, dataset, config, and
-inspection routes. The gateway proxies `/catalog/*`, `/datasets/*`, and
-`/inspect/*` to `qr-data` and keeps no data handler. `model` and `simulation`
-remain health/version skeletons until P4 and P7:
+inspection routes. `model` is complete for P4: it serves `/model/compute` and the
+internal model bundle, reads the catalog through `qr-data`, and owns no database
+schema. The gateway proxies both surfaces and keeps no data or model handler.
+`simulation` remains a health/version skeleton until P7:
 
 | Service | Route owner | Phase |
 |---|---|---|
 | `data` | `qr-data` (gateway proxy) | P3, landed |
-| `model` | gateway | P4 |
+| `model` | `qr-model` (gateway proxy) | P4, landed |
 | `simulation` | gateway | P7 |
 
 Only `data` and `simulation` mount `config/` read-only; the gateway no longer
-reads the catalog mount.
+reads the catalog mount. `model` reads the dataset object through data and the
+object store, so it needs neither a config nor a database mount.
 
 Each schema owner migrates its own ledger. The gateway applies the `gateway` and
 `runs` ledgers with `QR_MIGRATE=1`; `data` applies the `catalog` ledger with
 `QR_MIGRATE=1`; `backtest`, `evidence`, `model`, and `simulation` keep
-`QR_MIGRATE=0` because the gateway owns the runs ledger they consume. P1 pinned
-the session-level advisory lock to one connection, so the two migrators can run
-at once; the old gateway-sole-migrator workaround is gone.
+`QR_MIGRATE=0` because the gateway owns the runs ledger and model owns no schema.
+P1 pinned the session-level advisory lock to one connection, so the two
+migrators can run at once; the old gateway-sole-migrator workaround is gone.
 
 ## 4. Object store source
 
@@ -113,6 +115,7 @@ credential has a local default and can be overridden:
 | `QR_IMAGE` | Image reference; a digest in a release |
 | `QR_IMAGE_DIGEST` | Passed to `/health` and provenance; unset by default |
 | `QR_DATA_URL` | Data-service base URL used by the gateway and the backtest worker |
+| `QR_MODEL_URL` | Model-service base URL used by the gateway |
 | `QR_POSTGRES_PASSWORD` | Postgres and the service URL |
 | `QR_OBJECT_STORE_PASSWORD` | MinIO root password and the S3 secret |
 | `QR_RABBITMQ_PASSWORD` | Broker password and the service URL |
