@@ -59,11 +59,27 @@ Press **Download**, or:
 curl -OJ http://localhost:8080/api/v1/runs/<run_id>/artifacts/bundle.tar
 ```
 
-## 7. Shell equivalent (planned, DIST-070)
+## 7. Shell equivalent
 
-Once `DIST-070` lands, the same steps are reachable without a browser:
-dataset list, run submit, run status, run fetch. Until then the browser is the
-only client for the distributed surface.
+The same steps are reachable without a browser:
+
+```bash
+# after `make up`
+export QUANTRULE_API_URL=http://localhost:8080/api/v1
+
+quantrule health
+quantrule dataset upload candles.csv --name btc-1m
+quantrule dataset list
+quantrule config list
+quantrule run submit <data_version> <config_id>
+quantrule run status <run_id>
+quantrule run fetch <run_id> ./bundle
+quantrule verify <run_id>
+```
+
+`run submit` returns immediately. `run status` reads the server state; closing
+the shell does not stop the run. `run fetch` writes the artifact set and checks
+each file against the record's size and SHA-256.
 
 ## Failure you should be able to explain
 

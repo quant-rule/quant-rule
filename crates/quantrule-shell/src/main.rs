@@ -1,25 +1,21 @@
 //! The QuantRule shell binary.
 //!
 //! The shell is one of the product's two first-class surfaces, primarily for
-//! agents. It parses commands, performs explicit source fetch, calls the shared
-//! application service, and renders the result. It holds no indicator, model,
-//! strategy, execution, or portfolio logic.
+//! agents. It parses a command, calls the gateway over HTTP, and renders the
+//! result. It holds no indicator, model, strategy, execution, or portfolio
+//! logic, and it never opens a local database.
 
 #![forbid(unsafe_code)]
-#![recursion_limit = "512"]
 
-pub(crate) mod command;
-mod export;
-mod fetch;
-mod render;
-mod render_flat;
-mod request;
-mod source;
+mod client;
+mod command;
+mod error;
+mod output;
+mod profile;
+mod session;
 
 use std::ffi::OsString;
 use std::io::{self, Write};
-
-use command::Command;
 
 fn main() {
     let args: Vec<OsString> = std::env::args_os().skip(1).collect();
@@ -53,8 +49,8 @@ fn run_interactive() -> i32 {
             }
         }
 
-        let command = match command::parse(&line) {
-            Ok(Some(command)) => command,
+        let invocation = match command::parse_line(&line) {
+            Ok(Some(invocation)) => invocation,
             Ok(None) => continue,
             Err(error) => {
                 eprintln!("error: {error}");
@@ -62,10 +58,10 @@ fn run_interactive() -> i32 {
             }
         };
 
-        if matches!(command, Command::Quit) {
+        if matches!(invocation.command, command::Command::Quit) {
             return 0;
         }
-        let _ = command::execute(command, &mut stdout, &mut stderr);
+        let _ = command::execute(invocation, &mut stdout, &mut stderr);
     }
 }
 
@@ -74,8 +70,8 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
         eprintln!("error: command is not valid UTF-8");
         return 1;
     };
-    let command = match command::parse_argv(&arguments) {
-        Ok(Some(command)) => command,
+    let invocation = match command::parse_argv(&arguments) {
+        Ok(Some(invocation)) => invocation,
         Ok(None) => return 0,
         Err(error) => {
             eprintln!("error: {error}");
@@ -85,7 +81,7 @@ fn run_non_interactive(args: &[OsString]) -> i32 {
 
     let mut stdout = io::stdout();
     let mut stderr = io::stderr();
-    command::execute(command, &mut stdout, &mut stderr)
+    command::execute(invocation, &mut stdout, &mut stderr)
 }
 
 fn string_arguments(args: &[OsString]) -> Option<Vec<String>> {

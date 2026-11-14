@@ -6,10 +6,12 @@ has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
 > **Status.** The architecture target is **v1.0.0**, a distributed
-> single-operator platform. The current tree is the v0.9.0 local surface. The
-> distributed implementation is tracked by `DIST-000` and specified in
+> single-operator platform. The command shell now speaks the v1.0.0 HTTP
+> contract as a thin client with no engine dependency; the browser client and
+> the remaining services are in progress. The distributed implementation is
+> tracked by `DIST-000` and specified in
 > [`docs/architecture/`](docs/architecture/README.md). Nothing in this README
-> claims that the distributed surface is implemented.
+> claims that the whole distributed surface is implemented.
 
 ## Why it is distributed
 
@@ -107,30 +109,41 @@ Details: [`services.md`](docs/architecture/services.md),
 [`control-plane.md`](docs/architecture/control-plane.md),
 [`http-api.md`](docs/architecture/http-api.md).
 
-## Commands (v0.3.0 tree)
+## Commands (v1.0.0 surface)
 
-The table below is the implemented surface today, not the v1.0.0 target. The
-v1.0.0 surface is listed as `Planned` in
-[`docs/architecture/command-surface.md`](docs/architecture/command-surface.md)
-section 9.
+The shell is a thin client over `quantrule.api/v1`; every command makes one
+gateway call. It depends only on the contract crate and its HTTP transport, and
+it holds no engine. Every command accepts `--profile <id>` and `--json`. Local
+source fetch and local stage execution were removed in v1.0.0.
 
-| Command | Stage | Purpose |
+| Command | Family | Purpose |
 |---|---|---|
-| `candles` | Data | Print normalized candles as NDJSON |
-| `candles-tolerant` | Data | Print candles and a quality report |
-| `timeframes` | Data | Print candles for each configured timeframe |
-| `events` | Model | Print the event batch |
-| `report model` | Model | Write the model bundle |
-| `strategy explain` | Strategy | Explain one decision at a bar |
-| `strategy run` | Strategy | Write the strategy decisions bundle |
-| `execution run` | Execution | Write the execution fills bundle |
-| `portfolio replay` | Portfolio | Write the portfolio accounting bundle |
-| `backtest run` | Orchestration | Run the coupled backtest and write the manifest |
-| `qualify` | Qualification | Evaluate evidence against human-owned criteria |
-| `analytics evaluate` | Analytics | Write metrics, benchmarks, and evaluation tables |
-| `run check` | Configuration | Validate the run configuration |
-| `fetch` | Data | Fetch a Dukascopy range to CSV |
-| `memory` | Memory | Read and write the local research memory |
+| `health` | Gateway | Read the service states, queue depth, and worker count |
+| `dataset list` | Catalog | List datasets with coverage |
+| `dataset show` | Catalog | Read one dataset record |
+| `dataset upload` | Catalog | Upload a CSV and print its `data_version` |
+| `config list` | Catalog | List run configurations and validity |
+| `config show` | Catalog | Read one configuration summary |
+| `run submit` | Runs | Submit a run over a dataset and config |
+| `run status` | Runs | Read stages, provenance, artifacts, and digest |
+| `run list` | Runs | List runs with an optional state filter |
+| `run fetch` | Runs | Download a run's artifacts into a directory |
+| `run cancel` | Runs | Cancel a queued or running run |
+| `inspect candles` | Inspection | Read candle counts and coverage |
+| `inspect timeframes` | Inspection | Read bars and partial buckets per timeframe |
+| `inspect events` | Inspection | Read the event batch for one timeframe |
+| `verify` | Evidence | Print the recorded canonical digest |
+| `profile list` | Profiles | List profiles with their record counts |
+| `profile create` | Profiles | Create a profile, or return the existing one |
+| `profile use` | Profiles | Store the local default profile |
+| `simulation list` | Research | List simulation runs |
+| `simulation create` | Research | Create a simulation run from a bundle |
+| `simulation windows` | Research | Select the simulation windows |
+| `simulation mark` | Research | Add one human mark |
+| `simulation marks` | Research | List human and oracle marks |
+| `simulation oracle` | Research | Read the deterministic oracle marks |
+| `simulation check` | Research | Run the event study and read its verdict |
+| `simulation decide` | Research | Record test, refine, or stop |
 | `help` | Shell | Show the command map and contracts |
 
 ## Principles
