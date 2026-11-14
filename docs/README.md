@@ -36,8 +36,8 @@ repeating a status.
 | Area | Status |
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
-| Surfaces | Target v1.0.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`. The current tree still carries the v0.3.0 local surface. The distributed target and its issues are in [architecture/README.md](architecture/README.md) and [dist-000](execution-plans/2026-11-12/dist-000-distributed-platform.md). |
-| Command surface | 16 implemented commands in the v0.3.0 local surface; the v1.0.0 reference-driven surface is planned in [command-surface.md](architecture/command-surface.md) section 9 and implemented by `DIST-070`. The discovery gate passes for the implemented set. |
+| Surfaces | Target v1.0.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`. The command shell is now a thin gateway client with no engine dependency; the browser client and the remaining services are in progress. The issues are in [architecture/README.md](architecture/README.md) and [dist-000](execution-plans/2026-11-12/dist-000-distributed-platform.md). |
+| Command surface | 27 implemented commands on the v1.0.0 gateway-client surface in [command-surface.md](architecture/command-surface.md). The discovery gate passes for the implemented set. |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
@@ -47,7 +47,7 @@ repeating a status.
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v0.9.0` is the latest release. `v1.0.0` is the distributed target and is not tagged. Historical tags are retained. |
 | Changelog | Grouped release history; `0.9.0` is the current release. |
-| Tooling | The current shell commands and `tools/improvement/run_current.py` are the execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
+| Tooling | The shell is the agent command path; it makes one gateway call per command. `tools/improvement/run_current.py` remains the research path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
 
 ## Current architecture
 
@@ -57,7 +57,7 @@ repeating a status.
 | Code module map | Current; crate, module, reading order, and where-to-add guide | `docs/architecture/module-map.md` |
 | The Trustworthy Backtest Kata | Current | `docs/architecture/kata.md` |
 | Architecture characteristics | Current | `docs/architecture/characteristics.md` |
-| Command surface | Current; implemented/planned stage contract and drift gate | `docs/architecture/command-surface.md` |
+| Command surface | Current; v1.0.0 gateway-client registry and drift gate | `docs/architecture/command-surface.md` |
 | S3.x command-surface plan | Approved 2026-11-06; all phases merged; human acceptance pending | `docs/execution-plans/2026-11-06/s3-command-surface.md` |
 
 ## Current course deliverables
@@ -89,17 +89,18 @@ repeating a status.
 | Model spec v2 | Implemented; reading overrides, active events, causal vote, panel/session | `docs/model/2026-11-05/model-spec-v2.md` |
 | Indicator and parameter registry | Current; CI check | `docs/registry/README.md` |
 | Current-architecture history index | Current; retired paths and their recovery commit | `docs/registry/history.md` |
-| M1.0 model lab tutorial | Current for the base surface; M1.1 adds the opening-range sweep pair | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
-| Workflow lab tutorial | Current; workflow selection, stage commands, and the current run adapter | `docs/tutorials/2026-11-07/workflow-lab.md` |
-| Strategy lab tutorial | Current; `report model`, `strategy explain`, `strategy run` | `docs/tutorials/2026-11-06/strategy-lab.md` |
-| Execution lab tutorial | Current; `report model`, `strategy run`, `execution run` | `docs/tutorials/2026-11-06/execution-lab.md` |
-| Portfolio lab tutorial | Current; `report model`, `strategy run`, `execution run`, `portfolio replay` | `docs/tutorials/2026-11-06/portfolio-lab.md` |
-| Backtest lab tutorial | Current; the coupled `backtest run` and its stage bundles | `docs/tutorials/2026-11-06/backtest-lab.md` |
-| Qualification lab tutorial | Current; `qualify`, the criteria verdicts, and the human acceptance boundary | `docs/tutorials/2026-11-06/qualification-lab.md` |
-| Analytics lab tutorial | Current; `analytics evaluate`, the descriptive metrics, and the evaluation tables | `docs/tutorials/2026-11-06/analytics-lab.md` |
-| Pipeline lab tutorial | Current; every stage independently, the coupled run, qualification, analytics, and determinism | `docs/tutorials/2026-11-06/pipeline-lab.md` |
+| M1.0 model lab tutorial | Historical; the v0.3.0 local stage commands | `docs/tutorials/2026-11-06/m1.0-model-lab.md` |
+| Workflow lab tutorial | Historical; v0.3.0 workflow selection | `docs/tutorials/2026-11-07/workflow-lab.md` |
+| Strategy lab tutorial | Historical; v0.3.0 strategy stage | `docs/tutorials/2026-11-06/strategy-lab.md` |
+| Execution lab tutorial | Historical; v0.3.0 execution stage | `docs/tutorials/2026-11-06/execution-lab.md` |
+| Portfolio lab tutorial | Historical; v0.3.0 portfolio stage | `docs/tutorials/2026-11-06/portfolio-lab.md` |
+| Backtest lab tutorial | Historical; the v0.3.0 coupled run | `docs/tutorials/2026-11-06/backtest-lab.md` |
+| Qualification lab tutorial | Historical; v0.3.0 qualification | `docs/tutorials/2026-11-06/qualification-lab.md` |
+| Analytics lab tutorial | Historical; v0.3.0 analytics | `docs/tutorials/2026-11-06/analytics-lab.md` |
+| Pipeline lab tutorial | Historical; the v0.3.0 stage surface | `docs/tutorials/2026-11-06/pipeline-lab.md` |
 | Trade context lab tutorial | Current; 250-bar entry/exit context, annotations, and exit-quality evaluation | `docs/tutorials/2026-11-09/trade-context.md` |
 | Chart annotator tutorial | Current; local click-to-annotate page for entry/exit marks | `docs/tutorials/2026-11-09/chart-annotator.md` |
+| Shell HTTP tutorial | Current; the v1.0.0 gateway client, profiles, runs, and simulation verbs | `docs/tutorials/2026-11-14/shell-http.md` |
 | Indicator verification matrix | Current; 46 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 143 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |
@@ -109,7 +110,7 @@ repeating a status.
 | Contract | Status | Path |
 |---|---|---|
 | Run v3 and portfolio constraints | Current; `run v3`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
-| Local research memory | Current; `quantrule.research-memory/v1`, export v1, backup/restore | `docs/config/2026-11-11/research-memory-v1.md` |
+| Local research memory | Historical; local SQLite removed in v1.0.0; memory moves to the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
 | Client surfaces | Target v1.0.0: Svelte browser client, command shell, and a Tauri shell over the gateway URL | `docs/architecture/client.md` |
 | Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
@@ -218,9 +219,9 @@ of workflow status; this page does not repeat it.
 ## Local workspace
 
 `data/` is a local workspace. Only its README files and `partitions.json` are
-committed; candles, reports, run artifacts, and the research-memory database
-stay local. The distributed desktop app and the shell share the
-`quantrule.research-memory/v1` store through the application service.
+committed; candles, reports, and run artifacts stay local. The shell stores only
+its default profile under `QUANTRULE_HOME`; research memory moves to the
+evidence service.
 
 ## Developer tools
 

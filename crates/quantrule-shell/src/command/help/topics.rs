@@ -11,47 +11,47 @@ pub(super) fn render_glossary(writer: &mut impl Write) -> io::Result<()> {
     writeln!(writer)?;
     writeln!(
         writer,
-        "candle        One closed OHLCV bar. The model consumes candles only."
+        "data_version  Content identity of the normalized candles; the only name a dataset has."
     )?;
     writeln!(
         writer,
-        "timeframe     A first-class candle series. The default ladder is 1m, 5m, 15m, 1h."
+        "run           The full pipeline over one dataset and one config, with a content-derived id."
     )?;
     writeln!(
         writer,
-        "reading       A published indicator value, such as EMA, RSI, ATR, RVOL, MACD, or ADX/DI."
+        "stage         One data-plane step: data, model, backtest, or evidence."
     )?;
     writeln!(
         writer,
-        "state         A discrete code derived from a reading, independent of any axis score."
+        "artifact      A file the run produced, named by its hash and size."
     )?;
     writeln!(
         writer,
-        "level         A confirmed swing pivot, with occurrence and availability bars."
+        "digest        SHA-256 over the run's data artifacts; it excludes provenance and logs."
     )?;
     writeln!(
         writer,
-        "event         A Level, Divergence, or Signal record; it is evidence, not a vote."
+        "profile       An organisational scope for datasets, runs, and simulations."
     )?;
     writeln!(
         writer,
-        "progression   The structural leg at the minor and major scales, with its lifecycle and stage."
+        "simulation    A chart-first research run with a recorded bundle and human marks."
     )?;
     writeln!(
         writer,
-        "context       Volatility and participation measurements, such as ATR ratio and RVOL ratio."
+        "mark          A human or oracle judgment on one bar of a simulation window."
     )?;
     writeln!(
         writer,
-        "availability  The first closed bar on which a measurement became knowable."
+        "oracle        The deterministic hindsight labeler; idempotent for one inputs digest."
     )?;
     writeln!(
         writer,
-        "M1.3          The current flat per-timeframe model: readings, states, levels, events, progression, and context."
+        "check         The event study over an unmarked window; it reports, it does not decide."
     )?;
     writeln!(
         writer,
-        "legacy axis   The retired Direction, Momentum, Structure, and Progression scores. No current command publishes them."
+        "profile scope Not a security boundary. One principal; no isolation promise."
     )
 }
 
@@ -98,149 +98,54 @@ pub(super) fn render_workflows(writer: &mut impl Write) -> io::Result<()> {
         writer,
         "Inspect candles or timeframes",
         "Data Lifecycle",
-        "candles, candles-tolerant, timeframes",
+        "inspect candles, inspect timeframes",
     )?;
     workflow_row(
         writer,
         "Inspect events or the model report",
         "Model Research",
-        "events, report model",
+        "inspect events, run submit",
     )?;
     workflow_row(
         writer,
-        "Experiment with model configs/events",
-        "Model Research + Swarm",
-        "report model; tools/research",
-    )?;
-    workflow_row(
-        writer,
-        "Add or change an indicator/event",
-        "Model Change",
-        "registry, validation, verification",
-    )?;
-    workflow_row(
-        writer,
-        "Test a strategy rule",
+        "Test a strategy hypothesis",
         "Strategy Research",
-        "strategy explain/run, backtest run",
+        "run submit",
     )?;
     workflow_row(
         writer,
-        "Test execution/portfolio mechanics",
+        "Test execution or portfolio mechanics",
         "Portfolio Research",
-        "execution run, portfolio replay",
+        "run submit",
     )?;
     workflow_row(
         writer,
-        "Validate the run composition",
-        "Requirements and Design",
-        "run check",
+        "Explore historical charts",
+        "Simulation",
+        "simulation create",
     )?;
     workflow_row(
         writer,
-        "Change a data source/version/partition",
+        "Change a data source or partition",
         "Data Lifecycle",
-        "fetch, data/partitions.json",
+        "dataset upload, data/partitions.json",
     )?;
     workflow_row(
         writer,
-        "Add a command, report, or capability",
+        "Add a command or report",
         "Requirements & Design",
-        "plan first",
+        "requirements record, then plan",
     )?;
     workflow_row(
         writer,
-        "Release, tag, rollback, or incident",
+        "Release or tag",
         "Release & Operations",
-        "release note, CHANGELOG.md",
+        "release note, then gate",
     )?;
     workflow_row(
         writer,
-        "Retire a model/event/command/source",
+        "Retire a model or command",
         "Deprecation & Retirement",
-        "history, invalidation",
-    )?;
-    workflow_row(
-        writer,
-        "Record a finding/run/baseline/status",
-        "Recordkeeping",
-        "docs/workflows/recordkeeping.md",
-    )?;
-    workflow_row(
-        writer,
-        "Run a pre-registered improvement",
-        "Improvement Workflow",
-        "Run Contract",
-    )?;
-    workflow_row(
-        writer,
-        "Make a run valid evidence",
-        "Run Contract",
-        "manifest, results, review, decision",
-    )?;
-    workflow_row(
-        writer,
-        "Run parallel pre-registered cells",
-        "Research Swarm",
-        "coordinator + cell agents",
-    )?;
-    writeln!(writer)?;
-    writeln!(writer, "Model research quick path:")?;
-    writeln!(
-        writer,
-        "  1. State the premise and screen it (data admissibility, sample size)."
-    )?;
-    writeln!(
-        writer,
-        "  2. Write a Program Charter; the human approves the cells and partitions."
-    )?;
-    writeln!(
-        writer,
-        "  3. Run the cells on model_dev; one cell per config and output."
-    )?;
-    writeln!(
-        writer,
-        "  4. Aggregate; the human promotes at most the declared primary cells."
-    )?;
-    writeln!(
-        writer,
-        "  5. Run model_validation once; grade A/B/C/D; accept or record no_edge."
-    )?;
-    writeln!(writer)?;
-    writeln!(writer, "Rules:")?;
-    writeln!(
-        writer,
-        "  - Strategy Research starts only after an accepted model baseline."
-    )?;
-    writeln!(
-        writer,
-        "  - Portfolio Research starts only after an accepted strategy baseline."
-    )?;
-    writeln!(
-        writer,
-        "  - Policy is human-owned; it is not a research tier."
-    )?;
-    writeln!(
-        writer,
-        "  - No automatic optimizer. Exploratory cells are not ranked and never open validation."
-    )?;
-    writeln!(
-        writer,
-        "  - There is no `swarm` shell command. The swarm is an operating procedure; use"
-    )?;
-    writeln!(
-        writer,
-        "    the stage commands and tools/research for the cells."
-    )?;
-    writeln!(
-        writer,
-        "  - Stage commands: report model, strategy run, execution run, portfolio replay,"
-    )?;
-    writeln!(writer, "    backtest run, qualify, analytics evaluate.")?;
-    writeln!(writer)?;
-    writeln!(writer, "Full index: docs/workflows/README.md")?;
-    writeln!(
-        writer,
-        "Worked lab: docs/tutorials/2026-11-07/workflow-lab.md"
+        "retirement record",
     )
 }

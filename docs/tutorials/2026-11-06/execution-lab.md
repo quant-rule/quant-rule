@@ -1,5 +1,10 @@
 # S3.x Execution Lab — Decisions to Orders and Fills
 
+> **Historical.** This lab records the v0.3.0 local surface. The local stage
+> commands were removed from the shell in v1.0.0; set
+> `BIN=./target/release/quantrule` before running a block, and see
+> [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
+
 - Date: 2026-11-06 (UTC)
 - Status: Current
 - Scope: `report model`, `strategy run`, and `execution run`
@@ -19,10 +24,10 @@ cargo build --release
 
 ```bash
 rm -rf target/execution-lab target/execution-lab-a target/execution-lab-b
-./target/release/quantrule report model \
+"$BIN" report model \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/execution-lab
-./target/release/quantrule strategy run \
+"$BIN" strategy run \
   --model target/execution-lab/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/execution-lab
@@ -33,7 +38,7 @@ The decisions bundle is `target/execution-lab/strategy/`.
 ## 3. Run execution
 
 ```bash
-./target/release/quantrule execution run \
+"$BIN" execution run \
   --decisions target/execution-lab/strategy \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/execution-lab
@@ -63,11 +68,11 @@ Expected shape:
 ## 4. Determinism
 
 ```bash
-./target/release/quantrule execution run \
+"$BIN" execution run \
   --decisions target/execution-lab/strategy \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/execution-lab-a
-./target/release/quantrule execution run \
+"$BIN" execution run \
   --decisions target/execution-lab/strategy \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/execution-lab-b

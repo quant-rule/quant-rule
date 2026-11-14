@@ -1,4 +1,14 @@
 {
   "schema": "quantrule.port-parity/v1",
-  "ports": []
+  "ports": [
+    {
+      "id": "PORT-001",
+      "source": "tools/simulation/meta.py, check.py, exit_lab.py, window_select.py, marks.py, oracle.py, review.py at commit b63b9015",
+      "target": "crates/quantrule-simulation/src/meta.rs",
+      "test": "crates/quantrule-simulation/tests/port_parity.rs",
+      "fixture": "docs/port-parity/PORT-001.golden.json",
+      "status": "active",
+      "notes": "First registered port. The fixture covers the meta stage in full and the window, marks, oracle, review, check, and exit reductions on the checked-in mini bundle. Historical SIM-01..SIM-10 runs used an external data root that is not in the repository."
+    }
+  ]
 }

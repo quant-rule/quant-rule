@@ -9,10 +9,7 @@ name = "quantrule"
 path = "src/main.rs"
 
 [dependencies]
-quantrule-app = { path = "../quantrule-app" }
-quantrule-backtest = { path = "../quantrule-backtest" }
-quantrule-data = { path = "../quantrule-data" }
-quantrule-model = { path = "../quantrule-model" }
+quantrule-api = { path = "../quantrule-api" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 ureq = "3.5"
 

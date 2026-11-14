@@ -7,6 +7,8 @@
 //! The stop is assumed to fill before the target within the same bar. That is
 //! the pessimistic order, and it never flatters a policy.
 
+// port-parity: PORT-001
+
 use serde::{Deserialize, Serialize};
 
 use crate::marks::Side;

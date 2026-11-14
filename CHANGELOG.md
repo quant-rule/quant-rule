@@ -29,6 +29,24 @@ are not treated as releases.
   six containers whose binaries exist; `data`, `model`, and `simulation` stay
   behind the `six-binaries` profile until `qr-data`, `qr-model`, and
   `qr-simulation` exist.
+- The shell is a `quantrule.api/v1` client: `health`, `dataset`, `config`,
+  `run`, `inspect`, `verify`, `profile`, `simulation`, and `help` commands, a
+  global `--profile`, and a `--json` machine view. Every command makes one
+  gateway operation; printed output is stable and covered by fixture-server
+  tests.
+- The simulation research plane gains its meta-label stage: a human entry is
+  labelled by its forward path, grouped by EMA stack and ATR bucket, and the
+  best cell with enough marks is checked on an unmarked window. `PORT-001`
+  registers the first port-parity fixture, captured from the Python harness at
+  `b63b9015` on the checked-in mini bundle; the fixture covers the meta stage in
+  full and the window, marks, oracle, review, check, and exit reductions, with
+  each omitted comparison named in the case notes.
+- The desktop shell (`apps/desktop-shell`) is a Tauri 2 window over the gateway
+  URL. It remembers the gateway, leaves the active profile to the web client,
+  checks GitHub Releases for a newer shell, and shows the bundled client only as
+  the disconnected fallback. It owns no IPC command, reads no data file, and
+  embeds no engine. The Linux AppImage and Windows NSIS artifacts are unsigned;
+  publishing them waits on the release workflow.
 - Testing is recorded as three tiers: the fast unit/integration gate, the
   opt-in Compose tier required before a release, and port parity backed by
   golden fixtures from the retired implementation. `tools/check_port_parity.py`
@@ -51,6 +69,13 @@ are not treated as releases.
 - The client label table is generated from `docs/registry/indicators.json` into
   `apps/web/src/lib/labels.generated.ts`; `check_labels` fails the gate when the
   checked-in table drifts, so every numeric code has one word mapping.
+- The simulation chart is a client-side SVG renderer for candles, volume,
+  EMA 20/50/200, one indicator panel, event markers, confirmed levels, and a
+  mark layer. Pointer position maps to a bar through the rendered scale, keys
+  1–8 capture the eight entry/exit × good/bad × long/short mark classes, `Z`
+  undoes the last session mark, and a note is capped at 500 characters. Marks
+  post through one seam against `/simulation/runs/{id}/marks`; the browser test
+  mocks that contract until the `simulation` service ships.
 - The browser client distinguishes a gateway API mismatch from a healthy
   connection and shows the version it expected; a shared Playwright fixture
   router drives the connected, mismatch, degraded, and unreachable tests.
@@ -184,6 +209,9 @@ are not treated as releases.
 
 ### Changed
 
+- The shell depends only on `quantrule-api`, `ureq`, and `serde_json`. Local
+  source fetch and local stage execution are gone; a run is submitted to the
+  gateway and read back through the run and inspection routes.
 - Run artifacts publish atomically: bytes live at `artifacts/{sha256}` and one
   `runs/{run_id}/manifest.json` is the publish point. A worker stopped mid-write
   leaves blobs but no manifest, no recorded artifact, and no succeeded run.
@@ -223,6 +251,15 @@ are not treated as releases.
   template names roles, dependencies, and affected paths, and the plan checker
   rejects duplicate IDs, empty core cells, and unresolved rows on a `Verified`
   plan.
+
+### Removed
+
+- The local stage commands (`candles`, `candles-tolerant`, `timeframes`,
+  `events`, `report model`, `run check`, `strategy explain`, `strategy run`,
+  `execution run`, `portfolio replay`, `backtest run`, `qualify`, and
+  `analytics evaluate`), source `fetch`, and the local `memory` command are
+  removed from the shell in v1.0.0. Their capability moves into the run and
+  read-only inspection.
 
 ### Fixed
 

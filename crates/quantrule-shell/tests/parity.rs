@@ -1,76 +1,61 @@
-//! Parity guard: the shell command and the shared use case write the same model
-//! bundle from the same fixture. The comparison covers file names and bytes.
+//! Parity between the shell and the browser fixture.
+//!
+//! The browser's run-detail fixture is the reference: both clients read the same
+//! `RunDetail` from the same profile and must present the same numbers and
+//! codes. The browser E2E suite owns the DOM comparison (`DIST-071`); this test
+//! proves the shell prints the fixture's contract values for the same profile.
 
-use std::collections::BTreeMap;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+mod support;
 
-const BIN: &str = env!("CARGO_BIN_EXE_quantrule");
+use std::process::Output;
 
-fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config-run/run.json")
-}
+use support::{Fixture, canonical_digest, config_hash, data_version, digest, image_digest, run_id};
 
-fn output_dir(name: &str) -> PathBuf {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../target/parity")
-        .join(name);
-    let _ = fs::remove_dir_all(&path);
-    path
-}
-
-fn bundle(root: &Path) -> BTreeMap<String, Vec<u8>> {
-    let mut files = BTreeMap::new();
-    fn collect(root: &Path, path: &Path, files: &mut BTreeMap<String, Vec<u8>>) {
-        for entry in fs::read_dir(path).expect("the bundle is readable") {
-            let entry = entry.expect("the bundle entry is readable");
-            let current = entry.path();
-            if current.is_dir() {
-                collect(root, &current, files);
-            } else {
-                let relative = current
-                    .strip_prefix(root)
-                    .expect("the artifact is under the bundle root")
-                    .to_string_lossy()
-                    .into_owned();
-                files.insert(
-                    relative,
-                    fs::read(&current).expect("the artifact is readable"),
-                );
-            }
-        }
-    }
-    collect(root, root, &mut files);
-    files
+fn stdout(output: &Output) -> String {
+    String::from_utf8(output.stdout.clone()).expect("stdout is UTF-8")
 }
 
 #[test]
-fn the_shell_and_the_app_write_the_same_model_bundle() {
-    let shell_out = output_dir("shell");
-    let app_out = output_dir("app");
-    let config = fixture();
+fn the_shell_prints_the_browser_run_detail_fixture() {
+    let fixture = Fixture::start_parity();
+    let output = fixture.run(&["run", "status", &run_id()]);
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    let status = Command::new(BIN)
-        .args([
-            "report",
-            "model",
-            "--config",
-            config.to_str().expect("the fixture path is UTF-8"),
-            "--out",
-            shell_out.to_str().expect("the output path is UTF-8"),
-        ])
-        .status()
-        .expect("the shell command runs");
-    assert!(status.success(), "the shell report command succeeds");
+    let expected = format!(
+        "run_id: {run_id}\n\
+         status: succeeded\n\
+         owner: default\n\
+         data_version: {data}\n\
+         config_hash: {config}\n\
+         model_version: M1.0\n\
+         image_digest: {image}\n\
+         stages: 4\n\
+         stage data: done 1200ms\n\
+         stage model: done 2400ms\n\
+         stage backtest: done 3600ms\n\
+         stage evidence: done 120ms\n\
+         artifacts: 1\n\
+         artifact results.json: bytes=2048 sha256={artifact}\n\
+         digest: {digest}\n\
+         error: none\n",
+        run_id = run_id(),
+        data = data_version(),
+        config = config_hash(),
+        image = image_digest(),
+        artifact = digest('f'),
+        digest = canonical_digest(),
+    );
+    assert_eq!(stdout(&output), expected);
 
-    let request = quantrule_app::stages::model::ModelReportRequest {
-        config: &config,
-        spec: None,
-        out: Some(&app_out),
-    };
-    quantrule_app::service::AppService::run_model_report(&request)
-        .expect("the shared model report succeeds");
-
-    assert_eq!(bundle(&shell_out), bundle(&app_out));
+    let request = fixture.last_request();
+    assert_eq!(request.path, format!("/runs/{}", run_id()));
+    assert_eq!(
+        request.header("x-quantrule-profile"),
+        Some("default"),
+        "the browser fixture uses the default profile"
+    );
 }
