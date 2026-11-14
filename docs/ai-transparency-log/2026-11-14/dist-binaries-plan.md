@@ -182,4 +182,23 @@ No credentials, secrets, or sensitive operational data were recorded.
   `python3 tools/check_doc_length.py`, `python3 tools/check_links.py`, and
   `git diff --check` were run on the accuracy pass.
 
+## Reviewer verification gate — #644 review — 2026-11-14 (UTC)
+
+- Finding: `tools/verify.sh` (from #666) still invokes the retired local
+  `backtest run` command. #771 removed that command from `quantrule-shell`, so
+  `make verify` fails on main. PR #774 confirms the failure and cannot merge
+  until the reviewer procedure is re-based.
+- Plan changes: P9 owns re-basing `tools/verify.sh` and `make verify` on the
+  distributed path: submit through the gateway, wait, fetch artifacts and digest
+  through the #646 routes, keep the canonical digest comparison and the
+  `--expected` line, and fail on an unreachable gateway, failed/cancelled run,
+  missing artifact, or mismatch. An equivalent Rust harness is allowed.
+- Risk: a broken reviewer verification is a release blocker. #644 stays open or
+  `In Review` until P9 or a dedicated follow-up lands. The plan no longer claims
+  the #666 four-command procedure works on the v1 tree.
+- Verification table: V34 is the Pending `make verify` row; closure is V35.
+- Rejected: treating #666's procedure as valid while it calls the retired local
+  command; merging #644 on a known-broken `make verify`; implementing the
+  rebase in this plan-only PR.
+
 No credentials, secrets, or sensitive operational data were recorded.

@@ -73,6 +73,7 @@ service-to-service contract is a new `quantrule.internal/v1`.
 | Simulation parity | #770 merged the meta stage and `PORT-001`; #679 stays open on historical SIM-01..SIM-10 parity |
 | Simulation chart | #769 merged the client SVG chart and mark-capture slice; #681 stays open on the real backend round trip, which needs #680. #682 and #683 remain open |
 | Desktop shell | #773 merged the Linux AppImage slice; #691 stays open on the Windows NSIS build and published assets, which need #673 and #674 |
+| Reviewer verification | `tools/verify.sh` still calls the retired local `backtest run`; `make verify` fails on main. #644's PR #774 records the failure and cannot merge until the script is re-based. #666's four-command procedure is not valid on the v1 tree |
 | Migration lock | #772 found the runtime acquires a session-level advisory lock and releases it through the pool; three migrating services deadlocked. Compose makes the gateway the sole migrator as a workaround, not a fix |
 | Object store | MinIO withdrew its public images on 2026-09-11. #772 pins `bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c` as an amd64 stopgap, overridable with `QR_OBJECT_STORE_IMAGE`; a permanent registry is a human decision |
 | Hidden closure | #647 and #648 closed as gateway routes, not binaries; #751 says the model route is served by the gateway "until the six binaries are split"; #649's plan excluded the split |
@@ -460,7 +461,7 @@ series. A phase does not edit a file owned by another active phase.
 | **P6** | Backtest service: move `backtest/`; `run_backtest_from_model`; worker calls data, model, evidence; cancellation and retry map; #649 successor | `crates/quantrule-backtest-service/**`, `crates/quantrule-server/src/backtest/**`, `quantrule-app/src/stages/backtest.rs`, new `backtest_from_model.rs`, `service.rs` | None | P4, P5 | Full run over HTTP; same canonical digest; fast path removed; successor issue merged | Data plane true; #649 successor |
 | **P7** | Simulation service: #679 parity gate; #680 service and eleven endpoints; gateway proxy; no run write, no model compute; no client chart or screens | `crates/quantrule-simulation-service/**`, `crates/quantrule-simulation/**`, gateway simulation proxy | None | P2, #679 | Eleven endpoints; parity evidence; isolation guard; #680 done | #646 can close; #681/#682/#683 stay parallel |
 | **P8** | Gateway finalization: remove the last domain modules; rename `quantrule-server` to `quantrule-gateway`; profiles, static, proxy, health; compile guard; preserve the shell's 27-command contract; retire `quantrule-server` | `crates/quantrule-gateway/**`, workspace `Cargo.toml`, `docs/architecture/**`, `AGENTS.md`, `README.md` glossary | `runtime/auth.rs`, `tests/surface.rs`, `tests/boundary.rs` | P3-P7 | Gateway links no app or engine; six service crates independent; #651 guard; shell parity still passes | #651; #646 final |
-| **P9** | Downstream gates, not owned by this plan: image/compose (#643), Makefile (#644), digest (#673), release (#674), desktop Windows/publish (#691); record the permanent object-store registry as a human decision | `Dockerfile`, compose, `Makefile`, release docs | None | P6, P7, P8 | Six services healthy in nine containers; digest recorded; release evidence; registry decision recorded | #674 |
+| **P9** | Downstream gates, not owned by this plan: image/compose (#643), Makefile (#644), digest (#673), release (#674), desktop Windows/publish (#691); re-base `tools/verify.sh` and `make verify` on the distributed run path; record the permanent object-store registry as a human decision | `Dockerfile`, compose, `tools/verify.sh`, `Makefile` with #644, release docs | None | P6, P7, P8 | Six services healthy in nine containers; `make verify` prints the same canonical digest twice and fails on a wrong `--expected`; digest recorded; release evidence; registry decision recorded; #644 can merge | #644; #674 |
 
 ### 7.1 Phase detail
 
@@ -602,17 +603,21 @@ guard.
 21. The plan records the parallel v1.0.0 work as parallel, not deferred: #668
     Done, #681 chart merged and open on #680, #682-#683 open, #691 Linux merged,
     #770 parity merged with #679 open, #772 image merged with #643 open.
+22. `make verify` prints the same canonical digest on two invocations and exits
+    nonzero on a wrong `--expected`; it submits through the gateway and fetches
+    artifacts through #646 routes. The #666 four-command procedure is not claimed
+    to work on the v1 tree until this gate passes.
 
 ## 9. Downstream gates
 
 | Gate | Ready after | What it gets | What it still owns |
 |---|---|---|---|
 | #643 image | P2 for the binary prerequisite; P3-P7 for functional services | #772 already provides the image and the six-container default stack; B fills the three missing services and their containers | Dockerfile, compose, healthchecks, no-Python/no-Bun checks |
-| #644 Makefile | #643 | One-command workflow | Targets, scale, ps, remote, backup |
-| #646 gateway | P3 and P4 for data/model; P5 for runs; P7 for simulation; P8 for final isolation | A gateway-only proxy and a working simulation surface | Its own route table review and close |
+| #644 Makefile | #643 and P9 reviewer verification | One-command workflow | Targets, scale, ps, remote, backup; #644 stays open or In Review until `make verify` is re-based |
+| #646 gateway | P3 and P4 for data/model; P5 for runs; P7 for simulation; P8 for final isolation | A gateway-only proxy and a working simulation surface; run artifacts and digest routes | Its own route table review and close |
 | #651 guard | P8 | Compile-time gateway isolation and per-service schema guards | The guard test details and close |
 | #673 digest | #643 | Image digest in health and provenance | Release pipeline |
-| #674 release | P7, P8, and #643/#644/#673 | Six services, nine containers, working simulation, release evidence, Linux and Windows desktop artifacts | Release note, tag, board close-out, permanent object-store registry, desktop Windows/publish |
+| #674 release | P7, P8, P9, and #643/#644/#673 | Six services, nine containers, working simulation, release evidence, Linux and Windows desktop artifacts | Release note, tag, board close-out, permanent object-store registry, reviewer verification, desktop Windows/publish |
 | #661 memory | P5 | Postgres research memory in evidence | Its own close or supersession |
 | #680 simulation | P7 | The service and eleven endpoints | Its own close |
 | #668 shell | Done (#771) | A thin HTTP client for the gateway contract | B preserves its routes; B does not edit the shell |
@@ -625,6 +630,30 @@ guard.
 |---|---|---|
 | Migration lock | #772 observed the session-level advisory lock released through the pool; three migrators deadlocked. Compose sets the gateway as the sole migrator as a workaround | P1 pins the runner to one connection and proves two migrators do not deadlock. The sole-migrator workaround is removed only after that test passes |
 | Object-store registry | MinIO withdrew its public images on 2026-09-11. #772 pins `bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c` (amd64) as a stopgap, overridable with `QR_OBJECT_STORE_IMAGE` | Before release, the human records a maintained registry or mirror. The legacy archive is not described as permanent and is not the default once the decision is recorded |
+
+### 9.2 Reviewer verification gate
+
+#666 added `tools/verify.sh`: run the mini fixture twice, compare the canonical
+digest, and compare a second host's line with `--expected`. #771 removed the
+local `backtest run` command that the script invokes, so `make verify` fails on
+main. #774 keeps the target and records the failure; #644 cannot merge until the
+reviewer procedure is re-based.
+
+P9 re-bases `tools/verify.sh` and `make verify` on the distributed path:
+
+1. Require a healthy stack and a catalogued fixture dataset and config.
+2. Submit through `POST /runs`, wait for the terminal state, and fetch the
+   artifacts and digest through the #646 routes.
+3. Compute the canonical digest over `results.json`, `*.csv`, and `*.ndjson`,
+   print one `canonical digest sha256:...` line, and compare two invocations.
+4. Keep `--expected`: a wrong digest exits nonzero with the expected and observed
+   lines.
+5. Fail on an unreachable gateway, a failed or cancelled run, a missing artifact,
+   or a digest mismatch. Never execute a local engine stage or accept a path.
+
+An equivalent Rust harness is acceptable if it uses the same HTTP path and keeps
+the printed line. Until this gate passes, the plan does not claim that the #666
+four-command procedure works on the v1 tree, and #644 stays open or `In Review`.
 
 ## 10. Blast radius
 
@@ -641,6 +670,7 @@ guard.
 | Parked S1 | 16 modified and 5 untracked files, ~568 insertions and 618 deletions; 12 mapped reuse areas; 0 treated as landed |
 | Image findings | #772 merged: 3 of 6 binaries, 6 default containers; migration lock workaround; legacy MinIO stopgap with a human registry decision before release |
 | Parallel v1.0.0 | #668 Done; #681 chart merged, #682-#683 open; #691 Linux merged, Windows/publish #673/#674; #770 parity merged, #679 open; #772 image merged, #643 open |
+| Reviewer verification | `tools/verify.sh` and the `make verify` target re-based on the gateway run path; canonical digest and `--expected` retained |
 | Delivery | 12-16 reviewable PRs across P1-P8; weeks, not days; P6 and P7 are the long poles |
 | Deferred | Embedded desktop v1.1, streaming downloads, app-crate split |
 
@@ -687,7 +717,8 @@ inside the worktree.
 | V31 | Object-store registry | The legacy image is a stopgap, overridable, and not described as permanent; the release records the human registry decision | `grep -R "bitnamilegacy/minio\|QR_OBJECT_STORE_IMAGE" compose.yaml docker/README.md docs/architecture/deployment.md`; release note | override present; legacy named stopgap; decision recorded | — | Pending | — | — | No permanent claim |
 | V32 | Shell contract | The shell's 27 commands still pass against the gateway; B edits no shell file | `cargo test -p quantrule-shell`; `git diff --name-only` | pass; no shell file | — | Pending | — | — | #668 Done |
 | V33 | Parallel state | The plan names parallel v1.0.0 work as parallel, not deferred | Manual read of §4.4 and §10 | #668 Done; #681 chart merged; #682-#683 open; #691 Linux merged; #770 merged; #772 merged | — | Pending | — | — | B does not implement |
-| V34 | Closure | Issue `Done`, worktree and branches removed, comments posted | `gh issue view`; `git worktree list` | done; removed | — | Pending | — | — | |
+| V34 | Reviewer verification | `make verify` prints the same canonical digest twice and fails on a wrong `--expected`; it uses the distributed run path | `make verify` twice; `./tools/verify.sh --expected sha256:0000...` | two equal `canonical digest sha256:...` lines; nonzero on wrong expected | — | Pending | — | — | P9; #644 stays open until pass |
+| V35 | Closure | Issue `Done`, worktree and branches removed, comments posted | `gh issue view`; `git worktree list` | done; removed | — | Pending | — | — | |
 
 ## 12. Risks and recovery
 
@@ -710,6 +741,8 @@ inside the worktree.
 | The plan is mistaken for the release | #674 closes on a plan, not evidence | §9 downstream gates; #674 stays open until image, compose, digest, and verification exist |
 | The plan is mistaken for the whole v1.0.0 | Parallel work is read as deferred or done | §4.4 records #668 Done, #681 chart merged, #682-#683 open, #691 Linux merged, #770 parity merged, #772 image merged; #643/#646/#674 stay open |
 | The gateway proxy changes a route the shell calls | The shell's 27 commands break | Preserve the public contract; run the shell printed-output and parity tests after P8; B edits no shell file |
+| Reviewer verification is broken | `make verify` fails and the release cannot show one reproducible line; #644 cannot merge | P9 re-bases `tools/verify.sh` and `make verify` on the distributed run path; keep the canonical digest and `--expected`; #644 stays open or In Review; do not claim the #666 procedure works |
+| `tools/verify.sh` silently keeps a local engine call | The reviewer procedure tests the wrong tree | No `backtest run` call, no local engine stage, no client path; the harness uses the gateway and #646 routes |
 | The parked S1 work drifts or disappears | A reusable behavior is lost or conflicts with B | Capture the diff before P3; salvage map in the issue; reimplement from the public contract if it disappears; never cite it as landed |
 | The parked work is copied wholesale and duplicates a route | Two implementations of the same endpoint | Reuse by hunk into the owning service; adapt state and imports; V29 checks for duplicate handlers |
 | A parked hunk bypasses the new schema or profile boundary | A service reads a schema it does not own | Review every salvaged hunk against §5.5; schema guard in P8; re-run the boundary tests |
@@ -743,6 +776,9 @@ digest; a rollback is the previous digest.
   new dependency or a database API change.
 - The release would describe the legacy `bitnamilegacy/minio` archive as the
   permanent object store, or the human registry decision is not recorded.
+- `make verify` would be merged or released while still calling the retired
+  local `backtest run`, or the #666 procedure is claimed to work before V34
+  passes.
 - A salvaged hunk would make a service read another service's schema or skip the
   profile boundary.
 - A phase would close #643, #646, #651, or #674 on a plan rather than evidence.
@@ -759,7 +795,7 @@ Scope:
 Done when:
 - Six service crates build six binaries; no service reads another's schema; the gateway links no engine or quantrule-app.
 - A queued run completes through data, model, backtest, and evidence over HTTP with the same canonical digest as the coupled baseline.
-- Simulation serves its eleven endpoints; #646 and #651 can close; #643/#674 have their evidence.
+- Simulation serves its eleven endpoints; make verify works on the distributed path; #646/#651 can close; #643/#674 have their evidence.
 Claim type: ADR (Architecture Decision)
 ```
 
@@ -781,4 +817,7 @@ Claim type: ADR (Architecture Decision)
       #682-#683 open, #691 Linux merged, #770 parity merged, #772 image merged.
 - [ ] Deferred work is limited to desktop v1.1, streaming downloads, and the
       app-crate split.
+- [ ] P9 re-bases `make verify` on the distributed path; #644 stays open or
+      In Review until it prints the same digest twice and fails on a wrong
+      `--expected`.
 - [ ] No model, strategy, execution, or portfolio result changed.
