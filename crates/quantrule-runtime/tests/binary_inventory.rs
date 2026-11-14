@@ -23,13 +23,27 @@ const EXPECTED: [&str; 6] = [
     "qr-simulation",
 ];
 
-/// Whether a package ships a service binary.
+/// The package that ships each service binary.
 ///
-/// `quantrule-server` holds the three service binaries until P8 retires the
-/// crate; each later service crate carries the `-service` suffix. The shell and
-/// the library and engine crates are not part of the service inventory.
+/// P8 retired `quantrule-server`: the gateway is `quantrule-gateway` and the
+/// worker is `quantrule-backtest-service`. The mapping is the contract, so a
+/// service package cannot quietly ship two targets or a non-service package
+/// cannot quietly ship a service binary. The shell, the library, and the engine
+/// crates are not part of the service inventory.
+const PACKAGES: [(&str, &str); 6] = [
+    ("quantrule-backtest-service", "qr-backtest"),
+    ("quantrule-data-service", "qr-data"),
+    ("quantrule-evidence-service", "qr-evidence"),
+    ("quantrule-gateway", "qr-gateway"),
+    ("quantrule-model-service", "qr-model"),
+    ("quantrule-simulation-service", "qr-simulation"),
+];
+
+/// Whether a package ships a service binary.
 fn is_service_package(package: &str) -> bool {
-    package == "quantrule-server" || package.ends_with("-service")
+    PACKAGES
+        .iter()
+        .any(|(service_package, _)| *service_package == package)
 }
 
 /// The workspace root, two levels above `crates/quantrule-runtime`.
@@ -162,7 +176,12 @@ fn auto_bins(member: &Path, manifest: &Manifest) -> BTreeSet<String> {
 /// The binaries the service packages would build, from the real manifests and
 /// sources.
 fn inventory(root: &Path) -> BTreeSet<String> {
-    let mut found = BTreeSet::new();
+    package_inventory(root).into_values().flatten().collect()
+}
+
+/// The binaries each service package would build.
+fn package_inventory(root: &Path) -> std::collections::BTreeMap<String, BTreeSet<String>> {
+    let mut found = std::collections::BTreeMap::new();
     for member in members(root) {
         let path = member.join("Cargo.toml");
         let text = std::fs::read_to_string(&path)
@@ -171,8 +190,10 @@ fn inventory(root: &Path) -> BTreeSet<String> {
         if !manifest.package.as_deref().is_some_and(is_service_package) {
             continue;
         }
-        found.extend(manifest.bins.iter().cloned());
-        found.extend(auto_bins(&member, &manifest));
+        let mut bins = manifest.bins.clone();
+        bins.extend(auto_bins(&member, &manifest));
+        let package = manifest.package.expect("a service package has a name");
+        found.insert(package, bins);
     }
     found
 }
@@ -200,6 +221,32 @@ fn the_workspace_builds_exactly_the_six_service_binaries() {
         mismatch(&observed),
         None,
         "the six-binary inventory changed: {observed:?}"
+    );
+}
+
+#[test]
+fn each_service_package_ships_exactly_its_own_binary() {
+    let observed = package_inventory(&workspace_root());
+    let expected: std::collections::BTreeMap<String, BTreeSet<String>> = PACKAGES
+        .iter()
+        .map(|(package, binary)| {
+            (
+                (*package).to_owned(),
+                BTreeSet::from([(*binary).to_owned()]),
+            )
+        })
+        .collect();
+    assert_eq!(observed, expected);
+}
+
+#[test]
+fn the_retired_server_crate_is_not_a_workspace_member() {
+    let members = members(&workspace_root());
+    assert!(
+        members.iter().all(|member| member
+            .file_name()
+            .is_none_or(|name| name != "quantrule-server")),
+        "quantrule-server is still a workspace member: {members:?}"
     );
 }
 

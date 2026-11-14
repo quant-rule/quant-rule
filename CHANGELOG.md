@@ -22,6 +22,17 @@ are not treated as releases.
 
 ### Added
 
+- `quantrule-server` is retired. The gateway is now `quantrule-gateway`
+  (`qr-gateway`): profiles in the `gateway` schema, the static client, the proxy
+  table, and health, with no `quantrule-app`, engine, or domain service
+  dependency. The backtest worker and `qr-backtest` moved to
+  `quantrule-backtest-service`. The six binary names, the worker's HTTP path,
+  its retry and cancellation boundaries, and the canonical digest are unchanged.
+- The #651 service boundary guard reads the workspace manifests, sources, and
+  migrations, and fails on a gateway-to-app/engine edge, a second service
+  binary, a cross-schema read, or a simulation strategy read, run write, queue
+  publish, or model compute. Every rule has a seeded-violation test; the shell's
+  27-command contract is untouched.
 - `qr-data` serves the catalog, dataset, config, and inspection surface, plus
   the internal config-bundle, dataset-object, and dataset-count references the
   gateway and the worker consume. The gateway proxies `/catalog/*`,

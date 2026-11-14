@@ -74,3 +74,17 @@ test.
 | S4 | Defect D1 | The wrong-order decode is recorded with its location | `sed -n '230,320p' crates/quantrule-server/src/adapters/postgres/mod.rs` | select order and field assignment disagree | confirmed | Pass | P1 agent | 2026-11-14 | P3 owns; not fixed in P1 |
 | S5 | Defect D2 | The unregistered migration is recorded | `grep -n "version: 13" crates/quantrule-server/src/migrations.rs` | no match; files 0001-0013 exist | confirmed | Pass | P1 agent | 2026-11-14 | P5 owns; not fixed in P1 |
 | S6 | Not landed | No parked hunk is cited as landed evidence | `git -C ... log --oneline -1` | `b63b9015` with no gateway-split commit | as expected | Pass | P1 agent | 2026-11-14 | Reuse only after the owning phase re-tests it |
+
+## P8 disposition (2026-11-15)
+
+- The parked gateway auth and route-module hunks were not copied. The final
+  gateway already carries the P3-P7 proxy table, the profile store in `gateway`,
+  the static client, and health; P8 renamed the crate and deleted the worker.
+- `crates/quantrule-server/tests/boundary.rs` was replaced by
+  `crates/quantrule-gateway/tests/service_boundary.rs`, which reads the
+  workspace manifests, service sources, and SQL migrations. It covers the
+  gateway dependency closure, one binary per service, per-service schema
+  ownership, simulation isolation, and a seeded violation per rule.
+- The parked `RunStore::count` and migration 13 registration were consumed by
+  evidence in P5, and the parked `Timeframe` re-export was retired in P3. The
+  final gateway names no data, run, research, or simulation type.

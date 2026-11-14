@@ -9,6 +9,8 @@ use common::canonical;
 #[allow(unused_imports)]
 pub use quantrule_api::{ArtifactRef, Digest, ProfileId, RunState};
 #[allow(unused_imports)]
+pub use quantrule_backtest_service::backtest::{ProcessOutcome, WorkerServices, process};
+#[allow(unused_imports)]
 pub use quantrule_runtime::adapters::{
     Backend, BoxFuture, ObjectStore, Queue, QueueError, StoreError,
 };
@@ -17,8 +19,6 @@ pub use quantrule_runtime::client::{
     ClientError, DataClient, EvidenceClient, MemoryDataClient, MemoryEvidence, MemoryModel,
     ModelClient, Service,
 };
-#[allow(unused_imports)]
-pub use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
 #[allow(unused_imports)]
 pub use quantrule_service_api::{
     ConfigBundle, DatasetObject, ModelBundleManifest, NewRun, RunManifest, RunRecord,
@@ -199,7 +199,7 @@ pub fn refs(files: &[(String, Vec<u8>)]) -> Vec<ArtifactRef> {
 
 /// The coupled `backtest run` baseline over a materialized config and dataset.
 pub fn coupled_baseline(config: &ConfigBundle, dataset: &[u8]) -> (Vec<(String, Vec<u8>)>, Digest) {
-    let workspace = quantrule_server::backtest::Workspace::create(config, dataset)
+    let workspace = quantrule_backtest_service::backtest::Workspace::create(config, dataset)
         .expect("the baseline workspace");
     let out = TempDir::new("baseline");
     let outcome = quantrule_app::service::AppService::run_backtest(
@@ -225,7 +225,7 @@ pub async fn model_bundle(
     objects: &common::MemoryObjects,
     model: &MemoryModel,
 ) -> (Vec<(String, Vec<u8>)>, ModelBundleManifest) {
-    let workspace = quantrule_server::backtest::Workspace::create(config, dataset)
+    let workspace = quantrule_backtest_service::backtest::Workspace::create(config, dataset)
         .expect("the model workspace");
     let run_config =
         quantrule_app::config::RunConfig::load(&workspace.run_config()).expect("run config");

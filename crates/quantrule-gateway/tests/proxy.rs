@@ -16,10 +16,10 @@ use axum::{Json, Router};
 use common::{body_bytes, memory_profiles};
 use futures_util::{StreamExt, stream};
 use quantrule_api::PROFILE_HEADER;
+use quantrule_gateway::server::router;
+use quantrule_gateway::server::{AppState, Services};
 use quantrule_runtime::client::{HttpServiceClient, Service};
 use quantrule_runtime::{Config, HealthRegistry};
-use quantrule_server::server::router;
-use quantrule_server::server::{AppState, Services};
 use tokio::sync::Notify;
 use tower::ServiceExt;
 

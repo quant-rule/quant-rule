@@ -1,4 +1,4 @@
-//! The model proxy: passthrough, profile injection, 503, and no local handler.
+//! The evidence proxy: passthrough, profile injection, 503, and no local store.
 
 mod common;
 
@@ -10,14 +10,13 @@ use axum::body::{Body, Bytes};
 use axum::extract::{Request, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::post;
 use axum::{Json, Router};
 use common::{body_bytes, memory_profiles};
 use quantrule_api::PROFILE_HEADER;
+use quantrule_gateway::server::router;
+use quantrule_gateway::server::{AppState, Services};
 use quantrule_runtime::client::{HttpServiceClient, Service};
 use quantrule_runtime::{Config, HealthRegistry};
-use quantrule_server::server::router;
-use quantrule_server::server::{AppState, Services};
 use tower::ServiceExt;
 
 #[derive(Clone, Default)]
@@ -25,7 +24,7 @@ struct Fake {
     hits: Arc<AtomicUsize>,
 }
 
-async fn compute(State(fake): State<Fake>, headers: HeaderMap, uri: Uri, body: Bytes) -> Response {
+async fn echo(State(fake): State<Fake>, headers: HeaderMap, uri: Uri, body: Bytes) -> Response {
     fake.hits.fetch_add(1, Ordering::SeqCst);
     let profiles: Vec<String> = headers
         .get_all(PROFILE_HEADER)
@@ -34,10 +33,10 @@ async fn compute(State(fake): State<Fake>, headers: HeaderMap, uri: Uri, body: B
         .map(str::to_owned)
         .collect();
     (
-        StatusCode::OK,
+        StatusCode::ACCEPTED,
         [
             (header::CONTENT_TYPE, "application/json".to_owned()),
-            (header::ETAG, "\"model-etag\"".to_owned()),
+            (header::ETAG, "\"evidence-etag\"".to_owned()),
         ],
         Json(serde_json::json!({
             "profiles": profiles,
@@ -50,11 +49,7 @@ async fn compute(State(fake): State<Fake>, headers: HeaderMap, uri: Uri, body: B
 }
 
 async fn start(fake: Fake) -> (SocketAddr, tokio::task::JoinHandle<()>) {
-    let app = Router::new()
-        .route("/model/compute", post(compute))
-        .route("/api/v1/model/compute", post(compute))
-        .fallback(|uri: Uri| async move { (StatusCode::NOT_FOUND, uri.to_string()) })
-        .with_state(fake);
+    let app = Router::new().fallback(echo).with_state(fake);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("listener");
@@ -66,30 +61,30 @@ async fn start(fake: Fake) -> (SocketAddr, tokio::task::JoinHandle<()>) {
 }
 
 async fn gateway(address: SocketAddr) -> Arc<AppState> {
-    let upstream = HttpServiceClient::new(Service::Model, &format!("http://{address}"))
+    let upstream = HttpServiceClient::new(Service::Evidence, &format!("http://{address}"))
         .expect("upstream client");
     Arc::new(AppState::with_services(
         &Config::default(),
         HealthRegistry::new(),
         Services {
             profiles: Some(memory_profiles(&["default", "alpha"]).await),
-            model_upstream: Some(Arc::new(upstream)),
+            evidence_upstream: Some(Arc::new(upstream)),
             ..Services::default()
         },
     ))
 }
 
 #[tokio::test]
-async fn the_model_request_and_response_pass_through_unchanged() {
+async fn a_run_submission_passes_through_with_the_injected_profile() {
     let (address, handle) = start(Fake::default()).await;
     let payload = serde_json::json!({
-        "data_version": "sha256:c39ffbe3a18015ef81c33173615167b1ca7d8aeddf31df589f670868ac496d71",
+        "data_version": format!("sha256:{}", "a".repeat(64)),
         "config_id": "cfg_valid",
     })
     .to_string();
     let response = router(gateway(address).await)
         .oneshot(
-            Request::post("/api/v1/model/compute?name=one")
+            Request::post("/api/v1/runs?limit=10")
                 .header(PROFILE_HEADER, "default")
                 .header("content-type", "application/json")
                 .body(Body::from(payload.clone()))
@@ -97,7 +92,7 @@ async fn the_model_request_and_response_pass_through_unchanged() {
         )
         .await
         .expect("response");
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
     assert_eq!(
         response
             .headers()
@@ -110,21 +105,49 @@ async fn the_model_request_and_response_pass_through_unchanged() {
             .headers()
             .get(header::ETAG)
             .and_then(|value| value.to_str().ok()),
-        Some("\"model-etag\"")
+        Some("\"evidence-etag\"")
     );
     let value: serde_json::Value =
         serde_json::from_slice(&body_bytes(response).await).expect("json");
-    assert_eq!(value["path"], "/api/v1/model/compute");
-    assert_eq!(value["query"], "name=one");
+    assert_eq!(value["path"], "/api/v1/runs");
+    assert_eq!(value["query"], "limit=10");
     assert_eq!(value["body"], payload);
     assert_eq!(value["profiles"], serde_json::json!(["default"]));
     handle.abort();
 }
 
 #[tokio::test]
+async fn a_run_detail_artifact_and_digest_path_is_forwarded() {
+    let (address, handle) = start(Fake::default()).await;
+    for path in [
+        "/runs/sha256:abc",
+        "/runs/sha256:abc/cancel",
+        "/runs/sha256:abc/artifacts/results.json",
+        "/runs/sha256:abc/digest",
+        "/hypotheses/fingerprint",
+    ] {
+        let response = router(gateway(address).await)
+            .oneshot(
+                Request::get(path)
+                    .header(PROFILE_HEADER, "default")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::ACCEPTED, "{path}");
+        let value: serde_json::Value =
+            serde_json::from_slice(&body_bytes(response).await).expect("json");
+        assert_eq!(value["path"], path, "{path}");
+        assert_eq!(value["profiles"], serde_json::json!(["default"]), "{path}");
+    }
+    handle.abort();
+}
+
+#[tokio::test]
 async fn a_client_cannot_supply_a_second_profile_value() {
     let (address, handle) = start(Fake::default()).await;
-    let mut request = Request::post("/model/compute")
+    let mut request = Request::post("/runs")
         .header("content-type", "application/json")
         .body(Body::from("{}"))
         .expect("request");
@@ -139,7 +162,7 @@ async fn a_client_cannot_supply_a_second_profile_value() {
         .oneshot(request)
         .await
         .expect("response");
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
     let value: serde_json::Value =
         serde_json::from_slice(&body_bytes(response).await).expect("json");
     assert_eq!(value["profiles"], serde_json::json!(["default"]));
@@ -153,10 +176,9 @@ async fn a_client_profile_is_validated_before_the_upstream() {
     let (address, handle) = start(fake).await;
     let response = router(gateway(address).await)
         .oneshot(
-            Request::post("/model/compute")
+            Request::get("/runs")
                 .header(PROFILE_HEADER, "ghost")
-                .header("content-type", "application/json")
-                .body(Body::from("{}"))
+                .body(Body::empty())
                 .expect("request"),
         )
         .await
@@ -169,7 +191,7 @@ async fn a_client_profile_is_validated_before_the_upstream() {
 }
 
 #[tokio::test]
-async fn a_closed_upstream_is_service_unavailable() {
+async fn a_closed_evidence_upstream_is_service_unavailable() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("listener");
@@ -178,10 +200,9 @@ async fn a_closed_upstream_is_service_unavailable() {
 
     let response = router(gateway(address).await)
         .oneshot(
-            Request::post("/model/compute")
+            Request::get("/runs")
                 .header(PROFILE_HEADER, "default")
-                .header("content-type", "application/json")
-                .body(Body::from("{}"))
+                .body(Body::empty())
                 .expect("request"),
         )
         .await
@@ -189,17 +210,17 @@ async fn a_closed_upstream_is_service_unavailable() {
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(text.contains("service.unavailable"), "{text}");
-    assert!(text.contains("model"), "{text}");
+    assert!(text.contains("evidence"), "{text}");
 }
 
 #[tokio::test]
-async fn the_internal_model_route_is_not_proxied() {
+async fn the_internal_run_route_is_not_proxied() {
     let fake = Fake::default();
     let hits = Arc::clone(&fake.hits);
     let (address, handle) = start(fake).await;
     let response = router(gateway(address).await)
         .oneshot(
-            Request::post("/internal/v1/model/bundle")
+            Request::post("/internal/v1/runs/sha256:abc/claim")
                 .header(PROFILE_HEADER, "default")
                 .header("content-type", "application/json")
                 .body(Body::from("{}"))
@@ -213,40 +234,28 @@ async fn the_internal_model_route_is_not_proxied() {
 }
 
 #[tokio::test]
-async fn the_gateway_source_has_no_model_handler() {
-    use std::path::{Path, PathBuf};
-
-    fn sources(root: &Path, found: &mut Vec<PathBuf>) {
-        for entry in std::fs::read_dir(root).expect("read dir") {
-            let path = entry.expect("entry").path();
-            if path.is_dir() {
-                sources(&path, found);
-            } else if path.extension().is_some_and(|extension| extension == "rs") {
-                found.push(path);
-            }
-        }
-    }
+async fn the_gateway_has_no_run_or_research_store() {
+    use std::path::PathBuf;
 
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    assert!(
-        !manifest.join("src/model").exists(),
-        "src/model still exists"
-    );
-    let mut files = Vec::new();
-    sources(&manifest.join("src"), &mut files);
-    assert!(!files.is_empty(), "no sources found");
-    for file in files {
-        let relative = file
-            .strip_prefix(&manifest)
-            .expect("relative")
-            .to_string_lossy()
-            .replace('\\', "/");
-        let text = std::fs::read_to_string(&file).expect("source");
+    for relative in [
+        "src/server.rs",
+        "src/bin/qr_gateway.rs",
+        "src/adapters/postgres/mod.rs",
+    ] {
+        let text = std::fs::read_to_string(manifest.join(relative)).expect("source");
         for forbidden in [
-            "ModelComputeRequest",
-            "compute_sharded",
-            "compute_model",
-            "quantrule_model::",
+            "runs.runs",
+            "runs.submissions",
+            "research.hypotheses",
+            "PgRunStore",
+            "PgHypothesisStore",
+            "MemoryRuns",
+            "HypothesisStore",
+            "submit_run",
+            "create_hypothesis",
+            "ROUTING_REQUESTED",
+            "ROUTING_CANCELLED",
         ] {
             assert!(
                 !text.contains(forbidden),

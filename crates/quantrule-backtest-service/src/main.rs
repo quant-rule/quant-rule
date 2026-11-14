@@ -6,10 +6,13 @@
 //! artifacts to CAS, records the computed digest through `qr-evidence`, and
 //! publishes `run.computed` or `run.failed`. Evidence finalizes the run. A
 //! retryable failure holds the delivery, waits, and retries in place. It serves
-//! no HTTP; P8 moves the crate to `quantrule-backtest-service`.
+//! no HTTP and owns no database schema.
+
+#![forbid(unsafe_code)]
 
 use std::sync::Arc;
 
+use quantrule_backtest_service::backtest::{ProcessOutcome, WorkerServices, process};
 use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_runtime::adapters::s3::S3Store;
 use quantrule_runtime::adapters::{
@@ -21,7 +24,6 @@ use quantrule_runtime::client::{
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::queue::{QUEUE_BACKTEST, ROUTING_CANCELLED, ROUTING_REQUESTED};
 use quantrule_runtime::{Config, RuntimeError, logging};
-use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
 use serde_json::Value;
 
 #[tokio::main]

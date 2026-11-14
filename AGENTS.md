@@ -45,14 +45,21 @@ Invariants that the pipeline depends on:
 - Availability, not occurrence: a measurement that becomes knowable only later — a confirmed swing pivot, a divergence — records both when it occurred and when it became knowable, and it never reaches an earlier bar.
 - No double counting: a reading may feed more than one event, but each event states its own definition, and a correlated event is not a second vote. A strategy names each event it uses once.
 
-The Rust workspace holds one crate per pipeline stage, a shared application service, a contract crate, and the server:
+The Rust workspace holds one crate per pipeline stage, a shared application service, two contract crates, a shared runtime, the six services, and the command shell:
 
 - `crates/quantrule-data` — the data engine.
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
 - `crates/quantrule-backtest` — the execution, portfolio, and generic strategy engines, which depend on `quantrule-model` and `quantrule-data`.
 - `crates/quantrule-app` — the application service: workspace, dataset, configuration, model run, export, research memory, and the shared use cases both clients call. It depends on the three engine crates and holds no transport.
 - `crates/quantrule-api` — the `quantrule.api/v1` contract types. It depends on no engine crate.
-- `crates/quantrule-server` — the gateway and the five workers, as six binaries in one image. It depends on `quantrule-app` and `quantrule-api`.
+- `crates/quantrule-service-api` — the `quantrule.internal/v1` contract types. It depends on no engine, runtime, or service crate.
+- `crates/quantrule-runtime` — configuration, health, storage, queue, migrations, shutdown, and the service client. It depends on `quantrule-api` and `quantrule-service-api`, never on an engine or `quantrule-app`.
+- `crates/quantrule-gateway` — the gateway: profiles in the `gateway` schema, the static client, the proxy table, and health. It links no app, engine, or domain service crate.
+- `crates/quantrule-data-service` — `qr-data`: the `catalog` schema, ingest, datasets, configs, inspection, and ladder.
+- `crates/quantrule-model-service` — `qr-model`: model compute and model bundles.
+- `crates/quantrule-backtest-service` — `qr-backtest`: the worker, strategy, execution, portfolio, and artifact objects.
+- `crates/quantrule-evidence-service` — `qr-evidence`: `runs` and `research` schemas, provenance, canonical digest, run records, and research memory.
+- `crates/quantrule-simulation-service` — `qr-simulation`: the `simulation` schema and the research plane.
 - `crates/quantrule-shell` — the command shell, an HTTP client that depends only on `quantrule-api`.
 
 The research engine (`quantrule-analytics`) was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.
