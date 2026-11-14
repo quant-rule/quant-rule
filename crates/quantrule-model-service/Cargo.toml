@@ -1,0 +1,25 @@
+[package]
+name = "quantrule-model-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "The QuantRule model service: measurements, events, and model bundles"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[[bin]]
+name = "qr-model"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.8.9"
+quantrule-api = { path = "../quantrule-api" }
+quantrule-runtime = { path = "../quantrule-runtime" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }
+tower = { version = "0.5.3", features = ["util"] }
+
+[lints]
+workspace = true

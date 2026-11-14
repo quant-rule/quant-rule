@@ -2715,10 +2715,34 @@ name = "quantrule-data"
 version = "0.3.0"
 
 [[package]]
+name = "quantrule-data-service"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "quantrule-api",
+ "quantrule-runtime",
+ "serde_json",
+ "tokio",
+ "tower",
+]
+
+[[package]]
 name = "quantrule-model"
 version = "0.3.0"
 dependencies = [
  "quantrule-data",
+]
+
+[[package]]
+name = "quantrule-model-service"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "quantrule-api",
+ "quantrule-runtime",
+ "serde_json",
+ "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -2791,6 +2815,18 @@ dependencies = [
  "quantrule-research",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "quantrule-simulation-service"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "quantrule-api",
+ "quantrule-runtime",
+ "serde_json",
+ "tokio",
+ "tower",
 ]
 
 [[package]]

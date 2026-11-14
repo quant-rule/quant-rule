@@ -6,7 +6,7 @@
 - Owner: Human
 - Workflow: [Execution Plan](../../workflows/execution-plan.md), [Requirements & Design](../../workflows/requirements-design.md)
 - Issue: #776 (container); phase issue #777 starts P1.
-- Branch: `arch/dist-binaries-plan` (plan), `arch/777-runtime` (P1)
+- Branch: `arch/dist-binaries-plan` (plan), `arch/777-runtime` (P1), `arch/780-binaries` (P2)
 - Records: ADR-2026-11-12-01, ADR-2026-11-12-04, ADR-2026-11-12-09, ADR-2026-11-12-12; #643, #646, #647, #648, #649, #651, #674, #679, #680; parked S1 gateway work in `quant-rule--646-gateway`
 - Decision: **Option B — full split — selected by the human on 2026-11-14.** Option A (six binaries, gateway proxies data and model, worker fast path recorded) is rejected as too small. Option C (narrow the claim to three binaries) is rejected as an architecture retraction.
 
@@ -454,7 +454,7 @@ series. A phase does not edit a file owned by another active phase.
 |---|---|---|---|---|---|---|
 | **P0** | Record B; create the issue from §14; rename the plan; write the crate-boundary ADR; freeze the internal contract; capture the parked S1 salvage map | `docs/execution-plans/2026-11-14/`, `docs/adr/2026-11-14/`, GitHub | Inventory only | Human approval | Plan `Approved`; issue `In Progress`; ADR exists; salvage map recorded | Every phase |
 | **P1** | Extract `quantrule-runtime` and `quantrule-service-api`; move config, health, adapters, migrations runner, service client; pin the migration lock to one connection and add the two-migrator deadlock test; no route change | `crates/quantrule-runtime/**`, `crates/quantrule-service-api/**`, workspace `Cargo.toml` | `auth.unauthorized`, `RunDigest`, `EventBatch` contract types | P0 | Workspace tests; runtime has no engine dependency; two migrators do not deadlock; `quantrule-server` still builds | P2 |
-| **P2** | Six-binary milestone M1: add `qr-data`, `qr-model`, `qr-simulation` skeletons with `/health` and `/version`; keep the existing routes in the gateway | `crates/quantrule-data-service/**`, `crates/quantrule-model-service/**`, `crates/quantrule-simulation-service/**` (manifests and health only) | None | P1 | Six binaries build; inventory guard; every new binary answers health | **#643 binary prerequisite** |
+| **P2** | Six-binary milestone M1: add `qr-data`, `qr-model`, `qr-simulation` skeletons with `/health` and `/version`; keep the existing routes in the gateway | `crates/quantrule-data-service/**`, `crates/quantrule-model-service/**`, `crates/quantrule-simulation-service/**` (manifests and health only), `crates/quantrule-runtime/tests/binary_inventory.rs` | None | P1 | Six binaries build; inventory guard; every new binary answers health | **#643 binary prerequisite** |
 | **P3** | Data service: move `data/` and `configs/`; `catalog` schema and migrations; profile move to `gateway`; data routes; gateway data proxy; streamed upload | `crates/quantrule-data-service/**`, `crates/quantrule-server/src/data/**`, `src/configs/**`, `src/profile/**`, `src/runtime/server.rs` data routes, `src/runtime/proxy.rs`, `src/runtime/upstream.rs` | `routes/data.rs`, event inspection, `Timeframe` seam, data route tests | P2 | Data routes served by `qr-data`; gateway has no data handlers; catalog schema only data; streaming test | Part of #646; P4 |
 | **P4** | Model service: move `model/`; model bundle writer and internal manifest; data client; gateway model proxy; public `/model/compute` unchanged | `crates/quantrule-model-service/**`, `crates/quantrule-server/src/model/**`, `quantrule-app` model bundle call sites, gateway model proxy | None | P3 | Model route served by `qr-model`; bundle SHA-256 matches the coupled baseline; no strategy read | Part of #646; P5 |
 | **P5** | Evidence service: move `runs/`, `research/`, `evidence/`; `runs` and `research` schemas; internal run lifecycle; evidence publishes `run.requested`; gateway run and hypothesis proxies | `crates/quantrule-evidence-service/**`, `crates/quantrule-server/src/runs/**`, `src/research/**`, `src/evidence/**`, gateway run and hypothesis proxies | `routes/runs.rs`, artifact/digest routes, `RunStore::count`, migration 13 | P3 | Submit, list, detail, cancel through evidence; no gateway run write; queue producer is evidence | Part of #646; P6 |
@@ -491,6 +491,9 @@ is claimed. The existing `qr-gateway`, `qr-backtest`, and `qr-evidence` stay in
 `quantrule-server`. The image can now package six binaries and #643 can proceed
 with its own Dockerfile and compose work. M1 is explicitly not the end state:
 the gateway still serves data and model, and the worker still uses the fast path.
+The inventory guard reads the service package manifests and source entry points;
+the `quantrule` shell binary is a client and is outside the six-service
+inventory.
 
 **P3 — Data service.** Move the data and config modules, the `catalog` schema,
 and the catalog migrations. Add the internal config-bundle and dataset-object
@@ -688,8 +691,8 @@ inside the worktree.
 | V2 | P0 decision | B is recorded; the issue exists; the plan is renamed; the crate ADR exists | `grep -n "Option B" docs/execution-plans/2026-11-14/`; `gh issue view <n>`; `ls docs/adr/2026-11-14/` | four artifacts | — | Pending | — | — | No issue number invented |
 | V3 | P1 runtime | Runtime extraction compiles; no engine dependency; no route change | `cargo tree -p quantrule-runtime`; `cargo test --workspace` | no engine; pass | — | Pending | — | — | Behavior-neutral |
 | V4 | P1 contracts | Internal contract types round-trip; no engine or runtime dependency | `cargo test -p quantrule-service-api`; `cargo tree -p quantrule-service-api` | pass; no engine | — | Pending | — | — | |
-| V5 | P2 M1 | Six binaries build; the inventory guard fails on removal | `cargo build --bins`; `cargo test -p quantrule-gateway --test boundary six_binaries` | six; pass; seeded removal fails | — | Pending | — | — | #643 prerequisite |
-| V6 | P2 health | Each new binary answers `/health` and `/version` | New service health tests | 200 on both | — | Pending | — | — | No domain route claimed |
+| V5 | P2 M1 | Six binaries build; the inventory guard fails on removal | `cargo build --workspace --bins`; `cargo test -p quantrule-runtime --test binary_inventory` | six service binaries; pass; seeded removal fails | six service binaries plus the `quantrule` shell client; guard 3 passed; temporary `qr-simulation` removal failed with `missing ["qr-simulation"], unexpected ["quantrule-simulation-service"]`, restored and passed | Pass | agent | 2026-11-14 | Shell client is not a service binary; guard scopes to `quantrule-server` and `*-service` packages |
+| V6 | P2 health | Each new binary answers `/health` and `/version` | `cargo test -p quantrule-data-service -p quantrule-model-service -p quantrule-simulation-service` | 200 on both | data, model, and simulation `tests/health.rs`: 2 passed each, in-process router, no socket | Pass | agent | 2026-11-14 | No domain route claimed |
 | V7 | P3 data | Data routes answer from `qr-data`; gateway has no data handlers | `cargo test -p quantrule-data-service`; gateway proxy test | pass; no handler | — | Pending | — | — | Catalog owner |
 | V8 | P3 streaming | A 2 MiB upload passes through without full buffering; the cap returns 413 | Paused-producer test | first chunk forwarded; 413 over limit | — | Pending | — | — | |
 | V9 | P3 schema | Only data reads `catalog`; the profile store is `gateway.profiles` | Schema guard; `grep` on queries | pass; one writer | — | Pending | — | — | |

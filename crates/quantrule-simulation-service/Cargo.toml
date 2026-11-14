@@ -1,0 +1,25 @@
+[package]
+name = "quantrule-simulation-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "The QuantRule simulation service: the hindsight research plane"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[[bin]]
+name = "qr-simulation"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.8.9"
+quantrule-api = { path = "../quantrule-api" }
+quantrule-runtime = { path = "../quantrule-runtime" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }
+tower = { version = "0.5.3", features = ["util"] }
+
+[lints]
+workspace = true
