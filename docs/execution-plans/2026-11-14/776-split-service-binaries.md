@@ -1,12 +1,12 @@
 # Execution Plan — Full split of the six service binaries
 
-- Status: Proposed
+- Status: Approved
 - Date: 2026-11-14 (UTC)
 - Claim type: ADR (Architecture Decision)
 - Owner: Human
 - Workflow: [Execution Plan](../../workflows/execution-plan.md), [Requirements & Design](../../workflows/requirements-design.md)
-- Issue: none yet. The number is assigned on approval; this file is renamed to `<issue>-split-service-binaries.md`.
-- Branch: `arch/dist-binaries-plan` (plan), `<type>/<issue>-split-service-binaries` (implementation)
+- Issue: #776 (container); phase issue #777 starts P1.
+- Branch: `arch/dist-binaries-plan` (plan), `arch/777-runtime` (P1)
 - Records: ADR-2026-11-12-01, ADR-2026-11-12-04, ADR-2026-11-12-09, ADR-2026-11-12-12; #643, #646, #647, #648, #649, #651, #674, #679, #680; parked S1 gateway work in `quant-rule--646-gateway`
 - Decision: **Option B — full split — selected by the human on 2026-11-14.** Option A (six binaries, gateway proxies data and model, worker fast path recorded) is rejected as too small. Option C (narrow the claim to three binaries) is rejected as an architecture retraction.
 

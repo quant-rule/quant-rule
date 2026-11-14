@@ -3,12 +3,13 @@
 - Date: 2026-11-14 (UTC)
 - Tool: OpenCode with DeepSeek V4.1 Flash. S2 planning subagent.
 - Intent: draft the execution plan for the missing `qr-data`, `qr-model`, and
-  `qr-simulation` binaries, the gateway proxy choice, and the blast radius on
-  #643, #646, #649, #674, #679, and #680. The plan recommends an option; it does
-  not implement one.
+  `qr-simulation` binaries, compare Option A with the accepted Option B full
+  split and the rejected Option C, and record the blast radius on #643, #646,
+  #649, #674, #679, and #680.
 - Boundary: planning only. No Rust, Cargo, Dockerfile, compose, Makefile, CI,
-  app, or non-plan documentation was changed. No issue was created and no code
-  pull request was opened. Worktree
+  app, or non-plan documentation was changed. The plan was approved on
+  2026-11-14; container issue #776 and phase issue #777 were created from it.
+  Implementation starts at P1 in a separate worktree. Worktree
   `/home/zantgo/Proyectos/quant-rule--dist-binaries-plan`, branch
   `arch/dist-binaries-plan`, base `b63b9015`.
 
