@@ -429,7 +429,7 @@ async fn a_profile_that_did_not_submit_cannot_read_the_run() {
 
 #[tokio::test]
 async fn a_run_can_be_cancelled_once() {
-    let (state, _queue) = harness().await;
+    let (state, queue) = harness().await;
     let (data_version, config_id, _) = seed(Arc::clone(&state)).await;
     let response = submit(Arc::clone(&state), "default", &data_version, &config_id).await;
     let created: SubmitRunResponse =
@@ -447,6 +447,17 @@ async fn a_run_can_be_cancelled_once() {
     assert_eq!(response.status(), StatusCode::ACCEPTED);
     let detail: RunDetail = serde_json::from_slice(&body_bytes(response).await).expect("detail");
     assert_eq!(detail.status, RunState::Cancelled);
+    let messages = queue.messages();
+    let (key, payload) = messages
+        .iter()
+        .find(|(key, _)| key == "run.cancelled")
+        .expect("cancel message");
+    assert_eq!(key, "run.cancelled");
+    let payload: serde_json::Value = serde_json::from_slice(payload).expect("payload");
+    assert_eq!(
+        payload,
+        serde_json::json!({ "run_id": created.run_id.to_string() })
+    );
 
     let response = router(state)
         .oneshot(

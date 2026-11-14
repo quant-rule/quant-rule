@@ -12,7 +12,10 @@ use quantrule_server::runtime::adapters::postgres::PgRunStore;
 use quantrule_server::runtime::adapters::postgres::apply_migrations;
 use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_server::runtime::adapters::s3::S3Store;
-use quantrule_server::runtime::adapters::{MessageHandler, ObjectStore, QueueConsumer, QueueError};
+use quantrule_server::runtime::adapters::{
+    Message, MessageHandler, ObjectStore, QueueConsumer, QueueError,
+};
+use quantrule_server::runtime::queue::{QUEUE_EVIDENCE, ROUTING_COMPUTED};
 use quantrule_server::runtime::shutdown;
 use quantrule_server::runtime::{Config, RuntimeError, logging};
 use serde_json::Value;
@@ -42,10 +45,10 @@ async fn main() -> Result<(), RuntimeError> {
         objects: Arc::new(objects) as Arc<dyn ObjectStore>,
     });
 
-    let handler: MessageHandler = Box::new(move |payload| {
+    let handler: MessageHandler = Box::new(move |message: Message| {
         let services = Arc::clone(&services);
         Box::pin(async move {
-            let run_id = serde_json::from_slice::<Value>(&payload)
+            let run_id = serde_json::from_slice::<Value>(&message.payload)
                 .ok()
                 .and_then(|value| {
                     value
@@ -72,7 +75,7 @@ async fn main() -> Result<(), RuntimeError> {
 
     tracing::info!("evidence consuming run.computed");
     tokio::select! {
-        result = queue.consume("run.computed", handler) => {
+        result = queue.consume(QUEUE_EVIDENCE, &[ROUTING_COMPUTED], handler) => {
             result.map_err(|error| RuntimeError::Queue(error.to_string()))
         }
         _ = shutdown::signal() => Ok(()),

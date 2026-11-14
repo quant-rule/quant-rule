@@ -99,19 +99,37 @@ pub trait Database: Send + Sync {
     fn ping(&self) -> BoxFuture<Result<(), DatabaseError>>;
 }
 
-/// A queue message handler: bytes to an acknowledged outcome.
-pub type MessageHandler = Box<dyn Fn(Vec<u8>) -> BoxFuture<Result<(), QueueError>> + Send + Sync>;
+/// One delivered message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Message {
+    /// The routing key the broker delivered it under.
+    pub routing_key: String,
+    /// The body, `quantrule.queue/v1` bytes owned by the caller.
+    pub payload: Vec<u8>,
+    /// Whether the broker says this is a redelivery.
+    pub redelivered: bool,
+}
+
+/// A queue message handler: one message to an acknowledged outcome.
+pub type MessageHandler = Box<dyn Fn(Message) -> BoxFuture<Result<(), QueueError>> + Send + Sync>;
 
 /// A consumer that delivers queued messages to a handler.
 pub trait QueueConsumer: Send + Sync {
     /// Which implementation this is.
     fn backend(&self) -> Backend;
 
-    /// Consume one queue until the handler fails or the stream ends.
+    /// Consume one queue bound to `keys` until the handler fails or the stream
+    /// ends.
     ///
     /// The adapter acknowledges a successful handler and negatively acknowledges
-    /// a failed one.
-    fn consume(&self, queue: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>>;
+    /// a failed one with immediate requeue. A handler that wants backoff holds
+    /// the delivery and retries in place.
+    fn consume(
+        &self,
+        queue: &str,
+        keys: &[&str],
+        handler: MessageHandler,
+    ) -> BoxFuture<Result<(), QueueError>>;
 }
 
 /// A content-addressed object store.
@@ -184,9 +202,9 @@ mod tests {
         }
     }
 
-    /// A consumer that drains a fixed payload list.
+    /// A consumer that drains a fixed message list.
     struct MemoryConsumer {
-        payloads: Arc<Mutex<Vec<Vec<u8>>>>,
+        messages: Arc<Mutex<Vec<Message>>>,
     }
 
     impl QueueConsumer for MemoryConsumer {
@@ -197,16 +215,21 @@ mod tests {
         fn consume(
             &self,
             _queue: &str,
+            keys: &[&str],
             handler: MessageHandler,
         ) -> BoxFuture<Result<(), QueueError>> {
-            let payloads = Arc::clone(&self.payloads);
+            let messages = Arc::clone(&self.messages);
+            let keys: Vec<String> = keys.iter().map(|key| (*key).to_owned()).collect();
             Box::pin(async move {
-                let pending = payloads
+                let pending = messages
                     .lock()
                     .map_err(|_| QueueError("the consumer lock is poisoned".to_owned()))?
                     .clone();
-                for payload in pending {
-                    handler(payload).await?;
+                for message in pending {
+                    if !keys.is_empty() && !keys.contains(&message.routing_key) {
+                        continue;
+                    }
+                    handler(message).await?;
                 }
                 Ok(())
             })
@@ -266,26 +289,38 @@ mod tests {
 
     #[tokio::test]
     async fn a_consumer_implementation_needs_no_use_case_change() {
+        let requested = Message {
+            routing_key: "run.requested".to_owned(),
+            payload: b"one".to_vec(),
+            redelivered: false,
+        };
+        let computed = Message {
+            routing_key: "run.computed".to_owned(),
+            payload: b"two".to_vec(),
+            redelivered: false,
+        };
         let consumer: Arc<dyn QueueConsumer> = Arc::new(MemoryConsumer {
-            payloads: Arc::new(Mutex::new(vec![b"one".to_vec()])),
+            messages: Arc::new(Mutex::new(vec![requested, computed])),
         });
-        let seen: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(Vec::new()));
         let target = Arc::clone(&seen);
-        let handler: MessageHandler = Box::new(move |payload| {
+        let handler: MessageHandler = Box::new(move |message| {
             let target = Arc::clone(&target);
             Box::pin(async move {
                 target
                     .lock()
                     .map_err(|_| QueueError("the handler lock is poisoned".to_owned()))?
-                    .push(payload);
+                    .push(message);
                 Ok(())
             })
         });
         consumer
-            .consume("run.requested", handler)
+            .consume("runs.backtest", &["run.requested"], handler)
             .await
             .expect("consume");
-        assert_eq!(seen.lock().expect("seen").as_slice(), &[b"one".to_vec()]);
+        let seen = seen.lock().expect("seen");
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].payload, b"one".to_vec());
     }
 
     #[tokio::test]

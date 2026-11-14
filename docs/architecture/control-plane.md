@@ -36,11 +36,11 @@ no run row.
 
 | Type | Producer | Consumer | Payload |
 |---|---|---|---|
-| `run.requested` | gateway | backtest worker | none; the run row holds the inputs |
+| `run.requested` | gateway | backtest | run id only; the run row holds the inputs |
 | `run.computed` | backtest | evidence | run id only; the run row holds the manifest |
-| `run.completed` | evidence | none required | run id and digest |
-| `run.cancelled` | gateway | backtest | none |
-| `run.failed` | backtest | evidence | stage and error code |
+| `run.cancelled` | gateway | backtest | run id only; the run row is authoritative |
+| `run.failed` | backtest | none required | run id only; the run row holds the error |
+| `run.dead` | backtest | operator | run id only; the run row holds the error and attempts |
 
 Rules:
 
@@ -53,14 +53,16 @@ Rules:
 
 ```text
 exchange  quantrule.runs        (direct, durable)
-queue     runs.backtest         routing key run.requested
-queue     runs.evidence         routing keys run.computed, run.failed
-queue     runs.dead-letter      after the retry budget
+queue     runs.backtest         routing keys run.requested, run.cancelled
+queue     runs.evidence         routing key run.computed
+queue     runs.dead-letter      routing key run.dead
 ```
 
-Retry budget: three attempts with exponential backoff, then dead-letter and
-`failed`. A dead-lettered run is never silently lost; the run row records the
-attempt count.
+Retry budget: three deliveries. The handler holds the unacked delivery for 5 s
+after the first failure and 25 s after the second; the third failure marks the
+run `failed` and publishes `run.dead`. A dead-lettered run is never silently
+lost; the run row records the attempt count. A redelivered message reclaims a
+running, uncomputed run; a computed run is only republished.
 
 ## 4. Idempotency
 
@@ -70,11 +72,11 @@ run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
 
 - A submission whose `run_id` exists returns the existing run with `200`.
 - A first submission returns `202`.
-- A redelivered message looks the run up first: a running or terminal run is
-  never executed twice, and a running run with a recorded digest republishes
-  `run.computed` so a lost publish still reaches evidence.
+- A redelivered message reclaims a running, uncomputed run; a running run with
+  a recorded digest republishes `run.computed` so a lost publish still reaches
+  evidence. Neither is executed twice.
 - Cancellation followed by completion is impossible: the worker checks the
-  cancellation flag before each stage boundary.
+  cancellation flag before execution and before the first CAS write.
 
 ## 5. Concurrency
 
@@ -89,9 +91,12 @@ A run is never split across backtest workers. Scaling adds workers, not shards.
 ## 6. Cancellation
 
 1. Client calls `POST /runs/{id}/cancel`.
-2. Gateway writes `cancel_requested` on the run row and publishes `run.cancelled`.
-3. The worker checks the flag between stages and before finalization.
-4. If it stops, the run becomes `cancelled`; no artifact is finalized.
+2. Gateway writes `cancelled` on the run row and publishes `run.cancelled`
+   best-effort; the row is authoritative.
+3. The worker checks the flag before execution and before the first CAS write.
+4. If it stops, the run stays `cancelled`; no artifact is finalized. A check
+   inside the coupled backtest is still made after it returns; per-stage probes
+   remain #649.
 
 Cancellation is best-effort by design: a run that has already reached the
 evidence service has completed, and the response says so.

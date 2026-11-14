@@ -1,12 +1,14 @@
 //! The backtest worker binary.
 //!
-//! It consumes `run.requested`, claims the run, executes it, writes the
-//! artifacts to CAS, records the computed digest, and publishes `run.computed`
-//! or `run.failed`. Evidence finalizes the run. It serves no HTTP.
+//! It consumes `runs.backtest` (`run.requested` and `run.cancelled`), claims the
+//! run, executes it, writes the artifacts to CAS, records the computed digest,
+//! and publishes `run.computed` or `run.failed`. Evidence finalizes the run. A
+//! retryable failure holds the delivery, waits, and retries in place. It serves
+//! no HTTP.
 
 use std::sync::Arc;
 
-use quantrule_server::backtest::{WorkerServices, process};
+use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
 use quantrule_server::configs::ConfigCatalog;
 use quantrule_server::data::DatasetCatalog;
 use quantrule_server::runs::RunStore;
@@ -18,8 +20,9 @@ use quantrule_server::runtime::adapters::postgres::apply_migrations;
 use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_server::runtime::adapters::s3::S3Store;
 use quantrule_server::runtime::adapters::{
-    MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
+    Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
+use quantrule_server::runtime::queue::{QUEUE_BACKTEST, ROUTING_CANCELLED, ROUTING_REQUESTED};
 use quantrule_server::runtime::shutdown;
 use quantrule_server::runtime::{Config, RuntimeError, logging};
 use serde_json::Value;
@@ -53,39 +56,70 @@ async fn main() -> Result<(), RuntimeError> {
         queue: Arc::clone(&queue) as Arc<dyn Queue>,
     });
 
-    let handler: MessageHandler = Box::new(move |payload| {
+    let handler: MessageHandler = Box::new(move |message: Message| {
         let services = Arc::clone(&services);
         Box::pin(async move {
-            let run_id = serde_json::from_slice::<Value>(&payload)
-                .ok()
-                .and_then(|value| {
-                    value
-                        .get("run_id")
-                        .and_then(Value::as_str)
-                        .map(str::to_owned)
-                });
-            let Some(run_id) = run_id else {
-                tracing::error!("run.requested carries no run_id; acknowledging");
+            let Some(run_id) = run_id(&message.payload) else {
+                tracing::error!(
+                    routing_key = %message.routing_key,
+                    "a control message carries no run_id; acknowledging"
+                );
                 return Ok(());
             };
-            match process(run_id.clone(), &services).await {
-                Ok(outcome) => {
-                    tracing::info!(run_id = %run_id, outcome = ?outcome, "run processed");
-                    Ok(())
-                }
-                Err(error) => {
-                    tracing::error!(run_id = %run_id, error = %error, "run processing failed");
-                    Err(QueueError(error.to_string()))
+            if message.routing_key == ROUTING_CANCELLED {
+                // The gateway already wrote the flag. The message is an
+                // observation; the worker checks the flag at its own boundaries.
+                tracing::info!(run_id = %run_id, "cancellation observed");
+                return Ok(());
+            }
+            if message.routing_key != ROUTING_REQUESTED {
+                tracing::warn!(
+                    routing_key = %message.routing_key,
+                    "the backtest queue received an unexpected key; acknowledging"
+                );
+                return Ok(());
+            }
+            let mut redelivered = message.redelivered;
+            loop {
+                match process(run_id.clone(), redelivered, &services).await {
+                    Ok(ProcessOutcome::Retry { delay }) => {
+                        tracing::warn!(run_id = %run_id, ?delay, "retrying the run");
+                        tokio::time::sleep(delay).await;
+                        redelivered = true;
+                    }
+                    Ok(outcome) => {
+                        tracing::info!(run_id = %run_id, outcome = ?outcome, "run processed");
+                        return Ok(());
+                    }
+                    Err(error) => {
+                        tracing::error!(run_id = %run_id, error = %error, "run processing failed");
+                        return Err(QueueError(error.to_string()));
+                    }
                 }
             }
         })
     });
 
-    tracing::info!("backtest worker consuming run.requested");
+    tracing::info!("backtest worker consuming {QUEUE_BACKTEST}");
     tokio::select! {
-        result = queue.consume("run.requested", handler) => {
+        result = queue.consume(
+            QUEUE_BACKTEST,
+            &[ROUTING_REQUESTED, ROUTING_CANCELLED],
+            handler,
+        ) => {
             result.map_err(|error| RuntimeError::Queue(error.to_string()))
         }
         _ = shutdown::signal() => Ok(()),
     }
+}
+
+fn run_id(payload: &[u8]) -> Option<String> {
+    serde_json::from_slice::<Value>(payload)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("run_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
 }

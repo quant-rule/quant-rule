@@ -22,6 +22,12 @@ are not treated as releases.
 
 ### Added
 
+- The control-plane queue topology: `runs.backtest`, `runs.evidence`, and
+  `runs.dead-letter` are named durable queues. A run records its attempt count;
+  a retryable failure holds the delivery for 5 s, then 25 s; the third failure
+  marks the run `failed` and publishes `run.dead`. A broker redelivery reclaims
+  an uncomputed running run. Cancelling publishes `run.cancelled`, and every
+  message carries the run id only.
 - The backtest worker core: `POST`-submitted runs are claimed, their six-file
   config and catalogued dataset are materialized into a private workspace, the
   coupled backtest runs, artifacts are written to CAS, and the canonical digest
