@@ -22,6 +22,12 @@ are not treated as releases.
 
 ### Added
 
+- The six-binary service inventory is complete at milestone M1:
+  `quantrule-data-service`, `quantrule-model-service`, and
+  `quantrule-simulation-service` add `qr-data`, `qr-model`, and `qr-simulation`
+  health/version skeletons, and a workspace guard fails when a service binary is
+  removed or an extra one appears. The gateway still serves every data, model,
+  run, and simulation route; no route moved.
 - The service runtime and the internal contract are their own crates:
   `quantrule-runtime` owns configuration, health, logging, clock, shutdown, the
   HTTP serve helper, the Postgres/S3/RabbitMQ adapters, the migration runner, and
