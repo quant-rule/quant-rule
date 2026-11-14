@@ -31,6 +31,8 @@ pub enum IngestError {
     NotUtf8,
     /// The upload holds no candles.
     NoCandles,
+    /// The spooled upload could not be read.
+    Io(String),
     /// A line has too few fields.
     BadFields {
         /// One-based line number.
@@ -79,6 +81,7 @@ impl std::fmt::Display for IngestError {
             Self::EmptyName => formatter.write_str("a dataset needs a name"),
             Self::NotUtf8 => formatter.write_str("the upload is not UTF-8"),
             Self::NoCandles => formatter.write_str("the upload holds no candles"),
+            Self::Io(message) => write!(formatter, "the upload could not be read: {message}"),
             Self::BadFields { line } => write!(formatter, "line {line} has too few fields"),
             Self::Candle { line, source } => write!(formatter, "line {line}: {source}"),
             Self::Misaligned { line, timestamp } => write!(
@@ -108,6 +111,20 @@ impl std::fmt::Display for IngestError {
 }
 
 impl std::error::Error for IngestError {}
+
+/// Parse, validate, and identify a spooled CSV upload.
+///
+/// The spool keeps the receipt bounded; this step still materializes the
+/// canonical bytes because the object-store contract takes a byte vector.
+///
+/// # Errors
+///
+/// Returns [`IngestError::Io`] when the spool cannot be read, and every
+/// [`IngestError`] that [`ingest`] returns for the content.
+pub fn ingest_file(name: &str, path: &std::path::Path) -> Result<Ingested, IngestError> {
+    let source = std::fs::read(path).map_err(|error| IngestError::Io(error.to_string()))?;
+    ingest(name, &source)
+}
 
 /// Parse, validate, and identify a CSV upload.
 ///

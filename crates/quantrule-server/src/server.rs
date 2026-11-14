@@ -1,60 +1,55 @@
 //! The gateway HTTP surface.
 //!
-//! The gateway serves `/health` and `/version`, seals and reads a hypothesis,
-//! and ingests a dataset into the catalog. The remaining routes arrive with
-//! their services.
+//! The gateway serves `/health`, `/version`, profiles, hypotheses, runs, and the
+//! public model route until their services land. The data surface is proxied:
+//! `/catalog/*`, `/datasets/*`, and `/inspect/*` are forwarded to `qr-data` with
+//! the validated profile header, the method, the path, the query, and a streamed
+//! body. The gateway has no dataset, config, or inspection handler.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::body::Bytes;
-use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
-use axum::extract::{DefaultBodyLimit, Path, Query, State};
-use axum::http::{HeaderMap, StatusCode, Uri, header};
-use axum::response::IntoResponse;
-use axum::routing::{get, post};
+use axum::extract::rejection::JsonRejection;
+use axum::extract::{Path, State};
+use axum::http::{HeaderMap, Request, StatusCode, Uri, header};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{any, get, post};
 use axum::{Json, Router};
 use quantrule_api::{
-    ConfigSummary, DatasetRecord, DatasetSummary, Digest, ErrorCode, ErrorEnvelope, HealthReport,
-    PROFILE_HEADER, ProfileId, QualityReport, RunDetail, RunState, RunSummary, SubmitRunRequest,
-    SubmitRunResponse, TimeframeBars, TimeframeInspection, UploadConfigRequest, VersionInfo,
+    Digest, ErrorCode, ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, RunDetail, RunState,
+    RunSummary, SubmitRunRequest, SubmitRunResponse, VersionInfo,
 };
-use quantrule_data::Timeframe;
 use quantrule_research::{Hypothesis, SealedHypothesis};
-use serde::Deserialize;
-
-use crate::configs::{ConfigCatalog, ConfigRecord, build, scan};
-use crate::data::{
-    CatalogError, DatasetCatalog, Ingested, Inspection, TolerantIngested, ingest, ingest_tolerant,
-    inspect, ladder,
-};
-use crate::profile::{ProfileStore, create_profile, list_profiles};
-use crate::research::HypothesisStore;
-use crate::runs::{CancelOutcome, NewRun, RunStore, derive};
 use quantrule_runtime::adapters::{ObjectStore, Queue};
+use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::clock;
 use quantrule_runtime::config::Config;
 use quantrule_runtime::error::RuntimeError;
 use quantrule_runtime::health::HealthRegistry;
 use quantrule_runtime::queue::{ROUTING_CANCELLED, ROUTING_REQUESTED};
 
+use crate::profile::{ProfileStore, create_profile, list_profiles};
+use crate::research::HypothesisStore;
+use crate::runs::{CancelOutcome, NewRun, RunStore, derive};
+
 /// The services a gateway can reach.
 #[derive(Default)]
 pub struct Services {
     /// Where sealed hypotheses live.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
-    /// Where datasets are catalogued.
-    pub catalog: Option<Arc<dyn DatasetCatalog>>,
-    /// Where the canonical bytes live.
+    /// Where canonical bytes live; the model route reads its input here until
+    /// the model service owns it.
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// Which profiles exist.
     pub profiles: Option<Arc<dyn ProfileStore>>,
-    /// Where run configs are catalogued.
-    pub configs: Option<Arc<dyn ConfigCatalog>>,
     /// Where runs are recorded.
     pub runs: Option<Arc<dyn RunStore>>,
     /// The control-plane queue.
     pub queue: Option<Arc<dyn Queue>>,
+    /// The data service's typed reads.
+    pub data: Option<Arc<dyn DataClient>>,
+    /// The data service's HTTP transport, for the proxy.
+    pub upstream: Option<Arc<HttpServiceClient>>,
 }
 
 /// What a handler needs.
@@ -65,25 +60,20 @@ pub struct AppState {
     pub health: HealthRegistry,
     /// Where sealed hypotheses live; absent when no database is configured.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
-    /// Where datasets are catalogued; absent when no database is configured.
-    pub catalog: Option<Arc<dyn DatasetCatalog>>,
-    /// Where canonical dataset bytes live; absent when no object store is
-    /// configured.
+    /// Where canonical bytes live; absent when no object store is configured.
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// Which profiles exist; absent when no database is configured.
     pub profiles: Option<Arc<dyn ProfileStore>>,
     /// Where the built client lives; absent in a client-less test or probe.
     pub static_dir: Option<PathBuf>,
-    /// Where the read-only run-config mount lives.
-    pub config_root: PathBuf,
-    /// Where run configs are catalogued; absent when no database is configured.
-    pub configs: Option<Arc<dyn ConfigCatalog>>,
     /// Where runs are recorded; absent when no database is configured.
     pub runs: Option<Arc<dyn RunStore>>,
     /// The control-plane queue; absent when the broker is unreachable.
     pub queue: Option<Arc<dyn Queue>>,
-    /// The largest upload the gateway will buffer.
-    pub max_upload: usize,
+    /// The data service's typed reads; absent in a test that does not use them.
+    pub data: Option<Arc<dyn DataClient>>,
+    /// The data service's HTTP transport; absent in a test that does not proxy.
+    pub upstream: Option<Arc<HttpServiceClient>>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -93,15 +83,13 @@ impl std::fmt::Debug for AppState {
             .field("version", &self.version)
             .field("health", &self.health)
             .field("hypotheses", &self.hypotheses.is_some())
-            .field("catalog", &self.catalog.is_some())
             .field("objects", &self.objects.is_some())
             .field("profiles", &self.profiles.is_some())
             .field("static_dir", &self.static_dir)
-            .field("config_root", &self.config_root)
-            .field("configs", &self.configs.is_some())
             .field("runs", &self.runs.is_some())
             .field("queue", &self.queue.is_some())
-            .field("max_upload", &self.max_upload)
+            .field("data", &self.data.is_some())
+            .field("upstream", &self.upstream.is_some())
             .finish()
     }
 }
@@ -120,15 +108,13 @@ impl AppState {
             version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
             health,
             hypotheses: services.hypotheses,
-            catalog: services.catalog,
             objects: services.objects,
             profiles: services.profiles,
             static_dir: config.static_dir.clone(),
-            config_root: config.config_root.clone(),
-            configs: services.configs,
             runs: services.runs,
             queue: services.queue,
-            max_upload: usize::try_from(config.upload_limit_bytes).unwrap_or(usize::MAX),
+            data: services.data,
+            upstream: services.upstream,
         }
     }
 }
@@ -141,6 +127,23 @@ pub(crate) fn failure(code: ErrorCode, message: impl Into<String>) -> ApiFailure
     (status, Json(ErrorEnvelope::of(code, message)))
 }
 
+/// Map a data-service client failure onto the public envelope.
+///
+/// A transport failure is a 503 `service.unavailable`; an undecodable body is a
+/// 500 `internal`. A 4xx the caller did not expect is an internal defect, not a
+/// client error, because the gateway already validated the request.
+pub(crate) fn data_failure(error: ClientError) -> ApiFailure {
+    match &error {
+        ClientError::InvalidResponse { .. } | ClientError::InvalidBase { .. } => {
+            failure(ErrorCode::Internal, error.to_string())
+        }
+        ClientError::Unreachable { .. }
+        | ClientError::Timeout { .. }
+        | ClientError::Unconfigured { .. }
+        | ClientError::Status { .. } => failure(ErrorCode::ServiceUnavailable, error.to_string()),
+    }
+}
+
 /// The API routes, before state and the body limit are attached.
 fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -148,24 +151,15 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/version", get(version))
         .route("/hypotheses", post(create_hypothesis))
         .route("/hypotheses/{fingerprint}", get(get_hypothesis))
-        .route("/catalog/datasets", get(list_datasets).post(create_dataset))
-        .route("/catalog/datasets/tolerant", post(create_dataset_tolerant))
-        .route("/catalog/datasets/{version}", get(get_dataset))
-        .route(
-            "/catalog/configs",
-            get(list_configs)
-                .post(upload_config)
-                .layer(DefaultBodyLimit::max(4 * 1024 * 1024)),
-        )
         .route("/model/compute", post(crate::model::compute_model))
         .route("/runs", get(list_runs).post(submit_run))
         .route("/runs/{id}", get(get_run))
         .route("/runs/{id}/cancel", post(cancel_run))
         .route("/profiles", get(list_profiles).post(create_profile))
-        .route("/inspect/candles", get(inspect_candles))
-        .route("/inspect/timeframes", get(inspect_timeframes))
-        .route("/datasets/{version}/candles", get(get_candles))
-        .route("/datasets/{version}/ladder/{timeframe}", get(get_ladder))
+        .route("/catalog", any(proxy_data))
+        .route("/catalog/{*rest}", any(proxy_data))
+        .route("/datasets/{*rest}", any(proxy_data))
+        .route("/inspect/{*rest}", any(proxy_data))
 }
 
 /// Build the router.
@@ -174,12 +168,10 @@ fn routes() -> Router<Arc<AppState>> {
 /// at the root so a probe and a same-origin operator keep working without the
 /// prefix.
 pub fn router(state: Arc<AppState>) -> Router {
-    let limit = state.max_upload;
     Router::new()
         .merge(routes())
         .nest("/api/v1", routes())
         .fallback(static_client)
-        .layer(DefaultBodyLimit::max(limit))
         .with_state(state)
 }
 
@@ -274,160 +266,6 @@ async fn get_hypothesis(
     }
 }
 
-/// The name an upload carries.
-#[derive(Debug, Deserialize)]
-struct DatasetUpload {
-    name: Option<String>,
-}
-
-async fn create_dataset(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    query: Result<Query<DatasetUpload>, QueryRejection>,
-    payload: Result<Bytes, BytesRejection>,
-) -> Result<(StatusCode, Json<DatasetRecord>), ApiFailure> {
-    let (profile, name, body) = read_dataset_upload(&state, &headers, query, payload).await?;
-    let ingested = ingest(&name, &body)
-        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
-    store_dataset(&state, profile, ingested, None).await
-}
-
-async fn create_dataset_tolerant(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    query: Result<Query<DatasetUpload>, QueryRejection>,
-    payload: Result<Bytes, BytesRejection>,
-) -> Result<(StatusCode, Json<DatasetRecord>), ApiFailure> {
-    let (profile, name, body) = read_dataset_upload(&state, &headers, query, payload).await?;
-    let TolerantIngested { dataset, quality } = ingest_tolerant(&name, &body)
-        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
-    store_dataset(&state, profile, dataset, Some(quality)).await
-}
-
-async fn read_dataset_upload(
-    state: &AppState,
-    headers: &HeaderMap,
-    query: Result<Query<DatasetUpload>, QueryRejection>,
-    payload: Result<Bytes, BytesRejection>,
-) -> Result<(ProfileId, String, Bytes), ApiFailure> {
-    let profile = request_profile(state, headers).await?;
-    let Query(query) = query.map_err(|_| {
-        failure(
-            ErrorCode::DatasetInvalid,
-            "the query is not a dataset upload",
-        )
-    })?;
-    let body = payload.map_err(|rejection| {
-        let status = rejection.into_response().status();
-        if status == StatusCode::PAYLOAD_TOO_LARGE {
-            failure(ErrorCode::UploadTooLarge, "the upload exceeds the limit")
-        } else {
-            failure(ErrorCode::DatasetInvalid, "the upload could not be read")
-        }
-    })?;
-    Ok((profile, query.name.unwrap_or_default(), body))
-}
-
-async fn store_dataset(
-    state: &AppState,
-    profile: ProfileId,
-    ingested: Ingested,
-    quality: Option<QualityReport>,
-) -> Result<(StatusCode, Json<DatasetRecord>), ApiFailure> {
-    let catalog = state
-        .catalog
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
-    let objects = state
-        .objects
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
-    let hex = ingested.data_version.as_hex();
-    let key = format!("datasets/{hex}");
-    let present = objects
-        .exists(&key)
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    if !present {
-        objects
-            .put(&key, ingested.content)
-            .await
-            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    }
-    let record = DatasetRecord {
-        summary: DatasetSummary {
-            data_version: ingested.data_version.clone(),
-            name: ingested.name,
-            candles: ingested.candles,
-            first_bar: ingested.first_bar,
-            last_bar: ingested.last_bar,
-            bytes: ingested.bytes,
-        },
-        object_key: key,
-        sha256: ingested.data_version.clone(),
-        quality,
-        created_at: clock::now_utc(),
-    };
-
-    match catalog.insert(profile.clone(), record.clone()).await {
-        Ok(()) => Ok((StatusCode::CREATED, Json(record))),
-        Err(CatalogError::AlreadyExists) => {
-            let version = record.summary.data_version.to_string();
-            match catalog.get(profile, version).await {
-                Ok(Some(existing)) => Ok((StatusCode::OK, Json(existing))),
-                Ok(None) => Err(failure(
-                    ErrorCode::Internal,
-                    "the catalog refused a duplicate but holds no record",
-                )),
-                Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
-            }
-        }
-        Err(CatalogError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
-    }
-}
-
-/// Upload a run-config bundle, validate it, and catalogue it.
-async fn upload_config(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    payload: Result<Json<UploadConfigRequest>, JsonRejection>,
-) -> Result<(StatusCode, Json<ConfigSummary>), ApiFailure> {
-    let profile = request_profile(&state, &headers).await?;
-    let Json(request) = payload
-        .map_err(|_| failure(ErrorCode::ConfigInvalid, "the body is not a config bundle"))?;
-    let store = state
-        .configs
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
-    let now = clock::now_utc();
-    let staging = std::env::temp_dir();
-    let record =
-        tokio::task::spawn_blocking(move || build(&request.name, &request.files, &now, &staging))
-            .await
-            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
-            .map_err(|error| failure(ErrorCode::ConfigInvalid, error.0))?;
-
-    if let Some(existing) = store
-        .get(profile.clone(), record.config_id.clone())
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
-    {
-        return Ok((StatusCode::OK, Json(existing.summary())));
-    }
-    store
-        .upsert(profile, record.clone())
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    Ok((StatusCode::CREATED, Json(record.summary())))
-}
-
-/// The optional filters on a run list.
-#[derive(Debug, Deserialize)]
-struct RunListQuery {
-    status: Option<String>,
-    limit: Option<usize>,
-}
-
 /// The model identity recorded in a run config, or `none` when absent.
 fn model_version(body: &str) -> String {
     serde_json::from_str::<serde_json::Value>(body)
@@ -450,45 +288,36 @@ async fn submit_run(
     let Json(request) =
         payload.map_err(|_| failure(ErrorCode::RunInvalid, "the body is not a run submission"))?;
 
-    let catalog = state
-        .catalog
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
-    match catalog
-        .get(profile.clone(), request.data_version.to_string())
+    let data = state.data.as_ref().ok_or_else(|| {
+        failure(
+            ErrorCode::ServiceUnavailable,
+            "no data service is configured",
+        )
+    })?;
+    match data
+        .dataset_object(profile.clone(), request.data_version.to_string())
         .await
+        .map_err(data_failure)?
     {
-        Ok(Some(_)) => {}
-        Ok(None) => {
+        Some(_) => {}
+        None => {
             return Err(failure(
                 ErrorCode::DatasetNotFound,
                 format!("dataset {} is unknown", request.data_version),
             ));
         }
-        Err(error) => return Err(failure(ErrorCode::Internal, error.to_string())),
     }
 
-    let configs = state
-        .configs
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
-    let mut config = configs
-        .get(profile.clone(), request.config_id.clone())
+    let config = data
+        .config_bundle(profile.clone(), request.config_id.clone())
         .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    if config.is_none() {
-        sync_configs(&state, &profile).await?;
-        config = configs
-            .get(profile.clone(), request.config_id.clone())
-            .await
-            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    }
-    let config = config.ok_or_else(|| {
-        failure(
-            ErrorCode::ConfigInvalid,
-            format!("config {} is unknown", request.config_id),
-        )
-    })?;
+        .map_err(data_failure)?
+        .ok_or_else(|| {
+            failure(
+                ErrorCode::ConfigInvalid,
+                format!("config {} is unknown", request.config_id),
+            )
+        })?;
     if !config.valid {
         return Err(failure(
             ErrorCode::ConfigInvalid,
@@ -504,7 +333,7 @@ async fn submit_run(
         ));
     };
 
-    let model_version = model_version(&config.body);
+    let model_version = model_version(config.files.get("run.json").map_or("", String::as_str));
     let image_digest = state
         .version
         .image_digest
@@ -570,10 +399,10 @@ async fn submit_run(
 async fn list_runs(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-    query: Result<Query<RunListQuery>, QueryRejection>,
+    query: Result<axum::extract::Query<RunListQuery>, axum::extract::rejection::QueryRejection>,
 ) -> Result<Json<Vec<RunSummary>>, ApiFailure> {
     let profile = request_profile(&state, &headers).await?;
-    let Query(query) =
+    let axum::extract::Query(query) =
         query.map_err(|_| failure(ErrorCode::RunInvalid, "the query is not a run filter"))?;
     let status = match query.status.as_deref() {
         None => None,
@@ -591,6 +420,13 @@ async fn list_runs(
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     Ok(Json(summaries))
+}
+
+/// The optional filters on a run list.
+#[derive(Debug, serde::Deserialize)]
+struct RunListQuery {
+    status: Option<String>,
+    limit: Option<usize>,
 }
 
 fn parse_run_id(id: &str) -> Result<String, ApiFailure> {
@@ -662,257 +498,125 @@ async fn cancel_run(
     }
 }
 
-/// Scan the read-only mount, refresh the catalog, and list every config.
-/// Scan the mount into a profile's config rows.
-pub(crate) async fn sync_configs(state: &AppState, profile: &ProfileId) -> Result<(), ApiFailure> {
-    let store = state
-        .configs
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
-    let root = state.config_root.clone();
-    let now = clock::now_utc();
-    let records = tokio::task::spawn_blocking(move || scan(&root, &now))
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    for record in records {
-        store
-            .upsert(profile.clone(), record)
-            .await
-            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    }
-    Ok(())
-}
-
-async fn list_configs(
+/// Forward a data request to `qr-data`.
+///
+/// The gateway validates the profile, replaces any client-supplied profile
+/// value with the validated one, filters the request headers to the allowlist,
+/// and streams the body. The status, content type, ETag, and error envelope are
+/// passed through unchanged. An unreachable service is `503 service.unavailable`
+/// with no local fallback.
+async fn proxy_data(
     State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> Result<Json<Vec<ConfigSummary>>, ApiFailure> {
-    let profile = request_profile(&state, &headers).await?;
-    sync_configs(&state, &profile).await?;
-    let store = state
-        .configs
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
-    let records = store
-        .list(profile)
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    Ok(Json(records.iter().map(ConfigRecord::summary).collect()))
-}
-
-/// The dataset an inspection names.
-#[derive(Debug, Deserialize)]
-struct InspectQuery {
-    data_version: String,
-}
-
-/// Build or reuse one timeframe's canonical CSV.
-async fn get_ladder(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    Path((version, code)): Path<(String, String)>,
-) -> Result<impl IntoResponse, ApiFailure> {
-    let timeframe = Timeframe::from_code(&code).ok_or_else(|| {
-        failure(
-            ErrorCode::DatasetInvalid,
-            format!("unknown timeframe {code}"),
-        )
-    })?;
-    let (record, source) = load_dataset_object(&state, &headers, &version).await?;
-    if timeframe == Timeframe::M1 {
-        return Ok(csv_response(source));
+    request: Request<axum::body::Body>,
+) -> Response {
+    match forward_data(&state, request).await {
+        Ok(response) => response,
+        Err(failure) => failure.into_response(),
     }
-    let objects = state
-        .objects
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
-    let key = format!(
-        "ladder/{}/full/{}",
-        record.summary.data_version.as_hex(),
-        timeframe.code()
-    );
-    if objects
-        .exists(&key)
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
-    {
-        let cached = objects
-            .get(&key)
-            .await
-            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-        return Ok(csv_response(cached));
-    }
-    let object = ladder(&source, timeframe)
-        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
-    objects
-        .put(&key, object.clone())
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    Ok(csv_response(object))
 }
 
-/// A CSV body with a content ETag.
-fn csv_response(bytes: Vec<u8>) -> impl IntoResponse {
-    let etag = format!("\"{}\"", Digest::sha256(&bytes));
-    (
-        StatusCode::OK,
-        [
-            (header::CONTENT_TYPE, "text/csv".to_owned()),
-            (header::ETAG, etag),
-        ],
-        bytes,
-    )
-}
-
-/// Resolve a dataset and read its stored bytes, verifying the digest.
-async fn load_dataset_object(
+async fn forward_data(
     state: &AppState,
-    headers: &HeaderMap,
-    requested: &str,
-) -> Result<(DatasetRecord, Vec<u8>), ApiFailure> {
-    let profile = request_profile(state, headers).await?;
-    let version = Digest::parse(requested)
-        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?
-        .to_string();
-    let catalog = state
-        .catalog
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
-    let record = match catalog.get(profile, version.clone()).await {
-        Ok(Some(record)) => record,
-        Ok(None) => {
-            return Err(failure(
-                ErrorCode::DatasetNotFound,
-                format!("dataset {version} is unknown"),
-            ));
-        }
-        Err(error) => return Err(failure(ErrorCode::Internal, error.to_string())),
+    request: Request<axum::body::Body>,
+) -> Result<Response, ApiFailure> {
+    let profile = {
+        let headers = request.headers();
+        request_profile(state, headers).await?
     };
-    let objects = state
-        .objects
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
-    let bytes = objects
-        .get(&record.object_key)
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    if Digest::sha256(&bytes) != record.summary.data_version {
+    let Some(upstream) = state.upstream.as_ref() else {
         return Err(failure(
-            ErrorCode::Internal,
-            "the stored object does not match the catalog",
+            ErrorCode::ServiceUnavailable,
+            "the data service is not configured",
+        ));
+    };
+    if !data_path_allowed(request.uri().path()) {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorEnvelope::of(
+                ErrorCode::Internal,
+                "the path is not a data route",
+            )),
         ));
     }
-    Ok((record, bytes))
-}
 
-/// Resolve a dataset and re-read its bytes into a ladder inspection.
-async fn load_inspection(
-    state: &AppState,
-    headers: &HeaderMap,
-    query: Result<Query<InspectQuery>, QueryRejection>,
-) -> Result<(DatasetRecord, Inspection), ApiFailure> {
-    let Query(query) =
-        query.map_err(|_| failure(ErrorCode::DatasetInvalid, "the query names no data_version"))?;
-    let (record, bytes) = load_dataset_object(state, headers, &query.data_version).await?;
-    let inspection =
-        inspect(&bytes).map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
-    Ok((record, inspection))
-}
-
-/// Serve the canonical bytes a run consumes.
-async fn get_candles(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    Path(version): Path<String>,
-) -> Result<impl IntoResponse, ApiFailure> {
-    let (record, bytes) = load_dataset_object(&state, &headers, &version).await?;
-    let etag = format!("\"{}\"", record.summary.data_version);
-    Ok((
-        StatusCode::OK,
-        [
-            (header::CONTENT_TYPE, "text/csv".to_owned()),
-            (header::ETAG, etag),
-        ],
-        bytes,
-    ))
-}
-
-async fn inspect_candles(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    query: Result<Query<InspectQuery>, QueryRejection>,
-) -> Result<Json<DatasetSummary>, ApiFailure> {
-    let (record, _inspection) = load_inspection(&state, &headers, query).await?;
-    Ok(Json(record.summary))
-}
-
-async fn inspect_timeframes(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    query: Result<Query<InspectQuery>, QueryRejection>,
-) -> Result<Json<TimeframeInspection>, ApiFailure> {
-    let (record, inspection) = load_inspection(&state, &headers, query).await?;
-    let timeframes = inspection
-        .timeframes
-        .into_iter()
-        .map(|coverage| TimeframeBars {
-            timeframe: coverage.timeframe.code().to_owned(),
-            bars: coverage.bars,
-            partial_buckets: coverage.partial_buckets,
-            first_bar: coverage
-                .first_bar
-                .and_then(|value| u64::try_from(value).ok()),
-            last_bar: coverage
-                .last_bar
-                .and_then(|value| u64::try_from(value).ok()),
-        })
-        .collect();
-    Ok(Json(TimeframeInspection {
-        data_version: record.summary.data_version,
-        timeframes,
-    }))
-}
-
-async fn list_datasets(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> Result<Json<Vec<DatasetSummary>>, ApiFailure> {
-    let profile = request_profile(&state, &headers).await?;
-    let catalog = state
-        .catalog
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
-    let records = catalog
-        .list(profile)
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    Ok(Json(
-        records.into_iter().map(|record| record.summary).collect(),
-    ))
-}
-
-async fn get_dataset(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    Path(version): Path<String>,
-) -> Result<Json<DatasetRecord>, ApiFailure> {
-    let profile = request_profile(&state, &headers).await?;
-    let catalog = state
-        .catalog
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
-    let version = Digest::parse(&version)
-        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?
-        .to_string();
-    match catalog.get(profile, version.clone()).await {
-        Ok(Some(record)) => Ok(Json(record)),
-        Ok(None) => Err(failure(
-            ErrorCode::DatasetNotFound,
-            format!("dataset {version} is unknown"),
-        )),
-        Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
+    let original = request
+        .extensions()
+        .get::<axum::extract::OriginalUri>()
+        .map(|original| original.0.clone());
+    let (parts, body) = request.into_parts();
+    let mut forwarded = Request::from_parts(parts, body);
+    if let Some(original) = original {
+        *forwarded.uri_mut() = original;
     }
+    let headers = proxy_request_headers(forwarded.headers(), &profile);
+    *forwarded.headers_mut() = headers;
+    let response = upstream
+        .forward(Service::Data, forwarded)
+        .await
+        .map_err(|error| {
+            failure(
+                ErrorCode::ServiceUnavailable,
+                format!("the data service is unavailable: {error}"),
+            )
+        })?;
+    Ok(proxy_response(response))
+}
+
+/// A path the data proxy owns. `/internal/v1` is never in this set.
+fn data_path_allowed(path: &str) -> bool {
+    const PREFIXES: [&str; 3] = ["/catalog", "/datasets", "/inspect"];
+    let lowered = path.to_ascii_lowercase();
+    if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
+        return false;
+    }
+    PREFIXES.iter().any(|prefix| {
+        path.strip_prefix(prefix)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+    }) && !path
+        .split('/')
+        .any(|segment| segment == ".." || segment == ".")
+}
+
+/// The request headers the gateway forwards. Everything else, including a
+/// client-set profile, host, authorization, and internal headers, is dropped.
+fn proxy_request_headers(source: &HeaderMap, profile: &ProfileId) -> HeaderMap {
+    const ALLOWED: [&str; 4] = ["content-type", "accept", "if-none-match", "content-length"];
+    let mut headers = HeaderMap::new();
+    for name in ALLOWED {
+        if let Some(value) = source.get(name) {
+            headers.insert(header::HeaderName::from_static(name), value.clone());
+        }
+    }
+    if let Ok(value) = header::HeaderValue::from_str(profile.as_str()) {
+        headers.insert(
+            header::HeaderName::from_static("x-quantrule-profile"),
+            value,
+        );
+    }
+    headers
+}
+
+/// The response headers the gateway forwards. A hop-by-hop header is dropped.
+fn proxy_response(response: Response<axum::body::Body>) -> Response {
+    const ALLOWED: [&str; 5] = [
+        "content-type",
+        "etag",
+        "last-modified",
+        "cache-control",
+        "content-disposition",
+    ];
+    let (parts, body) = response.into_parts();
+    let mut filtered = HeaderMap::new();
+    for name in ALLOWED {
+        if let Some(value) = parts.headers.get(name) {
+            filtered.insert(header::HeaderName::from_static(name), value.clone());
+        }
+    }
+    let mut response = Response::new(body);
+    *response.status_mut() = parts.status;
+    *response.version_mut() = parts.version;
+    *response.headers_mut() = filtered;
+    response
 }
 
 /// Bind and serve until a termination signal arrives.

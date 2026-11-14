@@ -46,6 +46,9 @@ pub enum ErrorCode {
     /// The broker is unreachable.
     #[serde(rename = "queue.unavailable")]
     QueueUnavailable,
+    /// A downstream service is unreachable or refused the proxied call.
+    #[serde(rename = "service.unavailable")]
+    ServiceUnavailable,
     /// The simulation run is unknown.
     #[serde(rename = "simulation.not_found")]
     SimulationNotFound,
@@ -80,6 +83,7 @@ impl ErrorCode {
             Self::RunConflict => "run.conflict",
             Self::UploadTooLarge => "upload.too_large",
             Self::QueueUnavailable => "queue.unavailable",
+            Self::ServiceUnavailable => "service.unavailable",
             Self::SimulationNotFound => "simulation.not_found",
             Self::SimulationMarkInvalid => "simulation.mark_invalid",
             Self::SimulationCheckIncomplete => "simulation.check_incomplete",
@@ -107,7 +111,7 @@ impl ErrorCode {
             | Self::SimulationNotFound => 404,
             Self::RunConflict | Self::SimulationCheckIncomplete | Self::SimulationLocked => 409,
             Self::UploadTooLarge => 413,
-            Self::QueueUnavailable => 503,
+            Self::QueueUnavailable | Self::ServiceUnavailable => 503,
             Self::Internal => 500,
         }
     }
@@ -163,7 +167,7 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 17] = [
+    const ALL: [ErrorCode; 18] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
         ErrorCode::HypothesisNotFound,
@@ -176,6 +180,7 @@ mod tests {
         ErrorCode::RunConflict,
         ErrorCode::UploadTooLarge,
         ErrorCode::QueueUnavailable,
+        ErrorCode::ServiceUnavailable,
         ErrorCode::SimulationNotFound,
         ErrorCode::SimulationMarkInvalid,
         ErrorCode::SimulationCheckIncomplete,

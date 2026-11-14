@@ -7,7 +7,7 @@ use quantrule_api::Digest;
 use serde_json::{Value, json};
 
 use crate::backtest::worker::WorkerError;
-use crate::configs::ConfigRecord;
+use quantrule_service_api::ConfigBundle;
 
 static NEXT: AtomicU64 = AtomicU64::new(1);
 
@@ -29,11 +29,15 @@ impl Workspace {
     /// Returns [`WorkerError`] for an unsafe bundle path, a missing reference,
     /// a malformed file, or an I/O failure.
     pub fn create(
-        config: &ConfigRecord,
+        config: &ConfigBundle,
         dataset: &[u8],
         data_version: &Digest,
     ) -> Result<Self, WorkerError> {
-        let run_value: Value = serde_json::from_str(&config.body)
+        let run_text = config
+            .files
+            .get("run.json")
+            .ok_or_else(|| WorkerError("the bundle has no run.json".to_owned()))?;
+        let run_value: Value = serde_json::from_str(run_text)
             .map_err(|error| WorkerError(format!("run config is not JSON: {error}")))?;
         let data_key = run_value
             .get("data")
@@ -177,19 +181,45 @@ fn safe_key(relative: &str) -> Result<(), WorkerError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::configs::scan;
-    use crate::data::ingest;
+    use crate::model::series::canonical_csv;
     use quantrule_api::Digest;
     use quantrule_app::config::RunConfig;
+    use std::collections::BTreeMap;
     use std::path::Path as StdPath;
 
-    fn fixture() -> (ConfigRecord, Vec<u8>, Digest) {
-        let root = StdPath::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config");
-        let records = scan(&root, "2026-11-13T00:00:00Z").expect("scan");
-        let config = records
-            .into_iter()
-            .find(|record| record.name == "valid-v4/run.json")
-            .expect("v4 config");
+    fn fixture() -> (ConfigBundle, Vec<u8>, Digest) {
+        let root = StdPath::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid-v4");
+        let run_path = root.join("run.json");
+        let run_text = std::fs::read_to_string(&run_path).expect("run");
+        let config = RunConfig::load(&run_path).expect("config");
+        let value: Value = serde_json::from_str(&run_text).expect("run json");
+        let mut files = BTreeMap::from([("run.json".to_owned(), run_text)]);
+        let pairs = [
+            ("data", &config.paths.data),
+            ("model", &config.paths.model),
+            ("execution", &config.paths.execution),
+            ("portfolio", &config.paths.portfolio),
+        ];
+        for (key, path) in pairs {
+            let relative = value
+                .get(key)
+                .and_then(Value::as_str)
+                .expect("a relative path");
+            files.insert(
+                relative.to_owned(),
+                std::fs::read_to_string(path).expect("config file"),
+            );
+        }
+        if let Some(strategy) = &config.paths.strategy {
+            let relative = value
+                .get("strategy")
+                .and_then(Value::as_str)
+                .expect("a relative strategy path");
+            files.insert(
+                relative.to_owned(),
+                std::fs::read_to_string(strategy).expect("strategy"),
+            );
+        }
         let mut csv = String::from("date,open,high,low,close,volume\n");
         for offset in 0..250 {
             let hour = offset / 60;
@@ -202,8 +232,19 @@ mod tests {
                 open + 0.25
             ));
         }
-        let dataset = ingest("model.csv", csv.as_bytes()).expect("ingest");
-        (config, dataset.content, dataset.data_version)
+        let dataset = canonical_csv(&csv);
+        let version = Digest::sha256(&dataset);
+        (
+            ConfigBundle {
+                config_id: "cfg_test".to_owned(),
+                files,
+                valid: true,
+                message: None,
+                config_hash: Some(version.clone()),
+            },
+            dataset,
+            version,
+        )
     }
 
     #[test]
