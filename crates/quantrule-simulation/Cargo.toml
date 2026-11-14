@@ -3,7 +3,7 @@ name = "quantrule-simulation"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "Chart-first research: deterministic windows and the mark schema"
+description = "Chart-first research: the deterministic simulation domain"
 license = "MIT OR Apache-2.0"
 publish = false
 
