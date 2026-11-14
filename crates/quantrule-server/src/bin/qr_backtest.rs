@@ -1,11 +1,12 @@
 //! The backtest worker binary.
 //!
-//! It consumes `runs.backtest` (`run.requested` and `run.cancelled`), claims the
-//! run through the evidence client, executes it, writes the artifacts to CAS,
-//! records the computed digest, and publishes `run.computed` or `run.failed`.
-//! Evidence finalizes the run. A retryable failure holds the delivery, waits,
-//! and retries in place. It serves no HTTP. P6 moves the orchestration to
-//! `quantrule-backtest-service`.
+//! It consumes `runs.backtest` (`run.requested` and `run.cancelled`), loads the
+//! dataset and config from `qr-data`, obtains the model bundle from `qr-model`,
+//! runs strategy, execution, and portfolio from that bundle, writes the
+//! artifacts to CAS, records the computed digest through `qr-evidence`, and
+//! publishes `run.computed` or `run.failed`. Evidence finalizes the run. A
+//! retryable failure holds the delivery, waits, and retries in place. It serves
+//! no HTTP; P8 moves the crate to `quantrule-backtest-service`.
 
 use std::sync::Arc;
 
@@ -15,7 +16,7 @@ use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
 use quantrule_runtime::client::{
-    ClientError, DataClient, EvidenceClient, HttpServiceClient, Service,
+    ClientError, DataClient, EvidenceClient, HttpServiceClient, ModelClient, Service,
 };
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::queue::{QUEUE_BACKTEST, ROUTING_CANCELLED, ROUTING_REQUESTED};
@@ -39,6 +40,10 @@ async fn main() -> Result<(), RuntimeError> {
         HttpServiceClient::from_env(Service::Data)
             .map_err(|error| service_config_error(Service::Data, error))?,
     );
+    let model: Arc<dyn ModelClient> = Arc::new(
+        HttpServiceClient::from_env(Service::Model)
+            .map_err(|error| service_config_error(Service::Model, error))?,
+    );
     let evidence: Arc<dyn EvidenceClient> = Arc::new(
         HttpServiceClient::from_env(Service::Evidence)
             .map_err(|error| service_config_error(Service::Evidence, error))?,
@@ -46,6 +51,7 @@ async fn main() -> Result<(), RuntimeError> {
     let services = Arc::new(WorkerServices {
         evidence,
         data,
+        model,
         objects: Arc::new(objects) as Arc<dyn ObjectStore>,
         queue: Arc::clone(&queue) as Arc<dyn Queue>,
     });

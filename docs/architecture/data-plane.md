@@ -13,17 +13,19 @@ order.
 
 ```text
 backtest worker (orchestrator)
-  1. GET  data:/datasets/{data_version}/candles      → candle stream
-  2. POST model:/compute {data_version, config_id, timeframes?} → model object ref
-  3. compute strategy, execution, portfolio locally
+  1. GET  data:/internal/v1/configs/{config_id}      → config bundle
+     GET  data:/internal/v1/datasets/{data_version}  → dataset object ref
+  2. POST model:/internal/v1/model/bundle {data_version, config_id} → model bundle manifest
+  3. read the published model bars and candles; run strategy, execution, portfolio
   4. write artifacts to CAS and record the canonical digest
   5. publish run.computed
   6. evidence verifies the manifest and marks the run succeeded
 ```
 
 `data` builds the timeframe ladder and writes it to CAS, so every run of the same
-dataset reuses the same bytes. `model` shards by timeframe. `backtest` is a fold
-over time and is never sharded.
+dataset reuses the same bytes. `model` shards by timeframe and writes the bundle;
+the worker never recomputes a reading. `backtest` is a fold over time and is
+never sharded.
 
 ## 2. Content addressing
 

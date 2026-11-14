@@ -24,8 +24,10 @@ use quantrule_service_api::{ConfigBundle, DatasetObject};
 use crate::adapters::BoxFuture;
 
 mod evidence;
+mod model;
 
 pub use evidence::{EvidenceClient, MemoryEvidence};
+pub use model::{MemoryModel, ModelClient};
 
 /// A service reachable on the internal network.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

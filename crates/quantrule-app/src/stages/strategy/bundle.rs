@@ -15,6 +15,7 @@ use crate::artifact::provenance::{ProvenanceError, StageProvenance};
 use quantrule_backtest::strategy::{
     EventStrategyInput, EventTimeframeView, EventView, context_window_bars,
 };
+use quantrule_data::Candle;
 use quantrule_model::context::ContextBar;
 use quantrule_model::timeframe::ModelStates;
 
@@ -72,6 +73,12 @@ pub struct BarRow {
     pub bar: usize,
     /// The bar's UTC open time.
     pub timestamp: i64,
+    /// The published OHLCV candle the model measured.
+    ///
+    /// The backtest-from-model runner uses the same candle the model consumed,
+    /// so execution sizes and fills against the published bar instead of a
+    /// second read of the source file.
+    pub candle: Candle,
     /// The published discrete states.
     pub states: ModelStates,
     /// The published progression stage, or `None`.
@@ -267,6 +274,11 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBun
     let timeframe = table.column("timeframe_secs")?;
     let bar = table.column("bar")?;
     let timestamp = table.column("timestamp")?;
+    let open = table.column("open")?;
+    let high = table.column("high")?;
+    let low = table.column("low")?;
+    let close = table.column("close")?;
+    let volume = table.optional_column("volume");
     let ema_stack = table.column("ema_stack")?;
     let rsi_zone = table.column("rsi_zone")?;
     let macd_state = table.column("macd_state")?;
@@ -289,6 +301,26 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBun
         let timeframe_secs = table.u64(row, timeframe, index)?;
         let bar_index = table.usize(row, bar, index)?;
         let open_time = table.i64(row, timestamp, index)?;
+        let series_index = u64::try_from(bar_index).map_err(|_| StrategyBundleError::Invalid {
+            path: path.to_path_buf(),
+            message: format!("row {} has a bar index that does not fit u64", index + 2),
+        })?;
+        let candle = Candle::new(
+            series_index,
+            open_time,
+            table.f64(row, open, index)?,
+            table.f64(row, high, index)?,
+            table.f64(row, low, index)?,
+            table.f64(row, close, index)?,
+            match volume {
+                Some(column) => table.optional_f64(row, column, index)?,
+                None => None,
+            },
+        )
+        .map_err(|error| StrategyBundleError::Invalid {
+            path: path.to_path_buf(),
+            message: format!("row {} is not a valid candle: {error}", index + 2),
+        })?;
         let states = ModelStates {
             ema_stack: table.optional_i8(row, ema_stack, index)?,
             rsi_zone: table.optional_i8(row, rsi_zone, index)?,
@@ -327,6 +359,7 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBun
             timeframe_secs,
             bar: bar_index,
             timestamp: open_time,
+            candle,
             states,
             progression_stage: table.optional_i8(row, progression_stage, index)?,
             progression_leg_direction: table.optional_i8(row, progression_direction, index)?,
@@ -499,6 +532,15 @@ impl Table {
         number: usize,
     ) -> Result<i64, StrategyBundleError> {
         parse_value(self.field(row, column, number), number, "a signed integer")
+    }
+
+    fn f64(
+        &self,
+        row: &[String],
+        column: usize,
+        number: usize,
+    ) -> Result<f64, StrategyBundleError> {
+        parse_value(self.field(row, column, number), number, "a finite number")
     }
 
     fn u8(&self, row: &[String], column: usize, number: usize) -> Result<u8, StrategyBundleError> {

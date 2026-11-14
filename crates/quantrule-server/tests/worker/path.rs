@@ -1,303 +1,6 @@
-//! The backtest worker over in-memory services.
+//! Happy-path runs, duplicate delivery, and CAS publication.
 
-mod common;
-
-use common::canonical;
-
-use quantrule_api::{Digest, ProfileId, RunState};
-use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, Queue, QueueError, StoreError};
-use quantrule_runtime::client::{EvidenceClient, MemoryDataClient, MemoryEvidence};
-use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
-use quantrule_service_api::{
-    ConfigBundle, DatasetObject, NewRun, RunManifest, derive_run_id as derive,
-};
-use std::collections::BTreeMap;
-use std::path::Path;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
-
-type Messages = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
-
-#[derive(Clone, Default)]
-struct MemoryQueue {
-    messages: Messages,
-}
-
-impl Queue for MemoryQueue {
-    fn backend(&self) -> Backend {
-        Backend::InProcess
-    }
-
-    fn publish(&self, key: &str, payload: Vec<u8>) -> BoxFuture<Result<(), QueueError>> {
-        let messages = Arc::clone(&self.messages);
-        let key = key.to_owned();
-        Box::pin(async move {
-            messages
-                .lock()
-                .map_err(|_| QueueError("the queue lock is poisoned".to_owned()))?
-                .push((key, payload));
-            Ok(())
-        })
-    }
-}
-
-impl MemoryQueue {
-    fn keys(&self) -> Vec<String> {
-        self.messages
-            .lock()
-            .expect("queue")
-            .iter()
-            .map(|(key, _)| key.clone())
-            .collect()
-    }
-
-    fn payloads(&self, key: &str) -> Vec<Vec<u8>> {
-        self.messages
-            .lock()
-            .expect("queue")
-            .iter()
-            .filter(|(name, _)| name == key)
-            .map(|(_, payload)| payload.clone())
-            .collect()
-    }
-}
-
-struct Fixture {
-    services: WorkerServices,
-    runs: MemoryEvidence,
-    queue: MemoryQueue,
-    objects: common::MemoryObjects,
-    config_id: String,
-    invalid_config_id: String,
-    data_version: Digest,
-    config_hash: Digest,
-    run_id: String,
-}
-
-fn csv() -> Vec<u8> {
-    let mut text = String::new();
-    for offset in 0..250 {
-        let hour = offset / 60;
-        let minute = offset % 60;
-        let open = 100.0 + offset as f64 * 0.01;
-        text.push_str(&format!(
-            "2024-01-01 {hour:02}:{minute:02}:00+00:00,{open},{},{},{},10\n",
-            open + 0.5,
-            open - 0.5,
-            open + 0.25
-        ));
-    }
-    canonical(&text)
-}
-
-fn bundle(root: &Path) -> ConfigBundle {
-    let mut files = BTreeMap::new();
-    for name in [
-        "run.json",
-        "data.json",
-        "model.json",
-        "execution.json",
-        "portfolio.json",
-        "strategy.json",
-    ] {
-        let path = root.join(name);
-        if path.is_file() {
-            files.insert(
-                name.to_owned(),
-                std::fs::read_to_string(path).expect("config file"),
-            );
-        }
-    }
-    ConfigBundle {
-        config_id: "cfg_valid_v4".to_owned(),
-        files,
-        valid: true,
-        message: None,
-        config_hash: Some(Digest::sha256(b"valid-v4")),
-    }
-}
-
-async fn fixture() -> Fixture {
-    let profile = ProfileId::parse("default").expect("profile");
-    let objects = common::MemoryObjects::default();
-    let data = MemoryDataClient::default();
-    let runs = MemoryEvidence::default();
-    let queue = MemoryQueue::default();
-
-    let dataset = csv();
-    let data_version = Digest::sha256(&dataset);
-    let key = format!("datasets/{}", data_version.as_hex());
-    objects.put(&key, dataset.clone()).await.expect("put");
-    data.add_dataset(
-        &profile,
-        DatasetObject {
-            data_version: data_version.clone(),
-            object_key: key,
-            sha256: data_version.clone(),
-            candles: 250,
-            first_bar: 1_704_067_200,
-            last_bar: 1_704_067_200 + 249 * 60,
-            bytes: dataset.len() as u64,
-        },
-    );
-
-    let valid =
-        bundle(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid-v4"));
-    let invalid = ConfigBundle {
-        config_id: "cfg_invalid".to_owned(),
-        files: BTreeMap::from([(
-            "run.json".to_owned(),
-            std::fs::read_to_string(
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("tests/fixtures/config/invalid/run.json"),
-            )
-            .expect("invalid run"),
-        )]),
-        valid: false,
-        message: Some("the bundle has no data.json".to_owned()),
-        config_hash: None,
-    };
-    data.add_config(&profile, valid.clone());
-    data.add_config(&profile, invalid.clone());
-
-    let config_hash = valid.config_hash.clone().expect("hash");
-    let image = Digest::sha256(b"image");
-    let run_id = derive(&data_version, &config_hash, "M1.0", &image);
-    let new_run = NewRun {
-        run_id,
-        config_id: valid.config_id.clone(),
-        data_version: data_version.clone(),
-        config_hash: config_hash.clone(),
-        model_version: "M1.0".to_owned(),
-        image_digest: image,
-        owner: "default".to_owned(),
-        submitted_at: "2026-11-13T00:00:00Z".to_owned(),
-    };
-    let submitted = runs.submit(&profile, new_run).await.expect("submit");
-    let run_id = submitted.run_id.to_string();
-
-    let services = WorkerServices {
-        evidence: Arc::new(runs.clone()),
-        data: Arc::new(data),
-        objects: Arc::new(objects.clone()),
-        queue: Arc::new(queue.clone()),
-    };
-    Fixture {
-        services,
-        runs,
-        queue,
-        objects,
-        config_id: valid.config_id,
-        invalid_config_id: invalid.config_id,
-        data_version,
-        config_hash,
-        run_id,
-    }
-}
-
-#[derive(Clone)]
-struct PutFails {
-    inner: common::MemoryObjects,
-}
-
-impl ObjectStore for PutFails {
-    fn backend(&self) -> Backend {
-        Backend::Filesystem
-    }
-
-    fn put(&self, _key: &str, _bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
-        Box::pin(async { Err(StoreError("the artifact store is full".to_owned())) })
-    }
-
-    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
-        self.inner.get(key)
-    }
-
-    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
-        self.inner.exists(key)
-    }
-}
-
-#[derive(Clone)]
-struct ManifestFails {
-    inner: common::MemoryObjects,
-}
-
-impl ObjectStore for ManifestFails {
-    fn backend(&self) -> Backend {
-        Backend::Filesystem
-    }
-
-    fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
-        if key.ends_with("/manifest.json") {
-            return Box::pin(async {
-                Err(StoreError(
-                    "the worker was killed before publish".to_owned(),
-                ))
-            });
-        }
-        self.inner.put(key, bytes)
-    }
-
-    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
-        self.inner.get(key)
-    }
-
-    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
-        self.inner.exists(key)
-    }
-}
-
-fn services_with_manifest_failure(fixture: &Fixture) -> WorkerServices {
-    WorkerServices {
-        evidence: Arc::clone(&fixture.services.evidence),
-        data: Arc::clone(&fixture.services.data),
-        objects: Arc::new(ManifestFails {
-            inner: fixture.objects.clone(),
-        }),
-        queue: Arc::clone(&fixture.services.queue),
-    }
-}
-
-fn services_with_put_failure(fixture: &Fixture) -> WorkerServices {
-    WorkerServices {
-        evidence: Arc::clone(&fixture.services.evidence),
-        data: Arc::clone(&fixture.services.data),
-        objects: Arc::new(PutFails {
-            inner: fixture.objects.clone(),
-        }),
-        queue: Arc::clone(&fixture.services.queue),
-    }
-}
-
-async fn submit_with(
-    runs: &MemoryEvidence,
-    data_version: Digest,
-    config_id: String,
-    config_hash: Digest,
-    suffix: &str,
-) -> String {
-    let profile = ProfileId::parse("default").expect("profile");
-    let image = Digest::sha256(suffix.as_bytes());
-    let run_id = derive(&data_version, &config_hash, "M1.0", &image);
-    runs.submit(
-        &profile,
-        NewRun {
-            run_id,
-            config_id,
-            data_version,
-            config_hash,
-            model_version: "M1.0".to_owned(),
-            image_digest: image,
-            owner: "default".to_owned(),
-            submitted_at: "2026-11-13T00:00:00Z".to_owned(),
-        },
-    )
-    .await
-    .expect("submit")
-    .run_id
-    .to_string()
-}
+use super::support::*;
 
 #[tokio::test]
 async fn a_queued_run_computes_artifacts_and_digest() {
@@ -364,6 +67,7 @@ async fn a_second_delivery_does_not_execute_again() {
             .expect("first"),
         ProcessOutcome::Computed
     );
+    assert_eq!(fixture.model.calls(), 1);
     let first = fixture
         .runs
         .get_any(fixture.run_id.clone())
@@ -390,6 +94,7 @@ async fn a_second_delivery_does_not_execute_again() {
             .expect("redelivery"),
         ProcessOutcome::Skipped
     );
+    assert_eq!(fixture.model.calls(), 1);
     let third = fixture
         .runs
         .get_any(fixture.run_id.clone())
@@ -425,64 +130,6 @@ async fn a_redelivery_executes_a_run_left_running_by_a_killed_worker() {
     assert_eq!(record.attempts, 2);
     assert!(record.digest.is_some());
     assert!(!record.artifacts.is_empty());
-}
-
-#[derive(Clone)]
-struct StopAfter {
-    inner: common::MemoryObjects,
-    allowed: usize,
-    puts: Arc<Mutex<usize>>,
-}
-
-impl ObjectStore for StopAfter {
-    fn backend(&self) -> Backend {
-        Backend::Filesystem
-    }
-
-    fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
-        let inner = self.inner.clone();
-        let puts = Arc::clone(&self.puts);
-        let allowed = self.allowed;
-        let key = key.to_owned();
-        Box::pin(async move {
-            let accepted = {
-                let mut count = puts
-                    .lock()
-                    .map_err(|_| StoreError("the counter lock is poisoned".to_owned()))?;
-                if *count < allowed {
-                    *count += 1;
-                    true
-                } else {
-                    false
-                }
-            };
-            if !accepted {
-                return Err(StoreError("the worker was stopped".to_owned()));
-            }
-            inner.put(&key, bytes).await
-        })
-    }
-
-    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
-        self.inner.get(key)
-    }
-
-    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
-        self.inner.exists(key)
-    }
-}
-
-fn services_with_stop_after(fixture: &Fixture, allowed: usize) -> WorkerServices {
-    WorkerServices {
-        evidence: Arc::clone(&fixture.services.evidence),
-        data: Arc::clone(&fixture.services.data),
-        objects: Arc::new(StopAfter {
-            inner: fixture.objects.clone(),
-            allowed,
-            puts: Arc::new(Mutex::new(0)),
-        }),
-        queue: Arc::clone(&fixture.services.queue),
-    }
 }
 
 #[tokio::test]
@@ -782,4 +429,46 @@ async fn an_invalid_config_fails_the_run() {
         .expect("record");
     assert_eq!(record.status, RunState::Failed);
     assert!(record.artifacts.is_empty());
+}
+
+#[tokio::test]
+async fn a_queued_run_matches_the_coupled_baseline() {
+    let fixture = fixture().await;
+    // The coupled `backtest run` digest for the 250-minute fixture. It is the
+    // regression oracle: a stage rule, a reading, or an artifact change fails
+    // this line before it can reach a run.
+    assert_eq!(
+        fixture.baseline_digest.to_string(),
+        "sha256:c23925d44bbd1ea35757b3893eb9361e8864ce327e8db3f6e023630cdfaa72bf"
+    );
+    assert_eq!(
+        process(fixture.run_id.clone(), false, &fixture.services)
+            .await
+            .expect("process"),
+        ProcessOutcome::Computed
+    );
+    let record = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.digest.as_ref(), Some(&fixture.baseline_digest));
+    assert_eq!(fixture.model.calls(), 1);
+    assert_eq!(record.artifacts.len(), fixture.baseline.len());
+    for (name, bytes) in &fixture.baseline {
+        let artifact = record
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.name == *name)
+            .unwrap_or_else(|| panic!("the worker has no {name}"));
+        assert_eq!(artifact.bytes, bytes.len() as u64, "{name}");
+        assert_eq!(artifact.sha256, Digest::sha256(bytes), "{name}");
+        let stored = fixture
+            .objects
+            .get(&RunManifest::blob_key(&artifact.sha256))
+            .await
+            .expect("stored artifact");
+        assert_eq!(&stored, bytes, "{name}");
+    }
 }
