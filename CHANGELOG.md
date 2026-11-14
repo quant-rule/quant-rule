@@ -13,6 +13,17 @@ are not treated as releases.
 
 ## [Unreleased]
 
+### Changed
+
+- Reviewer verification (`tools/verify.sh`, `make verify`) now runs on the
+  distributed path. It uploads the checked-in mini fixture and two
+  `verify-mini` configs through the gateway, submits two distinct runs with the
+  same effective parameters, waits for both, recomputes the canonical digest
+  from the run record, cross-checks `/runs/{id}/digest`, and prints one line.
+  A wrong `--expected` exits nonzero. The script holds no engine and calls no
+  local `backtest run`; the two configs differ only in the run name, so their
+  config hashes and run ids differ while their data artifacts must not.
+
 ### Security
 
 - The native command boundary now rejects filesystem paths outside the opened

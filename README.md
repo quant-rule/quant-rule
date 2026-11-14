@@ -62,7 +62,7 @@ target is in
 | `make reset` | Stop and delete volumes, after confirmation |
 | `make logs` / `make ps` | Observe |
 | `make scale N=4` | Scale model and backtest when the six-binary profile is enabled |
-| `make verify` | Fixture digest check; blocked until `tools/verify.sh` moves to the HTTP shell |
+| `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make gate` | Fast tier / full workspace gate |
 | `make remote` / `make token` | Remote exposure and token (DIST-081, #672) |
 | `make backup` / `make restore FILE=…` | Backup and restore (DIST-080, #671) |
@@ -71,6 +71,12 @@ target is in
 `make remote` and `make token` forward to scripts that are not in this tree yet;
 each target exits nonzero and names the owning issue until that script lands.
 `make backup` and `make restore` call `tools/backup.sh` and `tools/restore.sh`.
+
+`make verify` needs a healthy stack (`make up`). It uploads the checked-in
+`config/examples/verify-mini` data and two configs with the same effective
+behavior, submits both runs through the gateway, and prints one canonical
+digest. A reviewer compares the line from a second host with
+`tools/verify.sh --expected "canonical digest sha256:…"`.
 
 Full deployment contract: [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 

@@ -13,7 +13,7 @@ SHELL := /bin/sh
 COMPOSE ?= docker compose
 QR_URL ?= http://localhost:8080
 CONFIG ?= config/examples/verify-mini/run.json
-STRATEGY ?= config/examples/verify-mini/strategy.json
+REPLICA ?= config/examples/verify-mini-replica/run.json
 
 .PHONY: help up down reset logs ps scale gate verify test test-fast test-composed test-parity remote token backup restore dev-web
 
@@ -63,8 +63,8 @@ scale: ## Scale model and backtest (make scale N=4)
 gate: ## Run the full workspace gate
 	./tools/gate.sh
 
-verify: ## Run the fixture and print the canonical digest
-	./tools/verify.sh --config $(CONFIG) --strategy $(STRATEGY)
+verify: ## Run two equivalent submissions and print the digest
+	./tools/verify.sh --config $(CONFIG) --replica $(REPLICA) $(if $(EXPECTED),--expected '$(EXPECTED)')
 
 test: test-fast ## Run the fast unit and integration tier
 test-fast: ## Run the fast unit and integration tier

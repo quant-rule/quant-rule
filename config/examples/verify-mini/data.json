@@ -2,7 +2,7 @@
   "schema": "quantrule.data/v3",
   "source": {
     "kind": "csv",
-    "path": "../../../data/sources/verify-mini.csv"
+    "path": "candles.csv"
   },
   "data_version": "verify-mini",
   "from": "2024-01-01",
