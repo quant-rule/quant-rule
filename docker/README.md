@@ -19,9 +19,10 @@ read-only `config/` mount that the target assigns to the `data` service.
 | `/etc/quantrule-version` | The workspace version, baked at build time |
 | `/usr/local/bin/quantrule-entry` | Selects the binary and answers `--version` |
 
-The six binaries come from four packages: `quantrule-server` carries `gateway`,
-`backtest`, and `evidence`; `quantrule-data-service`, `quantrule-model-service`,
-and `quantrule-simulation-service` carry their own `qr-*` binary.
+The six binaries come from six packages, one per service:
+`quantrule-gateway`, `quantrule-backtest-service`,
+`quantrule-data-service`, `quantrule-model-service`,
+`quantrule-evidence-service`, and `quantrule-simulation-service`.
 
 The runtime is Debian slim with `ca-certificates` and `curl`, and it runs as
 UID 10001. It carries no Python interpreter, no Bun runtime, no Rust toolchain,

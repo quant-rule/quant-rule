@@ -508,3 +508,81 @@ Container health after P7:
 The Windows Docker Desktop and standalone Podman smoke checks remain manual
 notes. The P8 gateway finalization and the permanent object-store registry are
 outside this change.
+
+## Follow-up after P8 (#798) — 2026-11-15 (UTC)
+
+- Merge: #798 merged to `main` at `f1b3f234`; `origin/main` merged into
+  `feat/643-compose` at `72b8f88e`.
+- Intent: keep the image build valid after P8 retired `quantrule-server` and
+  moved `qr-gateway` and `qr-backtest` into their own packages.
+- Boundary: `Dockerfile` and `docker/README.md`, plus this log. No Compose
+  change was needed: the service names, binary names, URLs, healthchecks, and
+  ledgers are unchanged. No Rust, client, Makefile, CI, `services.md`, ADR, or
+  port-parity change.
+- Dockerfile: builds `quantrule-gateway`, `quantrule-backtest-service`,
+  `quantrule-data-service`, `quantrule-model-service`,
+  `quantrule-evidence-service`, and `quantrule-simulation-service` with
+  `--bins`. The six binary names are unchanged. `cargo build --workspace --bins`
+  was rejected because it also builds the shell client, which the image does not
+  carry.
+
+### Verification after P8 — 2026-11-15 (UTC)
+
+| Check | Command | Observed |
+|---|---|---|
+| Compose parse | `docker compose config -q` | exit 0; nine services |
+| Image build | `docker build -t quantrule-server:test .` | exit 0; manifest list `sha256:8940dfc4d596ce1ce24e973a4c2871a6247f7f32160c0d7286717ab939c69810` |
+| Image binaries | `docker run --rm quantrule-server:test sh -c 'ls -1 /usr/local/bin'` | six `qr-*` binaries plus `quantrule-entry` |
+| Clean start | `docker compose down -v && docker compose up -d --build --wait` | exit 0; nine containers |
+| Gateway health | `curl -fsS http://localhost:8080/health` | `state=healthy`; postgres healthy |
+| Data probe | `GET /catalog/datasets` | `200`; `[]` before upload |
+| Dataset upload | `POST /catalog/datasets?name=p8-fixture.csv` | `201`; 250 candles |
+| Model probe | `POST /model/compute` | `200`; timeframes `1m,5m,15m,1h`; 66,022 bytes |
+| Run submission | `POST /runs` | `202`; `run_id sha256:a201c650…`; queued |
+| Run read | `GET /runs/{id}` | `200`; `succeeded`; four stages done; 25 artifacts |
+| Backtest env | `printenv QR_MODEL_URL QR_DATA_URL QR_EVIDENCE_URL` | `http://model:8080`, `http://data:8080`, `http://evidence:8080` |
+| Simulation create | `POST /simulation/runs` | `201`; `sim_ce4f92c96b2ccd20ffa63e74` |
+| Windows | `POST /simulation/runs/{id}/windows` | `200`; one window |
+| Mark | `POST /simulation/runs/{id}/marks` | `201`; `m_c1d5f9a4…` |
+| Marks before restart | `GET .../marks` | `200`; one human mark, chart 0, bar 80, long |
+| Restart | `docker compose restart simulation` | healthy after 6 s; migrations `applied=0` |
+| Marks after restart | `GET .../marks` | `200`; the same mark and note persisted |
+| Profile isolation | `GET .../marks` and `GET .../{id}` with `alpha` | both `404 simulation.not_found` |
+| Ledgers | `gateway`, `catalog`, `runs`, `simulation` | `7`; `1–5`; `2,4,5,8,9,13`; `14` |
+| Migration ordering | stack logs | four migrators applied; no deadlock or panic |
+| No Python | `docker run --rm quantrule-server:test sh -c 'command -v python3'` | empty |
+| No Bun | `docker run --rm quantrule-server:test sh -c 'command -v bun'` | empty |
+| No `.py` | `docker run --rm quantrule-server:test sh -c 'find / -name "*.py" 2>/dev/null \| head'` | empty |
+| One-command path | `make up` | exit 0; `QuantRule v0.3.0 ready → http://localhost:8080` |
+| Workspace gate | `tools/gate.sh` | exit 0; `workspace gate passed` |
+
+Container health after P8:
+
+| Container | State |
+|---|---|
+| `gateway` | healthy |
+| `data` | healthy |
+| `model` | healthy |
+| `evidence` | healthy |
+| `simulation` | healthy |
+| `backtest` | up; no HTTP probe |
+| `postgres` | healthy |
+| `minio` | healthy |
+| `rabbitmq` | healthy |
+
+### Learning and rejected alternatives after P8
+
+- The retired crate is a build-time fact: naming `quantrule-server` would fail
+  the image build. The six packages are now one per service.
+- Rejected: `cargo build --workspace --bins`. It builds the shell client, which
+  is not an image target; the explicit package list keeps the image to the six
+  service binaries.
+- The image tag `quantrule-server` is the artifact name, not the retired crate;
+  changing it is a release decision outside this issue.
+- No Compose change was needed: P8 preserved the binary names, service URLs, and
+  gateway migration behavior.
+
+### Not verified here
+
+The Windows Docker Desktop and standalone Podman smoke checks remain manual
+notes. A permanent object-store registry remains a human decision.

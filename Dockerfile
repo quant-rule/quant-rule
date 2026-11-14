@@ -2,9 +2,8 @@
 
 # The QuantRule server image: one digest, one runtime, every service binary and
 # the built client. The image carries no Python interpreter, no Bun runtime, and
-# no repository tooling. The six service binaries span five packages:
-# `quantrule-server` (gateway, backtest) and the four `-service` crates (data,
-# model, evidence, simulation).
+# no repository tooling. The six service binaries span six packages, one per
+# service: gateway, backtest, data, model, evidence, and simulation.
 #
 # The host contract is linux/amd64. Windows and macOS run the same image through
 # Docker Desktop's Linux backend.
@@ -38,7 +37,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/src/target \
     cargo build --release --locked \
-        -p quantrule-server \
+        -p quantrule-gateway \
+        -p quantrule-backtest-service \
         -p quantrule-data-service \
         -p quantrule-model-service \
         -p quantrule-evidence-service \
