@@ -52,6 +52,11 @@ never renders a label, and never returns a raw engine type.
 | GET | `/inspect/timeframes` | `data_version` | bars and partial buckets per timeframe |
 | GET | `/inspect/events` | `data_version`, `timeframe` | event batch |
 
+The browser client checks `/version` and `/health` and reports `connected`,
+`degraded`, `mismatch`, or `unreachable`. A different API version is a mismatch:
+the client shows the version it expected and does not use the connection. A
+failed call is `unreachable`, never a stale healthy state.
+
 ## 3. Submission
 
 ```json

@@ -1,8 +1,9 @@
 import { call } from "./api";
+import { classify, type ConnectionState, EXPECTED_API } from "./connection";
 import type { HealthReport, VersionInfo } from "./types";
 
-/** What the client knows about the gateway. */
-export type ConnectionState = "unknown" | "connected" | "degraded" | "unreachable";
+export { EXPECTED_API };
+export type { ConnectionState };
 
 export interface Connection {
   state: ConnectionState;
@@ -27,7 +28,7 @@ export function connection(): Connection {
  * Ask the gateway what it is.
  *
  * A failed call is a state, not an exception: the screen shows `unreachable`
- * and no stale data.
+ * and no stale data. A different API version is `mismatch`, not `connected`.
  */
 export async function refresh(): Promise<void> {
   try {
@@ -35,11 +36,12 @@ export async function refresh(): Promise<void> {
       call<VersionInfo>("/version"),
       call<HealthReport>("/health"),
     ]);
+    const verdict = classify(version, health);
     current = {
-      state: health.state === "healthy" ? "connected" : "degraded",
+      state: verdict.state,
       version,
       health,
-      error: null,
+      error: verdict.error,
     };
   } catch (error) {
     current = {

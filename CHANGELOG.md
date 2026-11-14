@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- The browser client distinguishes a gateway API mismatch from a healthy
+  connection and shows the version it expected; a shared Playwright fixture
+  router drives the connected, mismatch, degraded, and unreachable tests.
 - The control-plane queue topology: `runs.backtest`, `runs.evidence`, and
   `runs.dead-letter` are named durable queues. A run records its attempt count;
   a retryable failure holds the delivery for 5 s, then 25 s; the third failure

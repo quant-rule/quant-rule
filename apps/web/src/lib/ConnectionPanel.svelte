@@ -8,9 +8,11 @@
       ? "connected"
       : state.state === "degraded"
         ? "degraded"
-        : state.state === "unreachable"
-          ? "unreachable"
-          : "unknown",
+        : state.state === "mismatch"
+          ? "version mismatch"
+          : state.state === "unreachable"
+            ? "unreachable"
+            : "unknown",
   );
 
   const klass = $derived(
@@ -18,9 +20,11 @@
       ? "ok"
       : state.state === "degraded"
         ? "warn"
-        : state.state === "unreachable"
+        : state.state === "mismatch"
           ? "error"
-          : "",
+          : state.state === "unreachable"
+            ? "error"
+            : "",
   );
 </script>
 
