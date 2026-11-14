@@ -6,6 +6,7 @@
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
   import RunsPanel from "./lib/RunsPanel.svelte";
   import ProfileSwitcher from "./lib/ProfileSwitcher.svelte";
+  import SimulationChartHarness from "./lib/SimulationChartHarness.svelte";
   import { refresh } from "./lib/connection.svelte";
   import { load as loadProfiles } from "./lib/profiles.svelte";
 
@@ -29,13 +30,20 @@
   ];
 
   let section = $state<Section>("connection");
+  const fixture = new URLSearchParams(window.location.search).get("fixture");
 
   onMount(() => {
+    if (fixture === "simulation-chart") {
+      return;
+    }
     void refresh();
     void loadProfiles();
   });
 </script>
 
+{#if fixture === "simulation-chart"}
+  <SimulationChartHarness />
+{:else}
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
@@ -90,6 +98,7 @@
     </section>
   </main>
 </div>
+{/if}
 
 <style>
   .app {

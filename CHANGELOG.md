@@ -62,6 +62,13 @@ are not treated as releases.
 - The client label table is generated from `docs/registry/indicators.json` into
   `apps/web/src/lib/labels.generated.ts`; `check_labels` fails the gate when the
   checked-in table drifts, so every numeric code has one word mapping.
+- The simulation chart is a client-side SVG renderer for candles, volume,
+  EMA 20/50/200, one indicator panel, event markers, confirmed levels, and a
+  mark layer. Pointer position maps to a bar through the rendered scale, keys
+  1–8 capture the eight entry/exit × good/bad × long/short mark classes, `Z`
+  undoes the last session mark, and a note is capped at 500 characters. Marks
+  post through one seam against `/simulation/runs/{id}/marks`; the browser test
+  mocks that contract until the `simulation` service ships.
 - The browser client distinguishes a gateway API mismatch from a healthy
   connection and shows the version it expected; a shared Playwright fixture
   router drives the connected, mismatch, degraded, and unreachable tests.
