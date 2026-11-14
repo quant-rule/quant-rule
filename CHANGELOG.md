@@ -22,6 +22,14 @@ are not treated as releases.
 
 ### Added
 
+- Backup and restore over both durable stores: `tools/backup.sh` writes one
+  timestamped archive with a custom-format Postgres dump, an object mirror of
+  the bucket, and a manifest carrying the SHA-256 of every payload file plus a
+  detached archive digest; `tools/restore.sh` verifies every hash before it
+  writes, refuses a corrupt or incomplete archive, refuses a non-empty stack
+  without `--force`, and writes objects before rows. The opt-in
+  `tools/test_backup.sh` proves a byte-identical round trip on an isolated
+  Compose project.
 - The single server image and the Compose stack: one `quantrule-server` image
   carries `qr-gateway`, `qr-backtest`, `qr-evidence`, and the built client, and
   `compose.yaml` defines the nine-container topology with one published port,
