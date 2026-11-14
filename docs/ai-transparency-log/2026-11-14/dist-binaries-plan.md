@@ -77,3 +77,51 @@ PR changes no behavior.
 - Opening a code PR or closing any issue. The plan is the only deliverable.
 
 No credentials, secrets, or sensitive operational data were recorded.
+
+## Revision — Option B selected — 2026-11-14 (UTC)
+
+- Decision: the human selected **Option B — full split** on 2026-11-14. Option A
+  (six binaries, gateway proxies data and model, worker fast path recorded) is
+  recorded as rejected because it leaves the data plane and schema ownership
+  false. Option C (narrow the claim to three binaries) is recorded as rejected
+  because it retracts ADR-01, ADR-04, and ADR-09.
+- Revised scope: the plan is now the B implementation plan, not a comparison.
+  It defines the target crate graph, the exact `quantrule-server` module moves,
+  the gateway proxy surface, the worker HTTP path, the #649 successor, schema
+  ownership, per-service migrations, internal contracts, transport, health,
+  cancellation, retries, streamed uploads, phases, file ownership, and
+  downstream gates.
+- The six-binary inventory is now milestone M1 inside B. It unblocks the #643
+  binary prerequisite but is explicitly not the end state.
+- Deferred: embedded desktop v1.1, the shell HTTP rewrite (#668), simulation
+  screens (#681-#683), streamed artifact downloads, and a `quantrule-app` crate
+  split. The compute services remain thin adapters over the shared app crate;
+  the gateway is the compile-time isolated binary.
+- Verification: `python3 tools/check_execution_plans.py`,
+  `python3 tools/check_doc_length.py`, `python3 tools/check_links.py`, and
+  `git diff --check` were run on the revised plan. The behavioral rows remain
+  Pending because this PR changes no behavior.
+- Parked S1 input: `/home/zantgo/Proyectos/quant-rule--646-gateway` was inspected
+  read-only. It has uncommitted bearer-seam, route-module, artifact/digest,
+  event-inspection, profile-count, migration-13, and route-table work. B maps it
+  as a reuse candidate in P3, P5, and P8; it is not landed and is not evidence.
+  The plan requires a salvage map before P3 and a re-test in the owning service
+  crate for every reused hunk.
+- Learning: B is not an incremental route change. The three hard parts are the
+  model bundle protocol (the public model route returns a report, while the
+  worker needs the staged model inputs), run-record ownership (the gateway and
+  worker currently write the `runs` schema), and the worker's new staged
+  application use case. The six-binary milestone is easy by comparison.
+- Rejected: reopening #649 (a Done board item stays Done; the successor is a new
+  issue), inventing an issue number, implementing any phase in this PR, creating
+  the issue, or merging the plan PR.
+- Correction: the first plan's A recommendation treated the six-binary inventory
+  as the goal. B treats it as a milestone and makes the data plane, schema
+  ownership, and simulation surface the acceptance frame.
+- Parked S1: the `#646` worktree carries uncommitted gateway work. The plan maps
+  it to P3 (data routes and events), P5 (run artifacts, digest, count, migration
+  13), and P8 (bearer seam, route table, boundary tests). It is a reuse
+  candidate, not landed. Copying it wholesale would duplicate routes and import
+  the mixed `AppState` into services that no longer have it.
+
+No credentials, secrets, or sensitive operational data were recorded.
