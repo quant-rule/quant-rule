@@ -3,12 +3,12 @@
   "ports": [
     {
       "id": "PORT-001",
-      "source": "tools/simulation/meta.py, check.py, exit_lab.py, window_select.py, marks.py, oracle.py, review.py at commit b63b9015",
+      "source": "tools/simulation/{bundle,window_select,marks,oracle,review,check,exit_lab,meta}.py at commit 0814a129",
       "target": "crates/quantrule-simulation/src/meta.rs",
       "test": "crates/quantrule-simulation/tests/port_parity.rs",
       "fixture": "docs/port-parity/PORT-001.golden.json",
       "status": "active",
-      "notes": "First registered port. The fixture covers the meta stage in full and the window, marks, oracle, review, check, and exit reductions on the checked-in mini bundle. Historical SIM-01..SIM-10 runs used an external data root that is not in the repository."
+      "notes": "The simulation domain: window selection, marks, oracle, review, check, exit lab, and meta. 45 cases cover SIM-01..SIM-10 plus the empty-window, single-bar, equal-excursion, same-bar target/stop, unmarked-check, and empty-review edges. The bulky shared stage inputs live in PORT-001.datasets.json beside the fixture; every ported module carries the port-parity marker."
     }
   ]
 }

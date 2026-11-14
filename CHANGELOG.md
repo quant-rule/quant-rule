@@ -46,6 +46,15 @@ are not treated as releases.
   recomputed. The coupled baseline's artifact names, bytes, and canonical
   digest are unchanged, and the worker checks cancellation after the claim,
   before the model call, before the backtest, and before the first CAS write.
+- `qr-simulation` serves the eleven documented simulation endpoints from its own
+  `simulation` schema. Runs and marks are scoped by the injected profile, mark
+  writes are transactional against the decision lock, timestamps are
+  server-assigned, and the human and oracle marks mirror to annotator-schema
+  CSV objects. Window selection, the oracle, and the check use the faithful
+  `quantrule-simulation` domain crate unchanged; oracle and check are
+  idempotent for the same inputs digest. The gateway proxies `/simulation/*`
+  with the P3/P4/P5 boundary and keeps no simulation store. The service has no
+  queue, no run artifact, no model compute, and no strategy input.
 - `quantrule-runtime` gains the concrete HTTP service transport and a
   `DataClient` with an in-memory fake. The runtime migration runner takes a
   ledger schema, so the catalog, gateway, and run migration lists record under
@@ -112,10 +121,10 @@ are not treated as releases.
 - The simulation research plane gains its meta-label stage: a human entry is
   labelled by its forward path, grouped by EMA stack and ATR bucket, and the
   best cell with enough marks is checked on an unmarked window. `PORT-001`
-  registers the first port-parity fixture, captured from the Python harness at
-  `b63b9015` on the checked-in mini bundle; the fixture covers the meta stage in
-  full and the window, marks, oracle, review, check, and exit reductions, with
-  each omitted comparison named in the case notes.
+  registers the simulation domain port from the Python harness at `0814a129`:
+  45 real-data cases cover SIM-01..SIM-10 and the named edge cases, every number
+  is compared to `1e-9`, and the bulky shared inputs live in
+  `docs/port-parity/PORT-001.datasets.json`.
 - The desktop shell (`apps/desktop-shell`) is a Tauri 2 window over the gateway
   URL. It remembers the gateway, leaves the active profile to the web client,
   checks GitHub Releases for a newer shell, and shows the bundled client only as
@@ -291,6 +300,13 @@ are not treated as releases.
 
 ### Changed
 
+- The simulation domain is a faithful Rust port of the Python harness. Window
+  selection reproduces the reference's seeded MT19937 year-stratified event
+  sample, marks validation and the CSV round-trip match the annotator schema,
+  and the oracle, review, check, exit lab, and meta stages reproduce the
+  reference numbers. The earlier equal-span selector, forward-return oracle,
+  two-set review, and three-policy exit lab are gone. `PORT-001` compares the
+  full domain across SIM-01..SIM-10 to `1e-9`.
 - The shell depends only on `quantrule-api`, `ureq`, and `serde_json`. Local
   source fetch and local stage execution are gone; a run is submitted to the
   gateway and read back through the run and inspection routes.

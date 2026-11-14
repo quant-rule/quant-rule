@@ -1,13 +1,9 @@
 use super::*;
+use crate::bundle::Bar;
+use crate::marks::{Mark, MarkAction, MarkQuality, Side};
 
 fn bar(index: u64, close: f64) -> Bar {
     Bar {
-        bar: index,
-        timestamp: 1_514_764_800 + index as i64 * 900,
-        open: close,
-        high: close + 0.5,
-        low: close - 0.5,
-        close,
         atr: Some(1.0),
         ema_stack: Some(1),
         rsi_zone: Some(0),
@@ -18,6 +14,14 @@ fn bar(index: u64, close: f64) -> Bar {
         upper_wick: Some(0.2),
         lower_wick: Some(0.3),
         body_ratio: Some(0.5),
+        ..Bar::from_prices(
+            index,
+            1_514_764_800 + index as i64 * 900,
+            close,
+            close + 0.5,
+            close - 0.5,
+            close,
+        )
     }
 }
 
@@ -27,17 +31,24 @@ fn bars(count: usize) -> Vec<Bar> {
         .collect()
 }
 
-fn mark(chart: &str, moment: i64, bar: u64, side: Side) -> Mark {
+fn bundle(bars: Vec<Bar>) -> Bundle {
+    Bundle::new(900, bars, Vec::new())
+}
+
+fn mark(chart: &str, time: &str, side: Side) -> Mark {
     Mark {
         chart: chart.to_owned(),
-        marked_time_utc: "2018-01-01T00:00:00Z".to_owned(),
-        moment,
-        bar,
+        bar: 0,
+        marked_time_utc: time.to_owned(),
         action: MarkAction::Entry,
         quality: MarkQuality::Good,
         side,
         note: String::new(),
     }
+}
+
+fn at(seconds: i64) -> String {
+    crate::bundle::utc_from_seconds(seconds)
 }
 
 #[test]
@@ -61,8 +72,7 @@ fn a_missing_atr_has_no_path() {
 
 #[test]
 fn a_single_bar_has_no_forward_path() {
-    let bars = bars(1);
-    assert!(forward_path(&bars, 0, Side::Long, 5).is_none());
+    assert!(forward_path(&bars(1), 0, Side::Long, 5).is_none());
 }
 
 #[test]
@@ -96,10 +106,10 @@ fn atr_buckets_split_at_one() {
 #[test]
 fn label_marks_labels_entries_and_skips_exits() {
     let bars = bars(80);
-    let mut exit = mark("chart", bars[10].timestamp, 10, Side::Long);
+    let mut exit = mark("chart", &at(bars[10].timestamp), Side::Long);
     exit.action = MarkAction::Exit;
-    let marks = [mark("chart", bars[10].timestamp, 10, Side::Long), exit];
-    let (rows, unmatched) = label_marks(&bars, &marks, 50);
+    let marks = [mark("chart", &at(bars[10].timestamp), Side::Long), exit];
+    let (rows, unmatched) = label_marks(&bundle(bars), &marks, 50);
     assert_eq!(rows.len(), 1);
     assert_eq!(unmatched, 0);
     assert_eq!(rows[0].quality, MarkQuality::Good);
@@ -110,8 +120,8 @@ fn label_marks_labels_entries_and_skips_exits() {
 #[test]
 fn a_mark_outside_the_max_distance_is_unmatched() {
     let bars = bars(80);
-    let marks = [mark("chart", 0, 0, Side::Long)];
-    let (rows, unmatched) = label_marks(&bars, &marks, 50);
+    let marks = [mark("chart", &at(0), Side::Long)];
+    let (rows, unmatched) = label_marks(&bundle(bars), &marks, 50);
     assert!(rows.is_empty());
     assert_eq!(unmatched, 1);
 }
@@ -120,11 +130,11 @@ fn a_mark_outside_the_max_distance_is_unmatched() {
 fn the_cell_table_is_sorted_and_grouped() {
     let bars = bars(20);
     let marks = [
-        mark("chart", bars[2].timestamp, 2, Side::Long),
-        mark("chart", bars[3].timestamp, 3, Side::Long),
-        mark("chart", bars[4].timestamp, 4, Side::Short),
+        mark("chart", &at(bars[2].timestamp), Side::Long),
+        mark("chart", &at(bars[3].timestamp), Side::Long),
+        mark("chart", &at(bars[4].timestamp), Side::Short),
     ];
-    let (rows, _) = label_marks(&bars, &marks, 10);
+    let (rows, _) = label_marks(&bundle(bars), &marks, 10);
     let cells = cell_table(&rows);
     assert_eq!(cells.len(), 2);
     assert_eq!(cells[0].side, Side::Long);
@@ -175,7 +185,7 @@ fn the_check_filters_by_the_cell_context() {
     };
     let from = bars[0].timestamp;
     let to = bars[20].timestamp;
-    let (filtered, control) = check_bars(&bars, &cell, from, to, 10);
+    let (filtered, control) = check_rows(&bars, &cell, from, to, 10);
     assert_eq!(filtered.len(), 21);
     assert_eq!(control.len(), 21);
 }
@@ -201,12 +211,12 @@ fn an_unmarked_check_set_is_underpowered() {
 }
 
 #[test]
-fn reordering_the_marks_does_not_change_the_result() {
+fn reordering_the_marks_keeps_the_tables() {
     let bars = bars(80);
     let marks = [
-        mark("chart", bars[2].timestamp, 2, Side::Long),
-        mark("chart", bars[3].timestamp, 3, Side::Short),
-        mark("chart", bars[4].timestamp, 4, Side::Long),
+        mark("chart", &at(bars[2].timestamp), Side::Long),
+        mark("chart", &at(bars[3].timestamp), Side::Short),
+        mark("chart", &at(bars[4].timestamp), Side::Long),
     ];
     let mut reversed = marks.to_vec();
     reversed.reverse();
@@ -218,18 +228,22 @@ fn reordering_the_marks_does_not_change_the_result() {
         horizon: 10,
         min_cell: 1,
     };
-    let first = build(&bars, &marks, &config).expect("first");
-    let second = build(&bars, &reversed, &config).expect("second");
-    assert_eq!(first.rows, second.rows);
+    let first = build(&bundle(bars.clone()), &marks, &config).expect("first");
+    let second = build(&bundle(bars), &reversed, &config).expect("second");
     assert_eq!(first.cells, second.cells);
     assert_eq!(first.candidate, second.candidate);
+    assert_eq!(first.check, second.check);
+    let mut first_rows = first.rows;
+    let mut second_rows = second.rows;
+    first_rows.sort_by_key(|row| (row.bar, row.side));
+    second_rows.sort_by_key(|row| (row.bar, row.side));
+    assert_eq!(first_rows, second_rows);
 }
 
 #[test]
 fn no_marks_means_no_candidate() {
-    let bars = bars(80);
     let config = Config::new(0, i64::MAX, 0, i64::MAX, 50);
-    let result = build(&bars, &[], &config).expect("build");
+    let result = build(&bundle(bars(80)), &[], &config).expect("build");
     assert!(result.rows.is_empty());
     assert_eq!(result.unmatched, 0);
     assert!(result.cells.is_empty());
@@ -239,9 +253,9 @@ fn no_marks_means_no_candidate() {
 
 #[test]
 fn the_half_year_bucket_is_utc() {
-    assert_eq!(half_year(1_514_764_800), "2018H1");
-    assert_eq!(half_year(1_530_403_200), "2018H2");
-    assert_eq!(half_year(0), "1970H1");
+    assert_eq!(crate::bundle::half_year(1_514_764_800), "2018H1");
+    assert_eq!(crate::bundle::half_year(1_530_403_200), "2018H2");
+    assert_eq!(crate::bundle::half_year(0), "1970H1");
 }
 
 #[test]
@@ -249,5 +263,8 @@ fn a_non_finite_bar_is_refused() {
     let mut bars = bars(10);
     bars[0].close = f64::NAN;
     let config = Config::new(0, i64::MAX, 0, i64::MAX, 5);
-    assert_eq!(build(&bars, &[], &config), Err(MetaError::NotFinite));
+    assert_eq!(
+        build(&bundle(bars), &[], &config),
+        Err(MetaError::NotFinite)
+    );
 }

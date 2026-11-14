@@ -2849,7 +2849,6 @@ dependencies = [
 name = "quantrule-simulation"
 version = "0.3.0"
 dependencies = [
- "quantrule-research",
  "serde",
  "serde_json",
 ]
@@ -2861,9 +2860,13 @@ dependencies = [
  "axum",
  "quantrule-api",
  "quantrule-runtime",
+ "quantrule-simulation",
+ "serde",
  "serde_json",
+ "sqlx",
  "tokio",
  "tower",
+ "tracing",
 ]
 
 [[package]]
