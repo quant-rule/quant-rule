@@ -67,8 +67,12 @@ service-to-service contract is a new `quantrule.internal/v1`.
 | Worker fast path | `backtest/worker.rs:189-196` calls `AppService::run_backtest` in process |
 | Simulation | No binary and no route; `quantrule-simulation` is not a `quantrule-server` dependency; #679 and #680 are open |
 | Schemas | `catalog`, `runs`, `research`, and `simulation` in one database; profiles in `catalog.profiles`; one `public.schema_migrations` ledger |
-| Documents | ADR-04 and `services.md` say six binaries; `module-map.md:19` says "(5 binaries)"; `architecture/README.md:72` says "five deployable responsibilities"; `deployment.md:115` says "all eight" containers while §2 lists nine |
+| Documents | ADR-04 and `services.md` say six binaries; `module-map.md:19` says "(5 binaries)"; `architecture/README.md:72` says "five deployable responsibilities"; `deployment.md:129` says "all eight" containers while §2 lists nine |
 | Image stack | #772 merged at `f3e258f0`: one image and a Compose stack with six default containers; `data`, `model`, and `simulation` sit behind the off-by-default `six-binaries` profile; #643 stays open |
+| Shell | #771 merged; #668 is Done. `quantrule-shell` is a thin `quantrule.api/v1` client over `ureq`; it has no engine or app dependency. B must not break its 27 commands |
+| Simulation parity | #770 merged the meta stage and `PORT-001`; #679 stays open on historical SIM-01..SIM-10 parity |
+| Simulation chart | #769 merged the client SVG chart and mark-capture slice; #681 stays open on the real backend round trip, which needs #680. #682 and #683 remain open |
+| Desktop shell | #773 merged the Linux AppImage slice; #691 stays open on the Windows NSIS build and published assets, which need #673 and #674 |
 | Migration lock | #772 found the runtime acquires a session-level advisory lock and releases it through the pool; three migrating services deadlocked. Compose makes the gateway the sole migrator as a workaround, not a fix |
 | Object store | MinIO withdrew its public images on 2026-09-11. #772 pins `bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c` as an amd64 stopgap, overridable with `QR_OBJECT_STORE_IMAGE`; a permanent registry is a human decision |
 | Hidden closure | #647 and #648 closed as gateway routes, not binaries; #751 says the model route is served by the gateway "until the six binaries are split"; #649's plan excluded the split |
@@ -118,11 +122,16 @@ service-to-service contract is a new `quantrule.internal/v1`.
 
 ### 4.2 Excluded
 
-- `Dockerfile`, compose, image digest, and `make up` (#643, #644, #673).
+- `Dockerfile`, compose, image digest, and `make up` (#643, #644, #673); these
+  are parallel release work, not B.
 - The v1.0.0 release itself (#674).
-- The shell's HTTP rewrite (#668) and client parity tests (#669, #670); the
-  server side is ready at P8, the shell migration is a parallel issue.
-- Simulation screens (#681-#683); the service contract is P7.
+- The shell HTTP client (#668), which is Done via #771; B preserves its gateway
+  contract and edits no shell file. Client parity tests (#669, #670) remain
+  parallel.
+- Simulation client work: the chart slice (#681) is merged via #769; the screens
+  (#682, #683) remain parallel. B implements the #680 service only.
+- The desktop shell (#691); #773 merged the Linux slice, and Windows and publish
+  remain #673/#674. B implements no desktop code.
 - The embedded desktop profile, SQLite, filesystem CAS, and in-process queue
   (ADR-12, #692-#695).
 - A crate split of `quantrule-app`. Services remain thin adapters over the shared
@@ -137,11 +146,23 @@ service-to-service contract is a new `quantrule.internal/v1`.
 | Deferred | Why | Owner |
 |---|---|---|
 | Embedded desktop profile (SQLite, filesystem CAS, in-process queue) | v1.1 profile, not the distributed server | ADR-12, #692-#695 |
-| Shell HTTP client | Parallel client migration; the API is ready at P8 | #668 |
-| Simulation chart screens | Depend on the P7 service contract | #681-#683 |
 | Streaming artifact downloads | v1.0.0 buffers the object; uploads stream. Recorded limitation | Follow-up |
 | `quantrule-app` crate split | The gateway isolation is compile-time; the compute services share the app crate by design | Follow-up if required |
 | Multi-host scheduling, HA, autoscaling | Later deployment decisions | Release & Operations |
+
+### 4.4 Parallel work in v1.0.0
+
+These streams are in v1.0.0 and parallel to B. B does not implement them, and
+they are not deferred.
+
+| Work | State on 2026-11-14 | Relationship to B |
+|---|---|---|
+| Shell HTTP client (#668) | **Done** via #771; `quantrule-shell` depends only on `quantrule-api`, `serde_json`, and `ureq`; 27 commands | B must preserve the gateway contract the shell calls. B edits no shell file |
+| Simulation meta and port parity (#679) | #770 merged the meta stage and `PORT-001`; #679 stays open on historical SIM-01..SIM-10 parity | P7 depends on the parity decision. B does not port the Python harness |
+| Simulation chart (#681) | #769 merged the client chart and mark-capture slice; #681 stays open on the real backend round trip, which needs #680 | B does not implement the chart or screens. P7 supplies the service |
+| Simulation screens (#682, #683) | Open; depend on #680 and #681 | In v1.0.0, parallel. B does not implement screens or retire the Python harness |
+| Desktop shell (#691) | #773 merged the Linux AppImage slice; Windows NSIS and published assets remain #673/#674 | Parallel release work. B does not build or publish the desktop shell |
+| Image and Compose (#643) | #772 merged the image and six-container default stack; #643 stays open on six binaries and the MinIO registry | B fills the three missing services. P9 records the registry decision |
 
 ## 5. Target architecture
 
@@ -411,12 +432,17 @@ Rules:
   prerequisite; it still owns the Dockerfile, compose, and healthchecks.
 - No new crate version is required. If a required feature or crate is absent,
   the plan stops for a dependency decision.
-- Active streams #643, #646, #668, and #680 are coordinated by the phase
-  ownership table. No phase edits a file owned by another active stream.
+- Active streams #643, #646, #680, #681-#683, and #691 are coordinated by the
+  phase ownership table. No phase edits a file owned by another active stream.
 - The parked S1 gateway work is uncommitted and can change or disappear. B treats
   it as a reuse candidate, not as landed behavior or evidence. If it disappears,
   B reimplements the same behavior from the public contract and the plan is
   unchanged.
+- The shell is now a thin `quantrule.api/v1` client (#668, #771). B's gateway
+  proxy and evidence routes must preserve the 27 commands the shell calls. B
+  edits no shell file.
+- Simulation client work and the desktop shell are in v1.0.0 but parallel to B.
+  B supplies the #680 service; it does not implement #681-#683 or #691.
 
 ## 7. Phases and file ownership
 
@@ -432,9 +458,9 @@ series. A phase does not edit a file owned by another active phase.
 | **P4** | Model service: move `model/`; model bundle writer and internal manifest; data client; gateway model proxy; public `/model/compute` unchanged | `crates/quantrule-model-service/**`, `crates/quantrule-server/src/model/**`, `quantrule-app` model bundle call sites, gateway model proxy | None | P3 | Model route served by `qr-model`; bundle SHA-256 matches the coupled baseline; no strategy read | Part of #646; P5 |
 | **P5** | Evidence service: move `runs/`, `research/`, `evidence/`; `runs` and `research` schemas; internal run lifecycle; evidence publishes `run.requested`; gateway run and hypothesis proxies | `crates/quantrule-evidence-service/**`, `crates/quantrule-server/src/runs/**`, `src/research/**`, `src/evidence/**`, gateway run and hypothesis proxies | `routes/runs.rs`, artifact/digest routes, `RunStore::count`, migration 13 | P3 | Submit, list, detail, cancel through evidence; no gateway run write; queue producer is evidence | Part of #646; P6 |
 | **P6** | Backtest service: move `backtest/`; `run_backtest_from_model`; worker calls data, model, evidence; cancellation and retry map; #649 successor | `crates/quantrule-backtest-service/**`, `crates/quantrule-server/src/backtest/**`, `quantrule-app/src/stages/backtest.rs`, new `backtest_from_model.rs`, `service.rs` | None | P4, P5 | Full run over HTTP; same canonical digest; fast path removed; successor issue merged | Data plane true; #649 successor |
-| **P7** | Simulation service: #679 parity; #680 service; eleven endpoints; gateway proxy; no run write, no model compute | `crates/quantrule-simulation-service/**`, `crates/quantrule-simulation/**`, gateway simulation proxy | None | P2, #679 | Eleven endpoints; parity evidence; isolation guard; #680 done | #646 can close |
-| **P8** | Gateway finalization: remove the last domain modules; rename `quantrule-server` to `quantrule-gateway`; profiles, static, proxy, health; compile guard; retire `quantrule-server` | `crates/quantrule-gateway/**`, workspace `Cargo.toml`, `docs/architecture/**`, `AGENTS.md`, `README.md` glossary | `runtime/auth.rs`, `tests/surface.rs`, `tests/boundary.rs` | P3-P7 | Gateway links no app or engine; six service crates independent; #651 guard | #651; #646 final |
-| **P9** | Downstream gates, not owned by this plan: image/compose (#643), Makefile (#644), digest (#673), release (#674); record the permanent object-store registry as a human decision | `Dockerfile`, compose, `Makefile`, release docs | None | P6, P7, P8 | Six services healthy in nine containers; digest recorded; release evidence; registry decision recorded | #674 |
+| **P7** | Simulation service: #679 parity gate; #680 service and eleven endpoints; gateway proxy; no run write, no model compute; no client chart or screens | `crates/quantrule-simulation-service/**`, `crates/quantrule-simulation/**`, gateway simulation proxy | None | P2, #679 | Eleven endpoints; parity evidence; isolation guard; #680 done | #646 can close; #681/#682/#683 stay parallel |
+| **P8** | Gateway finalization: remove the last domain modules; rename `quantrule-server` to `quantrule-gateway`; profiles, static, proxy, health; compile guard; preserve the shell's 27-command contract; retire `quantrule-server` | `crates/quantrule-gateway/**`, workspace `Cargo.toml`, `docs/architecture/**`, `AGENTS.md`, `README.md` glossary | `runtime/auth.rs`, `tests/surface.rs`, `tests/boundary.rs` | P3-P7 | Gateway links no app or engine; six service crates independent; #651 guard; shell parity still passes | #651; #646 final |
+| **P9** | Downstream gates, not owned by this plan: image/compose (#643), Makefile (#644), digest (#673), release (#674), desktop Windows/publish (#691); record the permanent object-store registry as a human decision | `Dockerfile`, compose, `Makefile`, release docs | None | P6, P7, P8 | Six services healthy in nine containers; digest recorded; release evidence; registry decision recorded | #674 |
 
 ### 7.1 Phase detail
 
@@ -501,7 +527,10 @@ stays Done; the successor issue records the new orchestration.
 **P7 — Simulation service.** Land #679 parity first, then #680. The service owns
 the `simulation` schema and the eleven endpoints, reads model bundles from CAS,
 and never computes a model or writes a run artifact. The gateway proxy for
-`/simulation/*` is completed here. #646 can close after P7 and P8.
+`/simulation/*` is completed here. The chart slice is already merged (#769) and
+the screens (#682, #683) are parallel client work; B implements neither. #646
+can close after P7 and P8; #681 can close after the #680 round trip, and #683
+after the Python harness is retired.
 
 **P8 — Gateway finalization.** Remove the last domain modules from the crate,
 rename it to `quantrule-gateway`, and make the compile-time guard real: the
@@ -568,6 +597,11 @@ guard.
 19. The object-store image is recorded as a stopgap with
     `QR_OBJECT_STORE_IMAGE`; the release records the human's permanent registry
     decision, and no document describes the legacy archive as permanent.
+20. The shell's printed-output and parity tests pass against the gateway after
+    P8; B edits no `crates/quantrule-shell` file.
+21. The plan records the parallel v1.0.0 work as parallel, not deferred: #668
+    Done, #681 chart merged and open on #680, #682-#683 open, #691 Linux merged,
+    #770 parity merged with #679 open, #772 image merged with #643 open.
 
 ## 9. Downstream gates
 
@@ -578,9 +612,12 @@ guard.
 | #646 gateway | P3 and P4 for data/model; P5 for runs; P7 for simulation; P8 for final isolation | A gateway-only proxy and a working simulation surface | Its own route table review and close |
 | #651 guard | P8 | Compile-time gateway isolation and per-service schema guards | The guard test details and close |
 | #673 digest | #643 | Image digest in health and provenance | Release pipeline |
-| #674 release | P7, P8, and #643/#644/#673 | Six services, nine containers, working simulation, release evidence | Release note, tag, board close-out, permanent object-store registry |
+| #674 release | P7, P8, and #643/#644/#673 | Six services, nine containers, working simulation, release evidence, Linux and Windows desktop artifacts | Release note, tag, board close-out, permanent object-store registry, desktop Windows/publish |
 | #661 memory | P5 | Postgres research memory in evidence | Its own close or supersession |
 | #680 simulation | P7 | The service and eleven endpoints | Its own close |
+| #668 shell | Done (#771) | A thin HTTP client for the gateway contract | B preserves its routes; B does not edit the shell |
+| #681/#682/#683 simulation client | #681 chart slice merged (#769); #682-#683 open | Chart and screens in v1.0.0 | Parallel; B does not implement client screens |
+| #691 desktop shell | #773 merged the Linux slice; Windows and publish open | A Tauri window over the gateway | Parallel; #673/#674 own the Windows and published assets |
 
 ### 9.1 Image and object-store gates
 
@@ -603,8 +640,9 @@ guard.
 | Documentation | AGENTS crate list, module map, service catalog, data plane, control plane, API, deployment, README glossary, changelog, AI log |
 | Parked S1 | 16 modified and 5 untracked files, ~568 insertions and 618 deletions; 12 mapped reuse areas; 0 treated as landed |
 | Image findings | #772 merged: 3 of 6 binaries, 6 default containers; migration lock workaround; legacy MinIO stopgap with a human registry decision before release |
+| Parallel v1.0.0 | #668 Done; #681 chart merged, #682-#683 open; #691 Linux merged, Windows/publish #673/#674; #770 parity merged, #679 open; #772 image merged, #643 open |
 | Delivery | 12-16 reviewable PRs across P1-P8; weeks, not days; P6 and P7 are the long poles |
-| Deferred | Embedded desktop v1.1, shell HTTP, simulation screens, streaming downloads, app-crate split |
+| Deferred | Embedded desktop v1.1, streaming downloads, app-crate split |
 
 ## 11. Verification
 
@@ -647,7 +685,9 @@ inside the worktree.
 | V29 | Parked reuse | Each reused hunk passes its test in the owning service crate; no route is implemented twice | Owning service test; code search for duplicate handlers | pass; one implementation | — | Pending | — | — | Reuse or reimplement |
 | V30 | Migration lock | The runner acquires and releases on one connection; two service migrators do not deadlock | `QR_TEST_DATABASE_URL=postgres://... cargo test -p quantrule-runtime --test migration_lock two_service_migrators_do_not_deadlock -- --ignored` | both finish inside 10 s; one ledger row per migration | — | Pending | — | — | Composed tier; #772 workaround stays until this passes |
 | V31 | Object-store registry | The legacy image is a stopgap, overridable, and not described as permanent; the release records the human registry decision | `grep -R "bitnamilegacy/minio\|QR_OBJECT_STORE_IMAGE" compose.yaml docker/README.md docs/architecture/deployment.md`; release note | override present; legacy named stopgap; decision recorded | — | Pending | — | — | No permanent claim |
-| V32 | Closure | Issue `Done`, worktree and branches removed, comments posted | `gh issue view`; `git worktree list` | done; removed | — | Pending | — | — | |
+| V32 | Shell contract | The shell's 27 commands still pass against the gateway; B edits no shell file | `cargo test -p quantrule-shell`; `git diff --name-only` | pass; no shell file | — | Pending | — | — | #668 Done |
+| V33 | Parallel state | The plan names parallel v1.0.0 work as parallel, not deferred | Manual read of §4.4 and §10 | #668 Done; #681 chart merged; #682-#683 open; #691 Linux merged; #770 merged; #772 merged | — | Pending | — | — | B does not implement |
+| V34 | Closure | Issue `Done`, worktree and branches removed, comments posted | `gh issue view`; `git worktree list` | done; removed | — | Pending | — | — | |
 
 ## 12. Risks and recovery
 
@@ -666,8 +706,10 @@ inside the worktree.
 | Simulation #679 parity is not ready | P7 blocks and #646 cannot close | P7 is gated on #679; keep the skeleton; do not fake parity; #646 stays open |
 | The new crate count slows the build | Developer friction | Shared runtime; one binary per crate; CI build matrix; measure the first build |
 | `quantrule-app` still links engines into compute services | A reviewer reads "full split" as compile-time everywhere | State the boundary: gateway is compile-time isolated; compute services share app by design; app split is deferred |
-| Active streams collide on `runtime/server.rs` | Merge conflicts and duplicated work | Phase ownership table; coordinate with #643, #646, #668, #680 before P3 and P8 |
+| Active streams collide on `runtime/server.rs` | Merge conflicts and duplicated work | Phase ownership table; coordinate with #643, #646, #680, #681-#683, and #691 before P3 and P8 |
 | The plan is mistaken for the release | #674 closes on a plan, not evidence | §9 downstream gates; #674 stays open until image, compose, digest, and verification exist |
+| The plan is mistaken for the whole v1.0.0 | Parallel work is read as deferred or done | §4.4 records #668 Done, #681 chart merged, #682-#683 open, #691 Linux merged, #770 parity merged, #772 image merged; #643/#646/#674 stay open |
+| The gateway proxy changes a route the shell calls | The shell's 27 commands break | Preserve the public contract; run the shell printed-output and parity tests after P8; B edits no shell file |
 | The parked S1 work drifts or disappears | A reusable behavior is lost or conflicts with B | Capture the diff before P3; salvage map in the issue; reimplement from the public contract if it disappears; never cite it as landed |
 | The parked work is copied wholesale and duplicates a route | Two implementations of the same endpoint | Reuse by hunk into the owning service; adapt state and imports; V29 checks for duplicate handlers |
 | A parked hunk bypasses the new schema or profile boundary | A service reads a schema it does not own | Review every salvaged hunk against §5.5; schema guard in P8; re-run the boundary tests |
@@ -693,7 +735,8 @@ digest; a rollback is the previous digest.
 - The internal contract needs a crate or feature not already in `Cargo.lock`.
 - A streaming upload cannot be bounded without buffering the whole body.
 - #679 simulation parity is not ready and P7 would have to fake an endpoint.
-- A file is owned by #643, #646, #668, or #680 and cannot be coordinated.
+- A file is owned by #643, #646, #680, #681-#683, #691, or another active stream
+  and cannot be coordinated.
 - The parked S1 diff is the only copy of a behavior and the worktree is about to
   be rebound or removed; capture the diff before proceeding.
 - The migration runner cannot pin the advisory lock to one connection without a
@@ -712,7 +755,7 @@ Goal: Split the six services into owned crates: data, model, evidence, backtest,
 Scope:
 - Extract quantrule-runtime and quantrule-service-api; move quantrule-server modules into five service crates and a gateway crate.
 - Move run records, research memory, and schema ownership to evidence; models to a bundle protocol; the worker to HTTP; profiles to a gateway schema.
-- Keep the six binaries as milestone M1; pin the migration lock; reuse the parked #646 gateway work by hunk, not as landed; #643/#646/#674 stay their own issues.
+- Keep the six binaries as milestone M1; pin the migration lock; reuse the parked #646 gateway work; #668/#681-#683/#691/#772 are parallel, not B scope.
 Done when:
 - Six service crates build six binaries; no service reads another's schema; the gateway links no engine or quantrule-app.
 - A queued run completes through data, model, backtest, and evidence over HTTP with the same canonical digest as the coupled baseline.
@@ -734,6 +777,8 @@ Claim type: ADR (Architecture Decision)
 - [ ] #649 stays Done and the successor is named.
 - [ ] The parked S1 diff is mapped before P3, reused by hunk, and never cited as
       landed.
-- [ ] Deferred work is listed: desktop v1.1, shell HTTP, simulation screens,
-      streaming downloads, app-crate split.
+- [ ] Parallel v1.0.0 work is listed separately: #668 Done, #681 chart merged,
+      #682-#683 open, #691 Linux merged, #770 parity merged, #772 image merged.
+- [ ] Deferred work is limited to desktop v1.1, streaming downloads, and the
+      app-crate split.
 - [ ] No model, strategy, execution, or portfolio result changed.

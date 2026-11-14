@@ -93,10 +93,12 @@ No credentials, secrets, or sensitive operational data were recorded.
   downstream gates.
 - The six-binary inventory is now milestone M1 inside B. It unblocks the #643
   binary prerequisite but is explicitly not the end state.
-- Deferred: embedded desktop v1.1, the shell HTTP rewrite (#668), simulation
-  screens (#681-#683), streamed artifact downloads, and a `quantrule-app` crate
-  split. The compute services remain thin adapters over the shared app crate;
-  the gateway is the compile-time isolated binary.
+- Deferred at that revision, corrected by the accuracy pass below: embedded
+  desktop v1.1, streamed artifact downloads, and a `quantrule-app` crate split.
+  The shell HTTP rewrite (#668) and simulation client screens (#681-#683) were
+  later confirmed as parallel v1.0.0 work, not deferred. The compute services
+  remain thin adapters over the shared app crate; the gateway is the
+  compile-time isolated binary.
 - Verification: `python3 tools/check_execution_plans.py`,
   `python3 tools/check_doc_length.py`, `python3 tools/check_links.py`, and
   `git diff --check` were run on the revised plan. The behavioral rows remain
@@ -150,5 +152,34 @@ No credentials, secrets, or sensitive operational data were recorded.
 - Rejected: treating the gateway sole-migrator rule as the fix; treating the
   legacy Bitnami archive as the permanent object store; implementing the
   migration fix or the registry decision in this plan-only PR.
+
+## Accuracy pass — parallel v1.0.0 work — 2026-11-14 (UTC)
+
+- Inputs inspected read-only: #771 (`quantrule-shell` HTTP client), #770
+  (`PORT-001`/simulation meta), #769 (simulation chart slice), #773 (desktop
+  shell Linux slice), #772 (image and Compose).
+- State recorded: #668 is Done via #771; `quantrule-shell` depends only on
+  `quantrule-api`, `serde_json`, and `ureq` and exposes 27 commands. #770 merged
+  the meta stage and `PORT-001`; #679 stays open on historical SIM-01..SIM-10
+  parity. #769 merged the chart and mark-capture client slice; #681 stays open on
+  the real backend round trip and #682/#683 remain open. #773 merged the Linux
+  AppImage; Windows NSIS and published assets remain #673/#674, and #691 stays
+  open. #772 merged the image and six-container default stack; #643 stays open on
+  six binaries and the MinIO registry.
+- Plan changes: §4.3 now lists only true v1.1/limitation deferrals; a new §4.4
+  records the parallel v1.0.0 work and states B does not implement it. Current
+  state, P7/P8/P9 ownership, downstream gates, acceptance criteria, risks,
+  blast radius, verification V32/V33, and the review checklist were updated.
+  The issue body line 5 now names the parallel streams.
+- Learning: v1.0.0 is a portfolio of parallel streams. Calling the shell rewrite
+  or simulation screens "deferred" would be false: the shell is done and the
+  chart slice is merged. B must claim only the service split and preserve the
+  shell contract, not absorb or defer its peers.
+- Rejected: claiming #681 or #691 closed (only slices merged), claiming #679
+  closed (historical parity open), claiming #643 closed (six binaries and
+  registry open), and implementing any parallel client work in this plan.
+- Verification: `python3 tools/check_execution_plans.py`,
+  `python3 tools/check_doc_length.py`, `python3 tools/check_links.py`, and
+  `git diff --check` were run on the accuracy pass.
 
 No credentials, secrets, or sensitive operational data were recorded.
