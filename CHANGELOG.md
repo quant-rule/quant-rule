@@ -43,8 +43,9 @@ are not treated as releases.
   `make gate`, `make test`, and the preserved `make verify` and test-tier
   targets complete the set. Windows runs `docker compose up -d` without make,
   and Fedora may use Podman through `make COMPOSE="podman compose"`. The
-  `remote`, `token`, `backup`, and `restore` targets are wired and name their
-  owning distribution issue until those scripts land.
+  `remote` and `token` targets are wired and name their owning distribution
+  issue until those scripts land; `backup` and `restore` call
+  `tools/backup.sh` and `tools/restore.sh`.
 - The shell is a `quantrule.api/v1` client: `health`, `dataset`, `config`,
   `run`, `inspect`, `verify`, `profile`, `simulation`, and `help` commands, a
   global `--profile`, and a `--json` machine view. Every command makes one
