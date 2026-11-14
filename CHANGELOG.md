@@ -34,6 +34,12 @@ are not treated as releases.
   `b63b9015` on the checked-in mini bundle; the fixture covers the meta stage in
   full and the window, marks, oracle, review, check, and exit reductions, with
   each omitted comparison named in the case notes.
+- The desktop shell (`apps/desktop-shell`) is a Tauri 2 window over the gateway
+  URL. It remembers the gateway, leaves the active profile to the web client,
+  checks GitHub Releases for a newer shell, and shows the bundled client only as
+  the disconnected fallback. It owns no IPC command, reads no data file, and
+  embeds no engine. The Linux AppImage and Windows NSIS artifacts are unsigned;
+  publishing them waits on the release workflow.
 - Testing is recorded as three tiers: the fast unit/integration gate, the
   opt-in Compose tier required before a release, and port parity backed by
   golden fixtures from the retired implementation. `tools/check_port_parity.py`

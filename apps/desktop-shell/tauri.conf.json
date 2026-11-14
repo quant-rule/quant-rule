@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "QuantRule",
+  "mainBinaryName": "quantrule-desktop-shell",
+  "version": "0.3.0",
+  "identifier": "com.quantrule.desktop",
+  "build": {
+    "frontendDist": "dist",
+    "beforeBuildCommand": "bun scripts/stage-frontend.mjs"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "QuantRule",
+        "url": "shell.html",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 960,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http: https:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "category": "Productivity",
+    "shortDescription": "A window over the QuantRule gateway",
+    "longDescription": "The QuantRule desktop shell. It loads the gateway URL, remembers it, checks for a newer release, and owns no compute, no IPC command, and no local data.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"]
+      }
+    }
+  }
+}

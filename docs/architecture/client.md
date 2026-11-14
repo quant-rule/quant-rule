@@ -117,6 +117,11 @@ client never constructs a `data_version`.
 It is a window onto the Svelte client, not a second client. When the gateway is
 unreachable it shows the disconnected state, exactly like the browser.
 
+The shell persists one setting, the gateway URL. The active profile remains the
+web client's `quantrule.profile` setting and its `X-QuantRule-Profile` header.
+Build, smoke tests, the unsigned-artifact warning, and the CI matrix are in
+[`apps/desktop-shell/README.md`](../../apps/desktop-shell/README.md).
+
 ## 10. Accessibility and determinism
 
 - Every action is reachable by keyboard and announced by role.

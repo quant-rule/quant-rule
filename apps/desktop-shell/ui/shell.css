@@ -1,0 +1,244 @@
+/* The shell bootstrap is standalone: no font, image, or script is fetched. */
+
+:root {
+  color-scheme: light;
+  --ink: #101828;
+  --muted: #475467;
+  --line: #d0d5dd;
+  --surface: #ffffff;
+  --shell: #f2f4f7;
+  --accent: #1d4ed8;
+  --accent-ink: #ffffff;
+  --ok: #067647;
+  --bad: #b42318;
+  --busy: #b54708;
+  --focus: #1d4ed8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--shell);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Ubuntu,
+    Cantarell,
+    "Noto Sans",
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.shell {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 1rem;
+  min-height: 100%;
+  padding: 1.25rem;
+}
+
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0.1rem 0 0;
+  font-size: 1.55rem;
+  line-height: 1.2;
+}
+
+h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.version {
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.hint {
+  max-width: 78ch;
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.hint code {
+  font-size: 0.85em;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.actions {
+  flex-wrap: wrap;
+  margin-top: 0.65rem;
+}
+
+input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  color: var(--ink);
+  font: inherit;
+}
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button,
+a.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+button.secondary,
+a.secondary {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+button.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+}
+
+button:hover,
+a.secondary:hover {
+  filter: brightness(0.97);
+}
+
+.error {
+  margin: 0.5rem 0 0;
+  color: var(--bad);
+  font-size: 0.875rem;
+}
+
+.status {
+  margin: 0.65rem 0 0;
+  font-weight: 600;
+}
+
+.status[data-tone="ok"] {
+  color: var(--ok);
+}
+
+.status[data-tone="bad"] {
+  color: var(--bad);
+}
+
+.status[data-tone="busy"] {
+  color: var(--busy);
+}
+
+#update-link {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+.offline {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.offline-bar {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.offline-bar h2 {
+  margin: 0;
+  color: var(--bad);
+}
+
+.offline-bar p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.offline iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 22rem;
+  border: 0;
+  background: var(--surface);
+}

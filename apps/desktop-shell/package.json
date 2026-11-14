@@ -1,0 +1,10 @@
+{
+  "name": "quantrule-desktop-shell",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "scripts": {
+    "stage": "bun scripts/stage-frontend.mjs",
+    "test": "bun test"
+  }
+}

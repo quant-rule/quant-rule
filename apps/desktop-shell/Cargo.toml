@@ -1,0 +1,29 @@
+# The shell is deliberately outside the Rust workspace: it depends on no
+# engine crate and its Tauri build needs desktop libraries the workspace gate
+# must not require. The empty table makes this package its own workspace root.
+[workspace]
+
+[package]
+name = "quantrule-desktop-shell"
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.99"
+description = "A Tauri 2 window over the QuantRule gateway URL. No IPC, no local data, no engine."
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = [] }
+
+[features]
+# The shell has no development server: the bundled assets are always the
+# production source. The Tauri CLI passes this feature itself for release
+# builds; making it the default keeps a plain `cargo build` honest.
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
