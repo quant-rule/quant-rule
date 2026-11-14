@@ -38,14 +38,19 @@ prerequisite.
 
 ```text
 docs/port-parity/
-  README.md              this guide
-  registry.json          every registered port
-  PORT-001.golden.json   one fixture per registered port
+  README.md                this guide
+  registry.json            every registered port
+  PORT-001.golden.json     one fixture per registered port
+  PORT-001.datasets.json   that port's shared stage inputs, when bulky
 ```
 
 The layout is flat because `docs/<kind>/<date>/` is the rule for dated work
 items and a `fixtures/` subdirectory would break the second-level directory
-check. A port with a large fixture uses one JSON file with many cases.
+check. A port with a large fixture uses one JSON file with many cases. When the
+shared stage inputs are too large to inline without burying the expected values,
+the fixture names a sibling `PORT-NNN.datasets.json` in `datasets_file`; the
+checker validates the fixture envelope and the comparison test reads the
+sibling as input data.
 
 ## 4. Registry entry
 
@@ -103,6 +108,7 @@ An empty `ports` list is valid: no port means no parity claim.
 | `captured` | UTC date the retired implementation produced the values |
 | `tolerance` | Absolute tolerance; must be at most `1e-9` |
 | `cases` | Non-empty list; each case has `name`, `input`, and `expected` |
+| `datasets_file` | Optional repository-relative path to the shared stage inputs |
 
 The checker validates the envelope. The Rust test named in the registry owns the
 comparison: it reads the fixture, runs the ported computation on `input`, and
@@ -155,11 +161,19 @@ reviewer finds it; the registry is how the gate checks it.
 
 ## 9. Current state and limits
 
-- `PORT-001` registers the simulation domain from DIST-101 (#679). The meta stage
-  is compared in full; the window, marks, oracle, review, check, and exit cases
-  compare the reductions that the checked-in mini bundle can exercise. The
-  fixture notes name each omission, and the historical SIM-01..SIM-10 runs cannot
-  be replayed because their external data root is not in the repository.
+- `PORT-001` registers the simulation domain from DIST-101 (#679): window
+  selection, the mark schema, the oracle, the review, the check, the exit lab,
+  and the meta stage. The fixture has 45 cases covering SIM-01..SIM-10 and the
+  empty-window, single-bar, equal-excursion, same-bar target/stop, unmarked-check,
+  and empty-review edges. The 17-case conformance suite from #770 is superseded.
+- The fixture input is the real run data reduced to the fields each stage reads:
+  the 2018-2019 label series, the 2019-12-31 bridge and 2020-2022 window, the
+  human marks, the event catalog, and the per-run stage rows. The external
+  392 MB bundle is not in the repository; `PORT-001.datasets.json` carries the
+  projection, and each case note says what its input contains. The expected
+  values come from the reference CLI for SIM-01, SIM-03, and every check config,
+  and from the reference functions those commands call for the window, oracle,
+  and review stages.
 - The checker proves the fixture, marker, and test exist. It does not execute
   Rust or compare values; the test does that.
 - The composed tier is defined but not executable until #643/#644. This directory

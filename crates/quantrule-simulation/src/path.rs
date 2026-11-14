@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::exit::Bar;
+use crate::bundle::Bar;
 use crate::marks::Side;
 
 /// Why a path cannot be labelled.
@@ -118,7 +118,12 @@ mod tests {
     use super::*;
 
     fn bar(high: f64, low: f64, close: f64) -> Bar {
-        Bar { high, low, close }
+        Bar {
+            high,
+            low,
+            close,
+            ..Bar::from_prices(0, 0, close, high, low, close)
+        }
     }
 
     #[test]
