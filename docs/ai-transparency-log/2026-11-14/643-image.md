@@ -77,3 +77,22 @@ containers but left the gateway unhealthy: `backtest`, `evidence`, and
 `gateway` all ran migrations, one process leaked the advisory lock, and the
 other two waited on it. The workaround and the finding above are the record.
 
+## Refresh after #769/#770/#773 — 2026-11-14 (UTC)
+
+- Intent: merge `origin/main` at `2299e2d4` into the image branch and re-verify
+  the merged tree.
+- Merge: one `CHANGELOG.md` conflict, resolved by keeping the image entry and
+  the new shell-client, `PORT-001`, simulation-meta, and desktop-shell entries.
+  No file outside the image change set differs from main.
+- Verification: `docker compose config -q` and
+  `docker compose --profile six-binaries config -q` exit 0. The image rebuild
+  exits 0 and carries the new client bundle (`index-DrE8pFXK.js`); `--version`
+  prints `quantrule-server 0.3.0`; the `python3`, `bun`, and `.py` checks are
+  empty. `docker compose down -v` followed by
+  `docker compose up -d --build --wait` exits 0 on an empty database with
+  `migrations applied applied=12` and a healthy gateway. `tools/gate.sh` exits
+  0 with 63 test binaries and 1788 tests (the shell rewrite replaced the
+  command tests that the pre-merge run counted).
+- The six-binary gap and the pinned `bitnamilegacy/minio` stopgap are unchanged;
+  the registry decision remains a human follow-up.
+
