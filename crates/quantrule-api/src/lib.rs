@@ -34,8 +34,8 @@ pub use profile::{
     CreateProfileRequest, DEFAULT_PROFILE, PROFILE_HEADER, ProfileId, ProfileSummary,
 };
 pub use run::{
-    ArtifactRef, Provenance, RunDetail, RunId, RunState, RunSummary, StageName, StageProgress,
-    StageStatus, SubmitRunRequest, SubmitRunResponse,
+    ArtifactRef, Provenance, RunDetail, RunDigest, RunId, RunState, RunSummary, StageName,
+    StageProgress, StageStatus, SubmitRunRequest, SubmitRunResponse,
 };
 pub use sha256::{sha256, sha256_hex};
 pub use simulation::{

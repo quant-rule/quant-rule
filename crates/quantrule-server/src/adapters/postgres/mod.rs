@@ -1,103 +1,13 @@
-//! The gateway and evidence Postgres repositories.
+//! The gateway's Postgres profile repository.
 //!
 //! The pool and the client-library boundary live in `quantrule-runtime`. The
-//! catalog and config repositories moved to `quantrule-data-service` in P3;
-//! these rows are the gateway's profile table and the evidence hypothesis store
-//! until P5 moves them.
-
-mod runs;
-
-pub use runs::PgRunStore;
+//! catalog repository moved to `quantrule-data-service` in P3; the run and
+//! hypothesis repositories moved to `quantrule-evidence-service` in P5. The
+//! gateway owns only `gateway.profiles`.
 
 use quantrule_api::ProfileId;
 use quantrule_runtime::adapters::BoxFuture;
 use sqlx::PgPool;
-
-/// A hypothesis store backed by Postgres.
-///
-/// The sealed record is written whole as JSON and read back by fingerprint; the
-/// split columns remain for inspection.
-#[derive(Debug, Clone)]
-pub struct PgHypothesisStore {
-    pool: PgPool,
-}
-
-impl PgHypothesisStore {
-    /// Build the store over an existing pool.
-    #[must_use]
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
-    }
-}
-
-impl crate::research::HypothesisStore for PgHypothesisStore {
-    fn insert(
-        &self,
-        profile: ProfileId,
-        sealed: quantrule_research::SealedHypothesis,
-    ) -> BoxFuture<Result<(), crate::research::StoreError>> {
-        let pool = self.pool.clone();
-        Box::pin(async move {
-            let encode = |value: &quantrule_research::SealedHypothesis| {
-                serde_json::to_string(value)
-                    .map_err(|error| crate::research::StoreError(error.to_string()))
-            };
-            let hypothesis = sealed.hypothesis();
-            let costs = serde_json::to_string(&hypothesis.costs)
-                .map_err(|error| crate::research::StoreError(error.to_string()))?;
-            let split = serde_json::to_string(&hypothesis.split)
-                .map_err(|error| crate::research::StoreError(error.to_string()))?;
-            let body = encode(&sealed)?;
-            sqlx::query(
-                "INSERT INTO research.hypotheses
-                     (profile_id, fingerprint, premise, rule, dataset, costs, split, criteria,
-                      sealed_at, body)
-                 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::timestamptz,
-                         $10::jsonb)",
-            )
-            .bind(profile.as_str())
-            .bind(sealed.fingerprint())
-            .bind(&hypothesis.premise)
-            .bind(&hypothesis.rule)
-            .bind(&hypothesis.dataset)
-            .bind(costs)
-            .bind(split)
-            .bind(&hypothesis.criteria)
-            .bind(sealed.sealed_at())
-            .bind(body)
-            .execute(&pool)
-            .await
-            .map(|_| ())
-            .map_err(|error| crate::research::StoreError(error.to_string()))
-        })
-    }
-
-    fn load(
-        &self,
-        profile: ProfileId,
-        fingerprint: String,
-    ) -> BoxFuture<Result<Option<quantrule_research::SealedHypothesis>, crate::research::StoreError>>
-    {
-        let pool = self.pool.clone();
-        Box::pin(async move {
-            let row: Option<(String,)> = sqlx::query_as(
-                "SELECT body::text FROM research.hypotheses
-                 WHERE profile_id = $1 AND fingerprint = $2",
-            )
-            .bind(profile.as_str())
-            .bind(&fingerprint)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|error| crate::research::StoreError(error.to_string()))?;
-            match row {
-                Some((body,)) => serde_json::from_str(&body)
-                    .map(Some)
-                    .map_err(|error| crate::research::StoreError(error.to_string())),
-                None => Ok(None),
-            }
-        })
-    }
-}
 
 /// A profile store backed by Postgres.
 #[derive(Debug, Clone)]

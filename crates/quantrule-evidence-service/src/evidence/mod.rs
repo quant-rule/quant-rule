@@ -1,8 +1,8 @@
 //! The evidence boundary.
 //!
 //! The worker computes and stores artifacts; evidence verifies the hash chain,
-//! recomputes the canonical digest, and finalizes the run. The module is the
-//! seam that becomes `qr-evidence` without a worker change.
+//! recomputes the canonical digest, and finalizes the run. Evidence owns the
+//! check; the worker reaches it over the internal lifecycle.
 
 pub mod artifacts;
 pub mod finalize;

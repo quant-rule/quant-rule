@@ -7,10 +7,7 @@ use quantrule_api::{ArtifactRef, Digest, ProfileId, RunState, RunSummary, StageP
 
 use quantrule_runtime::adapters::BoxFuture;
 
-/// The number of deliveries a run may receive before it is dead-lettered.
-pub const MAX_ATTEMPTS: u32 = 3;
-
-pub use quantrule_service_api::{NewRun, RunRecord};
+pub use quantrule_service_api::{MAX_ATTEMPTS, NewRun, RunRecord};
 pub use quantrule_service_api::{
     RunCancelOutcome as CancelOutcome, RunClaimOutcome as ClaimOutcome,
 };

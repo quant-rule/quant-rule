@@ -6,11 +6,11 @@ use common::canonical;
 
 use quantrule_api::{Digest, ProfileId, RunState};
 use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, Queue, QueueError, StoreError};
-use quantrule_runtime::client::MemoryDataClient;
+use quantrule_runtime::client::{EvidenceClient, MemoryDataClient, MemoryEvidence};
 use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
-use quantrule_server::evidence::{EvidenceServices, FinalizeOutcome, RunManifest, finalize};
-use quantrule_server::runs::{MemoryRuns, NewRun, RunStore, derive};
-use quantrule_service_api::{ConfigBundle, DatasetObject};
+use quantrule_service_api::{
+    ConfigBundle, DatasetObject, NewRun, RunManifest, derive_run_id as derive,
+};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -64,7 +64,7 @@ impl MemoryQueue {
 
 struct Fixture {
     services: WorkerServices,
-    runs: MemoryRuns,
+    runs: MemoryEvidence,
     queue: MemoryQueue,
     objects: common::MemoryObjects,
     config_id: String,
@@ -121,7 +121,7 @@ async fn fixture() -> Fixture {
     let profile = ProfileId::parse("default").expect("profile");
     let objects = common::MemoryObjects::default();
     let data = MemoryDataClient::default();
-    let runs = MemoryRuns::default();
+    let runs = MemoryEvidence::default();
     let queue = MemoryQueue::default();
 
     let dataset = csv();
@@ -173,11 +173,11 @@ async fn fixture() -> Fixture {
         owner: "default".to_owned(),
         submitted_at: "2026-11-13T00:00:00Z".to_owned(),
     };
-    let submitted = runs.submit(profile, new_run).await.expect("submit");
-    let run_id = submitted.record().run_id.to_string();
+    let submitted = runs.submit(&profile, new_run).await.expect("submit");
+    let run_id = submitted.run_id.to_string();
 
     let services = WorkerServices {
-        runs: Arc::new(runs.clone()),
+        evidence: Arc::new(runs.clone()),
         data: Arc::new(data),
         objects: Arc::new(objects.clone()),
         queue: Arc::new(queue.clone()),
@@ -250,7 +250,7 @@ impl ObjectStore for ManifestFails {
 
 fn services_with_manifest_failure(fixture: &Fixture) -> WorkerServices {
     WorkerServices {
-        runs: Arc::clone(&fixture.services.runs),
+        evidence: Arc::clone(&fixture.services.evidence),
         data: Arc::clone(&fixture.services.data),
         objects: Arc::new(ManifestFails {
             inner: fixture.objects.clone(),
@@ -261,7 +261,7 @@ fn services_with_manifest_failure(fixture: &Fixture) -> WorkerServices {
 
 fn services_with_put_failure(fixture: &Fixture) -> WorkerServices {
     WorkerServices {
-        runs: Arc::clone(&fixture.services.runs),
+        evidence: Arc::clone(&fixture.services.evidence),
         data: Arc::clone(&fixture.services.data),
         objects: Arc::new(PutFails {
             inner: fixture.objects.clone(),
@@ -271,7 +271,7 @@ fn services_with_put_failure(fixture: &Fixture) -> WorkerServices {
 }
 
 async fn submit_with(
-    runs: &MemoryRuns,
+    runs: &MemoryEvidence,
     data_version: Digest,
     config_id: String,
     config_hash: Digest,
@@ -280,27 +280,27 @@ async fn submit_with(
     let profile = ProfileId::parse("default").expect("profile");
     let image = Digest::sha256(suffix.as_bytes());
     let run_id = derive(&data_version, &config_hash, "M1.0", &image);
-    let submitted = runs
-        .submit(
-            profile,
-            NewRun {
-                run_id,
-                config_id,
-                data_version,
-                config_hash,
-                model_version: "M1.0".to_owned(),
-                image_digest: image,
-                owner: "default".to_owned(),
-                submitted_at: "2026-11-13T00:00:00Z".to_owned(),
-            },
-        )
-        .await
-        .expect("submit");
-    submitted.record().run_id.to_string()
+    runs.submit(
+        &profile,
+        NewRun {
+            run_id,
+            config_id,
+            data_version,
+            config_hash,
+            model_version: "M1.0".to_owned(),
+            image_digest: image,
+            owner: "default".to_owned(),
+            submitted_at: "2026-11-13T00:00:00Z".to_owned(),
+        },
+    )
+    .await
+    .expect("submit")
+    .run_id
+    .to_string()
 }
 
 #[tokio::test]
-async fn a_queued_run_succeeds_with_artifacts_and_digest() {
+async fn a_queued_run_computes_artifacts_and_digest() {
     let fixture = fixture().await;
     let outcome = process(fixture.run_id.clone(), false, &fixture.services)
         .await
@@ -353,34 +353,6 @@ async fn a_queued_run_succeeds_with_artifacts_and_digest() {
     assert_eq!(messages.len(), 1);
     let payload: serde_json::Value = serde_json::from_slice(&messages[0]).expect("payload");
     assert_eq!(payload, serde_json::json!({ "run_id": fixture.run_id }));
-
-    let evidence = EvidenceServices {
-        runs: Arc::new(fixture.runs.clone()) as Arc<dyn RunStore>,
-        objects: Arc::new(fixture.objects.clone()) as Arc<dyn ObjectStore>,
-    };
-    assert_eq!(
-        finalize(fixture.run_id.clone(), &evidence)
-            .await
-            .expect("finalize"),
-        FinalizeOutcome::Succeeded
-    );
-    let record = fixture
-        .runs
-        .get_any(fixture.run_id.clone())
-        .await
-        .expect("get")
-        .expect("record");
-    assert_eq!(record.status, RunState::Succeeded);
-    assert!(
-        record
-            .stages
-            .iter()
-            .all(|stage| stage.state == quantrule_api::StageStatus::Done)
-    );
-    assert_eq!(
-        finalize(fixture.run_id, &evidence).await.expect("again"),
-        FinalizeOutcome::Skipped
-    );
 }
 
 #[tokio::test]
@@ -502,7 +474,7 @@ impl ObjectStore for StopAfter {
 
 fn services_with_stop_after(fixture: &Fixture, allowed: usize) -> WorkerServices {
     WorkerServices {
-        runs: Arc::clone(&fixture.services.runs),
+        evidence: Arc::clone(&fixture.services.evidence),
         data: Arc::clone(&fixture.services.data),
         objects: Arc::new(StopAfter {
             inner: fixture.objects.clone(),
@@ -602,16 +574,6 @@ async fn a_manifest_write_failure_leaves_no_published_set() {
             .expect("restart"),
         ProcessOutcome::Computed
     );
-    let evidence = EvidenceServices {
-        runs: Arc::new(fixture.runs.clone()) as Arc<dyn RunStore>,
-        objects: Arc::new(fixture.objects.clone()) as Arc<dyn ObjectStore>,
-    };
-    assert_eq!(
-        finalize(fixture.run_id.clone(), &evidence)
-            .await
-            .expect("finalize"),
-        FinalizeOutcome::Succeeded
-    );
 }
 
 #[tokio::test]
@@ -697,7 +659,7 @@ async fn a_run_cancelled_after_claim_writes_no_bundle() {
     fixture
         .runs
         .cancel(
-            ProfileId::parse("default").expect("profile"),
+            &ProfileId::parse("default").expect("profile"),
             fixture.run_id.clone(),
         )
         .await
@@ -738,7 +700,7 @@ async fn a_cancelled_run_is_not_executed() {
     fixture
         .runs
         .cancel(
-            ProfileId::parse("default").expect("profile"),
+            &ProfileId::parse("default").expect("profile"),
             fixture.run_id.clone(),
         )
         .await

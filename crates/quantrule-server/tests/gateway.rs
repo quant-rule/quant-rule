@@ -1,16 +1,17 @@
-//! The gateway routes that remain local: health, version, hypotheses, profiles,
-//! and the client prefix.
+//! The gateway routes that remain local: health, version, profiles, and the
+//! client prefix.
 //!
-//! The data routes are exercised in `quantrule-data-service`; the proxy itself
-//! is covered in `tests/proxy.rs`.
+//! The data routes are exercised in `quantrule-data-service`, the model routes
+//! in `quantrule-model-service`, and the run and hypothesis routes in
+//! `quantrule-evidence-service`. The proxies are covered in `tests/proxy.rs`,
+//! `tests/model_proxy.rs`, and `tests/evidence_proxy.rs`.
 
 mod common;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use common::{body, body_bytes, state, state_with_data, state_with_store};
+use common::{body_bytes, state, state_with_data};
 use quantrule_api::{Digest, PROFILE_HEADER, ProfileId, ProfileSummary};
-use quantrule_research::SealedHypothesis;
 use quantrule_runtime::client::MemoryDataClient;
 use quantrule_server::server::router;
 use quantrule_service_api::DatasetObject;
@@ -52,86 +53,6 @@ async fn an_unknown_path_is_not_found() {
         .await
         .expect("response");
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
-}
-
-#[tokio::test]
-async fn a_hypothesis_is_sealed_and_read_back() {
-    let state = state_with_store().await;
-    let payload = serde_json::to_vec(&body()).expect("encode");
-    let response = router(Arc::clone(&state))
-        .oneshot(
-            Request::post("/hypotheses")
-                .header(PROFILE_HEADER, "default")
-                .header("content-type", "application/json")
-                .body(Body::from(payload))
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::CREATED);
-    let sealed: SealedHypothesis =
-        serde_json::from_slice(&body_bytes(response).await).expect("decode");
-    let fingerprint = sealed.fingerprint().to_owned();
-
-    let response = router(state)
-        .oneshot(
-            Request::get(format!("/hypotheses/{fingerprint}"))
-                .header(PROFILE_HEADER, "default")
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::OK);
-}
-
-#[tokio::test]
-async fn an_unknown_hypothesis_is_not_found_with_a_code() {
-    let response = router(state_with_store().await)
-        .oneshot(
-            Request::get("/hypotheses/missing")
-                .header(PROFILE_HEADER, "default")
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
-    assert!(text.contains("hypothesis.not_found"), "{text}");
-}
-
-#[tokio::test]
-async fn a_malformed_body_is_rejected_with_a_code() {
-    let response = router(state_with_store().await)
-        .oneshot(
-            Request::post("/hypotheses")
-                .header(PROFILE_HEADER, "default")
-                .header("content-type", "application/json")
-                .body(Body::from("{}"))
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
-    assert!(text.contains("hypothesis.invalid"), "{text}");
-}
-
-#[tokio::test]
-async fn without_a_store_the_route_reports_internal() {
-    let payload = serde_json::to_vec(&body()).expect("encode");
-    let response = router(state())
-        .oneshot(
-            Request::post("/hypotheses")
-                .header(PROFILE_HEADER, "default")
-                .header("content-type", "application/json")
-                .body(Body::from(payload))
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[tokio::test]

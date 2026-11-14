@@ -11,6 +11,34 @@ use quantrule_api::{
 };
 use serde::{Deserialize, Serialize};
 
+/// The number of deliveries a run may receive before it is dead-lettered.
+pub const MAX_ATTEMPTS: u32 = 3;
+
+/// Derive a run id from the four inputs the contract names.
+///
+/// The fields are newline-delimited and tagged with the identity version, so a
+/// field boundary cannot be forged by concatenation. Evidence computes the id;
+/// a worker and a test derive the same value from the same contract.
+#[must_use]
+pub fn derive_run_id(
+    data_version: &Digest,
+    config_hash: &Digest,
+    model_version: &str,
+    image_digest: &Digest,
+) -> RunId {
+    let mut bytes = b"quantrule.run/v1\n".to_vec();
+    for part in [
+        data_version.to_string(),
+        config_hash.to_string(),
+        model_version.to_owned(),
+        image_digest.to_string(),
+    ] {
+        bytes.extend_from_slice(part.as_bytes());
+        bytes.push(b'\n');
+    }
+    RunId(Digest::sha256(&bytes))
+}
+
 /// A new submission.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -327,5 +355,53 @@ mod tests {
         // profiles point at one run without duplicating it.
         let text = serde_json::to_string(&record()).expect("encode");
         assert!(!text.contains("profile_id"));
+    }
+
+    #[test]
+    fn the_same_inputs_derive_the_same_run_id() {
+        let data = digest(b"data");
+        let config = digest(b"config");
+        let image = digest(b"image");
+        assert_eq!(
+            derive_run_id(&data, &config, "M1.0", &image),
+            derive_run_id(&data, &config, "M1.0", &image)
+        );
+    }
+
+    #[test]
+    fn every_run_identity_input_changes_the_id() {
+        let data = digest(b"data");
+        let config = digest(b"config");
+        let image = digest(b"image");
+        let base = derive_run_id(&data, &config, "M1.0", &image);
+        assert_ne!(
+            base,
+            derive_run_id(&digest(b"other"), &config, "M1.0", &image)
+        );
+        assert_ne!(
+            base,
+            derive_run_id(&data, &digest(b"other"), "M1.0", &image)
+        );
+        assert_ne!(base, derive_run_id(&data, &config, "M2.0", &image));
+        assert_ne!(
+            base,
+            derive_run_id(&data, &config, "M1.0", &digest(b"other"))
+        );
+    }
+
+    #[test]
+    fn a_run_identity_field_boundary_is_not_ambiguous() {
+        let data = digest(b"data");
+        let config = digest(b"config");
+        let image = digest(b"image");
+        assert_ne!(
+            derive_run_id(&data, &config, "ab", &image),
+            derive_run_id(&data, &config, "a\nb", &image)
+        );
+    }
+
+    #[test]
+    fn the_retry_budget_is_three_deliveries() {
+        assert_eq!(MAX_ATTEMPTS, 3);
     }
 }

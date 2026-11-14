@@ -13,13 +13,12 @@ use quantrule_api::{
 };
 use quantrule_app::service::AppService;
 use quantrule_app::stages::backtest::BacktestRequest;
+use quantrule_service_api::{RunClaimOutcome, RunManifest};
 
 use crate::backtest::Workspace;
 use crate::backtest::retry::{self, RetryDecision};
-use crate::evidence::RunManifest;
-use crate::runs::{ClaimOutcome, RunStore};
 use quantrule_runtime::adapters::{ObjectStore, Queue};
-use quantrule_runtime::client::DataClient;
+use quantrule_runtime::client::{DataClient, EvidenceClient};
 use quantrule_runtime::queue::{ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_FAILED};
 
 /// A worker failure with a human-readable message.
@@ -55,8 +54,8 @@ pub enum ProcessOutcome {
 
 /// The stores a worker needs.
 pub struct WorkerServices {
-    /// The run store.
-    pub runs: Arc<dyn RunStore>,
+    /// The evidence lifecycle.
+    pub evidence: Arc<dyn EvidenceClient>,
     /// The data service's internal reads.
     pub data: Arc<dyn DataClient>,
     /// The object store.
@@ -81,16 +80,16 @@ pub async fn process(
     services: &WorkerServices,
 ) -> Result<ProcessOutcome, WorkerError> {
     let record = match services
-        .runs
+        .evidence
         .claim(run_id.clone(), redelivered)
         .await
         .map_err(|error| WorkerError(error.to_string()))?
     {
-        ClaimOutcome::Claimed(record) => record,
-        ClaimOutcome::Terminal(_) | ClaimOutcome::Missing => {
+        RunClaimOutcome::Claimed(record) => record,
+        RunClaimOutcome::Terminal(_) | RunClaimOutcome::Missing => {
             return Ok(ProcessOutcome::Skipped);
         }
-        ClaimOutcome::Running(record) => {
+        RunClaimOutcome::Running(record) => {
             // A delivery after the worker wrote its artifacts must not execute
             // again. The recorded digest is what tells the two `running` states
             // apart; publishing again closes a lost publish.
@@ -99,7 +98,7 @@ pub async fn process(
             }
             return Ok(ProcessOutcome::Skipped);
         }
-        ClaimOutcome::Exhausted(record) => {
+        RunClaimOutcome::Exhausted(record) => {
             return exhaust(
                 services,
                 &run_id,
@@ -223,7 +222,7 @@ pub async fn process(
         return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
     }
     let record = services
-        .runs
+        .evidence
         .computed(
             run_id.clone(),
             manifest.digest.clone(),
@@ -241,8 +240,8 @@ pub async fn process(
 
 async fn cancelled(services: &WorkerServices, run_id: &str) -> Result<bool, WorkerError> {
     Ok(services
-        .runs
-        .get_any(run_id.to_owned())
+        .evidence
+        .get_run(run_id.to_owned())
         .await
         .map_err(|error| WorkerError(error.to_string()))?
         .is_some_and(|record| record.status == RunState::Cancelled))
@@ -267,8 +266,8 @@ async fn exhaust(
     _attempts: u32,
 ) -> Result<ProcessOutcome, WorkerError> {
     let record = services
-        .runs
-        .fail(run_id.to_owned(), message.to_owned(), failed_stages())
+        .evidence
+        .failed(run_id.to_owned(), message.to_owned(), failed_stages())
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
     if record.status != RunState::Failed {
@@ -284,8 +283,8 @@ async fn fail(
     message: &str,
 ) -> Result<ProcessOutcome, WorkerError> {
     let record = services
-        .runs
-        .fail(run_id.to_owned(), message.to_owned(), failed_stages())
+        .evidence
+        .failed(run_id.to_owned(), message.to_owned(), failed_stages())
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
     if record.status != RunState::Failed {
