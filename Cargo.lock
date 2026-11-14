@@ -2746,10 +2746,16 @@ version = "0.3.0"
 dependencies = [
  "axum",
  "quantrule-api",
+ "quantrule-app",
+ "quantrule-data",
+ "quantrule-model",
  "quantrule-runtime",
+ "quantrule-service-api",
+ "serde",
  "serde_json",
  "tokio",
  "tower",
+ "tracing",
 ]
 
 [[package]]
@@ -2794,7 +2800,6 @@ dependencies = [
  "quantrule-api",
  "quantrule-app",
  "quantrule-data",
- "quantrule-model",
  "quantrule-research",
  "quantrule-runtime",
  "quantrule-service-api",

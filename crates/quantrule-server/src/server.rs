@@ -1,10 +1,10 @@
 //! The gateway HTTP surface.
 //!
-//! The gateway serves `/health`, `/version`, profiles, hypotheses, runs, and the
-//! public model route until their services land. The data surface is proxied:
-//! `/catalog/*`, `/datasets/*`, and `/inspect/*` are forwarded to `qr-data` with
-//! the validated profile header, the method, the path, the query, and a streamed
-//! body. The gateway has no dataset, config, or inspection handler.
+//! The gateway serves `/health`, `/version`, profiles, hypotheses, and runs. The
+//! data and model surfaces are proxied: `/catalog/*`, `/datasets/*`,
+//! `/inspect/*`, and `/model/*` are forwarded to their service with the validated
+//! profile header, the method, the path, the query, and a streamed body. The
+//! gateway has no dataset, config, inspection, or model handler.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ use quantrule_api::{
     RunSummary, SubmitRunRequest, SubmitRunResponse, VersionInfo,
 };
 use quantrule_research::{Hypothesis, SealedHypothesis};
-use quantrule_runtime::adapters::{ObjectStore, Queue};
+use quantrule_runtime::adapters::Queue;
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::clock;
 use quantrule_runtime::config::Config;
@@ -37,9 +37,6 @@ use crate::runs::{CancelOutcome, NewRun, RunStore, derive};
 pub struct Services {
     /// Where sealed hypotheses live.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
-    /// Where canonical bytes live; the model route reads its input here until
-    /// the model service owns it.
-    pub objects: Option<Arc<dyn ObjectStore>>,
     /// Which profiles exist.
     pub profiles: Option<Arc<dyn ProfileStore>>,
     /// Where runs are recorded.
@@ -50,6 +47,8 @@ pub struct Services {
     pub data: Option<Arc<dyn DataClient>>,
     /// The data service's HTTP transport, for the proxy.
     pub upstream: Option<Arc<HttpServiceClient>>,
+    /// The model service's HTTP transport, for the proxy.
+    pub model_upstream: Option<Arc<HttpServiceClient>>,
 }
 
 /// What a handler needs.
@@ -60,8 +59,6 @@ pub struct AppState {
     pub health: HealthRegistry,
     /// Where sealed hypotheses live; absent when no database is configured.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
-    /// Where canonical bytes live; absent when no object store is configured.
-    pub objects: Option<Arc<dyn ObjectStore>>,
     /// Which profiles exist; absent when no database is configured.
     pub profiles: Option<Arc<dyn ProfileStore>>,
     /// Where the built client lives; absent in a client-less test or probe.
@@ -74,6 +71,8 @@ pub struct AppState {
     pub data: Option<Arc<dyn DataClient>>,
     /// The data service's HTTP transport; absent in a test that does not proxy.
     pub upstream: Option<Arc<HttpServiceClient>>,
+    /// The model service's HTTP transport; absent in a test that does not proxy.
+    pub model_upstream: Option<Arc<HttpServiceClient>>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -83,13 +82,13 @@ impl std::fmt::Debug for AppState {
             .field("version", &self.version)
             .field("health", &self.health)
             .field("hypotheses", &self.hypotheses.is_some())
-            .field("objects", &self.objects.is_some())
             .field("profiles", &self.profiles.is_some())
             .field("static_dir", &self.static_dir)
             .field("runs", &self.runs.is_some())
             .field("queue", &self.queue.is_some())
             .field("data", &self.data.is_some())
             .field("upstream", &self.upstream.is_some())
+            .field("model_upstream", &self.model_upstream.is_some())
             .finish()
     }
 }
@@ -108,13 +107,13 @@ impl AppState {
             version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
             health,
             hypotheses: services.hypotheses,
-            objects: services.objects,
             profiles: services.profiles,
             static_dir: config.static_dir.clone(),
             runs: services.runs,
             queue: services.queue,
             data: services.data,
             upstream: services.upstream,
+            model_upstream: services.model_upstream,
         }
     }
 }
@@ -151,7 +150,6 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/version", get(version))
         .route("/hypotheses", post(create_hypothesis))
         .route("/hypotheses/{fingerprint}", get(get_hypothesis))
-        .route("/model/compute", post(crate::model::compute_model))
         .route("/runs", get(list_runs).post(submit_run))
         .route("/runs/{id}", get(get_run))
         .route("/runs/{id}/cancel", post(cancel_run))
@@ -160,6 +158,8 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/catalog/{*rest}", any(proxy_data))
         .route("/datasets/{*rest}", any(proxy_data))
         .route("/inspect/{*rest}", any(proxy_data))
+        .route("/model", any(proxy_model))
+        .route("/model/{*rest}", any(proxy_model))
 }
 
 /// Build the router.
@@ -565,6 +565,84 @@ async fn forward_data(
 /// A path the data proxy owns. `/internal/v1` is never in this set.
 fn data_path_allowed(path: &str) -> bool {
     const PREFIXES: [&str; 3] = ["/catalog", "/datasets", "/inspect"];
+    let lowered = path.to_ascii_lowercase();
+    if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
+        return false;
+    }
+    PREFIXES.iter().any(|prefix| {
+        path.strip_prefix(prefix)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+    }) && !path
+        .split('/')
+        .any(|segment| segment == ".." || segment == ".")
+}
+
+/// Forward a model request to `qr-model`.
+///
+/// The same boundary as the data proxy: validate the profile, replace any
+/// client-supplied value with the validated one, filter the headers, stream the
+/// body, and pass the status, content type, ETag, and error envelope through. An
+/// unreachable service is `503 service.unavailable` with no local fallback.
+async fn proxy_model(
+    State(state): State<Arc<AppState>>,
+    request: Request<axum::body::Body>,
+) -> Response {
+    match forward_model(&state, request).await {
+        Ok(response) => response,
+        Err(failure) => failure.into_response(),
+    }
+}
+
+async fn forward_model(
+    state: &AppState,
+    request: Request<axum::body::Body>,
+) -> Result<Response, ApiFailure> {
+    let profile = {
+        let headers = request.headers();
+        request_profile(state, headers).await?
+    };
+    let Some(upstream) = state.model_upstream.as_ref() else {
+        return Err(failure(
+            ErrorCode::ServiceUnavailable,
+            "the model service is not configured",
+        ));
+    };
+    if !model_path_allowed(request.uri().path()) {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorEnvelope::of(
+                ErrorCode::Internal,
+                "the path is not a model route",
+            )),
+        ));
+    }
+
+    let original = request
+        .extensions()
+        .get::<axum::extract::OriginalUri>()
+        .map(|original| original.0.clone());
+    let (parts, body) = request.into_parts();
+    let mut forwarded = Request::from_parts(parts, body);
+    if let Some(original) = original {
+        *forwarded.uri_mut() = original;
+    }
+    let headers = proxy_request_headers(forwarded.headers(), &profile);
+    *forwarded.headers_mut() = headers;
+    let response = upstream
+        .forward(Service::Model, forwarded)
+        .await
+        .map_err(|error| {
+            failure(
+                ErrorCode::ServiceUnavailable,
+                format!("the model service is unavailable: {error}"),
+            )
+        })?;
+    Ok(proxy_response(response))
+}
+
+/// A path the model proxy owns. `/internal/v1` is never in this set.
+fn model_path_allowed(path: &str) -> bool {
+    const PREFIXES: [&str; 1] = ["/model"];
     let lowered = path.to_ascii_lowercase();
     if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
         return false;

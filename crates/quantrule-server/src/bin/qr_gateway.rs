@@ -1,17 +1,17 @@
 //! The gateway binary.
 //!
 //! The gateway owns profiles, the static client, the proxy surface, health, and
-//! the run, hypothesis, and model routes until their services land. It reads no
-//! catalog or config schema: data calls go through the internal client and the
-//! public data routes are proxied to `qr-data`.
+//! the run and hypothesis routes until their services land. It reads no
+//! catalog, config, or model schema: data and model calls go through the
+//! internal client, and the public data and model routes are proxied to `qr-data`
+//! and `qr-model`.
 
 use std::sync::Arc;
 
 use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
 use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
-use quantrule_runtime::adapters::s3::S3Store;
-use quantrule_runtime::adapters::{Database, ObjectStore, Queue};
-use quantrule_runtime::client::{DataClient, HttpServiceClient, Service};
+use quantrule_runtime::adapters::{Database, Queue};
+use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 use quantrule_server::adapters::postgres::{PgHypothesisStore, PgProfileStore, PgRunStore};
@@ -64,13 +64,6 @@ async fn main() -> Result<(), RuntimeError> {
         }),
     }
 
-    let s3 = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
-    let objects: Arc<dyn ObjectStore> = Arc::new(s3.clone());
-    health.register("object-store", move || {
-        let store = s3.clone();
-        async move { store.check().await.map_err(|error| error.to_string()) }
-    });
-
     match RabbitQueue::connect(&config.queue_url).await {
         Ok(queue) => {
             let queue = Arc::new(queue);
@@ -87,35 +80,37 @@ async fn main() -> Result<(), RuntimeError> {
         }),
     }
 
-    let upstream = HttpServiceClient::from_env(Service::Data).map_err(data_config_error)?;
-    let data: Arc<dyn DataClient> = Arc::new(upstream.clone());
-    let upstream = Arc::new(upstream);
+    let data_upstream = HttpServiceClient::from_env(Service::Data)
+        .map_err(|error| service_config_error(Service::Data, error))?;
+    let data: Arc<dyn DataClient> = Arc::new(data_upstream.clone());
+    let data_upstream = Arc::new(data_upstream);
+    let model_upstream = HttpServiceClient::from_env(Service::Model)
+        .map_err(|error| service_config_error(Service::Model, error))?;
 
     let state = Arc::new(AppState::with_services(
         &config,
         health,
         Services {
             hypotheses,
-            objects: Some(objects),
             profiles,
             runs,
             queue: run_queue,
             data: Some(data),
-            upstream: Some(upstream),
+            upstream: Some(data_upstream),
+            model_upstream: Some(Arc::new(model_upstream)),
         },
     ));
     tracing::info!(bind = %config.bind, "starting gateway");
     server::serve(&config, state).await
 }
 
-/// Name the missing or invalid `QR_DATA_URL` at startup.
-fn data_config_error(error: quantrule_runtime::client::ClientError) -> RuntimeError {
+/// Name the missing or invalid `QR_*_URL` at startup.
+fn service_config_error(service: Service, error: ClientError) -> RuntimeError {
+    let name = service.url_variable();
     RuntimeError::Config(match error {
-        quantrule_runtime::client::ClientError::Unconfigured { .. } => ConfigError::Missing {
-            name: "QR_DATA_URL",
-        },
+        ClientError::Unconfigured { .. } => ConfigError::Missing { name },
         _ => ConfigError::Invalid {
-            name: "QR_DATA_URL",
+            name,
             value: "<invalid>".to_owned(),
             reason: "must be an absolute HTTP URL",
         },

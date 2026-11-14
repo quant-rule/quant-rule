@@ -24,7 +24,6 @@ axum = "0.8.9"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-app = { path = "../quantrule-app" }
 quantrule-data = { path = "../quantrule-data" }
-quantrule-model = { path = "../quantrule-model" }
 quantrule-research = { path = "../quantrule-research" }
 quantrule-runtime = { path = "../quantrule-runtime" }
 quantrule-service-api = { path = "../quantrule-service-api" }
