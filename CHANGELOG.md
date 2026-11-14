@@ -22,6 +22,13 @@ are not treated as releases.
 
 ### Added
 
+- The service runtime and the internal contract are their own crates:
+  `quantrule-runtime` owns configuration, health, logging, clock, shutdown, the
+  HTTP serve helper, the Postgres/S3/RabbitMQ adapters, the migration runner, and
+  the bytes-only `ServiceClient` seam; `quantrule-service-api` owns the
+  `quantrule.internal/v1` run record, claim/complete/fail payloads, run manifest
+  and canonical digest, config bundle, dataset object, and model bundle
+  manifest. `quantrule-server` keeps its three binaries, routes, and behavior.
 - The single server image and the Compose stack: one `quantrule-server` image
   carries `qr-gateway`, `qr-backtest`, `qr-evidence`, and the built client, and
   `compose.yaml` defines the nine-container topology with one published port,
@@ -263,6 +270,12 @@ are not treated as releases.
 
 ### Fixed
 
+- The migration runner pins the advisory lock to one Postgres session: it
+  acquires one `PoolConnection`, applies the ledger and migrations, and releases
+  on that same connection. A release through the pool could land on another
+  connection and leave the lock on an idle session, which deadlocked concurrent
+  migrators in #772. A composed two-migrator test with a 10 s budget covers the
+  fix and its postcondition.
 - The in-memory run store now rejects a `complete` or `fail` transition from a
   queued or terminal run, matching the Postgres `status = 'running'` predicate;
   a test that accepted a transition production rejects can no longer pass.

@@ -2,7 +2,7 @@
 
 use sqlx::PgPool;
 
-use crate::runtime::adapters::BoxFuture;
+use quantrule_runtime::adapters::BoxFuture;
 
 /// A run store backed by Postgres.
 #[derive(Debug, Clone)]

@@ -10,7 +10,7 @@ use quantrule_data::Timeframe;
 
 use crate::data::series;
 use crate::model::{ModelError, compute_sharded, load_config};
-use crate::runtime::server::{ApiFailure, AppState, failure, request_profile, sync_configs};
+use crate::server::{ApiFailure, AppState, failure, request_profile, sync_configs};
 
 /// Compute the model for a dataset and config, then store one JSON object.
 pub async fn compute_model(

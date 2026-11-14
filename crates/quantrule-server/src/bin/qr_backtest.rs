@@ -8,23 +8,19 @@
 
 use std::sync::Arc;
 
+use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations};
+use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
+use quantrule_runtime::adapters::s3::S3Store;
+use quantrule_runtime::adapters::{
+    Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
+};
+use quantrule_runtime::queue::{QUEUE_BACKTEST, ROUTING_CANCELLED, ROUTING_REQUESTED};
+use quantrule_runtime::{Config, RuntimeError, logging, shutdown};
+use quantrule_server::adapters::postgres::{PgConfigStore, PgDatasetCatalog, PgRunStore};
 use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
 use quantrule_server::configs::ConfigCatalog;
 use quantrule_server::data::DatasetCatalog;
 use quantrule_server::runs::RunStore;
-use quantrule_server::runtime::adapters::postgres::PgConfigStore;
-use quantrule_server::runtime::adapters::postgres::PgDatabase;
-use quantrule_server::runtime::adapters::postgres::PgDatasetCatalog;
-use quantrule_server::runtime::adapters::postgres::PgRunStore;
-use quantrule_server::runtime::adapters::postgres::apply_migrations;
-use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
-use quantrule_server::runtime::adapters::s3::S3Store;
-use quantrule_server::runtime::adapters::{
-    Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
-};
-use quantrule_server::runtime::queue::{QUEUE_BACKTEST, ROUTING_CANCELLED, ROUTING_REQUESTED};
-use quantrule_server::runtime::shutdown;
-use quantrule_server::runtime::{Config, RuntimeError, logging};
 use serde_json::Value;
 
 #[tokio::main]
@@ -36,7 +32,7 @@ async fn main() -> Result<(), RuntimeError> {
         .await
         .map_err(|error| RuntimeError::Database(error.to_string()))?;
     if config.migrate {
-        apply_migrations(database.pool())
+        apply_migrations(database.pool(), &quantrule_server::migrations::available())
             .await
             .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
     }

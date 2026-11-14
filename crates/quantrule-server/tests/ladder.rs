@@ -8,8 +8,8 @@ use common::{
     body_bytes, minutes, read_dataset, state_with_catalog, state_with_catalog_and_objects, upload,
 };
 use quantrule_api::PROFILE_HEADER;
-use quantrule_server::runtime::adapters::ObjectStore;
-use quantrule_server::runtime::server::router;
+use quantrule_runtime::adapters::ObjectStore;
+use quantrule_server::server::router;
 use std::sync::Arc;
 use tower::ServiceExt;
 

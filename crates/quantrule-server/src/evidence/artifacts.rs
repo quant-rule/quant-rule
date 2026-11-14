@@ -5,8 +5,8 @@ use std::sync::Arc;
 use quantrule_api::{ArtifactRef, Digest};
 
 use crate::evidence::EvidenceError;
-use crate::evidence::manifest::RunManifest;
-use crate::runtime::adapters::ObjectStore;
+use quantrule_runtime::adapters::ObjectStore;
+use quantrule_service_api::RunManifest;
 
 /// Verify the run manifest and every artifact blob, and return the canonical
 /// digest.
@@ -64,5 +64,5 @@ pub async fn verify(
 /// The canonical digest over `results.json`, `*.csv`, and `*.ndjson`.
 #[must_use]
 pub fn digest(artifacts: &[ArtifactRef]) -> Digest {
-    crate::evidence::manifest::canonical_digest(artifacts)
+    quantrule_service_api::canonical_digest(artifacts)
 }

@@ -6,11 +6,10 @@
 
 pub mod artifacts;
 pub mod finalize;
-pub mod manifest;
 
 pub use artifacts::{digest, verify};
 pub use finalize::{EvidenceServices, FinalizeOutcome, finalize};
-pub use manifest::{ManifestError, RunManifest, canonical_digest};
+pub use quantrule_service_api::{ManifestError, RunManifest, canonical_digest};
 
 /// Why evidence could not accept a computed run.
 #[derive(Debug, Clone, PartialEq, Eq)]

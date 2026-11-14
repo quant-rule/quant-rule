@@ -1,10 +1,12 @@
 //! Forward-only schema migrations.
 //!
-//! The migrations are compiled in, applied in version order, and recorded with a
-//! checksum. A changed checksum, an unknown applied version, or a database ahead
-//! of the binary is refused rather than guessed at.
+//! The migrations are compiled in by the service that owns them, applied in
+//! version order, and recorded with a checksum. A changed checksum, an unknown
+//! applied version, or a database ahead of the binary is refused rather than
+//! guessed at.
 //!
-//! This module is pure: it decides what to apply. The adapter runs the SQL.
+//! This module is pure: it decides what to apply. The Postgres adapter runs the
+//! SQL and pins the advisory lock to one connection.
 
 /// One compiled-in migration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,75 +80,6 @@ impl std::fmt::Display for MigrationError {
 
 impl std::error::Error for MigrationError {}
 
-/// The migrations this binary carries, in version order.
-#[must_use]
-pub fn available() -> Vec<Migration> {
-    let mut migrations = vec![
-        Migration {
-            version: 1,
-            name: "catalog",
-            sql: include_str!("../../migrations/0001_catalog.sql"),
-        },
-        Migration {
-            version: 2,
-            name: "runs",
-            sql: include_str!("../../migrations/0002_runs.sql"),
-        },
-        Migration {
-            version: 3,
-            name: "simulation",
-            sql: include_str!("../../migrations/0003_simulation.sql"),
-        },
-        Migration {
-            version: 4,
-            name: "research",
-            sql: include_str!("../../migrations/0004_research.sql"),
-        },
-        Migration {
-            version: 5,
-            name: "hypothesis-body",
-            sql: include_str!("../../migrations/0005_hypothesis_body.sql"),
-        },
-        Migration {
-            version: 6,
-            name: "catalog-profile",
-            sql: include_str!("../../migrations/0006_catalog_profile.sql"),
-        },
-        Migration {
-            version: 7,
-            name: "profiles",
-            sql: include_str!("../../migrations/0007_profiles.sql"),
-        },
-        Migration {
-            version: 8,
-            name: "hypothesis-profile",
-            sql: include_str!("../../migrations/0008_hypothesis_profile.sql"),
-        },
-        Migration {
-            version: 9,
-            name: "run-submissions",
-            sql: include_str!("../../migrations/0009_run_submissions.sql"),
-        },
-        Migration {
-            version: 10,
-            name: "dataset-quality",
-            sql: include_str!("../../migrations/0010_dataset_quality.sql"),
-        },
-        Migration {
-            version: 11,
-            name: "config-files",
-            sql: include_str!("../../migrations/0011_config_files.sql"),
-        },
-        Migration {
-            version: 12,
-            name: "config-profile",
-            sql: include_str!("../../migrations/0012_config_profile.sql"),
-        },
-    ];
-    migrations.sort_by_key(|migration| migration.version);
-    migrations
-}
-
 /// The FNV-1a checksum of a migration body, in lowercase hexadecimal.
 #[must_use]
 pub fn checksum(sql: &str) -> String {
@@ -209,9 +142,17 @@ pub fn plan<'a>(
 mod tests {
     use super::*;
 
-    fn applied(version: i64, migration: &Migration) -> Applied {
-        Applied {
+    fn migration(version: i64, sql: &'static str) -> Migration {
+        Migration {
             version,
+            name: "probe",
+            sql,
+        }
+    }
+
+    fn applied(migration: &Migration) -> Applied {
+        Applied {
+            version: migration.version,
             name: migration.name.to_owned(),
             checksum: checksum(migration.sql),
         }
@@ -219,83 +160,77 @@ mod tests {
 
     #[test]
     fn an_empty_database_gets_every_migration() {
-        let available = available();
-        let pending = plan(&[], &available).expect("plan");
-        assert_eq!(pending.len(), available.len());
+        let available = [migration(1, "SELECT 1"), migration(2, "SELECT 2")];
+        assert_eq!(plan(&[], &available).expect("plan").len(), 2);
     }
 
     #[test]
     fn a_fully_migrated_database_gets_none() {
-        let available = available();
-        let applied: Vec<Applied> = available
-            .iter()
-            .map(|migration| applied(migration.version, migration))
-            .collect();
+        let available = [migration(1, "SELECT 1"), migration(2, "SELECT 2")];
+        let applied: Vec<Applied> = available.iter().map(applied).collect();
         assert!(plan(&applied, &available).expect("plan").is_empty());
     }
 
     #[test]
     fn a_partial_database_gets_only_the_rest() {
-        let available = available();
-        let applied = vec![applied(1, &available[0])];
-        let pending = plan(&applied, &available).expect("plan");
+        let available = [migration(1, "SELECT 1"), migration(2, "SELECT 2")];
+        let recorded = vec![applied(&available[0])];
+        let pending = plan(&recorded, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+            vec![2]
         );
     }
 
     #[test]
     fn a_changed_body_is_refused() {
-        let available = available();
-        let mut applied = vec![applied(1, &available[0])];
-        applied[0].checksum = "0000000000000000".to_owned();
+        let available = [migration(1, "SELECT 1")];
+        let mut recorded = vec![applied(&available[0])];
+        recorded[0].checksum = "0000000000000000".to_owned();
         assert_eq!(
-            plan(&applied, &available),
+            plan(&recorded, &available),
             Err(MigrationError::ChecksumMismatch { version: 1 })
         );
     }
 
     #[test]
     fn a_database_ahead_is_refused() {
-        let available = available();
-        let mut applied: Vec<Applied> = available
-            .iter()
-            .map(|migration| applied(migration.version, migration))
-            .collect();
-        applied.push(Applied {
+        let available = [migration(1, "SELECT 1")];
+        let recorded = vec![Applied {
             version: 99,
             name: "future".to_owned(),
             checksum: "0".to_owned(),
-        });
+        }];
         assert_eq!(
-            plan(&applied, &available),
+            plan(&recorded, &available),
             Err(MigrationError::DatabaseAhead {
                 applied: 99,
-                available: 12
+                available: 1
             })
         );
     }
 
     #[test]
     fn an_unknown_applied_version_is_refused() {
-        let available = available();
-        let applied = vec![Applied {
+        let available = [migration(1, "SELECT 1"), migration(3, "SELECT 3")];
+        let recorded = vec![Applied {
             version: 2,
             name: "runs".to_owned(),
             checksum: "x".to_owned(),
         }];
         assert!(matches!(
-            plan(&applied, &available),
-            Err(MigrationError::ChecksumMismatch { version: 2 })
+            plan(&recorded, &available),
+            Err(MigrationError::UnknownApplied(2))
         ));
     }
 
     #[test]
-    fn versions_are_unique_and_ordered() {
-        let available = available();
-        let versions: Vec<i64> = available.iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    fn a_duplicate_version_is_refused() {
+        let available = [migration(1, "SELECT 1"), migration(1, "SELECT 2")];
+        assert_eq!(
+            plan(&[], &available),
+            Err(MigrationError::DuplicateVersion(1))
+        );
     }
 
     #[test]

@@ -7,7 +7,7 @@ use aws_sdk_s3::Client;
 use aws_sdk_s3::config::{BehaviorVersion, Region};
 use aws_sdk_s3::primitives::ByteStream;
 
-use crate::runtime::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
+use crate::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
 
 /// An S3-compatible bucket.
 #[derive(Debug, Clone)]

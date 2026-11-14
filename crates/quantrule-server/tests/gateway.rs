@@ -13,8 +13,8 @@ use common::{
 };
 use quantrule_api::{DatasetSummary, Digest, PROFILE_HEADER, ProfileSummary, TimeframeInspection};
 use quantrule_research::SealedHypothesis;
-use quantrule_server::runtime::adapters::ObjectStore;
-use quantrule_server::runtime::server::router;
+use quantrule_runtime::adapters::ObjectStore;
+use quantrule_server::server::router;
 use std::sync::Arc;
 use tower::ServiceExt;
 

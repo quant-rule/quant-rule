@@ -20,8 +20,8 @@ use crate::configs::ConfigCatalog;
 use crate::data::DatasetCatalog;
 use crate::evidence::RunManifest;
 use crate::runs::{ClaimOutcome, RunStore};
-use crate::runtime::adapters::{ObjectStore, Queue};
-use crate::runtime::queue::{ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_FAILED};
+use quantrule_runtime::adapters::{ObjectStore, Queue};
+use quantrule_runtime::queue::{ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_FAILED};
 
 /// A worker failure with a human-readable message.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use axum::http::{Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 
-use crate::runtime::server::AppState;
+use crate::server::AppState;
 
 /// Serve one static request, or the SPA entry point.
 pub async fn serve(state: &AppState, uri: &Uri, method: &Method) -> Response {

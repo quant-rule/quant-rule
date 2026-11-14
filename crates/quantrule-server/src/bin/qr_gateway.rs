@@ -5,30 +5,20 @@
 
 use std::sync::Arc;
 
+use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations};
+use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
+use quantrule_runtime::adapters::s3::S3Store;
+use quantrule_runtime::adapters::{Database, ObjectStore, Queue};
+use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
+use quantrule_server::adapters::postgres::{
+    PgConfigStore, PgDatasetCatalog, PgHypothesisStore, PgProfileStore, PgRunStore,
+};
 use quantrule_server::configs::ConfigCatalog;
 use quantrule_server::data::DatasetCatalog;
 use quantrule_server::profile::ProfileStore;
 use quantrule_server::research::HypothesisStore;
 use quantrule_server::runs::RunStore;
-use quantrule_server::runtime::AppState;
-use quantrule_server::runtime::Config;
-use quantrule_server::runtime::HealthRegistry;
-use quantrule_server::runtime::RuntimeError;
-use quantrule_server::runtime::Services;
-use quantrule_server::runtime::adapters::Database;
-use quantrule_server::runtime::adapters::ObjectStore;
-use quantrule_server::runtime::adapters::Queue;
-use quantrule_server::runtime::adapters::postgres::PgConfigStore;
-use quantrule_server::runtime::adapters::postgres::PgDatabase;
-use quantrule_server::runtime::adapters::postgres::PgDatasetCatalog;
-use quantrule_server::runtime::adapters::postgres::PgHypothesisStore;
-use quantrule_server::runtime::adapters::postgres::PgProfileStore;
-use quantrule_server::runtime::adapters::postgres::PgRunStore;
-use quantrule_server::runtime::adapters::postgres::apply_migrations;
-use quantrule_server::runtime::adapters::rabbitmq::RabbitQueue;
-use quantrule_server::runtime::adapters::s3::S3Store;
-use quantrule_server::runtime::logging;
-use quantrule_server::runtime::server;
+use quantrule_server::server::{self, AppState, Services};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -46,9 +36,10 @@ async fn main() -> Result<(), RuntimeError> {
     match PgDatabase::connect(&config.database_url).await {
         Ok(database) => {
             if config.migrate {
-                let applied = apply_migrations(database.pool())
-                    .await
-                    .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+                let applied =
+                    apply_migrations(database.pool(), &quantrule_server::migrations::available())
+                        .await
+                        .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
                 tracing::info!(applied, "migrations applied");
             }
             hypotheses = Some(Arc::new(PgHypothesisStore::new(database.pool().clone())));

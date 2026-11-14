@@ -9,12 +9,13 @@ use quantrule_api::{
     ConfigSummary, DatasetRecord, Digest, PROFILE_HEADER, RunDetail, RunState, RunSummary,
     SubmitRunResponse,
 };
+use quantrule_runtime::adapters::{Backend, BoxFuture, Queue, QueueError};
+use quantrule_runtime::{Config, HealthRegistry};
 use quantrule_server::configs::MemoryConfigs;
 use quantrule_server::data::MemoryCatalog;
 use quantrule_server::runs::MemoryRuns;
-use quantrule_server::runtime::adapters::{Backend, BoxFuture, Queue, QueueError};
-use quantrule_server::runtime::server::router;
-use quantrule_server::runtime::{AppState, Config, HealthRegistry, Services};
+use quantrule_server::server::router;
+use quantrule_server::server::{AppState, Services};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tower::ServiceExt;

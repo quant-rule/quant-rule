@@ -1,4 +1,4 @@
-//! The HTTP surface of the runtime.
+//! The gateway HTTP surface.
 //!
 //! The gateway serves `/health` and `/version`, seals and reads a hypothesis,
 //! and ingests a dataset into the catalog. The remaining routes arrive with
@@ -31,12 +31,12 @@ use crate::data::{
 use crate::profile::{ProfileStore, create_profile, list_profiles};
 use crate::research::HypothesisStore;
 use crate::runs::{CancelOutcome, NewRun, RunStore, derive};
-use crate::runtime::adapters::{ObjectStore, Queue};
-use crate::runtime::clock;
-use crate::runtime::config::Config;
-use crate::runtime::error::RuntimeError;
-use crate::runtime::health::HealthRegistry;
-use crate::runtime::queue::{ROUTING_CANCELLED, ROUTING_REQUESTED};
+use quantrule_runtime::adapters::{ObjectStore, Queue};
+use quantrule_runtime::clock;
+use quantrule_runtime::config::Config;
+use quantrule_runtime::error::RuntimeError;
+use quantrule_runtime::health::HealthRegistry;
+use quantrule_runtime::queue::{ROUTING_CANCELLED, ROUTING_REQUESTED};
 
 /// The services a gateway can reach.
 #[derive(Default)]
@@ -189,7 +189,7 @@ async fn static_client(
     method: axum::http::Method,
     uri: Uri,
 ) -> impl IntoResponse {
-    crate::runtime::static_files::serve(&state, &uri, &method).await
+    crate::static_files::serve(&state, &uri, &method).await
 }
 
 async fn health(State(state): State<Arc<AppState>>) -> Json<HealthReport> {
@@ -922,11 +922,5 @@ async fn get_dataset(
 /// Returns [`RuntimeError::Serve`] when the address cannot be bound or the
 /// server fails.
 pub async fn serve(config: &Config, state: Arc<AppState>) -> Result<(), RuntimeError> {
-    let listener = tokio::net::TcpListener::bind(&config.bind)
-        .await
-        .map_err(|error| RuntimeError::Serve(format!("bind {}: {error}", config.bind)))?;
-    axum::serve(listener, router(state))
-        .with_graceful_shutdown(crate::runtime::shutdown::signal())
-        .await
-        .map_err(|error| RuntimeError::Serve(format!("serve: {error}")))
+    quantrule_runtime::serve(&config.bind, router(state)).await
 }
