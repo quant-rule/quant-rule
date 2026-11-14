@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- Reviewer verification is four commands and one line: `tools/verify.sh` runs
+  the mini fixture twice, compares the canonical digest, and `--expected`
+  compares a second host's line. `make verify` is the shortcut. The full
+  example remains the release run.
 - Crash tests prove that a backtest stopped before the manifest leaves no run
   prefix and no artifact, and that an evidence process stopped before `complete`
   leaves the run `running`; each restarts from the durable object set and
