@@ -2,16 +2,19 @@
 
 mod common;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use quantrule_api::{
-    ArtifactRef, Digest, ProfileId, RunState, StageName, StageProgress, StageStatus,
+    ArtifactRef, Digest, ProfileId, RunState, RunSummary, StageName, StageProgress, StageStatus,
 };
 use quantrule_server::evidence::{
-    EvidenceServices, FinalizeOutcome, RunManifest, digest, finalize,
+    EvidenceError, EvidenceServices, FinalizeOutcome, RunManifest, digest, finalize,
 };
-use quantrule_server::runs::{MemoryRuns, NewRun, RunRecord, RunStore, derive};
-use quantrule_server::runtime::adapters::ObjectStore;
+use quantrule_server::runs::{
+    CancelOutcome, ClaimOutcome, MemoryRuns, NewRun, RunRecord, RunStore, RunStoreError,
+    SubmitOutcome, derive,
+};
+use quantrule_server::runtime::adapters::{BoxFuture, ObjectStore};
 
 fn profile(name: &str) -> ProfileId {
     ProfileId::parse(name).expect("profile")
@@ -51,6 +54,106 @@ fn computed_stages() -> Vec<StageProgress> {
         elapsed_ms: None,
     })
     .collect()
+}
+
+#[derive(Clone)]
+struct CompleteFails {
+    inner: MemoryRuns,
+    fail: Arc<Mutex<bool>>,
+}
+
+impl RunStore for CompleteFails {
+    fn submit(
+        &self,
+        profile: ProfileId,
+        run: NewRun,
+    ) -> BoxFuture<Result<SubmitOutcome, RunStoreError>> {
+        self.inner.submit(profile, run)
+    }
+
+    fn list(
+        &self,
+        profile: ProfileId,
+        status: Option<RunState>,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<RunSummary>, RunStoreError>> {
+        self.inner.list(profile, status, limit)
+    }
+
+    fn get(
+        &self,
+        profile: ProfileId,
+        run_id: String,
+    ) -> BoxFuture<Result<Option<RunRecord>, RunStoreError>> {
+        self.inner.get(profile, run_id)
+    }
+
+    fn cancel(
+        &self,
+        profile: ProfileId,
+        run_id: String,
+    ) -> BoxFuture<Result<CancelOutcome, RunStoreError>> {
+        self.inner.cancel(profile, run_id)
+    }
+
+    fn get_any(&self, run_id: String) -> BoxFuture<Result<Option<RunRecord>, RunStoreError>> {
+        self.inner.get_any(run_id)
+    }
+
+    fn claim(
+        &self,
+        run_id: String,
+        redelivered: bool,
+    ) -> BoxFuture<Result<ClaimOutcome, RunStoreError>> {
+        self.inner.claim(run_id, redelivered)
+    }
+
+    fn computed(
+        &self,
+        run_id: String,
+        digest: Digest,
+        artifacts: Vec<ArtifactRef>,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
+        self.inner.computed(run_id, digest, artifacts, stages)
+    }
+
+    fn complete(
+        &self,
+        run_id: String,
+        digest: Digest,
+        artifacts: Vec<ArtifactRef>,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
+        let inner = self.inner.clone();
+        let fail = Arc::clone(&self.fail);
+        Box::pin(async move {
+            let should_fail = {
+                let mut fail = fail
+                    .lock()
+                    .map_err(|_| RunStoreError("the crash flag is poisoned".to_owned()))?;
+                if *fail {
+                    *fail = false;
+                    true
+                } else {
+                    false
+                }
+            };
+            if should_fail {
+                return Err(RunStoreError("the evidence process was killed".to_owned()));
+            }
+            inner.complete(run_id, digest, artifacts, stages).await
+        })
+    }
+
+    fn fail(
+        &self,
+        run_id: String,
+        error: String,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
+        self.inner.fail(run_id, error, stages)
+    }
 }
 
 struct Fixture {
@@ -194,6 +297,45 @@ async fn a_computed_run_is_verified_and_finished() {
             .await
             .expect("per-name key")
     );
+}
+
+#[tokio::test]
+async fn a_finalize_crash_leaves_the_run_running() {
+    let fixture = fixture("crash").await;
+    let results = fixture.put("results.json", b"{\"profit\":1}").await;
+    fixture
+        .publish(std::slice::from_ref(&results), None, computed_stages())
+        .await;
+    let services = EvidenceServices {
+        runs: Arc::new(CompleteFails {
+            inner: fixture.runs.clone(),
+            fail: Arc::new(Mutex::new(true)),
+        }),
+        objects: Arc::new(fixture.objects.clone()),
+    };
+    let error = finalize(fixture.run_id.clone(), &services)
+        .await
+        .expect_err("the crash must surface");
+    assert!(matches!(error, EvidenceError::Store(_)), "{error:?}");
+
+    let record = fixture.record().await;
+    assert_eq!(record.status, RunState::Running);
+    assert!(!record.artifacts.is_empty());
+    let evidence_stage = record
+        .stages
+        .iter()
+        .find(|stage| stage.name == StageName::Evidence)
+        .expect("evidence stage");
+    assert_eq!(evidence_stage.state, StageStatus::Pending);
+
+    // Restart: the manifest and blobs are complete, so a second pass finishes.
+    assert_eq!(
+        finalize(fixture.run_id.clone(), &fixture.services())
+            .await
+            .expect("restart"),
+        FinalizeOutcome::Succeeded
+    );
+    assert_eq!(fixture.record().await.status, RunState::Succeeded);
 }
 
 #[tokio::test]
