@@ -99,3 +99,15 @@ Podman paths are documented, not executed here.
   them. A single host port is part of the deployment contract, so concurrent
   stacks from different worktrees need separate hosts or a compose override,
   which is outside #644.
+
+## Refresh after main `eee44e29` — 2026-11-14 (UTC)
+
+- Merge: `origin/main` at `eee44e29` merged with no conflict. Main did not change
+  `CHANGELOG.md`; the Makefile entry and every main entry are retained.
+- Re-verified on the merged tree: `make help` (18 targets), `make -n up`,
+  `docker compose config -q`, `make up` on a free `:8080` (ready line, health
+  healthy), a second `make up` (exit 0), `make down`, `make test` (63 test
+  binaries, 1788 tests), and `tools/gate.sh` (exit 0).
+- The PR now says `Refs #644`. P9 of the Option B plan re-bases `tools/verify.sh`
+  and `make verify` on the distributed run path; #644 stays open until that
+  lands.
