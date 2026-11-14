@@ -28,6 +28,7 @@ for checker in \
   check_releases \
   check_partitions \
   check_registry \
+  check_labels \
   check_validation \
   check_verification \
   check_verification_matrix \

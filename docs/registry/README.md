@@ -38,7 +38,9 @@ docs/registry/
 ```
 
 `indicators.json` is the source of truth. `indicators.md` is generated from it
-and is never edited by hand.
+and is never edited by hand. `apps/web/src/lib/labels.generated.ts` is generated
+from the same file by `tools/generate_labels.py`; `tools/check_labels.py` fails
+the gate when the checked-in client table drifts.
 
 ## 3. Entry types### 3.1 Indicator
 

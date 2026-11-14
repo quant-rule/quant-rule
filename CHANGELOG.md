@@ -22,6 +22,9 @@ are not treated as releases.
 
 ### Added
 
+- The client label table is generated from `docs/registry/indicators.json` into
+  `apps/web/src/lib/labels.generated.ts`; `check_labels` fails the gate when the
+  checked-in table drifts, so every numeric code has one word mapping.
 - The browser client distinguishes a gateway API mismatch from a healthy
   connection and shows the version it expected; a shared Playwright fixture
   router drives the connected, mismatch, degraded, and unreachable tests.
