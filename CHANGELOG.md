@@ -26,6 +26,10 @@ are not treated as releases.
   the internal config-bundle, dataset-object, and dataset-count references the
   gateway and the worker consume. The gateway proxies `/catalog/*`,
   `/datasets/*`, and `/inspect/*` unchanged and has no data handler.
+- `qr-model` serves the public model compute and the internal model-bundle
+  reference. The gateway proxies `/model/*` unchanged and has no model handler;
+  the public model object is byte-identical to the coupled route, and the
+  internal manifest lists every model-bundle artifact with its SHA-256.
 - `quantrule-runtime` gains the concrete HTTP service transport and a
   `DataClient` with an in-memory fake. The runtime migration runner takes a
   ledger schema, so the catalog, gateway, and run migration lists record under

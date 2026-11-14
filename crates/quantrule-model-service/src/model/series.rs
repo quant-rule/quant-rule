@@ -1,9 +1,9 @@
 //! Canonical candle bytes to a bounded timeframe set.
 //!
-//! The model route reads the dataset object directly from CAS until the model
-//! service owns the compute. This parser is the model's input preparation, not
-//! a data route: it builds the same `TimeframeSet` the data engine publishes and
-//! fails with the same `dataset.invalid` class.
+//! The model service reads the dataset object from the shared object store by
+//! reference. This parser is the model's input preparation, not a data route: it
+//! builds the same `TimeframeSet` the data engine publishes and fails with the
+//! same `dataset.invalid` class.
 
 use quantrule_data::{Candle, CandleError, CandleValues, TimeframeError, TimeframeSet};
 
