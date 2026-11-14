@@ -22,7 +22,18 @@ make up
 QuantRule v1.0.0 ready → http://localhost:8080
 ```
 
-Stop with `make down`. Delete volumes with `make reset`.
+Stop with `make down`. Delete volumes with `make reset`; it asks for
+confirmation, and `yes | make reset` is the scripted form. Windows runs the same
+Compose file without make:
+
+```powershell
+docker compose up -d --build --wait
+```
+
+Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
+provider must support health conditions, profiles, YAML anchors, and healthchecks;
+see [`docker/README.md`](../../docker/README.md) §7. The current tree starts the
+six containers whose binaries exist; the nine-container target is §2.
 
 ## 2. Topology — `quantrule.deploy/v1`
 
@@ -65,20 +76,31 @@ decision is recorded.
 
 | Target | Effect |
 |---|---|
+| `make` / `make help` | List every target |
 | `make up` | Build, start, wait for health, print URL |
 | `make down` | Stop, keep volumes |
-| `make reset` | Stop and delete volumes, with confirmation |
+| `make reset` | Stop and delete volumes, after confirmation |
 | `make logs` | Tail all services |
 | `make ps` | Status table |
 | `make scale N=4` | Scale `model` and `backtest` to `N` |
-| `make verify` | Run the fixture and print the canonical digest |
-| `make test` | Unit and integration tier, no network |
-| `make gate` | Full gate |
+| `make verify` | Fixture digest check; blocked until `tools/verify.sh` moves to the HTTP shell |
+| `make test` / `make test-fast` | Fast unit and integration tier, no network |
+| `make test-composed` | Composed tier; exits 2 until the suite is wired |
+| `make test-parity` | Port-parity tier |
+| `make gate` | Full workspace gate |
 | `make remote` | Start with only `:8080` and a bearer token |
 | `make token` | Print a new bearer token |
 | `make backup` | Dump Postgres and mirror objects |
 | `make restore FILE=…` | Restore into a clean stack |
-| `make dev-web` | Vite dev server proxying to `localhost:8080` |
+| `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
+
+`make scale` requires the six-binary profile, off until `qr-data` and `qr-model`
+exist (§2.1). `make remote`, `make token`, `make backup`, and `make restore`
+forward to scripts owned by DIST-081 (#672) and DIST-080 (#671); until a script
+lands, its target exits nonzero and names the issue. `make test-composed`
+preserves exit 2 because the composed suite is not wired yet. `make verify` keeps
+the pre-#771 recipe, but `tools/verify.sh` still calls the retired local
+`backtest run` command; the script needs its own change.
 
 ## 4. Configuration
 
