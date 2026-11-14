@@ -1,106 +1,47 @@
-//! The interactive command-line parser.
+//! The shell command parser.
 //!
-//! The parser turns one typed line into a [`Command`]. It owns tokenization
-//! and the interactive-only conveniences: a path may be the trimmed remainder
-//! of the line, and the event command may carry a trailing `--window` option.
-//! It does not open a source or compute a model value.
+//! Interactive input and OS argv resolve to the same [`Invocation`]. The parser
+//! owns tokenization, the global flags, and the per-command grammar; it does not
+//! open a file, reach the network, or compute a value.
 
-use std::path::PathBuf;
+use std::collections::{BTreeMap, BTreeSet};
 
-use super::analytics::parse_analytics_arguments;
-use super::backtest::parse_backtest_arguments;
-use super::execution::parse_execution_arguments;
-use super::fetch::parse_fetch_arguments;
-use super::memory::parse_memory_arguments;
-use super::portfolio::parse_portfolio_arguments;
-use super::qualify::parse_qualify_arguments;
-use super::report_run::parse_report_arguments;
-use super::run_check::parse_run_check_arguments;
-use super::strategy::parse_strategy_arguments;
-use super::types::{Command, HelpTopic, ParseError};
-use crate::request::ModelArgs;
-use quantrule_app::pipeline::WindowMode;
+use quantrule_api::{
+    Digest, MarkAction, MarkOrigin, MarkQuality, RunState, Side, SimulationStatus,
+};
 
-/// Parses one command line.
-///
-/// A blank line returns `Ok(None)`. A path command takes the trimmed remainder
-/// of the line, so a path may contain spaces.
+use super::help::is_command;
+use super::types::{Command, GlobalOptions, HelpTopic, Invocation, ParseError};
+
+/// Parse an already-split argv, after the binary name.
 ///
 /// # Errors
 ///
-/// Returns a [`ParseError`] for a missing path, unexpected arguments, or an
-/// unknown command.
-pub(crate) fn parse(line: &str) -> Result<Option<Command>, ParseError> {
-    let line = line.trim();
-    if line.is_empty() {
+/// Returns [`ParseError`] when a global flag, command, argument, or option is
+/// invalid.
+pub(crate) fn parse_argv(argv: &[String]) -> Result<Option<Invocation>, ParseError> {
+    let (globals, rest) = extract_globals(argv)?;
+    if rest.is_empty() {
         return Ok(None);
     }
-
-    let (name, rest) = match line.split_once(char::is_whitespace) {
-        Some((name, rest)) => (name, rest.trim()),
-        None => (line, ""),
-    };
-
-    match name {
-        "candles" => path_command(rest, "candles", Command::Candles),
-        "candles-tolerant" => path_command(rest, "candles-tolerant", Command::CandlesTolerant),
-        "timeframes" => path_command(rest, "timeframes", Command::Timeframes),
-        "events" => parse_model_command(rest, "events", Command::Events),
-        "report" => {
-            let arguments = tokenize(rest)?;
-            parse_report_arguments(&arguments).map(|args| Some(Command::Report(args)))
-        }
-        "run" => {
-            let arguments = tokenize(rest)?;
-            parse_run_check_arguments(&arguments).map(Some)
-        }
-        "strategy" => {
-            let arguments = tokenize(rest)?;
-            parse_strategy_arguments(&arguments).map(Some)
-        }
-        "execution" => {
-            let arguments = tokenize(rest)?;
-            parse_execution_arguments(&arguments).map(Some)
-        }
-        "portfolio" => {
-            let arguments = tokenize(rest)?;
-            parse_portfolio_arguments(&arguments).map(Some)
-        }
-        "backtest" => {
-            let arguments = tokenize(rest)?;
-            parse_backtest_arguments(&arguments).map(Some)
-        }
-        "qualify" => {
-            let arguments = tokenize(rest)?;
-            parse_qualify_arguments(&arguments).map(Some)
-        }
-        "analytics" => {
-            let arguments = tokenize(rest)?;
-            parse_analytics_arguments(&arguments).map(Some)
-        }
-        "fetch" => {
-            let arguments = tokenize(rest)?;
-            parse_fetch_arguments(&arguments).map(|args| Some(Command::Fetch(args)))
-        }
-        "memory" => {
-            let arguments = tokenize(rest)?;
-            parse_memory_arguments(&arguments).map(Some)
-        }
-        "help" => {
-            let arguments = tokenize(rest)?;
-            parse_help_arguments(&arguments).map(|topic| Some(Command::Help(topic)))
-        }
-        "quit" => {
-            if rest.is_empty() {
-                Ok(Some(Command::Quit))
-            } else {
-                Err(ParseError::UnexpectedArguments("quit"))
-            }
-        }
-        _ => Err(ParseError::Unknown(name.to_owned())),
-    }
+    let command = parse_command(&rest)?;
+    Ok(Some(Invocation { globals, command }))
 }
 
+/// Parse one interactive line.
+///
+/// # Errors
+///
+/// Returns the same failures as [`parse_argv`].
+pub(crate) fn parse_line(line: &str) -> Result<Option<Invocation>, ParseError> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    parse_argv(&tokenize(trimmed)?)
+}
+
+/// Split a line into tokens, honouring single and double quotes.
 fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     let mut tokens = Vec::new();
     let mut current = String::new();
@@ -142,174 +83,703 @@ fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     if in_token {
         tokens.push(current);
     }
-
     Ok(tokens)
 }
 
-/// Parses an already-split `events <csv-path> [--window full|latest]`.
-///
-/// # Errors
-///
-/// Returns [`ParseError::MissingPath`] when the path is absent, and
-/// [`ParseError::Window`] for a repeated or invalid window.
-pub(crate) fn parse_model_arguments(
-    arguments: &[String],
-    name: &'static str,
-) -> Result<ModelArgs, ParseError> {
-    const USAGE: &str = "usage: events <csv-path> [--window full|latest]";
-    let mut path = None;
-    let mut window = WindowMode::Full;
-    let mut window_seen = false;
+/// Remove the global flags from anywhere in the invocation.
+fn extract_globals(argv: &[String]) -> Result<(GlobalOptions, Vec<String>), ParseError> {
+    let mut globals = GlobalOptions::default();
+    let mut rest = Vec::with_capacity(argv.len());
     let mut index = 0;
 
-    while index < arguments.len() {
-        match arguments[index].as_str() {
-            "--window" => {
-                if window_seen {
-                    return Err(ParseError::Window(format!(
-                        "--window was supplied twice\n{USAGE}"
-                    )));
-                }
-                index += 1;
-                let value = arguments.get(index).ok_or_else(|| {
-                    ParseError::Window(format!("--window requires a value\n{USAGE}"))
-                })?;
-                window = WindowMode::from_code(value).ok_or_else(|| {
-                    ParseError::Window(format!(
-                        "--window expects full or latest, found '{value}'\n{USAGE}"
-                    ))
-                })?;
-                window_seen = true;
-            }
-            option if option.starts_with("--") => {
-                return Err(ParseError::Window(format!(
-                    "unknown option '{option}'\n{USAGE}"
-                )));
-            }
-            value => {
-                if path.is_some() {
-                    return Err(ParseError::Window(format!(
-                        "unexpected argument '{value}'\n{USAGE}"
-                    )));
-                }
-                path = Some(PathBuf::from(value));
-            }
+    while index < argv.len() {
+        let token = argv[index].as_str();
+        if token == "--json" {
+            globals.json = true;
+            index += 1;
+            continue;
         }
+        if let Some(value) = token.strip_prefix("--profile=") {
+            set_profile(&mut globals, value)?;
+            index += 1;
+            continue;
+        }
+        if token == "--profile" {
+            let value = argv
+                .get(index + 1)
+                .ok_or_else(|| ParseError::Usage(String::from("--profile requires a value")))?;
+            set_profile(&mut globals, value)?;
+            index += 2;
+            continue;
+        }
+        rest.push(token.to_owned());
         index += 1;
     }
 
-    let path = path.ok_or(ParseError::MissingPath(name))?;
-    Ok(ModelArgs::new(path, window))
+    Ok((globals, rest))
 }
 
-fn parse_model_command(
-    rest: &str,
-    name: &'static str,
-    build: fn(ModelArgs) -> Command,
-) -> Result<Option<Command>, ParseError> {
-    let (body, window) = split_window_option(rest, name)?;
-    let path = body.trim();
-    if path.is_empty() {
-        return Err(ParseError::MissingPath(name));
+fn set_profile(globals: &mut GlobalOptions, value: &str) -> Result<(), ParseError> {
+    if globals.profile.is_some() {
+        return Err(ParseError::Usage(String::from(
+            "--profile was supplied twice",
+        )));
     }
-    Ok(Some(build(ModelArgs::new(PathBuf::from(path), window))))
+    quantrule_api::ProfileId::parse(value)
+        .map_err(|error| ParseError::Usage(format!("--profile {error}")))?;
+    globals.profile = Some(value.to_owned());
+    Ok(())
 }
 
-/// Splits an optional trailing `--window <full|latest>` from the event command.
-///
-/// The path is kept as the trimmed remainder, so an interactive path may still
-/// contain spaces. The option is only recognized at the end of the command.
-fn split_window_option<'a>(
-    rest: &'a str,
-    command: &'static str,
-) -> Result<(&'a str, WindowMode), ParseError> {
-    let usage = format!("usage: {command} <csv-path> [--window full|latest]");
-    let rest = rest.trim();
-    let (body, value) = if let Some(position) = rest.rfind(" --window=") {
-        (
-            rest[..position].trim_end(),
-            rest[position + " --window=".len()..].trim(),
-        )
-    } else if let Some(position) = rest.rfind(" --window") {
-        let value = rest[position + " --window".len()..].trim();
-        (rest[..position].trim_end(), value)
-    } else if let Some(value) = rest.strip_prefix("--window=") {
-        ("", value.trim())
-    } else if let Some(value) = rest.strip_prefix("--window") {
-        ("", value.trim())
-    } else {
-        (rest, "full")
+/// The options a subcommand accepts.
+struct Options<'a> {
+    positionals: Vec<&'a str>,
+    values: BTreeMap<&'a str, &'a str>,
+    flags: BTreeSet<&'a str>,
+}
+
+impl<'a> Options<'a> {
+    fn value(&self, name: &str) -> Option<&'a str> {
+        self.values.get(name).copied()
+    }
+
+    fn required(&self, name: &str, usage: &str) -> Result<&'a str, ParseError> {
+        self.value(name)
+            .ok_or_else(|| ParseError::Usage(format!("--{name} is required\n{usage}")))
+    }
+
+    fn flag(&self, name: &str) -> bool {
+        self.flags.contains(name)
+    }
+
+    fn positional(&self, index: usize, name: &str, usage: &str) -> Result<&'a str, ParseError> {
+        self.positionals
+            .get(index)
+            .copied()
+            .ok_or_else(|| ParseError::Usage(format!("{name} is required\n{usage}")))
+    }
+
+    fn expect_positionals(&self, count: usize, usage: &str) -> Result<(), ParseError> {
+        if self.positionals.len() > count {
+            return Err(ParseError::Usage(format!(
+                "unexpected argument '{}'\n{usage}",
+                self.positionals[count]
+            )));
+        }
+        Ok(())
+    }
+}
+
+fn parse_options<'a>(
+    args: &'a [String],
+    usage: &str,
+    value_names: &[&str],
+    flag_names: &[&str],
+) -> Result<Options<'a>, ParseError> {
+    let mut options = Options {
+        positionals: Vec::new(),
+        values: BTreeMap::new(),
+        flags: BTreeSet::new(),
     };
+    let mut index = 0;
 
-    if body.contains("--window") {
-        return Err(ParseError::Window(format!(
-            "the window option must appear once at the end\n{usage}"
-        )));
+    while index < args.len() {
+        let token = args[index].as_str();
+        if let Some(body) = token.strip_prefix("--") {
+            let (name, inline) = match body.split_once('=') {
+                Some((name, value)) => (name, Some(value)),
+                None => (body, None),
+            };
+            if flag_names.contains(&name) {
+                if inline.is_some() {
+                    return Err(ParseError::Usage(format!(
+                        "--{name} takes no value\n{usage}"
+                    )));
+                }
+                options.flags.insert(name);
+                index += 1;
+                continue;
+            }
+            if value_names.contains(&name) {
+                let value = match inline {
+                    Some(value) => {
+                        index += 1;
+                        value
+                    }
+                    None => {
+                        let value = args.get(index + 1).ok_or_else(|| {
+                            ParseError::Usage(format!("--{name} requires a value\n{usage}"))
+                        })?;
+                        index += 2;
+                        value.as_str()
+                    }
+                };
+                if options.values.insert(name, value).is_some() {
+                    return Err(ParseError::Usage(format!(
+                        "--{name} was supplied twice\n{usage}"
+                    )));
+                }
+                continue;
+            }
+            return Err(ParseError::Usage(format!(
+                "unknown option '--{name}'\n{usage}"
+            )));
+        }
+        options.positionals.push(token);
+        index += 1;
     }
-    if value.is_empty() {
-        return Err(ParseError::Window(format!(
-            "--window requires full or latest\n{usage}"
-        )));
-    }
-    if value.split_whitespace().count() != 1 {
-        return Err(ParseError::Window(format!(
-            "--window requires exactly one value, full or latest\n{usage}"
-        )));
-    }
-    let window = WindowMode::from_code(value).ok_or_else(|| {
-        ParseError::Window(format!(
-            "--window expects full or latest, found '{value}'\n{usage}"
-        ))
-    })?;
-    Ok((body, window))
+
+    Ok(options)
 }
 
-fn path_command(
-    rest: &str,
-    name: &'static str,
-    build: fn(PathBuf) -> Command,
-) -> Result<Option<Command>, ParseError> {
-    if rest.is_empty() {
-        Err(ParseError::MissingPath(name))
+/// Parse an option value from the argv.
+fn parse_command(rest: &[String]) -> Result<Command, ParseError> {
+    let (name, args) = rest
+        .split_first()
+        .ok_or_else(|| ParseError::Usage(String::from("no command; type help")))?;
+    match name.as_str() {
+        "health" => no_arguments(args, "usage: health").map(|()| Command::Health),
+        "dataset" => parse_dataset(args),
+        "config" => parse_config(args),
+        "run" => parse_run(args),
+        "inspect" => parse_inspect(args),
+        "verify" => single(args, "verify <run_id>").map(|run_id| Command::Verify { run_id }),
+        "profile" => parse_profile(args),
+        "simulation" => parse_simulation(args),
+        "help" => parse_help(args).map(Command::Help),
+        "quit" => no_arguments(args, "usage: quit").map(|()| Command::Quit),
+        other => Err(ParseError::Unknown(other.to_owned())),
+    }
+}
+
+fn no_arguments(args: &[String], usage: &str) -> Result<(), ParseError> {
+    if args.is_empty() {
+        Ok(())
     } else {
-        Ok(Some(build(PathBuf::from(rest))))
+        Err(ParseError::Usage(format!(
+            "unexpected argument '{}'\n{usage}",
+            args[0]
+        )))
     }
 }
 
-/// Parses the optional one- or two-word help topic.
-///
-/// `all`, `glossary`, and `workflows` are reserved topics. Any other topic must
-/// name a command in the help metadata.
-///
-/// # Errors
-///
-/// Returns [`ParseError::Usage`] for more than two words, and
-/// [`ParseError::Help`] for a name that is not a command.
-pub(crate) fn parse_help_arguments(arguments: &[String]) -> Result<HelpTopic, ParseError> {
-    const USAGE: &str = "usage: help [<command>|all|glossary|workflows]";
-    if arguments.len() > 2 {
-        return Err(ParseError::Usage(USAGE.to_owned()));
+fn single(args: &[String], usage: &str) -> Result<String, ParseError> {
+    let options = parse_options(args, usage, &[], &[])?;
+    options.expect_positionals(1, usage)?;
+    Ok(options.positional(0, "an argument", usage)?.to_owned())
+}
+
+fn pair(args: &[String], usage: &str) -> Result<(String, String), ParseError> {
+    let options = parse_options(args, usage, &[], &[])?;
+    options.expect_positionals(2, usage)?;
+    Ok((
+        options
+            .positional(0, "the first argument", usage)?
+            .to_owned(),
+        options
+            .positional(1, "the second argument", usage)?
+            .to_owned(),
+    ))
+}
+
+fn parse_dataset(args: &[String]) -> Result<Command, ParseError> {
+    const FAMILY: &str = "usage: dataset list|show <data_version>|upload <csv-path>";
+    let (name, rest) = args
+        .split_first()
+        .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
+    match name.as_str() {
+        "list" => no_arguments(rest, "usage: dataset list").map(|()| Command::DatasetList),
+        "show" => {
+            let usage = "usage: dataset show <data_version>";
+            single(rest, usage).map(|data_version| Command::DatasetShow { data_version })
+        }
+        "upload" => {
+            let usage = "usage: dataset upload <csv-path> [--name <name>] [--tolerant]";
+            let options = parse_options(rest, usage, &["name"], &["tolerant"])?;
+            options.expect_positionals(1, usage)?;
+            Ok(Command::DatasetUpload {
+                path: options.positional(0, "the CSV path", usage)?.into(),
+                name: options.value("name").map(str::to_owned),
+                tolerant: options.flag("tolerant"),
+            })
+        }
+        other => Err(ParseError::Usage(format!(
+            "unknown dataset command '{other}'\n{FAMILY}"
+        ))),
     }
-    if arguments.is_empty() {
+}
+
+fn parse_config(args: &[String]) -> Result<Command, ParseError> {
+    const FAMILY: &str = "usage: config list|show <config_id>";
+    let (name, rest) = args
+        .split_first()
+        .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
+    match name.as_str() {
+        "list" => no_arguments(rest, "usage: config list").map(|()| Command::ConfigList),
+        "show" => {
+            let usage = "usage: config show <config_id>";
+            single(rest, usage).map(|config_id| Command::ConfigShow { config_id })
+        }
+        other => Err(ParseError::Usage(format!(
+            "unknown config command '{other}'\n{FAMILY}"
+        ))),
+    }
+}
+
+fn parse_run(args: &[String]) -> Result<Command, ParseError> {
+    const FAMILY: &str = "usage: run submit <data_version> <config_id>|status <run_id>|list|cancel <run_id>|fetch <run_id> <directory>";
+    let (name, rest) = args
+        .split_first()
+        .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
+    match name.as_str() {
+        "submit" => {
+            let usage = "usage: run submit <data_version> <config_id>";
+            pair(rest, usage).map(|(data_version, config_id)| Command::RunSubmit {
+                data_version,
+                config_id,
+            })
+        }
+        "status" => {
+            let usage = "usage: run status <run_id>";
+            single(rest, usage).map(|run_id| Command::RunStatus { run_id })
+        }
+        "list" => {
+            let usage = "usage: run list [--status <state>] [--limit <n>]";
+            let options = parse_options(rest, usage, &["status", "limit"], &[])?;
+            options.expect_positionals(0, usage)?;
+            let status = options
+                .value("status")
+                .map(|value| parse_run_state(value, usage))
+                .transpose()?;
+            let limit = options
+                .value("limit")
+                .map(|value| parse_limit(value, usage))
+                .transpose()?;
+            Ok(Command::RunList { status, limit })
+        }
+        "fetch" => {
+            let usage = "usage: run fetch <run_id> <directory>";
+            pair(rest, usage).map(|(run_id, directory)| Command::RunFetch {
+                run_id,
+                directory: directory.into(),
+            })
+        }
+        "cancel" => {
+            let usage = "usage: run cancel <run_id>";
+            single(rest, usage).map(|run_id| Command::RunCancel { run_id })
+        }
+        other => Err(ParseError::Usage(format!(
+            "unknown run command '{other}'\n{FAMILY}"
+        ))),
+    }
+}
+
+fn parse_inspect(args: &[String]) -> Result<Command, ParseError> {
+    const FAMILY: &str = "usage: inspect candles <data_version>|timeframes <data_version>|events <data_version> --timeframe <tf>";
+    let (name, rest) = args
+        .split_first()
+        .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
+    match name.as_str() {
+        "candles" => {
+            let usage = "usage: inspect candles <data_version>";
+            single(rest, usage).map(|data_version| Command::InspectCandles { data_version })
+        }
+        "timeframes" => {
+            let usage = "usage: inspect timeframes <data_version>";
+            single(rest, usage).map(|data_version| Command::InspectTimeframes { data_version })
+        }
+        "events" => {
+            let usage = "usage: inspect events <data_version> --timeframe <tf>";
+            let options = parse_options(rest, usage, &["timeframe"], &[])?;
+            options.expect_positionals(1, usage)?;
+            Ok(Command::InspectEvents {
+                data_version: options.positional(0, "the data version", usage)?.to_owned(),
+                timeframe: options.required("timeframe", usage)?.to_owned(),
+            })
+        }
+        other => Err(ParseError::Usage(format!(
+            "unknown inspect command '{other}'\n{FAMILY}"
+        ))),
+    }
+}
+
+fn parse_profile(args: &[String]) -> Result<Command, ParseError> {
+    const FAMILY: &str = "usage: profile list|create <name> [--id <profile_id>]|use <profile_id>";
+    let (name, rest) = args
+        .split_first()
+        .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
+    match name.as_str() {
+        "list" => no_arguments(rest, "usage: profile list").map(|()| Command::ProfileList),
+        "create" => {
+            let usage = "usage: profile create <name> [--id <profile_id>]";
+            let options = parse_options(rest, usage, &["id"], &[])?;
+            options.expect_positionals(1, usage)?;
+            let name = options.positional(0, "the profile name", usage)?.to_owned();
+            if name.trim().is_empty() {
+                return Err(ParseError::Usage(format!(
+                    "the profile name cannot be blank\n{usage}"
+                )));
+            }
+            if let Some(id) = options.value("id") {
+                quantrule_api::ProfileId::parse(id)
+                    .map_err(|error| ParseError::Usage(format!("--id {error}")))?;
+            }
+            Ok(Command::ProfileCreate {
+                name,
+                id: options.value("id").map(str::to_owned),
+            })
+        }
+        "use" => {
+            let usage = "usage: profile use <profile_id>";
+            let profile_id = single(rest, usage)?;
+            quantrule_api::ProfileId::parse(&profile_id)
+                .map_err(|error| ParseError::Usage(format!("profile use {error}")))?;
+            Ok(Command::ProfileUse { profile_id })
+        }
+        other => Err(ParseError::Usage(format!(
+            "unknown profile command '{other}'\n{FAMILY}"
+        ))),
+    }
+}
+
+fn parse_simulation(args: &[String]) -> Result<Command, ParseError> {
+    const FAMILY: &str = "usage: simulation list|create|windows <sim_id>|mark <sim_id>|marks <sim_id>|oracle <sim_id>|check <sim_id>|decide <sim_id>";
+    let (name, rest) = args
+        .split_first()
+        .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
+    match name.as_str() {
+        "list" => {
+            let usage = "usage: simulation list [--status <status>] [--limit <n>]";
+            let options = parse_options(rest, usage, &["status", "limit"], &[])?;
+            options.expect_positionals(0, usage)?;
+            let status = options
+                .value("status")
+                .map(|value| parse_simulation_status(value, usage))
+                .transpose()?;
+            let limit = options
+                .value("limit")
+                .map(|value| parse_limit(value, usage))
+                .transpose()?;
+            Ok(Command::SimulationList { status, limit })
+        }
+        "create" => {
+            let usage = "usage: simulation create --premise <text> --bundle <digest> --seed <n> --criteria <text>";
+            let options =
+                parse_options(rest, usage, &["premise", "bundle", "seed", "criteria"], &[])?;
+            options.expect_positionals(0, usage)?;
+            let bundle = Digest::parse(options.required("bundle", usage)?)
+                .map_err(|error| ParseError::Usage(format!("--bundle {error}")))?;
+            Ok(Command::SimulationCreate {
+                premise: options.required("premise", usage)?.to_owned(),
+                bundle,
+                seed: parse_u64(options.required("seed", usage)?, "--seed", usage)?,
+                criteria: options.required("criteria", usage)?.to_owned(),
+            })
+        }
+        "windows" => {
+            let usage = "usage: simulation windows <sim_id>";
+            single(rest, usage).map(|sim_id| Command::SimulationWindows { sim_id })
+        }
+        "mark" => {
+            let usage = "usage: simulation mark <sim_id> --chart <chart> --bar <n> --action entry|exit --quality good|bad|neutral --side long|short [--note <text>]";
+            let options = parse_options(
+                rest,
+                usage,
+                &["chart", "bar", "action", "quality", "side", "note"],
+                &[],
+            )?;
+            options.expect_positionals(1, usage)?;
+            Ok(Command::SimulationMark {
+                sim_id: options
+                    .positional(0, "the simulation id", usage)?
+                    .to_owned(),
+                chart: options.required("chart", usage)?.to_owned(),
+                bar: parse_u64(options.required("bar", usage)?, "--bar", usage)?,
+                action: parse_mark_action(options.required("action", usage)?, usage)?,
+                quality: parse_mark_quality(options.required("quality", usage)?, usage)?,
+                side: parse_side(options.required("side", usage)?, usage)?,
+                note: options.value("note").unwrap_or("").to_owned(),
+            })
+        }
+        "marks" => {
+            let usage = "usage: simulation marks <sim_id> [--origin human|oracle|all]";
+            let options = parse_options(rest, usage, &["origin"], &[])?;
+            options.expect_positionals(1, usage)?;
+            let origin = match options.value("origin") {
+                None | Some("all") => None,
+                Some(value) => Some(parse_mark_origin(value, usage)?),
+            };
+            Ok(Command::SimulationMarks {
+                sim_id: options
+                    .positional(0, "the simulation id", usage)?
+                    .to_owned(),
+                origin,
+            })
+        }
+        "oracle" => {
+            let usage = "usage: simulation oracle <sim_id>";
+            single(rest, usage).map(|sim_id| Command::SimulationOracle { sim_id })
+        }
+        "check" => {
+            let usage = "usage: simulation check <sim_id>";
+            single(rest, usage).map(|sim_id| Command::SimulationCheck { sim_id })
+        }
+        "decide" => {
+            let usage = "usage: simulation decide <sim_id> <test|refine|stop> [--note <text>]";
+            let options = parse_options(rest, usage, &["note"], &[])?;
+            options.expect_positionals(2, usage)?;
+            let decision = options
+                .positional(1, "a decision (test, refine, or stop)", usage)?
+                .to_owned();
+            if !matches!(decision.as_str(), "test" | "refine" | "stop") {
+                return Err(ParseError::Usage(format!(
+                    "the decision must be test, refine, or stop\n{usage}"
+                )));
+            }
+            Ok(Command::SimulationDecide {
+                sim_id: options
+                    .positional(0, "the simulation id", usage)?
+                    .to_owned(),
+                decision,
+                note: options.value("note").unwrap_or("").to_owned(),
+            })
+        }
+        other => Err(ParseError::Usage(format!(
+            "unknown simulation command '{other}'\n{FAMILY}"
+        ))),
+    }
+}
+
+fn parse_help(args: &[String]) -> Result<HelpTopic, ParseError> {
+    const USAGE: &str = "usage: help [<command>|all|glossary|workflows]";
+    if args.is_empty() {
         return Ok(HelpTopic::Short);
     }
-    if arguments.len() == 1 {
-        match arguments[0].as_str() {
+    if args.len() > 2 {
+        return Err(ParseError::Usage(USAGE.to_owned()));
+    }
+    if args.len() == 1 {
+        match args[0].as_str() {
             "all" => return Ok(HelpTopic::All),
             "glossary" => return Ok(HelpTopic::Glossary),
             "workflows" => return Ok(HelpTopic::Workflows),
             _ => {}
         }
     }
-    if matches!(arguments[0].as_str(), "all" | "glossary" | "workflows") {
+    if matches!(args[0].as_str(), "all" | "glossary" | "workflows") {
         return Err(ParseError::Usage(USAGE.to_owned()));
     }
-    let name = arguments.join(" ");
-    if super::help::is_command(&name) {
+    let name = args.join(" ");
+    if is_command(&name) {
         Ok(HelpTopic::Command(name))
     } else {
         Err(ParseError::Help(format!(
             "unknown help topic '{name}'; use help all"
         )))
+    }
+}
+
+fn parse_run_state(value: &str, usage: &str) -> Result<RunState, ParseError> {
+    RunState::parse(value).ok_or_else(|| {
+        ParseError::Usage(format!(
+            "--status expects queued, running, succeeded, failed, or cancelled\n{usage}"
+        ))
+    })
+}
+
+fn parse_simulation_status(value: &str, usage: &str) -> Result<SimulationStatus, ParseError> {
+    match value {
+        "draft" => Ok(SimulationStatus::Draft),
+        "marking" => Ok(SimulationStatus::Marking),
+        "reviewed" => Ok(SimulationStatus::Reviewed),
+        "checked" => Ok(SimulationStatus::Checked),
+        "decided" => Ok(SimulationStatus::Decided),
+        _ => Err(ParseError::Usage(format!(
+            "--status expects draft, marking, reviewed, checked, or decided\n{usage}"
+        ))),
+    }
+}
+
+fn parse_mark_action(value: &str, usage: &str) -> Result<MarkAction, ParseError> {
+    match value {
+        "entry" => Ok(MarkAction::Entry),
+        "exit" => Ok(MarkAction::Exit),
+        _ => Err(ParseError::Usage(format!(
+            "--action expects entry or exit\n{usage}"
+        ))),
+    }
+}
+
+fn parse_mark_quality(value: &str, usage: &str) -> Result<MarkQuality, ParseError> {
+    match value {
+        "good" => Ok(MarkQuality::Good),
+        "bad" => Ok(MarkQuality::Bad),
+        "neutral" => Ok(MarkQuality::Neutral),
+        _ => Err(ParseError::Usage(format!(
+            "--quality expects good, bad, or neutral\n{usage}"
+        ))),
+    }
+}
+
+fn parse_side(value: &str, usage: &str) -> Result<Side, ParseError> {
+    match value {
+        "long" => Ok(Side::Long),
+        "short" => Ok(Side::Short),
+        _ => Err(ParseError::Usage(format!(
+            "--side expects long or short\n{usage}"
+        ))),
+    }
+}
+
+fn parse_mark_origin(value: &str, usage: &str) -> Result<MarkOrigin, ParseError> {
+    match value {
+        "human" => Ok(MarkOrigin::Human),
+        "oracle" => Ok(MarkOrigin::Oracle),
+        _ => Err(ParseError::Usage(format!(
+            "--origin expects human or oracle\n{usage}"
+        ))),
+    }
+}
+
+fn parse_u64(value: &str, name: &str, usage: &str) -> Result<u64, ParseError> {
+    value
+        .parse::<u64>()
+        .map_err(|_| ParseError::Usage(format!("{name} expects a non-negative integer\n{usage}")))
+}
+
+fn parse_limit(value: &str, usage: &str) -> Result<usize, ParseError> {
+    let limit = value
+        .parse::<usize>()
+        .map_err(|_| ParseError::Usage(format!("--limit expects an integer\n{usage}")))?;
+    if !(1..=200).contains(&limit) {
+        return Err(ParseError::Usage(format!(
+            "--limit must be between 1 and 200\n{usage}"
+        )));
+    }
+    Ok(limit)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_argv, parse_line};
+    use crate::command::types::{Command, HelpTopic};
+
+    fn argv(items: &[&str]) -> Vec<String> {
+        items.iter().map(|item| (*item).to_owned()).collect()
+    }
+
+    #[test]
+    fn every_family_parses_its_leaf() {
+        let cases = [
+            (vec!["health"], "health"),
+            (vec!["dataset", "list"], "list"),
+            (vec!["dataset", "show", "sha256:a"], "show"),
+            (vec!["dataset", "upload", "c.csv"], "upload"),
+            (vec!["config", "list"], "list"),
+            (vec!["config", "show", "cfg"], "show"),
+            (vec!["run", "submit", "d", "c"], "submit"),
+            (vec!["run", "status", "r"], "status"),
+            (vec!["run", "list"], "list"),
+            (vec!["run", "fetch", "r", "out"], "fetch"),
+            (vec!["run", "cancel", "r"], "cancel"),
+            (vec!["inspect", "candles", "d"], "candles"),
+            (vec!["inspect", "timeframes", "d"], "timeframes"),
+            (
+                vec!["inspect", "events", "d", "--timeframe", "5m"],
+                "events",
+            ),
+            (vec!["verify", "r"], "verify"),
+            (vec!["profile", "list"], "list"),
+            (vec!["profile", "create", "Research"], "create"),
+            (vec!["profile", "use", "research"], "use"),
+            (vec!["simulation", "list"], "list"),
+            (vec!["simulation", "windows", "s"], "windows"),
+            (
+                vec![
+                    "simulation",
+                    "mark",
+                    "s",
+                    "--chart",
+                    "w1",
+                    "--bar",
+                    "4",
+                    "--action",
+                    "entry",
+                    "--quality",
+                    "good",
+                    "--side",
+                    "long",
+                ],
+                "mark",
+            ),
+            (vec!["simulation", "marks", "s"], "marks"),
+            (vec!["simulation", "oracle", "s"], "oracle"),
+            (vec!["simulation", "check", "s"], "check"),
+            (vec!["simulation", "decide", "s", "test"], "decide"),
+        ];
+        for (tokens, _label) in cases {
+            let parsed = parse_argv(&argv(&tokens)).expect("the command parses");
+            assert!(parsed.is_some(), "{tokens:?}");
+        }
+    }
+
+    #[test]
+    fn a_global_profile_is_removed_from_the_command() {
+        let parsed = parse_line("--profile research run list")
+            .expect("the line parses")
+            .expect("a command");
+        assert_eq!(parsed.globals.profile.as_deref(), Some("research"));
+        assert!(matches!(parsed.command, Command::RunList { .. }));
+    }
+
+    #[test]
+    fn a_global_json_flag_is_removed_from_the_command() {
+        let parsed = parse_line("health --json")
+            .expect("the line parses")
+            .expect("a command");
+        assert!(parsed.globals.json);
+        assert!(matches!(parsed.command, Command::Health));
+    }
+
+    #[test]
+    fn help_topics_are_one_or_two_words() {
+        assert_eq!(
+            parse_line("help all").expect("parses").expect("command"),
+            crate::command::types::Invocation {
+                globals: Default::default(),
+                command: Command::Help(HelpTopic::All),
+            }
+        );
+        assert!(matches!(
+            parse_line("help run status")
+                .expect("parses")
+                .expect("command")
+                .command,
+            Command::Help(HelpTopic::Command(_))
+        ));
+    }
+
+    #[test]
+    fn a_simulation_create_carries_every_required_option() {
+        let bundle = format!("sha256:{}", "a".repeat(64));
+        let parsed = parse_line(&format!(
+            "simulation create --premise p --bundle {bundle} --seed 7 --criteria c"
+        ))
+        .expect("the line parses")
+        .expect("a command");
+        assert!(matches!(
+            parsed.command,
+            Command::SimulationCreate { seed: 7, .. }
+        ));
+    }
+
+    #[test]
+    fn an_unknown_option_is_rejected() {
+        assert!(parse_line("run list --path /tmp").is_err());
+    }
+
+    #[test]
+    fn a_duplicate_profile_is_rejected() {
+        assert!(parse_line("--profile a --profile b health").is_err());
     }
 }

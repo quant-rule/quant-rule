@@ -1,5 +1,10 @@
 # S3.x Analytics Lab — Descriptive Metrics and Evaluation Tables
 
+> **Historical.** This lab records the v0.3.0 local surface. The local stage
+> commands were removed from the shell in v1.0.0; set
+> `BIN=./target/release/quantrule` before running a block, and see
+> [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
+
 - Date: 2026-11-06 (UTC)
 - Status: Current
 - Scope: `analytics evaluate` over a completed backtest bundle
@@ -19,7 +24,7 @@ cargo build --release
 
 ```bash
 rm -rf target/analytics-lab target/analytics-lab-a target/analytics-lab-b
-./target/release/quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/analytics-lab
@@ -30,7 +35,7 @@ The evidence bundle is `target/analytics-lab/backtest/`.
 ## 3. Publish the analytics bundle
 
 ```bash
-./target/release/quantrule analytics evaluate \
+"$BIN" analytics evaluate \
   --evidence target/analytics-lab/backtest \
   --out target/analytics-lab
 ```
@@ -79,10 +84,10 @@ records them as unsupported with `regime_label_not_published` and
 ## 5. Determinism
 
 ```bash
-./target/release/quantrule analytics evaluate \
+"$BIN" analytics evaluate \
   --evidence target/analytics-lab/backtest \
   --out target/analytics-lab-a
-./target/release/quantrule analytics evaluate \
+"$BIN" analytics evaluate \
   --evidence target/analytics-lab/backtest \
   --out target/analytics-lab-b
 diff -r target/analytics-lab-a/analytics target/analytics-lab-b/analytics
