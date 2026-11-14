@@ -46,6 +46,15 @@ are not treated as releases.
   recomputed. The coupled baseline's artifact names, bytes, and canonical
   digest are unchanged, and the worker checks cancellation after the claim,
   before the model call, before the backtest, and before the first CAS write.
+- `qr-simulation` serves the eleven documented simulation endpoints from its own
+  `simulation` schema. Runs and marks are scoped by the injected profile, mark
+  writes are transactional against the decision lock, timestamps are
+  server-assigned, and the human and oracle marks mirror to annotator-schema
+  CSV objects. Window selection, the oracle, and the check use the faithful
+  `quantrule-simulation` domain crate unchanged; oracle and check are
+  idempotent for the same inputs digest. The gateway proxies `/simulation/*`
+  with the P3/P4/P5 boundary and keeps no simulation store. The service has no
+  queue, no run artifact, no model compute, and no strategy input.
 - `quantrule-runtime` gains the concrete HTTP service transport and a
   `DataClient` with an in-memory fake. The runtime migration runner takes a
   ledger schema, so the catalog, gateway, and run migration lists record under

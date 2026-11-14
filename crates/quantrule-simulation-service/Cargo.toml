@@ -15,10 +15,14 @@ path = "src/main.rs"
 axum = "0.8.9"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-runtime = { path = "../quantrule-runtime" }
-tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
+quantrule-simulation = { path = "../quantrule-simulation" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "signal", "net", "time"] }
+tracing = "0.1.44"
 
 [dev-dependencies]
-serde_json = { version = "1", features = ["float_roundtrip"] }
 tower = { version = "0.5.3", features = ["util"] }
 
 [lints]
