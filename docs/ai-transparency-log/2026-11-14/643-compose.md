@@ -352,3 +352,75 @@ Container health after P5:
 The Windows Docker Desktop and standalone Podman smoke checks remain manual
 notes. The simulation domain routes, the P6 backtest-service move, and the
 permanent object-store registry are outside this change.
+
+## Follow-up after P6 (#795) — 2026-11-14 (UTC)
+
+- Merge: #795 merged to `main` at `0814a129`; `origin/main` merged into
+  `feat/643-compose` at `3e52280b`.
+- Intent: make the backtest worker's model dependency explicit in Compose now
+  that P6 reads the model bundle from `qr-model` over HTTP.
+- Boundary: `compose.yaml`, `docker/README.md`, this log. No Dockerfile change:
+  P6 kept `qr-backtest` in `quantrule-server`, so the image already builds it.
+  No Rust, client, Makefile, CI, `services.md`, ADR, or port-parity change.
+- Compose: `QR_MODEL_URL` was already in the shared service environment, so the
+  backtest worker receives `http://model:8080` alongside the gateway. `backtest`
+  now depends on `model` being healthy in addition to data, evidence, the object
+  store, and the broker. `QR_DATA_URL`, `QR_EVIDENCE_URL`, and the per-schema
+  migration split are unchanged.
+
+### Verification after P6 — 2026-11-14 (UTC)
+
+| Check | Command | Observed |
+|---|---|---|
+| Compose parse | `docker compose config -q` | exit 0; nine services |
+| Image build | `docker build -t quantrule-server:test .` | exit 0; manifest list `sha256:6da5d08c17c44cce9f17af320517b31e7ab1a60ef7aeb10c4140959859df2914` |
+| Clean start | `docker compose down -v && docker compose up -d --build --wait` | exit 0; nine containers |
+| Gateway health | `curl -fsS http://localhost:8080/health` | `state=healthy`; postgres healthy |
+| Data probe | `curl -H 'X-QuantRule-Profile: default' http://localhost:8080/catalog/datasets` | `200`; `[]` before upload |
+| Dataset upload | `POST /catalog/datasets?name=p6-fixture.csv` | `201`; 250 candles; `sha256:3c0106f8…` |
+| Model probe | `POST /model/compute` | `200`; timeframes `1m,5m,15m,1h`; 66,022 bytes; `sha256:e12f8069…` |
+| Run submission | `POST /runs` | `202`; `run_id sha256:a201c650…`; `queued`, `created=true` |
+| Run read | `GET /runs/{id}` | `200`; `status=succeeded`; four stages `done`; 25 artifacts |
+| Run list | `GET /runs` | `200`; one run with the same id |
+| Backtest env | `docker compose exec -T backtest printenv QR_MODEL_URL QR_DATA_URL QR_EVIDENCE_URL` | `http://model:8080`, `http://data:8080`, `http://evidence:8080` |
+| Backtest log | `docker compose logs backtest` | `run processed outcome=Computed` |
+| Gateway ledger | `gateway.schema_migrations` | `7` |
+| Catalog ledger | `catalog.schema_migrations` | `1,2,3,4,5` |
+| Runs ledger | `runs.schema_migrations` | `2,4,5,8,9,13` |
+| Migration ordering | stack logs | all applied; no deadlock or panic |
+| No Python | `docker run --rm quantrule-server:test sh -c 'command -v python3'` | empty |
+| No Bun | `docker run --rm quantrule-server:test sh -c 'command -v bun'` | empty |
+| No `.py` | `docker run --rm quantrule-server:test sh -c 'find / -name "*.py" 2>/dev/null \| head'` | empty |
+| One-command path | `make up` | exit 0; `QuantRule v0.3.0 ready → http://localhost:8080` |
+| Workspace gate | `tools/gate.sh` | exit 0; `workspace gate passed` |
+
+Container health after P6:
+
+| Container | State |
+|---|---|
+| `gateway` | healthy |
+| `data` | healthy |
+| `model` | healthy |
+| `evidence` | healthy |
+| `backtest` | up; no HTTP probe |
+| `simulation` | healthy |
+| `postgres` | healthy |
+| `minio` | healthy |
+| `rabbitmq` | healthy |
+
+### Learning and rejected alternatives after P6
+
+- P6 kept the binary in `quantrule-server`, so unlike P5 no Dockerfile package
+  change was needed. The shared environment already carried `QR_MODEL_URL`;
+  only the health dependency was missing.
+- The same run inputs reproduce the same `run_id` as P5
+  (`sha256:a201c650…`), which is the expected content-addressed behavior.
+- Rejected: adding a direct Postgres dependency to `backtest`. The worker now
+  reaches state entirely through data, model, and evidence; it holds no database
+  client.
+
+### Not verified here
+
+The Windows Docker Desktop and standalone Podman smoke checks remain manual
+notes. The simulation domain routes, the P8 gateway finalization, and the
+permanent object-store registry are outside this change.

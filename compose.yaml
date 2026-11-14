@@ -124,6 +124,8 @@ services:
     depends_on:
       data:
         condition: service_healthy
+      model:
+        condition: service_healthy
       evidence:
         condition: service_healthy
       minio:

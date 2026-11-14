@@ -79,6 +79,8 @@ The gateway proxies all three surfaces and keeps no data, model, or run handler.
 Only `data` and `simulation` mount `config/` read-only; the gateway no longer
 reads the catalog mount. `model` and `evidence` read the dataset object through
 data and the object store, so they need neither a config nor a database mount.
+`backtest` loads the dataset and config from data, the model bundle from model,
+and records the run through evidence; it serves no HTTP.
 
 Each schema owner migrates its own ledger. The gateway applies the `gateway`
 ledger with `QR_MIGRATE=1`; `data` applies the `catalog` ledger; `evidence`
