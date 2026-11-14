@@ -22,6 +22,11 @@ are not treated as releases.
 
 ### Added
 
+- The release pipeline (`.github/workflows/release.yml`) builds the server
+  image, records its digest, builds the Linux AppImage and the Windows NSIS
+  installer, and attaches the digest and both artifacts to the GitHub release.
+  Publishing to a registry is opt-in through documented repository values; a
+  `workflow_dispatch` run is a build-only dry run.
 - The single server image and the Compose stack: one `quantrule-server` image
   carries `qr-gateway`, `qr-backtest`, `qr-evidence`, and the built client, and
   `compose.yaml` defines the nine-container topology with one published port,
