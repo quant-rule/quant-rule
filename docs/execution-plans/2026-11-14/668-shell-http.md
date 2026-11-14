@@ -115,17 +115,20 @@ canonical comparison is printed output and the dependency tree, not a summary.
 | V5 | Discovery | Help, README, registry, and tutorials agree | `python3 tools/check_command_surface.py` | 27 implemented, 0 planned | 27 implemented, 0 planned; 17 tutorial files | Pass | agent | 2026-11-14 | |
 | V6 | Parity tier | The port-parity registry passes | `tools/test_tiers.sh parity` | exit 0 | exit 0; 0 registered ports | Pass | agent | 2026-11-14 | |
 | V7 | Browser parity | The shell prints the browser run-detail fixture | `cargo test -p quantrule-shell --test parity` | the fixture's values for the default profile | exact printed match; `X-QuantRule-Profile: default` | Pass | agent | 2026-11-14 | DOM comparison remains #669 |
-| V8 | Full gate | The workspace gate passes | `tools/gate.sh` | exit 0 | exit 1 at `check_verification` only; fmt, clippy, workspace tests, rustdoc, and the other 20 checkers pass | Blocked | agent | 2026-11-14 | see R1 |
-| V9 | Server boundary | No server, engine, API, or browser file changed | `git status --short` and `git diff --name-only` | only shell and shell-owned docs | only shell, README, command-surface, tutorials, changelog, AI log, plan | Pass | agent | 2026-11-14 | |
+| V8 | Full gate | The workspace gate passes | `tools/gate.sh` | exit 0 | exit 0; all checkers pass | Pass | agent | 2026-11-14 | R1 resolved before the final run |
+| V9 | Server boundary | No server, engine, API, or browser file changed | `git status --short` and `git diff --name-only` | only shell, the moved app test, the registry, and documentation | shell, `crates/quantrule-app/tests/report_spec_isolation.rs`, `docs/registry/verification.json`, `tools/build_verification.py`, and docs | Pass | agent | 2026-11-14 | narrow R1 exception |
 
 ## Risks and recovery
 
-- **R1 — verification registry.** `check_verification` still names
-  `report_command::two_model_specs_with_disjoint_active_events_stay_disjoint`,
-  which lived in the retired `report model` shell test. The property belongs to
-  `quantrule-app`/`quantrule-model`; moving it and updating
-  `docs/registry/verification.json` is owned by another stream. The gate is
-  blocked until that owner moves the test. No fake test was added.
+- **R1 — verification registry (resolved).** The
+  `report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint`
+  property moved from the retired `report model` shell test to
+  `crates/quantrule-app/tests/report_spec_isolation.rs`. The assertion is
+  unchanged: the two specs must produce event codes 8 and 9, and the two code
+  sets must be disjoint. `docs/registry/verification.json` and
+  `tools/build_verification.py` name the new path. The fixture bytes are read
+  from the shared report fixture rather than duplicated. No fake or ignored test
+  was added.
 - **R2 — missing routes.** `/runs/{id}/digest`, `/runs/{id}/artifacts/{name}`,
   and `/inspect/events` are implemented against the documented contract and
   tested against the fixture. If the gateway changes the shape, the shell's
@@ -140,7 +143,7 @@ canonical comparison is printed output and the dependency tree, not a summary.
 
 - A contract type is missing and cannot be worked around. (Simulation response
   types are worked around with canonical JSON; reported for #680.)
-- A required file is owned by another stream. (The verification test move and
-  registry update are reported, not edited.)
+- A required file is owned by another stream. (The human authorized a narrow
+  exception for the moved verification test and its registry entry.)
 - A command cannot drop an engine dependency without a contract change. (None
   found.)

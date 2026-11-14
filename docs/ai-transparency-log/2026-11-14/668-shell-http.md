@@ -34,6 +34,11 @@ issue's scope and claim type were taken as approved; no new dependency, no
   `verify` takes a run id because the contract has no fixture-run registry; the
   simulation response shapes are printed as canonical JSON because
   `quantrule-api` has no types for windows, checks, or decisions yet.
+- Cross-stream exception: moved the retired spec-isolation property to
+  `crates/quantrule-app/tests/report_spec_isolation.rs`, preserving every
+  assertion, and updated `docs/registry/verification.json` and
+  `tools/build_verification.py` to the new test path. The test reads the shared
+  report fixture rather than duplicating it.
 
 ## Verification and evidence
 
@@ -62,3 +67,6 @@ issue's scope and claim type were taken as approved; no new dependency, no
 - Rejected: adding `serde` as a direct dependency, adding a `reqwest`/`tokio`
   runtime, keeping a local stage fallback, and inventing simulation response
   types in `quantrule-api`. Each would have widened the boundary or the contract.
+- The verification registry named a shell test that the rewrite retired. The
+  narrow fix was to move the property to the crate that owns the report use
+  case, not to keep a shell test that cannot run or to weaken the registry.

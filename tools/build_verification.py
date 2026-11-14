@@ -618,7 +618,7 @@ def indicator_entry(indicator: dict[str, object], claims: dict[str, dict[str, ob
         "no_double_count": evidence("n/a"),
         "precedence": evidence("n/a"),
         "math": evidence("tool", "check_registry.py", "check_validation.py"),
-        "spec": evidence("family", "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint")
+        "spec": evidence("family", "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint")
         if has_events
         else evidence("n/a"),
         "emitter": evidence("n/a"),
@@ -653,7 +653,7 @@ def event_entry(
         if ident in ROW_EVENT_PRECEDENCE
         else evidence("n/a"),
         "math": evidence("tool", "check_registry.py"),
-        "spec": evidence("family", "report_command::two_model_specs_with_disjoint_active_events_stay_disjoint"),
+        "spec": evidence("family", "report_spec_isolation::two_model_specs_with_disjoint_active_events_stay_disjoint"),
         "emitter": evidence("tool", "check_event_emitters.py"),
     }
     for name in ROW_EVENT_CLASSES:
