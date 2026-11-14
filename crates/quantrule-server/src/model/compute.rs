@@ -145,7 +145,7 @@ fn render(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::{ingest, series as load_series};
+    use crate::model::series::{canonical_csv, series as load_series};
     use quantrule_api::Digest;
     use quantrule_app::config::RunConfig;
     use std::path::Path;
@@ -166,7 +166,7 @@ mod tests {
     }
 
     fn fixture_set() -> TimeframeSet {
-        let mut csv = String::from("date,open,high,low,close,volume\n");
+        let mut csv = String::new();
         for offset in 0..250_i64 {
             let open = 100.0 + (offset as f64) * 0.01;
             let hour = offset / 60;
@@ -178,8 +178,7 @@ mod tests {
                 open + 0.25
             ));
         }
-        let ingested = ingest("model.csv", csv.as_bytes()).expect("ingest");
-        load_series(&ingested.content, 600_000).expect("series")
+        load_series(&canonical_csv(&csv), 600_000).expect("series")
     }
 
     #[test]

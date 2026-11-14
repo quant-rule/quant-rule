@@ -8,9 +8,9 @@ use axum::http::{HeaderMap, StatusCode};
 use quantrule_api::{Digest, ErrorCode, ModelComputeRequest, ModelObject};
 use quantrule_data::Timeframe;
 
-use crate::data::series;
+use crate::model::series::series;
 use crate::model::{ModelError, compute_sharded, load_config};
-use crate::server::{ApiFailure, AppState, failure, request_profile, sync_configs};
+use crate::server::{ApiFailure, AppState, data_failure, failure, request_profile};
 
 /// Compute the model for a dataset and config, then store one JSON object.
 pub async fn compute_model(
@@ -27,14 +27,16 @@ pub async fn compute_model(
         timeframes,
     } = request;
 
-    let catalog = state
-        .catalog
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
-    let dataset = catalog
-        .get(profile.clone(), data_version.to_string())
+    let data = state.data.as_ref().ok_or_else(|| {
+        failure(
+            ErrorCode::ServiceUnavailable,
+            "no data service is configured",
+        )
+    })?;
+    let dataset = data
+        .dataset_object(profile.clone(), data_version.to_string())
         .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+        .map_err(data_failure)?
         .ok_or_else(|| {
             failure(
                 ErrorCode::DatasetNotFound,
@@ -49,34 +51,23 @@ pub async fn compute_model(
         .get(&dataset.object_key)
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    if Digest::sha256(&bytes) != dataset.summary.data_version {
+    if Digest::sha256(&bytes) != dataset.sha256 {
         return Err(failure(
             ErrorCode::Internal,
             "the stored object does not match the catalog",
         ));
     }
 
-    let configs = state
-        .configs
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
-    let mut config = configs
-        .get(profile.clone(), config_id.clone())
+    let config = data
+        .config_bundle(profile, config_id.clone())
         .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    if config.is_none() {
-        sync_configs(&state, &profile).await?;
-        config = configs
-            .get(profile.clone(), config_id.clone())
-            .await
-            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    }
-    let config = config.ok_or_else(|| {
-        failure(
-            ErrorCode::ConfigInvalid,
-            format!("config {config_id} is unknown"),
-        )
-    })?;
+        .map_err(data_failure)?
+        .ok_or_else(|| {
+            failure(
+                ErrorCode::ConfigInvalid,
+                format!("config {config_id} is unknown"),
+            )
+        })?;
     if !config.valid {
         return Err(failure(
             ErrorCode::ConfigInvalid,

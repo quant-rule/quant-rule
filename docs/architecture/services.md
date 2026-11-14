@@ -15,7 +15,7 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 
 | Service | Binary | Responsibility | Owns | Must never |
 |---|---|---|---|---|
-| `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection | nothing durable | compute a model value, read a candle, render a label |
+| `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, data proxy | `gateway` schema (profiles) | compute a model value, read a candle, render a label |
 | `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset and config catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema, `candles/` objects | run a model, decide a signal |
 | `model` | `qr-model` | Readings, states, events, levels, progression, context, report | model objects | read strategy, execution, or portfolio |
 | `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio | artifact objects | own provenance or compute a digest |

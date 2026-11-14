@@ -1,0 +1,77 @@
+//! What the data routes need.
+//!
+//! The service state is narrower than the gateway's: a catalog, a config
+//! catalog, the object store, the read-only config mount, and the upload cap.
+//! It holds no profile store and no run store, so the data service cannot read
+//! another service's schema.
+
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use quantrule_api::VersionInfo;
+use quantrule_runtime::Config;
+use quantrule_runtime::adapters::ObjectStore;
+use quantrule_runtime::health::HealthRegistry;
+
+use crate::catalog::DatasetCatalog;
+use crate::configs::ConfigCatalog;
+
+/// The backing services the data routes call.
+#[derive(Default)]
+pub struct DataServices {
+    /// Where datasets are catalogued.
+    pub catalog: Option<Arc<dyn DatasetCatalog>>,
+    /// Where run configs are catalogued.
+    pub configs: Option<Arc<dyn ConfigCatalog>>,
+    /// Where dataset bytes live.
+    pub objects: Option<Arc<dyn ObjectStore>>,
+}
+
+/// What a data handler needs.
+pub struct DataState {
+    /// Product and contract versions.
+    pub version: VersionInfo,
+    /// The dependency probes.
+    pub health: HealthRegistry,
+    /// Where datasets are catalogued; absent when no database is configured.
+    pub catalog: Option<Arc<dyn DatasetCatalog>>,
+    /// Where run configs are catalogued; absent when no database is configured.
+    pub configs: Option<Arc<dyn ConfigCatalog>>,
+    /// Where dataset bytes live; absent when no object store is configured.
+    pub objects: Option<Arc<dyn ObjectStore>>,
+    /// Where the read-only run-config mount lives.
+    pub config_root: PathBuf,
+    /// The largest upload the service accepts, in bytes.
+    pub max_upload: u64,
+}
+
+impl std::fmt::Debug for DataState {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DataState")
+            .field("version", &self.version)
+            .field("health", &self.health)
+            .field("catalog", &self.catalog.is_some())
+            .field("configs", &self.configs.is_some())
+            .field("objects", &self.objects.is_some())
+            .field("config_root", &self.config_root)
+            .field("max_upload", &self.max_upload)
+            .finish()
+    }
+}
+
+impl DataState {
+    /// Build the state with whatever backing services are configured.
+    #[must_use]
+    pub fn with_services(config: &Config, health: HealthRegistry, services: DataServices) -> Self {
+        Self {
+            version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
+            health,
+            catalog: services.catalog,
+            configs: services.configs,
+            objects: services.objects,
+            config_root: config.config_root.clone(),
+            max_upload: config.upload_limit_bytes,
+        }
+    }
+}

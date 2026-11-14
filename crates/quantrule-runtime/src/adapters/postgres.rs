@@ -79,6 +79,25 @@ pub async fn apply_migrations(
     pool: &PgPool,
     available: &[Migration],
 ) -> Result<usize, MigrationError> {
+    apply_migrations_in(pool, "public", available).await
+}
+
+/// Apply every pending migration to one schema's ledger under the session lock.
+///
+/// Each service owns one ledger, so the catalog and gateway migration lists do
+/// not collide on a version number. The ledger name is a fixed service name,
+/// validated before it is interpolated into DDL.
+///
+/// # Errors
+///
+/// Returns [`MigrationError`] when the ledger name is invalid, the plan is
+/// refused, a statement fails, or the lock cannot be released.
+pub async fn apply_migrations_in(
+    pool: &PgPool,
+    ledger: &str,
+    available: &[Migration],
+) -> Result<usize, MigrationError> {
+    let ledger = ledger_table(ledger)?;
     let mut connection = pool
         .acquire()
         .await
@@ -86,7 +105,7 @@ pub async fn apply_migrations(
 
     lock(&mut connection).await?;
 
-    let result = apply_locked(&mut connection, available).await;
+    let result = apply_locked(&mut connection, &ledger, available).await;
 
     match release(&mut connection).await {
         Ok(()) => result,
@@ -128,26 +147,49 @@ async fn release(connection: &mut PgConnection) -> Result<(), MigrationError> {
     }
 }
 
+fn ledger_table(ledger: &str) -> Result<String, MigrationError> {
+    if ledger.is_empty()
+        || !ledger
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    {
+        return Err(MigrationError::Sql(format!(
+            "ledger {ledger:?} is not a schema name"
+        )));
+    }
+    Ok(format!("{ledger}.schema_migrations"))
+}
+
 async fn apply_locked(
     connection: &mut PgConnection,
+    ledger: &str,
     available: &[Migration],
 ) -> Result<usize, MigrationError> {
     let failed = |error: sqlx::Error| MigrationError::Sql(error.to_string());
-    sqlx::raw_sql(
-        "CREATE TABLE IF NOT EXISTS public.schema_migrations (
+    let schema = ledger
+        .split_once('.')
+        .map_or(ledger, |(schema, _table)| schema);
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+        "CREATE SCHEMA IF NOT EXISTS {schema}"
+    )))
+    .execute(&mut *connection)
+    .await
+    .map_err(failed)?;
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+        "CREATE TABLE IF NOT EXISTS {ledger} (
              version    bigint PRIMARY KEY,
              name       text NOT NULL,
              checksum   text NOT NULL,
              applied_at timestamptz NOT NULL DEFAULT now()
-         )",
-    )
+         )"
+    )))
     .execute(&mut *connection)
     .await
     .map_err(failed)?;
 
-    let rows: Vec<(i64, String, String)> = sqlx::query_as(
-        "SELECT version, name, checksum FROM public.schema_migrations ORDER BY version",
-    )
+    let rows: Vec<(i64, String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT version, name, checksum FROM {ledger} ORDER BY version"
+    )))
     .fetch_all(&mut *connection)
     .await
     .map_err(failed)?;
@@ -168,9 +210,9 @@ async fn apply_locked(
             .execute(&mut *transaction)
             .await
             .map_err(failed)?;
-        sqlx::query(
-            "INSERT INTO public.schema_migrations (version, name, checksum) VALUES ($1, $2, $3)",
-        )
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "INSERT INTO {ledger} (version, name, checksum) VALUES ($1, $2, $3)"
+        )))
         .bind(migration.version)
         .bind(migration.name)
         .bind(migrations::checksum(migration.sql))
@@ -181,4 +223,28 @@ async fn apply_locked(
     }
 
     Ok(pending.len())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ledger_table;
+
+    #[test]
+    fn a_ledger_name_is_one_identifier() {
+        assert_eq!(
+            ledger_table("catalog").expect("catalog"),
+            "catalog.schema_migrations"
+        );
+        assert_eq!(
+            ledger_table("public").expect("public"),
+            "public.schema_migrations"
+        );
+    }
+
+    #[test]
+    fn a_ledger_name_cannot_escape_its_schema() {
+        for name in ["", "catalog; drop table x", "a.b", "a-b", "../x"] {
+            assert!(ledger_table(name).is_err(), "{name:?} was accepted");
+        }
+    }
 }

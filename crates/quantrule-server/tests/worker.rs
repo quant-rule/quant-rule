@@ -2,13 +2,16 @@
 
 mod common;
 
-use quantrule_api::{DatasetRecord, DatasetSummary, Digest, ProfileId, RunState};
+use common::canonical;
+
+use quantrule_api::{Digest, ProfileId, RunState};
 use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, Queue, QueueError, StoreError};
+use quantrule_runtime::client::MemoryDataClient;
 use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
-use quantrule_server::configs::{ConfigCatalog, MemoryConfigs, scan};
-use quantrule_server::data::{DatasetCatalog, MemoryCatalog, ingest};
 use quantrule_server::evidence::{EvidenceServices, FinalizeOutcome, RunManifest, finalize};
 use quantrule_server::runs::{MemoryRuns, NewRun, RunStore, derive};
+use quantrule_service_api::{ConfigBundle, DatasetObject};
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -72,7 +75,7 @@ struct Fixture {
 }
 
 fn csv() -> Vec<u8> {
-    let mut text = String::from("date,open,high,low,close,volume\n");
+    let mut text = String::new();
     for offset in 0..250 {
         let hour = offset / 60;
         let minute = offset % 60;
@@ -84,66 +87,86 @@ fn csv() -> Vec<u8> {
             open + 0.25
         ));
     }
-    text.into_bytes()
+    canonical(&text)
+}
+
+fn bundle(root: &Path) -> ConfigBundle {
+    let mut files = BTreeMap::new();
+    for name in [
+        "run.json",
+        "data.json",
+        "model.json",
+        "execution.json",
+        "portfolio.json",
+        "strategy.json",
+    ] {
+        let path = root.join(name);
+        if path.is_file() {
+            files.insert(
+                name.to_owned(),
+                std::fs::read_to_string(path).expect("config file"),
+            );
+        }
+    }
+    ConfigBundle {
+        config_id: "cfg_valid_v4".to_owned(),
+        files,
+        valid: true,
+        message: None,
+        config_hash: Some(Digest::sha256(b"valid-v4")),
+    }
 }
 
 async fn fixture() -> Fixture {
     let profile = ProfileId::parse("default").expect("profile");
-    let catalog = Arc::new(MemoryCatalog::default());
     let objects = common::MemoryObjects::default();
-    let configs = Arc::new(MemoryConfigs::default());
+    let data = MemoryDataClient::default();
     let runs = MemoryRuns::default();
     let queue = MemoryQueue::default();
 
-    let ingested = ingest("model.csv", &csv()).expect("ingest");
-    let key = format!("datasets/{}", ingested.data_version.as_hex());
-    objects
-        .put(&key, ingested.content.clone())
-        .await
-        .expect("put");
-    let record = DatasetRecord {
-        summary: DatasetSummary {
-            data_version: ingested.data_version.clone(),
-            name: ingested.name,
-            candles: ingested.candles,
-            first_bar: ingested.first_bar,
-            last_bar: ingested.last_bar,
-            bytes: ingested.bytes,
+    let dataset = csv();
+    let data_version = Digest::sha256(&dataset);
+    let key = format!("datasets/{}", data_version.as_hex());
+    objects.put(&key, dataset.clone()).await.expect("put");
+    data.add_dataset(
+        &profile,
+        DatasetObject {
+            data_version: data_version.clone(),
+            object_key: key,
+            sha256: data_version.clone(),
+            candles: 250,
+            first_bar: 1_704_067_200,
+            last_bar: 1_704_067_200 + 249 * 60,
+            bytes: dataset.len() as u64,
         },
-        object_key: key,
-        sha256: ingested.data_version.clone(),
-        quality: None,
-        created_at: "2026-11-13T00:00:00Z".to_owned(),
-    };
-    catalog
-        .insert(profile.clone(), record)
-        .await
-        .expect("dataset");
+    );
 
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config");
-    let configs_scanned = scan(&root, "2026-11-13T00:00:00Z").expect("scan");
-    let valid = configs_scanned
-        .iter()
-        .find(|config| config.name == "valid-v4/run.json")
-        .expect("v4")
-        .clone();
-    let invalid = configs_scanned
-        .iter()
-        .find(|config| !config.valid)
-        .expect("invalid")
-        .clone();
-    configs
-        .upsert(profile.clone(), valid.clone())
-        .await
-        .expect("config");
+    let valid =
+        bundle(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid-v4"));
+    let invalid = ConfigBundle {
+        config_id: "cfg_invalid".to_owned(),
+        files: BTreeMap::from([(
+            "run.json".to_owned(),
+            std::fs::read_to_string(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/fixtures/config/invalid/run.json"),
+            )
+            .expect("invalid run"),
+        )]),
+        valid: false,
+        message: Some("the bundle has no data.json".to_owned()),
+        config_hash: None,
+    };
+    data.add_config(&profile, valid.clone());
+    data.add_config(&profile, invalid.clone());
 
     let config_hash = valid.config_hash.clone().expect("hash");
     let image = Digest::sha256(b"image");
-    let run_id = derive(&ingested.data_version, &config_hash, "M1.0", &image);
+    let run_id = derive(&data_version, &config_hash, "M1.0", &image);
     let new_run = NewRun {
         run_id,
         config_id: valid.config_id.clone(),
-        data_version: ingested.data_version.clone(),
+        data_version: data_version.clone(),
         config_hash: config_hash.clone(),
         model_version: "M1.0".to_owned(),
         image_digest: image,
@@ -155,8 +178,7 @@ async fn fixture() -> Fixture {
 
     let services = WorkerServices {
         runs: Arc::new(runs.clone()),
-        catalog: Arc::clone(&catalog) as Arc<dyn DatasetCatalog>,
-        configs: Arc::clone(&configs) as Arc<dyn ConfigCatalog>,
+        data: Arc::new(data),
         objects: Arc::new(objects.clone()),
         queue: Arc::new(queue.clone()),
     };
@@ -167,7 +189,7 @@ async fn fixture() -> Fixture {
         objects,
         config_id: valid.config_id,
         invalid_config_id: invalid.config_id,
-        data_version: ingested.data_version,
+        data_version,
         config_hash,
         run_id,
     }
@@ -229,8 +251,7 @@ impl ObjectStore for ManifestFails {
 fn services_with_manifest_failure(fixture: &Fixture) -> WorkerServices {
     WorkerServices {
         runs: Arc::clone(&fixture.services.runs),
-        catalog: Arc::clone(&fixture.services.catalog),
-        configs: Arc::clone(&fixture.services.configs),
+        data: Arc::clone(&fixture.services.data),
         objects: Arc::new(ManifestFails {
             inner: fixture.objects.clone(),
         }),
@@ -241,8 +262,7 @@ fn services_with_manifest_failure(fixture: &Fixture) -> WorkerServices {
 fn services_with_put_failure(fixture: &Fixture) -> WorkerServices {
     WorkerServices {
         runs: Arc::clone(&fixture.services.runs),
-        catalog: Arc::clone(&fixture.services.catalog),
-        configs: Arc::clone(&fixture.services.configs),
+        data: Arc::clone(&fixture.services.data),
         objects: Arc::new(PutFails {
             inner: fixture.objects.clone(),
         }),
@@ -483,8 +503,7 @@ impl ObjectStore for StopAfter {
 fn services_with_stop_after(fixture: &Fixture, allowed: usize) -> WorkerServices {
     WorkerServices {
         runs: Arc::clone(&fixture.services.runs),
-        catalog: Arc::clone(&fixture.services.catalog),
-        configs: Arc::clone(&fixture.services.configs),
+        data: Arc::clone(&fixture.services.data),
         objects: Arc::new(StopAfter {
             inner: fixture.objects.clone(),
             allowed,

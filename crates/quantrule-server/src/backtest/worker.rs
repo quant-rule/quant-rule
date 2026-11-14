@@ -16,11 +16,10 @@ use quantrule_app::stages::backtest::BacktestRequest;
 
 use crate::backtest::Workspace;
 use crate::backtest::retry::{self, RetryDecision};
-use crate::configs::ConfigCatalog;
-use crate::data::DatasetCatalog;
 use crate::evidence::RunManifest;
 use crate::runs::{ClaimOutcome, RunStore};
 use quantrule_runtime::adapters::{ObjectStore, Queue};
+use quantrule_runtime::client::DataClient;
 use quantrule_runtime::queue::{ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_FAILED};
 
 /// A worker failure with a human-readable message.
@@ -58,10 +57,8 @@ pub enum ProcessOutcome {
 pub struct WorkerServices {
     /// The run store.
     pub runs: Arc<dyn RunStore>,
-    /// The dataset catalog.
-    pub catalog: Arc<dyn DatasetCatalog>,
-    /// The config catalog.
-    pub configs: Arc<dyn ConfigCatalog>,
+    /// The data service's internal reads.
+    pub data: Arc<dyn DataClient>,
     /// The object store.
     pub objects: Arc<dyn ObjectStore>,
     /// The control-plane queue.
@@ -120,8 +117,8 @@ pub async fn process(
     let profile = ProfileId::parse(&record.owner)
         .map_err(|error| WorkerError(format!("the run owner is invalid: {error}")))?;
     let dataset = match services
-        .catalog
-        .get(profile.clone(), record.data_version.to_string())
+        .data
+        .dataset_object(profile.clone(), record.data_version.to_string())
         .await
     {
         Ok(Some(dataset)) => dataset,
@@ -131,8 +128,8 @@ pub async fn process(
         }
     };
     let config = match services
-        .configs
-        .get(profile, record.config_id.clone())
+        .data
+        .config_bundle(profile, record.config_id.clone())
         .await
     {
         Ok(Some(config)) => config,
