@@ -3,8 +3,9 @@
 //! The runner lives in `quantrule-runtime`; a list belongs to the service that
 //! owns the schema. P3 moved the `catalog` list to the data service and P5 moved
 //! the run and research lists to `quantrule-evidence-service`. The gateway keeps
-//! only its own `gateway.profiles` table. The simulation migration stays on disk
-//! for P7 and is registered by `quantrule-simulation-service` when it lands.
+//! only its own `gateway.profiles` table. The simulation schema and its `0014`
+//! migration belong to `quantrule-simulation-service`; this list never applies
+//! them.
 
 use quantrule_runtime::migrations::Migration;
 

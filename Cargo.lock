@@ -2860,9 +2860,13 @@ dependencies = [
  "axum",
  "quantrule-api",
  "quantrule-runtime",
+ "quantrule-simulation",
+ "serde",
  "serde_json",
+ "sqlx",
  "tokio",
  "tower",
+ "tracing",
 ]
 
 [[package]]

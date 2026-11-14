@@ -1,13 +1,15 @@
-//! The M1 health and version surface.
+//! The health and version surface.
 //!
 //! The router is exercised in process, so the test binds no socket and proves
-//! the two routes without a live dependency.
+//! the two probes without a live dependency.
+
+use std::sync::Arc;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use quantrule_api::{API_VERSION, HealthReport, ServiceState, VersionInfo};
 use quantrule_runtime::{Config, HealthRegistry};
-use quantrule_simulation_service::router;
+use quantrule_simulation_service::{SimulationServices, SimulationState, router};
 use tower::ServiceExt;
 
 async fn body(response: axum::response::Response) -> Vec<u8> {
@@ -17,9 +19,17 @@ async fn body(response: axum::response::Response) -> Vec<u8> {
         .to_vec()
 }
 
+fn state() -> Arc<SimulationState> {
+    Arc::new(SimulationState::with_services(
+        &Config::default(),
+        HealthRegistry::new(),
+        SimulationServices::default(),
+    ))
+}
+
 #[tokio::test]
 async fn health_answers_with_the_contract_report() {
-    let response = router(&Config::default(), HealthRegistry::new())
+    let response = router(state())
         .oneshot(
             Request::get("/health")
                 .body(Body::empty())
@@ -36,7 +46,7 @@ async fn health_answers_with_the_contract_report() {
 
 #[tokio::test]
 async fn version_reports_the_contract() {
-    let response = router(&Config::default(), HealthRegistry::new())
+    let response = router(state())
         .oneshot(
             Request::get("/version")
                 .body(Body::empty())

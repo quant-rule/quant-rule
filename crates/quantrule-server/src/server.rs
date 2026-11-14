@@ -2,10 +2,10 @@
 //!
 //! The gateway serves `/health`, `/version`, and profiles. The data, model,
 //! evidence, and simulation surfaces are proxied: `/catalog/*`, `/datasets/*`,
-//! `/inspect/*`, `/model/*`, `/runs/*`, and `/hypotheses/*` are forwarded to
-//! their service with the validated profile header, the method, the path, the
-//! query, and a streamed body. The gateway has no dataset, config, inspection,
-//! model, run, or research handler.
+//! `/inspect/*`, `/model/*`, `/runs/*`, `/hypotheses/*`, and `/simulation/*` are
+//! forwarded to their service with the validated profile header, the method, the
+//! path, the query, and a streamed body. The gateway has no dataset, config, inspection,
+//! model, run, research, or simulation handler.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -38,6 +38,8 @@ pub struct Services {
     pub model_upstream: Option<Arc<HttpServiceClient>>,
     /// The evidence service's HTTP transport, for the proxy.
     pub evidence_upstream: Option<Arc<HttpServiceClient>>,
+    /// The simulation service's HTTP transport, for the proxy.
+    pub simulation_upstream: Option<Arc<HttpServiceClient>>,
 }
 
 /// What a handler needs.
@@ -58,6 +60,8 @@ pub struct AppState {
     pub model_upstream: Option<Arc<HttpServiceClient>>,
     /// The evidence service's HTTP transport; absent in a test that does not proxy.
     pub evidence_upstream: Option<Arc<HttpServiceClient>>,
+    /// The simulation service's HTTP transport; absent in a test that does not proxy.
+    pub simulation_upstream: Option<Arc<HttpServiceClient>>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -72,6 +76,7 @@ impl std::fmt::Debug for AppState {
             .field("upstream", &self.upstream.is_some())
             .field("model_upstream", &self.model_upstream.is_some())
             .field("evidence_upstream", &self.evidence_upstream.is_some())
+            .field("simulation_upstream", &self.simulation_upstream.is_some())
             .finish()
     }
 }
@@ -95,6 +100,7 @@ impl AppState {
             upstream: services.upstream,
             model_upstream: services.model_upstream,
             evidence_upstream: services.evidence_upstream,
+            simulation_upstream: services.simulation_upstream,
         }
     }
 }
@@ -140,6 +146,8 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/inspect/{*rest}", any(proxy_data))
         .route("/model", any(proxy_model))
         .route("/model/{*rest}", any(proxy_model))
+        .route("/simulation", any(proxy_simulation))
+        .route("/simulation/{*rest}", any(proxy_simulation))
 }
 
 /// Build the router.
@@ -349,6 +357,85 @@ async fn forward_model(
 /// A path the model proxy owns. `/internal/v1` is never in this set.
 fn model_path_allowed(path: &str) -> bool {
     const PREFIXES: [&str; 1] = ["/model"];
+    let lowered = path.to_ascii_lowercase();
+    if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
+        return false;
+    }
+    PREFIXES.iter().any(|prefix| {
+        path.strip_prefix(prefix)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+    }) && !path
+        .split('/')
+        .any(|segment| segment == ".." || segment == ".")
+}
+
+/// Forward a simulation request to `qr-simulation`.
+///
+/// The same boundary as the other proxies: validate the profile, replace any
+/// client-supplied value with the validated one, filter the headers, stream the
+/// body, and pass the status, content type, ETag, and error envelope through. An
+/// unreachable service is `503 service.unavailable` with no local fallback. The
+/// gateway keeps no simulation store and writes no simulation row.
+async fn proxy_simulation(
+    State(state): State<Arc<AppState>>,
+    request: Request<axum::body::Body>,
+) -> Response {
+    match forward_simulation(&state, request).await {
+        Ok(response) => response,
+        Err(failure) => failure.into_response(),
+    }
+}
+
+async fn forward_simulation(
+    state: &AppState,
+    request: Request<axum::body::Body>,
+) -> Result<Response, ApiFailure> {
+    let profile = {
+        let headers = request.headers();
+        request_profile(state, headers).await?
+    };
+    let Some(upstream) = state.simulation_upstream.as_ref() else {
+        return Err(failure(
+            ErrorCode::ServiceUnavailable,
+            "the simulation service is not configured",
+        ));
+    };
+    if !simulation_path_allowed(request.uri().path()) {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorEnvelope::of(
+                ErrorCode::Internal,
+                "the path is not a simulation route",
+            )),
+        ));
+    }
+
+    let original = request
+        .extensions()
+        .get::<axum::extract::OriginalUri>()
+        .map(|original| original.0.clone());
+    let (parts, body) = request.into_parts();
+    let mut forwarded = Request::from_parts(parts, body);
+    if let Some(original) = original {
+        *forwarded.uri_mut() = original;
+    }
+    let headers = proxy_request_headers(forwarded.headers(), &profile);
+    *forwarded.headers_mut() = headers;
+    let response = upstream
+        .forward(Service::Simulation, forwarded)
+        .await
+        .map_err(|error| {
+            failure(
+                ErrorCode::ServiceUnavailable,
+                format!("the simulation service is unavailable: {error}"),
+            )
+        })?;
+    Ok(proxy_response(response))
+}
+
+/// A path the simulation proxy owns. `/internal/v1` is never in this set.
+fn simulation_path_allowed(path: &str) -> bool {
+    const PREFIXES: [&str; 1] = ["/simulation"];
     let lowered = path.to_ascii_lowercase();
     if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
         return false;
