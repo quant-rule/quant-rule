@@ -198,6 +198,48 @@ impl ObjectStore for PutFails {
     }
 }
 
+#[derive(Clone)]
+struct ManifestFails {
+    inner: common::MemoryObjects,
+}
+
+impl ObjectStore for ManifestFails {
+    fn backend(&self) -> Backend {
+        Backend::Filesystem
+    }
+
+    fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
+        if key.ends_with("/manifest.json") {
+            return Box::pin(async {
+                Err(StoreError(
+                    "the worker was killed before publish".to_owned(),
+                ))
+            });
+        }
+        self.inner.put(key, bytes)
+    }
+
+    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
+        self.inner.get(key)
+    }
+
+    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
+        self.inner.exists(key)
+    }
+}
+
+fn services_with_manifest_failure(fixture: &Fixture) -> WorkerServices {
+    WorkerServices {
+        runs: Arc::clone(&fixture.services.runs),
+        catalog: Arc::clone(&fixture.services.catalog),
+        configs: Arc::clone(&fixture.services.configs),
+        objects: Arc::new(ManifestFails {
+            inner: fixture.objects.clone(),
+        }),
+        queue: Arc::clone(&fixture.services.queue),
+    }
+}
+
 fn services_with_put_failure(fixture: &Fixture) -> WorkerServices {
     WorkerServices {
         runs: Arc::clone(&fixture.services.runs),
@@ -489,6 +531,69 @@ async fn a_stopped_write_leaves_no_manifest() {
             .iter()
             .all(|key| !key.starts_with(&run_prefix)),
         "a stopped write must not publish a run prefix"
+    );
+}
+
+#[tokio::test]
+async fn a_manifest_write_failure_leaves_no_published_set() {
+    let fixture = fixture().await;
+    let services = services_with_manifest_failure(&fixture);
+    assert_eq!(
+        process(fixture.run_id.clone(), false, &services)
+            .await
+            .expect("first"),
+        ProcessOutcome::Retry {
+            delay: Duration::from_secs(5)
+        }
+    );
+    let record = fixture
+        .runs
+        .get_any(fixture.run_id.clone())
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.status, RunState::Running);
+    assert!(record.artifacts.is_empty());
+    assert!(
+        !fixture
+            .objects
+            .exists(&RunManifest::key(&fixture.run_id))
+            .await
+            .expect("manifest")
+    );
+    assert!(
+        fixture
+            .objects
+            .keys()
+            .iter()
+            .any(|key| key.starts_with("artifacts/"))
+    );
+    let run_prefix = format!("runs/{}/", fixture.run_id);
+    assert!(
+        fixture
+            .objects
+            .keys()
+            .iter()
+            .all(|key| !key.starts_with(&run_prefix)),
+        "a killed worker must not publish a run prefix"
+    );
+
+    // Restart on the durable store: the blobs are reused and the set publishes.
+    assert_eq!(
+        process(fixture.run_id.clone(), true, &fixture.services)
+            .await
+            .expect("restart"),
+        ProcessOutcome::Computed
+    );
+    let evidence = EvidenceServices {
+        runs: Arc::new(fixture.runs.clone()) as Arc<dyn RunStore>,
+        objects: Arc::new(fixture.objects.clone()) as Arc<dyn ObjectStore>,
+    };
+    assert_eq!(
+        finalize(fixture.run_id.clone(), &evidence)
+            .await
+            .expect("finalize"),
+        FinalizeOutcome::Succeeded
     );
 }
 

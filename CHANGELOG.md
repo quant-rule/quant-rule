@@ -22,6 +22,10 @@ are not treated as releases.
 
 ### Added
 
+- Crash tests prove that a backtest stopped before the manifest leaves no run
+  prefix and no artifact, and that an evidence process stopped before `complete`
+  leaves the run `running`; each restarts from the durable object set and
+  finishes. A real `SIGKILL` remains composed-tier evidence (#643).
 - A scale-invariance harness proves one pass and four model shards share one
   object digest in any completion order, and a reversed requested ladder
   produces the same bytes; an unsorted merge changes the digest.
