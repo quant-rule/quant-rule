@@ -2,9 +2,9 @@
 #
 # One bridge network, one published port, three named volumes. The default
 # topology is nine containers: the six service binaries from one image plus
-# Postgres, the object store, and the broker. `data` serves the catalog, dataset,
-# config, and inspection surface and `model` serves the model compute route; the
-# gateway proxies both. `simulation` remains a health/version skeleton until P7.
+# Postgres, the object store, and the broker. `data` serves the catalog, `model`
+# serves model compute, and `evidence` serves runs and research; the gateway
+# proxies all three. `simulation` remains a health/version skeleton until P7.
 #
 # Windows and macOS run this file through Docker Desktop's Linux backend
 # (WSL2 on Windows). The image is linux/amd64.
@@ -27,16 +27,19 @@ x-server: &server
     # The gateway proxies /model/compute to qr-model and refuses to start
     # without this URL.
     QR_MODEL_URL: http://model:8080
+    # The gateway proxies runs and hypotheses to qr-evidence, and the backtest
+    # worker uses its internal lifecycle; both refuse to start without this URL.
+    QR_EVIDENCE_URL: http://evidence:8080
     QR_OBJECT_STORE_URL: http://minio:9000
     QR_OBJECT_BUCKET: quantrule
     QR_QUEUE_URL: amqp://quantrule:${QR_RABBITMQ_PASSWORD:-quantrule}@rabbitmq:5672/%2f
     QR_STATIC_DIR: /srv/static
     QR_CONFIG_ROOT: /srv/config
     # Each schema owner migrates its own ledger: the gateway applies the gateway
-    # and runs ledgers, and data applies the catalog ledger. The runtime pins the
-    # session-level advisory lock to one connection, so the two migrate at once
-    # without the old sole-migrator workaround. Workers keep this at 0 because
-    # the gateway owns the runs ledger they consume.
+    # ledger, data applies catalog, and evidence applies runs and research. The
+    # runtime pins the session-level advisory lock to one connection, so the
+    # three migrate at once without the old sole-migrator workaround. The
+    # backtest worker, model, and simulation keep this at 0.
     QR_MIGRATE: "0"
     # Set at release time to the image digest. An empty value would be rejected
     # by the runtime, so the key is a pass-through: unset stays unset.
@@ -69,6 +72,8 @@ services:
       data:
         condition: service_healthy
       model:
+        condition: service_healthy
+      evidence:
         condition: service_healthy
       postgres:
         condition: service_healthy
@@ -119,7 +124,7 @@ services:
     depends_on:
       data:
         condition: service_healthy
-      postgres:
+      evidence:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -132,13 +137,22 @@ services:
   evidence:
     <<: *server
     command: ["qr-evidence"]
+    environment:
+      <<: *server-environment
+      # qr-evidence owns the runs and research schemas, including the run
+      # attempts ledger (0013), and applies them on start. The gateway migrates
+      # only its own gateway ledger.
+      QR_MIGRATE: "1"
     depends_on:
+      data:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    healthcheck: *http-healthcheck
 
   simulation:
     <<: *server

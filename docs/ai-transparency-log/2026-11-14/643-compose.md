@@ -267,3 +267,88 @@ Container health after P4:
 The Windows Docker Desktop and standalone Podman smoke checks remain manual
 notes. The simulation domain routes, the remaining split phases, and the
 permanent object-store registry are outside this change.
+
+## Follow-up after P5 (#794) — 2026-11-14 (UTC)
+
+- Merge: #794 merged to `main` at `80b590f2`; `origin/main` merged into
+  `feat/643-compose` at `e0317d53`.
+- Intent: enable `qr-evidence` as an HTTP service, wire the gateway's required
+  `QR_EVIDENCE_URL`, and move the `runs`/`research` migration ledgers from the
+  gateway to evidence.
+- Boundary: `compose.yaml`, `Dockerfile` (the evidence package was missing from
+  the build), `docker/README.md`, the current-state and configuration sections
+  of `docs/architecture/deployment.md`, `CHANGELOG.md`, and this log. No Rust,
+  client, Makefile, CI, `services.md`, ADR, or port-parity change.
+- Compose: `QR_EVIDENCE_URL=http://evidence:8080` is set for the gateway and the
+  backtest worker, which both refuse to start without it. The gateway depends on
+  `data`, `model`, and `evidence` being healthy. Evidence depends on data,
+  Postgres, the object store, and the broker, serves its own `/health`, and
+  applies the `runs`/`research` ledgers with `QR_MIGRATE=1`. The gateway applies
+  only the `gateway` ledger; data applies `catalog`. Backtest depends on
+  evidence and no longer needs a direct Postgres dependency.
+- Build fix: P5 moved `qr-evidence` from `quantrule-server` to
+  `quantrule-evidence-service`. The first image build still named only the old
+  package, so Cargo's cache supplied the previous P4 `qr-evidence` worker from
+  `target/release`; the container came up as a queue consumer with no HTTP
+  server and failed its `/health` probe. The Dockerfile now builds
+  `-p quantrule-evidence-service` explicitly. This is a packaging defect the
+  real stack caught; the stale binary was not a runtime behavior change.
+
+### Verification after P5 — 2026-11-14 (UTC)
+
+| Check | Command | Observed |
+|---|---|---|
+| Compose parse | `docker compose config -q` | exit 0; nine services |
+| Image build | `docker build -t quantrule-server:test .` | exit 0; manifest list `sha256:8a14f94d512733a78b7143602f059d424175785f2ad999dfbc8fe65fdbee2f18` |
+| Clean start | `docker compose down -v && docker compose up -d --build --wait` | exit 0; nine containers |
+| Gateway health | `curl -fsS http://localhost:8080/health` | `state=healthy`; postgres healthy |
+| Data probe | `curl -H 'X-QuantRule-Profile: default' http://localhost:8080/catalog/datasets` | `200`; `[]` before upload |
+| Dataset upload | `POST /catalog/datasets?name=p5-fixture.csv` | `201`; 250 candles; `sha256:3c0106f8…` |
+| Model probe | `POST /model/compute` with the dataset and `cfg_312c0eec3438` | `200`; timeframes `1m,5m,15m,1h`; 66,022 bytes; `sha256:e12f8069…` |
+| Run submission | `POST /runs` with the same dataset and config | `202`; `run_id sha256:a201c650…`; `queued`, `created=true` |
+| Run read | `GET /runs/{id}` | `200`; `status=succeeded`; all four stages `done`; artifacts present |
+| Run list | `GET /runs` | `200`; one run with the same id |
+| Gateway ledger | `gateway.schema_migrations` | `7` |
+| Catalog ledger | `catalog.schema_migrations` | `1,2,3,4,5` |
+| Runs ledger | `runs.schema_migrations` | `2,4,5,8,9,13` |
+| Migration ordering | gateway/data/evidence logs | data 19:25:18, evidence 19:25:24, gateway 19:25:30; all applied; no deadlock or panic |
+| No Python | `docker run --rm quantrule-server:test sh -c 'command -v python3'` | empty |
+| No Bun | `docker run --rm quantrule-server:test sh -c 'command -v bun'` | empty |
+| No `.py` | `docker run --rm quantrule-server:test sh -c 'find / -name "*.py" 2>/dev/null \| head'` | empty |
+| One-command path | `make up` | exit 0; `QuantRule v0.3.0 ready → http://localhost:8080` |
+| Workspace gate | `tools/gate.sh` | exit 0; `workspace gate passed` |
+
+Container health after P5:
+
+| Container | State |
+|---|---|
+| `gateway` | healthy |
+| `data` | healthy |
+| `model` | healthy |
+| `evidence` | healthy |
+| `backtest` | up; no HTTP probe |
+| `simulation` | healthy |
+| `postgres` | healthy |
+| `minio` | healthy |
+| `rabbitmq` | healthy |
+
+### Learning and rejected alternatives after P5
+
+- The image must name every service package that owns a moved binary. Building
+  only the old package is not a compile error; it silently packages the cached
+  previous binary. The explicit `-p quantrule-evidence-service` is the fix, and
+  the real `/health` probe is what caught it.
+- Rejected: pinning migrations back to the gateway to avoid the concurrent
+  start. The ledgers are owned by their services now; the pinned advisory lock
+  serialized all three without deadlock, and the run completed.
+- Rejected: giving evidence a `config/` mount. It resolves config bundles through
+  `qr-data`, like model.
+- The gateway `/health` now reports only Postgres; queue and object-store probes
+  belong to the services that own them. The healthcheck still reads the
+  aggregate state.
+
+### Not verified here
+
+The Windows Docker Desktop and standalone Podman smoke checks remain manual
+notes. The simulation domain routes, the P6 backtest-service move, and the
+permanent object-store registry are outside this change.

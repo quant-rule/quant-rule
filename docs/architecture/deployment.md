@@ -61,14 +61,13 @@ The image also carries the static client, built with **Bun** (`bun install`,
 ## 2.1 Current state
 
 All six service binaries exist and the default stack starts all nine containers.
-`data` serves the catalog, dataset, config, and inspection surface; `model`
-serves `/model/compute`; the gateway proxies both. `simulation` is a
-health/version skeleton until P7.
+`data` serves the catalog, `model` serves `/model/compute`, and `evidence` serves
+runs and research; the gateway proxies all three. `simulation` is a skeleton until P7.
 
-`backtest` and `evidence` serve no HTTP, so they have no healthcheck; Docker
-reports the process state and `/health` reports their dependencies. The gateway
-and `data` each migrate their own ledger (`QR_MIGRATE=1`), pinned by P1 to one
-connection; other services keep `0` and model owns no schema.
+`backtest` serves no HTTP, so it has no healthcheck; Docker reports the process
+state and `/health` reports its dependencies. The gateway, data, and evidence
+each migrate their own ledger (`QR_MIGRATE=1`), pinned by P1 to one connection;
+other services keep `0` and own no schema.
 
 `minio/minio` has no public image since 2026-09-11; the default is a pinned legacy
 archive, overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
@@ -124,6 +123,7 @@ to start.
 | `QR_DATABASE_URL` | compose value | Postgres |
 | `QR_DATA_URL` | compose value | Data service, used by the gateway and the backtest worker |
 | `QR_MODEL_URL` | compose value | Model service, used by the gateway |
+| `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
 | `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
 | `QR_QUEUE_URL` | compose value | RabbitMQ |
 | `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Upload cap |
