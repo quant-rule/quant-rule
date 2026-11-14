@@ -15,11 +15,11 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 
 | Service | Binary | Responsibility | Owns | Must never |
 |---|---|---|---|---|
-| `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, data proxy | `gateway` schema (profiles) | compute a model value, read a candle, render a label |
+| `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, proxy table | `gateway` schema (profiles) | compute a model value, read a candle, render a label |
 | `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset and config catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema, `candles/` objects | run a model, decide a signal |
 | `model` | `qr-model` | Readings, states, events, levels, progression, context, report | model objects | read strategy, execution, or portfolio |
 | `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio | artifact objects | own provenance or compute a digest |
-| `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, finalization | `runs` schema, bundle objects | compute a reading or decide a trade |
+| `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, finalization | `runs` and `research` schemas, bundle objects | compute a reading or decide a trade |
 | `simulation` | `qr-simulation` | Chart-first research: window selection, marks, oracle, review, check, decision | `simulation` schema, research objects | compute a model, write a run artifact, publish to the queue |
 
 ## 2. Dependency direction
@@ -27,17 +27,27 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 ```text
 gateway ──────────────┐
                       ├──> quantrule-api
-worker services ──────┘
-      │
-      └──> quantrule-app ──> quantrule-backtest ──> quantrule-model ──> quantrule-data
+                      ├──> quantrule-service-api
+                      └──> quantrule-runtime
+
+data, model, backtest ──> quantrule-app ──> quantrule-backtest ──> quantrule-model ──> quantrule-data
+evidence ───────────────> quantrule-research
+simulation ─────────────> quantrule-simulation
 ```
 
 The engines are unchanged by distribution. Every service binary is an adapter
-over `quantrule-app`, exactly as the shell was.
+over its domain crate; data, model, and backtest share `quantrule-app`, and
+evidence and simulation use their own domain crates.
 
 - `quantrule-api` holds contract types and must not depend on an engine.
-- The gateway must not reach an engine module; a guard test enforces it.
-- Workers may call `quantrule-app` freely.
+- `quantrule-runtime` holds configuration, health, adapters, the migration
+  runner, and the internal client. It must not depend on an engine or
+  `quantrule-app`.
+- The gateway links no app, engine, or domain service crate. The compile/source
+  guard `crates/quantrule-gateway/tests/service_boundary.rs` fails when that
+  edge, a second service binary, or a cross-schema read appears.
+- Workers may call `quantrule-app` freely. Evidence and simulation must not.
+- No service crate depends on another service crate.
 
 ## 3. Scaling profile
 

@@ -202,8 +202,15 @@ source fetch and local stage execution were removed in v1.0.0.
 | `crates/quantrule-model` | Model engine |
 | `crates/quantrule-backtest` | Strategy, execution, portfolio, benchmark |
 | `crates/quantrule-app` | Shared application service |
-| `crates/quantrule-api` | HTTP contract types (target) |
-| `crates/quantrule-server` | Gateway and workers (target) |
+| `crates/quantrule-api` | HTTP contract types |
+| `crates/quantrule-service-api` | Internal service contract types |
+| `crates/quantrule-runtime` | Configuration, health, storage, queue, migrations |
+| `crates/quantrule-gateway` | Gateway: profiles, static client, proxy, health |
+| `crates/quantrule-data-service` | Data service (`qr-data`) |
+| `crates/quantrule-model-service` | Model service (`qr-model`) |
+| `crates/quantrule-backtest-service` | Backtest worker (`qr-backtest`) |
+| `crates/quantrule-evidence-service` | Evidence service (`qr-evidence`) |
+| `crates/quantrule-simulation-service` | Simulation service (`qr-simulation`) |
 | `crates/quantrule-shell` | Command shell |
 | `apps/web` | Svelte 5 browser client, built with Bun |
 | `docs/` | Contracts, workflows, plans, releases, course |

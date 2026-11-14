@@ -15,9 +15,17 @@ is not a contract.
 apps/web ── HTTP ──┐
 quantrule-shell ───┤
                    ├──> quantrule-api
-quantrule-server ──┘         │
-   (5 binaries)              │
-        └──> quantrule-app ──> quantrule-backtest ──> quantrule-model ──> quantrule-data
+quantrule-gateway ─┘
+        └──> quantrule-service-api
+        └──> quantrule-runtime ──> quantrule-api, quantrule-service-api
+
+quantrule-data-service ────┐
+quantrule-model-service ───┼──> quantrule-app ──> quantrule-backtest
+quantrule-backtest-service ┘                         └──> quantrule-model
+                                                           └──> quantrule-data
+
+quantrule-evidence-service ──> quantrule-research
+quantrule-simulation-service ──> quantrule-simulation
 ```
 
 | Crate | Owns | Must not own |
@@ -27,48 +35,36 @@ quantrule-server ──┘         │
 | `quantrule-backtest` | Strategy, execution, portfolio, benchmark | Files, transport, rendering |
 | `quantrule-app` | Workspace, dataset, configuration, run orchestration, artifact I/O, memory, shared use cases | Indicators, rules, fills, P&L, transport |
 | `quantrule-api` | Contract types, error envelope, state enum, version constants | Any engine dependency |
+| `quantrule-service-api` | `quantrule.internal/v1` records, bundles, run lifecycle, canonical digest | Any engine, runtime, or service dependency |
 | `quantrule-research` | Hypothesis evaluation: expectancy, significance, drawdown, comparison | I/O, clock, engine dependency |
-| `quantrule-simulation` | Research plane: deterministic windows and the mark schema | I/O, clock, run artifacts |
-| `quantrule-server` | Runtime, gateway, workers, migrations, profiles | Domain logic |
-| `quantrule-simulation` | Window selection, marks, oracle, review, check, exit lab | Model computation, run artifacts |
+| `quantrule-simulation` | Research plane: deterministic windows, marks, oracle, check, exit lab | I/O, clock, run artifacts |
+| `quantrule-runtime` | Configuration, health, logging, shutdown, adapters, migrations, service client | An engine or `quantrule-app` |
+| `quantrule-gateway` | Profiles (`gateway` schema), static client, proxy table, health | Any app, engine, or domain service crate |
+| `quantrule-data-service` | `catalog` schema, ingest, datasets, configs, inspection, ladder | Another schema or a model run |
+| `quantrule-model-service` | Model compute and content-addressed model bundles | A strategy, execution, portfolio, or database schema |
+| `quantrule-backtest-service` | Worker orchestration, strategy, execution, portfolio, artifact objects | A catalog, run, or research schema |
+| `quantrule-evidence-service` | `runs` and `research` schemas, run records, provenance, digest, memory, hypotheses | An engine or `quantrule-app` |
+| `quantrule-simulation-service` | `simulation` schema, research objects, eleven endpoints | A model, run artifact, strategy, or queue message |
 | `quantrule-shell` | Parsing, terminal rendering, HTTP calls | Domain logic, engine dependency |
 | `apps/web` | Svelte screens, stores, SVG chart, rendering | Domain logic, computation |
 | `apps/desktop-shell` | A Tauri window over the gateway URL | Domain logic, local data, IPC commands |
 
-Two guard tests enforce the graph: the gateway may not import an engine module,
-and `quantrule-api` may not depend on a workspace engine crate.
+The compile/source guard in `crates/quantrule-gateway/tests/service_boundary.rs`
+enforces the graph: the gateway links no app, engine, or domain service crate; a
+service reads only its own schema; every service ships one binary; simulation
+cannot read a strategy, write a run, publish to the queue, or compute a model.
 
-## 2. Server crate
+## 2. Service crates
 
-| Module | Responsibility |
+| Crate | Read first |
 |---|---|
-| `runtime/config.rs` | Environment configuration; no file required |
-| `runtime/health.rs` | Dependency checks and aggregation |
-| `runtime/pg.rs`, `runtime/s3.rs`, `runtime/amqp.rs` | Pool, client, channel |
-| `runtime/error.rs` | One error type and the JSON envelope |
-| `runtime/shutdown.rs` | Graceful drain on SIGTERM |
-| `runtime/profile.rs` | Profile resolution from the request header |
-| `runtime/adapters/` | Database, object store, and queue traits, with one implementation each |
-| `gateway/router.rs` | Route table; one handler per endpoint |
-| `gateway/principal.rs` | The `Authorization` seam; injects `operator` |
-| `gateway/static.rs` | SPA assets and history fallback |
-| `gateway/upload.rs` | Streaming upload and size limit |
-| `data/ingest.rs` | CSV parse, hash, catalog row |
-| `data/catalog.rs` | Datasets and configs |
-| `data/ladder.rs` | Timeframe construction over the engine |
-| `model/compute.rs` | Model run, shard, merge |
-| `backtest/orchestrate.rs` | Run choreography across services |
-| `backtest/artifacts.rs` | Artifact write and manifest |
-| `evidence/artifacts.rs` | Manifest and artifact-blob verification |
-| `evidence/manifest.rs` | Atomic artifact manifest and canonical digest |
-| `evidence/finalize.rs` | Completeness check and `succeeded` transition |
-| `evidence/memory.rs` | Research memory, replacing SQLite |
-| `simulation/windows.rs` | Seeded, non-overlapping window selection |
-| `simulation/marks.rs` | Mark schema, validation, atomic write |
-| `simulation/oracle.rs` | Deterministic hindsight labeler |
-| `simulation/check.rs` | Event study on the unmarked window |
-| `simulation/review.rs` | Mark comparison and candidate-rule table |
-| `migrations/` | Forward-only SQL |
+| `quantrule-gateway` | `src/server.rs` for the route and proxy table; `src/profile/` for `gateway.profiles`; `src/static_files.rs` for the SPA |
+| `quantrule-data-service` | `src/routes.rs`, `src/ingest.rs`, `src/catalog.rs`, `src/postgres.rs` |
+| `quantrule-model-service` | `src/routes.rs`, `src/bundle.rs`, `src/state.rs` |
+| `quantrule-backtest-service` | `src/backtest/worker.rs`, `src/backtest/workspace.rs`, `src/backtest/retry.rs` |
+| `quantrule-evidence-service` | `src/state.rs`, `src/postgres.rs`, `src/migrations.rs` |
+| `quantrule-simulation-service` | `src/routes/`, `src/postgres.rs`, `src/bundle.rs` |
+| `quantrule-runtime` | `src/config.rs`, `src/health.rs`, `src/adapters/`, `src/client.rs`, `src/migrations.rs` |
 
 ## 3. Where to add a change
 
@@ -76,13 +72,13 @@ and `quantrule-api` may not depend on a workspace engine crate.
 |---|---|---|
 | Base reading | `model/src/readings/<family>.rs` | registry, config parser, writer, golden test |
 | Event | `model/src/events/<family>.rs` | codes, registry, dispatch, writer, test |
-| Endpoint | `server/src/gateway/router.rs` | `quantrule-api`, `http-api.md`, client store, test |
-| Service responsibility | `server/src/<service>/` | `services.md`, guard tests |
-| Worker behaviour | `server/src/backtest/orchestrate.rs` | `control-plane.md`, retry test |
+| Endpoint | `gateway/src/server.rs` | owner service, `quantrule-api`, `http-api.md`, client store, test |
+| Service responsibility | the owning `*-service` crate | `services.md`, `service_boundary.rs` |
+| Worker behaviour | `backtest-service/src/backtest/worker.rs` | `control-plane.md`, retry test |
 | Client screen | `apps/web/src/lib/<Name>Panel.svelte` | store, `client.md`, Playwright test |
 | Command | `shell/src/command/<family>.rs` | `command-surface.md`, help, tutorial, checker |
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |
-| Artifact field | `server/src/evidence/` | artifact contract, golden bundle |
+| Artifact field | `evidence-service/src/` | artifact contract, golden bundle |
 
 ## 4. Reading order
 
@@ -93,7 +89,7 @@ and `quantrule-api` may not depend on a workspace engine crate.
 5. `crates/quantrule-model/src/lib.rs`, `timeframe.rs`, `run.rs`.
 6. `crates/quantrule-backtest/src/lib.rs`, `strategy/mod.rs`.
 7. `crates/quantrule-app/src/lib.rs`, `pipeline.rs`, `service.rs`.
-8. `crates/quantrule-server/src/gateway/router.rs`.
+8. `crates/quantrule-gateway/src/server.rs`.
 9. `crates/quantrule-shell/src/command.rs`.
 10. `apps/web/README.md`.
 
