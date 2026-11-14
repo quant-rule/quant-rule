@@ -31,9 +31,9 @@ docker compose up -d --build --wait
 ```
 
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
-provider must support health conditions, profiles, YAML anchors, and healthchecks;
-see [`docker/README.md`](../../docker/README.md) §7. The current tree starts the
-six containers whose binaries exist; the nine-container target is §2.
+provider must support health conditions, YAML anchors, and healthchecks;
+see [`docker/README.md`](../../docker/README.md) §7. The current tree starts all
+nine containers listed in §2.
 
 ## 2. Topology — `quantrule.deploy/v1`
 
@@ -60,17 +60,20 @@ The image also carries the static client, built with **Bun** (`bun install`,
 
 ## 2.1 Current state
 
-Three of the six binaries exist today: `qr-gateway`, `qr-backtest`, and
-`qr-evidence`. The default stack starts six of the nine containers; `data`,
-`model`, and `simulation` are defined under the off-by-default `six-binaries`
-profile and cannot start until `qr-data`, `qr-model`, and `qr-simulation` exist.
-The build, the image checks, and the exact gap are in
-[`docker/README.md`](../../docker/README.md). Until the split lands, `gateway`
-carries the read-only `config/` mount the table assigns to `data`.
+All six service binaries exist and the default stack starts all nine containers.
+`data`, `model`, and `simulation` are health/version skeletons with no domain
+route; their routes stay in the gateway until P3 (data), P4 (model), and P7
+(simulation). The gateway still carries the read-only `config/` mount the table
+assigns to `data`; `data` and `simulation` mount it too.
 
-`minio/minio` has no public image since 2026-09-11; the Compose default is a
-pinned legacy archive, overridable by `QR_OBJECT_STORE_IMAGE`, until the registry
-decision is recorded.
+`backtest` and `evidence` serve no HTTP, so they have no healthcheck; Docker
+reports the process state and the gateway's `/health` reports their dependencies.
+The gateway is the only migrator (`QR_MIGRATE=1`; others set `0`) until the
+runtime pins its advisory lock to one connection, a workaround recorded in
+[`docker/README.md`](../../docker/README.md) §3, not a fix.
+
+`minio/minio` has no public image since 2026-09-11; the default is a pinned legacy
+archive, overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
 
 ## 3. Make targets
 
@@ -94,14 +97,12 @@ decision is recorded.
 | `make restore FILE=…` | Restore into a clean stack |
 | `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
 
-`make scale` requires the six-binary profile, off until `qr-data` and `qr-model`
-exist (§2.1). `make remote` and `make token` forward to scripts owned by
-DIST-081 (#672); until a script lands, its target exits nonzero and names the
-issue. `make backup` and `make restore` call the DIST-080 scripts (#671).
-`make test-composed` preserves exit 2 because the composed suite is not wired yet.
-`make verify` keeps
-the pre-#771 recipe, but `tools/verify.sh` still calls the retired local
-`backtest run` command; the script needs its own change.
+`make scale` scales `model` and `backtest`; both are in the default stack. `make
+remote`, `make token`, `make backup`, and `make restore` forward to the DIST-081
+(#672) and DIST-080 (#671) scripts, and each target exits nonzero naming its
+issue until the script lands. `make test-composed` exits 2 because the composed
+suite is not wired yet. `make verify` keeps the pre-#771 recipe, but
+`tools/verify.sh` still calls the retired local `backtest run` command.
 
 ## 4. Configuration
 
@@ -149,7 +150,7 @@ The same compose file runs on two machines:
 | Host | Containers |
 |---|---|
 | Client machine | none; a browser |
-| Server | all eight |
+| Server | all nine |
 
 The client points at `http://<server>:8080`. Scaling and splitting are
 configuration; no code changes.

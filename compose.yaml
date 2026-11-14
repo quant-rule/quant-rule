@@ -1,11 +1,10 @@
 # QuantRule deployment — quantrule.deploy/v1
 #
-# One bridge network, one published port, three named volumes. The target
-# topology is nine containers: six service binaries from one image plus
-# Postgres, the object store, and the broker. This tree carries three of the six
-# binaries, so the default stack starts six containers and `data`, `model`, and
-# `simulation` wait behind the off-by-default `six-binaries` profile. See
-# docker/README.md for the exact gap.
+# One bridge network, one published port, three named volumes. The default
+# topology is nine containers: the six service binaries from one image plus
+# Postgres, the object store, and the broker. `data`, `model`, and `simulation`
+# are health/version skeletons until P3, P4, and P7 move their domain routes;
+# they serve `/health` and `/version` only.
 #
 # Windows and macOS run this file through Docker Desktop's Linux backend
 # (WSL2 on Windows). The image is linux/amd64.
@@ -27,100 +26,109 @@ x-server: &server
     QR_QUEUE_URL: amqp://quantrule:${QR_RABBITMQ_PASSWORD:-quantrule}@rabbitmq:5672/%2f
     QR_STATIC_DIR: /srv/static
     QR_CONFIG_ROOT: /srv/config
-    # The gateway owns migrations in the current three-service stack. A worker
-    # that migrates concurrently can block on the migration advisory lock, so
-    # every worker sets this to 0.
-    QR_MIGRATE: "1"
+    # Only the gateway migrates. The current migration helper takes a
+    # session-level advisory lock without pinning the connection, so a second
+    # process that migrates would wait forever on a lock its peer leaked. The
+    # schema split gives migrations to one owner; until then the gateway is it.
+    QR_MIGRATE: "0"
     # Set at release time to the image digest. An empty value would be rejected
     # by the runtime, so the key is a pass-through: unset stays unset.
     QR_IMAGE_DIGEST:
     AWS_ACCESS_KEY_ID: quantrule
     AWS_SECRET_ACCESS_KEY: ${QR_OBJECT_STORE_PASSWORD:-quantrule}
     AWS_REGION: us-east-1
-  depends_on:
-    postgres:
-      condition: service_healthy
-    minio:
-      condition: service_healthy
-    rabbitmq:
-      condition: service_healthy
+
+# The probe reads the service's own `/health`; a running container is not a
+# healthy service. The workers have no HTTP surface and therefore no entry here.
+x-healthcheck: &http-healthcheck
+  test:
+    - CMD-SHELL
+    - curl -fsS http://127.0.0.1:8080/health | grep -q '"state":"healthy"'
+  interval: 10s
+  timeout: 5s
+  retries: 6
+  start_period: 10s
 
 services:
   gateway:
     <<: *server
     command: ["qr-gateway"]
+    environment:
+      <<: *server-environment
+      QR_MIGRATE: "1"
     ports:
       - "8080:8080"
     volumes:
       # The repository config/ is the read-only catalog source. It moves to the
       # data service when the split lands; the gateway serves the catalog today.
       - ./config:/srv/config:ro
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - curl -fsS http://127.0.0.1:8080/health | grep -q '"state":"healthy"'
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck: *http-healthcheck
 
-  backtest:
-    <<: *server
-    command: ["qr-backtest"]
-    environment:
-      <<: *server-environment
-      # Only the gateway migrates. The current migration helper takes a
-      # session-level advisory lock without pinning the connection, so a second
-      # process that migrates would wait forever on a lock its peer leaked. The
-      # schema split gives migrations to one owner; until then the gateway is it.
-      QR_MIGRATE: "0"
-    # A worker serves no HTTP and publishes no liveness probe, so it has no
-    # healthcheck. Docker reports the process state; /health reports the
-    # dependencies.
-
-  evidence:
-    <<: *server
-    command: ["qr-evidence"]
-    environment:
-      <<: *server-environment
-      QR_MIGRATE: "0"
-
-  # The remaining three services are the target. They stay behind a profile
-  # because qr-data, qr-model, and qr-simulation do not exist yet; enabling the
-  # profile before the split fails at exec. The default `docker compose up` never
-  # selects them.
   data:
     <<: *server
-    profiles: ["six-binaries"]
-    # The placeholder must fail once, not restart in a loop, if the profile is
-    # enabled before the binary exists.
-    restart: "no"
     command: ["qr-data"]
     environment:
       <<: *server-environment
+      # The skeleton links no database client yet and must not migrate. P3 adds
+      # the catalog connection together with the routes that require it.
       QR_MIGRATE: "0"
     volumes:
+      # The target assigns the read-only catalog mount to data. The skeleton
+      # does not read it until P3; mounting it early keeps the topology stable.
       - ./config:/srv/config:ro
+    healthcheck: *http-healthcheck
 
   model:
     <<: *server
-    profiles: ["six-binaries"]
-    restart: "no"
     command: ["qr-model"]
     environment:
       <<: *server-environment
       QR_MIGRATE: "0"
+    healthcheck: *http-healthcheck
+
+  backtest:
+    <<: *server
+    command: ["qr-backtest"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    # A worker serves no HTTP and publishes no liveness probe, so it has no
+    # healthcheck. Docker reports the process state; /health reports the
+    # dependencies. A worker probe is part of the split.
+
+  evidence:
+    <<: *server
+    command: ["qr-evidence"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   simulation:
     <<: *server
-    profiles: ["six-binaries"]
-    restart: "no"
     command: ["qr-simulation"]
     environment:
       <<: *server-environment
       QR_MIGRATE: "0"
     volumes:
+      # The research plane reads the recorded config and never writes a run
+      # artifact; the mount is read-only for the same reason.
       - ./config:/srv/config:ro
+    healthcheck: *http-healthcheck
 
   postgres:
     image: postgres:17
