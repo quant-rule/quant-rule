@@ -73,15 +73,25 @@ pub fn compute_sharded(
     data_version: &str,
 ) -> Result<Computed, ModelError> {
     let ladder = resolve_ladder(config, requested)?;
-    let mut timeframes: Vec<FlatTimeframe> = Vec::new();
-    for timeframe in &ladder {
-        let one = report_for(set, config, &[*timeframe]);
-        timeframes.extend(one.timeframes);
-    }
+    let shards = ladder
+        .iter()
+        .map(|timeframe| report_for(set, config, &[*timeframe]));
+    let report = merge_reports(shards);
+    render(&report, &ladder, config, data_version)
+}
+
+/// Merge timeframe shards into one report.
+///
+/// The merge sorts by the timeframe and drops a duplicate, so the order in
+/// which shards finish cannot reach the output.
+fn merge_reports(shards: impl IntoIterator<Item = FlatReport>) -> FlatReport {
+    let mut timeframes: Vec<FlatTimeframe> = shards
+        .into_iter()
+        .flat_map(|report| report.timeframes)
+        .collect();
     timeframes.sort_by_key(|timeframe| timeframe.timeframe_secs);
     timeframes.dedup_by_key(|timeframe| timeframe.timeframe_secs);
-    let report = FlatReport { timeframes };
-    render(&report, &ladder, config, data_version)
+    FlatReport { timeframes }
 }
 
 fn resolve_ladder(
@@ -136,6 +146,7 @@ fn render(
 mod tests {
     use super::*;
     use crate::data::{ingest, series as load_series};
+    use quantrule_api::Digest;
     use quantrule_app::config::RunConfig;
     use std::path::Path;
 
@@ -179,6 +190,93 @@ mod tests {
         let sharded = compute_sharded(&set, &config, None, "sha256:test").expect("sharded");
         assert_eq!(full.bytes, sharded.bytes);
         assert_eq!(full.timeframes, sharded.timeframes);
+    }
+
+    fn chunks(ladder: &[Timeframe], count: usize) -> Vec<Vec<Timeframe>> {
+        let count = count.clamp(1, ladder.len().max(1));
+        (0..count)
+            .map(|index| ladder.iter().skip(index).step_by(count).copied().collect())
+            .collect()
+    }
+
+    fn render_chunks(
+        set: &TimeframeSet,
+        config: &ModelConfig,
+        ladder: &[Timeframe],
+        shards: &[Vec<Timeframe>],
+    ) -> Computed {
+        let reports = shards.iter().map(|shard| report_for(set, config, shard));
+        let report = merge_reports(reports);
+        render(&report, ladder, config, "sha256:test").expect("render")
+    }
+
+    #[test]
+    fn one_pass_and_four_shards_share_one_digest() {
+        let config = config();
+        let set = fixture_set();
+        let ladder = resolve_ladder(&config, None).expect("ladder");
+        assert!(
+            ladder.len() >= 4,
+            "the fixture ladder must have four timeframes"
+        );
+        let full = compute_full(&set, &config, None, "sha256:test").expect("full");
+        let one = render_chunks(&set, &config, &ladder, &chunks(&ladder, 1));
+        let four = render_chunks(&set, &config, &ladder, &chunks(&ladder, 4));
+        let mut reversed = chunks(&ladder, 4);
+        reversed.reverse();
+        let shuffled = render_chunks(&set, &config, &ladder, &reversed);
+        assert_eq!(Digest::sha256(&one.bytes), Digest::sha256(&four.bytes));
+        assert_eq!(Digest::sha256(&four.bytes), Digest::sha256(&shuffled.bytes));
+        assert_eq!(Digest::sha256(&full.bytes), Digest::sha256(&four.bytes));
+    }
+
+    #[test]
+    fn a_reversed_ladder_produces_the_same_digest() {
+        let config = config();
+        let set = fixture_set();
+        let ladder = resolve_ladder(&config, None).expect("ladder");
+        let mut requested = ladder.clone();
+        requested.reverse();
+        let full = compute_full(&set, &config, None, "sha256:test").expect("full");
+        let reversed = compute_sharded(&set, &config, Some(&requested), "sha256:test")
+            .expect("reversed ladder");
+        assert_eq!(Digest::sha256(&reversed.bytes), Digest::sha256(&full.bytes));
+    }
+
+    #[test]
+    fn an_unsorted_merge_would_change_the_digest() {
+        let config = config();
+        let set = fixture_set();
+        let ladder = resolve_ladder(&config, None).expect("ladder");
+        let shards: Vec<FlatReport> = chunks(&ladder, 4)
+            .iter()
+            .map(|shard| report_for(&set, &config, shard))
+            .collect();
+        let merged = render(
+            &merge_reports(shards.clone()),
+            &ladder,
+            &config,
+            "sha256:test",
+        )
+        .expect("merged");
+        let mut broken_frames: Vec<FlatTimeframe> = Vec::new();
+        for shard in shards.iter().rev() {
+            broken_frames.extend(shard.timeframes.clone());
+        }
+        let broken = render(
+            &FlatReport {
+                timeframes: broken_frames,
+            },
+            &ladder,
+            &config,
+            "sha256:test",
+        )
+        .expect("broken");
+        assert_ne!(
+            Digest::sha256(&merged.bytes),
+            Digest::sha256(&broken.bytes),
+            "the harness must notice a merge that does not sort"
+        );
     }
 
     #[test]
