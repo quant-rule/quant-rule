@@ -33,6 +33,7 @@ and no `tools/` directory.
 docker build -t quantrule-server:test .
 docker compose up -d --build --wait
 curl -fsS http://localhost:8080/health
+curl -fsS -H 'X-QuantRule-Profile: default' http://localhost:8080/catalog/datasets
 docker compose down
 ```
 
@@ -41,8 +42,8 @@ no partial-stack profile: every one of the nine services starts by default.
 
 | Container | Binary | Surface |
 |---|---|---|
-| `gateway` | `qr-gateway` | `/health`, `/version`, the domain routes, and the static client |
-| `data` | `qr-data` | `/health`, `/version` only until P3 |
+| `gateway` | `qr-gateway` | `/health`, `/version`, profiles, runs, hypotheses, the model route, the proxied data routes, and the static client |
+| `data` | `qr-data` | `/health`, `/version`, `/catalog/*`, `/datasets/*`, `/inspect/*`, and the internal config/dataset references |
 | `model` | `qr-model` | `/health`, `/version` only until P4 |
 | `backtest` | `qr-backtest` | queue consumer; no HTTP |
 | `evidence` | `qr-evidence` | queue consumer; no HTTP |
@@ -57,34 +58,29 @@ probes. `backtest` and `evidence` serve no HTTP and publish no liveness probe, s
 they have no healthcheck. Docker reports their process state; `/health` reports
 the dependencies. A worker probe is part of the split.
 
-## 3. Current-state notes
+## 3. Current state
 
-The three skeleton services are real binaries, not placeholders: each builds
-from its own crate, answers `/health` and `/version`, and claims no domain
-behavior. Their routes stay in the gateway until their split phases land:
+`data` is complete for P3. It owns the `catalog` schema, the read-only `config/`
+mount, the dataset object path, and the public catalog, dataset, config, and
+inspection routes. The gateway proxies `/catalog/*`, `/datasets/*`, and
+`/inspect/*` to `qr-data` and keeps no data handler. `model` and `simulation`
+remain health/version skeletons until P4 and P7:
 
-| Service | Route owner until | Phase |
+| Service | Route owner | Phase |
 |---|---|---|
-| `data` | gateway | P3 |
+| `data` | `qr-data` (gateway proxy) | P3, landed |
 | `model` | gateway | P4 |
 | `simulation` | gateway | P7 |
 
-Two consequences are recorded rather than hidden:
+Only `data` and `simulation` mount `config/` read-only; the gateway no longer
+reads the catalog mount.
 
-- The `gateway` still serves dataset and config ingestion, so it carries the
-  read-only `config/` mount that the target assigns to `data`. The mount moves
-  with the split. `data` and `simulation` also mount `config/` read-only so the
-  target topology is already in place.
-- The new skeletons link no database, object-store, or queue client. They do not
-  connect to Postgres and do not migrate; `QR_MIGRATE=0` is explicit.
-
-A third finding is a defect in the current runtime, not in the stack: the
-migration helper takes a session-level advisory lock and releases it through the
-pool, so the lock and the unlock can land on different connections. Two services
-that migrate at once therefore deadlock. Compose works around it by making the
-gateway the only migrator (`QR_MIGRATE=1`) and setting `QR_MIGRATE=0` on every
-other service. The follow-up is to pin the migration to one connection or to give
-the schema owner the migration step; the Compose workaround is not a fix.
+Each schema owner migrates its own ledger. The gateway applies the `gateway` and
+`runs` ledgers with `QR_MIGRATE=1`; `data` applies the `catalog` ledger with
+`QR_MIGRATE=1`; `backtest`, `evidence`, `model`, and `simulation` keep
+`QR_MIGRATE=0` because the gateway owns the runs ledger they consume. P1 pinned
+the session-level advisory lock to one connection, so the two migrators can run
+at once; the old gateway-sole-migrator workaround is gone.
 
 ## 4. Object store source
 
@@ -116,6 +112,7 @@ credential has a local default and can be overridden:
 |---|---|
 | `QR_IMAGE` | Image reference; a digest in a release |
 | `QR_IMAGE_DIGEST` | Passed to `/health` and provenance; unset by default |
+| `QR_DATA_URL` | Data-service base URL used by the gateway and the backtest worker |
 | `QR_POSTGRES_PASSWORD` | Postgres and the service URL |
 | `QR_OBJECT_STORE_PASSWORD` | MinIO root password and the S3 secret |
 | `QR_RABBITMQ_PASSWORD` | Broker password and the service URL |

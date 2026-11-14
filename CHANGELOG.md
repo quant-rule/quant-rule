@@ -52,9 +52,11 @@ are not treated as releases.
   topology by default: one `quantrule-server` image carries `qr-gateway`,
   `qr-data`, `qr-model`, `qr-backtest`, `qr-evidence`, `qr-simulation`, and the
   built client; Postgres, MinIO, and RabbitMQ complete the stack behind
-  health-gated startup. `data`, `model`, and `simulation` are health/version
-  skeletons until P3, P4, and P7 move their routes, and the off-by-default
-  `six-binaries` profile is retired. One published port (`8080`), one bridge
+  health-gated startup. `data` serves the catalog, dataset, config, and
+  inspection routes through `qr-data` while the gateway proxies them;
+  `model` and `simulation` remain health/version skeletons until P4 and P7, and
+  the off-by-default `six-binaries` profile is retired. The gateway and `data`
+  each apply their own migration ledger. One published port (`8080`), one bridge
   network, three named volumes. The pinned `bitnamilegacy/minio` archive remains
   a stopgap overridable with `QR_OBJECT_STORE_IMAGE` until the permanent
   registry decision is recorded.

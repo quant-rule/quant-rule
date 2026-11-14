@@ -61,16 +61,15 @@ The image also carries the static client, built with **Bun** (`bun install`,
 ## 2.1 Current state
 
 All six service binaries exist and the default stack starts all nine containers.
-`data`, `model`, and `simulation` are health/version skeletons with no domain
-route; their routes stay in the gateway until P3 (data), P4 (model), and P7
-(simulation). The gateway still carries the read-only `config/` mount the table
-assigns to `data`; `data` and `simulation` mount it too.
+`data` serves the catalog, dataset, config, and inspection surface and owns the
+`catalog` schema; the gateway proxies `/catalog/*`, `/datasets/*`, and
+`/inspect/*`. `model` and `simulation` are health/version skeletons until P4/P7.
 
 `backtest` and `evidence` serve no HTTP, so they have no healthcheck; Docker
 reports the process state and the gateway's `/health` reports their dependencies.
-The gateway is the only migrator (`QR_MIGRATE=1`; others set `0`) until the
-runtime pins its advisory lock to one connection, a workaround recorded in
-[`docker/README.md`](../../docker/README.md) §3, not a fix.
+The gateway and `data` each migrate their own ledger (`QR_MIGRATE=1`); P1 pinned
+the advisory lock to one connection, so they run concurrently and the old
+sole-migrator workaround is gone. Other services keep `0`.
 
 `minio/minio` has no public image since 2026-09-11; the default is a pinned legacy
 archive, overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
@@ -124,6 +123,7 @@ to start.
 |---|---|---|
 | `QR_IMAGE_DIGEST` | image label | Reported by `/health` and written to provenance |
 | `QR_DATABASE_URL` | compose value | Postgres |
+| `QR_DATA_URL` | compose value | Data service, used by the gateway and the backtest worker |
 | `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
 | `QR_QUEUE_URL` | compose value | RabbitMQ |
 | `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Upload cap |

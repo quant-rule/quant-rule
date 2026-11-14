@@ -2,9 +2,9 @@
 #
 # One bridge network, one published port, three named volumes. The default
 # topology is nine containers: the six service binaries from one image plus
-# Postgres, the object store, and the broker. `data`, `model`, and `simulation`
-# are health/version skeletons until P3, P4, and P7 move their domain routes;
-# they serve `/health` and `/version` only.
+# Postgres, the object store, and the broker. `data` serves the catalog, dataset,
+# config, and inspection surface the gateway proxies; `model` and `simulation`
+# remain health/version skeletons until P4 and P7.
 #
 # Windows and macOS run this file through Docker Desktop's Linux backend
 # (WSL2 on Windows). The image is linux/amd64.
@@ -21,15 +21,19 @@ x-server: &server
     - quantrule
   environment: &server-environment
     QR_DATABASE_URL: postgres://quantrule:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/quantrule
+    # The gateway and the backtest worker reach qr-data through this URL; both
+    # refuse to start without it. Data is not published on the host.
+    QR_DATA_URL: http://data:8080
     QR_OBJECT_STORE_URL: http://minio:9000
     QR_OBJECT_BUCKET: quantrule
     QR_QUEUE_URL: amqp://quantrule:${QR_RABBITMQ_PASSWORD:-quantrule}@rabbitmq:5672/%2f
     QR_STATIC_DIR: /srv/static
     QR_CONFIG_ROOT: /srv/config
-    # Only the gateway migrates. The current migration helper takes a
-    # session-level advisory lock without pinning the connection, so a second
-    # process that migrates would wait forever on a lock its peer leaked. The
-    # schema split gives migrations to one owner; until then the gateway is it.
+    # Each schema owner migrates its own ledger: the gateway applies the gateway
+    # and runs ledgers, and data applies the catalog ledger. The runtime pins the
+    # session-level advisory lock to one connection, so the two migrate at once
+    # without the old sole-migrator workaround. Workers keep this at 0 because
+    # the gateway owns the runs ledger they consume.
     QR_MIGRATE: "0"
     # Set at release time to the image digest. An empty value would be rejected
     # by the runtime, so the key is a pass-through: unset stays unset.
@@ -58,11 +62,9 @@ services:
       QR_MIGRATE: "1"
     ports:
       - "8080:8080"
-    volumes:
-      # The repository config/ is the read-only catalog source. It moves to the
-      # data service when the split lands; the gateway serves the catalog today.
-      - ./config:/srv/config:ro
     depends_on:
+      data:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       minio:
@@ -76,13 +78,19 @@ services:
     command: ["qr-data"]
     environment:
       <<: *server-environment
-      # The skeleton links no database client yet and must not migrate. P3 adds
-      # the catalog connection together with the routes that require it.
-      QR_MIGRATE: "0"
+      # qr-data owns the catalog schema and applies its own ledger. The gateway
+      # no longer migrates the catalog; P1's pinned lock lets the two run at
+      # once.
+      QR_MIGRATE: "1"
     volumes:
-      # The target assigns the read-only catalog mount to data. The skeleton
-      # does not read it until P3; mounting it early keeps the topology stable.
+      # The repository config/ is the read-only catalog source. qr-data owns it
+      # now; the gateway proxies the public config routes.
       - ./config:/srv/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck: *http-healthcheck
 
   model:
@@ -97,6 +105,8 @@ services:
     <<: *server
     command: ["qr-backtest"]
     depends_on:
+      data:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       minio:
