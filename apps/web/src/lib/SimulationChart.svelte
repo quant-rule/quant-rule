@@ -23,15 +23,24 @@
     simulationId: string;
     /** The parent owns the list; acknowledged marks are appended in place. */
     marks?: ChartMark[];
+    /** A decided run refuses every mark and undo. */
+    locked?: boolean;
+    /** The server has a new mark set; the parent may re-read the run state. */
+    onMarksChange?: () => void;
   }
 
   let {
     series,
     simulationId,
     marks = $bindable([]),
+    locked = false,
+    onMarksChange,
   }: Props = $props();
 
-  const scene = $derived(buildChartScene(series, marks));
+  const visibleMarks = $derived(
+    marks.filter((mark) => mark.chart === series.chart),
+  );
+  const scene = $derived(buildChartScene(series, visibleMarks));
   const area = $derived(scene.regions);
   let hoverBar = $state<number | null>(null);
   let activeBar = $state<number | null>(null);
@@ -112,6 +121,9 @@
   }
 
   function onWindowKeyDown(event: KeyboardEvent): void {
+    if (locked) {
+      return;
+    }
     if (event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target)) {
       return;
     }
@@ -128,6 +140,11 @@
   }
 
   async function capture(key: MarkClassKey): Promise<void> {
+    if (locked) {
+      error = "This run has a decision; marking is closed.";
+      status = null;
+      return;
+    }
     const markClass = markClassForKey(key);
     if (markClass === null || busy) {
       return;
@@ -154,6 +171,7 @@
       postedIds = [...postedIds, ack.mark_id];
       note = "";
       status = `${markClass.label} at bar ${bar}.`;
+      onMarksChange?.();
     } catch (failure) {
       // The selected class, bar, and note stay put so the user can correct and retry.
       error = errorText(failure);
@@ -163,7 +181,7 @@
   }
 
   async function undo(): Promise<void> {
-    if (busy) {
+    if (locked || busy) {
       return;
     }
     const last = lastSessionMark(marks, postedIds);
@@ -180,6 +198,7 @@
       marks = removeMarkById(marks, last.mark_id);
       postedIds = postedIds.filter((id) => id !== last.mark_id);
       status = `Removed ${last.mark_id}.`;
+      onMarksChange?.();
     } catch (failure) {
       error = errorText(failure);
     } finally {
@@ -194,14 +213,24 @@
   <div class="row">
     <h3>Window {series.chart}</h3>
     <span class="badge">{scene.barCount} bars</span>
-    <span class="badge">{marks.length} {marks.length === 1 ? "mark" : "marks"}</span>
+    <span class="badge">{visibleMarks.length} {visibleMarks.length === 1 ? "mark" : "marks"}</span>
     <span class="muted small" aria-live="polite" data-testid="bar-readout">
       Bar {targetBar ?? "—"}
     </span>
-    <button onclick={() => void undo()} disabled={busy || undoable === null} data-testid="mark-undo">
+    <button
+      onclick={() => void undo()}
+      disabled={busy || locked || undoable === null}
+      data-testid="mark-undo"
+    >
       Undo (Z)
     </button>
   </div>
+
+  {#if locked}
+    <div class="notice lock" role="status" data-testid="chart-locked">
+      Marking is closed. This run has a decision.
+    </div>
+  {/if}
 
   <div class="toolbar" aria-label="Mark classes">
     {#each MARK_CLASSES as markClass (markClass.key)}
@@ -209,7 +238,7 @@
         class:selected={selectedKey === markClass.key}
         aria-pressed={selectedKey === markClass.key}
         onclick={() => void capture(markClass.key)}
-        disabled={busy}
+        disabled={busy || locked}
         data-testid={`mark-class-${markClass.key}`}
       >
         <span class="key">{markClass.key}</span>
@@ -225,6 +254,7 @@
       maxlength="500"
       rows="2"
       placeholder="Why this bar: the visual reason and the event or indicator reason."
+      disabled={locked}
       data-testid="mark-note"
     ></textarea>
   </label>
@@ -405,13 +435,22 @@
       </svg>
     </div>
     <p class="muted small">
-      Point at a bar and press 1–8 to capture a mark; Z removes the last mark from this session.
-      The server is the record.
+      {#if locked}
+        This run is decided; the chart is read-only.
+      {:else}
+        Point at a bar and press 1–8 to capture a mark; Z removes the last mark from
+        this session. The server is the record.
+      {/if}
     </p>
   {/if}
 </section>
 
 <style>
+  .notice.lock {
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+
   .chart-shell {
     max-width: 72rem;
     gap: 0.7rem;
