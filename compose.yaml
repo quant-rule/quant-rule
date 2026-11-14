@@ -1,0 +1,189 @@
+# QuantRule deployment — quantrule.deploy/v1
+#
+# One bridge network, one published port, three named volumes. The target
+# topology is nine containers: six service binaries from one image plus
+# Postgres, the object store, and the broker. This tree carries three of the six
+# binaries, so the default stack starts six containers and `data`, `model`, and
+# `simulation` wait behind the off-by-default `six-binaries` profile. See
+# docker/README.md for the exact gap.
+#
+# Windows and macOS run this file through Docker Desktop's Linux backend
+# (WSL2 on Windows). The image is linux/amd64.
+
+name: quantrule
+
+x-server: &server
+  image: ${QR_IMAGE:-quantrule-server:local}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  networks:
+    - quantrule
+  environment: &server-environment
+    QR_DATABASE_URL: postgres://quantrule:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/quantrule
+    QR_OBJECT_STORE_URL: http://minio:9000
+    QR_OBJECT_BUCKET: quantrule
+    QR_QUEUE_URL: amqp://quantrule:${QR_RABBITMQ_PASSWORD:-quantrule}@rabbitmq:5672/%2f
+    QR_STATIC_DIR: /srv/static
+    QR_CONFIG_ROOT: /srv/config
+    # The gateway owns migrations in the current three-service stack. A worker
+    # that migrates concurrently can block on the migration advisory lock, so
+    # every worker sets this to 0.
+    QR_MIGRATE: "1"
+    # Set at release time to the image digest. An empty value would be rejected
+    # by the runtime, so the key is a pass-through: unset stays unset.
+    QR_IMAGE_DIGEST:
+    AWS_ACCESS_KEY_ID: quantrule
+    AWS_SECRET_ACCESS_KEY: ${QR_OBJECT_STORE_PASSWORD:-quantrule}
+    AWS_REGION: us-east-1
+  depends_on:
+    postgres:
+      condition: service_healthy
+    minio:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+
+services:
+  gateway:
+    <<: *server
+    command: ["qr-gateway"]
+    ports:
+      - "8080:8080"
+    volumes:
+      # The repository config/ is the read-only catalog source. It moves to the
+      # data service when the split lands; the gateway serves the catalog today.
+      - ./config:/srv/config:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://127.0.0.1:8080/health | grep -q '"state":"healthy"'
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  backtest:
+    <<: *server
+    command: ["qr-backtest"]
+    environment:
+      <<: *server-environment
+      # Only the gateway migrates. The current migration helper takes a
+      # session-level advisory lock without pinning the connection, so a second
+      # process that migrates would wait forever on a lock its peer leaked. The
+      # schema split gives migrations to one owner; until then the gateway is it.
+      QR_MIGRATE: "0"
+    # A worker serves no HTTP and publishes no liveness probe, so it has no
+    # healthcheck. Docker reports the process state; /health reports the
+    # dependencies.
+
+  evidence:
+    <<: *server
+    command: ["qr-evidence"]
+    environment:
+      <<: *server-environment
+      QR_MIGRATE: "0"
+
+  # The remaining three services are the target. They stay behind a profile
+  # because qr-data, qr-model, and qr-simulation do not exist yet; enabling the
+  # profile before the split fails at exec. The default `docker compose up` never
+  # selects them.
+  data:
+    <<: *server
+    profiles: ["six-binaries"]
+    # The placeholder must fail once, not restart in a loop, if the profile is
+    # enabled before the binary exists.
+    restart: "no"
+    command: ["qr-data"]
+    environment:
+      <<: *server-environment
+      QR_MIGRATE: "0"
+    volumes:
+      - ./config:/srv/config:ro
+
+  model:
+    <<: *server
+    profiles: ["six-binaries"]
+    restart: "no"
+    command: ["qr-model"]
+    environment:
+      <<: *server-environment
+      QR_MIGRATE: "0"
+
+  simulation:
+    <<: *server
+    profiles: ["six-binaries"]
+    restart: "no"
+    command: ["qr-simulation"]
+    environment:
+      <<: *server-environment
+      QR_MIGRATE: "0"
+    volumes:
+      - ./config:/srv/config:ro
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    networks:
+      - quantrule
+    environment:
+      POSTGRES_USER: quantrule
+      POSTGRES_PASSWORD: ${QR_POSTGRES_PASSWORD:-quantrule}
+      POSTGRES_DB: quantrule
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantrule -d quantrule"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    # MinIO withdrew its public images on 2026-09-11. The pinned Bitnami legacy
+    # archive is the available amd64 source until a registry decision is
+    # recorded; override QR_OBJECT_STORE_IMAGE to point at a maintained mirror.
+    image: ${QR_OBJECT_STORE_IMAGE:-bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c}
+    restart: unless-stopped
+    networks:
+      - quantrule
+    environment:
+      MINIO_ROOT_USER: quantrule
+      MINIO_ROOT_PASSWORD: ${QR_OBJECT_STORE_PASSWORD:-quantrule}
+      # The runtime assumes the bucket exists; the image creates it on first
+      # start.
+      MINIO_DEFAULT_BUCKETS: quantrule
+      MINIO_BROWSER: "off"
+    volumes:
+      - objects:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    networks:
+      - quantrule
+    environment:
+      RABBITMQ_DEFAULT_USER: quantrule
+      RABBITMQ_DEFAULT_PASS: ${QR_RABBITMQ_PASSWORD:-quantrule}
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - mqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+networks:
+  quantrule:
+    driver: bridge
+
+volumes:
+  pgdata:
+  objects:
+  mqdata:

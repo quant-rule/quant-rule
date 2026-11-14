@@ -22,6 +22,13 @@ are not treated as releases.
 
 ### Added
 
+- The single server image and the Compose stack: one `quantrule-server` image
+  carries `qr-gateway`, `qr-backtest`, `qr-evidence`, and the built client, and
+  `compose.yaml` defines the nine-container topology with one published port,
+  three named volumes, and health-gated startup. `docker compose up` starts the
+  six containers whose binaries exist; `data`, `model`, and `simulation` stay
+  behind the `six-binaries` profile until `qr-data`, `qr-model`, and
+  `qr-simulation` exist.
 - The shell is a `quantrule.api/v1` client: `health`, `dataset`, `config`,
   `run`, `inspect`, `verify`, `profile`, `simulation`, and `help` commands, a
   global `--profile`, and a `--json` machine view. Every command makes one

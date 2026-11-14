@@ -47,6 +47,20 @@ store, and the broker.
 The image also carries the static client, built with **Bun** (`bun install`,
 `bun run build`). No Bun runtime and no Python runtime are present at run time.
 
+## 2.1 Current state
+
+Three of the six binaries exist today: `qr-gateway`, `qr-backtest`, and
+`qr-evidence`. The default stack starts six of the nine containers; `data`,
+`model`, and `simulation` are defined under the off-by-default `six-binaries`
+profile and cannot start until `qr-data`, `qr-model`, and `qr-simulation` exist.
+The build, the image checks, and the exact gap are in
+[`docker/README.md`](../../docker/README.md). Until the split lands, `gateway`
+carries the read-only `config/` mount the table assigns to `data`.
+
+`minio/minio` has no public image since 2026-09-11; the Compose default is a
+pinned legacy archive, overridable by `QR_OBJECT_STORE_IMAGE`, until the registry
+decision is recorded.
+
 ## 3. Make targets
 
 | Target | Effect |

@@ -1,0 +1,18 @@
+# The build context is the Rust workspace and the client source. Documentation,
+# research data, repository tooling, and local build output never enter it.
+.git
+.github
+.gitignore
+target
+**/target
+docs/*
+!docs/registry
+data
+tools
+config
+apps/web/node_modules
+apps/web/dist
+apps/web/test-results
+apps/web/playwright-report
+apps/web/blob-report
+*.md
