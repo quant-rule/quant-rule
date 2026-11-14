@@ -7,6 +7,7 @@
   import RunsPanel from "./lib/RunsPanel.svelte";
   import ProfileSwitcher from "./lib/ProfileSwitcher.svelte";
   import SimulationChartHarness from "./lib/SimulationChartHarness.svelte";
+  import SimulationRunsPanel from "./lib/SimulationRunsPanel.svelte";
   import { refresh } from "./lib/connection.svelte";
   import { load as loadProfiles } from "./lib/profiles.svelte";
 
@@ -16,6 +17,7 @@
     | "datasets"
     | "configs"
     | "runs"
+    | "simulation"
     | "memory"
     | "settings";
 
@@ -25,6 +27,7 @@
     { id: "datasets", label: "Datasets", hint: "Candles by content" },
     { id: "configs", label: "Configs", hint: "Hypotheses and runs" },
     { id: "runs", label: "Runs", hint: "Queued and finished" },
+    { id: "simulation", label: "Simulation", hint: "Chart-first research" },
     { id: "memory", label: "Memory", hint: "Research record" },
     { id: "settings", label: "Settings", hint: "Paths and defaults" },
   ];
@@ -89,6 +92,8 @@
         <ConfigsPanel onOpenRuns={() => (section = "runs")} />
       {:else if section === "runs"}
         <RunsPanel />
+      {:else if section === "simulation"}
+        <SimulationRunsPanel />
       {:else}
         <div class="notice">
           This screen arrives with its issue. The connection screen is the first

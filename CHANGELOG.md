@@ -110,6 +110,13 @@ are not treated as releases.
   undoes the last session mark, and a note is capped at 500 characters. Marks
   post through one seam against `/simulation/runs/{id}/marks`; the browser test
   mocks that contract until the `simulation` service ships.
+- The simulation screens: the browser lists simulation runs, creates one from a
+  premise, bundle ref, inputs, seed, and criteria, and opens a run with its
+  window navigator, chart, mark toolbar, human and oracle marks, review counts,
+  check table, and decision. A decision shows its note and locks marking in the
+  toolbar and the mark endpoint; a disconnected gateway clears the list. The
+  screens read the documented `simulation` contract through one seam; the real
+  service (#680) is still pending, so the browser tests mock that contract.
 - The browser client distinguishes a gateway API mismatch from a healthy
   connection and shows the version it expected; a shared Playwright fixture
   router drives the connected, mismatch, degraded, and unreachable tests.
