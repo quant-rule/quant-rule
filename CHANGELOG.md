@@ -63,6 +63,11 @@ are not treated as releases.
   global `--profile`, and a `--json` machine view. Every command makes one
   gateway operation; printed output is stable and covered by fixture-server
   tests.
+- Client parity is enforced from one shared fixture: the shell's `--json`
+  surface and the browser's API layer read the same
+  `tests/fixtures/client-parity/api.json` for health, datasets, configs, runs,
+  and profiles under one fixed profile, and both must produce the same
+  normalized `view.json`. A seeded divergence fails each suite's comparator.
 - The simulation research plane gains its meta-label stage: a human entry is
   labelled by its forward path, grouped by EMA stack and ATR bucket, and the
   best cell with enough marks is checked on an unmarked window. `PORT-001`
