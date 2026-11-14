@@ -5,7 +5,7 @@
 
 use tracing_subscriber::EnvFilter;
 
-use crate::runtime::error::RuntimeError;
+use crate::error::RuntimeError;
 
 /// Install the global subscriber.
 ///

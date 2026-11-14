@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use quantrule_api::{ConfigOrigin, ConfigSummary, Digest, ProfileId};
 
-use crate::runtime::adapters::BoxFuture;
+use quantrule_runtime::adapters::BoxFuture;
 
 /// One catalogued configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -3,7 +3,7 @@ name = "quantrule-server"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "The QuantRule service runtime: configuration, health, storage, queue, and shutdown"
+description = "The QuantRule services: gateway routes, the backtest worker, and evidence"
 license = "MIT OR Apache-2.0"
 publish = false
 
@@ -20,23 +20,19 @@ name = "qr-evidence"
 path = "src/bin/qr_evidence.rs"
 
 [dependencies]
-aws-config = "1.13.2"
-aws-sdk-s3 = "1.159.0"
 axum = "0.8.9"
-futures-util = "0.3"
-lapin = "4.12.3"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-app = { path = "../quantrule-app" }
 quantrule-data = { path = "../quantrule-data" }
 quantrule-model = { path = "../quantrule-model" }
 quantrule-research = { path = "../quantrule-research" }
+quantrule-runtime = { path = "../quantrule-runtime" }
+quantrule-service-api = { path = "../quantrule-service-api" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
-thiserror = "2"
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "signal", "net", "fs"] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["fmt", "env-filter"] }
 
 [lints]
 workspace = true

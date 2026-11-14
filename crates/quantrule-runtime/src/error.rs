@@ -9,7 +9,7 @@
 pub enum RuntimeError {
     /// Invalid or missing configuration.
     #[error("configuration: {0}")]
-    Config(#[from] crate::runtime::config::ConfigError),
+    Config(#[from] crate::config::ConfigError),
     /// The object store client failed.
     #[error("object store: {0}")]
     ObjectStore(String),

@@ -13,10 +13,10 @@ use lapin::options::{
 use lapin::types::FieldTable;
 use lapin::{Channel, Connection, ConnectionProperties, ExchangeKind};
 
-use crate::runtime::adapters::{
+use crate::adapters::{
     Backend, BoxFuture, Message, MessageHandler, Queue, QueueConsumer, QueueError,
 };
-use crate::runtime::queue::{
+use crate::queue::{
     QUEUE_BACKTEST, QUEUE_DEAD_LETTER, QUEUE_EVIDENCE, ROUTING_CANCELLED, ROUTING_COMPUTED,
     ROUTING_DEAD, ROUTING_REQUESTED,
 };

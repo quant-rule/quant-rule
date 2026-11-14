@@ -1,16 +1,13 @@
 //! The adapter boundary.
 //!
-//! A service calls a trait, never a client library. This test reads the source
-//! tree and fails when a driver is named outside its own adapter module, which
-//! is what keeps the embedded desktop profile additive rather than a rewrite.
+//! A service calls a trait, never a client library. This test reads the server
+//! source and fails when a driver is named outside its own adapter module. The
+//! runtime's own boundary test covers S3 and RabbitMQ; the backend clients moved
+//! there in P1.
 
 use std::path::{Path, PathBuf};
 
-const CLIENT_TO_ADAPTER: [(&str, &str); 3] = [
-    ("aws_sdk_s3", "runtime/adapters/s3.rs"),
-    ("sqlx", "runtime/adapters/postgres.rs"),
-    ("lapin", "runtime/adapters/rabbitmq.rs"),
-];
+const CLIENT_TO_ADAPTER: [(&str, &str); 1] = [("sqlx", "adapters/postgres")];
 
 fn sources(root: &Path, found: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(root).expect("read dir") {
@@ -40,10 +37,7 @@ fn a_client_library_is_named_only_in_its_adapter() {
         let text = std::fs::read_to_string(&file).expect("read source");
         for (client, allowed) in CLIENT_TO_ADAPTER {
             let base = format!("src/{allowed}");
-            if relative == base
-                || (allowed.ends_with("postgres.rs")
-                    && relative.starts_with("src/runtime/adapters/postgres/"))
-            {
+            if relative.starts_with(&base) {
                 continue;
             }
             if text.contains(client) {

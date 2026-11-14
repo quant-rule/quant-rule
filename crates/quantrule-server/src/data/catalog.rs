@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use quantrule_api::{DatasetRecord, ProfileId};
 
-use crate::runtime::adapters::BoxFuture;
+use quantrule_runtime::adapters::BoxFuture;
 
 /// Why a catalog write failed.
 #[derive(Debug, Clone, PartialEq, Eq)]

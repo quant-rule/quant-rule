@@ -3,6 +3,9 @@
 //! The manifest is the atomic publish point for a run's artifact set. Artifact
 //! bytes live under their own SHA-256, so a retry reuses them; nothing is part
 //! of the run until this one object exists.
+//!
+//! The definition lives in the internal contract so the worker that writes the
+//! manifest and the evidence service that verifies it cannot drift.
 
 use quantrule_api::{ArtifactRef, Digest};
 
@@ -228,5 +231,17 @@ mod tests {
         let mut manifest = RunManifest::from_artifacts("run", &[results]);
         manifest.schema = "quantrule.run-manifest/v2".to_owned();
         assert!(RunManifest::from_bytes(&manifest.to_bytes().expect("bytes")).is_err());
+    }
+
+    #[test]
+    fn the_digest_is_stable_across_runs() {
+        let results = artifact("results.json", b"a");
+        let trades = artifact("trades.csv", b"b");
+        let first = RunManifest::from_artifacts("run", &[results.clone(), trades.clone()]);
+        let second = RunManifest::from_artifacts("run", &[trades, results]);
+        assert_eq!(
+            first.to_bytes().expect("bytes"),
+            second.to_bytes().expect("bytes")
+        );
     }
 }

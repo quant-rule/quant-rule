@@ -8,8 +8,8 @@ use axum::http::StatusCode;
 use quantrule_api::{CreateProfileRequest, ErrorCode, ProfileId, ProfileSummary};
 
 use crate::profile::{ProfileError, ProfileRecord};
-use crate::runtime::clock;
-use crate::runtime::server::{ApiFailure, AppState, failure};
+use crate::server::{ApiFailure, AppState, failure};
+use quantrule_runtime::clock;
 
 /// Build the wire summary for one profile.
 async fn summary(state: &AppState, record: ProfileRecord) -> Result<ProfileSummary, ApiFailure> {

@@ -1,0 +1,16 @@
+[package]
+name = "quantrule-service-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "The quantrule.internal/v1 contract shared between services"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+quantrule-api = { path = "../quantrule-api" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[lints]
+workspace = true

@@ -6,7 +6,7 @@ use quantrule_api::{RunState, StageName, StageStatus};
 
 use crate::evidence::{EvidenceError, artifacts};
 use crate::runs::RunStore;
-use crate::runtime::adapters::ObjectStore;
+use quantrule_runtime::adapters::ObjectStore;
 
 /// The stores evidence needs.
 pub struct EvidenceServices {

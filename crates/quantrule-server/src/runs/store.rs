@@ -3,135 +3,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
-use quantrule_api::{
-    ArtifactRef, Digest, ProfileId, Provenance, RunDetail, RunId, RunState, RunSummary, StageName,
-    StageProgress, StageStatus,
-};
+use quantrule_api::{ArtifactRef, Digest, ProfileId, RunState, RunSummary, StageProgress};
 
-use crate::runtime::adapters::BoxFuture;
+use quantrule_runtime::adapters::BoxFuture;
 
 /// The number of deliveries a run may receive before it is dead-lettered.
 pub const MAX_ATTEMPTS: u32 = 3;
 
-/// A new submission.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NewRun {
-    /// The content-derived id.
-    pub run_id: RunId,
-    /// The configuration it applies.
-    pub config_id: String,
-    /// The dataset it consumes.
-    pub data_version: Digest,
-    /// The canonical configuration hash.
-    pub config_hash: Digest,
-    /// The model identity.
-    pub model_version: String,
-    /// The image that will execute it.
-    pub image_digest: Digest,
-    /// The first submitter.
-    pub owner: String,
-    /// The submission time, RFC 3339 UTC.
-    pub submitted_at: String,
-}
-
-/// One stored run.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RunRecord {
-    /// The run id.
-    pub run_id: RunId,
-    /// Its state.
-    pub status: RunState,
-    /// The first submitter.
-    pub owner: String,
-    /// The configuration id.
-    pub config_id: String,
-    /// The dataset consumed.
-    pub data_version: Digest,
-    /// The canonical configuration hash.
-    pub config_hash: Digest,
-    /// The model identity.
-    pub model_version: String,
-    /// The image digest.
-    pub image_digest: Digest,
-    /// The submission time.
-    pub submitted_at: String,
-    /// Per-stage progress.
-    pub stages: Vec<StageProgress>,
-    /// The canonical digest once complete.
-    pub digest: Option<Digest>,
-    /// The artifact set, ordered by name.
-    pub artifacts: Vec<ArtifactRef>,
-    /// The failure, when failed.
-    pub error: Option<String>,
-    /// The number of deliveries claimed.
-    pub attempts: u32,
-}
-
-impl RunRecord {
-    /// The list projection.
-    #[must_use]
-    pub fn summary(&self) -> RunSummary {
-        RunSummary {
-            run_id: self.run_id.clone(),
-            status: self.status,
-            config_id: self.config_id.clone(),
-            data_version: self.data_version.clone(),
-            submitted_at: self.submitted_at.clone(),
-            elapsed_ms: None,
-        }
-    }
-
-    /// The detail projection.
-    #[must_use]
-    pub fn detail(&self) -> RunDetail {
-        RunDetail {
-            run_id: self.run_id.clone(),
-            status: self.status,
-            owner: self.owner.clone(),
-            stages: self.stages.clone(),
-            provenance: Provenance {
-                data_version: self.data_version.clone(),
-                config_hash: self.config_hash.clone(),
-                model_version: self.model_version.clone(),
-                image_digest: self.image_digest.clone(),
-            },
-            artifacts: self.artifacts.clone(),
-            digest: self.digest.clone(),
-            error: self.error.clone(),
-        }
-    }
-
-    fn queued(run: &NewRun) -> Self {
-        Self {
-            run_id: run.run_id.clone(),
-            status: RunState::Queued,
-            owner: run.owner.clone(),
-            config_id: run.config_id.clone(),
-            data_version: run.data_version.clone(),
-            config_hash: run.config_hash.clone(),
-            model_version: run.model_version.clone(),
-            image_digest: run.image_digest.clone(),
-            submitted_at: run.submitted_at.clone(),
-            stages: [
-                StageName::Data,
-                StageName::Model,
-                StageName::Backtest,
-                StageName::Evidence,
-            ]
-            .into_iter()
-            .map(|name| StageProgress {
-                name,
-                state: StageStatus::Pending,
-                elapsed_ms: None,
-            })
-            .collect(),
-            digest: None,
-            artifacts: Vec::new(),
-            error: None,
-            attempts: 0,
-        }
-    }
-}
+pub use quantrule_service_api::{NewRun, RunRecord};
+pub use quantrule_service_api::{
+    RunCancelOutcome as CancelOutcome, RunClaimOutcome as ClaimOutcome,
+};
 
 /// Why a run write failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -168,32 +50,6 @@ impl SubmitOutcome {
     pub fn created(&self) -> bool {
         matches!(self, Self::Created(_))
     }
-}
-
-/// What a worker claim did.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ClaimOutcome {
-    /// The worker moved the run from `queued` to `running`.
-    Claimed(RunRecord),
-    /// Another worker or a retry found it already running.
-    Running(RunRecord),
-    /// The run is terminal; there is nothing to execute.
-    Terminal(RunRecord),
-    /// The retry budget is spent.
-    Exhausted(RunRecord),
-    /// The run does not exist.
-    Missing,
-}
-
-/// What a cancellation did.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CancelOutcome {
-    /// The run moved to `cancelled`.
-    Cancelled(RunRecord),
-    /// The run was already terminal.
-    Conflict(RunRecord),
-    /// This profile does not see the run.
-    Missing,
 }
 
 /// Where runs live.
@@ -513,6 +369,7 @@ impl RunStore for MemoryRuns {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quantrule_api::RunId;
 
     fn profile(name: &str) -> ProfileId {
         ProfileId::parse(name).expect("profile")
@@ -647,6 +504,7 @@ mod tests {
 #[cfg(test)]
 mod worker_tests {
     use super::*;
+    use quantrule_api::{RunId, StageName, StageStatus};
 
     fn profile(name: &str) -> ProfileId {
         ProfileId::parse(name).expect("profile")

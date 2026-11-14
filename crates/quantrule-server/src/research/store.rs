@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use quantrule_api::ProfileId;
 use quantrule_research::SealedHypothesis;
 
-use crate::runtime::adapters::BoxFuture;
+use quantrule_runtime::adapters::BoxFuture;
 
 /// A storage failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
