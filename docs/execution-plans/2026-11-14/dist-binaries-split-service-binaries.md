@@ -36,7 +36,7 @@ execution, or portfolio result. It recommends the smallest option that unblocks
 | Worker fast path | `backtest/worker.rs:189-196` calls `AppService::run_backtest` in-process; no data or model HTTP call |
 | Simulation | No binary and no route. `quantrule-simulation` is not a `quantrule-server` dependency. #679 and #680 are open |
 | Image | No `Dockerfile` and no compose file in the tree; #643 owns both |
-| Documents | ADR-04 and `services.md` say six binaries; `module-map.md:19` says "(5 binaries)"; `README.md:72` says "five deployable responsibilities"; `deployment.md:115` says "all eight" containers while §2 lists nine |
+| Documents | ADR-04 and `services.md` say six binaries; `docs/architecture/module-map.md:19` says "(5 binaries)"; `docs/architecture/README.md:72` says "five deployable responsibilities"; `docs/architecture/deployment.md:115` says "all eight" containers while §2 lists nine |
 | Issues | #643 open (six binaries, nine containers); #646 open (gateway proxy and engine isolation); #649 closed (its plan excluded the split); #674 open (six services, nine containers); #680 depends on #679 |
 
 The contradiction is documented but not owned. #647 and #648 closed as
@@ -163,7 +163,7 @@ the same fixture.
 | Commands | No shell command changes. The shell is still local (#668); when it becomes an HTTP client it uses the same gateway paths. No command contract changes |
 | Crates | `quantrule-server` (routes, config, upstream, tests), `quantrule-api` (one error code); `quantrule-shell` and `apps/web` no behavior change |
 | Dependencies | `quantrule-server` adds direct `hyper-util` and `http-body-util`; both are already in `Cargo.lock`; no new package version. `quantrule-simulation` is not added until #680 |
-| Docs | `module-map.md` (5→6), `README.md` glossary (five→six), `services.md` (proxy and limitation), `data-plane.md` (worker fast-path note), `deployment.md` (three URLs and count corrections), `http-api.md` (`service.unavailable`), `CHANGELOG.md` |
+| Docs | `docs/architecture/module-map.md` (5→6), `docs/architecture/README.md` glossary (five→six), `services.md` (proxy and limitation), `data-plane.md` (worker fast-path note), `deployment.md` (three URLs and count corrections), `http-api.md` (`service.unavailable`), `CHANGELOG.md` |
 | Tests | New binary inventory, service route, proxy, streaming, health, and guard tests; existing gateway/model/config/ladder/runs tests adapt to the upstream fake |
 | Estimate | ~20 files, ~1,200–1,600 changed lines; no engine, schema, artifact, or digest change |
 

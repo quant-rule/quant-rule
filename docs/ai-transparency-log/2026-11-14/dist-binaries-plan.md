@@ -31,9 +31,9 @@ and pull requests #750/#751 as well.
 - #649 is closed; its plan explicitly excluded the six-binary split. A rewrite of
   the worker under option B needs a successor issue, because a Done board item is
   not reopened.
-- `module-map.md` says "5 binaries", the README glossary says "five deployable
-  responsibilities", and `deployment.md` says "all eight" containers while its
-  own topology lists nine.
+- `module-map.md` says "5 binaries", the architecture README glossary says "five
+  deployable responsibilities", and `deployment.md` says "all eight" containers
+  while its own topology lists nine.
 - No open issue owned the binary inventory. #647 and #648 were allowed to close
   as gateway routes, which is how the contradiction survived.
 
