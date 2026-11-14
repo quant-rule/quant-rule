@@ -38,15 +38,62 @@ container is running.
 | Dead-lettered run | Inspect the attempt count; the run row is the record |
 | Stuck `running` after a crash | Restart the worker; finalization retries |
 
-## 4. Backup
+## 4. Backup and restore
+
+One archive holds both durable stores:
 
 ```bash
-make backup                 # writes an archive: postgres dump + object mirror
-make restore FILE=…         # restores into a clean stack
+tools/backup.sh                  # optional --out DIR
+tools/restore.sh ARCHIVE --yes   # clean stack; --force replaces
 ```
 
-Restore verifies each artifact hash. A restore that fails verification stops and
-reports the mismatched object.
+`make backup` and `make restore FILE=…` are the #644 shortcuts and call these
+scripts.
+
+| Piece | Where |
+|---|---|
+| Default archive directory | `$QR_BACKUP_DIR`, else `$QUANTRULE_DATA_ROOT/backups`, else `$HOME/quant-rule-data/backups` |
+| Archive | `quantrule-YYYY-MM-DDTHH-MM-SSZ.tar.gz` |
+| Sidecar | The same name plus `.sha256`: the SHA-256 of the archive |
+| Manifest | `manifest.json` inside the archive: schema, one line per payload file with size and SHA-256, and the object key of each mirrored object |
+| Payload | `postgres/quantrule.dump` (custom format) and `objects/<key>` |
+
+The mirror is staged inside the object-store container and again on the host,
+so the backup host needs free space for the archive plus one mirror.
+
+The application services are stopped while the dump and mirror run, so the two
+stores describe one instant; Postgres, the object store, and the broker stay
+up. The queue is not archived: a message is derived from a run row and is
+rebuilt. Backup briefly takes `/health` down and restarts the services that were
+running on exit, including after a failure.
+
+`restore.sh` verifies the sidecar, the archive entry list, and every payload
+hash before it starts a write. It then refuses a non-empty database or bucket
+unless `--force` is given, and refuses a non-interactive run without `--yes`.
+Objects are written before rows, so an interrupted restore leaves unreferenced
+blobs rather than rows that point at missing bytes. A corrupt, incomplete, or
+sidecar-less archive is refused with the mismatched path. After a clean
+`make reset`, restore before `make up`; a stack that has already migrated needs
+`--force` or a reset.
+
+The object mirror uses the `mc` bundled in the pinned MinIO image. A replacement
+`QR_OBJECT_STORE_IMAGE` must provide `mc`, or backup stops with a clear error.
+The archive contains candle data and is handled as sensitive; see
+[`data-lifecycle.md`](../workflows/data-lifecycle.md).
+
+The default stack starts six of the nine containers (see
+[`deployment.md`](deployment.md) section 2.1). Backup covers the durable stores
+regardless of which services are running; it cannot contain state that a
+missing `data`, `model`, or `simulation` binary never produced. The scripts stop
+every non-store service in the project, so the quiesce list stays correct when
+the split lands.
+
+Round trip: `tools/test_backup.sh` is opt-in and uses an isolated
+`quantrule-backup-test` project, so it needs port 8080 free and never touches
+the default project. It creates a dataset, config, and memory row through the
+gateway, seeds a run with artifact blobs, checks the refusals, wipes the
+volumes, restores, and compares every row digest and object hash. Record the
+archive digest in the run note for a long campaign.
 
 ## 5. Upgrade
 
