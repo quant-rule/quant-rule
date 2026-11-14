@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations};
+use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
 use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_runtime::adapters::s3::S3Store;
 use quantrule_runtime::adapters::{
@@ -27,9 +27,13 @@ async fn main() -> Result<(), RuntimeError> {
         .await
         .map_err(|error| RuntimeError::Database(error.to_string()))?;
     if config.migrate {
-        apply_migrations(database.pool(), &quantrule_server::migrations::available())
-            .await
-            .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+        apply_migrations_in(
+            database.pool(),
+            "runs",
+            &quantrule_server::migrations::service(),
+        )
+        .await
+        .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
     }
     let objects = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
     let queue = Arc::new(

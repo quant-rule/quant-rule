@@ -4,19 +4,16 @@ mod common;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use common::{CSV, body_bytes, memory_profiles};
-use quantrule_api::{
-    ConfigSummary, DatasetRecord, Digest, PROFILE_HEADER, RunDetail, RunState, RunSummary,
-    SubmitRunResponse,
-};
+use common::{body_bytes, memory_profiles};
+use quantrule_api::{Digest, PROFILE_HEADER, RunDetail, RunState, RunSummary, SubmitRunResponse};
 use quantrule_runtime::adapters::{Backend, BoxFuture, Queue, QueueError};
+use quantrule_runtime::client::MemoryDataClient;
 use quantrule_runtime::{Config, HealthRegistry};
-use quantrule_server::configs::MemoryConfigs;
-use quantrule_server::data::MemoryCatalog;
 use quantrule_server::runs::MemoryRuns;
 use quantrule_server::server::router;
 use quantrule_server::server::{AppState, Services};
-use std::path::Path;
+use quantrule_service_api::{ConfigBundle, DatasetObject};
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use tower::ServiceExt;
 
@@ -51,20 +48,63 @@ impl MemoryQueue {
     }
 }
 
+fn digest(seed: &[u8]) -> Digest {
+    Digest::sha256(seed)
+}
+
+fn dataset(version: &Digest) -> DatasetObject {
+    DatasetObject {
+        data_version: version.clone(),
+        object_key: format!("datasets/{}", version.as_hex()),
+        sha256: version.clone(),
+        candles: 2,
+        first_bar: 1_704_067_200,
+        last_bar: 1_704_067_260,
+        bytes: 100,
+    }
+}
+
+fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
+    ConfigBundle {
+        config_id: config_id.to_owned(),
+        files: BTreeMap::from([(
+            "run.json".to_owned(),
+            format!(r#"{{"model_id":"{model}"}}"#),
+        )]),
+        valid: true,
+        message: None,
+        config_hash: Some(digest(hash_seed)),
+    }
+}
+
 async fn harness() -> (Arc<AppState>, MemoryQueue) {
     let queue = MemoryQueue::default();
-    let config = Config {
-        config_root: Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config"),
-        ..Config::default()
-    };
+    let data = MemoryDataClient::default();
+    let default = quantrule_api::ProfileId::parse("default").expect("default");
+    let alpha = quantrule_api::ProfileId::parse("alpha").expect("alpha");
+    for profile in [&default, &alpha] {
+        for version in [digest(b"candles-a"), digest(b"candles-b")] {
+            data.add_dataset(profile, dataset(&version));
+        }
+        data.add_config(profile, bundle("cfg_valid", b"valid", "M1.0"));
+        data.add_config(profile, bundle("cfg_changed", b"changed", "M1.0"));
+        data.add_config(
+            profile,
+            ConfigBundle {
+                config_id: "cfg_invalid".to_owned(),
+                files: BTreeMap::from([("run.json".to_owned(), "{}".to_owned())]),
+                valid: false,
+                message: Some("the bundle is invalid".to_owned()),
+                config_hash: None,
+            },
+        );
+    }
     let state = Arc::new(AppState::with_services(
-        &config,
+        &Config::default(),
         HealthRegistry::new(),
         Services {
-            catalog: Some(Arc::new(MemoryCatalog::default())),
-            objects: Some(Arc::new(common::MemoryObjects::default())),
             profiles: Some(memory_profiles(&["default", "alpha"]).await),
-            configs: Some(Arc::new(MemoryConfigs::default())),
+            data: Some(Arc::new(data)),
             runs: Some(Arc::new(MemoryRuns::default())),
             queue: Some(Arc::new(queue.clone())),
             ..Services::default()
@@ -73,40 +113,12 @@ async fn harness() -> (Arc<AppState>, MemoryQueue) {
     (state, queue)
 }
 
-async fn upload_csv(state: Arc<AppState>, profile: &str, csv: &str) -> DatasetRecord {
-    let response = router(state)
-        .oneshot(
-            Request::post("/catalog/datasets?name=candles.csv")
-                .header(PROFILE_HEADER, profile)
-                .body(Body::from(csv.to_owned()))
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::CREATED);
-    serde_json::from_slice(&body_bytes(response).await).expect("dataset")
-}
-
-async fn upload(state: Arc<AppState>, profile: &str) -> DatasetRecord {
-    upload_csv(state, profile, CSV).await
-}
-
-async fn configs_for(state: Arc<AppState>, profile: &str) -> Vec<ConfigSummary> {
-    let response = router(state)
-        .oneshot(
-            Request::get("/catalog/configs")
-                .header(PROFILE_HEADER, profile)
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::OK);
-    serde_json::from_slice(&body_bytes(response).await).expect("configs")
-}
-
-async fn configs(state: Arc<AppState>) -> Vec<ConfigSummary> {
-    configs_for(state, "default").await
+fn seed() -> (Digest, String, String) {
+    (
+        digest(b"candles-a"),
+        "cfg_valid".to_owned(),
+        "cfg_invalid".to_owned(),
+    )
 }
 
 async fn submit(
@@ -147,68 +159,10 @@ async fn list(state: Arc<AppState>, profile: &str) -> Vec<RunSummary> {
     serde_json::from_slice(&body_bytes(response).await).expect("runs")
 }
 
-fn changed_config(name: &str) -> serde_json::Value {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid");
-    let mut run: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(root.join("run.json")).expect("run"))
-            .expect("run json");
-    run["name"] = serde_json::json!(name);
-    let mut files = serde_json::Map::new();
-    files.insert(
-        "run.json".to_owned(),
-        serde_json::json!(serde_json::to_string(&run).expect("run text")),
-    );
-    for name in [
-        "data.json",
-        "model.json",
-        "execution.json",
-        "portfolio.json",
-    ] {
-        files.insert(
-            name.to_owned(),
-            serde_json::json!(std::fs::read_to_string(root.join(name)).expect("fixture")),
-        );
-    }
-    serde_json::json!({ "name": name, "files": files })
-}
-
-async fn upload_config(state: Arc<AppState>, payload: serde_json::Value) -> ConfigSummary {
-    let response = router(state)
-        .oneshot(
-            Request::post("/catalog/configs")
-                .header(PROFILE_HEADER, "default")
-                .header("content-type", "application/json")
-                .body(Body::from(payload.to_string()))
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::CREATED);
-    serde_json::from_slice(&body_bytes(response).await).expect("config")
-}
-
-async fn seed(state: Arc<AppState>) -> (Digest, String, String) {
-    let dataset = upload(Arc::clone(&state), "default").await;
-    let configs = configs(state).await;
-    let valid = configs
-        .iter()
-        .find(|config| config.valid)
-        .expect("a valid config")
-        .config_id
-        .clone();
-    let invalid = configs
-        .iter()
-        .find(|config| !config.valid)
-        .expect("an invalid config")
-        .config_id
-        .clone();
-    (dataset.summary.data_version, valid, invalid)
-}
-
 #[tokio::test]
 async fn a_submission_is_content_addressed_and_listed() {
     let (state, queue) = harness().await;
-    let (data_version, config_id, _) = seed(Arc::clone(&state)).await;
+    let (data_version, config_id, _) = seed();
 
     let response = submit(Arc::clone(&state), "default", &data_version, &config_id).await;
     assert_eq!(response.status(), StatusCode::ACCEPTED);
@@ -263,32 +217,14 @@ async fn a_submission_is_content_addressed_and_listed() {
 #[tokio::test]
 async fn a_changed_dataset_gets_a_new_run() {
     let (state, _queue) = harness().await;
-    let first = upload(Arc::clone(&state), "default").await;
-    let changed = CSV.replace("100.5", "100.75");
-    let second = upload_csv(Arc::clone(&state), "default", &changed).await;
-    assert_ne!(first.summary.data_version, second.summary.data_version);
-    let config_id = configs(Arc::clone(&state))
-        .await
-        .into_iter()
-        .find(|config| config.valid)
-        .expect("valid")
-        .config_id;
+    let first_version = digest(b"candles-a");
+    let second_version = digest(b"candles-b");
+    assert_ne!(first_version, second_version);
+    let config_id = "cfg_valid";
 
-    let first = submit(
-        Arc::clone(&state),
-        "default",
-        &first.summary.data_version,
-        &config_id,
-    )
-    .await;
+    let first = submit(Arc::clone(&state), "default", &first_version, config_id).await;
     let first: SubmitRunResponse = serde_json::from_slice(&body_bytes(first).await).expect("first");
-    let second = submit(
-        Arc::clone(&state),
-        "default",
-        &second.summary.data_version,
-        &config_id,
-    )
-    .await;
+    let second = submit(Arc::clone(&state), "default", &second_version, config_id).await;
     let second: SubmitRunResponse =
         serde_json::from_slice(&body_bytes(second).await).expect("second");
     assert_ne!(first.run_id, second.run_id);
@@ -298,33 +234,14 @@ async fn a_changed_dataset_gets_a_new_run() {
 #[tokio::test]
 async fn a_changed_config_gets_a_new_run() {
     let (state, _queue) = harness().await;
-    let dataset = upload(Arc::clone(&state), "default").await;
-    let original = configs(Arc::clone(&state))
-        .await
-        .into_iter()
-        .find(|config| config.valid)
-        .expect("valid")
-        .config_id;
-    let changed = upload_config(Arc::clone(&state), changed_config("changed-run")).await;
-    assert!(changed.valid);
-    assert_ne!(original, changed.config_id);
+    let dataset = digest(b"candles-a");
+    let original = "cfg_valid";
+    let changed = "cfg_changed";
 
-    let first = submit(
-        Arc::clone(&state),
-        "default",
-        &dataset.summary.data_version,
-        &original,
-    )
-    .await;
+    let first = submit(Arc::clone(&state), "default", &dataset, original).await;
     assert_eq!(first.status(), StatusCode::ACCEPTED);
     let first: SubmitRunResponse = serde_json::from_slice(&body_bytes(first).await).expect("first");
-    let second = submit(
-        Arc::clone(&state),
-        "default",
-        &dataset.summary.data_version,
-        &changed.config_id,
-    )
-    .await;
+    let second = submit(Arc::clone(&state), "default", &dataset, changed).await;
     assert_eq!(second.status(), StatusCode::ACCEPTED);
     let second: SubmitRunResponse =
         serde_json::from_slice(&body_bytes(second).await).expect("second");
@@ -335,7 +252,7 @@ async fn a_changed_config_gets_a_new_run() {
 #[tokio::test]
 async fn an_invalid_config_creates_nothing() {
     let (state, queue) = harness().await;
-    let (data_version, _, invalid) = seed(Arc::clone(&state)).await;
+    let (data_version, _, invalid) = seed();
     let response = submit(Arc::clone(&state), "default", &data_version, &invalid).await;
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
@@ -347,7 +264,7 @@ async fn an_invalid_config_creates_nothing() {
 #[tokio::test]
 async fn an_unknown_dataset_is_not_found() {
     let (state, _queue) = harness().await;
-    let (_, config_id, _) = seed(Arc::clone(&state)).await;
+    let (_, config_id, _) = seed();
     let response = submit(
         Arc::clone(&state),
         "default",
@@ -364,39 +281,14 @@ async fn an_unknown_dataset_is_not_found() {
 #[tokio::test]
 async fn two_profiles_share_one_run() {
     let (state, _queue) = harness().await;
-    let dataset = upload(Arc::clone(&state), "default").await;
-    let same = upload(Arc::clone(&state), "alpha").await;
-    assert_eq!(dataset.summary.data_version, same.summary.data_version);
-    let default_configs = configs(Arc::clone(&state)).await;
-    let alpha_configs = configs_for(Arc::clone(&state), "alpha").await;
-    let config_id = default_configs
-        .into_iter()
-        .find(|config| config.valid)
-        .expect("valid")
-        .config_id;
-    assert!(
-        alpha_configs
-            .iter()
-            .any(|config| config.config_id == config_id)
-    );
+    let dataset = digest(b"candles-a");
+    let config_id = "cfg_valid";
 
-    let first = submit(
-        Arc::clone(&state),
-        "default",
-        &dataset.summary.data_version,
-        &config_id,
-    )
-    .await;
+    let first = submit(Arc::clone(&state), "default", &dataset, config_id).await;
     assert_eq!(first.status(), StatusCode::ACCEPTED);
     let first: SubmitRunResponse = serde_json::from_slice(&body_bytes(first).await).expect("first");
 
-    let second = submit(
-        Arc::clone(&state),
-        "alpha",
-        &same.summary.data_version,
-        &config_id,
-    )
-    .await;
+    let second = submit(Arc::clone(&state), "alpha", &dataset, config_id).await;
     assert_eq!(second.status(), StatusCode::OK);
     let second: SubmitRunResponse =
         serde_json::from_slice(&body_bytes(second).await).expect("second");
@@ -409,7 +301,7 @@ async fn two_profiles_share_one_run() {
 #[tokio::test]
 async fn a_profile_that_did_not_submit_cannot_read_the_run() {
     let (state, _queue) = harness().await;
-    let (data_version, config_id, _) = seed(Arc::clone(&state)).await;
+    let (data_version, config_id, _) = seed();
     let response = submit(Arc::clone(&state), "default", &data_version, &config_id).await;
     let created: SubmitRunResponse =
         serde_json::from_slice(&body_bytes(response).await).expect("submission");
@@ -431,7 +323,7 @@ async fn a_profile_that_did_not_submit_cannot_read_the_run() {
 #[tokio::test]
 async fn a_run_can_be_cancelled_once() {
     let (state, queue) = harness().await;
-    let (data_version, config_id, _) = seed(Arc::clone(&state)).await;
+    let (data_version, config_id, _) = seed();
     let response = submit(Arc::clone(&state), "default", &data_version, &config_id).await;
     let created: SubmitRunResponse =
         serde_json::from_slice(&body_bytes(response).await).expect("submission");

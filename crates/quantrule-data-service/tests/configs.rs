@@ -4,33 +4,17 @@ mod common;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use common::{body_bytes, memory_profiles};
+use common::{body_bytes, state_with_configs};
 use quantrule_api::{ConfigOrigin, ConfigSummary, PROFILE_HEADER};
-use quantrule_runtime::{Config, HealthRegistry};
-use quantrule_server::configs::MemoryConfigs;
-use quantrule_server::server::router;
-use quantrule_server::server::{AppState, Services};
+use quantrule_data_service::router;
 use std::path::Path;
 use std::sync::Arc;
 use tower::ServiceExt;
 
-async fn state() -> Arc<AppState> {
-    let config = Config {
-        config_root: Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config"),
-        ..Config::default()
-    };
-    Arc::new(AppState::with_services(
-        &config,
-        HealthRegistry::new(),
-        Services {
-            configs: Some(Arc::new(MemoryConfigs::default())),
-            profiles: Some(memory_profiles(&["default", "alpha"]).await),
-            ..Services::default()
-        },
-    ))
-}
-
-async fn list_for(state: Arc<AppState>, profile: &str) -> axum::response::Response {
+async fn list_for(
+    state: Arc<quantrule_data_service::DataState>,
+    profile: &str,
+) -> axum::response::Response {
     router(state)
         .oneshot(
             Request::get("/catalog/configs")
@@ -42,13 +26,13 @@ async fn list_for(state: Arc<AppState>, profile: &str) -> axum::response::Respon
         .expect("response")
 }
 
-async fn list(state: Arc<AppState>) -> axum::response::Response {
+async fn list(state: Arc<quantrule_data_service::DataState>) -> axum::response::Response {
     list_for(state, "default").await
 }
 
 #[tokio::test]
 async fn the_mount_is_scanned_and_listed() {
-    let response = list(state().await).await;
+    let response = list(state_with_configs().await).await;
     assert_eq!(response.status(), StatusCode::OK);
     let records: Vec<ConfigSummary> =
         serde_json::from_slice(&body_bytes(response).await).expect("configs");
@@ -80,7 +64,7 @@ async fn the_mount_is_scanned_and_listed() {
 
 #[tokio::test]
 async fn configs_are_profile_scoped_but_the_bundle_is_shared() {
-    let state = state().await;
+    let state = state_with_configs().await;
     let default = list(Arc::clone(&state)).await;
     let default: Vec<ConfigSummary> =
         serde_json::from_slice(&body_bytes(default).await).expect("default");
@@ -117,7 +101,7 @@ async fn configs_are_profile_scoped_but_the_bundle_is_shared() {
 
 #[tokio::test]
 async fn a_second_scan_does_not_duplicate() {
-    let state = state().await;
+    let state = state_with_configs().await;
     let first = list(Arc::clone(&state)).await;
     let first: Vec<ConfigSummary> =
         serde_json::from_slice(&body_bytes(first).await).expect("first");
@@ -129,7 +113,7 @@ async fn a_second_scan_does_not_duplicate() {
 
 #[tokio::test]
 async fn a_missing_profile_is_refused() {
-    let response = router(state().await)
+    let response = router(state_with_configs().await)
         .oneshot(
             Request::get("/catalog/configs")
                 .body(Body::empty())
@@ -167,7 +151,10 @@ fn bundle() -> serde_json::Value {
     serde_json::json!({ "name": "uploaded", "files": files })
 }
 
-async fn upload(state: Arc<AppState>, payload: serde_json::Value) -> axum::response::Response {
+async fn upload(
+    state: Arc<quantrule_data_service::DataState>,
+    payload: serde_json::Value,
+) -> axum::response::Response {
     router(state)
         .oneshot(
             Request::post("/catalog/configs")
@@ -182,7 +169,7 @@ async fn upload(state: Arc<AppState>, payload: serde_json::Value) -> axum::respo
 
 #[tokio::test]
 async fn an_uploaded_bundle_is_catalogued() {
-    let state = state().await;
+    let state = state_with_configs().await;
     let response = upload(Arc::clone(&state), bundle()).await;
     assert_eq!(response.status(), StatusCode::CREATED);
     let record: ConfigSummary =
@@ -205,7 +192,7 @@ async fn an_uploaded_bundle_is_catalogued() {
 
 #[tokio::test]
 async fn a_duplicate_upload_is_a_lookup() {
-    let state = state().await;
+    let state = state_with_configs().await;
     let first = upload(Arc::clone(&state), bundle()).await;
     assert_eq!(first.status(), StatusCode::CREATED);
     let first: ConfigSummary = serde_json::from_slice(&body_bytes(first).await).expect("first");
@@ -222,7 +209,7 @@ async fn an_uploaded_invalid_bundle_is_catalogued_with_its_message() {
         .as_object_mut()
         .expect("files")
         .remove("data.json");
-    let state = state().await;
+    let state = state_with_configs().await;
     let response = upload(Arc::clone(&state), payload).await;
     assert_eq!(response.status(), StatusCode::CREATED);
     let record: ConfigSummary =
@@ -246,7 +233,7 @@ async fn a_bundle_path_cannot_escape() {
         .as_object_mut()
         .expect("files")
         .insert("../escape.json".to_owned(), serde_json::json!("{}"));
-    let response = upload(state().await, payload).await;
+    let response = upload(state_with_configs().await, payload).await;
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(text.contains("config.invalid"), "{text}");
@@ -259,6 +246,6 @@ async fn a_bundle_without_run_json_is_refused() {
         .as_object_mut()
         .expect("files")
         .remove("run.json");
-    let response = upload(state().await, payload).await;
+    let response = upload(state_with_configs().await, payload).await;
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }

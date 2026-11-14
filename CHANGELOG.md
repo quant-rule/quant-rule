@@ -22,12 +22,20 @@ are not treated as releases.
 
 ### Added
 
+- `qr-data` serves the catalog, dataset, config, and inspection surface, plus
+  the internal config-bundle, dataset-object, and dataset-count references the
+  gateway and the worker consume. The gateway proxies `/catalog/*`,
+  `/datasets/*`, and `/inspect/*` unchanged and has no data handler.
+- `quantrule-runtime` gains the concrete HTTP service transport and a
+  `DataClient` with an in-memory fake. The runtime migration runner takes a
+  ledger schema, so the catalog, gateway, and run migration lists record under
+  separate ledgers.
 - The six-binary service inventory is complete at milestone M1:
   `quantrule-data-service`, `quantrule-model-service`, and
   `quantrule-simulation-service` add `qr-data`, `qr-model`, and `qr-simulation`
   health/version skeletons, and a workspace guard fails when a service binary is
-  removed or an extra one appears. The gateway still serves every data, model,
-  run, and simulation route; no route moved.
+  removed or an extra one appears. At M1 the gateway still served every route;
+  P3 moves the data routes to `qr-data`.
 - The service runtime and the internal contract are their own crates:
   `quantrule-runtime` owns configuration, health, logging, clock, shutdown, the
   HTTP serve helper, the Postgres/S3/RabbitMQ adapters, the migration runner, and
@@ -121,6 +129,13 @@ are not treated as releases.
   undoes the last session mark, and a note is capped at 500 characters. Marks
   post through one seam against `/simulation/runs/{id}/marks`; the browser test
   mocks that contract until the `simulation` service ships.
+- The simulation screens: the browser lists simulation runs, creates one from a
+  premise, bundle ref, inputs, seed, and criteria, and opens a run with its
+  window navigator, chart, mark toolbar, human and oracle marks, review counts,
+  check table, and decision. A decision shows its note and locks marking in the
+  toolbar and the mark endpoint; a disconnected gateway clears the list. The
+  screens read the documented `simulation` contract through one seam; the real
+  service (#680) is still pending, so the browser tests mock that contract.
 - The browser client distinguishes a gateway API mismatch from a healthy
   connection and shows the version it expected; a shared Playwright fixture
   router drives the connected, mismatch, degraded, and unreachable tests.

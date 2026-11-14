@@ -7,6 +7,7 @@
 pub mod compute;
 pub mod config;
 pub mod routes;
+pub mod series;
 
 pub use compute::{Computed, ModelError, compute_full, compute_sharded};
 pub use config::{ModelConfig, load_config};

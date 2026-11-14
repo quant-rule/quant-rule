@@ -228,7 +228,7 @@ fn number(field: &str, line: usize, name: &'static str) -> Result<f64, InspectEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::ingest;
+    use crate::ingest::ingest;
 
     fn csv(minutes: usize) -> String {
         let mut text = String::from("date,open,high,low,close,volume\n");

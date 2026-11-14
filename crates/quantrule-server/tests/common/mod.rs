@@ -5,42 +5,32 @@
 
 #![allow(dead_code)]
 
-//! The gateway routes, exercised over HTTP with in-memory services.
-//!
-//! The tests assert on status, envelope code, and body, not on a handler's
-//! internals, so a route change is visible the way a client would see it.
-
 use axum::body::Body;
 use axum::http::Request;
-use quantrule_api::{DatasetRecord, PROFILE_HEADER, ProfileId};
+use quantrule_api::{PROFILE_HEADER, ProfileId};
 use quantrule_research::{CostModel, Partition, Split};
 use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
+use quantrule_runtime::client::MemoryDataClient;
 use quantrule_runtime::{Config, HealthRegistry};
-use quantrule_server::data::MemoryCatalog;
 use quantrule_server::profile::{MemoryProfiles, ProfileRecord, ProfileStore};
 use quantrule_server::research::MemoryStore;
 use quantrule_server::server::{AppState, Services};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-/// An object store that keeps bytes in memory, so the route is tested
-/// without S3.
+/// An object store that keeps bytes in memory, so a route is tested without S3.
 #[derive(Clone, Default)]
 pub struct MemoryObjects {
     inner: Arc<Mutex<BTreeMap<String, Vec<u8>>>>,
 }
 
 impl MemoryObjects {
-    /// Used by the gateway target's integrity test; the ladder target does not
-    /// need it.
-    #[allow(dead_code)]
+    /// Remove one object.
     pub fn remove(&self, key: &str) {
         self.inner.lock().expect("the object lock").remove(key);
     }
 
-    /// Every key currently stored; the worker's partial-publish test needs to
-    /// prove that no run prefix exists.
-    #[allow(dead_code)]
+    /// Every key currently stored.
     pub fn keys(&self) -> Vec<String> {
         self.inner
             .lock()
@@ -93,10 +83,6 @@ impl ObjectStore for MemoryObjects {
     }
 }
 
-pub const CSV: &str = "date,open,high,low,close,volume\n\
-2024-01-01 00:00:00+00:00,100.0,101.0,99.0,100.5,10\n\
-2024-01-01 00:01:00+00:00,100.5,101.5,100.0,101.0,12\n";
-
 pub fn state() -> Arc<AppState> {
     Arc::new(AppState::new(&Config::default(), HealthRegistry::new()))
 }
@@ -107,12 +93,20 @@ pub async fn state_with_store() -> Arc<AppState> {
         HealthRegistry::new(),
         Services {
             hypotheses: Some(Arc::new(MemoryStore::default())),
-            catalog: None,
-            objects: None,
             profiles: Some(memory_profiles(&["default", "alpha", "beta"]).await),
-            configs: None,
-            runs: None,
-            queue: None,
+            ..Services::default()
+        },
+    ))
+}
+
+pub async fn state_with_data(data: MemoryDataClient) -> Arc<AppState> {
+    Arc::new(AppState::with_services(
+        &Config::default(),
+        HealthRegistry::new(),
+        Services {
+            profiles: Some(memory_profiles(&["default", "alpha", "beta", "gamma"]).await),
+            data: Some(Arc::new(data)),
+            ..Services::default()
         },
     ))
 }
@@ -132,48 +126,6 @@ pub async fn memory_profiles(ids: &[&str]) -> Arc<MemoryProfiles> {
     store
 }
 
-pub async fn state_with_catalog_and_objects() -> (Arc<AppState>, MemoryObjects) {
-    let objects = MemoryObjects::default();
-    let state = Arc::new(AppState::with_services(
-        &Config::default(),
-        HealthRegistry::new(),
-        Services {
-            hypotheses: None,
-            catalog: Some(Arc::new(MemoryCatalog::default())),
-            objects: Some(Arc::new(objects.clone())),
-            profiles: Some(memory_profiles(&["default", "alpha", "beta", "gamma"]).await),
-            configs: None,
-            runs: None,
-            queue: None,
-        },
-    ));
-    (state, objects)
-}
-
-pub async fn state_with_catalog() -> Arc<AppState> {
-    state_with_catalog_and_objects().await.0
-}
-
-pub async fn state_with_small_upload() -> Arc<AppState> {
-    let config = Config {
-        upload_limit_bytes: 16,
-        ..Config::default()
-    };
-    Arc::new(AppState::with_services(
-        &config,
-        HealthRegistry::new(),
-        Services {
-            hypotheses: None,
-            catalog: Some(Arc::new(MemoryCatalog::default())),
-            objects: Some(Arc::new(MemoryObjects::default())),
-            profiles: Some(memory_profiles(&["default"]).await),
-            configs: None,
-            runs: None,
-            queue: None,
-        },
-    ))
-}
-
 pub fn body() -> serde_json::Value {
     let split = Split::new(
         Partition::new("dev", 100, 200).expect("dev"),
@@ -190,17 +142,6 @@ pub fn body() -> serde_json::Value {
     })
 }
 
-pub fn upload(name: &str) -> Request<Body> {
-    Request::post(format!("/catalog/datasets?name={name}"))
-        .header(PROFILE_HEADER, "default")
-        .body(Body::from(CSV))
-        .expect("request")
-}
-
-pub fn read_dataset(bytes: &[u8]) -> DatasetRecord {
-    serde_json::from_slice(bytes).expect("dataset record")
-}
-
 pub async fn body_bytes(response: axum::response::Response) -> Vec<u8> {
     axum::body::to_bytes(response.into_body(), 65_536)
         .await
@@ -208,16 +149,38 @@ pub async fn body_bytes(response: axum::response::Response) -> Vec<u8> {
         .to_vec()
 }
 
-pub fn minutes(count: usize) -> String {
-    let mut text = String::from("date,open,high,low,close,volume\n");
-    for offset in 0..count {
-        let open = 100.0 + offset as f64;
-        text.push_str(&format!(
-            "2024-01-01 00:{offset:02}:00+00:00,{open},{},{},{},10\n",
-            open + 1.0,
-            open - 1.0,
-            open + 0.5
-        ));
+/// A request builder the tests share for the profile header.
+pub fn with_profile(request: Request<Body>, profile: &str) -> Request<Body> {
+    let (mut parts, body) = request.into_parts();
+    parts
+        .headers
+        .insert(PROFILE_HEADER, profile.parse().expect("header"));
+    Request::from_parts(parts, body)
+}
+
+/// Canonicalize a date-and-price CSV for a test, the way ingest does.
+pub fn canonical(csv: &str) -> Vec<u8> {
+    use quantrule_data::{Candle, RawCandle};
+
+    let mut out = Vec::new();
+    let mut index = 0_u64;
+    for line in csv.lines() {
+        let fields: Vec<&str> = line.split(',').map(str::trim).collect();
+        if fields.len() < 5 || !fields[0].starts_with(|c: char| c.is_ascii_digit()) {
+            continue;
+        }
+        let raw = RawCandle {
+            date: fields[0],
+            open: fields[1],
+            high: fields[2],
+            low: fields[3],
+            close: fields[4],
+            volume: fields.get(5).copied(),
+        };
+        let candle = Candle::parse(index, raw).expect("test candle");
+        out.extend_from_slice(candle.canonical_line().as_bytes());
+        out.push(b'\n');
+        index += 1;
     }
-    text
+    out
 }

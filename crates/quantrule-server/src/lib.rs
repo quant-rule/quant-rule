@@ -4,8 +4,6 @@
 
 pub mod adapters;
 pub mod backtest;
-pub mod configs;
-pub mod data;
 pub mod evidence;
 pub mod migrations;
 pub mod model;

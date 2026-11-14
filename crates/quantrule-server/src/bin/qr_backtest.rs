@@ -8,18 +8,18 @@
 
 use std::sync::Arc;
 
-use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations};
+use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
 use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
 use quantrule_runtime::adapters::s3::S3Store;
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
+use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
+use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::queue::{QUEUE_BACKTEST, ROUTING_CANCELLED, ROUTING_REQUESTED};
 use quantrule_runtime::{Config, RuntimeError, logging, shutdown};
-use quantrule_server::adapters::postgres::{PgConfigStore, PgDatasetCatalog, PgRunStore};
+use quantrule_server::adapters::postgres::PgRunStore;
 use quantrule_server::backtest::{ProcessOutcome, WorkerServices, process};
-use quantrule_server::configs::ConfigCatalog;
-use quantrule_server::data::DatasetCatalog;
 use quantrule_server::runs::RunStore;
 use serde_json::Value;
 
@@ -32,9 +32,13 @@ async fn main() -> Result<(), RuntimeError> {
         .await
         .map_err(|error| RuntimeError::Database(error.to_string()))?;
     if config.migrate {
-        apply_migrations(database.pool(), &quantrule_server::migrations::available())
-            .await
-            .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+        apply_migrations_in(
+            database.pool(),
+            "runs",
+            &quantrule_server::migrations::service(),
+        )
+        .await
+        .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
     }
     let objects = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
     let queue = Arc::new(
@@ -43,11 +47,22 @@ async fn main() -> Result<(), RuntimeError> {
             .map_err(|error| RuntimeError::Queue(error.to_string()))?,
     );
 
+    let data: Arc<dyn DataClient> =
+        Arc::new(HttpServiceClient::from_env(Service::Data).map_err(|error| {
+            RuntimeError::Config(match error {
+                ClientError::Unconfigured { .. } => ConfigError::Missing {
+                    name: "QR_DATA_URL",
+                },
+                _ => ConfigError::Invalid {
+                    name: "QR_DATA_URL",
+                    value: "<invalid>".to_owned(),
+                    reason: "must be an absolute HTTP URL",
+                },
+            })
+        })?);
     let services = Arc::new(WorkerServices {
         runs: Arc::new(PgRunStore::new(database.pool().clone())) as Arc<dyn RunStore>,
-        catalog: Arc::new(PgDatasetCatalog::new(database.pool().clone()))
-            as Arc<dyn DatasetCatalog>,
-        configs: Arc::new(PgConfigStore::new(database.pool().clone())) as Arc<dyn ConfigCatalog>,
+        data,
         objects: Arc::new(objects) as Arc<dyn ObjectStore>,
         queue: Arc::clone(&queue) as Arc<dyn Queue>,
     });

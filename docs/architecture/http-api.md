@@ -52,6 +52,11 @@ never renders a label, and never returns a raw engine type.
 | GET | `/inspect/timeframes` | `data_version` | bars and partial buckets per timeframe |
 | GET | `/inspect/events` | `data_version`, `timeframe` | event batch |
 
+The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`, and
+`/inspect/*` to `qr-data`. A proxied response keeps its status, body, content
+type, and ETag; a closed upstream is `503 service.unavailable`. The data service
+trusts the profile the gateway injects and never reads the profile table.
+
 The browser client checks `/version` and `/health` and reports `connected`,
 `degraded`, `mismatch`, or `unreachable`. A different API version is a mismatch:
 the client shows the version it expected and does not use the connection. A

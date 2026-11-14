@@ -6,7 +6,7 @@
 use quantrule_api::{QualityReport, SkippedRow};
 use quantrule_data::{Candle, RawCandle, SourceCadence, TimeframeError};
 
-use crate::data::ingest::{IngestError, Ingested, is_header};
+use crate::ingest::{IngestError, Ingested, is_header};
 
 /// A tolerant ingest: the accepted dataset and its quality report.
 #[derive(Debug, Clone, PartialEq)]
@@ -143,7 +143,7 @@ fn skip(quality: &mut QualityReport, line: u64, reason: &str, kind: Kind) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::ingest;
+    use crate::ingest::ingest;
 
     fn fixture() -> String {
         let mut text = String::from("date,open,high,low,close,volume\n");
