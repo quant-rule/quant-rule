@@ -91,11 +91,11 @@ are not treated as releases.
   built client; Postgres, MinIO, and RabbitMQ complete the stack behind
   health-gated startup. `data` serves the catalog, dataset, config, and
   inspection routes through `qr-data`, `model` serves `/model/compute` through
-  `qr-model`, and `evidence` serves runs and research through `qr-evidence`,
-  while the gateway proxies all three; `simulation` remains a health/version
-  skeleton until P7, and the off-by-default `six-binaries` profile is retired.
-  The gateway, `data`, and `evidence` each apply their own migration ledger;
-  `model` owns no schema. One published port (`8080`), one bridge
+  `qr-model`, `evidence` serves runs and research through `qr-evidence`, and
+  `simulation` serves the research plane through `qr-simulation`, while the
+  gateway proxies all four; the off-by-default `six-binaries` profile is
+  retired. The gateway, `data`, `evidence`, and `simulation` each apply their own
+  migration ledger. One published port (`8080`), one bridge
   network, three named volumes. The pinned `bitnamilegacy/minio` archive remains
   a stopgap overridable with `QR_OBJECT_STORE_IMAGE` until the permanent
   registry decision is recorded.

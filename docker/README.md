@@ -47,7 +47,7 @@ no partial-stack profile: every one of the nine services starts by default.
 | `model` | `qr-model` | `/health`, `/version`, `/model/compute`, and the internal model bundle |
 | `backtest` | `qr-backtest` | queue consumer; no HTTP |
 | `evidence` | `qr-evidence` | `/health`, `/version`, `/runs`, `/hypotheses`, and the internal worker lifecycle |
-| `simulation` | `qr-simulation` | `/health`, `/version` only until P7 |
+| `simulation` | `qr-simulation` | `/health`, `/version`, and the eleven research-plane endpoints |
 | `postgres` | `postgres:17` | database |
 | `minio` | `bitnamilegacy/minio` | object store |
 | `rabbitmq` | `rabbitmq:4-management` | broker |
@@ -66,29 +66,30 @@ inspection routes. `model` is complete for P4: it serves `/model/compute` and th
 internal model bundle, reads the catalog through `qr-data`, and owns no database
 schema. `evidence` is complete for P5: it owns the `runs` and `research` schemas,
 serves the run and hypothesis surface, and consumes `run.computed` to finalize.
-The gateway proxies all three surfaces and keeps no data, model, or run handler.
-`simulation` remains a health/version skeleton until P7:
+`simulation` is complete for P7: it owns the `simulation` schema, serves the
+eleven research-plane endpoints, and reads a recorded bundle from the object
+store. The gateway proxies all four surfaces and keeps no domain handler:
 
 | Service | Route owner | Phase |
 |---|---|---|
 | `data` | `qr-data` (gateway proxy) | P3, landed |
 | `model` | `qr-model` (gateway proxy) | P4, landed |
 | `evidence` | `qr-evidence` (gateway proxy) | P5, landed |
-| `simulation` | gateway | P7 |
+| `simulation` | `qr-simulation` (gateway proxy) | P7, landed |
 
-Only `data` and `simulation` mount `config/` read-only; the gateway no longer
-reads the catalog mount. `model` and `evidence` read the dataset object through
-data and the object store, so they need neither a config nor a database mount.
-`backtest` loads the dataset and config from data, the model bundle from model,
-and records the run through evidence; it serves no HTTP.
+Only `data` mounts `config/` read-only. `model` and `evidence` read the dataset
+object through data and the object store, and `simulation` reads its recorded
+bundle from the object store, so none needs a config mount. `backtest` loads the
+dataset and config from data, the model bundle from model, and records the run
+through evidence; it serves no HTTP.
 
 Each schema owner migrates its own ledger. The gateway applies the `gateway`
 ledger with `QR_MIGRATE=1`; `data` applies the `catalog` ledger; `evidence`
 applies the `runs` and `research` ledgers, including the run-attempts migration
-(0013). `backtest`, `model`, and `simulation` keep `QR_MIGRATE=0` because they
-own no schema. P1 pinned the session-level advisory lock to one connection, so
-the three migrators can run at once; the old gateway-sole-migrator workaround is
-gone.
+(0013); `simulation` applies its own `simulation` ledger (0014). `backtest` and
+`model` keep `QR_MIGRATE=0` because they own no schema. P1 pinned the
+session-level advisory lock to one connection, so the four migrators can run at
+once; the old gateway-sole-migrator workaround is gone.
 
 ## 4. Object store source
 
@@ -123,6 +124,7 @@ credential has a local default and can be overridden:
 | `QR_DATA_URL` | Data-service base URL used by the gateway and the backtest worker |
 | `QR_MODEL_URL` | Model-service base URL used by the gateway |
 | `QR_EVIDENCE_URL` | Evidence-service base URL used by the gateway and the backtest worker |
+| `QR_SIMULATION_URL` | Simulation-service base URL used by the gateway |
 | `QR_POSTGRES_PASSWORD` | Postgres and the service URL |
 | `QR_OBJECT_STORE_PASSWORD` | MinIO root password and the S3 secret |
 | `QR_RABBITMQ_PASSWORD` | Broker password and the service URL |

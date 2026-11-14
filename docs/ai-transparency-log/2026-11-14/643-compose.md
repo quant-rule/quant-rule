@@ -424,3 +424,87 @@ Container health after P6:
 The Windows Docker Desktop and standalone Podman smoke checks remain manual
 notes. The simulation domain routes, the P8 gateway finalization, and the
 permanent object-store registry are outside this change.
+
+## Follow-up after P7 (#797) — 2026-11-14 (UTC)
+
+- Merge: #797 merged to `main` at `80510c12`; `origin/main` merged into
+  `feat/643-compose` at `b15a4356`.
+- Intent: serve the simulation research plane from `qr-simulation`, wire the
+  gateway's required `QR_SIMULATION_URL`, and give simulation its own
+  `simulation` migration ledger.
+- Boundary: `compose.yaml`, `docker/README.md`, the current-state/configuration
+  sections of `docs/architecture/deployment.md`, `CHANGELOG.md`, and this log.
+  No Dockerfile change (the simulation package was already built), no Rust,
+  client, Makefile, CI, `services.md`, ADR, or port-parity change.
+- Compose: `QR_SIMULATION_URL=http://simulation:8080` is set for the gateway,
+  which refuses to start without it and now depends on `simulation` being
+  healthy. `simulation` depends on Postgres and the object store, sets
+  `QR_MIGRATE=1`, and applies its own `simulation` ledger. The unused `config/`
+  mount was removed: the service reads a recorded bundle from the object store,
+  not a config directory.
+
+### Verification after P7 — 2026-11-14 (UTC)
+
+| Check | Command | Observed |
+|---|---|---|
+| Compose parse | `docker compose config -q` | exit 0; nine services |
+| Image build | `docker build -t quantrule-server:test .` | exit 0; manifest list `sha256:eaca1c272424b4d6ea570456d05df6757027084771ec4dfcba8dfcf3377ffca9` |
+| Clean start | `docker compose down -v && docker compose up -d --build --wait` | exit 0; nine containers |
+| Gateway health | `curl -fsS http://localhost:8080/health` | `state=healthy`; postgres healthy |
+| Data probe | `GET /catalog/datasets` | `200`; `[]` before upload |
+| Dataset upload | `POST /catalog/datasets?name=p7-fixture.csv` | `201`; 250 candles |
+| Model probe | `POST /model/compute` | `200`; timeframes `1m,5m,15m,1h`; 66,022 bytes |
+| Bundle load | `mc pipe qr/quantrule/simulation/bundles/<sha256>.json` | 197,521-byte recorded bundle, digest verified by the service |
+| Simulation create | `POST /simulation/runs` | `201`; `sim_id sim_ce4f92c96b2ccd20ffa63e74` |
+| Windows | `POST /simulation/runs/{id}/windows` | `200`; one window |
+| Mark | `POST /simulation/runs/{id}/marks` | `201`; `mark_id m_c1d5f9a4…` |
+| Marks before restart | `GET /simulation/runs/{id}/marks` | `200`; one `human` mark, chart 0, bar 80, long |
+| Restart | `docker compose restart simulation` | healthy after 6 s; `simulation migrations applied applied=0` |
+| Marks after restart | same GET | `200`; the same mark and note persisted |
+| Profile isolation | `GET /simulation/runs/{id}/marks` with `alpha` | `404 simulation.not_found` |
+| Profile isolation | `GET /simulation/runs/{id}` with `alpha` | `404 simulation.not_found` |
+| Gateway ledger | `gateway.schema_migrations` | `7` |
+| Catalog ledger | `catalog.schema_migrations` | `1,2,3,4,5` |
+| Runs ledger | `runs.schema_migrations` | `2,4,5,8,9,13` |
+| Simulation ledger | `simulation.schema_migrations` | `14` |
+| Migration ordering | stack logs | four migrators applied with no deadlock or panic |
+| No Python | `docker run --rm quantrule-server:test sh -c 'command -v python3'` | empty |
+| No Bun | `docker run --rm quantrule-server:test sh -c 'command -v bun'` | empty |
+| No `.py` | `docker run --rm quantrule-server:test sh -c 'find / -name "*.py" 2>/dev/null \| head'` | empty |
+| One-command path | `make up` | exit 0; `QuantRule v0.3.0 ready → http://localhost:8080` |
+| Workspace gate | `tools/gate.sh` | exit 0; `workspace gate passed` |
+
+Container health after P7:
+
+| Container | State |
+|---|---|
+| `gateway` | healthy |
+| `data` | healthy |
+| `model` | healthy |
+| `evidence` | healthy |
+| `simulation` | healthy |
+| `backtest` | up; no HTTP probe |
+| `postgres` | healthy |
+| `minio` | healthy |
+| `rabbitmq` | healthy |
+
+### Learning and rejected alternatives after P7
+
+- The research plane reads one content-addressed bundle from
+  `simulation/bundles/<sha256>.json`; it does not read a run artifact or a
+  config mount. The probe wrote the bundle through the MinIO container's `mc`
+  client, then created the run through the gateway.
+- The mark survived a container restart because it is a Postgres row; the
+  restart applied no new migration (`applied=0`). Profile isolation is enforced
+  in the repository, not only in the gateway.
+- Rejected: keeping the historical `config/` mount on simulation. The service
+  never reads `config_root`; a mount would suggest a dependency the code does
+  not have.
+- The four migrators (gateway, data, evidence, simulation) ran without deadlock
+  under P1's pinned advisory lock.
+
+### Not verified here
+
+The Windows Docker Desktop and standalone Podman smoke checks remain manual
+notes. The P8 gateway finalization and the permanent object-store registry are
+outside this change.

@@ -2,9 +2,9 @@
 #
 # One bridge network, one published port, three named volumes. The default
 # topology is nine containers: the six service binaries from one image plus
-# Postgres, the object store, and the broker. `data` serves the catalog, `model`
-# serves model compute, and `evidence` serves runs and research; the gateway
-# proxies all three. `simulation` remains a health/version skeleton until P7.
+# Postgres, the object store, and the broker. `data`, `model`, `evidence`, and
+# `simulation` serve the catalog, model compute, runs/research, and the research
+# plane; the gateway proxies all four. Only the backtest worker serves no HTTP.
 #
 # Windows and macOS run this file through Docker Desktop's Linux backend
 # (WSL2 on Windows). The image is linux/amd64.
@@ -30,16 +30,20 @@ x-server: &server
     # The gateway proxies runs and hypotheses to qr-evidence, and the backtest
     # worker uses its internal lifecycle; both refuse to start without this URL.
     QR_EVIDENCE_URL: http://evidence:8080
+    # The gateway proxies the simulation research plane to qr-simulation and
+    # refuses to start without this URL.
+    QR_SIMULATION_URL: http://simulation:8080
     QR_OBJECT_STORE_URL: http://minio:9000
     QR_OBJECT_BUCKET: quantrule
     QR_QUEUE_URL: amqp://quantrule:${QR_RABBITMQ_PASSWORD:-quantrule}@rabbitmq:5672/%2f
     QR_STATIC_DIR: /srv/static
     QR_CONFIG_ROOT: /srv/config
     # Each schema owner migrates its own ledger: the gateway applies the gateway
-    # ledger, data applies catalog, and evidence applies runs and research. The
-    # runtime pins the session-level advisory lock to one connection, so the
-    # three migrate at once without the old sole-migrator workaround. The
-    # backtest worker, model, and simulation keep this at 0.
+    # ledger, data applies catalog, evidence applies runs and research, and
+    # simulation applies its own simulation ledger. The runtime pins the
+    # session-level advisory lock to one connection, so the four migrate at once
+    # without the old sole-migrator workaround. The backtest worker and model
+    # keep this at 0.
     QR_MIGRATE: "0"
     # Set at release time to the image digest. An empty value would be rejected
     # by the runtime, so the key is a pass-through: unset stays unset.
@@ -74,6 +78,8 @@ services:
       model:
         condition: service_healthy
       evidence:
+        condition: service_healthy
+      simulation:
         condition: service_healthy
       postgres:
         condition: service_healthy
@@ -161,11 +167,15 @@ services:
     command: ["qr-simulation"]
     environment:
       <<: *server-environment
-      QR_MIGRATE: "0"
-    volumes:
-      # The research plane reads the recorded config and never writes a run
-      # artifact; the mount is read-only for the same reason.
-      - ./config:/srv/config:ro
+      # qr-simulation owns the simulation schema and applies its own ledger. It
+      # reads a recorded model bundle from the object store, not a run or a
+      # config mount.
+      QR_MIGRATE: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck: *http-healthcheck
 
   postgres:

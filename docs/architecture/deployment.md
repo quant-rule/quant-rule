@@ -44,7 +44,7 @@ nine containers listed in §2.
 | `model` | `quantrule-server` | — | — |
 | `backtest` | `quantrule-server` | — | — |
 | `evidence` | `quantrule-server` | — | — |
-| `simulation` | `quantrule-server` | — | `config/` read-only |
+| `simulation` | `quantrule-server` | — | — |
 | `postgres` | `postgres:17` | — | `pgdata` |
 | `minio` | `minio/minio` | — | `objects` |
 | `rabbitmq` | `rabbitmq:4-management` | — | `mqdata` |
@@ -61,13 +61,12 @@ The image also carries the static client, built with **Bun** (`bun install`,
 ## 2.1 Current state
 
 All six service binaries exist and the default stack starts all nine containers.
-`data` serves the catalog, `model` serves `/model/compute`, and `evidence` serves
-runs and research; the gateway proxies all three. `simulation` is a skeleton until P7.
+`data` serves the catalog, `model` `/model/compute`, `evidence` runs/research, and
+`simulation` the research plane; the gateway proxies all four. Only `backtest` is HTTP-less.
 
-`backtest` serves no HTTP, so it has no healthcheck; Docker reports the process
-state and `/health` reports its dependencies. The gateway, data, and evidence
-each migrate their own ledger (`QR_MIGRATE=1`), pinned by P1 to one connection;
-other services keep `0` and own no schema.
+Only `backtest` lacks a healthcheck; Docker reports its process state and `/health`
+reports dependencies. The gateway, data, evidence, and simulation migrate their
+own ledgers (`QR_MIGRATE=1`) under P1's pinned lock; `backtest` and `model` keep `0`.
 
 `minio/minio` has no public image since 2026-09-11; the default is a pinned legacy
 archive, overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
@@ -124,6 +123,7 @@ to start.
 | `QR_DATA_URL` | compose value | Data service, used by the gateway and the backtest worker |
 | `QR_MODEL_URL` | compose value | Model service, used by the gateway |
 | `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
+| `QR_SIMULATION_URL` | compose value | Simulation service, used by the gateway |
 | `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
 | `QR_QUEUE_URL` | compose value | RabbitMQ |
 | `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Upload cap |
