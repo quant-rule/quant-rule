@@ -1,5 +1,10 @@
 # Workflow Lab — Choose a Workflow and Run a Tier
 
+> **Historical.** This lab records the v0.3.0 local surface. The local stage
+> commands were removed from the shell in v1.0.0; set
+> `BIN=./target/release/quantrule` before running a block, and see
+> [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
+
 - Date: 2026-11-07 (UTC)
 - Status: Current
 - Scope: the workflow index, the current run adapter, and the stage commands
@@ -12,7 +17,7 @@ chosen by the decision boundary, not by the file you expect to edit. The same
 guide is available in the shell:
 
 ```bash
-quantrule help workflows
+"$BIN" help workflows
 ```
 
 | If you want to… | Use | First command or tool |
@@ -69,7 +74,7 @@ The stage commands are independently runnable. The fixture model bundle is
 created first:
 
 ```bash
-quantrule report model \
+"$BIN" report model \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/workflow-lab
 ```
@@ -77,7 +82,7 @@ quantrule report model \
 The strategy stage reads the model bundle and writes decisions:
 
 ```bash
-quantrule strategy run \
+"$BIN" strategy run \
   --model target/workflow-lab/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/workflow-lab
@@ -87,7 +92,7 @@ The coupled run computes the model once and interleaves strategy, execution, and
 portfolio:
 
 ```bash
-quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/workflow-lab
@@ -96,7 +101,7 @@ quantrule backtest run \
 Qualification evaluates the evidence against the human-owned criteria:
 
 ```bash
-quantrule qualify \
+"$BIN" qualify \
   --evidence target/workflow-lab/backtest \
   --criteria crates/quantrule-shell/tests/fixtures/qualification/pass.json \
   --out target/workflow-lab
@@ -105,7 +110,7 @@ quantrule qualify \
 Analytics publishes descriptive metrics and tables:
 
 ```bash
-quantrule analytics evaluate \
+"$BIN" analytics evaluate \
   --evidence target/workflow-lab/backtest \
   --out target/workflow-lab
 ```

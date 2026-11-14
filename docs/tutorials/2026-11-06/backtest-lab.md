@@ -1,5 +1,10 @@
 # S3.x Backtest Lab — Coupled Stage Run
 
+> **Historical.** This lab records the v0.3.0 local surface. The local stage
+> commands were removed from the shell in v1.0.0; set
+> `BIN=./target/release/quantrule` before running a block, and see
+> [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
+
 - Date: 2026-11-06 (UTC)
 - Status: Current
 - Scope: `backtest run` over the model, strategy, execution, and portfolio stages
@@ -19,7 +24,7 @@ cargo build --release
 
 ```bash
 rm -rf target/backtest-lab target/backtest-lab-a target/backtest-lab-b
-./target/release/quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/backtest-lab
@@ -71,11 +76,11 @@ is `final_equity = initial_cash + net_pnl`.
 ## 5. Determinism
 
 ```bash
-./target/release/quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/backtest-lab-a
-./target/release/quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/backtest-lab-b

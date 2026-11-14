@@ -1,5 +1,10 @@
 # S3.x Pipeline Lab — Standalone Stages and the Coupled Run
 
+> **Historical.** This lab records the v0.3.0 local surface. The local stage
+> commands were removed from the shell in v1.0.0; set
+> `BIN=./target/release/quantrule` before running a block, and see
+> [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
+
 - Date: 2026-11-06 (UTC)
 - Status: Current
 - Scope: every stage command on its own, the coupled `backtest run`, qualification, and analytics
@@ -20,18 +25,18 @@ cargo build --release
 
 ```bash
 rm -rf target/pipeline-lab
-./target/release/quantrule report model \
+"$BIN" report model \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/pipeline-lab/standalone
-./target/release/quantrule strategy run \
+"$BIN" strategy run \
   --model target/pipeline-lab/standalone/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/pipeline-lab/standalone
-./target/release/quantrule execution run \
+"$BIN" execution run \
   --decisions target/pipeline-lab/standalone/strategy \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/pipeline-lab/standalone
-./target/release/quantrule portfolio replay \
+"$BIN" portfolio replay \
   --fills target/pipeline-lab/standalone/execution \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/pipeline-lab/standalone
@@ -54,15 +59,15 @@ and the portfolio provenance names the fills bundle.
 ## 3. Run the coupled backtest and its consumers
 
 ```bash
-./target/release/quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/pipeline-lab/coupled
-./target/release/quantrule qualify \
+"$BIN" qualify \
   --evidence target/pipeline-lab/coupled/backtest \
   --criteria crates/quantrule-shell/tests/fixtures/qualification/pass.json \
   --out target/pipeline-lab/coupled
-./target/release/quantrule analytics evaluate \
+"$BIN" analytics evaluate \
   --evidence target/pipeline-lab/coupled/backtest \
   --out target/pipeline-lab/coupled
 ```
@@ -107,11 +112,11 @@ schemas, but they are not expected to be byte-identical:
 
 ```bash
 rm -rf target/pipeline-lab/repeat-a target/pipeline-lab/repeat-b
-./target/release/quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/pipeline-lab/repeat-a
-./target/release/quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/pipeline-lab/repeat-b

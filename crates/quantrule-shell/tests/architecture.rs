@@ -1,23 +1,26 @@
 //! Architecture guards for the shell crate.
 //!
-//! The shell parses, calls the pipeline, and renders. These tests protect the
-//! one-way renderer edges and the workspace crate graph.
+//! The shell is a gateway client. These tests protect the one-way transport
+//! edge, the three-dependency budget, and the absence of the retired local
+//! pipeline.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-fn source(file: &str) -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join(file);
-    fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
+fn crates_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("the shell crate lives under crates/")
+        .to_path_buf()
 }
 
-fn sources(directory: &str) -> Vec<(PathBuf, String)> {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join(directory);
+fn shell_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+fn source(directory: &str) -> Vec<(PathBuf, String)> {
+    let root = shell_root().join("src").join(directory);
     let mut files = Vec::new();
     collect(&root, &mut files);
     files
@@ -40,50 +43,12 @@ fn collect(path: &Path, files: &mut Vec<(PathBuf, String)>) {
     }
 }
 
-#[test]
-fn renderers_do_not_depend_on_the_command_module() {
-    let files: Vec<(String, String)> = ["render.rs", "render_flat.rs"]
-        .into_iter()
-        .map(|file| (file.to_owned(), source(file)))
-        .collect();
-    for (name, text) in files {
-        assert!(
-            !text.contains("use crate::command"),
-            "{name} must not import command; the command module calls the renderer"
-        );
-    }
-}
-
-#[test]
-fn commands_do_not_rebuild_the_ladder_or_model_inputs() {
-    for (path, text) in sources("command") {
-        assert!(
-            !text.contains("TimeframeInput {"),
-            "{} must use the pipeline input builder",
-            path.display()
-        );
-        assert!(
-            !text.contains("const LADDER"),
-            "{} must use the data engine ladder",
-            path.display()
-        );
-    }
-}
-
-#[test]
-fn the_legacy_analytics_crate_is_gone() {
-    let manifest_path = crates_root().join("../Cargo.toml");
-    let manifest = fs::read_to_string(&manifest_path)
-        .unwrap_or_else(|error| panic!("read {}: {error}", manifest_path.display()));
-    assert!(!manifest.contains("quantrule-analytics"));
-    assert!(!manifest.contains("analytics"));
-}
-
 /// Every workspace crate and the workspace crates it may depend on.
 ///
 /// The order is the dependency order, so a crate may only name crates above
-/// it. Adding an edge is an architecture decision; this table is its guard.
-const ALLOWED_EDGES: [(&str, &[&str]); 5] = [
+/// it. The shell reaches the product only through the transport contract.
+const ALLOWED_EDGES: [(&str, &[&str]); 6] = [
+    ("quantrule-api", &[]),
     ("quantrule-data", &[]),
     ("quantrule-model", &["quantrule-data"]),
     ("quantrule-backtest", &["quantrule-data", "quantrule-model"]),
@@ -91,60 +56,46 @@ const ALLOWED_EDGES: [(&str, &[&str]); 5] = [
         "quantrule-app",
         &["quantrule-backtest", "quantrule-data", "quantrule-model"],
     ),
-    (
-        "quantrule-shell",
-        &[
-            "quantrule-app",
-            "quantrule-backtest",
-            "quantrule-data",
-            "quantrule-model",
-        ],
-    ),
+    ("quantrule-shell", &["quantrule-api"]),
 ];
 
-fn crates_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("the shell crate lives under crates/")
-        .to_path_buf()
+fn manifest(crate_name: &str) -> String {
+    let path = crates_root().join(crate_name).join("Cargo.toml");
+    fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
-/// Reads every workspace manifest and returns its workspace dependencies.
-fn workspace_graph() -> BTreeMap<String, Vec<String>> {
-    let crates = crates_root();
-    ALLOWED_EDGES
-        .iter()
-        .map(|(name, _)| {
-            let manifest = crates.join(name).join("Cargo.toml");
-            let text = fs::read_to_string(&manifest)
-                .unwrap_or_else(|error| panic!("read {}: {error}", manifest.display()));
-            ((*name).to_owned(), parse_workspace_dependencies(&text))
-        })
-        .collect()
-}
-
-/// The `quantrule-*` keys of the manifest's `[dependencies]` table.
-fn parse_workspace_dependencies(manifest: &str) -> Vec<String> {
-    let mut in_dependencies = false;
-    let mut dependencies = Vec::new();
+/// The keys of one manifest table.
+fn table_keys(manifest: &str, table: &str) -> Vec<String> {
+    let mut in_table = false;
+    let mut keys = Vec::new();
     for line in manifest.lines() {
         let line = line.trim();
         if line.starts_with('[') {
-            in_dependencies = line == "[dependencies]";
+            in_table = line == table;
             continue;
         }
-        if !in_dependencies || line.is_empty() || line.starts_with('#') {
+        if !in_table || line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let Some((key, _)) = line.split_once('=') else {
-            continue;
-        };
-        let key = key.trim();
-        if key.starts_with("quantrule-") {
-            dependencies.push(key.to_owned());
+        if let Some((key, _)) = line.split_once('=') {
+            keys.push(key.trim().to_owned());
         }
     }
-    dependencies
+    keys
+}
+
+fn workspace_graph() -> BTreeMap<String, Vec<String>> {
+    ALLOWED_EDGES
+        .iter()
+        .map(|(name, _)| {
+            let text = manifest(name);
+            let dependencies = table_keys(&text, "[dependencies]")
+                .into_iter()
+                .filter(|key| key.starts_with("quantrule-"))
+                .collect();
+            ((*name).to_owned(), dependencies)
+        })
+        .collect()
 }
 
 #[test]
@@ -162,17 +113,107 @@ fn the_workspace_graph_is_acyclic_and_directional() {
 }
 
 #[test]
+fn the_shell_depends_only_on_the_contract_and_two_support_crates() {
+    let text = manifest("quantrule-shell");
+    let dependencies: BTreeSet<String> = table_keys(&text, "[dependencies]").into_iter().collect();
+    let expected: BTreeSet<String> = ["quantrule-api", "serde_json", "ureq"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(
+        dependencies, expected,
+        "the shell product dependency set changed"
+    );
+    assert!(
+        table_keys(&text, "[dev-dependencies]").is_empty(),
+        "the shell must not add a dev-dependency; tests use std"
+    );
+}
+
+#[test]
+fn the_shell_never_names_an_engine_or_application_crate() {
+    for (path, text) in source("") {
+        for forbidden in [
+            "quantrule_app",
+            "quantrule_data",
+            "quantrule_model",
+            "quantrule_backtest",
+            "quantrule-research",
+            "quantrule-simulation",
+        ] {
+            assert!(
+                !text.contains(forbidden),
+                "{} must not name {forbidden}",
+                path.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn the_shell_has_no_local_source_or_database_module() {
+    let crate_root = shell_root();
+    for retired in [
+        "src/source",
+        "src/fetch.rs",
+        "src/export.rs",
+        "src/render.rs",
+        "src/render_flat.rs",
+        "src/request.rs",
+        "src/command/memory.rs",
+        "src/command/backtest.rs",
+        "src/command/analytics.rs",
+    ] {
+        assert!(
+            !crate_root.join(retired).exists(),
+            "{retired} was retired with the local surface"
+        );
+    }
+}
+
+#[test]
+fn only_the_transport_module_uses_ureq() {
+    for (path, text) in source("command") {
+        assert!(
+            !text.contains("ureq::"),
+            "{} must call the client, not ureq",
+            path.display()
+        );
+    }
+    let transport = fs::read_to_string(shell_root().join("src/client.rs"))
+        .expect("the transport module exists");
+    assert!(transport.contains("ureq::Agent"));
+}
+
+#[test]
+fn the_binary_forbids_unsafe_code() {
+    let main = fs::read_to_string(shell_root().join("src/main.rs")).expect("main.rs exists");
+    assert!(main.contains("#![forbid(unsafe_code)]"));
+}
+
+#[test]
+fn renderers_do_not_depend_on_the_command_module() {
+    let text = fs::read_to_string(shell_root().join("src/output.rs")).expect("output.rs exists");
+    assert!(
+        !text.contains("use crate::command"),
+        "output.rs must not import the command layer"
+    );
+}
+
+#[test]
 fn the_shell_does_not_orchestrate_pipeline_stages() {
-    for (path, text) in sources("") {
+    for (path, text) in source("") {
         for forbidden in [
             "pipeline::run_model",
             "ExecutionEngine::new",
             "PortfolioLedger::new",
             "SpecRun::compute",
+            "rusqlite",
+            "std::net::TcpListener",
         ] {
             assert!(
                 !text.contains(forbidden),
-                "{} must not orchestrate a pipeline stage: {forbidden}",
+                "{} must not carry a local engine: {forbidden}",
                 path.display()
             );
         }

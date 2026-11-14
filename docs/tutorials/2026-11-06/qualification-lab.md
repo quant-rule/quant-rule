@@ -1,5 +1,10 @@
 # S3.x Qualification Lab — Evidence, Verdict, and Human Acceptance
 
+> **Historical.** This lab records the v0.3.0 local surface. The local stage
+> commands were removed from the shell in v1.0.0; set
+> `BIN=./target/release/quantrule` before running a block, and see
+> [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
+
 - Date: 2026-11-06 (UTC)
 - Status: Current
 - Scope: `qualify` over a backtest evidence bundle and human-owned criteria
@@ -19,7 +24,7 @@ cargo build --release
 
 ```bash
 rm -rf target/qualification-lab target/qualification-lab-a target/qualification-lab-b
-./target/release/quantrule backtest run \
+"$BIN" backtest run \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/qualification-lab
@@ -32,7 +37,7 @@ model, strategy, execution, and portfolio artifacts, `manifest.json`, and
 ## 3. Evaluate the criteria
 
 ```bash
-./target/release/quantrule qualify \
+"$BIN" qualify \
   --evidence target/qualification-lab/backtest \
   --criteria crates/quantrule-shell/tests/fixtures/qualification/pass.json \
   --out target/qualification-lab
@@ -73,15 +78,15 @@ verdict, one object per criterion with `observed`, `threshold`, `operator`,
 
 ```bash
 rm -rf target/qualification-lab-fail target/qualification-lab-insufficient target/qualification-lab-missing
-./target/release/quantrule qualify \
+"$BIN" qualify \
   --evidence target/qualification-lab/backtest \
   --criteria crates/quantrule-shell/tests/fixtures/qualification/fail.json \
   --out target/qualification-lab-fail
-./target/release/quantrule qualify \
+"$BIN" qualify \
   --evidence target/qualification-lab/backtest \
   --criteria crates/quantrule-shell/tests/fixtures/qualification/insufficient.json \
   --out target/qualification-lab-insufficient
-./target/release/quantrule qualify \
+"$BIN" qualify \
   --evidence target/qualification-lab/backtest \
   --criteria crates/quantrule-shell/tests/fixtures/qualification/missing.json \
   --out target/qualification-lab-missing
@@ -99,11 +104,11 @@ rm -rf target/qualification-lab-fail target/qualification-lab-insufficient targe
 ## 6. Determinism
 
 ```bash
-./target/release/quantrule qualify \
+"$BIN" qualify \
   --evidence target/qualification-lab/backtest \
   --criteria crates/quantrule-shell/tests/fixtures/qualification/pass.json \
   --out target/qualification-lab-a
-./target/release/quantrule qualify \
+"$BIN" qualify \
   --evidence target/qualification-lab/backtest \
   --criteria crates/quantrule-shell/tests/fixtures/qualification/pass.json \
   --out target/qualification-lab-b

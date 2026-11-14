@@ -2757,10 +2757,7 @@ dependencies = [
 name = "quantrule-shell"
 version = "0.3.0"
 dependencies = [
- "quantrule-app",
- "quantrule-backtest",
- "quantrule-data",
- "quantrule-model",
+ "quantrule-api",
  "serde_json",
  "ureq",
 ]

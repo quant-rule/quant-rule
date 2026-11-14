@@ -1,5 +1,10 @@
 # S3.x Portfolio Lab — Fills to Equity and Performance
 
+> **Historical.** This lab records the v0.3.0 local surface. The local stage
+> commands were removed from the shell in v1.0.0; set
+> `BIN=./target/release/quantrule` before running a block, and see
+> [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
+
 - Date: 2026-11-06 (UTC)
 - Status: Current
 - Scope: `report model`, `strategy run`, `execution run`, and `portfolio replay`
@@ -19,14 +24,14 @@ cargo build --release
 
 ```bash
 rm -rf target/portfolio-lab target/portfolio-lab-a target/portfolio-lab-b
-./target/release/quantrule report model \
+"$BIN" report model \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/portfolio-lab
-./target/release/quantrule strategy run \
+"$BIN" strategy run \
   --model target/portfolio-lab/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/portfolio-lab
-./target/release/quantrule execution run \
+"$BIN" execution run \
   --decisions target/portfolio-lab/strategy \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/portfolio-lab
@@ -37,7 +42,7 @@ The fills bundle is `target/portfolio-lab/execution/`.
 ## 3. Replay the portfolio
 
 ```bash
-./target/release/quantrule portfolio replay \
+"$BIN" portfolio replay \
   --fills target/portfolio-lab/execution \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/portfolio-lab
@@ -75,11 +80,11 @@ losses, and average trade with no trades are not zero. A valid zero is a value.
 ## 4. Determinism
 
 ```bash
-./target/release/quantrule portfolio replay \
+"$BIN" portfolio replay \
   --fills target/portfolio-lab/execution \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/portfolio-lab-a
-./target/release/quantrule portfolio replay \
+"$BIN" portfolio replay \
   --fills target/portfolio-lab/execution \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/portfolio-lab-b
