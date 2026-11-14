@@ -4,6 +4,8 @@
 //! windows cannot overlap by construction. The same seed gives the same windows
 //! on every machine.
 
+// port-parity: PORT-001
+
 use quantrule_research::Pcg32;
 use serde::{Deserialize, Serialize};
 
@@ -130,6 +132,19 @@ mod tests {
     #[test]
     fn a_span_that_cannot_hold_the_windows_is_refused() {
         assert_eq!(select(100, 5, 30, 1), Err(WindowError::SpanTooSmall));
+    }
+
+    #[test]
+    fn a_single_bar_span_is_one_window() {
+        let windows = select(1, 1, 1, 3).expect("select");
+        assert_eq!(
+            windows,
+            vec![Window {
+                index: 0,
+                start: 0,
+                end: 1,
+            }]
+        );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 # Port Parity
 
 - Date: 2026-11-14 (UTC)
-- Status: Current; the registry is empty until the first port (#679)
+- Status: Current; one port registered (PORT-001)
 - Owner: Quant Validator and Code Reviewer
 - Contract: [`AGENTS.md`](../../AGENTS.md) section 4
 - ADR: [`13-three-tier-testing.md`](../adr/2026-11-14/13-three-tier-testing.md)
@@ -155,8 +155,11 @@ reviewer finds it; the registry is how the gate checks it.
 
 ## 9. Current state and limits
 
-- The registry is empty. The first port is DIST-101 (#679); its entry lands with
-  that work, not before.
+- `PORT-001` registers the simulation domain from DIST-101 (#679). The meta stage
+  is compared in full; the window, marks, oracle, review, check, and exit cases
+  compare the reductions that the checked-in mini bundle can exercise. The
+  fixture notes name each omission, and the historical SIM-01..SIM-10 runs cannot
+  be replayed because their external data root is not in the repository.
 - The checker proves the fixture, marker, and test exist. It does not execute
   Rust or compare values; the test does that.
 - The composed tier is defined but not executable until #643/#644. This directory

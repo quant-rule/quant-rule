@@ -22,6 +22,13 @@ are not treated as releases.
 
 ### Added
 
+- The simulation research plane gains its meta-label stage: a human entry is
+  labelled by its forward path, grouped by EMA stack and ATR bucket, and the
+  best cell with enough marks is checked on an unmarked window. `PORT-001`
+  registers the first port-parity fixture, captured from the Python harness at
+  `b63b9015` on the checked-in mini bundle; the fixture covers the meta stage in
+  full and the window, marks, oracle, review, check, and exit reductions, with
+  each omitted comparison named in the case notes.
 - Testing is recorded as three tiers: the fast unit/integration gate, the
   opt-in Compose tier required before a release, and port parity backed by
   golden fixtures from the retired implementation. `tools/check_port_parity.py`
