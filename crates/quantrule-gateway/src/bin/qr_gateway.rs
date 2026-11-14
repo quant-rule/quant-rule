@@ -8,14 +8,14 @@
 
 use std::sync::Arc;
 
+use quantrule_gateway::adapters::postgres::PgProfileStore;
+use quantrule_gateway::profile::ProfileStore;
+use quantrule_gateway::server::{self, AppState, Services};
 use quantrule_runtime::adapters::Database;
 use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
-use quantrule_server::adapters::postgres::PgProfileStore;
-use quantrule_server::profile::ProfileStore;
-use quantrule_server::server::{self, AppState, Services};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -31,7 +31,7 @@ async fn main() -> Result<(), RuntimeError> {
                 let gateway = apply_migrations_in(
                     database.pool(),
                     "gateway",
-                    &quantrule_server::migrations::gateway(),
+                    &quantrule_gateway::migrations::gateway(),
                 )
                 .await
                 .map_err(|error| RuntimeError::Migrations(error.to_string()))?;

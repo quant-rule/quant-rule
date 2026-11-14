@@ -69,7 +69,7 @@ One term per concept. A synonym is a defect.
 | `artifact` | One immutable output file of a run |
 | `bundle` | The complete artifact set of one run |
 | `canonical digest` | `sha256` over the sorted artifact hashes, excluding provenance |
-| `service` | One of the five deployable responsibilities |
+| `service` | One of the six deployable responsibilities |
 | `data plane` | The synchronous deterministic run path |
 | `control plane` | The asynchronous lifecycle |
 | `operator` | The single principal |

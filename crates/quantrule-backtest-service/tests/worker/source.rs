@@ -35,10 +35,8 @@ fn the_worker_has_no_in_process_backtest_fast_path() {
     );
     assert!(staged.contains("copy_bundle"));
 
-    let bin = std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/bin/qr_backtest.rs"),
-    )
-    .expect("the worker binary source");
+    let bin = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs"))
+        .expect("the worker binary source");
     assert!(bin.contains("Service::Model"));
     assert!(bin.contains("QR_MODEL_URL") || bin.contains("service_config_error(Service::Model"));
 }
