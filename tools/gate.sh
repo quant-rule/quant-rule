@@ -34,6 +34,7 @@ for checker in \
   check_verification_matrix \
   check_event_emitters \
   check_file_size \
+  check_port_parity \
   check_claims \
   check_execution_plans \
   check_board_permanence

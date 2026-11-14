@@ -22,6 +22,7 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | Workflows | The living workflow contracts, indexed by `docs/workflows/README.md`. | `docs/workflows/<file>.md` |
 | Workflow templates | The skeleton for a new workflow and the data, release, deprecation, and requirements records. | `docs/workflows/templates/<file>.md` |
 | Improvement registry | The committed run index, baselines, invalidation tombstones, and run record template. | `docs/improvement/<file>.md` |
+| Port parity | Golden fixtures captured from a retired implementation, and the registry the gate checks. | `docs/port-parity/README.md`; `docs/port-parity/registry.json`; `docs/port-parity/<id>.golden.json` |
 | Changelog | The grouped release history: meaningful user-facing or developer-facing changes by release and type. | `CHANGELOG.md` |
 
 The tutorial kind is defined in `AGENTS.md`; the current M1.0 lab tutorial is

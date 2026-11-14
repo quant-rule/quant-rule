@@ -22,6 +22,11 @@ are not treated as releases.
 
 ### Added
 
+- Testing is recorded as three tiers: the fast unit/integration gate, the
+  opt-in Compose tier required before a release, and port parity backed by
+  golden fixtures from the retired implementation. `tools/check_port_parity.py`
+  runs in the gate and fails on a missing registry entry, fixture, marker, or
+  comparison test.
 - Reviewer verification is four commands and one line: `tools/verify.sh` runs
   the mini fixture twice, compares the canonical digest, and `--expected`
   compares a second host's line. `make verify` is the shortcut. The full

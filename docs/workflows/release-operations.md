@@ -56,6 +56,9 @@ Readiness -> Approval -> Release -> Verify -> Operate -> Incident -> Learn
 A release is ready when:
 
 - the full gate passes on the release commit;
+- the composed tier has passed against the release commit;
+- every registered port has a fixture and a comparison test, and
+  `tools/check_port_parity.py` passes;
 - the changelog release entry is present;
 - the release note names the scope, the verification, and the risks;
 - no Critical audit finding is open on the changed path;
@@ -116,6 +119,9 @@ the release note.
 A release is green when:
 
 - the full gate passes;
+- the composed tier has passed against the release commit;
+- the port-parity registry check passes and every registered port matches its
+  fixture;
 - the changelog release entry and release note are present;
 - the verification record is present;
 - no Critical finding is open on the changed path;

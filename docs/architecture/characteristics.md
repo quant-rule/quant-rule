@@ -42,10 +42,14 @@ work is CPU-bound and batch, not because there are many users.
 
 ## 4. Enabling characteristic: testability
 
-Testability is the instrument that makes the other claims credible. Two tiers:
+Testability is the instrument that makes the other claims credible. Three tiers,
+recorded in [`ADR-13`](../adr/2026-11-14/13-three-tier-testing.md):
 
-- **Unit and integration** — in-process transport fake; never opens a socket.
+- **Fast — unit and integration** — in-process transport fake; never opens a
+  socket; runs in the gate on every change.
 - **Composed** — opt-in, runs under Compose, required before a release.
+- **Port parity** — golden fixtures from the retired implementation, matched to
+  `1e-9`; `tools/check_port_parity.py` runs in the gate.
 
 A passing test that does not exercise the behavior proves nothing.
 
