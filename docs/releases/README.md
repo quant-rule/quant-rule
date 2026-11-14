@@ -98,6 +98,8 @@ release; before it is [`v0.7.0`](2026-11-09/v0.7.0.md).
 - Commit: `<commit>`
 - Status: Released
 - Previous release: [`<previous tag>`](<relative path>)
+- Image digest: `sha256:<64 hex characters>` (a local image ID on a dry run)
+- Desktop artifacts: `<AppImage name>`, `<NSIS installer name>` (unsigned)
 - Changelog: [`CHANGELOG.md`](../../CHANGELOG.md#<version>)
 - Claim type: release record; no model, strategy, or edge claim.
 
@@ -122,7 +124,48 @@ release; before it is [`v0.7.0`](2026-11-09/v0.7.0.md).
 - Entries:
 ```
 
-## 7. Checker
+## 7. Release pipeline
+
+[`.github/workflows/release.yml`](../../.github/workflows/release.yml) builds the
+release artifacts. It creates no tag; the human creates and pushes the annotated
+tag after the release PR merges.
+
+| Trigger | Result |
+|---|---|
+| Annotated `vMAJOR.MINOR.PATCH` tag on `main` | Published image, Linux AppImage, Windows NSIS installer, GitHub release |
+| `workflow_dispatch` | Build only, never pushes; digest in the job summary; no release, no asset |
+
+The workflow fails a lightweight tag, a tag off `main`, a tag whose release note
+is missing, and a tag without the registry configuration. Before it publishes it
+runs `tools/gate.sh`, the image contract checks, the shell tests and boundary
+check, and a six-container Compose smoke that reads the digest back from
+`/health`.
+
+A tag run requires all four repository values, so a published release always
+names a pullable image. A `workflow_dispatch` run never pushes: it is the
+build-only dry run, records the local image ID, and creates no release.
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `QR_REGISTRY` | variable | Registry host, for example `ghcr.io` |
+| `QR_IMAGE_NAME` | variable | Repository path, for example `quant-rule/quantrule-server` |
+| `QR_REGISTRY_USERNAME` | secret | Registry user |
+| `QR_REGISTRY_TOKEN` | secret | Registry token with push scope |
+
+The desktop jobs use `GITHUB_TOKEN` only. The release job gets `contents: write`
+and `actions: read` to create or update the release and read the uploaded
+assets; every other job is read-only.
+
+The workflow appends the image reference, the digest, and both artifact names to
+the GitHub release body. Copy the two fields into the release note's
+`- Image digest:` and `- Desktop artifacts:` lines in the follow-up record
+commit. A published tag is never moved.
+
+A dry run is `gh workflow run release.yml --ref main`, or **Release** from the
+Actions tab. The run summary names the digest and both artifacts, and the run's
+artifacts hold the installers.
+
+## 8. Checker
 
 `python3 tools/check_releases.py` checks:
 
@@ -135,7 +178,7 @@ Historical releases before the baseline are exempt from the changelog
 requirement. The checker does not create or move a Git tag; tag creation remains
 a human-authorized Git operation.
 
-## 8. Related documents
+## 9. Related documents
 
 - [`docs/workflows/release-operations.md`](../workflows/release-operations.md)
 - [`docs/workflows/recordkeeping.md`](../workflows/recordkeeping.md)
