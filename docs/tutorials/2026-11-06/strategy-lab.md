@@ -1,5 +1,10 @@
 # S3.x Strategy Lab — Decisions from a Model Bundle
 
+> **Historical.** This lab records the v0.3.0 local surface. The local stage
+> commands were removed from the shell in v1.0.0; set
+> `BIN=./target/release/quantrule` before running a block, and see
+> [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
+
 - Date: 2026-11-06 (UTC)
 - Status: Current
 - Scope: `report model`, `strategy explain`, and `strategy run`
@@ -21,7 +26,7 @@ Start from clean targets so the non-empty-target refusal does not fire:
 
 ```bash
 rm -rf target/strategy-lab target/strategy-lab-a target/strategy-lab-b
-./target/release/quantrule report model \
+"$BIN" report model \
   --config crates/quantrule-shell/tests/fixtures/config-run/run.json \
   --out target/strategy-lab
 ```
@@ -32,7 +37,7 @@ The model bundle is `target/strategy-lab/model/`. It carries `readings.csv`,
 ## 3. Explain one decision
 
 ```bash
-./target/release/quantrule strategy explain \
+"$BIN" strategy explain \
   --model target/strategy-lab/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --bar 21
@@ -45,7 +50,7 @@ Expected shape: one JSON object with `schema`, `bar_index`, `position_before`,
 The `--position` option supplies the strategy's own state:
 
 ```bash
-./target/release/quantrule strategy explain \
+"$BIN" strategy explain \
   --model target/strategy-lab/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --bar 21 \
@@ -55,7 +60,7 @@ The `--position` option supplies the strategy's own state:
 ## 4. Write the decisions bundle
 
 ```bash
-./target/release/quantrule strategy run \
+"$BIN" strategy run \
   --model target/strategy-lab/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/strategy-lab
@@ -78,11 +83,11 @@ Expected `summary.txt` fields include `engine: event_composite`,
 Run the command twice into separate roots and compare the artifact bytes:
 
 ```bash
-./target/release/quantrule strategy run \
+"$BIN" strategy run \
   --model target/strategy-lab/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/strategy-lab-a
-./target/release/quantrule strategy run \
+"$BIN" strategy run \
   --model target/strategy-lab/model \
   --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
   --out target/strategy-lab-b

@@ -1,9 +1,8 @@
 //! The shell command reference.
 //!
-//! `help`, `help <command>`, and `help all` all render from [`COMMANDS`], so the
-//! short map, the per-command contract, and the complete reference cannot drift.
-//! The glossary is static text. Nothing here reads a file, the clock, or the
-//! terminal width, and the output has no color.
+//! `help`, `help <command>`, and `help all` render from [`COMMANDS`], so the
+//! short map, one contract, and the complete reference cannot drift. Every
+//! entry names one gateway operation; the shell has no local stage.
 
 mod topics;
 
@@ -11,7 +10,8 @@ use std::io::Write;
 
 use topics::{render_glossary, render_workflows};
 
-use super::types::{HelpTopic, RunError};
+use super::types::HelpTopic;
+use crate::error::RunError;
 
 /// One command contract.
 struct CommandHelp {
@@ -27,179 +27,226 @@ struct CommandHelp {
     notes: &'static [&'static str],
 }
 
-/// The surviving command set.
+/// The command set.
 const COMMANDS: &[CommandHelp] = &[
     CommandHelp {
-        name: "candles",
-        usage: "candles <csv-path>",
-        summary: "Read one M1 CSV strictly and print its retained candles as NDJSON.",
-        output: "one JSON object per candle: series_index, window_index, datetime, open, high, low, close, volume",
+        name: "health",
+        usage: "health",
+        summary: "Read the gateway's health report.",
+        output: "api version, aggregate state, queue depth, worker count, image digest, and one line per service",
         notes: &[
-            "The strict read rejects a malformed row.",
-            "The window is the data engine's bounded retained tail.",
+            "The gateway is the only health authority.",
+            "A degraded service keeps the stack reachable; a down service does not.",
         ],
     },
     CommandHelp {
-        name: "candles-tolerant",
-        usage: "candles-tolerant <csv-path>",
-        summary: "Read one M1 CSV tolerantly and print the retained candles plus a quality report.",
-        output: "NDJSON candles, then rejected counts and gap records",
-        notes: &["A malformed row is counted and skipped, not accepted."],
+        name: "dataset list",
+        usage: "dataset list",
+        summary: "List the datasets in the active profile.",
+        output: "one line per dataset: data_version, name, candles, first_bar, last_bar, bytes",
+        notes: &["Rows are sorted by data_version."],
     },
     CommandHelp {
-        name: "timeframes",
-        usage: "timeframes <csv-path>",
-        summary: "Build every supported timeframe from one M1 CSV and print every retained series.",
-        output: "NDJSON candles per timeframe, then partial-bucket and gap records",
+        name: "dataset show",
+        usage: "dataset show <data_version>",
+        summary: "Read one dataset record, including its stored object identity.",
+        output: "data_version, name, coverage, bytes, object_key, sha256, quality, created_at",
+        notes: &["A tolerant upload also prints its quality report and skipped rows."],
+    },
+    CommandHelp {
+        name: "dataset upload",
+        usage: "dataset upload <csv-path> [--name <name>] [--tolerant]",
+        summary: "Upload one CSV and print the record the gateway created or reused.",
+        output: "the dataset record, with data_version, coverage, and quality",
         notes: &[
-            "The data engine owns aggregation, ordering, and gap detection.",
-            "The supported data timeframes are 1m, 5m, 15m, 1h, and 4h; the model ceiling is 1h.",
+            "The file body is the request; the gateway owns the limit and the hash.",
+            "--tolerant uses the tolerant ingest and prints the quality report.",
+            "An identical upload returns the existing record.",
         ],
     },
     CommandHelp {
-        name: "events",
-        usage: "events <csv-path> [--window full|latest]",
-        summary: "Print the flat model's registered and extended event records.",
-        output: "one JSON object per event, grouped by timeframe and availability order",
+        name: "config list",
+        usage: "config list",
+        summary: "List the run configurations in the active profile.",
+        output: "one line per config: config_id, name, origin, validity, hash",
+        notes: &["The list merges the read-only repository mount with uploaded configs."],
+    },
+    CommandHelp {
+        name: "config show",
+        usage: "config show <config_id>",
+        summary: "Read one configuration summary and its validation state.",
+        output: "config_id, name, origin, valid, message, config_hash",
+        notes: &["An invalid config prints its parser message and no hash."],
+    },
+    CommandHelp {
+        name: "run submit",
+        usage: "run submit <data_version> <config_id>",
+        summary: "Submit a run and print its id and initial state.",
+        output: "run_id, status, created",
         notes: &[
-            "The default model configuration is used.",
-            "The model runs over the default 1m/5m/15m/1h ladder.",
+            "The gateway validates the dataset and config before accepting the run.",
+            "A duplicate submission returns the existing run with created=false.",
         ],
     },
     CommandHelp {
-        name: "report model",
-        usage: "report model --config <run.json> [--spec <spec.json>] [--out <dir>] [--json]",
-        summary: "Write the flat per-timeframe model bundle for one configured run.",
-        output: "the artifact paths, or report.json with --json",
+        name: "run status",
+        usage: "run status <run_id>",
+        summary: "Read one run's stages, provenance, artifacts, and digest.",
+        output: "run identity, stage lines, artifact lines, canonical digest, error",
+        notes: &["A failed run prints its error line and no digest."],
+    },
+    CommandHelp {
+        name: "run list",
+        usage: "run list [--status <state>] [--limit <n>]",
+        summary: "List runs in the active profile.",
+        output: "one line per run: run_id, status, config, data_version, submitted_at, elapsed",
+        notes: &["--status accepts queued, running, succeeded, failed, or cancelled."],
+    },
+    CommandHelp {
+        name: "run fetch",
+        usage: "run fetch <run_id> <directory>",
+        summary: "Download every artifact of a run into a local directory.",
+        output: "the run id, the target directory, and one line per artifact",
         notes: &[
-            "The bundle is written under <out>/model and is refused if the directory is not empty.",
-            "The bundle carries readings, states, levels, events, progression, and context; it carries no axis or cross-timeframe aggregate.",
-            "A spec adds conditions.csv; a v2 spec can also add prediction.csv, panel.csv, and session.csv.",
+            "The artifact name is relative to the bundle root; a traversal name is refused.",
+            "The directory is created when it does not exist.",
         ],
     },
     CommandHelp {
-        name: "run check",
-        usage: "run check --config <run.json>",
-        summary: "Validate the run and every engine config against it.",
-        output: "one `run ok ...` line",
+        name: "run cancel",
+        usage: "run cancel <run_id>",
+        summary: "Cancel a queued or running run and print its new state.",
+        output: "the run detail after the transition",
+        notes: &["Cancelling a terminal run is refused with run.conflict."],
+    },
+    CommandHelp {
+        name: "inspect candles",
+        usage: "inspect candles <data_version>",
+        summary: "Read a dataset's candle count and coverage.",
+        output: "data_version, name, candles, first_bar, last_bar, bytes",
+        notes: &["Inspection is read-only and re-reads the stored bytes."],
+    },
+    CommandHelp {
+        name: "inspect timeframes",
+        usage: "inspect timeframes <data_version>",
+        summary: "Read a dataset's complete bars and partial buckets per timeframe.",
+        output: "one line per timeframe: code, bars, partial_buckets, first_bar, last_bar",
+        notes: &["The ladder is built by the data service and cached by content."],
+    },
+    CommandHelp {
+        name: "inspect events",
+        usage: "inspect events <data_version> --timeframe <tf>",
+        summary: "Read a dataset's event batch for one timeframe.",
+        output: "one JSON event record per line, in the gateway's availability order",
+        notes: &["Event records carry numbers and codes; the shell does not relabel them."],
+    },
+    CommandHelp {
+        name: "verify",
+        usage: "verify <run_id>",
+        summary: "Print the canonical digest the gateway recorded for a completed run.",
+        output: "run_id and digest",
         notes: &[
-            "The loader rejects a missing, malformed, or inconsistent config before any candle is read.",
+            "The gateway computes the digest over the data artifacts; the shell never recomputes it.",
+            "A run without a digest is refused rather than printed as zero.",
         ],
     },
     CommandHelp {
-        name: "strategy explain",
-        usage: "strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat|long|short]",
-        summary: "Print one strategy decision and its as-of evidence from a model bundle.",
-        output: "one JSON decision record with bar identity, position, intent, ATR, and evidence",
+        name: "profile list",
+        usage: "profile list",
+        summary: "List the profiles the gateway knows, with their record counts.",
+        output: "the active profile and one line per profile: id, name, datasets, runs, simulations",
+        notes: &["The active profile is the local default unless --profile names another."],
+    },
+    CommandHelp {
+        name: "profile create",
+        usage: "profile create <name> [--id <profile_id>]",
+        summary: "Create a profile, or return the existing one.",
+        output: "profile_id, name, datasets, runs, simulations",
         notes: &[
-            "The model bundle is the report model output directory.",
-            "The position argument is the strategy's own state, not a market reading.",
-            "The command supports the event-composite and compression-bracket engines.",
+            "Without --id the id is a slug of the name: lowercase, digits, and hyphens.",
+            "The command does not change the local default; profile use does.",
         ],
     },
     CommandHelp {
-        name: "strategy run",
-        usage: "strategy run --model <model-bundle> --strategy <strategy.json> [--out <dir>] [--json]",
-        summary: "Write the strategy decisions bundle for one model bundle.",
-        output: "the artifact paths, or a JSON envelope; <out>/strategy/ holds decisions.ndjson, summary.txt, and provenance.json",
+        name: "profile use",
+        usage: "profile use <profile_id>",
+        summary: "Store the local default profile after the gateway confirms it exists.",
+        output: "the active profile",
         notes: &[
-            "The standalone sequence supports the event-composite engine.",
-            "A compression-bracket strategy needs the fill side from execution; use strategy explain for one decision.",
-            "If --out is omitted, the bundle is written beside the model bundle.",
-            "The bundle carries no fill, quantity, fee, cash, equity, or PnL.",
+            "An unknown profile is refused with profile.not_found and is not stored.",
+            "An explicit --profile is never written to the local default.",
         ],
     },
     CommandHelp {
-        name: "execution run",
-        usage: "execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json]",
-        summary: "Turn a strategy decisions bundle into orders, fills, and rejections.",
-        output: "the artifact paths, or a JSON envelope; <out>/execution/ holds orders.csv, fills.csv, rejections.csv, summary.txt, and provenance.json",
+        name: "simulation list",
+        usage: "simulation list [--status <status>] [--limit <n>]",
+        summary: "List the research-plane simulation runs in the active profile.",
+        output: "one line per simulation: sim_id, status, windows, marks, premise",
+        notes: &["--status accepts draft, marking, reviewed, checked, or decided."],
+    },
+    CommandHelp {
+        name: "simulation create",
+        usage: "simulation create --premise <text> --bundle <digest> --seed <n> --criteria <text>",
+        summary: "Create a simulation run over a recorded model bundle.",
+        output: "the server-assigned sim_id",
         notes: &[
-            "The decisions bundle is the strategy run output directory.",
-            "The run config supplies the fill timeframe, costs, and position sizing.",
-            "If --out is omitted, the bundle is written beside the decisions bundle.",
-            "A standalone run sizes entries from the run's initial cash; it does not track equity.",
-            "The fill records carry no cash, equity, or PnL.",
+            "The premise and criteria are recorded before the first mark.",
+            "The seed fixes window selection; the same inputs digest yields the same windows.",
         ],
     },
     CommandHelp {
-        name: "portfolio replay",
-        usage: "portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [--json]",
-        summary: "Replay an execution fills bundle through portfolio accounting.",
-        output: "the artifact paths, or a JSON envelope; <out>/portfolio/ holds trades.csv, equity.csv, funding.csv, risk_events.csv, metrics.json, summary.txt, and provenance.json",
+        name: "simulation windows",
+        usage: "simulation windows <sim_id>",
+        summary: "Select the simulation windows deterministically from its seed.",
+        output: "the window selection the gateway returns",
+        notes: &["The gateway owns the selection; the shell prints it unchanged."],
+    },
+    CommandHelp {
+        name: "simulation mark",
+        usage: "simulation mark <sim_id> --chart <chart> --bar <n> --action entry|exit --quality good|bad|neutral --side long|short [--note <text>]",
+        summary: "Add one human mark to a simulation window.",
+        output: "the server-assigned mark identity",
         notes: &[
-            "The fills bundle is the execution run output directory.",
-            "The run config supplies the portfolio capital, sizing, costs, and risk rules.",
-            "If --out is omitted, the bundle is written beside the fills bundle.",
-            "The command marks the open position at each execution-timeframe close.",
-            "Undefined metrics are null, never zero.",
+            "The server assigns marked_time_utc and the mark id.",
+            "A bar outside the window is refused with simulation.mark_invalid.",
         ],
     },
     CommandHelp {
-        name: "backtest run",
-        usage: "backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--json]",
-        summary: "Run the coupled model, strategy, execution, and portfolio stages.",
-        output: "the manifest path and the stage bundle paths, or a JSON envelope; <out>/backtest/ holds model, strategy, execution, portfolio, manifest.json, and provenance.json",
-        notes: &[
-            "The strategy sees the position execution actually holds at each bar.",
-            "The stage bundles are the same artifacts the standalone commands write.",
-            "If --out is omitted, the run configuration's output_root is used.",
-            "The manifest records every stage provenance and its content hash.",
-        ],
+        name: "simulation marks",
+        usage: "simulation marks <sim_id> [--origin human|oracle]",
+        summary: "List a simulation's human and oracle marks.",
+        output: "one JSON mark record per line",
+        notes: &["Omit --origin to read every mark."],
     },
     CommandHelp {
-        name: "qualify",
-        usage: "qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]",
-        summary: "Evaluate an evidence bundle against human-owned qualification criteria.",
-        output: "the verdict and criterion counts, or a JSON envelope; <out>/qualification/ holds qualification.json, criteria.csv, qualification.md, and provenance.json",
-        notes: &[
-            "The evidence bundle is the backtest run output directory.",
-            "If --out is omitted, the bundle is written beside the evidence bundle.",
-            "The engine writes human_decision: null; the human records acceptance separately.",
-            "A missing measurement is insufficient evidence, never zero or a pass.",
-            "A fail takes precedence over insufficient evidence.",
-        ],
+        name: "simulation oracle",
+        usage: "simulation oracle <sim_id>",
+        summary: "Ask the gateway for the deterministic oracle marks.",
+        output: "one JSON mark record per line",
+        notes: &["The oracle is synchronous and idempotent for the same inputs digest."],
     },
     CommandHelp {
-        name: "analytics evaluate",
-        usage: "analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json]",
-        summary: "Publish descriptive metrics, benchmarks, and evaluation tables from a backtest bundle.",
-        output: "the metrics, benchmarks, tables, and summary paths, or a JSON envelope; <out>/analytics/ holds metrics.json, tables/ (including benchmarks.csv), summary.txt, and provenance.json",
-        notes: &[
-            "The evidence bundle is the backtest run output directory.",
-            "If --out is omitted, the bundle is written beside the evidence bundle.",
-            "The command writes no verdict, no acceptance, and no strategy decision.",
-            "Benchmarks are buy-and-hold and a seeded matched random-timing null; they are descriptive and never enter a strategy.",
-            "A metric or table the evidence does not support is null or unsupported with a reason code.",
-        ],
+        name: "simulation check",
+        usage: "simulation check <sim_id>",
+        summary: "Run the event study over the unmarked window.",
+        output: "the check table and verdict",
+        notes: &["Fewer than 30 events, or an unmarked window, is simulation.check_incomplete."],
     },
     CommandHelp {
-        name: "fetch",
-        usage: "fetch <symbol> <start> <end> [--timeframe <1m|5m|15m|1h>] [--csv <path>]",
-        summary: "Fetch a Dukascopy range and write the accepted candles as CSV.",
-        output: "rows, accepted/rejected counts, first/last timestamps, and the CSV path",
-        notes: &[
-            "The default path is data/sources/<SYMBOL>_<TF>_<start>_<end>.csv.",
-            "The CSV is written atomically; an empty result leaves no file.",
-        ],
-    },
-    CommandHelp {
-        name: "memory",
-        usage: "memory status|workspaces|runs|record|metrics|metric set|metric delete|claims|claim add|claim delete|notes|note add|note update|note delete|export|import|backup|restore --db <path> ...",
-        summary: "Read and write the local research memory.",
-        output: "deterministic text lines with workspace, run, metric, claim, note, or artifact identities",
-        notes: &[
-            "The database path is required; the memory rules and validation live in the application service.",
-            "record computes the model and stores its counts with the run.",
-            "A missing measurement is null, never zero; export replaces the target atomically.",
-        ],
+        name: "simulation decide",
+        usage: "simulation decide <sim_id> <test|refine|stop> [--note <text>]",
+        summary: "Record the research decision and close marking.",
+        output: "the decision record",
+        notes: &["Marking after a decision is refused with simulation.locked."],
     },
     CommandHelp {
         name: "help",
         usage: "help [<command>|all|glossary|workflows]",
         summary: "Print the command map, one command contract, or a reference topic.",
         output: "plain text",
-        notes: &["The workflows topic maps an intention to a workflow and its first command."],
+        notes: &[
+            "help all prints every contract; help glossary and help workflows print static topics.",
+        ],
     },
 ];
 
@@ -208,11 +255,17 @@ pub(crate) fn is_command(name: &str) -> bool {
     COMMANDS.iter().any(|command| command.name == name)
 }
 
+/// Every registered command name, for the command-layer tests.
+#[cfg(test)]
+pub(crate) fn names() -> impl Iterator<Item = &'static str> {
+    COMMANDS.iter().map(|command| command.name)
+}
+
 /// Renders the selected help topic.
 ///
 /// # Errors
 ///
-/// Returns [`RunError::Help`] for an unknown command, and [`RunError::Output`]
+/// Returns [`RunError::Usage`] for an unknown command, and [`RunError::Output`]
 /// when the writer fails.
 pub(crate) fn run_help(topic: &HelpTopic, writer: &mut impl Write) -> Result<(), RunError> {
     match topic {
@@ -224,7 +277,7 @@ pub(crate) fn run_help(topic: &HelpTopic, writer: &mut impl Write) -> Result<(),
             let command = COMMANDS
                 .iter()
                 .find(|command| command.name == name)
-                .ok_or_else(|| RunError::Help(format!("unknown command '{name}'")))?;
+                .ok_or_else(|| RunError::Usage(format!("unknown command '{name}'")))?;
             write_command(command, writer)
         }
     }
@@ -236,18 +289,37 @@ fn write_short(writer: &mut impl Write) -> std::io::Result<()> {
     writeln!(writer, "QuantRule shell commands")?;
     writeln!(writer)?;
     for command in COMMANDS {
-        writeln!(writer, "  {:<58} {}", command.usage, command.summary)?;
+        writeln!(writer, "  {:<72} {}", command.usage, command.summary)?;
     }
+    writeln!(writer)?;
+    writeln!(writer, "Global flags, accepted by every command:")?;
+    writeln!(
+        writer,
+        "  --profile <id>  Select the profile header (default: stored value, then default)."
+    )?;
+    writeln!(
+        writer,
+        "  --json          Print the gateway JSON instead of the human rendering."
+    )?;
+    writeln!(writer)?;
+    writeln!(writer, "Environment:")?;
+    writeln!(
+        writer,
+        "  QUANTRULE_API_URL  Gateway base (default: http://127.0.0.1:8080/api/v1)."
+    )?;
+    writeln!(
+        writer,
+        "  QUANTRULE_HOME     Local shell state (default: $HOME/.quantrule)."
+    )?;
     writeln!(writer)?;
     writeln!(
         writer,
-        "Type help <command> for the full contract, help all for every contract,"
+        "Type help <command> for the full contract, or help all for every contract."
     )?;
     writeln!(
         writer,
-        "help glossary for the precise-term glossary, or help workflows for the"
-    )?;
-    writeln!(writer, "workflow selection guide.")
+        "help glossary and help workflows print the reference topics."
+    )
 }
 
 fn write_all(writer: &mut impl Write) -> std::io::Result<()> {
@@ -276,7 +348,43 @@ mod tests {
     use super::{COMMANDS, is_command};
 
     #[test]
-    fn the_surviving_command_set_is_documented() {
+    fn the_command_set_is_documented() {
+        for name in [
+            "health",
+            "dataset list",
+            "dataset show",
+            "dataset upload",
+            "config list",
+            "config show",
+            "run submit",
+            "run status",
+            "run list",
+            "run fetch",
+            "run cancel",
+            "inspect candles",
+            "inspect timeframes",
+            "inspect events",
+            "verify",
+            "profile list",
+            "profile create",
+            "profile use",
+            "simulation list",
+            "simulation create",
+            "simulation windows",
+            "simulation mark",
+            "simulation marks",
+            "simulation oracle",
+            "simulation check",
+            "simulation decide",
+            "help",
+        ] {
+            assert!(is_command(name), "{name} must be documented");
+        }
+        assert_eq!(COMMANDS.len(), 27);
+    }
+
+    #[test]
+    fn a_retired_stage_command_is_not_documented() {
         for name in [
             "candles",
             "candles-tolerant",
@@ -293,29 +401,6 @@ mod tests {
             "analytics evaluate",
             "fetch",
             "memory",
-            "help",
-        ] {
-            assert!(is_command(name), "{name} must be documented");
-        }
-        assert_eq!(COMMANDS.len(), 16);
-    }
-
-    #[test]
-    fn a_deleted_command_is_not_documented() {
-        for name in [
-            "market-state",
-            "market-dashboard",
-            "market-chart",
-            "market-report",
-            "axis",
-            "legs",
-            "model-series",
-            "backtest",
-            "strategy",
-            "store",
-            "db",
-            "research",
-            "lab",
         ] {
             assert!(!is_command(name), "{name} must not be documented");
         }

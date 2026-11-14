@@ -1,10 +1,9 @@
-# Command Surface — Stage-Isolated Pipeline Access
+# Command Surface — the Gateway Client
 
-- Status: Current; approved 2026-11-06
+- Status: Current; v1.0.0 distributed surface
 - Owner: Human
 - Part of: [`docs/architecture/README.md`](README.md)
-- Plan: [`docs/execution-plans/2026-11-06/s3-command-surface.md`](../execution-plans/2026-11-06/s3-command-surface.md)
-- Claim type: command and artifact contract; no model, strategy, or edge claim.
+- Claim type: Behaviour Claim
 
 ## 1. Why the surface is command-first
 
@@ -12,159 +11,111 @@ QuantRule has one client contract and two clients. The browser client and the
 command shell both speak `quantrule.api/v1` through the gateway
 ([`http-api.md`](http-api.md)). The shell is primarily for agents and remains the
 stable command interface; the browser client is the human workstation. Feature
-parity is required, and a parity test asserts that the same operation through
-either client produces the same JSON. A capability that only one client can
-reach is a parity gap, not a completed capability.
+parity is required, and a capability that only one client can reach is a parity
+gap, not a completed capability.
 
-The registry below records the **v0.3.0 local surface**, which is what the
-current tree implements. The distributed surface is listed in section 8 as
-`Planned` and is implemented by `DIST-070`. This document is the single
-authority for both.
+The shell is a thin client. It parses one command, makes one gateway call, and
+renders the contract type that comes back. It has no engine dependency, opens no
+local database, and executes no pipeline stage. Every capability is a server
+capability; the shell is one way to type it.
 
-The pipeline is a chain of independently useful stages. A human or an agent must
-be able to stop after any stage, inspect the artifact that stage produced, and
-decide whether the next stage is worth running. Treating the backtest as one
-opaque command hides the data, model, strategy, execution, and accounting errors
-that the stages exist to expose.
+The surface follows six rules:
 
-The surface therefore follows six rules:
-
-1. **Command-first.** Every pipeline stage has a command with a stable name, its
-   arguments, its output shape, and its error behavior.
-2. **Artifact-first.** A stage command consumes an explicit input artifact and
-   writes an explicit output artifact. The artifact is the handoff; no stage
-   reaches behind another stage to recompute its input.
-3. **Stage-isolated.** A stage command runs on its own. `backtest run` is an
-   orchestration convenience over the same stage engines and artifacts, never
-   the only way to reach a stage.
-4. **No stubs.** A command is listed in `help`, the README, and a tutorial only
-   when it is implemented and tested. A command that parses but does nothing is
-   a defect because it misleads both humans and agents.
-5. **Deterministic output.** The same input, configuration, and data version
-   produce the same artifact bytes and the same printed text. No stage reads the
-   wall clock, uses unseeded randomness, or depends on unordered iteration.
-6. **Human acceptance.** The engine measures, decides, fills, accounts, and
-   evaluates. The human owns the acceptance criteria and makes the final
-   acceptance decision. No command declares an edge or accepts a strategy.
+1. **Command-first.** Every command has a stable name, its arguments, its output
+   shape, and its error behavior.
+2. **Reference-first.** A command names an identifier — `data_version`,
+   `config_id`, `run_id`, `sim_id` — never a filesystem path. The server owns its
+   filesystem.
+3. **One call.** A command makes one gateway operation and prints its result.
+   `run fetch` is the exception: it reads the run record and then downloads each
+   named artifact, because the contract exposes artifacts one at a time.
+4. **No stubs.** A command appears in `help`, the README, and a tutorial only
+   when it is implemented and tested.
+5. **Deterministic output.** The same response prints the same bytes. Lists are
+   sorted where the gateway order is not part of the contract; no command reads
+   the local clock or renders a timestamp the server did not send.
+6. **Human acceptance.** The server measures, decides, fills, accounts, and
+   evaluates. The shell displays. No command declares an edge or accepts a
+   strategy.
 
 ## 2. Stage contract
 
-The run composition is validated by `run check`; it is not a pipeline stage and
-does not decide a trade.
+The pipeline stages still exist; the shell no longer runs them. A run is the
+full pipeline, and inspection is read-only.
 
-| Stage | Engine | Input | Output | Command surface | Status |
-|---:|---|---|---|---|---|
-| 1 | Data Engine | Raw OHLCV | Normalized candles, timeframes, gaps, quality | `candles`, `candles-tolerant`, `timeframes`, `fetch` | Implemented |
-| 2 | Model Engine | Candles/timeframes and model config | Readings, discrete states, confirmed levels, events, progression, context | `events`, `report model` | Implemented |
-| 3 | Strategy Engine | Model measurements, strategy config, position state | Decisions/signals and their as-of rationale | `strategy explain`, `strategy run` | Implemented |
-| 4 | Execution Engine | Decisions, execution config, portfolio sizing config, candles | Orders, fills, and rejections | `execution run` | Implemented |
-| 5 | Portfolio Engine | Fills, portfolio config, marks | Positions, equity, PnL, exposure, drawdown | `portfolio replay` | Implemented |
-| 6 | **Qualification Engine** | Evidence bundle and human-owned acceptance criteria | Qualification record and verdict | `qualify` | Implemented |
-| 7 | Analytics Engine | Result artifacts | Descriptive metrics and evaluation tables | `analytics evaluate` | Implemented |
-| — | Backtest orchestration | Run config and strategy config | Stage bundles and a run manifest | `backtest run` | Implemented |
+| Stage | Engine | Reached through |
+|---:|---|---|
+| 1 | Data Engine | `dataset upload`, `inspect candles`, `inspect timeframes` |
+| 2 | Model Engine | `run submit`, `inspect events` |
+| 3 | Strategy Engine | `run submit` |
+| 4 | Execution Engine | `run submit` |
+| 5 | Portfolio Engine | `run submit` |
+| 6 | Qualification Engine | the run's evidence artifact set |
+| 7 | Analytics Engine | the run's result artifact set |
+| — | Backtest orchestration | `run submit`, `run status`, `run fetch` |
 
-### Terminology
-
-The stage names are fixed, and so are three distinctions that the commands must
-not blur:
-
-- **Model "predictions" means measurements.** The model publishes readings,
-  discrete states, confirmed levels, events, progression, and context. It does
-  not publish a probabilistic forecast, a confidence, a composite score, or an
-  edge claim.
-- **Strategy "edge" means decisions/signals.** The Strategy Engine publishes a
-  decision and the as-of evidence that justified it. "Edge" is a research verdict
-  about evidence, not an engine output.
-- **Qualification "verdict" means evidence status.** The Qualification Engine
-  reports whether the evidence satisfies the human-owned criteria. It does not
-  accept the strategy, declare profitability, or replace the human decision.
+The stage names are fixed. Model "predictions" are measurements; strategy
+"edge" is a research verdict about decisions, not an engine output;
+qualification "verdict" is evidence status, not acceptance.
 
 ## 3. Command registry
 
-The registry is the single list of command status. A command is **Implemented**
-only when it has a `CommandHelp` entry in
+A command is **Implemented** only when it has a `CommandHelp` entry in
 [`crates/quantrule-shell/src/command/help.rs`](../../crates/quantrule-shell/src/command/help.rs),
-a row in the README command table, and a runnable example in a tutorial. A
-command is **Planned** until all three exist. The checker
-[`tools/check_command_surface.py`](../../tools/check_command_surface.py) enforces
-the distinction.
+a row in the README command table, and a runnable example in a tutorial. The
+checker [`tools/check_command_surface.py`](../../tools/check_command_surface.py)
+enforces the distinction.
 
-| Command | Stage | Status | Input | Output |
-|---|---|---|---|---|
-| `candles` | Data | Implemented | `<csv-path>` | NDJSON candles |
-| `candles-tolerant` | Data | Implemented | `<csv-path>` | NDJSON candles and a quality report |
-| `timeframes` | Data | Implemented | `<csv-path>` | NDJSON candles per timeframe and an aggregation report |
-| `fetch` | Data | Implemented | `<symbol> <start> <end>` and options | CSV path and accepted/rejected counts |
-| `memory` | Memory | Implemented | `status`, `record`, lists, metric/claim/note CRUD, export/import, backup/restore | Memory records and artifact paths |
-| `events` | Model | Implemented | `<csv-path> [--window full\|latest]` | Event records |
-| `report model` | Model | Implemented | `--config <run.json>` and options | Model bundle |
-| `run check` | Configuration | Implemented | `--config <run.json>` | Validation line |
-| `help` | Shell | Implemented | `[<command>\|all\|glossary\|workflows]` | Plain text |
-| `strategy explain` | Strategy | Implemented | Model bundle, strategy config, bar index | One decision and its as-of evidence |
-| `strategy run` | Strategy | Implemented | Model bundle, strategy config | Decisions bundle |
-| `execution run` | Execution | Implemented | Decisions bundle, run config with execution and sizing | Fills bundle |
-| `portfolio replay` | Portfolio | Implemented | Fills bundle, run config | Portfolio bundle |
-| `backtest run` | Orchestration | Implemented | Run config, strategy config | Stage bundles and a run manifest |
-| `qualify` | Qualification | Implemented | Evidence bundle, qualification criteria | Qualification record and verdict |
-| `analytics evaluate` | Analytics | Implemented | Result artifacts | Metrics and benchmark bundle |
+| Command | Status | Input | Output |
+|---|---|---|---|
+| `health` | Implemented | — | service states, queue depth, worker count |
+| `dataset list` | Implemented | — | datasets with `data_version`, candles, coverage |
+| `dataset show` | Implemented | `data_version` | one dataset record |
+| `dataset upload` | Implemented | CSV file, optional name | `data_version` and quality |
+| `config list` | Implemented | — | configs with validity |
+| `config show` | Implemented | `config_id` | one configuration summary |
+| `run submit` | Implemented | `data_version`, `config_id` | `run_id`, state |
+| `run status` | Implemented | `run_id` | state, stages, provenance, digest |
+| `run list` | Implemented | `status`, `limit` | run summaries |
+| `run fetch` | Implemented | `run_id`, directory | artifact set |
+| `run cancel` | Implemented | `run_id` | new state |
+| `inspect candles` | Implemented | `data_version` | counts and coverage |
+| `inspect timeframes` | Implemented | `data_version` | bars and partial buckets |
+| `inspect events` | Implemented | `data_version`, `timeframe` | event batch |
+| `verify` | Implemented | `run_id` | recorded canonical digest |
+| `profile list` | Implemented | — | profiles with counts |
+| `profile create` | Implemented | `name`, optional id | `profile_id` |
+| `profile use` | Implemented | `profile_id` | active profile |
+| `simulation list` | Implemented | `status`, `limit` | simulation run summaries |
+| `simulation create` | Implemented | premise, bundle, seed, criteria | `sim_id` |
+| `simulation windows` | Implemented | `sim_id` | deterministic window selection |
+| `simulation mark` | Implemented | `sim_id`, chart, bar, action, quality, side, note | mark id |
+| `simulation marks` | Implemented | `sim_id`, origin | human and oracle marks |
+| `simulation oracle` | Implemented | `sim_id` | deterministic oracle marks |
+| `simulation check` | Implemented | `sim_id` | event-study table and verdict |
+| `simulation decide` | Implemented | `sim_id`, test/refine/stop, note | decision record |
+| `help` | Implemented | topic | the command map |
 
-The current shell also accepts `quit` as a shell meta-command. It is not a
-pipeline command and is not part of the stage contract.
+Every command accepts `--profile <id>`, which sets `X-QuantRule-Profile`, and
+`--json`, which prints the gateway JSON instead of the human rendering. With no
+flag, the shell uses the stored default and then `default`.
 
-`strategy run` supports the event-composite engine standalone. The
-compression-bracket engine needs the fill side that execution supplies, so it is
-available through `strategy explain` for one decision until the backtest runner
-reaches the stage.
+## 4. Output and identity rule
 
-`execution run` consumes the strategy decisions bundle and the run config. A
-standalone run sizes entries from the run's initial cash; it does not track
-equity. A bracket decision needs the runner's side-aware sizing and is refused
-with a clear error until the backtest runner supplies it.
+- The shell prints the values the gateway sent. It does not average, relabel, or
+  derive a measurement. A missing value is `none` or a null in the JSON view,
+  never zero.
+- `run fetch` verifies each downloaded artifact against the record's size and
+  SHA-256 before writing it, and refuses an artifact name that is not a safe
+  relative path.
+- A failed call prints the envelope's stable code and message, for example
+  `error: run.not_found: run is unknown`. The shell never turns a refused profile
+  into a silent default.
+- The shell stores only the local default profile, under `QUANTRULE_HOME`
+  (default `$HOME/.quantrule`). It stores no result, no token, and no data.
 
-`portfolio replay` consumes the execution fills bundle and the run config. It
-marks the open position at each execution-timeframe close and writes the
-portfolio bundle. A metric that is undefined is `null`, never zero.
-
-`backtest run` is the coupled runner: it computes the model once, then
-interleaves the strategy, execution, and portfolio engines so the strategy sees
-the position execution actually holds. It writes the same stage bundles as the
-standalone commands and a manifest with every stage provenance hash.
-
-`qualify` consumes the backtest bundle and the human-owned criteria. It checks
-the manifest and every stage provenance hash, resolves each criterion against the
-named artifact field, applies the fixed verdict precedence, and writes the
-qualification bundle. It writes `human_decision: null` and never writes
-`decision.md`; acceptance remains a separate human act.
-
-`analytics evaluate` consumes the same backtest bundle and publishes descriptive
-metrics and evaluation tables. It aggregates the strategy decisions by timeframe
-and copies or derives the portfolio tables. It writes no verdict, no acceptance,
-and no strategy decision. A metric or table the evidence does not support is
-`null` or unsupported with a reason code.
-
-## 4. Artifact and provenance rule
-
-Every stage command that writes a bundle writes one directory containing the
-stage's data files and a `provenance.json`. The data files carry records; the
-provenance file carries identity. The common fields are:
-
-| Field | Meaning |
-|---|---|
-| `schema` | The artifact or provenance schema version. |
-| `stage` | The producing stage: `data`, `model`, `strategy`, `execution`, `portfolio`, `backtest`, `qualification`, or `analytics`. |
-| `data_version` | The identity of the input candle series, supplied by the caller. |
-| `config_id` | A stable fingerprint of the configuration that produced the artifact. The existing model bundle calls this `config_hash`. |
-| `code_commit` | The source revision of the executable, when the build supplies one. |
-| `source_artifacts` | The stage artifacts this run consumed, with their stage and schema identity. |
-| `seed` | The explicit seed when a run uses randomness; `null` otherwise. |
-
-The existing model bundle keeps its `quantrule.provenance/v1` file and its
-`config_hash` field. New stage bundles use the common fields and record the model
-bundle as a source artifact. A later stage never infers an input from the
-filesystem when the input artifact can name it.
-
-The artifact contract, field details, and handoff rules are in
-[`docs/config/2026-11-06/engine-artifacts.md`](../config/2026-11-06/engine-artifacts.md).
+The gateway base comes from `QUANTRULE_API_URL`; the default is
+`http://127.0.0.1:8080/api/v1`.
 
 ## 5. Discovery contract
 
@@ -172,25 +123,18 @@ A command exists only when all five surfaces agree:
 
 | Surface | What it carries |
 |---|---|
-| `help.rs` | The command name, usage, summary, output shape, and contract notes. `help`, `help <command>`, and `help all` render from this registry; the glossary and workflow topics are static text. |
+| `help.rs` | The name, usage, summary, output shape, and contract notes. |
 | README command table | The current command set and a one-line output description. |
-| Tutorial | At least one runnable invocation of the command, with the expected output shape. |
-| Command registry table | The stage, status, input, and output of the command. |
+| Tutorial | At least one runnable invocation. |
+| Command registry table | The status, input, and output. |
 | Checker | A failing gate when any of the other four disagree. |
 
 The checker reads the implemented commands from `help.rs`, the README table, the
 registry table above, and the fenced code blocks under `docs/tutorials/`. It
-fails when:
-
-- an implemented command is missing from `help.rs`, the README, or a tutorial;
-- a README row or an `Implemented` registry row names a command that `help.rs`
-  does not have;
-- a command marked `Planned` appears in `help.rs` or the README;
-- a tutorial code block invokes a command that is not implemented;
-- a `CommandHelp` entry has an empty usage, summary, or output contract.
-
-A planned command is documented here and nowhere else until it is implemented.
-It is not added to `help`, the README command table, or a tutorial early.
+fails when an implemented command is missing from any surface, when a README or
+registry row names a command `help.rs` does not have, when a tutorial invokes an
+unimplemented command, or when a `CommandHelp` entry has an empty usage,
+summary, or output contract.
 
 ## 6. Qualification Engine boundary
 
@@ -201,21 +145,13 @@ strategy.
 
 - The **human owns** the account objective, risk envelope, universe, thresholds,
   partitions, costs, and pass/fail rules. They are recorded before the run.
-- The engine **evaluates** the evidence bundle against those criteria and emits a
-  qualification record with a verdict of `pass`, `fail`, or
-  `insufficient evidence`, with reasons and evidence references.
+- The engine **evaluates** the evidence bundle and emits a verdict of `pass`,
+  `fail`, or `insufficient evidence`, with reasons and evidence references.
 - The engine **never** declares an edge, chooses a threshold after seeing the
   result, drops a failing criterion, or writes the human's acceptance.
 - The **human makes the final acceptance decision** in a separate record. A
   `pass` may still be rejected for residual risk; a `fail` cannot be accepted as
   an edge.
-
-The engine evaluates the whole evidence set, not profitability alone:
-out-of-sample and walk-forward evidence; robustness across folds, regimes, and
-instruments; drawdown, duration, and recovery; trade count, profit factor, win
-rate, and return distribution; exposure, concentration, tail risk, and portfolio
-limits; cost and slippage sensitivity; parameter stability; multiple-testing
-correction; data coverage and quality; and the matched baseline controls.
 
 The criteria contract is in
 [`docs/config/2026-11-06/qualification-criteria.md`](../config/2026-11-06/qualification-criteria.md).
@@ -224,21 +160,17 @@ The criteria contract is in
 
 A new command lands as one coherent change:
 
-1. Add the stage engine logic to the owning crate, not to the shell.
-2. Add the `CommandHelp` entry with usage, summary, output shape, and notes.
+1. Add the server capability and its contract route; the shell gains no engine.
+2. Add the `CommandHelp` entry with usage, summary, output, and notes.
 3. Add the README row and the tutorial invocation.
-4. Move the registry row from `Planned` to `Implemented`.
-5. Add the command test: run it and assert on what it printed or wrote.
-6. Add the artifact schema and provenance fields when the command writes a
-   bundle.
-7. Run `python3 tools/check_command_surface.py` and the full gate.
+4. Add the registry row.
+5. Add the printed-output test against the fixture server.
+6. Run `python3 tools/check_command_surface.py` and the full gate.
 
 A change to an existing command's meaning is not part of this checklist. It is a
 contract change reserved to the human.
 
 ## 8. Sequence
-
-The command surface was delivered in phases, one stage at a time:
 
 | Phase | Deliverable | Status |
 |---:|---|---|
@@ -250,54 +182,13 @@ The command surface was delivered in phases, one stage at a time:
 | 6 | Qualification command and record | Merged |
 | 7 | Analytics evaluation command | Merged |
 | 8 | Independent stage verification and closure | Merged and verified locally; human acceptance pending |
+| 9 | v1.0.0 gateway client (this surface) | Implemented; parity and server dependencies tracked |
 
-Each phase adds only implemented commands to the discovery surfaces. The plan
-and traceability are in
-[`docs/execution-plans/2026-11-06/s3-command-surface.md`](../execution-plans/2026-11-06/s3-command-surface.md).
+## 9. Removed in v1.0.0
 
-## 9. Distributed surface — v1.0.0 (Planned)
-
-The distributed release replaces the path-driven stage commands with a
-reference-driven surface. A run is the full pipeline (`DIST-060`); inspection
-stays read-only. The table is the target, implemented by `DIST-070`.
-
-| Command | Status | Input | Output |
-|---|---|---|---|
-| `health` | Planned | — | service states, queue depth, worker count |
-| `dataset list` | Planned | — | datasets with `data_version`, candles, coverage |
-| `dataset show` | Planned | `data_version` | one dataset record |
-| `dataset upload` | Planned | CSV file | `data_version` |
-| `config list` | Planned | — | configs with validity |
-| `config show` | Planned | `config_id` | canonical config |
-| `run submit` | Planned | `data_version`, `config_id` | `run_id`, `queued` |
-| `run status` | Planned | `run_id` | state, stages, provenance, digest |
-| `run list` | Planned | `status`, `limit` | run summaries |
-| `run fetch` | Planned | `run_id`, directory | artifact set |
-| `run cancel` | Planned | `run_id` | new state |
-| `inspect candles` | Planned | `data_version` | counts and coverage |
-| `inspect timeframes` | Planned | `data_version` | bars and partial buckets per timeframe |
-| `inspect events` | Planned | `data_version`, `timeframe` | event batch |
-| `verify` | Planned | — | canonical digest of the fixture run |
-| `profile list` | Planned | — | profiles with counts |
-| `profile create` | Planned | `name` | `profile_id` |
-| `profile use` | Planned | `profile_id` | active profile |
-| `simulation list` | Planned | `status`, `limit` | simulation run summaries |
-| `simulation create` | Planned | premise, bundle, seed, criteria | `sim_id` |
-| `simulation windows` | Planned | `sim_id` | deterministic window selection |
-| `simulation mark` | Planned | `sim_id`, chart, bar, action, quality, side, note | mark id |
-| `simulation marks` | Planned | `sim_id`, `origin` | human and oracle marks |
-| `simulation oracle` | Planned | `sim_id` | deterministic oracle marks |
-| `simulation check` | Planned | `sim_id` | event-study table and verdict |
-| `simulation decide` | Planned | `sim_id`, test/refine/stop, note | decision record |
-| `help` | Planned | topic | the command map |
-
-Every planned command accepts a global `--profile` and defaults to `default`.
-
-**Removed in v1.0.0:** `candles`, `candles-tolerant`, `timeframes`, `fetch`,
-`events`, `report model`, `strategy explain`, `strategy run`, `execution run`,
-`portfolio replay`, `backtest run`, `qualify`, `analytics evaluate`, `run check`,
-`memory`. Their capability moves into the run and into read-only inspection. The
-retirement is recorded by `DIST-018`.
-
-A planned command never appears in `help` or the README table until it is
-implemented and tested.
+`candles`, `candles-tolerant`, `timeframes`, `fetch`, `events`, `report model`,
+`strategy explain`, `strategy run`, `execution run`, `portfolio replay`,
+`backtest run`, `qualify`, `analytics evaluate`, `run check`, and `memory` are
+removed from the shell. Their capability moves into the run and into read-only
+inspection. Local source fetch and local stage execution are gone; the shell has
+no engine dependency. The retirement is recorded by `DIST-018`.
